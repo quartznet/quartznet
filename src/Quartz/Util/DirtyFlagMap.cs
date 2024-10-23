@@ -30,7 +30,7 @@ namespace Quartz.Util;
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
 #pragma warning disable CA1710
-public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionary, ISerializable where TKey : notnull
+public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionary, IReadOnlyDictionary<TKey, TValue?>, ISerializable where TKey : notnull
 #pragma warning restore CA1710
 {
     private bool dirty;
@@ -53,7 +53,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
         map = new Dictionary<TKey, TValue?>(initialCapacity);
     }
 
-    private DirtyFlagMap(DirtyFlagMap<TKey,TValue> other)
+    private DirtyFlagMap(DirtyFlagMap<TKey, TValue> other)
     {
         map = new Dictionary<TKey, TValue?>(other.map);
         dirty = other.dirty;
@@ -221,9 +221,17 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
     /// <value></value>
     public int Count => map.Count;
 
+    /// <inheritdoc/>
     ICollection IDictionary.Keys => map.Keys;
 
+    /// <inheritdoc/>
     ICollection IDictionary.Values => map.Values;
+
+    /// <inheritdoc/>
+    IEnumerable<TKey> IReadOnlyDictionary<TKey, TValue?>.Keys => map.Keys;
+
+    /// <inheritdoc/>
+    IEnumerable<TValue?> IReadOnlyDictionary<TKey, TValue?>.Values => map.Values;
 
     /// <summary>
     /// When implemented by a class, gets an <see cref="System.Collections.ICollection"/> containing the values in the <see cref="System.Collections.IDictionary"/>.
