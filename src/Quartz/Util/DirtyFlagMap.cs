@@ -228,10 +228,10 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
     ICollection IDictionary.Values => map.Values;
 
     /// <inheritdoc/>
-    IEnumerable<TKey> IReadOnlyDictionary<TKey, TValue?>.Keys => map.Keys;
+    IEnumerable<TKey> IReadOnlyDictionary<TKey, TValue?>.Keys => map.Keys.AsEnumerable<TKey>();
 
     /// <inheritdoc/>
-    IEnumerable<TValue?> IReadOnlyDictionary<TKey, TValue?>.Values => map.Values;
+    IEnumerable<TValue?> IReadOnlyDictionary<TKey, TValue?>.Values => map.Values.AsEnumerable<TValue?>();
 
     /// <summary>
     /// When implemented by a class, gets an <see cref="System.Collections.ICollection"/> containing the values in the <see cref="System.Collections.IDictionary"/>.
