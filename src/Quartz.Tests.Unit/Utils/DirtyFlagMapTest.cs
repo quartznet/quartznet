@@ -22,8 +22,8 @@
 using System.Collections;
 using System.Runtime.Serialization.Formatters;
 using System.Runtime.Serialization.Formatters.Binary;
-
 using Quartz.Util;
+using static System.Collections.Generic.CollectionExtensions;
 
 namespace Quartz.Tests.Unit.Utils;
 
@@ -974,7 +974,7 @@ public class DirtyFlagMapTest
 
         try
         {
-            ((IDictionary)dirtyFlagMap).Add(key, "x");
+            ((IDictionary) dirtyFlagMap).Add(key, "x");
             Assert.Fail();
         }
         catch (ArgumentNullException ex)
@@ -995,7 +995,7 @@ public class DirtyFlagMapTest
 
         try
         {
-            ((IDictionary)dirtyFlagMap).Add(key, 5);
+            ((IDictionary) dirtyFlagMap).Add(key, 5);
             Assert.Fail();
         }
         catch (InvalidCastException)
@@ -1030,7 +1030,7 @@ public class DirtyFlagMapTest
 
         try
         {
-            ((IDictionary)dirtyFlagMap).Add(key, 5);
+            ((IDictionary) dirtyFlagMap).Add(key, 5);
             Assert.Fail();
         }
         catch (InvalidCastException)
@@ -1062,7 +1062,7 @@ public class DirtyFlagMapTest
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
         object key = "a";
 
-        ((IDictionary)dirtyFlagMap).Add(key, "x");
+        ((IDictionary) dirtyFlagMap).Add(key, "x");
 
         Assert.Multiple(() =>
         {
@@ -1082,7 +1082,7 @@ public class DirtyFlagMapTest
 
         try
         {
-            ((IDictionary)dirtyFlagMap).Add(key, null);
+            ((IDictionary) dirtyFlagMap).Add(key, null);
             Assert.Fail();
         }
         catch (NullReferenceException)
@@ -1113,7 +1113,7 @@ public class DirtyFlagMapTest
         var dirtyFlagMap = new DirtyFlagMap<string, int?>();
         object key = "a";
 
-        ((IDictionary)dirtyFlagMap).Add(key, null);
+        ((IDictionary) dirtyFlagMap).Add(key, null);
 
         Assert.Multiple(() =>
         {
@@ -1129,7 +1129,7 @@ public class DirtyFlagMapTest
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
         object key = "a";
 
-        ((IDictionary)dirtyFlagMap).Add(key, null);
+        ((IDictionary) dirtyFlagMap).Add(key, null);
 
         Assert.Multiple(() =>
         {
@@ -1148,7 +1148,7 @@ public class DirtyFlagMapTest
 
         // #1417: We should throw ArgumentException, see commented code below
 
-        ((IDictionary)dirtyFlagMap).Add("a", "y");
+        ((IDictionary) dirtyFlagMap).Add("a", "y");
 
         Assert.Multiple(() =>
         {
@@ -1159,7 +1159,7 @@ public class DirtyFlagMapTest
 
         dirtyFlagMap.ClearDirtyFlag();
 
-        ((IDictionary)dirtyFlagMap).Add("a", null);
+        ((IDictionary) dirtyFlagMap).Add("a", null);
 
         Assert.Multiple(() =>
         {
@@ -1170,7 +1170,7 @@ public class DirtyFlagMapTest
 
         dirtyFlagMap.ClearDirtyFlag();
 
-        ((IDictionary)dirtyFlagMap).Add("a", "z");
+        ((IDictionary) dirtyFlagMap).Add("a", "z");
 
         Assert.Multiple(() =>
         {
@@ -1267,7 +1267,7 @@ public class DirtyFlagMapTest
 
         try
         {
-            var actual = ((IDictionary)dirtyFlagMap)[5];
+            var actual = ((IDictionary) dirtyFlagMap)[5];
             Assert.Fail("Should have thrown, but returned " + actual);
         }
         catch (InvalidCastException)
@@ -1289,7 +1289,7 @@ public class DirtyFlagMapTest
         dirtyFlagMap.Put("a", "x");
         dirtyFlagMap.ClearDirtyFlag();
 
-        var actual = ((IDictionary)dirtyFlagMap)["a"];
+        var actual = ((IDictionary) dirtyFlagMap)["a"];
 
         Assert.Multiple(() =>
         {
@@ -1306,7 +1306,7 @@ public class DirtyFlagMapTest
         dirtyFlagMap.Put("a", null);
         dirtyFlagMap.ClearDirtyFlag();
 
-        var actual = ((IDictionary)dirtyFlagMap)["a"];
+        var actual = ((IDictionary) dirtyFlagMap)["a"];
 
         Assert.Multiple(() =>
         {
@@ -1322,7 +1322,7 @@ public class DirtyFlagMapTest
 
         // #1417: This should throw a KeyNotFoundException, see commented code below
 
-        var actual = ((IDictionary)dirtyFlagMap)["a"];
+        var actual = ((IDictionary) dirtyFlagMap)["a"];
 
         Assert.Multiple(() =>
         {
@@ -1352,7 +1352,7 @@ public class DirtyFlagMapTest
 
         // #1417: This should throw a KeyNotFoundException, see commented code below
 
-        var actual = ((IDictionary)dirtyFlagMap)["a"];
+        var actual = ((IDictionary) dirtyFlagMap)["a"];
 
         Assert.Multiple(() =>
         {
@@ -1381,7 +1381,7 @@ public class DirtyFlagMapTest
 
         // #1417: This should throw a KeyNotFoundException, see commented code below
 
-        var value = ((IDictionary)dirtyFlagMap)["a"];
+        var value = ((IDictionary) dirtyFlagMap)["a"];
 
         Assert.Multiple(() =>
         {
@@ -1411,7 +1411,7 @@ public class DirtyFlagMapTest
 
         try
         {
-            var actual = ((IDictionary)dirtyFlagMap)[key];
+            var actual = ((IDictionary) dirtyFlagMap)[key];
             Assert.Fail("Should have thrown, but returned " + actual);
         }
         catch (ArgumentNullException ex)
@@ -1432,7 +1432,7 @@ public class DirtyFlagMapTest
 
         try
         {
-            ((IDictionary)dirtyFlagMap)[key] = "y";
+            ((IDictionary) dirtyFlagMap)[key] = "y";
             Assert.Fail();
         }
         catch (InvalidCastException)
@@ -1464,7 +1464,7 @@ public class DirtyFlagMapTest
         dirtyFlagMap.Put("a", "x");
         dirtyFlagMap.ClearDirtyFlag();
 
-        ((IDictionary)dirtyFlagMap)["a"] = "y";
+        ((IDictionary) dirtyFlagMap)["a"] = "y";
 
         Assert.Multiple(() =>
         {
@@ -1475,7 +1475,7 @@ public class DirtyFlagMapTest
 
         dirtyFlagMap.ClearDirtyFlag();
 
-        ((IDictionary)dirtyFlagMap)["a"] = null;
+        ((IDictionary) dirtyFlagMap)["a"] = null;
 
         Assert.Multiple(() =>
         {
@@ -1486,7 +1486,7 @@ public class DirtyFlagMapTest
 
         dirtyFlagMap.ClearDirtyFlag();
 
-        ((IDictionary)dirtyFlagMap)["a"] = "b";
+        ((IDictionary) dirtyFlagMap)["a"] = "b";
 
         Assert.Multiple(() =>
         {
@@ -1504,7 +1504,7 @@ public class DirtyFlagMapTest
         dirtyFlagMap.Put("b", null);
         dirtyFlagMap.ClearDirtyFlag();
 
-        ((IDictionary)dirtyFlagMap)["a"] = "y";
+        ((IDictionary) dirtyFlagMap)["a"] = "y";
 
         Assert.Multiple(() =>
         {
@@ -1515,7 +1515,7 @@ public class DirtyFlagMapTest
 
         dirtyFlagMap.ClearDirtyFlag();
 
-        ((IDictionary)dirtyFlagMap)["b"] = null;
+        ((IDictionary) dirtyFlagMap)["b"] = null;
 
         Assert.Multiple(() =>
         {
@@ -1530,7 +1530,7 @@ public class DirtyFlagMapTest
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
 
-        ((IDictionary)dirtyFlagMap)["a"] = "x";
+        ((IDictionary) dirtyFlagMap)["a"] = "x";
 
         Assert.Multiple(() =>
         {
@@ -1541,7 +1541,7 @@ public class DirtyFlagMapTest
 
         dirtyFlagMap.ClearDirtyFlag();
 
-        ((IDictionary)dirtyFlagMap)["b"] = null;
+        ((IDictionary) dirtyFlagMap)["b"] = null;
 
         Assert.Multiple(() =>
         {
@@ -1559,7 +1559,7 @@ public class DirtyFlagMapTest
 
         try
         {
-            ((IDictionary)dirtyFlagMap)[key] = "x";
+            ((IDictionary) dirtyFlagMap)[key] = "x";
             Assert.Fail();
         }
         catch (ArgumentNullException ex)
@@ -1579,7 +1579,7 @@ public class DirtyFlagMapTest
 
         try
         {
-            ((IDictionary)dirtyFlagMap)["a"] = 5;
+            ((IDictionary) dirtyFlagMap)["a"] = 5;
             Assert.Fail();
         }
         catch (InvalidCastException)
@@ -1612,7 +1612,7 @@ public class DirtyFlagMapTest
 
         try
         {
-            ((IDictionary)dirtyFlagMap).Remove(key);
+            ((IDictionary) dirtyFlagMap).Remove(key);
             Assert.Fail();
         }
         catch (ArgumentNullException ex)
@@ -1633,7 +1633,7 @@ public class DirtyFlagMapTest
 
         try
         {
-            ((IDictionary)dirtyFlagMap).Remove(key);
+            ((IDictionary) dirtyFlagMap).Remove(key);
             Assert.Fail();
         }
         catch (InvalidCastException)
@@ -1656,7 +1656,7 @@ public class DirtyFlagMapTest
         dirtyFlagMap.Add("a", "x");
         dirtyFlagMap.ClearDirtyFlag();
 
-        ((IDictionary)dirtyFlagMap).Remove("a");
+        ((IDictionary) dirtyFlagMap).Remove("a");
 
         Assert.Multiple(() =>
         {
@@ -1671,7 +1671,7 @@ public class DirtyFlagMapTest
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
         object key = "a";
 
-        ((IDictionary)dirtyFlagMap).Remove(key);
+        ((IDictionary) dirtyFlagMap).Remove(key);
 
         Assert.That(dirtyFlagMap.Dirty, Is.False);
     }
@@ -1685,7 +1685,7 @@ public class DirtyFlagMapTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(((IDictionary)dirtyFlagMap).Contains(5), Is.False);
+            Assert.That(((IDictionary) dirtyFlagMap).Contains(5), Is.False);
             Assert.That(dirtyFlagMap.Dirty, Is.False);
         });
     }
@@ -1742,7 +1742,7 @@ public class DirtyFlagMapTest
 
         try
         {
-            ((IDictionary<string, string>)dirtyFlagMap).Contains(kvp);
+            ((IDictionary<string, string>) dirtyFlagMap).Contains(kvp);
             Assert.Fail();
         }
         catch (ArgumentNullException ex)
@@ -2198,7 +2198,7 @@ public class DirtyFlagMapTest
     public void ICollection_SyncRoot()
     {
         var dirtyFlagMap1 = new DirtyFlagMap<string, string>();
-        var collection1 = (ICollection)dirtyFlagMap1;
+        var collection1 = (ICollection) dirtyFlagMap1;
 
         var syncRoot1 = collection1.SyncRoot;
         Assert.Multiple(() =>
@@ -2209,7 +2209,7 @@ public class DirtyFlagMapTest
         });
 
         var dirtyFlagMap2 = new DirtyFlagMap<string, string>();
-        var collection2 = (ICollection)dirtyFlagMap2;
+        var collection2 = (ICollection) dirtyFlagMap2;
 
         var syncRoot2 = collection2.SyncRoot;
         Assert.Multiple(() =>
@@ -2225,7 +2225,7 @@ public class DirtyFlagMapTest
     public void ICollectionKeyValuePairOfTKeyAndTValue_IsReadOnly()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        var collection = (ICollection<KeyValuePair<string, string>>)dirtyFlagMap;
+        var collection = (ICollection<KeyValuePair<string, string>>) dirtyFlagMap;
         Assert.That(collection.IsReadOnly, Is.False);
     }
 
@@ -2233,7 +2233,7 @@ public class DirtyFlagMapTest
     public void IDictionary_IsReadOnly()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        var dictionary = (IDictionary)dirtyFlagMap;
+        var dictionary = (IDictionary) dirtyFlagMap;
         Assert.That(dictionary.IsReadOnly, Is.False);
     }
 
@@ -2241,7 +2241,7 @@ public class DirtyFlagMapTest
     public void IDictionary_IsSynchronized()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        var dictionary = (IDictionary)dirtyFlagMap;
+        var dictionary = (IDictionary) dirtyFlagMap;
         Assert.That(dictionary.IsSynchronized, Is.False);
     }
 
@@ -2249,9 +2249,65 @@ public class DirtyFlagMapTest
     public void IDictionary_IsFixedSize()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        var dictionary = (IDictionary)dirtyFlagMap;
+        var dictionary = (IDictionary) dirtyFlagMap;
         Assert.That(dictionary.IsFixedSize, Is.False);
     }
+
+    [Test]
+    public void IReadOnlyDictionary_GetValueOrDefault()
+    {
+        DirtyFlagMap<string, string> dirtyFlagMap = new()
+        {
+            { "One", "First Value" },
+            { "Two", "Second Value" }
+        };
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(dirtyFlagMap.GetValueOrDefault("One"), Is.EqualTo("First Value"));
+            Assert.That(dirtyFlagMap.GetValueOrDefault("Two"), Is.EqualTo("Second Value"));
+        });
+    }
+
+    [Test]
+    public void IReadOnlyDictionary_Keys()
+    {
+        DirtyFlagMap<string, string> dirtyFlagMap = new()
+        {
+            { "One", "First Value" },
+            { "Two", "Second Value" }
+        };
+
+        IEnumerable<string> keys = ((IReadOnlyDictionary<string, string>) dirtyFlagMap).Keys;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(keys.Count, Is.EqualTo(2));
+            Assert.That(keys, Contains.Item("One"));
+            Assert.That(keys, Contains.Item("Two"));
+        });
+    }
+
+    [Test]
+    public void IReadOnlyDictionary_Values()
+    {
+        DirtyFlagMap<string, string> dirtyFlagMap = new()
+        {
+            { "One", "First Value" },
+            { "Two", "Second Value" }
+        };
+
+        IEnumerable<string> values = ((IReadOnlyDictionary<string, string>) dirtyFlagMap).Values;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(values.Count, Is.EqualTo(2));
+            Assert.That(values, Contains.Item("First Value"));
+            Assert.That(values, Contains.Item("Second Value"));
+        });
+    }
+
+
 
     //[Test]
     //[Ignore]
@@ -2410,7 +2466,7 @@ public class DirtyFlagMapTest
 
             ms.Position = 0;
 
-            return (T)formatter.Deserialize(ms);
+            return (T) formatter.Deserialize(ms);
         }
     }
 
@@ -2420,7 +2476,7 @@ public class DirtyFlagMapTest
         using var fs = File.OpenRead(Path.Combine("Serialized", name + ".ser"));
         BinaryFormatter binaryFormatter = new BinaryFormatter();
         binaryFormatter.AssemblyFormat = FormatterAssemblyStyle.Simple;
-        return (T)binaryFormatter.Deserialize(fs);
+        return (T) binaryFormatter.Deserialize(fs);
 #pragma warning restore SYSLIB0050
     }
 }
