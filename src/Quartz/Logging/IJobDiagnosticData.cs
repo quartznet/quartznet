@@ -134,5 +134,16 @@ namespace Quartz.Logging
         /// <see cref="IJobListener" />s and <see cref="ITriggerListener" />s.
         /// </summary>
         TimeSpan JobRunTime { get; }
+        
+        
+        /// <summary>
+        /// The instance Id of the <see cref="IScheduler" />.
+        /// </summary>
+        public string SchedulerId { get; }
+        
+        /// <summary> 
+        /// The name of the <see cref="IScheduler" />.
+        /// </summary>
+        public string SchedulerName { get; }
     }
 }
