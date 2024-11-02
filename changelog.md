@@ -2,6 +2,17 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+## Release 3.13.1, Nov 2 2024
+
+This release contains small improvements and fixes.
+
+* CHANGES
+    * Backport make DirtyFlagMap implement IReadOnlyDictionary<TKey, TValue> (#2617)
+
+* FIXES
+    * Use invariant culture for StdAdoConstants SQL formatting (#2570)
+    * OpenTracing: using IJobDiagnosticData instead of IJobExecutionContext (#2578)
+
 ## Release 3.13.0, Aug 10 2024
 
 This release removes aims to modernise targeted platforms and used dependencies.
