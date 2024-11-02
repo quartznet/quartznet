@@ -35,7 +35,7 @@ namespace Quartz.Util
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, ISerializable where TKey : notnull
+    public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary,  IReadOnlyDictionary<TKey, TValue>, ISerializable where TKey : notnull
     {
         private bool dirty;
 
@@ -209,9 +209,17 @@ namespace Quartz.Util
         /// <value></value>
         public virtual int Count => map.Count;
 
+        /// <inheritdoc/>
         ICollection IDictionary.Keys => map.Keys;
 
+        /// <inheritdoc/>
         ICollection IDictionary.Values => map.Values;
+
+        /// <inheritdoc/>
+        IEnumerable<TKey> IReadOnlyDictionary<TKey, TValue>.Keys => map.Keys;
+
+        /// <inheritdoc/>
+        IEnumerable<TValue> IReadOnlyDictionary<TKey, TValue>.Values => map.Values;
 
         /// <summary>
         /// When implemented by a class, gets an <see cref="T:System.Collections.ICollection"/> containing the values in the <see cref="T:System.Collections.IDictionary"/>.
