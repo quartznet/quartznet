@@ -20,6 +20,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 using NUnit.Framework;
 
@@ -1819,6 +1820,62 @@ namespace Quartz.Tests.Unit.Utils
 
             dirtyFlagMap.Remove("a");
             Assert.IsTrue(dirtyFlagMap.Dirty);
+        }
+
+#if NETCORE
+        [Test]
+        public void IReadOnlyDictionary_GetValueOrDefault()
+        {
+            DirtyFlagMap<string, string> dirtyFlagMap = new()
+            {
+                { "One", "First Value" },
+                { "Two", "Second Value" }
+            };
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(dirtyFlagMap.GetValueOrDefault("One"), Is.EqualTo("First Value"));
+                Assert.That(dirtyFlagMap.GetValueOrDefault("Two"), Is.EqualTo("Second Value"));
+            });
+        }
+#endif
+
+        [Test]
+        public void IReadOnlyDictionary_Keys()
+        {
+            DirtyFlagMap<string, string> dirtyFlagMap = new()
+            {
+                { "One", "First Value" },
+                { "Two", "Second Value" }
+            };
+
+            IEnumerable<string> keys = ((IReadOnlyDictionary<string, string>) dirtyFlagMap).Keys;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(keys.Count(), Is.EqualTo(2));
+                Assert.That(keys, Contains.Item("One"));
+                Assert.That(keys, Contains.Item("Two"));
+            });
+        }
+
+        [Test]
+        public void IReadOnlyDictionary_Values()
+        {
+            DirtyFlagMap<string, string> dirtyFlagMap = new()
+            {
+                { "One", "First Value" },
+                { "Two", "Second Value" }
+            };
+
+            IEnumerable<string> values = ((IReadOnlyDictionary<string, string>) dirtyFlagMap).Values;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(values.Count(), Is.EqualTo(2));
+                Assert.That(values, Contains.Item("First Value"));
+                Assert.That(values, Contains.Item("Second Value"));
+            });
         }
 
         //[Test]
