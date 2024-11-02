@@ -38,7 +38,7 @@ namespace Quartz.Examples
         {
             try
             {
-                var logRepository = log4net.LogManager.GetRepository(Assembly.GetEntryAssembly());
+                var logRepository = log4net.LogManager.GetRepository(Assembly.GetEntryAssembly()!);
                 log4net.Config.XmlConfigurator.Configure(logRepository, new System.IO.FileInfo("log4net.config"));
 
                 Assembly asm = typeof(Program).GetTypeInfo().Assembly;

@@ -25,17 +25,17 @@
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="AspNetCore.HealthChecks.UI" Version="7.0.2" />
-      <PackageReference Include="AspNetCore.HealthChecks.UI.Client" Version="7.1.0" />
-      <PackageReference Include="AspNetCore.HealthChecks.UI.InMemory.Storage" Version="7.0.0" />
-      <PackageReference Include="Microsoft.Data.SqlClient" Version="5.1.4" />
-      <PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.6.0" />
+      <PackageReference Include="AspNetCore.HealthChecks.UI" Version="8.0.2" />
+      <PackageReference Include="AspNetCore.HealthChecks.UI.Client" Version="8.0.1" />
+      <PackageReference Include="AspNetCore.HealthChecks.UI.InMemory.Storage" Version="8.0.1" />
+      <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.2" />
+      <PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.9.0" />
       <PackageReference Include="OpenTelemetry.Exporter.Jaeger" Version="1.5.1" />
-      <PackageReference Include="OpenTelemetry.Exporter.Zipkin" Version="1.6.0" />
-      <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.6.0" />
+      <PackageReference Include="OpenTelemetry.Exporter.Zipkin" Version="1.9.0" />
+      <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.9.0" />
       <PackageReference Include="OpenTelemetry.Instrumentation.Quartz" Version="1.0.0-alpha.1" />
       <PackageReference Include="Serilog.Extensions.Logging" Version="8.0.0" />
-      <PackageReference Include="Serilog.Sinks.Console" Version="5.0.0" />
+      <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
     </ItemGroup>
 
 </Project>
