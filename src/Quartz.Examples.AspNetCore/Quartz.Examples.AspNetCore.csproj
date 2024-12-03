@@ -5,14 +5,14 @@
     <IsPackable>false</IsPackable>
     <SignAssembly>false</SignAssembly>
     <NoWarn>$(NoWarn);MA0004</NoWarn>
-        <!-- https://github.com/dotnet/aspnetcore/issues/50836 -->
-        <NoWarn>$(NoWarn);AD0001</NoWarn>
+    <!-- https://github.com/dotnet/aspnetcore/issues/50836 -->
+    <NoWarn>$(NoWarn);AD0001</NoWarn>
 
-      <PublishTrimmed>true</PublishTrimmed>
-      <TrimMode>full</TrimMode>
-      <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
-      <!-- we want to publish despite the warnings to see if app runs -->
-      <NoWarn>$(NoWarn);IL2080;IL2065;IL2075;IL2087;IL2057;IL2060;IL2070;IL2067;IL2072;IL2026;IL2104</NoWarn>
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>full</TrimMode>
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+    <!-- we want to publish despite the warnings to see if app runs -->
+    <NoWarn>$(NoWarn);IL2080;IL2065;IL2075;IL2087;IL2057;IL2060;IL2070;IL2067;IL2072;IL2026;IL2104</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

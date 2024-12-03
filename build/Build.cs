@@ -180,7 +180,7 @@ partial class Build : NukeBuild, ICompile, IPack
                 .SetConfiguration(configuration)
                 .SetFramework("net8.0")
                 .SetLoggers("GitHubActions")
-                .SetProcessArgumentConfigurator(a => a.Add(" -- NUnit.Where=\"cat !~ firebird and cat !~ oracle and cat !~ mysql and cat !~ sqlserver\""))
+                .AddProcessAdditionalArguments(" -- NUnit.Where=\"cat !~ firebird and cat !~ oracle and cat !~ mysql and cat !~ sqlserver\"")
                 .CombineWith(integrationTestProjects, (_, testProject) => _
                     .SetProjectFile(solution.GetAllProjects(testProject).First())
                 )
