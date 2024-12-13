@@ -343,7 +343,7 @@ namespace Quartz.Util
         /// </exception>
         public virtual void Add(TKey key, [AllowNull] TValue value)
         {
-            map.Add(key, value);
+            map.Add(key, value!);
             dirty = true;
         }
 
