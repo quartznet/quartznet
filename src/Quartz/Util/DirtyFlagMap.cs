@@ -341,9 +341,9 @@ namespace Quartz.Util
         /// 	<para>-or-</para>
         /// 	<para>The <see cref="T:System.Collections.IDictionary"/> has a fixed size.</para>
         /// </exception>
-        public virtual void Add(TKey key, [MaybeNull] TValue value)
+        public virtual void Add(TKey key, [AllowNull] TValue value)
         {
-            map.Add(key, value);
+            map.Add(key, value!);
             dirty = true;
         }
 
