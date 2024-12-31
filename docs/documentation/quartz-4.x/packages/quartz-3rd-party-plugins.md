@@ -1,15 +1,21 @@
 ---
 
-title : 3rd party Plugins for Quartz
+title : 3rd Party Plugins for Quartz
 ---
 
 # 3rd party packages that have integration with the Quartz.Net Library
 
-## Database
+## Migrations
 
-### [EntityframeworkCore migrations for Quartz.Net](https://github.com/appany/AppAny.Quartz.EntityFrameworkCore.Migrations)
+### [AppAny.Quartz.EntityFrameworkCore.Migrations](https://github.com/appany/AppAny.Quartz.EntityFrameworkCore.Migrations)
 
 This library handles schema creation and migrations for Quartz.NET using EntityFrameworkCore migrations toolkit with one line of configuration
+
+### [Weasel.Quartz](https://github.com/Hawxy/Weasel.Quartz)
+
+Runtime PostgreSQL migration support for non-EF & Marten projects.
+
+## Database Implementations
 
 ### [Quartz.NET-RavenDB](https://github.com/ravendb/quartznet-RavenDB)
 
