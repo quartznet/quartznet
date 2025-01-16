@@ -50,7 +50,7 @@ public static class ServiceCollectionExtensions
         // try to add services if not present with defaults, without overriding other configuration
         if (string.IsNullOrWhiteSpace(properties[StdSchedulerFactory.PropertySchedulerTypeLoadHelperType]))
         {
-            services.TryAddSingleton(typeof(ITypeLoadHelper), typeof(SimpleTypeLoadHelper));
+            services.TryAddSingleton<ITypeLoadHelper, SimpleTypeLoadHelper>();
         }
 
         services.TryAddSingleton(TimeProvider.System);
@@ -58,7 +58,7 @@ public static class ServiceCollectionExtensions
         {
             // there's no explicit job factory defined, use MS version
             properties[StdSchedulerFactory.PropertySchedulerJobFactoryType] = typeof(MicrosoftDependencyInjectionJobFactory).AssemblyQualifiedNameWithoutVersion();
-            services.TryAddSingleton(typeof(IJobFactory), typeof(MicrosoftDependencyInjectionJobFactory));
+            services.TryAddSingleton<IJobFactory,MicrosoftDependencyInjectionJobFactory>();
         }
 
         services.Configure<QuartzOptions>(options =>

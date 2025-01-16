@@ -320,7 +320,7 @@ public class JobRunShell : SchedulerListenerSupport
     }
 
     private async ValueTask<bool> NotifyListenersBeginning(
-        IJobExecutionContext ctx,
+        JobExecutionContextImpl ctx,
         CancellationToken cancellationToken = default)
     {
         bool vetoed;

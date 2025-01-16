@@ -272,7 +272,7 @@ public sealed class DirectSchedulerFactory : ISchedulerFactory
         jobStore.InstanceId = schedulerInstanceId;
         await jobStore.Initialize(cch, qs.SchedulerSignaler).ConfigureAwait(false);
 
-        IScheduler scheduler = new StdScheduler(qs);
+        StdScheduler scheduler = new StdScheduler(qs);
 
         jrsf.Initialize(scheduler);
 

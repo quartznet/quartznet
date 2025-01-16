@@ -569,7 +569,7 @@ public class XMLSchedulingDataProcessor
         {
             if (name == str)
             {
-                value = (T) Enum.Parse(typeof(T), name);
+                value = Enum.Parse<T>(name);
                 return true;
             }
         }

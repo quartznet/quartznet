@@ -113,7 +113,7 @@ public sealed class JobBuilder : IJobConfigurator
     public static JobBuilder Create<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>() where T : IJob
     {
         JobBuilder b = new JobBuilder();
-        b.OfType(typeof(T));
+        b.OfType<T>();
         return b;
     }
 

@@ -99,7 +99,7 @@ internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQu
         Action<JobFactoryOptions>? configure = null) where T : class, IJobFactory
     {
         schedulerBuilder.UseJobFactory<T>();
-        services.Replace(ServiceDescriptor.Singleton(typeof(IJobFactory), typeof(T)));
+        services.Replace(ServiceDescriptor.Singleton<IJobFactory, T>());
         if (configure is not null)
         {
             services.Configure<QuartzOptions>(options =>
