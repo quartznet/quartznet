@@ -109,9 +109,8 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
     {
         var allDaysOfTheWeek = new HashSet<DayOfWeek>();
         var mondayThroughFriday = new HashSet<DayOfWeek>();
-        foreach (var d in Enum.GetValues(typeof(DayOfWeek)))
+        foreach (var dayOfWeek in Enum.GetValues<DayOfWeek>())
         {
-            var dayOfWeek = (DayOfWeek) d!;
             allDaysOfTheWeek.Add(dayOfWeek);
 
             if (dayOfWeek >= DayOfWeek.Monday && dayOfWeek <= DayOfWeek.Friday)

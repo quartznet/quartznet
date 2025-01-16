@@ -51,7 +51,7 @@ public class SchedulerEndpointsTest : WebApiTest
         var metadata = await HttpScheduler.GetMetaData();
         metadata.Should().BeEquivalentTo(TestData.Metadata, x => x.Excluding(y => y.SchedulerRemote).Excluding(x => x.SchedulerType));
         metadata.SchedulerRemote.Should().BeTrue();
-        metadata.SchedulerType.Should().Be(typeof(HttpScheduler));
+        metadata.SchedulerType.Should().Be<HttpScheduler>();
     }
 
     [Test]
