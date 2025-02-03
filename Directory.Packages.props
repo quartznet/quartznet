@@ -51,7 +51,7 @@
     <PackageVersion Include="Swashbuckle.AspNetCore" Version="6.5.0" />
     <PackageVersion Include="System.Data.SQLite.Core" Version="1.0.119" />
     <PackageVersion Include="System.Text.Json" Version="8.0.5" />
-    <PackageVersion Include="TimeZoneConverter" Version="6.1.0" />
+    <PackageVersion Include="TimeZoneConverter" Version="7.0.0" />
     <PackageVersion Include="Topshelf" Version="4.3.0" />
     <PackageVersion Include="Verify.NUnit" Version="28.2.0" />
   </ItemGroup>
