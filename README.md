@@ -4,6 +4,7 @@
 [![NuGet pre-release](http://img.shields.io/nuget/vpre/Quartz.svg)](https://www.nuget.org/packages/Quartz/)
 [![MyGet pre-release](https://img.shields.io/myget/quartznet/vpre/Quartz)](#)
 [![Join the chat at https://gitter.im/quartznet/quartznet](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/quartznet/quartznet?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Gurubase](https://img.shields.io/badge/Gurubase-Ask%20Quartz.NET%20Guru-006BFF)](https://gurubase.io/g/quartz-net)
 
 # Quartz.NET - Enterprise Job Scheduler
 
