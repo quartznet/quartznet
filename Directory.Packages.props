@@ -28,7 +28,7 @@
     <PackageVersion Include="MySqlConnector" Version="2.4.0" />
     <PackageVersion Include="NLog.Extensions.Logging" Version="5.3.15" />
     <PackageVersion Include="NSwag.AspNetCore" Version="14.2.0" />
-    <PackageVersion Include="NUnit" Version="4.2.2" />
+    <PackageVersion Include="NUnit" Version="4.3.2" />
     <PackageVersion Include="NUnit.Analyzers" Version="4.6.0" />
     <PackageVersion Include="NUnit3TestAdapter" Version="4.6.0" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
@@ -53,7 +53,7 @@
     <PackageVersion Include="System.Text.Json" Version="8.0.5" />
     <PackageVersion Include="TimeZoneConverter" Version="7.0.0" />
     <PackageVersion Include="Topshelf" Version="4.3.0" />
-    <PackageVersion Include="Verify.NUnit" Version="28.2.0" />
+    <PackageVersion Include="Verify.NUnit" Version="28.10.1" />
   </ItemGroup>
   <ItemGroup>
     <GlobalPackageReference Include="GitHubActionsTestLogger" Version="2.4.1" />
