@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <AssemblyTitle>Quartz.NET</AssemblyTitle>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFrameworks>net8.0;net9.0</TargetFrameworks>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <PackageReadmeFile>quick-start.md</PackageReadmeFile>
     <!--
@@ -21,6 +21,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+    <PackageReference Include="System.Diagnostics.DiagnosticSource" />
   </ItemGroup>
 
   <ItemGroup>

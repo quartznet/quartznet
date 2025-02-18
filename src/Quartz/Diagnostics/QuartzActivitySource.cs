@@ -66,6 +66,7 @@ internal readonly struct StartedActivity
         if (jobExEx != null)
         {
             _activity.SetStatus(ActivityStatusCode.Error, jobExEx.Message);
+            _activity.AddException(jobExEx);
         }
         _activity.Stop();
     }

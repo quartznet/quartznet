@@ -23,7 +23,6 @@ using System.Collections;
 using System.Runtime.Serialization.Formatters;
 using System.Runtime.Serialization.Formatters.Binary;
 using Quartz.Util;
-using static System.Collections.Generic.CollectionExtensions;
 
 namespace Quartz.Tests.Unit.Utils;
 
