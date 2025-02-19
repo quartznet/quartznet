@@ -87,7 +87,11 @@ public sealed class JobExecutionContextImpl : ICancellableJobExecutionContext, I
     [NonSerialized] internal readonly IJob jobInstance;
 
     [NonSerialized]
+#if NET8_0
     private readonly object lazyInitLock = new object();
+#else
+    private readonly Lock lazyInitLock = new Lock();
+#endif
 
     /// <summary>
     /// Create a JobExecutionContext with the given context data.
