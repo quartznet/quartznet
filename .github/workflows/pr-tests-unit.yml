@@ -5,7 +5,7 @@
 #
 #     - To turn off auto-generation set:
 #
-#         [GitHubActions (AutoGenerate = false)]
+#         [CustomGitHubActions (AutoGenerate = false)]
 #
 #     - To trigger manual generation invoke:
 #
@@ -37,6 +37,11 @@ jobs:
     name: windows-latest
     runs-on: windows-latest
     steps:
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0
+            9.0
       - uses: actions/checkout@v4
       - name: 'Run: Compile, UnitTest'
         run: ./build.cmd Compile UnitTest
@@ -44,6 +49,11 @@ jobs:
     name: ubuntu-latest
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0
+            9.0
       - uses: actions/checkout@v4
       - name: 'Run: Compile, UnitTest'
         run: ./build.cmd Compile UnitTest
@@ -51,6 +61,11 @@ jobs:
     name: macos-latest
     runs-on: macos-latest
     steps:
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0
+            9.0
       - uses: actions/checkout@v4
       - name: 'Run: Compile, UnitTest'
         run: ./build.cmd Compile UnitTest

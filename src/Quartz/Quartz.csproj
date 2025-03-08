@@ -2,7 +2,7 @@
   <PropertyGroup>
     <AssemblyTitle>Quartz.NET</AssemblyTitle>
     <TargetFrameworkVersion>4.6.2</TargetFrameworkVersion>
-    <TargetFrameworks>net462;net472;net6.0;netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>net462;net472;net8.0;net9.0;netstandard2.0</TargetFrameworks>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <PackageReadmeFile>quick-start.md</PackageReadmeFile>
     <!--

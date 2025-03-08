@@ -2,6 +2,18 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+## Release 3.14, Mar 8 2025
+
+This release contains small improvements and new NET 8 and 9 targets with removal of obsolete NET 6 target.
+
+* CHANGES
+    * Add NET 8 and NET 9 targets, remove NET 6 target (#2707) 
+
+* FIXES
+    * Change DirtyFlagMap.Add to use AllowNullAttribute instead of MaybeNullAttribute (#2660)
+    * Don't transition triggers to error state on scheduler shutdown/disposal (#2704)
+    * Handle hosted service stopping during startup gracefully (#2705)
+
 ## Release 3.13.1, Nov 2 2024
 
 This release contains small improvements and fixes.

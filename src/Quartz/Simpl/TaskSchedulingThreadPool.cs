@@ -23,7 +23,7 @@ namespace Quartz.Simpl
         // A list of running tasks (needed to optionally wait for executing tasks at shutdown)
         private readonly List<Task> runningTasks = new List<Task>();
 
-        private readonly object taskListLock = new object();
+        private readonly Lock taskListLock = new();
 
         // The semaphore used to limit concurrency and integers representing maximim concurrent tasks
         private SemaphoreSlim concurrencySemaphore = null!;

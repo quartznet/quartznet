@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <PackageReference Include="Nuke.Common" Version="8.1.2" />
+    <PackageReference Include="System.Formats.Asn1" Version="8.0.2" />
     <PackageDownload Include="GitVersion.Tool" Version="[5.7.0]" />
   </ItemGroup>
 
