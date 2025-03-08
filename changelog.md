@@ -2,9 +2,10 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
-## Release 3.14, Mar 8 2025
+## Release 3.14.0, Mar 8 2025
 
-This release contains small improvements and new NET 8 and 9 targets with removal of obsolete NET 6 target.
+This release contains small improvements and new NET 8 and 9 targets with removal of obsolete NET 6 target. RAMJobStore now uses
+new Lock type under the hood when using NET 9 target.
 
 * CHANGES
     * Add NET 8 and NET 9 targets, remove NET 6 target (#2707) 
