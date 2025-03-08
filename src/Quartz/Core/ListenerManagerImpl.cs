@@ -7,25 +7,15 @@ namespace Quartz.Core;
 /// </summary>
 internal sealed class ListenerManagerImpl : IListenerManager
 {
-#if NET8_0
-    private readonly object globalJobListenerLock = new object();
-#else
-    private readonly Lock globalJobListenerLock = new Lock();
-#endif
-
+    private readonly Lock globalJobListenerLock = new();
     private OrderedDictionary<string, IJobListener>? globalJobListeners;
     private Dictionary<string, List<IMatcher<JobKey>>>? globalJobListenersMatchers;
 
-#if NET8_0
-    private readonly object globalTriggerListenerLock = new object();
-#else
-    private readonly Lock globalTriggerListenerLock = new Lock();
-#endif
-
+    private readonly Lock globalTriggerListenerLock = new();
     private OrderedDictionary<string, ITriggerListener>? globalTriggerListeners;
     private Dictionary<string, List<IMatcher<TriggerKey>>>? globalTriggerListenersMatchers;
 
-    private readonly List<ISchedulerListener> schedulerListeners = new List<ISchedulerListener>(10);
+    private readonly List<ISchedulerListener> schedulerListeners = new(10);
 
     public void AddJobListener(IJobListener jobListener, params IMatcher<JobKey>[] matchers)
     {

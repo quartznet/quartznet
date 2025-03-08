@@ -95,6 +95,103 @@
     added to the constructor `CronExpression(SerializationInfo info, StreamingContext context)`.
 
 
+## Release 3.14.0, Mar 8 2025
+
+This release contains small improvements and new NET 8 and 9 targets with removal of obsolete NET 6 target. RAMJobStore now uses
+new Lock type under the hood when using NET 9 target.
+
+* CHANGES
+    * Add NET 8 and NET 9 targets, remove NET 6 target (#2707)
+
+* FIXES
+    * Change DirtyFlagMap.Add to use AllowNullAttribute instead of MaybeNullAttribute (#2660)
+    * Don't transition triggers to error state on scheduler shutdown/disposal (#2704)
+    * Handle hosted service stopping during startup gracefully (#2705)
+
+## Release 3.13.1, Nov 2 2024
+
+This release contains small improvements and fixes.
+
+* CHANGES
+    * Backport make DirtyFlagMap implement IReadOnlyDictionary<TKey, TValue> (#2617)
+
+* FIXES
+    * Use invariant culture for StdAdoConstants SQL formatting (#2570)
+    * OpenTracing: using IJobDiagnosticData instead of IJobExecutionContext (#2578)
+
+## Release 3.13.0, Aug 10 2024
+
+This release removes aims to modernise targeted platforms and used dependencies.
+
+The `System.Configuration.ConfigurationManager` reference from non-framework builds. This means
+using App.config's `<quartz>` section as Quartz configuration source is only supported on .NET Framework builds. This
+change was made to reduce legacy dependencies and to make Quartz more compatible with modern .NET.
+
+The `netcoreapp3.1` target has been removed from DI and hosting integration package which makes NET 6 the lowest supported
+modern runtime version for those packages.
+
+* CHANGES
+    * Remove System.Configuration.ConfigurationManager package reference (#2513)
+    * Remove netcoreapp3.1 support and trim dependencies (#2507)
+
+
+## Release 3.12.0, Aug 3 2024
+
+This release aims to alleviate some problems that have been present then Quartz's own global singletons clash
+with DI containers singleton concept when DI container is being torn down during testing. Now both scheduler repository
+and DB connection manager are scoped inside DI container and share container's lifetime.
+
+If you want to have multiple service collections sharing same global state, you should manually register `IDbConnectionManager`
+and `ISchedulerRepository` to DI as singletons pointing to global object instances.
+
+* NEW FEATURES
+    * Add custom trigger serializer support for Newtonsoft integration (#2480)
+
+* CHANGES
+    * Change scheduler repository to be singleton scoped to DI under MS DI integration (#2502)
+    * Change DB connection manager to be singleton scoped under MS DI integration (#2504)
+
+* FIXES
+    * Make scheduler registration cleanup more robust during shutdown (#2498)
+
+## Release 3.11.0, Jul 7 2024
+
+* NEW FEATURES
+    * Add support for `DbDataSource` (#2439)
+    * Allow MSSQL Init Database script to be configured to not delete existing tables (#2449)
+
+* CHANGES
+    * Update build actions to use `checkout/@v4` for Docs and Qodana (#2451)
+    * Change `NativeJob` to use `RuntimeInformation.IsOSPlatform` instead of env var (#2411)
+
+* FIXES
+    * Fix issues with STJ serializer (#2434)
+    * Fix `DirtyFlagMap` enumerator behaviors (#2445)
+    * Improve binary to JSON migration support and documentation (#2458)
+    * Don't create intermediate `MemoryStream` in `SystemTextJsonObjectSerializer` (#2418)
+
+
+## Release 3.10.0, Jun 26 2024
+
+* NEW FEATURES
+    * Add support for `System.Text.Json` serializer (#2416)
+
+* CHANGES
+    * Use `newtonsoft` as preferred JSON serializer type alias (#2412)
+    * Change `NativeJob` to use `RuntimeInformation.IsOSPlatform` instead of env var (#2411)
+
+* FIXES
+    * Fix `NativeJob` crashing when working directory parameter missing (#2407)
+
+## Release 3.9.0, May 9 2024
+
+* Fix Holiday Calendar with Nested Calendars sometimes crashing when resolving NextIncludedTime (#2270)
+* Add WithDailyTimeIntervalSchedule overload with explicit interval and interval unit (#1152)
+* Improve performance of DailyCalendar.GetNextIncludedTimeUtc (#2285)
+* Add support for IAsyncDisposable jobs and MS DI resources (#2335)
+* Make IJobWrapper public (#2313)
+
+
 ## Release 3.8.1, Feb xx 2024
 
 * Fix handling of env var quartz.config (#2212) (#2213)
