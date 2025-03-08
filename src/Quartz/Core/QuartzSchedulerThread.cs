@@ -46,7 +46,7 @@ namespace Quartz.Core
     {
         private readonly QuartzScheduler qs;
         private readonly QuartzSchedulerResources qsRsrcs;
-        private readonly object sigLock = new object();
+        private readonly object sigLock = new();
 
         private bool signaled;
         private DateTimeOffset? signaledNextFireTimeUtc;

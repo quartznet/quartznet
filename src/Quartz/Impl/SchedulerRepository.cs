@@ -21,6 +21,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 
 using Quartz.Spi;
 
@@ -34,7 +35,7 @@ namespace Quartz.Impl;
 public sealed class SchedulerRepository : ISchedulerRepository
 {
     private readonly Dictionary<string, IScheduler> schedulers = new(StringComparer.OrdinalIgnoreCase);
-    private readonly object syncRoot = new();
+    private readonly Lock syncRoot = new();
 
     /// <summary>
     /// Gets the singleton instance.

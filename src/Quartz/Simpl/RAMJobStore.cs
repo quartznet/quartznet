@@ -48,7 +48,7 @@ namespace Quartz.Simpl
     /// <author>Marko Lahma (.NET)</author>
     public class RAMJobStore : IJobStore
     {
-        private readonly object lockObject = new object();
+        private readonly Lock lockObject = new();
 
         private readonly Dictionary<JobKey, JobWrapper> jobsByKey = new Dictionary<JobKey, JobWrapper>();
         private readonly ConcurrentDictionary<TriggerKey, TriggerWrapper> triggersByKey = new ConcurrentDictionary<TriggerKey, TriggerWrapper>();
@@ -1152,6 +1152,7 @@ namespace Quartz.Simpl
         /// <returns></returns>
         protected virtual IEnumerable<TriggerWrapper> GetTriggerWrappersForCalendar(string calName)
         {
+            List<TriggerWrapper> triggerWrappers = [];
             lock (lockObject)
             {
                 foreach (var tw in triggersByKey.Values)
@@ -1159,10 +1160,11 @@ namespace Quartz.Simpl
                     var tcalName = tw.Trigger.CalendarName;
                     if (tcalName != null && tcalName.Equals(calName))
                     {
-                        yield return tw;
+                        triggerWrappers.Add(tw);
                     }
                 }
             }
+            return triggerWrappers;
         }
 
         /// <summary>
