@@ -32,26 +32,33 @@ public sealed class QuartzHostedService : IHostedService
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        // Require successful initialization for application startup to succeed
-        scheduler = await schedulerFactory.GetScheduler(cancellationToken);
-
-        if (options.Value.AwaitApplicationStarted) // Sensible mode: proceed with startup, and have jobs start after application startup
+        try
         {
-            // Follow the pattern from BackgroundService.StartAsync: https://github.com/dotnet/runtime/blob/main/src/libraries/Microsoft.Extensions.Hosting.Abstractions/src/BackgroundService.cs
+            // Require successful initialization for application startup to succeed
+            scheduler = await schedulerFactory.GetScheduler(cancellationToken);
 
-            startupTask = AwaitStartupCompletionAndStartSchedulerAsync(cancellationToken);
-
-            // If the task completed synchronously, await it in order to bubble potential cancellation/failure to the caller
-            // Otherwise, return, allowing application startup to complete
-            if (startupTask.IsCompleted)
+            if (options.Value.AwaitApplicationStarted) // Sensible mode: proceed with startup, and have jobs start after application startup
             {
+                // Follow the pattern from BackgroundService.StartAsync: https://github.com/dotnet/runtime/blob/main/src/libraries/Microsoft.Extensions.Hosting.Abstractions/src/BackgroundService.cs
+
+                startupTask = AwaitStartupCompletionAndStartSchedulerAsync(cancellationToken);
+
+                // If the task completed synchronously, await it in order to bubble potential cancellation/failure to the caller
+                // Otherwise, return, allowing application startup to complete
+                if (startupTask.IsCompleted)
+                {
+                    await startupTask.ConfigureAwait(false);
+                }
+            }
+            else // Legacy mode: start jobs inline
+            {
+                startupTask = StartSchedulerAsync(cancellationToken);
                 await startupTask.ConfigureAwait(false);
             }
         }
-        else // Legacy mode: start jobs inline
+        catch (OperationCanceledException)
         {
-            startupTask = StartSchedulerAsync(cancellationToken);
-            await startupTask.ConfigureAwait(false);
+            // if the operation was canceled, we should not start the scheduler
         }
     }
 
