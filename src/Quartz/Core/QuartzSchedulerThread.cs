@@ -426,9 +426,19 @@ internal sealed class QuartzSchedulerThread
                                 shell = qsRsrcs.JobRunShellFactory.CreateJobRunShell(bndle);
                                 await shell.Initialize(qs, CancellationToken.None).ConfigureAwait(false);
                             }
-                            catch (SchedulerException)
+                            catch (SchedulerException se)
                             {
-                                await qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError, CancellationToken.None).ConfigureAwait(false);
+                                if (se.InnerException is ObjectDisposedException or OperationCanceledException || cancellationTokenSource.Token.IsCancellationRequested)
+                                {
+                                    // the scheduler is being stopped, so we can't run the job
+                                    await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger, CancellationToken.None).ConfigureAwait(false);
+                                }
+                                else
+                                {
+                                    // we consider this a serious error and expect that job instantiation will never succeed in the future either
+                                    await qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError, CancellationToken.None).ConfigureAwait(false);
+                                }
+
                                 continue;
                             }
 
