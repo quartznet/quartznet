@@ -12,7 +12,7 @@
     <None Include="../../docs/documentation/quartz-3.x/packages/timezoneconverter-integration.md" Pack="true" PackagePath="\" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="TimeZoneConverter" Version="6.1.0" />
+    <PackageReference Include="TimeZoneConverter" Version="7.0.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Quartz\Quartz.csproj" />

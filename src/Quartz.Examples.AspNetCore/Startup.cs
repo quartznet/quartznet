@@ -12,6 +12,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
+using OpenTelemetry;
+using OpenTelemetry.Logs;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Quartz.AspNetCore;
@@ -50,17 +52,12 @@ namespace Quartz.Examples.AspNetCore
             });
 
             services.AddOpenTelemetry()
+                .UseOtlpExporter()
                 .ConfigureResource(builder => builder.AddService("Quartz ASP.NET Example"))
                 .WithTracing(x => x
                     .AddQuartzInstrumentation()
                     .AddConsoleExporter()
                     .AddZipkinExporter(o => { o.Endpoint = new Uri("http://localhost:9411/api/v2/spans"); })
-                    .AddJaegerExporter(o =>
-                    {
-                        // these are the defaults
-                        o.AgentHost = "localhost";
-                        o.AgentPort = 6831;
-                    })
                 );
 
             services.AddRazorPages();

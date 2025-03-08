@@ -16,7 +16,7 @@
     <ProjectReference Include="..\Quartz.Jobs\Quartz.Jobs.csproj" />
     <ProjectReference Include="..\Quartz.Serialization.Json\Quartz.Serialization.Json.csproj" />
     <ProjectReference Include="..\Quartz.Plugins\Quartz.Plugins.csproj" />
-    <PackageReference Include="log4net" Version="3.0.2" />
+    <PackageReference Include="log4net" Version="3.0.4" />
   </ItemGroup>
   <ItemGroup>
     <None Update="log4net.config">
