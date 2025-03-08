@@ -29,7 +29,7 @@ using Nuke.Common.Utilities;
     CacheKeyFiles = [],
     ConcurrencyCancelInProgress = true),
 ]
-[GitHubActions(
+[CustomGitHubActions(
     "build",
     GitHubActionsImage.WindowsLatest,
     GitHubActionsImage.UbuntuLatest,
