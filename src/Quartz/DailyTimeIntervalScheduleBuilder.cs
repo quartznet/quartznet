@@ -396,7 +396,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
             return this;
         }
 
-        if (remainingMillisInDay < intervalInMillis)
+        if (remainingMillisInDay <= intervalInMillis)
         {
             ThrowHelper.ThrowArgumentException("The startTimeOfDay is too late with given Interval and IntervalUnit values.");
         }
