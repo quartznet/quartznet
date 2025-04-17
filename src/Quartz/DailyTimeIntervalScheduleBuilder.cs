@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -366,14 +366,14 @@ namespace Quartz
 
             DateTimeOffset today = SystemTime.UtcNow();
             DateTimeOffset startTimeOfDayDate = startTimeOfDayUtc.GetTimeOfDayForDate(today);
-            DateTimeOffset maxEndTimeOfDayDate = TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59).GetTimeOfDayForDate(today);
+            DateTimeOffset tomorrow = startTimeOfDayDate.AddDays(1).UtcDateTime.Date;
 
             //apply proper offsets according to timezone
             TimeZoneInfo targetTimeZone = timeZone ?? TimeZoneInfo.Local;
             startTimeOfDayDate = new DateTimeOffset(startTimeOfDayDate.DateTime, TimeZoneUtil.GetUtcOffset(startTimeOfDayDate.DateTime, targetTimeZone));
-            maxEndTimeOfDayDate = new DateTimeOffset(maxEndTimeOfDayDate.DateTime, TimeZoneUtil.GetUtcOffset(maxEndTimeOfDayDate.DateTime, targetTimeZone));
+            tomorrow = new DateTimeOffset(tomorrow.DateTime, TimeZoneUtil.GetUtcOffset(tomorrow.DateTime, targetTimeZone));
 
-            TimeSpan remainingMillisInDay = maxEndTimeOfDayDate - startTimeOfDayDate;
+            TimeSpan remainingMillisInDay = tomorrow - startTimeOfDayDate;
             TimeSpan intervalInMillis;
             if (intervalUnit == IntervalUnit.Second)
             {
@@ -406,7 +406,7 @@ namespace Quartz
             TimeSpan incrementInMillis = TimeSpan.FromTicks((count - 1) * intervalInMillis.Ticks);
             DateTimeOffset endTimeOfDayDate = startTimeOfDayDate.Add(incrementInMillis);
 
-            if (endTimeOfDayDate > maxEndTimeOfDayDate)
+            if (endTimeOfDayDate >= tomorrow)
             {
                 throw new ArgumentException("The given count " + count + " is too large! The max you can set is " + maxNumOfCount);
             }
