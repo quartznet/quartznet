@@ -321,6 +321,31 @@ public class DailyTimeIntervalScheduleBuilderTest
     }
 
     [Test]
+    public void TestEndingAtAfterCountEndTimeOfDayLastIntervalValidation()
+    {
+        Assert.DoesNotThrow(() => TriggerBuilder.Create()
+            .WithIdentity("testTrigger")
+            .ForJob("testJob")
+            .WithDailyTimeIntervalSchedule(x =>
+                x.StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(23, 59))
+                    .EndingDailyAfterCount(1))
+            .Build(), "We should accept if remaining time equals to the interval of 1 minute");
+    }
+
+    [Test]
+    public void TestEndingAtAfterCountEndTimeOfDayLastIntervalValidationFailed()
+    {
+        Assert.Throws<ArgumentException>(() => TriggerBuilder.Create()
+            .WithIdentity("testTrigger")
+            .ForJob("testJob")
+            .WithDailyTimeIntervalSchedule(x =>
+                x.StartingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
+                    .WithInterval(1, IntervalUnit.Minute)
+                    .EndingDailyAfterCount(1))
+            .Build(), "We should not accept if remaining time less than the interval of 1 minute");
+    }
+
+    [Test]
     public void TestCanSetTimeZone()
     {
         TimeZoneInfo est = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");

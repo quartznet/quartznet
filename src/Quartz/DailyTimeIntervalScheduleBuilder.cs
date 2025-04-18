@@ -369,14 +369,14 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
 
         DateTimeOffset today = timeProvider.GetUtcNow();
         DateTimeOffset startTimeOfDayDate = startTimeOfDayUtc.GetTimeOfDayForDate(today);
-        DateTimeOffset maxEndTimeOfDayDate = TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59).GetTimeOfDayForDate(today);
+        DateTimeOffset tomorrow = startTimeOfDayDate.AddDays(1).UtcDateTime.Date;
 
         //apply proper offsets according to timezone
         TimeZoneInfo targetTimeZone = timeZone ?? TimeZoneInfo.Local;
         startTimeOfDayDate = new DateTimeOffset(startTimeOfDayDate.DateTime, TimeZoneUtil.GetUtcOffset(startTimeOfDayDate.DateTime, targetTimeZone));
-        maxEndTimeOfDayDate = new DateTimeOffset(maxEndTimeOfDayDate.DateTime, TimeZoneUtil.GetUtcOffset(maxEndTimeOfDayDate.DateTime, targetTimeZone));
+        tomorrow = new DateTimeOffset(tomorrow.DateTime, TimeZoneUtil.GetUtcOffset(tomorrow.DateTime, targetTimeZone));
 
-        TimeSpan remainingMillisInDay = maxEndTimeOfDayDate - startTimeOfDayDate;
+        TimeSpan remainingMillisInDay = tomorrow - startTimeOfDayDate;
         TimeSpan intervalInMillis;
         if (intervalUnit == IntervalUnit.Second)
         {
@@ -410,7 +410,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
         TimeSpan incrementInMillis = TimeSpan.FromTicks((count - 1) * intervalInMillis.Ticks);
         DateTimeOffset endTimeOfDayDate = startTimeOfDayDate.Add(incrementInMillis);
 
-        if (endTimeOfDayDate > maxEndTimeOfDayDate)
+        if (endTimeOfDayDate >= tomorrow)
         {
             ThrowHelper.ThrowArgumentException("The given count " + count + " is too large! The max you can set is " + maxNumOfCount);
         }
