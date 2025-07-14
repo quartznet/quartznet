@@ -27,66 +27,66 @@ using Quartz.Logging;
 using Quartz.Spi;
 using Quartz.Util;
 
-namespace Quartz.Simpl
-{
-	/// <summary>
-	/// The default JobFactory used by Quartz - simply calls
-	/// <see cref="ObjectUtils.InstantiateType{T}" /> on the job class.
-	/// </summary>
-	/// <seealso cref="IJobFactory" />
-	/// <seealso cref="PropertySettingJobFactory" />
-	/// <author>James House</author>
-	/// <author>Marko Lahma (.NET)</author>
+namespace Quartz.Simpl;
+
+/// <summary>
+/// The default JobFactory used by Quartz - simply calls
+/// <see cref="ObjectUtils.InstantiateType{T}" /> on the job class.
+/// </summary>
+/// <seealso cref="IJobFactory" />
+/// <seealso cref="PropertySettingJobFactory" />
+/// <author>James House</author>
+/// <author>Marko Lahma (.NET)</author>
 #if NET6_0_OR_GREATER
     public class SimpleJobFactory : IJobWithAsyncReturnFactory
 #else
-    public class SimpleJobFactory : IJobFactory
+public class SimpleJobFactory : IJobFactory
 #endif
-	{
-		private readonly ILog log;
+{
+    private readonly ILog log;
 
-        public SimpleJobFactory()
+    public SimpleJobFactory()
+    {
+        log = LogProvider.GetLogger(typeof(SimpleJobFactory));
+    }
+
+    /// <summary>
+    /// Called by the scheduler at the time of the trigger firing, in order to
+    /// produce a <see cref="IJob" /> instance on which to call Execute.
+    /// </summary>
+    /// <remarks>
+    /// It should be extremely rare for this method to throw an exception -
+    /// basically only the case where there is no way at all to instantiate
+    /// and prepare the Job for execution.  When the exception is thrown, the
+    /// Scheduler will move all triggers associated with the Job into the
+    /// <see cref="TriggerState.Error" /> state, which will require human
+    /// intervention (e.g. an application restart after fixing whatever
+    /// configuration problem led to the issue with instantiating the Job).
+    /// </remarks>
+    /// <param name="bundle">The TriggerFiredBundle from which the <see cref="IJobDetail" />
+    ///   and other info relating to the trigger firing can be obtained.</param>
+    /// <param name="scheduler"></param>
+    /// <returns>the newly instantiated Job</returns>
+    /// <throws>  SchedulerException if there is a problem instantiating the Job. </throws>
+    public virtual IJob NewJob(TriggerFiredBundle bundle, IScheduler scheduler)
+    {
+        IJobDetail jobDetail = bundle.JobDetail;
+        Type jobType = jobDetail.JobType;
+        try
         {
-            log = LogProvider.GetLogger(typeof(SimpleJobFactory));
+            if (log.IsDebugEnabled())
+            {
+                log.Debug($"Producing instance of Job '{jobDetail.Key}', class={jobType.FullName}");
+            }
+
+            return ObjectUtils.InstantiateType<IJob>(jobType);
         }
-
-        /// <summary>
-	    /// Called by the scheduler at the time of the trigger firing, in order to
-	    /// produce a <see cref="IJob" /> instance on which to call Execute.
-	    /// </summary>
-	    /// <remarks>
-	    /// It should be extremely rare for this method to throw an exception -
-	    /// basically only the case where there is no way at all to instantiate
-	    /// and prepare the Job for execution.  When the exception is thrown, the
-	    /// Scheduler will move all triggers associated with the Job into the
-	    /// <see cref="TriggerState.Error" /> state, which will require human
-	    /// intervention (e.g. an application restart after fixing whatever
-	    /// configuration problem led to the issue with instantiating the Job).
-	    /// </remarks>
-	    /// <param name="bundle">The TriggerFiredBundle from which the <see cref="IJobDetail" />
-	    ///   and other info relating to the trigger firing can be obtained.</param>
-	    /// <param name="scheduler"></param>
-	    /// <returns>the newly instantiated Job</returns>
-	    /// <throws>  SchedulerException if there is a problem instantiating the Job. </throws>
-	    public virtual IJob NewJob(TriggerFiredBundle bundle, IScheduler scheduler)
-		{
-			IJobDetail jobDetail = bundle.JobDetail;
-			Type jobType = jobDetail.JobType;
-			try
-			{
-				if (log.IsDebugEnabled())
-				{
-					log.Debug($"Producing instance of Job '{jobDetail.Key}', class={jobType.FullName}");
-				}
-
-				return ObjectUtils.InstantiateType<IJob>(jobType);
-			}
-			catch (Exception e)
-			{
-				SchedulerException se = new SchedulerException($"Problem instantiating class '{jobDetail.JobType.FullName}: {e.Message}'", e);
-				throw se;
-			}
-		}
+        catch (Exception e)
+        {
+            SchedulerException se = new SchedulerException($"Problem instantiating class '{jobDetail.JobType.FullName}: {e.Message}'", e);
+            throw se;
+        }
+    }
 #if NET6_0_OR_GREATER
         /// <summary>
         /// Allows the job factory to destroy/cleanup the job if needed.
@@ -110,23 +110,22 @@ namespace Quartz.Simpl
             }
         }
 #endif
-        /// <summary>
-        /// Allows the job factory to destroy/cleanup the job if needed.
-        /// No-op when using SimpleJobFactory.
-        /// </summary>
-        public virtual void ReturnJob(IJob job)
+    /// <summary>
+    /// Allows the job factory to destroy/cleanup the job if needed.
+    /// No-op when using SimpleJobFactory.
+    /// </summary>
+    public virtual void ReturnJob(IJob job)
+    {
+        if (job is IDisposable disposableJob)
         {
-            if (job is IDisposable disposableJob)
-            {
-                disposableJob.Dispose();
-            }
-
-            // check for wrapped jobs only if the current job is not disposable
-            // disposable wrappers should handle inner disposal on its own
-            else if (job is IJobWrapper jobWrapper)
-            {
-                ReturnJob(jobWrapper.Target);
-            }
+            disposableJob.Dispose();
         }
-	}
+
+        // check for wrapped jobs only if the current job is not disposable
+        // disposable wrappers should handle inner disposal on its own
+        else if (job is IJobWrapper jobWrapper)
+        {
+            ReturnJob(jobWrapper.Target);
+        }
+    }
 }

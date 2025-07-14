@@ -1,13 +1,12 @@
-namespace Quartz
+namespace Quartz;
+
+/// <summary>
+/// Common constants for triggers.
+/// </summary>
+public static class TriggerConstants
 {
     /// <summary>
-    /// Common constants for triggers.
+    /// The default value for priority.
     /// </summary>
-    public static class TriggerConstants
-    {
-        /// <summary>
-        /// The default value for priority.
-        /// </summary>
-        public const int DefaultPriority = 5;
-    }
+    public const int DefaultPriority = 5;
 }

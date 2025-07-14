@@ -1,109 +1,108 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Logging;
 using Quartz.Util;
 
-namespace Quartz.Impl.AdoJobStore
+namespace Quartz.Impl.AdoJobStore;
+
+internal sealed class MisfireHandler
 {
-    internal sealed class MisfireHandler
+    private readonly ILog log;
+    // keep constant lock requestor id for handler's lifetime
+    private readonly Guid requestorId = Guid.NewGuid();
+
+    private readonly JobStoreSupport jobStoreSupport;
+    private int numFails;
+
+    private readonly CancellationTokenSource cancellationTokenSource;
+    private readonly QueuedTaskScheduler taskScheduler;
+    private Task task = null!;
+
+    internal MisfireHandler(JobStoreSupport jobStoreSupport)
     {
-        private readonly ILog log;
-        // keep constant lock requestor id for handler's lifetime
-        private readonly Guid requestorId = Guid.NewGuid();
+        this.jobStoreSupport = jobStoreSupport;
+        log = LogProvider.GetLogger(typeof(MisfireHandler));
 
-        private readonly JobStoreSupport jobStoreSupport;
-        private int numFails;
+        string threadName = $"QuartzScheduler_{jobStoreSupport.InstanceName}-{jobStoreSupport.InstanceId}_MisfireHandler";
+        taskScheduler = new QueuedTaskScheduler(threadCount: 1, threadName: threadName, useForegroundThreads: !jobStoreSupport.MakeThreadsDaemons);
+        cancellationTokenSource = new CancellationTokenSource();
+    }
 
-        private readonly CancellationTokenSource cancellationTokenSource;
-        private readonly QueuedTaskScheduler taskScheduler;
-        private Task task = null!;
+    public void Initialize()
+    {
+        task = Task.Factory.StartNew(Run, CancellationToken.None, TaskCreationOptions.HideScheduler, taskScheduler).Unwrap();
+    }
 
-        internal MisfireHandler(JobStoreSupport jobStoreSupport)
+    private async Task Run()
+    {
+        var token = cancellationTokenSource.Token;
+        while (!token.IsCancellationRequested)
         {
-            this.jobStoreSupport = jobStoreSupport;
-            log = LogProvider.GetLogger(typeof(MisfireHandler));
+            token.ThrowIfCancellationRequested();
 
-            string threadName = $"QuartzScheduler_{jobStoreSupport.InstanceName}-{jobStoreSupport.InstanceId}_MisfireHandler";
-            taskScheduler = new QueuedTaskScheduler(threadCount: 1, threadName: threadName, useForegroundThreads: !jobStoreSupport.MakeThreadsDaemons);
-            cancellationTokenSource = new CancellationTokenSource();
-        }
+            DateTimeOffset sTime = SystemTime.UtcNow();
 
-        public void Initialize()
-        {
-            task = Task.Factory.StartNew(Run, CancellationToken.None, TaskCreationOptions.HideScheduler, taskScheduler).Unwrap();
-        }
+            RecoverMisfiredJobsResult recoverMisfiredJobsResult = await Manage().ConfigureAwait(false);
 
-        private async Task Run()
-        {
-            var token = cancellationTokenSource.Token;
-            while (!token.IsCancellationRequested)
+            if (recoverMisfiredJobsResult.ProcessedMisfiredTriggerCount > 0)
             {
-                token.ThrowIfCancellationRequested();
+                jobStoreSupport.SignalSchedulingChangeImmediately(recoverMisfiredJobsResult.EarliestNewTime);
+            }
 
-                DateTimeOffset sTime = SystemTime.UtcNow();
+            token.ThrowIfCancellationRequested();
 
-                RecoverMisfiredJobsResult recoverMisfiredJobsResult = await Manage().ConfigureAwait(false);
-
-                if (recoverMisfiredJobsResult.ProcessedMisfiredTriggerCount > 0)
+            TimeSpan timeToSleep = TimeSpan.FromMilliseconds(50); // At least a short pause to help balance threads
+            if (!recoverMisfiredJobsResult.HasMoreMisfiredTriggers)
+            {
+                timeToSleep = jobStoreSupport.MisfireHandlerFrequency - (SystemTime.UtcNow() - sTime);
+                if (timeToSleep <= TimeSpan.Zero)
                 {
-                    jobStoreSupport.SignalSchedulingChangeImmediately(recoverMisfiredJobsResult.EarliestNewTime);
+                    timeToSleep = TimeSpan.FromMilliseconds(50);
                 }
 
-                token.ThrowIfCancellationRequested();
-
-                TimeSpan timeToSleep = TimeSpan.FromMilliseconds(50); // At least a short pause to help balance threads
-                if (!recoverMisfiredJobsResult.HasMoreMisfiredTriggers)
+                if (numFails > 0)
                 {
-                    timeToSleep = jobStoreSupport.MisfireHandlerFrequency - (SystemTime.UtcNow() - sTime);
-                    if (timeToSleep <= TimeSpan.Zero)
-                    {
-                        timeToSleep = TimeSpan.FromMilliseconds(50);
-                    }
-
-                    if (numFails > 0)
-                    {
-                        timeToSleep = jobStoreSupport.DbRetryInterval > timeToSleep ? jobStoreSupport.DbRetryInterval : timeToSleep;
-                    }
+                    timeToSleep = jobStoreSupport.DbRetryInterval > timeToSleep ? jobStoreSupport.DbRetryInterval : timeToSleep;
                 }
-
-                await Task.Delay(timeToSleep, token).ConfigureAwait(false);
             }
-        }
 
-        public async Task Shutdown()
+            await Task.Delay(timeToSleep, token).ConfigureAwait(false);
+        }
+    }
+
+    public async Task Shutdown()
+    {
+        cancellationTokenSource.Cancel();
+        try
         {
-            cancellationTokenSource.Cancel();
-            try
-            {
-                taskScheduler.Dispose();
-                await task.ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-            }
+            taskScheduler.Dispose();
+            await task.ConfigureAwait(false);
         }
-
-        private async Task<RecoverMisfiredJobsResult> Manage()
+        catch (OperationCanceledException)
         {
-            try
-            {
-                log.Debug("Scanning for misfires...");
-
-                RecoverMisfiredJobsResult res = await jobStoreSupport.DoRecoverMisfires(requestorId, CancellationToken.None).ConfigureAwait(false);
-                numFails = 0;
-                return res;
-            }
-            catch (Exception e)
-            {
-                if (numFails%jobStoreSupport.RetryableActionErrorLogThreshold == 0)
-                {
-                    log.ErrorException("Error handling misfires: " + e.Message, e);
-                }
-                numFails++;
-            }
-            return RecoverMisfiredJobsResult.NoOp;
         }
+    }
+
+    private async Task<RecoverMisfiredJobsResult> Manage()
+    {
+        try
+        {
+            log.Debug("Scanning for misfires...");
+
+            RecoverMisfiredJobsResult res = await jobStoreSupport.DoRecoverMisfires(requestorId, CancellationToken.None).ConfigureAwait(false);
+            numFails = 0;
+            return res;
+        }
+        catch (Exception e)
+        {
+            if (numFails%jobStoreSupport.RetryableActionErrorLogThreshold == 0)
+            {
+                log.ErrorException("Error handling misfires: " + e.Message, e);
+            }
+            numFails++;
+        }
+        return RecoverMisfiredJobsResult.NoOp;
     }
 }

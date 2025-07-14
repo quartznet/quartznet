@@ -27,60 +27,59 @@ using System.Threading.Tasks;
 using Quartz.Logging;
 using Quartz.Spi;
 
-namespace Quartz.Simpl
+namespace Quartz.Simpl;
+
+/// <summary>
+/// Helper base class for host name lookup requiring instance id generators.
+/// </summary>
+/// <author>Marko Lahma</author>
+public abstract class HostNameBasedIdGenerator : IInstanceIdGenerator
 {
-    /// <summary>
-    /// Helper base class for host name lookup requiring instance id generators.
-    /// </summary>
-    /// <author>Marko Lahma</author>
-    public abstract class HostNameBasedIdGenerator : IInstanceIdGenerator
+    protected const int IdMaxLength = 50;
+
+    private readonly ILog logger;
+
+    protected HostNameBasedIdGenerator()
     {
-        protected const int IdMaxLength = 50;
+        logger = LogProvider.GetLogger(GetType());
+    }
 
-        private readonly ILog logger;
+    /// <summary>
+    /// Generate the instance id for a <see cref="IScheduler" />
+    /// </summary>
+    /// <param name="cancellationToken"></param>
+    /// <returns> The clusterwide unique instance id.
+    /// </returns>
+    public abstract Task<string?> GenerateInstanceId(CancellationToken cancellationToken = default);
 
-        protected HostNameBasedIdGenerator()
+    protected async Task<string?> GetHostName(
+        int maxLength, 
+        CancellationToken cancellationToken = default)
+    {
+        try
         {
-            logger = LogProvider.GetLogger(GetType());
-        }
-
-        /// <summary>
-        /// Generate the instance id for a <see cref="IScheduler" />
-        /// </summary>
-        /// <param name="cancellationToken"></param>
-        /// <returns> The clusterwide unique instance id.
-        /// </returns>
-        public abstract Task<string?> GenerateInstanceId(CancellationToken cancellationToken = default);
-
-        protected async Task<string?> GetHostName(
-            int maxLength, 
-            CancellationToken cancellationToken = default)
-        {
-            try
+            var hostAddress = await GetHostAddress(cancellationToken).ConfigureAwait(false);
+            string hostName = hostAddress.HostName;
+            if (hostName != null && hostName.Length > maxLength)
             {
-                var hostAddress = await GetHostAddress(cancellationToken).ConfigureAwait(false);
-                string hostName = hostAddress.HostName;
-                if (hostName != null && hostName.Length > maxLength)
-                {
-                    string newName = hostName.Substring(0, maxLength);
-                    logger.InfoFormat("Host name '{0}' was too long, shortened to '{1}'", hostName, newName);
-                    hostName = newName;
-                }
-                return hostName;
+                string newName = hostName.Substring(0, maxLength);
+                logger.InfoFormat("Host name '{0}' was too long, shortened to '{1}'", hostName, newName);
+                hostName = newName;
             }
-            catch (Exception e)
-            {
-                throw new SchedulerException("Couldn't get host name!", e);
-            }
+            return hostName;
         }
-
-        protected virtual Task<IPHostEntry> GetHostAddress(
-            CancellationToken cancellationToken = default)
+        catch (Exception e)
         {
-            return Task.FromResult(new IPHostEntry
-            {
-                HostName = Dns.GetHostName()
-            });
+            throw new SchedulerException("Couldn't get host name!", e);
         }
+    }
+
+    protected virtual Task<IPHostEntry> GetHostAddress(
+        CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(new IPHostEntry
+        {
+            HostName = Dns.GetHostName()
+        });
     }
 }

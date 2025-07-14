@@ -10,106 +10,105 @@ using Quartz.Converters;
 using Quartz.Serialization.Json.Triggers;
 using Quartz.Spi;
 
-namespace Quartz.Simpl
+namespace Quartz.Simpl;
+
+/// <summary>
+/// Default object serialization strategy that uses <see cref="JsonSerializer" /> 
+/// under the hood.
+/// </summary>
+/// <author>Marko Lahma</author>
+public class JsonObjectSerializer : IObjectSerializer
 {
-    /// <summary>
-    /// Default object serialization strategy that uses <see cref="JsonSerializer" /> 
-    /// under the hood.
-    /// </summary>
-    /// <author>Marko Lahma</author>
-    public class JsonObjectSerializer : IObjectSerializer
+    private JsonSerializer serializer = null!;
+
+    public void Initialize()
     {
-        private JsonSerializer serializer = null!;
+        serializer = JsonSerializer.Create(CreateSerializerSettings());
+    }
 
-        public void Initialize()
+    public bool RegisterTriggerConverters { get; set; }
+
+    protected virtual JsonSerializerSettings CreateSerializerSettings()
+    {
+        var settings = new JsonSerializerSettings
         {
-            serializer = JsonSerializer.Create(CreateSerializerSettings());
+            Converters = new List<JsonConverter>
+            {
+                new NameValueCollectionConverter(),
+                new StringKeyDirtyFlagMapConverter(),
+                new CronExpressionConverter(),
+                new CalendarConverter()
+            },
+            ConstructorHandling = ConstructorHandling.AllowNonPublicDefaultConstructor,
+            TypeNameHandling = TypeNameHandling.Auto,
+            ContractResolver = new DefaultContractResolver
+            {
+                IgnoreSerializableInterface = true
+            },
+            NullValueHandling = NullValueHandling.Ignore,
+            DateParseHandling = DateParseHandling.DateTimeOffset
+        };
+
+        if (RegisterTriggerConverters)
+        {
+            settings.Converters.Add(new TriggerConverter());
         }
 
-        public bool RegisterTriggerConverters { get; set; }
+        return settings;
+    }
 
-        protected virtual JsonSerializerSettings CreateSerializerSettings()
+    /// <summary>
+    /// Serializes given object as bytes 
+    /// that can be stored to permanent stores.
+    /// </summary>
+    /// <param name="obj">Object to serialize.</param>
+    public byte[] Serialize<T>(T obj) where T : class
+    {
+        if (serializer is null)
         {
-            var settings = new JsonSerializerSettings
-            {
-                Converters = new List<JsonConverter>
-                {
-                    new NameValueCollectionConverter(),
-                    new StringKeyDirtyFlagMapConverter(),
-                    new CronExpressionConverter(),
-                    new CalendarConverter()
-                },
-                ConstructorHandling = ConstructorHandling.AllowNonPublicDefaultConstructor,
-                TypeNameHandling = TypeNameHandling.Auto,
-                ContractResolver = new DefaultContractResolver
-                {
-                    IgnoreSerializableInterface = true
-                },
-                NullValueHandling = NullValueHandling.Ignore,
-                DateParseHandling = DateParseHandling.DateTimeOffset
-            };
-
-            if (RegisterTriggerConverters)
-            {
-                settings.Converters.Add(new TriggerConverter());
-            }
-
-            return settings;
+            throw new InvalidOperationException("The serializer hasn't been initialized, did you forget to call Initialize()?");
         }
-
-        /// <summary>
-        /// Serializes given object as bytes 
-        /// that can be stored to permanent stores.
-        /// </summary>
-        /// <param name="obj">Object to serialize.</param>
-        public byte[] Serialize<T>(T obj) where T : class
-        {
-            if (serializer is null)
-            {
-                throw new InvalidOperationException("The serializer hasn't been initialized, did you forget to call Initialize()?");
-            }
             
-            using var ms = new MemoryStream();
-            using (var sw = new StreamWriter(ms))
-            {
-                serializer.Serialize(sw, obj, typeof(object));
-            }
-
-            return ms.ToArray();
+        using var ms = new MemoryStream();
+        using (var sw = new StreamWriter(ms))
+        {
+            serializer.Serialize(sw, obj, typeof(object));
         }
 
-        /// <summary>
-        /// Deserializes object from byte array presentation.
-        /// </summary>
-        /// <param name="obj">Data to deserialize object from.</param>
-        public T? DeSerialize<T>(byte[] obj) where T : class
+        return ms.ToArray();
+    }
+
+    /// <summary>
+    /// Deserializes object from byte array presentation.
+    /// </summary>
+    /// <param name="obj">Data to deserialize object from.</param>
+    public T? DeSerialize<T>(byte[] obj) where T : class
+    {
+        if (serializer is null)
         {
-            if (serializer is null)
-            {
-                throw new InvalidOperationException("The serializer hasn't been initialized, did you forget to call Initialize()?");
-            }
+            throw new InvalidOperationException("The serializer hasn't been initialized, did you forget to call Initialize()?");
+        }
             
-            try
-            {
-                using var ms = new MemoryStream(obj);
-                using var sr = new StreamReader(ms);
-                return (T?) serializer.Deserialize(sr, typeof(T));
-            }
-            catch (JsonSerializationException e)
-            {
-                var json = Encoding.UTF8.GetString(obj);
-                throw new JsonSerializationException("could not deserialize JSON: " + json, e);
-            }
-        }
-
-        public static void AddCalendarSerializer<TCalendar>(ICalendarSerializer serializer)
+        try
         {
-            CalendarConverter.AddCalendarConverter<TCalendar>(serializer);
+            using var ms = new MemoryStream(obj);
+            using var sr = new StreamReader(ms);
+            return (T?) serializer.Deserialize(sr, typeof(T));
         }
-
-        public static void AddTriggerSerializer<TTrigger>(ITriggerSerializer serializer) where TTrigger : ITrigger
+        catch (JsonSerializationException e)
         {
-            TriggerConverter.AddTriggerSerializer<TTrigger>(serializer);
+            var json = Encoding.UTF8.GetString(obj);
+            throw new JsonSerializationException("could not deserialize JSON: " + json, e);
         }
+    }
+
+    public static void AddCalendarSerializer<TCalendar>(ICalendarSerializer serializer)
+    {
+        CalendarConverter.AddCalendarConverter<TCalendar>(serializer);
+    }
+
+    public static void AddTriggerSerializer<TTrigger>(ITriggerSerializer serializer) where TTrigger : ITrigger
+    {
+        TriggerConverter.AddTriggerSerializer<TTrigger>(serializer);
     }
 }

@@ -21,20 +21,19 @@
 
 using Quartz.Util;
 
-namespace Quartz
+namespace Quartz;
+
+/// <summary>
+/// Matchers can be used in various <see cref="IScheduler" /> API methods to 
+/// select the entities that should be operated upon.
+/// </summary>
+/// <author>James House</author>
+/// <typeparam name="T"></typeparam>
+public interface IMatcher<T> where T : Key<T>
 {
-    /// <summary>
-    /// Matchers can be used in various <see cref="IScheduler" /> API methods to 
-    /// select the entities that should be operated upon.
-    /// </summary>
-    /// <author>James House</author>
-    /// <typeparam name="T"></typeparam>
-    public interface IMatcher<T> where T : Key<T>
-    {
-        bool IsMatch(T key);
+    bool IsMatch(T key);
 
-        int GetHashCode();
+    int GetHashCode();
 
-        bool Equals(object obj);
-    }
+    bool Equals(object obj);
 }

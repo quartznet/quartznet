@@ -22,34 +22,33 @@
 using System;
 using System.Threading.Tasks;
 
-namespace Quartz.Examples.Example12
+namespace Quartz.Examples.Example12;
+
+/// <summary>
+/// A dumb implementation of Job, for unit testing purposes.
+/// </summary>
+/// <author>James House</author>
+/// <author>Marko Lahma (.NET)</author>
+public class SimpleJob : IJob
 {
-    /// <summary>
-    /// A dumb implementation of Job, for unit testing purposes.
+    private const string Message = "msg";
+
+    /// <summary> 
+    /// Called by the <see cref="IScheduler" /> when a
+    /// <see cref="ITrigger" /> fires that is associated with
+    /// the <see cref="IJob" />.
     /// </summary>
-    /// <author>James House</author>
-    /// <author>Marko Lahma (.NET)</author>
-    public class SimpleJob : IJob
+    public virtual Task Execute(IJobExecutionContext context)
     {
-        private const string Message = "msg";
+        // This job simply prints out its job name and the
+        // date and time that it is running
+        JobKey jobKey = context.JobDetail.Key;
 
-        /// <summary> 
-        /// Called by the <see cref="IScheduler" /> when a
-        /// <see cref="ITrigger" /> fires that is associated with
-        /// the <see cref="IJob" />.
-        /// </summary>
-        public virtual Task Execute(IJobExecutionContext context)
-        {
-            // This job simply prints out its job name and the
-            // date and time that it is running
-            JobKey jobKey = context.JobDetail.Key;
+        var message = context.JobDetail.JobDataMap.GetString(Message);
 
-            var message = context.JobDetail.JobDataMap.GetString(Message);
+        Console.WriteLine("SimpleJob: {0} executing at {1:r}", jobKey, DateTime.Now);
+        Console.WriteLine("SimpleJob: msg: {0}", message);
 
-            Console.WriteLine("SimpleJob: {0} executing at {1:r}", jobKey, DateTime.Now);
-            Console.WriteLine("SimpleJob: msg: {0}", message);
-
-            return Task.CompletedTask;
-        }
+        return Task.CompletedTask;
     }
 }

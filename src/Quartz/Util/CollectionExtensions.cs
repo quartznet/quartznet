@@ -1,28 +1,27 @@
 using System.Collections.Generic;
 
-namespace Quartz.Util
+namespace Quartz.Util;
+
+/// <summary>
+/// Extension methods for <see cref="IDictionary{TKey,TValue}" />.
+/// </summary>
+public static class DictionaryExtensions
 {
     /// <summary>
-    /// Extension methods for <see cref="IDictionary{TKey,TValue}" />.
+    /// Tries to read value and returns the value if successfully read. Otherwise return default value
+    /// for value's type.
     /// </summary>
-    public static class DictionaryExtensions
+    /// <typeparam name="TKey"></typeparam>
+    /// <typeparam name="TValue"></typeparam>
+    /// <param name="dictionary"></param>
+    /// <param name="key"></param>
+    /// <returns></returns>
+    public static TValue? TryGetAndReturn<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, TKey key) where TKey : notnull where TValue : class
     {
-        /// <summary>
-        /// Tries to read value and returns the value if successfully read. Otherwise return default value
-        /// for value's type.
-        /// </summary>
-        /// <typeparam name="TKey"></typeparam>
-        /// <typeparam name="TValue"></typeparam>
-        /// <param name="dictionary"></param>
-        /// <param name="key"></param>
-        /// <returns></returns>
-        public static TValue? TryGetAndReturn<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, TKey key) where TKey : notnull where TValue : class
+        if (!dictionary.TryGetValue(key, out var retValue))
         {
-            if (!dictionary.TryGetValue(key, out var retValue))
-            {
-                retValue = default;
-            }
-            return retValue;
+            retValue = default;
         }
+        return retValue;
     }
 }

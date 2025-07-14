@@ -21,76 +21,75 @@
 
 using Quartz.Util;
 
-namespace Quartz.Impl.Matchers
+namespace Quartz.Impl.Matchers;
+
+/// <summary>
+/// Matches on group (ignores name) property of Keys.
+/// </summary>
+/// <author>James House</author>
+/// <author>Marko Lahma (.NET)</author>
+[System.Serializable]
+public class GroupMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TKey>
 {
-    /// <summary>
-    /// Matches on group (ignores name) property of Keys.
-    /// </summary>
-    /// <author>James House</author>
-    /// <author>Marko Lahma (.NET)</author>
-    [System.Serializable]
-    public class GroupMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TKey>
+    // ReSharper disable once UnusedMember.Local
+    private GroupMatcher()
     {
-        // ReSharper disable once UnusedMember.Local
-        private GroupMatcher()
-        {
-        }
+    }
 
-        protected GroupMatcher(string compareTo, StringOperator compareWith) : base(compareTo, compareWith)
-        {
-        }
+    protected GroupMatcher(string compareTo, StringOperator compareWith) : base(compareTo, compareWith)
+    {
+    }
 
-        /// <summary>
-        /// Create a GroupMatcher that matches groups equaling the given string.
-        /// </summary>
-        /// <param name="compareTo"></param>
-        /// <returns></returns>
-        public static GroupMatcher<TKey> GroupEquals(string compareTo)
-        {
-            return new GroupMatcher<TKey>(compareTo, StringOperator.Equality);
-        }
+    /// <summary>
+    /// Create a GroupMatcher that matches groups equaling the given string.
+    /// </summary>
+    /// <param name="compareTo"></param>
+    /// <returns></returns>
+    public static GroupMatcher<TKey> GroupEquals(string compareTo)
+    {
+        return new GroupMatcher<TKey>(compareTo, StringOperator.Equality);
+    }
 
-        /// <summary>
-        /// Create a GroupMatcher that matches groups starting with the given string.
-        /// </summary>
-        /// <param name="compareTo"></param>
-        /// <returns></returns>
-        public static GroupMatcher<TKey> GroupStartsWith(string compareTo)
-        {
-            return new GroupMatcher<TKey>(compareTo, StringOperator.StartsWith);
-        }
+    /// <summary>
+    /// Create a GroupMatcher that matches groups starting with the given string.
+    /// </summary>
+    /// <param name="compareTo"></param>
+    /// <returns></returns>
+    public static GroupMatcher<TKey> GroupStartsWith(string compareTo)
+    {
+        return new GroupMatcher<TKey>(compareTo, StringOperator.StartsWith);
+    }
 
-        /// <summary>
-        /// Create a GroupMatcher that matches groups ending with the given string.
-        /// </summary>
-        /// <param name="compareTo"></param>
-        /// <returns></returns>
-        public static GroupMatcher<TKey> GroupEndsWith(string compareTo)
-        {
-            return new GroupMatcher<TKey>(compareTo, StringOperator.EndsWith);
-        }
+    /// <summary>
+    /// Create a GroupMatcher that matches groups ending with the given string.
+    /// </summary>
+    /// <param name="compareTo"></param>
+    /// <returns></returns>
+    public static GroupMatcher<TKey> GroupEndsWith(string compareTo)
+    {
+        return new GroupMatcher<TKey>(compareTo, StringOperator.EndsWith);
+    }
 
-        /// <summary>
-        /// Create a GroupMatcher that matches groups containing the given string.
-        /// </summary>
-        /// <param name="compareTo"></param>
-        /// <returns></returns>
-        public static GroupMatcher<TKey> GroupContains(string compareTo)
-        {
-            return new GroupMatcher<TKey>(compareTo, StringOperator.Contains);
-        }
+    /// <summary>
+    /// Create a GroupMatcher that matches groups containing the given string.
+    /// </summary>
+    /// <param name="compareTo"></param>
+    /// <returns></returns>
+    public static GroupMatcher<TKey> GroupContains(string compareTo)
+    {
+        return new GroupMatcher<TKey>(compareTo, StringOperator.Contains);
+    }
 
-        /// <summary>
-        /// Create a GroupMatcher that matches all.
-        /// </summary>
-        public static GroupMatcher<TKey> AnyGroup()
-        {
-            return new GroupMatcher<TKey>("", StringOperator.Anything);
-        }
+    /// <summary>
+    /// Create a GroupMatcher that matches all.
+    /// </summary>
+    public static GroupMatcher<TKey> AnyGroup()
+    {
+        return new GroupMatcher<TKey>("", StringOperator.Anything);
+    }
 
-        protected override string GetValue(TKey key)
-        {
-            return key.Group;
-        }
+    protected override string GetValue(TKey key)
+    {
+        return key.Group;
     }
 }

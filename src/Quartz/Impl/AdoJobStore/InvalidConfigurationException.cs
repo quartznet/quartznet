@@ -17,22 +17,21 @@
  */
 #endregion
 
-namespace Quartz.Impl.AdoJobStore
-{
-    /// <summary>
-    /// Exception class for when a driver delegate cannot be found for a given
-    /// configuration, or lack thereof.
-    /// </summary>
-    /// <author>  <a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
-    /// <author>Marko Lahma (.NET)</author>
-    public class InvalidConfigurationException : SchedulerException
-	{
-		public InvalidConfigurationException(string msg) : base(msg)
-		{
-		}
+namespace Quartz.Impl.AdoJobStore;
 
-		public InvalidConfigurationException()
-		{
-		}
+/// <summary>
+/// Exception class for when a driver delegate cannot be found for a given
+/// configuration, or lack thereof.
+/// </summary>
+/// <author>  <a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
+/// <author>Marko Lahma (.NET)</author>
+public class InvalidConfigurationException : SchedulerException
+{
+    public InvalidConfigurationException(string msg) : base(msg)
+    {
+    }
+
+    public InvalidConfigurationException()
+    {
     }
 }

@@ -1,11 +1,10 @@
-namespace Quartz.Logging
+namespace Quartz.Logging;
+
+public static class OperationName
 {
-    public static class OperationName
+    public static class Job
     {
-        public static class Job
-        {
-            public const string Execute = "Quartz.Job.Execute";
-            public const string Veto = "Quartz.Job.Vetoed";
-        }
+        public const string Execute = "Quartz.Job.Execute";
+        public const string Veto = "Quartz.Job.Vetoed";
     }
 }

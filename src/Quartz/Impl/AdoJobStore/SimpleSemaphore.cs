@@ -26,156 +26,155 @@ using System.Threading.Tasks;
 using Quartz.Collections;
 using Quartz.Logging;
 
-namespace Quartz.Impl.AdoJobStore
+namespace Quartz.Impl.AdoJobStore;
+
+/// <summary>
+/// Internal in-memory lock handler for providing thread/resource locking in
+/// order to protect resources from being altered by multiple threads at the
+/// same time.
+/// </summary>
+/// <author>James House</author>
+/// <author>Marko Lahma (.NET)</author>
+public class SimpleSemaphore : ISemaphore
 {
-    /// <summary>
-    /// Internal in-memory lock handler for providing thread/resource locking in
-    /// order to protect resources from being altered by multiple threads at the
-    /// same time.
-    /// </summary>
-    /// <author>James House</author>
-    /// <author>Marko Lahma (.NET)</author>
-    public class SimpleSemaphore : ISemaphore
+    private readonly ResourceLock triggerLock = new();
+    private readonly ResourceLock stateLock = new();
+
+    private readonly ILog log;
+
+    public SimpleSemaphore()
     {
-        private readonly ResourceLock triggerLock = new();
-        private readonly ResourceLock stateLock = new();
+        log = LogProvider.GetLogger(GetType());
+    }
 
-        private readonly ILog log;
+    /// <summary>
+    /// Grants a lock on the identified resource to the calling thread (blocking
+    /// until it is available).
+    /// </summary>
+    /// <returns>True if the lock was obtained.</returns>
+    public virtual async Task<bool> ObtainLock(
+        Guid requestorId,
+        ConnectionAndTransactionHolder? conn,
+        string lockName,
+        CancellationToken cancellationToken = default)
+    {
+        var isDebugEnabled = log.IsDebugEnabled();
 
-        public SimpleSemaphore()
+        if (isDebugEnabled)
         {
-            log = LogProvider.GetLogger(GetType());
+            log.Debug($"Lock '{lockName}' is desired by: {requestorId}");
         }
 
-        /// <summary>
-        /// Grants a lock on the identified resource to the calling thread (blocking
-        /// until it is available).
-        /// </summary>
-        /// <returns>True if the lock was obtained.</returns>
-        public virtual async Task<bool> ObtainLock(
-            Guid requestorId,
-            ConnectionAndTransactionHolder? conn,
-            string lockName,
-            CancellationToken cancellationToken = default)
+        var gotLock = false;
+        var lockHandle = GetLock(lockName);
+        if (!lockHandle.IsLockOwner(requestorId))
         {
-            var isDebugEnabled = log.IsDebugEnabled();
+            if (isDebugEnabled)
+            {
+                log.Debug($"Lock '{lockName}' is being obtained: {requestorId}");
+            }
+
+            try
+            {
+                await lockHandle.Acquire(requestorId, cancellationToken).ConfigureAwait(false);
+                gotLock = true;
+            }
+            catch (OperationCanceledException)
+            {
+                if (isDebugEnabled)
+                {
+                    log.Debug($"Lock '{lockName}' was not obtained by: {requestorId}");
+                }
+            }
 
             if (isDebugEnabled)
             {
-                log.Debug($"Lock '{lockName}' is desired by: {requestorId}");
+                log.Debug($"Lock '{lockName}' given to: {requestorId}");
             }
-
-            var gotLock = false;
-            var lockHandle = GetLock(lockName);
-            if (!lockHandle.IsLockOwner(requestorId))
-            {
-                if (isDebugEnabled)
-                {
-                    log.Debug($"Lock '{lockName}' is being obtained: {requestorId}");
-                }
-
-                try
-                {
-                    await lockHandle.Acquire(requestorId, cancellationToken).ConfigureAwait(false);
-                    gotLock = true;
-                }
-                catch (OperationCanceledException)
-                {
-                    if (isDebugEnabled)
-                    {
-                        log.Debug($"Lock '{lockName}' was not obtained by: {requestorId}");
-                    }
-                }
-
-                if (isDebugEnabled)
-                {
-                    log.Debug($"Lock '{lockName}' given to: {requestorId}");
-                }
-            }
-            else if (isDebugEnabled)
-            {
-                log.Debug($"Lock '{lockName}' already owned by: {requestorId} -- but not owner!");
-                log.Debug("stack-trace of wrongful returner: " + Environment.StackTrace);
-            }
-
-            return gotLock;
+        }
+        else if (isDebugEnabled)
+        {
+            log.Debug($"Lock '{lockName}' already owned by: {requestorId} -- but not owner!");
+            log.Debug("stack-trace of wrongful returner: " + Environment.StackTrace);
         }
 
-        /// <summary> Release the lock on the identified resource if it is held by the calling
-        /// thread.
-        /// </summary>
-        public virtual Task ReleaseLock(
-            Guid requestorId, 
-            string lockName,
-            CancellationToken cancellationToken = default)
+        return gotLock;
+    }
+
+    /// <summary> Release the lock on the identified resource if it is held by the calling
+    /// thread.
+    /// </summary>
+    public virtual Task ReleaseLock(
+        Guid requestorId, 
+        string lockName,
+        CancellationToken cancellationToken = default)
+    {
+        var lockHandle = GetLock(lockName);
+        if (lockHandle.IsLockOwner(requestorId))
         {
-            var lockHandle = GetLock(lockName);
-            if (lockHandle.IsLockOwner(requestorId))
-            {
-                lockHandle.Release();
+            lockHandle.Release();
 
-                if (log.IsDebugEnabled())
-                {
-                    log.Debug($"Lock '{lockName}' returned by: {requestorId}");
-                }
-            }
-            else if (log.IsWarnEnabled())
+            if (log.IsDebugEnabled())
             {
-                log.Warn($"Lock '{lockName}' attempt to return by: {requestorId} -- but not owner!");
-                log.Warn("stack-trace of wrongful returner: " + Environment.StackTrace);
+                log.Debug($"Lock '{lockName}' returned by: {requestorId}");
             }
-
-            return Task.CompletedTask;
+        }
+        else if (log.IsWarnEnabled())
+        {
+            log.Warn($"Lock '{lockName}' attempt to return by: {requestorId} -- but not owner!");
+            log.Warn("stack-trace of wrongful returner: " + Environment.StackTrace);
         }
 
-        /// <summary>
-        /// Whether this Semaphore implementation requires a database connection for
-        /// its lock management operations.
-        /// </summary>
-        /// <value></value>
-        /// <seealso cref="ObtainLock"/>
-        /// <seealso cref="ReleaseLock"/>
-        public bool RequiresConnection => false;
+        return Task.CompletedTask;
+    }
 
-        private ResourceLock GetLock(string lockName)
+    /// <summary>
+    /// Whether this Semaphore implementation requires a database connection for
+    /// its lock management operations.
+    /// </summary>
+    /// <value></value>
+    /// <seealso cref="ObtainLock"/>
+    /// <seealso cref="ReleaseLock"/>
+    public bool RequiresConnection => false;
+
+    private ResourceLock GetLock(string lockName)
+    {
+        if (ReferenceEquals(lockName, JobStoreSupport.LockTriggerAccess))
         {
-            if (ReferenceEquals(lockName, JobStoreSupport.LockTriggerAccess))
-            {
-                return triggerLock;
-            }
-
-            if (ReferenceEquals(lockName, JobStoreSupport.LockStateAccess))
-            {
-                return stateLock;
-            }
-
-            ThrowHelper.ThrowNotSupportedException();
-            return null!;
+            return triggerLock;
         }
 
-        private sealed class ResourceLock
+        if (ReferenceEquals(lockName, JobStoreSupport.LockStateAccess))
         {
-            private SemaphoreSlim semaphore = new(1, 1);
-            private Guid? owner;
+            return stateLock;
+        }
 
-            public bool IsLockOwner(Guid requestorId)
-            {
-                var temp = owner;
-                return temp != null && temp.Value == requestorId;
+        ThrowHelper.ThrowNotSupportedException();
+        return null!;
+    }
 
-            }
+    private sealed class ResourceLock
+    {
+        private SemaphoreSlim semaphore = new(1, 1);
+        private Guid? owner;
 
-            public async Task Acquire(Guid requestorId, CancellationToken cancellationToken)
-            {
-                await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                owner = requestorId;
-            }
+        public bool IsLockOwner(Guid requestorId)
+        {
+            var temp = owner;
+            return temp != null && temp.Value == requestorId;
 
-            public void Release()
-            {
-                owner = null;
-                semaphore.Release();
-            }
+        }
+
+        public async Task Acquire(Guid requestorId, CancellationToken cancellationToken)
+        {
+            await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            owner = requestorId;
+        }
+
+        public void Release()
+        {
+            owner = null;
+            semaphore.Release();
         }
     }
 }

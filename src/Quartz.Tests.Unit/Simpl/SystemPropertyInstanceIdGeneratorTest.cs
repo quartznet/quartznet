@@ -29,99 +29,98 @@ using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Simpl;
 
-namespace Quartz.Tests.Unit.Simpl
+namespace Quartz.Tests.Unit.Simpl;
+
+/// <summary>
+/// Unit test for SystemPropertyInstanceIdGenerator.
+/// </summary>
+[TestFixture]
+public class SystemPropertyInstanceIdGeneratorTest
 {
-    /// <summary>
-    /// Unit test for SystemPropertyInstanceIdGenerator.
-    /// </summary>
-    [TestFixture]
-    public class SystemPropertyInstanceIdGeneratorTest
+    [SetUp]
+    public void SetUp()
     {
-        [SetUp]
-        public void SetUp()
-        {
-            Environment.SetEnvironmentVariable(SystemPropertyInstanceIdGenerator.SystemProperty, "foo");
-            Environment.SetEnvironmentVariable("blah.blah", "goo");
-        }
+        Environment.SetEnvironmentVariable(SystemPropertyInstanceIdGenerator.SystemProperty, "foo");
+        Environment.SetEnvironmentVariable("blah.blah", "goo");
+    }
 
-        [Test]
-        public async Task TestGetInstanceId()
-        {
-            SystemPropertyInstanceIdGenerator gen = new SystemPropertyInstanceIdGenerator();
+    [Test]
+    public async Task TestGetInstanceId()
+    {
+        SystemPropertyInstanceIdGenerator gen = new SystemPropertyInstanceIdGenerator();
 
-            string instId = await gen.GenerateInstanceId();
+        string instId = await gen.GenerateInstanceId();
 
-            Assert.AreEqual("foo", instId);
-        }
+        Assert.AreEqual("foo", instId);
+    }
 
-        [Test]
-        public async Task TestGetInstanceIdWithPrepend()
-        {
-            SystemPropertyInstanceIdGenerator gen = new SystemPropertyInstanceIdGenerator();
-            gen.Prepend = "1";
+    [Test]
+    public async Task TestGetInstanceIdWithPrepend()
+    {
+        SystemPropertyInstanceIdGenerator gen = new SystemPropertyInstanceIdGenerator();
+        gen.Prepend = "1";
 
-            string instId = await gen.GenerateInstanceId();
+        string instId = await gen.GenerateInstanceId();
 
-            Assert.AreEqual("1foo", instId);
-        }
+        Assert.AreEqual("1foo", instId);
+    }
 
-        [Test]
-        public async Task TestGetInstanceIdWithPostpend()
-        {
-            SystemPropertyInstanceIdGenerator gen = new SystemPropertyInstanceIdGenerator();
-            gen.Postpend = "2";
+    [Test]
+    public async Task TestGetInstanceIdWithPostpend()
+    {
+        SystemPropertyInstanceIdGenerator gen = new SystemPropertyInstanceIdGenerator();
+        gen.Postpend = "2";
 
-            string instId = await gen.GenerateInstanceId();
+        string instId = await gen.GenerateInstanceId();
 
-            Assert.AreEqual("foo2", instId);
-        }
+        Assert.AreEqual("foo2", instId);
+    }
 
-        [Test]
-        public async Task TestGetInstanceIdWithPrependAndPostpend()
-        {
-            SystemPropertyInstanceIdGenerator gen = new SystemPropertyInstanceIdGenerator();
-            gen.Prepend = "1";
-            gen.Postpend = "2";
+    [Test]
+    public async Task TestGetInstanceIdWithPrependAndPostpend()
+    {
+        SystemPropertyInstanceIdGenerator gen = new SystemPropertyInstanceIdGenerator();
+        gen.Prepend = "1";
+        gen.Postpend = "2";
 
-            string instId = await gen.GenerateInstanceId();
+        string instId = await gen.GenerateInstanceId();
 
-            Assert.AreEqual("1foo2", instId);
-        }
+        Assert.AreEqual("1foo2", instId);
+    }
 
-        [Test]
-        public async Task TestGetInstanceIdFromCustomSystemProperty()
-        {
-            SystemPropertyInstanceIdGenerator gen = new SystemPropertyInstanceIdGenerator();
-            gen.SystemPropertyName = "blah.blah";
+    [Test]
+    public async Task TestGetInstanceIdFromCustomSystemProperty()
+    {
+        SystemPropertyInstanceIdGenerator gen = new SystemPropertyInstanceIdGenerator();
+        gen.SystemPropertyName = "blah.blah";
 
-            string instId = await gen.GenerateInstanceId();
+        string instId = await gen.GenerateInstanceId();
 
-            Assert.AreEqual("goo", instId);
-        }
+        Assert.AreEqual("goo", instId);
+    }
 
-        [Test]
-        [Ignore("Work in progress")]
-        public async Task TestGeneratorThroughSchedulerInstantiation()
-        {
-            // TODO
-            //JdbcQuartzTestUtilities.createDatabase("MeSchedulerDatabase");
+    [Test]
+    [Ignore("Work in progress")]
+    public async Task TestGeneratorThroughSchedulerInstantiation()
+    {
+        // TODO
+        //JdbcQuartzTestUtilities.createDatabase("MeSchedulerDatabase");
 
-            NameValueCollection config = new NameValueCollection();
-            config["quartz.scheduler.instanceName"] = "MeScheduler";
-            config["quartz.scheduler.instanceId"] = "AUTO";
-            config["quartz.scheduler.instanceIdGenerator.type"] = typeof(SystemPropertyInstanceIdGenerator).AssemblyQualifiedName;
-            config["quartz.scheduler.instanceIdGenerator.prepend"] = "1";
-            config["quartz.scheduler.instanceIdGenerator.postpend"] = "2";
-            config["quartz.scheduler.instanceIdGenerator.systemPropertyName"] = "blah.blah";
-            config["quartz.threadPool.threadCount"] = "1";
-            config["quartz.threadPool.type"] = typeof(DefaultThreadPool).AssemblyQualifiedName;
-            config["quartz.jobStore.type"] = typeof(JobStoreTX).AssemblyQualifiedName;
-            config["quartz.jobStore.clustered"] = "true";
-            config["quartz.jobStore.dataSource"] = "MeSchedulerDatabase";
+        NameValueCollection config = new NameValueCollection();
+        config["quartz.scheduler.instanceName"] = "MeScheduler";
+        config["quartz.scheduler.instanceId"] = "AUTO";
+        config["quartz.scheduler.instanceIdGenerator.type"] = typeof(SystemPropertyInstanceIdGenerator).AssemblyQualifiedName;
+        config["quartz.scheduler.instanceIdGenerator.prepend"] = "1";
+        config["quartz.scheduler.instanceIdGenerator.postpend"] = "2";
+        config["quartz.scheduler.instanceIdGenerator.systemPropertyName"] = "blah.blah";
+        config["quartz.threadPool.threadCount"] = "1";
+        config["quartz.threadPool.type"] = typeof(DefaultThreadPool).AssemblyQualifiedName;
+        config["quartz.jobStore.type"] = typeof(JobStoreTX).AssemblyQualifiedName;
+        config["quartz.jobStore.clustered"] = "true";
+        config["quartz.jobStore.dataSource"] = "MeSchedulerDatabase";
 
-            IScheduler sched = await new StdSchedulerFactory(config).GetScheduler();
+        IScheduler sched = await new StdSchedulerFactory(config).GetScheduler();
 
-            Assert.AreEqual("1goo2", sched.SchedulerInstanceId);
-        }
+        Assert.AreEqual("1goo2", sched.SchedulerInstanceId);
     }
 }

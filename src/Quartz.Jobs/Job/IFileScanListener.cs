@@ -20,20 +20,19 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Quartz.Job
+namespace Quartz.Job;
+
+/// <summary> 
+/// Interface for objects wishing to receive a 'call-back' from a 
+/// <see cref="FileScanJob" />.
+/// </summary>
+/// <author>James House</author>
+/// <author>Marko Lahma (.NET)</author>
+/// <seealso cref="FileScanJob" />
+public interface IFileScanListener
 {
-	/// <summary> 
-	/// Interface for objects wishing to receive a 'call-back' from a 
-	/// <see cref="FileScanJob" />.
-	/// </summary>
-	/// <author>James House</author>
-	/// <author>Marko Lahma (.NET)</author>
-    /// <seealso cref="FileScanJob" />
-	public interface IFileScanListener
-	{
-	    /// <summary>
-	    /// Informs that certain file has been updated.
-	    /// </summary>
-	    Task FileUpdated(string fileName, CancellationToken cancellationToken = default);
-	}
+    /// <summary>
+    /// Informs that certain file has been updated.
+    /// </summary>
+    Task FileUpdated(string fileName, CancellationToken cancellationToken = default);
 }

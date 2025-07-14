@@ -24,56 +24,55 @@ using System.Threading.Tasks;
 
 using Quartz.Impl;
 
-namespace Quartz.Examples.Example16
+namespace Quartz.Examples.Example16;
+
+/// <summary>
+/// This example will show hot to run asynchronous jobs.
+/// </summary>
+/// <author>Marko Lahma</author>
+public class RunningAsynchronousJobsExample : IExample
 {
-    /// <summary>
-    /// This example will show hot to run asynchronous jobs.
-    /// </summary>
-    /// <author>Marko Lahma</author>
-    public class RunningAsynchronousJobsExample : IExample
+    public virtual async Task Run()
     {
-        public virtual async Task Run()
-        {
-            ISchedulerFactory sf = new StdSchedulerFactory();
-            IScheduler sched = await sf.GetScheduler();
+        ISchedulerFactory sf = new StdSchedulerFactory();
+        IScheduler sched = await sf.GetScheduler();
 
-            Console.WriteLine("------- Initialization Complete -----------");
+        Console.WriteLine("------- Initialization Complete -----------");
 
-            Console.WriteLine("------- Scheduling Jobs -------------------");
+        Console.WriteLine("------- Scheduling Jobs -------------------");
 
-            IJobDetail job = JobBuilder
-                .Create<AsyncJob>()
-                .WithIdentity("asyncJob")
-                .Build();
+        IJobDetail job = JobBuilder
+            .Create<AsyncJob>()
+            .WithIdentity("asyncJob")
+            .Build();
 
-            ITrigger trigger = TriggerBuilder.Create()
-                .WithIdentity("triggerForAsyncJob")
-                .StartAt(DateTimeOffset.UtcNow.AddSeconds(1))
-                .WithSimpleSchedule(x => x.WithIntervalInSeconds(20).RepeatForever())
-                .Build();
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity("triggerForAsyncJob")
+            .StartAt(DateTimeOffset.UtcNow.AddSeconds(1))
+            .WithSimpleSchedule(x => x.WithIntervalInSeconds(20).RepeatForever())
+            .Build();
 
-            await sched.ScheduleJob(job, trigger);
+        await sched.ScheduleJob(job, trigger);
 
-            Console.WriteLine("------- Starting Scheduler ----------------");
+        Console.WriteLine("------- Starting Scheduler ----------------");
 
-            // start the schedule
-            await sched.Start();
+        // start the schedule
+        await sched.Start();
 
-            Console.WriteLine("------- Started Scheduler -----------------");
+        Console.WriteLine("------- Started Scheduler -----------------");
 
-            await Task.Delay(TimeSpan.FromSeconds(5));
-            Console.WriteLine("------- Cancelling job via scheduler.Interrupt() -----------------");
-            await sched.Interrupt(job.Key);
+        await Task.Delay(TimeSpan.FromSeconds(5));
+        Console.WriteLine("------- Cancelling job via scheduler.Interrupt() -----------------");
+        await sched.Interrupt(job.Key);
 
-            Console.WriteLine("------- Waiting five minutes... -----------");
+        Console.WriteLine("------- Waiting five minutes... -----------");
 
-            // wait five minutes to give our job a chance to run
-            await Task.Delay(TimeSpan.FromMinutes(5));
+        // wait five minutes to give our job a chance to run
+        await Task.Delay(TimeSpan.FromMinutes(5));
 
-            // shut down the scheduler
-            Console.WriteLine("------- Shutting Down ---------------------");
-            await sched.Shutdown(true);
-            Console.WriteLine("------- Shutdown Complete -----------------");
-        }
+        // shut down the scheduler
+        Console.WriteLine("------- Shutting Down ---------------------");
+        await sched.Shutdown(true);
+        Console.WriteLine("------- Shutdown Complete -----------------");
     }
 }

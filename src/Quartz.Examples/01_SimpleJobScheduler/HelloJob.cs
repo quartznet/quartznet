@@ -22,26 +22,25 @@
 using System;
 using System.Threading.Tasks;
 
-namespace Quartz.Examples.Example01
+namespace Quartz.Examples.Example01;
+
+/// <summary>
+/// This is just a simple job that says "Hello" to the world.
+/// </summary>
+/// <author>Bill Kratzer</author>
+/// <author>Marko Lahma (.NET)</author>
+public class HelloJob : IJob
 {
     /// <summary>
-    /// This is just a simple job that says "Hello" to the world.
+    /// Called by the <see cref="IScheduler" /> when a
+    /// <see cref="ITrigger" /> fires that is associated with
+    /// the <see cref="IJob" />.
     /// </summary>
-    /// <author>Bill Kratzer</author>
-    /// <author>Marko Lahma (.NET)</author>
-    public class HelloJob : IJob
+    public virtual Task Execute(IJobExecutionContext context)
     {
-        /// <summary>
-        /// Called by the <see cref="IScheduler" /> when a
-        /// <see cref="ITrigger" /> fires that is associated with
-        /// the <see cref="IJob" />.
-        /// </summary>
-        public virtual Task Execute(IJobExecutionContext context)
-        {
-            // Say Hello to the World and display the date/time
-            var timestamp = DateTime.Now;
-            Console.WriteLine($"Hello World! - {timestamp:yyyy-MM-dd HH:mm:ss.fff}");
-            return Task.CompletedTask;
-        }
+        // Say Hello to the World and display the date/time
+        var timestamp = DateTime.Now;
+        Console.WriteLine($"Hello World! - {timestamp:yyyy-MM-dd HH:mm:ss.fff}");
+        return Task.CompletedTask;
     }
 }

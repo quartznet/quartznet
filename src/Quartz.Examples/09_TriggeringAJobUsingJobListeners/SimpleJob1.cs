@@ -22,35 +22,34 @@
 using System;
 using System.Threading.Tasks;
 
-namespace Quartz.Examples.Example09
+namespace Quartz.Examples.Example09;
+
+/// <summary>
+/// This is just a simple job that gets fired off by example 9.
+/// </summary>
+/// <author>Bill Kratzer</author>
+/// <author>Marko Lahma (.NET)</author>
+public class SimpleJob1 : IJob
 {
     /// <summary>
-    /// This is just a simple job that gets fired off by example 9.
+    /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
+    /// fires that is associated with the <see cref="IJob" />.
+    /// <para>
+    /// The implementation may wish to set a  result object on the
+    /// JobExecutionContext before this method exits.  The result itself
+    /// is meaningless to Quartz, but may be informative to
+    /// <see cref="IJobListener" />s or
+    /// <see cref="ITriggerListener" />s that are watching the job's
+    /// execution.
+    /// </para>
     /// </summary>
-    /// <author>Bill Kratzer</author>
-    /// <author>Marko Lahma (.NET)</author>
-    public class SimpleJob1 : IJob
+    /// <param name="context"></param>
+    public virtual Task Execute(IJobExecutionContext context)
     {
-        /// <summary>
-        /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
-        /// fires that is associated with the <see cref="IJob" />.
-        /// <para>
-        /// The implementation may wish to set a  result object on the
-        /// JobExecutionContext before this method exits.  The result itself
-        /// is meaningless to Quartz, but may be informative to
-        /// <see cref="IJobListener" />s or
-        /// <see cref="ITriggerListener" />s that are watching the job's
-        /// execution.
-        /// </para>
-        /// </summary>
-        /// <param name="context"></param>
-        public virtual Task Execute(IJobExecutionContext context)
-        {
-            // This job simply prints out its job name and the
-            // date and time that it is running
-            JobKey jobKey = context.JobDetail.Key;
-            Console.WriteLine("SimpleJob1 says: {0} executing at {1:r}", jobKey, DateTime.Now);
-            return Task.CompletedTask;
-        }
+        // This job simply prints out its job name and the
+        // date and time that it is running
+        JobKey jobKey = context.JobDetail.Key;
+        Console.WriteLine("SimpleJob1 says: {0} executing at {1:r}", jobKey, DateTime.Now);
+        return Task.CompletedTask;
     }
 }

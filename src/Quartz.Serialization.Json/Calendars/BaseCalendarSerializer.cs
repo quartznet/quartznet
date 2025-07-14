@@ -3,21 +3,20 @@ using Newtonsoft.Json.Linq;
 
 using Quartz.Impl.Calendar;
 
-namespace Quartz.Calendars
+namespace Quartz.Calendars;
+
+internal sealed class BaseCalendarSerializer : CalendarSerializer<BaseCalendar>
 {
-    internal sealed class BaseCalendarSerializer : CalendarSerializer<BaseCalendar>
+    protected override BaseCalendar Create(JObject source)
     {
-        protected override BaseCalendar Create(JObject source)
-        {
-            return new BaseCalendar();
-        }
+        return new BaseCalendar();
+    }
 
-        protected override void SerializeFields(JsonWriter writer, BaseCalendar calendar)
-        {
-        }
+    protected override void SerializeFields(JsonWriter writer, BaseCalendar calendar)
+    {
+    }
 
-        protected override void DeserializeFields(BaseCalendar calendar, JObject source)
-        {
-        }
+    protected override void DeserializeFields(BaseCalendar calendar, JObject source)
+    {
     }
 }

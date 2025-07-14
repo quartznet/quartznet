@@ -4,68 +4,67 @@ using Microsoft.Extensions.Logging;
 
 using Quartz.Logging;
 
-namespace Quartz.Simpl
+namespace Quartz.Simpl;
+
+internal sealed class MicrosoftLoggingProvider : ILogProvider
 {
-    internal sealed class MicrosoftLoggingProvider : ILogProvider
+    private readonly ILoggerFactory loggerFactory;
+
+    public MicrosoftLoggingProvider(ILoggerFactory loggerFactory)
     {
-        private readonly ILoggerFactory loggerFactory;
+        this.loggerFactory = loggerFactory;
+    }
 
-        public MicrosoftLoggingProvider(ILoggerFactory loggerFactory)
+    public Logger GetLogger(string name)
+    {
+        var logger = loggerFactory.CreateLogger(name);
+        return (level, func, exception, parameters) =>
         {
-            this.loggerFactory = loggerFactory;
-        }
-
-        public Logger GetLogger(string name)
-        {
-            var logger = loggerFactory.CreateLogger(name);
-            return (level, func, exception, parameters) =>
+            if (func != null)
             {
-                if (func != null)
+                var message = func();
+                switch (level)
                 {
-                    var message = func();
-                    switch (level)
+                    case Quartz.Logging.LogLevel.Info:
                     {
-                        case Quartz.Logging.LogLevel.Info:
-                        {
-                            logger.LogInformation(exception, message, parameters);
-                            break;
-                        }
-                        case Quartz.Logging.LogLevel.Debug:
-                        {
-                            logger.LogDebug(exception, message, parameters);
-                            break;
-                        }
-                        case Quartz.Logging.LogLevel.Error:
-                        case Quartz.Logging.LogLevel.Fatal:
-                        {
-                            logger.LogError(exception, message, parameters);
-                            break;
-                        }
-                        case Quartz.Logging.LogLevel.Trace:
-                        {
-                            logger.LogTrace(exception, message, parameters);
-                            break;
-                        }
-                        case Quartz.Logging.LogLevel.Warn:
-                        {
-                            logger.LogWarning(exception, message, parameters);
-                            break;
-                        }
+                        logger.LogInformation(exception, message, parameters);
+                        break;
+                    }
+                    case Quartz.Logging.LogLevel.Debug:
+                    {
+                        logger.LogDebug(exception, message, parameters);
+                        break;
+                    }
+                    case Quartz.Logging.LogLevel.Error:
+                    case Quartz.Logging.LogLevel.Fatal:
+                    {
+                        logger.LogError(exception, message, parameters);
+                        break;
+                    }
+                    case Quartz.Logging.LogLevel.Trace:
+                    {
+                        logger.LogTrace(exception, message, parameters);
+                        break;
+                    }
+                    case Quartz.Logging.LogLevel.Warn:
+                    {
+                        logger.LogWarning(exception, message, parameters);
+                        break;
                     }
                 }
+            }
 
-                return true;
-            };
-        }
+            return true;
+        };
+    }
 
-        public IDisposable? OpenNestedContext(string message)
-        {
-            return null;
-        }
+    public IDisposable? OpenNestedContext(string message)
+    {
+        return null;
+    }
 
-        public IDisposable? OpenMappedContext(string key, object value, bool destructure = false)
-        {
-            return null;
-        }
+    public IDisposable? OpenMappedContext(string key, object value, bool destructure = false)
+    {
+        return null;
     }
 }

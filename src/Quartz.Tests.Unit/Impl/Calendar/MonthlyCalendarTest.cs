@@ -27,92 +27,91 @@ using Quartz.Impl.Calendar;
 using Quartz.Simpl;
 using Quartz.Util;
 
-namespace Quartz.Tests.Unit.Impl.Calendar
+namespace Quartz.Tests.Unit.Impl.Calendar;
+
+/// <author>Marko Lahma (.NET)</author>
+[TestFixture(typeof(BinaryObjectSerializer))]
+[TestFixture(typeof(JsonObjectSerializer))]
+[TestFixture(typeof(SystemTextJsonObjectSerializer))]
+public class MonthlyCalendarTest : SerializationTestSupport<MonthlyCalendar, ICalendar>
 {
-    /// <author>Marko Lahma (.NET)</author>
-    [TestFixture(typeof(BinaryObjectSerializer))]
-    [TestFixture(typeof(JsonObjectSerializer))]
-    [TestFixture(typeof(SystemTextJsonObjectSerializer))]
-    public class MonthlyCalendarTest : SerializationTestSupport<MonthlyCalendar, ICalendar>
+    private MonthlyCalendar cal;
+
+    public MonthlyCalendarTest(Type serializerType) : base(serializerType)
     {
-        private MonthlyCalendar cal;
+    }
 
-        public MonthlyCalendarTest(Type serializerType) : base(serializerType)
+    [SetUp]
+    public void Setup()
+    {
+        cal = new MonthlyCalendar();
+    }
+
+    [Test]
+    public void TestAddAndRemoveExclusion()
+    {
+        cal.SetDayExcluded(15, true);
+        Assert.IsTrue(cal.IsDayExcluded(15));
+        cal.SetDayExcluded(15, false);
+        Assert.IsFalse(cal.IsDayExcluded(15));
+    }
+
+    [Test]
+    public void TestMonthDayExclusion()
+    {
+        DateTime excluded = new DateTime(2007, 8, 3);
+        cal.SetDayExcluded(3, true);
+        Assert.AreEqual(excluded.AddDays(1), cal.GetNextIncludedTimeUtc(excluded).DateTime);
+    }
+
+    [Test]
+    public void TestForInfiniteLoop()
+    {
+        MonthlyCalendar monthlyCalendar = new MonthlyCalendar();
+
+        for (int i = 1; i < 9; i++)
         {
+            monthlyCalendar.SetDayExcluded(i, true);
         }
 
-        [SetUp]
-        public void Setup()
-        {
-            cal = new MonthlyCalendar();
-        }
+        DateTime d = new DateTime(2007, 11, 8, 12, 0, 0);
 
-        [Test]
-        public void TestAddAndRemoveExclusion()
-        {
-            cal.SetDayExcluded(15, true);
-            Assert.IsTrue(cal.IsDayExcluded(15));
-            cal.SetDayExcluded(15, false);
-            Assert.IsFalse(cal.IsDayExcluded(15));
-        }
+        monthlyCalendar.GetNextIncludedTimeUtc(d.ToUniversalTime());
+    }
 
-        [Test]
-        public void TestMonthDayExclusion()
-        {
-            DateTime excluded = new DateTime(2007, 8, 3);
-            cal.SetDayExcluded(3, true);
-            Assert.AreEqual(excluded.AddDays(1), cal.GetNextIncludedTimeUtc(excluded).DateTime);
-        }
+    [Test]
+    public void TestTimeZone()
+    {
+        TimeZoneInfo tz = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
+        MonthlyCalendar monthlyCalendar = new MonthlyCalendar();
+        monthlyCalendar.TimeZone = tz;
 
-        [Test]
-        public void TestForInfiniteLoop()
-        {
-            MonthlyCalendar monthlyCalendar = new MonthlyCalendar();
+        monthlyCalendar.SetDayExcluded(4, true);
 
-            for (int i = 1; i < 9; i++)
-            {
-                monthlyCalendar.SetDayExcluded(i, true);
-            }
+        // 11/5/2012 12:00:00 AM -04:00  translate into 11/4/2012 11:00:00 PM -05:00 (EST)
+        DateTimeOffset date = new DateTimeOffset(2012, 11, 5, 0, 0, 0, TimeSpan.FromHours(-4));
 
-            DateTime d = new DateTime(2007, 11, 8, 12, 0, 0);
+        Assert.IsFalse(monthlyCalendar.IsTimeIncluded(date));
+    }
 
-            monthlyCalendar.GetNextIncludedTimeUtc(d.ToUniversalTime());
-        }
+    /// <summary>
+    /// Get the object to serialize when generating serialized file for future
+    /// tests, and against which to validate deserialized object.
+    /// </summary>
+    /// <returns></returns>
+    protected override MonthlyCalendar GetTargetObject()
+    {
+        MonthlyCalendar c = new MonthlyCalendar();
+        c.Description = "description";
+        c.SetDayExcluded(4, true);
+        return c;
+    }
 
-        [Test]
-        public void TestTimeZone()
-        {
-            TimeZoneInfo tz = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
-            MonthlyCalendar monthlyCalendar = new MonthlyCalendar();
-            monthlyCalendar.TimeZone = tz;
-
-            monthlyCalendar.SetDayExcluded(4, true);
-
-            // 11/5/2012 12:00:00 AM -04:00  translate into 11/4/2012 11:00:00 PM -05:00 (EST)
-            DateTimeOffset date = new DateTimeOffset(2012, 11, 5, 0, 0, 0, TimeSpan.FromHours(-4));
-
-            Assert.IsFalse(monthlyCalendar.IsTimeIncluded(date));
-        }
-
-        /// <summary>
-        /// Get the object to serialize when generating serialized file for future
-        /// tests, and against which to validate deserialized object.
-        /// </summary>
-        /// <returns></returns>
-        protected override MonthlyCalendar GetTargetObject()
-        {
-            MonthlyCalendar c = new MonthlyCalendar();
-            c.Description = "description";
-            c.SetDayExcluded(4, true);
-            return c;
-        }
-
-        protected override void VerifyMatch(MonthlyCalendar original, MonthlyCalendar deserialized)
-        {
-            Assert.IsNotNull(deserialized);
-            Assert.AreEqual(original.Description, deserialized.Description);
-            Assert.AreEqual(original.DaysExcluded, deserialized.DaysExcluded);
-            Assert.AreEqual(original.TimeZone, deserialized.TimeZone);
-        }
+    protected override void VerifyMatch(MonthlyCalendar original, MonthlyCalendar deserialized)
+    {
+        Assert.IsNotNull(deserialized);
+        Assert.AreEqual(original.Description, deserialized.Description);
+        Assert.AreEqual(original.DaysExcluded, deserialized.DaysExcluded);
+        Assert.AreEqual(original.TimeZone, deserialized.TimeZone);
     }
 }

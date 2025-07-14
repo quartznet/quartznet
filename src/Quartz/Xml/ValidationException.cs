@@ -24,78 +24,77 @@ using System.Collections.Generic;
 using System.Runtime.Serialization;
 using System.Text;
 
-namespace Quartz.Xml
+namespace Quartz.Xml;
+
+/// <summary>
+/// Reports JobSchedulingDataProcessor validation exceptions.
+/// </summary>
+/// <author> <a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
+/// <author>Marko Lahma (.NET)</author>
+[Serializable]
+public class ValidationException : Exception
 {
-	/// <summary>
-	/// Reports JobSchedulingDataProcessor validation exceptions.
-	/// </summary>
-	/// <author> <a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
-    /// <author>Marko Lahma (.NET)</author>
-    [Serializable]
-    public class ValidationException : Exception
-	{
-	    /// <summary>
-		/// Gets the validation exceptions.
-		/// </summary>
-		/// <value>The validation exceptions.</value>
-		public virtual ICollection<Exception> ValidationExceptions { get; } = new List<Exception>();
+    /// <summary>
+    /// Gets the validation exceptions.
+    /// </summary>
+    /// <value>The validation exceptions.</value>
+    public virtual ICollection<Exception> ValidationExceptions { get; } = new List<Exception>();
 
-	    /// <summary>
-		/// Returns the detail message string.
-		/// </summary>
-		public override string Message
-		{
-			get
-			{
-				if (ValidationExceptions.Count == 0)
-				{
-					return base.Message;
-				}
-
-				StringBuilder sb = new StringBuilder();
-
-				foreach (Exception e in ValidationExceptions)
-				{
-					sb.AppendLine(e.Message);
-				}
-
-				return sb.ToString();
-			}
-		}
-
-		/// <summary>
-		/// Constructor for ValidationException.
-		/// </summary>
-		public ValidationException()
-		{
-		}
-
-		/// <summary>
-		/// Constructor for ValidationException.
-		/// </summary>
-		/// <param name="message">exception message.</param>
-		public ValidationException(string message) : base(message)
-		{
-		}
-
-		/// <summary>
-		/// Constructor for ValidationException.
-		/// </summary>
-		/// <param name="errors">collection of validation exceptions.</param>
-		public ValidationException(IEnumerable<Exception> errors) : this()
-		{
-			ValidationExceptions = new List<Exception>(errors).AsReadOnly();
-		}
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="SchedulerException"/> class.
-        /// </summary>
-        /// <param name="info">The <see cref="T:SerializationInfo"></see> that holds the serialized object data about the exception being thrown.</param>
-        /// <param name="context">The <see cref="T:System.Runtime.Serialization.StreamingContext"></see> that contains contextual information about the source or destination.</param>
-        /// <exception cref="T:System.Runtime.Serialization.SerializationException">The class name is null or <see cref="P:System.Exception.HResult"></see> is zero (0). </exception>
-        /// <exception cref="T:System.ArgumentNullException">The info parameter is null. </exception>
-        protected ValidationException(SerializationInfo info, StreamingContext context) : base(info, context)
+    /// <summary>
+    /// Returns the detail message string.
+    /// </summary>
+    public override string Message
+    {
+        get
         {
+            if (ValidationExceptions.Count == 0)
+            {
+                return base.Message;
+            }
+
+            StringBuilder sb = new StringBuilder();
+
+            foreach (Exception e in ValidationExceptions)
+            {
+                sb.AppendLine(e.Message);
+            }
+
+            return sb.ToString();
         }
+    }
+
+    /// <summary>
+    /// Constructor for ValidationException.
+    /// </summary>
+    public ValidationException()
+    {
+    }
+
+    /// <summary>
+    /// Constructor for ValidationException.
+    /// </summary>
+    /// <param name="message">exception message.</param>
+    public ValidationException(string message) : base(message)
+    {
+    }
+
+    /// <summary>
+    /// Constructor for ValidationException.
+    /// </summary>
+    /// <param name="errors">collection of validation exceptions.</param>
+    public ValidationException(IEnumerable<Exception> errors) : this()
+    {
+        ValidationExceptions = new List<Exception>(errors).AsReadOnly();
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SchedulerException"/> class.
+    /// </summary>
+    /// <param name="info">The <see cref="T:SerializationInfo"></see> that holds the serialized object data about the exception being thrown.</param>
+    /// <param name="context">The <see cref="T:System.Runtime.Serialization.StreamingContext"></see> that contains contextual information about the source or destination.</param>
+    /// <exception cref="T:System.Runtime.Serialization.SerializationException">The class name is null or <see cref="P:System.Exception.HResult"></see> is zero (0). </exception>
+    /// <exception cref="T:System.ArgumentNullException">The info parameter is null. </exception>
+    protected ValidationException(SerializationInfo info, StreamingContext context) : base(info, context)
+    {
     }
 }

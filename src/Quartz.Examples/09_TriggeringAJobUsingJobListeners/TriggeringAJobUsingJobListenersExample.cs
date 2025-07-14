@@ -25,66 +25,65 @@ using System.Threading.Tasks;
 using Quartz.Impl;
 using Quartz.Impl.Matchers;
 
-namespace Quartz.Examples.Example09
+namespace Quartz.Examples.Example09;
+
+/// <summary>
+/// Demonstrates the behavior of <see cref="IJobListener" />s.  In particular,
+/// this example will use a job listener to trigger another job after one
+/// job successfully executes.
+/// </summary>
+/// <author>Marko Lahma (.NET)</author>
+public class TriggeringAJobUsingJobListenersExample : IExample
 {
-    /// <summary>
-    /// Demonstrates the behavior of <see cref="IJobListener" />s.  In particular,
-    /// this example will use a job listener to trigger another job after one
-    /// job successfully executes.
-    /// </summary>
-    /// <author>Marko Lahma (.NET)</author>
-    public class TriggeringAJobUsingJobListenersExample : IExample
+    public virtual async Task Run()
     {
-        public virtual async Task Run()
-        {
-            Console.WriteLine("------- Initializing ----------------------");
+        Console.WriteLine("------- Initializing ----------------------");
 
-            // First we must get a reference to a scheduler
-            ISchedulerFactory sf = new StdSchedulerFactory();
-            IScheduler sched = await sf.GetScheduler();
+        // First we must get a reference to a scheduler
+        ISchedulerFactory sf = new StdSchedulerFactory();
+        IScheduler sched = await sf.GetScheduler();
 
-            Console.WriteLine("------- Initialization Complete -----------");
+        Console.WriteLine("------- Initialization Complete -----------");
 
-            Console.WriteLine("------- Scheduling Jobs -------------------");
+        Console.WriteLine("------- Scheduling Jobs -------------------");
 
-            // schedule a job to run immediately
-            IJobDetail job = JobBuilder.Create<SimpleJob1>()
-                .WithIdentity("job1")
-                .Build();
+        // schedule a job to run immediately
+        IJobDetail job = JobBuilder.Create<SimpleJob1>()
+            .WithIdentity("job1")
+            .Build();
 
-            ITrigger trigger = TriggerBuilder.Create()
-                .WithIdentity("trigger1")
-                .StartNow()
-                .Build();
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity("trigger1")
+            .StartNow()
+            .Build();
 
-            // Set up the listener
-            IJobListener listener = new SimpleJob1Listener();
-            IMatcher<JobKey> matcher = KeyMatcher<JobKey>.KeyEquals(job.Key);
-            sched.ListenerManager.AddJobListener(listener, matcher);
+        // Set up the listener
+        IJobListener listener = new SimpleJob1Listener();
+        IMatcher<JobKey> matcher = KeyMatcher<JobKey>.KeyEquals(job.Key);
+        sched.ListenerManager.AddJobListener(listener, matcher);
 
-            // schedule the job to run
-            await sched.ScheduleJob(job, trigger);
+        // schedule the job to run
+        await sched.ScheduleJob(job, trigger);
 
-            // All of the jobs have been added to the scheduler, but none of the jobs
-            // will run until the scheduler has been started
-            Console.WriteLine("------- Starting Scheduler ----------------");
-            await sched.Start();
+        // All of the jobs have been added to the scheduler, but none of the jobs
+        // will run until the scheduler has been started
+        Console.WriteLine("------- Starting Scheduler ----------------");
+        await sched.Start();
 
-            // wait 30 seconds:
-            // note:  nothing will run
-            Console.WriteLine("------- Waiting 30 seconds... --------------");
+        // wait 30 seconds:
+        // note:  nothing will run
+        Console.WriteLine("------- Waiting 30 seconds... --------------");
 
-            // wait 30 seconds to show jobs
-            await Task.Delay(TimeSpan.FromSeconds(30));
-            // executing...
+        // wait 30 seconds to show jobs
+        await Task.Delay(TimeSpan.FromSeconds(30));
+        // executing...
 
-            // shut down the scheduler
-            Console.WriteLine("------- Shutting Down ---------------------");
-            await sched.Shutdown(true);
-            Console.WriteLine("------- Shutdown Complete -----------------");
+        // shut down the scheduler
+        Console.WriteLine("------- Shutting Down ---------------------");
+        await sched.Shutdown(true);
+        Console.WriteLine("------- Shutdown Complete -----------------");
 
-            SchedulerMetaData metaData = await sched.GetMetaData();
-            Console.WriteLine($"Executed {metaData.NumberOfJobsExecuted} jobs.");
-        }
+        SchedulerMetaData metaData = await sched.GetMetaData();
+        Console.WriteLine($"Executed {metaData.NumberOfJobsExecuted} jobs.");
     }
 }

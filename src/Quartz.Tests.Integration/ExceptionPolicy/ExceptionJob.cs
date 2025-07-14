@@ -1,41 +1,40 @@
 using System.Threading.Tasks;
 
-namespace Quartz.Tests.Integration.ExceptionPolicy
-{
-    public class ExceptionJob : IJob
-    {
-        public static int LaunchCount;
-        public static bool Refire = false;
-        public static bool UnscheduleFiringTrigger = false;
-        public static bool UnscheduleAllTriggers = false;
-        public static bool ThrowsException = true;
+namespace Quartz.Tests.Integration.ExceptionPolicy;
 
-        /// <summary>
-        /// Called by the <see cref="IScheduler"/> when a <see cref="ITrigger"/>
-        /// fires that is associated with the <see cref="IJob"/>.
-        /// </summary>
-        /// <param name="context">The execution context.</param>
-        /// <remarks>
-        /// The implementation may wish to set a  result object on the
-        /// JobExecutionContext before this method exits.  The result itself
-        /// is meaningless to Quartz, but may be informative to
-        /// <see cref="IJobListener"/>s or
-        /// <see cref="ITriggerListener"/>s that are watching the job's
-        /// execution.
-        /// </remarks>
-        public Task Execute(IJobExecutionContext context)
+public class ExceptionJob : IJob
+{
+    public static int LaunchCount;
+    public static bool Refire = false;
+    public static bool UnscheduleFiringTrigger = false;
+    public static bool UnscheduleAllTriggers = false;
+    public static bool ThrowsException = true;
+
+    /// <summary>
+    /// Called by the <see cref="IScheduler"/> when a <see cref="ITrigger"/>
+    /// fires that is associated with the <see cref="IJob"/>.
+    /// </summary>
+    /// <param name="context">The execution context.</param>
+    /// <remarks>
+    /// The implementation may wish to set a  result object on the
+    /// JobExecutionContext before this method exits.  The result itself
+    /// is meaningless to Quartz, but may be informative to
+    /// <see cref="IJobListener"/>s or
+    /// <see cref="ITriggerListener"/>s that are watching the job's
+    /// execution.
+    /// </remarks>
+    public Task Execute(IJobExecutionContext context)
+    {
+        LaunchCount++;
+        if (ThrowsException)
         {
-            LaunchCount++;
-            if (ThrowsException)
-            {
-                JobExecutionException toThrow = new JobExecutionException("test exception");
-                toThrow.RefireImmediately = Refire;
-                toThrow.UnscheduleFiringTrigger = UnscheduleFiringTrigger;
-                toThrow.UnscheduleAllTriggers = UnscheduleAllTriggers;
+            JobExecutionException toThrow = new JobExecutionException("test exception");
+            toThrow.RefireImmediately = Refire;
+            toThrow.UnscheduleFiringTrigger = UnscheduleFiringTrigger;
+            toThrow.UnscheduleAllTriggers = UnscheduleAllTriggers;
                
-                throw toThrow;
-            }
-            return Task.CompletedTask;
+            throw toThrow;
         }
+        return Task.CompletedTask;
     }
 }

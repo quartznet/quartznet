@@ -21,63 +21,62 @@
 
 using Quartz.Util;
 
-namespace Quartz
+namespace Quartz;
+
+/// <summary>
+/// Uniquely identifies a <see cref="IJobDetail" />.
+/// </summary>
+/// <remarks>
+/// <para>Keys are composed of both a name and group, and the name must be unique
+/// within the group.  If only a group is specified then the default group
+/// name will be used.</para>
+///
+/// <para>Quartz provides a builder-style API for constructing scheduling-related
+/// entities via a Domain-Specific Language (DSL).  The DSL can best be
+/// utilized through the usage of static imports of the methods on the classes
+/// <see cref="TriggerBuilder" />, <see cref="JobBuilder" />,
+/// <see cref="DateBuilder" />, <see cref="JobKey" />, <see cref="TriggerKey" />
+/// and the various <see cref="IScheduleBuilder" /> implementations.</para>
+///
+/// <para>Client code can then use the DSL to write code such as this:</para>
+/// <code>
+/// IJobDetail job = JobBuilder.Create&lt;MyJob>()
+///     .WithIdentity("myJob")
+///     .Build();
+/// ITrigger trigger = TriggerBuilder.Create()
+///     .WithIdentity("myTrigger", "myTriggerGroup")
+///     .WithSimpleSchedule(x => x
+///         .WithIntervalInHours(1)
+///         .RepeatForever())
+///     .StartAt(DateBuilder.FutureDate(10, IntervalUnit.Minute))
+///     .Build();
+/// scheduler.scheduleJob(job, trigger);
+/// </code>
+/// </remarks>
+/// <seealso cref="IJob"/>
+/// <seealso cref="Key{T}.DefaultGroup" />
+[System.Serializable]
+public sealed class JobKey : Key<JobKey>
 {
-    /// <summary>
-    /// Uniquely identifies a <see cref="IJobDetail" />.
-    /// </summary>
-    /// <remarks>
-    /// <para>Keys are composed of both a name and group, and the name must be unique
-    /// within the group.  If only a group is specified then the default group
-    /// name will be used.</para>
-    ///
-    /// <para>Quartz provides a builder-style API for constructing scheduling-related
-    /// entities via a Domain-Specific Language (DSL).  The DSL can best be
-    /// utilized through the usage of static imports of the methods on the classes
-    /// <see cref="TriggerBuilder" />, <see cref="JobBuilder" />,
-    /// <see cref="DateBuilder" />, <see cref="JobKey" />, <see cref="TriggerKey" />
-    /// and the various <see cref="IScheduleBuilder" /> implementations.</para>
-    ///
-    /// <para>Client code can then use the DSL to write code such as this:</para>
-    /// <code>
-    /// IJobDetail job = JobBuilder.Create&lt;MyJob>()
-    ///     .WithIdentity("myJob")
-    ///     .Build();
-    /// ITrigger trigger = TriggerBuilder.Create()
-    ///     .WithIdentity("myTrigger", "myTriggerGroup")
-    ///     .WithSimpleSchedule(x => x
-    ///         .WithIntervalInHours(1)
-    ///         .RepeatForever())
-    ///     .StartAt(DateBuilder.FutureDate(10, IntervalUnit.Minute))
-    ///     .Build();
-    /// scheduler.scheduleJob(job, trigger);
-    /// </code>
-    /// </remarks>
-    /// <seealso cref="IJob"/>
-    /// <seealso cref="Key{T}.DefaultGroup" />
-    [System.Serializable]
-    public sealed class JobKey : Key<JobKey>
+    private JobKey()
     {
-        private JobKey()
-        {
-        }
+    }
 
-        public JobKey(string name) : base(name)
-        {
-        }
+    public JobKey(string name) : base(name)
+    {
+    }
 
-        public JobKey(string name, string? group) : base(name, group)
-        {
-        }
+    public JobKey(string name, string? group) : base(name, group)
+    {
+    }
 
-        public static JobKey Create(string name)
-        {
-            return new JobKey(name);
-        }
+    public static JobKey Create(string name)
+    {
+        return new JobKey(name);
+    }
 
-        public static JobKey Create(string name, string? group)
-        {
-            return new JobKey(name, group);
-        }
+    public static JobKey Create(string name, string? group)
+    {
+        return new JobKey(name, group);
     }
 }

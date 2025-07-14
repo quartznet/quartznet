@@ -1,8 +1,8 @@
 using System;
 
 // ReSharper disable once CheckNamespace
-namespace Quartz
-{
+namespace Quartz;
+
     public static class TestConstants
     {
         static TestConstants()
@@ -36,4 +36,3 @@ namespace Quartz
 
         public const string PostgresProvider = "Npgsql";
     }
-}

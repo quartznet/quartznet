@@ -23,32 +23,31 @@ using NUnit.Framework;
 
 using Quartz.Impl.AdoJobStore.Common;
 
-namespace Quartz.Tests.Integration.Impl.AdoJobStore.Common
-{
-    /// <author>Marko Lahma (.NET)</author>
-    [TestFixture]
-    public class DbProviderTest
-    {
-        [Test]
-        public void TestInvalidProviderName()
-        {
-            try
-            {
-                DbProvider provider = new DbProvider("FooBar", "");
-                Assert.Fail();
-            }
-            catch (Exception ex)
-            {
-                Assert.That(ex.Message, Does.Contain("There is no metadata information for provider 'FooBar'"));
-            }
-        }
+namespace Quartz.Tests.Integration.Impl.AdoJobStore.Common;
 
-        [Test]
-        public void TestValidProviderSqlServer()
+/// <author>Marko Lahma (.NET)</author>
+[TestFixture]
+public class DbProviderTest
+{
+    [Test]
+    public void TestInvalidProviderName()
+    {
+        try
         {
-            DbProvider provider = new DbProvider(TestConstants.DefaultSqlServerProvider, "foo");
-            Assert.IsNotNull(provider.ConnectionString);
-            Assert.IsNotNull(provider.Metadata);
+            DbProvider provider = new DbProvider("FooBar", "");
+            Assert.Fail();
         }
+        catch (Exception ex)
+        {
+            Assert.That(ex.Message, Does.Contain("There is no metadata information for provider 'FooBar'"));
+        }
+    }
+
+    [Test]
+    public void TestValidProviderSqlServer()
+    {
+        DbProvider provider = new DbProvider(TestConstants.DefaultSqlServerProvider, "foo");
+        Assert.IsNotNull(provider.ConnectionString);
+        Assert.IsNotNull(provider.Metadata);
     }
 }

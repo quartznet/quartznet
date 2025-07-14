@@ -23,23 +23,22 @@ using NUnit.Framework;
 
 using Quartz.Impl.Calendar;
 
-namespace Quartz.Tests.Unit.Impl.Calendar
+namespace Quartz.Tests.Unit.Impl.Calendar;
+
+/// <author>Marko Lahma (.NET)</author>
+[TestFixture]
+public class BaseCalendarTest
 {
-    /// <author>Marko Lahma (.NET)</author>
-    [TestFixture]
-    public class BaseCalendarTest
-    {
-        [Test]
-        public void TestClone() {
-            BaseCalendar baseCalendar = new BaseCalendar();
-            baseCalendar.Description = "My description";
-            baseCalendar.TimeZone = TimeZoneInfo.GetSystemTimeZones()[3];
-            BaseCalendar clone = (BaseCalendar) baseCalendar.Clone();
+    [Test]
+    public void TestClone() {
+        BaseCalendar baseCalendar = new BaseCalendar();
+        baseCalendar.Description = "My description";
+        baseCalendar.TimeZone = TimeZoneInfo.GetSystemTimeZones()[3];
+        BaseCalendar clone = (BaseCalendar) baseCalendar.Clone();
 
-            Assert.AreEqual(baseCalendar.Description, clone.Description);
-            Assert.AreEqual(baseCalendar.CalendarBase, clone.CalendarBase);
-            Assert.AreEqual(baseCalendar.TimeZone, clone.TimeZone);
-        }
-
+        Assert.AreEqual(baseCalendar.Description, clone.Description);
+        Assert.AreEqual(baseCalendar.CalendarBase, clone.CalendarBase);
+        Assert.AreEqual(baseCalendar.TimeZone, clone.TimeZone);
     }
+
 }

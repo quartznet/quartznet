@@ -23,79 +23,78 @@ using System;
 
 using Quartz.Util;
 
-namespace Quartz.Impl.Matchers
+namespace Quartz.Impl.Matchers;
+
+/// <summary>
+/// Matches on the complete key being equal (both name and group).
+/// </summary>
+/// <author>James House</author>
+/// <author>Marko Lahma (.NET)</author>
+[Serializable]
+public class KeyMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
 {
-    /// <summary>
-    /// Matches on the complete key being equal (both name and group).
-    /// </summary>
-    /// <author>James House</author>
-    /// <author>Marko Lahma (.NET)</author>
-    [Serializable]
-    public class KeyMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
+    // ReSharper disable once UnusedMember.Local
+    private KeyMatcher()
     {
-        // ReSharper disable once UnusedMember.Local
-        private KeyMatcher()
-        {
-        }
+    }
 
-        protected KeyMatcher(TKey compareTo)
-        {
-            CompareToValue = compareTo;
-        }
+    protected KeyMatcher(TKey compareTo)
+    {
+        CompareToValue = compareTo;
+    }
 
-        /// <summary>
-        /// Create a KeyMatcher that matches Keys that equal the given key.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="compareTo"></param>
-        /// <returns></returns>
-        public static KeyMatcher<T> KeyEquals<T>(T compareTo) where T : Key<T>
-        {
-            return new KeyMatcher<T>(compareTo);
-        }
+    /// <summary>
+    /// Create a KeyMatcher that matches Keys that equal the given key.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="compareTo"></param>
+    /// <returns></returns>
+    public static KeyMatcher<T> KeyEquals<T>(T compareTo) where T : Key<T>
+    {
+        return new KeyMatcher<T>(compareTo);
+    }
 
-        public bool IsMatch(TKey key)
-        {
-            return CompareToValue.Equals(key);
-        }
+    public bool IsMatch(TKey key)
+    {
+        return CompareToValue.Equals(key);
+    }
 
-        public TKey CompareToValue { get; private set; } = null!;
+    public TKey CompareToValue { get; private set; } = null!;
 
-        public override int GetHashCode()
-        {
-            const int Prime = 31;
-            int result = 1;
-            result = Prime*result + (CompareToValue == null ? 0 : CompareToValue.GetHashCode());
-            return result;
-        }
+    public override int GetHashCode()
+    {
+        const int Prime = 31;
+        int result = 1;
+        result = Prime*result + (CompareToValue == null ? 0 : CompareToValue.GetHashCode());
+        return result;
+    }
 
-        public override bool Equals(object? obj)
+    public override bool Equals(object? obj)
+    {
+        if (this == obj)
         {
-            if (this == obj)
-            {
-                return true;
-            }
-            if (obj == null)
-            {
-                return false;
-            }
-            if (GetType() != obj.GetType())
-            {
-                return false;
-            }
-            KeyMatcher<TKey> other = (KeyMatcher<TKey>) obj;
-            if (CompareToValue == null)
-            {
-                if (other.CompareToValue != null)
-                {
-                    return false;
-                }
-            }
-            else if (!CompareToValue.Equals(other.CompareToValue))
-            {
-                return false;
-            }
             return true;
         }
+        if (obj == null)
+        {
+            return false;
+        }
+        if (GetType() != obj.GetType())
+        {
+            return false;
+        }
+        KeyMatcher<TKey> other = (KeyMatcher<TKey>) obj;
+        if (CompareToValue == null)
+        {
+            if (other.CompareToValue != null)
+            {
+                return false;
+            }
+        }
+        else if (!CompareToValue.Equals(other.CompareToValue))
+        {
+            return false;
+        }
+        return true;
     }
 }

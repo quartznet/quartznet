@@ -25,155 +25,154 @@ using System.Collections.Generic;
 using Quartz.Impl.Matchers;
 using Quartz.Spi;
 
-namespace Quartz.Simpl
+namespace Quartz.Simpl;
+
+/// <summary>
+/// Remote scheduler service interface.
+/// </summary>
+/// <author>Marko Lahma (.NET)</author>
+public interface IRemotableQuartzScheduler
 {
+    string SchedulerName { get; }
+
+    string SchedulerInstanceId { get; }
+
+    SchedulerContext SchedulerContext { get; }
+
+    bool InStandbyMode { get; }
+
+    bool IsShutdown { get; }
+
+    string Version { get; }
+
+    Type JobStoreClass { get; }
+
+    Type ThreadPoolClass { get; }
+
+    int ThreadPoolSize { get; }
+
+    void Clear();
+
+    IReadOnlyCollection<IJobExecutionContext> CurrentlyExecutingJobs { get; }
+
     /// <summary>
-    /// Remote scheduler service interface.
+    /// Starts this instance.
     /// </summary>
-    /// <author>Marko Lahma (.NET)</author>
-    public interface IRemotableQuartzScheduler
-    {
-        string SchedulerName { get; }
+    void Start();
 
-        string SchedulerInstanceId { get; }
+    void StartDelayed(TimeSpan delay);
 
-        SchedulerContext SchedulerContext { get; }
+    /// <summary>
+    /// Standbies this instance.
+    /// </summary>
+    void Standby();
 
-        bool InStandbyMode { get; }
+    /// <summary>
+    /// Shutdowns this instance.
+    /// </summary>
+    void Shutdown();
 
-        bool IsShutdown { get; }
+    void Shutdown(bool waitForJobsToComplete);
 
-        string Version { get; }
+    DateTimeOffset? RunningSince { get; }
 
-        Type JobStoreClass { get; }
+    int NumJobsExecuted { get; }
 
-        Type ThreadPoolClass { get; }
+    bool SupportsPersistence { get; }
 
-        int ThreadPoolSize { get; }
+    bool Clustered { get; }
 
-        void Clear();
+    DateTimeOffset ScheduleJob(IJobDetail jobDetail, ITrigger trigger);
 
-        IReadOnlyCollection<IJobExecutionContext> CurrentlyExecutingJobs { get; }
+    DateTimeOffset ScheduleJob(ITrigger trigger);
 
-        /// <summary>
-        /// Starts this instance.
-        /// </summary>
-        void Start();
+    void AddJob(IJobDetail jobDetail, bool replace);
 
-        void StartDelayed(TimeSpan delay);
+    void AddJob(IJobDetail jobDetail, bool replace,bool storeNonDurableWhileAwaitingScheduling);
 
-        /// <summary>
-        /// Standbies this instance.
-        /// </summary>
-        void Standby();
+    /// <summary>
+    /// returns true if the given JobGroup
+    /// is paused
+    /// </summary>
+    bool IsJobGroupPaused(string groupName);
 
-        /// <summary>
-        /// Shutdowns this instance.
-        /// </summary>
-        void Shutdown();
+    /// <summary>
+    /// returns true if the given TriggerGroup
+    /// is paused
+    /// </summary>
+    bool IsTriggerGroupPaused(string groupName);
 
-        void Shutdown(bool waitForJobsToComplete);
+    bool DeleteJob(JobKey jobKey);
 
-        DateTimeOffset? RunningSince { get; }
+    bool UnscheduleJob(TriggerKey triggerKey);
 
-        int NumJobsExecuted { get; }
+    DateTimeOffset? RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger);
 
-        bool SupportsPersistence { get; }
+    void TriggerJob(JobKey jobKey, JobDataMap? data);
 
-        bool Clustered { get; }
+    void TriggerJob(IOperableTrigger trig);
 
-        DateTimeOffset ScheduleJob(IJobDetail jobDetail, ITrigger trigger);
+    void PauseTrigger(TriggerKey triggerKey);
 
-        DateTimeOffset ScheduleJob(ITrigger trigger);
+    void PauseTriggers(GroupMatcher<TriggerKey> matcher);
 
-        void AddJob(IJobDetail jobDetail, bool replace);
+    void PauseJob(JobKey jobKey);
 
-        void AddJob(IJobDetail jobDetail, bool replace,bool storeNonDurableWhileAwaitingScheduling);
+    void PauseJobs(GroupMatcher<JobKey> matcher);
 
-        /// <summary>
-        /// returns true if the given JobGroup
-        /// is paused
-        /// </summary>
-        bool IsJobGroupPaused(string groupName);
+    void ResumeTrigger(TriggerKey triggerKey);
 
-        /// <summary>
-        /// returns true if the given TriggerGroup
-        /// is paused
-        /// </summary>
-        bool IsTriggerGroupPaused(string groupName);
+    void ResumeTriggers(GroupMatcher<TriggerKey> matcher);
 
-        bool DeleteJob(JobKey jobKey);
+    IReadOnlyCollection<string> GetPausedTriggerGroups();
 
-        bool UnscheduleJob(TriggerKey triggerKey);
+    void ResumeJob(JobKey jobKey);
 
-        DateTimeOffset? RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger);
+    void ResumeJobs(GroupMatcher<JobKey> matcher);
 
-        void TriggerJob(JobKey jobKey, JobDataMap? data);
+    void PauseAll();
 
-        void TriggerJob(IOperableTrigger trig);
+    void ResumeAll();
 
-        void PauseTrigger(TriggerKey triggerKey);
+    IReadOnlyCollection<string> GetJobGroupNames();
 
-        void PauseTriggers(GroupMatcher<TriggerKey> matcher);
+    IReadOnlyCollection<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher);
 
-        void PauseJob(JobKey jobKey);
+    IReadOnlyCollection<ITrigger> GetTriggersOfJob(JobKey jobKey);
 
-        void PauseJobs(GroupMatcher<JobKey> matcher);
+    IReadOnlyCollection<string> GetTriggerGroupNames();
 
-        void ResumeTrigger(TriggerKey triggerKey);
+    IReadOnlyCollection<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher);
 
-        void ResumeTriggers(GroupMatcher<TriggerKey> matcher);
+    IJobDetail? GetJobDetail(JobKey jobKey);
 
-        IReadOnlyCollection<string> GetPausedTriggerGroups();
+    ITrigger? GetTrigger(TriggerKey triggerKey);
 
-        void ResumeJob(JobKey jobKey);
+    TriggerState GetTriggerState(TriggerKey triggerKey);
 
-        void ResumeJobs(GroupMatcher<JobKey> matcher);
+    void ResetTriggerFromErrorState(TriggerKey triggerKey);
 
-        void PauseAll();
+    void AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers);
 
-        void ResumeAll();
+    bool DeleteCalendar(string calName);
 
-        IReadOnlyCollection<string> GetJobGroupNames();
+    ICalendar? GetCalendar(string calName);
 
-        IReadOnlyCollection<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher);
+    IReadOnlyCollection<string> GetCalendarNames();
 
-        IReadOnlyCollection<ITrigger> GetTriggersOfJob(JobKey jobKey);
+    bool Interrupt(JobKey jobKey);
 
-        IReadOnlyCollection<string> GetTriggerGroupNames();
+    bool Interrupt(string fireInstanceId);
 
-        IReadOnlyCollection<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher);
+    bool CheckExists(JobKey jobKey);
 
-        IJobDetail? GetJobDetail(JobKey jobKey);
+    bool CheckExists(TriggerKey triggerKey);
 
-        ITrigger? GetTrigger(TriggerKey triggerKey);
+    bool DeleteJobs(IReadOnlyCollection<JobKey> jobKeys);
 
-        TriggerState GetTriggerState(TriggerKey triggerKey);
+    void ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace);
 
-        void ResetTriggerFromErrorState(TriggerKey triggerKey);
+    void ScheduleJob(IJobDetail jobDetail, IReadOnlyCollection<ITrigger> triggersForJob, bool replace);
 
-        void AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers);
-
-        bool DeleteCalendar(string calName);
-
-        ICalendar? GetCalendar(string calName);
-
-        IReadOnlyCollection<string> GetCalendarNames();
-
-        bool Interrupt(JobKey jobKey);
-
-        bool Interrupt(string fireInstanceId);
-
-        bool CheckExists(JobKey jobKey);
-
-        bool CheckExists(TriggerKey triggerKey);
-
-        bool DeleteJobs(IReadOnlyCollection<JobKey> jobKeys);
-
-        void ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace);
-
-        void ScheduleJob(IJobDetail jobDetail, IReadOnlyCollection<ITrigger> triggersForJob, bool replace);
-
-        bool UnscheduleJobs(IReadOnlyCollection<TriggerKey> triggerKeys);
-    }
+    bool UnscheduleJobs(IReadOnlyCollection<TriggerKey> triggerKeys);
 }

@@ -24,89 +24,88 @@ using System.Threading.Tasks;
 
 using Quartz.Logging;
 
-namespace Quartz.Listener
+namespace Quartz.Listener;
+
+/// <summary>
+/// Keeps a collection of mappings of which Job to trigger after the completion
+/// of a given job.  If this listener is notified of a job completing that has a
+/// mapping, then it will then attempt to trigger the follow-up job.  This
+/// achieves "job chaining", or a "poor man's workflow".
+///</summary>
+/// <remarks>
+/// <para>
+/// Generally an instance of this listener would be registered as a global
+/// job listener, rather than being registered directly to a given job.
+/// </para>
+/// <para>
+/// If for some reason there is a failure creating the trigger for the
+/// follow-up job (which would generally only be caused by a rare serious
+/// failure in the system, or the non-existence of the follow-up job), an error
+/// message is logged, but no other action is taken. If you need more rigorous
+/// handling of the error, consider scheduling the triggering of the flow-up
+/// job within your job itself.
+/// </para>
+///</remarks>
+/// <author>James House</author>
+/// <author>Marko Lahma (.NET)</author>
+public class JobChainingJobListener : JobListenerSupport
 {
+    private readonly Dictionary<JobKey, JobKey> chainLinks;
+    private readonly ILog log;
+
     /// <summary>
-    /// Keeps a collection of mappings of which Job to trigger after the completion
-    /// of a given job.  If this listener is notified of a job completing that has a
-    /// mapping, then it will then attempt to trigger the follow-up job.  This
-    /// achieves "job chaining", or a "poor man's workflow".
-    ///</summary>
-    /// <remarks>
-    /// <para>
-    /// Generally an instance of this listener would be registered as a global
-    /// job listener, rather than being registered directly to a given job.
-    /// </para>
-    /// <para>
-    /// If for some reason there is a failure creating the trigger for the
-    /// follow-up job (which would generally only be caused by a rare serious
-    /// failure in the system, or the non-existence of the follow-up job), an error
-    /// message is logged, but no other action is taken. If you need more rigorous
-    /// handling of the error, consider scheduling the triggering of the flow-up
-    /// job within your job itself.
-    /// </para>
-    ///</remarks>
-    /// <author>James House</author>
-    /// <author>Marko Lahma (.NET)</author>
-    public class JobChainingJobListener : JobListenerSupport
+    /// Construct an instance with the given name.
+    /// </summary>
+    /// <param name="name">The name of this instance.</param>
+    public JobChainingJobListener(string name)
     {
-        private readonly Dictionary<JobKey, JobKey> chainLinks;
-        private readonly ILog log;
+        Name = name ?? throw new ArgumentException("Listener name cannot be null!");
+        chainLinks = new Dictionary<JobKey, JobKey>();
+        log = LogProvider.GetLogger(typeof(JobChainingJobListener));
+    }
 
-        /// <summary>
-        /// Construct an instance with the given name.
-        /// </summary>
-        /// <param name="name">The name of this instance.</param>
-        public JobChainingJobListener(string name)
+    public override string Name { get; }
+
+    /// <summary>
+    /// Add a chain mapping - when the Job identified by the first key completes
+    /// the job identified by the second key will be triggered.
+    /// </summary>
+    /// <param name="firstJob">a JobKey with the name and group of the first job</param>
+    /// <param name="secondJob">a JobKey with the name and group of the follow-up job</param>
+    public void AddJobChainLink(JobKey firstJob, JobKey secondJob)
+    {
+        if (firstJob == null || secondJob == null)
         {
-            Name = name ?? throw new ArgumentException("Listener name cannot be null!");
-            chainLinks = new Dictionary<JobKey, JobKey>();
-            log = LogProvider.GetLogger(typeof(JobChainingJobListener));
+            throw new ArgumentException("Key cannot be null!");
+        }
+        if (firstJob.Name == null || secondJob.Name == null)
+        {
+            throw new ArgumentException("Key cannot have a null name!");
         }
 
-        public override string Name { get; }
+        chainLinks.Add(firstJob, secondJob);
+    }
 
-        /// <summary>
-        /// Add a chain mapping - when the Job identified by the first key completes
-        /// the job identified by the second key will be triggered.
-        /// </summary>
-        /// <param name="firstJob">a JobKey with the name and group of the first job</param>
-        /// <param name="secondJob">a JobKey with the name and group of the follow-up job</param>
-        public void AddJobChainLink(JobKey firstJob, JobKey secondJob)
+    public override async Task JobWasExecuted(IJobExecutionContext context,
+        JobExecutionException? jobException,
+        CancellationToken cancellationToken = default)
+    {
+        chainLinks.TryGetValue(context.JobDetail.Key, out var sj);
+
+        if (sj == null)
         {
-            if (firstJob == null || secondJob == null)
-            {
-                throw new ArgumentException("Key cannot be null!");
-            }
-            if (firstJob.Name == null || secondJob.Name == null)
-            {
-                throw new ArgumentException("Key cannot have a null name!");
-            }
-
-            chainLinks.Add(firstJob, secondJob);
+            return;
         }
 
-        public override async Task JobWasExecuted(IJobExecutionContext context,
-            JobExecutionException? jobException,
-            CancellationToken cancellationToken = default)
+        log.Info($"Job '{context.JobDetail.Key}' will now chain to Job '{sj}'");
+
+        try
         {
-            chainLinks.TryGetValue(context.JobDetail.Key, out var sj);
-
-            if (sj == null)
-            {
-                return;
-            }
-
-            log.Info($"Job '{context.JobDetail.Key}' will now chain to Job '{sj}'");
-
-            try
-            {
-                await context.Scheduler.TriggerJob(sj, cancellationToken).ConfigureAwait(false);
-            }
-            catch (SchedulerException se)
-            {
-                log.ErrorException($"Error encountered during chaining to Job '{sj}'", se);
-            }
+            await context.Scheduler.TriggerJob(sj, cancellationToken).ConfigureAwait(false);
+        }
+        catch (SchedulerException se)
+        {
+            log.ErrorException($"Error encountered during chaining to Job '{sj}'", se);
         }
     }
 }
