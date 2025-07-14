@@ -21,29 +21,28 @@
 
 using System;
 
-namespace Quartz
+namespace Quartz;
+
+/// <summary>
+/// An attribute that marks a <see cref="IJob"/> class as one that makes updates to its
+/// <see cref="JobDataMap" /> during execution, and wishes the scheduler to re-store the
+/// <see cref="JobDataMap" /> when execution completes. 
+/// </summary>
+/// <remarks>
+/// <para>
+/// Jobs that are marked with this annotation should also seriously consider
+/// using the <see cref="DisallowConcurrentExecutionAttribute" /> attribute, to avoid data
+/// storage race conditions with concurrently executing job instances.
+/// </para>
+/// <para>
+/// This can be used in lieu of implementing the StatefulJob marker interface that 
+/// was used prior to Quartz 2.0
+/// </para>
+///</remarks>
+/// <seealso cref="DisallowConcurrentExecutionAttribute" />
+/// <author>James House</author>
+/// <author>Marko Lahma (.NET)</author>
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface)]
+public class PersistJobDataAfterExecutionAttribute : Attribute
 {
-    /// <summary>
-    /// An attribute that marks a <see cref="IJob"/> class as one that makes updates to its
-    /// <see cref="JobDataMap" /> during execution, and wishes the scheduler to re-store the
-    /// <see cref="JobDataMap" /> when execution completes. 
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// Jobs that are marked with this annotation should also seriously consider
-    /// using the <see cref="DisallowConcurrentExecutionAttribute" /> attribute, to avoid data
-    /// storage race conditions with concurrently executing job instances.
-    /// </para>
-    /// <para>
-    /// This can be used in lieu of implementing the StatefulJob marker interface that 
-    /// was used prior to Quartz 2.0
-    /// </para>
-    ///</remarks>
-    /// <seealso cref="DisallowConcurrentExecutionAttribute" />
-    /// <author>James House</author>
-    /// <author>Marko Lahma (.NET)</author>
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface)]
-    public class PersistJobDataAfterExecutionAttribute : Attribute
-    {
-    }
 }

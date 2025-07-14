@@ -5,29 +5,28 @@ using Newtonsoft.Json.Linq;
 
 using Quartz.Impl.Calendar;
 
-namespace Quartz.Calendars
+namespace Quartz.Calendars;
+
+internal sealed class WeeklyCalendarSerializer : CalendarSerializer<WeeklyCalendar>
 {
-    internal sealed class WeeklyCalendarSerializer : CalendarSerializer<WeeklyCalendar>
+    protected override WeeklyCalendar Create(JObject source)
     {
-        protected override WeeklyCalendar Create(JObject source)
-        {
-            return new WeeklyCalendar();
-        }
+        return new WeeklyCalendar();
+    }
 
-        protected override void SerializeFields(JsonWriter writer, WeeklyCalendar calendar)
+    protected override void SerializeFields(JsonWriter writer, WeeklyCalendar calendar)
+    {
+        writer.WritePropertyName("ExcludedDays");
+        writer.WriteStartArray();
+        foreach (var day in calendar.DaysExcluded)
         {
-            writer.WritePropertyName("ExcludedDays");
-            writer.WriteStartArray();
-            foreach (var day in calendar.DaysExcluded)
-            {
-                writer.WriteValue(day);
-            }
-            writer.WriteEndArray();
+            writer.WriteValue(day);
         }
+        writer.WriteEndArray();
+    }
 
-        protected override void DeserializeFields(WeeklyCalendar calendar, JObject source)
-        {
-            calendar.DaysExcluded = source["ExcludedDays"]!.Values<bool>().ToArray();
-        }
+    protected override void DeserializeFields(WeeklyCalendar calendar, JObject source)
+    {
+        calendar.DaysExcluded = source["ExcludedDays"]!.Values<bool>().ToArray();
     }
 }

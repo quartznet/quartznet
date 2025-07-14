@@ -21,82 +21,81 @@
 
 using System;
 
-namespace Quartz.Impl.Matchers
+namespace Quartz.Impl.Matchers;
+
+/// <summary>
+/// Operators available for comparing string values.
+/// </summary>
+[Serializable]
+public abstract class StringOperator : IEquatable<StringOperator>
 {
-    /// <summary>
-    /// Operators available for comparing string values.
-    /// </summary>
+    public static readonly StringOperator Equality = new EqualityOperator();
+    public static readonly StringOperator StartsWith = new StartsWithOperator();
+    public static readonly StringOperator EndsWith = new EndsWithOperator();
+    public static readonly StringOperator Contains = new ContainsOperator();
+    public static readonly StringOperator Anything = new AnythingOperator();
+
+    public abstract bool Evaluate(string value, string compareTo);
+
     [Serializable]
-    public abstract class StringOperator : IEquatable<StringOperator>
+    private sealed class EqualityOperator : StringOperator
     {
-        public static readonly StringOperator Equality = new EqualityOperator();
-        public static readonly StringOperator StartsWith = new StartsWithOperator();
-        public static readonly StringOperator EndsWith = new EndsWithOperator();
-        public static readonly StringOperator Contains = new ContainsOperator();
-        public static readonly StringOperator Anything = new AnythingOperator();
+        public override bool Evaluate(string value, string compareTo) {
+            return value.Equals(compareTo);
+        }
+    }
 
-        public abstract bool Evaluate(string value, string compareTo);
+    [Serializable]
+    private sealed class StartsWithOperator : StringOperator
+    {
+        public override bool Evaluate(string value, string compareTo) {
+            return value.StartsWith(compareTo);
+        }
+    }
 
-        [Serializable]
-        private sealed class EqualityOperator : StringOperator
+    [Serializable]
+    private sealed class EndsWithOperator : StringOperator
+    {
+        public override bool Evaluate(string value, string compareTo) {
+            return value.EndsWith(compareTo);
+        }
+    }
+
+    [Serializable]
+    private sealed class ContainsOperator : StringOperator
+    {
+        public override bool Evaluate(string value, string compareTo) {
+            return value.Contains(compareTo);
+        }
+    }
+
+    [Serializable]
+    private sealed class AnythingOperator : StringOperator
+    {
+        public override bool Evaluate(string value, string compareTo)
         {
-            public override bool Evaluate(string value, string compareTo) {
-                return value.Equals(compareTo);
-            }
+            return true;
+        }
+    }
+
+    public override bool Equals(object? obj)
+    {
+        return Equals(obj as StringOperator);
+    }
+
+    public bool Equals(StringOperator? other)
+    {
+        if (other == null)
+        {
+            return false;
         }
 
-        [Serializable]
-        private sealed class StartsWithOperator : StringOperator
-        {
-            public override bool Evaluate(string value, string compareTo) {
-                return value.StartsWith(compareTo);
-            }
-        }
+        // just check by type, equality based on behavior
+        return GetType() == other.GetType();
+    }
 
-        [Serializable]
-        private sealed class EndsWithOperator : StringOperator
-        {
-             public override bool Evaluate(string value, string compareTo) {
-                return value.EndsWith(compareTo);
-            }
-        }
-
-        [Serializable]
-        private sealed class ContainsOperator : StringOperator
-        {
-            public override bool Evaluate(string value, string compareTo) {
-                return value.Contains(compareTo);
-            }
-        }
-
-        [Serializable]
-        private sealed class AnythingOperator : StringOperator
-        {
-            public override bool Evaluate(string value, string compareTo)
-            {
-                return true;
-            }
-        }
-
-        public override bool Equals(object? obj)
-        {
-            return Equals(obj as StringOperator);
-        }
-
-        public bool Equals(StringOperator? other)
-        {
-            if (other == null)
-            {
-                return false;
-            }
-
-            // just check by type, equality based on behavior
-            return GetType() == other.GetType();
-        }
-
-        public override int GetHashCode()
-        {
-            return GetType().GetHashCode();
-        }
+    public override int GetHashCode()
+    {
+        return GetType().GetHashCode();
     }
 }

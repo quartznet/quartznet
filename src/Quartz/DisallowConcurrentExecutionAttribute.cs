@@ -19,22 +19,21 @@
 
 using System;
 
-namespace Quartz
+namespace Quartz;
+
+/// <summary>
+/// An attribute that marks a <see cref="IJob" /> class as one that must not have multiple
+/// instances executed concurrently (where instance is based-upon a <see cref="IJobDetail" /> 
+/// definition - or in other words based upon a <see cref="JobKey" />). 
+/// </summary>
+/// <remarks>
+/// <para>This can be used in lieu of implementing the StatefulJob marker interface that 
+/// was used prior to Quartz 2.0</para>
+/// </remarks>
+/// <seealso cref="PersistJobDataAfterExecutionAttribute" />
+/// <author>James House</author>
+/// <author>Marko Lahma (.NET)</author>
+[AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface)]
+public class DisallowConcurrentExecutionAttribute : Attribute
 {
-    /// <summary>
-    /// An attribute that marks a <see cref="IJob" /> class as one that must not have multiple
-    /// instances executed concurrently (where instance is based-upon a <see cref="IJobDetail" /> 
-    /// definition - or in other words based upon a <see cref="JobKey" />). 
-    /// </summary>
-    /// <remarks>
-    /// <para>This can be used in lieu of implementing the StatefulJob marker interface that 
-    /// was used prior to Quartz 2.0</para>
-    /// </remarks>
-    /// <seealso cref="PersistJobDataAfterExecutionAttribute" />
-    /// <author>James House</author>
-    /// <author>Marko Lahma (.NET)</author>
-    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface)]
-    public class DisallowConcurrentExecutionAttribute : Attribute
-    {
-    }
 }

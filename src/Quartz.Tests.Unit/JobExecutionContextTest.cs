@@ -21,32 +21,31 @@ using NUnit.Framework;
 
 using Quartz.Impl;
 
-namespace Quartz.Tests.Unit
-{
-    /// <summary>
-    /// Tests for JobExecutionContext.
-    /// </summary>
-    /// <author>Marko Lahma (.NET)</author>
-    [TestFixture]
-    public class JobExecutionContextTest
-    {   
-        [Test]
-        public void TestToString()
-        {
-            // QRTZNET-48
-            IJobExecutionContext ctx = new JobExecutionContextImpl(null, TestUtil.NewMinimalTriggerFiredBundle(), null);
-            ctx.ToString();
-        }
+namespace Quartz.Tests.Unit;
 
-		[Test]
-		public void RecoveryTriggerKeyAndGroup()
-		{
-			IJobExecutionContext ctx = new JobExecutionContextImpl(null, TestUtil.NewMinimalRecoveringTriggerFiredBundle(), null);
-			ctx.MergedJobDataMap[SchedulerConstants.FailedJobOriginalTriggerName] = "originalTriggerName";
-			ctx.MergedJobDataMap[SchedulerConstants.FailedJobOriginalTriggerGroup] = "originalTriggerGroup";
-			var recoveringTriggerKey = ctx.RecoveringTriggerKey;
-			Assert.That(recoveringTriggerKey.Name, Is.EqualTo("originalTriggerName"));
-			Assert.That(recoveringTriggerKey.Group, Is.EqualTo("originalTriggerGroup"));
-		}
+/// <summary>
+/// Tests for JobExecutionContext.
+/// </summary>
+/// <author>Marko Lahma (.NET)</author>
+[TestFixture]
+public class JobExecutionContextTest
+{   
+    [Test]
+    public void TestToString()
+    {
+        // QRTZNET-48
+        IJobExecutionContext ctx = new JobExecutionContextImpl(null, TestUtil.NewMinimalTriggerFiredBundle(), null);
+        ctx.ToString();
+    }
+
+    [Test]
+    public void RecoveryTriggerKeyAndGroup()
+    {
+        IJobExecutionContext ctx = new JobExecutionContextImpl(null, TestUtil.NewMinimalRecoveringTriggerFiredBundle(), null);
+        ctx.MergedJobDataMap[SchedulerConstants.FailedJobOriginalTriggerName] = "originalTriggerName";
+        ctx.MergedJobDataMap[SchedulerConstants.FailedJobOriginalTriggerGroup] = "originalTriggerGroup";
+        var recoveringTriggerKey = ctx.RecoveringTriggerKey;
+        Assert.That(recoveringTriggerKey.Name, Is.EqualTo("originalTriggerName"));
+        Assert.That(recoveringTriggerKey.Group, Is.EqualTo("originalTriggerGroup"));
     }
 }

@@ -23,51 +23,50 @@ using System.Threading.Tasks;
 
 using Quartz.Core;
 
-namespace Quartz.Spi
+namespace Quartz.Spi;
+
+/// <summary> 
+/// An interface to be used by <see cref="IJobStore" /> instances in order to
+/// communicate signals back to the <see cref="QuartzScheduler" />.
+/// </summary>
+/// <author>James House</author>
+/// <author>Marko Lahma (.NET)</author>
+public interface ISchedulerSignaler
 {
-	/// <summary> 
-	/// An interface to be used by <see cref="IJobStore" /> instances in order to
-	/// communicate signals back to the <see cref="QuartzScheduler" />.
-	/// </summary>
-	/// <author>James House</author>
-    /// <author>Marko Lahma (.NET)</author>
-    public interface ISchedulerSignaler
-	{
-		/// <summary>
-		/// Notifies the scheduler about misfired trigger.
-		/// </summary>
-		/// <param name="trigger">The trigger that misfired.</param>
-		/// <param name="cancellationToken">The cancellation instruction.</param>
-		Task NotifyTriggerListenersMisfired(
-			ITrigger trigger,
-			CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Notifies the scheduler about misfired trigger.
+    /// </summary>
+    /// <param name="trigger">The trigger that misfired.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    Task NotifyTriggerListenersMisfired(
+        ITrigger trigger,
+        CancellationToken cancellationToken = default);
 
-		/// <summary>
-		/// Notifies the scheduler about finalized trigger.
-		/// </summary>
-		/// <param name="trigger">The trigger that has finalized.</param>
-		/// <param name="cancellationToken">The cancellation instruction.</param>
-		Task NotifySchedulerListenersFinalized(
-	        ITrigger trigger,
-	        CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Notifies the scheduler about finalized trigger.
+    /// </summary>
+    /// <param name="trigger">The trigger that has finalized.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    Task NotifySchedulerListenersFinalized(
+        ITrigger trigger,
+        CancellationToken cancellationToken = default);
 
-        Task NotifySchedulerListenersJobDeleted(
-	        JobKey jobKey,
-	        CancellationToken cancellationToken = default);
+    Task NotifySchedulerListenersJobDeleted(
+        JobKey jobKey,
+        CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Signals the scheduling change.
-        /// </summary>
-        void SignalSchedulingChange(
-	        DateTimeOffset? candidateNewNextFireTimeUtc,
-	        CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Signals the scheduling change.
+    /// </summary>
+    void SignalSchedulingChange(
+        DateTimeOffset? candidateNewNextFireTimeUtc,
+        CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Informs scheduler listeners about an exception that has occurred.
-        /// </summary>
-        Task NotifySchedulerListenersError(
-	        string message, 
-	        SchedulerException jpe,
-	        CancellationToken cancellationToken = default);
-	}
+    /// <summary>
+    /// Informs scheduler listeners about an exception that has occurred.
+    /// </summary>
+    Task NotifySchedulerListenersError(
+        string message, 
+        SchedulerException jpe,
+        CancellationToken cancellationToken = default);
 }

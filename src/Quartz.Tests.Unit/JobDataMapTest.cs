@@ -27,244 +27,243 @@ using FluentAssertions;
 using NUnit.Framework;
 using Quartz.Simpl;
 
-namespace Quartz.Tests.Unit
+namespace Quartz.Tests.Unit;
+
+/// <summary>
+/// Unit test for JobDataMap serialization backwards compatibility.
+/// </summary>
+/// <author>Marko Lahma (.NET)</author>
+[TestFixture(typeof(BinaryObjectSerializer))]
+[TestFixture(typeof(JsonObjectSerializer))]
+[TestFixture(typeof(SystemTextJsonObjectSerializer))]
+public class JobDataMapTest : SerializationTestSupport<JobDataMap>
 {
-    /// <summary>
-    /// Unit test for JobDataMap serialization backwards compatibility.
-    /// </summary>
-    /// <author>Marko Lahma (.NET)</author>
-    [TestFixture(typeof(BinaryObjectSerializer))]
-    [TestFixture(typeof(JsonObjectSerializer))]
-    [TestFixture(typeof(SystemTextJsonObjectSerializer))]
-    public class JobDataMapTest : SerializationTestSupport<JobDataMap>
+    public JobDataMapTest(Type serializerType) : base(serializerType)
     {
-        public JobDataMapTest(Type serializerType) : base(serializerType)
+    }
+
+    /// <summary>
+    /// Get the object to serialize when generating serialized file for future
+    /// tests, and against which to validate deserialized object.
+    /// </summary>
+    /// <returns></returns>
+    protected override JobDataMap GetTargetObject()
+    {
+        JobDataMap m = new JobDataMap();
+        m.Put("key", 5);
+        return m;
+    }
+
+    protected override void VerifyMatch(JobDataMap original, JobDataMap deserialized)
+    {
+        deserialized.Should().NotBeNull();
+        deserialized.WrappedMap.Should().BeEquivalentTo(original.WrappedMap);
+        if (serializer is not BinaryObjectSerializer)
         {
+            deserialized.Dirty.Should().BeFalse("should not be dirty when returning from serialization");
         }
+    }
 
-        /// <summary>
-        /// Get the object to serialize when generating serialized file for future
-        /// tests, and against which to validate deserialized object.
-        /// </summary>
-        /// <returns></returns>
-        protected override JobDataMap GetTargetObject()
-        {
-            JobDataMap m = new JobDataMap();
-            m.Put("key", 5);
-            return m;
-        }
+    [Test]
+    public void HandlesGuid()
+    {
+        var map = new JobDataMap();
+        map["key"] = Guid.NewGuid();
+        map.TryGetGuid("key", out var g).Should().BeTrue();
+        g.Should().NotBe(Guid.Empty);
 
-        protected override void VerifyMatch(JobDataMap original, JobDataMap deserialized)
-        {
-            deserialized.Should().NotBeNull();
-            deserialized.WrappedMap.Should().BeEquivalentTo(original.WrappedMap);
-            if (serializer is not BinaryObjectSerializer)
-            {
-                deserialized.Dirty.Should().BeFalse("should not be dirty when returning from serialization");
-            }
-        }
+        map["key"] = Guid.NewGuid().ToString();
+        map.TryGetGuidValue("key", out g).Should().BeTrue();
+        g.Should().NotBe(Guid.Empty);
+    }
 
-        [Test]
-        public void HandlesGuid()
-        {
-            var map = new JobDataMap();
-            map["key"] = Guid.NewGuid();
-            map.TryGetGuid("key", out var g).Should().BeTrue();
-            g.Should().NotBe(Guid.Empty);
+    [Test]
+    public void PutAsString_StoresIntValueAsString()
+    {
+        string key = "testKey";
+        int value = 123;
 
-            map["key"] = Guid.NewGuid().ToString();
-            map.TryGetGuidValue("key", out g).Should().BeTrue();
-            g.Should().NotBe(Guid.Empty);
-        }
+        JobDataMap map = new JobDataMap();
+        map.PutAsString(key, value);
 
-        [Test]
-        public void PutAsString_StoresIntValueAsString()
-        {
-            string key = "testKey";
-            int value = 123;
+        map.GetString(key).Should().Be(value.ToString());
+    }
 
-            JobDataMap map = new JobDataMap();
-            map.PutAsString(key, value);
+    [Test]
+    public void PutAsString_StoresDateTimeValueAsString()
+    {
+        string key = "testKey";
+        DateTime value = DateTime.Now;
 
-            map.GetString(key).Should().Be(value.ToString());
-        }
+        JobDataMap map = new JobDataMap();
+        map.PutAsString(key, value);
 
-        [Test]
-        public void PutAsString_StoresDateTimeValueAsString()
-        {
-            string key = "testKey";
-            DateTime value = DateTime.Now;
+        map.GetString(key).Should().Be(value.ToString(CultureInfo.InvariantCulture));
+    }
 
-            JobDataMap map = new JobDataMap();
-            map.PutAsString(key, value);
+    [Test]
+    public void PutAsString_StoresDifferentDateTimeValueAsString()
+    {
+        string key = "testKey";
+        DateTime value = new DateTime(2022, 1, 1);
 
-            map.GetString(key).Should().Be(value.ToString(CultureInfo.InvariantCulture));
-        }
+        JobDataMap map = new JobDataMap();
+        map.PutAsString(key, value);
 
-        [Test]
-        public void PutAsString_StoresDifferentDateTimeValueAsString()
-        {
-            string key = "testKey";
-            DateTime value = new DateTime(2022, 1, 1);
+        map.GetString(key).Should().Be(value.ToString(CultureInfo.InvariantCulture));
+    }
 
-            JobDataMap map = new JobDataMap();
-            map.PutAsString(key, value);
+    [Test]
+    public void PutAsString_OverwritesExistingValue()
+    {
+        string key = "testKey";
+        DateTime value1 = DateTime.Now;
+        DateTime value2 = new DateTime(2022, 1, 1);
 
-            map.GetString(key).Should().Be(value.ToString(CultureInfo.InvariantCulture));
-        }
+        JobDataMap map = new JobDataMap();
+        map.PutAsString(key, value1);
+        map.PutAsString(key, value2);
 
-        [Test]
-        public void PutAsString_OverwritesExistingValue()
-        {
-            string key = "testKey";
-            DateTime value1 = DateTime.Now;
-            DateTime value2 = new DateTime(2022, 1, 1);
+        map.GetString(key).Should().Be(value2.ToString(CultureInfo.InvariantCulture));
+    }
 
-            JobDataMap map = new JobDataMap();
-            map.PutAsString(key, value1);
-            map.PutAsString(key, value2);
+    [Test]
+    public void PutAsString_StoresDateTimeOffsetValueAsString()
+    {
+        string key = "testKey";
+        DateTimeOffset value = DateTimeOffset.Now;
 
-            map.GetString(key).Should().Be(value2.ToString(CultureInfo.InvariantCulture));
-        }
+        JobDataMap map = new JobDataMap();
+        map.PutAsString(key, value);
 
-        [Test]
-        public void PutAsString_StoresDateTimeOffsetValueAsString()
-        {
-            string key = "testKey";
-            DateTimeOffset value = DateTimeOffset.Now;
+        map.GetString(key).Should().Be(value.ToString(CultureInfo.InvariantCulture));
+    }
 
-            JobDataMap map = new JobDataMap();
-            map.PutAsString(key, value);
+    [Test]
+    public void PutAsString_StoresDifferentDateTimeOffsetValueAsString()
+    {
+        string key = "testKey";
+        DateTimeOffset value = new DateTimeOffset(2022, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
-            map.GetString(key).Should().Be(value.ToString(CultureInfo.InvariantCulture));
-        }
+        JobDataMap map = new JobDataMap();
+        map.PutAsString(key, value);
 
-        [Test]
-        public void PutAsString_StoresDifferentDateTimeOffsetValueAsString()
-        {
-            string key = "testKey";
-            DateTimeOffset value = new DateTimeOffset(2022, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        map.GetString(key).Should().Be(value.ToString(CultureInfo.InvariantCulture));
+    }
 
-            JobDataMap map = new JobDataMap();
-            map.PutAsString(key, value);
+    [Test]
+    public void PutAsString_OverwritesExistingDateTimeOffsetValue()
+    {
+        string key = "testKey";
+        DateTimeOffset value1 = DateTimeOffset.Now;
+        DateTimeOffset value2 = new DateTimeOffset(2022, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
-            map.GetString(key).Should().Be(value.ToString(CultureInfo.InvariantCulture));
-        }
+        JobDataMap map = new JobDataMap();
+        map.PutAsString(key, value1);
+        map.PutAsString(key, value2);
 
-        [Test]
-        public void PutAsString_OverwritesExistingDateTimeOffsetValue()
-        {
-            string key = "testKey";
-            DateTimeOffset value1 = DateTimeOffset.Now;
-            DateTimeOffset value2 = new DateTimeOffset(2022, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        map.GetString(key).Should().Be(value2.ToString(CultureInfo.InvariantCulture));
+    }
 
-            JobDataMap map = new JobDataMap();
-            map.PutAsString(key, value1);
-            map.PutAsString(key, value2);
+    [Test]
+    public void PutAsString_StoresTimeSpanValueAsString()
+    {
+        string key = "testKey";
+        TimeSpan value = TimeSpan.FromHours(1);
 
-            map.GetString(key).Should().Be(value2.ToString(CultureInfo.InvariantCulture));
-        }
+        JobDataMap map = new JobDataMap();
+        map.PutAsString(key, value);
 
-        [Test]
-        public void PutAsString_StoresTimeSpanValueAsString()
-        {
-            string key = "testKey";
-            TimeSpan value = TimeSpan.FromHours(1);
+        map.GetString(key).Should().Be(value.ToString());
+    }
 
-            JobDataMap map = new JobDataMap();
-            map.PutAsString(key, value);
+    [Test]
+    public void PutAsString_StoresDifferentTimeSpanValueAsString()
+    {
+        string key = "testKey";
+        TimeSpan value = TimeSpan.FromMinutes(30);
 
-            map.GetString(key).Should().Be(value.ToString());
-        }
+        JobDataMap map = new JobDataMap();
+        map.PutAsString(key, value);
 
-        [Test]
-        public void PutAsString_StoresDifferentTimeSpanValueAsString()
-        {
-            string key = "testKey";
-            TimeSpan value = TimeSpan.FromMinutes(30);
+        map.GetString(key).Should().Be(value.ToString());
+    }
 
-            JobDataMap map = new JobDataMap();
-            map.PutAsString(key, value);
+    [Test]
+    public void PutAsString_OverwritesExistingTimeSpanValue()
+    {
+        string key = "testKey";
+        TimeSpan value1 = TimeSpan.FromHours(1);
+        TimeSpan value2 = TimeSpan.FromMinutes(30);
 
-            map.GetString(key).Should().Be(value.ToString());
-        }
+        JobDataMap map = new JobDataMap();
+        map.PutAsString(key, value1);
+        map.PutAsString(key, value2);
 
-        [Test]
-        public void PutAsString_OverwritesExistingTimeSpanValue()
-        {
-            string key = "testKey";
-            TimeSpan value1 = TimeSpan.FromHours(1);
-            TimeSpan value2 = TimeSpan.FromMinutes(30);
+        map.GetString(key).Should().Be(value2.ToString());
+    }
 
-            JobDataMap map = new JobDataMap();
-            map.PutAsString(key, value1);
-            map.PutAsString(key, value2);
+    [Test]
+    public void PutAsString_StoresNullableGuidValueAsString()
+    {
+        string key = "testKey";
+        Guid? value = Guid.NewGuid();
 
-            map.GetString(key).Should().Be(value2.ToString());
-        }
+        JobDataMap map = new JobDataMap();
+        map.PutAsString(key, value);
 
-        [Test]
-        public void PutAsString_StoresNullableGuidValueAsString()
-        {
-            string key = "testKey";
-            Guid? value = Guid.NewGuid();
+        map.GetString(key).Should().Be(value?.ToString("N"));
+    }
 
-            JobDataMap map = new JobDataMap();
-            map.PutAsString(key, value);
+    [Test]
+    public void PutAsString_StoresDifferentNullableGuidValueAsString()
+    {
+        string key = "testKey";
+        Guid? value = new Guid("00000000-0000-0000-0000-000000000001");
 
-            map.GetString(key).Should().Be(value?.ToString("N"));
-        }
+        JobDataMap map = new JobDataMap();
+        map.PutAsString(key, value);
 
-        [Test]
-        public void PutAsString_StoresDifferentNullableGuidValueAsString()
-        {
-            string key = "testKey";
-            Guid? value = new Guid("00000000-0000-0000-0000-000000000001");
+        map.GetString(key).Should().Be(value?.ToString("N"));
+    }
 
-            JobDataMap map = new JobDataMap();
-            map.PutAsString(key, value);
+    [Test]
+    public void PutAsString_OverwritesExistingNullableGuidValue()
+    {
+        string key = "testKey";
+        Guid? value1 = Guid.NewGuid();
+        Guid? value2 = new Guid("00000000-0000-0000-0000-000000000002");
 
-            map.GetString(key).Should().Be(value?.ToString("N"));
-        }
+        JobDataMap map = new JobDataMap();
+        map.PutAsString(key, value1);
+        map.PutAsString(key, value2);
 
-        [Test]
-        public void PutAsString_OverwritesExistingNullableGuidValue()
-        {
-            string key = "testKey";
-            Guid? value1 = Guid.NewGuid();
-            Guid? value2 = new Guid("00000000-0000-0000-0000-000000000002");
+        map.GetString(key).Should().Be(value2?.ToString("N"));
+    }
 
-            JobDataMap map = new JobDataMap();
-            map.PutAsString(key, value1);
-            map.PutAsString(key, value2);
+    [Test]
+    public void PutAsString_StoresNullGuidValueAsString()
+    {
+        string key = "testKey";
+        Guid? value = null;
 
-            map.GetString(key).Should().Be(value2?.ToString("N"));
-        }
+        JobDataMap map = new JobDataMap();
+        map.PutAsString(key, value);
 
-        [Test]
-        public void PutAsString_StoresNullGuidValueAsString()
-        {
-            string key = "testKey";
-            Guid? value = null;
+        map.GetString(key).Should().BeNull();
+    }
 
-            JobDataMap map = new JobDataMap();
-            map.PutAsString(key, value);
+    [Test]
+    public void CanKeepDirtyFlagWhenSerializing()
+    {
+        IDictionary dictionary = new Dictionary<string, object>();
+        dictionary.Add("key", "value");
 
-            map.GetString(key).Should().BeNull();
-        }
+        new JobDataMap(dictionary).Dirty.Should().BeFalse();
 
-        [Test]
-        public void CanKeepDirtyFlagWhenSerializing()
-        {
-            IDictionary dictionary = new Dictionary<string, object>();
-            dictionary.Add("key", "value");
-
-            new JobDataMap(dictionary).Dirty.Should().BeFalse();
-
-            dictionary.Add(SchedulerConstants.ForceJobDataMapDirty, "true");
-            var map = new JobDataMap(dictionary);
-            map.Dirty.Should().BeTrue();
-            map.ContainsKey(SchedulerConstants.ForceJobDataMapDirty).Should().BeFalse();
-        }
+        dictionary.Add(SchedulerConstants.ForceJobDataMapDirty, "true");
+        var map = new JobDataMap(dictionary);
+        map.Dirty.Should().BeTrue();
+        map.ContainsKey(SchedulerConstants.ForceJobDataMapDirty).Should().BeFalse();
     }
 }

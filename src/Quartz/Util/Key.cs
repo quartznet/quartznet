@@ -22,165 +22,164 @@
 using System;
 using System.Globalization;
 
-namespace Quartz.Util
+namespace Quartz.Util;
+
+/// <summary>
+/// Object representing a job or trigger key.
+/// </summary>
+/// <author>  <a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
+/// <author>Marko Lahma (.NET)</author>
+[Serializable]
+public class Key<T> : IComparable<Key<T>>
 {
     /// <summary>
-    /// Object representing a job or trigger key.
+    /// The default group for scheduling entities, with the value "DEFAULT".
     /// </summary>
-    /// <author>  <a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
-    /// <author>Marko Lahma (.NET)</author>
-    [Serializable]
-    public class Key<T> : IComparable<Key<T>>
+    public const string DefaultGroup = "DEFAULT";
+
+    private string name = null!;
+    private string group = null!;
+
+    protected Key()
     {
-        /// <summary>
-        /// The default group for scheduling entities, with the value "DEFAULT".
-        /// </summary>
-        public const string DefaultGroup = "DEFAULT";
+    }
 
-        private string name = null!;
-        private string group = null!;
+    /// <summary>
+    /// Construct a new key with the given name and group.
+    /// </summary>
+    /// <param name="name">the name</param>
+    public Key(string name) : this(name, DefaultGroup)
+    {
+    }
 
-        protected Key()
+    /// <summary>
+    /// Construct a new key with the given name and group.
+    /// </summary>
+    /// <param name="name">the name</param>
+    /// <param name="group">the group</param>
+    public Key(string name, string? group)
+    {
+        this.name = name ?? throw new ArgumentNullException(nameof(name), "Name cannot be null.");
+        this.group = group ?? DefaultGroup;
+    }
+
+    /// <summary>
+    /// Get the name portion of the key.
+    /// </summary>
+    /// <returns> the name
+    /// </returns>
+    public virtual string Name
+    {
+        get => name;
+        set => name = value;
+    }
+
+    /// <summary> <para>
+    /// Get the group portion of the key.
+    /// </para>
+    ///
+    /// </summary>
+    /// <returns> the group
+    /// </returns>
+    public virtual string Group
+    {
+        get => group;
+        set => group = value;
+    }
+
+    /// <summary> <para>
+    /// Return the string representation of the key. The format will be:
+    /// &lt;group&gt;.&lt;name&gt;.
+    /// </para>
+    ///
+    /// </summary>
+    /// <returns> the string representation of the key
+    /// </returns>
+    public override string ToString()
+    {
+        return Group + '.' + Name;
+    }
+
+
+    public override int GetHashCode()
+    {
+        const int Prime = 31;
+        int result = 1;
+        result = Prime*result + (@group == null ? 0 : group.GetHashCode());
+        result = Prime*result + (name == null ? 0 : name.GetHashCode());
+        return result;
+    }
+
+    public override bool Equals(object? obj)
+    {
+        if (this == obj)
         {
-        }
-
-        /// <summary>
-        /// Construct a new key with the given name and group.
-        /// </summary>
-        /// <param name="name">the name</param>
-        public Key(string name) : this(name, DefaultGroup)
-        {
-        }
-
-        /// <summary>
-        /// Construct a new key with the given name and group.
-        /// </summary>
-        /// <param name="name">the name</param>
-        /// <param name="group">the group</param>
-        public Key(string name, string? group)
-        {
-            this.name = name ?? throw new ArgumentNullException(nameof(name), "Name cannot be null.");
-            this.group = group ?? DefaultGroup;
-        }
-
-        /// <summary>
-        /// Get the name portion of the key.
-        /// </summary>
-        /// <returns> the name
-        /// </returns>
-        public virtual string Name
-        {
-            get => name;
-            set => name = value;
-        }
-
-        /// <summary> <para>
-        /// Get the group portion of the key.
-        /// </para>
-        ///
-        /// </summary>
-        /// <returns> the group
-        /// </returns>
-        public virtual string Group
-        {
-            get => group;
-            set => group = value;
-        }
-
-        /// <summary> <para>
-        /// Return the string representation of the key. The format will be:
-        /// &lt;group&gt;.&lt;name&gt;.
-        /// </para>
-        ///
-        /// </summary>
-        /// <returns> the string representation of the key
-        /// </returns>
-        public override string ToString()
-        {
-            return Group + '.' + Name;
-        }
-
-
-        public override int GetHashCode()
-        {
-            const int Prime = 31;
-            int result = 1;
-            result = Prime*result + (@group == null ? 0 : group.GetHashCode());
-            result = Prime*result + (name == null ? 0 : name.GetHashCode());
-            return result;
-        }
-
-        public override bool Equals(object? obj)
-        {
-            if (this == obj)
-            {
-                return true;
-            }
-            if (obj == null)
-            {
-                return false;
-            }
-            if (GetType() != obj.GetType())
-            {
-                return false;
-            }
-            Key<T> other = (Key<T>) obj;
-            if (group == null)
-            {
-                if (other.group != null)
-                {
-                    return false;
-                }
-            }
-            else if (!group.Equals(other.group))
-            {
-                return false;
-            }
-            if (name == null)
-            {
-                if (other.name != null)
-                {
-                    return false;
-                }
-            }
-            else if (!name.Equals(other.name))
-            {
-                return false;
-            }
             return true;
         }
-
-        public int CompareTo(Key<T>? o)
+        if (obj == null)
         {
-            if (o is null)
+            return false;
+        }
+        if (GetType() != obj.GetType())
+        {
+            return false;
+        }
+        Key<T> other = (Key<T>) obj;
+        if (group == null)
+        {
+            if (other.group != null)
+            {
+                return false;
+            }
+        }
+        else if (!group.Equals(other.group))
+        {
+            return false;
+        }
+        if (name == null)
+        {
+            if (other.name != null)
+            {
+                return false;
+            }
+        }
+        else if (!name.Equals(other.name))
+        {
+            return false;
+        }
+        return true;
+    }
+
+    public int CompareTo(Key<T>? o)
+    {
+        if (o is null)
+        {
+            return 1;
+        }
+
+        if (!ReferenceEquals(group, o.group))
+        {
+            if (DefaultGroup.Equals(group) && !DefaultGroup.Equals(o.group))
+            {
+                return -1;
+            }
+            if (!DefaultGroup.Equals(group) && DefaultGroup.Equals(o.group))
             {
                 return 1;
             }
 
-            if (!ReferenceEquals(group, o.group))
+            int r = CultureInfo.CurrentCulture.CompareInfo.Compare(group, o.group, CompareOptions.None);
+            if (r != 0)
             {
-                if (DefaultGroup.Equals(group) && !DefaultGroup.Equals(o.group))
-                {
-                    return -1;
-                }
-                if (!DefaultGroup.Equals(group) && DefaultGroup.Equals(o.group))
-                {
-                    return 1;
-                }
-
-                int r = CultureInfo.CurrentCulture.CompareInfo.Compare(group, o.group, CompareOptions.None);
-                if (r != 0)
-                {
-                    return r;
-                }
+                return r;
             }
-
-            if (ReferenceEquals(name, o.name))
-            {
-                return 0;
-            }
-
-            return CultureInfo.CurrentCulture.CompareInfo.Compare(name, o.name, CompareOptions.None);
         }
+
+        if (ReferenceEquals(name, o.name))
+        {
+            return 0;
+        }
+
+        return CultureInfo.CurrentCulture.CompareInfo.Compare(name, o.name, CompareOptions.None);
     }
 }

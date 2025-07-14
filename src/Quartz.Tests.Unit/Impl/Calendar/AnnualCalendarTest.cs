@@ -28,166 +28,165 @@ using Quartz.Impl.Calendar;
 using Quartz.Simpl;
 using Quartz.Util;
 
-namespace Quartz.Tests.Unit.Impl.Calendar
+namespace Quartz.Tests.Unit.Impl.Calendar;
+
+/// <author>Marko Lahma (.NET)</author>
+[TestFixture(typeof(BinaryObjectSerializer))]
+[TestFixture(typeof(JsonObjectSerializer))]
+[TestFixture(typeof(SystemTextJsonObjectSerializer))]
+public class AnnualCalendarTest : SerializationTestSupport<AnnualCalendar, ICalendar>
 {
-    /// <author>Marko Lahma (.NET)</author>
-    [TestFixture(typeof(BinaryObjectSerializer))]
-    [TestFixture(typeof(JsonObjectSerializer))]
-    [TestFixture(typeof(SystemTextJsonObjectSerializer))]
-    public class AnnualCalendarTest : SerializationTestSupport<AnnualCalendar, ICalendar>
+    private AnnualCalendar cal;
+
+    public AnnualCalendarTest(Type serializerType) : base(serializerType)
     {
-        private AnnualCalendar cal;
+    }
 
-        public AnnualCalendarTest(Type serializerType) : base(serializerType)
-        {
-        }
+    [SetUp]
+    public void Setup()
+    {
+        cal = new AnnualCalendar();
+    }
 
-        [SetUp]
-        public void Setup()
-        {
-            cal = new AnnualCalendar();
-        }
+    [Test]
+    public void TestDayExclusion()
+    {
+        // we're local by default
+        DateTime d = new DateTime(2005, 1, 1);
+        cal.SetDayExcluded(d, true);
+        Assert.IsFalse(cal.IsTimeIncluded(d.ToUniversalTime()), "Time was included when it was supposed not to be");
+        Assert.IsTrue(cal.IsDayExcluded(d), "Day was not excluded when it was supposed to be excluded");
+        Assert.AreEqual(1, cal.DaysExcluded.Count);
+        Assert.AreEqual(d.Day, cal.DaysExcluded.First().Day);
+        Assert.AreEqual(d.Month, cal.DaysExcluded.First().Month);
+    }
 
-        [Test]
-        public void TestDayExclusion()
-        {
-            // we're local by default
-            DateTime d = new DateTime(2005, 1, 1);
-            cal.SetDayExcluded(d, true);
-            Assert.IsFalse(cal.IsTimeIncluded(d.ToUniversalTime()), "Time was included when it was supposed not to be");
-            Assert.IsTrue(cal.IsDayExcluded(d), "Day was not excluded when it was supposed to be excluded");
-            Assert.AreEqual(1, cal.DaysExcluded.Count);
-            Assert.AreEqual(d.Day, cal.DaysExcluded.First().Day);
-            Assert.AreEqual(d.Month, cal.DaysExcluded.First().Month);
-        }
+    [Test]
+    public void TestDayInclusionAfterExclusion()
+    {
+        DateTime d = new DateTime(2005, 1, 1);
+        cal.SetDayExcluded(d, true);
+        cal.SetDayExcluded(d, false);
+        cal.SetDayExcluded(d, false);
+        Assert.IsTrue(cal.IsTimeIncluded(d), "Time was not included when it was supposed to be");
+        Assert.IsFalse(cal.IsDayExcluded(d), "Day was excluded when it was supposed to be included");
+    }
 
-        [Test]
-        public void TestDayInclusionAfterExclusion()
-        {
-            DateTime d = new DateTime(2005, 1, 1);
-            cal.SetDayExcluded(d, true);
-            cal.SetDayExcluded(d, false);
-            cal.SetDayExcluded(d, false);
-            Assert.IsTrue(cal.IsTimeIncluded(d), "Time was not included when it was supposed to be");
-            Assert.IsFalse(cal.IsDayExcluded(d), "Day was excluded when it was supposed to be included");
-        }
+    [Test]
+    public void TestDayExclusionDifferentYears()
+    {
+        string errMessage = "Day was not excluded when it was supposed to be excluded";
+        DateTime d = new DateTime(2005, 1, 1);
+        cal.SetDayExcluded(d, true);
+        Assert.IsTrue(cal.IsDayExcluded(d), errMessage);
+        Assert.IsTrue(cal.IsDayExcluded(d.AddYears(-2)), errMessage);
+        Assert.IsTrue(cal.IsDayExcluded(d.AddYears(2)), errMessage);
+        Assert.IsTrue(cal.IsDayExcluded(d.AddYears(100)), errMessage);
+    }
 
-        [Test]
-        public void TestDayExclusionDifferentYears()
-        {
-            string errMessage = "Day was not excluded when it was supposed to be excluded";
-            DateTime d = new DateTime(2005, 1, 1);
-            cal.SetDayExcluded(d, true);
-            Assert.IsTrue(cal.IsDayExcluded(d), errMessage);
-            Assert.IsTrue(cal.IsDayExcluded(d.AddYears(-2)), errMessage);
-            Assert.IsTrue(cal.IsDayExcluded(d.AddYears(2)), errMessage);
-            Assert.IsTrue(cal.IsDayExcluded(d.AddYears(100)), errMessage);
-        }
+    [Test]
+    public void TestExclusionAndNextIncludedTime()
+    {
+        cal.DaysExcluded = null;
+        DateTimeOffset test = DateTimeOffset.UtcNow.Date;
+        Assert.AreEqual(test, cal.GetNextIncludedTimeUtc(test), "Did not get today as date when nothing was excluded");
 
-        [Test]
-        public void TestExclusionAndNextIncludedTime()
-        {
-            cal.DaysExcluded = null;
-            DateTimeOffset test = DateTimeOffset.UtcNow.Date;
-            Assert.AreEqual(test, cal.GetNextIncludedTimeUtc(test), "Did not get today as date when nothing was excluded");
+        cal.SetDayExcluded(test.Date, true);
+        Assert.AreEqual(test.AddDays(1), cal.GetNextIncludedTimeUtc(test), "Did not get next day when current day excluded");
+    }
 
-            cal.SetDayExcluded(test.Date, true);
-            Assert.AreEqual(test.AddDays(1), cal.GetNextIncludedTimeUtc(test), "Did not get next day when current day excluded");
-        }
+    /// <summary>
+    /// QUARTZ-679 Test if the annualCalendar works over years.
+    /// </summary>
+    [Test]
+    public void TestDaysExcludedOverTime()
+    {
+        AnnualCalendar annualCalendar = new AnnualCalendar();
 
-        /// <summary>
-        /// QUARTZ-679 Test if the annualCalendar works over years.
-        /// </summary>
-        [Test]
-        public void TestDaysExcludedOverTime()
-        {
-            AnnualCalendar annualCalendar = new AnnualCalendar();
+        DateTime day = new DateTime(2005, 6, 23);
+        annualCalendar.SetDayExcluded(day, true);
 
-            DateTime day = new DateTime(2005, 6, 23);
-            annualCalendar.SetDayExcluded(day, true);
+        day = new DateTime(2008, 2, 1);
+        annualCalendar.SetDayExcluded(day, true);
 
-            day = new DateTime(2008, 2, 1);
-            annualCalendar.SetDayExcluded(day, true);
+        Assert.IsTrue(annualCalendar.IsDayExcluded(day), "The day 1 February is expected to be excluded but it is not");
+    }
 
-            Assert.IsTrue(annualCalendar.IsDayExcluded(day), "The day 1 February is expected to be excluded but it is not");
-        }
+    /// <summary>
+    /// Part 2 of the tests of QUARTZ-679
+    /// </summary>
+    [Test]
+    public void TestRemoveInTheFuture()
+    {
+        AnnualCalendar annualCalendar = new AnnualCalendar();
 
-        /// <summary>
-        /// Part 2 of the tests of QUARTZ-679
-        /// </summary>
-        [Test]
-        public void TestRemoveInTheFuture()
-        {
-            AnnualCalendar annualCalendar = new AnnualCalendar();
+        DateTime day = new DateTime(2005, 6, 23);
+        annualCalendar.SetDayExcluded(day, true);
 
-            DateTime day = new DateTime(2005, 6, 23);
-            annualCalendar.SetDayExcluded(day, true);
+        // Trying to remove the 23th of June
+        day = new DateTime(2008, 6, 23);
+        annualCalendar.SetDayExcluded(day, false);
 
-            // Trying to remove the 23th of June
-            day = new DateTime(2008, 6, 23);
-            annualCalendar.SetDayExcluded(day, false);
+        Assert.IsFalse(annualCalendar.IsDayExcluded(day), "The day 23 June is not expected to be excluded but it is");
+    }
 
-            Assert.IsFalse(annualCalendar.IsDayExcluded(day), "The day 23 June is not expected to be excluded but it is");
-        }
+    [Test]
+    public void TestAnnualCalendarTimeZone()
+    {
+        TimeZoneInfo tz = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
+        AnnualCalendar c = new AnnualCalendar();
+        c.TimeZone = tz;
 
-        [Test]
-        public void TestAnnualCalendarTimeZone()
-        {
-            TimeZoneInfo tz = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
-            AnnualCalendar c = new AnnualCalendar();
-            c.TimeZone = tz;
+        DateTime excludedDay = new DateTime(2012, 11, 4, 0, 0, 0);
+        c.SetDayExcluded(excludedDay, true);
 
-            DateTime excludedDay = new DateTime(2012, 11, 4, 0, 0, 0);
-            c.SetDayExcluded(excludedDay, true);
+        // 11/5/2012 12:00:00 AM -04:00  translate into 11/4/2012 11:00:00 PM -05:00 (EST)
+        DateTimeOffset date = new DateTimeOffset(2012, 11, 5, 0, 0, 0, TimeSpan.FromHours(-4));
 
-            // 11/5/2012 12:00:00 AM -04:00  translate into 11/4/2012 11:00:00 PM -05:00 (EST)
-            DateTimeOffset date = new DateTimeOffset(2012, 11, 5, 0, 0, 0, TimeSpan.FromHours(-4));
+        Assert.IsFalse(c.IsTimeIncluded(date), "date was expected to not be included.");
+        Assert.IsTrue(c.IsTimeIncluded(date.AddDays(1)));
 
-            Assert.IsFalse(c.IsTimeIncluded(date), "date was expected to not be included.");
-            Assert.IsTrue(c.IsTimeIncluded(date.AddDays(1)));
+        DateTimeOffset expectedNextAvailable = new DateTimeOffset(2012, 11, 5, 0, 0, 0, TimeSpan.FromHours(-5));
+        DateTimeOffset actualNextAvailable = c.GetNextIncludedTimeUtc(date);
+        Assert.AreEqual(expectedNextAvailable, actualNextAvailable);
+    }
 
-            DateTimeOffset expectedNextAvailable = new DateTimeOffset(2012, 11, 5, 0, 0, 0, TimeSpan.FromHours(-5));
-            DateTimeOffset actualNextAvailable = c.GetNextIncludedTimeUtc(date);
-            Assert.AreEqual(expectedNextAvailable, actualNextAvailable);
-        }
+    [Test]
+    public void BaseCalendarShouldNotAffectSettingInternalDataStructures()
+    {
+        var dayToExclude = new DateTime(2015, 1, 1);
 
-        [Test]
-        public void BaseCalendarShouldNotAffectSettingInternalDataStructures()
-        {
-            var dayToExclude = new DateTime(2015, 1, 1);
+        AnnualCalendar a = new AnnualCalendar();
+        a.SetDayExcluded(dayToExclude, true);
 
-            AnnualCalendar a = new AnnualCalendar();
-            a.SetDayExcluded(dayToExclude, true);
+        AnnualCalendar b = new AnnualCalendar(a);
+        b.SetDayExcluded(dayToExclude, true);
 
-            AnnualCalendar b = new AnnualCalendar(a);
-            b.SetDayExcluded(dayToExclude, true);
+        b.CalendarBase = null;
 
-            b.CalendarBase = null;
+        Assert.That(b.IsDayExcluded(dayToExclude), "day was no longer excluded after base calendar was detached");
+    }
 
-            Assert.That(b.IsDayExcluded(dayToExclude), "day was no longer excluded after base calendar was detached");
-        }
+    /// <summary>
+    /// Get the object to serialize when generating serialized file for future
+    /// tests, and against which to validate deserialized object.
+    /// </summary>
+    /// <returns></returns>
+    protected override AnnualCalendar GetTargetObject()
+    {
+        AnnualCalendar c = new AnnualCalendar();
+        c.Description = "description";
+        DateTime date = new DateTime(2005, 1, 20, 10, 5, 15);
+        c.SetDayExcluded(date, true);
+        return c;
+    }
 
-        /// <summary>
-        /// Get the object to serialize when generating serialized file for future
-        /// tests, and against which to validate deserialized object.
-        /// </summary>
-        /// <returns></returns>
-        protected override AnnualCalendar GetTargetObject()
-        {
-            AnnualCalendar c = new AnnualCalendar();
-            c.Description = "description";
-            DateTime date = new DateTime(2005, 1, 20, 10, 5, 15);
-            c.SetDayExcluded(date, true);
-            return c;
-        }
-
-        /// <inheritdoc />
-        protected override void VerifyMatch(AnnualCalendar original, AnnualCalendar deserialized)
-        {
-            Assert.That(deserialized, Is.Not.Null);
-            Assert.That(deserialized.Description, Is.EqualTo(original.Description));
-            Assert.That(deserialized.DaysExcluded, Is.EquivalentTo(original.DaysExcluded));
-            Assert.That(deserialized.TimeZone, Is.EqualTo(original.TimeZone));
-        }
+    /// <inheritdoc />
+    protected override void VerifyMatch(AnnualCalendar original, AnnualCalendar deserialized)
+    {
+        Assert.That(deserialized, Is.Not.Null);
+        Assert.That(deserialized.Description, Is.EqualTo(original.Description));
+        Assert.That(deserialized.DaysExcluded, Is.EquivalentTo(original.DaysExcluded));
+        Assert.That(deserialized.TimeZone, Is.EqualTo(original.TimeZone));
     }
 }

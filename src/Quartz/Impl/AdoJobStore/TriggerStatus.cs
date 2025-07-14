@@ -21,47 +21,46 @@
 
 using System;
 
-namespace Quartz.Impl.AdoJobStore
+namespace Quartz.Impl.AdoJobStore;
+
+/// <summary>
+/// Object representing a job or trigger key.
+/// </summary>
+/// <author>James House</author>
+/// <author>Marko Lahma (.NET)</author>
+public class TriggerStatus
 {
+    // TODO: Repackage under spi or root pkg ?, put status constants here.
+
     /// <summary>
-    /// Object representing a job or trigger key.
+    /// Construct a new TriggerStatus with the status name and nextFireTime.
     /// </summary>
-    /// <author>James House</author>
-    /// <author>Marko Lahma (.NET)</author>
-    public class TriggerStatus
+    public TriggerStatus(
+        string status,
+        DateTimeOffset? nextFireTime, 
+        TriggerKey triggerKey,
+        JobKey jobKey)
     {
-        // TODO: Repackage under spi or root pkg ?, put status constants here.
+        Status = status;
+        NextFireTimeUtc = nextFireTime;
+        Key = triggerKey;
+        JobKey = jobKey;
+    }
 
-        /// <summary>
-        /// Construct a new TriggerStatus with the status name and nextFireTime.
-        /// </summary>
-        public TriggerStatus(
-            string status,
-            DateTimeOffset? nextFireTime, 
-            TriggerKey triggerKey,
-            JobKey jobKey)
-        {
-            Status = status;
-            NextFireTimeUtc = nextFireTime;
-            Key = triggerKey;
-            JobKey = jobKey;
-        }
+    public JobKey JobKey { get; set; }
 
-        public JobKey JobKey { get; set; }
+    public TriggerKey Key { get; set; }
 
-        public TriggerKey Key { get; set; }
+    public string Status { get; }
 
-        public string Status { get; }
+    public DateTimeOffset? NextFireTimeUtc { get; }
 
-        public DateTimeOffset? NextFireTimeUtc { get; }
-
-        /// <summary>
-        /// Return the string representation of the TriggerStatus.
-        /// </summary>
-        /// <returns></returns>
-        public override string ToString()
-        {
-            return "status: " + Status + ", next Fire = " + NextFireTimeUtc;
-        }
+    /// <summary>
+    /// Return the string representation of the TriggerStatus.
+    /// </summary>
+    /// <returns></returns>
+    public override string ToString()
+    {
+        return "status: " + Status + ", next Fire = " + NextFireTimeUtc;
     }
 }

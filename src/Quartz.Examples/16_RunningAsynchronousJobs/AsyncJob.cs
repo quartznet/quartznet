@@ -23,41 +23,40 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Quartz.Examples.Example16
+namespace Quartz.Examples.Example16;
+
+/// <summary>
+/// This is a job that is meant to run using async/await pattern in .NET CLR thread pool.
+/// </summary>
+/// <author>Marko Lahma</author>
+public class AsyncJob : IJob
 {
-    /// <summary>
-    /// This is a job that is meant to run using async/await pattern in .NET CLR thread pool.
+    /// <summary> 
+    /// Called by the <see cref="IScheduler" /> when a
+    /// <see cref="ITrigger" /> fires that is associated with
+    /// the <see cref="IJob" />.
     /// </summary>
-    /// <author>Marko Lahma</author>
-    public class AsyncJob : IJob
+    public virtual async Task Execute(IJobExecutionContext context)
     {
-        /// <summary> 
-        /// Called by the <see cref="IScheduler" /> when a
-        /// <see cref="ITrigger" /> fires that is associated with
-        /// the <see cref="IJob" />.
-        /// </summary>
-        public virtual async Task Execute(IJobExecutionContext context)
-        {
-            // This job simply prints out its job name and the
-            // date and time that it is running
-            JobKey jobKey = context.JobDetail.Key;
+        // This job simply prints out its job name and the
+        // date and time that it is running
+        JobKey jobKey = context.JobDetail.Key;
 
-            Console.WriteLine("Job initially executing on thread {0}", Thread.CurrentThread.ManagedThreadId);
+        Console.WriteLine("Job initially executing on thread {0}", Thread.CurrentThread.ManagedThreadId);
 
-            await Task.Delay(TimeSpan.FromSeconds(1), context.CancellationToken);
+        await Task.Delay(TimeSpan.FromSeconds(1), context.CancellationToken);
 
-            Console.WriteLine("Job continuing executing on thread {0} after first await", Thread.CurrentThread.ManagedThreadId);
+        Console.WriteLine("Job continuing executing on thread {0} after first await", Thread.CurrentThread.ManagedThreadId);
 
-            await Task.Delay(TimeSpan.FromSeconds(1), context.CancellationToken);
+        await Task.Delay(TimeSpan.FromSeconds(1), context.CancellationToken);
 
-            Console.WriteLine("Job continuing executing on thread {0} after second await", Thread.CurrentThread.ManagedThreadId);
+        Console.WriteLine("Job continuing executing on thread {0} after second await", Thread.CurrentThread.ManagedThreadId);
 
-            await Task.Delay(TimeSpan.FromSeconds(10), context.CancellationToken);
-            Console.WriteLine("Cancellation requested: {0}", context.CancellationToken.IsCancellationRequested);
+        await Task.Delay(TimeSpan.FromSeconds(10), context.CancellationToken);
+        Console.WriteLine("Cancellation requested: {0}", context.CancellationToken.IsCancellationRequested);
    
-            context.CancellationToken.ThrowIfCancellationRequested();
+        context.CancellationToken.ThrowIfCancellationRequested();
 
-            Console.WriteLine("Finished Executing job: {0} at {1:r}", jobKey, DateTime.Now);
-        }
+        Console.WriteLine("Finished Executing job: {0} at {1:r}", jobKey, DateTime.Now);
     }
 }

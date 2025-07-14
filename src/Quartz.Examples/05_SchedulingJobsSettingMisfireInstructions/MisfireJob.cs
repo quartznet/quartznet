@@ -22,43 +22,42 @@
 using System;
 using System.Threading.Tasks;
 
-namespace Quartz.Examples.Example05
+namespace Quartz.Examples.Example05;
+
+/// <summary>
+/// A dumb implementation of Job, for unit testing purposes.
+/// </summary>
+/// <author>James House</author>
+/// <author>Marko Lahma (.NET)</author>
+[PersistJobDataAfterExecution]
+[DisallowConcurrentExecution]
+public class MisfireJob : IJob
 {
+    // Constants
+    public const string NumExecutions = "NumExecutions";
+    public const string ExecutionDelay = "ExecutionDelay";
+
     /// <summary>
-    /// A dumb implementation of Job, for unit testing purposes.
+    /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
+    /// fires that is associated with the <see cref="IJob" />.
     /// </summary>
-    /// <author>James House</author>
-    /// <author>Marko Lahma (.NET)</author>
-    [PersistJobDataAfterExecution]
-    [DisallowConcurrentExecution]
-    public class MisfireJob : IJob
+    public virtual async Task Execute(IJobExecutionContext context)
     {
-        // Constants
-        public const string NumExecutions = "NumExecutions";
-        public const string ExecutionDelay = "ExecutionDelay";
+        JobKey jobKey = context.JobDetail.Key;
+        Console.WriteLine($"---{jobKey} executing at {DateTime.Now:r}");
 
-        /// <summary>
-        /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
-        /// fires that is associated with the <see cref="IJob" />.
-        /// </summary>
-        public virtual async Task Execute(IJobExecutionContext context)
+        // default delay to five seconds
+        int delay = 5;
+
+        // use the delay passed in as a job parameter (if it exists)
+        JobDataMap map = context.JobDetail.JobDataMap;
+        if (map.ContainsKey(ExecutionDelay))
         {
-            JobKey jobKey = context.JobDetail.Key;
-            Console.WriteLine($"---{jobKey} executing at {DateTime.Now:r}");
-
-            // default delay to five seconds
-            int delay = 5;
-
-            // use the delay passed in as a job parameter (if it exists)
-            JobDataMap map = context.JobDetail.JobDataMap;
-            if (map.ContainsKey(ExecutionDelay))
-            {
-                delay = map.GetInt(ExecutionDelay);
-            }
-
-            await Task.Delay(TimeSpan.FromSeconds(delay));
-
-            Console.WriteLine($"---{jobKey} completed at {DateTime.Now:r}");
+            delay = map.GetInt(ExecutionDelay);
         }
+
+        await Task.Delay(TimeSpan.FromSeconds(delay));
+
+        Console.WriteLine($"---{jobKey} completed at {DateTime.Now:r}");
     }
 }

@@ -29,64 +29,63 @@ using Quartz.Impl;
 using Quartz.Simpl;
 using Quartz.Spi;
 
-namespace Quartz.Tests.Unit.Impl
+namespace Quartz.Tests.Unit.Impl;
+
+/// <author>Marko Lahma (.NET)</author>
+[TestFixture]
+public class DirectSchedulerFactoryTest
 {
-    /// <author>Marko Lahma (.NET)</author>
-    [TestFixture]
-	public class DirectSchedulerFactoryTest
-	{
-		[Test]
-		public async Task TestPlugins()
-		{
-			StringBuilder result = new StringBuilder();
+    [Test]
+    public async Task TestPlugins()
+    {
+        StringBuilder result = new StringBuilder();
 
-			IDictionary<string, ISchedulerPlugin> data = new Dictionary<string, ISchedulerPlugin>();
-			data["TestPlugin"] = new TestPlugin(result);
+        IDictionary<string, ISchedulerPlugin> data = new Dictionary<string, ISchedulerPlugin>();
+        data["TestPlugin"] = new TestPlugin(result);
 
-			IThreadPool threadPool = new DedicatedThreadPool
-			{
-			    ThreadCount = 1
-			};
-			threadPool.Initialize();
-			DirectSchedulerFactory.Instance.CreateScheduler(
-				"MyScheduler", "Instance1", threadPool,
-				new RAMJobStore(), data,
-				TimeSpan.Zero);
+        IThreadPool threadPool = new DedicatedThreadPool
+        {
+            ThreadCount = 1
+        };
+        threadPool.Initialize();
+        DirectSchedulerFactory.Instance.CreateScheduler(
+            "MyScheduler", "Instance1", threadPool,
+            new RAMJobStore(), data,
+            TimeSpan.Zero);
 
 
-			IScheduler scheduler = await DirectSchedulerFactory.Instance.GetScheduler("MyScheduler");
-			await scheduler.Start();
-			await scheduler.Shutdown();
+        IScheduler scheduler = await DirectSchedulerFactory.Instance.GetScheduler("MyScheduler");
+        await scheduler.Start();
+        await scheduler.Shutdown();
 
-			Assert.AreEqual("TestPlugin|MyScheduler|Start|Shutdown", result.ToString());
-		}
+        Assert.AreEqual("TestPlugin|MyScheduler|Start|Shutdown", result.ToString());
+    }
 
-		class TestPlugin : ISchedulerPlugin
-		{
-		    readonly StringBuilder result;
+    class TestPlugin : ISchedulerPlugin
+    {
+        readonly StringBuilder result;
 
-			public TestPlugin(StringBuilder result)
-			{
-				this.result = result;
-			}
+        public TestPlugin(StringBuilder result)
+        {
+            this.result = result;
+        }
 
-			public Task Initialize(string name, IScheduler scheduler, CancellationToken cancellationToken)
-			{
-				result.Append(name).Append("|").Append(scheduler.SchedulerName);
-                return Task.FromResult(true);
-            }
+        public Task Initialize(string name, IScheduler scheduler, CancellationToken cancellationToken)
+        {
+            result.Append(name).Append("|").Append(scheduler.SchedulerName);
+            return Task.FromResult(true);
+        }
 
-            Task ISchedulerPlugin.Start(CancellationToken cancellationToken)
-		    {
-		        result.Append("|Start");
-                return Task.FromResult(true);
-		    }
+        Task ISchedulerPlugin.Start(CancellationToken cancellationToken)
+        {
+            result.Append("|Start");
+            return Task.FromResult(true);
+        }
 
-			public Task Shutdown(CancellationToken cancellationToken)
-			{
-				result.Append("|Shutdown");
-                return Task.FromResult(true);
-			}
-		}
-	}
+        public Task Shutdown(CancellationToken cancellationToken)
+        {
+            result.Append("|Shutdown");
+            return Task.FromResult(true);
+        }
+    }
 }

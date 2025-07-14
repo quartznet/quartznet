@@ -23,258 +23,257 @@ using System;
 using System.Runtime.Serialization;
 using System.Text;
 
-namespace Quartz.Impl.Calendar
+namespace Quartz.Impl.Calendar;
+
+/// <summary>
+/// This implementation of the Calendar excludes the set of times expressed by a
+/// given CronExpression.
+/// </summary>
+/// <remarks>
+/// For example, you could use this calendar to exclude all but business hours (8AM - 5PM) every
+/// day using the expression &quot;* * 0-7,18-23 ? * *&quot;.
+/// <para>
+/// It is important to remember that the cron expression here describes a set of
+/// times to be <i>excluded</i> from firing. Whereas the cron expression in
+/// CronTrigger describes a set of times that can
+/// be <i>included</i> for firing. Thus, if a <see cref="ICronTrigger" /> has a
+/// given cron expression and is associated with a <see cref="CronCalendar" /> with
+/// the <i>same</i> expression, the calendar will exclude all the times the
+/// trigger includes, and they will cancel each other out.
+/// </para>
+/// </remarks>
+/// <author>Aaron Craven</author>
+/// <author>Marko Lahma (.NET)</author>
+[Serializable]
+public class CronCalendar : BaseCalendar
 {
-    /// <summary>
-    /// This implementation of the Calendar excludes the set of times expressed by a
-    /// given CronExpression.
-    /// </summary>
-    /// <remarks>
-    /// For example, you could use this calendar to exclude all but business hours (8AM - 5PM) every
-    /// day using the expression &quot;* * 0-7,18-23 ? * *&quot;.
-    /// <para>
-    /// It is important to remember that the cron expression here describes a set of
-    /// times to be <i>excluded</i> from firing. Whereas the cron expression in
-    /// CronTrigger describes a set of times that can
-    /// be <i>included</i> for firing. Thus, if a <see cref="ICronTrigger" /> has a
-    /// given cron expression and is associated with a <see cref="CronCalendar" /> with
-    /// the <i>same</i> expression, the calendar will exclude all the times the
-    /// trigger includes, and they will cancel each other out.
-    /// </para>
-    /// </remarks>
-    /// <author>Aaron Craven</author>
-    /// <author>Marko Lahma (.NET)</author>
-    [Serializable]
-    public class CronCalendar : BaseCalendar
+    private CronExpression cronExpression = null!;
+
+    // ReSharper disable once UnusedMember.Local
+    private CronCalendar()
     {
-        private CronExpression cronExpression = null!;
+    }
 
-        // ReSharper disable once UnusedMember.Local
-        private CronCalendar()
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CronCalendar"/> class.
+    /// </summary>
+    /// <param name="expression">a string representation of the desired cron expression</param>
+    public CronCalendar(string expression) : this(null, expression)
+    {
+    }
+
+    /// <summary>
+    /// Create a <see cref="CronCalendar" /> with the given cron expression and
+    /// <see cref="BaseCalendar" />.
+    /// </summary>
+    /// <param name="baseCalendar">
+    /// the base calendar for this calendar instance
+    /// see BaseCalendar for more information on base
+    /// calendar functionality
+    /// </param>
+    /// <param name="expression">a string representation of the desired cron expression</param>
+    public CronCalendar(ICalendar? baseCalendar, string expression) : this(baseCalendar, expression, null)
+    {
+    }
+
+    /// <summary>
+    /// Create a <see cref="CronCalendar" /> with the given cron expression and
+    /// <see cref="BaseCalendar" />.
+    /// </summary>
+    /// <param name="baseCalendar">
+    /// the base calendar for this calendar instance
+    /// see BaseCalendar for more information on base
+    /// calendar functionality
+    /// </param>
+    /// <param name="expression">a string representation of the desired cron expression</param>
+    /// <param name="timeZone"></param>
+    public CronCalendar(ICalendar? baseCalendar, string expression, TimeZoneInfo? timeZone) : base(baseCalendar, timeZone)
+    {
+        cronExpression = new CronExpression(expression);
+    }
+
+    /// <summary>
+    /// Serialization constructor.
+    /// </summary>
+    /// <param name="info"></param>
+    /// <param name="context"></param>
+    protected CronCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
+    {
+        int version;
+        try
         {
+            version = info.GetInt32("version");
+        }
+        catch
+        {
+            version = 0;
         }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="CronCalendar"/> class.
-        /// </summary>
-        /// <param name="expression">a string representation of the desired cron expression</param>
-        public CronCalendar(string expression) : this(null, expression)
+        switch (version)
         {
+            case 0:
+            case 1:
+                cronExpression = (CronExpression) info.GetValue("cronExpression", typeof(CronExpression))!;
+                break;
+            default:
+                throw new NotSupportedException("Unknown serialization version");
+        }
+    }
+
+    [System.Security.SecurityCritical]
+    public override void GetObjectData(SerializationInfo info, StreamingContext context)
+    {
+        base.GetObjectData(info, context);
+
+        info.AddValue("version", 1);
+        info.AddValue("cronExpression", cronExpression);
+    }
+
+    public override TimeZoneInfo TimeZone
+    {
+        get => cronExpression.TimeZone;
+        set => cronExpression.TimeZone = value;
+    }
+
+    /// <summary>
+    /// Determine whether the given time  is 'included' by the
+    /// Calendar.
+    /// </summary>
+    /// <param name="timeUtc">the time to test</param>
+    /// <returns>a boolean indicating whether the specified time is 'included' by the CronCalendar</returns>
+    public override bool IsTimeIncluded(DateTimeOffset timeUtc)
+    {
+        if (CalendarBase != null &&
+            CalendarBase.IsTimeIncluded(timeUtc) == false)
+        {
+            return false;
         }
 
-        /// <summary>
-        /// Create a <see cref="CronCalendar" /> with the given cron expression and
-        /// <see cref="BaseCalendar" />.
-        /// </summary>
-        /// <param name="baseCalendar">
-        /// the base calendar for this calendar instance
-        /// see BaseCalendar for more information on base
-        /// calendar functionality
-        /// </param>
-        /// <param name="expression">a string representation of the desired cron expression</param>
-        public CronCalendar(ICalendar? baseCalendar, string expression) : this(baseCalendar, expression, null)
-        {
-        }
+        return !cronExpression.IsSatisfiedBy(timeUtc);
+    }
 
-        /// <summary>
-        /// Create a <see cref="CronCalendar" /> with the given cron expression and
-        /// <see cref="BaseCalendar" />.
-        /// </summary>
-        /// <param name="baseCalendar">
-        /// the base calendar for this calendar instance
-        /// see BaseCalendar for more information on base
-        /// calendar functionality
-        /// </param>
-        /// <param name="expression">a string representation of the desired cron expression</param>
-        /// <param name="timeZone"></param>
-        public CronCalendar(ICalendar? baseCalendar, string expression, TimeZoneInfo? timeZone) : base(baseCalendar, timeZone)
-        {
-            cronExpression = new CronExpression(expression);
-        }
+    /// <summary>
+    /// Determine the next time that is 'included' by the
+    /// Calendar after the given time. Return the original value if timeStamp is
+    /// included. Return 0 if all days are excluded.
+    /// </summary>
+    /// <param name="timeUtc"></param>
+    /// <returns></returns>
+    public override DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc)
+    {
+        DateTimeOffset nextIncludedTime = timeUtc.AddMilliseconds(1); //plus on millisecond
 
-        /// <summary>
-        /// Serialization constructor.
-        /// </summary>
-        /// <param name="info"></param>
-        /// <param name="context"></param>
-        protected CronCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
+        while (!IsTimeIncluded(nextIncludedTime))
         {
-            int version;
-            try
+            //If the time is in a range excluded by this calendar, we can
+            // move to the end of the excluded time range and continue testing
+            // from there. Otherwise, if nextIncludedTime is excluded by the
+            // baseCalendar, ask it the next time it includes and begin testing
+            // from there. Failing this, add one millisecond and continue
+            // testing.
+            if (cronExpression.IsSatisfiedBy(nextIncludedTime))
             {
-                version = info.GetInt32("version");
+                nextIncludedTime = cronExpression.GetNextValidTimeAfter(nextIncludedTime)!.Value;
             }
-            catch
+            else if (CalendarBase != null &&
+                     !CalendarBase.IsTimeIncluded(nextIncludedTime))
             {
-                version = 0;
-            }
-
-            switch (version)
-            {
-                case 0:
-                case 1:
-                    cronExpression = (CronExpression) info.GetValue("cronExpression", typeof(CronExpression))!;
-                    break;
-                default:
-                    throw new NotSupportedException("Unknown serialization version");
-            }
-        }
-
-        [System.Security.SecurityCritical]
-        public override void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
-            base.GetObjectData(info, context);
-
-            info.AddValue("version", 1);
-            info.AddValue("cronExpression", cronExpression);
-        }
-
-        public override TimeZoneInfo TimeZone
-        {
-            get => cronExpression.TimeZone;
-            set => cronExpression.TimeZone = value;
-        }
-
-        /// <summary>
-        /// Determine whether the given time  is 'included' by the
-        /// Calendar.
-        /// </summary>
-        /// <param name="timeUtc">the time to test</param>
-        /// <returns>a boolean indicating whether the specified time is 'included' by the CronCalendar</returns>
-        public override bool IsTimeIncluded(DateTimeOffset timeUtc)
-        {
-            if (CalendarBase != null &&
-                CalendarBase.IsTimeIncluded(timeUtc) == false)
-            {
-                return false;
-            }
-
-            return !cronExpression.IsSatisfiedBy(timeUtc);
-        }
-
-        /// <summary>
-        /// Determine the next time that is 'included' by the
-        /// Calendar after the given time. Return the original value if timeStamp is
-        /// included. Return 0 if all days are excluded.
-        /// </summary>
-        /// <param name="timeUtc"></param>
-        /// <returns></returns>
-        public override DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc)
-        {
-            DateTimeOffset nextIncludedTime = timeUtc.AddMilliseconds(1); //plus on millisecond
-
-            while (!IsTimeIncluded(nextIncludedTime))
-            {
-                //If the time is in a range excluded by this calendar, we can
-                // move to the end of the excluded time range and continue testing
-                // from there. Otherwise, if nextIncludedTime is excluded by the
-                // baseCalendar, ask it the next time it includes and begin testing
-                // from there. Failing this, add one millisecond and continue
-                // testing.
-                if (cronExpression.IsSatisfiedBy(nextIncludedTime))
-                {
-                    nextIncludedTime = cronExpression.GetNextValidTimeAfter(nextIncludedTime)!.Value;
-                }
-                else if (CalendarBase != null &&
-                         !CalendarBase.IsTimeIncluded(nextIncludedTime))
-                {
-                    nextIncludedTime =
-                        CalendarBase.GetNextIncludedTimeUtc(nextIncludedTime);
-                }
-                else
-                {
-                    nextIncludedTime = nextIncludedTime.AddMilliseconds(1);
-                }
-            }
-
-            return nextIncludedTime;
-        }
-
-        /// <summary>
-        /// Creates a new object that is a copy of the current instance.
-        /// </summary>
-        /// <returns>A new object that is a copy of this instance.</returns>
-        public override ICalendar Clone()
-        {
-            var clone = new CronCalendar();
-            clone.cronExpression = (CronExpression) cronExpression.Clone();
-            CloneFields(clone);
-            return clone;
-        }
-
-        /// <summary>
-        /// Returns a <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
-        /// </summary>
-        /// <returns>
-        /// A <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
-        /// </returns>
-        public override string ToString()
-        {
-            StringBuilder buffer = new StringBuilder();
-            buffer.Append("base calendar: [");
-            if (CalendarBase != null)
-            {
-                buffer.Append(CalendarBase);
+                nextIncludedTime =
+                    CalendarBase.GetNextIncludedTimeUtc(nextIncludedTime);
             }
             else
             {
-                buffer.Append("null");
+                nextIncludedTime = nextIncludedTime.AddMilliseconds(1);
             }
-            buffer.Append("], excluded cron expression: '");
-            buffer.Append(cronExpression);
-            buffer.Append("'");
-            return buffer.ToString();
         }
 
-        /// <summary>
-        ///  Returns the object representation of the cron expression that defines the
-        /// dates and times this calendar excludes.
-        /// </summary>
-        public CronExpression CronExpression
+        return nextIncludedTime;
+    }
+
+    /// <summary>
+    /// Creates a new object that is a copy of the current instance.
+    /// </summary>
+    /// <returns>A new object that is a copy of this instance.</returns>
+    public override ICalendar Clone()
+    {
+        var clone = new CronCalendar();
+        clone.cronExpression = (CronExpression) cronExpression.Clone();
+        CloneFields(clone);
+        return clone;
+    }
+
+    /// <summary>
+    /// Returns a <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
+    /// </summary>
+    /// <returns>
+    /// A <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
+    /// </returns>
+    public override string ToString()
+    {
+        StringBuilder buffer = new StringBuilder();
+        buffer.Append("base calendar: [");
+        if (CalendarBase != null)
         {
-            get => cronExpression;
-            set => cronExpression = value ?? throw new ArgumentException("expression cannot be null");
+            buffer.Append(CalendarBase);
         }
-
-        /// <summary>
-        /// Sets the cron expression for the calendar to a new value.
-        /// </summary>
-        /// <param name="expression">The expression.</param>
-        public void SetCronExpressionString(string expression)
+        else
         {
-            CronExpression newExp = new CronExpression(expression);
-            cronExpression = newExp;
+            buffer.Append("null");
         }
+        buffer.Append("], excluded cron expression: '");
+        buffer.Append(cronExpression);
+        buffer.Append("'");
+        return buffer.ToString();
+    }
 
-        public override int GetHashCode()
+    /// <summary>
+    ///  Returns the object representation of the cron expression that defines the
+    /// dates and times this calendar excludes.
+    /// </summary>
+    public CronExpression CronExpression
+    {
+        get => cronExpression;
+        set => cronExpression = value ?? throw new ArgumentException("expression cannot be null");
+    }
+
+    /// <summary>
+    /// Sets the cron expression for the calendar to a new value.
+    /// </summary>
+    /// <param name="expression">The expression.</param>
+    public void SetCronExpressionString(string expression)
+    {
+        CronExpression newExp = new CronExpression(expression);
+        cronExpression = newExp;
+    }
+
+    public override int GetHashCode()
+    {
+        int baseHash = 0;
+        if (CalendarBase != null)
         {
-            int baseHash = 0;
-            if (CalendarBase != null)
-            {
-                baseHash = CalendarBase.GetHashCode();
-            }
-
-            return CronExpression.GetHashCode() + 5*baseHash;
+            baseHash = CalendarBase.GetHashCode();
         }
 
-        public bool Equals(CronCalendar obj)
+        return CronExpression.GetHashCode() + 5*baseHash;
+    }
+
+    public bool Equals(CronCalendar obj)
+    {
+        if (obj == null)
         {
-            if (obj == null)
-            {
-                return false;
-            }
-            bool baseEqual = CalendarBase == null || CalendarBase.Equals(obj.CalendarBase);
-
-            return baseEqual && CronExpression.Equals(obj.CronExpression);
+            return false;
         }
+        bool baseEqual = CalendarBase == null || CalendarBase.Equals(obj.CalendarBase);
 
-        public override bool Equals(object? obj)
+        return baseEqual && CronExpression.Equals(obj.CronExpression);
+    }
+
+    public override bool Equals(object? obj)
+    {
+        if (!(obj is CronCalendar))
         {
-            if (!(obj is CronCalendar))
-            {
-                return false;
-            }
-            return Equals((CronCalendar) obj);
+            return false;
         }
+        return Equals((CronCalendar) obj);
     }
 }

@@ -3,45 +3,44 @@ using System.Collections.Generic;
 
 using Quartz.Logging;
 
-namespace Quartz.Tests.Integration
+namespace Quartz.Tests.Integration;
+
+internal class FailFastLoggerFactoryAdapter : ILogProvider
 {
-    internal class FailFastLoggerFactoryAdapter : ILogProvider
+    private static readonly IDisposable NoopDisposableInstance = new DisposableAction();
+
+    public Logger GetLogger(string name)
     {
-        private static readonly IDisposable NoopDisposableInstance = new DisposableAction();
+        return Log;
+    }
 
-        public Logger GetLogger(string name)
+    public IDisposable OpenNestedContext(string message)
+    {
+        return NoopDisposableInstance;
+    }
+
+    public IDisposable OpenMappedContext(string key, object value, bool destructure = false)
+    {
+        return NoopDisposableInstance;
+    }
+
+    private static bool Log(LogLevel logLevel, Func<string> messageFunc, Exception exception, object[] formatparameters)
+    {
+        if (logLevel == LogLevel.Error || logLevel == LogLevel.Fatal)
         {
-            return Log;
+            var message = messageFunc == null ? string.Empty : messageFunc();
+            Errors.Add(message);
         }
 
-        public IDisposable OpenNestedContext(string message)
+        return true;
+    }
+
+    public static List<string> Errors { get; } = new List<string>();
+
+    private class DisposableAction : IDisposable
+    {
+        public void Dispose()
         {
-            return NoopDisposableInstance;
-        }
-
-        public IDisposable OpenMappedContext(string key, object value, bool destructure = false)
-        {
-            return NoopDisposableInstance;
-        }
-
-        private static bool Log(LogLevel logLevel, Func<string> messageFunc, Exception exception, object[] formatparameters)
-        {
-            if (logLevel == LogLevel.Error || logLevel == LogLevel.Fatal)
-            {
-                var message = messageFunc == null ? string.Empty : messageFunc();
-                Errors.Add(message);
-            }
-
-            return true;
-        }
-
-        public static List<string> Errors { get; } = new List<string>();
-
-        private class DisposableAction : IDisposable
-        {
-            public void Dispose()
-            {
-            }
         }
     }
 }

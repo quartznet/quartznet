@@ -6,21 +6,20 @@ using Microsoft.Extensions.DependencyInjection;
 using Quartz.AspNetCore.HealthChecks;
 #endif
 
-namespace Quartz.AspNetCore
+namespace Quartz.AspNetCore;
+
+public static class QuartzServiceCollectionExtensions
 {
-    public static class QuartzServiceCollectionExtensions
+    public static IServiceCollection AddQuartzServer(
+        this IServiceCollection services,
+        Action<QuartzHostedServiceOptions>? configure = null)
     {
-        public static IServiceCollection AddQuartzServer(
-            this IServiceCollection services,
-            Action<QuartzHostedServiceOptions>? configure = null)
-        {
 #if SUPPORTS_HEALTH_CHECKS
-            services
-                .AddHealthChecks()
-                .AddTypeActivatedCheck<QuartzHealthCheck>("quartz-scheduler");
+        services
+            .AddHealthChecks()
+            .AddTypeActivatedCheck<QuartzHealthCheck>("quartz-scheduler");
 #endif
 
-            return services.AddQuartzHostedService(configure);
-        }
+        return services.AddQuartzHostedService(configure);
     }
 }

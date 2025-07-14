@@ -28,191 +28,190 @@ using System.Threading.Tasks;
 
 using Quartz.Logging;
 
-namespace Quartz.Job
+namespace Quartz.Job;
+
+/// <summary>
+/// A Job which sends an e-mail with the configured content to the configured
+/// recipient.
+/// </summary>
+/// <author>James House</author>
+/// <author>Marko Lahma (.NET)</author>
+public class SendMailJob : IJob
 {
-    /// <summary>
-    /// A Job which sends an e-mail with the configured content to the configured
-    /// recipient.
-    /// </summary>
-    /// <author>James House</author>
-    /// <author>Marko Lahma (.NET)</author>
-    public class SendMailJob : IJob
+    private readonly ILog log;
+
+    /// <summary> The host name of the smtp server. REQUIRED.</summary>
+    public const string PropertySmtpHost = "smtp_host";
+
+    /// <summary> The port of the smtp server. Optional.</summary>
+    public const string PropertySmtpPort = "smtp_port";
+
+    /// <summary> Username for authenticated session. Password must also be set if username is used. Optional.</summary>
+    public const string PropertyUsername = "smtp_username";
+
+    /// <summary> Password for authenticated session. Optional.</summary>
+    public const string PropertyPassword = "smtp_password";
+
+    /// <summary> The e-mail address to send the mail to. REQUIRED.</summary>
+    public const string PropertyRecipient = "recipient";
+
+    /// <summary> The e-mail address to cc the mail to. Optional.</summary>
+    public const string PropertyCcRecipient = "cc_recipient";
+
+    /// <summary> The e-mail address to claim the mail is from. REQUIRED.</summary>
+    public const string PropertySender = "sender";
+
+    /// <summary> The e-mail address the message should say to reply to. Optional.</summary>
+    public const string PropertyReplyTo = "reply_to";
+
+    /// <summary> The subject to place on the e-mail. REQUIRED.</summary>
+    public const string PropertySubject = "subject";
+
+    /// <summary> The e-mail message body. REQUIRED.</summary>
+    public const string PropertyMessage = "message";
+
+    /// <summary> The message subject and body content type. Optional.</summary>
+    public const string PropertyEncoding = "encoding";
+
+    public SendMailJob()
     {
-        private readonly ILog log;
+        log = LogProvider.GetLogger(typeof(SendMailJob));
+    }
 
-        /// <summary> The host name of the smtp server. REQUIRED.</summary>
-        public const string PropertySmtpHost = "smtp_host";
+    /// <summary>
+    /// Executes the job.
+    /// </summary>
+    /// <param name="context">The job execution context.</param>
+    public virtual Task Execute(IJobExecutionContext context)
+    {
+        var data = context.MergedJobDataMap;
+        MailMessage message;
 
-        /// <summary> The port of the smtp server. Optional.</summary>
-        public const string PropertySmtpPort = "smtp_port";
-
-        /// <summary> Username for authenticated session. Password must also be set if username is used. Optional.</summary>
-        public const string PropertyUsername = "smtp_username";
-
-        /// <summary> Password for authenticated session. Optional.</summary>
-        public const string PropertyPassword = "smtp_password";
-
-        /// <summary> The e-mail address to send the mail to. REQUIRED.</summary>
-        public const string PropertyRecipient = "recipient";
-
-        /// <summary> The e-mail address to cc the mail to. Optional.</summary>
-        public const string PropertyCcRecipient = "cc_recipient";
-
-        /// <summary> The e-mail address to claim the mail is from. REQUIRED.</summary>
-        public const string PropertySender = "sender";
-
-        /// <summary> The e-mail address the message should say to reply to. Optional.</summary>
-        public const string PropertyReplyTo = "reply_to";
-
-        /// <summary> The subject to place on the e-mail. REQUIRED.</summary>
-        public const string PropertySubject = "subject";
-
-        /// <summary> The e-mail message body. REQUIRED.</summary>
-        public const string PropertyMessage = "message";
-
-        /// <summary> The message subject and body content type. Optional.</summary>
-        public const string PropertyEncoding = "encoding";
-
-        public SendMailJob()
+        try
         {
-            log = LogProvider.GetLogger(typeof(SendMailJob));
+            message = BuildMessageFromParameters(data);
+        }
+        catch (Exception ex)
+        {
+            throw new JobExecutionException($"Could not build message: {ex.Message}", ex, false);
         }
 
-        /// <summary>
-        /// Executes the job.
-        /// </summary>
-        /// <param name="context">The job execution context.</param>
-        public virtual Task Execute(IJobExecutionContext context)
+        try
         {
-            var data = context.MergedJobDataMap;
-            MailMessage message;
-
-            try
+            var portString = GetOptionalParameter(data, PropertySmtpPort);
+            int? port = null;
+            if (!string.IsNullOrEmpty(portString))
             {
-                message = BuildMessageFromParameters(data);
-            }
-            catch (Exception ex)
-            {
-                throw new JobExecutionException($"Could not build message: {ex.Message}", ex, false);
+                port = int.Parse(portString);
             }
 
-            try
+            var info = new MailInfo
             {
-                var portString = GetOptionalParameter(data, PropertySmtpPort);
-                int? port = null;
-                if (!string.IsNullOrEmpty(portString))
-                {
-                    port = int.Parse(portString);
-                }
+                MailMessage = message,
+                SmtpHost = GetRequiredParameter(data, PropertySmtpHost),
+                SmtpPort = port,
+                SmtpUserName = GetOptionalParameter(data, PropertyUsername),
+                SmtpPassword = GetOptionalParameter(data, PropertyPassword)
+            };
+            Send(info);
+        }
+        catch (Exception ex)
+        {
+            throw new JobExecutionException($"Unable to send mail: {GetMessageDescription(message)}", ex, false);
+        }
+        return Task.FromResult(true);
+    }
 
-                var info = new MailInfo
-                {
-                    MailMessage = message,
-                    SmtpHost = GetRequiredParameter(data, PropertySmtpHost),
-                    SmtpPort = port,
-                    SmtpUserName = GetOptionalParameter(data, PropertyUsername),
-                    SmtpPassword = GetOptionalParameter(data, PropertyPassword)
-                };
-                Send(info);
-            }
-            catch (Exception ex)
-            {
-                throw new JobExecutionException($"Unable to send mail: {GetMessageDescription(message)}", ex, false);
-            }
-            return Task.FromResult(true);
+    protected virtual MailMessage BuildMessageFromParameters(JobDataMap data)
+    {
+        string to = GetRequiredParameter(data, PropertyRecipient);
+        string from = GetRequiredParameter(data, PropertySender);
+        string subject = GetRequiredParameter(data, PropertySubject);
+        string message = GetRequiredParameter(data, PropertyMessage);
+
+        string? cc = GetOptionalParameter(data, PropertyCcRecipient);
+        string? replyTo = GetOptionalParameter(data, PropertyReplyTo);
+
+        string? encoding = GetOptionalParameter(data, PropertyEncoding);
+
+        MailMessage mailMessage = new MailMessage();
+        mailMessage.To.Add(to);
+
+        if (!string.IsNullOrEmpty(cc))
+        {
+            mailMessage.CC.Add(cc);
+        }
+        mailMessage.From = new MailAddress(from);
+
+        if (!string.IsNullOrEmpty(replyTo))
+        {
+            mailMessage.ReplyToList.Add(new MailAddress(replyTo));
         }
 
-        protected virtual MailMessage BuildMessageFromParameters(JobDataMap data)
+        mailMessage.Subject = subject;
+        mailMessage.Body = message;
+
+        if (!string.IsNullOrEmpty(encoding))
         {
-            string to = GetRequiredParameter(data, PropertyRecipient);
-            string from = GetRequiredParameter(data, PropertySender);
-            string subject = GetRequiredParameter(data, PropertySubject);
-            string message = GetRequiredParameter(data, PropertyMessage);
+            var encodingToUse = Encoding.GetEncoding(encoding);
+            mailMessage.BodyEncoding = encodingToUse;
+            mailMessage.SubjectEncoding = encodingToUse;
+        }
 
-            string? cc = GetOptionalParameter(data, PropertyCcRecipient);
-            string? replyTo = GetOptionalParameter(data, PropertyReplyTo);
+        return mailMessage;
+    }
 
-            string? encoding = GetOptionalParameter(data, PropertyEncoding);
+    protected virtual string GetRequiredParameter(JobDataMap data, string propertyName)
+    {
+        var value = data.GetString(propertyName);
+        if (string.IsNullOrEmpty(value))
+        {
+            throw new ArgumentException(propertyName + " not specified.");
+        }
+        return value!;
+    }
 
-            MailMessage mailMessage = new MailMessage();
-            mailMessage.To.Add(to);
+    protected virtual string? GetOptionalParameter(JobDataMap data, string propertyName)
+    {
+        return data.TryGetString(propertyName, out var value) ? value : null;
+    }
 
-            if (!string.IsNullOrEmpty(cc))
+    protected virtual void Send(MailInfo mailInfo)
+    {
+        log.Info($"Sending message {GetMessageDescription(mailInfo.MailMessage)}");
+
+        using (var client = new SmtpClient(mailInfo.SmtpHost))
+        {
+            if (mailInfo.SmtpUserName != null)
             {
-                mailMessage.CC.Add(cc);
+                client.Credentials = new NetworkCredential(mailInfo.SmtpUserName, mailInfo.SmtpPassword);
             }
-            mailMessage.From = new MailAddress(from);
 
-            if (!string.IsNullOrEmpty(replyTo))
+            if (mailInfo.SmtpPort != null)
             {
-                mailMessage.ReplyToList.Add(new MailAddress(replyTo));
+                client.Port = mailInfo.SmtpPort.Value;
             }
 
-            mailMessage.Subject = subject;
-            mailMessage.Body = message;
-
-            if (!string.IsNullOrEmpty(encoding))
-            {
-                var encodingToUse = Encoding.GetEncoding(encoding);
-                mailMessage.BodyEncoding = encodingToUse;
-                mailMessage.SubjectEncoding = encodingToUse;
-            }
-
-            return mailMessage;
+            client.Send(mailInfo.MailMessage);
         }
+    }
 
-        protected virtual string GetRequiredParameter(JobDataMap data, string propertyName)
-        {
-            var value = data.GetString(propertyName);
-            if (string.IsNullOrEmpty(value))
-            {
-                throw new ArgumentException(propertyName + " not specified.");
-            }
-            return value!;
-        }
+    private static string GetMessageDescription(MailMessage message)
+    {
+        string mailDesc = $"'{message.Subject}' to: {string.Join(", ", message.To.Select(x => x.Address).ToArray())}";
+        return mailDesc;
+    }
 
-        protected virtual string? GetOptionalParameter(JobDataMap data, string propertyName)
-        {
-            return data.TryGetString(propertyName, out var value) ? value : null;
-        }
+    public class MailInfo
+    {
+        public MailMessage MailMessage { get; set; } = null!;
 
-        protected virtual void Send(MailInfo mailInfo)
-        {
-            log.Info($"Sending message {GetMessageDescription(mailInfo.MailMessage)}");
+        public string SmtpHost { get; set; } = null!;
 
-            using (var client = new SmtpClient(mailInfo.SmtpHost))
-            {
-                if (mailInfo.SmtpUserName != null)
-                {
-                    client.Credentials = new NetworkCredential(mailInfo.SmtpUserName, mailInfo.SmtpPassword);
-                }
+        public int? SmtpPort { get; set; }
 
-                if (mailInfo.SmtpPort != null)
-                {
-                    client.Port = mailInfo.SmtpPort.Value;
-                }
+        public string? SmtpUserName { get; set; }
 
-                client.Send(mailInfo.MailMessage);
-            }
-        }
-
-        private static string GetMessageDescription(MailMessage message)
-        {
-            string mailDesc = $"'{message.Subject}' to: {string.Join(", ", message.To.Select(x => x.Address).ToArray())}";
-            return mailDesc;
-        }
-
-        public class MailInfo
-        {
-            public MailMessage MailMessage { get; set; } = null!;
-
-            public string SmtpHost { get; set; } = null!;
-
-            public int? SmtpPort { get; set; }
-
-            public string? SmtpUserName { get; set; }
-
-            public string? SmtpPassword { get; set; }
-        }
+        public string? SmtpPassword { get; set; }
     }
 }

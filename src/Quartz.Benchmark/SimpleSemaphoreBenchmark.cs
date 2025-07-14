@@ -6,26 +6,25 @@ using BenchmarkDotNet.Attributes;
 
 using Quartz.Impl.AdoJobStore;
 
-namespace Quartz.Benchmark
+namespace Quartz.Benchmark;
+
+[MemoryDiagnoser]
+public class SimpleSemaphoreBenchmark
 {
-    [MemoryDiagnoser]
-    public class SimpleSemaphoreBenchmark
+    private SimpleSemaphore semaphore;
+    private Guid requestorId;
+
+    [GlobalSetup]
+    public void Setup()
     {
-        private SimpleSemaphore semaphore;
-        private Guid requestorId;
+        semaphore = new SimpleSemaphore();
+        requestorId = Guid.NewGuid();
+    }
 
-        [GlobalSetup]
-        public void Setup()
-        {
-            semaphore = new SimpleSemaphore();
-            requestorId = Guid.NewGuid();
-        }
-
-        [Benchmark]
-        public async Task ObtainAndRelease()
-        {
-            await semaphore.ObtainLock(requestorId, null, JobStoreSupport.LockTriggerAccess, CancellationToken.None);
-            await semaphore.ReleaseLock(requestorId, JobStoreSupport.LockTriggerAccess, CancellationToken.None);
-        }
+    [Benchmark]
+    public async Task ObtainAndRelease()
+    {
+        await semaphore.ObtainLock(requestorId, null, JobStoreSupport.LockTriggerAccess, CancellationToken.None);
+        await semaphore.ReleaseLock(requestorId, JobStoreSupport.LockTriggerAccess, CancellationToken.None);
     }
 }

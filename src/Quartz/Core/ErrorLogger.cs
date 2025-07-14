@@ -4,22 +4,21 @@ using System.Threading.Tasks;
 using Quartz.Listener;
 using Quartz.Logging;
 
-namespace Quartz.Core
-{
-    /// <summary>
-    /// ErrorLogger - Scheduler Listener Class
-    /// </summary>
-    internal sealed class ErrorLogger : SchedulerListenerSupport
-    {
-        private readonly ILog log = LogProvider.GetLogger(typeof(ErrorLogger));
+namespace Quartz.Core;
 
-        public override Task SchedulerError(
-            string msg,
-            SchedulerException cause,
-            CancellationToken cancellationToken = default)
-        {
-            log.ErrorException(msg, cause);
-            return Task.CompletedTask;
-        }
+/// <summary>
+/// ErrorLogger - Scheduler Listener Class
+/// </summary>
+internal sealed class ErrorLogger : SchedulerListenerSupport
+{
+    private readonly ILog log = LogProvider.GetLogger(typeof(ErrorLogger));
+
+    public override Task SchedulerError(
+        string msg,
+        SchedulerException cause,
+        CancellationToken cancellationToken = default)
+    {
+        log.ErrorException(msg, cause);
+        return Task.CompletedTask;
     }
 }

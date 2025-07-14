@@ -21,50 +21,49 @@
 
 using System;
 
-namespace Quartz.Impl.AdoJobStore
+namespace Quartz.Impl.AdoJobStore;
+
+/// <summary>
+/// This is a driver delegate for the Oracle database.
+/// </summary>
+/// <author>Marko Lahma</author>
+public class OracleDelegate : StdAdoDelegate
 {
     /// <summary>
-    /// This is a driver delegate for the Oracle database.
+    /// Creates the SQL for select next trigger to acquire.
     /// </summary>
-    /// <author>Marko Lahma</author>
-    public class OracleDelegate : StdAdoDelegate
+    protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
     {
-        /// <summary>
-        /// Creates the SQL for select next trigger to acquire.
-        /// </summary>
-        protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
+        return "SELECT * FROM (" + SqlSelectNextTriggerToAcquire + ") WHERE rownum <= " + maxCount;
+    }
+
+    protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
+    {
+        if (count != -1)
         {
-            return "SELECT * FROM (" + SqlSelectNextTriggerToAcquire + ") WHERE rownum <= " + maxCount;
+            return "SELECT * FROM (" + SqlSelectHasMisfiredTriggersInState + ") WHERE rownum <= " + count;
+        }
+        return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
+    }
+
+    /// <summary>
+    /// Gets the db presentation for boolean value. For Oracle we use true/false of "1"/"0".
+    /// </summary>
+    /// <param name="booleanValue">Value to map to database.</param>
+    /// <returns></returns>
+    public override object GetDbBooleanValue(bool booleanValue)
+    {
+        return booleanValue ? "1" : "0";
+    }
+
+    public override bool GetBooleanFromDbValue(object columnValue)
+    {
+        // we store things as string in oracle with 1/0 as value
+        if (columnValue != null && columnValue != DBNull.Value)
+        {
+            return Convert.ToInt32(columnValue) == 1;
         }
 
-        protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
-        {
-            if (count != -1)
-            {
-                return "SELECT * FROM (" + SqlSelectHasMisfiredTriggersInState + ") WHERE rownum <= " + count;
-            }
-            return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
-        }
-
-        /// <summary>
-        /// Gets the db presentation for boolean value. For Oracle we use true/false of "1"/"0".
-        /// </summary>
-        /// <param name="booleanValue">Value to map to database.</param>
-        /// <returns></returns>
-        public override object GetDbBooleanValue(bool booleanValue)
-        {
-            return booleanValue ? "1" : "0";
-        }
-
-        public override bool GetBooleanFromDbValue(object columnValue)
-        {
-            // we store things as string in oracle with 1/0 as value
-            if (columnValue != null && columnValue != DBNull.Value)
-            {
-                return Convert.ToInt32(columnValue) == 1;
-            }
-
-            throw new ArgumentException("Value must be non-null.");
-        }
+        throw new ArgumentException("Value must be non-null.");
     }
 }

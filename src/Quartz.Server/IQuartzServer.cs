@@ -1,36 +1,35 @@
 using System.Threading.Tasks;
 
-namespace Quartz.Server
+namespace Quartz.Server;
+
+/// <summary>
+/// Service interface for core Quartz.NET server.
+/// </summary>
+public interface IQuartzServer
 {
     /// <summary>
-    /// Service interface for core Quartz.NET server.
+    /// Initializes the instance of <see cref="IQuartzServer"/>.
+    /// Initialization will only be called once in server's lifetime.
     /// </summary>
-    public interface IQuartzServer
-    {
-        /// <summary>
-        /// Initializes the instance of <see cref="IQuartzServer"/>.
-        /// Initialization will only be called once in server's lifetime.
-        /// </summary>
-        Task Initialize();
+    Task Initialize();
 
-        /// <summary>
-        /// Starts this instance.
-        /// </summary>
-        void Start();
+    /// <summary>
+    /// Starts this instance.
+    /// </summary>
+    void Start();
 
-        /// <summary>
-        /// Stops this instance.
-        /// </summary>
-        void Stop();
+    /// <summary>
+    /// Stops this instance.
+    /// </summary>
+    void Stop();
 
-        /// <summary>
-        /// Pauses all activity in scheduler.
-        /// </summary>
-        void Pause();
+    /// <summary>
+    /// Pauses all activity in scheduler.
+    /// </summary>
+    void Pause();
 
-        /// <summary>
-        /// Resumes all activity in server.
-        /// </summary>
-        void Resume();
-    }
+    /// <summary>
+    /// Resumes all activity in server.
+    /// </summary>
+    void Resume();
 }

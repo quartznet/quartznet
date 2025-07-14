@@ -1,19 +1,18 @@
 ﻿using System.Threading.Tasks;
 
-namespace Quartz.Simpl
+namespace Quartz.Simpl;
+
+/// <summary>
+/// An implementation of the TaskSchedulerThreadPool using the default task scheduler
+/// </summary>
+public class DefaultThreadPool : TaskSchedulingThreadPool
 {
     /// <summary>
-    /// An implementation of the TaskSchedulerThreadPool using the default task scheduler
+    /// Returns TaskScheduler.Default
     /// </summary>
-    public class DefaultThreadPool : TaskSchedulingThreadPool
+    /// <returns>TaskScheduler.Default</returns>
+    protected override TaskScheduler GetDefaultScheduler()
     {
-        /// <summary>
-        /// Returns TaskScheduler.Default
-        /// </summary>
-        /// <returns>TaskScheduler.Default</returns>
-        protected override TaskScheduler GetDefaultScheduler()
-        {
-            return TaskScheduler.Default;
-        }
+        return TaskScheduler.Default;
     }
 }

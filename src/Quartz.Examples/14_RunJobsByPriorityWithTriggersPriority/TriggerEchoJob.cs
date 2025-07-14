@@ -22,33 +22,32 @@
 using System;
 using System.Threading.Tasks;
 
-namespace Quartz.Examples.Example14
+namespace Quartz.Examples.Example14;
+
+/// <summary>
+/// This is a simple job that echos the name of the Trigger
+/// that fired it.
+/// </summary>
+/// <author>Marko Lahma (.NET)</author>
+public class TriggerEchoJob : IJob
 {
     /// <summary>
-    /// This is a simple job that echos the name of the Trigger
-    /// that fired it.
+    /// Called by the <see cref="IScheduler"/> when a <see cref="ITrigger"/>
+    /// fires that is associated with the <see cref="IJob"/>.
+    /// <para>
+    /// The implementation may wish to set a  result object on the
+    /// JobExecutionContext before this method exits.  The result itself
+    /// is meaningless to Quartz, but may be informative to
+    /// <see cref="IJobListener"/>s or
+    /// <see cref="ITriggerListener"/>s that are watching the job's
+    /// execution.
+    /// </para>
+    /// 	<param name="context">The execution context.</param>
     /// </summary>
-    /// <author>Marko Lahma (.NET)</author>
-    public class TriggerEchoJob : IJob
+    /// <param name="context"></param>
+    public Task Execute(IJobExecutionContext context)
     {
-        /// <summary>
-        /// Called by the <see cref="IScheduler"/> when a <see cref="ITrigger"/>
-        /// fires that is associated with the <see cref="IJob"/>.
-        /// <para>
-        /// The implementation may wish to set a  result object on the
-        /// JobExecutionContext before this method exits.  The result itself
-        /// is meaningless to Quartz, but may be informative to
-        /// <see cref="IJobListener"/>s or
-        /// <see cref="ITriggerListener"/>s that are watching the job's
-        /// execution.
-        /// </para>
-        /// 	<param name="context">The execution context.</param>
-        /// </summary>
-        /// <param name="context"></param>
-        public Task Execute(IJobExecutionContext context)
-        {
-            Console.WriteLine("TRIGGER: " + context.Trigger.Key);
-            return Task.CompletedTask;
-        }
+        Console.WriteLine("TRIGGER: " + context.Trigger.Key);
+        return Task.CompletedTask;
     }
 }

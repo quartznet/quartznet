@@ -26,79 +26,78 @@ using System.Threading.Tasks;
 
 using Quartz.Util;
 
-namespace Quartz.Examples
+namespace Quartz.Examples;
+
+/// <summary>
+/// Console main runner.
+/// </summary>
+/// <author>Marko Lahma</author>
+public class Program
 {
-    /// <summary>
-    /// Console main runner.
-    /// </summary>
-    /// <author>Marko Lahma</author>
-    public class Program
+    public static async Task Main()
     {
-        public static async Task Main()
+        try
         {
-            try
+            var logRepository = log4net.LogManager.GetRepository(Assembly.GetEntryAssembly()!);
+            log4net.Config.XmlConfigurator.Configure(logRepository, new System.IO.FileInfo("log4net.config"));
+
+            Assembly asm = typeof(Program).GetTypeInfo().Assembly;
+            Type[] types = asm.GetTypes();
+
+            IDictionary<int, Type> typeMap = new Dictionary<int, Type>();
+            int counter = 1;
+
+            Console.WriteLine("Select example to run: ");
+            List<Type> typeList = new List<Type>();
+            foreach (Type t in types)
             {
-                var logRepository = log4net.LogManager.GetRepository(Assembly.GetEntryAssembly()!);
-                log4net.Config.XmlConfigurator.Configure(logRepository, new System.IO.FileInfo("log4net.config"));
-
-                Assembly asm = typeof(Program).GetTypeInfo().Assembly;
-                Type[] types = asm.GetTypes();
-
-                IDictionary<int, Type> typeMap = new Dictionary<int, Type>();
-                int counter = 1;
-
-                Console.WriteLine("Select example to run: ");
-                List<Type> typeList = new List<Type>();
-                foreach (Type t in types)
+                if (new List<Type>(t.GetInterfaces()).Contains(typeof(IExample)))
                 {
-                    if (new List<Type>(t.GetInterfaces()).Contains(typeof(IExample)))
-                    {
-                        typeList.Add(t);
-                    }
+                    typeList.Add(t);
                 }
-
-                // sort for easier readability
-                typeList.Sort(new TypeNameComparer());
-
-                foreach (Type t in typeList)
-                {
-                    string counterString = $"[{counter}]".PadRight(4);
-                    Console.WriteLine("{0} {1} {2}", counterString, t.Namespace!.Substring(t.Namespace.LastIndexOf(".") + 1), t.Name);
-                    typeMap.Add(counter++, t);
-                }
-
-                Console.WriteLine();
-                Console.Write("> ");
-                int num = Convert.ToInt32(Console.ReadLine());
-                Type eType = typeMap[num];
-                IExample example = ObjectUtils.InstantiateType<IExample>(eType);
-                await example.Run().ConfigureAwait(false);
-                Console.WriteLine("Example run successfully.");
             }
-            catch (Exception ex)
+
+            // sort for easier readability
+            typeList.Sort(new TypeNameComparer());
+
+            foreach (Type t in typeList)
             {
-                Console.WriteLine("Error running example: " + ex.Message);
-                Console.WriteLine(ex.ToString());
+                string counterString = $"[{counter}]".PadRight(4);
+                Console.WriteLine("{0} {1} {2}", counterString, t.Namespace!.Substring(t.Namespace.LastIndexOf(".") + 1), t.Name);
+                typeMap.Add(counter++, t);
             }
-            Console.Read();
+
+            Console.WriteLine();
+            Console.Write("> ");
+            int num = Convert.ToInt32(Console.ReadLine());
+            Type eType = typeMap[num];
+            IExample example = ObjectUtils.InstantiateType<IExample>(eType);
+            await example.Run().ConfigureAwait(false);
+            Console.WriteLine("Example run successfully.");
         }
-
-        private class TypeNameComparer : IComparer<Type>
+        catch (Exception ex)
         {
-            public int Compare(Type? t1, Type? t2)
+            Console.WriteLine("Error running example: " + ex.Message);
+            Console.WriteLine(ex.ToString());
+        }
+        Console.Read();
+    }
+
+    private class TypeNameComparer : IComparer<Type>
+    {
+        public int Compare(Type? t1, Type? t2)
+        {
+            if (t1!.Namespace!.Length > t2!.Namespace!.Length)
             {
-                if (t1!.Namespace!.Length > t2!.Namespace!.Length)
-                {
-                    return 1;
-                }
-
-                if (t1.Namespace.Length < t2.Namespace.Length)
-                {
-                    return -1;
-                }
-
-                return t1.Namespace.CompareTo(t2.Namespace);
+                return 1;
             }
+
+            if (t1.Namespace.Length < t2.Namespace.Length)
+            {
+                return -1;
+            }
+
+            return t1.Namespace.CompareTo(t2.Namespace);
         }
     }
 }

@@ -25,69 +25,68 @@ using Quartz.Impl.Triggers;
 using Quartz.Spi;
 using Quartz.Util;
 
-namespace Quartz.Impl.AdoJobStore
+namespace Quartz.Impl.AdoJobStore;
+
+/// <summary>
+/// Persist a CalendarIntervalTriggerImpl by converting internal fields to and from
+/// SimplePropertiesTriggerProperties.
+/// </summary>
+/// <see cref="CalendarIntervalScheduleBuilder"/>
+/// <see cref="ICalendarIntervalTrigger"/>
+public class CalendarIntervalTriggerPersistenceDelegate : SimplePropertiesTriggerPersistenceDelegateSupport
 {
-    /// <summary>
-    /// Persist a CalendarIntervalTriggerImpl by converting internal fields to and from
-    /// SimplePropertiesTriggerProperties.
-    /// </summary>
-    /// <see cref="CalendarIntervalScheduleBuilder"/>
-    /// <see cref="ICalendarIntervalTrigger"/>
-    public class CalendarIntervalTriggerPersistenceDelegate : SimplePropertiesTriggerPersistenceDelegateSupport
+    public override bool CanHandleTriggerType(IOperableTrigger trigger)
     {
-        public override bool CanHandleTriggerType(IOperableTrigger trigger)
+        var calendarIntervalTriggerImpl = trigger as CalendarIntervalTriggerImpl;
+        return calendarIntervalTriggerImpl != null && !calendarIntervalTriggerImpl.HasAdditionalProperties;
+    }
+
+    public override string GetHandledTriggerTypeDiscriminator()
+    {
+        return AdoConstants.TriggerTypeCalendarInterval;
+    }
+
+    protected override SimplePropertiesTriggerProperties GetTriggerProperties(IOperableTrigger trigger)
+    {
+        CalendarIntervalTriggerImpl calTrig = (CalendarIntervalTriggerImpl) trigger;
+
+        SimplePropertiesTriggerProperties props = new SimplePropertiesTriggerProperties();
+
+        props.Int1 = calTrig.RepeatInterval;
+        props.String1 = calTrig.RepeatIntervalUnit.ToString();
+        props.Int2 = calTrig.TimesTriggered;
+        props.TimeZoneId = calTrig.TimeZone.Id;
+        props.Boolean1 = calTrig.PreserveHourOfDayAcrossDaylightSavings;
+        props.Boolean2 = calTrig.SkipDayIfHourDoesNotExist;
+
+        return props;
+    }
+
+    protected override TriggerPropertyBundle GetTriggerPropertyBundle(SimplePropertiesTriggerProperties props)
+    {
+        TimeZoneInfo? tz = null; // if we use null, that's ok as system default tz will be used
+        string? tzId = props.TimeZoneId;
+        if (string.IsNullOrEmpty(tzId))
         {
-            var calendarIntervalTriggerImpl = trigger as CalendarIntervalTriggerImpl;
-            return calendarIntervalTriggerImpl != null && !calendarIntervalTriggerImpl.HasAdditionalProperties;
+            // we moved to use separate column in v 2.6
+            tzId = props.String2;
+        }
+        if (!string.IsNullOrEmpty(tzId))
+        {
+            tz = TimeZoneUtil.FindTimeZoneById(tzId!);
         }
 
-        public override string GetHandledTriggerTypeDiscriminator()
-        {
-            return AdoConstants.TriggerTypeCalendarInterval;
-        }
+        CalendarIntervalScheduleBuilder sb = CalendarIntervalScheduleBuilder.Create()
+            .WithInterval(props.Int1, (IntervalUnit) Enum.Parse(typeof(IntervalUnit), props.String1!, true))
+            .InTimeZone(tz)
+            .PreserveHourOfDayAcrossDaylightSavings(props.Boolean1)
+            .SkipDayIfHourDoesNotExist(props.Boolean2);
 
-        protected override SimplePropertiesTriggerProperties GetTriggerProperties(IOperableTrigger trigger)
-        {
-            CalendarIntervalTriggerImpl calTrig = (CalendarIntervalTriggerImpl) trigger;
+        int timesTriggered = props.Int2;
 
-            SimplePropertiesTriggerProperties props = new SimplePropertiesTriggerProperties();
+        string[] statePropertyNames = {"timesTriggered"};
+        object[] statePropertyValues = {timesTriggered};
 
-            props.Int1 = calTrig.RepeatInterval;
-            props.String1 = calTrig.RepeatIntervalUnit.ToString();
-            props.Int2 = calTrig.TimesTriggered;
-            props.TimeZoneId = calTrig.TimeZone.Id;
-            props.Boolean1 = calTrig.PreserveHourOfDayAcrossDaylightSavings;
-            props.Boolean2 = calTrig.SkipDayIfHourDoesNotExist;
-
-            return props;
-        }
-
-        protected override TriggerPropertyBundle GetTriggerPropertyBundle(SimplePropertiesTriggerProperties props)
-        {
-            TimeZoneInfo? tz = null; // if we use null, that's ok as system default tz will be used
-            string? tzId = props.TimeZoneId;
-            if (string.IsNullOrEmpty(tzId))
-            {
-                // we moved to use separate column in v 2.6
-                tzId = props.String2;
-            }
-            if (!string.IsNullOrEmpty(tzId))
-            {
-                tz = TimeZoneUtil.FindTimeZoneById(tzId!);
-            }
-
-            CalendarIntervalScheduleBuilder sb = CalendarIntervalScheduleBuilder.Create()
-                .WithInterval(props.Int1, (IntervalUnit) Enum.Parse(typeof(IntervalUnit), props.String1!, true))
-                .InTimeZone(tz)
-                .PreserveHourOfDayAcrossDaylightSavings(props.Boolean1)
-                .SkipDayIfHourDoesNotExist(props.Boolean2);
-
-            int timesTriggered = props.Int2;
-
-            string[] statePropertyNames = {"timesTriggered"};
-            object[] statePropertyValues = {timesTriggered};
-
-            return new TriggerPropertyBundle(sb, statePropertyNames, statePropertyValues);
-        }
+        return new TriggerPropertyBundle(sb, statePropertyNames, statePropertyValues);
     }
 }

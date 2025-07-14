@@ -25,90 +25,89 @@ using System.Threading.Tasks;
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
 
-namespace Quartz.Examples.Example08
+namespace Quartz.Examples.Example08;
+
+/// <summary>
+/// This example will demonstrate how calendars can be used
+/// to exclude periods of time when scheduling should not
+/// take place.
+/// </summary>
+/// <author>Marko Lahma (.NET)</author>
+public class ExcludeTimePeriodsUsingCalendarsExample : IExample
 {
-    /// <summary>
-    /// This example will demonstrate how calendars can be used
-    /// to exclude periods of time when scheduling should not
-    /// take place.
-    /// </summary>
-    /// <author>Marko Lahma (.NET)</author>
-    public class ExcludeTimePeriodsUsingCalendarsExample : IExample
+    public virtual async Task Run()
     {
-        public virtual async Task Run()
-        {
-            Console.WriteLine("------- Initializing ----------------------");
+        Console.WriteLine("------- Initializing ----------------------");
 
-            // First we must get a reference to a scheduler
-            ISchedulerFactory sf = new StdSchedulerFactory();
-            IScheduler sched = await sf.GetScheduler();
+        // First we must get a reference to a scheduler
+        ISchedulerFactory sf = new StdSchedulerFactory();
+        IScheduler sched = await sf.GetScheduler();
 
-            Console.WriteLine("------- Initialization Complete -----------");
+        Console.WriteLine("------- Initialization Complete -----------");
 
-            Console.WriteLine("------- Scheduling Jobs -------------------");
+        Console.WriteLine("------- Scheduling Jobs -------------------");
 
-            // Add the holiday calendar to the schedule
-            AnnualCalendar holidays = new AnnualCalendar();
+        // Add the holiday calendar to the schedule
+        AnnualCalendar holidays = new AnnualCalendar();
 
-            // fourth of July (July 4)
-            DateTime fourthOfJuly = new DateTime(DateTime.UtcNow.Year, 7, 4);
-            holidays.SetDayExcluded(fourthOfJuly, true);
+        // fourth of July (July 4)
+        DateTime fourthOfJuly = new DateTime(DateTime.UtcNow.Year, 7, 4);
+        holidays.SetDayExcluded(fourthOfJuly, true);
 
-            // halloween (Oct 31)
-            DateTime halloween = new DateTime(DateTime.UtcNow.Year, 10, 31);
-            holidays.SetDayExcluded(halloween, true);
+        // halloween (Oct 31)
+        DateTime halloween = new DateTime(DateTime.UtcNow.Year, 10, 31);
+        holidays.SetDayExcluded(halloween, true);
 
-            // christmas (Dec 25)
-            DateTime christmas = new DateTime(DateTime.UtcNow.Year, 12, 25);
-            holidays.SetDayExcluded(christmas, true);
+        // christmas (Dec 25)
+        DateTime christmas = new DateTime(DateTime.UtcNow.Year, 12, 25);
+        holidays.SetDayExcluded(christmas, true);
 
-            // tell the schedule about our holiday calendar
-            await sched.AddCalendar("holidays", holidays, false, false);
+        // tell the schedule about our holiday calendar
+        await sched.AddCalendar("holidays", holidays, false, false);
 
-            // schedule a job to run hourly, starting on halloween
-            // at 10 am
+        // schedule a job to run hourly, starting on halloween
+        // at 10 am
 
-            DateTimeOffset runDate = DateBuilder.DateOf(0, 0, 10, 31, 10);
+        DateTimeOffset runDate = DateBuilder.DateOf(0, 0, 10, 31, 10);
 
-            IJobDetail job = JobBuilder.Create<SimpleJob>()
-                .WithIdentity("job1", "group1")
-                .Build();
+        IJobDetail job = JobBuilder.Create<SimpleJob>()
+            .WithIdentity("job1", "group1")
+            .Build();
 
-            ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                .WithIdentity("trigger1", "group1")
-                .StartAt(runDate)
-                .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
-                .ModifiedByCalendar("holidays")
-                .Build();
+        ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
+            .WithIdentity("trigger1", "group1")
+            .StartAt(runDate)
+            .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
+            .ModifiedByCalendar("holidays")
+            .Build();
 
-            // schedule the job and print the first run date
-            DateTimeOffset firstRunTime = await sched.ScheduleJob(job, trigger);
+        // schedule the job and print the first run date
+        DateTimeOffset firstRunTime = await sched.ScheduleJob(job, trigger);
 
-            // print out the first execution date.
-            // Note:  Since Halloween (Oct 31) is a holiday, then
-            // we will not run until the next day! (Nov 1)
-            Console.WriteLine($"{job.Key} will run at: {firstRunTime:r} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
+        // print out the first execution date.
+        // Note:  Since Halloween (Oct 31) is a holiday, then
+        // we will not run until the next day! (Nov 1)
+        Console.WriteLine($"{job.Key} will run at: {firstRunTime:r} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
 
-            // All of the jobs have been added to the scheduler, but none of the jobs
-            // will run until the scheduler has been started
-            Console.WriteLine("------- Starting Scheduler ----------------");
-            await sched.Start();
+        // All of the jobs have been added to the scheduler, but none of the jobs
+        // will run until the scheduler has been started
+        Console.WriteLine("------- Starting Scheduler ----------------");
+        await sched.Start();
 
-            // wait 30 seconds:
-            // note:  nothing will run
-            Console.WriteLine("------- Waiting 30 seconds... --------------");
+        // wait 30 seconds:
+        // note:  nothing will run
+        Console.WriteLine("------- Waiting 30 seconds... --------------");
 
-            // wait 30 seconds to show jobs
-            await Task.Delay(TimeSpan.FromSeconds(30));
-            // executing...
+        // wait 30 seconds to show jobs
+        await Task.Delay(TimeSpan.FromSeconds(30));
+        // executing...
 
-            // shut down the scheduler
-            Console.WriteLine("------- Shutting Down ---------------------");
-            await sched.Shutdown(true);
-            Console.WriteLine("------- Shutdown Complete -----------------");
+        // shut down the scheduler
+        Console.WriteLine("------- Shutting Down ---------------------");
+        await sched.Shutdown(true);
+        Console.WriteLine("------- Shutdown Complete -----------------");
 
-            SchedulerMetaData metaData = await sched.GetMetaData();
-            Console.WriteLine($"Executed {metaData.NumberOfJobsExecuted} jobs.");
-        }
+        SchedulerMetaData metaData = await sched.GetMetaData();
+        Console.WriteLine($"Executed {metaData.NumberOfJobsExecuted} jobs.");
     }
 }

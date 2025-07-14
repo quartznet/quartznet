@@ -23,39 +23,38 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace Quartz.Examples.Example10
+namespace Quartz.Examples.Example10;
+
+/// <summary>
+/// This is just a simple job.
+/// </summary>
+/// <author>Bill Kratzer</author>
+/// <author>Marko Lahma (.NET)</author>
+public class SimpleJob : IJob
 {
     /// <summary>
-    /// This is just a simple job.
+    /// Called by the <see cref="IScheduler" /> when a
+    /// <see cref="ITrigger" /> fires that is associated with
+    /// the <see cref="IJob" />.
     /// </summary>
-    /// <author>Bill Kratzer</author>
-    /// <author>Marko Lahma (.NET)</author>
-    public class SimpleJob : IJob
+    public virtual Task Execute(IJobExecutionContext context)
     {
-        /// <summary>
-        /// Called by the <see cref="IScheduler" /> when a
-        /// <see cref="ITrigger" /> fires that is associated with
-        /// the <see cref="IJob" />.
-        /// </summary>
-        public virtual Task Execute(IJobExecutionContext context)
+        // This job simply prints out its job name and the
+        // date and time that it is running
+        JobKey jobKey = context.JobDetail.Key;
+        Console.WriteLine("Executing job: {0} executing at {1:r}", jobKey, DateTime.Now);
+
+        if (context.MergedJobDataMap.Count > 0)
         {
-            // This job simply prints out its job name and the
-            // date and time that it is running
-            JobKey jobKey = context.JobDetail.Key;
-            Console.WriteLine("Executing job: {0} executing at {1:r}", jobKey, DateTime.Now);
-
-            if (context.MergedJobDataMap.Count > 0)
+            ICollection<string> keys = context.MergedJobDataMap.Keys;
+            foreach (string key in keys)
             {
-                ICollection<string> keys = context.MergedJobDataMap.Keys;
-                foreach (string key in keys)
-                {
-                    var val = context.MergedJobDataMap.GetString(key);
-                    Console.WriteLine(" - jobDataMap entry: {0} = {1}", key, val);
-                }
+                var val = context.MergedJobDataMap.GetString(key);
+                Console.WriteLine(" - jobDataMap entry: {0} = {1}", key, val);
             }
-
-            context.Result = "hello";
-            return Task.CompletedTask;
         }
+
+        context.Result = "hello";
+        return Task.CompletedTask;
     }
 }
