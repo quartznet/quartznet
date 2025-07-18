@@ -2,6 +2,8 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+Java version sync status: 7adb26007d7be5b87110a2ba8a85d9a4a4e7665a
+
 ## Release 3.14.0, Mar 8 2025
 
 This release contains small improvements and new NET 8 and 9 targets with removal of obsolete NET 6 target. RAMJobStore now uses

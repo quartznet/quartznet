@@ -1010,7 +1010,7 @@ public interface IDriverDelegate
     /// </summary>
     /// <param name="conn">The conn.</param>
     /// <param name="noLaterThan">highest value of <see cref="ITrigger.GetNextFireTimeUtc" /> of the triggers (exclusive)</param>
-    /// <param name="noEarlierThan">highest value of <see cref="ITrigger.GetNextFireTimeUtc" /> of the triggers (inclusive)</param>
+    /// <param name="noEarlierThan">lowest value of <see cref="ITrigger.GetNextFireTimeUtc" /> of the triggers (inclusive)</param>
     /// <param name="maxCount">maximum number of trigger keys allow to acquired in the returning list.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>A (never null, possibly empty) list of the identifiers (Key objects) of the next triggers to be fired.</returns>
