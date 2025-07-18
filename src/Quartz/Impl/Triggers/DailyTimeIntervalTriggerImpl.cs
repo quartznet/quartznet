@@ -357,7 +357,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
         get => repeatInterval;
         set
         {
-            if (value < 0)
+            if (value < 1)
             {
                 ThrowHelper.ThrowArgumentException("Repeat interval must be >= 1");
             }

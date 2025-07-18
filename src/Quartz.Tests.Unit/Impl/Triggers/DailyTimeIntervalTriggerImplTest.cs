@@ -120,8 +120,7 @@ public class DailyTimeIntervalTriggerImplTest
         Assert.Throws<ArgumentException>(delegate { trigger.RepeatIntervalUnit = IntervalUnit.Day; }, "Invalid repeat IntervalUnit (must be Second, Minute or Hour)");
 
         trigger.RepeatIntervalUnit = IntervalUnit.Second;
-        trigger.RepeatInterval = 0;
-        Assert.Throws<SchedulerException>(trigger.Validate, "Repeat Interval cannot be zero.");
+        Assert.Throws<ArgumentException>(() => trigger.RepeatInterval = 0, "Repeat Interval cannot be zero.");
     }
 
     [Test]
