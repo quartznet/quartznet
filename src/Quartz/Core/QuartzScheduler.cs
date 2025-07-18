@@ -1480,8 +1480,7 @@ public sealed class QuartzScheduler
                 }
                 catch (Exception e)
                 {
-                    SchedulerException se = new SchedulerException($"TriggerListener '{tl.Name}' threw exception: {e.Message}", e);
-                    throw se;
+                    throw new JobExecutionProcessException(tl, jec, e);
                 }
             }
 
@@ -1503,7 +1502,8 @@ public sealed class QuartzScheduler
         return listeners.Length == 0 ? default
             : NotifyAwaited(ListenerManager, listeners, trigger, cancellationToken);
 
-        static async ValueTask NotifyAwaited(IListenerManager listenerManager,
+        static async ValueTask NotifyAwaited(
+            IListenerManager listenerManager,
             ITriggerListener[] listeners,
             ITrigger trigger,
             CancellationToken cancellationToken)
@@ -1521,8 +1521,7 @@ public sealed class QuartzScheduler
                 }
                 catch (Exception e)
                 {
-                    SchedulerException se = new SchedulerException($"TriggerListener '{tl.Name}' threw exception: {e.Message}", e);
-                    throw se;
+                    throw new SchedulerException($"TriggerListener '{tl.Name}' threw exception: {e.Message}", e);
                 }
             }
         }
@@ -1563,8 +1562,7 @@ public sealed class QuartzScheduler
                 }
                 catch (Exception e)
                 {
-                    SchedulerException se = new SchedulerException($"TriggerListener '{tl.Name}' threw exception: {e.Message}", e);
-                    throw se;
+                    throw new JobExecutionProcessException(tl, jec, e);
                 }
             }
         }
@@ -1618,7 +1616,8 @@ public sealed class QuartzScheduler
     }
 
     // optimized version to reduce state machine creations
-    private ValueTask NotifyJobListeners(Func<IJobListener, IJobExecutionContext, JobExecutionException?, CancellationToken, ValueTask> notifyAction,
+    private ValueTask NotifyJobListeners(
+        Func<IJobListener, IJobExecutionContext, JobExecutionException?, CancellationToken, ValueTask> notifyAction,
         IJobExecutionContext jec,
         JobExecutionException? je,
         CancellationToken cancellationToken)
@@ -1638,7 +1637,7 @@ public sealed class QuartzScheduler
             ExecutingJobsManager jobsManager)
         {
             var task = notifyAction(jobsManager, jec, je, cancellationToken);
-            return task.IsCompletedSuccessfully ? default : NotifySingle(task, jobsManager);
+            return task.IsCompletedSuccessfully ? default : NotifySingle(task, jobsManager, jec);
         }
 
         static ValueTask NotifyAllJobListeners(IListenerManager listenerManager,
@@ -1660,7 +1659,7 @@ public sealed class QuartzScheduler
             JobExecutionException? je,
             CancellationToken cancellationToken)
         {
-            await NotifySingle(notifyAction(jobManager, jec, je, cancellationToken), jobManager).ConfigureAwait(false);
+            await NotifySingle(notifyAction(jobManager, jec, je, cancellationToken), jobManager, jec).ConfigureAwait(false);
 
             foreach (var jl in listeners)
             {
@@ -1669,11 +1668,11 @@ public sealed class QuartzScheduler
                     continue;
                 }
 
-                await NotifySingle(notifyAction(jl, jec, je, cancellationToken), jl).ConfigureAwait(false);
+                await NotifySingle(notifyAction(jl, jec, je, cancellationToken), jl, jec).ConfigureAwait(false);
             }
         }
 
-        static async ValueTask NotifySingle(ValueTask t, IJobListener jl)
+        static async ValueTask NotifySingle(ValueTask t, IJobListener jl, IJobExecutionContext jec)
         {
             try
             {
@@ -1681,8 +1680,7 @@ public sealed class QuartzScheduler
             }
             catch (Exception e)
             {
-                SchedulerException se = new SchedulerException($"JobListener '{jl.Name}' threw exception: {e.Message}", e);
-                throw se;
+                throw new JobExecutionProcessException(jl, jec, e);
             }
         }
     }

@@ -214,7 +214,7 @@ public class JobRunShell : SchedulerListenerSupport
                 {
                     endTimestamp = timeProvider.GetTimestamp();
                     logger.LogError(e, "Job {JobDetailKey} threw an unhandled Exception: ", jobDetail.Key);
-                    SchedulerException se = new("Job threw an unhandled exception.", e);
+                    SchedulerException se = new JobExecutionProcessException(jec, e);
                     await qs.NotifySchedulerListenersError($"Job {jec.JobDetail.Key} threw an exception.", se, cancellationToken).ConfigureAwait(false);
                     jobExEx = new JobExecutionException(se, refireImmediately: false);
                 }
