@@ -48,4 +48,11 @@ public static class StringExtensions
     {
         return string.Format(CultureInfo.InvariantCulture, s, args);
     }
+
+#if !NETCOREAPP
+    internal static bool Contains(this string s, char c)
+    {
+        return s != null && s.IndexOf(c) != -1;
+    }
+#endif
 }

@@ -22,7 +22,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -267,9 +267,6 @@ public class CronExpression : IDeserializationCallback, ISerializable
     /// </summary>
     protected const int NoSpec = NoSpecInt;
 
-    private static readonly Dictionary<string, int> monthMap = new Dictionary<string, int>(20);
-    private static readonly Dictionary<string, int> dayMap = new Dictionary<string, int>(60);
-
     private TimeZoneInfo? timeZone;
 
     /// <summary>
@@ -354,30 +351,6 @@ public class CronExpression : IDeserializationCallback, ISerializable
     private static readonly char[] splitSeparators = {' ', '\t', '\r', '\n'};
     private static readonly char[] commaSeparator = {','};
     private static readonly Regex regex = new Regex("^L-[0-9]*[W]?", RegexOptions.Compiled);
-
-    static CronExpression()
-    {
-        monthMap.Add("JAN", 0);
-        monthMap.Add("FEB", 1);
-        monthMap.Add("MAR", 2);
-        monthMap.Add("APR", 3);
-        monthMap.Add("MAY", 4);
-        monthMap.Add("JUN", 5);
-        monthMap.Add("JUL", 6);
-        monthMap.Add("AUG", 7);
-        monthMap.Add("SEP", 8);
-        monthMap.Add("OCT", 9);
-        monthMap.Add("NOV", 10);
-        monthMap.Add("DEC", 11);
-
-        dayMap.Add("SUN", 1);
-        dayMap.Add("MON", 2);
-        dayMap.Add("TUE", 3);
-        dayMap.Add("WED", 4);
-        dayMap.Add("THU", 5);
-        dayMap.Add("FRI", 6);
-        dayMap.Add("SAT", 7);
-    }
 
     ///<summary>
     /// Constructs a new <see cref="CronExpressionString" /> based on the specified
@@ -617,16 +590,16 @@ public class CronExpression : IDeserializationCallback, ISerializable
                 }
 
                 // throw an exception if L is used with other days of the month
-                if (exprOn == DayOfMonth && expr.IndexOf('L') != -1 && expr.Length > 1 && expr.IndexOf(",", StringComparison.Ordinal) >= 0)
+                if (exprOn == DayOfMonth && expr.Contains('L') && expr.Length > 1 && expr.Contains(','))
                 {
                     throw new FormatException("Support for specifying 'L' and 'LW' with other days of the month is not implemented");
                 }
                 // throw an exception if L is used with other days of the week
-                if (exprOn == DayOfWeek && expr.IndexOf('L') != -1 && expr.Length > 1 && expr.IndexOf(",", StringComparison.Ordinal) >= 0)
+                if (exprOn == DayOfWeek && expr.Contains('L') && expr.Length > 1 && expr.Contains(','))
                 {
                     throw new FormatException("Support for specifying 'L' with other days of the week is not implemented");
                 }
-                if (exprOn == DayOfWeek && expr.IndexOf('#') != -1 && expr.IndexOf('#', expr.IndexOf('#') + 1) != -1)
+                if (exprOn == DayOfWeek && expr.Contains('#') && expr.IndexOf('#', expr.IndexOf('#') + 1) != -1)
                 {
                     throw new FormatException("Support for specifying multiple \"nth\" days is not implemented.");
                 }
@@ -650,8 +623,8 @@ public class CronExpression : IDeserializationCallback, ISerializable
                 StoreExpressionVals(0, "*", Year);
             }
 
-            ISet<int> dow = GetSet(DayOfWeek);
-            ISet<int> dom = GetSet(DayOfMonth);
+            SortedSet<int> dow = GetSet(DayOfWeek);
+            SortedSet<int> dom = GetSet(DayOfMonth);
 
             // Copying the logic from the UnsupportedOperationException below
             bool dayOfMSpec = !dom.Contains(NoSpec);
@@ -817,7 +790,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
             }
             if (type == DayOfWeek && !lastdayOfMonth)
             {
-                int val = daysOfMonth.LastOrDefault();
+                int val = daysOfMonth.Max;
                 if (val == NoSpecInt)
                 {
                     throw new FormatException(
@@ -1002,7 +975,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
             {
                 throw new FormatException($"'L' option is not valid here. (pos={i})");
             }
-            ISet<int> data = GetSet(type);
+            SortedSet<int> data = GetSet(type);
             data.Add(val);
             i++;
             return i;
@@ -1023,7 +996,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
                 throw new FormatException("The 'W' option does not make sense with values larger than 31 (max number of days in a month)");
             }
 
-            ISet<int> data = GetSet(type);
+            SortedSet<int> data = GetSet(type);
             data.Add(val);
             i++;
             return i;
@@ -1051,7 +1024,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
                     "A numeric value between 1 and 5 must follow the '#' option");
             }
 
-            ISet<int> data = GetSet(type);
+            SortedSet<int> data = GetSet(type);
             data.Add(val);
             i++;
             return i;
@@ -1071,7 +1044,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
             {
                 throw new FormatException($"'C' option is not valid here. (pos={i})");
             }
-            ISet<int> data = GetSet(type);
+            SortedSet<int> data = GetSet(type);
             data.Add(val);
             i++;
             return i;
@@ -1264,19 +1237,13 @@ public class CronExpression : IDeserializationCallback, ISerializable
         return i;
     }
 
-    /// <summary>
-    /// Finds the next white space.
-    /// </summary>
-    /// <param name="i">The i.</param>
-    /// <param name="s">The s.</param>
-    /// <returns></returns>
-    protected virtual int FindNextWhiteSpace(int i, string s)
-    {
-        for (; i < s.Length && (s[i] != ' ' || s[i] != '\t'); i++)
-        {
-        }
+    private static readonly char[] whiteSpaceChars = [' ', '\t'];
 
-        return i;
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int FindNextWhiteSpace(int i, string s)
+    {
+        var index = s.IndexOfAny(whiteSpaceChars, i);
+        return index >= 0 ? index : s.Length;
     }
 
     /// <summary>
@@ -1288,7 +1255,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
     /// <param name="type">The type.</param>
     protected virtual void AddToSet(int val, int end, int incr, int type)
     {
-        ISet<int> data = GetSet(type);
+        SortedSet<int> data = GetSet(type);
 
         if (type == Second || type == Minute)
         {
@@ -1482,104 +1449,85 @@ public class CronExpression : IDeserializationCallback, ISerializable
     /// </summary>
     /// <param name="type">The type of set to get.</param>
     /// <returns></returns>
-    protected virtual ISet<int> GetSet(int type)
+    protected virtual SortedSet<int> GetSet(int type)
     {
-        switch (type)
+        return type switch
         {
-            case Second:
-                return seconds;
-            case Minute:
-                return minutes;
-            case Hour:
-                return hours;
-            case DayOfMonth:
-                return daysOfMonth;
-            case Month:
-                return months;
-            case DayOfWeek:
-                return daysOfWeek;
-            case Year:
-                return years;
-            default:
-                throw new ArgumentOutOfRangeException();
-        }
+            Second => seconds,
+            Minute => minutes,
+            Hour => hours,
+            DayOfMonth => daysOfMonth,
+            Month => months,
+            DayOfWeek => daysOfWeek,
+            Year => years,
+            _ => throw new ArgumentOutOfRangeException(nameof(type)),
+        };
     }
 
-    /// <summary>
-    /// Gets the value.
-    /// </summary>
-    /// <param name="v">The v.</param>
-    /// <param name="s">The s.</param>
-    /// <param name="i">The i.</param>
-    /// <returns></returns>
-    protected virtual ValueSet GetValue(int v, string s, int i)
+    private static ValueSet GetValue(int v, string s, int i)
     {
-        char c = s[i];
-        StringBuilder s1 = new StringBuilder(v.ToString(CultureInfo.InvariantCulture));
-        while (c >= '0' && c <= '9')
+        int result = v;
+        while (i < s.Length && s[i] >= '0' && s[i] <= '9')
         {
-            s1.Append(c);
+            result = result * 10 + (s[i] - '0');
             i++;
-            if (i >= s.Length)
-            {
-                break;
-            }
-            c = s[i];
         }
-        ValueSet val = new ValueSet();
-        if (i < s.Length)
-        {
-            val.pos = i;
-        }
-        else
-        {
-            val.pos = i + 1;
-        }
-        val.theValue = Convert.ToInt32(s1.ToString(), CultureInfo.InvariantCulture);
-        return val;
+
+        // Adjust index to skip past the last digit
+        int nextIndex = i < s.Length ? i : i + 1;
+        return new ValueSet(result, nextIndex);
     }
 
-    /// <summary>
-    /// Gets the numeric value from string.
-    /// </summary>
-    /// <param name="s">The string to parse from.</param>
-    /// <param name="i">The i.</param>
-    /// <returns></returns>
-    protected virtual int GetNumericValue(string s, int i)
+    private static int GetNumericValue(string s, int i)
     {
         int endOfVal = FindNextWhiteSpace(i, s);
-        string val = s.Substring(i, endOfVal - i);
-        return Convert.ToInt32(val, CultureInfo.InvariantCulture);
-    }
+#if !NETCOREAPP
+        string span = s.Substring(i, endOfVal - i);
+#else
+        ReadOnlySpan<char> span = s.AsSpan(i, endOfVal - i);
+#endif
 
-    /// <summary>
-    /// Gets the month number.
-    /// </summary>
-    /// <param name="s">The string to map with.</param>
-    /// <returns></returns>
-    protected virtual int GetMonthNumber(string s)
-    {
-        if (monthMap.TryGetValue(s, out var number))
+        if (int.TryParse(span, NumberStyles.Integer, CultureInfo.InvariantCulture, out var result))
         {
-            return number;
+            return result;
         }
 
-        return -1;
+        throw new FormatException($"Invalid numeric value at position {i}");
     }
 
-    /// <summary>
-    /// Gets the day of week number.
-    /// </summary>
-    /// <param name="s">The s.</param>
-    /// <returns></returns>
-    protected virtual int GetDayOfWeekNumber(string s)
+    private static int GetMonthNumber(string s)
     {
-        if (dayMap.TryGetValue(s, out var number))
+        return s switch
         {
-            return number;
-        }
+            "JAN" => 0,
+            "FEB" => 1,
+            "MAR" => 2,
+            "APR" => 3,
+            "MAY" => 4,
+            "JUN" => 5,
+            "JUL" => 6,
+            "AUG" => 7,
+            "SEP" => 8,
+            "OCT" => 9,
+            "NOV" => 10,
+            "DEC" => 11,
+            _ => -1
+        };
+    }
 
-        return -1;
+    private static int GetDayOfWeekNumber(string s)
+    {
+        return s switch
+        {
+            "SUN" => 1,
+            "MON" => 2,
+            "TUE" => 3,
+            "WED" => 4,
+            "THU" => 5,
+            "FRI" => 6,
+            "SAT" => 7,
+            _ => -1
+        };
     }
 
     /// <summary>
@@ -1652,11 +1600,11 @@ public class CronExpression : IDeserializationCallback, ISerializable
             st = seconds.TailSet(sec);
             if (st.Count > 0)
             {
-                sec = st.First();
+                sec = st.Min;
             }
             else
             {
-                sec = seconds.First();
+                sec = seconds.Min;
                 d = d.AddMinutes(1);
             }
             d = new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, sec, d.Millisecond, d.Offset);
@@ -1670,11 +1618,11 @@ public class CronExpression : IDeserializationCallback, ISerializable
             if (st.Count > 0)
             {
                 t = min;
-                min = st.First();
+                min = st.Min;
             }
             else
             {
-                min = minutes.First();
+                min = minutes.Min;
                 hr++;
             }
             if (min != t)
@@ -1694,11 +1642,11 @@ public class CronExpression : IDeserializationCallback, ISerializable
             if (st.Count > 0)
             {
                 t = hr;
-                hr = st.First();
+                hr = st.Min;
             }
             else
             {
-                hr = hours.First();
+                hr = hours.Min;
                 day++;
             }
             if (hr != t)
@@ -1729,7 +1677,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
             {
                 // get day by day of month rule
                 st = daysOfMonth.TailSet(day);
-                bool found = st.Any();
+                bool found = st.Count > 0;
                 if (lastdayOfMonth)
                 {
                     if (!nearestWeekday)
@@ -1789,7 +1737,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
                 else if (nearestWeekday)
                 {
                     t = day;
-                    day = daysOfMonth.First();
+                    day = daysOfMonth.Min;
 
                     DateTimeOffset tcal = new DateTimeOffset(d.Year, mon, day, 0, 0, 0, d.Offset);
 
@@ -1816,26 +1764,26 @@ public class CronExpression : IDeserializationCallback, ISerializable
                     tcal = new DateTimeOffset(tcal.Year, mon, day, hr, min, sec, d.Offset);
                     if (tcal.ToUniversalTime() < afterTimeUtc)
                     {
-                        day = daysOfMonth.First();
+                        day = daysOfMonth.Min;
                         mon++;
                     }
                 }
                 else if (found)
                 {
                     t = day;
-                    day = st.First();
+                    day = st.Min;
 
                     // make sure we don't over-run a short month, such as february
                     int lastDay = GetLastDayOfMonth(mon, d.Year);
                     if (day > lastDay)
                     {
-                        day = daysOfMonth.First();
+                        day = daysOfMonth.Min;
                         mon++;
                     }
                 }
                 else
                 {
-                    day = daysOfMonth.First();
+                    day = daysOfMonth.Min;
                     mon++;
                 }
 
@@ -1870,7 +1818,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
                 {
                     // are we looking for the last XXX day of
                     // the month?
-                    int dow = daysOfWeek.First(); // desired
+                    int dow = daysOfWeek.Min; // desired
                     // d-o-w
                     int cDow = (int) d.DayOfWeek + 1; // current d-o-w
                     int daysToAdd = 0;
@@ -1920,7 +1868,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
                 else if (nthdayOfWeek != 0)
                 {
                     // are we looking for the Nth XXX day in the month?
-                    int dow = daysOfWeek.First(); // desired
+                    int dow = daysOfWeek.Min; // desired
                     // d-o-w
                     int cDow = (int) d.DayOfWeek + 1; // current d-o-w
                     int daysToAdd = 0;
@@ -1968,12 +1916,12 @@ public class CronExpression : IDeserializationCallback, ISerializable
                 else if (everyNthWeek != 0)
                 {
                     int cDow = (int)d.DayOfWeek + 1; // current d-o-w
-                    int dow = daysOfWeek.First(); // desired
+                    int dow = daysOfWeek.Min; // desired
                     // d-o-w
                     st = daysOfWeek.TailSet(cDow);
                     if (st.Count > 0)
                     {
-                        dow = st.First();
+                        dow = st.Min;
                     }
 
                     int daysToAdd = 0;
@@ -2015,12 +1963,12 @@ public class CronExpression : IDeserializationCallback, ISerializable
                 else
                 {
                     int cDow = (int) d.DayOfWeek + 1; // current d-o-w
-                    int dow = daysOfWeek.First(); // desired
+                    int dow = daysOfWeek.Min; // desired
                     // d-o-w
                     st = daysOfWeek.TailSet(cDow);
                     if (st.Count > 0)
                     {
-                        dow = st.First();
+                        dow = st.Min;
                     }
 
                     int daysToAdd = 0;
@@ -2083,11 +2031,11 @@ public class CronExpression : IDeserializationCallback, ISerializable
             if (st.Count > 0)
             {
                 t = mon;
-                mon = st.First();
+                mon = st.Min;
             }
             else
             {
-                mon = months.First();
+                mon = months.Min;
                 year++;
             }
             if (mon != t)
@@ -2104,7 +2052,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
             if (st.Count > 0)
             {
                 t = year;
-                year = st.First();
+                year = st.Min;
             }
             else
             {
@@ -2314,18 +2262,8 @@ public class CronExpression : IDeserializationCallback, ISerializable
     }
 }
 
-/// <summary>
-/// Helper class for cron expression handling.
-/// </summary>
-public class ValueSet
+internal readonly struct ValueSet(int value, int position)
 {
-    /// <summary>
-    /// The value.
-    /// </summary>
-    public int theValue;
-
-    /// <summary>
-    /// The position.
-    /// </summary>
-    public int pos;
+    public readonly int theValue = value;
+    public readonly int pos = position;
 }
