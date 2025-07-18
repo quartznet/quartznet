@@ -952,11 +952,14 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 {
                     ThrowHelper.ThrowObjectAlreadyExistsException(newJob);
                 }
-                await Delegate.UpdateJobDetail(conn, newJob, cancellationToken).ConfigureAwait(false);
+                if (await Delegate.UpdateJobDetail(conn, newJob, cancellationToken).ConfigureAwait(false) > 0)
+                {
+                    return;
+                }
             }
-            else
+            if (await Delegate.InsertJobDetail(conn, newJob, cancellationToken).ConfigureAwait(false) < 1)
             {
-                await Delegate.InsertJobDetail(conn, newJob, cancellationToken).ConfigureAwait(false);
+                throw new JobPersistenceException("Couldn't store job. Insert failed.");
             }
         }
         catch (IOException e)
