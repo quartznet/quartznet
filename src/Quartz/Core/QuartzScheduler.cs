@@ -1665,8 +1665,7 @@ public class QuartzScheduler :
                 }
                 catch (Exception e)
                 {
-                    SchedulerException se = new SchedulerException($"TriggerListener '{tl.Name}' threw exception: {e.Message}", e);
-                    throw se;
+                    throw new JobExecutionProcessException(tl, jec, e);
                 }
             }
 
@@ -1742,8 +1741,7 @@ public class QuartzScheduler :
                 }
                 catch (Exception e)
                 {
-                    SchedulerException se = new SchedulerException($"TriggerListener '{tl.Name}' threw exception: {e.Message}", e);
-                    throw se;
+                    throw new JobExecutionProcessException(tl, jec, e);
                 }
             }
         }
@@ -1804,12 +1802,11 @@ public class QuartzScheduler :
             try
             {
                 var task = notifyAction(singleListener);
-                return task.IsCompletedSuccessfully() ? Task.CompletedTask : NotifySingle(task, singleListener);
+                return task.IsCompletedSuccessfully() ? Task.CompletedTask : NotifySingle(task, singleListener, jec);
             }
             catch (Exception e)
             {
-                SchedulerException se = new SchedulerException($"JobListener '{singleListener.Name}' threw exception: {e.Message}", e);
-                throw se;
+                throw new JobExecutionProcessException(singleListener, jec, e);
             }
         }
 
@@ -1824,11 +1821,11 @@ public class QuartzScheduler :
                     continue;
                 }
 
-                await NotifySingle(notifyAction(jl), jl).ConfigureAwait(false);
+                await NotifySingle(notifyAction(jl), jl, jec).ConfigureAwait(false);
             }
         }
 
-        static async Task NotifySingle(Task t, IJobListener jl)
+        static async Task NotifySingle(Task t, IJobListener jl, IJobExecutionContext jec)
         {
             try
             {
@@ -1836,8 +1833,7 @@ public class QuartzScheduler :
             }
             catch (Exception e)
             {
-                SchedulerException se = new SchedulerException($"JobListener '{jl.Name}' threw exception: {e.Message}", e);
-                throw se;
+                throw new JobExecutionProcessException(jl, jec, e);
             }
         }
     }
