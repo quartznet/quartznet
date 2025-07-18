@@ -2,7 +2,7 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
-Java version sync status: ff348f62ece41275555b45dba5a4073c910fbeab
+Java version sync status: 951c12c88aa378a01c211fadbf6f2a6efcb32cb5
 
 ## Release 3.14.0, Mar 8 2025
 
