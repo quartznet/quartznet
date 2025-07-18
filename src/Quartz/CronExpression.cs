@@ -606,8 +606,8 @@ public class CronExpression : IDeserializationCallback, ISerializable
                 StoreExpressionVals(0, "*", Year);
             }
 
-            ISet<int> dow = GetSet(DayOfWeek);
-            ISet<int> dom = GetSet(DayOfMonth);
+            SortedSet<int> dow = GetSet(DayOfWeek);
+            SortedSet<int> dom = GetSet(DayOfMonth);
 
             // Copying the logic from the UnsupportedOperationException below
             bool dayOfMSpec = !dom.Contains(NoSpec);
@@ -965,7 +965,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
             {
                 throw new FormatException($"'L' option is not valid here. (pos={i})");
             }
-            ISet<int> data = GetSet(type);
+            SortedSet<int> data = GetSet(type);
             data.Add(val);
             i++;
             return i;
@@ -1009,7 +1009,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
                     "A numeric value between 1 and 5 must follow the '#' option");
             }
 
-            ISet<int> data = GetSet(type);
+            SortedSet<int> data = GetSet(type);
             data.Add(val);
             i++;
             return i;
@@ -1029,7 +1029,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
             {
                 throw new FormatException($"'C' option is not valid here. (pos={i})");
             }
-            ISet<int> data = GetSet(type);
+            SortedSet<int> data = GetSet(type);
             data.Add(val);
             i++;
             return i;
@@ -1243,7 +1243,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
     /// <param name="type">The type.</param>
     protected virtual void AddToSet(int val, int end, int incr, int type)
     {
-        ISet<int> data = GetSet(type);
+        SortedSet<int> data = GetSet(type);
 
         if (type == Second || type == Minute)
         {
@@ -1437,30 +1437,22 @@ public class CronExpression : IDeserializationCallback, ISerializable
     /// </summary>
     /// <param name="type">The type of set to get.</param>
     /// <returns></returns>
-    protected virtual ISet<int> GetSet(int type)
+    protected virtual SortedSet<int> GetSet(int type)
     {
-        switch (type)
+        return type switch
         {
-            case Second:
-                return seconds;
-            case Minute:
-                return minutes;
-            case Hour:
-                return hours;
-            case DayOfMonth:
-                return daysOfMonth;
-            case Month:
-                return months;
-            case DayOfWeek:
-                return daysOfWeek;
-            case Year:
-                return years;
-            default:
-                throw new ArgumentOutOfRangeException();
-        }
+            Second => seconds,
+            Minute => minutes,
+            Hour => hours,
+            DayOfMonth => daysOfMonth,
+            Month => months,
+            DayOfWeek => daysOfWeek,
+            Year => years,
+            _ => throw new ArgumentOutOfRangeException()
+        };
     }
 
-    private ValueSet GetValue(int v, string s, int i)
+    private static ValueSet GetValue(int v, string s, int i)
     {
         char c = s[i];
         StringBuilder s1 = new StringBuilder(v.ToString(CultureInfo.InvariantCulture));
