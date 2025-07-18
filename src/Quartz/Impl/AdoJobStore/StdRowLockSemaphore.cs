@@ -135,7 +135,7 @@ public class StdRowLockSemaphore : DBSemaphore
                             // try again ...
                             continue;
                         }
-                        ThrowHelper.ThrowInvalidOperationException(AdoJobStoreUtil.ReplaceTablePrefix(
+                        Throw.InvalidOperationException(AdoJobStoreUtil.ReplaceTablePrefix(
                             "No row exists, and one could not be inserted in table " + TablePrefixSubst + TableLocks +
                             " for lock named: " + lockName, TablePrefix));
                     }
@@ -165,10 +165,10 @@ public class StdRowLockSemaphore : DBSemaphore
                     continue;
                 }
 
-                ThrowHelper.ThrowLockException("Failure obtaining db row lock: " + sqle.Message, sqle);
+                Throw.LockException("Failure obtaining db row lock: " + sqle.Message, sqle);
             }
         } while (count < maxRetryLocal + 1);
 
-        ThrowHelper.ThrowLockException("Failure obtaining db row lock, reached maximum number of attempts. Initial exception (if any) attached as root cause.", initCause);
+        Throw.LockException("Failure obtaining db row lock, reached maximum number of attempts. Initial exception (if any) attached as root cause.", initCause);
     }
 }

@@ -72,7 +72,7 @@ public class DbProvider : IDbProvider
 
         if (Metadata is null)
         {
-            ThrowHelper.ThrowArgumentException($"Invalid DB provider name: {dbProviderName}{Environment.NewLine}{GenerateValidProviderNamesInfo()}");
+            Throw.ArgumentException($"Invalid DB provider name: {dbProviderName}{Environment.NewLine}{GenerateValidProviderNamesInfo()}");
         }
 
         // check if command supports direct setting of BindByName property, needed for Oracle Managed ODP diver at least
@@ -114,7 +114,7 @@ public class DbProvider : IDbProvider
                     return result;
                 }
             }
-            ThrowHelper.ThrowArgumentOutOfRangeException(nameof(providerName), $"There is no metadata information for provider '{providerName}'");
+            Throw.ArgumentOutOfRangeException(nameof(providerName), $"There is no metadata information for provider '{providerName}'");
         }
 
         return result;

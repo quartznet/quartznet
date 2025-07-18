@@ -63,7 +63,7 @@ public class NewtonsoftJsonObjectSerializer : IObjectSerializer
     {
         if (serializer is null)
         {
-            ThrowHelper.ThrowInvalidOperationException("The serializer hasn't been initialized, did you forget to call Initialize()?");
+            Throw.InvalidOperationException("The serializer hasn't been initialized, did you forget to call Initialize()?");
         }
 
         using MemoryStream ms = new();
@@ -83,7 +83,7 @@ public class NewtonsoftJsonObjectSerializer : IObjectSerializer
     {
         if (serializer is null)
         {
-            ThrowHelper.ThrowInvalidOperationException("The serializer hasn't been initialized, did you forget to call Initialize()?");
+            Throw.InvalidOperationException("The serializer hasn't been initialized, did you forget to call Initialize()?");
         }
 
         try

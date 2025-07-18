@@ -184,7 +184,7 @@ public sealed class SimpleScheduleBuilder : ScheduleBuilder<ISimpleTrigger>
     {
         if (count < 1)
         {
-            ThrowHelper.ThrowArgumentException("Total count of firings must be at least one! Given count: " + count, nameof(count));
+            Throw.ArgumentException("Total count of firings must be at least one! Given count: " + count, nameof(count));
         }
 
         SimpleScheduleBuilder sb = Create()
@@ -206,7 +206,7 @@ public sealed class SimpleScheduleBuilder : ScheduleBuilder<ISimpleTrigger>
     {
         if (count < 1)
         {
-            ThrowHelper.ThrowArgumentException("Total count of firings must be at least one! Given count: " + count, nameof(count));
+            Throw.ArgumentException("Total count of firings must be at least one! Given count: " + count, nameof(count));
         }
 
         SimpleScheduleBuilder sb = Create()
@@ -228,7 +228,7 @@ public sealed class SimpleScheduleBuilder : ScheduleBuilder<ISimpleTrigger>
     {
         if (count < 1)
         {
-            ThrowHelper.ThrowArgumentException("Total count of firings must be at least one! Given count: " + count, nameof(count));
+            Throw.ArgumentException("Total count of firings must be at least one! Given count: " + count, nameof(count));
         }
 
         SimpleScheduleBuilder sb = Create()
@@ -250,7 +250,7 @@ public sealed class SimpleScheduleBuilder : ScheduleBuilder<ISimpleTrigger>
     {
         if (count < 1)
         {
-            ThrowHelper.ThrowArgumentException("Total count of firings must be at least one! Given count: " + count, nameof(count));
+            Throw.ArgumentException("Total count of firings must be at least one! Given count: " + count, nameof(count));
         }
 
         SimpleScheduleBuilder sb = Create()
@@ -272,7 +272,7 @@ public sealed class SimpleScheduleBuilder : ScheduleBuilder<ISimpleTrigger>
     {
         if (count < 1)
         {
-            ThrowHelper.ThrowArgumentException("Total count of firings must be at least one! Given count: " + count, nameof(count));
+            Throw.ArgumentException("Total count of firings must be at least one! Given count: " + count, nameof(count));
         }
 
         SimpleScheduleBuilder sb = Create()
@@ -294,7 +294,7 @@ public sealed class SimpleScheduleBuilder : ScheduleBuilder<ISimpleTrigger>
     {
         if (count < 1)
         {
-            ThrowHelper.ThrowArgumentException("Total count of firings must be at least one! Given count: " + count, nameof(count));
+            Throw.ArgumentException("Total count of firings must be at least one! Given count: " + count, nameof(count));
         }
 
         SimpleScheduleBuilder sb = Create()

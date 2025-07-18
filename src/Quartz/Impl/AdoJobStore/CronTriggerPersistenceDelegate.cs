@@ -105,7 +105,7 @@ internal sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelega
             return ReadTriggerPropertyBundle(rs);
         }
 
-        ThrowHelper.ThrowInvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectCronTriggers, TablePrefix));
+        Throw.InvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectCronTriggers, TablePrefix));
         return default;
     }
 

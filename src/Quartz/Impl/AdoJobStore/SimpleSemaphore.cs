@@ -148,7 +148,7 @@ internal sealed class SimpleSemaphore : ISemaphore
             return stateLock;
         }
 
-        ThrowHelper.ThrowNotSupportedException();
+        Throw.NotSupportedException();
         return null!;
     }
 

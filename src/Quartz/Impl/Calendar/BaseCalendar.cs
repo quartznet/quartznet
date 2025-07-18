@@ -127,7 +127,7 @@ public class BaseCalendar : ICalendar, ISerializable, IEquatable<BaseCalendar>
                 }
                 break;
             default:
-                ThrowHelper.ThrowNotSupportedException("Unknown serialization version");
+                Throw.NotSupportedException("Unknown serialization version");
                 break;
         }
 
@@ -183,7 +183,7 @@ public class BaseCalendar : ICalendar, ISerializable, IEquatable<BaseCalendar>
     {
         if (timeStampUtc == DateTimeOffset.MinValue)
         {
-            ThrowHelper.ThrowArgumentException("timeStampUtc must be greater 0");
+            Throw.ArgumentException("timeStampUtc must be greater 0");
         }
 
         if (CalendarBase is not null)
@@ -207,7 +207,7 @@ public class BaseCalendar : ICalendar, ISerializable, IEquatable<BaseCalendar>
     {
         if (timeUtc == DateTimeOffset.MinValue)
         {
-            ThrowHelper.ThrowArgumentException("timeStamp must be greater DateTimeOffset.MinValue");
+            Throw.ArgumentException("timeStamp must be greater DateTimeOffset.MinValue");
         }
 
         if (CalendarBase is not null)

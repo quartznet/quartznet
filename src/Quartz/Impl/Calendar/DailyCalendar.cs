@@ -431,7 +431,7 @@ public sealed class DailyCalendar : BaseCalendar
                 InvertTimeRange = info.GetBoolean("invertTimeRange");
                 break;
             default:
-                ThrowHelper.ThrowNotSupportedException("Unknown serialization version");
+                Throw.NotSupportedException("Unknown serialization version");
                 break;
         }
     }
@@ -675,7 +675,7 @@ public sealed class DailyCalendar : BaseCalendar
 
         if (rangeStartingTime.Length < 2 || rangeStartingTime.Length > 4)
         {
-            ThrowHelper.ThrowArgumentException($"Invalid time string '{rangeStartingTimeString}'");
+            Throw.ArgumentException($"Invalid time string '{rangeStartingTimeString}'");
         }
 
         int rangeStartingHourOfDay = Convert.ToInt32(rangeStartingTime[0], CultureInfo.InvariantCulture);
@@ -702,7 +702,7 @@ public sealed class DailyCalendar : BaseCalendar
 
         if (rangeEndingTime.Length < 2 || rangeEndingTime.Length > 4)
         {
-            ThrowHelper.ThrowArgumentException($"Invalid time string '{rangeEndingTimeString}'");
+            Throw.ArgumentException($"Invalid time string '{rangeEndingTimeString}'");
         }
 
         int rangeEndingHourOfDay = Convert.ToInt32(rangeEndingTime[0], CultureInfo.InvariantCulture);
@@ -778,7 +778,7 @@ public sealed class DailyCalendar : BaseCalendar
 
         if (!(startCal < endCal))
         {
-            ThrowHelper.ThrowArgumentException($"{InvalidTimeRange}{rangeStartingHourOfDay}:{rangeStartingMinute}:{rangeStartingSecond}:{rangeStartingMillis}{Separator}{rangeEndingHourOfDay}:{rangeEndingMinute}:{rangeEndingSecond}:{rangeEndingMillis}");
+            Throw.ArgumentException($"{InvalidTimeRange}{rangeStartingHourOfDay}:{rangeStartingMinute}:{rangeStartingSecond}:{rangeStartingMillis}{Separator}{rangeEndingHourOfDay}:{rangeEndingMinute}:{rangeEndingSecond}:{rangeEndingMillis}");
         }
 
         this.rangeStartingHourOfDay = rangeStartingHourOfDay;
@@ -854,19 +854,19 @@ public sealed class DailyCalendar : BaseCalendar
     {
         if (hourOfDay < 0 || hourOfDay > 23)
         {
-            ThrowHelper.ThrowArgumentException(InvalidHourOfDay + hourOfDay);
+            Throw.ArgumentException(InvalidHourOfDay + hourOfDay);
         }
         if (minute < 0 || minute > 59)
         {
-            ThrowHelper.ThrowArgumentException(InvalidMinute + minute);
+            Throw.ArgumentException(InvalidMinute + minute);
         }
         if (second < 0 || second > 59)
         {
-            ThrowHelper.ThrowArgumentException(InvalidSecond + second);
+            Throw.ArgumentException(InvalidSecond + second);
         }
         if (millis < 0 || millis > 999)
         {
-            ThrowHelper.ThrowArgumentException(InvalidMillis + millis);
+            Throw.ArgumentException(InvalidMillis + millis);
         }
     }
 

@@ -110,7 +110,7 @@ public sealed class AnnualCalendar : BaseCalendar
                 excludeDays = (SortedSet<DateTime>) info.GetValue("excludeDays", typeof(SortedSet<DateTime>))!;
                 break;
             default:
-                ThrowHelper.ThrowNotSupportedException("Unknown serialization version");
+                Throw.NotSupportedException("Unknown serialization version");
                 break;
         }
     }

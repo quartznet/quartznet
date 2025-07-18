@@ -230,7 +230,7 @@ public class PropertySettingJobFactory : SimpleJobFactory
     {
         if (ThrowIfPropertyNotFound)
         {
-            ThrowHelper.ThrowSchedulerException(message, e);
+            Throw.SchedulerException(message, e);
         }
 
         if (WarnIfPropertyNotFound)

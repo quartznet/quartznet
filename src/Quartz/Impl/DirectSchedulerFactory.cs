@@ -219,17 +219,17 @@ public sealed class DirectSchedulerFactory : ISchedulerFactory
     {
         if (idleWaitTime < TimeSpan.Zero)
         {
-            ThrowHelper.ThrowArgumentOutOfRangeException(nameof(idleWaitTime), $"Cannot be less than {nameof(TimeSpan)}.{nameof(TimeSpan.Zero)}.");
+            Throw.ArgumentOutOfRangeException(nameof(idleWaitTime), $"Cannot be less than {nameof(TimeSpan)}.{nameof(TimeSpan.Zero)}.");
         }
 
         if (maxBatchSize < 1)
         {
-            ThrowHelper.ThrowArgumentOutOfRangeException(nameof(maxBatchSize), "Cannot be less than 1.");
+            Throw.ArgumentOutOfRangeException(nameof(maxBatchSize), "Cannot be less than 1.");
         }
 
         if (batchTimeWindow < TimeSpan.Zero)
         {
-            ThrowHelper.ThrowArgumentOutOfRangeException(nameof(batchTimeWindow), $"Cannot be less than {nameof(TimeSpan)}.{nameof(TimeSpan.Zero)}.");
+            Throw.ArgumentOutOfRangeException(nameof(batchTimeWindow), $"Cannot be less than {nameof(TimeSpan)}.{nameof(TimeSpan.Zero)}.");
         }
 
         // Currently only one run-shell factory is available...
@@ -314,7 +314,7 @@ public sealed class DirectSchedulerFactory : ISchedulerFactory
     {
         if (!initialized)
         {
-            ThrowHelper.ThrowSchedulerException("you must call createRemoteScheduler or createScheduler methods before calling getScheduler()");
+            Throw.SchedulerException("you must call createRemoteScheduler or createScheduler methods before calling getScheduler()");
         }
 
         return new ValueTask<IScheduler>(SchedulerRepository.Instance.Lookup(DefaultSchedulerName)!);

@@ -18,7 +18,7 @@ public sealed class TriggerPropertyBundle
 
         if (StatePropertyNames.Length != StatePropertyValues.Length)
         {
-            ThrowHelper.ThrowArgumentException("property names and values must be of same length");
+            Throw.ArgumentException("property names and values must be of same length");
         }
     }
 

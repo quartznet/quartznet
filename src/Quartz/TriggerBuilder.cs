@@ -364,7 +364,7 @@ public sealed class TriggerBuilder
         JobKey k = jobDetail.Key;
         if (k.Name is null)
         {
-            ThrowHelper.ThrowArgumentException("The given job has not yet had a name assigned to it.");
+            Throw.ArgumentException("The given job has not yet had a name assigned to it.");
         }
         jobKey = k;
         return this;

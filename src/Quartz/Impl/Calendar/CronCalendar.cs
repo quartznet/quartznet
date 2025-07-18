@@ -115,7 +115,7 @@ public sealed class CronCalendar : BaseCalendar
                 cronExpression = (CronExpression) info.GetValue("cronExpression", typeof(CronExpression))!;
                 break;
             default:
-                ThrowHelper.ThrowNotSupportedException("Unknown serialization version");
+                Throw.NotSupportedException("Unknown serialization version");
                 break;
         }
     }
@@ -237,7 +237,7 @@ public sealed class CronCalendar : BaseCalendar
         {
             if (value is null)
             {
-                ThrowHelper.ThrowArgumentException("expression cannot be null");
+                Throw.ArgumentException("expression cannot be null");
             }
             cronExpression = value;
         }

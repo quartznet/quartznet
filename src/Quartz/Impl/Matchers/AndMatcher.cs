@@ -40,7 +40,7 @@ public sealed class AndMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     {
         if (leftOperand is null || rightOperand is null)
         {
-            ThrowHelper.ThrowArgumentException("Two non-null operands required!");
+            Throw.ArgumentException("Two non-null operands required!");
         }
 
         LeftOperand = leftOperand;

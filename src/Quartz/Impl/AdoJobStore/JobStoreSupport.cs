@@ -234,7 +234,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         {
             if (value.TotalMilliseconds < 1)
             {
-                ThrowHelper.ThrowArgumentException("MisfireThreshold must be larger than 0");
+                Throw.ArgumentException("MisfireThreshold must be larger than 0");
             }
             misfireThreshold = value;
         }
@@ -252,7 +252,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         {
             if (value.TotalMilliseconds < 1)
             {
-                ThrowHelper.ThrowArgumentException("MisfireHandlerFrequency must be larger than 0");
+                Throw.ArgumentException("MisfireHandlerFrequency must be larger than 0");
             }
             misfirehandlerFrequence = value;
         }
@@ -346,7 +346,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException($"Failed to obtain DB connection from data source '{DataSource}': {e}", e);
+            Throw.JobPersistenceException($"Failed to obtain DB connection from data source '{DataSource}': {e}", e);
             return default;
         }
 
@@ -364,7 +364,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         catch (Exception e)
         {
             await conn.CloseAsync().ConfigureAwait(false);
-            ThrowHelper.ThrowJobPersistenceException("Failure setting up connection.", e);
+            Throw.JobPersistenceException("Failure setting up connection.", e);
             return default;
         }
 
@@ -425,7 +425,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                         var ctor = delegateType.GetConstructor(Type.EmptyTypes);
                         if (ctor is null)
                         {
-                            ThrowHelper.ThrowInvalidConfigurationException("Configured delegate does not have public constructor that takes no arguments");
+                            Throw.InvalidConfigurationException("Configured delegate does not have public constructor that takes no arguments");
                         }
 
                         driverDelegate = (IDriverDelegate) ctor.Invoke(null);
@@ -433,7 +433,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                     }
                     catch (Exception e)
                     {
-                        ThrowHelper.ThrowNoSuchDelegateException("Couldn't instantiate delegate: " + e.Message, e);
+                        Throw.NoSuchDelegateException("Couldn't instantiate delegate: " + e.Message, e);
                     }
                 }
             }
@@ -461,7 +461,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     {
         if (string.IsNullOrWhiteSpace(DataSource))
         {
-            ThrowHelper.ThrowSchedulerConfigException("DataSource name not set.");
+            Throw.SchedulerConfigException("DataSource name not set.");
         }
 
         LastCheckin = timeProvider.GetUtcNow();
@@ -483,7 +483,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         {
             if (Clustered)
             {
-                ThrowHelper.ThrowInvalidConfigurationException("SQLite cannot be used as clustered mode due to locking problems");
+                Throw.InvalidConfigurationException("SQLite cannot be used as clustered mode due to locking problems");
             }
             if (!AcquireTriggersWithinLock)
             {
@@ -583,7 +583,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             catch (SchedulerException se)
             {
                 Logger.LogError(se, "Failure occurred during job recovery: {ExceptionMessage}", se.Message);
-                ThrowHelper.ThrowSchedulerConfigException("Failure occurred during job recovery.", se);
+                Throw.SchedulerConfigException("Failure occurred during job recovery.", se);
             }
         }
 
@@ -733,7 +733,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't recover jobs: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't recover jobs: " + e.Message, e);
         }
     }
 
@@ -840,7 +840,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException($"Couldn't update misfired trigger '{triggerKey}': {e.Message}", e);
+            Throw.JobPersistenceException($"Couldn't update misfired trigger '{triggerKey}': {e.Message}", e);
             return false;
         }
     }
@@ -898,7 +898,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         string group,
         CancellationToken cancellationToken = default)
     {
-        ThrowHelper.ThrowNotImplementedException();
+        Throw.NotImplementedException();
         return new ValueTask<bool>(false);
     }
 
@@ -912,7 +912,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         string group,
         CancellationToken cancellationToken = default)
     {
-        ThrowHelper.ThrowNotImplementedException();
+        Throw.NotImplementedException();
         return new ValueTask<bool>(false);
     }
 
@@ -950,7 +950,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             {
                 if (!replaceExisting)
                 {
-                    ThrowHelper.ThrowObjectAlreadyExistsException(newJob);
+                    Throw.ObjectAlreadyExistsException(newJob);
                 }
                 if (await Delegate.UpdateJobDetail(conn, newJob, cancellationToken).ConfigureAwait(false) > 0)
                 {
@@ -964,11 +964,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (IOException e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't store job: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't store job: " + e.Message, e);
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't store job: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't store job: " + e.Message, e);
         }
     }
 
@@ -986,7 +986,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't determine job existence (" + jobKey + "): " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't determine job existence (" + jobKey + "): " + e.Message, e);
             return false;
         }
     }
@@ -1030,7 +1030,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
         if (existingTrigger && !replaceExisting)
         {
-            ThrowHelper.ThrowObjectAlreadyExistsException(newTrigger);
+            Throw.ObjectAlreadyExistsException(newTrigger);
         }
 
         try
@@ -1061,7 +1061,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
             if (job is null)
             {
-                ThrowHelper.ThrowJobPersistenceException($"The job ({newTrigger.JobKey}) referenced by the trigger does not exist.");
+                Throw.JobPersistenceException($"The job ({newTrigger.JobKey}) referenced by the trigger does not exist.");
             }
             if (job.ConcurrentExecutionDisallowed && !recovering)
             {
@@ -1079,7 +1079,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         catch (Exception e)
         {
             string message = $"Couldn't store trigger '{newTrigger.Key}' for '{newTrigger.JobKey}' job: {e.Message}";
-            ThrowHelper.ThrowJobPersistenceException(message, e);
+            Throw.JobPersistenceException(message, e);
         }
     }
 
@@ -1097,7 +1097,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't determine trigger existence (" + triggerKey + "): " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't determine trigger existence (" + triggerKey + "): " + e.Message, e);
             return default;
         }
     }
@@ -1141,7 +1141,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't remove job: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't remove job: " + e.Message, e);
             return default;
         }
     }
@@ -1258,17 +1258,17 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (TypeLoadException e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't retrieve job because a required type was not found: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't retrieve job because a required type was not found: " + e.Message, e);
             return default;
         }
         catch (IOException e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't retrieve job because the BLOB couldn't be deserialized: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't retrieve job because the BLOB couldn't be deserialized: " + e.Message, e);
             return default;
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't retrieve job: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't retrieve job: " + e.Message, e);
             return default;
         }
     }
@@ -1349,7 +1349,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't remove trigger: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't remove trigger: " + e.Message, e);
             return default;
         }
 
@@ -1397,7 +1397,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
             if (!newTrigger.JobKey.Equals(job.Key))
             {
-                ThrowHelper.ThrowJobPersistenceException("New trigger is not related to the same job as the old trigger.");
+                Throw.JobPersistenceException("New trigger is not related to the same job as the old trigger.");
             }
 
             bool removedTrigger = await DeleteTriggerAndChildren(conn, triggerKey, cancellationToken).ConfigureAwait(false);
@@ -1408,7 +1408,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't remove trigger: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't remove trigger: " + e.Message, e);
             return default;
         }
     }
@@ -1439,7 +1439,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't retrieve trigger: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't retrieve trigger: " + e.Message, e);
             return default;
         }
     }
@@ -1515,7 +1515,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException($"Couldn't determine state of trigger ({triggerKey}): {e.Message}", e);
+            Throw.JobPersistenceException($"Couldn't determine state of trigger ({triggerKey}): {e.Message}", e);
             return default;
         }
     }
@@ -1548,7 +1548,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException($"Couldn't reset from error state of trigger ({triggerKey}): {e.Message}", e);
+            Throw.JobPersistenceException($"Couldn't reset from error state of trigger ({triggerKey}): {e.Message}", e);
         }
     }
 
@@ -1594,14 +1594,14 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             bool existingCal = await CalendarExists(conn, calName, cancellationToken).ConfigureAwait(false);
             if (existingCal && !replaceExisting)
             {
-                ThrowHelper.ThrowObjectAlreadyExistsException("Calendar with name '" + calName + "' already exists.");
+                Throw.ObjectAlreadyExistsException("Calendar with name '" + calName + "' already exists.");
             }
 
             if (existingCal)
             {
                 if (await Delegate.UpdateCalendar(conn, calName, calendar, cancellationToken).ConfigureAwait(false) < 1)
                 {
-                    ThrowHelper.ThrowJobPersistenceException("Couldn't store calendar.  Update failed.");
+                    Throw.JobPersistenceException("Couldn't store calendar.  Update failed.");
                 }
 
                 if (updateTriggers)
@@ -1619,7 +1619,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             {
                 if (await Delegate.InsertCalendar(conn, calName, calendar, cancellationToken).ConfigureAwait(false) < 1)
                 {
-                    ThrowHelper.ThrowJobPersistenceException("Couldn't store calendar.  Insert failed.");
+                    Throw.JobPersistenceException("Couldn't store calendar.  Insert failed.");
                 }
             }
 
@@ -1630,12 +1630,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (IOException e)
         {
-            ThrowHelper.ThrowJobPersistenceException(
+            Throw.JobPersistenceException(
                 "Couldn't store calendar because the BLOB couldn't be serialized: " + e.Message, e);
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't store calendar: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't store calendar: " + e.Message, e);
         }
     }
 
@@ -1650,7 +1650,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't determine calendar existence (" + calName + "): " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't determine calendar existence (" + calName + "): " + e.Message, e);
             return default;
         }
     }
@@ -1685,7 +1685,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         {
             if (await Delegate.CalendarIsReferenced(conn, calName, cancellationToken).ConfigureAwait(false))
             {
-                ThrowHelper.ThrowJobPersistenceException("Calender cannot be removed if it referenced by a trigger!");
+                Throw.JobPersistenceException("Calender cannot be removed if it referenced by a trigger!");
             }
 
             if (!Clustered)
@@ -1697,7 +1697,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't remove calendar: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't remove calendar: " + e.Message, e);
             return default;
         }
     }
@@ -1743,12 +1743,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (IOException e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't retrieve calendar because the BLOB couldn't be deserialized: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't retrieve calendar because the BLOB couldn't be deserialized: " + e.Message, e);
             return default;
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't retrieve calendar: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't retrieve calendar: " + e.Message, e);
             return default;
         }
     }
@@ -1773,7 +1773,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't obtain number of jobs: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't obtain number of jobs: " + e.Message, e);
             return default;
         }
     }
@@ -1798,7 +1798,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't obtain number of triggers: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't obtain number of triggers: " + e.Message, e);
             return default;
         }
     }
@@ -1823,7 +1823,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't obtain number of calendars: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't obtain number of calendars: " + e.Message, e);
             return default;
         }
     }
@@ -1850,7 +1850,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't obtain job names: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't obtain job names: " + e.Message, e);
             return default;
         }
     }
@@ -1884,7 +1884,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't check for existence of job: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't check for existence of job: " + e.Message, e);
             return default;
         }
     }
@@ -1917,7 +1917,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't check for existence of job: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't check for existence of job: " + e.Message, e);
             return default;
         }
     }
@@ -1950,7 +1950,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't check for existence of job: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't check for existence of job: " + e.Message, e);
             return default;
         }
     }
@@ -1976,7 +1976,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Error clearing scheduling data: " + e.Message, e);
+            Throw.JobPersistenceException("Error clearing scheduling data: " + e.Message, e);
         }
     }
 
@@ -2002,7 +2002,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't obtain trigger names: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't obtain trigger names: " + e.Message, e);
             return default;
         }
     }
@@ -2028,7 +2028,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't obtain job groups: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't obtain job groups: " + e.Message, e);
             return default;
         }
     }
@@ -2056,7 +2056,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't obtain trigger groups: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't obtain trigger groups: " + e.Message, e);
             return default;
         }
     }
@@ -2083,7 +2083,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't obtain trigger groups: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't obtain trigger groups: " + e.Message, e);
             return default;
         }
     }
@@ -2110,7 +2110,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't obtain triggers for job: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't obtain triggers for job: " + e.Message, e);
             return default;
         }
     }
@@ -2146,7 +2146,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException($"Couldn't pause trigger '{triggerKey}': {e.Message}", e);
+            Throw.JobPersistenceException($"Couldn't pause trigger '{triggerKey}': {e.Message}", e);
         }
     }
 
@@ -2228,7 +2228,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't determine if trigger should be in a blocked state '" + jobKey + "': " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't determine if trigger should be in a blocked state '" + jobKey + "': " + e.Message, e);
             return default;
         }
     }
@@ -2285,7 +2285,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't resume trigger '" + triggerKey + "': " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't resume trigger '" + triggerKey + "': " + e.Message, e);
         }
     }
 
@@ -2390,7 +2390,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't pause trigger group '" + matcher + "': " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't pause trigger group '" + matcher + "': " + e.Message, e);
             return default;
         }
     }
@@ -2415,7 +2415,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't determine paused trigger groups: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't determine paused trigger groups: " + e.Message, e);
             return default;
         }
     }
@@ -2492,7 +2492,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't pause trigger group '" + matcher + "': " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't pause trigger group '" + matcher + "': " + e.Message, e);
             return default;
         }
     }
@@ -2531,7 +2531,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't pause all trigger groups: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't pause all trigger groups: " + e.Message, e);
         }
     }
 
@@ -2575,7 +2575,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't resume all trigger groups: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't resume all trigger groups: " + e.Message, e);
         }
     }
 
@@ -2621,7 +2621,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 }
                 catch (Exception e)
                 {
-                    ThrowHelper.ThrowJobPersistenceException("error validating trigger acquisition", e);
+                    Throw.JobPersistenceException("error validating trigger acquisition", e);
                     return default;
                 }
             },
@@ -2640,7 +2640,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     {
         if (timeWindow < TimeSpan.Zero)
         {
-            ThrowHelper.ThrowArgumentOutOfRangeException(nameof(timeWindow));
+            Throw.ArgumentOutOfRangeException(nameof(timeWindow));
         }
 
         List<IOperableTrigger> acquiredTriggers = [];
@@ -2756,7 +2756,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
             catch (Exception e)
             {
-                ThrowHelper.ThrowJobPersistenceException("Couldn't acquire next trigger: " + e.Message, e);
+                Throw.JobPersistenceException("Couldn't acquire next trigger: " + e.Message, e);
             }
         } while (true);
 
@@ -2790,7 +2790,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't release acquired trigger: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't release acquired trigger: " + e.Message, e);
         }
     }
 
@@ -2855,7 +2855,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 }
                 catch (Exception e)
                 {
-                    ThrowHelper.ThrowJobPersistenceException("error validating trigger acquisition", e);
+                    Throw.JobPersistenceException("error validating trigger acquisition", e);
                     return default;
                 }
             },
@@ -2882,7 +2882,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't select trigger state: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't select trigger state: " + e.Message, e);
         }
 
         try
@@ -2922,7 +2922,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't update fired trigger: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't update fired trigger: " + e.Message, e);
         }
 
         DateTimeOffset? prevFireTime = trigger.GetPreviousFireTimeUtc();
@@ -2945,7 +2945,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
             catch (Exception e)
             {
-                ThrowHelper.ThrowJobPersistenceException("Couldn't update states of blocked triggers: " + e.Message, e);
+                Throw.JobPersistenceException("Couldn't update states of blocked triggers: " + e.Message, e);
             }
         }
 
@@ -3052,17 +3052,17 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 }
                 catch (IOException e)
                 {
-                    ThrowHelper.ThrowJobPersistenceException("Couldn't serialize job data: " + e.Message, e);
+                    Throw.JobPersistenceException("Couldn't serialize job data: " + e.Message, e);
                 }
                 catch (Exception e)
                 {
-                    ThrowHelper.ThrowJobPersistenceException("Couldn't update job data: " + e.Message, e);
+                    Throw.JobPersistenceException("Couldn't update job data: " + e.Message, e);
                 }
             }
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't update trigger state(s): " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't update trigger state(s): " + e.Message, e);
         }
 
         try
@@ -3071,7 +3071,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Couldn't delete fired trigger: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't delete fired trigger: " + e.Message, e);
         }
     }
 
@@ -3119,7 +3119,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         catch (Exception e)
         {
             await RollbackConnection(conn, e).ConfigureAwait(false);
-            ThrowHelper.ThrowJobPersistenceException("Database error recovering from misfires.", e);
+            Throw.JobPersistenceException("Database error recovering from misfires.", e);
             return default;
         }
         finally
@@ -3286,7 +3286,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         catch (Exception e)
         {
             LastCheckin = timeProvider.GetUtcNow();
-            ThrowHelper.ThrowJobPersistenceException("Failure identifying failed instances when checking-in: " + e.Message, e);
+            Throw.JobPersistenceException("Failure identifying failed instances when checking-in: " + e.Message, e);
             return default;
         }
     }
@@ -3352,7 +3352,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException("Failure updating scheduler state when checking-in: " + e.Message, e);
+            Throw.JobPersistenceException("Failure updating scheduler state when checking-in: " + e.Message, e);
         }
 
         return failedInstances;
@@ -3486,7 +3486,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
             catch (Exception e)
             {
-                ThrowHelper.ThrowJobPersistenceException("Failure recovering jobs: " + e.Message, e);
+                Throw.JobPersistenceException("Failure recovering jobs: " + e.Message, e);
             }
         }
     }
@@ -3827,7 +3827,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             await Task.Delay(DbRetryInterval, cancellationToken).ConfigureAwait(false);
         }
 
-        ThrowHelper.ThrowInvalidOperationException("JobStore is shutdown - aborting retry");
+        Throw.InvalidOperationException("JobStore is shutdown - aborting retry");
         return default;
     }
 
@@ -3946,7 +3946,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         catch (Exception e)
         {
             await RollbackConnection(conn, e).ConfigureAwait(false);
-            ThrowHelper.ThrowJobPersistenceException("Unexpected runtime exception: " + e.Message, e);
+            Throw.JobPersistenceException("Unexpected runtime exception: " + e.Message, e);
             return default;
         }
         finally

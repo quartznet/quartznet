@@ -88,7 +88,7 @@ public sealed class MonthlyCalendar : BaseCalendar
                 excludeAll = (bool) info.GetValue("excludeAll", typeof(bool))!;
                 break;
             default:
-                ThrowHelper.ThrowNotSupportedException("Unknown serialization version");
+                Throw.NotSupportedException("Unknown serialization version");
                 break;
         }
     }
@@ -140,7 +140,7 @@ public sealed class MonthlyCalendar : BaseCalendar
     {
         if (day < 1 || day > MaxDaysInMonth)
         {
-            ThrowHelper.ThrowArgumentException(
+            Throw.ArgumentException(
                 $"The day parameter must be in the range of 1 to {MaxDaysInMonth}");
         }
         return excludeDays[day - 1];

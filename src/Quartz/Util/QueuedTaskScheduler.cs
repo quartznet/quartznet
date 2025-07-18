@@ -30,7 +30,7 @@ internal sealed class QueuedTaskScheduler : TaskScheduler, IDisposable
         {
             if (scheduler is null)
             {
-                ThrowHelper.ThrowArgumentNullException(nameof(scheduler));
+                Throw.ArgumentNullException(nameof(scheduler));
             }
             _scheduler = scheduler;
         }
@@ -89,7 +89,7 @@ internal sealed class QueuedTaskScheduler : TaskScheduler, IDisposable
         // If the thread count is 0, default to the number of logical processors.
         if (threadCount < 0)
         {
-            ThrowHelper.ThrowArgumentOutOfRangeException("concurrencyLevel");
+            Throw.ArgumentOutOfRangeException("concurrencyLevel");
         }
         else if (threadCount == 0)
         {
@@ -180,7 +180,7 @@ internal sealed class QueuedTaskScheduler : TaskScheduler, IDisposable
         // If we've been disposed, no one should be queueing
         if (_disposeCancellation.IsCancellationRequested)
         {
-            ThrowHelper.ThrowObjectDisposedException(GetType().Name);
+            Throw.ObjectDisposedException(GetType().Name);
         }
 
         // add the task to the blocking queue

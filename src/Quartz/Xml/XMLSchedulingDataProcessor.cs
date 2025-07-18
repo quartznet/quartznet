@@ -224,7 +224,7 @@ public class XMLSchedulingDataProcessor
 
         if (data is null)
         {
-            ThrowHelper.ThrowSchedulerConfigException("Job definition data from XML was null after deserialization");
+            Throw.SchedulerConfigException("Job definition data from XML was null after deserialization");
         }
 
         //
@@ -267,7 +267,7 @@ public class XMLSchedulingDataProcessor
 
                         if (name is null)
                         {
-                            ThrowHelper.ThrowSchedulerConfigException("Encountered a 'delete-job' command without a name specified.");
+                            Throw.SchedulerConfigException("Encountered a 'delete-job' command without a name specified.");
                         }
 
                         jobsToDelete.Add(new JobKey(name, group ?? Key<string>.DefaultGroup));
@@ -283,7 +283,7 @@ public class XMLSchedulingDataProcessor
 
                         if (name is null)
                         {
-                            ThrowHelper.ThrowSchedulerConfigException("Encountered a 'delete-trigger' command without a name specified.");
+                            Throw.SchedulerConfigException("Encountered a 'delete-trigger' command without a name specified.");
                         }
 
                         triggersToDelete.Add(new TriggerKey(name, group));
@@ -489,7 +489,7 @@ public class XMLSchedulingDataProcessor
             }
             else
             {
-                ThrowHelper.ThrowSchedulerConfigException("Unknown trigger type in XML configuration");
+                Throw.SchedulerConfigException("Unknown trigger type in XML configuration");
                 return;
             }
 
@@ -555,7 +555,7 @@ public class XMLSchedulingDataProcessor
 
         if (!TryParseEnum(intervalUnit, out IntervalUnit retValue))
         {
-            ThrowHelper.ThrowSchedulerConfigException("Unknown interval unit for DateIntervalTrigger: " + intervalUnit);
+            Throw.SchedulerConfigException("Unknown interval unit for DateIntervalTrigger: " + intervalUnit);
         }
 
         return retValue;
@@ -593,7 +593,7 @@ public class XMLSchedulingDataProcessor
 
             if (stream is null)
             {
-                ThrowHelper.ThrowArgumentException("Could not read XSD from embedded resource");
+                Throw.ArgumentException("Could not read XSD from embedded resource");
             }
 
             var schema = XmlSchema.Read(XmlReader.Create(stream), XmlValidationCallBack);
@@ -763,7 +763,7 @@ public class XMLSchedulingDataProcessor
 
                 if (!OverWriteExistingData && !IgnoreDuplicates)
                 {
-                    ThrowHelper.ThrowObjectAlreadyExistsException(detail);
+                    Throw.ObjectAlreadyExistsException(detail);
                 }
             }
 
@@ -782,14 +782,14 @@ public class XMLSchedulingDataProcessor
             {
                 if (dupeJ is null)
                 {
-                    ThrowHelper.ThrowSchedulerException(
+                    Throw.SchedulerException(
                         "A new job defined without any triggers must be durable: " +
                         detail.Key);
                 }
 
                 if (dupeJ.Durable && (await sched.GetTriggersOfJob(detail.Key, cancellationToken).ConfigureAwait(false)).Count == 0)
                 {
-                    ThrowHelper.ThrowSchedulerException(
+                    Throw.SchedulerException(
                         "Can't change existing durable job without triggers to non-durable: " +
                         detail.Key);
                 }
@@ -834,7 +834,7 @@ public class XMLSchedulingDataProcessor
                         }
                         else
                         {
-                            ThrowHelper.ThrowObjectAlreadyExistsException(trigger);
+                            Throw.ObjectAlreadyExistsException(trigger);
                         }
 
                         if (!dupeT.JobKey.Equals(trigger.JobKey))
@@ -901,7 +901,7 @@ public class XMLSchedulingDataProcessor
                 }
                 else
                 {
-                    ThrowHelper.ThrowObjectAlreadyExistsException(trigger);
+                    Throw.ObjectAlreadyExistsException(trigger);
                 }
 
                 if (!dupeT.JobKey.Equals(trigger.JobKey))
@@ -1133,7 +1133,7 @@ public class XMLSchedulingDataProcessor
             }
 
             // not found
-            ThrowHelper.ThrowArgumentException($"Unknown field '{field}'");
+            Throw.ArgumentException($"Unknown field '{field}'");
             return 0;
         }
     }

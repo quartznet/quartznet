@@ -28,12 +28,12 @@ internal sealed class ListenerManagerImpl : IListenerManager
     {
         if (jobListener is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(jobListener));
+            Throw.ArgumentNullException(nameof(jobListener));
         }
 
         if (string.IsNullOrEmpty(jobListener.Name))
         {
-            ThrowHelper.ThrowArgumentException($"{nameof(jobListener.Name)} cannot be null or empty.", nameof(jobListener));
+            Throw.ArgumentException($"{nameof(jobListener.Name)} cannot be null or empty.", nameof(jobListener));
         }
 
         lock (globalJobListenerLock)
@@ -60,12 +60,12 @@ internal sealed class ListenerManagerImpl : IListenerManager
     {
         if (listenerName is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(listenerName));
+            Throw.ArgumentNullException(nameof(listenerName));
         }
 
         if (matcher is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(matcher));
+            Throw.ArgumentNullException(nameof(matcher));
         }
 
         lock (globalJobListenerLock)
@@ -96,12 +96,12 @@ internal sealed class ListenerManagerImpl : IListenerManager
     {
         if (listenerName is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(listenerName));
+            Throw.ArgumentNullException(nameof(listenerName));
         }
 
         if (matcher is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(matcher));
+            Throw.ArgumentNullException(nameof(matcher));
         }
 
         if (globalJobListenersMatchers is null)
@@ -131,7 +131,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
     {
         if (listenerName is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(listenerName));
+            Throw.ArgumentNullException(nameof(listenerName));
         }
 
         if (globalJobListenersMatchers is null)
@@ -154,12 +154,12 @@ internal sealed class ListenerManagerImpl : IListenerManager
     {
         if (listenerName is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(listenerName));
+            Throw.ArgumentNullException(nameof(listenerName));
         }
 
         if (matchers is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(matchers));
+            Throw.ArgumentNullException(nameof(matchers));
         }
 
         lock (globalJobListenerLock)
@@ -188,7 +188,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
     {
         if (name is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(name));
+            Throw.ArgumentNullException(nameof(name));
         }
 
         if (globalJobListeners is null)
@@ -238,7 +238,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
     {
         if (name is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(name));
+            Throw.ArgumentNullException(nameof(name));
         }
 
         lock (globalJobListenerLock)
@@ -246,7 +246,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
             // Avoid initializing globalJobListeners when no job listeners have been added
             if (globalJobListeners is null || !globalJobListeners.TryGetValue(name, out var jobListener))
             {
-                ThrowHelper.ThrowKeyNotFoundException();
+                Throw.KeyNotFoundException();
                 return default;
             }
 
@@ -265,12 +265,12 @@ internal sealed class ListenerManagerImpl : IListenerManager
     {
         if (triggerListener is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(triggerListener));
+            Throw.ArgumentNullException(nameof(triggerListener));
         }
 
         if (string.IsNullOrEmpty(triggerListener.Name))
         {
-            ThrowHelper.ThrowArgumentException($"{nameof(triggerListener.Name)} cannot be empty.", nameof(triggerListener));
+            Throw.ArgumentException($"{nameof(triggerListener.Name)} cannot be empty.", nameof(triggerListener));
         }
 
         lock (globalTriggerListenerLock)
@@ -297,17 +297,17 @@ internal sealed class ListenerManagerImpl : IListenerManager
     {
         if (triggerListener is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(triggerListener));
+            Throw.ArgumentNullException(nameof(triggerListener));
         }
 
         if (matcher is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(matcher));
+            Throw.ArgumentNullException(nameof(matcher));
         }
 
         if (string.IsNullOrEmpty(triggerListener.Name))
         {
-            ThrowHelper.ThrowArgumentException($"{nameof(triggerListener.Name)} cannot be null or empty.", nameof(triggerListener));
+            Throw.ArgumentException($"{nameof(triggerListener.Name)} cannot be null or empty.", nameof(triggerListener));
         }
 
         lock (globalTriggerListenerLock)
@@ -326,12 +326,12 @@ internal sealed class ListenerManagerImpl : IListenerManager
     {
         if (listenerName is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(listenerName));
+            Throw.ArgumentNullException(nameof(listenerName));
         }
 
         if (matcher is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(matcher));
+            Throw.ArgumentNullException(nameof(matcher));
         }
 
         lock (globalTriggerListenerLock)
@@ -362,12 +362,12 @@ internal sealed class ListenerManagerImpl : IListenerManager
     {
         if (listenerName is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(listenerName));
+            Throw.ArgumentNullException(nameof(listenerName));
         }
 
         if (matcher is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(matcher));
+            Throw.ArgumentNullException(nameof(matcher));
         }
 
         if (globalTriggerListenersMatchers is null)
@@ -397,7 +397,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
     {
         if (listenerName is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(listenerName));
+            Throw.ArgumentNullException(nameof(listenerName));
         }
 
         if (globalTriggerListenersMatchers is null)
@@ -420,12 +420,12 @@ internal sealed class ListenerManagerImpl : IListenerManager
     {
         if (listenerName is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(listenerName));
+            Throw.ArgumentNullException(nameof(listenerName));
         }
 
         if (matchers is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(matchers));
+            Throw.ArgumentNullException(nameof(matchers));
         }
 
         lock (globalTriggerListenerLock)
@@ -454,7 +454,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
     {
         if (name is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(name));
+            Throw.ArgumentNullException(nameof(name));
         }
 
         if (globalTriggerListeners is null)
@@ -506,7 +506,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
     {
         if (name is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(name));
+            Throw.ArgumentNullException(nameof(name));
         }
 
         lock (globalTriggerListenerLock)
@@ -514,7 +514,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
             // Avoid initializing globalTriggerListeners when no trigger listeners have been added
             if (globalTriggerListeners is null || !globalTriggerListeners.TryGetValue(name, out var triggerListener))
             {
-                ThrowHelper.ThrowKeyNotFoundException();
+                Throw.KeyNotFoundException();
                 return default;
             }
 

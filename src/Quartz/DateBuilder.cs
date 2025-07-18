@@ -286,7 +286,7 @@ public sealed class DateBuilder
             case IntervalUnit.Year:
                 return date.AddYears(amountToAdd);
             default:
-                ThrowHelper.ThrowArgumentException("Unknown IntervalUnit");
+                Throw.ArgumentException("Unknown IntervalUnit");
                 return default;
         }
     }
@@ -610,7 +610,7 @@ public sealed class DateBuilder
     {
         if (minuteBase < 0 || minuteBase > 59)
         {
-            ThrowHelper.ThrowArgumentException("minuteBase must be >=0 and <= 59");
+            Throw.ArgumentException("minuteBase must be >=0 and <= 59");
         }
 
         DateTimeOffset c = date ?? (timeProvider ?? TimeProvider.System).GetLocalNow();
@@ -651,7 +651,7 @@ public sealed class DateBuilder
     {
         if (secondBase < 0 || secondBase > 59)
         {
-            ThrowHelper.ThrowArgumentException("secondBase must be >=0 and <= 59");
+            Throw.ArgumentException("secondBase must be >=0 and <= 59");
         }
 
         DateTimeOffset c = date ?? (timeProvider ?? TimeProvider.System).GetLocalNow();
@@ -678,7 +678,7 @@ public sealed class DateBuilder
     {
         if (hour is < 0 or > 23)
         {
-            ThrowHelper.ThrowArgumentException("Invalid hour (must be >= 0 and <= 23).");
+            Throw.ArgumentException("Invalid hour (must be >= 0 and <= 23).");
         }
     }
 
@@ -686,7 +686,7 @@ public sealed class DateBuilder
     {
         if (minute is < 0 or > 59)
         {
-            ThrowHelper.ThrowArgumentException("Invalid minute (must be >= 0 and <= 59).");
+            Throw.ArgumentException("Invalid minute (must be >= 0 and <= 59).");
         }
     }
 
@@ -694,7 +694,7 @@ public sealed class DateBuilder
     {
         if (second is < 0 or > 59)
         {
-            ThrowHelper.ThrowArgumentException("Invalid second (must be >= 0 and <= 59).");
+            Throw.ArgumentException("Invalid second (must be >= 0 and <= 59).");
         }
     }
 
@@ -702,7 +702,7 @@ public sealed class DateBuilder
     {
         if (day is < 1 or > 31)
         {
-            ThrowHelper.ThrowArgumentException("Invalid day of month.");
+            Throw.ArgumentException("Invalid day of month.");
         }
     }
 
@@ -710,7 +710,7 @@ public sealed class DateBuilder
     {
         if (month is < 1 or > 12)
         {
-            ThrowHelper.ThrowArgumentException("Invalid month (must be >= 1 and <= 12).");
+            Throw.ArgumentException("Invalid month (must be >= 1 and <= 12).");
         }
     }
 
@@ -718,7 +718,7 @@ public sealed class DateBuilder
     {
         if (year is < 1970 or > 2099)
         {
-            ThrowHelper.ThrowArgumentException("Invalid year (must be >= 1970 and <= 2099).");
+            Throw.ArgumentException("Invalid year (must be >= 1970 and <= 2099).");
         }
     }
 }

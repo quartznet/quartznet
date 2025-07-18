@@ -35,7 +35,7 @@ public abstract class StringMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey
     {
         if (compareTo is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(compareTo), "CompareTo value cannot be null!");
+            Throw.ArgumentNullException(nameof(compareTo), "CompareTo value cannot be null!");
         }
         CompareToValue = compareTo;
         CompareWithOperator = compareWith;

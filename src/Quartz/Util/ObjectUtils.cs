@@ -88,7 +88,7 @@ internal static class ObjectUtils
                 }
             }
 
-            ThrowHelper.ThrowNotSupportedException($"{newValue} is no a supported value for a target of type {requiredType}");
+            Throw.NotSupportedException($"{newValue} is no a supported value for a target of type {requiredType}");
         }
 
         if (requiredType.IsValueType)
@@ -113,13 +113,13 @@ internal static class ObjectUtils
     {
         if (type is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(type), "Cannot instantiate null");
+            Throw.ArgumentNullException(nameof(type), "Cannot instantiate null");
         }
 
         var ci = type.GetConstructor(Type.EmptyTypes);
         if (ci is null)
         {
-            ThrowHelper.ThrowArgumentException("Cannot instantiate type which has no empty constructor", type.Name);
+            Throw.ArgumentException("Cannot instantiate type which has no empty constructor", type.Name);
         }
 
         return ci;
@@ -139,7 +139,7 @@ internal static class ObjectUtils
             }
             catch (Exception nfe)
             {
-                ThrowHelper.ThrowSchedulerConfigException($"Could not parse property '{name}' into correct data type: {nfe.Message}", nfe);
+                Throw.SchedulerConfigException($"Could not parse property '{name}' into correct data type: {nfe.Message}", nfe);
             }
         }
     }
@@ -163,7 +163,7 @@ internal static class ObjectUtils
             }
             catch (Exception nfe)
             {
-                ThrowHelper.ThrowSchedulerConfigException($"Could not parse property '{name}' into correct data type: {nfe.Message}", nfe);
+                Throw.SchedulerConfigException($"Could not parse property '{name}' into correct data type: {nfe.Message}", nfe);
             }
         }
     }
@@ -201,14 +201,14 @@ internal static class ObjectUtils
         if (pi is null)
         {
             // not match from anywhere
-            ThrowHelper.ThrowMemberAccessException($"No writable property '{propertyName}' found");
+            Throw.MemberAccessException($"No writable property '{propertyName}' found");
         }
 
         var mi = pi.GetSetMethod();
 
         if (mi is null)
         {
-            ThrowHelper.ThrowMemberAccessException($"Property '{propertyName}' has no setter");
+            Throw.MemberAccessException($"Property '{propertyName}' has no setter");
         }
 
         if (mi.GetParameters()[0].ParameterType == typeof(TimeSpan))
@@ -246,7 +246,7 @@ internal static class ObjectUtils
             case TimeSpanParseRule.Hours:
                 return TimeSpan.FromHours(longValue);
             default:
-                ThrowHelper.ThrowArgumentOutOfRangeException();
+                Throw.ArgumentOutOfRangeException();
                 return default;
         }
     }

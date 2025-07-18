@@ -59,9 +59,9 @@ public class Key<T> : IComparable<Key<T>>
     public Key(string name, string group)
     {
         if (name is null)
-            ThrowHelper.ThrowArgumentNullException(nameof(name));
+            Throw.ArgumentNullException(nameof(name));
         if (group is null)
-            ThrowHelper.ThrowArgumentNullException(nameof(group));
+            Throw.ArgumentNullException(nameof(group));
 
         this.name = name;
         this.group = group;
@@ -79,7 +79,7 @@ public class Key<T> : IComparable<Key<T>>
         set
         {
             if (value is null)
-                ThrowHelper.ThrowArgumentNullException(nameof(value));
+                Throw.ArgumentNullException(nameof(value));
 
             name = value;
         }
@@ -98,7 +98,7 @@ public class Key<T> : IComparable<Key<T>>
         set
         {
             if (value is null)
-                ThrowHelper.ThrowArgumentNullException(nameof(value));
+                Throw.ArgumentNullException(nameof(value));
 
             group = value;
         }

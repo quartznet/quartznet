@@ -58,7 +58,7 @@ internal static partial class HashHelpers
     public static int GetPrime(int min)
     {
         if (min < 0)
-            ThrowHelper.ThrowArgumentException("Hashtable's capacity overflowed and went negative. Check load factor, capacity and the current size of the table.");
+            Throw.ArgumentException("Hashtable's capacity overflowed and went negative. Check load factor, capacity and the current size of the table.");
 
         for (int i = 0; i < primes.Length; i++)
         {

@@ -67,7 +67,7 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>
     {
         if (cronExpression is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(cronExpression), "cronExpression cannot be null");
+            Throw.ArgumentNullException(nameof(cronExpression), "cronExpression cannot be null");
         }
         this.cronExpression = cronExpression;
     }
@@ -122,7 +122,7 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>
         catch (FormatException e)
         {
             // all methods of construction ensure the expression is valid by this point...
-            ThrowHelper.ThrowFormatException("CronExpression '" + presumedValidCronExpression + "' is invalid, which should not be possible, please report bug to Quartz developers.", e);
+            Throw.FormatException("CronExpression '" + presumedValidCronExpression + "' is invalid, which should not be possible, please report bug to Quartz developers.", e);
             return default;
         }
     }
@@ -171,7 +171,7 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>
     {
         if (daysOfWeek is null || daysOfWeek.Length == 0)
         {
-            ThrowHelper.ThrowArgumentException("You must specify at least one day of week.");
+            Throw.ArgumentException("You must specify at least one day of week.");
         }
 
         DateBuilder.ValidateHour(hour);

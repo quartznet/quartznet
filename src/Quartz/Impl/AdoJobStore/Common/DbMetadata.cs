@@ -48,14 +48,14 @@ public sealed class DbMetadata
             // not inited yet
             if (ParameterDbType is null || ParameterType is null)
             {
-                ThrowHelper.ThrowArgumentException($"Couldn't parse parameter db type for database type '{ProductName}'");
+                Throw.ArgumentException($"Couldn't parse parameter db type for database type '{ProductName}'");
             }
 
             dbBinaryType = (Enum) Enum.Parse(ParameterDbType, dbBinaryTypeName);
             ParameterDbTypeProperty = ParameterType.GetProperty(parameterDbTypePropertyName)!;
             if (ParameterDbTypeProperty is null)
             {
-                ThrowHelper.ThrowArgumentException($"Couldn't parse parameter db type for database type '{ProductName}'");
+                Throw.ArgumentException($"Couldn't parse parameter db type for database type '{ProductName}'");
             }
         }
     }

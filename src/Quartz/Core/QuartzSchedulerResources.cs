@@ -66,7 +66,7 @@ public sealed class QuartzSchedulerResources
         {
             if (string.IsNullOrWhiteSpace(value))
             {
-                ThrowHelper.ThrowArgumentException("Scheduler name cannot be empty.");
+                Throw.ArgumentException("Scheduler name cannot be empty.");
             }
 
             name = value;
@@ -92,7 +92,7 @@ public sealed class QuartzSchedulerResources
         {
             if (string.IsNullOrWhiteSpace(value))
             {
-                ThrowHelper.ThrowArgumentException("Scheduler instanceId cannot be empty.");
+                Throw.ArgumentException("Scheduler instanceId cannot be empty.");
             }
 
             instanceId = value;
@@ -113,7 +113,7 @@ public sealed class QuartzSchedulerResources
         {
             if (string.IsNullOrWhiteSpace(value))
             {
-                ThrowHelper.ThrowArgumentException("Scheduler thread name cannot be empty.");
+                Throw.ArgumentException("Scheduler thread name cannot be empty.");
             }
 
             threadName = value;
@@ -134,7 +134,7 @@ public sealed class QuartzSchedulerResources
         {
             if (value is null)
             {
-                ThrowHelper.ThrowArgumentException("ThreadPool cannot be null.");
+                Throw.ArgumentException("ThreadPool cannot be null.");
             }
             threadPool = value;
         }
@@ -154,7 +154,7 @@ public sealed class QuartzSchedulerResources
         {
             if (value is null)
             {
-                ThrowHelper.ThrowArgumentException("JobStore cannot be null.");
+                Throw.ArgumentException("JobStore cannot be null.");
             }
             jobStore = value;
         }
@@ -174,7 +174,7 @@ public sealed class QuartzSchedulerResources
         {
             if (value is null)
             {
-                ThrowHelper.ThrowArgumentException("JobRunShellFactory cannot be null.");
+                Throw.ArgumentException("JobRunShellFactory cannot be null.");
             }
             jobRunShellFactory = value;
         }
@@ -243,7 +243,7 @@ public sealed class QuartzSchedulerResources
         {
             if (value < TimeSpan.Zero)
             {
-                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(value), $"Cannot be less than {nameof(TimeSpan)}.{nameof(TimeSpan.Zero)}.");
+                Throw.ArgumentOutOfRangeException(nameof(value), $"Cannot be less than {nameof(TimeSpan)}.{nameof(TimeSpan.Zero)}.");
             }
 
             _idleWaitTime = value;
@@ -265,7 +265,7 @@ public sealed class QuartzSchedulerResources
         {
             if (value < TimeSpan.Zero)
             {
-                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(value), $"Cannot be less than {nameof(TimeSpan)}.{nameof(TimeSpan.Zero)}.");
+                Throw.ArgumentOutOfRangeException(nameof(value), $"Cannot be less than {nameof(TimeSpan)}.{nameof(TimeSpan.Zero)}.");
             }
 
             _batchTimeWindow = value;
@@ -287,7 +287,7 @@ public sealed class QuartzSchedulerResources
         {
             if (value < 1)
             {
-                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(value), $"Cannot be less than 1.");
+                Throw.ArgumentOutOfRangeException(nameof(value), $"Cannot be less than 1.");
             }
 
             _maxBatchSize = value;

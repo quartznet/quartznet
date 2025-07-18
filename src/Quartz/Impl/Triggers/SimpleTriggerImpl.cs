@@ -225,7 +225,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
         {
             if (value < 0 && value != RepeatIndefinitely)
             {
-                ThrowHelper.ThrowArgumentException("Repeat count must be >= 0, use the constant RepeatIndefinitely for infinite.");
+                Throw.ArgumentException("Repeat count must be >= 0, use the constant RepeatIndefinitely for infinite.");
             }
 
             repeatCount = value;
@@ -243,7 +243,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
         {
             if (value < TimeSpan.Zero)
             {
-                ThrowHelper.ThrowArgumentException("Repeat interval must be >= 0");
+                Throw.ArgumentException("Repeat interval must be >= 0");
             }
 
             repeatInterval = value;
@@ -759,7 +759,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
 
         if (repeatCount != 0 && repeatInterval.Ticks < 1)
         {
-            ThrowHelper.ThrowSchedulerException("Repeat Interval cannot be zero.");
+            Throw.SchedulerException("Repeat Interval cannot be zero.");
         }
     }
 }

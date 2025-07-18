@@ -115,7 +115,7 @@ public class UpdateLockRowSemaphore : DBSemaphore
         }
         if (lastFailure is not null)
         {
-            ThrowHelper.ThrowLockException("Failure obtaining db row lock: " + lastFailure.Message, lastFailure);
+            Throw.LockException("Failure obtaining db row lock: " + lastFailure.Message, lastFailure);
         }
     }
 
@@ -146,7 +146,7 @@ public class UpdateLockRowSemaphore : DBSemaphore
     {
         if (sql is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(sql));
+            Throw.ArgumentNullException(nameof(sql));
         }
 
         if (logger.IsEnabled(LogLevel.Debug))
@@ -160,7 +160,7 @@ public class UpdateLockRowSemaphore : DBSemaphore
 
         if (await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) != 1)
         {
-            ThrowHelper.ThrowInvalidOperationException(
+            Throw.InvalidOperationException(
                 AdoJobStoreUtil.ReplaceTablePrefix("No row exists, and one could not be inserted in table " + TablePrefixSubst + TableLocks + " for lock named: " + lockName, TablePrefix));
         }
     }

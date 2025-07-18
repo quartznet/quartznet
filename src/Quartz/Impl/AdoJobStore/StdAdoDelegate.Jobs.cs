@@ -270,7 +270,7 @@ public partial class StdAdoDelegate
         }
         catch (SerializationException e)
         {
-            ThrowHelper.ThrowSerializationException($"Unable to serialize JobDataMap for insertion into database because the value of property '{GetKeyOfNonSerializableValue(data)}' is not serializable: {e.Message}");
+            Throw.SerializationException($"Unable to serialize JobDataMap for insertion into database because the value of property '{GetKeyOfNonSerializableValue(data)}' is not serializable: {e.Message}");
             return default;
         }
     }

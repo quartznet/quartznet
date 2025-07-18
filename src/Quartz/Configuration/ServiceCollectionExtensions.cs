@@ -116,7 +116,7 @@ public static class ServiceCollectionExtensions
     {
         if (!typeof(IJob).IsAssignableFrom(jobType))
         {
-            ThrowHelper.ThrowArgumentException("jobType must implement the IJob interface", nameof(jobType));
+            Throw.ArgumentException("jobType must implement the IJob interface", nameof(jobType));
         }
         var c = JobBuilder.Create();
         if (jobKey is not null)
@@ -148,7 +148,7 @@ public static class ServiceCollectionExtensions
 
         if (trigger.JobKey is null)
         {
-            ThrowHelper.ThrowInvalidOperationException("Trigger hasn't been associated with a job");
+            Throw.InvalidOperationException("Trigger hasn't been associated with a job");
         }
 
         options.Services.Configure<QuartzOptions>(x =>
@@ -195,7 +195,7 @@ public static class ServiceCollectionExtensions
 
         if (t.JobKey is null || !t.JobKey.Equals(jobDetail.Key))
         {
-            ThrowHelper.ThrowInvalidOperationException("Trigger doesn't refer to job being scheduled");
+            Throw.InvalidOperationException("Trigger doesn't refer to job being scheduled");
         }
 
         options.Services.Configure<QuartzOptions>(quartzOptions =>

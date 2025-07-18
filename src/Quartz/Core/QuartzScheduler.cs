@@ -226,7 +226,7 @@ public sealed class QuartzScheduler
         {
             if (value is null)
             {
-                ThrowHelper.ThrowArgumentException("JobFactory cannot be set to null!");
+                Throw.ArgumentException("JobFactory cannot be set to null!");
             }
 
             logger.LogInformation("JobFactory set to: {Value}", value);
@@ -295,7 +295,7 @@ public sealed class QuartzScheduler
     {
         if (shuttingDown || closed)
         {
-            ThrowHelper.ThrowSchedulerException("The Scheduler cannot be restarted after Shutdown() has been called.");
+            Throw.SchedulerException("The Scheduler cannot be restarted after Shutdown() has been called.");
         }
 
         await NotifySchedulerListenersStarting(cancellationToken).ConfigureAwait(false);
@@ -324,7 +324,7 @@ public sealed class QuartzScheduler
     {
         if (shuttingDown || closed)
         {
-            ThrowHelper.ThrowSchedulerException(
+            Throw.SchedulerException(
                 "The Scheduler cannot be restarted after Shutdown() has been called.");
         }
 #pragma warning disable MA0134
@@ -468,7 +468,7 @@ public sealed class QuartzScheduler
     {
         if (IsShutdown)
         {
-            ThrowHelper.ThrowSchedulerException("The Scheduler has been Shutdown.");
+            Throw.SchedulerException("The Scheduler has been Shutdown.");
         }
 
         // other conditions to check (?)
@@ -492,22 +492,22 @@ public sealed class QuartzScheduler
 
         if (jobDetail is null)
         {
-            ThrowHelper.ThrowSchedulerException("JobDetail cannot be null");
+            Throw.SchedulerException("JobDetail cannot be null");
         }
 
         if (trigger is null)
         {
-            ThrowHelper.ThrowSchedulerException("Trigger cannot be null");
+            Throw.SchedulerException("Trigger cannot be null");
         }
 
         if (jobDetail.Key is null)
         {
-            ThrowHelper.ThrowSchedulerException("Job's key cannot be null");
+            Throw.SchedulerException("Job's key cannot be null");
         }
 
         if (jobDetail.JobType is null)
         {
-            ThrowHelper.ThrowSchedulerException("Job's class cannot be null");
+            Throw.SchedulerException("Job's class cannot be null");
         }
 
         IOperableTrigger trig = (IOperableTrigger) trigger;
@@ -518,7 +518,7 @@ public sealed class QuartzScheduler
         }
         else if (!trigger.JobKey.Equals(jobDetail.Key))
         {
-            ThrowHelper.ThrowSchedulerException("Trigger does not reference given job!");
+            Throw.SchedulerException("Trigger does not reference given job!");
         }
 
         trig.Validate();
@@ -529,7 +529,7 @@ public sealed class QuartzScheduler
             cal = await resources.JobStore.RetrieveCalendar(trigger.CalendarName, cancellationToken).ConfigureAwait(false);
             if (cal is null)
             {
-                ThrowHelper.ThrowSchedulerException($"Calendar not found: {trigger.CalendarName}");
+                Throw.SchedulerException($"Calendar not found: {trigger.CalendarName}");
             }
         }
 
@@ -538,7 +538,7 @@ public sealed class QuartzScheduler
         if (!ft.HasValue)
         {
             var message = $"Based on configured schedule, the given trigger '{trigger.Key}' will never fire.";
-            ThrowHelper.ThrowSchedulerException(message);
+            Throw.SchedulerException(message);
         }
 
         await resources.JobStore.StoreJobAndTrigger(jobDetail, trig, cancellationToken).ConfigureAwait(false);
@@ -561,7 +561,7 @@ public sealed class QuartzScheduler
 
         if (trigger is null)
         {
-            ThrowHelper.ThrowSchedulerException("Trigger cannot be null");
+            Throw.SchedulerException("Trigger cannot be null");
         }
 
         IOperableTrigger trig = (IOperableTrigger) trigger;
@@ -573,7 +573,7 @@ public sealed class QuartzScheduler
             cal = await resources.JobStore.RetrieveCalendar(trigger.CalendarName, cancellationToken).ConfigureAwait(false);
             if (cal is null)
             {
-                ThrowHelper.ThrowSchedulerException($"Calendar not found: {trigger.CalendarName}");
+                Throw.SchedulerException($"Calendar not found: {trigger.CalendarName}");
             }
         }
 
@@ -582,7 +582,7 @@ public sealed class QuartzScheduler
         if (!ft.HasValue)
         {
             var message = $"Based on configured schedule, the given trigger '{trigger.Key}' will never fire.";
-            ThrowHelper.ThrowSchedulerException(message);
+            Throw.SchedulerException(message);
         }
 
         await resources.JobStore.StoreTrigger(trig, false, cancellationToken).ConfigureAwait(false);
@@ -620,7 +620,7 @@ public sealed class QuartzScheduler
 
         if (!storeNonDurableWhileAwaitingScheduling && !jobDetail.Durable)
         {
-            ThrowHelper.ThrowSchedulerException("Jobs added with no trigger must be durable.");
+            Throw.SchedulerException("Jobs added with no trigger must be durable.");
         }
 
         await resources.JobStore.StoreJob(jobDetail, replace, cancellationToken).ConfigureAwait(false);
@@ -649,7 +649,7 @@ public sealed class QuartzScheduler
                     .Append("Unable to unschedule trigger [")
                     .Append(trigger.Key).Append("] while deleting job [")
                     .Append(jobKey).Append(']');
-                ThrowHelper.ThrowSchedulerException(sb.ToString());
+                Throw.SchedulerException(sb.ToString());
             }
             result = true;
         }
@@ -712,7 +712,7 @@ public sealed class QuartzScheduler
                     if (cal is null)
                     {
                         var message = $"Calendar '{trigger.CalendarName}' not found for trigger: {trigger.Key}";
-                        ThrowHelper.ThrowSchedulerException(message);
+                        Throw.SchedulerException(message);
                     }
                 }
 
@@ -721,7 +721,7 @@ public sealed class QuartzScheduler
                 if (ft is null)
                 {
                     var message = $"Based on configured schedule, the given trigger '{trigger.Key}' will never fire.";
-                    ThrowHelper.ThrowSchedulerException(message);
+                    Throw.SchedulerException(message);
                 }
             }
         }
@@ -809,11 +809,11 @@ public sealed class QuartzScheduler
 
         if (triggerKey is null)
         {
-            ThrowHelper.ThrowArgumentException("triggerKey cannot be null");
+            Throw.ArgumentException("triggerKey cannot be null");
         }
         if (newTrigger is null)
         {
-            ThrowHelper.ThrowArgumentException("newTrigger cannot be null");
+            Throw.ArgumentException("newTrigger cannot be null");
         }
 
         var trigger = (IOperableTrigger) newTrigger;
@@ -847,7 +847,7 @@ public sealed class QuartzScheduler
         if (!ft.HasValue)
         {
             var message = $"Based on configured schedule, the given trigger '{trigger.Key}' will never fire.";
-            ThrowHelper.ThrowSchedulerException(message);
+            Throw.SchedulerException(message);
         }
 
         if (await resources.JobStore.ReplaceTrigger(triggerKey, trigger, cancellationToken).ConfigureAwait(false))

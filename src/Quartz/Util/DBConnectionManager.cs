@@ -106,12 +106,12 @@ public sealed class DBConnectionManager : IDbConnectionManager
     {
         if (string.IsNullOrEmpty(dataSourceName))
         {
-            ThrowHelper.ThrowArgumentException("DataSource name cannot be null or empty", nameof(dataSourceName));
+            Throw.ArgumentException("DataSource name cannot be null or empty", nameof(dataSourceName));
         }
 
         if (!providers.TryGetValue(dataSourceName, out IDbProvider? provider))
         {
-            ThrowHelper.ThrowArgumentException($"There is no DataSource named '{dataSourceName}'", nameof(dataSourceName));
+            Throw.ArgumentException($"There is no DataSource named '{dataSourceName}'", nameof(dataSourceName));
         }
 
         return provider;

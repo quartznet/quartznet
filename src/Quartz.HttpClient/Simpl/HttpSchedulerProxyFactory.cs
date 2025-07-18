@@ -24,7 +24,7 @@ public class HttpSchedulerProxyFactory : IRemotableSchedulerProxyFactory
     {
         if (string.IsNullOrWhiteSpace(Address))
         {
-            ThrowHelper.ThrowInvalidOperationException("Address hasn't been configured");
+            Throw.InvalidOperationException("Address hasn't been configured");
         }
 
         var scheduler = new HttpScheduler(schedulerName, CreateHttpClient(Address!), CreateJsonSerializerOptions());

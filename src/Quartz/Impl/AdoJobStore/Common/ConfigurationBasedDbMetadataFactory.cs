@@ -21,12 +21,12 @@ internal sealed class ConfigurationBasedDbMetadataFactory : DbMetadataFactory
     {
         if (string.IsNullOrEmpty(propertyGroupName))
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(propertyGroupName));
+            Throw.ArgumentNullException(nameof(propertyGroupName));
         }
 
         if (properties is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(properties));
+            Throw.ArgumentNullException(nameof(properties));
         }
 
         this.properties = properties;
@@ -74,7 +74,7 @@ internal sealed class ConfigurationBasedDbMetadataFactory : DbMetadataFactory
         }
         catch (Exception ex)
         {
-            ThrowHelper.ThrowArgumentException("Error while reading metadata information for provider '" + providerName + "'", nameof(providerName), ex);
+            Throw.ArgumentException("Error while reading metadata information for provider '" + providerName + "'", nameof(providerName), ex);
             return default!;
         }
     }

@@ -62,7 +62,7 @@ public class OracleDelegate : StdAdoDelegate
             return Convert.ToInt32(columnValue) == 1;
         }
 
-        ThrowHelper.ThrowArgumentException("Value must be non-null.");
+        Throw.ArgumentException("Value must be non-null.");
         return false;
     }
 }

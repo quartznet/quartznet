@@ -14,7 +14,7 @@ internal sealed class IDictionaryDebugView<K, V> where K : notnull
     {
         if (dictionary is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(dictionary));
+            Throw.ArgumentNullException(nameof(dictionary));
         }
         _dict = dictionary;
     }
@@ -39,7 +39,7 @@ internal sealed class DictionaryKeyCollectionDebugView<TKey, TValue>
     {
         if (collection is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(collection));
+            Throw.ArgumentNullException(nameof(collection));
         }
         _collection = collection;
     }
@@ -64,7 +64,7 @@ internal sealed class DictionaryValueCollectionDebugView<TKey, TValue>
     {
         if (collection is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(collection));
+            Throw.ArgumentNullException(nameof(collection));
         }
         _collection = collection;
     }

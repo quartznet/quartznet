@@ -86,7 +86,7 @@ public sealed class WeeklyCalendar : BaseCalendar
                 excludeAll = (bool) info.GetValue("excludeAll", typeof(bool))!;
                 break;
             default:
-                ThrowHelper.ThrowNotSupportedException("Unknown serialization version");
+                Throw.NotSupportedException("Unknown serialization version");
                 break;
         }
     }

@@ -77,7 +77,7 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
             }
             catch (Exception e)
             {
-                ThrowHelper.ThrowJobPersistenceException("Couldn't commit ADO.NET transaction. " + e.Message, e);
+                Throw.JobPersistenceException("Couldn't commit ADO.NET transaction. " + e.Message, e);
             }
         }
     }
@@ -168,7 +168,7 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
     {
         if (transaction is not null && transaction.Connection is null)
         {
-            ThrowHelper.ThrowInvalidOperationException("Transaction not connected, or was disconnected");
+            Throw.InvalidOperationException("Transaction not connected, or was disconnected");
         }
     }
 }

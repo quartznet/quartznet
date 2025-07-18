@@ -111,7 +111,7 @@ public sealed class ZeroSizeThreadPool : IThreadPool
     /// </remarks>
     public bool RunInThread(Func<Task> runnable)
     {
-        ThrowHelper.ThrowNotSupportedException("This ThreadPool should not be used on Scheduler instances that are started.");
+        Throw.NotSupportedException("This ThreadPool should not be used on Scheduler instances that are started.");
         return false;
     }
 
@@ -130,7 +130,7 @@ public sealed class ZeroSizeThreadPool : IThreadPool
     /// </remarks>
     public int BlockForAvailableThreads()
     {
-        ThrowHelper.ThrowNotSupportedException("This ThreadPool should not be used on Scheduler instances that are started.");
+        Throw.NotSupportedException("This ThreadPool should not be used on Scheduler instances that are started.");
         return default;
     }
 }

@@ -55,7 +55,7 @@ public sealed class BroadcastJobListener : IJobListener
     {
         if (name is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(name), "Listener name cannot be null!");
+            Throw.ArgumentNullException(nameof(name), "Listener name cannot be null!");
         }
         Name = name;
         listeners = new List<IJobListener>();

@@ -41,7 +41,7 @@ internal static class QuartzRandom
     {
         if (maxValue <= minValue)
         {
-            ThrowHelper.ThrowArgumentOutOfRangeException(nameof(maxValue), "maxValue must be larger then minValue");
+            Throw.ArgumentOutOfRangeException(nameof(maxValue), "maxValue must be larger then minValue");
         }
 
         long range = (long) maxValue - minValue;

@@ -274,13 +274,13 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
         {
             if (value == DateTimeOffset.MinValue)
             {
-                ThrowHelper.ThrowArgumentException("Start time cannot be DateTimeOffset.MinValue");
+                Throw.ArgumentException("Start time cannot be DateTimeOffset.MinValue");
             }
 
             DateTimeOffset? eTime = EndTimeUtc;
             if (eTime is not null && eTime < value)
             {
-                ThrowHelper.ThrowArgumentException("End time cannot be before start time");
+                Throw.ArgumentException("End time cannot be before start time");
             }
 
             startTimeUtc = value;
@@ -299,7 +299,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
             DateTimeOffset sTime = StartTimeUtc;
             if (value is not null && sTime > value)
             {
-                ThrowHelper.ThrowArgumentException("End time cannot be before start time");
+                Throw.ArgumentException("End time cannot be before start time");
             }
 
             endTimeUtc = value;
@@ -317,7 +317,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
         {
             if (value < 0 && value != RepeatIndefinitely)
             {
-                ThrowHelper.ThrowArgumentException("Repeat count must be >= 0, use the constant RepeatIndefinitely for infinite.");
+                Throw.ArgumentException("Repeat count must be >= 0, use the constant RepeatIndefinitely for infinite.");
             }
 
             repeatCount = value;
@@ -340,7 +340,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
                   value == IntervalUnit.Minute ||
                   value == IntervalUnit.Hour))
             {
-                ThrowHelper.ThrowArgumentException("Invalid repeat IntervalUnit (must be Second, Minute or Hour)");
+                Throw.ArgumentException("Invalid repeat IntervalUnit (must be Second, Minute or Hour)");
             }
 
             repeatIntervalUnit = value;
@@ -359,7 +359,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
         {
             if (value < 1)
             {
-                ThrowHelper.ThrowArgumentException("Repeat interval must be >= 1");
+                Throw.ArgumentException("Repeat interval must be >= 1");
             }
 
             repeatInterval = value;
@@ -862,26 +862,26 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
 
         if (repeatIntervalUnit != IntervalUnit.Second && repeatIntervalUnit != IntervalUnit.Minute && repeatIntervalUnit != IntervalUnit.Hour)
         {
-            ThrowHelper.ThrowSchedulerException("Invalid repeat IntervalUnit (must be Second, Minute or Hour).");
+            Throw.SchedulerException("Invalid repeat IntervalUnit (must be Second, Minute or Hour).");
         }
         if (repeatInterval < 1)
         {
-            ThrowHelper.ThrowSchedulerException("Repeat Interval cannot be zero.");
+            Throw.SchedulerException("Repeat Interval cannot be zero.");
         }
 
         // Ensure interval does not exceed 24 hours
         const long SecondsInHour = 24 * 60 * 60L;
         if (repeatIntervalUnit == IntervalUnit.Second && repeatInterval > SecondsInHour)
         {
-            ThrowHelper.ThrowSchedulerException("repeatInterval can not exceed 24 hours (" + SecondsInHour + " seconds). Given " + repeatInterval);
+            Throw.SchedulerException("repeatInterval can not exceed 24 hours (" + SecondsInHour + " seconds). Given " + repeatInterval);
         }
         if (repeatIntervalUnit == IntervalUnit.Minute && repeatInterval > SecondsInHour / 60L)
         {
-            ThrowHelper.ThrowSchedulerException("repeatInterval can not exceed 24 hours (" + SecondsInHour / 60L + " minutes). Given " + repeatInterval);
+            Throw.SchedulerException("repeatInterval can not exceed 24 hours (" + SecondsInHour / 60L + " minutes). Given " + repeatInterval);
         }
         if (repeatIntervalUnit == IntervalUnit.Hour && repeatInterval > 24)
         {
-            ThrowHelper.ThrowSchedulerException("repeatInterval can not exceed 24 hours. Given " + repeatInterval + " hours.");
+            Throw.SchedulerException("repeatInterval can not exceed 24 hours. Given " + repeatInterval + " hours.");
         }
 
         // Ensure timeOfDay is in order.
@@ -890,7 +890,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
             && !StartTimeOfDay.Equals(EndTimeOfDay)
             && !StartTimeOfDay.Before(EndTimeOfDay))
         {
-            ThrowHelper.ThrowSchedulerException($"StartTimeOfDay {startTimeOfDay} should not come after endTimeOfDay {endTimeOfDay}");
+            Throw.SchedulerException($"StartTimeOfDay {startTimeOfDay} should not come after endTimeOfDay {endTimeOfDay}");
         }
     }
 
@@ -916,11 +916,11 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
         {
             if (value is null || value.Count == 0)
             {
-                ThrowHelper.ThrowArgumentException("DaysOfWeek set must be a set that contains at least one day.");
+                Throw.ArgumentException("DaysOfWeek set must be a set that contains at least one day.");
             }
             if (value.Count == 0)
             {
-                ThrowHelper.ThrowArgumentException("DaysOfWeek set must contain at least one day.");
+                Throw.ArgumentException("DaysOfWeek set must contain at least one day.");
             }
 
             daysOfWeek = new HashSet<DayOfWeek>(value);
@@ -944,13 +944,13 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
         {
             if (value is null)
             {
-                ThrowHelper.ThrowArgumentException("Start time of day cannot be null");
+                Throw.ArgumentException("Start time of day cannot be null");
             }
 
             TimeOfDay eTime = EndTimeOfDay;
             if (eTime is not null && eTime.Before(value))
             {
-                ThrowHelper.ThrowArgumentException("End time of day cannot be before start time of day");
+                Throw.ArgumentException("End time of day cannot be before start time of day");
             }
 
             startTimeOfDay = value;
@@ -967,13 +967,13 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
         {
             if (value is null)
             {
-                ThrowHelper.ThrowArgumentException("End time of day cannot be null");
+                Throw.ArgumentException("End time of day cannot be null");
             }
 
             TimeOfDay sTime = StartTimeOfDay;
             if (sTime is not null && value.Before(sTime))
             {
-                ThrowHelper.ThrowArgumentException("End time of day cannot be before start time of day");
+                Throw.ArgumentException("End time of day cannot be before start time of day");
             }
             endTimeOfDay = value;
         }

@@ -277,7 +277,7 @@ public sealed class CronExpression : ISerializable
     {
         if (cronExpression is null)
         {
-            ThrowHelper.ThrowArgumentException("cronExpression cannot be null", nameof(cronExpression));
+            Throw.ArgumentException("cronExpression cannot be null", nameof(cronExpression));
         }
 
         CronExpressionString = CultureInfo.InvariantCulture.TextInfo.ToUpper(cronExpression).Trim();
@@ -318,7 +318,7 @@ public sealed class CronExpression : ISerializable
 
                 break;
             default:
-                ThrowHelper.ThrowNotSupportedException($"Unknown serialization version {version}");
+                Throw.NotSupportedException($"Unknown serialization version {version}");
                 break;
         }
 
@@ -474,7 +474,7 @@ public sealed class CronExpression : ISerializable
 
                 if (++count > 7)
                 {
-                    ThrowHelper.ThrowFormatException("Cron expression has too many fields.");
+                    Throw.FormatException("Cron expression has too many fields.");
                 }
 
                 if (exprOn > CronExpressionConstants.Year)
@@ -487,19 +487,19 @@ public sealed class CronExpression : ISerializable
                 {
                     if (expr.IndexOf('L') != -1 && expr.Length > 1 && expr.IndexOf(',') >= 0 && expr.Slice(expr.IndexOf('L') + 1).IndexOf('L') != -1)
                     {
-                        ThrowHelper.ThrowFormatException("Support for specifying 'L' with other days of the month is limited to one instance of L");
+                        Throw.FormatException("Support for specifying 'L' with other days of the month is limited to one instance of L");
                     }
                 }
 
                 // throw an exception if L is used with other days of the week
                 if (exprOn == CronExpressionConstants.DayOfWeek && expr.IndexOf('L') != -1 && expr.Length > 1 && expr.IndexOf(',') >= 0)
                 {
-                    ThrowHelper.ThrowFormatException("Support for specifying 'L' with other days of the week is not implemented");
+                    Throw.FormatException("Support for specifying 'L' with other days of the week is not implemented");
                 }
 
                 if (exprOn == CronExpressionConstants.DayOfWeek && expr.IndexOf('#') != -1 && expr.Slice(expr.IndexOf('#') + 1 + 1).IndexOf('#') != -1)
                 {
-                    ThrowHelper.ThrowFormatException("Support for specifying multiple \"nth\" days is not implemented.");
+                    Throw.FormatException("Support for specifying multiple \"nth\" days is not implemented.");
                 }
 
                 if (expr.IndexOf(',') != -1)
@@ -520,7 +520,7 @@ public sealed class CronExpression : ISerializable
 
             if (exprOn <= CronExpressionConstants.DayOfWeek)
             {
-                ThrowHelper.ThrowFormatException("Unexpected end of expression.");
+                Throw.FormatException("Unexpected end of expression.");
             }
 
             if (exprOn <= CronExpressionConstants.Year)
@@ -534,7 +534,7 @@ public sealed class CronExpression : ISerializable
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowFormatException($"Illegal cron expression format ({e.Message})", e);
+            Throw.FormatException($"Illegal cron expression format ({e.Message})", e);
         }
     }
 
@@ -554,12 +554,12 @@ public sealed class CronExpression : ISerializable
         i++;
         if (i + 1 <= s.Length && !char.IsWhiteSpace(s[i]))
         {
-            ThrowHelper.ThrowFormatException("Illegal character after '?': " + s[i]);
+            Throw.FormatException("Illegal character after '?': " + s[i]);
         }
 
         if (type != CronExpressionConstants.DayOfWeek && type != CronExpressionConstants.DayOfMonth)
         {
-            ThrowHelper.ThrowFormatException("'?' can only be specified for Day-of-Month or Day-of-Week.");
+            Throw.FormatException("'?' can only be specified for Day-of-Month or Day-of-Week.");
         }
 
         if (type == CronExpressionConstants.DayOfWeek && !lastDayOfMonth)
@@ -567,7 +567,7 @@ public sealed class CronExpression : ISerializable
             var val = daysOfMonth.LastOrDefault();
             if (val == CronExpressionConstants.NoSpec)
             {
-                ThrowHelper.ThrowFormatException("'?' can only be specified for Day-of-Month -OR- Day-of-Week.");
+                Throw.FormatException("'?' can only be specified for Day-of-Month -OR- Day-of-Week.");
             }
         }
 
@@ -587,7 +587,7 @@ public sealed class CronExpression : ISerializable
 
         if (c == '/' && (i + 1 >= s.Length || char.IsWhiteSpace(s[i + 1])))
         {
-            ThrowHelper.ThrowFormatException("'/' must be followed by an integer.");
+            Throw.FormatException("'/' must be followed by an integer.");
         }
 
         if (startsWithAsterisk)
@@ -602,7 +602,7 @@ public sealed class CronExpression : ISerializable
             i++;
             if (i >= s.Length)
             {
-                ThrowHelper.ThrowFormatException("Unexpected end of string.");
+                Throw.FormatException("Unexpected end of string.");
             }
 
             incr = CronExpression.GetNumericValue(s, i);
@@ -612,7 +612,7 @@ public sealed class CronExpression : ISerializable
         {
             if (startsWithAsterisk)
             {
-                ThrowHelper.ThrowFormatException("Illegal characters after asterisk: " + s.ToString());
+                Throw.FormatException("Illegal characters after asterisk: " + s.ToString());
             }
 
             incr = 1;
@@ -637,7 +637,7 @@ public sealed class CronExpression : ISerializable
                         (lastDayOffset, i) = GetValue(0, s, i + 1);
                         if (lastDayOffset > 30)
                         {
-                            ThrowHelper.ThrowFormatException("Offset from last day must be <= 30");
+                            Throw.FormatException("Offset from last day must be <= 30");
                         }
                     }
 
@@ -668,7 +668,7 @@ public sealed class CronExpression : ISerializable
                 AddToSet(7, 7, 0, type);
                 break;
             default:
-                ThrowHelper.ThrowFormatException($"'L' option is not valid here. (pos={i})");
+                Throw.FormatException($"'L' option is not valid here. (pos={i})");
                 break;
         }
     }
@@ -712,7 +712,7 @@ public sealed class CronExpression : ISerializable
             sval = CronExpression.GetMonthNumber(sub) + 1;
             if (sval <= 0)
             {
-                ThrowHelper.ThrowFormatException($"Invalid Month value: '{sub.ToString()}'");
+                Throw.FormatException($"Invalid Month value: '{sub.ToString()}'");
             }
 
             if (s.Length > i + 3)
@@ -724,7 +724,7 @@ public sealed class CronExpression : ISerializable
                     eval = GetMonthNumber(sub) + 1;
                     if (eval <= 0)
                     {
-                        ThrowHelper.ThrowFormatException($"Invalid Month value: '{sub.ToString()}'");
+                        Throw.FormatException($"Invalid Month value: '{sub.ToString()}'");
                     }
                 }
             }
@@ -734,7 +734,7 @@ public sealed class CronExpression : ISerializable
             sval = GetDayOfWeekNumber(sub);
             if (sval < 0)
             {
-                ThrowHelper.ThrowFormatException($"Invalid Day-of-Week value: '{sub.ToString()}'");
+                Throw.FormatException($"Invalid Day-of-Week value: '{sub.ToString()}'");
             }
 
             if (s.Length > i + 3)
@@ -748,7 +748,7 @@ public sealed class CronExpression : ISerializable
                         eval = GetDayOfWeekNumber(sub);
                         if (eval < 0)
                         {
-                            ThrowHelper.ThrowFormatException($"Invalid Day-of-Week value: '{sub.ToString()}'");
+                            Throw.FormatException($"Invalid Day-of-Week value: '{sub.ToString()}'");
                         }
 
                         break;
@@ -759,12 +759,12 @@ public sealed class CronExpression : ISerializable
                             nthdayOfWeek = ToInt32(s.Slice(i));
                             if (nthdayOfWeek is < 1 or > 5)
                             {
-                                ThrowHelper.ThrowFormatException("nthdayOfWeek is < 1 or > 5");
+                                Throw.FormatException("nthdayOfWeek is < 1 or > 5");
                             }
                         }
                         catch (Exception)
                         {
-                            ThrowHelper.ThrowFormatException("A numeric value between 1 and 5 must follow the '#' option");
+                            Throw.FormatException("A numeric value between 1 and 5 must follow the '#' option");
                         }
 
                         break;
@@ -775,12 +775,12 @@ public sealed class CronExpression : ISerializable
                             everyNthWeek = ToInt32(s.Slice(i));
                             if (everyNthWeek is < 1 or > 5)
                             {
-                                ThrowHelper.ThrowFormatException("everyNthWeek is < 1 or > 5");
+                                Throw.FormatException("everyNthWeek is < 1 or > 5");
                             }
                         }
                         catch (Exception)
                         {
-                            ThrowHelper.ThrowFormatException("A numeric value between 1 and 5 must follow the '/' option");
+                            Throw.FormatException("A numeric value between 1 and 5 must follow the '/' option");
                         }
 
                         break;
@@ -788,14 +788,14 @@ public sealed class CronExpression : ISerializable
                         lastDayOfWeek = true;
                         break;
                     default:
-                        ThrowHelper.ThrowFormatException($"Illegal characters for this position: '{sub.ToString()}'");
+                        Throw.FormatException($"Illegal characters for this position: '{sub.ToString()}'");
                         break;
                 }
             }
         }
         else
         {
-            ThrowHelper.ThrowFormatException($"Illegal characters for this position: '{sub.ToString()}'");
+            Throw.FormatException($"Illegal characters for this position: '{sub.ToString()}'");
             return;
         }
 
@@ -843,7 +843,7 @@ public sealed class CronExpression : ISerializable
                 StoreExpressionNumeric(type, s, i);
                 break;
             default:
-                ThrowHelper.ThrowFormatException($"Unexpected character: {s[i]}");
+                Throw.FormatException($"Unexpected character: {s[i]}");
                 break;
         }
     }
@@ -854,19 +854,19 @@ public sealed class CronExpression : ISerializable
         switch (type)
         {
             case CronExpressionConstants.Second or CronExpressionConstants.Minute when incr > 59:
-                ThrowHelper.ThrowFormatException($"Increment > 59 : {incr}");
+                Throw.FormatException($"Increment > 59 : {incr}");
                 break;
             case CronExpressionConstants.Hour when incr > 23:
-                ThrowHelper.ThrowFormatException($"Increment > 23 : {incr}");
+                Throw.FormatException($"Increment > 23 : {incr}");
                 break;
             case CronExpressionConstants.DayOfMonth when incr > 31:
-                ThrowHelper.ThrowFormatException($"Increment > 31 : {incr}");
+                Throw.FormatException($"Increment > 31 : {incr}");
                 break;
             case CronExpressionConstants.DayOfWeek when incr > 7:
-                ThrowHelper.ThrowFormatException($"Increment > 7 : {incr}");
+                Throw.FormatException($"Increment > 7 : {incr}");
                 break;
             case CronExpressionConstants.Month when incr > 12:
-                ThrowHelper.ThrowFormatException($"Increment > 12 : {incr}");
+                Throw.FormatException($"Increment > 12 : {incr}");
                 break;
         }
     }
@@ -915,7 +915,7 @@ public sealed class CronExpression : ISerializable
     {
         if (i + 1 >= s.Length || char.IsWhiteSpace(s[i + 1]))
         {
-            ThrowHelper.ThrowFormatException("\'/\' must be followed by an integer.");
+            Throw.FormatException("\'/\' must be followed by an integer.");
         }
 
         i++;
@@ -938,7 +938,7 @@ public sealed class CronExpression : ISerializable
             return;
         }
 
-        ThrowHelper.ThrowFormatException($"Unexpected character '{c}' after '/'");
+        Throw.FormatException($"Unexpected character '{c}' after '/'");
     }
 
     private void HandleDashOption(ReadOnlySpan<char> s, int val, int type, int i)
@@ -998,7 +998,7 @@ public sealed class CronExpression : ISerializable
                 calendarDayOfMonth = true;
                 break;
             default:
-                ThrowHelper.ThrowFormatException($"'C' option is not valid here. (pos={i})");
+                Throw.FormatException($"'C' option is not valid here. (pos={i})");
                 break;
         }
 
@@ -1011,7 +1011,7 @@ public sealed class CronExpression : ISerializable
         var pos = i;
         if (type != CronExpressionConstants.DayOfWeek)
         {
-            ThrowHelper.ThrowFormatException($"'#' option is not valid here. (pos={i})");
+            Throw.FormatException($"'#' option is not valid here. (pos={i})");
         }
 
         i++;
@@ -1020,7 +1020,7 @@ public sealed class CronExpression : ISerializable
             nthdayOfWeek = ToInt32(s.Slice(i));
             if (nthdayOfWeek is < 1 or > 5)
             {
-                ThrowHelper.ThrowFormatException("nthdayOfWeek is < 1 or > 5");
+                Throw.FormatException("nthdayOfWeek is < 1 or > 5");
             }
 
             // check first char is numeric and is a valid Day of week (1-7)
@@ -1028,13 +1028,13 @@ public sealed class CronExpression : ISerializable
             {
                 if (val is < 1 or > 7)
                 {
-                    ThrowHelper.ThrowFormatException("Day-of-Week values must be between 1 and 7");
+                    Throw.FormatException("Day-of-Week values must be between 1 and 7");
                 }
             }
         }
         catch (Exception)
         {
-            ThrowHelper.ThrowFormatException("A numeric value between 1 and 5 must follow the '#' option");
+            Throw.FormatException("A numeric value between 1 and 5 must follow the '#' option");
         }
 
         var data = GetSet(type);
@@ -1049,12 +1049,12 @@ public sealed class CronExpression : ISerializable
         }
         else
         {
-            ThrowHelper.ThrowFormatException($"'W' option is not valid here. (pos={i})");
+            Throw.FormatException($"'W' option is not valid here. (pos={i})");
         }
 
         if (val > 31)
         {
-            ThrowHelper.ThrowFormatException("The 'W' option does not make sense with values larger than 31 (max number of days in a month)");
+            Throw.FormatException("The 'W' option does not make sense with values larger than 31 (max number of days in a month)");
         }
 
         var data = GetSet(type);
@@ -1067,14 +1067,14 @@ public sealed class CronExpression : ISerializable
         {
             if (val is < 1 or > 7)
             {
-                ThrowHelper.ThrowFormatException("Day-of-Week values must be between 1 and 7");
+                Throw.FormatException("Day-of-Week values must be between 1 and 7");
             }
 
             lastDayOfWeek = true;
         }
         else
         {
-            ThrowHelper.ThrowFormatException($"'L' option is not valid here. (pos={pos})");
+            Throw.FormatException($"'L' option is not valid here. (pos={pos})");
         }
 
         var data = GetSet(type);
@@ -1162,7 +1162,7 @@ public sealed class CronExpression : ISerializable
         if ((val < min || val > max || end > max) &&
             !IsSpecialValue(val, type))
         {
-            ThrowHelper.ThrowFormatException(errorMessage);
+            Throw.FormatException(errorMessage);
         }
     }
 
@@ -1176,7 +1176,7 @@ public sealed class CronExpression : ISerializable
             CronExpressionConstants.Month => (GetStartAt(val, 1), GetStopAt(end, 12)),
             CronExpressionConstants.DayOfWeek => (GetStartAt(val, 1), GetStopAt(end, 7)),
             CronExpressionConstants.Year => (GetStartAt(val, TriggerConstants.EarliestYear), GetStopAt(end, TriggerConstants.YearToGiveUpSchedulingAt)),
-            _ => ThrowHelper.ThrowArgumentException<(int, int)>("Unexpected type encountered")
+            _ => Throw.ArgumentException<(int, int)>("Unexpected type encountered")
         };
     }
 
@@ -1198,8 +1198,8 @@ public sealed class CronExpression : ISerializable
             CronExpressionConstants.Month => 12,
             CronExpressionConstants.DayOfWeek => 7,
             CronExpressionConstants.DayOfMonth => 31,
-            CronExpressionConstants.Year => ThrowHelper.ThrowArgumentException<int>("Start year must be less than stop year"),
-            _ => ThrowHelper.ThrowArgumentException<int>("Unexpected type encountered")
+            CronExpressionConstants.Year => Throw.ArgumentException<int>("Start year must be less than stop year"),
+            _ => Throw.ArgumentException<int>("Unexpected type encountered")
         };
     }
 
@@ -1281,7 +1281,7 @@ public sealed class CronExpression : ISerializable
 
         if (field is null)
         {
-            ThrowHelper.ThrowArgumentOutOfRangeException(nameof(type));
+            Throw.ArgumentOutOfRangeException(nameof(type));
         }
 
         return field;

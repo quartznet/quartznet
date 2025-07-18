@@ -65,7 +65,7 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     {
         if (!TryGetInt(key, out int value))
         {
-            ThrowHelper.ThrowInvalidCastException("Identified object is not an Integer.");
+            Throw.InvalidCastException("Identified object is not an Integer.");
         }
 
         return value;
@@ -78,7 +78,7 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     {
         if (!TryGetLong(key, out long value))
         {
-            ThrowHelper.ThrowInvalidCastException("Identified object is not a Long.");
+            Throw.InvalidCastException("Identified object is not a Long.");
         }
 
         return value;
@@ -91,7 +91,7 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     {
         if (!TryGetFloat(key, out float value))
         {
-            ThrowHelper.ThrowInvalidCastException("Identified object is not a Float.");
+            Throw.InvalidCastException("Identified object is not a Float.");
         }
 
         return value;
@@ -104,7 +104,7 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     {
         if (!TryGetDouble(key, out double value))
         {
-            ThrowHelper.ThrowInvalidCastException("Identified object is not a Double.");
+            Throw.InvalidCastException("Identified object is not a Double.");
         }
 
         return value;
@@ -117,7 +117,7 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     {
         if (!TryGetBoolean(key, out bool value))
         {
-            ThrowHelper.ThrowInvalidCastException("Identified object is not a Boolean.");
+            Throw.InvalidCastException("Identified object is not a Boolean.");
         }
 
         return value;
@@ -130,7 +130,7 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     {
         if (!TryGetChar(key, out char value))
         {
-            ThrowHelper.ThrowInvalidCastException("Identified object is not a Character.");
+            Throw.InvalidCastException("Identified object is not a Character.");
         }
 
         return value;
@@ -152,7 +152,7 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     {
         if (!TryGetDateTime(key, out DateTime value))
         {
-            ThrowHelper.ThrowInvalidCastException("Identified object is not a DateTime.");
+            Throw.InvalidCastException("Identified object is not a DateTime.");
         }
 
         return value;
@@ -165,7 +165,7 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     {
         if (!TryGetDateTimeOffset(key, out DateTimeOffset value))
         {
-            ThrowHelper.ThrowInvalidCastException("Identified object is not a DateTimeOffset.");
+            Throw.InvalidCastException("Identified object is not a DateTimeOffset.");
         }
 
         return value;
@@ -178,7 +178,7 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     {
         if (!TryGetTimeSpan(key, out TimeSpan value))
         {
-            ThrowHelper.ThrowInvalidCastException("Identified object is not a TimeSpan.");
+            Throw.InvalidCastException("Identified object is not a TimeSpan.");
         }
 
         return value;
@@ -191,7 +191,7 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     {
         if (!TryGetGuid(key, out Guid value))
         {
-            ThrowHelper.ThrowInvalidCastException("Identified object is not a Guid");
+            Throw.InvalidCastException("Identified object is not a Guid");
         }
 
         return value;

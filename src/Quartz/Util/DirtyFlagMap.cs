@@ -121,7 +121,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
                 map = (Dictionary<TKey, TValue?>) info.GetValue("map", typeof(Dictionary<TKey, TValue?>))!;
                 break;
             default:
-                ThrowHelper.ThrowNotSupportedException("Unknown serialization version");
+                Throw.NotSupportedException("Unknown serialization version");
                 break;
         }
     }

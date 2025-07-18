@@ -35,7 +35,7 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
     {
         if (options is null)
         {
-            ThrowHelper.ThrowInvalidOperationException("The serializer hasn't been initialized, did you forget to call Initialize()?");
+            Throw.InvalidOperationException("The serializer hasn't been initialized, did you forget to call Initialize()?");
         }
 
         return JsonSerializer.SerializeToUtf8Bytes<object>(obj, options);
@@ -49,7 +49,7 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
     {
         if (options is null)
         {
-            ThrowHelper.ThrowInvalidOperationException("The serializer hasn't been initialized, did you forget to call Initialize()?");
+            Throw.InvalidOperationException("The serializer hasn't been initialized, did you forget to call Initialize()?");
         }
 
         try

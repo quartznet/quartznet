@@ -67,17 +67,17 @@ public sealed class TimeOfDay
     {
         if (Hour < 0 || Hour > 23)
         {
-            ThrowHelper.ThrowArgumentException("Hour must be from 0 to 23");
+            Throw.ArgumentException("Hour must be from 0 to 23");
         }
 
         if (Minute < 0 || Minute > 59)
         {
-            ThrowHelper.ThrowArgumentException("Minute must be from 0 to 59");
+            Throw.ArgumentException("Minute must be from 0 to 59");
         }
 
         if (Second < 0 || Second > 59)
         {
-            ThrowHelper.ThrowArgumentException("Second must be from 0 to 59");
+            Throw.ArgumentException("Second must be from 0 to 59");
         }
     }
 

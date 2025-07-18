@@ -125,7 +125,7 @@ public sealed class JobBuilder : IJobConfigurator
     {
         if (_jobType is null)
         {
-            ThrowHelper.ThrowInvalidOperationException("Job type has not been set");
+            Throw.InvalidOperationException("Job type has not been set");
         }
 
         var concurrentExecutionDisallowed = _concurrentExecutionDisallowed;
@@ -425,7 +425,7 @@ public sealed class JobBuilder : IJobConfigurator
     {
         if (newJobDataMap is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(newJobDataMap));
+            Throw.ArgumentNullException(nameof(newJobDataMap));
         }
         jobDataMap.PutAll(newJobDataMap);
         return this;
@@ -441,7 +441,7 @@ public sealed class JobBuilder : IJobConfigurator
     {
         if (newJobDataMap is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(newJobDataMap));
+            Throw.ArgumentNullException(nameof(newJobDataMap));
         }
         jobDataMap = newJobDataMap;
         return this;

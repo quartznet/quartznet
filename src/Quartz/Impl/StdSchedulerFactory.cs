@@ -302,7 +302,7 @@ public class StdSchedulerFactory : ISchedulerFactory
 
         if (props is null && throwOnProblem)
         {
-            ThrowHelper.ThrowSchedulerConfigException(
+            Throw.SchedulerConfigException(
                 @"Could not find <quartz> configuration section from your application config or load default configuration from assembly.
 Please add configuration to your application config file to correctly initialize Quartz.");
         }
@@ -369,7 +369,7 @@ Please add configuration to your application config file to correctly initialize
 
             if (!IsSupportedConfigurationKey(configurationKey))
             {
-                ThrowHelper.ThrowSchedulerConfigException($"Unknown configuration property '{configurationKey}'");
+                Throw.SchedulerConfigException($"Unknown configuration property '{configurationKey}'");
             }
         }
     }
@@ -427,7 +427,7 @@ Please add configuration to your application config file to correctly initialize
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowSchedulerConfigException($"Unable to instantiate type load helper: {e.Message}", e);
+            Throw.SchedulerConfigException($"Unable to instantiate type load helper: {e.Message}", e);
             return default;
         }
 
@@ -474,7 +474,7 @@ Please add configuration to your application config file to correctly initialize
         dbFailureRetry = cfg.GetTimeSpanProperty(PropertyJobStoreDbRetryInterval, dbFailureRetry);
         if (dbFailureRetry < TimeSpan.Zero)
         {
-            ThrowHelper.ThrowSchedulerException(PropertyJobStoreDbRetryInterval + " of less than 0 ms is not legal.");
+            Throw.SchedulerException(PropertyJobStoreDbRetryInterval + " of less than 0 ms is not legal.");
         }
 
         bool makeSchedulerThreadDaemon = cfg.GetBooleanProperty(PropertySchedulerMakeSchedulerThreadDaemon);
@@ -523,7 +523,7 @@ Please add configuration to your application config file to correctly initialize
             }
             catch (Exception e)
             {
-                ThrowHelper.ThrowSchedulerConfigException($"Unable to Instantiate JobFactory: {e.Message}", e);
+                Throw.SchedulerConfigException($"Unable to Instantiate JobFactory: {e.Message}", e);
             }
 
             tProps = cfg.GetPropertyGroup(PropertySchedulerJobFactoryPrefix, stripPrefix: true);
@@ -547,7 +547,7 @@ Please add configuration to your application config file to correctly initialize
             }
             catch (Exception e)
             {
-                ThrowHelper.ThrowSchedulerConfigException($"Unable to Instantiate InstanceIdGenerator: {e.Message}", e);
+                Throw.SchedulerConfigException($"Unable to Instantiate InstanceIdGenerator: {e.Message}", e);
             }
             tProps = cfg.GetPropertyGroup(PropertySchedulerInstanceIdGeneratorPrefix, stripPrefix: true);
             try
@@ -961,7 +961,7 @@ Please add configuration to your application config file to correctly initialize
                 catch (Exception e)
                 {
                     logger.LogError(e, "Couldn't generate instance Id!");
-                    ThrowHelper.ThrowInvalidOperationException("Cannot run without an instance id.");
+                    Throw.InvalidOperationException("Cannot run without an instance id.");
                 }
             }
 

@@ -103,7 +103,7 @@ public class JobStoreCMT : JobStoreSupport
         }
         catch (Exception e)
         {
-            ThrowHelper.ThrowJobPersistenceException($"Failed to obtain DB connection from data source '{DataSource}': {e}", e);
+            Throw.JobPersistenceException($"Failed to obtain DB connection from data source '{DataSource}': {e}", e);
             return default;
         }
 

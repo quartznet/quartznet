@@ -92,13 +92,13 @@ public sealed class HolidayCalendar : BaseCalendar
         {
             case 0:
             case 1:
-                ThrowHelper.ThrowNotSupportedException("cannot deserialize old version, use latest Quartz 2.x version to re-serialize all HolidayCalendar instances in database");
+                Throw.NotSupportedException("cannot deserialize old version, use latest Quartz 2.x version to re-serialize all HolidayCalendar instances in database");
                 break;
             case 2:
                 dates = new SortedSet<DateTime>((DateTime[]) info.GetValue("dates", typeof(DateTime[]))!);
                 break;
             default:
-                ThrowHelper.ThrowNotSupportedException("Unknown serialization version");
+                Throw.NotSupportedException("Unknown serialization version");
                 break;
         }
     }

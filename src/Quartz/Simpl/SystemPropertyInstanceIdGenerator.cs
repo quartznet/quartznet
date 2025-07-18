@@ -26,7 +26,7 @@ internal sealed class SystemPropertyInstanceIdGenerator : IInstanceIdGenerator
         var property = Environment.GetEnvironmentVariable(SystemPropertyName);
         if (property is null)
         {
-            ThrowHelper.ThrowSchedulerException("No value for '" + SystemProperty + "' system property found, please configure your environment accordingly!");
+            Throw.SchedulerException("No value for '" + SystemProperty + "' system property found, please configure your environment accordingly!");
         }
 
         if (Prepend is not null)

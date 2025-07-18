@@ -209,7 +209,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
         {
             if (!ValidateMisfireInstruction(value))
             {
-                ThrowHelper.ThrowArgumentException("The misfire instruction code is invalid for this type of trigger.");
+                Throw.ArgumentException("The misfire instruction code is invalid for this type of trigger.");
             }
             misfireInstruction = value;
         }
@@ -251,7 +251,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
 
             if (value.HasValue && sTime > value.Value)
             {
-                ThrowHelper.ThrowArgumentException("End time cannot be before start time");
+                Throw.ArgumentException("End time cannot be before start time");
             }
 
             endTimeUtc = value;
@@ -277,7 +277,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
         {
             if (EndTimeUtc.HasValue && EndTimeUtc.Value < value)
             {
-                ThrowHelper.ThrowArgumentException("End time cannot be before start time");
+                Throw.ArgumentException("End time cannot be before start time");
             }
 
             if (!HasMillisecondPrecision)
@@ -529,12 +529,12 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     {
         if (key is null)
         {
-            ThrowHelper.ThrowSchedulerException("Trigger's key cannot be null");
+            Throw.SchedulerException("Trigger's key cannot be null");
         }
 
         if (jobKey is null)
         {
-            ThrowHelper.ThrowSchedulerException("Trigger's job key cannot be null");
+            Throw.SchedulerException("Trigger's job key cannot be null");
         }
     }
 

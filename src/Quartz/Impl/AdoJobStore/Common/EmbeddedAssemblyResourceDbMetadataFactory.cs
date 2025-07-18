@@ -49,7 +49,7 @@ internal sealed class EmbeddedAssemblyResourceDbMetadataFactory : DbMetadataFact
 
         if (deprecatedProviders.Contains(providerName))
         {
-            ThrowHelper.ThrowInvalidConfigurationException(providerName + " provider is no longer supported.");
+            Throw.InvalidConfigurationException(providerName + " provider is no longer supported.");
         }
 
         try
@@ -65,7 +65,7 @@ internal sealed class EmbeddedAssemblyResourceDbMetadataFactory : DbMetadataFact
         }
         catch (Exception ex)
         {
-            ThrowHelper.ThrowArgumentException("Error while reading metadata information for provider '" + providerName + "'", nameof(providerName), ex);
+            Throw.ArgumentException("Error while reading metadata information for provider '" + providerName + "'", nameof(providerName), ex);
             return default!;
         }
     }

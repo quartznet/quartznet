@@ -88,7 +88,7 @@ public class RAMJobStore : IJobStore
         {
             if (value.TotalMilliseconds < 1)
             {
-                ThrowHelper.ThrowArgumentException("MisfireThreshold must be larger than 0");
+                Throw.ArgumentException("MisfireThreshold must be larger than 0");
             }
             misfireThreshold = value;
         }
@@ -282,7 +282,7 @@ public class RAMJobStore : IJobStore
         {
             if (!replaceExisting)
             {
-                ThrowHelper.ThrowObjectAlreadyExistsException(job);
+                Throw.ObjectAlreadyExistsException(job);
             }
 
             // update job detail
@@ -406,14 +406,14 @@ public class RAMJobStore : IJobStore
 
                     if (jobsByKey.ContainsKey(job.Key))
                     {
-                        ThrowHelper.ThrowObjectAlreadyExistsException(job);
+                        Throw.ObjectAlreadyExistsException(job);
                     }
 
                     foreach (ITrigger trigger in triggersByJob.Value)
                     {
                         if (triggersByKey.ContainsKey(trigger.Key))
                         {
-                            ThrowHelper.ThrowObjectAlreadyExistsException(trigger);
+                            Throw.ObjectAlreadyExistsException(trigger);
                         }
                     }
                 }
@@ -476,7 +476,7 @@ public class RAMJobStore : IJobStore
         {
             if (!replaceExisting)
             {
-                ThrowHelper.ThrowObjectAlreadyExistsException(trigger);
+                Throw.ObjectAlreadyExistsException(trigger);
             }
 
             // don't delete orphaned job, this trigger has the job anyways
@@ -485,7 +485,7 @@ public class RAMJobStore : IJobStore
 
         if (!jobsByKey.ContainsKey(tw.JobKey))
         {
-            ThrowHelper.ThrowJobPersistenceException($"The job ({tw.JobKey}) referenced by the trigger does not exist.");
+            Throw.JobPersistenceException($"The job ({tw.JobKey}) referenced by the trigger does not exist.");
         }
 
         // add to triggers by job
@@ -612,7 +612,7 @@ public class RAMJobStore : IJobStore
             {
                 if (!tw!.JobKey.Equals(trigger.JobKey))
                 {
-                    ThrowHelper.ThrowJobPersistenceException("New trigger is not related to the same job as the old trigger.");
+                    Throw.JobPersistenceException("New trigger is not related to the same job as the old trigger.");
                 }
 
                 // remove from triggers by group
@@ -857,7 +857,7 @@ public class RAMJobStore : IJobStore
 
             if (obj is not null && !replaceExisting)
             {
-                ThrowHelper.ThrowObjectAlreadyExistsException($"Calendar with name '{name}' already exists.");
+                Throw.ObjectAlreadyExistsException($"Calendar with name '{name}' already exists.");
             }
 
             if (obj is not null)
@@ -929,7 +929,7 @@ public class RAMJobStore : IJobStore
 
         if (numRefs > 0)
         {
-            ThrowHelper.ThrowJobPersistenceException("Calender cannot be removed if it referenced by a Trigger!");
+            Throw.JobPersistenceException("Calender cannot be removed if it referenced by a Trigger!");
         }
 
         return calendarsByName.TryRemove(name, out _);

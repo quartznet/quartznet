@@ -50,14 +50,14 @@ public class HttpScheduler : IScheduler
 
     public IJobFactory JobFactory
     {
-        set => ThrowHelper.ThrowSchedulerException("Operation not supported for remote schedulers.");
+        set => Throw.SchedulerException("Operation not supported for remote schedulers.");
     }
 
     public IListenerManager ListenerManager
     {
         get
         {
-            ThrowHelper.ThrowSchedulerException("Operation not supported for remote schedulers.");
+            Throw.SchedulerException("Operation not supported for remote schedulers.");
             return null;
         }
     }

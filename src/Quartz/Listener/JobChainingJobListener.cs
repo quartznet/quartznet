@@ -58,7 +58,7 @@ public sealed class JobChainingJobListener : JobListenerSupport
     {
         if (name is null)
         {
-            ThrowHelper.ThrowArgumentException("Listener name cannot be null!");
+            Throw.ArgumentException("Listener name cannot be null!");
         }
         Name = name;
         chainLinks = new Dictionary<JobKey, JobKey>();
@@ -77,11 +77,11 @@ public sealed class JobChainingJobListener : JobListenerSupport
     {
         if (firstJob is null || secondJob is null)
         {
-            ThrowHelper.ThrowArgumentException("Key cannot be null!");
+            Throw.ArgumentException("Key cannot be null!");
         }
         if (firstJob.Name is null || secondJob.Name is null)
         {
-            ThrowHelper.ThrowArgumentException("Key cannot have a null name!");
+            Throw.ArgumentException("Key cannot have a null name!");
         }
 
         chainLinks.Add(firstJob, secondJob);

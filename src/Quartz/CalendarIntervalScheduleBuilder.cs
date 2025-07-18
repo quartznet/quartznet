@@ -338,7 +338,7 @@ public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarI
     {
         if (interval <= 0)
         {
-            ThrowHelper.ThrowArgumentException("Interval must be a positive value.");
+            Throw.ArgumentException("Interval must be a positive value.");
         }
     }
 

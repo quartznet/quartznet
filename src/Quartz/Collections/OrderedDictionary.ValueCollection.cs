@@ -35,7 +35,7 @@ internal partial class OrderedDictionary<TKey, TValue>
         TValue IList<TValue>.this[int index]
         {
             get => this[index];
-            set => ThrowHelper.ThrowNotSupportedException();
+            set => Throw.NotSupportedException();
         }
 
         bool ICollection<TValue>.IsReadOnly => true;
@@ -70,13 +70,13 @@ internal partial class OrderedDictionary<TKey, TValue>
             return -1;
         }
 
-        void IList<TValue>.Insert(int index, TValue item) => ThrowHelper.ThrowNotSupportedException();
+        void IList<TValue>.Insert(int index, TValue item) => Throw.NotSupportedException();
 
-        void IList<TValue>.RemoveAt(int index) => ThrowHelper.ThrowNotSupportedException();
+        void IList<TValue>.RemoveAt(int index) => Throw.NotSupportedException();
 
-        void ICollection<TValue>.Add(TValue item) => ThrowHelper.ThrowNotSupportedException();
+        void ICollection<TValue>.Add(TValue item) => Throw.NotSupportedException();
 
-        void ICollection<TValue>.Clear() => ThrowHelper.ThrowNotSupportedException();
+        void ICollection<TValue>.Clear() => Throw.NotSupportedException();
 
         bool ICollection<TValue>.Contains(TValue item) => ((IList<TValue>) this).IndexOf(item) >= 0;
 
@@ -84,16 +84,16 @@ internal partial class OrderedDictionary<TKey, TValue>
         {
             if (array is null)
             {
-                ThrowHelper.ThrowArgumentNullException(nameof(array));
+                Throw.ArgumentNullException(nameof(array));
             }
             if ((uint) arrayIndex > (uint) array.Length)
             {
-                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(arrayIndex));
+                Throw.ArgumentOutOfRangeException(nameof(arrayIndex));
             }
             int count = Count;
             if (array.Length - arrayIndex < count)
             {
-                ThrowHelper.ThrowArgumentException("Invalid range");
+                Throw.ArgumentException("Invalid range");
             }
 
             Entry[] entries = _orderedDictionary._entries;
@@ -125,7 +125,7 @@ internal partial class OrderedDictionary<TKey, TValue>
 
         bool ICollection<TValue>.Remove(TValue item)
         {
-            ThrowHelper.ThrowNotSupportedException();
+            Throw.NotSupportedException();
             return false;
         }
 
@@ -171,7 +171,7 @@ internal partial class OrderedDictionary<TKey, TValue>
             {
                 if (_version != _orderedDictionary._version)
                 {
-                    ThrowHelper.ThrowInvalidOperationException();
+                    Throw.InvalidOperationException();
                 }
 
                 if (_index < _orderedDictionary.Count)
@@ -188,7 +188,7 @@ internal partial class OrderedDictionary<TKey, TValue>
             {
                 if (_version != _orderedDictionary._version)
                 {
-                    ThrowHelper.ThrowInvalidOperationException();
+                    Throw.InvalidOperationException();
                 }
 
                 _index = 0;

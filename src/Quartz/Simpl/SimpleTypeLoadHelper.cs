@@ -53,7 +53,7 @@ internal sealed class SimpleTypeLoadHelper : ITypeLoadHelper
         }
         if (type is null)
         {
-            ThrowHelper.ThrowTypeLoadException($"Could not load type '{name}'");
+            Throw.TypeLoadException($"Could not load type '{name}'");
         }
         return type;
     }

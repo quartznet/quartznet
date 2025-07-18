@@ -87,7 +87,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
             int index = IndexOf(key);
             if (index < 0)
             {
-                ThrowHelper.ThrowKeyNotFoundException();
+                Throw.KeyNotFoundException();
             }
             return _entries[index].Value;
         }
@@ -106,7 +106,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
         {
             if ((uint) index >= (uint) Count)
             {
-                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(index));
+                Throw.ArgumentOutOfRangeException(nameof(index));
             }
 
             return _entries[index].Value;
@@ -115,7 +115,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
         {
             if ((uint) index >= (uint) Count)
             {
-                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(index));
+                Throw.ArgumentOutOfRangeException(nameof(index));
             }
 
             _entries[index].Value = value;
@@ -159,7 +159,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
     {
         if (capacity < 0)
         {
-            ThrowHelper.ThrowArgumentOutOfRangeException(nameof(capacity));
+            Throw.ArgumentOutOfRangeException(nameof(capacity));
         }
         if (capacity > 0)
         {
@@ -184,7 +184,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
     {
         if (collection is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(collection));
+            Throw.ArgumentNullException(nameof(collection));
         }
 
         foreach (KeyValuePair<TKey, TValue> pair in collection)
@@ -234,7 +234,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
     {
         if (capacity < 0)
         {
-            ThrowHelper.ThrowArgumentOutOfRangeException(nameof(capacity));
+            Throw.ArgumentOutOfRangeException(nameof(capacity));
         }
 
         if (_entries.Length >= capacity)
@@ -273,7 +273,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
     {
         if (valueFactory is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(valueFactory));
+            Throw.ArgumentNullException(nameof(valueFactory));
         }
 
         int index = IndexOf(key, out uint hashCode);
@@ -311,7 +311,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
     {
         if ((uint) index > (uint) Count)
         {
-            ThrowHelper.ThrowArgumentOutOfRangeException(nameof(index));
+            Throw.ArgumentOutOfRangeException(nameof(index));
         }
 
         TryInsert(index, key, value, InsertionBehavior.ThrowOnExisting);
@@ -335,11 +335,11 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
     {
         if ((uint) fromIndex >= (uint) Count)
         {
-            ThrowHelper.ThrowArgumentOutOfRangeException(nameof(fromIndex));
+            Throw.ArgumentOutOfRangeException(nameof(fromIndex));
         }
         if ((uint) toIndex >= (uint) Count)
         {
-            ThrowHelper.ThrowArgumentOutOfRangeException(nameof(toIndex));
+            Throw.ArgumentOutOfRangeException(nameof(toIndex));
         }
 
         if (fromIndex == toIndex)
@@ -389,23 +389,23 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
 
         if ((uint) fromIndex >= (uint) Count)
         {
-            ThrowHelper.ThrowArgumentOutOfRangeException(nameof(fromIndex));
+            Throw.ArgumentOutOfRangeException(nameof(fromIndex));
         }
         if ((uint) toIndex >= (uint) Count)
         {
-            ThrowHelper.ThrowArgumentOutOfRangeException(nameof(toIndex));
+            Throw.ArgumentOutOfRangeException(nameof(toIndex));
         }
         if (count < 0)
         {
-            ThrowHelper.ThrowArgumentOutOfRangeException(nameof(count));
+            Throw.ArgumentOutOfRangeException(nameof(count));
         }
         if (fromIndex + count > Count)
         {
-            ThrowHelper.ThrowArgumentException("Invalid range");
+            Throw.ArgumentException("Invalid range");
         }
         if (toIndex + count > Count)
         {
-            ThrowHelper.ThrowArgumentException("Invalid range");
+            Throw.ArgumentException("Invalid range");
         }
 
         if (fromIndex == toIndex || count == 0)
@@ -489,7 +489,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
         int count = Count;
         if ((uint) index >= (uint) count)
         {
-            ThrowHelper.ThrowArgumentOutOfRangeException(nameof(index));
+            Throw.ArgumentOutOfRangeException(nameof(index));
         }
 
         // Remove the entry from the bucket
@@ -521,7 +521,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
     {
         if (capacity < Count)
         {
-            ThrowHelper.ThrowArgumentOutOfRangeException(nameof(capacity));
+            Throw.ArgumentOutOfRangeException(nameof(capacity));
         }
 
         int newSize = HashHelpers.GetPrime(capacity);
@@ -567,7 +567,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
         {
             if ((uint) index >= (uint) Count)
             {
-                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(index));
+                Throw.ArgumentOutOfRangeException(nameof(index));
             }
 
             Entry entry = _entries[index];
@@ -577,7 +577,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
         {
             if ((uint) index >= (uint) Count)
             {
-                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(index));
+                Throw.ArgumentOutOfRangeException(nameof(index));
             }
 
             TKey key = value.Key;
@@ -601,7 +601,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
             // key already exists in dictionary but not at the specified index thus throw exception as this method shouldn't affect the indices of other entries
             else
             {
-                ThrowHelper.ThrowArgumentException("Invalid index");
+                Throw.ArgumentException("Invalid index");
             }
         }
     }
@@ -630,16 +630,16 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
     {
         if (array is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(array));
+            Throw.ArgumentNullException(nameof(array));
         }
         if ((uint) arrayIndex > (uint) array.Length)
         {
-            ThrowHelper.ThrowArgumentOutOfRangeException(nameof(arrayIndex));
+            Throw.ArgumentOutOfRangeException(nameof(arrayIndex));
         }
         int count = Count;
         if (array.Length - arrayIndex < count)
         {
-            ThrowHelper.ThrowArgumentException("Invalid range");
+            Throw.ArgumentException("Invalid range");
         }
 
         Entry[] entries = _entries;
@@ -695,7 +695,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
     {
         if (key is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(key));
+            Throw.ArgumentNullException(nameof(key));
         }
 
         IEqualityComparer<TKey>? comparer = _comparer;
@@ -721,7 +721,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
                 {
                     // The chain of entries forms a loop; which means a concurrent update has happened.
                     // Break out of the loop and throw, rather than looping forever.
-                    ThrowHelper.ThrowInvalidOperationException();
+                    Throw.InvalidOperationException();
                 }
                 ++collisionCount;
             } while (index >= 0);
@@ -740,7 +740,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
                     _entries[i].Value = value;
                     return true;
                 case InsertionBehavior.ThrowOnExisting:
-                    ThrowHelper.ThrowArgumentException("Key already exists");
+                    Throw.ArgumentException("Key already exists");
                     return false;
                 default:
                     return false;
@@ -815,7 +815,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
                 {
                     // The chain of entries forms a loop; which means a concurrent update has happened.
                     // Break out of the loop and throw, rather than looping forever.
-                    ThrowHelper.ThrowInvalidOperationException();
+                    Throw.InvalidOperationException();
                 }
                 ++collisionCount;
             }
@@ -850,7 +850,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
                 {
                     // The chain of entries forms a loop; which means a concurrent update has happened.
                     // Break out of the loop and throw, rather than looping forever.
-                    ThrowHelper.ThrowInvalidOperationException();
+                    Throw.InvalidOperationException();
                 }
                 ++collisionCount;
             }
@@ -899,7 +899,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
         {
             if (_version != _orderedDictionary._version)
             {
-                ThrowHelper.ThrowInvalidOperationException();
+                Throw.InvalidOperationException();
             }
 
             if (_index < _orderedDictionary.Count)
@@ -917,7 +917,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
         {
             if (_version != _orderedDictionary._version)
             {
-                ThrowHelper.ThrowInvalidOperationException();
+                Throw.InvalidOperationException();
             }
 
             _index = 0;

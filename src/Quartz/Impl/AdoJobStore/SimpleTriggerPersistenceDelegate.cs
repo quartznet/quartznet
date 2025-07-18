@@ -101,7 +101,7 @@ internal class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelegate
             return ReadTriggerPropertyBundle(rs);
         }
 
-        ThrowHelper.ThrowInvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimpleTrigger, TablePrefix));
+        Throw.InvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimpleTrigger, TablePrefix));
         return default;
     }
 

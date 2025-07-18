@@ -218,13 +218,13 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
         {
             if (value == DateTimeOffset.MinValue)
             {
-                ThrowHelper.ThrowArgumentException("Start time cannot be DateTimeOffset.MinValue");
+                Throw.ArgumentException("Start time cannot be DateTimeOffset.MinValue");
             }
 
             DateTimeOffset? eTime = EndTimeUtc;
             if (eTime is not null && eTime < value)
             {
-                ThrowHelper.ThrowArgumentException("End time cannot be before start time");
+                Throw.ArgumentException("End time cannot be before start time");
             }
 
             startTime = value;
@@ -249,7 +249,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
             DateTimeOffset sTime = StartTimeUtc;
             if (value is not null && sTime > value)
             {
-                ThrowHelper.ThrowArgumentException("End time cannot be before start time");
+                Throw.ArgumentException("End time cannot be before start time");
             }
 
             endTime = value;
@@ -273,7 +273,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
         {
             if (value < 0)
             {
-                ThrowHelper.ThrowArgumentException("Repeat interval must be >= 1");
+                Throw.ArgumentException("Repeat interval must be >= 1");
             }
 
             repeatInterval = value;
@@ -916,12 +916,12 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
 
         if (RepeatIntervalUnit == IntervalUnit.Millisecond)
         {
-            ThrowHelper.ThrowSchedulerException("Invalid repeat IntervalUnit (must be Second, Minute, Hour, Day, Month, Week or Year).");
+            Throw.SchedulerException("Invalid repeat IntervalUnit (must be Second, Minute, Hour, Day, Month, Week or Year).");
         }
 
         if (repeatInterval < 1)
         {
-            ThrowHelper.ThrowSchedulerException("Repeat Interval cannot be zero.");
+            Throw.SchedulerException("Repeat Interval cannot be zero.");
         }
     }
 

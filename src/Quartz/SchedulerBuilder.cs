@@ -131,7 +131,7 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
     {
         if (options is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(options));
+            Throw.ArgumentNullException(nameof(options));
         }
 
         options(new PersistentStoreOptions(this, typeof(T)));

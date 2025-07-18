@@ -130,13 +130,13 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
                         }
                         catch (Exception e)
                         {
-                            ThrowHelper.ThrowNoSuchDelegateException("Error instantiating TriggerPersistenceDelegate of type: " + triggerTypeName, e);
+                            Throw.NoSuchDelegateException("Error instantiating TriggerPersistenceDelegate of type: " + triggerTypeName, e);
                         }
                     }
                 }
                 else
                 {
-                    ThrowHelper.ThrowNoSuchDelegateException("Unknown setting: '" + name + "'");
+                    Throw.NoSuchDelegateException("Unknown setting: '" + name + "'");
                 }
             }
         }
@@ -222,7 +222,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
             return Convert.ToBoolean(columnValue);
         }
 
-        ThrowHelper.ThrowArgumentException("Value must be non-null.");
+        Throw.ArgumentException("Value must be non-null.");
         return false;
     }
 
@@ -431,7 +431,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
         }
         else
         {
-            ThrowHelper.ThrowArgumentOutOfRangeException("Don't know how to translate " + matcher.CompareWithOperator + " into SQL");
+            Throw.ArgumentOutOfRangeException("Don't know how to translate " + matcher.CompareWithOperator + " into SQL");
             return default;
         }
         return groupName;
@@ -537,7 +537,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
 
             if (val is not string s)
             {
-                ThrowHelper.ThrowArgumentException($"JobDataMap values must be strings when the 'useProperties' property is set.  Key of offending value: {key}");
+                Throw.ArgumentException($"JobDataMap values must be strings when the 'useProperties' property is set.  Key of offending value: {key}");
                 return default;
             }
             properties[key] = s;

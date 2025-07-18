@@ -159,7 +159,7 @@ internal sealed class PropertiesParser
         var val = GetStringProperty(name);
         if (val is null)
         {
-            ThrowHelper.ThrowFormatException(" null string");
+            Throw.FormatException(" null string");
         }
 
         try
@@ -168,7 +168,7 @@ internal sealed class PropertiesParser
         }
         catch (FormatException)
         {
-            ThrowHelper.ThrowFormatException($" '{val}'");
+            Throw.FormatException($" '{val}'");
             return default;
         }
     }
@@ -193,7 +193,7 @@ internal sealed class PropertiesParser
         }
         catch (FormatException)
         {
-            ThrowHelper.ThrowFormatException($" '{val}'");
+            Throw.FormatException($" '{val}'");
             return default;
         }
     }
@@ -251,7 +251,7 @@ internal sealed class PropertiesParser
         var val = GetStringProperty(name);
         if (val is null)
         {
-            ThrowHelper.ThrowFormatException(" null string");
+            Throw.FormatException(" null string");
         }
 
         try
@@ -260,7 +260,7 @@ internal sealed class PropertiesParser
         }
         catch (FormatException)
         {
-            ThrowHelper.ThrowFormatException($" '{val}'");
+            Throw.FormatException($" '{val}'");
             return default;
         }
     }
@@ -285,7 +285,7 @@ internal sealed class PropertiesParser
         }
         catch (FormatException)
         {
-            ThrowHelper.ThrowFormatException($" '{val}'");
+            Throw.FormatException($" '{val}'");
             return default;
         }
     }
@@ -300,7 +300,7 @@ internal sealed class PropertiesParser
         var val = GetStringProperty(name);
         if (val is null)
         {
-            ThrowHelper.ThrowFormatException(" null string");
+            Throw.FormatException(" null string");
         }
 
         try
@@ -309,7 +309,7 @@ internal sealed class PropertiesParser
         }
         catch (FormatException)
         {
-            ThrowHelper.ThrowFormatException($" '{val}'");
+            Throw.FormatException($" '{val}'");
             return default;
         }
     }
@@ -334,7 +334,7 @@ internal sealed class PropertiesParser
         }
         catch (FormatException)
         {
-            ThrowHelper.ThrowFormatException($" '{val}'");
+            Throw.FormatException($" '{val}'");
             return default;
         }
     }
@@ -349,7 +349,7 @@ internal sealed class PropertiesParser
         var val = GetStringProperty(name);
         if (val is null)
         {
-            ThrowHelper.ThrowFormatException(" null string");
+            Throw.FormatException(" null string");
         }
 
         try
@@ -358,7 +358,7 @@ internal sealed class PropertiesParser
         }
         catch (FormatException)
         {
-            ThrowHelper.ThrowFormatException($" '{val}'");
+            Throw.FormatException($" '{val}'");
             return default;
         }
     }
@@ -383,7 +383,7 @@ internal sealed class PropertiesParser
         }
         catch (FormatException)
         {
-            ThrowHelper.ThrowFormatException($" '{val}'");
+            Throw.FormatException($" '{val}'");
             return default;
         }
     }
@@ -426,7 +426,7 @@ internal sealed class PropertiesParser
                     }
                     catch (FormatException)
                     {
-                        ThrowHelper.ThrowFormatException($" '{vals}'");
+                        Throw.FormatException($" '{vals}'");
                     }
                 }
                 return ints;
@@ -450,7 +450,7 @@ internal sealed class PropertiesParser
         var val = GetStringProperty(name);
         if (val is null)
         {
-            ThrowHelper.ThrowFormatException(" null string");
+            Throw.FormatException(" null string");
         }
 
         try
@@ -459,7 +459,7 @@ internal sealed class PropertiesParser
         }
         catch (FormatException)
         {
-            ThrowHelper.ThrowFormatException($" '{val}'");
+            Throw.FormatException($" '{val}'");
             return default;
         }
     }
@@ -484,7 +484,7 @@ internal sealed class PropertiesParser
         }
         catch (FormatException)
         {
-            ThrowHelper.ThrowFormatException($" '{val}'");
+            Throw.FormatException($" '{val}'");
             return default;
         }
     }
@@ -509,7 +509,7 @@ internal sealed class PropertiesParser
         }
         catch (FormatException)
         {
-            ThrowHelper.ThrowFormatException($" '{val}'");
+            Throw.FormatException($" '{val}'");
             return default;
         }
     }
@@ -524,7 +524,7 @@ internal sealed class PropertiesParser
         var val = GetStringProperty(name);
         if (val is null)
         {
-            ThrowHelper.ThrowFormatException(" null string");
+            Throw.FormatException(" null string");
         }
 
         try
@@ -533,7 +533,7 @@ internal sealed class PropertiesParser
         }
         catch (FormatException)
         {
-            ThrowHelper.ThrowFormatException($" '{val}'");
+            Throw.FormatException($" '{val}'");
             return default;
         }
     }
@@ -558,7 +558,7 @@ internal sealed class PropertiesParser
         }
         catch (FormatException)
         {
-            ThrowHelper.ThrowFormatException($" '{val}'");
+            Throw.FormatException($" '{val}'");
             return default;
         }
     }
@@ -669,7 +669,7 @@ internal sealed class PropertiesParser
         var stream = typeof(IScheduler).Assembly.GetManifestResourceStream(resourceName);
         if (stream is null)
         {
-            ThrowHelper.ThrowArgumentException("cannot find resource " + resourceName);
+            Throw.ArgumentException("cannot find resource " + resourceName);
         }
         return ReadFromStream(stream);
     }

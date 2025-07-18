@@ -485,7 +485,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
             DateTimeOffset? eTime = EndTimeUtc;
             if (eTime.HasValue && eTime.Value < value)
             {
-                ThrowHelper.ThrowArgumentException("End time cannot be before start time");
+                Throw.ArgumentException("End time cannot be before start time");
             }
 
             // round off millisecond...
@@ -506,7 +506,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
             DateTimeOffset sTime = StartTimeUtc;
             if (value.HasValue && sTime > value.Value)
             {
-                ThrowHelper.ThrowArgumentException("End time cannot be before start time");
+                Throw.ArgumentException("End time cannot be before start time");
             }
 
             endTimeUtc = value;

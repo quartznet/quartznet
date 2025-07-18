@@ -47,7 +47,7 @@ public sealed class SchedulerRepository : ISchedulerRepository
     {
         if (!schedulers.TryAdd(scheduler.SchedulerName, scheduler))
         {
-            ThrowHelper.ThrowSchedulerException($"Scheduler with name '{scheduler.SchedulerName}' already exists.");
+            Throw.SchedulerException($"Scheduler with name '{scheduler.SchedulerName}' already exists.");
         }
     }
 

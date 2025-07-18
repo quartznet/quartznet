@@ -717,7 +717,7 @@ public partial class StdAdoDelegate
 
                 if (tDel is null)
                 {
-                    ThrowHelper.ThrowJobPersistenceException("No TriggerPersistenceDelegate for trigger discriminator type: " + triggerType);
+                    Throw.JobPersistenceException("No TriggerPersistenceDelegate for trigger discriminator type: " + triggerType);
                 }
 
                 try

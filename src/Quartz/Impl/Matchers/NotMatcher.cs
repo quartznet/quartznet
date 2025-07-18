@@ -40,7 +40,7 @@ public sealed class NotMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     {
         if (operand is null)
         {
-            ThrowHelper.ThrowArgumentNullException(nameof(operand), "Non-null operand required!");
+            Throw.ArgumentNullException(nameof(operand), "Non-null operand required!");
         }
         Operand = operand;
     }

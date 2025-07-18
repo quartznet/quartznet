@@ -201,7 +201,7 @@ internal sealed class JobDetailImpl : IJobDetail
         {
             if (string.IsNullOrWhiteSpace(value))
             {
-                ThrowHelper.ThrowArgumentException("Job name cannot be empty.");
+                Throw.ArgumentException("Job name cannot be empty.");
             }
 
             name = value;
@@ -222,7 +222,7 @@ internal sealed class JobDetailImpl : IJobDetail
         {
             if (value is not null && value.Trim().Length == 0)
             {
-                ThrowHelper.ThrowArgumentException("Group name cannot be empty.");
+                Throw.ArgumentException("Group name cannot be empty.");
             }
 
             if (value is null)
@@ -263,7 +263,7 @@ internal sealed class JobDetailImpl : IJobDetail
         {
             if (value is null)
             {
-                ThrowHelper.ThrowArgumentNullException(nameof(value));
+                Throw.ArgumentNullException(nameof(value));
             }
 
             Name = value.Name;
@@ -379,17 +379,17 @@ internal sealed class JobDetailImpl : IJobDetail
     {
         if (name is null)
         {
-            ThrowHelper.ThrowSchedulerException("Job's name cannot be null");
+            Throw.SchedulerException("Job's name cannot be null");
         }
 
         if (group is null)
         {
-            ThrowHelper.ThrowSchedulerException("Job's group cannot be null");
+            Throw.SchedulerException("Job's group cannot be null");
         }
 
         if (jobType is null)
         {
-            ThrowHelper.ThrowSchedulerException("Job's class cannot be null");
+            Throw.SchedulerException("Job's class cannot be null");
         }
     }
 

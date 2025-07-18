@@ -207,7 +207,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
         if (!(unit == IntervalUnit.Second ||
               unit == IntervalUnit.Minute || unit == IntervalUnit.Hour))
         {
-            ThrowHelper.ThrowArgumentException("Invalid repeat IntervalUnit (must be Second, Minute or Hour).");
+            Throw.ArgumentException("Invalid repeat IntervalUnit (must be Second, Minute or Hour).");
         }
 
         ValidateInterval(interval);
@@ -268,14 +268,14 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
     {
         if (onDaysOfWeek is null || onDaysOfWeek.Count == 0)
         {
-            ThrowHelper.ThrowArgumentException("Days of week must be an non-empty set.");
+            Throw.ArgumentException("Days of week must be an non-empty set.");
         }
 
         foreach (DayOfWeek day in onDaysOfWeek)
         {
             if (!AllDaysOfTheWeek.Contains(day))
             {
-                ThrowHelper.ThrowArgumentException("Invalid value for day of week: " + day);
+                Throw.ArgumentException("Invalid value for day of week: " + day);
             }
         }
 
@@ -332,7 +332,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
     {
         if (timeOfDayUtc is null)
         {
-            ThrowHelper.ThrowArgumentException("Start time of day cannot be null!", nameof(timeOfDayUtc));
+            Throw.ArgumentException("Start time of day cannot be null!", nameof(timeOfDayUtc));
         }
         startTimeOfDayUtc = timeOfDayUtc;
         return this;
@@ -359,12 +359,12 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
     {
         if (count <= 0)
         {
-            ThrowHelper.ThrowArgumentException("Ending daily after count must be a positive number!");
+            Throw.ArgumentException("Ending daily after count must be a positive number!");
         }
 
         if (startTimeOfDayUtc is null)
         {
-            ThrowHelper.ThrowArgumentException("You must set the StartDailyAt() before calling this EndingDailyAfterCount()!");
+            Throw.ArgumentException("You must set the StartDailyAt() before calling this EndingDailyAfterCount()!");
         }
 
         DateTimeOffset today = timeProvider.GetUtcNow();
@@ -392,19 +392,19 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
         }
         else
         {
-            ThrowHelper.ThrowArgumentException("The IntervalUnit: " + intervalUnit + " is invalid for this trigger.");
+            Throw.ArgumentException("The IntervalUnit: " + intervalUnit + " is invalid for this trigger.");
             return this;
         }
 
         if (remainingMillisInDay < intervalInMillis)
         {
-            ThrowHelper.ThrowArgumentException("The startTimeOfDay is too late with given Interval and IntervalUnit values.");
+            Throw.ArgumentException("The startTimeOfDay is too late with given Interval and IntervalUnit values.");
         }
 
         long maxNumOfCount = remainingMillisInDay.Ticks / intervalInMillis.Ticks;
         if (count > maxNumOfCount)
         {
-            ThrowHelper.ThrowArgumentException("The given count " + count + " is too large! The max you can set is " + maxNumOfCount);
+            Throw.ArgumentException("The given count " + count + " is too large! The max you can set is " + maxNumOfCount);
         }
 
         TimeSpan incrementInMillis = TimeSpan.FromTicks((count - 1) * intervalInMillis.Ticks);
@@ -412,7 +412,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
 
         if (endTimeOfDayDate >= tomorrow)
         {
-            ThrowHelper.ThrowArgumentException("The given count " + count + " is too large! The max you can set is " + maxNumOfCount);
+            Throw.ArgumentException("The given count " + count + " is too large! The max you can set is " + maxNumOfCount);
         }
 
         DateTime cal = timeProvider.GetUtcNow().Date;
@@ -488,7 +488,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
     {
         if (interval <= 0)
         {
-            ThrowHelper.ThrowArgumentException("Interval must be a positive value.");
+            Throw.ArgumentException("Interval must be a positive value.");
         }
     }
 }
