@@ -1108,4 +1108,11 @@ public class CronTestScenarios
     ];
 
     public static IEnumerable TestCases => TestCaseData.Select(model => new TestCaseData(model.CronExpression, model.TimeAfterDate, model.ExpectedNextFireTime));
+
+    [Test]
+    public void TooManyTokensShouldThrow()
+    {
+        var act = () => new CronExpression("0 15 10 * * ? 2005 *");
+        act.Should().Throw<FormatException>().Which.Message.Should().Contain("too many");
+    }
 }

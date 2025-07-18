@@ -464,8 +464,19 @@ public sealed class CronExpression : ISerializable
 
             var exprOn = CronExpressionConstants.Second;
 
-            foreach (var (expr, _) in expression.SpanSplit(' ', '\t'))
+            int count = 0;
+            foreach (var (expr, _) in expression.AsSpan().SpanSplit(' ', '\t'))
             {
+                if (expr.IsEmpty)
+                {
+                    continue;
+                }
+
+                if (++count > 7)
+                {
+                    ThrowHelper.ThrowFormatException("Cron expression has too many fields.");
+                }
+
                 if (exprOn > CronExpressionConstants.Year)
                 {
                     break;
