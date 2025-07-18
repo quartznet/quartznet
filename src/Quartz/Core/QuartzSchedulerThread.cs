@@ -75,7 +75,7 @@ public class QuartzSchedulerThread
     /// </summary>
     /// <value>The idle wait time.</value>
     [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
-    internal virtual TimeSpan IdleWaitTime
+    internal TimeSpan IdleWaitTime
     {
         set
         {
@@ -97,7 +97,7 @@ public class QuartzSchedulerThread
     /// Gets a value indicating whether this <see cref="QuartzSchedulerThread"/> is paused.
     /// </summary>
     /// <value><c>true</c> if paused; otherwise, <c>false</c>.</value>
-    internal virtual bool Paused => paused;
+    internal bool Paused => paused;
 
     /// <summary>
     /// Construct a new <see cref="QuartzSchedulerThread" /> for the given
@@ -121,7 +121,7 @@ public class QuartzSchedulerThread
     /// <summary>
     /// Signals the main processing loop to pause at the next possible point.
     /// </summary>
-    internal virtual void TogglePause(bool pause)
+    internal void TogglePause(bool pause)
     {
         lock (sigLock)
         {
@@ -141,7 +141,7 @@ public class QuartzSchedulerThread
     /// <summary>
     /// Signals the main processing loop to pause at the next possible point.
     /// </summary>
-    internal virtual async Task Halt(bool wait)
+    internal async Task Halt(bool wait)
     {
         lock (sigLock)
         {
@@ -156,6 +156,8 @@ public class QuartzSchedulerThread
                 SignalSchedulingChange(SchedulerConstants.SchedulingSignalDateTime);
             }
         }
+
+        cancellationTokenSource.Cancel();
 
         if (wait)
         {
@@ -268,6 +270,13 @@ public class QuartzSchedulerThread
 
                 cancellationTokenSource.Token.ThrowIfCancellationRequested();
                 int availThreadCount = qsRsrcs.ThreadPool.BlockForAvailableThreads();
+                lock (sigLock)
+                {
+                    if (halted)
+                    {
+                        break;
+                    }
+                }
                 if (availThreadCount > 0)
                 {
                     List<IOperableTrigger> triggers;
@@ -348,6 +357,13 @@ public class QuartzSchedulerThread
                                     catch (ThreadInterruptedException)
                                     {
                                     }
+                                }
+                            }
+                            lock (sigLock)
+                            {
+                                if (halted)
+                                {
+                                    break;
                                 }
                             }
                             if (await ReleaseIfScheduleChangedSignificantly(triggers, triggerTime).ConfigureAwait(false))
