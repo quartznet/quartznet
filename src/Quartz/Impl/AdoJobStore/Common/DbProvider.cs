@@ -53,11 +53,11 @@ public class DbProvider : IDbProvider
     static DbProvider()
     {
         var properties = StdSchedulerFactory.InitializeProperties(LogProvider.CreateLogger<StdSchedulerFactory>(), throwOnProblem: false);
-        dbMetadataFactories = new List<DbMetadataFactory>
-        {
+        dbMetadataFactories =
+        [
             new ConfigurationBasedDbMetadataFactory(properties ?? new NameValueCollection(), PropertyDbProvider),
             new EmbeddedAssemblyResourceDbMetadataFactory(DbProviderResourceName, PropertyDbProvider)
-        };
+        ];
     }
 
     /// <summary>

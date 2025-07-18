@@ -358,7 +358,7 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
         ITrigger trigger = context.Trigger;
 
         object?[] args =
-        {
+        [
             context.JobDetail.Key.Name,
             context.JobDetail.Key.Group,
             timeProvider.GetUtcNow(),
@@ -367,7 +367,7 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
             trigger.GetPreviousFireTimeUtc(),
             trigger.GetNextFireTimeUtc(),
             context.RefireCount
-        };
+        ];
 
         WriteInfo(string.Format(CultureInfo.InvariantCulture, JobToBeFiredMessage, args));
         return default;
@@ -417,11 +417,11 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
             }
 
             var result = Convert.ToString(context.Result, CultureInfo.InvariantCulture);
-            args = new object?[]
-            {
+            args =
+            [
                 context.JobDetail.Key.Name, context.JobDetail.Key.Group, timeProvider.GetUtcNow(), trigger.Key.Name, trigger.Key.Group,
                 trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, result
-            };
+            ];
 
             WriteInfo(string.Format(CultureInfo.InvariantCulture, JobSuccessMessage, args));
         }
@@ -447,7 +447,7 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
         ITrigger trigger = context.Trigger;
 
         object?[] args =
-        {
+        [
             context.JobDetail.Key.Name,
             context.JobDetail.Key.Group,
             timeProvider.GetUtcNow(),
@@ -456,7 +456,7 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
             trigger.GetPreviousFireTimeUtc(),
             trigger.GetNextFireTimeUtc(),
             context.RefireCount
-        };
+        ];
 
         WriteInfo(string.Format(CultureInfo.InvariantCulture, JobWasVetoedMessage, args));
         return default;

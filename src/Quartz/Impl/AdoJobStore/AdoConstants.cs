@@ -28,8 +28,8 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author>Marko Lahma(.NET)</author>
 public class AdoConstants
 {
-    internal static readonly string[] AllTableNames = new[]
-    {
+    internal static readonly string[] AllTableNames =
+    [
         TableJobDetails,
         TableTriggers,
         TableSimpleTriggers,
@@ -40,7 +40,7 @@ public class AdoConstants
         TablePausedTriggers,
         TableLocks,
         TableSchedulerState
-    };
+    ];
 
     // Table names
     public const string TableJobDetails = "JOB_DETAILS";

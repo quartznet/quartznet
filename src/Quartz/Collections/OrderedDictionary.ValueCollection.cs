@@ -109,7 +109,7 @@ internal partial class OrderedDictionary<TKey, TValue>
 
             if (count == 0)
             {
-                return Array.Empty<TValue>();
+                return [];
             }
 
             var entries = _orderedDictionary._entries;

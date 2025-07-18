@@ -233,7 +233,7 @@ public class JobEndpointsTest : WebApiTest
     {
         A.CallTo(() => FakeScheduler.DeleteJobs(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._)).Returns(true);
 
-        var result = await HttpScheduler.DeleteJobs(new[] { jobKeyOne, jobKeyTwo });
+        var result = await HttpScheduler.DeleteJobs([jobKeyOne, jobKeyTwo]);
         result.Should().BeTrue();
 
         A.CallTo(() => FakeScheduler.DeleteJobs(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._))

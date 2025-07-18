@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc.RazorPages;
+﻿using Microsoft.AspNetCore.Mvc.RazorPages;
 
 using Quartz.Impl.Matchers;
 
@@ -17,8 +17,8 @@ public class IndexModel : PageModel
         this.schedulerFactory = schedulerFactory;
     }
 
-    public IReadOnlyCollection<TriggerKey> Triggers { get; set; } = Array.Empty<TriggerKey>();
-    public IReadOnlyCollection<IJobExecutionContext> CurrentlyExecutingJobs { get; set; } = Array.Empty<IJobExecutionContext>();
+    public IReadOnlyCollection<TriggerKey> Triggers { get; set; } = [];
+    public IReadOnlyCollection<IJobExecutionContext> CurrentlyExecutingJobs { get; set; } = [];
 
     public async Task OnGet()
     {

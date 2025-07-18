@@ -280,7 +280,7 @@ public abstract class AbstractSchedulerTest
             .WithCronSchedule("0/5 * * * * ?")
             .Build();
 
-        await sched.ScheduleJob(job, new[] { trigger }, true);
+        await sched.ScheduleJob(job, [trigger], true);
 
         trigger = await sched.GetTrigger(new TriggerKey("t1"));
 
@@ -296,7 +296,7 @@ public abstract class AbstractSchedulerTest
             CronExpression = new CronExpression("0/10 * * * * ?")
         };
 
-        await sched.ScheduleJob(job, new[] { blobTrigger }, true);
+        await sched.ScheduleJob(job, [blobTrigger], true);
 
         trigger = await sched.GetTrigger(new TriggerKey("t1"));
 
@@ -313,7 +313,7 @@ public abstract class AbstractSchedulerTest
                 x.WithInterval(5, IntervalUnit.Day))
             .Build();
 
-        await sched.ScheduleJob(job, new[] { trigger }, true);
+        await sched.ScheduleJob(job, [trigger], true);
 
         trigger = await sched.GetTrigger(new TriggerKey("t1"));
 
@@ -332,7 +332,7 @@ public abstract class AbstractSchedulerTest
                 x.WithInterval(30, IntervalUnit.Minute))
             .Build();
 
-        await sched.ScheduleJob(job, new[] { trigger }, true);
+        await sched.ScheduleJob(job, [trigger], true);
 
         trigger = await sched.GetTrigger(new TriggerKey("t1"));
 
@@ -348,7 +348,7 @@ public abstract class AbstractSchedulerTest
     [Test]
     public async Task TestAbilityToFireImmediatelyWhenStartedBefore()
     {
-        List<DateTime> jobExecTimestamps = new List<DateTime>();
+        List<DateTime> jobExecTimestamps = [];
         Barrier barrier = new Barrier(2);
 
         IScheduler sched = await CreateScheduler("testAbilityToFireImmediatelyWhenStartedBefore", 5);
@@ -380,7 +380,7 @@ public abstract class AbstractSchedulerTest
     [Test]
     public async Task TestAbilityToFireImmediatelyWhenStartedBeforeWithTriggerJob()
     {
-        List<DateTime> jobExecTimestamps = new List<DateTime>();
+        List<DateTime> jobExecTimestamps = [];
         Barrier barrier = new Barrier(2);
 
         IScheduler sched = await CreateScheduler("testAbilityToFireImmediatelyWhenStartedBeforeWithTriggerJob", 5);
@@ -412,7 +412,7 @@ public abstract class AbstractSchedulerTest
     [Test]
     public async Task TestAbilityToFireImmediatelyWhenStartedAfter()
     {
-        List<DateTime> jobExecTimestamps = new List<DateTime>();
+        List<DateTime> jobExecTimestamps = [];
 
         Barrier barrier = new Barrier(2);
 
@@ -510,7 +510,7 @@ public abstract class AbstractSchedulerTest
     [Test]
     public async Task TestShutdownWithoutWaitIsUnclean()
     {
-        List<DateTime> jobExecTimestamps = new List<DateTime>();
+        List<DateTime> jobExecTimestamps = [];
         Barrier barrier = new Barrier(2);
         IScheduler scheduler = await CreateScheduler("testShutdownWithoutWaitIsUnclean", 8);
         try
@@ -538,7 +538,7 @@ public abstract class AbstractSchedulerTest
     public async Task TestShutdownWithWaitIsClean()
     {
         bool shutdown = false;
-        List<DateTime> jobExecTimestamps = new List<DateTime>();
+        List<DateTime> jobExecTimestamps = [];
         Barrier barrier = new Barrier(2);
         IScheduler scheduler = await CreateScheduler("testShutdownWithoutWaitIsUnclean", 8);
         try

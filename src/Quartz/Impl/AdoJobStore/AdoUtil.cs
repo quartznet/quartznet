@@ -95,7 +95,7 @@ internal sealed class AdoUtil : IAdoUtil
     }
     private void SetDataTypeToCommandParameter(IDbDataParameter param, object parameterType)
     {
-        dbProvider.Metadata.ParameterDbTypeProperty!.SetMethod!.Invoke(param, new[] { parameterType });
+        dbProvider.Metadata.ParameterDbTypeProperty!.SetMethod!.Invoke(param, [parameterType]);
     }
 
     public DbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText)

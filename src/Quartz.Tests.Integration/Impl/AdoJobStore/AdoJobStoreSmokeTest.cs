@@ -405,7 +405,7 @@ public class AdoJobStoreSmokeTest
         properties.Add(StdSchedulerFactory.PropertySchedulerTypeLoadHelperType, typeof(SpecialClassLoadHelper).AssemblyQualifiedName);
         var scheduler = await CreateScheduler(properties);
 
-        await scheduler.DeleteJobs(new[] { JobKey.Create("bad"), JobKey.Create("good") });
+        await scheduler.DeleteJobs([JobKey.Create("bad"), JobKey.Create("good")]);
 
         await scheduler.Start();
 

@@ -83,7 +83,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
                 globalJobListenersMatchers ??= new Dictionary<string, List<IMatcher<JobKey>>>();
 
                 // We're adding the first matcher for the specified job listener
-                matchers = new List<IMatcher<JobKey>>();
+                matchers = [];
                 globalJobListenersMatchers.Add(listenerName, matchers);
             }
 
@@ -224,13 +224,13 @@ internal sealed class ListenerManagerImpl : IListenerManager
     {
         if (globalJobListeners is null)
         {
-            return Array.Empty<IJobListener>();
+            return [];
         }
 
         lock (globalJobListenerLock)
         {
             return globalJobListeners is not null ? globalJobListeners.Values.ToArray()
-                : Array.Empty<IJobListener>();
+                : [];
         }
     }
 
@@ -318,7 +318,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
             // Add or replace the matchers for the trigger listener
             globalTriggerListenersMatchers ??= new Dictionary<string, List<IMatcher<TriggerKey>>>();
-            globalTriggerListenersMatchers[triggerListener.Name] = new List<IMatcher<TriggerKey>> { matcher };
+            globalTriggerListenersMatchers[triggerListener.Name] = [matcher];
         }
     }
 
@@ -349,7 +349,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
                 globalTriggerListenersMatchers ??= new Dictionary<string, List<IMatcher<TriggerKey>>>();
 
                 // We're adding the first matcher for the specified job listener
-                matchers = new List<IMatcher<TriggerKey>>();
+                matchers = [];
                 globalTriggerListenersMatchers.Add(listenerName, matchers);
             }
 
@@ -491,13 +491,14 @@ internal sealed class ListenerManagerImpl : IListenerManager
     {
         if (globalTriggerListeners is null)
         {
-            return Array.Empty<ITriggerListener>();
+            return [];
         }
 
         lock (globalTriggerListenerLock)
         {
-            return globalTriggerListeners is not null ? globalTriggerListeners.Values.ToArray()
-                : Array.Empty<ITriggerListener>();
+            return globalTriggerListeners is not null
+                ? [.. globalTriggerListeners.Values]
+                : [];
         }
     }
 

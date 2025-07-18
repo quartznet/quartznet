@@ -6,15 +6,15 @@
 public sealed class TriggerPropertyBundle
 {
     public TriggerPropertyBundle(IScheduleBuilder sb)
-        : this(sb, Array.Empty<string>(), Array.Empty<object>())
+        : this(sb, [], [])
     {
     }
 
     public TriggerPropertyBundle(IScheduleBuilder sb, string[]? statePropertyNames, object[]? statePropertyValues)
     {
         ScheduleBuilder = sb;
-        StatePropertyNames = statePropertyNames ?? Array.Empty<string>();
-        StatePropertyValues = statePropertyValues ?? Array.Empty<object>();
+        StatePropertyNames = statePropertyNames ?? [];
+        StatePropertyValues = statePropertyValues ?? [];
 
         if (StatePropertyNames.Length != StatePropertyValues.Length)
         {

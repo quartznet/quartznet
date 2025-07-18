@@ -77,10 +77,9 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<ISchedulerFactory, ServiceCollectionSchedulerFactory>();
 
         // Note: TryAddEnumerable() is used here to ensure the initializers are registered only once.
-        services.TryAddEnumerable(new[]
-        {
+        services.TryAddEnumerable([
             ServiceDescriptor.Singleton<IPostConfigureOptions<QuartzOptions>, QuartzConfiguration>()
-        });
+        ]);
 
         return services;
     }

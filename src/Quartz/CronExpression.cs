@@ -213,13 +213,13 @@ public sealed class CronExpression : ISerializable
 {
     private TimeZoneInfo? timeZone;
 
-    [NonSerialized] private readonly CronField seconds = new();
-    [NonSerialized] private readonly CronField minutes = new();
-    [NonSerialized] private readonly CronField hours = new();
-    [NonSerialized] private readonly CronField daysOfMonth = new();
-    [NonSerialized] private readonly CronField months = new();
-    [NonSerialized] private readonly CronField daysOfWeek = new();
-    [NonSerialized] private readonly CronField years = new();
+    [NonSerialized] private readonly CronField seconds = [];
+    [NonSerialized] private readonly CronField minutes = [];
+    [NonSerialized] private readonly CronField hours = [];
+    [NonSerialized] private readonly CronField daysOfMonth = [];
+    [NonSerialized] private readonly CronField months = [];
+    [NonSerialized] private readonly CronField daysOfWeek = [];
+    [NonSerialized] private readonly CronField years = [];
 
     /// <summary>
     /// Last day of week.
@@ -2239,7 +2239,7 @@ internal sealed class CronField : IEnumerable<int>
         }
         else if (singleValue != value)
         {
-            values = new SortedSet<int> { singleValue.Value, value };
+            values = [singleValue.Value, value];
             singleValue = null;
         }
     }

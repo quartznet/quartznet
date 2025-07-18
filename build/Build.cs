@@ -114,7 +114,7 @@ partial class Build : NukeBuild, ICompile, IPack
                 .EnableNoBuild()
                 .SetConfiguration(configuration)
                 .SetFramework(framework)
-                .SetLoggers(GitHubActions.Instance is not null ? ["GitHubActions"] : Array.Empty<string>())
+                .SetLoggers(GitHubActions.Instance is not null ? ["GitHubActions"] : [])
                 .CombineWith(testProjects, (_, testProject) => _
                     .SetProjectFile(solution.GetAllProjects(testProject).First())
                 )

@@ -376,7 +376,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
         var nextRunTime2 = cronExpression.GetTimeAfter((DateTimeOffset) nextRunTime);
 
         int[] arrJuneDaysThatShouldFire =
-            { 1, 8, 15, 22, 29 };
+            [1, 8, 15, 22, 29];
         List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
 
         TestCorrectWeekFireDays(cronExpression, juneDays);
@@ -390,7 +390,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
         var nextRunTime2 = cronExpression.GetTimeAfter((DateTimeOffset) nextRunTime);
 
         int[] arrJuneDaysThatShouldFire =
-            { 1, 15, 29 };
+            [1, 15, 29];
         List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
 
         TestCorrectWeekFireDays(cronExpression, juneDays);
@@ -404,7 +404,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
         var nextRunTime2 = cronExpression.GetTimeAfter((DateTimeOffset) nextRunTime);
 
         int[] arrJuneDaysThatShouldFire =
-            { 1, 14, 15, 28, 29 };
+            [1, 14, 15, 28, 29];
         List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
 
         TestCorrectWeekFireDays(cronExpression, juneDays);
@@ -414,7 +414,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     public void TestCronExpressionLastDayOfMonth()
     {
         CronExpression cronExpression = new CronExpression("0 0 12 L * ?");
-        int[] arrJuneDaysThatShouldFire = { 30 };
+        int[] arrJuneDaysThatShouldFire = [30];
         List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
 
         TestCorrectWeekFireDays(cronExpression, juneDays);
@@ -476,7 +476,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
 
     private static void TestCorrectWeekFireDays(CronExpression cronExpression, IList<int> correctFireDays)
     {
-        List<int> fireDays = new List<int>();
+        List<int> fireDays = [];
 
         DateTime cal = new DateTime(2007, 6, 1, 11, 0, 0).ToUniversalTime();
         DateTimeOffset? nextFireTime = cal;

@@ -22,7 +22,7 @@ internal record AddCalendarRequest(string CalendarName, ICalendar Calendar, bool
 
 internal record AddJobRequest(JobDetailDto Job, bool Replace, bool? StoreNonDurableWhileAwaitingScheduling) : IValidatable
 {
-    public IEnumerable<string> Validate() => Job is null ? new[] { "Missing job details" } : Job.Validate();
+    public IEnumerable<string> Validate() => Job is null ? ["Missing job details"] : Job.Validate();
 }
 
 internal record ExistsResponse(bool Exists);
@@ -35,7 +35,7 @@ internal record DeleteJobResponse(bool JobFound);
 
 internal record DeleteJobsRequest(KeyDto[] Jobs) : IValidatable
 {
-    public IEnumerable<string> Validate() => Jobs is null ? new[] { "Missing job keys" } : Jobs.SelectMany(x => x.Validate());
+    public IEnumerable<string> Validate() => Jobs is null ? ["Missing job keys"] : Jobs.SelectMany(x => x.Validate());
 }
 
 internal record DeleteJobsResponse(bool AllJobsFound);
@@ -67,7 +67,7 @@ internal record ScheduleJobResponse(DateTimeOffset FirstFireTimeUtc);
 // When updating these, make same changes also into Quartz.AspNetCore.HttpApi.OpenApi.ScheduleJobsRequest/ScheduleJobsRequestItem
 internal record ScheduleJobsRequest(ScheduleJobsRequestItem[] JobsAndTriggers, bool Replace) : IValidatable
 {
-    public IEnumerable<string> Validate() => JobsAndTriggers is null ? new[] { "Missing jobs and triggers" } : JobsAndTriggers.SelectMany(x => x.Validate());
+    public IEnumerable<string> Validate() => JobsAndTriggers is null ? ["Missing jobs and triggers"] : JobsAndTriggers.SelectMany(x => x.Validate());
 }
 
 internal record ScheduleJobsRequestItem(JobDetailDto Job, ITrigger[] Triggers) : IValidatable
@@ -113,7 +113,7 @@ internal record UnscheduleJobResponse(bool TriggerFound);
 
 internal record UnscheduleJobsRequest(KeyDto[] Triggers) : IValidatable
 {
-    public IEnumerable<string> Validate() => Triggers is null ? new[] { "Missing trigger keys" } : Triggers.SelectMany(x => x.Validate());
+    public IEnumerable<string> Validate() => Triggers is null ? ["Missing trigger keys"] : Triggers.SelectMany(x => x.Validate());
 }
 
 internal record UnscheduleJobsResponse(bool AllTriggersFound);

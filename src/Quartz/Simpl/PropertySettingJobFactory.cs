@@ -193,7 +193,7 @@ public class PropertySettingJobFactory : SimpleJobFactory
                 ? ObjectUtils.GetTimeSpanValueForProperty(prop, o)
                 : ConvertValueIfNecessary(paramType, o);
 
-            prop.GetSetMethod()!.Invoke(job, new[] { goodValue });
+            prop.GetSetMethod()!.Invoke(job, [goodValue]);
         }
         catch (FormatException nfe)
         {

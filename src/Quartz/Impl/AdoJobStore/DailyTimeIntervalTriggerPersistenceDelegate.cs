@@ -168,8 +168,8 @@ internal sealed class DailyTimeIntervalTriggerPersistenceDelegate : SimpleProper
 
 
         int timesTriggered = props.Int2;
-        string[] statePropertyNames = { "timesTriggered" };
-        object[] statePropertyValues = { timesTriggered };
+        string[] statePropertyNames = ["timesTriggered"];
+        object[] statePropertyValues = [timesTriggered];
 
         return new TriggerPropertyBundle(scheduleBuilder, statePropertyNames, statePropertyValues);
     }

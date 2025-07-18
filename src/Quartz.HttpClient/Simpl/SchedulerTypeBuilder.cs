@@ -93,7 +93,7 @@ internal static class SchedulerTypeBuilder
                 name: typeName,
                 attr: TypeAttributes.Class | TypeAttributes.Public | TypeAttributes.Sealed,
                 parent: parentType,
-                interfaces: new[] { interfaceType }
+                interfaces: [interfaceType]
             );
 
             var parameterTypes = new[] { typeof(IScheduler) };

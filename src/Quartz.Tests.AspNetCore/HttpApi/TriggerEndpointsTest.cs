@@ -228,7 +228,7 @@ public class TriggerEndpointsTest : WebApiTest
     [Test]
     public async Task ScheduleJobsShouldWork()
     {
-        await HttpScheduler.ScheduleJob(TestData.JobDetail, new[] { TestData.CronTrigger, TestData.SimpleTrigger }, replace: true);
+        await HttpScheduler.ScheduleJob(TestData.JobDetail, [TestData.CronTrigger, TestData.SimpleTrigger], replace: true);
         A.CallTo(() => FakeScheduler.ScheduleJobs(A<IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>>>._, A<bool>._, A<CancellationToken>._))
             .WhenArgumentsMatch((IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken _) =>
             {
@@ -248,8 +248,8 @@ public class TriggerEndpointsTest : WebApiTest
         Fake.ClearRecordedCalls(FakeScheduler);
         var requestJobs = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>
         {
-            { TestData.JobDetail, new[] { TestData.CronTrigger, TestData.SimpleTrigger } },
-            { TestData.JobDetail2, new[] { TestData.CalendarIntervalTrigger } }
+            { TestData.JobDetail, [TestData.CronTrigger, TestData.SimpleTrigger] },
+            { TestData.JobDetail2, [TestData.CalendarIntervalTrigger] }
         };
 
         await HttpScheduler.ScheduleJobs(requestJobs, replace: false);
@@ -276,10 +276,10 @@ public class TriggerEndpointsTest : WebApiTest
             .OfType("Quartz.Tests.AspNetCore.Support.DummyJob2, Quartz.Tests.AspNetCore")
             .Build();
 
-        Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.ScheduleJob(jobDetailsForUnknownJob, new[] { TestData.CronTrigger, TestData.SimpleTrigger }, replace: true).AsTask())!
+        Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.ScheduleJob(jobDetailsForUnknownJob, [TestData.CronTrigger, TestData.SimpleTrigger], replace: true).AsTask())!
             .Message.Should().ContainEquivalentOf("unknown job type");
 
-        var request = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>> { { jobDetailsForUnknownJob, new[] { TestData.CronTrigger } } };
+        var request = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>> { { jobDetailsForUnknownJob, [TestData.CronTrigger] } };
         Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.ScheduleJobs(request, replace: true).AsTask())!.Message.Should().ContainEquivalentOf("unknown job type");
     }
 
@@ -301,7 +301,7 @@ public class TriggerEndpointsTest : WebApiTest
     {
         A.CallTo(() => FakeScheduler.UnscheduleJobs(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._)).Returns(true);
 
-        var response = await HttpScheduler.UnscheduleJobs(new[] { triggerKeyOne, triggerKeyTwo });
+        var response = await HttpScheduler.UnscheduleJobs([triggerKeyOne, triggerKeyTwo]);
         response.Should().BeTrue();
 
         A.CallTo(() => FakeScheduler.UnscheduleJobs(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))

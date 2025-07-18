@@ -139,7 +139,7 @@ public class ObjectUtilsTest
     public void ShouldBeAbleToSetValuesToExplicitlyImplementedInterfaceMembers()
     {
         ExplicitImplementor testObject = new ExplicitImplementor();
-        ObjectUtils.SetObjectProperties(testObject, new[] { "InstanceName" }, new object[] { "instance" });
+        ObjectUtils.SetObjectProperties(testObject, ["InstanceName"], ["instance"]);
         Assert.That(testObject.InstanceName, Is.EqualTo("instance"));
     }
 

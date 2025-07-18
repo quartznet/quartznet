@@ -41,11 +41,11 @@ internal sealed class EmbeddedAssemblyResourceDbMetadataFactory : DbMetadataFact
     /// <returns>The metadata instance for the specified name</returns>
     public override DbMetadata GetDbMetadata(string providerName)
     {
-        List<string> deprecatedProviders = new List<string>
-        {
+        List<string> deprecatedProviders =
+        [
             "Npgsql-10",
             "SqlServer-11"
-        };
+        ];
 
         if (deprecatedProviders.Contains(providerName))
         {

@@ -215,7 +215,7 @@ public class ListenerManagerTest
         {
             Assert.That(matchers, Is.Not.Null);
             Assert.That(matchers, Has.Count.EqualTo(1));
-            Assert.That(matchers.SequenceEqual(new IMatcher<JobKey>[] { nameMatcher }), Is.True);
+            Assert.That(matchers.SequenceEqual([nameMatcher]), Is.True);
         });
     }
 
@@ -241,7 +241,7 @@ public class ListenerManagerTest
         {
             Assert.That(matchers, Is.Not.Null);
             Assert.That(matchers, Has.Count.EqualTo(1));
-            Assert.That(matchers.SequenceEqual(new IMatcher<JobKey>[] { nameMatcher }), Is.True);
+            Assert.That(matchers.SequenceEqual([nameMatcher]), Is.True);
         });
     }
 
@@ -249,7 +249,7 @@ public class ListenerManagerTest
     public void AddJobListener_ReadOnlyCollectionOfMatcher_JobListenerIsNull()
     {
         const IJobListener jobListener = null;
-        IReadOnlyCollection<IMatcher<JobKey>> matchers = Array.Empty<IMatcher<JobKey>>();
+        IReadOnlyCollection<IMatcher<JobKey>> matchers = [];
 
         try
         {
@@ -270,7 +270,7 @@ public class ListenerManagerTest
     public void AddJobListener_ReadOnlyCollectionOfMatcher_NameOfJobListenerIsNull()
     {
         var jobListener = new TestJobListener(null);
-        IReadOnlyCollection<IMatcher<JobKey>> matchers = Array.Empty<IMatcher<JobKey>>();
+        IReadOnlyCollection<IMatcher<JobKey>> matchers = [];
 
         try
         {
@@ -291,7 +291,7 @@ public class ListenerManagerTest
     public void AddJobListener_ReadOnlyCollectionOfMatcher_NameOfJobListenerIsEmpty()
     {
         var jobListener = new TestJobListener(String.Empty);
-        IReadOnlyCollection<IMatcher<JobKey>> matchers = Array.Empty<IMatcher<JobKey>>();
+        IReadOnlyCollection<IMatcher<JobKey>> matchers = [];
 
         try
         {
@@ -341,7 +341,7 @@ public class ListenerManagerTest
 
         _manager.AddJobListener(tl1a, groupMatcher);
 
-        IReadOnlyCollection<IMatcher<JobKey>> setMatchers = Array.Empty<IMatcher<JobKey>>();
+        IReadOnlyCollection<IMatcher<JobKey>> setMatchers = [];
 
         _manager.AddJobListener(tl1b, setMatchers);
 
@@ -367,7 +367,7 @@ public class ListenerManagerTest
 
         _manager.AddJobListener(tl1a, groupMatcher);
 
-        IReadOnlyCollection<IMatcher<JobKey>> setMatchers = new IMatcher<JobKey>[] { nameMatcher };
+        IReadOnlyCollection<IMatcher<JobKey>> setMatchers = [nameMatcher];
 
         _manager.AddJobListener(tl1b, setMatchers);
 
@@ -384,7 +384,7 @@ public class ListenerManagerTest
         {
             Assert.That(matchers, Is.Not.Null);
             Assert.That(matchers, Has.Count.EqualTo(1));
-            Assert.That(matchers.SequenceEqual(new IMatcher<JobKey>[] { nameMatcher }), Is.True);
+            Assert.That(matchers.SequenceEqual([nameMatcher]), Is.True);
         });
     }
 
@@ -449,7 +449,7 @@ public class ListenerManagerTest
         {
             Assert.That(matchers, Is.Not.Null);
             Assert.That(matchers, Has.Count.EqualTo(2));
-            Assert.That(matchers.SequenceEqual(new IMatcher<JobKey>[] { groupMatcher, nameMatcher }), Is.True);
+            Assert.That(matchers.SequenceEqual([groupMatcher, nameMatcher]), Is.True);
         });
     }
 
@@ -468,7 +468,7 @@ public class ListenerManagerTest
         {
             Assert.That(matchers, Is.Not.Null);
             Assert.That(matchers, Has.Count.EqualTo(2));
-            Assert.That(matchers.SequenceEqual(new IMatcher<JobKey>[] { nameMatcher, groupMatcher }), Is.True);
+            Assert.That(matchers.SequenceEqual([nameMatcher, groupMatcher]), Is.True);
         });
     }
 
@@ -615,7 +615,7 @@ public class ListenerManagerTest
 
         var matchersTl1 = _manager.GetJobListenerMatchers(tl1.Name);
         Assert.That(matchersTl1, Is.Not.Null);
-        Assert.That(matchersTl1.SequenceEqual(new[] { groupMatcher }), Is.True);
+        Assert.That(matchersTl1.SequenceEqual([groupMatcher]), Is.True);
     }
 
     [Test]
@@ -646,7 +646,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(matchersTl1, Is.Not.Null);
-            Assert.That(matchersTl1.SequenceEqual(new[] { groupMatcher }), Is.True);
+            Assert.That(matchersTl1.SequenceEqual([groupMatcher]), Is.True);
         });
 
         // Ensure adding back the listener without matchers does not "magically" recover the
@@ -744,7 +744,7 @@ public class ListenerManagerTest
         {
             Assert.That(matchers, Is.Not.Null);
             Assert.That(matchers, Has.Count.EqualTo(1));
-            Assert.That(matchers.SequenceEqual(new[] { nameMatcher }), Is.True);
+            Assert.That(matchers.SequenceEqual([nameMatcher]), Is.True);
 
             Assert.That(_manager.RemoveJobListenerMatcher(tl1.Name, nameMatcher), Is.True);
             Assert.That(_manager.GetJobListenerMatchers(tl1.Name), Is.Null);
@@ -775,7 +775,7 @@ public class ListenerManagerTest
         {
             Assert.That(matchers, Is.Not.Null);
             Assert.That(matchers, Has.Count.EqualTo(1));
-            Assert.That(matchers.SequenceEqual(new[] { nameMatcher }), Is.True);
+            Assert.That(matchers.SequenceEqual([nameMatcher]), Is.True);
         });
     }
 
@@ -1105,7 +1105,7 @@ public class ListenerManagerTest
         {
             Assert.That(matchers, Is.Not.Null);
             Assert.That(matchers, Has.Count.EqualTo(1));
-            Assert.That(matchers.SequenceEqual(new IMatcher<TriggerKey>[] { nameMatcher }), Is.True);
+            Assert.That(matchers.SequenceEqual([nameMatcher]), Is.True);
         });
     }
 
@@ -1131,7 +1131,7 @@ public class ListenerManagerTest
         {
             Assert.That(matchers, Is.Not.Null);
             Assert.That(matchers, Has.Count.EqualTo(1));
-            Assert.That(matchers.SequenceEqual(new IMatcher<TriggerKey>[] { nameMatcher }), Is.True);
+            Assert.That(matchers.SequenceEqual([nameMatcher]), Is.True);
         });
     }
 
@@ -1139,7 +1139,7 @@ public class ListenerManagerTest
     public void AddTriggerListener_ReadOnlyCollectionOfMatcher_TriggerListenerIsNull()
     {
         const ITriggerListener triggerListener = null;
-        IReadOnlyCollection<IMatcher<TriggerKey>> matchers = Array.Empty<IMatcher<TriggerKey>>();
+        IReadOnlyCollection<IMatcher<TriggerKey>> matchers = [];
 
         try
         {
@@ -1160,7 +1160,7 @@ public class ListenerManagerTest
     public void AddTriggerListener_ReadOnlyCollectionOfMatcher_NameOfTriggerListenerIsNull()
     {
         var triggerListener = new TestTriggerListener(null);
-        IReadOnlyCollection<IMatcher<TriggerKey>> matchers = Array.Empty<IMatcher<TriggerKey>>();
+        IReadOnlyCollection<IMatcher<TriggerKey>> matchers = [];
 
         try
         {
@@ -1181,7 +1181,7 @@ public class ListenerManagerTest
     public void AddTriggerListener_ReadOnlyCollectionOfMatcher_NameOfTriggerListenerIsEmpty()
     {
         var triggerListener = new TestTriggerListener(String.Empty);
-        IReadOnlyCollection<IMatcher<TriggerKey>> matchers = Array.Empty<IMatcher<TriggerKey>>();
+        IReadOnlyCollection<IMatcher<TriggerKey>> matchers = [];
 
         try
         {
@@ -1231,7 +1231,7 @@ public class ListenerManagerTest
 
         _manager.AddTriggerListener(tl1a, groupMatcher);
 
-        IReadOnlyCollection<IMatcher<TriggerKey>> setMatchers = Array.Empty<IMatcher<TriggerKey>>();
+        IReadOnlyCollection<IMatcher<TriggerKey>> setMatchers = [];
 
         _manager.AddTriggerListener(tl1b, setMatchers);
 
@@ -1257,7 +1257,7 @@ public class ListenerManagerTest
 
         _manager.AddTriggerListener(tl1a, groupMatcher);
 
-        IReadOnlyCollection<IMatcher<TriggerKey>> setMatchers = new IMatcher<TriggerKey>[] { nameMatcher };
+        IReadOnlyCollection<IMatcher<TriggerKey>> setMatchers = [nameMatcher];
 
         _manager.AddTriggerListener(tl1b, setMatchers);
 
@@ -1274,7 +1274,7 @@ public class ListenerManagerTest
         {
             Assert.That(matchers, Is.Not.Null);
             Assert.That(matchers, Has.Count.EqualTo(1));
-            Assert.That(matchers.SequenceEqual(new IMatcher<TriggerKey>[] { nameMatcher }), Is.True);
+            Assert.That(matchers.SequenceEqual([nameMatcher]), Is.True);
         });
     }
 
@@ -1339,7 +1339,7 @@ public class ListenerManagerTest
         {
             Assert.That(matchers, Is.Not.Null);
             Assert.That(matchers, Has.Count.EqualTo(2));
-            Assert.That(matchers.SequenceEqual(new IMatcher<TriggerKey>[] { groupMatcher, nameMatcher }), Is.True);
+            Assert.That(matchers.SequenceEqual([groupMatcher, nameMatcher]), Is.True);
         });
     }
 
@@ -1358,7 +1358,7 @@ public class ListenerManagerTest
         {
             Assert.That(matchers, Is.Not.Null);
             Assert.That(matchers, Has.Count.EqualTo(2));
-            Assert.That(matchers.SequenceEqual(new IMatcher<TriggerKey>[] { nameMatcher, groupMatcher }), Is.True);
+            Assert.That(matchers.SequenceEqual([nameMatcher, groupMatcher]), Is.True);
         });
     }
 
@@ -1510,7 +1510,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(matchersTl1, Is.Not.Null);
-            Assert.That(matchersTl1.SequenceEqual(new[] { groupMatcher }), Is.True);
+            Assert.That(matchersTl1.SequenceEqual([groupMatcher]), Is.True);
         });
     }
 
@@ -1542,7 +1542,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(matchersTl1, Is.Not.Null);
-            Assert.That(matchersTl1.SequenceEqual(new[] { groupMatcher }), Is.True);
+            Assert.That(matchersTl1.SequenceEqual([groupMatcher]), Is.True);
         });
 
         // Ensure adding back the listener without matchers does not "magically" recover the
@@ -1640,7 +1640,7 @@ public class ListenerManagerTest
         {
             Assert.That(matchers, Is.Not.Null);
             Assert.That(matchers, Has.Count.EqualTo(1));
-            Assert.That(matchers.SequenceEqual(new[] { nameMatcher }), Is.True);
+            Assert.That(matchers.SequenceEqual([nameMatcher]), Is.True);
 
             Assert.That(_manager.RemoveTriggerListenerMatcher(tl1.Name, nameMatcher), Is.True);
             Assert.That(_manager.GetTriggerListenerMatchers(tl1.Name), Is.Null);
@@ -1671,7 +1671,7 @@ public class ListenerManagerTest
         {
             Assert.That(matchers, Is.Not.Null);
             Assert.That(matchers, Has.Count.EqualTo(1));
-            Assert.That(matchers.SequenceEqual(new[] { nameMatcher }), Is.True);
+            Assert.That(matchers.SequenceEqual([nameMatcher]), Is.True);
         });
     }
 

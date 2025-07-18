@@ -74,7 +74,7 @@ internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
         foreach (var listener in jobListeners)
         {
             var configuration = jobListenerConfigurations.SingleOrDefault(x => x.ListenerType == listener.GetType());
-            scheduler.ListenerManager.AddJobListener(listener, configuration?.Matchers ?? Array.Empty<IMatcher<JobKey>>());
+            scheduler.ListenerManager.AddJobListener(listener, configuration?.Matchers ?? []);
         }
 
         var triggerListeners = serviceProvider.GetServices<ITriggerListener>();
@@ -82,7 +82,7 @@ internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
         foreach (var listener in triggerListeners)
         {
             var configuration = triggerListenerConfigurations.SingleOrDefault(x => x.ListenerType == listener.GetType());
-            scheduler.ListenerManager.AddTriggerListener(listener, configuration?.Matchers ?? Array.Empty<IMatcher<TriggerKey>>());
+            scheduler.ListenerManager.AddTriggerListener(listener, configuration?.Matchers ?? []);
         }
 
         var calendars = serviceProvider.GetServices<CalendarConfiguration>();

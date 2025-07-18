@@ -82,8 +82,8 @@ public sealed class CalendarIntervalTriggerPersistenceDelegate : SimplePropertie
 
         int timesTriggered = props.Int2;
 
-        string[] statePropertyNames = { "timesTriggered" };
-        object[] statePropertyValues = { timesTriggered };
+        string[] statePropertyNames = ["timesTriggered"];
+        object[] statePropertyValues = [timesTriggered];
 
         return new TriggerPropertyBundle(sb, statePropertyNames, statePropertyValues);
     }
