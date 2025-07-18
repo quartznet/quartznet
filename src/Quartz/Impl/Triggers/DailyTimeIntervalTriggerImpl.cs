@@ -324,7 +324,7 @@ public class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalT
         get => repeatInterval;
         set
         {
-            if (value < 0)
+            if (value < 1)
             {
                 throw new ArgumentException("Repeat interval must be >= 1");
             }
