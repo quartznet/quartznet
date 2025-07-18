@@ -780,4 +780,11 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
 
         Console.WriteLine("{0}ms", sw.ElapsedMilliseconds);
     }
+
+    [Test]
+    public void TooManyTokensShouldThrow()
+    {
+        var act = () => new CronExpression("0 15 10 * * ? 2005 *");
+        act.Should().Throw<FormatException>().Which.Message.Should().Contain("too many");
+    }
 }
