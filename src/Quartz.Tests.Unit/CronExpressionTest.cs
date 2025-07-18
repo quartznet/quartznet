@@ -605,11 +605,11 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     {
         // Test case 1
         var e = Assert.Throws<FormatException>(() => new CronExpression("/120 0 8-18 ? * 2-6"), "Cron did not validate bad range interval in '_blank/xxx' form");
-        Assert.That(e.Message, Is.EqualTo("Increment > 60 : 120"));
+        Assert.That(e.Message, Is.EqualTo("Increment > 59 : 120"));
 
         // Test case 2
         e = Assert.Throws<FormatException>(() => new CronExpression("0/120 0 8-18 ? * 2-6"), "Cron did not validate bad range interval in in '0/xxx' form");
-        Assert.That(e.Message, Is.EqualTo("Increment > 60 : 120"));
+        Assert.That(e.Message, Is.EqualTo("Increment > 59 : 120"));
 
         // Test case 3
         e = Assert.Throws<FormatException>(() => new CronExpression("/ 0 8-18 ? * 2-6"), "Cron did not validate bad range interval in '_blank/_blank'");
@@ -625,11 +625,11 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     {
         // Test case 1
         var e = Assert.Throws<FormatException>(() => new CronExpression("0 /120 8-18 ? * 2-6"), "Cron did not validate bad range interval in '_blank/xxx' form");
-        Assert.That(e.Message, Is.EqualTo("Increment > 60 : 120"));
+        Assert.That(e.Message, Is.EqualTo("Increment > 59 : 120"));
 
         // Test case 2
         e = Assert.Throws<FormatException>(() => new CronExpression("0 0/120 8-18 ? * 2-6"), "Cron did not validate bad range interval in in '0/xxx' form");
-        Assert.That(e.Message, Is.EqualTo("Increment > 60 : 120"));
+        Assert.That(e.Message, Is.EqualTo("Increment > 59 : 120"));
 
         // Test case 3
         e = Assert.Throws<FormatException>(() => new CronExpression("0 / 8-18 ? * 2-6"), "Cron did not validate bad range interval in '_blank/_blank'");
@@ -645,11 +645,11 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     {
         // Test case 1
         var e = Assert.Throws<FormatException>(() => new CronExpression("0 0 /120 ? * 2-6"), "Cron did not validate bad range interval in '_blank/xxx' form");
-        Assert.That(e.Message, Is.EqualTo("Increment > 24 : 120"));
+        Assert.That(e.Message, Is.EqualTo("Increment > 23 : 120"));
 
         // Test case 2
         e = Assert.Throws<FormatException>(() => new CronExpression("0 0 0/120 ? * 2-6"), "Cron did not validate bad range interval in in '0/xxx' form");
-        Assert.That(e.Message, Is.EqualTo("Increment > 24 : 120"));
+        Assert.That(e.Message, Is.EqualTo("Increment > 23 : 120"));
 
         // Test case 3
         e = Assert.Throws<FormatException>(() => new CronExpression("0 0 / ? * 2-6"), "Cron did not validate bad range interval in '_blank/_blank'");

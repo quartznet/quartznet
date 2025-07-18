@@ -947,11 +947,11 @@ public class CronExpression : IDeserializationCallback, ISerializable
     {
         if (incr > 59 && (type == Second || type == Minute))
         {
-            throw new FormatException($"Increment > 60 : {incr}");
+            throw new FormatException($"Increment > 59 : {incr}");
         }
         if (incr > 23 && type == Hour)
         {
-            throw new FormatException($"Increment > 24 : {incr}");
+            throw new FormatException($"Increment > 23 : {incr}");
         }
         if (incr > 31 && type == DayOfMonth)
         {
