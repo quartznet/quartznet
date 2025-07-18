@@ -149,6 +149,8 @@ internal sealed class QuartzSchedulerThread
             }
         }
 
+        await cancellationTokenSource.CancelAsync().ConfigureAwait(false);
+
         if (wait)
         {
             try
@@ -260,6 +262,13 @@ internal sealed class QuartzSchedulerThread
 
                 cancellationTokenSource.Token.ThrowIfCancellationRequested();
                 int availThreadCount = qsRsrcs.ThreadPool.BlockForAvailableThreads();
+                lock (sigLock)
+                {
+                    if (halted)
+                    {
+                        break;
+                    }
+                }
                 if (availThreadCount > 0)
                 {
                     List<IOperableTrigger> triggers;
@@ -340,6 +349,13 @@ internal sealed class QuartzSchedulerThread
                                     catch (ThreadInterruptedException)
                                     {
                                     }
+                                }
+                            }
+                            lock (sigLock)
+                            {
+                                if (halted)
+                                {
+                                    break;
                                 }
                             }
                             if (await ReleaseIfScheduleChangedSignificantly(triggers, triggerTime).ConfigureAwait(false))
