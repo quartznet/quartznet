@@ -170,7 +170,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     {
         CronExpression cronExpression = new CronExpression("0 0 12 ? * MON-FRI");
         int[] arrJuneDaysThatShouldFire =
-            {1, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 18, 19, 20, 22, 21, 25, 26, 27, 28, 29};
+            { 1, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 18, 19, 20, 22, 21, 25, 26, 27, 28, 29 };
         List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
 
         TestCorrectWeekFireDays(cronExpression, juneDays);
@@ -181,10 +181,10 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     {
         CronExpression cronExpression = new CronExpression("0 0 12 ? * FRI");
         var nextRunTime = cronExpression.GetTimeAfter(DateTimeOffset.Now);
-        var nextRunTime2 = cronExpression.GetTimeAfter((DateTimeOffset)nextRunTime);
+        var nextRunTime2 = cronExpression.GetTimeAfter((DateTimeOffset) nextRunTime);
 
         int[] arrJuneDaysThatShouldFire =
-            {1, 8, 15, 22, 29};
+            { 1, 8, 15, 22, 29 };
         List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
 
         TestCorrectWeekFireDays(cronExpression, juneDays);
@@ -195,10 +195,10 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     {
         CronExpression cronExpression = new CronExpression("0 0 12 ? * FRI/2");
         var nextRunTime = cronExpression.GetTimeAfter(DateTimeOffset.Now);
-        var nextRunTime2 = cronExpression.GetTimeAfter((DateTimeOffset)nextRunTime);
+        var nextRunTime2 = cronExpression.GetTimeAfter((DateTimeOffset) nextRunTime);
 
         int[] arrJuneDaysThatShouldFire =
-            {1, 15, 29};
+            { 1, 15, 29 };
         List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
 
         TestCorrectWeekFireDays(cronExpression, juneDays);
@@ -209,10 +209,10 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     {
         CronExpression cronExpression = new CronExpression("0 0 12 ? * THU,FRI/2");
         var nextRunTime = cronExpression.GetTimeAfter(DateTimeOffset.Now);
-        var nextRunTime2 = cronExpression.GetTimeAfter((DateTimeOffset)nextRunTime);
+        var nextRunTime2 = cronExpression.GetTimeAfter((DateTimeOffset) nextRunTime);
 
         int[] arrJuneDaysThatShouldFire =
-            {1, 14, 15, 28, 29};
+            { 1, 14, 15, 28, 29 };
         List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
 
         TestCorrectWeekFireDays(cronExpression, juneDays);
@@ -222,7 +222,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     public void TestCronExpressionLastDayOfMonth()
     {
         CronExpression cronExpression = new CronExpression("0 0 12 L * ?");
-        int[] arrJuneDaysThatShouldFire = {30};
+        int[] arrJuneDaysThatShouldFire = { 30 };
         List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
 
         TestCorrectWeekFireDays(cronExpression, juneDays);
@@ -291,7 +291,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
 
         for (int i = 0; i < DateTime.DaysInMonth(2007, 6); ++i)
         {
-            nextFireTime = cronExpression.GetTimeAfter((DateTimeOffset)nextFireTime);
+            nextFireTime = cronExpression.GetTimeAfter((DateTimeOffset) nextFireTime);
             if (!fireDays.Contains(nextFireTime.Value.Day) && nextFireTime.Value.Month == 6 && nextFireTime.Value.Year == 2007)
             {
                 // next fire day may be monday for several days..
@@ -787,4 +787,50 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
         var act = () => new CronExpression("0 15 10 * * ? 2005 *");
         act.Should().Throw<FormatException>().Which.Message.Should().Contain("too many");
     }
-}
+
+    [Test]
+    public void TestGetTimeBefore()
+    {
+        int year = DateTime.UtcNow.Year;
+
+        var tests = new[]
+        {
+            new object[] { "* * * * * ? *", 1000L },
+            new object[] { "0 * * * * ? *", 60_000L },
+            new object[] { "0/15 * * * * ? *", 15_000L },
+            new object[] { "0 0 5 * * ? *", 24 * 60 * 60 * 1000L },
+            new object[] { "0 0 0 * * ? *", 24 * 60 * 60 * 1000L },
+            new object[] { "0/30 1 2 * * ? *", 24 * 60 * 60 * 1000L - 30_000L, 30_000L },
+            new object[] { $"* * * * * ? {year + 2}" },
+            new object[] { $"* * * * * ? {year - 2}", 24 * 60 * 60 * 1000L - 30_000L, 30_000L }
+        };
+
+        foreach (var test in tests)
+        {
+            string expression = (string)test[0];
+            long interval1 = test.Length > 1 ? (long)test[1] : -1;
+            long interval2 = test.Length > 2 ? (long)test[2] : interval1;
+
+            var cron = new CronExpression(expression); // You’ll need a CronExpression class
+            var now = DateTimeOffset.UtcNow;
+
+            DateTimeOffset? after = cron.GetTimeAfter(now);
+            if (after == null)
+            {
+                DateTimeOffset? before = cron.GetTimeBefore(now);
+                Assert.IsNotNull(before, $"expression {expression}");
+            }
+            else if (interval1 < 0)
+            {
+                DateTimeOffset? before = cron.GetTimeBefore(after.Value);
+                Assert.IsNull(before, $"expression {expression}");
+            }
+            else
+            {
+                DateTimeOffset? before = cron.GetTimeBefore(after.Value);
+                DateTimeOffset? after2 = cron.GetTimeAfter(after.Value);
+                Assert.AreEqual(interval1, (after.Value - before.Value).TotalMilliseconds, $"expression {expression}");
+                Assert.AreEqual(interval2, (after2.Value - after.Value).TotalMilliseconds, $"expression {expression}");
+            }
+        }
+    }}
