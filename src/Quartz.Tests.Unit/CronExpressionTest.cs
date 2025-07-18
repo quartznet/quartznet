@@ -117,6 +117,29 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
 
         cal = new DateTime(2010, 10, 29, 10, 15, 0).ToUniversalTime(); // nearest weekday to last day - 1 (29th is a friday in 2010)
         Assert.IsTrue(cronExpression.IsSatisfiedBy(cal));
+
+
+        cronExpression = new CronExpression("0 15 10 1,L * ? 2010");
+
+        Assert.IsTrue(cronExpression.IsSatisfiedBy(new DateTime(2010, 10, 1, 10, 15, 0).ToUniversalTime()));
+
+        Assert.IsTrue(cronExpression.IsSatisfiedBy(new DateTime(2010, 10, 31, 10, 15, 0).ToUniversalTime()));
+
+        Assert.False(cronExpression.IsSatisfiedBy(new DateTime(2010, 10, 30, 10, 15, 0).ToUniversalTime()));
+
+        cronExpression = new CronExpression("0 15 10 L-1W,L-1 * ? 2010");
+
+        // nearest weekday to last day - 1 (29th is a friday in 2010)
+        Assert.IsTrue(cronExpression.IsSatisfiedBy(new DateTime(2010, 10, 29, 10, 15, 0).ToUniversalTime()));
+
+        cronExpression = new CronExpression("0 15 10 2W,16 * ? 2010");
+
+        // nearest weekday to the 2nd of the month (1st is a friday in 2010)
+        Assert.IsTrue(cronExpression.IsSatisfiedBy(new DateTime(2010, 10, 1, 10, 15, 0).ToUniversalTime()));
+
+        Assert.False(cronExpression.IsSatisfiedBy(new DateTime(2010, 10, 2, 10, 15, 0).ToUniversalTime()));
+
+        Assert.IsTrue(cronExpression.IsSatisfiedBy(new DateTime(2010, 10, 16, 10, 15, 0).ToUniversalTime()));
     }
 
     [Test]
@@ -430,18 +453,6 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     [Test]
     public void TestQuartz640()
     {
-        try
-        {
-            new CronExpression("0 43 9 1,5,29,L * ?");
-            Assert.Fail("Expected FormatException did not fire for L combined with other days of the month");
-        }
-        catch (FormatException fe)
-        {
-            Assert.IsTrue(
-                fe.Message.StartsWith("Support for specifying 'L' and 'LW' with other days of the month is not implemented"),
-                "Incorrect FormatException thrown");
-        }
-
         try
         {
             new CronExpression("0 43 9 ? * SAT,SUN,L");
