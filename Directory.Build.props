@@ -54,7 +54,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="..\quartz-logo-small.png" Pack="true" Visible="false" PackagePath=""/>
+    <None Include="..\quartz-logo-small.png" Pack="true" Visible="false" PackagePath="" />
   </ItemGroup>
 
   <PropertyGroup Label="Analysis rules">
