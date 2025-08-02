@@ -348,8 +348,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
 
     public static readonly int MaxYear = DateTime.Now.Year + 100;
 
-    private static readonly char[] splitSeparators = {' ', '\t', '\r', '\n'};
-    private static readonly char[] commaSeparator = {','};
+    private static readonly char[] splitSeparators = [' ', '\t', '\r', '\n'];
     private static readonly Regex regex = new Regex("^L-[0-9]*[W]?", RegexOptions.Compiled);
 
     ///<summary>
@@ -604,7 +603,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
                     throw new FormatException("Support for specifying multiple \"nth\" days is not implemented.");
                 }
 
-                string[] vTok = expr.Split(commaSeparator);
+                string[] vTok = expr.Split(',');
                 foreach (string v in vTok)
                 {
                     StoreExpressionVals(0, v, exprOn);
@@ -886,9 +885,9 @@ public class CronExpression : IDeserializationCallback, ISerializable
             }
             return i;
         }
-        if (c >= '0' && c <= '9')
+        if (char.IsDigit(c))
         {
-            int val = Convert.ToInt32(c.ToString(), CultureInfo.InvariantCulture);
+            int val = c - '0';
             i++;
             if (i >= s.Length)
             {
@@ -897,7 +896,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
             else
             {
                 c = s[i];
-                if (c >= '0' && c <= '9')
+                if (char.IsDigit(c))
                 {
                     ValueSet vs = GetValue(val, s, i);
                     val = vs.theValue;
@@ -1054,7 +1053,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
         {
             i++;
             c = s[i];
-            int v = Convert.ToInt32(c.ToString(), CultureInfo.InvariantCulture);
+            int v = c - '0';
             end = v;
             i++;
             if (i >= s.Length)
@@ -1074,7 +1073,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
             {
                 i++;
                 c = s[i];
-                int v2 = Convert.ToInt32(c.ToString(), CultureInfo.InvariantCulture);
+                int v2 = c - '0';
                 i++;
                 if (i >= s.Length)
                 {
@@ -1082,7 +1081,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
                     return i;
                 }
                 c = s[i];
-                if (c >= '0' && c <= '9')
+                if (char.IsDigit(c))
                 {
                     ValueSet vs = GetValue(v2, s, i);
                     int v3 = vs.theValue;
@@ -1106,7 +1105,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
 
             i++;
             c = s[i];
-            int v2 = Convert.ToInt32(c.ToString(), CultureInfo.InvariantCulture);
+            int v2 = c - '0';
             i++;
             if (i >= s.Length)
             {
@@ -1115,7 +1114,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
                 return i;
             }
             c = s[i];
-            if (c >= '0' && c <= '9')
+            if (char.IsDigit(c))
             {
                 ValueSet vs = GetValue(v2, s, i);
                 int v3 = vs.theValue;

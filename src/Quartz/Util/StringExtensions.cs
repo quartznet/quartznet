@@ -54,5 +54,10 @@ public static class StringExtensions
     {
         return s != null && s.IndexOf(c) != -1;
     }
+
+    internal static bool StartsWith(this string s, char c)
+    {
+        return s is { Length: > 0 } && s[0] == c;
+    }
 #endif
 }
