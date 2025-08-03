@@ -24,6 +24,7 @@ public class NameValueCollectionConverter : JsonConverter
             writer.WritePropertyName(key);
             writer.WriteValue(collection.Get(key));
         }
+
         writer.WriteEndObject();
     }
 
@@ -37,19 +38,39 @@ public class NameValueCollectionConverter : JsonConverter
             {
                 nameValueCollection = new NameValueCollection();
             }
+
             if (reader.TokenType == JsonToken.EndObject)
             {
                 return nameValueCollection;
             }
+
             if (reader.TokenType == JsonToken.PropertyName)
             {
                 key = reader.Value!.ToString()!;
             }
-            if (reader.TokenType == JsonToken.String || reader.TokenType == JsonToken.Null)
+
+            if (reader.TokenType is JsonToken.String or JsonToken.Null)
             {
                 nameValueCollection.Add(key, reader.Value?.ToString());
             }
+            else if (reader.TokenType == JsonToken.Date)
+            {
+                // we expect that date was interpreted from string in ISO 8601 format and converted by Newtonsoft.Json
+                if (reader.Value is DateTimeOffset dto)
+                {
+                    nameValueCollection.Add(key, dto.ToString("O"));
+                }
+                else if (reader.Value is DateTime dt)
+                {
+                    nameValueCollection.Add(key, dt.ToString("O"));
+                }
+                else
+                {
+                    nameValueCollection.Add(key, reader.Value?.ToString());
+                }
+            }
         }
+
         return nameValueCollection;
     }
 
