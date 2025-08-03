@@ -4,6 +4,27 @@
 
 Java version sync status: 15fe8ed34c1e81e2c49fbc922efb77910cc8b847
 
+## Release 3.15.0, Aug 3 2025
+
+* NEW FEATURES
+
+    * Implement CronExpression.GetTimeBefore() (#2765)
+    * Introduce JobExecutionProcessException to provide more context (#2762)
+
+* FIXES
+
+    * Preserve Dates in Newtonsoft.Json NameValueCollectionConverter
+    * Optimize cron parsing (#2769)
+    * Fix CronExpression increment error messages (#2764)
+    * Fix DailyTimeIntervalTrigger.RepeatInterval setter validation (#2763)
+    * When storing job with replace check update count returned (#2761)
+    * Validate that cron expression has at most 7 tokens (#2760)
+    * Interrupt the scheduler thread when shutdown is occurring (#2758)
+    * Fix IDriverDelegate XML documentation for SelectTriggerToAcquire (#2757)
+    * Refactor PostgreSQL script (#2753)
+    * Allow to execute a job if remaining day time equals interval (#2726)
+
+
 ## Release 3.14.0, Mar 8 2025
 
 This release contains small improvements and new NET 8 and 9 targets with removal of obsolete NET 6 target. RAMJobStore now uses
