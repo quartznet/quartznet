@@ -179,14 +179,20 @@ public class JsonObjectSerializerTest
     [Test]
     public async Task SerializeNameValueCollection()
     {
-        var collection = new NameValueCollection { { "key", "value" }, { "key2", null } };
+        var collection = new NameValueCollection
+        {
+            { "key", "value" },
+            { "key2", null },
+            { "date", "2025-06-05T16:09:32.800" }
+        };
 
         CompareSerialization(collection, (deserialized, original) =>
         {
-            original.Count.Should().Be(2);
-            deserialized.Count.Should().Be(2);
+            original.Count.Should().Be(3);
+            deserialized.Count.Should().Be(3);
             deserialized["key"].Should().Be(original["key"]);
             deserialized["key2"].Should().Be(original["key2"]);
+            deserialized["date"].Should().StartWith("2025-06-05T16:09:32.800");
         });
 
         await VerifyCreatedJson(collection);
