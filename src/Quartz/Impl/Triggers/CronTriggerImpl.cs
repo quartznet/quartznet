@@ -952,13 +952,12 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     }
 
     /// <summary>
-    /// NOT YET IMPLEMENTED: Returns the time before the given time
-    /// that this <see cref="ICronTrigger" /> will fire.
+    /// Returns the time before the given time that this <see cref="ICronTrigger" /> will fire.
     /// </summary>
     /// <param name="date">The date.</param>
     /// <returns></returns>
-    private DateTimeOffset? GetTimeBefore(DateTimeOffset? date)
+    protected DateTimeOffset? GetTimeBefore(DateTimeOffset date)
     {
-        return cronEx?.GetTimeBefore(endTimeUtc);
+        return cronEx?.GetTimeBefore(date);
     }
 }

@@ -2008,12 +2008,54 @@ public sealed class CronExpression : ISerializable
     /// </summary>
     /// <param name="endTime">The end time.</param>
     /// <returns></returns>
-#pragma warning disable CA1822
-    public DateTimeOffset? GetTimeBefore(DateTimeOffset? endTime)
-#pragma warning restore CA1822
+    public DateTimeOffset? GetTimeBefore(DateTimeOffset endTime)
     {
-        // TODO: implement
-        return null;
+        long end = endTime.Ticks;
+        long min = new DateTimeOffset(1, 1, 1, 0, 0, 0, TimeSpan.Zero).Ticks;
+        long max = end;
+
+        DateTimeOffset date = new DateTimeOffset(1, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        DateTimeOffset? after = GetTimeAfter(date);
+        if (after == null || after.Value.Ticks >= end)
+        {
+            return null;
+        }
+
+        // Inverse binary search for tighter lower bound
+        long interval = TimeSpan.FromHours(1).Ticks;
+        while (interval < max)
+        {
+            date = new DateTimeOffset(max - interval, TimeSpan.Zero);
+            after = GetTimeAfter(date);
+            if (after != null && after.Value.Ticks < max)
+            {
+                min = date.Ticks;
+                break;
+            }
+
+            interval *= 2;
+        }
+
+        // Binary search to find the previous match time
+        var secondTicks = TimeSpan.FromSeconds(1).Ticks;
+        while (max - min > secondTicks)
+        {
+            long mid = (min + max) >> 1;
+            date = new DateTimeOffset(mid, TimeSpan.Zero);
+            after = GetTimeAfter(date);
+
+            if (after != null && after.Value.Ticks < end)
+            {
+                min = mid;
+            }
+            else
+            {
+                max = mid;
+            }
+        }
+
+        long roundedTicks = max - (max % secondTicks);
+        return new DateTimeOffset(roundedTicks, TimeSpan.Zero);
     }
 
     /// <summary>
