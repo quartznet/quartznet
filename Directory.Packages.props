@@ -26,7 +26,7 @@
     <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="8.10.0" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageVersion Include="MySqlConnector" Version="2.4.0" />
-    <PackageVersion Include="NLog.Extensions.Logging" Version="5.3.15" />
+    <PackageVersion Include="NLog.Extensions.Logging" Version="6.0.3" />
     <PackageVersion Include="NSwag.AspNetCore" Version="14.2.0" />
     <PackageVersion Include="NUnit" Version="4.3.2" />
     <PackageVersion Include="NUnit.Analyzers" Version="4.6.0" />
