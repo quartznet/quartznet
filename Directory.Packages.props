@@ -17,7 +17,7 @@
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.15" />
     <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="3.3.4" />
     <PackageVersion Include="Microsoft.Data.SQLite" Version="8.0.10" />
-    <PackageVersion Include="Microsoft.Data.SqlClient" Version="5.2.2" />
+    <PackageVersion Include="Microsoft.Data.SqlClient" Version="6.0.2" />
     <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="8.0.1" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.0" />
