@@ -29,7 +29,7 @@
     <PackageVersion Include="NLog.Extensions.Logging" Version="5.3.15" />
     <PackageVersion Include="NSwag.AspNetCore" Version="14.2.0" />
     <PackageVersion Include="NUnit" Version="4.3.2" />
-    <PackageVersion Include="NUnit.Analyzers" Version="4.6.0" />
+    <PackageVersion Include="NUnit.Analyzers" Version="4.10.0" />
     <PackageVersion Include="NUnit3TestAdapter" Version="5.0.0" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageVersion Include="Npgsql" Version="9.0.3" />
