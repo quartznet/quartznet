@@ -2193,7 +2193,6 @@ public class QuartzScheduler :
             {
                 cancellableJobExecutionContext.Cancel();
                 interrupted = true;
-                break;
             }
         }
 
