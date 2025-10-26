@@ -4,6 +4,17 @@
 
 Java version sync status: 15fe8ed34c1e81e2c49fbc922efb77910cc8b847
 
+## Release 3.15.1, Oct 26 2025
+
+* NEW FEATURES
+
+    * Add IServiceProvider overloads for AddJob, AddTrigger, ScheduleJob, and AddCalendar (#2787)
+ 
+* FIXES
+
+    * Fix StdScheduler.Interrupt not interrupting all identified jobs (#2788) (#2789)
+
+
 ## Release 3.15.0, Aug 3 2025
 
 * NEW FEATURES
