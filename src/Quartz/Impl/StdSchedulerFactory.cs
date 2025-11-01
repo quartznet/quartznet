@@ -1001,7 +1001,7 @@ Please add configuration to your application config file to correctly initialize
                 rsrcs.AddSchedulerPlugin(plugin);
             }
 
-            qs = new QuartzScheduler(rsrcs);
+            qs = new QuartzScheduler(rsrcs, timeProvider);
             qsInited = true;
 
             // Create Scheduler ref...

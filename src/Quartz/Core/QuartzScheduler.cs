@@ -51,6 +51,7 @@ public sealed class QuartzScheduler
     private static readonly Version version;
 
     internal readonly QuartzSchedulerResources resources = null!;
+    private readonly TimeProvider timeProvider;
 
     internal readonly QuartzSchedulerThread schedThread = null!;
     private readonly List<ISchedulerListener> internalSchedulerListeners = new List<ISchedulerListener>(10);
@@ -240,9 +241,17 @@ public sealed class QuartzScheduler
     /// properties.
     /// </summary>
     /// <seealso cref="QuartzSchedulerResources" />
-    public QuartzScheduler(QuartzSchedulerResources resources)
+    public QuartzScheduler(QuartzSchedulerResources resources) : this(resources, TimeProvider.System) { }
+
+    /// <summary>
+    /// Create a <see cref="QuartzScheduler" /> with the given configuration
+    /// properties.
+    /// </summary>
+    /// <seealso cref="QuartzSchedulerResources" />
+    public QuartzScheduler(QuartzSchedulerResources resources, TimeProvider timeProvider)
     {
         this.resources = resources;
+        this.timeProvider = timeProvider;
 
         logger = LogProvider.CreateLogger<QuartzScheduler>();
 
@@ -330,7 +339,7 @@ public sealed class QuartzScheduler
 #pragma warning disable MA0134
         Task.Run(async () =>
         {
-            await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(delay, timeProvider, cancellationToken).ConfigureAwait(false);
 
             try
             {
