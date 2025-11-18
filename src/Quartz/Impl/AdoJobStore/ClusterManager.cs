@@ -9,7 +9,7 @@ internal sealed class ClusterManager
 {
     private readonly ILogger<ClusterManager> logger;
 
-    // keep constant lock requestor id for manager's lifetime
+    // keep constant lock requester id for manager's lifetime
     private readonly Guid requestorId = Guid.NewGuid();
 
     private readonly JobStoreSupport jobStoreSupport;
