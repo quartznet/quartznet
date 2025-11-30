@@ -58,7 +58,7 @@ public static class ServiceCollectionExtensions
         {
             // there's no explicit job factory defined, use MS version
             properties[StdSchedulerFactory.PropertySchedulerJobFactoryType] = typeof(MicrosoftDependencyInjectionJobFactory).AssemblyQualifiedNameWithoutVersion();
-            services.TryAddSingleton<IJobFactory,MicrosoftDependencyInjectionJobFactory>();
+            services.TryAddSingleton<IJobFactory, MicrosoftDependencyInjectionJobFactory>();
         }
 
         services.Configure<QuartzOptions>(options =>
@@ -87,32 +87,75 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// Add job to underlying service collection. This API maybe change!
     /// </summary>
-    public static IServiceCollectionQuartzConfigurator AddJob<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+    public static IServiceCollectionQuartzConfigurator AddJob<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)]
+    T>(
         this IServiceCollectionQuartzConfigurator options,
         Action<IJobConfigurator>? configure = null) where T : IJob
     {
-        return AddJob(options, typeof(T), null, configure);
+        return options.AddJob<T>((_, jobConfigurator) => configure?.Invoke(jobConfigurator));
     }
 
     /// <summary>
     /// Add job to underlying service collection. This API maybe change!
     /// </summary>
-    public static IServiceCollectionQuartzConfigurator AddJob<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+    public static IServiceCollectionQuartzConfigurator AddJob<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)]
+    T>(
+        this IServiceCollectionQuartzConfigurator options,
+        Action<IServiceProvider, IJobConfigurator>? configure = null) where T : IJob
+    {
+        return options.AddJob(typeof(T), null, configure);
+    }
+
+    /// <summary>
+    /// Add job to underlying service collection. This API maybe change!
+    /// </summary>
+    public static IServiceCollectionQuartzConfigurator AddJob<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)]
+    T>(
         this IServiceCollectionQuartzConfigurator options,
         JobKey? jobKey = null,
         Action<IJobConfigurator>? configure = null) where T : IJob
     {
-        return AddJob(options, typeof(T), jobKey, configure);
+        return options.AddJob<T>(jobKey, (_, jobConfigurator) => configure?.Invoke(jobConfigurator));
     }
+
     /// <summary>
-    /// Add job to underlying service collection.jobType should be implement `IJob`
+    /// Add job to underlying service collection. This API maybe change!
+    /// </summary>
+    public static IServiceCollectionQuartzConfigurator AddJob<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)]
+    T>(
+        this IServiceCollectionQuartzConfigurator options,
+        JobKey? jobKey = null,
+        Action<IServiceProvider, IJobConfigurator>? configure = null) where T : IJob
+    {
+        return options.AddJob(typeof(T), jobKey, configure);
+    }
+
+    /// <summary>
+    /// Add job to underlying service collection.jobType shoud be implement `IJob`
     /// </summary>
     public static IServiceCollectionQuartzConfigurator AddJob(
         this IServiceCollectionQuartzConfigurator options,
-        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)]
+           [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)]
         Type jobType,
         JobKey? jobKey = null,
         Action<IJobConfigurator>? configure = null)
+    {
+        return options.AddJob(jobType, jobKey, (_, jobConfigurator) => configure?.Invoke(jobConfigurator));
+    }
+
+    /// <summary>
+    /// Add job to underlying service collection.jobType shoud be implement `IJob`
+    /// </summary>
+    public static IServiceCollectionQuartzConfigurator AddJob(
+        this IServiceCollectionQuartzConfigurator options,
+           [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)]
+        Type jobType,
+        JobKey? jobKey = null,
+        Action<IServiceProvider, IJobConfigurator>? configure = null)
     {
         if (!typeof(IJob).IsAssignableFrom(jobType))
         {
@@ -124,16 +167,18 @@ public static class ServiceCollectionExtensions
             c.WithIdentity(jobKey);
         }
 
-        var jobDetail = ConfigureAndBuildJobDetail(jobType, c, configure, hasCustomKey: out _);
-
-        options.Services.Configure<QuartzOptions>(x =>
+        options.Services.AddSingleton<IConfigureOptions<QuartzOptions>>(serviceProvider =>
         {
-            x._jobDetails.Add(jobDetail);
+            var jobDetail = ConfigureAndBuildJobDetail(serviceProvider, jobType, c, configure, hasCustomKey: out _);
+
+            return new ConfigureNamedOptions<QuartzOptions>(Options.DefaultName, x =>
+            {
+                x._jobDetails.Add(jobDetail);
+            });
         });
 
         return options;
     }
-
 
     /// <summary>
     /// Add trigger to underlying service collection. This API maybe change!
@@ -142,18 +187,31 @@ public static class ServiceCollectionExtensions
         this IServiceCollectionQuartzConfigurator options,
         Action<ITriggerConfigurator>? configure = null)
     {
-        var c = new TriggerConfigurator();
-        configure?.Invoke(c);
-        var trigger = c.Build();
+        return options.AddTrigger((_, triggerConfigurator) => configure?.Invoke(triggerConfigurator));
+    }
 
-        if (trigger.JobKey is null)
+    /// <summary>
+    /// Add trigger to underlying service collection. This API maybe change!
+    /// </summary>
+    public static IServiceCollectionQuartzConfigurator AddTrigger(
+        this IServiceCollectionQuartzConfigurator options,
+        Action<IServiceProvider, ITriggerConfigurator>? configure = null)
+    {
+        options.Services.AddSingleton<IConfigureOptions<QuartzOptions>>(serviceProvider =>
         {
-            Throw.InvalidOperationException("Trigger hasn't been associated with a job");
-        }
+            var c = new TriggerConfigurator();
+            configure?.Invoke(serviceProvider, c);
+            var trigger = c.Build();
 
-        options.Services.Configure<QuartzOptions>(x =>
-        {
-            x._triggers.Add(trigger);
+            if (trigger.JobKey is null)
+            {
+                throw new InvalidOperationException("Trigger hasn't been associated with a job");
+            }
+
+            return new ConfigureNamedOptions<QuartzOptions>(Options.DefaultName, x =>
+            {
+                x._triggers.Add(trigger);
+            });
         });
 
         return options;
@@ -167,54 +225,66 @@ public static class ServiceCollectionExtensions
         Action<ITriggerConfigurator> trigger,
         Action<IJobConfigurator>? job = null) where T : IJob
     {
+        return options.ScheduleJob<T>((_, triggerConfigurator) => trigger(triggerConfigurator), (_, jobConfigurator) => job?.Invoke(jobConfigurator));
+    }
+
+    /// <summary>
+    /// Schedule job with trigger to underlying service collection. This API maybe change!
+    /// </summary>
+    public static IServiceCollectionQuartzConfigurator ScheduleJob<T>(
+        this IServiceCollectionQuartzConfigurator options,
+        Action<IServiceProvider, ITriggerConfigurator> trigger,
+        Action<IServiceProvider, IJobConfigurator>? job = null) where T : IJob
+    {
         ArgumentNullException.ThrowIfNull(trigger);
 
-        var jobConfigurator = JobBuilder.Create();
-        var jobDetail = ConfigureAndBuildJobDetail(typeof(T), jobConfigurator, job, out var jobHasCustomKey);
-
-        options.Services.Configure<QuartzOptions>(quartzOptions =>
+        options.Services.AddSingleton<IConfigureOptions<QuartzOptions>>(serviceProvider =>
         {
-            quartzOptions._jobDetails.Add(jobDetail);
-        });
+            return new ConfigureNamedOptions<QuartzOptions>(Options.DefaultName, quartzOptions =>
+            {
+                var jobConfigurator = JobBuilder.Create();
+                var jobDetail = ConfigureAndBuildJobDetail(serviceProvider, typeof(T), jobConfigurator, job, out var jobHasCustomKey);
 
-        var triggerConfigurator = new TriggerConfigurator();
-        triggerConfigurator.ForJob(jobDetail);
+                quartzOptions._jobDetails.Add(jobDetail);
 
-        trigger.Invoke(triggerConfigurator);
-        var t = triggerConfigurator.Build();
+                var triggerConfigurator = new TriggerConfigurator();
+                triggerConfigurator.ForJob(jobDetail);
 
-        // The job configurator is optional and omitted in most examples
-        // If no job key was specified, have the job key match the trigger key
-        if (!jobHasCustomKey)
-        {
-            ((JobDetailImpl) jobDetail).Key = new JobKey(t.Key.Name, t.Key.Group);
+                trigger.Invoke(serviceProvider, triggerConfigurator);
+                var t = triggerConfigurator.Build();
 
-            // Keep ITrigger.JobKey in sync with IJobDetail.Key
-            ((IMutableTrigger) t).JobKey = jobDetail.Key;
-        }
+                // The job configurator is optional and omitted in most examples
+                // If no job key was specified, have the job key match the trigger key
+                if (!jobHasCustomKey)
+                {
+                    ((JobDetailImpl) jobDetail).Key = new JobKey(t.Key.Name, t.Key.Group);
 
-        if (t.JobKey is null || !t.JobKey.Equals(jobDetail.Key))
-        {
-            Throw.InvalidOperationException("Trigger doesn't refer to job being scheduled");
-        }
+                    // Keep ITrigger.JobKey in sync with IJobDetail.Key
+                    ((IMutableTrigger) t).JobKey = jobDetail.Key;
+                }
 
-        options.Services.Configure<QuartzOptions>(quartzOptions =>
-        {
-            quartzOptions._triggers.Add(t);
+                if (t.JobKey is null || !t.JobKey.Equals(jobDetail.Key))
+                {
+                    Throw.InvalidOperationException("Trigger doesn't refer to job being scheduled");
+                }
+
+                quartzOptions._triggers.Add(t);
+            });
         });
 
         return options;
     }
 
     private static IJobDetail ConfigureAndBuildJobDetail(
+        IServiceProvider serviceProvider,
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)]
         Type type,
         JobBuilder builder,
-        Action<IJobConfigurator>? configure,
+        Action<IServiceProvider, IJobConfigurator>? configure,
         out bool hasCustomKey)
     {
         builder.OfType(type);
-        configure?.Invoke(builder);
+        configure?.Invoke(serviceProvider, builder);
         hasCustomKey = builder.Key is not null;
         var jobDetail = builder.Build();
         return jobDetail;
@@ -227,9 +297,23 @@ public static class ServiceCollectionExtensions
         bool updateTriggers,
         Action<T> configure) where T : ICalendar, new()
     {
-        var calendar = new T();
-        configure(calendar);
-        configurator.Services.AddSingleton(new CalendarConfiguration(name, calendar, replace, updateTriggers));
+        return configurator.AddCalendar<T>(name, replace, updateTriggers, (_, calendar) => configure(calendar));
+    }
+
+    public static IServiceCollectionQuartzConfigurator AddCalendar<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        this IServiceCollectionQuartzConfigurator configurator,
+        string name,
+        bool replace,
+        bool updateTriggers,
+        Action<IServiceProvider, T> configure) where T : ICalendar, new()
+    {
+        configurator.Services.AddSingleton(serviceProvider =>
+        {
+            var calendar = new T();
+            configure(serviceProvider, calendar);
+
+            return new CalendarConfiguration(name, calendar, replace, updateTriggers);
+        });
         return configurator;
     }
 
