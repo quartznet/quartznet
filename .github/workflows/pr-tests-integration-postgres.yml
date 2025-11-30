@@ -38,11 +38,10 @@ jobs:
     name: ubuntu-latest
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: |
-            8.0
-            9.0
+            10.0
       - uses: actions/checkout@v4
       - name: 'Run: Compile, IntegrationTest'
         run: ./build.cmd Compile IntegrationTest

@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <Description>Quartz.NET ASP.NET Core integration; $(Description)</Description>
-    <TargetFrameworks>net8.0;net9.0;netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>net8.0;net9.0;net10.0;netstandard2.0</TargetFrameworks>
     <RootNamespace>Quartz</RootNamespace>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <Authors>Lewis Zou, Marko Lahma, Quartz.NET</Authors>
@@ -29,6 +29,11 @@
   <ItemGroup Condition=" '$(TargetFramework)' == 'net9.0' ">
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="9.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" '$(TargetFramework)' == 'net10.0' ">
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
   </ItemGroup>
 
   <PropertyGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net6.0'))">
