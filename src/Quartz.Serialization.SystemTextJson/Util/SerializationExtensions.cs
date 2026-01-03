@@ -8,7 +8,6 @@ using System.Text.Json.Serialization.Metadata;
 
 namespace Quartz.Util;
 
-
 internal static class Utf8JsonWriterExtensions
 {
     public static void WriteString(this Utf8JsonWriter writer, string propertyName, DateTimeOffset? value)
