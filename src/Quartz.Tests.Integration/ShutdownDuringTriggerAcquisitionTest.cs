@@ -1,6 +1,3 @@
-using Quartz.Impl.Matchers;
-using Quartz.Spi;
-
 namespace Quartz.Tests.Integration;
 
 /// <summary>
