@@ -461,12 +461,20 @@ internal sealed class QuartzSchedulerThread
                             var threadPoolRunResult = qsRsrcs.ThreadPool.RunInThread(() => shell.Run(CancellationToken.None));
                             if (!threadPoolRunResult)
                             {
-                                // this case should never happen, as it is indicative of the
-                                // scheduler being shutdown or a bug in the thread pool or
-                                // a thread pool being used concurrently - which the docs
-                                // say not to do...
-                                logger.LogError("ThreadPool.RunInThread() returned false");
-                                await qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError, CancellationToken.None).ConfigureAwait(false);
+                                // Check if the scheduler is being shutdown
+                                if (halted || cancellationTokenSource.Token.IsCancellationRequested)
+                                {
+                                    // Scheduler is shutting down, release the trigger gracefully
+                                    logger.LogDebug("ThreadPool.RunInThread() returned false due to scheduler shutdown, releasing trigger");
+                                    await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger, CancellationToken.None).ConfigureAwait(false);
+                                }
+                                else
+                                {
+                                    // this case should never happen, as it is indicative of a bug in the thread pool or
+                                    // a thread pool being used concurrently - which the docs say not to do...
+                                    logger.LogError("ThreadPool.RunInThread() returned false");
+                                    await qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError, CancellationToken.None).ConfigureAwait(false);
+                                }
                             }
                         }
 
