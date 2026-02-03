@@ -135,39 +135,9 @@ public static class ServiceCollectionExtensions
     T>(
         this IServiceCollectionQuartzConfigurator options,
         JobKey? jobKey = null,
-        Action<IJobConfigurator>? configure = null) where T : IJob
-    {
-        return options.AddJob<T>(jobKey, (_, jobConfigurator) => configure?.Invoke(jobConfigurator));
-    }
-
-    /// <summary>
-    /// Add job to underlying service collection. This API maybe change!
-    /// </summary>
-    public static IServiceCollectionQuartzConfigurator AddJob<
-#if NET6_0_OR_GREATER
-            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
-#endif
-    T>(
-        this IServiceCollectionQuartzConfigurator options,
-        JobKey? jobKey = null,
         Action<IServiceProvider, IJobConfigurator>? configure = null) where T : IJob
     {
         return options.AddJob(typeof(T), jobKey, configure);
-    }
-
-    /// <summary>
-    /// Add job to underlying service collection.jobType shoud be implement `IJob`
-    /// </summary>
-    public static IServiceCollectionQuartzConfigurator AddJob(
-        this IServiceCollectionQuartzConfigurator options,
-#if NET6_0_OR_GREATER
-           [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
-#endif
-        Type jobType,
-        JobKey? jobKey = null,
-        Action<IJobConfigurator>? configure = null)
-    {
-        return options.AddJob(jobType, jobKey, (_, jobConfigurator) => configure?.Invoke(jobConfigurator));
     }
 
     /// <summary>
