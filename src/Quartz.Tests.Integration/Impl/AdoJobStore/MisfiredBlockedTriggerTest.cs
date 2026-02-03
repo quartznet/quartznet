@@ -19,7 +19,6 @@ public class MisfiredBlockedTriggerTest
 {
     // Test configuration constants
     private const int MisfireThresholdMilliseconds = 1000; // 1 second - triggers that don't fire within this time are considered misfired
-    private const int JobDurationMilliseconds = 3000; // 3 seconds - ensures trigger will misfire while blocked
     private const int RepeatingTriggerIntervalSeconds = 10; // 10 seconds between repeating trigger fires
     
     [Test]
@@ -49,8 +48,8 @@ public class MisfiredBlockedTriggerTest
 
         try
         {
-            // Create a job that takes JobDurationMilliseconds to execute and disallows concurrent execution
-            var job = JobBuilder.Create<SlowJob>()
+            // Create a job that takes time to execute and disallows concurrent execution
+            var job = JobBuilder.Create<MisfiredBlockedTriggerTestSlowJob>()
                 .WithIdentity("slowJob", "testGroup")
                 .DisallowConcurrentExecution()
                 .Build();
@@ -115,14 +114,20 @@ public class MisfiredBlockedTriggerTest
             await scheduler.Shutdown(true);
         }
     }
+}
 
-    [DisallowConcurrentExecution]
-    public class SlowJob : IJob
+/// <summary>
+/// A job that simulates long-running work to test trigger blocking behavior.
+/// The job duration is set to ensure triggers will misfire while blocked.
+/// </summary>
+[DisallowConcurrentExecution]
+internal class MisfiredBlockedTriggerTestSlowJob : IJob
+{
+    private const int JobDurationMilliseconds = 3000; // 3 seconds
+
+    public async Task Execute(IJobExecutionContext context)
     {
-        public async Task Execute(IJobExecutionContext context)
-        {
-            // Simulate a long-running job (duration must exceed misfire threshold)
-            await Task.Delay(MisfiredBlockedTriggerTest.JobDurationMilliseconds);
-        }
+        // Simulate a long-running job (duration must exceed misfire threshold)
+        await Task.Delay(JobDurationMilliseconds);
     }
 }
