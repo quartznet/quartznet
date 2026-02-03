@@ -17,6 +17,11 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 [TestFixture]
 public class MisfiredBlockedTriggerTest
 {
+    // Test configuration constants
+    private const int MisfireThresholdMilliseconds = 1000; // 1 second - triggers that don't fire within this time are considered misfired
+    private const int JobDurationMilliseconds = 3000; // 3 seconds - ensures trigger will misfire while blocked
+    private const int RepeatingTriggerIntervalSeconds = 10; // 10 seconds between repeating trigger fires
+    
     [Test]
     [Category("db-sqlserver")]
     public async Task TestMisfiredBlockedTriggerShouldBeDeleted()
@@ -32,7 +37,7 @@ public class MisfiredBlockedTriggerTest
             ["quartz.jobStore.tablePrefix"] = "QRTZ_",
             ["quartz.dataSource.default.connectionString"] = TestConstants.SqlServerConnectionString,
             ["quartz.dataSource.default.provider"] = TestConstants.DefaultSqlServerProvider,
-            ["quartz.jobStore.misfireThreshold"] = "1000", // 1 second misfire threshold
+            ["quartz.jobStore.misfireThreshold"] = MisfireThresholdMilliseconds.ToString(),
             ["quartz.serializer.type"] = TestConstants.DefaultSerializerType,
             ["quartz.threadPool.maxConcurrency"] = "1" // Only one thread to force blocking
         };
@@ -44,19 +49,19 @@ public class MisfiredBlockedTriggerTest
 
         try
         {
-            // Create a job that takes 3 seconds to execute and disallows concurrent execution
+            // Create a job that takes JobDurationMilliseconds to execute and disallows concurrent execution
             var job = JobBuilder.Create<SlowJob>()
                 .WithIdentity("slowJob", "testGroup")
                 .DisallowConcurrentExecution()
                 .Build();
 
-            // Create a repeating trigger (fires every 10 seconds)
+            // Create a repeating trigger (fires every RepeatingTriggerIntervalSeconds)
             var repeatingTrigger = TriggerBuilder.Create()
                 .WithIdentity("repeatingTrigger", "testGroup")
                 .ForJob(job)
                 .StartNow()
                 .WithSimpleSchedule(x => x
-                    .WithIntervalInSeconds(10)
+                    .WithIntervalInSeconds(RepeatingTriggerIntervalSeconds)
                     .RepeatForever()
                     .WithMisfireHandlingInstructionNextWithRemainingCount())
                 .Build();
@@ -85,7 +90,7 @@ public class MisfiredBlockedTriggerTest
             var maxWaitTime = TimeSpan.FromSeconds(10);
             var pollInterval = TimeSpan.FromMilliseconds(500);
             var startTime = DateTimeOffset.UtcNow;
-            ITrigger? trigger = null;
+            ITrigger trigger = null;
             
             while (DateTimeOffset.UtcNow - startTime < maxWaitTime)
             {
@@ -116,8 +121,8 @@ public class MisfiredBlockedTriggerTest
     {
         public async Task Execute(IJobExecutionContext context)
         {
-            // Simulate a long-running job
-            await Task.Delay(3000); // 3 seconds
+            // Simulate a long-running job (duration must exceed misfire threshold)
+            await Task.Delay(MisfiredBlockedTriggerTest.JobDurationMilliseconds);
         }
     }
 }
