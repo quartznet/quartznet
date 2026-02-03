@@ -3076,6 +3076,9 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 // Check for misfired triggers that were just unblocked
                 // Triggers that were blocked and have now transitioned to waiting may have misfired
                 // while they were blocked. We need to handle these misfires now.
+                // Note: We retrieve all triggers and check each one's state because there's no efficient
+                // way to query only triggers that just transitioned from BLOCKED to WAITING.
+                // However, jobs with DisallowConcurrentExecution typically have few triggers.
                 var triggersForJob = await GetTriggersForJob(conn, jobDetail.Key, cancellationToken).ConfigureAwait(false);
                 foreach (var trig in triggersForJob)
                 {

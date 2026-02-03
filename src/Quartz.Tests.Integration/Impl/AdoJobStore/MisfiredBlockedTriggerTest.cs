@@ -80,12 +80,23 @@ public class MisfiredBlockedTriggerTest
 
             await scheduler.ScheduleJob(fireAndForgetTrigger);
 
-            // Wait for the job to complete and for the blocked trigger to be processed
-            // The trigger should misfire and then be deleted
-            await Task.Delay(6000); // Wait 6 seconds
-
-            // Check if the fire-and-forget trigger still exists
-            var trigger = await scheduler.GetTrigger(fireAndForgetTrigger.Key);
+            // Poll for the trigger deletion with timeout
+            // The trigger should misfire and then be deleted after the job completes
+            var maxWaitTime = TimeSpan.FromSeconds(10);
+            var pollInterval = TimeSpan.FromMilliseconds(500);
+            var startTime = DateTimeOffset.UtcNow;
+            ITrigger? trigger = null;
+            
+            while (DateTimeOffset.UtcNow - startTime < maxWaitTime)
+            {
+                trigger = await scheduler.GetTrigger(fireAndForgetTrigger.Key);
+                if (trigger == null)
+                {
+                    // Trigger was deleted, which is what we expect
+                    break;
+                }
+                await Task.Delay(pollInterval);
+            }
             
             // The trigger should be deleted because it misfired with RepeatCount=0
             Assert.IsNull(trigger, "The misfired fire-and-forget trigger should have been deleted");
