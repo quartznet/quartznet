@@ -147,6 +147,7 @@ public class JobRunShell : SchedulerListenerSupport
                 {
                     string msg = $"Error executing Job {jec.JobDetail.Key}: couldn't begin execution.";
                     await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
+                    await qs.NotifyJobStoreJobComplete(trigger, jobDetail, SchedulerInstruction.NoInstruction, cancellationToken).ConfigureAwait(false);
                     break;
                 }
 
@@ -156,6 +157,7 @@ public class JobRunShell : SchedulerListenerSupport
                 {
                     if (!await NotifyListenersBeginning(jec, cancellationToken).ConfigureAwait(false))
                     {
+                        await qs.NotifyJobStoreJobComplete(trigger, jobDetail, SchedulerInstruction.NoInstruction, cancellationToken).ConfigureAwait(false);
                         break;
                     }
                 }
@@ -238,6 +240,7 @@ public class JobRunShell : SchedulerListenerSupport
                 // notify all job listeners
                 if (!await NotifyJobListenersComplete(jec, jobExEx, cancellationToken).ConfigureAwait(false))
                 {
+                    await qs.NotifyJobStoreJobComplete(trigger, jobDetail, SchedulerInstruction.NoInstruction, cancellationToken).ConfigureAwait(false);
                     break;
                 }
 
@@ -262,6 +265,7 @@ public class JobRunShell : SchedulerListenerSupport
                 // notify all trigger listeners
                 if (!await NotifyTriggerListenersComplete(jec, instCode, cancellationToken).ConfigureAwait(false))
                 {
+                    await qs.NotifyJobStoreJobComplete(trigger, jobDetail, instCode, cancellationToken).ConfigureAwait(false);
                     break;
                 }
                 // update job/trigger or re-Execute job

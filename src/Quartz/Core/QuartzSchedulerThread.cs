@@ -455,7 +455,9 @@ public class QuartzSchedulerThread
                                 if (se.InnerException is ObjectDisposedException or OperationCanceledException || cancellationTokenSource.Token.IsCancellationRequested)
                                 {
                                     // the scheduler is being stopped, so we can't run the job
-                                    await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger, CancellationToken.None).ConfigureAwait(false);
+                                    // use TriggeredJobComplete to properly unblock other triggers
+                                    // for DisallowConcurrentExecution jobs (TriggersFired already ran)
+                                    await qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.NoInstruction, CancellationToken.None).ConfigureAwait(false);
                                 }
                                 else
                                 {
@@ -472,9 +474,11 @@ public class QuartzSchedulerThread
                                 // Check if the scheduler is being shutdown
                                 if (halted || cancellationTokenSource.Token.IsCancellationRequested)
                                 {
-                                    // Scheduler is shutting down, release the trigger gracefully
-                                    Log.Debug("ThreadPool.RunInThread() returned false due to scheduler shutdown, releasing trigger");
-                                    await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger, CancellationToken.None).ConfigureAwait(false);
+                                    // Scheduler is shutting down, complete the trigger gracefully
+                                    // Use TriggeredJobComplete to properly unblock other triggers
+                                    // for DisallowConcurrentExecution jobs (TriggersFired already ran)
+                                    Log.Debug("ThreadPool.RunInThread() returned false due to scheduler shutdown, completing trigger");
+                                    await qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.NoInstruction, CancellationToken.None).ConfigureAwait(false);
                                 }
                                 else
                                 {
