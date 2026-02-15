@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Simpl;
@@ -10,6 +12,8 @@ namespace Quartz.Job;
 /// </summary>
 internal sealed class DirectoryScanJobModel
 {
+    private static readonly ConcurrentDictionary<string, Type?> listenerTypeCache = new();
+
     /// <summary>
     /// We only want this type of object to be instantiated by inspecting the data
     /// of a IJobExecutionContext <see cref="IJobExecutionContext"/>. Use the
@@ -129,12 +133,26 @@ internal sealed class DirectoryScanJobModel
         // First, try to resolve from DI if service provider is available
         if (serviceProvider is not null)
         {
-            // Try to get listener by type name from DI
-            var listenerType = AppDomain.CurrentDomain.GetAssemblies()
-                .SelectMany(assembly => assembly.GetTypes())
-                .FirstOrDefault(type => 
-                    typeof(IDirectoryScanListener).IsAssignableFrom(type) && 
-                    type.Name == listenerName);
+            // Try to get listener by type name from DI (with caching to avoid repeated reflection)
+            var listenerType = listenerTypeCache.GetOrAdd(listenerName, name =>
+            {
+                return AppDomain.CurrentDomain.GetAssemblies()
+                    .SelectMany(assembly =>
+                    {
+                        try
+                        {
+                            return assembly.GetTypes();
+                        }
+                        catch
+                        {
+                            // Skip assemblies that can't be loaded
+                            return Array.Empty<Type>();
+                        }
+                    })
+                    .FirstOrDefault(type =>
+                        typeof(IDirectoryScanListener).IsAssignableFrom(type) &&
+                        type.Name == name);
+            });
 
             if (listenerType is not null)
             {

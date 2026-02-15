@@ -12,9 +12,24 @@ namespace Quartz.Job;
 /// Inspects a directory and compares whether any files' "last modified dates"
 /// have changed since the last time it was inspected.  If one or more files
 /// have been updated (or created), the job invokes a "call-back" method on an
-/// identified <see cref="IDirectoryScanListener"/> that can be found in the
-/// <see cref="SchedulerContext"/>.
+/// identified <see cref="IDirectoryScanListener"/> that can be resolved from
+/// dependency injection or found in the <see cref="SchedulerContext"/>.
 /// </summary>
+/// <remarks>
+/// The listener can be provided in two ways:
+/// <list type="number">
+/// <item>
+/// <description>Via dependency injection (recommended): Register the listener implementation
+/// in the DI container and specify its type name using <see cref="DirectoryScanListenerName"/>.
+/// </description>
+/// </item>
+/// <item>
+/// <description>Via SchedulerContext (legacy): Store the listener instance in the SchedulerContext
+/// with a key matching the value specified in <see cref="DirectoryScanListenerName"/>.
+/// </description>
+/// </item>
+/// </list>
+/// </remarks>
 /// <author>pl47ypus</author>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>

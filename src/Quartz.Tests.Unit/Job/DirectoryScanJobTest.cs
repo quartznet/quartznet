@@ -9,6 +9,7 @@ using Quartz.Simpl;
 
 namespace Quartz.Tests.Unit.Job;
 
+[NonParallelizable]
 public class DirectoryScanJobTest
 {
     [Test]
