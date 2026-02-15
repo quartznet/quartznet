@@ -522,7 +522,15 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 }
 
                 Logger.LogInformation("Using db table-based data access locking (synchronization).");
-                LockHandler = new StdRowLockSemaphore(TablePrefix, InstanceName, SelectWithLockSQL, DbProvider);
+
+                if (Delegate is PostgreSQLDelegate)
+                {
+                    LockHandler = new PostgreSQLRowLockSemaphore(TablePrefix, InstanceName, SelectWithLockSQL, DbProvider);
+                }
+                else
+                {
+                    LockHandler = new StdRowLockSemaphore(TablePrefix, InstanceName, SelectWithLockSQL, DbProvider);
+                }
             }
             else
             {
