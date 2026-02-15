@@ -107,7 +107,8 @@ public class MisfireHandlerTest
         {
             InstanceName = "TestInstance";
             InstanceId = "TestInstanceId";
-            // Set a reasonable misfire handler frequency to avoid long waits
+            // Set a short frequency so that if the Run loop starts, it quickly checks
+            // the cancellation token and exits, allowing shutdown tests to complete faster
             MisfireHandlerFrequency = TimeSpan.FromMilliseconds(100);
         }
 

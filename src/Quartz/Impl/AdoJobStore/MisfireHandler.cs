@@ -76,22 +76,23 @@ internal sealed class MisfireHandler
         
         taskScheduler.Dispose();
         
-        // If the task was scheduled and started running, wait for it to complete
-        // If it's still WaitingForActivation after disposing the scheduler, it means
-        // the scheduler was disposed before it could schedule the task, so it will never run
+        // Wait for the task to complete, but with a timeout to handle the race condition where
+        // the scheduler was disposed before it could schedule the task.
+        // In that scenario, the task will remain in WaitingForActivation indefinitely.
+        // We use a short timeout because:
+        // 1. If the task was already running, it will complete quickly due to the cancellation
+        // 2. If the task was never scheduled, no amount of waiting will help
         try
         {
-            // Give a brief moment for the task to transition states if it was just queued
-            await Task.Delay(10).ConfigureAwait(false);
+            var timeout = Task.Delay(TimeSpan.FromSeconds(1));
+            var completedTask = await Task.WhenAny(task, timeout).ConfigureAwait(false);
             
-            // Check if the task has actually started or will start
-            // WaitingForActivation means the scheduler hasn't picked it up yet
-            // After disposing the scheduler, it never will
-            if (task.Status != TaskStatus.WaitingForActivation)
+            if (completedTask == task)
             {
+                // Task completed normally, await it to propagate any exceptions
                 await task.ConfigureAwait(false);
             }
-            // else: Task was never scheduled by the disposed scheduler, which is acceptable during shutdown
+            // else: Task didn't complete within timeout, it was likely never scheduled
         }
         catch (OperationCanceledException)
         {
