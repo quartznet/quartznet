@@ -67,8 +67,19 @@ public class JobChainingWithRefireTest
         // Start scheduler
         await scheduler.Start();
 
-        // Wait for jobs to complete
-        await Task.Delay(5000);
+        // Wait for jobs to complete with polling
+        int maxWaitMs = 5000;
+        int pollIntervalMs = 100;
+        int elapsed = 0;
+        while (elapsed < maxWaitMs)
+        {
+            if (RefireJob.ExecutionCount > 2 && SimpleCountingJob.ExecutionCount >= 1)
+            {
+                break;
+            }
+            await Task.Delay(pollIntervalMs);
+            elapsed += pollIntervalMs;
+        }
 
         // Verify both jobs executed
         Assert.That(RefireJob.ExecutionCount, Is.GreaterThan(1), "First job should have refired");
@@ -78,8 +89,8 @@ public class JobChainingWithRefireTest
     [DisallowConcurrentExecution]
     public class RefireJob : IJob
     {
-        public static int ExecutionCount;
-        public static int FailureCount;
+        public static volatile int ExecutionCount;
+        public static volatile int FailureCount;
 
         static RefireJob()
         {
@@ -113,7 +124,7 @@ public class JobChainingWithRefireTest
 
     public class SimpleCountingJob : IJob
     {
-        public static int ExecutionCount;
+        public static volatile int ExecutionCount;
 
         static SimpleCountingJob()
         {
