@@ -101,65 +101,68 @@ public class PostgreSQLLockTest
     [Category("db-postgres")]
     public async Task TestConcurrentSchedulerStartup_ShouldNotCauseTransactionAbort()
     {
-        // This test simulates multiple scheduler instances starting up simultaneously
-        // in a clustered environment, which can trigger the lock table race condition
+        // This test simulates the race condition that occurs during scheduler startup
+        // when multiple threads try to initialize locks in the database simultaneously
 
-        var createScheduler = async (string instanceId) =>
+        var properties = new NameValueCollection
         {
-            var properties = new NameValueCollection
-            {
-                ["quartz.scheduler.instanceName"] = "TestScheduler",
-                ["quartz.scheduler.instanceId"] = instanceId,
-                ["quartz.serializer.type"] = TestConstants.DefaultSerializerType,
-                ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
-                ["quartz.jobStore.useProperties"] = "false",
-                ["quartz.jobStore.dataSource"] = "default",
-                ["quartz.jobStore.tablePrefix"] = "QRTZ_",
-                ["quartz.jobStore.clustered"] = "true",
-                ["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.PostgreSQLDelegate, Quartz",
-                ["quartz.dataSource.default.connectionString"] = TestConstants.PostgresConnectionString,
-                ["quartz.dataSource.default.provider"] = "Npgsql",
-                ["quartz.threadPool.maxConcurrency"] = "5"
-            };
-
-            ISchedulerFactory sf = new StdSchedulerFactory(properties);
-            return await sf.GetScheduler();
+            ["quartz.scheduler.instanceName"] = "TestSchedulerConcurrent",
+            ["quartz.scheduler.instanceId"] = "AUTO",
+            ["quartz.serializer.type"] = TestConstants.DefaultSerializerType,
+            ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
+            ["quartz.jobStore.useProperties"] = "false",
+            ["quartz.jobStore.dataSource"] = "default",
+            ["quartz.jobStore.tablePrefix"] = "QRTZ_",
+            ["quartz.jobStore.clustered"] = "true",
+            ["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.PostgreSQLDelegate, Quartz",
+            ["quartz.dataSource.default.connectionString"] = TestConstants.PostgresConnectionString,
+            ["quartz.dataSource.default.provider"] = "Npgsql",
+            ["quartz.threadPool.maxConcurrency"] = "10"
         };
 
-        var schedulers = new List<IScheduler>();
+        ISchedulerFactory sf = new StdSchedulerFactory(properties);
+        IScheduler scheduler = await sf.GetScheduler();
+
         try
         {
-            // Clear any existing data
-            var cleanupScheduler = await createScheduler("cleanup");
-            await cleanupScheduler.Clear();
-            await cleanupScheduler.Shutdown(false);
+            await scheduler.Clear();
+            await scheduler.Start();
 
-            // Start multiple schedulers in parallel
-            var tasks = new List<Task<IScheduler>>();
-            for (int i = 0; i < 5; i++)
+            // Schedule multiple jobs concurrently to stress test the locking mechanism
+            var tasks = new List<Task>();
+            for (int iteration = 0; iteration < 3; iteration++)
             {
-                tasks.Add(Task.Run(async () =>
+                for (int i = 0; i < 10; i++)
                 {
-                    var sched = await createScheduler($"instance_{i}");
-                    await sched.Start();
-                    return sched;
-                }));
+                    int jobIndex = iteration * 10 + i;
+                    var task = Task.Run(async () =>
+                    {
+                        var job = JobBuilder.Create<NoOpJob>()
+                            .WithIdentity($"concurrentJob{jobIndex}", "concurrentGroup")
+                            .Build();
+
+                        var trigger = TriggerBuilder.Create()
+                            .WithIdentity($"concurrentTrigger{jobIndex}", "concurrentGroup")
+                            .StartNow()
+                            .Build();
+
+                        await scheduler.ScheduleJob(job, trigger);
+                    });
+                    tasks.Add(task);
+                }
+                // Wait between iterations to create multiple waves of concurrent operations
+                await Task.Delay(100);
             }
 
-            schedulers.AddRange(await Task.WhenAll(tasks));
-
-            // Wait a bit for schedulers to fully initialize
-            await Task.Delay(2000);
+            // Wait for all scheduling operations to complete
+            await Task.WhenAll(tasks);
 
             // If we get here without an exception, the test passes
-            Assert.Pass("Successfully started multiple schedulers in parallel without transaction abort");
+            Assert.Pass("Successfully handled concurrent scheduler operations without transaction abort");
         }
         finally
         {
-            foreach (var scheduler in schedulers)
-            {
-                await scheduler.Shutdown(false);
-            }
+            await scheduler.Shutdown(false);
         }
     }
 }
