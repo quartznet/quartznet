@@ -106,9 +106,9 @@ public static class ServiceCollectionExtensions
 #endif
     T>(
         this IServiceCollectionQuartzConfigurator options,
-        Action<IJobConfigurator>? configure = null) where T : IJob
+        Action<IJobConfigurator> configure) where T : IJob
     {
-        return options.AddJob<T>((_, jobConfigurator) => configure?.Invoke(jobConfigurator));
+        return options.AddJob(typeof(T), null, (_, jobConfigurator) => configure(jobConfigurator));
     }
 
     /// <summary>
@@ -120,9 +120,10 @@ public static class ServiceCollectionExtensions
 #endif
     T>(
         this IServiceCollectionQuartzConfigurator options,
-        Action<IServiceProvider, IJobConfigurator>? configure = null) where T : IJob
+        JobKey jobKey,
+        Action<IJobConfigurator> configure) where T : IJob
     {
-        return options.AddJob(typeof(T), null, configure);
+        return options.AddJob(typeof(T), jobKey, (_, jobConfigurator) => configure(jobConfigurator));
     }
 
     /// <summary>
@@ -138,6 +139,21 @@ public static class ServiceCollectionExtensions
         Action<IServiceProvider, IJobConfigurator>? configure = null) where T : IJob
     {
         return options.AddJob(typeof(T), jobKey, configure);
+    }
+
+    /// <summary>
+    /// Add job to underlying service collection.jobType shoud be implement `IJob`
+    /// </summary>
+    public static IServiceCollectionQuartzConfigurator AddJob(
+        this IServiceCollectionQuartzConfigurator options,
+#if NET6_0_OR_GREATER
+           [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
+#endif
+        Type jobType,
+        JobKey jobKey,
+        Action<IJobConfigurator> configure)
+    {
+        return options.AddJob(jobType, jobKey, (_, jobConfigurator) => configure(jobConfigurator));
     }
 
     /// <summary>
