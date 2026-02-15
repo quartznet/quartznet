@@ -132,6 +132,13 @@ public class PostgreSQLLockTest
             var tasks = new List<Task>();
             for (int iteration = 0; iteration < 3; iteration++)
             {
+                // Brief delay between waves to create multiple bursts of concurrent operations
+                // that are more likely to trigger the race condition
+                if (iteration > 0)
+                {
+                    await Task.Delay(TimeSpan.FromMilliseconds(100));
+                }
+
                 for (int i = 0; i < 10; i++)
                 {
                     int jobIndex = iteration * 10 + i;
@@ -150,9 +157,6 @@ public class PostgreSQLLockTest
                     });
                     tasks.Add(task);
                 }
-                // Brief delay between waves to create multiple bursts of concurrent operations
-                // that are more likely to trigger the race condition
-                await Task.Delay(TimeSpan.FromMilliseconds(100));
             }
 
             // Wait for all scheduling operations to complete

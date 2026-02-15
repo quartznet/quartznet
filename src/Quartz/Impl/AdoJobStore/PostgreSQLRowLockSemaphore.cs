@@ -34,10 +34,10 @@ namespace Quartz.Impl.AdoJobStore;
 /// </remarks>
 public class PostgreSQLRowLockSemaphore : StdRowLockSemaphore
 {
-    private static string GetPostgreSQLInsertLock()
-    {
-        return $"INSERT INTO {TablePrefixSubst}{TableLocks}({ColumnSchedulerName}, {ColumnLockName}) VALUES (@schedulerName, @lockName) ON CONFLICT DO NOTHING";
-    }
+    // PostgreSQL-specific INSERT statement that uses ON CONFLICT DO NOTHING to prevent
+    // transaction aborts when multiple threads try to insert the same lock row
+    private const string PostgreSQLInsertLock =
+        "INSERT INTO {0}LOCKS(SCHED_NAME, LOCK_NAME) VALUES (@schedulerName, @lockName) ON CONFLICT DO NOTHING";
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PostgreSQLRowLockSemaphore"/> class.
@@ -45,7 +45,7 @@ public class PostgreSQLRowLockSemaphore : StdRowLockSemaphore
     public PostgreSQLRowLockSemaphore(IDbProvider dbProvider)
         : base(dbProvider)
     {
-        InsertSQL = GetPostgreSQLInsertLock();
+        InsertSQL = PostgreSQLInsertLock;
     }
 
     /// <summary>
@@ -58,6 +58,6 @@ public class PostgreSQLRowLockSemaphore : StdRowLockSemaphore
     public PostgreSQLRowLockSemaphore(string tablePrefix, string schedName, string? selectWithLockSQL, IDbProvider dbProvider)
         : base(tablePrefix, schedName, selectWithLockSQL, dbProvider)
     {
-        InsertSQL = GetPostgreSQLInsertLock();
+        InsertSQL = PostgreSQLInsertLock;
     }
 }
