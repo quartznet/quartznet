@@ -51,6 +51,7 @@ public class ServiceCollectionExtensionsTests
                 });
 
             quartz.AddJob<DummyJob>(
+                null,
                 (serviceProvider, job) =>
                 {
                     IConfiguration configuration = serviceProvider.GetRequiredService<IConfiguration>();
