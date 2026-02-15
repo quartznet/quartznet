@@ -175,8 +175,17 @@ public class RecoverJobsTest
             await connection.OpenAsync();
             using (var command = connection.CreateCommand())
             {
-                command.CommandText = $"SELECT count(*) from QRTZ_FIRED_TRIGGERS WHERE SCHED_NAME = '{scheduler.SchedulerName}' AND TRIGGER_NAME='test-trigger'";
-                int count = Convert.ToInt32(command.ExecuteScalar());
+                command.CommandText = "SELECT count(*) from QRTZ_FIRED_TRIGGERS WHERE SCHED_NAME = @schedulerName AND TRIGGER_NAME = @triggerName";
+                var param1 = command.CreateParameter();
+                param1.ParameterName = "@schedulerName";
+                param1.Value = scheduler.SchedulerName;
+                command.Parameters.Add(param1);
+                var param2 = command.CreateParameter();
+                param2.ParameterName = "@triggerName";
+                param2.Value = "test-trigger";
+                command.Parameters.Add(param2);
+                
+                int count = Convert.ToInt32(await command.ExecuteScalarAsync());
 
                 // Verify fired trigger record exists (simulating the job was executing when crashed)
                 Assert.That(count, Is.EqualTo(1), "Fired trigger record should exist after unclean shutdown");
@@ -204,13 +213,23 @@ public class RecoverJobsTest
             await connection.OpenAsync();
             using (var command = connection.CreateCommand())
             {
-                command.CommandText = $"SELECT count(*) from QRTZ_TRIGGERS WHERE SCHED_NAME = '{newScheduler.SchedulerName}' AND TRIGGER_NAME='test-trigger'";
-                int triggerCount = Convert.ToInt32(command.ExecuteScalar());
+                command.CommandText = "SELECT count(*) from QRTZ_TRIGGERS WHERE SCHED_NAME = @schedulerName AND TRIGGER_NAME = @triggerName";
+                var param1 = command.CreateParameter();
+                param1.ParameterName = "@schedulerName";
+                param1.Value = newScheduler.SchedulerName;
+                command.Parameters.Add(param1);
+                var param2 = command.CreateParameter();
+                param2.ParameterName = "@triggerName";
+                param2.Value = "test-trigger";
+                command.Parameters.Add(param2);
+                
+                int triggerCount = Convert.ToInt32(await command.ExecuteScalarAsync());
                 Assert.That(triggerCount, Is.EqualTo(0), "Trigger should be removed from QRTZ_TRIGGERS");
 
                 // With the fix, fired trigger records should be cleaned up when trigger is removed
-                command.CommandText = $"SELECT count(*) from QRTZ_FIRED_TRIGGERS WHERE SCHED_NAME = '{newScheduler.SchedulerName}' AND TRIGGER_NAME='test-trigger'";
-                int firedTriggerCount = Convert.ToInt32(command.ExecuteScalar());
+                command.CommandText = "SELECT count(*) from QRTZ_FIRED_TRIGGERS WHERE SCHED_NAME = @schedulerName AND TRIGGER_NAME = @triggerName";
+                // Reuse parameters - they should still be valid
+                int firedTriggerCount = Convert.ToInt32(await command.ExecuteScalarAsync());
                 Assert.That(firedTriggerCount, Is.EqualTo(0), "Fired trigger record should be cleaned up when trigger is removed");
             }
         }
