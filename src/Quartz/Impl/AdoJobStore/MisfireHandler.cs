@@ -73,13 +73,29 @@ internal sealed class MisfireHandler
     public async ValueTask Shutdown()
     {
         cancellationTokenSource.Cancel();
+        
+        taskScheduler.Dispose();
+        
+        // If the task was scheduled and started running, wait for it to complete
+        // If it's still WaitingForActivation after disposing the scheduler, it means
+        // the scheduler was disposed before it could schedule the task, so it will never run
         try
         {
-            taskScheduler.Dispose();
-            await task.ConfigureAwait(false);
+            // Give a brief moment for the task to transition states if it was just queued
+            await Task.Delay(10).ConfigureAwait(false);
+            
+            // Check if the task has actually started or will start
+            // WaitingForActivation means the scheduler hasn't picked it up yet
+            // After disposing the scheduler, it never will
+            if (task.Status != TaskStatus.WaitingForActivation)
+            {
+                await task.ConfigureAwait(false);
+            }
+            // else: Task was never scheduled by the disposed scheduler, which is acceptable during shutdown
         }
         catch (OperationCanceledException)
         {
+            // Expected when the task is cancelled
         }
     }
 
