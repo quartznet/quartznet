@@ -73,7 +73,7 @@ public class JobChainingWithRefireTest
         int elapsed = 0;
         while (elapsed < maxWaitMs)
         {
-            if (RefireJob.ExecutionCount > 2 && SimpleCountingJob.ExecutionCount >= 1)
+            if (RefireJob.ExecutionCount >= 3 && SimpleCountingJob.ExecutionCount >= 1)
             {
                 break;
             }
@@ -82,7 +82,7 @@ public class JobChainingWithRefireTest
         }
 
         // Verify both jobs executed
-        Assert.That(RefireJob.ExecutionCount, Is.GreaterThan(1), "First job should have refired");
+        Assert.That(RefireJob.ExecutionCount, Is.EqualTo(3), "First job should have executed exactly 3 times (2 failures + 1 success)");
         Assert.That(SimpleCountingJob.ExecutionCount, Is.EqualTo(1), "Second job should have executed once after first job completed");
     }
 
