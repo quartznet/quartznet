@@ -88,12 +88,15 @@ internal sealed class MisfireHandler
         // 2. If the task was never scheduled, no amount of waiting will help
         try
         {
-            var timeout = Task.Delay(ShutdownTimeout);
-            var completedTask = await Task.WhenAny(task, timeout).ConfigureAwait(false);
+            using CancellationTokenSource timeoutCts = new CancellationTokenSource();
+            var timeoutTask = Task.Delay(ShutdownTimeout, timeoutCts.Token);
+            var completedTask = await Task.WhenAny(task, timeoutTask).ConfigureAwait(false);
             
             if (completedTask == task)
             {
-                // Task completed normally, await it to propagate any exceptions
+                // Task completed normally, cancel the timeout timer to free resources
+                await timeoutCts.CancelAsync().ConfigureAwait(false);
+                // Await the task to propagate any exceptions
                 await task.ConfigureAwait(false);
             }
             // else: Task didn't complete within timeout, it was likely never scheduled
