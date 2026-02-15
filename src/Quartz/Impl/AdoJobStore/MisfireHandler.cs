@@ -18,6 +18,10 @@ internal sealed class MisfireHandler
     private readonly QueuedTaskScheduler taskScheduler;
     private Task task = null!;
 
+    // Timeout for waiting for the misfire handler task during shutdown.
+    // This prevents hanging if the scheduler was disposed before it could schedule the task.
+    private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(1);
+
     internal MisfireHandler(JobStoreSupport jobStoreSupport)
     {
         this.jobStoreSupport = jobStoreSupport;
@@ -84,7 +88,7 @@ internal sealed class MisfireHandler
         // 2. If the task was never scheduled, no amount of waiting will help
         try
         {
-            var timeout = Task.Delay(TimeSpan.FromSeconds(1));
+            var timeout = Task.Delay(ShutdownTimeout);
             var completedTask = await Task.WhenAny(task, timeout).ConfigureAwait(false);
             
             if (completedTask == task)

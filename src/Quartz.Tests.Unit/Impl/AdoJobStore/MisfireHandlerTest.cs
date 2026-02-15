@@ -125,7 +125,8 @@ public class MisfireHandlerTest
             Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
             CancellationToken cancellationToken = default)
         {
-            // For testing, just return default value to avoid actual database operations
+            // For testing, return default value to avoid actual database operations
+            // The tests don't rely on the return values from ExecuteInLock
             return new ValueTask<T>(default(T));
         }
     }
