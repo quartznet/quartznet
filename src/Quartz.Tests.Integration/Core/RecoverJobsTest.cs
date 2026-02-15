@@ -208,10 +208,10 @@ public class RecoverJobsTest
                 int triggerCount = Convert.ToInt32(command.ExecuteScalar());
                 Assert.That(triggerCount, Is.EqualTo(0), "Trigger should be removed from QRTZ_TRIGGERS");
 
-                // The fired trigger record should still be there since we didn't clean it up
+                // With the fix, fired trigger records should be cleaned up when trigger is removed
                 command.CommandText = $"SELECT count(*) from QRTZ_FIRED_TRIGGERS WHERE SCHED_NAME = '{newScheduler.SchedulerName}' AND TRIGGER_NAME='test-trigger'";
                 int firedTriggerCount = Convert.ToInt32(command.ExecuteScalar());
-                Assert.That(firedTriggerCount, Is.EqualTo(1), "Fired trigger record still exists (this is the bug)");
+                Assert.That(firedTriggerCount, Is.EqualTo(0), "Fired trigger record should be cleaned up when trigger is removed");
             }
         }
 
@@ -229,8 +229,7 @@ public class RecoverJobsTest
         // Shutdown
         await newScheduler.Shutdown(true);
 
-        // The bug: job should NOT have executed because trigger was removed,
-        // but it does execute because RecoverJobs() finds the fired trigger record
+        // With the fix, job should NOT execute because fired trigger record was cleaned up
         Assert.That(recoveryExecuted.IsSet, Is.False, 
             "Job should NOT execute with recovery=true after trigger was explicitly removed");
     }

@@ -1228,7 +1228,15 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         TriggerKey key,
         CancellationToken cancellationToken)
     {
-        return await Delegate.DeleteTrigger(conn, key, cancellationToken).ConfigureAwait(false) > 0;
+        bool deleted = await Delegate.DeleteTrigger(conn, key, cancellationToken).ConfigureAwait(false) > 0;
+        
+        // Also clean up any fired trigger records to prevent recovery triggers from being created
+        if (deleted)
+        {
+            await Delegate.DeleteFiredTriggers(conn, key, cancellationToken).ConfigureAwait(false);
+        }
+        
+        return deleted;
     }
 
     /// <summary>
@@ -1332,13 +1340,6 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
 
             removedTrigger = await DeleteTriggerAndChildren(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-
-            // Also delete any fired trigger records to prevent recovery triggers from being created
-            // when the scheduler restarts
-            if (removedTrigger)
-            {
-                await Delegate.DeleteFiredTriggers(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-            }
 
             if (null != job && !job.Durable)
             {
