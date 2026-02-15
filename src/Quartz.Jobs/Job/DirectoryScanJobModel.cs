@@ -1,7 +1,10 @@
 using System.Collections.Concurrent;
+using System.Reflection;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
+using Quartz.Diagnostics;
 using Quartz.Simpl;
 using Quartz.Spi;
 
@@ -13,6 +16,7 @@ namespace Quartz.Job;
 internal sealed class DirectoryScanJobModel
 {
     private static readonly ConcurrentDictionary<string, Type?> listenerTypeCache = new();
+    private static readonly ILogger<DirectoryScanJobModel> logger = LogProvider.CreateLogger<DirectoryScanJobModel>();
 
     /// <summary>
     /// We only want this type of object to be instantiated by inspecting the data
@@ -143,9 +147,16 @@ internal sealed class DirectoryScanJobModel
                         {
                             return assembly.GetTypes();
                         }
-                        catch
+                        catch (ReflectionTypeLoadException ex)
                         {
-                            // Skip assemblies that can't be loaded
+                            // Some types in the assembly couldn't be loaded, but we can still use the ones that did load
+                            logger.LogDebug(ex, "Could not load some types from assembly {AssemblyName} while scanning for IDirectoryScanListener", assembly.FullName);
+                            return ex.Types.Where(t => t != null)!;
+                        }
+                        catch (Exception ex) when (ex is FileNotFoundException or BadImageFormatException or NotSupportedException)
+                        {
+                            // Assembly can't be loaded - skip it
+                            logger.LogDebug(ex, "Could not load assembly {AssemblyName} while scanning for IDirectoryScanListener", assembly.FullName);
                             return Array.Empty<Type>();
                         }
                     })
