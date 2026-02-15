@@ -1333,6 +1333,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
             removedTrigger = await DeleteTriggerAndChildren(conn, triggerKey, cancellationToken).ConfigureAwait(false);
 
+            // Also delete any fired trigger records to prevent recovery triggers from being created
+            // when the scheduler restarts
+            if (removedTrigger)
+            {
+                await Delegate.DeleteFiredTriggers(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+            }
+
             if (null != job && !job.Durable)
             {
                 int numTriggers = await Delegate.SelectNumTriggersForJob(conn, job.Key, cancellationToken).ConfigureAwait(false);

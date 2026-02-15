@@ -142,6 +142,15 @@ public interface IDriverDelegate
     /// <returns>The number of rows deleted</returns>
     ValueTask<int> DeleteFiredTriggers(ConnectionAndTransactionHolder conn, string instanceId, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Delete all fired triggers for the given trigger.
+    /// </summary>
+    /// <param name="conn">The DB Connection</param>
+    /// <param name="triggerKey">The trigger key.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>The number of rows deleted</returns>
+    ValueTask<int> DeleteFiredTriggers(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, CancellationToken cancellationToken = default);
+
     //---------------------------------------------------------------------------
     // jobs
     //---------------------------------------------------------------------------

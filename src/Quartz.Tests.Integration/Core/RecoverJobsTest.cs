@@ -125,6 +125,139 @@ public class RecoverJobsTest
         }
     }
 
+    [Test]
+    public async Task TestRecoveryTriggersShouldNotExecuteAfterTriggerIsRemoved()
+    {
+        DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType);
+
+        const string dataSourceName = "default";
+        var jobStore = new JobStoreTX
+        {
+            DataSource = dataSourceName,
+            InstanceId = "SINGLE_NODE_TEST",
+            InstanceName = dataSourceName,
+            MisfireThreshold = TimeSpan.FromSeconds(1)
+        };
+
+        var factory = DirectSchedulerFactory.Instance;
+
+        await factory.CreateScheduler(new DefaultThreadPool(), jobStore);
+        var scheduler = await factory.GetScheduler();
+
+        // Make job run forever to simulate a job that's executing when scheduler shuts down
+        RecoverJobsTestJob.runForever = true;
+        var jobExecutedEvent = new ManualResetEventSlim(false);
+
+        await scheduler.Clear();
+
+        var job = JobBuilder.Create<RecoverJobsTestJob>()
+            .WithIdentity("test-recovery", "test-group")
+            .RequestRecovery()
+            .Build();
+
+        var trigger = TriggerBuilder.Create()
+            .WithIdentity("test-trigger", "test-group")
+            .ForJob(job)
+            .StartNow()
+            .Build();
+
+        await scheduler.ScheduleJob(job, trigger);
+        await scheduler.Start();
+
+        // Wait for job to start executing
+        await Task.Delay(TimeSpan.FromSeconds(2));
+
+        // Simulate scheduler crash (shutdown without waiting for jobs to complete)
+        await scheduler.Shutdown(false);
+
+        using (var connection = DBConnectionManager.Instance.GetConnection(dataSourceName))
+        {
+            await connection.OpenAsync();
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = $"SELECT count(*) from QRTZ_FIRED_TRIGGERS WHERE SCHED_NAME = '{scheduler.SchedulerName}' AND TRIGGER_NAME='test-trigger'";
+                int count = Convert.ToInt32(command.ExecuteScalar());
+
+                // Verify fired trigger record exists (simulating the job was executing when crashed)
+                Assert.That(count, Is.EqualTo(1), "Fired trigger record should exist after unclean shutdown");
+            }
+        }
+
+        // Stop job from running forever
+        RecoverJobsTestJob.runForever = false;
+
+        // Now create a new scheduler instance to unschedule the trigger before starting
+        await factory.CreateScheduler(new DefaultThreadPool(), jobStore);
+        var newScheduler = await factory.GetScheduler();
+
+        // Get the trigger and unschedule it before starting the scheduler
+        var triggers = await newScheduler.GetTriggersOfJob(job.Key);
+        Assert.That(triggers, Has.Count.EqualTo(1), "Should have one trigger");
+
+        // Unschedule the trigger
+        bool removed = await newScheduler.UnscheduleJob(triggers[0].Key);
+        Assert.That(removed, Is.True, "Trigger should be unscheduled successfully");
+
+        // Verify trigger is removed from QRTZ_TRIGGERS table
+        using (var connection = DBConnectionManager.Instance.GetConnection(dataSourceName))
+        {
+            await connection.OpenAsync();
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = $"SELECT count(*) from QRTZ_TRIGGERS WHERE SCHED_NAME = '{newScheduler.SchedulerName}' AND TRIGGER_NAME='test-trigger'";
+                int triggerCount = Convert.ToInt32(command.ExecuteScalar());
+                Assert.That(triggerCount, Is.EqualTo(0), "Trigger should be removed from QRTZ_TRIGGERS");
+
+                // The fired trigger record should still be there since we didn't clean it up
+                command.CommandText = $"SELECT count(*) from QRTZ_FIRED_TRIGGERS WHERE SCHED_NAME = '{newScheduler.SchedulerName}' AND TRIGGER_NAME='test-trigger'";
+                int firedTriggerCount = Convert.ToInt32(command.ExecuteScalar());
+                Assert.That(firedTriggerCount, Is.EqualTo(1), "Fired trigger record still exists (this is the bug)");
+            }
+        }
+
+        // Add a listener to detect if recovery job executes
+        var recoveryExecuted = new ManualResetEventSlim(false);
+        newScheduler.ListenerManager.AddJobListener(new RecoveryDetectionListener(recoveryExecuted));
+
+        // Start the scheduler - this should NOT execute the recovery trigger
+        // because the original trigger was explicitly removed
+        await newScheduler.Start();
+
+        // Wait to see if job executes
+        await Task.Delay(TimeSpan.FromSeconds(3));
+
+        // Shutdown
+        await newScheduler.Shutdown(true);
+
+        // The bug: job should NOT have executed because trigger was removed,
+        // but it does execute because RecoverJobs() finds the fired trigger record
+        Assert.That(recoveryExecuted.IsSet, Is.False, 
+            "Job should NOT execute with recovery=true after trigger was explicitly removed");
+    }
+
+    private class RecoveryDetectionListener : JobListenerSupport
+    {
+        private readonly ManualResetEventSlim recoveryExecuted;
+
+        public RecoveryDetectionListener(ManualResetEventSlim recoveryExecuted)
+        {
+            this.recoveryExecuted = recoveryExecuted;
+        }
+
+        public override string Name => "RecoveryDetectionListener";
+
+        public override ValueTask JobToBeExecuted(
+            IJobExecutionContext context,
+            CancellationToken cancellationToken = default)
+        {
+            if (context.Recovering)
+            {
+                recoveryExecuted.Set();
+            }
+            return default;
+        }
+    }
+
     [DisallowConcurrentExecution]
     public class RecoverJobsTestJob : IJob
     {
