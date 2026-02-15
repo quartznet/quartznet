@@ -150,8 +150,9 @@ public class PostgreSQLLockTest
                     });
                     tasks.Add(task);
                 }
-                // Wait between iterations to create multiple waves of concurrent operations
-                await Task.Delay(100);
+                // Brief delay between waves to create multiple bursts of concurrent operations
+                // that are more likely to trigger the race condition
+                await Task.Delay(TimeSpan.FromMilliseconds(100));
             }
 
             // Wait for all scheduling operations to complete
