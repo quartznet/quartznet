@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 using Quartz.Diagnostics;
@@ -65,9 +66,16 @@ public class DirectoryScanJob : IJob
     internal const string CurrentFileList = "CURRENT_FILE_LIST";
 
     private readonly ILogger<DirectoryScanJob> logger;
+    private readonly IServiceProvider? serviceProvider;
 
     public DirectoryScanJob()
     {
+        logger = LogProvider.CreateLogger<DirectoryScanJob>();
+    }
+
+    public DirectoryScanJob(IServiceProvider serviceProvider)
+    {
+        this.serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         logger = LogProvider.CreateLogger<DirectoryScanJob>();
     }
 
@@ -79,7 +87,7 @@ public class DirectoryScanJob : IJob
     /// the job will use during execution.</param>
     public ValueTask Execute(IJobExecutionContext context)
     {
-        DirectoryScanJobModel model = DirectoryScanJobModel.GetInstance(context);
+        DirectoryScanJobModel model = DirectoryScanJobModel.GetInstance(context, serviceProvider);
 
         List<FileInfo> allFiles = new List<FileInfo>();
         List<FileInfo> updatedFiles = new List<FileInfo>();

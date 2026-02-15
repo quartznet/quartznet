@@ -1,3 +1,5 @@
+using Microsoft.Extensions.DependencyInjection;
+
 using Quartz.Simpl;
 using Quartz.Spi;
 
@@ -32,8 +34,9 @@ internal sealed class DirectoryScanJobModel
     /// Creates an instance of DirectoryScanJobModel by inspecting the provided IJobExecutionContext <see cref="IJobExecutionContext"/>
     /// </summary>
     /// <param name="context">Content of the job execution <see cref="IJobExecutionContext"/></param>
+    /// <param name="serviceProvider">Optional service provider for resolving dependencies via DI</param>
     /// <returns>Instance of DirectoryScanJobModel based on the IJobExecutionContext <see cref="IJobExecutionContext"/> passed in</returns>
-    internal static DirectoryScanJobModel GetInstance(IJobExecutionContext context)
+    internal static DirectoryScanJobModel GetInstance(IJobExecutionContext context, IServiceProvider? serviceProvider = null)
     {
         JobDataMap mergedJobDataMap = context.MergedJobDataMap;
         SchedulerContext schedCtxt;
@@ -48,7 +51,7 @@ internal sealed class DirectoryScanJobModel
 
         var model = new DirectoryScanJobModel
         {
-            DirectoryScanListener = GetListener(mergedJobDataMap, schedCtxt),
+            DirectoryScanListener = GetListener(mergedJobDataMap, schedCtxt, serviceProvider),
             LastModTime = mergedJobDataMap.ContainsKey(DirectoryScanJob.LastModifiedTime)
                 ? mergedJobDataMap.GetDateTime(DirectoryScanJob.LastModifiedTime)
                 : DateTime.MinValue,
@@ -113,7 +116,7 @@ internal sealed class DirectoryScanJobModel
     }
 
 
-    private static IDirectoryScanListener GetListener(JobDataMap mergedJobDataMap, SchedulerContext schedCtxt)
+    private static IDirectoryScanListener GetListener(JobDataMap mergedJobDataMap, SchedulerContext schedCtxt, IServiceProvider? serviceProvider)
     {
         var listenerName = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryScanListenerName);
 
@@ -123,12 +126,33 @@ internal sealed class DirectoryScanJobModel
                                             DirectoryScanJob.DirectoryScanListenerName + "' not found in merged JobDataMap");
         }
 
-        if (!schedCtxt.TryGetValue(listenerName, out var listener))
+        // First, try to resolve from DI if service provider is available
+        if (serviceProvider is not null)
+        {
+            // Try to get listener by type name from DI
+            var listenerType = AppDomain.CurrentDomain.GetAssemblies()
+                .SelectMany(assembly => assembly.GetTypes())
+                .FirstOrDefault(type => 
+                    typeof(IDirectoryScanListener).IsAssignableFrom(type) && 
+                    type.Name == listenerName);
+
+            if (listenerType is not null)
+            {
+                var listener = serviceProvider.GetService(listenerType);
+                if (listener is not null)
+                {
+                    return (IDirectoryScanListener) listener;
+                }
+            }
+        }
+
+        // Fall back to SchedulerContext (legacy behavior)
+        if (!schedCtxt.TryGetValue(listenerName, out var listenerFromContext))
         {
             throw new JobExecutionException($"IDirectoryScanListener named '{listenerName}' not found in SchedulerContext");
 
         }
 
-        return (IDirectoryScanListener) listener;
+        return (IDirectoryScanListener) listenerFromContext;
     }
 }
