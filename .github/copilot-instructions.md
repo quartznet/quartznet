@@ -68,7 +68,7 @@ Pluggable serialization for job store persistence:
 ### Observability
 
 - `Quartz.Diagnostics` — `System.Diagnostics.Activity` support via `QuartzActivitySource`.
-- `Quartz.OpenTelemetry.Instrumentation` — OpenTelemetry integration.
+- `Quartz.OpenTelemetry.Instrumentation` — **DEPRECATED**. OpenTelemetry integration (obsolete, use [OpenTelemetry.Instrumentation.Quartz](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.Quartz) instead).
 - Logging uses `Microsoft.Extensions.Logging` via `Quartz.Diagnostics.LogProvider`.
 
 ## Key Conventions
