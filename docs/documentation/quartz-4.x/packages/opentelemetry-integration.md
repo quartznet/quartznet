@@ -3,15 +3,10 @@
 title: OpenTelemetry Integration
 ---
 
-[Quartz.OpenTelemetry.Instrumentation](https://www.nuget.org/packages/Quartz.OpenTelemetry.Instrumentation)
-provides integration with [OpenTelemetry](https://opentelemetry.io/).
+::: warning DEPRECATED
+The `Quartz.OpenTelemetry.Instrumentation` package is **obsolete** and no longer maintained. It is incompatible with .NET 10 and later versions.
 
-::: tip
-Quartz 3.1 or later required.
-:::
-
-::: danger
-The integration library can still live a bit and thus integration API can have breaking changes and change behavior.
+**Please use the official [OpenTelemetry.Instrumentation.Quartz](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.Quartz) package instead**, which is actively maintained by the OpenTelemetry community and fully compatible with the latest .NET versions.
 :::
 
 ## Installation
@@ -19,10 +14,14 @@ The integration library can still live a bit and thus integration API can have b
 You need to add NuGet package reference to your project which uses Quartz.
 
 ```shell
-Install-Package Quartz.OpenTelemetry.Instrumentation
+Install-Package OpenTelemetry.Instrumentation.Quartz
 ```
 
 It also makes sense to install package for exporter to actually get the results somewhere.
+
+::: tip
+Quartz 3.1 or later required.
+:::
 
 ## Using
 
