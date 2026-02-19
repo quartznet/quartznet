@@ -365,6 +365,17 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
         }
 
         /// <summary>
+        /// Set the IdleWaitTime value
+        /// </summary>
+        /// <remarks>
+        /// Default is 30 seconds (30_000).
+        /// </remarks>
+        public long IdleWaitTime
+        {
+            set => SetProperty("quartz.scheduler.idleWaitTime", value.ToString());
+        }
+
+        /// <summary>
         /// Set whether database schema validated will be tried during scheduler initialization.
         /// </summary>
         /// <remarks>
