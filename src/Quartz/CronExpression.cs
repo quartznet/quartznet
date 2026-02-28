@@ -906,6 +906,11 @@ public sealed class CronExpression : ISerializable
                 return;
 
             default:
+                if (!char.IsWhiteSpace(s[pos]))
+                {
+                    Throw.FormatException($"Illegal character after value: '{s[pos]}'");
+                }
+
                 AddToSet(val, -1, 0, type);
                 return;
         }
@@ -1013,7 +1018,6 @@ public sealed class CronExpression : ISerializable
         {
             Throw.FormatException($"'#' option is not valid here. (pos={i})");
         }
-
         i++;
         try
         {
