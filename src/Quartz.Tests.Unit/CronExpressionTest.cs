@@ -735,6 +735,16 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     }
 
     [Test]
+    public void TestInvalidCronExpressionCharacters()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(CronExpression.IsValidExpression("0 0x 0/1 ? * * *"), Is.False);
+            Assert.That(CronExpression.IsValidExpression("0 1xdds0 0/1 ? * * *"), Is.False);
+        });
+    }
+
+    [Test]
     public void TestExtraCharactersAfterWeekDay()
     {
         Assert.That(CronExpression.IsValidExpression("0 0 15 ? * FRI*"), Is.False);
