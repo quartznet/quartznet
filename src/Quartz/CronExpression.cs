@@ -1126,6 +1126,12 @@ public class CronExpression : IDeserializationCallback, ISerializable
             throw new FormatException($"Unexpected character '{c}' after '/'");
         }
 
+        // Check for invalid characters after a valid value
+        if (i < s.Length && s[i] != ' ' && s[i] != '\t')
+        {
+            throw new FormatException($"Illegal character after value: '{s[i]}'");
+        }
+
         AddToSet(val, end, 0, type);
         i++;
         return i;
