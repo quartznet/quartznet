@@ -221,7 +221,7 @@ partial class Build : NukeBuild, ICompile, IPack
             }
 
             string[] rootFilesToCopy = [
-                "Quartz.sln",
+                "Quartz.slnx",
                 "README.md",
                 "build.cmd",
                 "build.ps1",
