@@ -10,10 +10,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="build\Quartz.Dashboard.props" Pack="true" PackagePath="build\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.8" />
     <ProjectReference Include="..\Quartz.AspNetCore\Quartz.AspNetCore.csproj" />
