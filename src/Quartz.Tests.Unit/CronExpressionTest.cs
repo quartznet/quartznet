@@ -850,6 +850,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     [TestCaseSource(typeof(CronTestScenarios), nameof(CronTestScenarios.TestCases))]
     public void CronExpressionReturnsExpectedNextFireTime(CronExpression cronExpression, DateTimeOffset timeAfterDate, DateTimeOffset expectedNextFireTime)
     {
+        cronExpression.TimeZone = TimeZoneInfo.Utc;
         var nextFireTime = cronExpression.GetTimeAfter(timeAfterDate);
         nextFireTime.Value.Date.Should().Be(expectedNextFireTime.Date, "NextFireTime was not correct");
     }
