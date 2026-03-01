@@ -853,6 +853,25 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
         var nextFireTime = cronExpression.GetTimeAfter(timeAfterDate);
         nextFireTime.Value.Date.Should().Be(expectedNextFireTime.Date, "NextFireTime was not correct");
     }
+
+    /// <summary>
+    /// Test for issue where 31W causes ArgumentOutOfRangeException when transitioning
+    /// from a month with 31 days to a month with fewer days (e.g., January to February).
+    /// </summary>
+    [Test]
+    public void Test31W_JanuaryToFebruary_ShouldNotThrow()
+    {
+        CronExpression cronExpression = new CronExpression("0 0 12 31W * ?");
+        DateTime cal = new DateTime(2024, 1, 31, 12, 0, 0).ToUniversalTime();
+
+        var nextFireTime = cronExpression.GetTimeAfter((DateTimeOffset)cal);
+
+        Assert.IsNotNull(nextFireTime);
+        // February 2024 has 29 days (leap year), so 31W should fire on Feb 29 (Friday)
+        Assert.AreEqual(2024, nextFireTime.Value.Year);
+        Assert.AreEqual(2, nextFireTime.Value.Month);
+        Assert.AreEqual(29, nextFireTime.Value.Day);
+    }
 }
 
 public class CronTestScenarios
