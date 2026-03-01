@@ -5,10 +5,12 @@ using System.Threading.Tasks;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
 
 using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Logging;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Extensions.DependencyInjection;
@@ -457,6 +459,77 @@ public class ServiceCollectionExtensionsTests
         Assert.That(quartzOptions[$"quartz.dataSource.{SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName}.connectionProvider.type"], Is.EqualTo(typeof(DataSourceDbProvider).AssemblyQualifiedNameWithoutVersion()));
     }
 #endif
+
+    [Test]
+    public async Task GetScheduler_ByName_ShouldReturnSchedulerWithoutRequiringDefaultSchedulerCall()
+    {
+        // This tests the fix for the issue where GetScheduler(name) returned null
+        // unless GetScheduler() was called first
+        const string schedulerName = "TestScheduler";
+
+        try
+        {
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddQuartz(q =>
+            {
+                q.SchedulerName = schedulerName;
+                q.UseInMemoryStore();
+            });
+
+            await using var serviceProvider = services.BuildServiceProvider();
+            var factory = serviceProvider.GetRequiredService<ISchedulerFactory>();
+
+            // Call GetScheduler with the name directly, without calling GetScheduler() first
+            var scheduler = await factory.GetScheduler(schedulerName);
+
+            // Should not be null
+            Assert.That(scheduler, Is.Not.Null);
+            Assert.That(scheduler.SchedulerName, Is.EqualTo(schedulerName));
+
+            await scheduler.Shutdown();
+        }
+        finally
+        {
+            LogProvider.SetCurrentLogProvider(null);
+        }
+    }
+
+    [Test]
+    public async Task GetScheduler_ByName_AfterDefaultCall_ShouldReturnSameScheduler()
+    {
+        // This tests that both methods return the same scheduler instance
+        const string schedulerName = "TestScheduler2";
+
+        try
+        {
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddQuartz(q =>
+            {
+                q.SchedulerName = schedulerName;
+                q.UseInMemoryStore();
+            });
+
+            var serviceProvider = services.BuildServiceProvider();
+            var factory = serviceProvider.GetRequiredService<ISchedulerFactory>();
+
+            // Call both methods
+            var defaultScheduler = await factory.GetScheduler();
+            var namedScheduler = await factory.GetScheduler(schedulerName);
+
+            // Should return the same instance
+            Assert.That(namedScheduler, Is.Not.Null);
+            Assert.That(namedScheduler, Is.SameAs(defaultScheduler));
+            Assert.That(namedScheduler.SchedulerName, Is.EqualTo(schedulerName));
+
+            await defaultScheduler.Shutdown();
+        }
+        finally
+        {
+            LogProvider.SetCurrentLogProvider(null);
+        }
+    }
 
     private sealed class DummyJob : IJob
     {

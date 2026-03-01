@@ -35,7 +35,27 @@ internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
         this.processor = processor;
     }
 
-    public override async Task<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
+    public override Task<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
+    {
+        return EnsureSchedulerCreated(cancellationToken);
+    }
+
+    /// <summary>
+    /// Gets a scheduler by name, ensuring it is created and initialized first.
+    /// </summary>
+    /// <param name="schedName">Name of the scheduler to retrieve</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The scheduler with the given name, or null if not found</returns>    
+    public override async Task<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default)
+    {
+        // Ensure the default scheduler is created and initialized
+        await EnsureSchedulerCreated(cancellationToken);
+
+        // Now perform the lookup by name
+        return await base.GetScheduler(schedName, cancellationToken);
+    }
+
+    private async Task<IScheduler> EnsureSchedulerCreated(CancellationToken cancellationToken)
     {
         await semaphore.WaitAsync(cancellationToken);
         try
@@ -51,13 +71,11 @@ internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
             var scheduler = await base.GetScheduler(cancellationToken);
 
             // The base method may produce a new scheduler in the event that the original scheduler was stopped
-            if (ReferenceEquals(scheduler, initializedScheduler))
+            if (!ReferenceEquals(scheduler, initializedScheduler))
             {
-                return scheduler;
+                await InitializeScheduler(scheduler, cancellationToken);
+                initializedScheduler = scheduler;
             }
-
-            await InitializeScheduler(scheduler, cancellationToken);
-            initializedScheduler = scheduler;
 
             return scheduler;
         }
