@@ -1,0 +1,80 @@
+@page "/quartz/actions"
+@using Quartz.Dashboard.Components.Shared
+@inject DashboardActionLogService ActionLogs
+@inject SchedulerState Scheduler
+
+<div class="qz-page">
+    <h1>Action Log</h1>
+
+    @if (_entries.Count == 0)
+    {
+        <p class="qz-muted">No recorded admin actions yet.</p>
+    }
+    else
+    {
+        <table class="qz-table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Scheduler</th>
+                    <th>Action</th>
+                    <th>Target</th>
+                    <th>Status</th>
+                    <th>Message</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (DashboardActionLogEntry entry in _entries)
+                {
+                    <tr>
+                        <td>@Scheduler.FormatInSelectedTimeZone(entry.Timestamp, "u")</td>
+                        <td>@entry.SchedulerName</td>
+                        <td>@entry.Action</td>
+                        <td>@entry.Target</td>
+                        <td><StateIndicator State="@(entry.Succeeded ? "Complete" : "Error")" /></td>
+                        <td>@(entry.Message ?? string.Empty)</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    private readonly List<DashboardActionLogEntry> _entries = [];
+
+    protected override void OnInitialized()
+    {
+        Scheduler.OnSchedulerChanged += OnSchedulerChanged;
+        RefreshEntries();
+    }
+
+    private void OnSchedulerChanged()
+    {
+        RefreshEntries();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void RefreshEntries()
+    {
+        _entries.Clear();
+
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        IReadOnlyList<DashboardActionLogEntry> latestEntries = ActionLogs.GetLatest(100);
+        foreach (DashboardActionLogEntry entry in latestEntries)
+        {
+            if (!string.IsNullOrWhiteSpace(schedulerName) &&
+                !string.Equals(entry.SchedulerName, schedulerName, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            _entries.Add(entry);
+        }
+    }
+
+    public void Dispose()
+    {
+        Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+    }
+}

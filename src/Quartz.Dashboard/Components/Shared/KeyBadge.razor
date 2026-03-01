@@ -1,0 +1,51 @@
+@inject Microsoft.JSInterop.IJSRuntime JsRuntime
+
+<span class="qz-key-badge" title="@FullKey">
+    <span class="qz-key-badge-value">@FullKey</span>
+    <button type="button"
+            class="qz-key-badge-copy"
+            aria-label="Copy key"
+            @onclick="CopyAsync"
+            @onclick:stopPropagation="true"
+            @onclick:preventDefault="true">
+        @(_copied ? "Copied" : "Copy")
+    </button>
+</span>
+
+@code {
+    private bool _copied;
+
+    [Parameter]
+    public string GroupName { get; set; } = string.Empty;
+
+    [Parameter]
+    public string ItemName { get; set; } = string.Empty;
+
+    private string FullKey => DisplayValueHelper.FormatKey(GroupName, ItemName);
+
+    protected override void OnParametersSet()
+    {
+        _copied = false;
+    }
+
+    private async Task CopyAsync()
+    {
+        try
+        {
+            bool copied = await JsRuntime.InvokeAsync<bool>("quartzDashboardClipboard.copyText", new object?[] { FullKey });
+            _copied = copied;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            _copied = false;
+        }
+        catch (Microsoft.JSInterop.JSException)
+        {
+            _copied = false;
+        }
+        catch (InvalidOperationException)
+        {
+            _copied = false;
+        }
+    }
+}

@@ -1,0 +1,75 @@
+@using Quartz
+@inject Quartz.Dashboard.Services.SchedulerState Scheduler
+
+<div class="qz-cron-next-fires">
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <ErrorAlert Message="@_error" />
+    }
+    else if (_nextFires.Count == 0)
+    {
+        <span class="qz-muted">No upcoming fire times.</span>
+    }
+    else
+    {
+        <ul class="qz-list">
+            @foreach (DateTimeOffset nextFire in _nextFires)
+            {
+                <li>
+                    <span>@Scheduler.FormatInSelectedTimeZone(nextFire, "u")</span>
+                    <span class="qz-muted">(<TimeAgo Timestamp="@nextFire" />)</span>
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    private readonly List<DateTimeOffset> _nextFires = [];
+    private string? _error;
+
+    [Parameter]
+    public string? Expression { get; set; }
+
+    [Parameter]
+    public int Count { get; set; } = 5;
+
+    protected override void OnParametersSet()
+    {
+        RebuildFireTimes();
+    }
+
+    private void RebuildFireTimes()
+    {
+        _nextFires.Clear();
+        _error = null;
+
+        if (string.IsNullOrWhiteSpace(Expression))
+        {
+            return;
+        }
+
+        try
+        {
+            CronExpression cronExpression = new(Expression);
+            DateTimeOffset current = DateTimeOffset.UtcNow;
+            int max = Count <= 0 ? 1 : Count;
+
+            for (int i = 0; i < max; i++)
+            {
+                DateTimeOffset? nextFire = cronExpression.GetTimeAfter(current);
+                if (nextFire is null)
+                {
+                    break;
+                }
+
+                _nextFires.Add(nextFire.Value);
+                current = nextFire.Value;
+            }
+        }
+        catch (FormatException ex)
+        {
+            _error = "Invalid cron expression: " + ex.Message;
+        }
+    }
+}

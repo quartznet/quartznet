@@ -1,0 +1,257 @@
+@page "/quartz/calendars"
+@using System.Text.Json
+@using Microsoft.Extensions.Options
+@using Quartz.Dashboard.Components.Shared
+@implements IDisposable
+@inject IQuartzApiClient Api
+@inject SchedulerState Scheduler
+@inject IOptions<QuartzDashboardOptions> Options
+@inject ToastService Toasts
+@inject DashboardActionLogService ActionLog
+
+<div class="qz-page">
+    <h1>Calendars</h1>
+
+    @if (!IsReadOnly)
+    {
+        <section class="qz-section">
+            <h2>Create or replace cron calendar</h2>
+            <div class="qz-form-group">
+                <label class="qz-form-label" for="calendar-name">Calendar name</label>
+                <input id="calendar-name" class="qz-input" @bind="_newCalendarName" />
+            </div>
+            <div class="qz-form-group">
+                <label class="qz-form-label" for="calendar-cron">Cron expression</label>
+                <input id="calendar-cron" class="qz-input qz-input-mono" @bind="_newCalendarCronExpression" />
+            </div>
+            <div class="qz-form-group">
+                <label class="qz-form-label" for="calendar-description">Description</label>
+                <input id="calendar-description" class="qz-input" @bind="_newCalendarDescription" />
+            </div>
+            <div class="qz-live-filter-grid">
+                <label class="qz-live-filter-item">
+                    <input type="checkbox" @bind="_replaceCalendar" />
+                    <span>Replace if existing</span>
+                </label>
+                <label class="qz-live-filter-item">
+                    <input type="checkbox" @bind="_updateTriggers" />
+                    <span>Update associated triggers</span>
+                </label>
+            </div>
+            <div class="qz-actions qz-group-actions">
+                <button type="button" class="qz-button qz-button-primary" @onclick="CreateOrUpdateCalendarAsync">Save calendar</button>
+                <button type="button" class="qz-button" @onclick="ResetNewCalendarForm">Reset</button>
+            </div>
+        </section>
+    }
+
+    @if (_isLoading)
+    {
+        <LoadingSpinner />
+    }
+    else if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <ErrorAlert Message="@_error" OnRetry="LoadDataAsync" />
+    }
+    else if (_calendarNames.Count == 0)
+    {
+        <p class="qz-muted">No calendars found.</p>
+    }
+    else
+    {
+        <ul class="qz-list">
+            @foreach (string calendarName in _calendarNames)
+            {
+                <li>
+                    <div class="qz-list-item-main">
+                        <a href="@GetCalendarPath(calendarName)">@calendarName</a>
+                    </div>
+                    @if (!IsReadOnly)
+                    {
+                        <div class="qz-list-item-actions">
+                            <button type="button" class="qz-button qz-button-danger" @onclick="() => PromptDelete(calendarName)">Delete</button>
+                        </div>
+                    }
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+<ConfirmDialog IsOpen="@_showDeleteConfirm"
+               Title="Delete calendar"
+               Message="@($"Delete {_pendingCalendarName}? This cannot be undone.")"
+               OnConfirm="ConfirmDeleteAsync"
+               OnCancel="CancelDeleteAsync" />
+
+@code {
+    private static readonly JsonSerializerOptions requestSerializerOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+    private readonly List<string> _calendarNames = [];
+    private bool _isLoading = true;
+    private string? _error;
+    private bool _showDeleteConfirm;
+    private string _pendingCalendarName = string.Empty;
+    private string _newCalendarName = string.Empty;
+    private string _newCalendarCronExpression = "0 0/5 * ? * *";
+    private string _newCalendarDescription = string.Empty;
+    private bool _replaceCalendar = true;
+    private bool _updateTriggers;
+
+    private bool IsReadOnly => Options.Value.ReadOnly;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Scheduler.OnSchedulerChanged += OnSchedulerChanged;
+        await LoadDataAsync();
+    }
+
+    private async void OnSchedulerChanged()
+    {
+        await LoadDataAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        _error = null;
+
+        try
+        {
+            _calendarNames.Clear();
+            string? schedulerName = Scheduler.ActiveSchedulerName;
+            if (!string.IsNullOrWhiteSpace(schedulerName))
+            {
+                IReadOnlyList<string> names = await Api.GetCalendarNames(schedulerName);
+                _calendarNames.AddRange(names);
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private static string GetCalendarPath(string name)
+    {
+        return "/quartz/calendars/" + Uri.EscapeDataString(name);
+    }
+
+    private async Task CreateOrUpdateCalendarAsync()
+    {
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        string calendarName = _newCalendarName.Trim();
+        if (string.IsNullOrWhiteSpace(calendarName))
+        {
+            Toasts.Error("Calendar name is required.");
+            return;
+        }
+
+        string cronExpression = _newCalendarCronExpression.Trim();
+        if (string.IsNullOrWhiteSpace(cronExpression))
+        {
+            Toasts.Error("Cron expression is required.");
+            return;
+        }
+
+        object calendarPayload = new
+        {
+            type = "CronCalendar",
+            description = string.IsNullOrWhiteSpace(_newCalendarDescription) ? null : _newCalendarDescription.Trim(),
+            timeZoneId = TimeZoneInfo.Utc.Id,
+            baseCalendar = (object?) null,
+            cronExpressionString = cronExpression
+        };
+
+        try
+        {
+            JsonElement calendarJson = JsonSerializer.SerializeToElement(calendarPayload, requestSerializerOptions);
+            AddCalendarRequest request = new(calendarName, calendarJson, _replaceCalendar, _updateTriggers);
+            await Api.AddCalendar(schedulerName, request);
+            ActionLog.Record(
+                schedulerName,
+                _replaceCalendar ? "UpsertCalendar" : "CreateCalendar",
+                calendarName,
+                succeeded: true,
+                _updateTriggers ? "updateTriggers=true" : null);
+            Toasts.Success("Saved calendar " + calendarName + ".");
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            ActionLog.Record(
+                schedulerName,
+                _replaceCalendar ? "UpsertCalendar" : "CreateCalendar",
+                calendarName,
+                succeeded: false,
+                ex.Message);
+            Toasts.Error(ex.Message);
+        }
+    }
+
+    private Task ResetNewCalendarForm()
+    {
+        _newCalendarName = string.Empty;
+        _newCalendarCronExpression = "0 0/5 * ? * *";
+        _newCalendarDescription = string.Empty;
+        _replaceCalendar = true;
+        _updateTriggers = false;
+        return Task.CompletedTask;
+    }
+
+    private void PromptDelete(string calendarName)
+    {
+        _pendingCalendarName = calendarName;
+        _showDeleteConfirm = true;
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName) || string.IsNullOrWhiteSpace(_pendingCalendarName))
+        {
+            _showDeleteConfirm = false;
+            return;
+        }
+
+        try
+        {
+            await Api.DeleteCalendar(schedulerName, _pendingCalendarName);
+            ActionLog.Record(schedulerName, "DeleteCalendar", _pendingCalendarName, succeeded: true);
+            Toasts.Success("Deleted calendar " + _pendingCalendarName + ".");
+            _showDeleteConfirm = false;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            ActionLog.Record(schedulerName, "DeleteCalendar", _pendingCalendarName, succeeded: false, ex.Message);
+            Toasts.Error(ex.Message);
+            _showDeleteConfirm = false;
+        }
+    }
+
+    private Task CancelDeleteAsync()
+    {
+        _showDeleteConfirm = false;
+        return Task.CompletedTask;
+    }
+
+    public void Dispose()
+    {
+        Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+    }
+}

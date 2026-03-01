@@ -1,0 +1,498 @@
+@page "/quartz/history"
+@using Quartz.Dashboard.Components.Shared
+@implements IDisposable
+@inject IQuartzApiClient Api
+@inject SchedulerState Scheduler
+@inject NavigationManager Navigation
+
+<div class="qz-page">
+    <h1>Execution History</h1>
+
+    <div class="qz-live-filters">
+        <div class="qz-live-filter-grid">
+            <div class="qz-form-group">
+                <label class="qz-form-label" for="history-job-filter">Job filter</label>
+                <input id="history-job-filter"
+                       class="qz-input qz-input-mono"
+                       placeholder="group.name or fragment"
+                       @bind="_jobFilter" />
+            </div>
+            <div class="qz-form-group">
+                <label class="qz-form-label" for="history-trigger-filter">Trigger filter</label>
+                <input id="history-trigger-filter"
+                       class="qz-input qz-input-mono"
+                       placeholder="group.name or fragment"
+                       @bind="_triggerFilter" />
+            </div>
+        </div>
+        <div class="qz-actions qz-group-actions">
+            <button type="button" class="qz-button qz-button-primary" @onclick="ApplyFiltersAsync">Apply filters</button>
+            <button type="button" class="qz-button" @onclick="ClearFiltersAsync" disabled="@(!HasFilters && string.IsNullOrWhiteSpace(_jobFilter) && string.IsNullOrWhiteSpace(_triggerFilter))">Clear</button>
+        </div>
+    </div>
+
+    @if (!_isLoading && !_historyUnavailable && string.IsNullOrWhiteSpace(_error))
+    {
+        <p class="qz-muted">Page @_page / @_totalPages · Showing @_entries.Count row(s) · Total @_totalCount row(s)</p>
+        @if (HasFilters)
+        {
+            <p class="qz-muted">@BuildFilterSummary()</p>
+        }
+    }
+
+    @if (_isLoading)
+    {
+        <LoadingSpinner />
+    }
+    else if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <ErrorAlert Message="@_error" OnRetry="LoadDataAsync" />
+    }
+    else if (_historyUnavailable)
+    {
+        <p class="qz-muted">Execution history is unavailable for the current API backend.</p>
+    }
+    else if (_totalCount == 0)
+    {
+        <p class="qz-muted">@(HasFilters ? "No execution history matched the current filters." : "No execution history yet. Run a job to populate history.")</p>
+    }
+    else
+    {
+        <div class="qz-grid qz-grid-4">
+            <StatCard Title="Success rate (page)" Value="@GetSuccessRateText()" Icon="✔" Color="success" />
+            <StatCard Title="Failures (page)" Value="@_pageFailureCount.ToString()" Icon="⚠" Color="error" />
+            <StatCard Title="Avg duration (page)" Value="@FormatDurationValue(_pageAverageDurationMs)" Icon="⏱️" Color="info" />
+            <StatCard Title="P95 duration (page)" Value="@FormatDurationValue(_pageP95DurationMs)" Icon="📈" Color="info" />
+        </div>
+
+        <table class="qz-table">
+            <thead>
+                <tr>
+                    <th>Job</th>
+                    <th>Trigger</th>
+                    <th>Fired</th>
+                    <th>Duration</th>
+                    <th>Status</th>
+                    <th>Error</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (object entry in _entries)
+                {
+                    string jobGroup = DisplayValueHelper.GetString(entry, "jobGroup");
+                    string jobName = DisplayValueHelper.GetString(entry, "jobName");
+                    string triggerGroup = DisplayValueHelper.GetString(entry, "triggerGroup");
+                    string triggerName = DisplayValueHelper.GetString(entry, "triggerName");
+                    DateTimeOffset? firedAtUtc = DisplayValueHelper.GetDateTimeOffset(entry, "firedAtUtc");
+                    string duration = DisplayValueHelper.GetString(entry, "durationMs");
+                    bool isSuccess = GetBool(entry, "succeeded", "Succeeded");
+                    <tr>
+                        <td><KeyBadge GroupName="@jobGroup" ItemName="@jobName" /></td>
+                        <td><KeyBadge GroupName="@triggerGroup" ItemName="@triggerName" /></td>
+                        <td>@FormatFiredAt(firedAtUtc)</td>
+                        <td>@FormatDuration(duration)</td>
+                        <td><StateIndicator State="@(isSuccess ? "Complete" : "Error")" /></td>
+                        <td>@DisplayValueHelper.GetString(entry, "exceptionMessage")</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <Pagination TotalItems="@_totalCount"
+                    PageSize="@_currentPageSize"
+                    CurrentPage="@_page"
+                    OnPageChanged="OnPageChangedAsync" />
+    }
+</div>
+
+@code {
+    private readonly List<object> _entries = [];
+    private bool _isLoading = true;
+    private bool _historyUnavailable;
+    private string? _error;
+    private int _page = 1;
+    private readonly int _pageSize = 25;
+    private int _currentPageSize = 25;
+    private int _totalCount;
+    private int _totalPages = 1;
+    private int _pageSuccessCount;
+    private int _pageFailureCount;
+    private long _pageAverageDurationMs;
+    private long _pageP95DurationMs;
+    private string _jobFilter = string.Empty;
+    private string _triggerFilter = string.Empty;
+    private string _appliedJobFilter = string.Empty;
+    private string _appliedTriggerFilter = string.Empty;
+    private PeriodicTimer? _refreshTimer;
+    private CancellationTokenSource? _refreshLoopCancellation;
+    private bool _loadingInProgress;
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "job")]
+    public string? JobFilterQuery { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "trigger")]
+    public string? TriggerFilterQuery { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery(Name = "page")]
+    public int? PageQuery { get; set; }
+
+    private bool HasFilters =>
+        !string.IsNullOrWhiteSpace(_appliedJobFilter) ||
+        !string.IsNullOrWhiteSpace(_appliedTriggerFilter);
+
+    protected override Task OnInitializedAsync()
+    {
+        Scheduler.OnSchedulerChanged += OnSchedulerChanged;
+        _refreshLoopCancellation = new CancellationTokenSource();
+        _refreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        _ = RunRefreshLoopAsync(_refreshLoopCancellation.Token);
+        return Task.CompletedTask;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        string requestedJobFilter = (JobFilterQuery ?? string.Empty).Trim();
+        string requestedTriggerFilter = (TriggerFilterQuery ?? string.Empty).Trim();
+        int requestedPage = Math.Max(1, PageQuery ?? 1);
+
+        _jobFilter = requestedJobFilter;
+        _triggerFilter = requestedTriggerFilter;
+        _appliedJobFilter = requestedJobFilter;
+        _appliedTriggerFilter = requestedTriggerFilter;
+        _page = requestedPage;
+
+        await LoadDataAsync();
+    }
+
+    private async void OnSchedulerChanged()
+    {
+        _page = 1;
+        await LoadDataAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RunRefreshLoopAsync(CancellationToken cancellationToken)
+    {
+        if (_refreshTimer is null)
+        {
+            return;
+        }
+
+        try
+        {
+            while (await _refreshTimer.WaitForNextTickAsync(cancellationToken))
+            {
+                try
+                {
+                    await InvokeAsync(async () =>
+                    {
+                        await LoadDataAsync();
+                        StateHasChanged();
+                    });
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
+                catch (InvalidOperationException)
+                {
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        if (_loadingInProgress)
+        {
+            return;
+        }
+
+        _loadingInProgress = true;
+        _isLoading = true;
+        _historyUnavailable = false;
+        _error = null;
+        _entries.Clear();
+        _totalCount = 0;
+        _totalPages = 1;
+        _pageSuccessCount = 0;
+        _pageFailureCount = 0;
+        _pageAverageDurationMs = 0;
+        _pageP95DurationMs = 0;
+
+        try
+        {
+            string? schedulerName = Scheduler.ActiveSchedulerName;
+            if (string.IsNullOrWhiteSpace(schedulerName))
+            {
+                return;
+            }
+
+            JobHistoryQueryDto query = new(schedulerName, _page, _pageSize, _appliedJobFilter, _appliedTriggerFilter);
+            JobHistoryPageDto? page = await Api.GetHistory(query);
+            if (page is null)
+            {
+                _historyUnavailable = true;
+                return;
+            }
+
+            System.Text.Json.JsonElement payload = page.Value;
+            _page = Math.Max(1, GetInt(payload, "page", "Page"));
+            _currentPageSize = Math.Max(1, GetInt(payload, "pageSize", "PageSize"));
+            _totalCount = GetInt(payload, "totalCount", "TotalCount");
+            _totalPages = Math.Max(1, (int) Math.Ceiling((double) _totalCount / _currentPageSize));
+
+            object? entries = DisplayValueHelper.GetObject(payload, "entries", "Entries");
+            if (entries is System.Text.Json.JsonElement entriesElement && entriesElement.ValueKind == System.Text.Json.JsonValueKind.Array)
+            {
+                foreach (System.Text.Json.JsonElement item in entriesElement.EnumerateArray())
+                {
+                    _entries.Add(item.Clone());
+                }
+            }
+
+            ComputeAnalytics();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+            _loadingInProgress = false;
+        }
+    }
+
+    private async Task OnPageChangedAsync(int page)
+    {
+        await UpdateQueryStateAsync(page, _appliedJobFilter, _appliedTriggerFilter);
+    }
+
+    private Task ApplyFiltersAsync()
+    {
+        return UpdateQueryStateAsync(1, _jobFilter, _triggerFilter);
+    }
+
+    private Task ClearFiltersAsync()
+    {
+        _jobFilter = string.Empty;
+        _triggerFilter = string.Empty;
+        return UpdateQueryStateAsync(1, string.Empty, string.Empty);
+    }
+
+    private Task UpdateQueryStateAsync(int page, string jobFilter, string triggerFilter)
+    {
+        int normalizedPage = Math.Max(1, page);
+        string normalizedJobFilter = jobFilter.Trim();
+        string normalizedTriggerFilter = triggerFilter.Trim();
+
+        string updatedPath = BuildHistoryRelativeUri(normalizedPage, normalizedJobFilter, normalizedTriggerFilter);
+        string currentPath = "/" + Navigation.ToBaseRelativePath(Navigation.Uri).TrimStart('/');
+        if (string.Equals(updatedPath, currentPath, StringComparison.Ordinal))
+        {
+            _page = normalizedPage;
+            _appliedJobFilter = normalizedJobFilter;
+            _appliedTriggerFilter = normalizedTriggerFilter;
+            return LoadDataAsync();
+        }
+
+        Navigation.NavigateTo(updatedPath, replace: true);
+        return Task.CompletedTask;
+    }
+
+    private static string BuildHistoryRelativeUri(int page, string jobFilter, string triggerFilter)
+    {
+        List<string> queryParts = [];
+        if (page > 1)
+        {
+            queryParts.Add("page=" + page.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        if (!string.IsNullOrWhiteSpace(jobFilter))
+        {
+            queryParts.Add("job=" + Uri.EscapeDataString(jobFilter));
+        }
+
+        if (!string.IsNullOrWhiteSpace(triggerFilter))
+        {
+            queryParts.Add("trigger=" + Uri.EscapeDataString(triggerFilter));
+        }
+
+        if (queryParts.Count == 0)
+        {
+            return "/quartz/history";
+        }
+
+        return "/quartz/history?" + string.Join("&", queryParts);
+    }
+
+    private string BuildFilterSummary()
+    {
+        string jobPart = string.IsNullOrWhiteSpace(_appliedJobFilter) ? "Any job" : "Job: " + _appliedJobFilter;
+        string triggerPart = string.IsNullOrWhiteSpace(_appliedTriggerFilter) ? "Any trigger" : "Trigger: " + _appliedTriggerFilter;
+        return jobPart + " · " + triggerPart;
+    }
+
+    private static string FormatDuration(string durationMs)
+    {
+        if (!long.TryParse(durationMs, out long value))
+        {
+            return "n/a";
+        }
+
+        return value + " ms";
+    }
+
+    private static string FormatDurationValue(long durationMs)
+    {
+        return durationMs > 0 ? durationMs + " ms" : "n/a";
+    }
+
+    private string FormatFiredAt(DateTimeOffset? firedAtUtc)
+    {
+        return Scheduler.FormatInSelectedTimeZone(firedAtUtc, "u");
+    }
+
+    private string GetSuccessRateText()
+    {
+        int total = _pageSuccessCount + _pageFailureCount;
+        if (total == 0)
+        {
+            return "n/a";
+        }
+
+        double ratio = (double) _pageSuccessCount / total;
+        return ratio.ToString("P1", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static int GetInt(System.Text.Json.JsonElement source, params string[] propertyNames)
+    {
+        object? value = DisplayValueHelper.GetObject(source, propertyNames);
+        if (value is System.Text.Json.JsonElement element)
+        {
+            if (element.ValueKind == System.Text.Json.JsonValueKind.Number && element.TryGetInt32(out int numberValue))
+            {
+                return numberValue;
+            }
+
+            if (element.ValueKind == System.Text.Json.JsonValueKind.String && int.TryParse(element.GetString(), out int parsedValue))
+            {
+                return parsedValue;
+            }
+
+            return 0;
+        }
+
+        return value is int intValue ? intValue : 0;
+    }
+
+    private static long GetLong(object source, params string[] propertyNames)
+    {
+        object? value = DisplayValueHelper.GetObject(source, propertyNames);
+        if (value is System.Text.Json.JsonElement element)
+        {
+            if (element.ValueKind == System.Text.Json.JsonValueKind.Number && element.TryGetInt64(out long numberValue))
+            {
+                return numberValue;
+            }
+
+            if (element.ValueKind == System.Text.Json.JsonValueKind.String &&
+                long.TryParse(element.GetString(), out long parsedValue))
+            {
+                return parsedValue;
+            }
+
+            return 0;
+        }
+
+        return value is long longValue ? longValue : 0;
+    }
+
+    private static bool GetBool(object source, params string[] propertyNames)
+    {
+        object? value = DisplayValueHelper.GetObject(source, propertyNames);
+        if (value is System.Text.Json.JsonElement element)
+        {
+            if (element.ValueKind == System.Text.Json.JsonValueKind.True)
+            {
+                return true;
+            }
+
+            if (element.ValueKind == System.Text.Json.JsonValueKind.False)
+            {
+                return false;
+            }
+
+            if (element.ValueKind == System.Text.Json.JsonValueKind.String &&
+                bool.TryParse(element.GetString(), out bool parsedElement))
+            {
+                return parsedElement;
+            }
+
+            return false;
+        }
+
+        return value is bool boolValue && boolValue;
+    }
+
+    private void ComputeAnalytics()
+    {
+        List<long> durations = [];
+        _pageSuccessCount = 0;
+        _pageFailureCount = 0;
+        _pageAverageDurationMs = 0;
+        _pageP95DurationMs = 0;
+
+        foreach (object entry in _entries)
+        {
+            bool succeeded = GetBool(entry, "succeeded", "Succeeded");
+            if (succeeded)
+            {
+                _pageSuccessCount++;
+            }
+            else
+            {
+                _pageFailureCount++;
+            }
+
+            long duration = GetLong(entry, "durationMs", "DurationMs");
+            if (duration > 0)
+            {
+                durations.Add(duration);
+            }
+        }
+
+        if (durations.Count == 0)
+        {
+            return;
+        }
+
+        durations.Sort();
+        _pageAverageDurationMs = (long) Math.Round(durations.Average());
+        int p95Index = (int) Math.Ceiling(durations.Count * 0.95) - 1;
+        p95Index = Math.Clamp(p95Index, 0, durations.Count - 1);
+        _pageP95DurationMs = durations[p95Index];
+    }
+
+    public void Dispose()
+    {
+        Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+        _refreshLoopCancellation?.Cancel();
+        _refreshLoopCancellation?.Dispose();
+        _refreshTimer?.Dispose();
+    }
+}

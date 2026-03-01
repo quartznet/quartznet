@@ -1,0 +1,120 @@
+@inject Quartz.Dashboard.Services.SchedulerState SchedulerState
+@inject Quartz.Dashboard.Services.IQuartzApiClient ApiClient
+@implements IDisposable
+
+<div class="qz-scheduler-selector">
+    <select class="qz-scheduler-select"
+            value="@SchedulerState.ActiveSchedulerName"
+            @onchange="OnSchedulerChanged"
+            aria-label="Select scheduler">
+        @if (SchedulerState.AvailableSchedulers.Count == 0)
+        {
+            <option value="">Loading…</option>
+        }
+        else
+        {
+            @foreach (string scheduler in SchedulerState.AvailableSchedulers)
+            {
+                <option value="@scheduler">@scheduler</option>
+            }
+        }
+    </select>
+
+    <span class="qz-scheduler-status">
+        <span class="qz-state-dot qz-state-dot-lg @StatusDotClass" aria-hidden="true"></span>
+        <span>@_statusLabel</span>
+    </span>
+</div>
+
+@code
+{
+    private string _statusLabel = "Loading…";
+    private string _schedulerStatus = string.Empty;
+
+    private string StatusDotClass => _schedulerStatus switch
+    {
+        "Running" => "qz-state-running",
+        "Started" => "qz-state-running",
+        "Standby" => "qz-state-standby",
+        "Shutdown" => "qz-state-shutdown",
+        _ => "qz-state-waiting"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        SchedulerState.OnSchedulerChanged += OnStateChanged;
+        await LoadSchedulersAsync();
+    }
+
+    private async Task LoadSchedulersAsync()
+    {
+        try
+        {
+            System.Collections.Generic.IReadOnlyList<Quartz.Dashboard.Services.SchedulerHeaderDto> schedulers =
+                await ApiClient.GetSchedulers();
+
+            System.Collections.Generic.List<string> names = new();
+            foreach (Quartz.Dashboard.Services.SchedulerHeaderDto s in schedulers)
+            {
+                names.Add(s.SchedulerName);
+            }
+
+            SchedulerState.AvailableSchedulers = names.AsReadOnly();
+
+            if (SchedulerState.ActiveSchedulerName is null && names.Count > 0)
+            {
+                SchedulerState.ActiveSchedulerName = names[0];
+            }
+
+            await UpdateStatusAsync();
+        }
+        catch
+        {
+            _statusLabel = "Unavailable";
+            _schedulerStatus = string.Empty;
+        }
+    }
+
+    private async Task OnSchedulerChanged(ChangeEventArgs e)
+    {
+        string? selectedName = e.Value?.ToString();
+        if (!string.IsNullOrEmpty(selectedName))
+        {
+            SchedulerState.ActiveSchedulerName = selectedName;
+            await UpdateStatusAsync();
+        }
+    }
+
+    private async Task UpdateStatusAsync()
+    {
+        if (SchedulerState.ActiveSchedulerName is null)
+        {
+            return;
+        }
+
+        try
+        {
+            Quartz.Dashboard.Services.SchedulerDetailDto detail =
+                await ApiClient.GetScheduler(SchedulerState.ActiveSchedulerName);
+
+            _schedulerStatus = detail.Status;
+            _statusLabel = detail.Status;
+        }
+        catch
+        {
+            _statusLabel = "Unknown";
+            _schedulerStatus = string.Empty;
+        }
+    }
+
+    public void Dispose()
+    {
+        SchedulerState.OnSchedulerChanged -= OnStateChanged;
+    }
+
+    private async void OnStateChanged()
+    {
+        await UpdateStatusAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+}

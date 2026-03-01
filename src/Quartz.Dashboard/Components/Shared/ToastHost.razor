@@ -1,0 +1,42 @@
+@implements IDisposable
+@inject ToastService Toasts
+
+@if (Toasts.Messages.Count > 0)
+{
+    <div class="qz-toast-stack" role="status" aria-live="polite" aria-atomic="false">
+        @foreach (ToastMessage toast in Toasts.Messages)
+        {
+            <div class="qz-toast @GetToastClass(toast.Level)">
+                <span>@toast.Message</span>
+                <button type="button" class="qz-toast-close" @onclick="() => Toasts.Dismiss(toast.Id)" aria-label="Dismiss notification">&times;</button>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    protected override void OnInitialized()
+    {
+        Toasts.Changed += OnToastsChanged;
+    }
+
+    private async void OnToastsChanged(object? sender, EventArgs args)
+    {
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private static string GetToastClass(ToastLevel level)
+    {
+        return level switch
+        {
+            ToastLevel.Success => "qz-toast-success",
+            ToastLevel.Error => "qz-toast-error",
+            _ => "qz-toast-info"
+        };
+    }
+
+    public void Dispose()
+    {
+        Toasts.Changed -= OnToastsChanged;
+    }
+}

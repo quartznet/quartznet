@@ -1,0 +1,24 @@
+<div class="qz-stat-card qz-stat-card-@Color">
+    <div class="qz-stat-card-header">
+        <span class="qz-stat-card-title">@Title</span>
+        @if (!string.IsNullOrWhiteSpace(Icon))
+        {
+            <span class="qz-stat-card-icon">@Icon</span>
+        }
+    </div>
+    <div class="qz-stat-card-value">@Value</div>
+</div>
+
+@code {
+    [Parameter]
+    public string Title { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Value { get; set; } = "0";
+
+    [Parameter]
+    public string Icon { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Color { get; set; } = "info";
+}

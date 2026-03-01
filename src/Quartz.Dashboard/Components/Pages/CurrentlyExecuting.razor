@@ -1,0 +1,232 @@
+@page "/quartz/executing"
+@using Microsoft.Extensions.Options
+@using Quartz
+@using Quartz.Dashboard.Components.Shared
+@implements IDisposable
+@inject IQuartzApiClient Api
+@inject SchedulerState Scheduler
+@inject IOptions<QuartzDashboardOptions> Options
+
+<div class="qz-page">
+    <div class="qz-page-header">
+        <h1>Currently Executing</h1>
+        <span class="qz-muted" style="font-size: var(--qz-font-size-xs);">Auto-refreshes every 1s</span>
+        <span class="qz-muted" style="font-size: var(--qz-font-size-xs);">Last updated: @FormatLastUpdated(_lastUpdatedAt)</span>
+    </div>
+
+    @if (_isLoading)
+    {
+        <p class="qz-muted">Loading currently executing jobs...</p>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <ErrorAlert Message="@_error" OnRetry="LoadDataAsync" />
+    }
+
+    <table class="qz-table">
+        <thead>
+            <tr>
+                <th>Job</th>
+                <th>Trigger</th>
+                <th>Fire Time</th>
+                <th>Run Time</th>
+                @if (!IsReadOnly)
+                {
+                    <th>Actions</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @if (_executingJobs.Count == 0)
+            {
+                <tr>
+                    <td colspan="@TableColumnCount" class="qz-muted">No jobs currently executing.</td>
+                </tr>
+            }
+            else
+            {
+                @foreach (object executingJob in _executingJobs)
+                {
+                    string jobGroup = DisplayValueHelper.GetString(executingJob, "JobDetail.Group", "JobKey.Group");
+                    string jobName = DisplayValueHelper.GetString(executingJob, "JobDetail.Name", "JobKey.Name");
+                    string triggerGroup = DisplayValueHelper.GetString(executingJob, "Trigger.Key.Group", "TriggerKey.Group");
+                    string triggerName = DisplayValueHelper.GetString(executingJob, "Trigger.Key.Name", "TriggerKey.Name");
+                    DateTimeOffset? fireTime = DisplayValueHelper.GetDateTimeOffset(executingJob, "FireTime", "FireTimeUtc");
+                    <tr>
+                        <td><KeyBadge GroupName="@jobGroup" ItemName="@jobName" /></td>
+                        <td><KeyBadge GroupName="@triggerGroup" ItemName="@triggerName" /></td>
+                        <td>@FormatFireTime(fireTime)</td>
+                        <td>@FormatRunTime(fireTime)</td>
+                        @if (!IsReadOnly)
+                        {
+                            <td>
+                                <button type="button" class="qz-button qz-button-danger" @onclick="() => InterruptAsync(jobGroup, jobName)">Interrupt</button>
+                            </td>
+                        }
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
+@code {
+    private readonly List<object> _executingJobs = [];
+    private bool _isLoading = true;
+    private bool _loadingInProgress;
+    private string? _error;
+    private PeriodicTimer? _refreshTimer;
+    private CancellationTokenSource? _refreshLoopCancellation;
+    private DateTimeOffset? _lastUpdatedAt;
+
+    private bool IsReadOnly => Options.Value.ReadOnly;
+    private int TableColumnCount => IsReadOnly ? 4 : 5;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Scheduler.OnSchedulerChanged += OnSchedulerChanged;
+        _refreshLoopCancellation = new CancellationTokenSource();
+        _refreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        _ = RunRefreshLoopAsync(_refreshLoopCancellation.Token);
+        await LoadDataAsync();
+    }
+
+    private async void OnSchedulerChanged()
+    {
+        await LoadDataAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RunRefreshLoopAsync(CancellationToken cancellationToken)
+    {
+        if (_refreshTimer is null)
+        {
+            return;
+        }
+
+        try
+        {
+            while (await _refreshTimer.WaitForNextTickAsync(cancellationToken))
+            {
+                try
+                {
+                    await InvokeAsync(async () =>
+                    {
+                        await LoadDataAsync();
+                        StateHasChanged();
+                    });
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
+                catch (InvalidOperationException)
+                {
+                }
+                catch (Exception ex)
+                {
+                    _error = ex.Message;
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    private async Task LoadDataAsync()
+    {
+        if (_loadingInProgress)
+        {
+            return;
+        }
+
+        _loadingInProgress = true;
+        _error = null;
+
+        try
+        {
+            string? schedulerName = Scheduler.ActiveSchedulerName;
+            if (!string.IsNullOrWhiteSpace(schedulerName))
+            {
+                IReadOnlyList<object> jobs = DisplayValueHelper.ToObjectList(await Api.GetCurrentlyExecutingJobs(schedulerName));
+                _executingJobs.Clear();
+                _executingJobs.AddRange(jobs);
+            }
+            else
+            {
+                _executingJobs.Clear();
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _lastUpdatedAt = DateTimeOffset.UtcNow;
+            _isLoading = false;
+            _loadingInProgress = false;
+        }
+    }
+
+    private async Task InterruptAsync(string group, string name)
+    {
+        if (IsReadOnly || string.IsNullOrWhiteSpace(Scheduler.ActiveSchedulerName))
+        {
+            return;
+        }
+
+        try
+        {
+            await Api.InterruptJob(Scheduler.ActiveSchedulerName, group, name);
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    private string FormatFireTime(DateTimeOffset? fireTime)
+    {
+        return Scheduler.FormatInSelectedTimeZone(fireTime, "u");
+    }
+
+    private static string FormatRunTime(DateTimeOffset? fireTime)
+    {
+        if (!fireTime.HasValue)
+        {
+            return "n/a";
+        }
+
+        TimeSpan runTime = DateTimeOffset.UtcNow - fireTime.Value;
+        if (runTime < TimeSpan.Zero)
+        {
+            runTime = TimeSpan.Zero;
+        }
+
+        return runTime.ToString(@"hh\:mm\:ss");
+    }
+
+    private string FormatLastUpdated(DateTimeOffset? lastUpdatedAt)
+    {
+        return Scheduler.FormatInSelectedTimeZone(lastUpdatedAt, "HH:mm:ss");
+    }
+
+    public void Dispose()
+    {
+        Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+        _refreshLoopCancellation?.Cancel();
+        _refreshLoopCancellation?.Dispose();
+        _refreshTimer?.Dispose();
+    }
+}
