@@ -754,8 +754,8 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         // - Every other Sunday at 2:01 AM Central
         // - Starts on 2/25/2024 2:01 AM
         // - Should fire at 2:01 AM on 3/10/2024 (but that time doesn't exist - spring forward)
-        // - Quartz correctly sets next fire to 3/10/2024 3:01 AM
-        // - When 3:01 AM comes around, the trigger should fire ONCE and compute the next fire time correctly
+        // - Quartz correctly sets next fire to 3/10/2024 3:00 AM
+        // - When 3:00 AM comes around, the trigger should fire ONCE and compute the next fire time correctly
         var centralTimeZone = TimeZoneUtil.FindTimeZoneById("Central Standard Time");
 
         // 2/25/2024 2:01 AM CST (UTC-6)
