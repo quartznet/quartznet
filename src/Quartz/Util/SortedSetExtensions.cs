@@ -8,6 +8,12 @@ internal static class SortedSetExtensions
     // ReSharper disable once UnusedMember.Global -- introduced in v4
     internal static bool TryGetMinValueStartingFrom(this SortedSet<int> set, DateTimeOffset start, bool allowValueBeforeStartDay, out int minimumDay)
     {
+        minimumDay = 0;
+
+        if (set.Count == 0)
+        {
+            return false;
+        }
         minimumDay = set.Min;
         var startDay = start.Day;
 
