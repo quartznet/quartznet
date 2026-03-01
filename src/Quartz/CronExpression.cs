@@ -1576,6 +1576,11 @@ public class CronExpression : IDeserializationCallback, ISerializable
         }
     }
 
+    public virtual DateTimeOffset? GetTimeAt(DateTimeOffset afterTimeUtc)
+    {
+        return GetTimeAfter(afterTimeUtc, 0);
+    }
+
     /// <summary>
     /// Gets the next fire time after the given time.
     /// </summary>
@@ -1583,9 +1588,24 @@ public class CronExpression : IDeserializationCallback, ISerializable
     /// <returns></returns>
     public virtual DateTimeOffset? GetTimeAfter(DateTimeOffset afterTimeUtc)
     {
+        return GetTimeAfter(afterTimeUtc, 1);
+    }
+
+    /// <summary>
+    /// Gets the next fire time after the given time.
+    /// </summary>
+    /// <param name="afterTimeUtc">The UTC time to start searching from.</param>
+    /// <param name="afterOffsetInSeconds">Number of seconds to add before searching. Typically 1 second to find the next time "after" the given time.</param>
+    /// <returns></returns>
+    public virtual DateTimeOffset? GetTimeAfter(DateTimeOffset afterTimeUtc, int afterOffsetInSeconds)
+    {
+        // Store the original input time for validation at the end
+        DateTimeOffset originalAfterTime = afterTimeUtc;
+
         // move ahead one second, since we're computing the time *after* the
         // given time
-        afterTimeUtc = afterTimeUtc.AddSeconds(1);
+        if (afterOffsetInSeconds != 0)
+            afterTimeUtc = afterTimeUtc.AddSeconds(afterOffsetInSeconds);
 
         // CronTrigger does not deal with milliseconds
         DateTimeOffset d = CreateDateTimeWithoutMillis(afterTimeUtc);
@@ -2077,7 +2097,52 @@ public class CronExpression : IDeserializationCallback, ISerializable
             gotOne = true;
         } // while( !done )
 
-        return d.ToUniversalTime();
+        DateTimeOffset result = d.ToUniversalTime();
+
+        // Protect against ambiguous DST times causing backwards time travel
+        // During DST fall-back transitions, a local time like "2:00 AM" occurs twice.
+        // GetUtcOffset may pick the first occurrence (DST offset) even when we started
+        // after that point. If this happens, the result will be earlier than our input.
+        // We detect this and adjust to use the standard time offset instead.
+        if (result < originalAfterTime)
+        {
+            // We've hit an ambiguous time that resolved to the earlier (DST) occurrence.
+            // The time zone likely picked the DST offset when it should have picked standard time offset.
+            // Check if this local time is ambiguous in the time zone.
+            if (TimeZone.IsAmbiguousTime(d.DateTime))
+            {
+                // Get both possible UTC offsets for this ambiguous local time
+                var offsets = TimeZone.GetAmbiguousTimeOffsets(d.DateTime);
+
+                // Try both offsets and pick the one that gives us a time >= originalAfterTime
+                DateTimeOffset? validResult = null;
+                foreach (var offset in offsets)
+                {
+                    var candidate = new DateTimeOffset(d.DateTime, offset).ToUniversalTime();
+                    if (candidate >= originalAfterTime)
+                    {
+                        validResult = candidate;
+                        break;
+                    }
+                }
+
+                if (validResult.HasValue)
+                {
+                    return validResult.Value;
+                }
+
+                // Neither offset works - skip past the ambiguous period
+                // Find the end of the ambiguous period by adding 2 hours to result and searching
+                return GetTimeAfter(originalAfterTime.AddHours(2), 0);
+            }
+            else
+            {
+                // Not ambiguous but still going backwards - this shouldn't happen, but skip ahead to be safe
+                return GetTimeAfter(originalAfterTime.AddHours(1), 0);
+            }
+        }
+
+        return result;
     }
 
     /// <summary>
