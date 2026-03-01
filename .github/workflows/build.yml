@@ -40,14 +40,14 @@ jobs:
         with:
           dotnet-version: |
             10.0
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: 'Run: Compile, UnitTest, IntegrationTest, Pack, Publish'
         run: ./build.cmd Compile UnitTest IntegrationTest Pack Publish
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
           FEEDZ_API_KEY: ${{ secrets.FEEDZ_API_KEY }}
       - name: 'Publish: packages'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: ${{ runner.os == 'Windows' }}
         with:
           name: packages
@@ -61,14 +61,14 @@ jobs:
         with:
           dotnet-version: |
             10.0
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: 'Run: Compile, UnitTest, IntegrationTest, Pack, Publish'
         run: ./build.cmd Compile UnitTest IntegrationTest Pack Publish
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
           FEEDZ_API_KEY: ${{ secrets.FEEDZ_API_KEY }}
       - name: 'Publish: packages'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: ${{ runner.os == 'Windows' }}
         with:
           name: packages
@@ -82,14 +82,14 @@ jobs:
         with:
           dotnet-version: |
             10.0
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: 'Run: Compile, UnitTest, IntegrationTest, Pack, Publish'
         run: ./build.cmd Compile UnitTest IntegrationTest Pack Publish
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
           FEEDZ_API_KEY: ${{ secrets.FEEDZ_API_KEY }}
       - name: 'Publish: packages'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: ${{ runner.os == 'Windows' }}
         with:
           name: packages
