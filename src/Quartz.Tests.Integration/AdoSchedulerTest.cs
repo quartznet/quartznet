@@ -27,11 +27,11 @@ public class AdoSchedulerTest : AbstractSchedulerTest
 
     protected override async ValueTask<IScheduler> CreateScheduler(string name, int threadPoolSize)
     {
-        DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType);
+        DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType, out string dataSourceName);
 
         var jobStore = new JobStoreTX
         {
-            DataSource = "default",
+            DataSource = dataSourceName,
             TablePrefix = "QRTZ_",
             InstanceId = "AUTO",
             DriverDelegateType = driverDelegateType,

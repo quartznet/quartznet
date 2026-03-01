@@ -52,6 +52,11 @@
     <PackageVersion Include="System.Data.SQLite.Core" Version="1.0.119" />
     <PackageVersion Include="System.Diagnostics.DiagnosticSource" Version="9.0.2" />
     <PackageVersion Include="System.Text.Json" Version="8.0.5" />
+    <PackageVersion Include="Testcontainers.FirebirdSql" Version="4.10.0" />
+    <PackageVersion Include="Testcontainers.MsSql" Version="4.10.0" />
+    <PackageVersion Include="Testcontainers.MySql" Version="4.10.0" />
+    <PackageVersion Include="Testcontainers.Oracle" Version="4.10.0" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.10.0" />
     <PackageVersion Include="TimeZoneConverter" Version="7.0.0" />
     <PackageVersion Include="Topshelf" Version="4.3.0" />
     <PackageVersion Include="Verify.NUnit" Version="28.10.1" />

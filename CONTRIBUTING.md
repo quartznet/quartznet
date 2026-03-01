@@ -15,9 +15,9 @@ Run `build.cmd` or `build.sh` from the command line.
 
 ## Testing
 
-Some test dependencies are provided by a docker container. 
+Integration tests provision their database dependencies through Testcontainers for .NET.
 
-* Run `docker compose up -d`
+* Ensure your Docker daemon is running
 * Run the build command with flags: `.\build.cmd Compile UnitTest IntegrationTest`
 
 This builds and runs tests like the CI server does.
