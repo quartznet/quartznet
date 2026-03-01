@@ -42,7 +42,7 @@ partial class Build : NukeBuild
     AbsolutePath SourceDirectory => RootDirectory / "src";
     AbsolutePath ArtifactsDirectory => RootDirectory / "artifacts";
 
-    string TagVersion => GitRepository.Tags.SingleOrDefault(x => x.StartsWith("v"))?[1..];
+    string TagVersion => GitRepository?.Tags.SingleOrDefault(x => x.StartsWith("v"))?[1..];
 
     bool IsTaggedBuild => !string.IsNullOrWhiteSpace(TagVersion);
 

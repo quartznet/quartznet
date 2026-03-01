@@ -1,0 +1,28 @@
+@if (!string.IsNullOrWhiteSpace(Message))
+{
+    <div class="qz-error-alert" role="alert">
+        <span>@Message</span>
+        @if (OnRetry.HasDelegate)
+        {
+            <button type="button" class="qz-button qz-button-danger" @onclick="RetryAsync">
+                @(string.IsNullOrWhiteSpace(RetryText) ? "Retry" : RetryText)
+            </button>
+        }
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string? Message { get; set; }
+
+    [Parameter]
+    public string? RetryText { get; set; } = "Retry";
+
+    [Parameter]
+    public EventCallback OnRetry { get; set; }
+
+    private async Task RetryAsync()
+    {
+        await OnRetry.InvokeAsync();
+    }
+}

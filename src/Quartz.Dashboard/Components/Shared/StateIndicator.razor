@@ -1,0 +1,41 @@
+<span class="qz-state-indicator qz-state-@StateClass" title="@State">
+    <span class="qz-state-dot"></span>
+    @if (ShowLabel)
+    {
+        <span class="qz-state-label">@DisplayState</span>
+    }
+</span>
+
+@code {
+    [Parameter]
+    public string? State { get; set; }
+
+    [Parameter]
+    public bool ShowLabel { get; set; } = true;
+
+    private string DisplayState => string.IsNullOrWhiteSpace(State) ? "Unknown" : State;
+
+    private string StateClass
+    {
+        get
+        {
+            string normalized = (State ?? string.Empty).Trim().ToLowerInvariant();
+            if (normalized.Contains("error") || normalized.Contains("failed") || normalized.Contains("shutdown"))
+            {
+                return "error";
+            }
+
+            if (normalized.Contains("pause") || normalized.Contains("standby") || normalized.Contains("blocked"))
+            {
+                return "paused";
+            }
+
+            if (normalized.Contains("normal") || normalized.Contains("running") || normalized.Contains("complete"))
+            {
+                return "success";
+            }
+
+            return "info";
+        }
+    }
+}
