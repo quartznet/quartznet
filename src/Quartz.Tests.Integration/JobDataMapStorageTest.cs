@@ -2,6 +2,7 @@
 using Quartz.Impl.AdoJobStore;
 using Quartz.Job;
 using Quartz.Simpl;
+using Quartz.Tests.Integration.TestHelpers;
 using Quartz.Tests.Integration.Utils;
 
 namespace Quartz.Tests.Integration;
@@ -21,46 +22,54 @@ public class JobDataMapStorageTest : IntegrationTest
     public async Task TestJobDataMapDirtyFlag()
     {
         IScheduler scheduler = await CreateScheduler("testBasicStorageFunctions");
-        await scheduler.Clear();
+        try
+        {
+            await scheduler.Clear();
 
-        IJobDetail jobDetail = JobBuilder.Create<NoOpJob>()
-            .WithIdentity("test")
-            .UsingJobData("jfoo", "bar")
-            .Build();
+            IJobDetail jobDetail = JobBuilder.Create<NoOpJob>()
+                .WithIdentity("test")
+                .UsingJobData("jfoo", "bar")
+                .Build();
 
-        ITrigger trigger = TriggerBuilder.Create()
-            .WithIdentity("test")
-            .WithCronSchedule("0 0 0 * * ?")
-            .UsingJobData("tfoo", "bar")
-            .Build();
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("test")
+                .WithCronSchedule("0 0 0 * * ?")
+                .UsingJobData("tfoo", "bar")
+                .Build();
 
-        await scheduler.ScheduleJob(jobDetail, trigger);
+            await scheduler.ScheduleJob(jobDetail, trigger);
 
-        IJobDetail storedJobDetail = await scheduler.GetJobDetail(new JobKey("test"));
-        JobDataMap storedJobMap = storedJobDetail.JobDataMap;
-        Assert.That(storedJobMap.Dirty, Is.False);
+            IJobDetail storedJobDetail = await scheduler.GetJobDetail(new JobKey("test"));
+            JobDataMap storedJobMap = storedJobDetail.JobDataMap;
+            Assert.That(storedJobMap.Dirty, Is.False);
 
-        ITrigger storedTrigger = await scheduler.GetTrigger(new TriggerKey("test"));
-        JobDataMap storedTriggerMap = storedTrigger.JobDataMap;
-        Assert.That(storedTriggerMap.Dirty, Is.False);
+            ITrigger storedTrigger = await scheduler.GetTrigger(new TriggerKey("test"));
+            JobDataMap storedTriggerMap = storedTrigger.JobDataMap;
+            Assert.That(storedTriggerMap.Dirty, Is.False);
+        }
+        finally
+        {
+            await scheduler.Shutdown(false);
+        }
     }
 
     private async ValueTask<IScheduler> CreateScheduler(string name)
     {
-        DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType);
+        DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType, out string dataSourceName);
 
         var serializer = new NewtonsoftJsonObjectSerializer();
         serializer.Initialize();
         var jobStore = new JobStoreTX
         {
-            DataSource = "default",
+            DataSource = dataSourceName,
             TablePrefix = "QRTZ_",
             InstanceId = "AUTO",
             DriverDelegateType = driverDelegateType,
             ObjectSerializer = serializer
         };
 
-        await DirectSchedulerFactory.Instance.CreateScheduler(name + "Scheduler", "AUTO", new DefaultThreadPool(), jobStore);
-        return SchedulerRepository.Instance.Lookup(name + "Scheduler");
+        string schedulerName = SchedulerHelper.GetSchedulerName(provider, name);
+        await DirectSchedulerFactory.Instance.CreateScheduler(schedulerName, "AUTO", new DefaultThreadPool(), jobStore);
+        return SchedulerRepository.Instance.Lookup(schedulerName);
     }
 }

@@ -37,6 +37,11 @@
     </PackageReference>
     <PackageReference Include="Oracle.ManagedDataAccess.Core" />
     <PackageReference Include="System.Data.SQLite.Core" />
+    <PackageReference Include="Testcontainers.FirebirdSql" />
+    <PackageReference Include="Testcontainers.MsSql" />
+    <PackageReference Include="Testcontainers.MySql" />
+    <PackageReference Include="Testcontainers.Oracle" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="NUnit3TestAdapter" />
   </ItemGroup>
 

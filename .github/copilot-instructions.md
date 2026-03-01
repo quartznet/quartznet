@@ -24,7 +24,7 @@ Run a single test by fully-qualified name:
 dotnet test src/Quartz.Tests.Unit/Quartz.Tests.Unit.csproj --filter "FullyQualifiedName~CronExpressionTest.TestIsSatisfiedBy"
 ```
 
-Integration tests require Docker services (`docker compose up -d`) and are run via:
+Integration tests require a running Docker daemon (containers are provisioned by Testcontainers for .NET) and are run via:
 
 ```shell
 .\build.cmd Compile UnitTest IntegrationTest

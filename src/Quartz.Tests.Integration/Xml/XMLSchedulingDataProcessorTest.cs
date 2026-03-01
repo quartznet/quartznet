@@ -412,9 +412,9 @@ public class XMLSchedulingDataProcessorTest
         }
     }
 
-    private static async Task ModifyStoredJobType()
+    private async Task ModifyStoredJobType()
     {
-        using var conn = DBConnectionManager.Instance.GetConnection("default");
+        using var conn = DBConnectionManager.Instance.GetConnection(DatabaseHelper.GetDataSourceName(provider));
         await conn.OpenAsync();
         using (IDbCommand dbCommand = conn.CreateCommand())
         {

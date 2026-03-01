@@ -4,7 +4,7 @@
 public class TestAssemblySetup
 {
     [OneTimeSetUp]
-    public void SetUp()
+    public async Task SetUp()
     {
         // set default directory to make sure file loading works
         // (https://youtrack.jetbrains.com/issue/RSRP-451142)
@@ -19,5 +19,13 @@ public class TestAssemblySetup
 
         pathToUse = Path.GetDirectoryName(pathToUse);
         Directory.SetCurrentDirectory(pathToUse);
+
+        await TestcontainersDatabaseEnvironment.InitializeAsync();
+    }
+
+    [OneTimeTearDown]
+    public async Task TearDown()
+    {
+        await TestcontainersDatabaseEnvironment.DisposeAsync();
     }
 }

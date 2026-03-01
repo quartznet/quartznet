@@ -24,9 +24,7 @@ public class RecoverJobsTest
     [Test]
     public async Task TestRecoveringRepeatJobWhichIsFiredAndMisfiredAtTheSameTime()
     {
-        DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType);
-
-        const string dataSourceName = "default";
+        DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out _, out string dataSourceName);
         var jobStore = new JobStoreTX
         {
             DataSource = dataSourceName,
@@ -128,9 +126,7 @@ public class RecoverJobsTest
     [Test]
     public async Task TestRecoveryTriggersShouldNotExecuteAfterTriggerIsRemoved()
     {
-        DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType);
-
-        const string dataSourceName = "default";
+        DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out _, out string dataSourceName);
         var jobStore = new JobStoreTX
         {
             DataSource = dataSourceName,
