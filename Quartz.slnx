@@ -1,0 +1,50 @@
+<Solution>
+  <Folder Name="/Examples/">
+    <Project Path="src/Quartz.Examples.AspNetCore/Quartz.Examples.AspNetCore.csproj" />
+    <Project Path="src/Quartz.Examples.HttpClient/Quartz.Examples.HttpClient.csproj" />
+    <Project Path="src/Quartz.Examples.Worker/Quartz.Examples.Worker.csproj" />
+    <Project Path="src/Quartz.Examples/Quartz.Examples.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="build.cmd" />
+    <File Path="build.sh" />
+    <File Path="changelog.md" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="docker-compose.yml" />
+    <File Path="Dockerfile" />
+    <File Path="package.json" />
+    <File Path="qodana.yaml" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/Solution Items/.github/" />
+  <Folder Name="/Solution Items/.github/workflows/">
+    <File Path=".github/workflows/build.yml" />
+    <File Path=".github/workflows/docs-pr.yml" />
+    <File Path=".github/workflows/docs.yml" />
+    <File Path=".github/workflows/pr-tests-integration-postgres.yml" />
+    <File Path=".github/workflows/pr-tests-unit.yml" />
+    <File Path=".github/workflows/qodana_code_quality.yml" />
+  </Folder>
+  <Folder Name="/Solution Items/Analyzers/">
+    <File Path="Analyzers/bannedsymbols.txt" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="src/Quartz.Tests.AspNetCore/Quartz.Tests.AspNetCore.csproj" />
+    <Project Path="src/Quartz.Tests.Integration/Quartz.Tests.Integration.csproj" />
+    <Project Path="src/Quartz.Tests.Unit/Quartz.Tests.Unit.csproj" />
+  </Folder>
+  <Project Path="build/_build.csproj">
+    <Build Project="false" />
+  </Project>
+  <Project Path="src/Quartz.AspNetCore/Quartz.AspNetCore.csproj" />
+  <Project Path="src/Quartz.Benchmark/Quartz.Benchmark.csproj" />
+  <Project Path="src/Quartz.HttpClient/Quartz.HttpClient.csproj" />
+  <Project Path="src/Quartz.Jobs/Quartz.Jobs.csproj" />
+  <Project Path="src/Quartz.Plugins.TimeZoneConverter/Quartz.Plugins.TimeZoneConverter.csproj" />
+  <Project Path="src/Quartz.Plugins/Quartz.Plugins.csproj" />
+  <Project Path="src/Quartz.Serialization.Newtonsoft/Quartz.Serialization.Newtonsoft.csproj" />
+  <Project Path="src/Quartz.Server/Quartz.Server.csproj" />
+  <Project Path="src/Quartz/Quartz.csproj" />
+</Solution>

@@ -31,7 +31,7 @@ dotnet-test-nunit eol=lf
 *.verified.json text eol=lf working-tree-encoding=UTF-8
 
 # Squad: union merge for append-only team state files
-.ai-team/decisions.md merge=union
-.ai-team/agents/*/history.md merge=union
-.ai-team/log/** merge=union
-.ai-team/orchestration-log/** merge=union
+.squad/decisions.md merge=union
+.squad/agents/*/history.md merge=union
+.squad/log/** merge=union
+.squad/orchestration-log/** merge=union

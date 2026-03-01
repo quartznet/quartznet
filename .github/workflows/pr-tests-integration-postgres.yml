@@ -42,6 +42,6 @@ jobs:
         with:
           dotnet-version: |
             10.0
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: 'Run: Compile, IntegrationTest'
         run: ./build.cmd Compile IntegrationTest
