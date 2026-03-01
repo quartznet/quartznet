@@ -783,9 +783,10 @@ public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTri
             // when PreserveHourOfDayAcrossDaylightSavings is true and the adjustment logic
             // brings us back to the same time.
 
-            // To fix this, we simply skip forward past the DST transition by advancing well beyond
-            // the problematic time, then recursively call GetFireTimeAfter to get the correct next time.
-            // We use the UTC-based approach to avoid the DST adjustment logic.
+            // To fix this, we skip forward past the problematic DST window by advancing the
+            // reference time by a couple of hours and then recursively calling GetFireTimeAfter.
+            // The recursive call re-runs the same timezone/DST adjustment logic, but starting from
+            // a point safely beyond the transition, which guarantees forward progress.
             DateTimeOffset skipAhead = originalAfterTime.Value.AddHours(2); // Skip past DST transition
             return GetFireTimeAfter(skipAhead, ignoreEndTime, recursionDepth + 1);
         }
