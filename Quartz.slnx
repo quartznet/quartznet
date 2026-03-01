@@ -1,0 +1,43 @@
+<Solution>
+  <Folder Name="/Examples/">
+    <Project Path="src/Quartz.Examples.AspNetCore/Quartz.Examples.AspNetCore.csproj" />
+    <Project Path="src/Quartz.Examples.Worker/Quartz.Examples.Worker.csproj" />
+    <Project Path="src/Quartz.Examples/Quartz.Examples.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path=".editorconfig" />
+    <File Path="build.cmd" />
+    <File Path="build.sh" />
+    <File Path="changelog.md" />
+    <File Path="docker-compose.yml" />
+    <File Path="Dockerfile" />
+    <File Path="package.json" />
+    <File Path="qodana.yaml" />
+    <File Path="README.md" />
+    <File Path="src/Directory.Build.props" />
+  </Folder>
+  <Folder Name="/Solution Items/GitHub/" />
+  <Folder Name="/Solution Items/GitHub/Workflows/">
+    <File Path=".github/workflows/build.yml" />
+    <File Path=".github/workflows/docs.yml" />
+    <File Path=".github/workflows/pr.yml" />
+  </Folder>
+  <Project Path="build/_build.csproj">
+    <Build Project="false" />
+  </Project>
+  <Project Path="src/Quartz.AspNetCore/Quartz.AspNetCore.csproj" />
+  <Project Path="src/Quartz.Benchmark/Quartz.Benchmark.csproj" />
+  <Project Path="src/Quartz.Extensions.DependencyInjection/Quartz.Extensions.DependencyInjection.csproj" />
+  <Project Path="src/Quartz.Extensions.Hosting/Quartz.Extensions.Hosting.csproj" />
+  <Project Path="src/Quartz.Jobs/Quartz.Jobs.csproj" />
+  <Project Path="src/Quartz.OpenTelemetry.Instrumentation/Quartz.OpenTelemetry.Instrumentation.csproj" />
+  <Project Path="src/Quartz.OpenTracing/Quartz.OpenTracing.csproj" />
+  <Project Path="src/Quartz.Plugins.TimeZoneConverter/Quartz.Plugins.TimeZoneConverter.csproj" />
+  <Project Path="src/Quartz.Plugins/Quartz.Plugins.csproj" />
+  <Project Path="src/Quartz.Serialization.Json/Quartz.Serialization.Json.csproj" />
+  <Project Path="src/Quartz.Serialization.SystemTextJson/Quartz.Serialization.SystemTextJson.csproj" />
+  <Project Path="src/Quartz.Server/Quartz.Server.csproj" />
+  <Project Path="src/Quartz.Tests.Integration/Quartz.Tests.Integration.csproj" />
+  <Project Path="src/Quartz.Tests.Unit/Quartz.Tests.Unit.csproj" />
+  <Project Path="src/Quartz/Quartz.csproj" />
+</Solution>
