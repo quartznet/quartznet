@@ -227,6 +227,7 @@ partial class Build : NukeBuild
                 "Quartz",
                 "Quartz.Extensions.DependencyInjection",
                 "Quartz.Extensions.Hosting",
+                "Quartz.Dashboard",
                 "Quartz.Serialization.Json",
                 "Quartz.Serialization.SystemTextJson",
                 "Quartz.AspNetCore",
@@ -291,7 +292,7 @@ partial class Build : NukeBuild
             {
                 (SourceDirectory / project.Name / "bin" / Configuration).Copy(zipTempDirectory / "bin" / Configuration / project.Name);
             }
-            
+
             var rootFilesToCopy = new []{"README.md","Quartz.slnx","quartz.net.snk","license.txt", "changelog.md","build.cmd","build.sh","build.ps1"};
             foreach (var file in rootFilesToCopy)
             {
