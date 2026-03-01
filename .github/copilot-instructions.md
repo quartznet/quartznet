@@ -1,5 +1,16 @@
 # Copilot Instructions for Quartz.NET
 
+## Overview
+
+Quartz.NET is an enterprise job scheduling library for .NET. It provides a robust framework for scheduling jobs (tasks) to run at specific times or intervals. The library supports:
+- Cron-based scheduling with flexible trigger types
+- Persistent job stores (ADO.NET) and in-memory stores (RAM)
+- Dependency injection integration for ASP.NET Core
+- Clustering and high-availability scenarios
+- Multiple database backends (SQL Server, PostgreSQL, MySQL, Oracle, SQLite, Firebird)
+
+The project targets .NET 8.0 and .NET 9.0, uses C# with nullable reference types enabled, and follows strict code style conventions enforced at build time.
+
 ## Build & Test
 
 Build the solution (uses [NUKE](https://nuke.build/) build system):
@@ -31,6 +42,47 @@ Integration tests require Docker services (`docker compose up -d`) and are run v
 ```
 
 The test framework is **NUnit** with **FluentAssertions** and **FakeItEasy** for mocking. Some tests use **Verify.NUnit** for snapshot testing.
+
+**Note**: When running unit tests directly with `dotnet test`, do NOT use `--no-build` flag as the build output paths differ. The NUKE build system uses `/release/` paths while `dotnet test` uses `/debug/` paths.
+
+Run with verbose output to see individual test results:
+
+```shell
+dotnet test src/Quartz.Tests.Unit/Quartz.Tests.Unit.csproj -v n
+```
+
+Expected test results: ~1,270+ passing tests (some may be skipped in certain environments).
+
+## Project Layout
+
+The repository is organized as follows:
+
+- **`src/Quartz/`** — Core scheduling library (multi-targeted to net8.0 and net9.0)
+- **`src/Quartz.Extensions.DependencyInjection/`** — DI integration (part of Quartz project)
+- **`src/Quartz.Extensions.Hosting/`** — IHostedService integration (part of Quartz project)
+- **`src/Quartz.AspNetCore/`** — ASP.NET Core health checks
+- **`src/Quartz.Jobs/`** — Built-in job implementations
+- **`src/Quartz.Plugins/`** — Plugin framework and built-in plugins
+- **`src/Quartz.Serialization.Newtonsoft/`** — JSON.NET serialization support
+- **`src/Quartz.HttpClient/`** — HTTP client integration
+- **`src/Quartz.Tests.Unit/`** — Unit tests (NUnit)
+- **`src/Quartz.Tests.Integration/`** — Integration tests (require Docker)
+- **`database/tables/`** — SQL schema definitions for supported databases
+- **`docs/`** — Documentation site (separate versions for Quartz 1.x, 2.x, 3.x, 4.x)
+- **`.github/workflows/`** — CI/CD pipelines (build.yml, pr-tests-*.yml, squad-*.yml)
+- **`build/`** — NUKE build system implementation
+- **`Directory.Build.props`** — Common MSBuild properties
+- **`Directory.Packages.props`** — Central package version management
+- **`global.json`** — .NET SDK version (10.0.100 with latestMinor rollForward)
+
+### CI/CD Workflows
+
+- **`build.yml`** — Main CI build on push/PR
+- **`pr-tests-unit.yml`** — Unit test validation on PRs
+- **`pr-tests-integration-*.yml`** — Integration tests (PostgreSQL, SQL Server, MySQL, etc.)
+- **`squad-*.yml`** — Automated squad workflows (triage, labeling, release management)
+
+The build enforces warnings as errors, so all warnings must be addressed before merging.
 
 ## Architecture
 
@@ -68,7 +120,7 @@ Pluggable serialization for job store persistence:
 ### Observability
 
 - `Quartz.Diagnostics` — `System.Diagnostics.Activity` support via `QuartzActivitySource`.
-- `Quartz.OpenTelemetry.Instrumentation` — OpenTelemetry integration.
+- `Quartz.OpenTelemetry.Instrumentation` — **OBSOLETE** (incompatible with .NET 10+). Use the official `OpenTelemetry.Instrumentation.Quartz` package from NuGet instead.
 - Logging uses `Microsoft.Extensions.Logging` via `Quartz.Diagnostics.LogProvider`.
 
 ## Key Conventions
