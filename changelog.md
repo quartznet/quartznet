@@ -4,6 +4,11 @@
 
 Java version sync status: 15fe8ed34c1e81e2c49fbc922efb77910cc8b847
 
+## Release notes no longer maintained in this file
+
+Check GitHub repository releases.
+
+
 ## Release 3.15.1, Oct 26 2025
 
 * NEW FEATURES
