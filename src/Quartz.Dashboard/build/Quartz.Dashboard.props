@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup>
+    <!-- Blazor Server component libraries trigger IL2110/IL2111 when component parameters
+         marked with DynamicallyAccessedMembersAttribute are set via Blazor's reflection-based
+         parameter-passing mechanism. This is a known Blazor limitation and not a real trim issue. -->
+    <NoWarn>$(NoWarn);IL2110;IL2111</NoWarn>
+  </PropertyGroup>
+</Project>

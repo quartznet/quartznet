@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <None Include="../../docs/documentation/quartz-4.x/packages/dashboard.md" Pack="true" PackagePath="\" />
+    <None Include="build\Quartz.Dashboard.props" Pack="true" PackagePath="build\" />
   </ItemGroup>
 
   <ItemGroup>
