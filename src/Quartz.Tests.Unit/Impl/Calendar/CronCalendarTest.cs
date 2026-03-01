@@ -56,7 +56,7 @@ public class CronCalendarTest : SerializationTestSupport<CronCalendar, ICalendar
     public void TestClone()
     {
         CronCalendar calendar = new CronCalendar("0/15 * * * * ?");
-        CronCalendar clone = (CronCalendar) calendar.Clone();
+        CronCalendar clone = (CronCalendar)calendar.Clone();
         Assert.AreEqual(calendar.CronExpression, clone.CronExpression);
     }
 

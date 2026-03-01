@@ -20,8 +20,10 @@
 #endregion
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 
 using FluentAssertions;
 
@@ -843,4 +845,122 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
                 Assert.AreEqual(interval2, (after2.Value - after.Value).TotalMilliseconds, $"expression {expression}");
             }
         }
-    }}
+    }
+
+    [TestCaseSource(typeof(CronTestScenarios), nameof(CronTestScenarios.TestCases))]
+    public void CronExpressionReturnsExpectedNextFireTime(CronExpression cronExpression, DateTimeOffset timeAfterDate, DateTimeOffset expectedNextFireTime)
+    {
+        cronExpression.TimeZone = TimeZoneInfo.Utc;
+        var nextFireTime = cronExpression.GetTimeAfter(timeAfterDate);
+        nextFireTime.Value.Date.Should().Be(expectedNextFireTime.Date, "NextFireTime was not correct");
+    }
+
+    /// <summary>
+    /// Test for issue where 31W causes ArgumentOutOfRangeException when transitioning
+    /// from a month with 31 days to a month with fewer days (e.g., January to February).
+    /// </summary>
+    [Test]
+    public void Test31W_JanuaryToFebruary_ShouldNotThrow()
+    {
+        CronExpression cronExpression = new CronExpression("0 0 12 31W * ?");
+        DateTime cal = new DateTime(2024, 1, 31, 12, 0, 0).ToUniversalTime();
+
+        var nextFireTime = cronExpression.GetTimeAfter((DateTimeOffset)cal);
+
+        Assert.IsNotNull(nextFireTime);
+        // February 2024 has 29 days (leap year), so 31W should fire on Feb 29 (Friday)
+        Assert.AreEqual(2024, nextFireTime.Value.Year);
+        Assert.AreEqual(2, nextFireTime.Value.Month);
+        Assert.AreEqual(29, nextFireTime.Value.Day);
+    }
+}
+
+public class CronTestScenarios
+    {
+        private class TestCaseProps
+        {
+            public CronExpression CronExpression { get; init; }
+
+            public DateTimeOffset TimeAfterDate { get; init; }
+
+            public DateTimeOffset ExpectedNextFireTime { get; init; }
+
+            public string TestCase { get; init; }
+        }
+
+        private static IEnumerable<TestCaseProps> TestCaseData =>
+        [
+            new TestCaseProps
+            {
+                CronExpression = new CronExpression("0 0 12 15W * ?"),
+                TimeAfterDate = new DateTimeOffset(2024, 5, 15, 12, 0, 0, TimeSpan.Zero),
+                ExpectedNextFireTime = new DateTimeOffset(2024, 6, 14, 12, 0, 0, TimeSpan.Zero),
+                TestCase = "Run on Weekday 15th Every Month - 2024-06-15 is a Sat, schedule should be Fri 14th"
+            },
+            new TestCaseProps
+            {
+                CronExpression = new CronExpression("0 0 12 15W * ?"),
+                TimeAfterDate = new DateTimeOffset(2024, 8, 15, 12, 0, 0, TimeSpan.Zero),
+                ExpectedNextFireTime = new DateTimeOffset(2024, 9, 16, 12, 0, 0, TimeSpan.Zero),
+                TestCase = "Run on Weekday 15th Every Month - 2024-09-15 is a Sunday, expect schedule to be Mon 16th"
+            },
+            new TestCaseProps
+            {
+                CronExpression = new CronExpression("0 0 12 15W * ?"),
+                TimeAfterDate = new DateTimeOffset(2023, 12, 15, 12, 0, 0, TimeSpan.Zero),
+                ExpectedNextFireTime = new DateTimeOffset(2024, 1, 15, 12, 0, 0, TimeSpan.Zero),
+                TestCase = "Run on Weekday 15th Every Month - 2024-01-15 is Monday, should run on Monday"
+            },
+            new TestCaseProps
+            {
+                CronExpression = new CronExpression("0 0 12 31W * ?"),
+                TimeAfterDate = new DateTimeOffset(2025, 1, 31, 12, 0, 0, TimeSpan.Zero),
+                ExpectedNextFireTime = new DateTimeOffset(2025, 2, 28, 12, 0, 0, TimeSpan.Zero),
+                TestCase = "Test that next fire time to be in next month with less days in month - Issue #2330"
+            },
+            new TestCaseProps
+            {
+                CronExpression = new CronExpression("0 0 12 LW * ?"),
+                TimeAfterDate = new DateTimeOffset(2023, 2, 28, 12, 0, 0, TimeSpan.Zero),
+                ExpectedNextFireTime = new DateTimeOffset(2023, 3, 31, 12, 0, 0, TimeSpan.Zero),
+                TestCase = "Run on last weekday of the month - 2023-03-31 is a Friday"
+            },
+            new TestCaseProps
+            {
+                CronExpression = new CronExpression("0 0 12 L-2 * ?"),
+                TimeAfterDate = new DateTimeOffset(2023, 4, 28, 12, 0, 0, TimeSpan.Zero),
+                ExpectedNextFireTime = new DateTimeOffset(2023, 5, 29, 12, 0, 0, TimeSpan.Zero),
+                TestCase = "Run on the second-to-last day of the month"
+            },
+            new TestCaseProps
+            {
+                CronExpression = new CronExpression("0 0 12 ? * 6L"),
+                TimeAfterDate = new DateTimeOffset(2023, 6, 24, 12, 0, 0, TimeSpan.Zero),
+                ExpectedNextFireTime = new DateTimeOffset(2023, 6, 30, 12, 0, 0, TimeSpan.Zero),
+                TestCase = "Run on the last Friday of the month - 2023-06-30 is the last Friday"
+            },
+            new TestCaseProps
+            {
+                CronExpression = new CronExpression("0 0 12 ? * 6#3"),
+                TimeAfterDate = new DateTimeOffset(2023, 7, 21, 12, 0, 0, TimeSpan.Zero),
+                ExpectedNextFireTime = new DateTimeOffset(2023, 8, 18, 12, 0, 0, TimeSpan.Zero),
+                TestCase = "Run on the third Friday of the month"
+            },
+            new TestCaseProps
+            {
+                CronExpression = new CronExpression("0 0 12 ? * 2/2"),
+                TimeAfterDate = new DateTimeOffset(2023, 9, 5, 12, 0, 0, TimeSpan.Zero),
+                ExpectedNextFireTime = new DateTimeOffset(2023, 9, 6, 12, 0, 0, TimeSpan.Zero),
+                TestCase = "Run every second day (/2) starting Monday (2)"
+            },
+            new TestCaseProps
+            {
+                CronExpression = new CronExpression("0 0 12 1W * ?"),
+                TimeAfterDate = new DateTimeOffset(2023, 10, 1, 12, 0, 0, TimeSpan.Zero),
+                ExpectedNextFireTime = new DateTimeOffset(2023, 10, 2, 12, 0, 0, TimeSpan.Zero),
+                TestCase = "Run on the first weekday of the month - 2023-10-01 is a Sunday, expect schedule to be Mon 2nd"
+            }
+        ];
+
+        public static IEnumerable TestCases => TestCaseData.Select(model => new TestCaseData(model.CronExpression, model.TimeAfterDate, model.ExpectedNextFireTime));
+    }

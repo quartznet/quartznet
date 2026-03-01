@@ -82,20 +82,20 @@ namespace Quartz;
 /// <td align="left">Month</td>
 /// <td align="left"> </td>
 /// <td align="left">1-12 or JAN-DEC</td>
-/// <td align="left"> </td>
+/// <td align="left"></td>
 /// <td align="left">, - /// /</td>
 /// </tr>
 /// <tr>
 /// <td align="left">Day-of-Week</td>
 /// <td align="left"> </td>
 /// <td align="left">1-7 or SUN-SAT</td>
-/// <td align="left"> </td>
+/// <td align="left"></td>
 /// <td align="left">, - /// ? / L #</td>
 /// </tr>
 /// <tr>
 /// <td align="left">Year (Optional)</td>
 /// <td align="left"> </td>
-/// <td align="left">empty, 1970-2199</td>
+/// <td align="left">empty, <see cref="TriggerConstants.EarliestYear"/> - 2199</td>
 /// <td align="left"> </td>
 /// <td align="left">, - /// /</td>
 /// </tr>
@@ -110,7 +110,7 @@ namespace Quartz;
 /// specify something in one of the two fields, but not the other.
 /// </para>
 /// <para>
-/// The '-' character is used to specify ranges For example &quot;10-12&quot; in
+/// The '-' character is used to specify ranges. For example &quot;10-12&quot; in
 /// the hour field means &quot;the hours 10, 11 and 12&quot;.
 /// </para>
 /// <para>
@@ -125,9 +125,9 @@ namespace Quartz;
 /// 50&quot;.  Specifying '*' before the  '/' is equivalent to specifying 0 is
 /// the value to start with. Essentially, for each field in the expression, there
 /// is a set of numbers that can be turned on or off. For seconds and minutes,
-/// the numbers range from 0 to 59. For hours 0 to 23, for days of the month 0 to
+/// the numbers range from 0 to 59. For hours 0 to 23, for days of the month 1 to
 /// 31, and for months 1 to 12. The &quot;/&quot; character simply helps you turn
-/// on every &quot;nth&quot; value in the given set. Thus &quot;7/6&quot; in the
+/// on every &quot;nth&quot; value in the given set. Thus, &quot;7/6&quot; in the
 /// month field only turns on month &quot;7&quot;, it does NOT mean every 6th
 /// month, please note that subtlety.
 /// </para>
@@ -153,7 +153,7 @@ namespace Quartz;
 /// the month&quot;. So if the 15th is a Saturday, the trigger will fire on
 /// Friday the 14th. If the 15th is a Sunday, the trigger will fire on Monday the
 /// 16th. If the 15th is a Tuesday, then it will fire on Tuesday the 15th.
-/// However if you specify &quot;1W&quot; as the value for day-of-month, and the
+/// However, if you specify &quot;1W&quot; as the value for day-of-month, and the
 /// 1st is a Saturday, the trigger will fire on Monday the 3rd, as it will not
 /// 'jump' over the boundary of a month's days.  The 'W' character can only be
 /// specified when the day-of-month is a single day, not a range or list of days.
@@ -186,7 +186,7 @@ namespace Quartz;
 /// </para>
 /// <para>
 /// The legal characters and the names of months and days of the week are not
-/// case sensitive.
+/// case-sensitive.
 /// </para>
 /// <para>
 /// <b>NOTES:</b>
@@ -194,8 +194,8 @@ namespace Quartz;
 /// <li>Support for specifying both a day-of-week and a day-of-month value is
 /// not complete (you'll need to use the '?' character in one of these fields).
 /// </li>
-/// <li>Overflowing ranges is supported - that is, having a larger number on
-/// the left hand side than the right. You might do 22-2 to catch 10 o'clock
+/// <li>Overflowing ranges are supported - that is, having a larger number on
+/// the left-hand side than the right. You might do 22-2 to catch 10 o'clock
 /// at night until 2 o'clock in the morning, or you might have NOV-FEB. It is
 /// very important to note that overuse of overflowing ranges creates ranges
 /// that don't make sense and no effort has been made to determine which
@@ -355,9 +355,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
     /// Constructs a new <see cref="CronExpressionString" /> based on the specified
     /// parameter.
     /// </summary>
-    /// <param name="cronExpression">
-    /// String representation of the cron expression the new object should represent
-    /// </param>
+    /// <param name="cronExpression">String representation of the cron expression the new object should represent</param>
     /// <see cref="CronExpressionString" />
     public CronExpression(string cronExpression)
     {
@@ -426,17 +424,11 @@ public class CronExpression : IDeserializationCallback, ISerializable
     public virtual bool IsSatisfiedBy(DateTimeOffset dateUtc)
     {
         var withoutMilliseconds = new DateTimeOffset(dateUtc.Year, dateUtc.Month, dateUtc.Day, dateUtc.Hour, dateUtc.Minute, dateUtc.Second, dateUtc.Offset);
-        DateTimeOffset test = withoutMilliseconds.AddSeconds(-1);
+        var test = withoutMilliseconds.AddSeconds(-1);
+        var timeAfter = GetTimeAfter(test);
 
-        DateTimeOffset? timeAfter = GetTimeAfter(test);
-
-        if (timeAfter.HasValue
-            && timeAfter.Value.Equals(withoutMilliseconds))
-        {
-            return true;
-        }
-
-        return false;
+        return timeAfter.HasValue
+               && timeAfter.Value.Equals(withoutMilliseconds);
     }
 
     /// <summary>
@@ -460,18 +452,17 @@ public class CronExpression : IDeserializationCallback, ISerializable
     {
         long difference = 1000;
 
-        //move back to the nearest second so differences will be accurate
-        DateTimeOffset lastDate =
-            new DateTimeOffset(date.Year, date.Month, date.Day, date.Hour, date.Minute, date.Second, date.Offset).AddSeconds(-1);
+        // move back to the nearest second so differences will be accurate
+        var lastDate = new DateTimeOffset(date.Year, date.Month, date.Day, date.Hour, date.Minute, date.Second, date.Offset).AddSeconds(-1);
 
         //TODO: IMPROVE THIS! The following is a BAD solution to this problem. Performance will be very bad here, depending on the cron expression. It is, however A solution.
 
-        //keep getting the next included time until it's farther than one second
+        // Keep getting the next included time until it's farther than one second
         // apart. At that point, lastDate is the last valid fire time. We return
         // the second immediately following it.
         while (difference == 1000)
         {
-            DateTimeOffset? newDate = GetTimeAfter(lastDate);
+            var newDate = GetTimeAfter(lastDate);
 
             if (newDate == null)
             {
@@ -496,15 +487,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
     public TimeZoneInfo TimeZone
     {
         set => timeZone = value;
-        get
-        {
-            if (timeZone == null)
-            {
-                timeZone = TimeZoneInfo.Local;
-            }
-
-            return timeZone;
-        }
+        get => timeZone ??= TimeZoneInfo.Local;
     }
 
     /// <summary>
@@ -527,7 +510,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
     {
         try
         {
-            new CronExpression(cronExpression);
+            var _ = new CronExpression(cronExpression);
         }
         catch (FormatException)
         {
@@ -539,7 +522,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
 
     public static void ValidateExpression(string cronExpression)
     {
-        new CronExpression(cronExpression);
+        var _ = new CronExpression(cronExpression);
     }
 
     ////////////////////////////////////////////////////////////////////////////
@@ -1390,7 +1373,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
             }
             if (startAt == -1 || startAt == AllSpecInt)
             {
-                startAt = 1970;
+                startAt = TriggerConstants.EarliestYear;
             }
         }
 
@@ -1500,6 +1483,11 @@ public class CronExpression : IDeserializationCallback, ISerializable
         throw new FormatException($"Invalid numeric value at position {i}");
     }
 
+    /// <summary>
+    /// Gets the month number.
+    /// </summary>
+    /// <param name="s">The string to map with.</param>
+    /// <returns></returns>
     private static int GetMonthNumber(string s)
     {
         return s switch
@@ -1597,15 +1585,13 @@ public class CronExpression : IDeserializationCallback, ISerializable
         // loop until we've computed the next time, or we've past the endTime
         while (!gotOne)
         {
-            SortedSet<int> st;
             int t;
             int sec = d.Second;
 
             // get second.................................................
-            st = seconds.TailSet(sec);
-            if (st.Count > 0)
+            if (seconds.TryGetMinValueStartingFrom(sec, out int nextSec))
             {
-                sec = st.Min;
+                sec = nextSec;
             }
             else
             {
@@ -1619,11 +1605,10 @@ public class CronExpression : IDeserializationCallback, ISerializable
             t = -1;
 
             // get minute.................................................
-            st = minutes.TailSet(min);
-            if (st.Count > 0)
+            if (minutes.TryGetMinValueStartingFrom(min, out int nextMin))
             {
                 t = min;
-                min = st.Min;
+                min = nextMin;
             }
             else
             {
@@ -1643,11 +1628,10 @@ public class CronExpression : IDeserializationCallback, ISerializable
             t = -1;
 
             // get hour...................................................
-            st = hours.TailSet(hr);
-            if (st.Count > 0)
+            if (hours.TryGetMinValueStartingFrom(hr, out int nextHr))
             {
                 t = hr;
-                hr = st.Min;
+                hr = nextHr;
             }
             else
             {
@@ -1681,8 +1665,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
             if (dayOfMSpec && !dayOfWSpec)
             {
                 // get day by day of month rule
-                st = daysOfMonth.TailSet(day);
-                bool found = st.Count > 0;
+                bool found = daysOfMonth.TryGetMinValueStartingFrom(day, out int nextDay);
                 if (lastdayOfMonth)
                 {
                     if (!nearestWeekday)
@@ -1744,9 +1727,14 @@ public class CronExpression : IDeserializationCallback, ISerializable
                     t = day;
                     day = daysOfMonth.Min;
 
+                    int ldom = GetLastDayOfMonth(mon, d.Year);
+                    if (day > ldom)
+                    {
+                        day = ldom;
+                    }
+
                     DateTimeOffset tcal = new DateTimeOffset(d.Year, mon, day, 0, 0, 0, d.Offset);
 
-                    int ldom = GetLastDayOfMonth(mon, d.Year);
                     DayOfWeek dow = tcal.DayOfWeek;
 
                     if (dow == System.DayOfWeek.Saturday && day == 1)
@@ -1776,7 +1764,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
                 else if (found)
                 {
                     t = day;
-                    day = st.Min;
+                    day = nextDay;
 
                     // make sure we don't over-run a short month, such as february
                     int lastDay = GetLastDayOfMonth(mon, d.Year);
@@ -1923,10 +1911,9 @@ public class CronExpression : IDeserializationCallback, ISerializable
                     int cDow = (int)d.DayOfWeek + 1; // current d-o-w
                     int dow = daysOfWeek.Min; // desired
                     // d-o-w
-                    st = daysOfWeek.TailSet(cDow);
-                    if (st.Count > 0)
+                    if (daysOfWeek.TryGetMinValueStartingFrom(cDow, out int nextDow))
                     {
-                        dow = st.Min;
+                        dow = nextDow;
                     }
 
                     int daysToAdd = 0;
@@ -1970,10 +1957,9 @@ public class CronExpression : IDeserializationCallback, ISerializable
                     int cDow = (int) d.DayOfWeek + 1; // current d-o-w
                     int dow = daysOfWeek.Min; // desired
                     // d-o-w
-                    st = daysOfWeek.TailSet(cDow);
-                    if (st.Count > 0)
+                    if (daysOfWeek.TryGetMinValueStartingFrom(cDow, out int nextDow))
                     {
-                        dow = st.Min;
+                        dow = nextDow;
                     }
 
                     int daysToAdd = 0;
@@ -2032,11 +2018,10 @@ public class CronExpression : IDeserializationCallback, ISerializable
             }
 
             // get month...................................................
-            st = months.TailSet(mon);
-            if (st.Count > 0)
+            if (months.TryGetMinValueStartingFrom(mon, out int nextMonth))
             {
                 t = mon;
-                mon = st.Min;
+                mon = nextMonth;
             }
             else
             {
@@ -2053,11 +2038,10 @@ public class CronExpression : IDeserializationCallback, ISerializable
             t = -1;
 
             // get year...................................................
-            st = years.TailSet(year);
-            if (st.Count > 0)
+            if (years.TryGetMinValueStartingFrom(year, out int nextYear))
             {
                 t = year;
-                year = st.Min;
+                year = nextYear;
             }
             else
             {
