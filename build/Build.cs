@@ -292,7 +292,7 @@ partial class Build : NukeBuild
                 (SourceDirectory / project.Name / "bin" / Configuration).Copy(zipTempDirectory / "bin" / Configuration / project.Name);
             }
             
-            var rootFilesToCopy = new []{"README.md","Quartz.sln","quartz.net.snk","license.txt", "changelog.md","build.cmd","build.sh","build.ps1"};
+            var rootFilesToCopy = new []{"README.md","Quartz.slnx","quartz.net.snk","license.txt", "changelog.md","build.cmd","build.sh","build.ps1"};
             foreach (var file in rootFilesToCopy)
             {
                 (RootDirectory / file).CopyToDirectory(zipTempDirectory);
