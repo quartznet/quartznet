@@ -1,0 +1,15 @@
+<Router AppAssembly="typeof(Routes).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData" DefaultLayout="typeof(DashboardLayout)" />
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="typeof(DashboardLayout)">
+            <div class="qz-page">
+                <h1>Not Found</h1>
+                <p class="qz-muted">The requested page was not found.</p>
+                <a href="/quartz" class="qz-button">Return to Dashboard</a>
+            </div>
+        </LayoutView>
+    </NotFound>
+</Router>

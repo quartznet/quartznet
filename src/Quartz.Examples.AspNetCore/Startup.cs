@@ -265,6 +265,8 @@ public class Startup
                 }
             });
 
+        services.AddQuartzDashboard();
+
 
         // ASP.NET Core hosting
         services.AddQuartzServer(options =>
@@ -294,6 +296,7 @@ public class Startup
 
         app.UseStaticFiles();
         app.UseRouting();
+        app.UseAntiforgery();
 
         app.UseEndpoints(endpoints =>
         {
@@ -304,6 +307,7 @@ public class Startup
                 ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
             });
             endpoints.MapHealthChecksUI();
+            endpoints.MapQuartzDashboard();
         });
     }
 }

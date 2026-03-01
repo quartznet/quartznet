@@ -1,0 +1,170 @@
+@inherits LayoutComponentBase
+@using Quartz.Dashboard.Components.Shared
+@using Microsoft.JSInterop
+@inject Quartz.Dashboard.Services.SchedulerState SchedulerState
+@inject Microsoft.JSInterop.IJSRuntime JsRuntime
+
+<div class="qz-dashboard" data-theme="@SchedulerState.SelectedTheme">
+    <div class="qz-layout">
+        <aside class="qz-sidebar" role="navigation" aria-label="Dashboard navigation">
+            <NavMenu />
+        </aside>
+
+        <div class="qz-main">
+            <header class="qz-header">
+                <div class="qz-header-left">
+                    <SchedulerSelector />
+                </div>
+                <div class="qz-header-right">
+                    <div class="qz-header-control">
+                        <label class="qz-header-control-label" for="qz-timezone-select">Time zone</label>
+                        <select id="qz-timezone-select"
+                                class="qz-scheduler-select qz-header-select"
+                                value="@SchedulerState.SelectedTimeZoneId"
+                                @onchange="OnTimeZoneChanged">
+                            @foreach (TimeZoneInfo timeZone in _timeZones)
+                            {
+                                string optionLabel = timeZone.Id;
+                                if (string.Equals(timeZone.Id, TimeZoneInfo.Local.Id, StringComparison.Ordinal))
+                                {
+                                    optionLabel += " (Local)";
+                                }
+
+                                <option value="@timeZone.Id">@optionLabel</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="qz-header-control">
+                        <label class="qz-header-control-label" for="qz-theme-select">Theme</label>
+                        <select id="qz-theme-select"
+                                class="qz-scheduler-select qz-header-select"
+                                value="@SchedulerState.SelectedTheme"
+                                @onchange="OnThemeChanged">
+                            <option value="system">System</option>
+                            <option value="light">Light</option>
+                            <option value="dark">Dark</option>
+                        </select>
+                    </div>
+                </div>
+            </header>
+
+            <main class="qz-content" role="main">
+                @Body
+            </main>
+        </div>
+    </div>
+    <ToastHost />
+</div>
+
+@code {
+    private const string themePreferenceKey = "qz_theme";
+    private const string timeZonePreferenceKey = "qz_tz";
+
+    private readonly IReadOnlyList<TimeZoneInfo> _timeZones = TimeZoneInfo
+        .GetSystemTimeZones()
+        .OrderBy(static tz => tz.Id, StringComparer.Ordinal)
+        .ToList();
+    private bool _preferencesLoaded;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _preferencesLoaded)
+        {
+            return;
+        }
+
+        _preferencesLoaded = await LoadPreferencesAsync();
+    }
+
+    private async Task<bool> LoadPreferencesAsync()
+    {
+        try
+        {
+            string previousTheme = SchedulerState.SelectedTheme;
+            string previousTimeZoneId = SchedulerState.SelectedTimeZoneId;
+
+            string? storedTheme = await JsRuntime.InvokeAsync<string?>("quartzDashboardPrefs.get", new object?[] { themePreferenceKey });
+            string? storedTimeZoneId = await JsRuntime.InvokeAsync<string?>("quartzDashboardPrefs.get", new object?[] { timeZonePreferenceKey });
+
+            if (!string.IsNullOrWhiteSpace(storedTheme))
+            {
+                SchedulerState.SelectedTheme = storedTheme;
+            }
+
+            if (!string.IsNullOrWhiteSpace(storedTimeZoneId))
+            {
+                SchedulerState.SelectedTimeZoneId = storedTimeZoneId;
+            }
+
+            bool timeZoneChanged = !string.Equals(previousTimeZoneId, SchedulerState.SelectedTimeZoneId, StringComparison.Ordinal);
+            bool themeChanged = !string.Equals(previousTheme, SchedulerState.SelectedTheme, StringComparison.Ordinal);
+            if (timeZoneChanged)
+            {
+                SchedulerState.NotifyChanged();
+            }
+
+            if (timeZoneChanged || themeChanged)
+            {
+                await InvokeAsync(StateHasChanged);
+            }
+
+            return true;
+        }
+        catch (Microsoft.JSInterop.JSException)
+        {
+            return false;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return false;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    private async Task OnTimeZoneChanged(ChangeEventArgs args)
+    {
+        string? selectedTimeZoneId = args.Value?.ToString();
+        if (!string.IsNullOrWhiteSpace(selectedTimeZoneId))
+        {
+            string previousTimeZoneId = SchedulerState.SelectedTimeZoneId;
+            SchedulerState.SelectedTimeZoneId = selectedTimeZoneId;
+            if (!string.Equals(previousTimeZoneId, SchedulerState.SelectedTimeZoneId, StringComparison.Ordinal))
+            {
+                SchedulerState.NotifyChanged();
+                await PersistPreferenceAsync(timeZonePreferenceKey, SchedulerState.SelectedTimeZoneId);
+            }
+        }
+    }
+
+    private async Task OnThemeChanged(ChangeEventArgs args)
+    {
+        string previousTheme = SchedulerState.SelectedTheme;
+        string? selectedTheme = args.Value?.ToString();
+        SchedulerState.SelectedTheme = selectedTheme ?? "system";
+        if (!string.Equals(previousTheme, SchedulerState.SelectedTheme, StringComparison.Ordinal))
+        {
+            await PersistPreferenceAsync(themePreferenceKey, SchedulerState.SelectedTheme);
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task PersistPreferenceAsync(string key, string value)
+    {
+        try
+        {
+            await JsRuntime.InvokeVoidAsync("quartzDashboardPrefs.set", new object?[] { key, value });
+        }
+        catch (System.Text.Json.JsonException)
+        {
+        }
+        catch (Microsoft.JSInterop.JSException)
+        {
+        }
+        catch (InvalidOperationException)
+        {
+        }
+    }
+}

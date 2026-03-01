@@ -1,0 +1,56 @@
+@implements IDisposable
+
+<span class="qz-time-ago">@FormatTimeAgo(Timestamp)</span>
+
+@code {
+    private Timer? _timer;
+
+    [Parameter]
+    public DateTimeOffset? Timestamp { get; set; }
+
+    protected override void OnInitialized()
+    {
+        _timer = new Timer(OnTimerTick, state: null, dueTime: TimeSpan.FromSeconds(30), period: TimeSpan.FromSeconds(30));
+    }
+
+    private void OnTimerTick(object? state)
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private static string FormatTimeAgo(DateTimeOffset? timestamp)
+    {
+        if (timestamp is null)
+        {
+            return "never";
+        }
+
+        TimeSpan diff = DateTimeOffset.UtcNow - timestamp.Value;
+        if (diff < TimeSpan.Zero)
+        {
+            diff = TimeSpan.Zero;
+        }
+
+        if (diff < TimeSpan.FromMinutes(1))
+        {
+            return $"{Math.Max(1, diff.Seconds)}s ago";
+        }
+
+        if (diff < TimeSpan.FromHours(1))
+        {
+            return $"{diff.Minutes}m ago";
+        }
+
+        if (diff < TimeSpan.FromDays(1))
+        {
+            return $"{diff.Hours}h ago";
+        }
+
+        return $"{diff.Days}d ago";
+    }
+
+    public void Dispose()
+    {
+        _timer?.Dispose();
+    }
+}

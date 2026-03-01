@@ -1,0 +1,184 @@
+@page "/quartz/calendars/{CalendarName}"
+@using System.Reflection
+@using System.Text.Json
+@using Microsoft.Extensions.Options
+@using Quartz.Dashboard.Components.Shared
+@implements IDisposable
+@inject IQuartzApiClient Api
+@inject SchedulerState Scheduler
+@inject IOptions<QuartzDashboardOptions> Options
+@inject ToastService Toasts
+@inject DashboardActionLogService ActionLog
+@inject NavigationManager Navigation
+
+<div class="qz-page">
+    <h1>Calendar Detail</h1>
+
+    @if (_isLoading)
+    {
+        <LoadingSpinner />
+    }
+    else if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <ErrorAlert Message="@_error" OnRetry="LoadDataAsync" />
+    }
+    else if (_calendar is null)
+    {
+        <p class="qz-muted">Calendar not found.</p>
+    }
+    else
+    {
+        <h2>@CalendarName</h2>
+        @if (!IsReadOnly)
+        {
+            <div class="qz-actions qz-group-actions">
+                <button type="button" class="qz-button qz-button-danger" @onclick="PromptDelete">Delete calendar</button>
+            </div>
+        }
+        <p>Type: <strong>@DisplayValueHelper.GetString(_calendar, "CalendarType", "Type")</strong></p>
+
+        <table class="qz-table">
+            <tbody>
+                @foreach (CalendarProperty property in _properties)
+                {
+                    <tr>
+                        <th>@property.Name</th>
+                        <td>@property.Value</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+<ConfirmDialog IsOpen="@_showDeleteConfirm"
+               Title="Delete calendar"
+               Message="@($"Delete {CalendarName}? This cannot be undone.")"
+               OnConfirm="ConfirmDeleteAsync"
+               OnCancel="CancelDeleteAsync" />
+
+@code {
+    private bool _isLoading = true;
+    private string? _error;
+    private object? _calendar;
+    private readonly List<CalendarProperty> _properties = [];
+    private bool _showDeleteConfirm;
+
+    [Parameter]
+    public string CalendarName { get; set; } = string.Empty;
+
+    private bool IsReadOnly => Options.Value.ReadOnly;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Scheduler.OnSchedulerChanged += OnSchedulerChanged;
+        await LoadDataAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async void OnSchedulerChanged(object? sender, EventArgs e)
+    {
+        await LoadDataAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        _error = null;
+
+        try
+        {
+            _calendar = null;
+            _properties.Clear();
+
+            string? schedulerName = Scheduler.ActiveSchedulerName;
+            if (string.IsNullOrWhiteSpace(schedulerName))
+            {
+                return;
+            }
+
+            CalendarDetailDto detail = await Api.GetCalendar(schedulerName, CalendarName);
+            _calendar = detail.Value;
+            BuildPropertyRows(_calendar);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void BuildPropertyRows(object calendar)
+    {
+        if (calendar is JsonElement jsonElement && jsonElement.ValueKind == JsonValueKind.Object)
+        {
+            foreach (JsonProperty property in jsonElement.EnumerateObject())
+            {
+                _properties.Add(new CalendarProperty(property.Name, property.Value.ToString()));
+            }
+
+            return;
+        }
+
+        Type type = calendar.GetType();
+        PropertyInfo[] properties = type.GetProperties(BindingFlags.Instance | BindingFlags.Public);
+        foreach (PropertyInfo propertyInfo in properties)
+        {
+            object? value = propertyInfo.GetValue(calendar);
+            string valueString = value?.ToString() ?? string.Empty;
+            _properties.Add(new CalendarProperty(propertyInfo.Name, valueString));
+        }
+    }
+
+    private void PromptDelete()
+    {
+        _showDeleteConfirm = true;
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            _showDeleteConfirm = false;
+            return;
+        }
+
+        try
+        {
+            await Api.DeleteCalendar(schedulerName, CalendarName);
+            ActionLog.Record(schedulerName, "DeleteCalendar", CalendarName, succeeded: true);
+            Toasts.Success("Deleted calendar " + CalendarName + ".");
+            _showDeleteConfirm = false;
+            Navigation.NavigateTo("/quartz/calendars");
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            ActionLog.Record(schedulerName, "DeleteCalendar", CalendarName, succeeded: false, ex.Message);
+            Toasts.Error(ex.Message);
+            _showDeleteConfirm = false;
+        }
+    }
+
+    private Task CancelDeleteAsync()
+    {
+        _showDeleteConfirm = false;
+        return Task.CompletedTask;
+    }
+
+    public void Dispose()
+    {
+        Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+    }
+
+    private sealed record CalendarProperty(string Name, string Value);
+}
