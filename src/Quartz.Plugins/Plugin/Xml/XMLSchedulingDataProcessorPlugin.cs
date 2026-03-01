@@ -271,6 +271,31 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
         return default;
     }
 
+    private async ValueTask NotifySchedulerListenersOfError(
+        string message,
+        SchedulerException schedulerException,
+        CancellationToken cancellationToken = default)
+    {
+        var listeners = Scheduler.ListenerManager.GetSchedulerListeners();
+
+        foreach (var listener in listeners)
+        {
+            try
+            {
+                await listener.SchedulerError(message, schedulerException, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error while notifying SchedulerListener of error");
+                logger.LogError(schedulerException, "Original error while notifying scheduler listeners: {Message}", message);
+            }
+        }
+    }
+
     private async ValueTask ProcessFile(JobFile? jobFile, CancellationToken cancellationToken = default)
     {
         if (jobFile is null || jobFile.FileFound == false)
@@ -294,14 +319,23 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
                 Scheduler,
                 cancellationToken).ConfigureAwait(false);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception e)
         {
-            if (FailOnSchedulingError)
-            {
-                throw new SchedulerException($"Could not schedule jobs and triggers from file {jobFile.FileName}: {e.Message}", e);
-            }
+            var message = $"Could not schedule jobs and triggers from file {jobFile.FileName}: {e.Message}";
+            var schedulerException = new SchedulerException(message, e);
 
             logger.LogError(e, "Could not schedule jobs and triggers from file {FileName}: {Message}", jobFile.FileName, e.Message);
+
+            await NotifySchedulerListenersOfError(message, schedulerException, cancellationToken).ConfigureAwait(false);
+
+            if (FailOnSchedulingError)
+            {
+                throw schedulerException;
+            }
         }
     }
 

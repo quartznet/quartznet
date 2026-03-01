@@ -17,6 +17,7 @@
   <ItemGroup>
     <EmbeddedResource Include="Xml\TestData\*" />
     <Content Include="Xml\TestData\JobTypeNotFound.xml" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Xml\TestData\InvalidCronExpression.xml" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Serialized\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

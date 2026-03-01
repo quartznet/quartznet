@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<job-scheduling-data xmlns="http://quartznet.sourceforge.net/JobSchedulingData" version="2.0">
+
+  <schedule>
+    <job>
+      <name>JobName</name>
+      <group>TestGroup</group>
+      <job-type>Quartz.Job.NoOpJob, Quartz</job-type>
+    </job>
+
+    <trigger>
+      <cron>
+        <name>TriggerName</name>
+        <group>TestGroup</group>
+        <job-name>JobName</job-name>
+        <job-group>TestGroup</job-group>
+        <!-- Invalid: missing seconds field, only has 5 fields instead of 6 -->
+        <cron-expression>0 * * * *</cron-expression>
+      </cron>
+    </trigger>
+  </schedule>
+
+</job-scheduling-data>
