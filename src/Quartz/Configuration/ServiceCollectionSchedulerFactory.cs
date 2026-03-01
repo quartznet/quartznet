@@ -35,6 +35,17 @@ internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
 
     public override async ValueTask<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
     {
+        return await EnsureSchedulerCreated(cancellationToken).ConfigureAwait(false);
+    }
+
+    public override async ValueTask<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default)
+    {
+        await EnsureSchedulerCreated(cancellationToken).ConfigureAwait(false);
+        return await base.GetScheduler(schedName, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async ValueTask<IScheduler> EnsureSchedulerCreated(CancellationToken cancellationToken)
+    {
         await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -46,13 +57,11 @@ internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
             var scheduler = await base.GetScheduler(cancellationToken).ConfigureAwait(false);
 
             // The base method may produce a new scheduler in the event that the original scheduler was stopped
-            if (ReferenceEquals(scheduler, initializedScheduler))
+            if (!ReferenceEquals(scheduler, initializedScheduler))
             {
-                return scheduler;
+                await InitializeScheduler(scheduler, cancellationToken).ConfigureAwait(false);
+                initializedScheduler = scheduler;
             }
-
-            await InitializeScheduler(scheduler, cancellationToken).ConfigureAwait(false);
-            initializedScheduler = scheduler;
 
             return scheduler;
         }
