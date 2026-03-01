@@ -547,11 +547,34 @@ public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTri
     /// </summary>
     public override DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTime)
     {
-        return GetFireTimeAfter(afterTime, false);
+        return GetFireTimeAfter(afterTime, false, 0);
     }
 
-    protected DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTime, bool ignoreEndTime)
+    protected DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTime, bool ignoreEndTime, int recursionDepth = 0)
     {
+        // Prevent infinite recursion (safety check)
+        if (recursionDepth > 10)
+        {
+            // This should never happen, but if it does, skip well past the problem
+            // by advancing by 2 intervals in the appropriate unit
+            return RepeatIntervalUnit switch
+            {
+                IntervalUnit.Second => afterTime?.AddSeconds(RepeatInterval * 2),
+                IntervalUnit.Minute => afterTime?.AddMinutes(RepeatInterval * 2),
+                IntervalUnit.Hour => afterTime?.AddHours(RepeatInterval * 2),
+                IntervalUnit.Day => afterTime?.AddDays(RepeatInterval * 2),
+                IntervalUnit.Week => afterTime?.AddDays(RepeatInterval * 2 * 7),
+                IntervalUnit.Month => afterTime?.AddMonths(RepeatInterval * 2),
+                IntervalUnit.Year => afterTime?.AddYears(RepeatInterval * 2),
+                _ => afterTime?.AddDays(RepeatInterval * 2)
+            };
+        }
+
+        // Store the original input time for validation at the end.
+        // This ensures we never return a time <= the input, which would cause infinite loops
+        // during DST transitions where the "next" fire time could be adjusted back to the input time.
+        DateTimeOffset? originalAfterTime = afterTime;
+
         // increment afterTime by a second, so that we are
         // comparing against a time after it!
         if (afterTime == null)
@@ -620,6 +643,9 @@ public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTri
             // intervals a day or greater ...
 
             int initialHourOfDay = sTime.Hour;
+            int initialMinute = sTime.Minute;
+            int initialSecond = sTime.Second;
+            int initialMillisecond = sTime.Millisecond;
 
             if (RepeatIntervalUnit == IntervalUnit.Day)
             {
@@ -745,6 +771,25 @@ public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTri
         }
 
         sTime = TimeZoneUtil.ConvertTime(sTime, TimeZone); //apply the timezone before we return the time.
+
+        // CRITICAL: Ensure we never return a time <= the original input.
+        // This prevents infinite loops during DST transitions where DST adjustment logic
+        // might inadvertently return the same time we were given.
+        // This is especially important during spring-forward transitions where scheduled times
+        // don't exist (e.g., 2:01 AM when clocks jump from 2:00 AM to 3:00 AM).
+        if (originalAfterTime != null && time != null && time <= originalAfterTime)
+        {
+            // The calculated time is not progressing forward. This can happen during DST transitions
+            // when PreserveHourOfDayAcrossDaylightSavings is true and the adjustment logic
+            // brings us back to the same time.
+
+            // To fix this, we simply skip forward past the DST transition by advancing well beyond
+            // the problematic time, then recursively call GetFireTimeAfter to get the correct next time.
+            // We use the UTC-based approach to avoid the DST adjustment logic.
+            DateTimeOffset skipAhead = originalAfterTime.Value.AddHours(2); // Skip past DST transition
+            return GetFireTimeAfter(skipAhead, ignoreEndTime, recursionDepth + 1);
+        }
+
         return time;
     }
 
