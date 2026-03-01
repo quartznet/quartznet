@@ -854,17 +854,17 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         Assert.AreEqual(new DateTimeOffset(2024, 3, 10, 3, 0, 0, TimeSpan.FromHours(-5)), secondFire,
             "Second fire should be at 3:00 AM on DST transition day");
 
-        // BUG: Third fire should be 3/24/2024 2:01 AM, but GetFireTimeAfter returns the SAME time
+        // Historically, a bug caused the third fire time (expected 3/24/2024 2:01 AM) to be the SAME as the second fire time.
         var thirdFire = trigger.GetFireTimeAfter(secondFire);
 
-        // This assertion will FAIL due to the bug - it returns 3/10/2024 3:00 AM again!
+        // This assertion verifies that the third fire time advances correctly and guards against regressions to that bug.
         Assert.AreNotEqual(secondFire, thirdFire,
-            "BUG DETECTED: GetFireTimeAfter is returning the same fire time, causing infinite loop!");
+            "Regression: GetFireTimeAfter returned the same fire time as the previous one, which would cause an infinite loop when iterating fire times.");
 
         Assert.IsTrue(thirdFire > secondFire,
             "Third fire time should be after second fire time");
 
-        // When fixed, this should be the third fire:
+        // The expected third fire time is:
         Assert.AreEqual(new DateTimeOffset(2024, 3, 24, 2, 1, 0, TimeSpan.FromHours(-5)), thirdFire,
             "Third fire should be 2 weeks after second fire, at 2:01 AM");
     }
