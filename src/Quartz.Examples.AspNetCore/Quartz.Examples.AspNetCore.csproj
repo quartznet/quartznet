@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Quartz.AspNetCore\Quartz.AspNetCore.csproj" />
+    <ProjectReference Include="..\Quartz.Dashboard\Quartz.Dashboard.csproj" />
     <ProjectReference Include="..\Quartz.Plugins.TimeZoneConverter\Quartz.Plugins.TimeZoneConverter.csproj" />
     <ProjectReference Include="..\Quartz.Plugins\Quartz.Plugins.csproj" />
   </ItemGroup>

@@ -38,6 +38,7 @@
   "homepage": "https://github.com/quartznet/quartznet",
   "devDependencies": {
     "markdownlint": "^0.35.0",
-    "markdownlint-cli2": "^0.14.0"
+    "markdownlint-cli2": "^0.14.0",
+    "sass-embedded": "^1.97.3"
   }
 }

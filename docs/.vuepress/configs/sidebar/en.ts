@@ -122,6 +122,7 @@ export const sidebarEn: SidebarConfig = [
               {
                 text: "Quartz Core Additions",
                 children: [
+                  "/documentation/quartz-4.x/packages/dashboard",
                   "/documentation/quartz-4.x/packages/quartz-jobs",
                   "/documentation/quartz-4.x/packages/json-serialization",
                   "/documentation/quartz-4.x/packages/quartz-plugins",
