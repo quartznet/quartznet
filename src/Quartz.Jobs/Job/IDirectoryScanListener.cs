@@ -4,8 +4,23 @@ namespace Quartz.Job;
 /// Interface for objects wishing to receive a 'call-back' from a <see cref="DirectoryScanJob"/>
 /// </summary>
 /// <remarks>
-/// <para>Instances should be stored in the <see cref="SchedulerContext"/> such that the
-/// <see cref="DirectoryScanJob"/> can find it.</para>
+/// <para>
+/// Implementations can be provided to <see cref="DirectoryScanJob"/> in two ways:
+/// </para>
+/// <list type="number">
+/// <item>
+/// <description>
+/// Via dependency injection (recommended): Register the implementation in the DI container.
+/// The job will resolve it by type name specified via <see cref="DirectoryScanJob.DirectoryScanListenerName"/>.
+/// </description>
+/// </item>
+/// <item>
+/// <description>
+/// Via SchedulerContext (legacy): Store the instance in the <see cref="SchedulerContext"/>
+/// with a key matching the value specified in <see cref="DirectoryScanJob.DirectoryScanListenerName"/>.
+/// </description>
+/// </item>
+/// </list>
 /// </remarks>
 /// <author>Marko Lahma (.NET)</author>
 public interface IDirectoryScanListener

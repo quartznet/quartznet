@@ -1,3 +1,10 @@
+using System.Collections.Concurrent;
+using System.Reflection;
+
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+
+using Quartz.Diagnostics;
 using Quartz.Simpl;
 using Quartz.Spi;
 
@@ -8,6 +15,9 @@ namespace Quartz.Job;
 /// </summary>
 internal sealed class DirectoryScanJobModel
 {
+    private static readonly ConcurrentDictionary<string, Type?> listenerTypeCache = new();
+    private static readonly ILogger<DirectoryScanJobModel> logger = LogProvider.CreateLogger<DirectoryScanJobModel>();
+
     /// <summary>
     /// We only want this type of object to be instantiated by inspecting the data
     /// of a IJobExecutionContext <see cref="IJobExecutionContext"/>. Use the
@@ -32,8 +42,9 @@ internal sealed class DirectoryScanJobModel
     /// Creates an instance of DirectoryScanJobModel by inspecting the provided IJobExecutionContext <see cref="IJobExecutionContext"/>
     /// </summary>
     /// <param name="context">Content of the job execution <see cref="IJobExecutionContext"/></param>
+    /// <param name="serviceProvider">Optional service provider for resolving dependencies via DI</param>
     /// <returns>Instance of DirectoryScanJobModel based on the IJobExecutionContext <see cref="IJobExecutionContext"/> passed in</returns>
-    internal static DirectoryScanJobModel GetInstance(IJobExecutionContext context)
+    internal static DirectoryScanJobModel GetInstance(IJobExecutionContext context, IServiceProvider? serviceProvider = null)
     {
         JobDataMap mergedJobDataMap = context.MergedJobDataMap;
         SchedulerContext schedCtxt;
@@ -48,7 +59,7 @@ internal sealed class DirectoryScanJobModel
 
         var model = new DirectoryScanJobModel
         {
-            DirectoryScanListener = GetListener(mergedJobDataMap, schedCtxt),
+            DirectoryScanListener = GetListener(mergedJobDataMap, schedCtxt, serviceProvider),
             LastModTime = mergedJobDataMap.ContainsKey(DirectoryScanJob.LastModifiedTime)
                 ? mergedJobDataMap.GetDateTime(DirectoryScanJob.LastModifiedTime)
                 : DateTime.MinValue,
@@ -113,7 +124,7 @@ internal sealed class DirectoryScanJobModel
     }
 
 
-    private static IDirectoryScanListener GetListener(JobDataMap mergedJobDataMap, SchedulerContext schedCtxt)
+    private static IDirectoryScanListener GetListener(JobDataMap mergedJobDataMap, SchedulerContext schedCtxt, IServiceProvider? serviceProvider)
     {
         var listenerName = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryScanListenerName);
 
@@ -123,12 +134,54 @@ internal sealed class DirectoryScanJobModel
                                             DirectoryScanJob.DirectoryScanListenerName + "' not found in merged JobDataMap");
         }
 
-        if (!schedCtxt.TryGetValue(listenerName, out var listener))
+        // First, try to resolve from DI if service provider is available
+        if (serviceProvider is not null)
+        {
+            // Try to get listener by type name from DI (with caching to avoid repeated reflection)
+            var listenerType = listenerTypeCache.GetOrAdd(listenerName, name =>
+            {
+                return AppDomain.CurrentDomain.GetAssemblies()
+                    .SelectMany(assembly =>
+                    {
+                        try
+                        {
+                            return assembly.GetTypes();
+                        }
+                        catch (ReflectionTypeLoadException ex)
+                        {
+                            // Some types in the assembly couldn't be loaded, but we can still use the ones that did load
+                            logger.LogDebug(ex, "Could not load some types from assembly {AssemblyName} while scanning for IDirectoryScanListener", assembly.FullName);
+                            return ex.Types.Where(t => t != null)!;
+                        }
+                        catch (Exception ex) when (ex is FileNotFoundException or BadImageFormatException or NotSupportedException)
+                        {
+                            // Assembly can't be loaded - skip it
+                            logger.LogDebug(ex, "Could not load assembly {AssemblyName} while scanning for IDirectoryScanListener", assembly.FullName);
+                            return Array.Empty<Type>();
+                        }
+                    })
+                    .FirstOrDefault(type =>
+                        typeof(IDirectoryScanListener).IsAssignableFrom(type) &&
+                        type.Name == name);
+            });
+
+            if (listenerType is not null)
+            {
+                var listener = serviceProvider.GetService(listenerType);
+                if (listener is not null)
+                {
+                    return (IDirectoryScanListener) listener;
+                }
+            }
+        }
+
+        // Fall back to SchedulerContext (legacy behavior)
+        if (!schedCtxt.TryGetValue(listenerName, out var listenerFromContext))
         {
             throw new JobExecutionException($"IDirectoryScanListener named '{listenerName}' not found in SchedulerContext");
 
         }
 
-        return (IDirectoryScanListener) listener;
+        return (IDirectoryScanListener) listenerFromContext;
     }
 }
