@@ -275,6 +275,33 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
         return Task.CompletedTask;
     }
 
+    private async Task NotifySchedulerListenersOfError(
+        string message,
+        SchedulerException schedulerException,
+        CancellationToken cancellationToken = default)
+    {
+        // Get all registered scheduler listeners
+        var listeners = Scheduler.ListenerManager.GetSchedulerListeners();
+
+        // Notify each listener of the error
+        foreach (var listener in listeners)
+        {
+            try
+            {
+                await listener.SchedulerError(message, schedulerException, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            { 
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorException("Error while notifying SchedulerListener of error: ", ex);
+                Log.ErrorException("  Original error (for notification) was: " + message, schedulerException);
+            }
+        }
+    }
+
     private async Task ProcessFile(JobFile? jobFile, CancellationToken cancellationToken = default)
     {
         if (jobFile == null || jobFile.FileFound == false)
@@ -295,16 +322,25 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
                 Scheduler,
                 cancellationToken).ConfigureAwait(false);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        { 
+            throw;
+        }
         catch (Exception e)
         {
             var message = "Could not schedule jobs and triggers from file " + jobFile.FileName + ": " + e.Message;
+            var schedulerException = new SchedulerException(message, e);
+
+            // Always log the error
+            Log.ErrorException(message, e);
+
+            // Notify all scheduler listeners of the error
+            await NotifySchedulerListenersOfError(message, schedulerException, cancellationToken).ConfigureAwait(false);
+
+            // Decide whether to throw based on configuration
             if (FailOnSchedulingError)
             {
-                throw new SchedulerException(message, e);
-            }
-            else
-            {
-                Log.ErrorException(message, e);
+                throw schedulerException;
             }
         }
     }
