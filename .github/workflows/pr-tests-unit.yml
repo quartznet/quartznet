@@ -41,7 +41,7 @@ jobs:
         with:
           dotnet-version: |
             10.0
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: 'Run: Compile, UnitTest'
         run: ./build.cmd Compile UnitTest
   ubuntu-latest:
@@ -52,7 +52,7 @@ jobs:
         with:
           dotnet-version: |
             10.0
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: 'Run: Compile, UnitTest'
         run: ./build.cmd Compile UnitTest
   macos-latest:
@@ -63,6 +63,6 @@ jobs:
         with:
           dotnet-version: |
             10.0
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: 'Run: Compile, UnitTest'
         run: ./build.cmd Compile UnitTest
