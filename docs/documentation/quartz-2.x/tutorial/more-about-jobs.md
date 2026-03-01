@@ -204,7 +204,7 @@ The constraint is based upon an instance definition (JobDetail), not on instance
 However, it was decided (during the design of Quartz) to have the attribute carried on the class itself, because it does often make a difference to how the class is coded.
 
 __PersistJobDataAfterExecution__ is an attribute that can be added to the Job class that tells Quartz to update the stored copy of
-the JobDetail's JobDataMap after the Execute() method completes successfully (without throwing an exception), such that the next
+the JobDetail's JobDataMap after the Execute() method completes (even if it throws a JobExecutionException), such that the next
 execution of the same job (JobDetail) receives the updated values rather than the originally stored values.
 Like the __DisallowConcurrentExecution__ attribute, this applies to a job definition instance, not a job class instance,
 though it was decided to have the job class carry the attribute because it does often make a difference to how the class is coded
