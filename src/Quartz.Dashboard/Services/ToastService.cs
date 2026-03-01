@@ -30,7 +30,7 @@ internal sealed record ToastMessage(int Id, string Message, ToastLevel Level);
 
 internal sealed class ToastService
 {
-    private readonly object gate = new();
+    private readonly Lock gate = new();
     private readonly List<ToastMessage> messages = [];
     private int nextId;
 

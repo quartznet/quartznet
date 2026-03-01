@@ -18,7 +18,6 @@
 #endregion
 
 using System.Text.Json;
-using System.Reflection;
 
 using Microsoft.Extensions.Options;
 
@@ -405,15 +404,7 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
     private static JsonSerializerOptions CreateDeserializerOptions()
     {
         JsonSerializerOptions options = new(JsonSerializerDefaults.Web);
-        MethodInfo? addConvertersMethod = typeof(JsonConfigurationExtensions).GetMethod(
-            "AddQuartzConverters",
-            BindingFlags.Static | BindingFlags.NonPublic);
-        if (addConvertersMethod is null)
-        {
-            throw new InvalidOperationException("Unable to configure Quartz JSON converters for dashboard operations.");
-        }
-
-        _ = addConvertersMethod.Invoke(obj: null, parameters: [options, false]);
+        options.AddQuartzConverters(newtonsoftCompatibilityMode: false);
         return options;
     }
 

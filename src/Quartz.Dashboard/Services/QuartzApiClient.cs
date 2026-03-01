@@ -387,20 +387,27 @@ public sealed class QuartzApiClient : IQuartzApiClient
     {
         System.Net.Http.HttpClient client = httpClientFactory.CreateClient("QuartzDashboard");
 
+        // Use the explicitly configured BaseUrl when available to avoid SSRF via Host header injection.
+        string? configuredBaseUrl = options.Value.BaseUrl;
+        if (!string.IsNullOrWhiteSpace(configuredBaseUrl))
+        {
+            client.BaseAddress = new Uri(configuredBaseUrl.TrimEnd('/') + "/");
+            return client;
+        }
+
         HttpContext? httpContext = httpContextAccessor.HttpContext;
         if (httpContext is not null)
         {
-            string host = httpContext.Request.Host.Host;
-            int port = httpContext.Request.Host.Port ?? -1;
-            UriBuilder uriBuilder = new(httpContext.Request.Scheme, host, port);
-
             string pathBase = httpContext.Request.PathBase.HasValue ? httpContext.Request.PathBase.Value! : "/";
             if (!pathBase.EndsWith('/'))
             {
                 pathBase += "/";
             }
 
-            uriBuilder.Path = pathBase;
+            UriBuilder uriBuilder = new(httpContext.Request.Scheme, httpContext.Request.Host.Host, httpContext.Request.Host.Port ?? -1)
+            {
+                Path = pathBase
+            };
             Uri baseAddress = uriBuilder.Uri;
             cachedBaseAddress = baseAddress;
             client.BaseAddress = baseAddress;
