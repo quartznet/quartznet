@@ -746,6 +746,223 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         trigger2.MisfireInstruction.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
     }
 
+    [Test]
+    [Description("CalendarIntervalSchedule firing non-stop during spring-forward DST transition")]
+    public void TestWeeklyTriggerDoesNotFireInfinitelyDuringSpringForward()
+    {
+        // Reproduce the exact scenario from the issue:
+        // - Every other Sunday at 2:01 AM Central
+        // - Starts on 2/25/2024 2:01 AM
+        // - Should fire at 2:01 AM on 3/10/2024 (but that time doesn't exist - spring forward)
+        // - Quartz correctly sets next fire to 3/10/2024 3:00 AM
+        // - When 3:00 AM comes around, the trigger should fire ONCE and compute the next fire time correctly
+        var centralTimeZone = TimeZoneUtil.FindTimeZoneById("Central Standard Time");
+
+        // 2/25/2024 2:01 AM CST (UTC-6)
+        var startDate = new DateTimeOffset(2024, 2, 25, 2, 1, 0, TimeSpan.FromHours(-6));
+
+        var trigger = new CalendarIntervalTriggerImpl
+        {
+            TimeZone = centralTimeZone,
+            RepeatInterval = 2, // every 2 weeks
+            RepeatIntervalUnit = IntervalUnit.Week,
+            PreserveHourOfDayAcrossDaylightSavings = true,
+            SkipDayIfHourDoesNotExist = false, // Don't skip, fire at next valid time
+            StartTimeUtc = startDate
+        };
+
+        // Compute the first few fire times using TriggerUtils.ComputeFireTimes
+        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 10);
+
+        // Expected fire times:
+        // 1. 2/25/2024 2:01 AM CST
+        // 2. 3/10/2024 3:00 AM CDT (2:01 AM doesn't exist - DST springs forward at 2:00 AM, so next valid time is 3:00 AM)
+        // 3. 3/24/2024 2:01 AM CDT
+        // 4. 4/7/2024 2:01 AM CDT
+        // ... and so on
+
+        Assert.IsNotNull(fireTimes);
+        Assert.That(fireTimes.Count, Is.GreaterThanOrEqualTo(4));
+
+        // First fire: 2/25/2024 2:01 AM CST
+        var firstFire = fireTimes[0];
+        Assert.AreEqual(new DateTimeOffset(2024, 2, 25, 2, 1, 0, TimeSpan.FromHours(-6)), firstFire);
+
+        // Second fire: 3/10/2024 - DST transition day
+        // 2:01 AM doesn't exist (DST springs forward from 2:00 AM to 3:00 AM), so it should fire at 3:00 AM CDT
+        var secondFire = fireTimes[1];
+        Assert.AreEqual(new DateTimeOffset(2024, 3, 10, 3, 0, 0, TimeSpan.FromHours(-5)), secondFire);
+
+        // Third fire: 3/24/2024 2:01 AM CDT (normal firing, no DST transition)
+        var thirdFire = fireTimes[2];
+        Assert.AreEqual(new DateTimeOffset(2024, 3, 24, 2, 1, 0, TimeSpan.FromHours(-5)), thirdFire);
+
+        // Fourth fire: 4/7/2024 2:01 AM CDT
+        var fourthFire = fireTimes[3];
+        Assert.AreEqual(new DateTimeOffset(2024, 4, 7, 2, 1, 0, TimeSpan.FromHours(-5)), fourthFire);
+
+        // Critical test: Verify that all fire times are strictly increasing
+        for (var i = 1; i < fireTimes.Count; i++)
+        {
+            Assert.IsTrue(fireTimes[i] > fireTimes[i - 1],
+                $"Fire time {i} ({fireTimes[i]}) should be after fire time {i - 1} ({fireTimes[i - 1]})");
+        }
+
+        // Verify that calling GetFireTimeAfter from the second fire time does NOT return the same time (which would cause infinite loop)
+        var nextAfterSecond = trigger.GetFireTimeAfter(secondFire);
+        Assert.IsNotNull(nextAfterSecond);
+        Assert.IsTrue(nextAfterSecond > secondFire,
+            $"Next fire time after DST transition ({nextAfterSecond}) should be after the DST fire time ({secondFire})");
+
+        // Also verify that the time delta between fires is reasonable (should be ~2 weeks)
+        for (var i = 1; i < Math.Min(4, fireTimes.Count); i++)
+        {
+            var delta = fireTimes[i] - fireTimes[i - 1];
+            Assert.That(delta.TotalDays, Is.InRange(13.5, 14.5),
+                $"Time between fire {i - 1} and {i} should be approximately 2 weeks, but was {delta.TotalDays} days");
+        }
+    }
+
+    [Test]
+    [Description("Simplified test that demonstrates the infinite loop bug during spring-forward")]
+    public void TestWeeklyTriggerInfiniteLoopBugDuringSpringForward()
+    {
+        // This test demonstrates the bug: when a CalendarIntervalTrigger with a weekly interval
+        // encounters a DST spring-forward transition where the scheduled time doesn't exist,
+        // GetFireTimeAfter() returns the same time repeatedly, causing an infinite loop.
+        var centralTimeZone = TimeZoneUtil.FindTimeZoneById("Central Standard Time");
+
+        // Start 2 weeks before DST (2/25/2024 2:01 AM CST)
+        var startDate = new DateTimeOffset(2024, 2, 25, 2, 1, 0, TimeSpan.FromHours(-6));
+
+        var trigger = new CalendarIntervalTriggerImpl
+        {
+            TimeZone = centralTimeZone,
+            RepeatInterval = 2, // every 2 weeks
+            RepeatIntervalUnit = IntervalUnit.Week,
+            PreserveHourOfDayAcrossDaylightSavings = true,
+            SkipDayIfHourDoesNotExist = false,
+            StartTimeUtc = startDate
+        };
+
+        // Simulate the sequence of fire times
+        // First fire: 2/25/2024 2:01 AM CST
+        var firstFire = new DateTimeOffset(2024, 2, 25, 2, 1, 0, TimeSpan.FromHours(-6));
+
+        // Second fire: 3/10/2024 (DST transition day) - 2:01 AM doesn't exist, advances to 3:00 AM
+        var secondFire = trigger.GetFireTimeAfter(firstFire);
+        Assert.AreEqual(new DateTimeOffset(2024, 3, 10, 3, 0, 0, TimeSpan.FromHours(-5)), secondFire,
+            "Second fire should be at 3:00 AM on DST transition day");
+
+        // Historically, a bug caused the third fire time (expected 3/24/2024 2:01 AM) to be the SAME as the second fire time.
+        var thirdFire = trigger.GetFireTimeAfter(secondFire);
+
+        // This assertion verifies that the third fire time advances correctly and guards against regressions to that bug.
+        Assert.AreNotEqual(secondFire, thirdFire,
+            "Regression: GetFireTimeAfter returned the same fire time as the previous one, which would cause an infinite loop when iterating fire times.");
+
+        Assert.IsTrue(thirdFire > secondFire,
+            "Third fire time should be after second fire time");
+
+        // The expected third fire time is:
+        Assert.AreEqual(new DateTimeOffset(2024, 3, 24, 2, 1, 0, TimeSpan.FromHours(-5)), thirdFire,
+            "Third fire should be 2 weeks after second fire, at 2:01 AM");
+    }
+
+    [Test]
+    [Description("Variant test with SkipDayIfHourDoesNotExist=true during spring-forward")]
+    public void TestWeeklyTriggerSkipsDayDuringSpringForward()
+    {
+        var centralTimeZone = TimeZoneUtil.FindTimeZoneById("Central Standard Time");
+
+        // Start 2 weeks before DST transition
+        var startDate = new DateTimeOffset(2024, 2, 25, 2, 1, 0, TimeSpan.FromHours(-6));
+
+        var trigger = new CalendarIntervalTriggerImpl
+        {
+            TimeZone = centralTimeZone,
+            RepeatInterval = 2, // every 2 weeks
+            RepeatIntervalUnit = IntervalUnit.Week,
+            PreserveHourOfDayAcrossDaylightSavings = true,
+            SkipDayIfHourDoesNotExist = true, // Skip the day entirely
+            StartTimeUtc = startDate
+        };
+
+        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 5);
+
+        Assert.IsNotNull(fireTimes);
+        Assert.That(fireTimes.Count, Is.GreaterThanOrEqualTo(4));
+
+        // First fire: 2/25/2024 2:01 AM CST
+        var firstFire = fireTimes[0];
+        Assert.AreEqual(new DateTimeOffset(2024, 2, 25, 2, 1, 0, TimeSpan.FromHours(-6)), firstFire);
+
+        // Second fire: Should SKIP 3/10/2024 entirely and fire on 3/24/2024
+        var secondFire = fireTimes[1];
+        Assert.AreEqual(new DateTimeOffset(2024, 3, 24, 2, 1, 0, TimeSpan.FromHours(-5)), secondFire);
+
+        // Verify all times are strictly increasing
+        for (var i = 1; i < fireTimes.Count; i++)
+        {
+            Assert.IsTrue(fireTimes[i] > fireTimes[i - 1],
+                $"Fire time {i} should be after fire time {i - 1}");
+        }
+    }
+
+    [Test]
+    [Description("Recursion depth guard should respect EndTimeUtc")]
+    public void TestRecursionDepthGuardRespectsEndTime()
+    {
+        // Test that the recursion-depth safety guard (which triggers after 10+ recursive calls)
+        // still respects the trigger's EndTimeUtc instead of returning a time past the end time.
+
+        var startDate = new DateTimeOffset(2024, 1, 1, 10, 0, 0, TimeSpan.Zero);
+        var endDate = startDate.AddDays(30); // End time is 30 days after start
+
+        // Create a test subclass to access the protected method
+        var trigger = new TestableCalendarIntervalTrigger
+        {
+            StartTimeUtc = startDate,
+            EndTimeUtc = endDate,
+            RepeatInterval = 1,
+            RepeatIntervalUnit = IntervalUnit.Day
+        };
+
+        // Call GetFireTimeAfter with a high recursion depth (> 10) to trigger the guard
+        // The afterTime is close to the end time
+        var afterTime = endDate.AddDays(-5);
+
+        // With recursionDepth > 10, the fallback logic adds 2 intervals (2 days)
+        // afterTime + 2 days would be endDate - 3 days, which is still before endDate
+        var fireTime = trigger.TestGetFireTimeAfter(afterTime, ignoreEndTime: false, recursionDepth: 11);
+
+        // Should return a valid time before the end date
+        Assert.IsNotNull(fireTime);
+        Assert.IsTrue(fireTime < endDate);
+
+        // Now test when the fallback would exceed the end time
+        afterTime = endDate.AddDays(-1); // 1 day before end
+
+        // With recursionDepth > 10, the fallback adds 2 days: afterTime + 2 days = endDate + 1 day
+        // This exceeds EndTimeUtc, so it should return null
+        fireTime = trigger.TestGetFireTimeAfter(afterTime, ignoreEndTime: false, recursionDepth: 11);
+
+        Assert.IsNull(fireTime, "Recursion guard should return null when fallback time exceeds EndTimeUtc");
+
+        // Verify that with ignoreEndTime=true, it returns a time even past the end
+        fireTime = trigger.TestGetFireTimeAfter(afterTime, ignoreEndTime: true, recursionDepth: 11);
+        Assert.IsNotNull(fireTime);
+    }
+
+    // Test subclass to expose protected method
+    private class TestableCalendarIntervalTrigger : CalendarIntervalTriggerImpl
+    {
+        public DateTimeOffset? TestGetFireTimeAfter(DateTimeOffset? afterTime, bool ignoreEndTime, int recursionDepth)
+        {
+            return GetFireTimeAfter(afterTime, ignoreEndTime, recursionDepth);
+        }
+    }
+
     protected override CalendarIntervalTriggerImpl GetTargetObject()
     {
         var jobDataMap = new JobDataMap();
