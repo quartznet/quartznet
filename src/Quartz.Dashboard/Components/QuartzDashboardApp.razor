@@ -1,10 +1,12 @@
+@inject Microsoft.AspNetCore.Components.NavigationManager Navigation
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Quartz.NET Dashboard</title>
-    <link rel="stylesheet" href="/_content/Quartz.Dashboard/css/quartz-dashboard.css" />
+    <base href="@(new Uri(Navigation.BaseUri).AbsolutePath)" />
+    <link rel="stylesheet" href="_content/Quartz.Dashboard/css/quartz-dashboard.css" />
     <HeadOutlet @rendermode="RenderMode.InteractiveServer" />
 </head>
 <body>
@@ -73,12 +75,13 @@
                 catch {
                 }
 
+                const basePath = new URL(document.baseURI).pathname;
                 const encodedKey = encodeURIComponent(key);
                 const encodedValue = encodeURIComponent(value);
-                document.cookie = encodedKey + "=" + encodedValue + "; path=/; max-age=31536000; samesite=lax";
+                document.cookie = encodedKey + "=" + encodedValue + "; path=" + basePath + "; max-age=31536000; samesite=lax";
             }
         };
     </script>
-    <script src="/_framework/blazor.web.js"></script>
+    <script src="_framework/blazor.web.js"></script>
 </body>
 </html>

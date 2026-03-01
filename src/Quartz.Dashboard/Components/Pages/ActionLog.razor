@@ -49,7 +49,7 @@
         RefreshEntries();
     }
 
-    private void OnSchedulerChanged()
+    private void OnSchedulerChanged(object? sender, EventArgs e)
     {
         RefreshEntries();
         InvokeAsync(StateHasChanged);

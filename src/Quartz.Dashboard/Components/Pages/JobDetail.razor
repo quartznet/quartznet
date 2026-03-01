@@ -141,7 +141,7 @@
         await LoadDataAsync();
     }
 
-    private async void OnSchedulerChanged()
+    private async void OnSchedulerChanged(object? sender, EventArgs e)
     {
         await LoadDataAsync();
         await InvokeAsync(StateHasChanged);

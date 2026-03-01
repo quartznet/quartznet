@@ -31,6 +31,13 @@ public class QuartzDashboardOptions
 
     public string ApiPath { get; set; } = "/quartz-api";
 
+    /// <summary>
+    /// The base URL used by the HTTP API client to construct request URIs.
+    /// When set, this is used instead of deriving the base URL from the incoming HTTP request.
+    /// This should be set to the root URL of the host application (e.g., "https://myapp.example.com/").
+    /// </summary>
+    public string? BaseUrl { get; set; }
+
     internal string TrimmedDashboardPath => DashboardPath.TrimEnd('/');
 
     internal string TrimmedApiPath => ApiPath.TrimEnd('/');

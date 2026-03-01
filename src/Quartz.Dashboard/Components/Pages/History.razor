@@ -167,7 +167,7 @@
         await LoadDataAsync();
     }
 
-    private async void OnSchedulerChanged()
+    private async void OnSchedulerChanged(object? sender, EventArgs e)
     {
         _page = 1;
         await LoadDataAsync();

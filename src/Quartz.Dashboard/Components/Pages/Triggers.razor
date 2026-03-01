@@ -133,7 +133,7 @@
         await LoadDataAsync();
     }
 
-    private async void OnSchedulerChanged()
+    private async void OnSchedulerChanged(object? sender, EventArgs e)
     {
         await LoadDataAsync();
         await InvokeAsync(StateHasChanged);
@@ -159,15 +159,31 @@
             IReadOnlyList<object> triggers = DisplayValueHelper.ToObjectList(await Api.GetTriggerKeys(schedulerName));
             _allTriggers.AddRange(triggers);
 
-            foreach (object trigger in _allTriggers)
+            if (_showErrorOnly)
             {
-                string group = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
-                string name = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
-                string state = await Api.GetTriggerState(schedulerName, group, name);
-                _states[DisplayValueHelper.FormatKey(group, name)] = state;
+                // When filtering by error state we need all trigger states upfront.
+                foreach (object trigger in _allTriggers)
+                {
+                    string group = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
+                    string name = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
+                    string state = await Api.GetTriggerState(schedulerName, group, name);
+                    _states[DisplayValueHelper.FormatKey(group, name)] = state;
+                }
             }
 
             ApplyFilterAndPaging();
+
+            if (!_showErrorOnly)
+            {
+                // Only fetch states for the current page to avoid N+1 calls for all triggers.
+                foreach (object trigger in _pagedTriggers)
+                {
+                    string group = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
+                    string name = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
+                    string state = await Api.GetTriggerState(schedulerName, group, name);
+                    _states[DisplayValueHelper.FormatKey(group, name)] = state;
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -223,19 +239,45 @@
         return _states.TryGetValue(key, out string? state) ? state : "Unknown";
     }
 
-    private Task OnFilterChangedAsync(string filter)
+    private async Task OnFilterChangedAsync(string filter)
     {
         _filter = filter;
         _currentPage = 1;
         ApplyFilterAndPaging();
-        return Task.CompletedTask;
+        await LoadStatesForCurrentPageAsync();
     }
 
-    private Task OnPageChangedAsync(int page)
+    private async Task OnPageChangedAsync(int page)
     {
         _currentPage = page;
         ApplyFilterAndPaging();
-        return Task.CompletedTask;
+        await LoadStatesForCurrentPageAsync();
+    }
+
+    private async Task LoadStatesForCurrentPageAsync()
+    {
+        if (_showErrorOnly)
+        {
+            return;
+        }
+
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        foreach (object trigger in _pagedTriggers)
+        {
+            string group = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
+            string name = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
+            string key = DisplayValueHelper.FormatKey(group, name);
+            if (!_states.ContainsKey(key))
+            {
+                string state = await Api.GetTriggerState(schedulerName, group, name);
+                _states[key] = state;
+            }
+        }
     }
 
     private static string GetTriggerPath(string group, string name)

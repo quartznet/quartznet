@@ -30,7 +30,7 @@ internal sealed record DashboardActionLogEntry(
 internal sealed class DashboardActionLogService
 {
     private readonly List<DashboardActionLogEntry> entries = [];
-    private readonly object syncRoot = new();
+    private readonly Lock syncRoot = new();
     private readonly int maxEntries = 250;
 
     public void Record(

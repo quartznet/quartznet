@@ -53,9 +53,7 @@ internal sealed class SchedulerState
         }
     }
 
-#pragma warning disable MA0046
-    public event Action? OnSchedulerChanged;
-#pragma warning restore MA0046
+    public event EventHandler? OnSchedulerChanged;
 
     public string? ActiveSchedulerName
     {
@@ -65,7 +63,7 @@ internal sealed class SchedulerState
             if (activeSchedulerName != value)
             {
                 activeSchedulerName = value;
-                OnSchedulerChanged?.Invoke();
+                OnSchedulerChanged?.Invoke(this, EventArgs.Empty);
             }
         }
     }
@@ -119,7 +117,7 @@ internal sealed class SchedulerState
 
     public void NotifyChanged()
     {
-        OnSchedulerChanged?.Invoke();
+        OnSchedulerChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private TimeZoneInfo ResolveSelectedTimeZone()
