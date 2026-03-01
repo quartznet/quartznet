@@ -112,7 +112,7 @@
         SchedulerState.OnSchedulerChanged -= OnStateChanged;
     }
 
-    private async void OnStateChanged()
+    private async void OnStateChanged(object? sender, EventArgs e)
     {
         await UpdateStatusAsync();
         await InvokeAsync(StateHasChanged);
