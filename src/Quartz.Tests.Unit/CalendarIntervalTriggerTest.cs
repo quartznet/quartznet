@@ -909,6 +909,60 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         }
     }
 
+    [Test]
+    [Description("Recursion depth guard should respect EndTimeUtc")]
+    public void TestRecursionDepthGuardRespectsEndTime()
+    {
+        // Test that the recursion-depth safety guard (which triggers after 10+ recursive calls)
+        // still respects the trigger's EndTimeUtc instead of returning a time past the end time.
+
+        var startDate = new DateTimeOffset(2024, 1, 1, 10, 0, 0, TimeSpan.Zero);
+        var endDate = startDate.AddDays(30); // End time is 30 days after start
+
+        // Create a test subclass to access the protected method
+        var trigger = new TestableCalendarIntervalTrigger
+        {
+            StartTimeUtc = startDate,
+            EndTimeUtc = endDate,
+            RepeatInterval = 1,
+            RepeatIntervalUnit = IntervalUnit.Day
+        };
+
+        // Call GetFireTimeAfter with a high recursion depth (> 10) to trigger the guard
+        // The afterTime is close to the end time
+        var afterTime = endDate.AddDays(-5);
+
+        // With recursionDepth > 10, the fallback logic adds 2 intervals (2 days)
+        // afterTime + 2 days would be endDate - 3 days, which is still before endDate
+        var fireTime = trigger.TestGetFireTimeAfter(afterTime, ignoreEndTime: false, recursionDepth: 11);
+
+        // Should return a valid time before the end date
+        Assert.IsNotNull(fireTime);
+        Assert.IsTrue(fireTime < endDate);
+
+        // Now test when the fallback would exceed the end time
+        afterTime = endDate.AddDays(-1); // 1 day before end
+
+        // With recursionDepth > 10, the fallback adds 2 days: afterTime + 2 days = endDate + 1 day
+        // This exceeds EndTimeUtc, so it should return null
+        fireTime = trigger.TestGetFireTimeAfter(afterTime, ignoreEndTime: false, recursionDepth: 11);
+
+        Assert.IsNull(fireTime, "Recursion guard should return null when fallback time exceeds EndTimeUtc");
+
+        // Verify that with ignoreEndTime=true, it returns a time even past the end
+        fireTime = trigger.TestGetFireTimeAfter(afterTime, ignoreEndTime: true, recursionDepth: 11);
+        Assert.IsNotNull(fireTime);
+    }
+
+    // Test subclass to expose protected method
+    private class TestableCalendarIntervalTrigger : CalendarIntervalTriggerImpl
+    {
+        public DateTimeOffset? TestGetFireTimeAfter(DateTimeOffset? afterTime, bool ignoreEndTime, int recursionDepth)
+        {
+            return GetFireTimeAfter(afterTime, ignoreEndTime, recursionDepth);
+        }
+    }
+
     protected override CalendarIntervalTriggerImpl GetTargetObject()
     {
         var jobDataMap = new JobDataMap();

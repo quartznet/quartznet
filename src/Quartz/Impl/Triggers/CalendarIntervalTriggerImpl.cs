@@ -557,7 +557,7 @@ public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTri
         {
             // This should never happen, but if it does, skip well past the problem
             // by advancing by 2 intervals in the appropriate unit
-            return RepeatIntervalUnit switch
+            DateTimeOffset? fallbackTime = RepeatIntervalUnit switch
             {
                 IntervalUnit.Second => afterTime?.AddSeconds(RepeatInterval * 2),
                 IntervalUnit.Minute => afterTime?.AddMinutes(RepeatInterval * 2),
@@ -568,6 +568,14 @@ public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTri
                 IntervalUnit.Year => afterTime?.AddYears(RepeatInterval * 2),
                 _ => afterTime?.AddDays(RepeatInterval * 2)
             };
+
+            // Respect the end time even in the fallback case
+            if (!ignoreEndTime && EndTimeUtc != null && fallbackTime >= EndTimeUtc)
+            {
+                return null;
+            }
+
+            return fallbackTime;
         }
 
         // Store the original input time for validation at the end.
