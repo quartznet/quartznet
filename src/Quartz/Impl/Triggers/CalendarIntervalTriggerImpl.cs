@@ -643,9 +643,6 @@ public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTri
             // intervals a day or greater ...
 
             int initialHourOfDay = sTime.Hour;
-            int initialMinute = sTime.Minute;
-            int initialSecond = sTime.Second;
-            int initialMillisecond = sTime.Millisecond;
 
             if (RepeatIntervalUnit == IntervalUnit.Day)
             {
