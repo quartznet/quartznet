@@ -20,7 +20,7 @@ public partial class Build
     string SourceToUse => !string.IsNullOrWhiteSpace(TagVersion) ? NuGetSource : FeedzSource;
 
     Target Publish => _ => _
-        .OnlyWhenDynamic(() => IsRunningOnWindows && (string.Equals("3.x", GitRepository.Branch, StringComparison.OrdinalIgnoreCase) || IsTaggedBuild))
+        .OnlyWhenDynamic(() => IsRunningOnWindows && (string.Equals("3.x", GitRepository?.Branch, StringComparison.OrdinalIgnoreCase) || IsTaggedBuild))
         .DependsOn(Pack)
         .Requires(() => NuGetApiKey)
         .Executes(() =>

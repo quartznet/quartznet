@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 
 using HealthChecks.UI.Client;
 
@@ -8,6 +10,7 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -295,6 +298,7 @@ public class Startup
         }
 
         app.UseStaticFiles();
+        ConfigureBlazorFrameworkStaticFiles(app);
         app.UseRouting();
         app.UseAntiforgery();
 
@@ -309,5 +313,90 @@ public class Startup
             endpoints.MapHealthChecksUI();
             endpoints.MapQuartzDashboard();
         });
+    }
+
+    private static void ConfigureBlazorFrameworkStaticFiles(IApplicationBuilder app)
+    {
+        string? frameworkAssetsPath = ResolveBlazorFrameworkAssetsPath();
+        if (frameworkAssetsPath is null)
+        {
+            return;
+        }
+
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            FileProvider = new PhysicalFileProvider(frameworkAssetsPath),
+            RequestPath = "/_framework"
+        });
+    }
+
+    private static string? ResolveBlazorFrameworkAssetsPath()
+    {
+        List<string> candidatePackageRoots = new List<string>();
+        string? configuredPackagesRoot = Environment.GetEnvironmentVariable("NUGET_PACKAGES");
+        if (!string.IsNullOrWhiteSpace(configuredPackagesRoot))
+        {
+            candidatePackageRoots.Add(configuredPackagesRoot);
+        }
+
+        string defaultPackagesRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
+        bool containsDefaultRoot = false;
+        foreach (string candidatePackageRoot in candidatePackageRoots)
+        {
+            if (string.Equals(candidatePackageRoot, defaultPackagesRoot, StringComparison.OrdinalIgnoreCase))
+            {
+                containsDefaultRoot = true;
+                break;
+            }
+        }
+
+        if (!containsDefaultRoot)
+        {
+            candidatePackageRoots.Add(defaultPackagesRoot);
+        }
+
+        foreach (string packageRoot in candidatePackageRoots)
+        {
+            string internalAssetsRoot = Path.Combine(packageRoot, "microsoft.aspnetcore.app.internal.assets");
+            if (!Directory.Exists(internalAssetsRoot))
+            {
+                continue;
+            }
+
+            DirectoryInfo[] versionDirectories = new DirectoryInfo(internalAssetsRoot).GetDirectories();
+            Array.Sort(versionDirectories, static (left, right) =>
+            {
+                bool leftParsed = Version.TryParse(left.Name, out Version? leftVersion);
+                bool rightParsed = Version.TryParse(right.Name, out Version? rightVersion);
+
+                if (!leftParsed && !rightParsed)
+                {
+                    return 0;
+                }
+
+                if (!leftParsed)
+                {
+                    return 1;
+                }
+
+                if (!rightParsed)
+                {
+                    return -1;
+                }
+
+                return rightVersion!.CompareTo(leftVersion);
+            });
+
+            foreach (DirectoryInfo versionDirectory in versionDirectories)
+            {
+                string frameworkPath = Path.Combine(versionDirectory.FullName, "_framework");
+                if (File.Exists(Path.Combine(frameworkPath, "blazor.web.js")))
+                {
+                    return frameworkPath;
+                }
+            }
+        }
+
+        return null;
     }
 }
