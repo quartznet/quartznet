@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <Description>Quartz.NET Blazor Server Dashboard; $(Description)</Description>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Quartz.Dashboard</RootNamespace>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <PackageReadmeFile>dashboard.md</PackageReadmeFile>
+    <NoWarn>$(NoWarn);IL2110;IL2111</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../docs/documentation/quartz-4.x/packages/dashboard.md" Pack="true" PackagePath="\" />
+    <None Include="build\Quartz.Dashboard.props" Pack="true" PackagePath="build\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" />
+    <ProjectReference Include="..\Quartz.AspNetCore\Quartz.AspNetCore.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <SupportedPlatform Include="browser" />
+  </ItemGroup>
+
+</Project>

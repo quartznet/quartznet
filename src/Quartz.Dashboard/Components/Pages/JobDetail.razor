@@ -1,0 +1,326 @@
+@page "/quartz/jobs/{Group}/{Name}"
+@using System.Text.Json
+@using Microsoft.Extensions.Options
+@using Quartz
+@using Quartz.Dashboard.Components.Shared
+@implements IDisposable
+@inject IQuartzApiClient Api
+@inject SchedulerState Scheduler
+@inject IOptions<QuartzDashboardOptions> Options
+@inject NavigationManager Navigation
+@inject ToastService Toasts
+@inject DashboardActionLogService ActionLog
+
+<div class="qz-page">
+    <h1>Job Detail</h1>
+
+    @if (_isLoading)
+    {
+        <LoadingSpinner />
+    }
+    else if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <ErrorAlert Message="@_error" OnRetry="LoadDataAsync" />
+    }
+    else if (_job is null)
+    {
+        <p class="qz-muted">Job not found.</p>
+    }
+    else
+    {
+        <div class="qz-row">
+            <KeyBadge GroupName="@Group" ItemName="@Name" />
+            <a class="qz-details-link" href="@GetHistoryPathForJob(Group, Name)">View execution history</a>
+            @if (!IsReadOnly)
+            {
+                <div class="qz-actions">
+                    <button type="button" class="qz-button" @onclick="PauseAsync">Pause</button>
+                    <button type="button" class="qz-button" @onclick="ResumeAsync">Resume</button>
+                    <button type="button" class="qz-button qz-button-primary" @onclick="TriggerAsync">Trigger now</button>
+                    <button type="button" class="qz-button qz-button-danger" @onclick="PromptDelete">Delete</button>
+                </div>
+            }
+        </div>
+
+        <table class="qz-table">
+            <tbody>
+                <tr><th>Type</th><td>@DisplayValueHelper.GetString(_job, "JobType")</td></tr>
+                <tr><th>Description</th><td>@DisplayValueHelper.GetString(_job, "Description")</td></tr>
+                <tr><th>Durable</th><td>@DisplayValueHelper.GetString(_job, "Durable")</td></tr>
+                <tr><th>Requests Recovery</th><td>@DisplayValueHelper.GetString(_job, "RequestsRecovery")</td></tr>
+                <tr><th>Disallow Concurrent Execution</th><td>@DisplayValueHelper.GetString(_job, "ConcurrentExecutionDisallowed")</td></tr>
+                <tr><th>Persist JobDataAfterExecution</th><td>@DisplayValueHelper.GetString(_job, "PersistJobDataAfterExecution")</td></tr>
+            </tbody>
+        </table>
+
+        <h2>JobDataMap</h2>
+        <JobDataMapEditor DataMap="@JobDataMap" ReadOnly="true" />
+        @if (!IsReadOnly)
+        {
+            <h2>Trigger with JobDataMap overrides</h2>
+            <p class="qz-muted">Provide optional override values that will be merged for this trigger run.</p>
+            <JobDataMapEditor DataMap="@_triggerDataMap" ReadOnly="false" />
+            <div class="qz-actions qz-group-actions">
+                <button type="button" class="qz-button qz-button-primary" @onclick="TriggerWithDataAsync">Trigger with overrides</button>
+                <button type="button" class="qz-button" @onclick="ResetTriggerDataMapAsync">Reset</button>
+            </div>
+        }
+
+        <h2>Associated triggers</h2>
+        @if (_triggers.Count == 0)
+        {
+            <p class="qz-muted">No associated triggers.</p>
+        }
+        else
+        {
+            <table class="qz-table">
+                <thead>
+                    <tr>
+                        <th>Trigger</th>
+                        <th>State</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (object trigger in _triggers)
+                    {
+                        string triggerGroup = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
+                        string triggerName = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
+                        string triggerState = GetTriggerState(triggerGroup, triggerName);
+                        <tr>
+                            <td>
+                                <a href="@GetTriggerPath(triggerGroup, triggerName)">
+                                    <KeyBadge GroupName="@triggerGroup" ItemName="@triggerName" />
+                                </a>
+                            </td>
+                            <td><StateIndicator State="@triggerState" /></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    }
+</div>
+
+<ConfirmDialog IsOpen="@_showDeleteConfirm"
+               Title="Delete job"
+               Message="@($"Delete {DisplayValueHelper.FormatKey(Group, Name)}? This cannot be undone.")"
+               OnConfirm="DeleteAsync"
+               OnCancel="CancelDeleteAsync" />
+
+@code {
+    private static readonly JsonSerializerOptions requestSerializerOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+    private bool _isLoading = true;
+    private string? _error;
+    private object? _job;
+    private readonly List<object> _triggers = [];
+    private readonly Dictionary<string, string> _triggerStates = new(StringComparer.OrdinalIgnoreCase);
+    private bool _showDeleteConfirm;
+    private JobDataMap _triggerDataMap = new();
+
+    [Parameter]
+    public string Group { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Name { get; set; } = string.Empty;
+
+    private bool IsReadOnly => Options.Value.ReadOnly;
+
+    private JobDataMap? JobDataMap => DisplayValueHelper.GetObject(_job, "JobDataMap") as JobDataMap;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Scheduler.OnSchedulerChanged += OnSchedulerChanged;
+        await LoadDataAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async void OnSchedulerChanged(object? sender, EventArgs e)
+    {
+        await LoadDataAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        _error = null;
+
+        try
+        {
+            _job = null;
+            _triggers.Clear();
+            _triggerStates.Clear();
+
+            string? schedulerName = Scheduler.ActiveSchedulerName;
+            if (string.IsNullOrWhiteSpace(schedulerName))
+            {
+                return;
+            }
+
+            _job = await Api.GetJob(schedulerName, Group, Name);
+            _triggerDataMap = CloneJobDataMap(JobDataMap);
+            IReadOnlyList<object> triggers = DisplayValueHelper.ToObjectList(await Api.GetJobTriggers(schedulerName, Group, Name));
+            _triggers.AddRange(triggers);
+
+            foreach (object trigger in _triggers)
+            {
+                string triggerGroup = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
+                string triggerName = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
+                string state = await Api.GetTriggerState(schedulerName, triggerGroup, triggerName);
+                string key = DisplayValueHelper.FormatKey(triggerGroup, triggerName);
+                _triggerStates[key] = state;
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private string GetTriggerState(string group, string name)
+    {
+        string key = DisplayValueHelper.FormatKey(group, name);
+        return _triggerStates.TryGetValue(key, out string? state) ? state : "Unknown";
+    }
+
+    private static string GetTriggerPath(string group, string name)
+    {
+        return "/quartz/triggers/" + Uri.EscapeDataString(group) + "/" + Uri.EscapeDataString(name);
+    }
+
+    private static string GetHistoryPathForJob(string group, string name)
+    {
+        string filterValue = Uri.EscapeDataString(DisplayValueHelper.FormatKey(group, name));
+        return "/quartz/history?job=" + filterValue;
+    }
+
+    private Task PauseAsync()
+    {
+        return ExecuteMutatingActionAsync(
+            () => Api.PauseJob(Scheduler.ActiveSchedulerName!, Group, Name),
+            "Paused job " + DisplayValueHelper.FormatKey(Group, Name) + ".",
+            actionName: "PauseJob",
+            target: DisplayValueHelper.FormatKey(Group, Name));
+    }
+
+    private Task ResumeAsync()
+    {
+        return ExecuteMutatingActionAsync(
+            () => Api.ResumeJob(Scheduler.ActiveSchedulerName!, Group, Name),
+            "Resumed job " + DisplayValueHelper.FormatKey(Group, Name) + ".",
+            actionName: "ResumeJob",
+            target: DisplayValueHelper.FormatKey(Group, Name));
+    }
+
+    private Task TriggerAsync()
+    {
+        return ExecuteMutatingActionAsync(
+            () => Api.TriggerJob(Scheduler.ActiveSchedulerName!, Group, Name),
+            "Triggered job " + DisplayValueHelper.FormatKey(Group, Name) + ".",
+            actionName: "TriggerJob",
+            target: DisplayValueHelper.FormatKey(Group, Name));
+    }
+
+    private Task TriggerWithDataAsync()
+    {
+        JsonElement jobDataMap = JsonSerializer.SerializeToElement(_triggerDataMap, requestSerializerOptions);
+        return ExecuteMutatingActionAsync(
+            () => Api.TriggerJobWithData(Scheduler.ActiveSchedulerName!, Group, Name, jobDataMap),
+            "Triggered job " + DisplayValueHelper.FormatKey(Group, Name) + " with overrides.",
+            actionName: "TriggerJobWithData",
+            target: DisplayValueHelper.FormatKey(Group, Name));
+    }
+
+    private Task ResetTriggerDataMapAsync()
+    {
+        _triggerDataMap = CloneJobDataMap(JobDataMap);
+        return Task.CompletedTask;
+    }
+
+    private void PromptDelete()
+    {
+        _showDeleteConfirm = true;
+    }
+
+    private async Task DeleteAsync()
+    {
+        bool succeeded = await ExecuteMutatingActionAsync(
+            () => Api.DeleteJob(Scheduler.ActiveSchedulerName!, Group, Name),
+            "Deleted job " + DisplayValueHelper.FormatKey(Group, Name) + ".",
+            actionName: "DeleteJob",
+            target: DisplayValueHelper.FormatKey(Group, Name));
+        _showDeleteConfirm = false;
+        if (succeeded)
+        {
+            Navigation.NavigateTo("/quartz/jobs");
+        }
+    }
+
+    private Task CancelDeleteAsync()
+    {
+        _showDeleteConfirm = false;
+        return Task.CompletedTask;
+    }
+
+    private async Task<bool> ExecuteMutatingActionAsync(
+        Func<ValueTask> operation,
+        string successMessage,
+        string actionName,
+        string target)
+    {
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return false;
+        }
+
+        try
+        {
+            await operation();
+            ActionLog.Record(schedulerName, actionName, target, succeeded: true);
+            Toasts.Success(successMessage);
+            await LoadDataAsync();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            ActionLog.Record(schedulerName, actionName, target, succeeded: false, ex.Message);
+            Toasts.Error(ex.Message);
+            return false;
+        }
+    }
+
+    private static JobDataMap CloneJobDataMap(JobDataMap? source)
+    {
+        JobDataMap clone = new();
+        if (source is null)
+        {
+            return clone;
+        }
+
+        foreach (KeyValuePair<string, object?> entry in source)
+        {
+            clone[entry.Key] = entry.Value;
+        }
+
+        clone.ClearDirtyFlag();
+        return clone;
+    }
+
+    public void Dispose()
+    {
+        Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+    }
+}

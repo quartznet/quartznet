@@ -87,6 +87,8 @@ public class Startup
         {
             options.Scheduling.IgnoreDuplicates = true; // default: false
             options.Scheduling.OverWriteExistingData = true; // default: true
+            options["quartz.plugin.jobHistory.type"] = "Quartz.Plugin.History.LoggingJobHistoryPlugin, Quartz.Plugins";
+            options["quartz.plugin.triggerHistory.type"] = "Quartz.Plugin.History.LoggingTriggerHistoryPlugin, Quartz.Plugins";
         });
 
         // custom connection provider
@@ -296,6 +298,9 @@ public class Startup
         // Add health checks
         services.AddQuartzHealthChecks();
 
+        // Add Quartz.NET Dashboard
+        services.AddQuartzDashboard();
+
         // Quartz.Extensions.Hosting hosting
         services.AddQuartzHostedService(options =>
         {
@@ -340,6 +345,7 @@ public class Startup
 
         app.UseAuthentication();
         app.UseAuthorization();
+        app.UseAntiforgery();
 
         app.UseEndpoints(endpoints =>
         {
@@ -354,6 +360,9 @@ public class Startup
             // Map HTTP API endpoints
             endpoints.MapQuartzApi()
                 .RequireAuthorization();
+
+            // Map Quartz.NET Dashboard UI at /quartz
+            endpoints.MapQuartzDashboard();
         });
     }
 

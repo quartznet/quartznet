@@ -13,10 +13,13 @@
     <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
     <!-- we want to publish despite the warnings to see if app runs -->
     <NoWarn>$(NoWarn);IL2080;IL2065;IL2075;IL2087;IL2057;IL2060;IL2070;IL2067;IL2072;IL2026;IL2104</NoWarn>
+    <!-- Blazor Server component libraries trigger these when parameters with DynamicallyAccessedMembers are set via reflection -->
+    <NoWarn>$(NoWarn);IL2110;IL2111</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Quartz.AspNetCore\Quartz.AspNetCore.csproj" />
+    <ProjectReference Include="..\Quartz.Dashboard\Quartz.Dashboard.csproj" />
     <ProjectReference Include="..\Quartz.Plugins.TimeZoneConverter\Quartz.Plugins.TimeZoneConverter.csproj" />
     <ProjectReference Include="..\Quartz.Plugins\Quartz.Plugins.csproj" />
   </ItemGroup>

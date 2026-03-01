@@ -1,0 +1,360 @@
+@page "/quartz/triggers/{Group}/{Name}"
+@using System.Globalization
+@using System.Text.Json
+@using Microsoft.Extensions.Options
+@using Quartz
+@using Quartz.Dashboard.Components.Shared
+@implements IDisposable
+@inject IQuartzApiClient Api
+@inject SchedulerState Scheduler
+@inject IOptions<QuartzDashboardOptions> Options
+@inject NavigationManager Navigation
+@inject ToastService Toasts
+@inject DashboardActionLogService ActionLog
+
+<div class="qz-page">
+    <h1>Trigger Detail</h1>
+
+    @if (_isLoading)
+    {
+        <LoadingSpinner />
+    }
+    else if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <ErrorAlert Message="@_error" OnRetry="LoadDataAsync" />
+    }
+    else if (_trigger is null)
+    {
+        <p class="qz-muted">Trigger not found.</p>
+    }
+    else
+    {
+        <div class="qz-row">
+            <KeyBadge GroupName="@Group" ItemName="@Name" />
+            <StateIndicator State="@_triggerState" />
+            <a class="qz-details-link" href="@GetHistoryPathForTrigger(Group, Name)">View execution history</a>
+        </div>
+
+        @if (!IsReadOnly)
+        {
+            <div class="qz-actions">
+                <button type="button" class="qz-button" @onclick="PauseAsync">Pause</button>
+                <button type="button" class="qz-button" @onclick="ResumeAsync">Resume</button>
+                <button type="button" class="qz-button" @onclick="ResetFromErrorAsync">Reset error state</button>
+                <button type="button" class="qz-button qz-button-danger" @onclick="PromptUnschedule">Unschedule</button>
+            </div>
+        }
+
+        <table class="qz-table">
+            <tbody>
+                <tr><th>Type</th><td>@DisplayValueHelper.GetString(_trigger, "TriggerType", "Type")</td></tr>
+                <tr><th>Description</th><td>@DisplayValueHelper.GetString(_trigger, "Description")</td></tr>
+                <tr><th>Schedule</th><td>@BuildScheduleDescription()</td></tr>
+                <tr><th>Next Fire</th><td>@FormatDate(DisplayValueHelper.GetDateTimeOffset(_trigger, "NextFireTimeUtc", "NextFireTime"))</td></tr>
+                <tr><th>Previous Fire</th><td>@FormatDate(DisplayValueHelper.GetDateTimeOffset(_trigger, "PreviousFireTimeUtc", "PreviousFireTime"))</td></tr>
+            </tbody>
+        </table>
+
+        @if (!IsReadOnly && !string.IsNullOrWhiteSpace(_cronExpression))
+        {
+            <section class="qz-section">
+                <h2>Edit cron schedule</h2>
+                <div class="qz-form-group">
+                    <label class="qz-form-label" for="trigger-cron-expression">Cron expression</label>
+                    <input id="trigger-cron-expression" class="qz-input qz-input-mono" @bind="_editedCronExpression" />
+                </div>
+                <div class="qz-actions qz-group-actions">
+                    <button type="button" class="qz-button qz-button-primary" @onclick="RescheduleCronAsync">Save schedule</button>
+                    <button type="button" class="qz-button" @onclick="ResetCronEditAsync">Reset</button>
+                </div>
+            </section>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(_cronExpression))
+        {
+            <h2>Upcoming cron fires</h2>
+            <CronNextFires Expression="@_cronExpression" Count="5" />
+        }
+    }
+</div>
+
+<ConfirmDialog IsOpen="@_showUnscheduleConfirm"
+               Title="Unschedule trigger"
+               Message="@($"Unschedule {DisplayValueHelper.FormatKey(Group, Name)}?")"
+               OnConfirm="UnscheduleAsync"
+               OnCancel="CancelUnscheduleAsync" />
+
+@code {
+    private static readonly JsonSerializerOptions requestSerializerOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+    private bool _isLoading = true;
+    private string? _error;
+    private object? _trigger;
+    private string _triggerState = "Unknown";
+    private bool _showUnscheduleConfirm;
+    private string? _cronExpression;
+    private string _editedCronExpression = string.Empty;
+
+    [Parameter]
+    public string Group { get; set; } = string.Empty;
+
+    [Parameter]
+    public string Name { get; set; } = string.Empty;
+
+    private bool IsReadOnly => Options.Value.ReadOnly;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Scheduler.OnSchedulerChanged += OnSchedulerChanged;
+        await LoadDataAsync();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async void OnSchedulerChanged(object? sender, EventArgs e)
+    {
+        await LoadDataAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        _error = null;
+
+        try
+        {
+            string? schedulerName = Scheduler.ActiveSchedulerName;
+            if (string.IsNullOrWhiteSpace(schedulerName))
+            {
+                _trigger = null;
+                _triggerState = "Unknown";
+                return;
+            }
+
+            TriggerDetailDto detail = await Api.GetTrigger(schedulerName, Group, Name);
+            _trigger = detail.Value;
+            _triggerState = await Api.GetTriggerState(schedulerName, Group, Name);
+            _cronExpression = DisplayValueHelper.GetString(_trigger, "CronExpressionString", "CronExpression");
+            _editedCronExpression = _cronExpression ?? string.Empty;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private string BuildScheduleDescription()
+    {
+        string cronExpression = DisplayValueHelper.GetString(_trigger, "CronExpressionString", "CronExpression");
+        if (!string.IsNullOrWhiteSpace(cronExpression))
+        {
+            return cronExpression;
+        }
+
+        string repeatInterval = DisplayValueHelper.GetString(_trigger, "RepeatInterval", "RepeatIntervalTimeSpan");
+        if (!string.IsNullOrWhiteSpace(repeatInterval))
+        {
+            return "Every " + repeatInterval;
+        }
+
+        return DisplayValueHelper.GetString(_trigger, "TriggerType", "Type");
+    }
+
+    private string FormatDate(DateTimeOffset? value)
+    {
+        return Scheduler.FormatInSelectedTimeZone(value, "u");
+    }
+
+    private static string GetHistoryPathForTrigger(string group, string name)
+    {
+        string filterValue = Uri.EscapeDataString(DisplayValueHelper.FormatKey(group, name));
+        return "/quartz/history?trigger=" + filterValue;
+    }
+
+    private Task PauseAsync()
+    {
+        return ExecuteMutatingActionAsync(
+            () => Api.PauseTrigger(Scheduler.ActiveSchedulerName!, Group, Name),
+            "Paused trigger " + DisplayValueHelper.FormatKey(Group, Name) + ".",
+            actionName: "PauseTrigger",
+            target: DisplayValueHelper.FormatKey(Group, Name));
+    }
+
+    private Task ResumeAsync()
+    {
+        return ExecuteMutatingActionAsync(
+            () => Api.ResumeTrigger(Scheduler.ActiveSchedulerName!, Group, Name),
+            "Resumed trigger " + DisplayValueHelper.FormatKey(Group, Name) + ".",
+            actionName: "ResumeTrigger",
+            target: DisplayValueHelper.FormatKey(Group, Name));
+    }
+
+    private Task ResetFromErrorAsync()
+    {
+        return ExecuteMutatingActionAsync(
+            () => Api.ResetTriggerFromErrorState(Scheduler.ActiveSchedulerName!, Group, Name),
+            "Reset error state for trigger " + DisplayValueHelper.FormatKey(Group, Name) + ".",
+            actionName: "ResetTriggerFromErrorState",
+            target: DisplayValueHelper.FormatKey(Group, Name));
+    }
+
+    private async Task RescheduleCronAsync()
+    {
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        string cronExpression = _editedCronExpression.Trim();
+        if (string.IsNullOrWhiteSpace(cronExpression))
+        {
+            Toasts.Error("Cron expression is required.");
+            return;
+        }
+
+        JsonElement newTrigger = BuildRescheduleTriggerPayload(cronExpression);
+        RescheduleRequest request = new(newTrigger);
+        _ = await ExecuteMutatingActionAsync(
+            () => Api.RescheduleJob(schedulerName, Group, Name, request),
+            "Rescheduled trigger " + DisplayValueHelper.FormatKey(Group, Name) + ".",
+            actionName: "RescheduleTrigger",
+            target: DisplayValueHelper.FormatKey(Group, Name));
+    }
+
+    private Task ResetCronEditAsync()
+    {
+        _editedCronExpression = _cronExpression ?? string.Empty;
+        return Task.CompletedTask;
+    }
+
+    private JsonElement BuildRescheduleTriggerPayload(string cronExpression)
+    {
+        string jobName = DisplayValueHelper.GetString(_trigger, "JobKey.Name", "jobKey.name");
+        string jobGroup = DisplayValueHelper.GetString(_trigger, "JobKey.Group", "jobKey.group");
+        object? jobKey = string.IsNullOrWhiteSpace(jobName) || string.IsNullOrWhiteSpace(jobGroup)
+            ? null
+            : new { name = jobName, group = jobGroup };
+
+        string timeZone = DisplayValueHelper.GetString(_trigger, "TimeZone.Id", "timeZone.id", "TimeZone", "timeZone");
+        if (string.IsNullOrWhiteSpace(timeZone) || timeZone.StartsWith('{'))
+        {
+            timeZone = TimeZoneInfo.Utc.Id;
+        }
+
+        DateTimeOffset startTime = DisplayValueHelper.GetDateTimeOffset(_trigger, "StartTimeUtc", "startTimeUtc") ?? DateTimeOffset.UtcNow;
+        DateTimeOffset? endTime = DisplayValueHelper.GetDateTimeOffset(_trigger, "EndTimeUtc", "endTimeUtc");
+        int misfireInstruction = ParseIntOrDefault(_trigger, 0, "MisfireInstruction", "misfireInstruction");
+        int priority = ParseIntOrDefault(_trigger, 5, "Priority", "priority");
+        JsonElement jobDataMap = GetJobDataMapElement(_trigger);
+
+        object payload = new
+        {
+            triggerType = "CronTrigger",
+            key = new { name = Name, group = Group },
+            jobKey,
+            description = DisplayValueHelper.GetString(_trigger, "Description", "description"),
+            calendarName = DisplayValueHelper.GetString(_trigger, "CalendarName", "calendarName"),
+            jobDataMap,
+            misfireInstruction,
+            startTimeUtc = startTime,
+            endTimeUtc = endTime,
+            priority,
+            timeZone,
+            cronExpressionString = cronExpression
+        };
+
+        return JsonSerializer.SerializeToElement(payload, requestSerializerOptions);
+    }
+
+    private static int ParseIntOrDefault(object? source, int defaultValue, params string[] paths)
+    {
+        string value = DisplayValueHelper.GetString(source, paths);
+        if (int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedValue))
+        {
+            return parsedValue;
+        }
+
+        return defaultValue;
+    }
+
+    private static JsonElement GetJobDataMapElement(object? source)
+    {
+        object? value = DisplayValueHelper.GetObject(source, "JobDataMap", "jobDataMap");
+        if (value is JsonElement element)
+        {
+            return element.Clone();
+        }
+
+        return JsonSerializer.SerializeToElement(new Dictionary<string, object?>(), requestSerializerOptions);
+    }
+
+    private void PromptUnschedule()
+    {
+        _showUnscheduleConfirm = true;
+    }
+
+    private async Task UnscheduleAsync()
+    {
+        bool succeeded = await ExecuteMutatingActionAsync(
+            () => Api.UnscheduleJob(Scheduler.ActiveSchedulerName!, Group, Name),
+            "Unscheduled trigger " + DisplayValueHelper.FormatKey(Group, Name) + ".",
+            actionName: "UnscheduleTrigger",
+            target: DisplayValueHelper.FormatKey(Group, Name));
+        _showUnscheduleConfirm = false;
+        if (succeeded)
+        {
+            Navigation.NavigateTo("/quartz/triggers");
+        }
+    }
+
+    private Task CancelUnscheduleAsync()
+    {
+        _showUnscheduleConfirm = false;
+        return Task.CompletedTask;
+    }
+
+    private async Task<bool> ExecuteMutatingActionAsync(
+        Func<ValueTask> operation,
+        string successMessage,
+        string actionName,
+        string target)
+    {
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return false;
+        }
+
+        try
+        {
+            await operation();
+            ActionLog.Record(schedulerName, actionName, target, succeeded: true);
+            Toasts.Success(successMessage);
+            await LoadDataAsync();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            ActionLog.Record(schedulerName, actionName, target, succeeded: false, ex.Message);
+            Toasts.Error(ex.Message);
+            return false;
+        }
+    }
+
+    public void Dispose()
+    {
+        Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+    }
+}

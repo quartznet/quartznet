@@ -1,0 +1,382 @@
+@page "/quartz/live"
+@using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.Extensions.Options
+@using Quartz
+@using Quartz.Dashboard.Components.Shared
+@implements IAsyncDisposable
+@inject NavigationManager Navigation
+@inject SchedulerState Scheduler
+@inject IOptions<QuartzDashboardOptions> Options
+@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
+
+<div class="qz-page">
+    <h1>Live Logs</h1>
+
+    <div class="qz-toolbar">
+        @if (_hubConnection?.State == HubConnectionState.Connected)
+        {
+            <span class="qz-badge qz-badge-success">● Connected</span>
+        }
+        else if (_hubConnection?.State == HubConnectionState.Connecting || _hubConnection?.State == HubConnectionState.Reconnecting)
+        {
+            <span class="qz-badge qz-badge-warning">● Connecting…</span>
+        }
+        else
+        {
+            <span class="qz-badge qz-badge-error">● Disconnected</span>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(_joinedScheduler))
+        {
+            <span class="qz-muted">Listening to: @_joinedScheduler</span>
+        }
+    </div>
+
+    <div class="qz-live-filters">
+        <span class="qz-muted">Event types:</span>
+        <div class="qz-actions">
+            <button type="button" class="qz-button" @onclick="SelectAllEventTypes">All</button>
+            <button type="button" class="qz-button" @onclick="ClearEventTypes">None</button>
+        </div>
+        <div class="qz-live-filter-grid">
+            @foreach (string eventType in EventTypes)
+            {
+                string id = "qz-live-filter-" + eventType;
+                <label class="qz-live-filter-item" for="@id">
+                    <input id="@id"
+                           type="checkbox"
+                           checked="@_selectedEventTypes.Contains(eventType)"
+                           @onchange="args => ToggleEventType(eventType, args)" />
+                    <span>@eventType</span>
+                </label>
+            }
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <ErrorAlert Message="@_error" OnRetry="ReconnectAsync" />
+    }
+
+    @if (_events.Count == 0)
+    {
+        <p class="qz-muted">No events yet. Events will appear when jobs execute, triggers fire, or scheduler state changes.</p>
+    }
+    else if (_filteredEvents.Count == 0)
+    {
+        <p class="qz-muted">No events match the selected event types.</p>
+    }
+    else
+    {
+        <ul class="qz-live-events">
+            @foreach (LiveEventItem liveEvent in _filteredEvents)
+            {
+                <li class="qz-live-event qz-live-@liveEvent.Category">
+                    <span class="qz-live-time"><TimeAgo Timestamp="@liveEvent.Timestamp" /></span>
+                    <span class="qz-live-type">@liveEvent.EventType</span>
+                    <span class="qz-live-description">@liveEvent.Description</span>
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    private static readonly string[] EventTypes =
+    [
+        "JobExecuting",
+        "JobExecuted",
+        "TriggerFired",
+        "TriggerCompleted",
+        "TriggerMisfired",
+        "TriggerPaused",
+        "TriggerResumed",
+        "JobPaused",
+        "JobResumed",
+        "SchedulerStateChanged",
+        "SchedulerError"
+    ];
+
+    private readonly List<LiveEventItem> _events = [];
+    private readonly List<LiveEventItem> _filteredEvents = [];
+    private readonly HashSet<string> _selectedEventTypes = new(EventTypes, StringComparer.OrdinalIgnoreCase);
+    private HubConnection? _hubConnection;
+    private string? _error;
+    private string? _joinedScheduler;
+    private bool _isConnecting;
+    private PeriodicTimer? _connectionMonitorTimer;
+    private CancellationTokenSource? _connectionMonitorCancellation;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Scheduler.OnSchedulerChanged += OnSchedulerChanged;
+            _connectionMonitorCancellation = new CancellationTokenSource();
+            _connectionMonitorTimer = new PeriodicTimer(TimeSpan.FromSeconds(3));
+            _ = RunConnectionMonitorAsync(_connectionMonitorCancellation.Token);
+            await ConnectAsync();
+            StateHasChanged();
+        }
+    }
+
+    private async void OnSchedulerChanged(object? sender, EventArgs e)
+    {
+        try
+        {
+            await JoinSchedulerAsync(Scheduler.ActiveSchedulerName);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task ConnectAsync()
+    {
+        if (_isConnecting)
+        {
+            return;
+        }
+
+        _isConnecting = true;
+        _error = null;
+
+        try
+        {
+            if (_hubConnection is not null)
+            {
+                await _hubConnection.DisposeAsync();
+            }
+
+            Uri hubUri = BuildHubUri();
+            string? cookieHeader = HttpContextAccessor.HttpContext?.Request.Headers.Cookie.ToString();
+
+            _hubConnection = new HubConnectionBuilder()
+                .WithUrl(hubUri, connectionOptions =>
+                {
+                    if (!string.IsNullOrWhiteSpace(cookieHeader))
+                    {
+                        connectionOptions.Headers["Cookie"] = cookieHeader;
+                    }
+                })
+                .WithAutomaticReconnect()
+                .Build();
+
+            RegisterEventHandlers(_hubConnection);
+            _hubConnection.Reconnecting += _ex =>
+            {
+                _ = InvokeAsync(StateHasChanged);
+                return Task.CompletedTask;
+            };
+            _hubConnection.Closed += _ex =>
+            {
+                _ = InvokeAsync(StateHasChanged);
+                return Task.CompletedTask;
+            };
+            _hubConnection.Reconnected += async _ =>
+            {
+                await JoinSchedulerAsync(Scheduler.ActiveSchedulerName);
+                await InvokeAsync(StateHasChanged);
+            };
+
+            await _hubConnection.StartAsync();
+            await JoinSchedulerAsync(Scheduler.ActiveSchedulerName);
+            ApplyEventTypeFilter();
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            await InvokeAsync(StateHasChanged);
+        }
+        finally
+        {
+            _isConnecting = false;
+        }
+    }
+
+    private Task ReconnectAsync()
+    {
+        return ConnectAsync();
+    }
+
+    private Uri BuildHubUri()
+    {
+        Uri currentUri = new(Navigation.Uri);
+        string currentPath = currentUri.AbsolutePath.TrimEnd('/');
+        int lastSlashIndex = currentPath.LastIndexOf('/');
+        if (lastSlashIndex > 0)
+        {
+            string liveRoot = currentPath.Substring(0, lastSlashIndex);
+            if (!string.IsNullOrWhiteSpace(liveRoot))
+            {
+                return Navigation.ToAbsoluteUri(liveRoot + "/hub");
+            }
+        }
+
+        return Navigation.ToAbsoluteUri(Options.Value.TrimmedDashboardPath + "/hub");
+    }
+
+    private async Task RunConnectionMonitorAsync(CancellationToken cancellationToken)
+    {
+        if (_connectionMonitorTimer is null)
+        {
+            return;
+        }
+
+        try
+        {
+            while (await _connectionMonitorTimer.WaitForNextTickAsync(cancellationToken))
+            {
+                if (_hubConnection is null || _hubConnection.State == HubConnectionState.Disconnected)
+                {
+                    await ConnectAsync();
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    private void RegisterEventHandlers(HubConnection connection)
+    {
+        connection.On<object>("JobExecuting", payload => AddEventAsync("JobExecuting", "success", payload));
+        connection.On<object>("JobExecuted", payload => AddEventAsync("JobExecuted", "success", payload));
+        connection.On<object>("TriggerFired", payload => AddEventAsync("TriggerFired", "info", payload));
+        connection.On<object>("TriggerCompleted", payload => AddEventAsync("TriggerCompleted", "success", payload));
+        connection.On<object>("TriggerMisfired", payload => AddEventAsync("TriggerMisfired", "error", payload));
+        connection.On<object>("TriggerPaused", payload => AddEventAsync("TriggerPaused", "info", payload));
+        connection.On<object>("TriggerResumed", payload => AddEventAsync("TriggerResumed", "success", payload));
+        connection.On<object>("JobPaused", payload => AddEventAsync("JobPaused", "info", payload));
+        connection.On<object>("JobResumed", payload => AddEventAsync("JobResumed", "success", payload));
+        connection.On<object>("SchedulerStateChanged", payload => AddEventAsync("SchedulerStateChanged", "info", payload));
+        connection.On<object>("SchedulerError", payload => AddEventAsync("SchedulerError", "error", payload));
+    }
+
+    private async Task JoinSchedulerAsync(string? schedulerName)
+    {
+        if (_hubConnection is null || _hubConnection.State != HubConnectionState.Connected)
+        {
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(_joinedScheduler))
+        {
+            await _hubConnection.InvokeAsync("LeaveScheduler", _joinedScheduler);
+            _joinedScheduler = null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(schedulerName))
+        {
+            await _hubConnection.InvokeAsync("JoinScheduler", schedulerName);
+            _joinedScheduler = schedulerName;
+        }
+    }
+
+    private Task AddEventAsync(string eventType, string category, object? payload)
+    {
+        string description = BuildDescription(eventType, payload);
+        LiveEventItem item = new(DateTimeOffset.UtcNow, eventType, category, description);
+
+        _events.Insert(0, item);
+        if (_events.Count > 100)
+        {
+            _events.RemoveAt(_events.Count - 1);
+        }
+
+        ApplyEventTypeFilter();
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private Task ToggleEventType(string eventType, ChangeEventArgs args)
+    {
+        bool isChecked = args.Value is bool boolValue
+            ? boolValue
+            : string.Equals(args.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+        if (isChecked)
+        {
+            _selectedEventTypes.Add(eventType);
+        }
+        else
+        {
+            _selectedEventTypes.Remove(eventType);
+        }
+
+        ApplyEventTypeFilter();
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private Task SelectAllEventTypes()
+    {
+        _selectedEventTypes.Clear();
+        foreach (string eventType in EventTypes)
+        {
+            _selectedEventTypes.Add(eventType);
+        }
+
+        ApplyEventTypeFilter();
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private Task ClearEventTypes()
+    {
+        _selectedEventTypes.Clear();
+        ApplyEventTypeFilter();
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private void ApplyEventTypeFilter()
+    {
+        _filteredEvents.Clear();
+        foreach (LiveEventItem liveEvent in _events)
+        {
+            if (_selectedEventTypes.Contains(liveEvent.EventType))
+            {
+                _filteredEvents.Add(liveEvent);
+            }
+        }
+    }
+
+    private static string BuildDescription(string eventType, object? payload)
+    {
+        if (payload is null)
+        {
+            return eventType;
+        }
+
+        string payloadText = payload.ToString() ?? string.Empty;
+        if (payloadText.Length > 180)
+        {
+            payloadText = payloadText.Substring(0, 180) + "…";
+        }
+
+        if (string.IsNullOrWhiteSpace(payloadText))
+        {
+            return eventType;
+        }
+
+        return eventType + ": " + payloadText;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+        _connectionMonitorCancellation?.Cancel();
+        _connectionMonitorCancellation?.Dispose();
+        _connectionMonitorTimer?.Dispose();
+
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
+
+    private sealed record LiveEventItem(DateTimeOffset Timestamp, string EventType, string Category, string Description);
+}

@@ -1,0 +1,464 @@
+@page "/quartz/triggers"
+@using Microsoft.Extensions.Options
+@using Quartz
+@using Quartz.Dashboard.Components.Shared
+@implements IDisposable
+@inject IQuartzApiClient Api
+@inject SchedulerState Scheduler
+@inject IOptions<QuartzDashboardOptions> Options
+@inject ToastService Toasts
+@inject NavigationManager Navigation
+@inject DashboardActionLogService ActionLog
+
+<div class="qz-page">
+    <h1>Triggers</h1>
+
+    <SearchFilter OnFilterChanged="OnFilterChangedAsync" />
+    <div class="qz-actions qz-group-actions">
+        <button type="button" class="qz-button @GetStateFilterButtonClass(false)" @onclick="ShowAllStates">All states</button>
+        <button type="button" class="qz-button @GetStateFilterButtonClass(true)" @onclick="ShowErrorStateOnly">Error only</button>
+    </div>
+
+    @if (_isLoading)
+    {
+        <LoadingSpinner />
+    }
+    else if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <ErrorAlert Message="@_error" OnRetry="LoadDataAsync" />
+    }
+    else if (_pagedTriggers.Count == 0)
+    {
+        <p class="qz-muted">No triggers found.</p>
+    }
+    else
+    {
+        @foreach (IGrouping<string, object> group in GroupedTriggers)
+        {
+            <section class="qz-section">
+                <h2>@group.Key</h2>
+                @if (!IsReadOnly)
+                {
+                    <div class="qz-actions qz-group-actions">
+                        <button type="button" class="qz-button" @onclick="() => PauseGroup(group.Key)">Pause group</button>
+                        <button type="button" class="qz-button" @onclick="() => ResumeGroup(group.Key)">Resume group</button>
+                    </div>
+                }
+                <table class="qz-table qz-entity-table">
+                    <thead>
+                        <tr>
+                            <th class="qz-col-key">Trigger</th>
+                            <th class="qz-col-state">State</th>
+                            <th class="qz-col-details">Details</th>
+                            @if (!IsReadOnly)
+                            {
+                                <th class="qz-col-actions">Actions</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (object trigger in group)
+                        {
+                            string triggerGroup = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
+                            string triggerName = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
+                            string state = GetState(triggerGroup, triggerName);
+                            <tr class="qz-row-link"
+                                tabindex="0"
+                                role="link"
+                                @onclick="() => NavigateToTrigger(triggerGroup, triggerName)"
+                                @onkeydown="args => OnTriggerRowKeyDown(args, triggerGroup, triggerName)">
+                                <td class="qz-col-key">
+                                    <KeyBadge GroupName="@triggerGroup" ItemName="@triggerName" />
+                                </td>
+                                <td class="qz-col-state">
+                                    <StateIndicator State="@state" />
+                                </td>
+                                <td class="qz-col-details">
+                                    <a class="qz-details-link" href="@GetTriggerPath(triggerGroup, triggerName)" @onclick:stopPropagation="true">View details</a>
+                                </td>
+                                @if (!IsReadOnly)
+                                {
+                                    <td class="qz-col-actions">
+                                        <div class="qz-actions" @onclick:stopPropagation="true">
+                                            <button type="button" class="qz-button" @onclick="() => PauseTrigger(triggerGroup, triggerName)">Pause</button>
+                                            <button type="button" class="qz-button" @onclick="() => ResumeTrigger(triggerGroup, triggerName)">Resume</button>
+                                            <button type="button" class="qz-button qz-button-danger" @onclick="() => PromptUnschedule(triggerGroup, triggerName)">Unschedule</button>
+                                        </div>
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </section>
+        }
+
+        <Pagination TotalItems="@_filteredTriggers.Count"
+                    PageSize="@_pageSize"
+                    CurrentPage="@_currentPage"
+                    OnPageChanged="OnPageChangedAsync" />
+    }
+</div>
+
+<ConfirmDialog IsOpen="@_showUnscheduleConfirm"
+               Title="Unschedule trigger"
+               Message="@($"Unschedule {_pendingTriggerKey}?")"
+               OnConfirm="ConfirmUnscheduleAsync"
+               OnCancel="CancelUnscheduleAsync" />
+
+@code {
+    private readonly List<object> _allTriggers = [];
+    private readonly List<object> _filteredTriggers = [];
+    private readonly List<object> _pagedTriggers = [];
+    private readonly Dictionary<string, string> _states = new(StringComparer.OrdinalIgnoreCase);
+    private bool _isLoading = true;
+    private string? _error;
+    private string _filter = string.Empty;
+    private int _currentPage = 1;
+    private readonly int _pageSize = 25;
+    private bool _showUnscheduleConfirm;
+    private string? _pendingGroup;
+    private string? _pendingName;
+    private string _pendingTriggerKey = string.Empty;
+    private bool _showErrorOnly;
+
+    private bool IsReadOnly => Options.Value.ReadOnly;
+
+    private IEnumerable<IGrouping<string, object>> GroupedTriggers =>
+        _pagedTriggers.GroupBy(trigger => DisplayValueHelper.GetString(trigger, "Group", "Key.Group"));
+
+    protected override async Task OnInitializedAsync()
+    {
+        Scheduler.OnSchedulerChanged += OnSchedulerChanged;
+        await LoadDataAsync();
+    }
+
+    private async void OnSchedulerChanged(object? sender, EventArgs e)
+    {
+        await LoadDataAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        _error = null;
+
+        try
+        {
+            _allTriggers.Clear();
+            _states.Clear();
+
+            string? schedulerName = Scheduler.ActiveSchedulerName;
+            if (string.IsNullOrWhiteSpace(schedulerName))
+            {
+                ApplyFilterAndPaging();
+                return;
+            }
+
+            IReadOnlyList<object> triggers = DisplayValueHelper.ToObjectList(await Api.GetTriggerKeys(schedulerName));
+            _allTriggers.AddRange(triggers);
+
+            if (_showErrorOnly)
+            {
+                // When filtering by error state we need all trigger states upfront.
+                foreach (object trigger in _allTriggers)
+                {
+                    string group = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
+                    string name = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
+                    string state = await Api.GetTriggerState(schedulerName, group, name);
+                    _states[DisplayValueHelper.FormatKey(group, name)] = state;
+                }
+            }
+
+            ApplyFilterAndPaging();
+
+            if (!_showErrorOnly)
+            {
+                // Only fetch states for the current page to avoid N+1 calls for all triggers.
+                foreach (object trigger in _pagedTriggers)
+                {
+                    string group = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
+                    string name = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
+                    string state = await Api.GetTriggerState(schedulerName, group, name);
+                    _states[DisplayValueHelper.FormatKey(group, name)] = state;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            _filteredTriggers.Clear();
+            _pagedTriggers.Clear();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void ApplyFilterAndPaging()
+    {
+        IEnumerable<object> query = _allTriggers;
+        if (!string.IsNullOrWhiteSpace(_filter))
+        {
+            query = query.Where(trigger =>
+            {
+                string group = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
+                string name = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
+                string key = DisplayValueHelper.FormatKey(group, name);
+                return key.Contains(_filter, StringComparison.OrdinalIgnoreCase);
+            });
+        }
+
+        if (_showErrorOnly)
+        {
+            query = query.Where(trigger =>
+            {
+                string group = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
+                string name = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
+                string state = GetState(group, name);
+                return string.Equals(state, "Error", StringComparison.OrdinalIgnoreCase);
+            });
+        }
+
+        _filteredTriggers.Clear();
+        _filteredTriggers.AddRange(query);
+
+        int totalPages = Math.Max(1, (int) Math.Ceiling((double) _filteredTriggers.Count / _pageSize));
+        _currentPage = Math.Clamp(_currentPage, 1, totalPages);
+
+        _pagedTriggers.Clear();
+        IEnumerable<object> page = _filteredTriggers.Skip((_currentPage - 1) * _pageSize).Take(_pageSize);
+        _pagedTriggers.AddRange(page);
+    }
+
+    private string GetState(string group, string name)
+    {
+        string key = DisplayValueHelper.FormatKey(group, name);
+        return _states.TryGetValue(key, out string? state) ? state : "Unknown";
+    }
+
+    private async Task OnFilterChangedAsync(string filter)
+    {
+        _filter = filter;
+        _currentPage = 1;
+        ApplyFilterAndPaging();
+        await LoadStatesForCurrentPageAsync();
+    }
+
+    private async Task OnPageChangedAsync(int page)
+    {
+        _currentPage = page;
+        ApplyFilterAndPaging();
+        await LoadStatesForCurrentPageAsync();
+    }
+
+    private async Task LoadStatesForCurrentPageAsync()
+    {
+        if (_showErrorOnly)
+        {
+            return;
+        }
+
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        foreach (object trigger in _pagedTriggers)
+        {
+            string group = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
+            string name = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
+            string key = DisplayValueHelper.FormatKey(group, name);
+            if (!_states.ContainsKey(key))
+            {
+                string state = await Api.GetTriggerState(schedulerName, group, name);
+                _states[key] = state;
+            }
+        }
+    }
+
+    private static string GetTriggerPath(string group, string name)
+    {
+        return "/quartz/triggers/" + Uri.EscapeDataString(group) + "/" + Uri.EscapeDataString(name);
+    }
+
+    private void OnTriggerRowKeyDown(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs args, string group, string name)
+    {
+        if (args.Key is "Enter" or " " or "Spacebar")
+        {
+            NavigateToTrigger(group, name);
+        }
+    }
+
+    private void NavigateToTrigger(string group, string name)
+    {
+        Navigation.NavigateTo(GetTriggerPath(group, name));
+    }
+
+    private Task PauseTrigger(string group, string name)
+    {
+        return ExecuteMutatingActionAsync(
+            () => Api.PauseTrigger(Scheduler.ActiveSchedulerName!, group, name),
+            "Paused trigger " + DisplayValueHelper.FormatKey(group, name) + ".",
+            actionName: "PauseTrigger",
+            target: DisplayValueHelper.FormatKey(group, name));
+    }
+
+    private Task ResumeTrigger(string group, string name)
+    {
+        return ExecuteMutatingActionAsync(
+            () => Api.ResumeTrigger(Scheduler.ActiveSchedulerName!, group, name),
+            "Resumed trigger " + DisplayValueHelper.FormatKey(group, name) + ".",
+            actionName: "ResumeTrigger",
+            target: DisplayValueHelper.FormatKey(group, name));
+    }
+
+    private Task PauseGroup(string group)
+    {
+        return ExecuteGroupMutatingActionAsync(
+            group,
+            (schedulerName, triggerGroup, triggerName) => Api.PauseTrigger(schedulerName, triggerGroup, triggerName),
+            "Paused");
+    }
+
+    private Task ResumeGroup(string group)
+    {
+        return ExecuteGroupMutatingActionAsync(
+            group,
+            (schedulerName, triggerGroup, triggerName) => Api.ResumeTrigger(schedulerName, triggerGroup, triggerName),
+            "Resumed");
+    }
+
+    private Task ShowAllStates()
+    {
+        _showErrorOnly = false;
+        _currentPage = 1;
+        ApplyFilterAndPaging();
+        return Task.CompletedTask;
+    }
+
+    private Task ShowErrorStateOnly()
+    {
+        _showErrorOnly = true;
+        _currentPage = 1;
+        ApplyFilterAndPaging();
+        return Task.CompletedTask;
+    }
+
+    private string GetStateFilterButtonClass(bool errorOnly)
+    {
+        return _showErrorOnly == errorOnly ? "qz-button-primary" : string.Empty;
+    }
+
+    private void PromptUnschedule(string group, string name)
+    {
+        _pendingGroup = group;
+        _pendingName = name;
+        _pendingTriggerKey = DisplayValueHelper.FormatKey(group, name);
+        _showUnscheduleConfirm = true;
+    }
+
+    private async Task ConfirmUnscheduleAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_pendingGroup) || string.IsNullOrWhiteSpace(_pendingName))
+        {
+            _showUnscheduleConfirm = false;
+            return;
+        }
+
+        await ExecuteMutatingActionAsync(
+            () => Api.UnscheduleJob(Scheduler.ActiveSchedulerName!, _pendingGroup, _pendingName),
+            "Unscheduled trigger " + DisplayValueHelper.FormatKey(_pendingGroup, _pendingName) + ".",
+            actionName: "UnscheduleTrigger",
+            target: DisplayValueHelper.FormatKey(_pendingGroup, _pendingName));
+        _showUnscheduleConfirm = false;
+    }
+
+    private Task CancelUnscheduleAsync()
+    {
+        _showUnscheduleConfirm = false;
+        return Task.CompletedTask;
+    }
+
+    private async Task ExecuteMutatingActionAsync(
+        Func<ValueTask> operation,
+        string successMessage,
+        string actionName,
+        string target)
+    {
+        if (IsReadOnly || string.IsNullOrWhiteSpace(Scheduler.ActiveSchedulerName))
+        {
+            return;
+        }
+
+        try
+        {
+            await operation();
+            ActionLog.Record(Scheduler.ActiveSchedulerName, actionName, target, succeeded: true);
+            Toasts.Success(successMessage);
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            ActionLog.Record(Scheduler.ActiveSchedulerName, actionName, target, succeeded: false, ex.Message);
+            Toasts.Error(ex.Message);
+        }
+    }
+
+    private async Task ExecuteGroupMutatingActionAsync(
+        string group,
+        Func<string, string, string, ValueTask> operation,
+        string actionVerb)
+    {
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        try
+        {
+            List<(string Group, string Name)> triggersInGroup = [];
+            foreach (object trigger in _allTriggers)
+            {
+                string triggerGroup = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
+                if (!string.Equals(triggerGroup, group, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                string triggerName = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
+                triggersInGroup.Add((triggerGroup, triggerName));
+            }
+
+            foreach ((string triggerGroup, string triggerName) trigger in triggersInGroup)
+            {
+                await operation(schedulerName, trigger.triggerGroup, trigger.triggerName);
+            }
+
+            ActionLog.Record(
+                schedulerName,
+                actionVerb + "TriggerGroup",
+                group,
+                succeeded: true,
+                triggersInGroup.Count + " trigger(s)");
+            Toasts.Success(actionVerb + " " + triggersInGroup.Count + " trigger(s) in group " + group + ".");
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            ActionLog.Record(schedulerName, actionVerb + "TriggerGroup", group, succeeded: false, ex.Message);
+            Toasts.Error(ex.Message);
+        }
+    }
+
+    public void Dispose()
+    {
+        Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+    }
+}

@@ -1,0 +1,271 @@
+@using System.Globalization
+@using Quartz
+
+<div class="qz-job-data-map-editor">
+    @if (DataMap is null || _entries.Count == 0)
+    {
+        <span class="qz-muted">No JobDataMap entries.</span>
+    }
+    else if (ReadOnly)
+    {
+        <table class="qz-table">
+            <thead>
+                <tr>
+                    <th>Key</th>
+                    <th>Type</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (JobDataMapEntry entry in _entries)
+                {
+                    <tr>
+                        <td>@entry.Key</td>
+                        <td>@entry.ValueType</td>
+                        <td>@entry.ValueText</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <table class="qz-table">
+            <thead>
+                <tr>
+                    <th>Key</th>
+                    <th>Type</th>
+                    <th>Value</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (int i = 0; i < _entries.Count; i++)
+                {
+                    int index = i;
+                    <tr>
+                        <td>
+                            <input class="qz-input"
+                                   value="@_entries[index].Key"
+                                   @oninput="args => UpdateKey(index, args)" />
+                        </td>
+                        <td>
+                            <select class="qz-select"
+                                    value="@_entries[index].ValueType"
+                                    @onchange="args => UpdateType(index, args)">
+                                @foreach (string typeOption in TypeOptions)
+                                {
+                                    <option value="@typeOption">@typeOption</option>
+                                }
+                            </select>
+                        </td>
+                        <td>
+                            <input class="qz-input"
+                                   value="@_entries[index].ValueText"
+                                   @oninput="args => UpdateValue(index, args)" />
+                        </td>
+                        <td>
+                            <button type="button"
+                                    class="qz-button qz-button-danger"
+                                    @onclick="() => RemoveEntry(index)">
+                                Remove
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <button type="button" class="qz-button" @onclick="AddEntry">Add entry</button>
+    }
+</div>
+
+@code {
+    private static readonly IReadOnlyList<string> TypeOptions = ["string", "int", "long", "double", "bool", "datetime"];
+    private readonly List<JobDataMapEntry> _entries = [];
+
+    [Parameter]
+    public JobDataMap? DataMap { get; set; }
+
+    [Parameter]
+    public bool ReadOnly { get; set; }
+
+    protected override void OnParametersSet()
+    {
+        LoadEntries();
+    }
+
+    private void LoadEntries()
+    {
+        _entries.Clear();
+        if (DataMap is null)
+        {
+            return;
+        }
+
+        foreach (KeyValuePair<string, object?> pair in DataMap)
+        {
+            string valueType = DetermineType(pair.Value);
+            _entries.Add(new JobDataMapEntry
+            {
+                Key = pair.Key,
+                ValueType = valueType,
+                ValueText = FormatValue(pair.Value)
+            });
+        }
+    }
+
+    private static string DetermineType(object? value)
+    {
+        if (value is int)
+        {
+            return "int";
+        }
+
+        if (value is long)
+        {
+            return "long";
+        }
+
+        if (value is double || value is float || value is decimal)
+        {
+            return "double";
+        }
+
+        if (value is bool)
+        {
+            return "bool";
+        }
+
+        if (value is DateTimeOffset || value is DateTime)
+        {
+            return "datetime";
+        }
+
+        return "string";
+    }
+
+    private static string FormatValue(object? value)
+    {
+        if (value is null)
+        {
+            return string.Empty;
+        }
+
+        if (value is DateTimeOffset dto)
+        {
+            return dto.ToString("O", CultureInfo.InvariantCulture);
+        }
+
+        if (value is DateTime dt)
+        {
+            return dt.ToString("O", CultureInfo.InvariantCulture);
+        }
+
+        return Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty;
+    }
+
+    private void UpdateKey(int index, ChangeEventArgs args)
+    {
+        _entries[index].Key = args.Value?.ToString() ?? string.Empty;
+        ApplyToDataMap();
+    }
+
+    private void UpdateType(int index, ChangeEventArgs args)
+    {
+        _entries[index].ValueType = args.Value?.ToString() ?? "string";
+        ApplyToDataMap();
+    }
+
+    private void UpdateValue(int index, ChangeEventArgs args)
+    {
+        _entries[index].ValueText = args.Value?.ToString() ?? string.Empty;
+        ApplyToDataMap();
+    }
+
+    private void AddEntry()
+    {
+        _entries.Add(new JobDataMapEntry
+        {
+            Key = string.Empty,
+            ValueType = "string",
+            ValueText = string.Empty
+        });
+        ApplyToDataMap();
+    }
+
+    private void RemoveEntry(int index)
+    {
+        if (index < 0 || index >= _entries.Count)
+        {
+            return;
+        }
+
+        _entries.RemoveAt(index);
+        ApplyToDataMap();
+    }
+
+    private void ApplyToDataMap()
+    {
+        if (ReadOnly || DataMap is null)
+        {
+            return;
+        }
+
+        DataMap.Clear();
+        foreach (JobDataMapEntry entry in _entries)
+        {
+            if (string.IsNullOrWhiteSpace(entry.Key))
+            {
+                continue;
+            }
+
+            DataMap[entry.Key] = ParseValue(entry.ValueType, entry.ValueText);
+        }
+    }
+
+    private static object ParseValue(string valueType, string valueText)
+    {
+        string normalized = valueType.Trim().ToLowerInvariant();
+
+        if (normalized == "int" &&
+            int.TryParse(valueText, NumberStyles.Integer, CultureInfo.InvariantCulture, out int intValue))
+        {
+            return intValue;
+        }
+
+        if (normalized == "long" &&
+            long.TryParse(valueText, NumberStyles.Integer, CultureInfo.InvariantCulture, out long longValue))
+        {
+            return longValue;
+        }
+
+        if (normalized == "double" &&
+            double.TryParse(valueText, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out double doubleValue))
+        {
+            return doubleValue;
+        }
+
+        if (normalized == "bool" &&
+            bool.TryParse(valueText, out bool boolValue))
+        {
+            return boolValue;
+        }
+
+        if (normalized == "datetime" &&
+            DateTimeOffset.TryParse(valueText, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out DateTimeOffset dtoValue))
+        {
+            return dtoValue;
+        }
+
+        return valueText;
+    }
+
+    private sealed class JobDataMapEntry
+    {
+        public string Key { get; set; } = string.Empty;
+
+        public string ValueType { get; set; } = "string";
+
+        public string ValueText { get; set; } = string.Empty;
+    }
+}

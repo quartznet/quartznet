@@ -1,0 +1,378 @@
+@page "/quartz"
+@using Microsoft.Extensions.Options
+@using Quartz.Dashboard.Components.Shared
+@implements IDisposable
+@inject IQuartzApiClient Api
+@inject SchedulerState Scheduler
+@inject IOptions<QuartzDashboardOptions> Options
+@inject ToastService Toasts
+@inject DashboardActionLogService ActionLog
+
+<div class="qz-page">
+    <h1>Quartz Dashboard</h1>
+
+    @if (_isLoading)
+    {
+        <LoadingSpinner />
+    }
+    else if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <ErrorAlert Message="@_error" OnRetry="LoadDataAsync" />
+    }
+    else
+    {
+        <div class="qz-row">
+            <h2>Scheduler status</h2>
+            <StateIndicator State="@_schedulerStatus" />
+        </div>
+
+        @if (!IsReadOnly)
+        {
+            <div class="qz-actions qz-scheduler-controls">
+                <button type="button" class="qz-button qz-button-primary" @onclick="StartSchedulerAsync">Start</button>
+                <button type="button" class="qz-button" @onclick="StandbySchedulerAsync">Standby</button>
+                <button type="button" class="qz-button" @onclick="PauseAllAsync">Pause all</button>
+                <button type="button" class="qz-button" @onclick="ResumeAllAsync">Resume all</button>
+                <button type="button" class="qz-button qz-button-danger" @onclick="PromptShutdown">Shutdown</button>
+            </div>
+        }
+
+        <div class="qz-grid qz-grid-4">
+            <StatCard Title="Total Jobs" Value="@_totalJobs.ToString()" Icon="🧩" Color="info" />
+            <StatCard Title="Total Triggers" Value="@_totalTriggers.ToString()" Icon="⏱️" Color="info" />
+            <StatCard Title="Currently Executing" Value="@_currentlyExecuting.ToString()" Icon="▶" Color="success" />
+            <StatCard Title="Error Triggers" Value="@_errorTriggers.ToString()" Icon="⚠" Color="error" />
+        </div>
+
+        <section class="qz-section">
+            <h2>Recent admin actions</h2>
+            @if (_recentActions.Count == 0)
+            {
+                <p class="qz-muted">No actions recorded yet.</p>
+            }
+            else
+            {
+                <table class="qz-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Action</th>
+                            <th>Target</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (DashboardActionLogEntry action in _recentActions)
+                        {
+                            <tr>
+                                <td>@Scheduler.FormatInSelectedTimeZone(action.Timestamp, "u")</td>
+                                <td>@action.Action</td>
+                                <td>@action.Target</td>
+                                <td><StateIndicator State="@(action.Succeeded ? "Complete" : "Error")" /></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                <a class="qz-details-link" href="/quartz/actions">View full action log</a>
+            }
+        </section>
+    }
+</div>
+
+<ConfirmDialog IsOpen="@_showShutdownConfirm"
+               Title="Shutdown scheduler"
+               Message="Shutdown the active scheduler? Running jobs may be interrupted."
+               OnConfirm="ConfirmShutdownAsync"
+               OnCancel="CancelShutdownAsync" />
+
+@code {
+    private bool _isLoading = true;
+    private bool _isRefreshingExecuting;
+    private string? _error;
+    private string _schedulerStatus = "Unknown";
+    private int _totalJobs;
+    private int _totalTriggers;
+    private int _currentlyExecuting;
+    private int _errorTriggers;
+    private readonly List<DashboardActionLogEntry> _recentActions = [];
+    private bool _showShutdownConfirm;
+    private PeriodicTimer? _executingRefreshTimer;
+    private CancellationTokenSource? _executingRefreshCancellation;
+    private bool IsReadOnly => Options.Value.ReadOnly;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Scheduler.OnSchedulerChanged += OnSchedulerChanged;
+        _executingRefreshCancellation = new CancellationTokenSource();
+        _executingRefreshTimer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        _ = RunExecutingRefreshLoopAsync(_executingRefreshCancellation.Token);
+        await LoadDataAsync();
+    }
+
+    private async void OnSchedulerChanged(object? sender, EventArgs e)
+    {
+        await LoadDataAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        _error = null;
+        _errorTriggers = 0;
+
+        try
+        {
+            string? schedulerName = Scheduler.ActiveSchedulerName;
+            if (string.IsNullOrWhiteSpace(schedulerName))
+            {
+                _schedulerStatus = "Unknown";
+                _totalJobs = 0;
+                _totalTriggers = 0;
+                _currentlyExecuting = 0;
+                _recentActions.Clear();
+                return;
+            }
+
+            object scheduler = await Api.GetScheduler(schedulerName);
+            _schedulerStatus = DisplayValueHelper.GetString(scheduler, "Status");
+
+            IReadOnlyList<object> jobs = DisplayValueHelper.ToObjectList(await Api.GetJobKeys(schedulerName));
+            IReadOnlyList<object> triggers = DisplayValueHelper.ToObjectList(await Api.GetTriggerKeys(schedulerName));
+            IReadOnlyList<object> executing = DisplayValueHelper.ToObjectList(await Api.GetCurrentlyExecutingJobs(schedulerName));
+
+            _totalJobs = jobs.Count;
+            _totalTriggers = triggers.Count;
+            _currentlyExecuting = executing.Count;
+
+            // Limit state queries to the first page of triggers to avoid N+1 calls on large schedulers.
+            const int maxTriggersForErrorCount = 25;
+            foreach (object trigger in triggers.Take(maxTriggersForErrorCount))
+            {
+                string group = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
+                string name = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
+                string triggerState = await Api.GetTriggerState(schedulerName, group, name);
+                if (string.Equals(triggerState, "Error", StringComparison.OrdinalIgnoreCase))
+                {
+                    _errorTriggers++;
+                }
+            }
+
+            RefreshRecentActions(schedulerName);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task RunExecutingRefreshLoopAsync(CancellationToken cancellationToken)
+    {
+        if (_executingRefreshTimer is null)
+        {
+            return;
+        }
+
+        try
+        {
+            while (await _executingRefreshTimer.WaitForNextTickAsync(cancellationToken))
+            {
+                try
+                {
+                    await InvokeAsync(async () =>
+                    {
+                        await RefreshCurrentlyExecutingAsync();
+                        StateHasChanged();
+                    });
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
+                catch (InvalidOperationException)
+                {
+                }
+                catch (Exception ex)
+                {
+                    _error = ex.Message;
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    private async Task RefreshCurrentlyExecutingAsync()
+    {
+        if (_isLoading || _isRefreshingExecuting)
+        {
+            return;
+        }
+
+        _isRefreshingExecuting = true;
+        try
+        {
+            string? schedulerName = Scheduler.ActiveSchedulerName;
+            if (string.IsNullOrWhiteSpace(schedulerName))
+            {
+                _currentlyExecuting = 0;
+                return;
+            }
+
+            IReadOnlyList<object> executing = DisplayValueHelper.ToObjectList(await Api.GetCurrentlyExecutingJobs(schedulerName));
+            _currentlyExecuting = executing.Count;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _isRefreshingExecuting = false;
+        }
+    }
+
+    private Task StartSchedulerAsync()
+    {
+        return ExecuteSchedulerActionAsync(
+            schedulerName => Api.StartScheduler(schedulerName),
+            "Started scheduler.",
+            actionName: "StartScheduler");
+    }
+
+    private Task StandbySchedulerAsync()
+    {
+        return ExecuteSchedulerActionAsync(
+            schedulerName => Api.StandbyScheduler(schedulerName),
+            "Scheduler is in standby.",
+            actionName: "StandbyScheduler");
+    }
+
+    private Task PauseAllAsync()
+    {
+        return ExecuteSchedulerActionAsync(
+            schedulerName => Api.PauseAll(schedulerName),
+            "Paused all triggers.",
+            actionName: "PauseAll");
+    }
+
+    private Task ResumeAllAsync()
+    {
+        return ExecuteSchedulerActionAsync(
+            schedulerName => Api.ResumeAll(schedulerName),
+            "Resumed all triggers.",
+            actionName: "ResumeAll");
+    }
+
+    private Task ShutdownSchedulerAsync()
+    {
+        return ExecuteSchedulerActionAsync(
+            schedulerName => Api.ShutdownScheduler(schedulerName),
+            "Shutdown scheduler.",
+            actionName: "ShutdownScheduler",
+            preferCurrentScheduler: false);
+    }
+
+    private Task PromptShutdown()
+    {
+        _showShutdownConfirm = true;
+        return Task.CompletedTask;
+    }
+
+    private async Task ConfirmShutdownAsync()
+    {
+        _showShutdownConfirm = false;
+        await ShutdownSchedulerAsync();
+    }
+
+    private Task CancelShutdownAsync()
+    {
+        _showShutdownConfirm = false;
+        return Task.CompletedTask;
+    }
+
+    private async Task ExecuteSchedulerActionAsync(
+        Func<string, ValueTask> operation,
+        string successMessage,
+        string actionName,
+        bool preferCurrentScheduler = true)
+    {
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        try
+        {
+            await operation(schedulerName);
+            ActionLog.Record(schedulerName, actionName, schedulerName, succeeded: true);
+            Toasts.Success(successMessage);
+            await RefreshSchedulersAsync(preferCurrentScheduler ? schedulerName : null);
+            await LoadDataAsync();
+            Scheduler.NotifyChanged();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            ActionLog.Record(schedulerName, actionName, schedulerName, succeeded: false, ex.Message);
+            Toasts.Error(ex.Message);
+        }
+    }
+
+    private async Task RefreshSchedulersAsync(string? preferredSchedulerName)
+    {
+        IReadOnlyList<SchedulerHeaderDto> schedulers = await Api.GetSchedulers();
+        List<string> names = [];
+        foreach (SchedulerHeaderDto scheduler in schedulers)
+        {
+            names.Add(scheduler.SchedulerName);
+        }
+
+        Scheduler.AvailableSchedulers = names.AsReadOnly();
+
+        string? nextActive = preferredSchedulerName;
+        if (string.IsNullOrWhiteSpace(nextActive) ||
+            !names.Contains(nextActive, StringComparer.OrdinalIgnoreCase))
+        {
+            nextActive = names.Count > 0 ? names[0] : null;
+        }
+
+        Scheduler.ActiveSchedulerName = nextActive;
+    }
+
+    private void RefreshRecentActions(string schedulerName)
+    {
+        _recentActions.Clear();
+        IReadOnlyList<DashboardActionLogEntry> entries = ActionLog.GetLatest(10);
+        foreach (DashboardActionLogEntry entry in entries)
+        {
+            if (!string.Equals(entry.SchedulerName, schedulerName, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            _recentActions.Add(entry);
+        }
+    }
+
+    public void Dispose()
+    {
+        Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+        _executingRefreshCancellation?.Cancel();
+        _executingRefreshCancellation?.Dispose();
+        _executingRefreshTimer?.Dispose();
+    }
+}

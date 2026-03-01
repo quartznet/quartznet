@@ -1,0 +1,80 @@
+@if (TotalPages > 1)
+{
+    <nav class="qz-pagination">
+        <button type="button"
+                class="qz-button"
+                disabled="@(CurrentPage <= 1)"
+                @onclick="() => ChangePageAsync(CurrentPage - 1)">
+            Prev
+        </button>
+
+        @foreach (int pageNumber in VisiblePages)
+        {
+            <button type="button"
+                    class="qz-button @(pageNumber == CurrentPage ? "qz-button-primary" : string.Empty)"
+                    @onclick="() => ChangePageAsync(pageNumber)">
+                @pageNumber
+            </button>
+        }
+
+        <button type="button"
+                class="qz-button"
+                disabled="@(CurrentPage >= TotalPages)"
+                @onclick="() => ChangePageAsync(CurrentPage + 1)">
+            Next
+        </button>
+    </nav>
+}
+
+@code {
+    [Parameter]
+    public int TotalItems { get; set; }
+
+    [Parameter]
+    public int PageSize { get; set; } = 25;
+
+    [Parameter]
+    public int CurrentPage { get; set; } = 1;
+
+    [Parameter]
+    public EventCallback<int> OnPageChanged { get; set; }
+
+    private int TotalPages
+    {
+        get
+        {
+            if (PageSize <= 0)
+            {
+                return 1;
+            }
+
+            return Math.Max(1, (int) Math.Ceiling((double) TotalItems / PageSize));
+        }
+    }
+
+    private IEnumerable<int> VisiblePages
+    {
+        get
+        {
+            int start = Math.Max(1, CurrentPage - 2);
+            int end = Math.Min(TotalPages, CurrentPage + 2);
+            List<int> pages = [];
+            for (int page = start; page <= end; page++)
+            {
+                pages.Add(page);
+            }
+
+            return pages;
+        }
+    }
+
+    private async Task ChangePageAsync(int page)
+    {
+        if (page < 1 || page > TotalPages || page == CurrentPage)
+        {
+            return;
+        }
+
+        await OnPageChanged.InvokeAsync(page);
+    }
+}

@@ -1,0 +1,422 @@
+@page "/quartz/jobs"
+@using Microsoft.Extensions.Options
+@using Quartz
+@using Quartz.Dashboard.Components.Shared
+@implements IDisposable
+@inject IQuartzApiClient Api
+@inject SchedulerState Scheduler
+@inject IOptions<QuartzDashboardOptions> Options
+@inject ToastService Toasts
+@inject NavigationManager Navigation
+@inject DashboardActionLogService ActionLog
+
+<div class="qz-page">
+    <h1>Jobs</h1>
+
+    <SearchFilter OnFilterChanged="OnFilterChangedAsync" />
+
+    @if (_isLoading)
+    {
+        <LoadingSpinner />
+    }
+    else if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <ErrorAlert Message="@_error" OnRetry="LoadDataAsync" />
+    }
+    else if (_pagedJobs.Count == 0)
+    {
+        <p class="qz-muted">No jobs found.</p>
+    }
+    else
+    {
+        @foreach (IGrouping<string, object> group in GroupedJobs)
+        {
+            <section class="qz-section">
+                <div class="qz-row">
+                    <h2>@group.Key</h2>
+                    <StateIndicator State="@GetGroupState(group.Key)" />
+                </div>
+                @if (!IsReadOnly)
+                {
+                    <div class="qz-actions qz-group-actions">
+                        <button type="button" class="qz-button" @onclick="() => PauseGroup(group.Key)">Pause group</button>
+                        <button type="button" class="qz-button" @onclick="() => ResumeGroup(group.Key)">Resume group</button>
+                        <button type="button" class="qz-button qz-button-primary" @onclick="() => TriggerGroup(group.Key)">Trigger group</button>
+                    </div>
+                }
+                <table class="qz-table qz-entity-table">
+                    <thead>
+                        <tr>
+                            <th class="qz-col-key">Job</th>
+                            <th class="qz-col-details">Details</th>
+                            @if (!IsReadOnly)
+                            {
+                                <th class="qz-col-actions">Actions</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (object job in group)
+                        {
+                            string jobGroup = DisplayValueHelper.GetString(job, "Group", "Key.Group");
+                            string jobName = DisplayValueHelper.GetString(job, "Name", "Key.Name");
+                            <tr class="qz-row-link"
+                                tabindex="0"
+                                role="link"
+                                @onclick="() => NavigateToJob(jobGroup, jobName)"
+                                @onkeydown="args => OnJobRowKeyDown(args, jobGroup, jobName)">
+                                <td class="qz-col-key">
+                                    <KeyBadge GroupName="@jobGroup" ItemName="@jobName" />
+                                </td>
+                                <td class="qz-col-details">
+                                    <a class="qz-details-link" href="@GetJobDetailPath(jobGroup, jobName)" @onclick:stopPropagation="true">View details</a>
+                                </td>
+                                @if (!IsReadOnly)
+                                {
+                                    <td class="qz-col-actions">
+                                        <div class="qz-actions" @onclick:stopPropagation="true">
+                                            <button type="button" class="qz-button" @onclick="() => PauseJob(jobGroup, jobName)">Pause</button>
+                                            <button type="button" class="qz-button" @onclick="() => ResumeJob(jobGroup, jobName)">Resume</button>
+                                            <button type="button" class="qz-button qz-button-primary" @onclick="() => TriggerJob(jobGroup, jobName)">Trigger now</button>
+                                            <button type="button" class="qz-button qz-button-danger" @onclick="() => PromptDelete(jobGroup, jobName)">Delete</button>
+                                        </div>
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </section>
+        }
+
+        <Pagination TotalItems="@_filteredJobs.Count"
+                    PageSize="@_pageSize"
+                    CurrentPage="@_currentPage"
+                    OnPageChanged="OnPageChangedAsync" />
+    }
+</div>
+
+<ConfirmDialog IsOpen="@_showDeleteConfirm"
+               Title="Delete job"
+               Message="@($"Delete {_pendingDeleteKey}? This cannot be undone.")"
+               OnConfirm="ConfirmDeleteAsync"
+               OnCancel="CancelDeleteAsync" />
+
+@code {
+    private readonly List<object> _allJobs = [];
+    private readonly List<object> _filteredJobs = [];
+    private readonly List<object> _pagedJobs = [];
+    private readonly Dictionary<string, string> _groupStates = new(StringComparer.OrdinalIgnoreCase);
+    private bool _isLoading = true;
+    private string? _error;
+    private int _currentPage = 1;
+    private readonly int _pageSize = 25;
+    private string _filter = string.Empty;
+    private bool _showDeleteConfirm;
+    private string? _pendingDeleteGroup;
+    private string? _pendingDeleteName;
+    private string _pendingDeleteKey = string.Empty;
+
+    private bool IsReadOnly => Options.Value.ReadOnly;
+
+    private IEnumerable<IGrouping<string, object>> GroupedJobs =>
+        _pagedJobs.GroupBy(job => DisplayValueHelper.GetString(job, "Group", "Key.Group"));
+
+    protected override async Task OnInitializedAsync()
+    {
+        Scheduler.OnSchedulerChanged += OnSchedulerChanged;
+        await LoadDataAsync();
+    }
+
+    private async void OnSchedulerChanged(object? sender, EventArgs e)
+    {
+        await LoadDataAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+        _error = null;
+
+        try
+        {
+            _allJobs.Clear();
+            _groupStates.Clear();
+            string? schedulerName = Scheduler.ActiveSchedulerName;
+            if (!string.IsNullOrWhiteSpace(schedulerName))
+            {
+                IReadOnlyList<object> jobs = DisplayValueHelper.ToObjectList(await Api.GetJobKeys(schedulerName));
+                _allJobs.AddRange(jobs);
+
+                HashSet<string> groups = new(StringComparer.OrdinalIgnoreCase);
+                foreach (object job in _allJobs)
+                {
+                    string jobGroup = DisplayValueHelper.GetString(job, "Group", "Key.Group");
+                    if (!string.IsNullOrWhiteSpace(jobGroup))
+                    {
+                        groups.Add(jobGroup);
+                    }
+                }
+
+                foreach (string group in groups)
+                {
+                    bool isPaused = await Api.IsJobGroupPaused(schedulerName, group);
+                    _groupStates[group] = isPaused ? "Paused" : "Normal";
+                }
+            }
+
+            ApplyFilterAndPaging();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            _filteredJobs.Clear();
+            _pagedJobs.Clear();
+            _groupStates.Clear();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void ApplyFilterAndPaging()
+    {
+        IEnumerable<object> query = _allJobs;
+        if (!string.IsNullOrWhiteSpace(_filter))
+        {
+            query = query.Where(job =>
+            {
+                string group = DisplayValueHelper.GetString(job, "Group", "Key.Group");
+                string name = DisplayValueHelper.GetString(job, "Name", "Key.Name");
+                string key = DisplayValueHelper.FormatKey(group, name);
+                return key.Contains(_filter, StringComparison.OrdinalIgnoreCase);
+            });
+        }
+
+        _filteredJobs.Clear();
+        _filteredJobs.AddRange(query);
+
+        int totalPages = Math.Max(1, (int) Math.Ceiling((double) _filteredJobs.Count / _pageSize));
+        _currentPage = Math.Clamp(_currentPage, 1, totalPages);
+
+        _pagedJobs.Clear();
+        IEnumerable<object> page = _filteredJobs.Skip((_currentPage - 1) * _pageSize).Take(_pageSize);
+        _pagedJobs.AddRange(page);
+    }
+
+    private Task OnFilterChangedAsync(string filter)
+    {
+        _filter = filter;
+        _currentPage = 1;
+        ApplyFilterAndPaging();
+        return Task.CompletedTask;
+    }
+
+    private Task OnPageChangedAsync(int page)
+    {
+        _currentPage = page;
+        ApplyFilterAndPaging();
+        return Task.CompletedTask;
+    }
+
+    private static string GetJobDetailPath(string group, string name)
+    {
+        return "/quartz/jobs/" + Uri.EscapeDataString(group) + "/" + Uri.EscapeDataString(name);
+    }
+
+    private string GetGroupState(string group)
+    {
+        return _groupStates.TryGetValue(group, out string? state) ? state : "Unknown";
+    }
+
+    private void OnJobRowKeyDown(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs args, string group, string name)
+    {
+        if (args.Key is "Enter" or " " or "Spacebar")
+        {
+            NavigateToJob(group, name);
+        }
+    }
+
+    private void NavigateToJob(string group, string name)
+    {
+        Navigation.NavigateTo(GetJobDetailPath(group, name));
+    }
+
+    private async Task PauseJob(string group, string name)
+    {
+        if (IsReadOnly)
+        {
+            return;
+        }
+
+        await ExecuteMutatingActionAsync(
+            () => Api.PauseJob(Scheduler.ActiveSchedulerName!, group, name),
+            "Paused job " + DisplayValueHelper.FormatKey(group, name) + ".",
+            actionName: "PauseJob",
+            target: DisplayValueHelper.FormatKey(group, name));
+    }
+
+    private async Task ResumeJob(string group, string name)
+    {
+        if (IsReadOnly)
+        {
+            return;
+        }
+
+        await ExecuteMutatingActionAsync(
+            () => Api.ResumeJob(Scheduler.ActiveSchedulerName!, group, name),
+            "Resumed job " + DisplayValueHelper.FormatKey(group, name) + ".",
+            actionName: "ResumeJob",
+            target: DisplayValueHelper.FormatKey(group, name));
+    }
+
+    private async Task TriggerJob(string group, string name)
+    {
+        if (IsReadOnly)
+        {
+            return;
+        }
+
+        await ExecuteMutatingActionAsync(
+            () => Api.TriggerJob(Scheduler.ActiveSchedulerName!, group, name),
+            "Triggered job " + DisplayValueHelper.FormatKey(group, name) + ".",
+            actionName: "TriggerJob",
+            target: DisplayValueHelper.FormatKey(group, name));
+    }
+
+    private Task PauseGroup(string group)
+    {
+        return ExecuteGroupMutatingActionAsync(
+            group,
+            (schedulerName, jobGroup, jobName) => Api.PauseJob(schedulerName, jobGroup, jobName),
+            "Paused");
+    }
+
+    private Task ResumeGroup(string group)
+    {
+        return ExecuteGroupMutatingActionAsync(
+            group,
+            (schedulerName, jobGroup, jobName) => Api.ResumeJob(schedulerName, jobGroup, jobName),
+            "Resumed");
+    }
+
+    private Task TriggerGroup(string group)
+    {
+        return ExecuteGroupMutatingActionAsync(
+            group,
+            (schedulerName, jobGroup, jobName) => Api.TriggerJob(schedulerName, jobGroup, jobName),
+            "Triggered");
+    }
+
+    private void PromptDelete(string group, string name)
+    {
+        _pendingDeleteGroup = group;
+        _pendingDeleteName = name;
+        _pendingDeleteKey = DisplayValueHelper.FormatKey(group, name);
+        _showDeleteConfirm = true;
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        if (IsReadOnly || string.IsNullOrWhiteSpace(_pendingDeleteGroup) || string.IsNullOrWhiteSpace(_pendingDeleteName))
+        {
+            _showDeleteConfirm = false;
+            return;
+        }
+
+        await ExecuteMutatingActionAsync(
+            () => Api.DeleteJob(Scheduler.ActiveSchedulerName!, _pendingDeleteGroup, _pendingDeleteName),
+            "Deleted job " + DisplayValueHelper.FormatKey(_pendingDeleteGroup, _pendingDeleteName) + ".",
+            actionName: "DeleteJob",
+            target: DisplayValueHelper.FormatKey(_pendingDeleteGroup, _pendingDeleteName));
+        _showDeleteConfirm = false;
+    }
+
+    private Task CancelDeleteAsync()
+    {
+        _showDeleteConfirm = false;
+        return Task.CompletedTask;
+    }
+
+    private async Task ExecuteMutatingActionAsync(
+        Func<ValueTask> operation,
+        string successMessage,
+        string actionName,
+        string target)
+    {
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        try
+        {
+            await operation();
+            ActionLog.Record(schedulerName, actionName, target, succeeded: true);
+            Toasts.Success(successMessage);
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            ActionLog.Record(schedulerName, actionName, target, succeeded: false, ex.Message);
+            Toasts.Error(ex.Message);
+        }
+    }
+
+    private async Task ExecuteGroupMutatingActionAsync(
+        string group,
+        Func<string, string, string, ValueTask> operation,
+        string actionVerb)
+    {
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return;
+        }
+
+        try
+        {
+            List<(string Group, string Name)> jobsInGroup = [];
+            foreach (object job in _allJobs)
+            {
+                string jobGroup = DisplayValueHelper.GetString(job, "Group", "Key.Group");
+                if (!string.Equals(jobGroup, group, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                string jobName = DisplayValueHelper.GetString(job, "Name", "Key.Name");
+                jobsInGroup.Add((jobGroup, jobName));
+            }
+
+            foreach ((string jobGroup, string jobName) in jobsInGroup)
+            {
+                await operation(schedulerName, jobGroup, jobName);
+            }
+
+            ActionLog.Record(
+                schedulerName,
+                actionVerb + "JobGroup",
+                group,
+                succeeded: true,
+                jobsInGroup.Count + " job(s)");
+            Toasts.Success(actionVerb + " " + jobsInGroup.Count + " job(s) in group " + group + ".");
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            ActionLog.Record(schedulerName, actionVerb + "JobGroup", group, succeeded: false, ex.Message);
+            Toasts.Error(ex.Message);
+        }
+    }
+
+    public void Dispose()
+    {
+        Scheduler.OnSchedulerChanged -= OnSchedulerChanged;
+    }
+}

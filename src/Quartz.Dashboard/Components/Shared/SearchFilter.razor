@@ -1,0 +1,46 @@
+@implements IDisposable
+
+<input type="text"
+       class="qz-input qz-search-filter"
+       placeholder="@Placeholder"
+       value="@_value"
+       @oninput="OnInputAsync" />
+
+@code {
+    private string _value = string.Empty;
+    private CancellationTokenSource _debounceCts = new();
+
+    [Parameter]
+    public string Placeholder { get; set; } = "Filter by group or name";
+
+    [Parameter]
+    public int DebounceMilliseconds { get; set; } = 300;
+
+    [Parameter]
+    public EventCallback<string> OnFilterChanged { get; set; }
+
+    private async Task OnInputAsync(ChangeEventArgs args)
+    {
+        _value = args.Value?.ToString() ?? string.Empty;
+
+        _debounceCts.Cancel();
+        _debounceCts.Dispose();
+        _debounceCts = new CancellationTokenSource();
+        CancellationToken token = _debounceCts.Token;
+
+        try
+        {
+            await Task.Delay(DebounceMilliseconds, token);
+            await OnFilterChanged.InvokeAsync(_value);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    public void Dispose()
+    {
+        _debounceCts.Cancel();
+        _debounceCts.Dispose();
+    }
+}
