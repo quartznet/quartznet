@@ -7,7 +7,12 @@
     <RootNamespace>Quartz.Dashboard</RootNamespace>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);IL2110;IL2111</NoWarn>
+    <PackageReadmeFile>dashboard.md</PackageReadmeFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../docs/documentation/quartz-3.x/packages/dashboard.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
