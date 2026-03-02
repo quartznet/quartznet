@@ -197,4 +197,82 @@ public class CronTriggerTest
         Assert.That(cloned.TimeZone, Is.EqualTo(trigger.TimeZone));
         Assert.That(cloned.CronExpressionString, Is.EqualTo(trigger.CronExpressionString));
     }
+
+    [Test]
+    public void TriggerWithBothStartAndEndDatesInPastShouldNotSchedule()
+    {
+        // Arrange: Create a trigger with both start and end dates in the past
+        DateTimeOffset startDate = new DateTimeOffset(1970, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        DateTimeOffset endDate = new DateTimeOffset(2023, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        string cronExpression = "0 30 14 ? * MON,TUE,WED,THU,FRI *"; // Weekdays at 14:30
+
+        CronTriggerImpl trigger = new CronTriggerImpl();
+        trigger.Name = "PastTrigger";
+        trigger.Group = SchedulerConstants.DefaultGroup;
+        trigger.CronExpressionString = cronExpression;
+        trigger.StartTimeUtc = startDate;
+        trigger.EndTimeUtc = endDate;
+        trigger.MisfireInstruction = MisfireInstruction.CronTrigger.FireOnceNow;
+
+        // Act: Compute the first fire time
+        DateTimeOffset? firstFireTime = trigger.ComputeFirstFireTimeUtc(null);
+
+        // Assert: Should return null because the end date is in the past
+        Assert.IsNull(firstFireTime, "Trigger with end date in the past should not schedule any fire time");
+        Assert.IsFalse(trigger.GetMayFireAgain(), "Trigger should not fire again when end date is in the past");
+    }
+
+    [Test]
+    public void TriggerWithStartDateInPastButEndDateInFutureShouldSchedule()
+    {
+        // Arrange: Create a trigger with start date in past but end date in future
+        DateTimeOffset startDate = new DateTimeOffset(2023, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        DateTimeOffset endDate = DateTimeOffset.UtcNow.AddYears(1);
+        string cronExpression = "0 30 14 ? * MON,TUE,WED,THU,FRI *"; // Weekdays at 14:30
+
+        CronTriggerImpl trigger = new CronTriggerImpl();
+        trigger.Name = "ValidTrigger";
+        trigger.Group = SchedulerConstants.DefaultGroup;
+        trigger.CronExpressionString = cronExpression;
+        trigger.StartTimeUtc = startDate;
+        trigger.EndTimeUtc = endDate;
+
+        // Act: Compute the first fire time
+        DateTimeOffset? firstFireTime = trigger.ComputeFirstFireTimeUtc(null);
+
+        // Assert: Should return a valid fire time (may be in the past between startDate and now, which would trigger misfire handling)
+        Assert.IsNotNull(firstFireTime, "Trigger with future end date should schedule a fire time");
+        Assert.IsTrue(firstFireTime.Value >= startDate, "Fire time should be on or after start date");
+        Assert.IsTrue(firstFireTime.Value <= endDate, "Fire time should be before end date");
+        Assert.IsTrue(trigger.GetMayFireAgain(), "Trigger should be able to fire again");
+
+        // Verify that we can get a future fire time using GetFireTimeAfter
+        var now = DateTimeOffset.UtcNow;
+        DateTimeOffset? nextFireTime = trigger.GetFireTimeAfter(now);
+        Assert.IsNotNull(nextFireTime, "Should be able to get next fire time after now");
+        Assert.IsTrue(nextFireTime.Value > now, "Next fire time should be in the future");
+        Assert.IsTrue(nextFireTime.Value <= endDate, "Next fire time should be before end date");
+    }
+
+    [Test]
+    public void TriggerWithEndDateEqualToStartDateShouldNotSchedule()
+    {
+        // Arrange: Create a trigger where start and end dates are the same (in the past)
+        var sameDate = new DateTimeOffset(2020, 6, 15, 12, 0, 0, TimeSpan.Zero);
+        var cronExpression = "0 0 12 * * ?"; // Daily at noon
+
+        var trigger = new CronTriggerImpl
+        {
+            Name = "SameDateTrigger",
+            Group = SchedulerConstants.DefaultGroup,
+            CronExpressionString = cronExpression,
+            StartTimeUtc = sameDate,
+            EndTimeUtc = sameDate
+        };
+
+        // Act: Compute the first fire time
+        var firstFireTime = trigger.ComputeFirstFireTimeUtc(null);
+
+        Assert.IsNull(firstFireTime, "ComputeFirstFireTimeUtc should return null when EndTimeUtc equals StartTimeUtc");
+    }
 }
