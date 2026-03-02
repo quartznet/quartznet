@@ -133,6 +133,7 @@ export const sidebarEn: SidebarConfig = [
                 text: "Integrations",
                 children: [
                   "/documentation/quartz-4.x/packages/aspnet-core-integration",
+                  "/documentation/quartz-4.x/packages/http-api",
                   "/documentation/quartz-4.x/packages/hosted-services-integration",
                   "/documentation/quartz-4.x/packages/microsoft-di-integration",
                   "/documentation/quartz-4.x/packages/opentelemetry-integration",
