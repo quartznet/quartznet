@@ -38,6 +38,7 @@ _ReSharper*/
 _dotCover*/
 *.resharper
 [Tt]est[Rr]esult*
+!**/TestResults*.cs
 
 #Subversion files
 .svn
