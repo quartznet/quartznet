@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 
 namespace Quartz.Util;
 
@@ -220,7 +221,24 @@ internal static class Utf8JsonWriterExtensions
                     }
                     break;
                 case JsonValueKind.Object:
-                    value = property.Value.Deserialize<Dictionary<string, string>>(options);
+                    value = null;
+
+                    // try registered converters before falling back to generic dictionary deserialization
+                    foreach (JsonTypeInfo typeInfo in options.Converters
+                                 .Where(c => c is ICustomJobDataConverter custom && custom.HandlesProperty(property.Name))
+                                 .Select(c => c.Type).OfType<Type>()
+                                 .Select(options.GetTypeInfo)
+                            )
+                    {
+                        value = property.Value.Deserialize(typeInfo);
+                        if (value is not null)
+                        {
+                            break;
+                        }
+                    }
+
+                    value ??= property.Value.Deserialize<Dictionary<string, string>>(options);
+
                     break;
                 default:
                     throw new JsonException($"Unsupported value kind: {property.Value.ValueKind}");
