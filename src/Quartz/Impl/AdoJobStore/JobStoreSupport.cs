@@ -3072,6 +3072,24 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StateWaiting, StateBlocked, cancellationToken).ConfigureAwait(false);
                 await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StatePaused, StatePausedBlocked, cancellationToken).ConfigureAwait(false);
                 conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
+
+                // Check for misfired triggers that were just unblocked
+                // Triggers that were blocked and have now transitioned to waiting may have misfired
+                // while they were blocked. We need to handle these misfires now.
+                // Note: We retrieve all triggers and check each one's state because there's no efficient
+                // way to query only triggers that just transitioned from BLOCKED to WAITING.
+                // However, jobs with DisallowConcurrentExecution typically have few triggers.
+                var triggersForJob = await GetTriggersForJob(conn, jobDetail.Key, cancellationToken).ConfigureAwait(false);
+                foreach (var trig in triggersForJob)
+                {
+                    // Only check triggers in WAITING state (those that were just unblocked)
+                    var state = await Delegate.SelectTriggerState(conn, trig.Key, cancellationToken).ConfigureAwait(false);
+                    if (state.Equals(StateWaiting))
+                    {
+                        // Check if this trigger should be treated as misfired, using the already-loaded trigger
+                        await UpdateMisfiredTrigger(conn, (IOperableTrigger)trig, StateWaiting, false, cancellationToken).ConfigureAwait(false);
+                    }
+                }
             }
             if (jobDetail.PersistJobDataAfterExecution)
             {
