@@ -2,7 +2,7 @@
 title: Dashboard
 ---
 
-[Quartz.Dashboard](https://www.nuget.org/packages/Quartz.Dashboard) is a Blazor-based dashboard for Quartz.NET that runs inside your ASP.NET Core app and uses Quartz HTTP API endpoints.
+[Quartz.Dashboard](https://www.nuget.org/packages/Quartz.Dashboard) is a Blazor-based dashboard for Quartz.NET that runs inside your ASP.NET Core app and accesses the scheduler in-process.
 
 ::: warning
 Quartz Dashboard is currently a work in progress.
@@ -17,24 +17,20 @@ Quartz 3.16 or later required.
 
 ## Installation
 
-Add package references:
+Add package reference:
 
 ```shell
 Install-Package Quartz.Dashboard
-Install-Package Quartz.AspNetCore
 ```
 
 ## Basic setup
 
-Configure Quartz, enable HTTP API, and add the dashboard services.
+Configure Quartz and add the dashboard services.
 
 ```csharp
 services.AddQuartz(q =>
 {
-    q.AddHttpApi(options =>
-    {
-        options.ApiPath = "/quartz-api";
-    });
+    // configure jobs and triggers
 });
 
 services.AddQuartzDashboard();
@@ -51,7 +47,6 @@ app.UseAntiforgery();
 
 app.UseEndpoints(endpoints =>
 {
-    endpoints.MapQuartzApi().RequireAuthorization();
     endpoints.MapQuartzDashboard();
 });
 ```
@@ -74,7 +69,7 @@ services.Configure<QuartzOptions>(options =>
 
 ### Policy and role-based authorization
 
-Use an explicit policy for dashboard access, and secure API endpoints separately:
+Use an explicit policy for dashboard access:
 
 ```csharp
 services.AddAuthorization(options =>
@@ -95,15 +90,13 @@ services.AddQuartzDashboard(options =>
 ```csharp
 app.UseEndpoints(endpoints =>
 {
-    endpoints.MapQuartzApi().RequireAuthorization("QuartzDashboardOps");
     endpoints.MapQuartzDashboard();
 });
 ```
 
 ### API key or custom authorization checks
 
-If you need machine-to-machine access, use your API auth scheme (for example, an API key handler) and bind that to a policy used by `MapQuartzApi()`.
-For dashboard-only custom checks, prefer ASP.NET Core policy/handler-based authorization so the dashboard UI, hub, and API are enforced consistently.
+For dashboard access control, prefer ASP.NET Core policy/handler-based authorization so the dashboard UI and hub are enforced consistently.
 
 ### Deployment guidance for multi-scheduler and clustered setups
 
