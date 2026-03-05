@@ -224,12 +224,6 @@ public class JobRunShell : SchedulerListenerSupport
                 activity.Stop(timeProvider.GetUtcNow(), jobExEx);
                 instrumentation.EndJobExecute(jec.JobRunTime, jobExEx);
 
-                // notify all job listeners
-                if (!await NotifyJobListenersComplete(qs, jec, jobExEx, cancellationToken).ConfigureAwait(false))
-                {
-                    break;
-                }
-
                 instCode = SchedulerInstruction.NoInstruction;
 
                 // update the trigger
@@ -248,11 +242,6 @@ public class JobRunShell : SchedulerListenerSupport
                     await qs.NotifySchedulerListenersError("Please report this error to the Quartz developers.", se, cancellationToken).ConfigureAwait(false);
                 }
 
-                // notify all trigger listeners
-                if (!await NotifyTriggerListenersComplete(qs, jec, instCode, cancellationToken).ConfigureAwait(false))
-                {
-                    break;
-                }
                 // update job/trigger or re-Execute job
                 if (instCode == SchedulerInstruction.ReExecuteJob)
                 {
@@ -270,6 +259,18 @@ public class JobRunShell : SchedulerListenerSupport
                         await qs.NotifySchedulerListenersError($"Error executing Job {jec.JobDetail.Key}: couldn't finalize execution.", se, cancellationToken).ConfigureAwait(false);
                     }
                     continue;
+                }
+
+                // notify all job listeners (only when job execution is truly complete, not refiring)
+                if (!await NotifyJobListenersComplete(qs, jec, jobExEx, cancellationToken).ConfigureAwait(false))
+                {
+                    break;
+                }
+
+                // notify all trigger listeners
+                if (!await NotifyTriggerListenersComplete(qs, jec, instCode, cancellationToken).ConfigureAwait(false))
+                {
+                    break;
                 }
 
                 try
