@@ -398,6 +398,19 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
         }
 
         /// <summary>
+        /// Sets the maximum number of retries for transient database exceptions
+        /// (such as deadlocks) before giving up and propagating the exception.
+        /// </summary>
+        /// <remarks>
+        /// Defaults to 3. A value of 0 disables transient retries. Each retry is
+        /// delayed by <see cref="RetryInterval"/>.
+        /// </remarks>
+        public int MaxTransientRetries
+        {
+            set => SetProperty("quartz.jobStore.maxTransientRetries", value.ToString());
+        }
+
+        /// <summary>
         /// Make this instance is part of a cluster.
         /// </summary>
         public void UseClustering(Action<ClusterOptions>? options = null)
