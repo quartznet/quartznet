@@ -3907,11 +3907,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
 
         int maxRetries = MaxTransientRetries;
-        for (int attempt = 1; ; attempt++)
+        int totalAttempts = maxRetries + 1;
+        for (int attempt = 1; attempt <= totalAttempts; attempt++)
         {
             bool transOwner = false;
             ConnectionAndTransactionHolder? conn = null;
-            bool willRetry = false;
             try
             {
                 if (lockName is not null)
@@ -3964,10 +3964,9 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             catch (JobPersistenceException jpe)
             {
                 await RollbackConnection(conn, jpe).ConfigureAwait(false);
-                if (attempt <= maxRetries && IsTransient(jpe))
+                if (attempt < totalAttempts && IsTransient(jpe))
                 {
-                    willRetry = true;
-                    Logger.LogWarning(jpe, "Transient exception on attempt {Attempt} of {MaxAttempts} in ExecuteInNonManagedTXLock, will retry after {RetryInterval}", attempt, maxRetries + 1, DbRetryInterval);
+                    Logger.LogWarning(jpe, "Transient exception on attempt {Attempt} of {TotalAttempts} in ExecuteInNonManagedTXLock, will retry after {RetryInterval}", attempt, totalAttempts, DbRetryInterval);
                 }
                 else
                 {
@@ -3992,10 +3991,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 }
             }
 
-            if (willRetry)
-            {
-                await Task.Delay(DbRetryInterval, cancellationToken).ConfigureAwait(false);
-            }
+            // Delay before the next attempt
+            await Task.Delay(DbRetryInterval, cancellationToken).ConfigureAwait(false);
         }
+
+        Throw.InvalidOperationException("ExecuteInNonManagedTXLock retry loop exited unexpectedly");
+        return default;
     }
 }
