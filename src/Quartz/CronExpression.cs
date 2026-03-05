@@ -1963,8 +1963,22 @@ public sealed class CronExpression : ISerializable
             }
 
             // apply the proper offset for this date
-            d = new DateTimeOffset(nextFireTimeCursor.Date.Value.DateTime, TimeZoneUtil.GetUtcOffset(nextFireTimeCursor.Date.Value.DateTime, TimeZone));
+            var localDateTime = nextFireTimeCursor.Date.Value.DateTime;
+            d = new DateTimeOffset(localDateTime, TimeZoneUtil.GetUtcOffset(localDateTime, TimeZone));
             foundNextFireTime = true;
+
+            // During DST fall-back transitions, an ambiguous local time may have been
+            // assigned the DST (summer) offset by GetUtcOffset, which picks the first
+            // (DST) occurrence. This can result in a UTC time that is before afterTimeUtc,
+            // causing infinite trigger fires. In that case, use the standard (non-DST)
+            // offset instead, which corresponds to the second occurrence of the local time.
+            // DST always shifts the offset by +1 hour, so the standard offset is always
+            // Min() and the DST offset is always Max() of the two ambiguous offsets.
+            if (d.ToUniversalTime() < afterTimeUtc && TimeZone.IsAmbiguousTime(localDateTime))
+            {
+                TimeSpan standardOffset = TimeZone.GetAmbiguousTimeOffsets(localDateTime).Min();
+                d = new DateTimeOffset(localDateTime, standardOffset);
+            }
         }
 
         return d.ToUniversalTime();
