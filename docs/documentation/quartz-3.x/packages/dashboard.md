@@ -21,7 +21,7 @@ Add package references:
 
 ```shell
 Install-Package Quartz.Dashboard
-Install-Package Quartz.HttpApi
+Install-Package Quartz.AspNetCore
 ```
 
 ## Basic setup
