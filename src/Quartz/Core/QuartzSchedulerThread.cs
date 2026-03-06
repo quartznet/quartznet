@@ -46,8 +46,8 @@ internal sealed class QuartzSchedulerThread
     private readonly QuartzSchedulerResources qsRsrcs;
     private readonly int idleWaitVariableness;
     private readonly Lock sigLock = new();
-    private readonly SemaphoreSlim schedulingChangeSignal = new SemaphoreSlim(0, 1);
-    private readonly SemaphoreSlim pauseSignal = new SemaphoreSlim(0, 1);
+    private readonly SemaphoreSlim schedulingChangeSignal = new(0, 1);
+    private readonly SemaphoreSlim pauseSignal = new(0, 1);
 
     private bool signaled;
     private DateTimeOffset? signaledNextFireTimeUtc;
@@ -124,7 +124,7 @@ internal sealed class QuartzSchedulerThread
             paused = pause;
         }
 
-        if (paused)
+        if (pause)
         {
             SignalSchedulingChange(SchedulerConstants.SchedulingSignalDateTime);
         }
