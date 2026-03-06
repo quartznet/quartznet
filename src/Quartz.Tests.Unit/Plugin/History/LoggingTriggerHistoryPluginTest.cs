@@ -101,5 +101,10 @@ public class LoggingTriggerHistoryPluginTest
         {
             InfoMessages.Add(message);
         }
+
+        protected override void WriteInfo(string messageTemplate, params object[] args)
+        {
+            InfoMessages.Add(messageTemplate);
+        }
     }
 }
