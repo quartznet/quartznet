@@ -53,6 +53,7 @@ public class ServiceCollectionExtensionsTests
                 });
 
             quartz.AddJob<DummyJob>(
+                null,
                 (serviceProvider, job) =>
                 {
                     IConfiguration configuration = serviceProvider.GetRequiredService<IConfiguration>();
@@ -89,7 +90,7 @@ public class ServiceCollectionExtensionsTests
             quartz.AddJob(
                 typeof(DummyJob),
                 null,
-                job =>
+                (_, job) =>
                 {
                     job.WithIdentity("JobName6", "JobGroup6");
                     job.WithDescription("JobDescription6");
@@ -430,6 +431,81 @@ public class ServiceCollectionExtensionsTests
 
         Assert.AreEqual("TestCalendarName", calendarConfiguration.Name);
         Assert.AreEqual("TestCalendarDescription", calendarConfiguration.Calendar.Description);
+    }
+
+    [Test]
+    public void AddJob_WithTypeAndJobKeyOnly_ShouldNotBeAmbiguous()
+    {
+        // This test validates the fix for the ambiguous reference issue
+        // when calling AddJob with just jobType and jobKey parameters
+        var services = new ServiceCollection();
+
+        services.AddQuartz(quartz =>
+        {
+            var jobType = typeof(DummyJob);
+            var jobKey = new JobKey("TestJob", "TestGroup");
+            
+            // This call should not be ambiguous
+            quartz.AddJob(jobType, jobKey);
+        });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var quartzOptions = serviceProvider.GetRequiredService<IOptions<QuartzOptions>>().Value;
+
+        Assert.That(quartzOptions.JobDetails, Has.Exactly(1).Items);
+        var job = quartzOptions.JobDetails[0];
+        
+        Assert.AreEqual("TestJob", job.Key.Name);
+        Assert.AreEqual("TestGroup", job.Key.Group);
+        Assert.AreEqual(typeof(DummyJob), job.JobType);
+    }
+
+    [Test]
+    public void AddJob_Generic_WithJobKeyOnly_ShouldNotBeAmbiguous()
+    {
+        // This test validates the fix for the ambiguous reference issue
+        // when calling AddJob<T> with just jobKey parameter
+        var services = new ServiceCollection();
+
+        services.AddQuartz(quartz =>
+        {
+            var jobKey = new JobKey("TestJob", "TestGroup");
+            
+            // This call should not be ambiguous
+            quartz.AddJob<DummyJob>(jobKey);
+        });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var quartzOptions = serviceProvider.GetRequiredService<IOptions<QuartzOptions>>().Value;
+
+        Assert.That(quartzOptions.JobDetails, Has.Exactly(1).Items);
+        var job = quartzOptions.JobDetails[0];
+        
+        Assert.AreEqual("TestJob", job.Key.Name);
+        Assert.AreEqual("TestGroup", job.Key.Group);
+        Assert.AreEqual(typeof(DummyJob), job.JobType);
+    }
+
+    [Test]
+    public void AddJob_Generic_WithNoArguments_ShouldNotBeAmbiguous()
+    {
+        // This test validates the fix for the ambiguous reference issue
+        // when calling AddJob<T> with no arguments at all
+        var services = new ServiceCollection();
+
+        services.AddQuartz(quartz =>
+        {
+            // This call should not be ambiguous
+            quartz.AddJob<DummyJob>();
+        });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var quartzOptions = serviceProvider.GetRequiredService<IOptions<QuartzOptions>>().Value;
+
+        Assert.That(quartzOptions.JobDetails, Has.Exactly(1).Items);
+        var job = quartzOptions.JobDetails[0];
+        
+        Assert.AreEqual(typeof(DummyJob), job.JobType);
     }
 
 #if NET8_0_OR_GREATER

@@ -106,9 +106,9 @@ public static class ServiceCollectionExtensions
 #endif
     T>(
         this IServiceCollectionQuartzConfigurator options,
-        Action<IJobConfigurator>? configure = null) where T : IJob
+        Action<IJobConfigurator> configure) where T : IJob
     {
-        return options.AddJob<T>((_, jobConfigurator) => configure?.Invoke(jobConfigurator));
+        return options.AddJob(typeof(T), null, (_, jobConfigurator) => configure(jobConfigurator));
     }
 
     /// <summary>
@@ -120,24 +120,10 @@ public static class ServiceCollectionExtensions
 #endif
     T>(
         this IServiceCollectionQuartzConfigurator options,
-        Action<IServiceProvider, IJobConfigurator>? configure = null) where T : IJob
+        JobKey jobKey,
+        Action<IJobConfigurator> configure) where T : IJob
     {
-        return options.AddJob(typeof(T), null, configure);
-    }
-
-    /// <summary>
-    /// Add job to underlying service collection. This API maybe change!
-    /// </summary>
-    public static IServiceCollectionQuartzConfigurator AddJob<
-#if NET6_0_OR_GREATER
-            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
-#endif
-    T>(
-        this IServiceCollectionQuartzConfigurator options,
-        JobKey? jobKey = null,
-        Action<IJobConfigurator>? configure = null) where T : IJob
-    {
-        return options.AddJob<T>(jobKey, (_, jobConfigurator) => configure?.Invoke(jobConfigurator));
+        return options.AddJob(typeof(T), jobKey, (_, jobConfigurator) => configure(jobConfigurator));
     }
 
     /// <summary>
@@ -164,10 +150,10 @@ public static class ServiceCollectionExtensions
            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
 #endif
         Type jobType,
-        JobKey? jobKey = null,
-        Action<IJobConfigurator>? configure = null)
+        JobKey jobKey,
+        Action<IJobConfigurator> configure)
     {
-        return options.AddJob(jobType, jobKey, (_, jobConfigurator) => configure?.Invoke(jobConfigurator));
+        return options.AddJob(jobType, jobKey, (_, jobConfigurator) => configure(jobConfigurator));
     }
 
     /// <summary>
