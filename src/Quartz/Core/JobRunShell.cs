@@ -213,6 +213,7 @@ public class JobRunShell : SchedulerListenerSupport
                 catch (JobExecutionException jee)
                 {
                     endTime = SystemTime.UtcNow();
+                    jee.JobDetail = jobDetail;
                     jobExEx = jee;
 #if DIAGNOSTICS_SOURCE
                     jobExecutionJobDiagnostics.WriteException(activity, jobExEx);
@@ -227,6 +228,7 @@ public class JobRunShell : SchedulerListenerSupport
                     string msg = $"Job {jec.JobDetail.Key} threw an exception.";
                     await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
                     jobExEx = new JobExecutionException(se, false);
+                    jobExEx.JobDetail = jobDetail;
                 }
 
                 jec.JobRunTime = endTime - startTime;
