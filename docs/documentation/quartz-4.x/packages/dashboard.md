@@ -121,6 +121,20 @@ For dashboard-only custom checks, prefer ASP.NET Core policy/handler-based autho
 - Multi-scheduler selection
 - Read-only mode support via dashboard options
 
+## API-only projects (no .razor files)
+
+If your host project has no `.razor` files of its own (e.g., a pure API project hosting Quartz), and you are running on **.NET 10 or later**, you must add the following to your project file:
+
+```xml
+<PropertyGroup>
+  <RequiresAspNetWebAssets>true</RequiresAspNetWebAssets>
+</PropertyGroup>
+```
+
+This property tells the .NET SDK to include the Blazor framework scripts (`_framework/blazor.web.js`, `blazor.server.js`) in the app's static web assets. Without it, requests to `/_framework/blazor.web.js` return HTTP 404 because in .NET 10+, these files are no longer embedded in the ASP.NET Core assemblies — they are served as static web assets instead.
+
+On .NET 8 and .NET 9, the framework scripts are served via endpoint routing and no extra configuration is needed.
+
 ## Current limitations
 
 - Live views are near-real-time polling/streaming and are not guaranteed to be lossless event storage
