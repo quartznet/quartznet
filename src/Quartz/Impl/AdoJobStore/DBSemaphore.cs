@@ -244,7 +244,7 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
         }
 
         public bool Equals(ThreadLockKey other)
-            => requestorId.Equals(other.requestorId) && ReferenceEquals(lockName, other.lockName);
+            => requestorId.Equals(other.requestorId) && string.Equals(lockName, other.lockName, StringComparison.Ordinal);
 
         public override bool Equals(object? obj) => obj is ThreadLockKey other && Equals(other);
 

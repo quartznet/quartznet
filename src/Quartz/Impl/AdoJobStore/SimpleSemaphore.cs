@@ -138,12 +138,12 @@ internal sealed class SimpleSemaphore : ISemaphore
 
     private ResourceLock GetLock(string lockName)
     {
-        if (ReferenceEquals(lockName, JobStoreSupport.LockTriggerAccess))
+        if (string.Equals(lockName, JobStoreSupport.LockTriggerAccess, StringComparison.Ordinal))
         {
             return triggerLock;
         }
 
-        if (ReferenceEquals(lockName, JobStoreSupport.LockStateAccess))
+        if (string.Equals(lockName, JobStoreSupport.LockStateAccess, StringComparison.Ordinal))
         {
             return stateLock;
         }
