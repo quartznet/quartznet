@@ -266,24 +266,24 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
     /// Get or sets the message that is logged when a Job successfully completes its
     /// execution.
     /// </summary>
-    public virtual string JobSuccessMessage { get; set; } = "Job {1}.{0} execution complete at {2:HH:mm:ss MM/dd/yyyy} and reports: {8}";
+    public virtual string JobSuccessMessage { get; set; } = "Job {JobGroup}.{JobName} execution complete at {FireTime:HH:mm:ss MM/dd/yyyy} and reports: {Result}";
 
     /// <summary>
     /// Get or sets the message that is logged when a Job fails its
     /// execution.
     /// </summary>
-    public virtual string JobFailedMessage { get; set; } = "Job {1}.{0} execution failed at {2:HH:mm:ss MM/dd/yyyy} and reports: {8}";
+    public virtual string JobFailedMessage { get; set; } = "Job {JobGroup}.{JobName} execution failed at {FireTime:HH:mm:ss MM/dd/yyyy} and reports: {ExceptionMessage}";
 
     /// <summary>
     /// Gets or sets the message that is logged when a Job is about to Execute.
     /// </summary>
-    public virtual string JobToBeFiredMessage { get; set; } = "Job {1}.{0} fired (by trigger {4}.{3}) at: {2:HH:mm:ss MM/dd/yyyy}";
+    public virtual string JobToBeFiredMessage { get; set; } = "Job {JobGroup}.{JobName} fired (by trigger {TriggerGroup}.{TriggerName}) at: {FireTime:HH:mm:ss MM/dd/yyyy}";
 
     /// <summary>
     /// Gets or sets the message that is logged when a Job execution is vetoed by a
     /// trigger listener.
     /// </summary>
-    public virtual string JobWasVetoedMessage { get; set; } = "Job {1}.{0} was vetoed.  It was to be fired (by trigger {4}.{3}) at: {2:HH:mm:ss MM/dd/yyyy}";
+    public virtual string JobWasVetoedMessage { get; set; } = "Job {JobGroup}.{JobName} was vetoed.  It was to be fired (by trigger {TriggerGroup}.{TriggerName}) at: {FireTime:HH:mm:ss MM/dd/yyyy}";
 
     /// <summary>
     /// Get the name of the <see cref="IJobListener" />.
@@ -347,19 +347,16 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
 
         ITrigger trigger = context.Trigger;
 
-        object?[] args =
-        {
-            context.JobDetail.Key.Name,
+        WriteInfo(JobToBeFiredMessage,
             context.JobDetail.Key.Group,
-            SystemTime.UtcNow(),
-            trigger.Key.Name,
+            context.JobDetail.Key.Name,
             trigger.Key.Group,
+            trigger.Key.Name,
+            SystemTime.UtcNow(),
             trigger.GetPreviousFireTimeUtc(),
             trigger.GetNextFireTimeUtc(),
-            context.RefireCount
-        };
+            context.RefireCount);
 
-        WriteInfo(string.Format(CultureInfo.InvariantCulture, JobToBeFiredMessage, args));
         return Task.CompletedTask;
     }
 
@@ -374,8 +371,6 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
     {
         ITrigger trigger = context.Trigger;
 
-        object?[] args;
-
         if (jobException != null)
         {
             if (!IsWarnEnabled)
@@ -383,14 +378,16 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
                 return Task.CompletedTask;
             }
 
-            string errMsg = jobException.Message;
-            args = new object?[]
-            {
-                context.JobDetail.Key.Name, context.JobDetail.Key.Group, SystemTime.UtcNow(), trigger.Key.Name, trigger.Key.Group,
-                trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, errMsg
-            };
-
-            WriteWarning(string.Format(CultureInfo.InvariantCulture, JobFailedMessage, args), jobException);
+            WriteWarning(JobFailedMessage, jobException,
+                context.JobDetail.Key.Group,
+                context.JobDetail.Key.Name,
+                SystemTime.UtcNow(),
+                trigger.Key.Group,
+                trigger.Key.Name,
+                trigger.GetPreviousFireTimeUtc(),
+                trigger.GetNextFireTimeUtc(),
+                context.RefireCount,
+                jobException.Message);
         }
         else
         {
@@ -400,13 +397,17 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
             }
 
             var result = Convert.ToString(context.Result, CultureInfo.InvariantCulture);
-            args = new object?[]
-            {
-                context.JobDetail.Key.Name, context.JobDetail.Key.Group, SystemTime.UtcNow(), trigger.Key.Name, trigger.Key.Group,
-                trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, result
-            };
 
-            WriteInfo(string.Format(CultureInfo.InvariantCulture, JobSuccessMessage, args));
+            WriteInfo(JobSuccessMessage,
+                context.JobDetail.Key.Group,
+                context.JobDetail.Key.Name,
+                SystemTime.UtcNow(),
+                trigger.Key.Group,
+                trigger.Key.Name,
+                trigger.GetPreviousFireTimeUtc(),
+                trigger.GetNextFireTimeUtc(),
+                context.RefireCount,
+                result);
         }
         return Task.CompletedTask;
     }
@@ -429,19 +430,16 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
 
         ITrigger trigger = context.Trigger;
 
-        object?[] args =
-        {
-            context.JobDetail.Key.Name,
+        WriteInfo(JobWasVetoedMessage,
             context.JobDetail.Key.Group,
-            SystemTime.UtcNow(),
-            trigger.Key.Name,
+            context.JobDetail.Key.Name,
             trigger.Key.Group,
+            trigger.Key.Name,
+            SystemTime.UtcNow(),
             trigger.GetPreviousFireTimeUtc(),
             trigger.GetNextFireTimeUtc(),
-            context.RefireCount
-        };
+            context.RefireCount);
 
-        WriteInfo(string.Format(CultureInfo.InvariantCulture, JobWasVetoedMessage, args));
         return Task.CompletedTask;
     }
 
@@ -452,10 +450,20 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
         Log.Info(message);
     }
 
+    protected virtual void WriteInfo(string messageTemplate, params object?[] args)
+    {
+        Log.InfoFormat(messageTemplate, args);
+    }
+
     protected virtual bool IsWarnEnabled => Log.IsWarnEnabled();
 
     protected virtual void WriteWarning(string message, Exception ex)
     {
         Log.WarnException(message, ex);
+    }
+
+    protected virtual void WriteWarning(string messageTemplate, Exception ex, params object?[] args)
+    {
+        Log.WarnException(messageTemplate, ex, args);
     }
 }

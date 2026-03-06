@@ -99,9 +99,19 @@ public class LoggingJobHistoryPluginTest
             InfoMessages.Add(message);
         }
 
+        protected override void WriteInfo(string messageTemplate, params object[] args)
+        {
+            InfoMessages.Add(messageTemplate);
+        }
+
         protected override void WriteWarning(string message, Exception ex)
         {
             WarnMessages.Add(message);
+        }
+
+        protected override void WriteWarning(string messageTemplate, Exception ex, params object[] args)
+        {
+            WarnMessages.Add(messageTemplate);
         }
     }
 }
