@@ -76,6 +76,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         ClusterCheckinMisfireThreshold = TimeSpan.FromMilliseconds(7500);
         MaxMisfiresToHandleAtATime = 20;
         DbRetryInterval = TimeSpan.FromSeconds(15);
+        MaxTransientRetries = 3;
         Logger = LogProvider.CreateLogger<JobStoreSupport>();
         delegateType = typeof(StdAdoDelegate);
         ConnectionManager = DBConnectionManager.Instance;
@@ -194,6 +195,16 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <value>The db retry interval.</value>
     [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
     public TimeSpan DbRetryInterval { get; set; }
+
+    /// <summary>
+    /// Gets or sets the maximum number of retries for transient database exceptions
+    /// (such as deadlocks) before giving up and propagating the exception.
+    /// </summary>
+    /// <remarks>
+    /// Defaults to 3. A value of 0 disables transient retries. Each retry is
+    /// delayed by <see cref="DbRetryInterval"/>.
+    /// </remarks>
+    public int MaxTransientRetries { get; set; }
 
     /// <summary>
     /// Get or set whether this instance should use database-based thread
@@ -3893,78 +3904,96 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
         }
 
-        bool transOwner = false;
-        ConnectionAndTransactionHolder? conn = null;
-        try
+        int maxRetries = MaxTransientRetries;
+        int totalAttempts = maxRetries + 1;
+        for (int attempt = 1; attempt <= totalAttempts; attempt++)
         {
-            if (lockName is not null)
+            bool transOwner = false;
+            ConnectionAndTransactionHolder? conn = null;
+            try
             {
-                // If we aren't using db locks, then delay getting DB connection
-                // until after acquiring the lock since it isn't needed.
-                if (LockHandler.RequiresConnection)
+                if (lockName is not null)
+                {
+                    // If we aren't using db locks, then delay getting DB connection
+                    // until after acquiring the lock since it isn't needed.
+                    if (LockHandler.RequiresConnection)
+                    {
+                        conn = await GetNonManagedTXConnection().ConfigureAwait(false);
+                    }
+
+                    transOwner = await LockHandler.ObtainLock(requestorId.Value, conn, lockName, cancellationToken).ConfigureAwait(false);
+                }
+
+                if (conn is null)
                 {
                     conn = await GetNonManagedTXConnection().ConfigureAwait(false);
                 }
 
-                transOwner = await LockHandler.ObtainLock(requestorId.Value, conn, lockName, cancellationToken).ConfigureAwait(false);
-            }
+                T result = await txCallback(conn).ConfigureAwait(false);
+                try
+                {
+                    await CommitConnection(conn, false).ConfigureAwait(false);
+                }
+                catch (JobPersistenceException jpe)
+                {
+                    await RollbackConnection(conn, jpe).ConfigureAwait(false);
+                    if (txValidator is null)
+                    {
+                        throw;
+                    }
+                    if (!await RetryExecuteInNonManagedTXLock(
+                            lockName,
+                            async connection => await txValidator(connection, result).ConfigureAwait(false),
+                            requestorId,
+                            cancellationToken).ConfigureAwait(false))
+                    {
+                        throw;
+                    }
+                }
 
-            if (conn is null)
-            {
-                conn = await GetNonManagedTXConnection().ConfigureAwait(false);
-            }
+                DateTimeOffset? sigTime = conn.SignalSchedulingChangeOnTxCompletion;
+                if (sigTime is not null)
+                {
+                    await SignalSchedulingChangeImmediately(sigTime).ConfigureAwait(false);
+                }
 
-            T result = await txCallback(conn).ConfigureAwait(false);
-            try
-            {
-                await CommitConnection(conn, false).ConfigureAwait(false);
+                return result;
             }
             catch (JobPersistenceException jpe)
             {
                 await RollbackConnection(conn, jpe).ConfigureAwait(false);
-                if (txValidator is null)
+                if (attempt < totalAttempts && IsTransient(jpe))
                 {
-                    throw;
+                    Logger.LogWarning(jpe, "Transient exception on attempt {Attempt} of {TotalAttempts} in ExecuteInNonManagedTXLock, will retry after {RetryInterval}", attempt, totalAttempts, DbRetryInterval);
                 }
-                if (!await RetryExecuteInNonManagedTXLock(
-                        lockName,
-                        async connection => await txValidator(connection, result).ConfigureAwait(false),
-                        requestorId,
-                        cancellationToken).ConfigureAwait(false))
+                else
                 {
                     throw;
                 }
             }
-
-            DateTimeOffset? sigTime = conn.SignalSchedulingChangeOnTxCompletion;
-            if (sigTime is not null)
+            catch (Exception e)
             {
-                await SignalSchedulingChangeImmediately(sigTime).ConfigureAwait(false);
-            }
-
-            return result;
-        }
-        catch (JobPersistenceException jpe)
-        {
-            await RollbackConnection(conn, jpe).ConfigureAwait(false);
-            throw;
-        }
-        catch (Exception e)
-        {
-            await RollbackConnection(conn, e).ConfigureAwait(false);
-            Throw.JobPersistenceException("Unexpected runtime exception: " + e.Message, e);
-            return default;
-        }
-        finally
-        {
-            try
-            {
-                await ReleaseLock(requestorId.Value, lockName!, transOwner, cancellationToken).ConfigureAwait(false);
+                await RollbackConnection(conn, e).ConfigureAwait(false);
+                Throw.JobPersistenceException("Unexpected runtime exception: " + e.Message, e);
+                return default;
             }
             finally
             {
-                await CleanupConnection(conn).ConfigureAwait(false);
+                try
+                {
+                    await ReleaseLock(requestorId.Value, lockName!, transOwner, cancellationToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    await CleanupConnection(conn).ConfigureAwait(false);
+                }
             }
+
+            // Delay before the next attempt
+            await Task.Delay(DbRetryInterval, cancellationToken).ConfigureAwait(false);
         }
+
+        Throw.InvalidOperationException("ExecuteInNonManagedTXLock retry loop exited unexpectedly");
+        return default;
     }
 }
