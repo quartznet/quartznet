@@ -125,3 +125,17 @@ For dashboard access control, prefer ASP.NET Core policy/handler-based authoriza
 - No built-in persistence UI for historical analytics; plugin-backed history is operational/log oriented
 - Advanced management remains intentionally scoped; rich typed editors are currently focused on cron calendars/triggers and operational overrides
 - UX is optimized for Quartz APIs and scheduler operations, not full workflow/business process visualization
+
+## API-only projects (no .razor files)
+
+If your host project has no `.razor` files of its own (e.g., a pure API project hosting Quartz), and you are running on **.NET 10 or later**, you must add the following to your project file:
+
+```xml
+<PropertyGroup>
+  <RequiresAspNetWebAssets>true</RequiresAspNetWebAssets>
+</PropertyGroup>
+```
+
+This property tells the .NET SDK to include the Blazor framework scripts (`_framework/blazor.web.js`, `blazor.server.js`) in the app's static web assets. Without it, requests to `/_framework/blazor.web.js` return HTTP 404 because in .NET 10+, these files are no longer embedded in the ASP.NET Core assemblies — they are served as static web assets instead.
+
+On .NET 8 and .NET 9, the framework scripts are served via endpoint routing and no extra configuration is needed.
