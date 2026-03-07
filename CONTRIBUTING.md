@@ -13,6 +13,10 @@ Please start a discussion on the [core repo issue tracker](https://github.com/qu
 
 Run `build.cmd` or `build.sh` from the command line. This builds and runs tests.
 
+## Testing
+
+Integration tests provision their database dependencies through [Testcontainers for .NET](https://dotnet.testcontainers.org/). Ensure your Docker daemon is running before executing integration tests.
+
 ## Bugs and feature requests?
 
 Please log a new issue in the GitHub repo.

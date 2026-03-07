@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 
 using NUnit.Framework;
@@ -27,11 +27,11 @@ public class AdoSchedulerTest : AbstractSchedulerTest
 
     protected override Task<IScheduler> CreateScheduler(string name, int threadPoolSize)
     {
-        DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType);
+        DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType, out var dataSourceName);
 
         var jobStore = new JobStoreTX
         {
-            DataSource = "default",
+            DataSource = dataSourceName,
             TablePrefix = "QRTZ_",
             InstanceId = "AUTO",
             DriverDelegateType = driverDelegateType,

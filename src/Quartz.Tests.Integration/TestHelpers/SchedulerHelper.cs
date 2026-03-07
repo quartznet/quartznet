@@ -11,22 +11,29 @@ public class SchedulerHelper
 {
     public const string TablePrefix = "QRTZ_";
 
+    public static string GetSchedulerName(string provider, string name)
+    {
+        var suffix = DatabaseHelper.GetDataSourceName(provider);
+        return $"{name}Scheduler_{suffix}";
+    }
+
     public static Task<IScheduler> CreateScheduler(string provider, string name)
     {
-        DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType);
+        DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType, out var dataSourceName);
 
         var serializer = new JsonObjectSerializer();
         serializer.Initialize();
         var jobStore = new JobStoreTX
         {
-            DataSource = "default",
+            DataSource = dataSourceName,
             TablePrefix = TablePrefix,
             InstanceId = "AUTO",
             DriverDelegateType = driverDelegateType,
             ObjectSerializer = serializer
         };
 
-        DirectSchedulerFactory.Instance.CreateScheduler(name + "Scheduler", "AUTO", new DefaultThreadPool(), jobStore);
-        return Task.FromResult(SchedulerRepository.Instance.Lookup(name + "Scheduler"));
+        var schedulerName = GetSchedulerName(provider, name);
+        DirectSchedulerFactory.Instance.CreateScheduler(schedulerName, "AUTO", new DefaultThreadPool(), jobStore);
+        return Task.FromResult(SchedulerRepository.Instance.Lookup(schedulerName));
     }
 }
