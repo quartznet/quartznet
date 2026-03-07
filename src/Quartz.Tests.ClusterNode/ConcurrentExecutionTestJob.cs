@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Globalization;
@@ -19,15 +18,13 @@ namespace Quartz.Tests.ClusterNode;
 public class ConcurrentExecutionTestJob : IJob
 {
     // Local tracking for console output
-    private static readonly Lock lockObject = new();
     private static int _localExecutions;
-    private static readonly Dictionary<string, DateTime> lastExecutionByNode = new();
-    private readonly ILogger<ConcurrentExecutionTestJob> _logger;
+    private readonly ILogger<ConcurrentExecutionTestJob> logger;
 
     // Constructor with DI
     public ConcurrentExecutionTestJob(ILogger<ConcurrentExecutionTestJob> logger)
     {
-        _logger = logger;
+        this.logger = logger;
     }
 
     public async Task Execute(IJobExecutionContext context)
@@ -50,52 +47,44 @@ public class ConcurrentExecutionTestJob : IJob
         await connection.OpenAsync().ConfigureAwait(false);
 
         // Increment local counter for display
-        lock (lockObject)
-        {
-            _localExecutions++;
-            lastExecutionByNode[nodeId] = startTime;
-        }
+        var localCount = Interlocked.Increment(ref _localExecutions);
 
         // Start execution: Atomically check and record that we're executing
-        var (currentCount, violationIncidentStarted, isInViolatedState) = await StartExecution(connection, provider, nodeId, executionId, startTime, _logger).ConfigureAwait(false);
+        var (currentCount, violationIncidentStarted, isInViolatedState) = await StartExecution(connection, provider, nodeId, executionId, startTime, logger).ConfigureAwait(false);
 
         if (violationIncidentStarted)
         {
-            _logger.LogError("*** VIOLATION DETECTED *** New concurrent execution incident | Concurrent count: {ConcurrentCount} | Node: {NodeId} | Execution: {ExecutionId}",
+            logger.LogError("*** VIOLATION DETECTED *** New concurrent execution incident | Concurrent count: {ConcurrentCount} | Node: {NodeId} | Execution: {ExecutionId}",
                 currentCount, nodeId, executionId);
         }
         else if (isInViolatedState)
         {
-            _logger.LogDebug("Executing in already-violated state | Concurrent count: {ConcurrentCount} | Node: {NodeId} | Execution: {ExecutionId}",
+            logger.LogDebug("Executing in already-violated state | Concurrent count: {ConcurrentCount} | Node: {NodeId} | Execution: {ExecutionId}",
                 currentCount, nodeId, executionId);
         }
         else
         {
-            _logger.LogInformation("Job executing on Node: {NodeId} | Execution: {ExecutionId} | Local count: {LocalCount}",
-                nodeId, executionId, _localExecutions);
+            logger.LogInformation("Job executing on Node: {NodeId} | Execution: {ExecutionId} | Local count: {LocalCount}",
+                nodeId, executionId, localCount);
         }
 
         try
         {
             // Simulate work to increase the chance of concurrent execution detection
             await Task.Delay(jobDelayMs).ConfigureAwait(false);
-            _logger.LogDebug("-> Hello from {NodeId} (execution {ExecutionId})", nodeId, executionId);
+            logger.LogDebug("-> Hello from {NodeId} (execution {ExecutionId})", nodeId, executionId);
         }
         finally
         {
             // End execution: Atomically decrement counter
-            await EndExecution(connection, provider, executionId, _logger).ConfigureAwait(false);
+            await EndExecution(connection, provider, executionId, logger).ConfigureAwait(false);
 
             // Print periodic summary
-            int snapshot;
-            lock (lockObject)
-            {
-                snapshot = _localExecutions;
-            }
+            var snapshot = Volatile.Read(ref _localExecutions);
 
             if (snapshot % 20 == 0)
             {
-                await PrintSummary(connection, _logger).ConfigureAwait(false);
+                await PrintSummary(connection, logger).ConfigureAwait(false);
             }
         }
     }
@@ -108,7 +97,6 @@ public class ConcurrentExecutionTestJob : IJob
 
         try
         {
-            // Get the current execution count
             // Get the current execution count
             await using var getCurrentCountCmd = connection.CreateCommand();
             getCurrentCountCmd.Transaction = transaction;
@@ -146,7 +134,7 @@ public class ConcurrentExecutionTestJob : IJob
 
             // Check if we were previously in a clean state (no active violations)
             // A violation "period" starts when we go from clean (0 executions) to violated (2+ executions)
-            // and ends when we return to clean state
+            // and ends when we return to a clean state
             var wasCleanCmd = connection.CreateCommand();
             wasCleanCmd.Transaction = transaction;
             wasCleanCmd.CommandText = "SELECT COUNT(*) FROM ClusterTestViolations WHERE EndedAt IS NULL";

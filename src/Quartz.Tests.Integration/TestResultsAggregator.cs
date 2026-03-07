@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 
 namespace Quartz.Tests.Integration;
 
@@ -79,35 +80,36 @@ public static class TestResultsAggregator
     /// </summary>
     public static string FormatStatistics(AggregatedTestResults results)
     {
-        var output = "\n" + new string('=', 80) + "\n";
-        output += "FINAL STATISTICS (AGGREGATED FROM CLUSTER NODES)\n";
-        output += new string('=', 80) + "\n";
-        output += $"Total Executions: {results.TotalExecutions}\n";
-        output += $"Concurrent Execution Violation Periods: {results.TotalViolationPeriods}\n";
-        output += $"Active Nodes: {results.NodeCount}\n";
+        var separator = new string('=', 80);
+        var sb = new StringBuilder();
+        sb.AppendLine().AppendLine(separator);
+        sb.AppendLine("FINAL STATISTICS (AGGREGATED FROM CLUSTER NODES)");
+        sb.AppendLine(separator);
+        sb.AppendLine($"Total Executions: {results.TotalExecutions}");
+        sb.AppendLine($"Concurrent Execution Violation Periods: {results.TotalViolationPeriods}");
+        sb.AppendLine($"Active Nodes: {results.NodeCount}");
 
         if (results.TotalViolationPeriods > 0)
         {
-            output += "\nViolation Period Details:\n";
+            sb.AppendLine().AppendLine("Violation Period Details:");
             foreach (var violation in results.AllViolations.OrderBy(v => v.DetectedAt))
             {
                 var duration = violation.EndedAt.HasValue
                     ? $"{(violation.EndedAt.Value - violation.DetectedAt).TotalMilliseconds:F0}ms"
                     : "ongoing";
-                output += $"  [{violation.DetectedAt:HH:mm:ss.fff}] Node: {violation.NodeId} | Count: {violation.ConcurrentCount} | Duration: {duration} | Execution: {violation.ExecutionId}\n";
+                sb.AppendLine($"  [{violation.DetectedAt:HH:mm:ss.fff}] Node: {violation.NodeId} | Count: {violation.ConcurrentCount} | Duration: {duration} | Execution: {violation.ExecutionId}");
             }
         }
 
-        // Show node execution breakdown
-        output += "\nNode Execution Breakdown:\n";
+        sb.AppendLine().AppendLine("Node Execution Breakdown:");
         foreach (var node in results.NodeBreakdown.Values.OrderBy(n => n.NodeId))
         {
-            output += $"  {node.NodeId}: {node.ExecutionCount} executions (first: {node.FirstExecution:HH:mm:ss.fff}, last: {node.LastExecution:HH:mm:ss.fff})\n";
+            sb.AppendLine($"  {node.NodeId}: {node.ExecutionCount} executions (first: {node.FirstExecution:HH:mm:ss.fff}, last: {node.LastExecution:HH:mm:ss.fff})");
         }
 
-        output += new string('=', 80) + "\n";
+        sb.AppendLine(separator);
 
-        return output;
+        return sb.ToString();
     }
 }
 

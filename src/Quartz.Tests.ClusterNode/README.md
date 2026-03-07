@@ -6,15 +6,6 @@ This console application tests for concurrent execution violations in Quartz.NET
 
 This test is designed to detect a reported bug where jobs marked with `[DisallowConcurrentExecution]` may still be executed concurrently across different cluster nodes. This violates the expected behavior and can lead to data corruption or other issues in production environments.
 
-## Command-Line Interface
-
-This application uses **System.CommandLine 2.0.3** for robust command-line parsing with:
-- Automatic help generation (`--help`, `-h`, `-?`)
-- Version information (`--version`)
-- Type-safe argument parsing
-- Short and long option aliases
-- Default values for all options
-
 ## Database Setup
 
 Use the docker containers.
@@ -30,7 +21,7 @@ dotnet run -- node Node-1 --database-provider SqlServer
 dotnet run -- node Node-1 --database-provider Npgsql
 
 # Use MySQL (overriding appsettings.json)
-dotnet run -- node Node-1 --database-provider MySqlConnector
+dotnet run -- node Node-1 --database-provider MySql
 ```
 
 This is useful for:
@@ -146,7 +137,8 @@ dotnet run -- node Node-2 --database-provider SqlServer
 - `--job-delay, -j <int>` - Job execution delay in milliseconds (default: 100)
 - `--schedule` - Flag to indicate this node should schedule the job (default: false)
 - `--init` - Flag to initialize test database tables (default: false)
-- `--database-provider <string>` - Database provider to use (SqlServer, Npgsql, MySqlConnector) - overrides appsettings.json (default: null)
+- `--database-provider <string>` - Database provider to use (SqlServer, Npgsql, MySql) - overrides appsettings.json (default: null)
+- `--connection-string <string>` - Connection string to use - overrides appsettings.json (default: null)
 
 **Important:**
 - Only ONE node should use the `--schedule` flag (typically the first node)

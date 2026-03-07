@@ -37,7 +37,24 @@ public class Program
     private static Command CreateCleanupCommand()
     {
         var cleanupCommand = new Command("cleanup", "Clean up previous test data from the database");
-        cleanupCommand.SetAction(async (_, _) => await RunCleanup());
+
+        var databaseProviderOption = new Option<string>("--database-provider")
+        {
+            Description = "Database provider to use (SqlServer, Npgsql, MySql)",
+            DefaultValueFactory = _ => "SqlServer"
+        };
+        var connectionStringOption = new Option<string>("--connection-string")
+        {
+            Description = "Connection string to use",
+            Required = true
+        };
+
+        cleanupCommand.Options.Add(databaseProviderOption);
+        cleanupCommand.Options.Add(connectionStringOption);
+
+        cleanupCommand.SetAction(async (parseResult, _) => await RunCleanup(
+            parseResult.GetValue(databaseProviderOption)!,
+            parseResult.GetValue(connectionStringOption)!));
         return cleanupCommand;
     }
 
@@ -70,12 +87,24 @@ public class Program
             Description = "Do not pause after node completion (auto-close windows)",
             DefaultValueFactory = _ => false
         };
+        var databaseProviderOption = new Option<string>("--database-provider")
+        {
+            Description = "Database provider to use (SqlServer, Npgsql, MySql)",
+            DefaultValueFactory = _ => "SqlServer"
+        };
+        var connectionStringOption = new Option<string>("--connection-string")
+        {
+            Description = "Connection string to use",
+            Required = true
+        };
 
         orchestratorCommand.Options.Add(nodeCountOption);
         orchestratorCommand.Options.Add(durationOption);
         orchestratorCommand.Options.Add(jobIntervalOption);
         orchestratorCommand.Options.Add(jobDelayOption);
         orchestratorCommand.Options.Add(noPauseOption);
+        orchestratorCommand.Options.Add(databaseProviderOption);
+        orchestratorCommand.Options.Add(connectionStringOption);
 
         orchestratorCommand.SetAction(async (parseResult, _) =>
         {
@@ -84,7 +113,9 @@ public class Program
                 parseResult.GetValue(durationOption),
                 parseResult.GetValue(jobIntervalOption),
                 parseResult.GetValue(jobDelayOption),
-                parseResult.GetValue(noPauseOption)
+                parseResult.GetValue(noPauseOption),
+                parseResult.GetValue(databaseProviderOption)!,
+                parseResult.GetValue(connectionStringOption)!
             );
             return await RunOrchestrator(args);
         });
@@ -125,10 +156,15 @@ public class Program
             Description = "Initialize test database tables (run on first node only)",
             DefaultValueFactory = _ => false
         };
-        var databaseProviderOption = new Option<string?>("--database-provider")
+        var databaseProviderOption = new Option<string>("--database-provider")
         {
-            Description = "Database provider to use (SqlServer, Npgsql, MySqlConnector) - overrides appsettings.json",
-            DefaultValueFactory = _ => null
+            Description = "Database provider to use (SqlServer, Npgsql, MySql)",
+            DefaultValueFactory = _ => "SqlServer"
+        };
+        var connectionStringOption = new Option<string>("--connection-string")
+        {
+            Description = "Connection string to use",
+            Required = true
         };
 
         nodeCommand.Arguments.Add(nodeIdArgument);
@@ -138,6 +174,7 @@ public class Program
         nodeCommand.Options.Add(scheduleOption);
         nodeCommand.Options.Add(initOption);
         nodeCommand.Options.Add(databaseProviderOption);
+        nodeCommand.Options.Add(connectionStringOption);
 
         nodeCommand.SetAction(async (parseResult, _) =>
         {
@@ -148,7 +185,8 @@ public class Program
                 parseResult.GetValue(jobDelayOption),
                 parseResult.GetValue(scheduleOption),
                 parseResult.GetValue(initOption),
-                parseResult.GetValue(databaseProviderOption)
+                parseResult.GetValue(databaseProviderOption)!,
+                parseResult.GetValue(connectionStringOption)!
             );
             return await RunSingleNode(args);
         });
@@ -161,11 +199,8 @@ public class Program
         // Load configuration from appsettings.json and environment variables
         var config = LoadConfiguration();
 
-        // Override database provider if specified via command line
-        var databaseProvider = commandLineArgs.DatabaseProvider ?? config.DatabaseProvider;
-        var connectionString = config.ConnectionStrings.TryGetValue(databaseProvider, out var connStr)
-            ? connStr
-            : config.GetConnectionString();
+        var databaseProvider = commandLineArgs.DatabaseProvider;
+        var connectionString = commandLineArgs.ConnectionString;
 
         // Create database provider
         var provider = DatabaseProviderFactory.GetProvider(databaseProvider);
@@ -277,11 +312,11 @@ public class Program
                 {
                     store.UseSqlServer(connectionString);
                 }
-                else if (databaseProvider == "Npgsql")
+                else if (databaseProvider == "PostgreSQL")
                 {
                     store.UsePostgres(connectionString);
                 }
-                else if (databaseProvider == "MySqlConnector")
+                else if (databaseProvider == "MySQL")
                 {
                     store.UseMySqlConnector(c => c.ConnectionString = connectionString);
                 }
@@ -436,7 +471,7 @@ public class Program
 
         // Run cleanup first
         Console.WriteLine("Cleaning up previous test data...");
-        await RunCleanup();
+        await RunCleanup(orchestratorArgs.DatabaseProvider, orchestratorArgs.ConnectionString);
         Console.WriteLine();
 
         // Get the current executable path
@@ -457,7 +492,7 @@ public class Program
             var shouldScheduleJob = i == 1; // Only the first node schedules the job
 
             // Build System.CommandLine format arguments
-            var arguments = $"node {nodeId} --duration {orchestratorArgs.DurationSeconds} --job-interval {orchestratorArgs.JobIntervalMs} --job-delay {orchestratorArgs.JobDelayMs}";
+            var arguments = $"node {nodeId} --duration {orchestratorArgs.DurationSeconds} --job-interval {orchestratorArgs.JobIntervalMs} --job-delay {orchestratorArgs.JobDelayMs} --database-provider {orchestratorArgs.DatabaseProvider} --connection-string \"{orchestratorArgs.ConnectionString}\"";
             if (shouldScheduleJob)
             {
                 arguments += " --schedule --init";  // First node schedules and initializes
@@ -506,12 +541,8 @@ public class Program
         Console.WriteLine("Retrieving final statistics...");
         try
         {
-            // Load configuration to get connection string
-            var config = LoadConfiguration();
-            var connectionString = config.GetConnectionString();
-
-            var provider = DatabaseProviderFactory.GetProvider(config.DatabaseProvider);
-            var statistics = await ClusterTestHelper.GetFinalStatistics(connectionString, provider, loggerSetup.LoggerFactory);
+            var provider = DatabaseProviderFactory.GetProvider(orchestratorArgs.DatabaseProvider);
+            var statistics = await ClusterTestHelper.GetFinalStatistics(orchestratorArgs.ConnectionString, provider, loggerSetup.LoggerFactory);
             Console.WriteLine(statistics);
         }
         catch (Exception ex)
@@ -630,18 +661,14 @@ public class Program
         return launcher.LaunchInNewWindow(exePath, arguments, noPause);
     }
 
-    private static async Task<int> RunCleanup()
+    private static async Task<int> RunCleanup(string databaseProvider, string connectionString)
     {
         Console.WriteLine("Cleaning up previous test data...");
 
         try
         {
-            // Load configuration
-            var config = LoadConfiguration();
-            var connectionString = config.GetConnectionString();
-
             // Create database provider
-            var provider = DatabaseProviderFactory.GetProvider(config.DatabaseProvider);
+            var provider = DatabaseProviderFactory.GetProvider(databaseProvider);
 
             // Setup minimal logging for cleanup
             using var loggerFactory = LoggerFactory.Create(builder =>
@@ -670,19 +697,9 @@ public class Program
             .AddEnvironmentVariables()
             .Build();
 
-        var databaseProvider = configuration["DatabaseProvider"]
-                               ?? throw new InvalidOperationException("DatabaseProvider not found in configuration");
-
-        var connectionStrings = new Dictionary<string, string>();
-        var connectionStringsSection = configuration.GetSection("ConnectionStrings");
-        foreach (var child in connectionStringsSection.GetChildren())
-        {
-            connectionStrings[child.Key] = child.Value ?? throw new InvalidOperationException($"ConnectionString for {child.Key} is null");
-        }
-
         var initialScheduleDelaySecondsStr = configuration["InitialScheduleDelaySeconds"]
             ?? throw new InvalidOperationException("InitialScheduleDelaySeconds not found in configuration");
-        
+
         if (!int.TryParse(initialScheduleDelaySecondsStr, out var initialScheduleDelaySeconds))
         {
             throw new InvalidOperationException($"InitialScheduleDelaySeconds '{initialScheduleDelaySecondsStr}' is not a valid integer");
@@ -690,8 +707,6 @@ public class Program
 
         return new ClusterNodeConfiguration
         {
-            DatabaseProvider = databaseProvider,
-            ConnectionStrings = connectionStrings,
             InitialScheduleDelaySeconds = initialScheduleDelaySeconds
         };
     }
@@ -783,7 +798,8 @@ public record CommandLineArgs(
     int JobDelayMs,
     bool ShouldScheduleJob,
     bool ShouldInitialize,
-    string? DatabaseProvider);
+    string DatabaseProvider,
+    string ConnectionString);
 
 /// <summary>
 /// Orchestrator mode arguments for managing multiple cluster nodes.
@@ -793,28 +809,16 @@ public record OrchestratorArgs(
     int DurationSeconds,
     int JobIntervalMs,
     int JobDelayMs,
-    bool NoPause);
+    bool NoPause,
+    string DatabaseProvider,
+    string ConnectionString);
 
 /// <summary>
 /// Application configuration options loaded from appsettings.json.
 /// </summary>
 public record ClusterNodeConfiguration
 {
-    public required string DatabaseProvider { get; init; }
-    public required Dictionary<string, string> ConnectionStrings { get; init; }
     public required int InitialScheduleDelaySeconds { get; init; }
-
-    /// <summary>
-    /// Gets the connection string for the configured database provider.
-    /// </summary>
-    public string GetConnectionString()
-    {
-        if (!ConnectionStrings.TryGetValue(DatabaseProvider, out var connectionString))
-        {
-            throw new InvalidOperationException($"ConnectionString for provider '{DatabaseProvider}' not found in configuration");
-        }
-        return connectionString;
-    }
 }
 
 /// <summary>
@@ -852,7 +856,7 @@ public sealed class WindowsProcessLauncher : IProcessLauncher
 
         var startInfo = new ProcessStartInfo
         {
-            FileName = "powershell.exe",
+            FileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe"),
             Arguments = psArgs,
             UseShellExecute = true,
             WindowStyle = ProcessWindowStyle.Normal

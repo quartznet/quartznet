@@ -5,6 +5,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 using NUnit.Framework;
@@ -16,130 +18,205 @@ namespace Quartz.Tests.Integration;
 /// that DisallowConcurrentExecution works correctly across cluster nodes.
 /// </summary>
 [TestFixture]
-[Category("db-sqlserver")]
 [Category("cluster")]
 public class ClusterConcurrentExecutionTest
 {
+    /// <summary>
+    /// Arguments for spawning a cluster worker process.
+    /// </summary>
+    private record WorkerArgs(
+        string NodeId,
+        bool ShouldScheduleJob,
+        string DatabaseProvider,
+        string ConnectionString,
+        int TestDurationSeconds,
+        int JobIntervalMs,
+        int JobDelayMs);
+
     private const int NodeCount = 2;
     private const int TestDurationSeconds = 30;
+    private const int TestTimeoutBufferSeconds = 60;
+    private const int TestTimeoutMs = (TestDurationSeconds + TestTimeoutBufferSeconds) * 1000;
     private const int JobIntervalMs = 500;
     private const int JobDelayMs = 150;
+    private const int NodeStartupDelayMs = 500;
+    private const int ProcessExitTimeoutSeconds = 10;
+    private const int FileWriteGracePeriodMs = 1000;
+    private const string InitialScheduleDelayEnvVar = "InitialScheduleDelaySeconds";
+    private const string InitialScheduleDelayValue = "3";
 
-    private List<Process> _clusterProcesses = [];
-    private string _workerExecutablePath;
-    private string _publishDirectory;
+    private const int GracefulExitCode = 0;
+    private const int WindowsKilledExitCode = -1;
+    private const int LinuxKilledExitCode = 137;
+    private static readonly HashSet<int> acceptableExitCodes = [GracefulExitCode, WindowsKilledExitCode, LinuxKilledExitCode];
+
+    private readonly List<Process> clusterProcesses = [];
+    private string workerExecutablePath;
+    private string publishDirectory;
 
     [OneTimeSetUp]
     public async Task OneTimeSetUp()
     {
-        // Publish worker executable to the temp directory
-        _publishDirectory = Path.Combine(Path.GetTempPath(), "QuartzClusterTest", Guid.NewGuid().ToString("N"));
+        var runtime = GetRuntimeIdentifier();
+        publishDirectory = Path.Combine(Path.GetTempPath(), "QuartzClusterTest", runtime);
+        workerExecutablePath = await PublishWorkerAsync(publishDirectory);
+    }
+
+    private static async Task<string> PublishWorkerAsync(string outputDirectory)
+    {
         var runtime = GetRuntimeIdentifier();
 
         var projectPath = Path.GetFullPath(Path.Combine(TestContext.CurrentContext.TestDirectory,
             "..", "..", "..", "..", "Quartz.Tests.ClusterNode", "Quartz.Tests.ClusterNode.csproj"));
 
-        await TestContext.Out.WriteLineAsync($"Publishing worker to: {_publishDirectory}");
+        await TestContext.Out.WriteLineAsync($"Publishing worker to: {outputDirectory}");
         await TestContext.Out.WriteLineAsync($"Project path: {projectPath}");
         await TestContext.Out.WriteLineAsync($"Runtime: {runtime}");
 
-        var publishArgs = $"publish \"{projectPath}\" -c Release -r {runtime} --self-contained -o \"{_publishDirectory}\"";
+        var publishArgs = $"publish \"{projectPath}\" -c Release -r {runtime} --self-contained -o \"{outputDirectory}\"";
 
-        using var publishProcess = new Process
+        using var publishProcess = new Process();
+        publishProcess.StartInfo = new ProcessStartInfo
         {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = "dotnet",
-                Arguments = publishArgs,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false
-            }
+            FileName = "dotnet",
+            Arguments = publishArgs,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false
+        };
+
+        var outputBuilder = new StringBuilder();
+        var errorBuilder = new StringBuilder();
+
+        publishProcess.OutputDataReceived += (_, e) =>
+        {
+            if (e.Data != null) outputBuilder.AppendLine(e.Data);
+        };
+        publishProcess.ErrorDataReceived += (_, e) =>
+        {
+            if (e.Data != null) errorBuilder.AppendLine(e.Data);
         };
 
         publishProcess.Start();
+        publishProcess.BeginOutputReadLine();
+        publishProcess.BeginErrorReadLine();
 
-        var outputTask = publishProcess.StandardOutput.ReadToEndAsync();
-        var errorTask = publishProcess.StandardError.ReadToEndAsync();
-        var exitTask = publishProcess.WaitForExitAsync();
-
-        await Task.WhenAll(outputTask, errorTask, exitTask);
-
-        var output = await outputTask;
-        var error = await errorTask;
+        await publishProcess.WaitForExitAsync();
 
         if (publishProcess.ExitCode != 0)
         {
-            await TestContext.Out.WriteLineAsync($"Publish output: {output}");
-            await TestContext.Error.WriteLineAsync($"Publish error: {error}");
+            await TestContext.Out.WriteLineAsync($"Publish output: {outputBuilder}");
+            await TestContext.Error.WriteLineAsync($"Publish error: {errorBuilder}");
             Assert.Fail($"Worker publish failed with exit code {publishProcess.ExitCode}");
         }
 
-        _workerExecutablePath = Path.Combine(_publishDirectory,
+        var executablePath = Path.Combine(outputDirectory,
             runtime.StartsWith("win") ? "Quartz.Tests.ClusterNode.exe" : "Quartz.Tests.ClusterNode");
 
-        if (!File.Exists(_workerExecutablePath))
+        if (!File.Exists(executablePath))
         {
-            Assert.Fail($"Worker executable not found at: {_workerExecutablePath}");
+            Assert.Fail($"Worker executable not found at: {executablePath}");
         }
 
-        await TestContext.Out.WriteLineAsync($"Worker executable ready at: {_workerExecutablePath}");
+        await TestContext.Out.WriteLineAsync($"Worker executable ready at: {executablePath}");
+        return executablePath;
     }
 
     [SetUp]
-    public async Task SetUp()
+    public void SetUp()
     {
-        // Clean results directory before test
-        var resultsDir = Path.Combine(_publishDirectory, "results");
+        ClearResultsDirectory();
+        clusterProcesses.Clear();
+    }
+
+    private void ClearResultsDirectory()
+    {
+        var resultsDir = Path.Combine(publishDirectory, "results");
         if (Directory.Exists(resultsDir))
         {
             Directory.Delete(resultsDir, recursive: true);
         }
-
-        _clusterProcesses.Clear();
-        await Task.CompletedTask; // Keep async for consistency
     }
 
     [Test]
-    [CancelAfter(90000)] // 90-second timeout (30s test + 60s buffer)
-    public async Task TestDisallowConcurrentExecutionAcrossClusterNodes()
+    [TestCase("SqlServer", Category = "db-sqlserver")]
+    [TestCase("PostgreSQL", Category = "db-postgres")]
+    [TestCase("MySQL", Category = "db-mysql")]
+    [CancelAfter(TestTimeoutMs)]
+    public async Task TestDisallowConcurrentExecutionAcrossClusterNodes(string provider)
     {
+        var cancellationToken = TestContext.CurrentContext.CancellationToken;
+        var connectionString = GetConnectionString(provider);
+
         // Spawn cluster nodes
         for (var i = 1; i <= NodeCount; i++)
         {
-            var nodeId = $"Node-{i}";
-            var shouldScheduleJob = (i == 1); // Only the first node schedules the job
+            var shouldScheduleJob = i == 1; // Only the first node schedules the job
 
-            _clusterProcesses.Add(SpawnWorkerProcess(nodeId, shouldScheduleJob));
+            var workerArgs = new WorkerArgs(
+                NodeId: $"Node-{i}",
+                ShouldScheduleJob: shouldScheduleJob,
+                DatabaseProvider: provider,
+                ConnectionString: connectionString,
+                TestDurationSeconds: TestDurationSeconds,
+                JobIntervalMs: JobIntervalMs,
+                JobDelayMs: JobDelayMs);
+
+            clusterProcesses.Add(SpawnWorkerProcess(workerArgs));
 
             if (i < NodeCount)
             {
-                await Task.Delay(500); // Stagger node startup
+                await Task.Delay(NodeStartupDelayMs, cancellationToken); // Stagger node startup
             }
         }
 
         // Wait for test duration
         await TestContext.Out.WriteLineAsync($"Waiting {TestDurationSeconds} seconds for test execution...");
-        await Task.Delay(TimeSpan.FromSeconds(TestDurationSeconds));
+        await Task.Delay(TimeSpan.FromSeconds(TestDurationSeconds), cancellationToken);
 
-        // Wait for processes to exit gracefully (they should exit after test duration)
+        var processExitInfo = await WaitForProcessesAsync(cancellationToken);
+
+        // Give a brief moment for final file writes (JSON export happens before process exit)
+        await Task.Delay(FileWriteGracePeriodMs, cancellationToken);
+
+        LogCrashedProcesses(processExitInfo);
+
+        var resultsDir = Path.Combine(publishDirectory, "results");
+        AssertResultsDirectoryExists(resultsDir, processExitInfo);
+
+        var resultFiles = Directory.GetFiles(resultsDir, "*-results.json");
+        AssertExpectedResultFiles(resultFiles, resultsDir);
+
+        var emptyFiles = resultFiles.Where(f => new FileInfo(f).Length == 0).ToArray();
+        if (emptyFiles.Length > 0)
+        {
+            Assert.Fail($"Empty result files detected (truncated write?): {string.Join(", ", emptyFiles.Select(Path.GetFileName))}");
+        }
+
+        await AggregateAndAssertResultsAsync(resultFiles);
+        await AssertAllProcessesExitedCleanlyAsync();
+    }
+
+    private async Task<List<(int ProcessId, int ExitCode, bool ExitedGracefully)>> WaitForProcessesAsync(CancellationToken cancellationToken = default)
+    {
         await TestContext.Out.WriteLineAsync("Waiting for worker processes to complete...");
         var processExitInfo = new List<(int ProcessId, int ExitCode, bool ExitedGracefully)>();
 
-        foreach (var process in _clusterProcesses)
+        foreach (var process in clusterProcesses)
         {
             try
             {
-                var timeout = TimeSpan.FromSeconds(10);
-                var exitTask = process.WaitForExitAsync();
-                if (await Task.WhenAny(exitTask, Task.Delay(timeout)) != exitTask)
+                var timeout = TimeSpan.FromSeconds(ProcessExitTimeoutSeconds);
+                var exitTask = process.WaitForExitAsync(cancellationToken);
+                if (await Task.WhenAny(exitTask, Task.Delay(timeout, cancellationToken)) != exitTask)
                 {
                     await TestContext.Out.WriteLineAsync($"Process {process.Id} did not exit gracefully within {timeout.TotalSeconds}s, forcing shutdown...");
                     if (!process.HasExited)
                     {
                         process.Kill(entireProcessTree: true);
-                        await process.WaitForExitAsync();  // Wait for kill to complete
+                        await process.WaitForExitAsync(cancellationToken);
                     }
+
                     processExitInfo.Add((process.Id, process.ExitCode, false));
                 }
                 else
@@ -148,73 +225,92 @@ public class ClusterConcurrentExecutionTest
                     processExitInfo.Add((process.Id, process.ExitCode, true));
                 }
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
-                await TestContext.Out.WriteLineAsync($"Error waiting for process {process.Id} exit: {ex.Message}");
+                await TestContext.Out.WriteLineAsync($"Error waiting for process {process.Id} exit: {ex}");
+                processExitInfo.Add((process.Id, -1, false));
             }
         }
 
-        // Give a brief moment for final file writes (JSON export happens before process exit)
-        await Task.Delay(1000);
+        return processExitInfo;
+    }
 
-        // Check if any processes crashed
-        var failedProcesses = processExitInfo.Where(p => p.ExitCode != 0 && p.ExitCode != -1 && p.ExitCode != 137).ToList();
+    private static void LogCrashedProcesses(List<(int ProcessId, int ExitCode, bool ExitedGracefully)> processExitInfo)
+    {
+        var failedProcesses = processExitInfo.Where(p => !acceptableExitCodes.Contains(p.ExitCode)).ToList();
         if (failedProcesses.Any())
         {
-            var failureInfo = string.Join(", ", failedProcesses.Select(p => $"PID {(object)p.ProcessId} (exit code {(object)p.ExitCode})"));
-            await TestContext.Out.WriteLineAsync($"WARNING: Some processes exited with non-zero codes: {failureInfo}");
+            var failureInfo = string.Join(", ", failedProcesses.Select(p => $"PID {p.ProcessId} (exit code {p.ExitCode})"));
+            TestContext.Out.WriteLine($"WARNING: Some processes exited with non-zero codes: {failureInfo}");
         }
+    }
 
-        // Read and aggregate JSON results from all nodes
-        var resultsDir = Path.Combine(_publishDirectory, "results");
-
-        if (!Directory.Exists(resultsDir))
+    private void AssertResultsDirectoryExists(string resultsDir, List<(int ProcessId, int ExitCode, bool ExitedGracefully)> processExitInfo)
+    {
+        if (Directory.Exists(resultsDir))
         {
-            var diagnosticInfo = $"Results directory does not exist: {resultsDir}\n\n" +
-                                 $"Process exit information:\n";
-            foreach (var info in processExitInfo)
-            {
-                diagnosticInfo += $"  PID {(object)info.ProcessId}: ExitCode={(object)info.ExitCode}, Graceful={info.ExitedGracefully}\n";
-            }
-            diagnosticInfo += $"\nPublish directory: {_publishDirectory}\n";
-            diagnosticInfo += $"Logs directory: {Path.Combine(_publishDirectory, "logs")}\n";
-
-            // Check if logs directory exists and list log files
-            var logsDir = Path.Combine(_publishDirectory, "logs");
-            if (Directory.Exists(logsDir))
-            {
-                var logFiles = Directory.GetFiles(logsDir, "*.log");
-                diagnosticInfo += $"Log files found: {(object)logFiles.Length}\n";
-                foreach (var logFile in logFiles.Take(5))
-                {
-                    diagnosticInfo += $"  - {Path.GetFileName(logFile) ?? "unknown"}\n";
-                }
-            }
-            else
-            {
-                diagnosticInfo += "Logs directory does not exist\n";
-            }
-
-            Assert.Fail(diagnosticInfo);
+            return;
         }
 
-        var resultFiles = Directory.GetFiles(resultsDir, "*-results.json");
-
-        if (resultFiles.Length != NodeCount)
+        var sb = new StringBuilder();
+        sb.AppendLine($"Results directory does not exist: {resultsDir}");
+        sb.AppendLine();
+        sb.AppendLine("Process exit information:");
+        foreach (var info in processExitInfo)
         {
-            var diagnosticInfo = $"Expected {NodeCount} result files, found {resultFiles.Length}\n" +
-                                 $"Results directory: {resultsDir}\n";
-            if (resultFiles.Length > 0)
-            {
-                diagnosticInfo += "Files found:\n";
-                foreach (var file in resultFiles)
-                {
-                    diagnosticInfo += $"  - {Path.GetFileName(file)}\n";
-                }
-            }
-            Assert.Fail(diagnosticInfo);
+            sb.AppendLine($"  PID {info.ProcessId}: ExitCode={info.ExitCode}, Graceful={info.ExitedGracefully}");
         }
 
+        sb.AppendLine($"\nPublish directory: {publishDirectory}");
+
+        var logsDir = Path.Combine(publishDirectory, "logs");
+        sb.AppendLine($"Logs directory: {logsDir}");
+
+        if (Directory.Exists(logsDir))
+        {
+            var logFiles = Directory.GetFiles(logsDir, "*.log");
+            sb.AppendLine($"Log files found: {logFiles.Length}");
+            foreach (var logFile in logFiles.Take(5))
+            {
+                sb.AppendLine($"  - {Path.GetFileName(logFile) ?? "unknown"}");
+            }
+        }
+        else
+        {
+            sb.AppendLine("Logs directory does not exist");
+        }
+
+        Assert.Fail(sb.ToString());
+    }
+
+    private static void AssertExpectedResultFiles(string[] resultFiles, string resultsDir)
+    {
+        if (resultFiles.Length == NodeCount)
+        {
+            return;
+        }
+
+        var sb = new StringBuilder();
+        sb.AppendLine($"Expected {NodeCount} result files, found {resultFiles.Length}");
+        sb.AppendLine($"Results directory: {resultsDir}");
+        if (resultFiles.Length > 0)
+        {
+            sb.AppendLine("Files found:");
+            foreach (var file in resultFiles)
+            {
+                sb.AppendLine($"  - {Path.GetFileName(file)}");
+            }
+        }
+
+        Assert.Fail(sb.ToString());
+    }
+
+    private async Task AggregateAndAssertResultsAsync(string[] resultFiles)
+    {
         var nodeResults = new List<NodeTestResults>();
         foreach (var file in resultFiles)
         {
@@ -224,7 +320,7 @@ public class ClusterConcurrentExecutionTest
             }
             catch (Exception ex)
             {
-                Assert.Fail($"Failed to read results from {Path.GetFileName(file)}: {ex.Message}");
+                Assert.Fail($"Failed to read results from {Path.GetFileName(file)}: {ex}");
             }
         }
 
@@ -235,62 +331,89 @@ public class ClusterConcurrentExecutionTest
 
         Assert.That(aggregated.TotalViolationPeriods, Is.EqualTo(0),
             $"Concurrent execution violations detected across cluster nodes. {statistics}");
+    }
 
-        // Verify all processes exited (exit code 0 for success, -1 or 137 for killed)
-        foreach (var process in _clusterProcesses)
+    private async Task AssertAllProcessesExitedCleanlyAsync()
+    {
+        foreach (var process in clusterProcesses)
         {
             await TestContext.Out.WriteLineAsync($"Process exit code: {process.ExitCode}");
-            // Exit code -1 (killed on Windows), 137 (killed on Linux), or 0 (graceful) are acceptable
-            Assert.That(process.ExitCode, Is.EqualTo(0).Or.EqualTo(-1).Or.EqualTo(137),
+            Assert.That(acceptableExitCodes.Contains(process.ExitCode), Is.True,
                 $"Worker process exited with unexpected code {process.ExitCode}");
         }
     }
 
-    private Process SpawnWorkerProcess(string nodeId, bool shouldScheduleJob)
+    private static string GetConnectionString(string provider)
     {
-        // Build System.CommandLine format arguments
-        var args = $"node {nodeId} --duration {TestDurationSeconds} --job-interval {JobIntervalMs} --job-delay {JobDelayMs} --database-provider SqlServer";
-        if (shouldScheduleJob)
+        return provider switch
         {
-            args += " --schedule --init";  // Add --init flag for the first node
-        }
+            "SqlServer" => TestConstants.SqlServerConnectionString,
+            "PostgreSQL" => TestConstants.PostgresConnectionString,
+            "MySQL" => TestConstants.MySqlConnectionString,
+            _ => throw new ArgumentException($"Unknown provider: {provider}")
+        };
+    }
 
+    private ProcessStartInfo BuildWorkerStartInfo(WorkerArgs workerArgs)
+    {
         var startInfo = new ProcessStartInfo
         {
-            FileName = _workerExecutablePath,
-            Arguments = args,
+            FileName = workerExecutablePath,
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            WorkingDirectory = _publishDirectory,
+            WorkingDirectory = publishDirectory,
             EnvironmentVariables =
             {
-                // Pass connection string via environment variable - nodes still need it for clustering
-                ["ConnectionString"] = TestConstants.SqlServerConnectionString,
-                ["InitialScheduleDelaySeconds"] = "3"
+                [InitialScheduleDelayEnvVar] = InitialScheduleDelayValue
             }
         };
 
+        startInfo.ArgumentList.Add("node");
+        startInfo.ArgumentList.Add(workerArgs.NodeId);
+        startInfo.ArgumentList.Add("--duration");
+        startInfo.ArgumentList.Add(workerArgs.TestDurationSeconds.ToString());
+        startInfo.ArgumentList.Add("--job-interval");
+        startInfo.ArgumentList.Add(workerArgs.JobIntervalMs.ToString());
+        startInfo.ArgumentList.Add("--job-delay");
+        startInfo.ArgumentList.Add(workerArgs.JobDelayMs.ToString());
+        startInfo.ArgumentList.Add("--database-provider");
+        startInfo.ArgumentList.Add(workerArgs.DatabaseProvider);
+        startInfo.ArgumentList.Add("--connection-string");
+        startInfo.ArgumentList.Add(workerArgs.ConnectionString);
+
+        if (workerArgs.ShouldScheduleJob)
+        {
+            startInfo.ArgumentList.Add("--schedule");
+            startInfo.ArgumentList.Add("--init");
+        }
+
+        return startInfo;
+    }
+
+    private Process SpawnWorkerProcess(WorkerArgs workerArgs)
+    {
+        var startInfo = BuildWorkerStartInfo(workerArgs);
         var process = Process.Start(startInfo);
 
         if (process == null)
         {
-            throw new InvalidOperationException($"Failed to start worker process for {nodeId}");
+            throw new InvalidOperationException($"Failed to start worker process for {workerArgs.NodeId}");
         }
 
         // Capture output for debugging
         process.OutputDataReceived += (_, e) =>
         {
-            if (e.Data != null) TestContext.Out.WriteLine($"[{nodeId}] {e.Data}");
+            if (e.Data != null) TestContext.Out.WriteLine($"[{workerArgs.NodeId}] {e.Data}");
         };
         process.ErrorDataReceived += (_, e) =>
         {
-            if (e.Data != null) TestContext.Error.WriteLine($"[{nodeId}] ERROR: {e.Data}");
+            if (e.Data != null) TestContext.Error.WriteLine($"[{workerArgs.NodeId}] ERROR: {e.Data}");
         };
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
 
-        TestContext.Out.WriteLine($"Started worker process: {nodeId} (PID: {process.Id})");
+        TestContext.Out.WriteLine($"Started worker process: {workerArgs.NodeId} (PID: {process.Id})");
 
         return process;
     }
@@ -316,7 +439,7 @@ public class ClusterConcurrentExecutionTest
     public void TearDown()
     {
         // Force kill any remaining processes
-        foreach (var process in _clusterProcesses)
+        foreach (var process in clusterProcesses)
         {
             try
             {
@@ -333,25 +456,14 @@ public class ClusterConcurrentExecutionTest
             }
         }
 
-        _clusterProcesses.Clear();
+        clusterProcesses.Clear();
     }
 
     [OneTimeTearDown]
     public void OneTimeTearDown()
     {
-        // Clean up the published directory
-        if (!string.IsNullOrEmpty(_publishDirectory) && Directory.Exists(_publishDirectory))
-        {
-            try
-            {
-                Directory.Delete(_publishDirectory, recursive: true);
-                TestContext.Out.WriteLine($"Cleaned up publish directory: {_publishDirectory}");
-            }
-            catch (Exception ex)
-            {
-                TestContext.Out.WriteLine($"Warning: Could not delete publish directory: {ex.Message}");
-            }
-        }
+        // Publish directory is reused across runs as a build cache — only clean results
+        ClearResultsDirectory();
     }
 }
 #endif

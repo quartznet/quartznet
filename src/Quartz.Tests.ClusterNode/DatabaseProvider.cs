@@ -224,16 +224,16 @@ public static class DatabaseProviderFactory
     /// <summary>
     /// Gets a database provider by name.
     /// </summary>
-    /// <param name="providerName">The provider name (SqlServer, Npgsql, or MySqlConnector)</param>
+    /// <param name="providerName">The provider name (SqlServer, Npgsql, or MySql)</param>
     /// <returns>The database provider instance</returns>
-    /// <exception cref="ArgumentException">Thrown when provider name is not recognized</exception>
+    /// <exception cref="ArgumentException">Thrown when the provider name is not recognized</exception>
     public static IDatabaseProvider GetProvider(string providerName)
     {
         return providerName switch
         {
             "SqlServer" => new SqlServerProvider(),
-            "Npgsql" => new NpgsqlProvider(),
-            "MySqlConnector" => new MySqlProvider(),
+            "PostgreSQL" => new NpgsqlProvider(),
+            "MySQL" => new MySqlProvider(),
             _ => throw new ArgumentException($"Unknown database provider: {providerName}", nameof(providerName))
         };
     }

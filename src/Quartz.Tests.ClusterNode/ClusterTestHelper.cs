@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
@@ -96,16 +97,17 @@ public static class ClusterTestHelper
             logger?.LogInformation("Retrieving final statistics: {TotalExecutions} executions, {ViolationPeriods} violation periods, {NodeCount} nodes",
                 totalExecutions, totalViolationIncidents, nodeCount);
 
-            var output = "\n" + new string('=', 80) + "\n";
-            output += "FINAL STATISTICS (DATABASE STATE)\n";
-            output += new string('=', 80) + "\n";
-            output += $"Total Executions: {totalExecutions}\n";
-            output += $"Concurrent Execution Violation Periods: {totalViolationIncidents}\n";
-            output += $"Active Nodes: {nodeCount}\n";
+            var sb = new StringBuilder();
+            sb.Append('\n').Append('=', 80).Append('\n');
+            sb.Append("FINAL STATISTICS (DATABASE STATE)\n");
+            sb.Append('=', 80).Append('\n');
+            sb.Append($"Total Executions: {totalExecutions}\n");
+            sb.Append($"Concurrent Execution Violation Periods: {totalViolationIncidents}\n");
+            sb.Append($"Active Nodes: {nodeCount}\n");
 
             if (totalViolationIncidents > 0)
             {
-                output += "\nViolation Period Details:\n";
+                sb.Append("\nViolation Period Details:\n");
                 await using (var violationCmd = connection.CreateCommand())
                 {
                     violationCmd.CommandText = @"SELECT NodeId, DetectedAt, ConcurrentCount, ExecutionId, EndedAt
@@ -121,13 +123,13 @@ public static class ClusterTestHelper
                         var executionId = violationReader.GetString(3);
                         var endedAt = violationReader.IsDBNull(4) ? (DateTime?)null : violationReader.GetDateTime(4);
                         var duration = endedAt.HasValue ? $"{(endedAt.Value - detectedAt).TotalMilliseconds:F0}ms" : "ongoing";
-                        output += $"  [{detectedAt:HH:mm:ss.fff}] Node: {nodeId} | Count: {concurrentCount} | Duration: {duration} | Execution: {executionId}\n";
+                        sb.Append($"  [{detectedAt:HH:mm:ss.fff}] Node: {nodeId} | Count: {concurrentCount} | Duration: {duration} | Execution: {executionId}\n");
                     }
                 }
             }
 
             // Show node execution breakdown
-            output += "\nNode Execution Breakdown:\n";
+            sb.Append("\nNode Execution Breakdown:\n");
             await using (var nodeStatsCmd = connection.CreateCommand())
             {
                 nodeStatsCmd.CommandText = @"SELECT NodeId, COUNT(*) as ExecutionCount, MIN(StartTime) as FirstExecution, MAX(StartTime) as LastExecution
@@ -142,13 +144,13 @@ public static class ClusterTestHelper
                     var execCount = Convert.ToInt32(nodeReader.GetValue(1));
                     var firstExec = nodeReader.GetDateTime(2);
                     var lastExec = nodeReader.GetDateTime(3);
-                    output += $"  {nodeId}: {execCount} executions (first: {firstExec:HH:mm:ss.fff}, last: {lastExec:HH:mm:ss.fff})\n";
+                    sb.Append($"  {nodeId}: {execCount} executions (first: {firstExec:HH:mm:ss.fff}, last: {lastExec:HH:mm:ss.fff})\n");
                 }
             }
 
-            output += new string('=', 80) + "\n";
+            sb.Append('=', 80).Append('\n');
 
-            return output;
+            return sb.ToString();
         }
         catch (Exception ex)
         {

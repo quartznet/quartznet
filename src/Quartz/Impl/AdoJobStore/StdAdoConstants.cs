@@ -372,18 +372,22 @@ WHERE {ColumnSchedulerName} = @schedulerName
       AND ft.{ColumnSchedulerName} = jd.{ColumnSchedulerName}
     WHERE jd.{ColumnSchedulerName} = @schedulerName
       AND jd.{ColumnJobName} = (
-        SELECT {ColumnJobName}
-        FROM {TablePrefixSubst}{TableTriggers}
-        WHERE {ColumnTriggerName} = @triggerName
-          AND {ColumnTriggerGroup} = @triggerGroup
-          AND {ColumnSchedulerName} = @schedulerName
+        SELECT t1.{ColumnJobName} FROM (
+          SELECT {ColumnJobName}
+          FROM {TablePrefixSubst}{TableTriggers}
+          WHERE {ColumnTriggerName} = @triggerName
+            AND {ColumnTriggerGroup} = @triggerGroup
+            AND {ColumnSchedulerName} = @schedulerName
+        ) AS t1
       )
       AND jd.{ColumnJobGroup} = (
-        SELECT {ColumnJobGroup}
-        FROM {TablePrefixSubst}{TableTriggers}
-        WHERE {ColumnTriggerName} = @triggerName
-          AND {ColumnTriggerGroup} = @triggerGroup
-          AND {ColumnSchedulerName} = @schedulerName
+        SELECT t2.{ColumnJobGroup} FROM (
+          SELECT {ColumnJobGroup}
+          FROM {TablePrefixSubst}{TableTriggers}
+          WHERE {ColumnTriggerName} = @triggerName
+            AND {ColumnTriggerGroup} = @triggerGroup
+            AND {ColumnSchedulerName} = @schedulerName
+        ) AS t2
       )
       AND jd.{ColumnIsNonConcurrent} = @checkConcurrency
       AND (ft.{ColumnEntryState} = '{StateAcquired}' OR ft.{ColumnEntryState} = '{StateExecuting}')
