@@ -19,7 +19,7 @@ using Nuke.Common.Utilities;
     ConcurrencyCancelInProgress = true),
 ]
 [CustomGitHubActions(
-    "pr-tests-integration-postgres",
+    "pr-tests-integration",
     GitHubActionsImage.UbuntuLatest,
     OnPullRequestBranches = ["main", "v4", "3.x"],
     OnPullRequestIncludePaths = ["**/*"],

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -157,58 +156,13 @@ partial class Build : NukeBuild
         .OnlyWhenDynamic(() => Host is GitHubActions && RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         .Executes(() =>
         {
-            Action<OutputType,string> logger = (type, output) =>
-            {
-                if (output.Contains(": NOTICE:", StringComparison.Ordinal))
-                {
-                    Log.Debug(output);
-                }
-                else
-                {
-                    ProcessTasks.DefaultLogger(type, output);
-                }
-            };
-
-            Log.Information("Starting Postgres");
-            ProcessTasks.StartProcess("sudo", "systemctl start postgresql.service").AssertZeroExitCode();
-            ProcessTasks.StartProcess("pg_isready").AssertZeroExitCode();
-
-            static void RunAsPostgresUser(string parameters)
-            {
-                // Warn: Be careful refactoring this to concatenation.
-                ProcessTasks.StartProcess("sudo", "-u postgres " + parameters, workingDirectory: Path.GetTempPath()).AssertZeroExitCode();
-            }
-
-            Log.Information("Creating user...");
-            RunAsPostgresUser("psql --command=\"CREATE USER quartznet PASSWORD 'quartznet'\" --command=\"\\du\"");
-
-            Log.Information("Creating database...");
-            RunAsPostgresUser("createdb --owner=quartznet quartznet");
-
-            void RunPsqlAsQuartznetUser(string parameters)
-            {
-                // Warn: Be careful refactoring this to concatenation
-                ProcessTasks.StartProcess(
-                    "psql",
-                    "--username=quartznet --host=localhost " + parameters,
-                    environmentVariables: new Dictionary<string, string> { { "PGPASSWORD", "quartznet" } },
-                    logger: logger
-                ).AssertZeroExitCode();
-            }
-
-            RunPsqlAsQuartznetUser("--list quartznet");
-
-            Log.Information("Creating schema...");
-            RunPsqlAsQuartznetUser("-d quartznet -f ./database/tables/tables_postgres.sql");
-
             var integrationTestProjects = new[] { "Quartz.Tests.Integration" };
             DotNetTest(s => s
                 .EnableNoRestore()
                 .EnableNoBuild()
                 .SetConfiguration(Configuration)
-                .SetFramework("net8.0")
+                .SetFramework("net10.0")
                 .SetLoggers("GitHubActions")
-                .SetProcessAdditionalArguments(" -- NUnit.Where=\"cat !~ firebird and cat !~ oracle and cat !~ mysql and cat !~ sqlserver\"")
                 .CombineWith(integrationTestProjects, (_, testProject) => _
                     .SetProjectFile(Solution.GetAllProjects(testProject).First())
                 )

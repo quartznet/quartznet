@@ -5,30 +5,23 @@ namespace Quartz;
 
     public static class TestConstants
     {
-        static TestConstants()
-        {
-            SqlServerUser = Environment.GetEnvironmentVariable("MSSQL_USER") ?? "sa";
-            SqlServerPassword = Environment.GetEnvironmentVariable("MSSQL_PASSWORD") ?? "Quartz!DockerP4ss";
-            // we cannot use trusted connection as it's not available for Linux provider
-            SqlServerConnectionString = $"Server=localhost;Database=quartznet;User Id={SqlServerUser};Password={SqlServerPassword};";
-            SqlServerConnectionStringMOT = $"Server=localhost,1444;Database=quartznet;User Id={SqlServerUser};Password={SqlServerPassword};";
+        public static string SqlServerUser => Environment.GetEnvironmentVariable("MSSQL_USER") ?? "sa";
+        public static string SqlServerPassword => Environment.GetEnvironmentVariable("MSSQL_PASSWORD") ?? "Quartz!DockerP4ss";
 
-            PostgresUser = Environment.GetEnvironmentVariable("PG_USER") ?? "quartznet";
-            PostgresPassword = Environment.GetEnvironmentVariable("PG_PASSWORD") ?? "quartznet";
-            PostgresConnectionString = $"Server=127.0.0.1;Port=5432;Userid={PostgresUser};Password={PostgresPassword};Pooling=true;MinPoolSize=1;MaxPoolSize=20;Timeout=15;SslMode=Disable;Database=quartznet";
-        }
+        public static string SqlServerConnectionString =>
+            Environment.GetEnvironmentVariable("MSSQL_CONNECTION_STRING")
+            ?? $"Server=localhost;Database=quartznet;User Id={SqlServerUser};Password={SqlServerPassword};";
 
-        public static string SqlServerUser { get; }
-        public static string SqlServerPassword { get; }
+        public static string SqlServerConnectionStringMOT =>
+            Environment.GetEnvironmentVariable("MSSQL_CONNECTION_STRING_MOT")
+            ?? $"Server=localhost,1444;Database=quartznet;User Id={SqlServerUser};Password={SqlServerPassword};";
 
-        public static string SqlServerConnectionString { get; }
-        public static string SqlServerConnectionStringMOT { get; }
+        public static string PostgresUser => Environment.GetEnvironmentVariable("PG_USER") ?? "quartznet";
+        public static string PostgresPassword => Environment.GetEnvironmentVariable("PG_PASSWORD") ?? "quartznet";
 
-
-        public static string PostgresUser { get; }
-        public static string PostgresPassword { get; }
-        public static string PostgresConnectionString { get; }
-
+        public static string PostgresConnectionString =>
+            Environment.GetEnvironmentVariable("PG_CONNECTION_STRING")
+            ?? $"Server=127.0.0.1;Port=5432;Userid={PostgresUser};Password={PostgresPassword};Pooling=true;MinPoolSize=1;MaxPoolSize=20;Timeout=15;SslMode=Disable;Database=quartznet";
 
         public const string DefaultSerializerType = "stj";
 

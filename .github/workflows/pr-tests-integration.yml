@@ -9,12 +9,12 @@
 #
 #     - To trigger manual generation invoke:
 #
-#         nuke --generate-configuration GitHubActions_pr-tests-integration-postgres --host GitHubActions
+#         nuke --generate-configuration GitHubActions_pr-tests-integration --host GitHubActions
 #
 # </auto-generated>
 # ------------------------------------------------------------------------------
 
-name: pr-tests-integration-postgres
+name: pr-tests-integration
 
 on:
   pull_request:

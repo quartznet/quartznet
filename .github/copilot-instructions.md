@@ -54,6 +54,7 @@ After `TriggersFired`, always use `TriggeredJobComplete` (not `ReleaseAcquiredTr
 - **Explicit types preferred over `var`** per `.editorconfig`.
 - **Allman brace style** — opening braces on new lines for methods, types, control blocks, etc.
 - **Test framework:** NUnit 4 with `FluentAssertions` and `FakeItEasy`. Legacy assert aliases are set up via `GlobalUsings.cs`.
+- **Integration test databases:** Provisioned via Testcontainers for .NET. Ensure Docker is running before executing integration tests.
 - **Multi-targeting:** Core `Quartz` library targets `net462`, `net472`, `net8.0`, `net9.0`, `net10.0`, and `netstandard2.0`. Test project targets `net10.0` and `net472`.
 - **Strong naming:** Assemblies are signed with `quartz.net.snk`.
 - **Conditional compilation:** `REMOTING` is defined for `net462`/`net472`; `DIAGNOSTICS_SOURCE` for everything except `net462`.
