@@ -132,6 +132,11 @@ public class PostgreSQLRowLockSemaphore : StdRowLockSemaphore
                             await Task.Delay(retryPeriodLocal, cancellationToken).ConfigureAwait(false);
                             continue;
                         }
+                        
+                        // Exhausted retries without successfully acquiring the lock
+                        Throw.InvalidOperationException(AdoJobStoreUtil.ReplaceTablePrefix(
+                            "Failed to acquire lock after conflict in table " + TablePrefixSubst + TableLocks +
+                            " for lock named: " + lockName, TablePrefix));
                     }
                     else if (res != 1)
                     {
