@@ -541,13 +541,21 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                     }
                 }
 
-                Log.Info("Using db table-based data access locking (synchronization).");
-                LockHandler = new StdRowLockSemaphore(TablePrefix, InstanceName, SelectWithLockSQL, DbProvider);
+                if (Delegate is PostgreSQLDelegate)
+                {
+                    LockHandler = new PostgreSQLRowLockSemaphore(TablePrefix, InstanceName, SelectWithLockSQL, DbProvider);
+                }
+                else
+                {
+                    LockHandler = new StdRowLockSemaphore(TablePrefix, InstanceName, SelectWithLockSQL, DbProvider);
+                }
+
+                Log.InfoFormat("Using db table-based data access locking (synchronization) via {0}.", LockHandler.GetType().Name);
             }
             else
             {
-                Log.Info("Using thread monitor-based data access locking (synchronization).");
                 LockHandler = new SimpleSemaphore();
+                Log.InfoFormat("Using thread monitor-based data access locking (synchronization) via {0}.", LockHandler.GetType().Name);
             }
         }
         else
