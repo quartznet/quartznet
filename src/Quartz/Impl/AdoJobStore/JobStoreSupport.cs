@@ -77,6 +77,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         MaxMisfiresToHandleAtATime = 20;
         DbRetryInterval = TimeSpan.FromSeconds(15);
         MaxTransientRetries = 3;
+        TransientRetryInterval = TimeSpan.FromSeconds(1);
         Logger = LogProvider.CreateLogger<JobStoreSupport>();
         delegateType = typeof(StdAdoDelegate);
         ConnectionManager = DBConnectionManager.Instance;
@@ -202,9 +203,21 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// </summary>
     /// <remarks>
     /// Defaults to 3. A value of 0 disables transient retries. Each retry is
-    /// delayed by <see cref="DbRetryInterval"/>.
+    /// delayed by <see cref="TransientRetryInterval"/>.
     /// </remarks>
     public int MaxTransientRetries { get; set; }
+
+    /// <summary>
+    /// Gets or sets the delay between automatic retries for transient database
+    /// exceptions (such as deadlocks).
+    /// </summary>
+    /// <remarks>
+    /// Defaults to 1 second. This is intentionally shorter than <see cref="DbRetryInterval"/>
+    /// because transient errors like deadlocks resolve quickly and the retry should be
+    /// near-immediate. Set to <see cref="TimeSpan.Zero"/> for no delay between retries.
+    /// </remarks>
+    [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
+    public TimeSpan TransientRetryInterval { get; set; }
 
     /// <summary>
     /// Get or set whether this instance should use database-based thread
@@ -3966,7 +3979,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 await RollbackConnection(conn, jpe).ConfigureAwait(false);
                 if (attempt < totalAttempts && IsTransient(jpe))
                 {
-                    Logger.LogWarning(jpe, "Transient exception on attempt {Attempt} of {TotalAttempts} in ExecuteInNonManagedTXLock, will retry after {RetryInterval}", attempt, totalAttempts, DbRetryInterval);
+                    Logger.LogWarning(jpe, "Transient exception on attempt {Attempt} of {TotalAttempts} in ExecuteInNonManagedTXLock, will retry after {RetryInterval}", attempt, totalAttempts, TransientRetryInterval);
                 }
                 else
                 {
@@ -3992,7 +4005,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
 
             // Delay before the next attempt
-            await Task.Delay(DbRetryInterval, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(TransientRetryInterval, cancellationToken).ConfigureAwait(false);
         }
 
         Throw.InvalidOperationException("ExecuteInNonManagedTXLock retry loop exited unexpectedly");

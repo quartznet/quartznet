@@ -114,7 +114,7 @@ public class JobStoreSupportTest
         return new RetryTestJobStoreSupport
         {
             MaxTransientRetries = maxTransientRetries,
-            DbRetryInterval = TimeSpan.Zero,
+            TransientRetryInterval = TimeSpan.Zero,
         };
     }
 
