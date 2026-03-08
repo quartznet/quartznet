@@ -16,6 +16,48 @@ namespace Quartz.Impl.AdoJobStore;
 
 public partial class StdAdoDelegate
 {
+    // Parameter name constants for trigger-related queries
+    private const string ParamBlob = "blob";
+    private const string ParamCalendarName = "calendarName";
+    private const string ParamFireTime = "fireTime";
+    private const string ParamGroupName = "groupName";
+    private const string ParamInstanceName = "instanceName";
+    private const string ParamJobGroup = "jobGroup";
+    private const string ParamJobName = "jobName";
+    private const string ParamNewState = "newState";
+    private const string ParamNextFireTime = "nextFireTime";
+    private const string ParamNoEarlierThan = "noEarlierThan";
+    private const string ParamNoLaterThan = "noLaterThan";
+    private const string ParamOldState = "oldState";
+    private const string ParamOldState1 = "oldState1";
+    private const string ParamOldState2 = "oldState2";
+    private const string ParamOldState3 = "oldState3";
+    private const string ParamRequestsRecovery = "requestsRecovery";
+    private const string ParamSchedulerName = "schedulerName";
+    private const string ParamState = "state";
+    private const string ParamState1 = "state1";
+    private const string ParamTimestamp = "timestamp";
+    private const string ParamTriggerCalendarName = "triggerCalendarName";
+    private const string ParamTriggerDescription = "triggerDescription";
+    private const string ParamTriggerEndTime = "triggerEndTime";
+    private const string ParamTriggerEntryId = "triggerEntryId";
+    private const string ParamTriggerFireTime = "triggerFireTime";
+    private const string ParamTriggerGroup = "triggerGroup";
+    private const string ParamTriggerInstanceName = "triggerInstanceName";
+    private const string ParamTriggerJobGroup = "triggerJobGroup";
+    private const string ParamTriggerJobJobDataMap = "triggerJobJobDataMap";
+    private const string ParamTriggerJobName = "triggerJobName";
+    private const string ParamTriggerJobRequestsRecovery = "triggerJobRequestsRecovery";
+    private const string ParamTriggerJobStateful = "triggerJobStateful";
+    private const string ParamTriggerMisfireInstruction = "triggerMisfireInstruction";
+    private const string ParamTriggerName = "triggerName";
+    private const string ParamTriggerNextFireTime = "triggerNextFireTime";
+    private const string ParamTriggerPreviousFireTime = "triggerPreviousFireTime";
+    private const string ParamTriggerPriority = "triggerPriority";
+    private const string ParamTriggerScheduledTime = "triggerScheduledTime";
+    private const string ParamTriggerStartTime = "triggerStartTime";
+    private const string ParamTriggerState = "triggerState";
+    private const string ParamTriggerType = "triggerType";
     /// <inheritdoc />
     public virtual async Task<int> UpdateTriggerStatesFromOtherStates(
         ConnectionAndTransactionHolder conn,
@@ -25,10 +67,10 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerStatesFromOtherStates));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "newState", newState);
-        AddCommandParameter(cmd, "oldState1", oldState1);
-        AddCommandParameter(cmd, "oldState2", oldState2);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamNewState, newState);
+        AddCommandParameter(cmd, ParamOldState1, oldState1);
+        AddCommandParameter(cmd, ParamOldState2, oldState2);
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -39,8 +81,8 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectMisfiredTriggers));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "timestamp", GetDbDateTimeValue(ts));
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamTimestamp, GetDbDateTimeValue(ts));
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         List<TriggerKey> list = new List<TriggerKey>();
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -60,8 +102,8 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggersInState));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "state", state);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamState, state);
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         List<TriggerKey> list = new List<TriggerKey>();
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -80,9 +122,9 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectMisfiredTriggersInState));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "timestamp", GetDbDateTimeValue(ts));
-        AddCommandParameter(cmd, "state", state);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamTimestamp, GetDbDateTimeValue(ts));
+        AddCommandParameter(cmd, ParamState, state);
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         List<TriggerKey> list = new List<TriggerKey>();
@@ -108,9 +150,9 @@ public partial class StdAdoDelegate
         // always take one more than count so that hasReachedLimit will work properly
         var sql = ReplaceTablePrefix(GetSelectNextMisfiredTriggersInStateToAcquireSql(count != -1 ? count + 1 : count));
         using var cmd = PrepareCommand(conn, sql);
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "nextFireTime", GetDbDateTimeValue(ts));
-        AddCommandParameter(cmd, "state1", state1);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamNextFireTime, GetDbDateTimeValue(ts));
+        AddCommandParameter(cmd, ParamState1, state1);
 
         DbDataReader rs;
         using (rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
@@ -148,9 +190,9 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlCountMisfiredTriggersInStates));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "nextFireTime", GetDbDateTimeValue(ts));
-        AddCommandParameter(cmd, "state1", state1);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamNextFireTime, GetDbDateTimeValue(ts));
+        AddCommandParameter(cmd, ParamState1, state1);
 
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
     }
@@ -164,10 +206,10 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectMisfiredTriggersInGroupInState));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "timestamp", GetDbDateTimeValue(ts));
-        AddCommandParameter(cmd, "triggerGroup", groupName);
-        AddCommandParameter(cmd, "state", state);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamTimestamp, GetDbDateTimeValue(ts));
+        AddCommandParameter(cmd, ParamTriggerGroup, groupName);
+        AddCommandParameter(cmd, ParamState, state);
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         List<TriggerKey> list = new List<TriggerKey>();
@@ -191,9 +233,9 @@ public partial class StdAdoDelegate
 
         using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectInstancesRecoverableFiredTriggers)))
         {
-            AddCommandParameter(cmd, "schedulerName", schedName);
-            AddCommandParameter(cmd, "instanceName", instanceId);
-            AddCommandParameter(cmd, "requestsRecovery", GetDbBooleanValue(true));
+            AddCommandParameter(cmd, ParamSchedulerName, schedName);
+            AddCommandParameter(cmd, ParamInstanceName, instanceId);
+            AddCommandParameter(cmd, ParamRequestsRecovery, GetDbBooleanValue(true));
 
             using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
             {
@@ -253,7 +295,7 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteFiredTriggers));
-        AddCommandParameter(cmd, "schedulerName", schedName);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -265,8 +307,8 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteInstancesFiredTriggers));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "instanceName", instanceName);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamInstanceName, instanceName);
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -281,15 +323,15 @@ public partial class StdAdoDelegate
         var jobData = SerializeJobData(trigger.JobDataMap);
 
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertTrigger));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-        AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
-        AddCommandParameter(cmd, "triggerJobName", trigger.JobKey.Name);
-        AddCommandParameter(cmd, "triggerJobGroup", trigger.JobKey.Group);
-        AddCommandParameter(cmd, "triggerDescription", trigger.Description);
-        AddCommandParameter(cmd, "triggerNextFireTime", GetDbDateTimeValue(trigger.GetNextFireTimeUtc()));
-        AddCommandParameter(cmd, "triggerPreviousFireTime", GetDbDateTimeValue(trigger.GetPreviousFireTimeUtc()));
-        AddCommandParameter(cmd, "triggerState", state);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamTriggerName, trigger.Key.Name);
+        AddCommandParameter(cmd, ParamTriggerGroup, trigger.Key.Group);
+        AddCommandParameter(cmd, ParamTriggerJobName, trigger.JobKey.Name);
+        AddCommandParameter(cmd, ParamTriggerJobGroup, trigger.JobKey.Group);
+        AddCommandParameter(cmd, ParamTriggerDescription, trigger.Description);
+        AddCommandParameter(cmd, ParamTriggerNextFireTime, GetDbDateTimeValue(trigger.GetNextFireTimeUtc()));
+        AddCommandParameter(cmd, ParamTriggerPreviousFireTime, GetDbDateTimeValue(trigger.GetPreviousFireTimeUtc()));
+        AddCommandParameter(cmd, ParamTriggerState, state);
 
         var tDel = FindTriggerPersistenceDelegate(trigger);
         string type = TriggerTypeBlob;
@@ -298,14 +340,14 @@ public partial class StdAdoDelegate
             type = tDel.GetHandledTriggerTypeDiscriminator();
         }
 
-        AddCommandParameter(cmd, "triggerType", type);
-        AddCommandParameter(cmd, "triggerStartTime", GetDbDateTimeValue(trigger.StartTimeUtc));
-        AddCommandParameter(cmd, "triggerEndTime", GetDbDateTimeValue(trigger.EndTimeUtc));
-        AddCommandParameter(cmd, "triggerCalendarName", trigger.CalendarName);
-        AddCommandParameter(cmd, "triggerMisfireInstruction", trigger.MisfireInstruction);
-        AddCommandParameter(cmd, "triggerJobJobDataMap", jobData, DbProvider.Metadata.DbBinaryType);
+        AddCommandParameter(cmd, ParamTriggerType, type);
+        AddCommandParameter(cmd, ParamTriggerStartTime, GetDbDateTimeValue(trigger.StartTimeUtc));
+        AddCommandParameter(cmd, ParamTriggerEndTime, GetDbDateTimeValue(trigger.EndTimeUtc));
+        AddCommandParameter(cmd, ParamTriggerCalendarName, trigger.CalendarName);
+        AddCommandParameter(cmd, ParamTriggerMisfireInstruction, trigger.MisfireInstruction);
+        AddCommandParameter(cmd, ParamTriggerJobJobDataMap, jobData, DbProvider.Metadata.DbBinaryType);
 
-        AddCommandParameter(cmd, "triggerPriority", trigger.Priority);
+        AddCommandParameter(cmd, ParamTriggerPriority, trigger.Priority);
 
         int insertResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
@@ -330,10 +372,10 @@ public partial class StdAdoDelegate
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertBlobTrigger));
         // update the blob
         byte[]? buf = SerializeObject(trigger);
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-        AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
-        AddCommandParameter(cmd, "blob", buf, DbProvider.Metadata.DbBinaryType);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamTriggerName, trigger.Key.Name);
+        AddCommandParameter(cmd, ParamTriggerGroup, trigger.Key.Group);
+        AddCommandParameter(cmd, ParamBlob, buf, DbProvider.Metadata.DbBinaryType);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -358,14 +400,14 @@ public partial class StdAdoDelegate
         var sqlUpdate = updateJobData ? SqlUpdateTrigger : SqlUpdateTriggerSkipData;
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(sqlUpdate));
 
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "triggerJobName", trigger.JobKey.Name);
-        AddCommandParameter(cmd, "triggerJobGroup", trigger.JobKey.Group);
-        AddCommandParameter(cmd, "triggerDescription", trigger.Description);
-        AddCommandParameter(cmd, "triggerNextFireTime", GetDbDateTimeValue(trigger.GetNextFireTimeUtc()));
-        AddCommandParameter(cmd, "triggerPreviousFireTime", GetDbDateTimeValue(trigger.GetPreviousFireTimeUtc()));
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamTriggerJobName, trigger.JobKey.Name);
+        AddCommandParameter(cmd, ParamTriggerJobGroup, trigger.JobKey.Group);
+        AddCommandParameter(cmd, ParamTriggerDescription, trigger.Description);
+        AddCommandParameter(cmd, ParamTriggerNextFireTime, GetDbDateTimeValue(trigger.GetNextFireTimeUtc()));
+        AddCommandParameter(cmd, ParamTriggerPreviousFireTime, GetDbDateTimeValue(trigger.GetPreviousFireTimeUtc()));
 
-        AddCommandParameter(cmd, "triggerState", state);
+        AddCommandParameter(cmd, ParamTriggerState, state);
 
         var tDel = FindTriggerPersistenceDelegate(trigger);
 
@@ -375,25 +417,25 @@ public partial class StdAdoDelegate
             type = tDel.GetHandledTriggerTypeDiscriminator();
         }
 
-        AddCommandParameter(cmd, "triggerType", type);
+        AddCommandParameter(cmd, ParamTriggerType, type);
 
-        AddCommandParameter(cmd, "triggerStartTime", GetDbDateTimeValue(trigger.StartTimeUtc));
-        AddCommandParameter(cmd, "triggerEndTime", GetDbDateTimeValue(trigger.EndTimeUtc));
-        AddCommandParameter(cmd, "triggerCalendarName", trigger.CalendarName);
-        AddCommandParameter(cmd, "triggerMisfireInstruction", trigger.MisfireInstruction);
-        AddCommandParameter(cmd, "triggerPriority", trigger.Priority);
+        AddCommandParameter(cmd, ParamTriggerStartTime, GetDbDateTimeValue(trigger.StartTimeUtc));
+        AddCommandParameter(cmd, ParamTriggerEndTime, GetDbDateTimeValue(trigger.EndTimeUtc));
+        AddCommandParameter(cmd, ParamTriggerCalendarName, trigger.CalendarName);
+        AddCommandParameter(cmd, ParamTriggerMisfireInstruction, trigger.MisfireInstruction);
+        AddCommandParameter(cmd, ParamTriggerPriority, trigger.Priority);
 
         const string JobDataMapParameter = "triggerJobJobDataMap";
         if (updateJobData)
         {
             AddCommandParameter(cmd, JobDataMapParameter, jobData, DbProvider.Metadata.DbBinaryType);
-            AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-            AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
+            AddCommandParameter(cmd, ParamTriggerName, trigger.Key.Name);
+            AddCommandParameter(cmd, ParamTriggerGroup, trigger.Key.Group);
         }
         else
         {
-            AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-            AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
+            AddCommandParameter(cmd, ParamTriggerName, trigger.Key.Name);
+            AddCommandParameter(cmd, ParamTriggerGroup, trigger.Key.Group);
         }
 
         var updateResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
@@ -445,10 +487,10 @@ public partial class StdAdoDelegate
         // update the blob
         byte[]? os = SerializeObject(trigger);
 
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "blob", os, DbProvider.Metadata.DbBinaryType);
-        AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-        AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamBlob, os, DbProvider.Metadata.DbBinaryType);
+        AddCommandParameter(cmd, ParamTriggerName, trigger.Key.Name);
+        AddCommandParameter(cmd, ParamTriggerGroup, trigger.Key.Group);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -461,10 +503,10 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerState));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "state", state);
-        AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-        AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamState, state);
+        AddCommandParameter(cmd, ParamTriggerName, triggerKey.Name);
+        AddCommandParameter(cmd, ParamTriggerGroup, triggerKey.Group);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -480,13 +522,13 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerStateFromStates));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "newState", newState);
-        AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-        AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
-        AddCommandParameter(cmd, "oldState1", oldState1);
-        AddCommandParameter(cmd, "oldState2", oldState2);
-        AddCommandParameter(cmd, "oldState3", oldState3);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamNewState, newState);
+        AddCommandParameter(cmd, ParamTriggerName, triggerKey.Name);
+        AddCommandParameter(cmd, ParamTriggerGroup, triggerKey.Group);
+        AddCommandParameter(cmd, ParamOldState1, oldState1);
+        AddCommandParameter(cmd, ParamOldState2, oldState2);
+        AddCommandParameter(cmd, ParamOldState3, oldState3);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -502,12 +544,12 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerGroupStateFromStates));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "newState", newState);
-        AddCommandParameter(cmd, "groupName", ToSqlLikeClause(matcher));
-        AddCommandParameter(cmd, "oldState1", oldState1);
-        AddCommandParameter(cmd, "oldState2", oldState2);
-        AddCommandParameter(cmd, "oldState3", oldState3);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamNewState, newState);
+        AddCommandParameter(cmd, ParamGroupName, ToSqlLikeClause(matcher));
+        AddCommandParameter(cmd, ParamOldState1, oldState1);
+        AddCommandParameter(cmd, ParamOldState2, oldState2);
+        AddCommandParameter(cmd, ParamOldState3, oldState3);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -521,11 +563,11 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerStateFromState));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "newState", newState);
-        AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-        AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
-        AddCommandParameter(cmd, "oldState", oldState);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamNewState, newState);
+        AddCommandParameter(cmd, ParamTriggerName, triggerKey.Name);
+        AddCommandParameter(cmd, ParamTriggerGroup, triggerKey.Group);
+        AddCommandParameter(cmd, ParamOldState, oldState);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -540,12 +582,12 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerStateFromStateWithNextFireTime));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "newState", newState);
-        AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-        AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
-        AddCommandParameter(cmd, "oldState", oldState);
-        AddCommandParameter(cmd, "nextFireTime", GetDbDateTimeValue(nextFireTime));
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamNewState, newState);
+        AddCommandParameter(cmd, ParamTriggerName, triggerKey.Name);
+        AddCommandParameter(cmd, ParamTriggerGroup, triggerKey.Group);
+        AddCommandParameter(cmd, ParamOldState, oldState);
+        AddCommandParameter(cmd, ParamNextFireTime, GetDbDateTimeValue(nextFireTime));
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -559,10 +601,10 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerGroupStateFromState));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "newState", newState);
-        AddCommandParameter(cmd, "triggerGroup", ToSqlLikeClause(matcher));
-        AddCommandParameter(cmd, "oldState", oldState);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamNewState, newState);
+        AddCommandParameter(cmd, ParamTriggerGroup, ToSqlLikeClause(matcher));
+        AddCommandParameter(cmd, ParamOldState, oldState);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -575,10 +617,10 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateJobTriggerStates));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "state", state);
-        AddCommandParameter(cmd, "jobName", jobKey.Name);
-        AddCommandParameter(cmd, "jobGroup", jobKey.Group);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamState, state);
+        AddCommandParameter(cmd, ParamJobName, jobKey.Name);
+        AddCommandParameter(cmd, ParamJobGroup, jobKey.Group);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -592,11 +634,11 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateJobTriggerStatesFromOtherState));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "state", state);
-        AddCommandParameter(cmd, "jobName", jobKey.Name);
-        AddCommandParameter(cmd, "jobGroup", jobKey.Group);
-        AddCommandParameter(cmd, "oldState", oldState);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamState, state);
+        AddCommandParameter(cmd, ParamJobName, jobKey.Name);
+        AddCommandParameter(cmd, ParamJobGroup, jobKey.Group);
+        AddCommandParameter(cmd, ParamOldState, oldState);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -608,9 +650,9 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteBlobTrigger));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-        AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamTriggerName, triggerKey.Name);
+        AddCommandParameter(cmd, ParamTriggerGroup, triggerKey.Group);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -624,9 +666,9 @@ public partial class StdAdoDelegate
         await DeleteTriggerExtension(conn, triggerKey, cancellationToken).ConfigureAwait(false);
 
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteTrigger));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-        AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamTriggerName, triggerKey.Name);
+        AddCommandParameter(cmd, ParamTriggerGroup, triggerKey.Group);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -673,9 +715,9 @@ public partial class StdAdoDelegate
 
         using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTrigger)))
         {
-            AddCommandParameter(cmd, "schedulerName", schedName);
-            AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-            AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+            AddCommandParameter(cmd, ParamSchedulerName, schedName);
+            AddCommandParameter(cmd, ParamTriggerName, triggerKey.Name);
+            AddCommandParameter(cmd, ParamTriggerGroup, triggerKey.Group);
 
             using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
             {
@@ -787,9 +829,9 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTrigger));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-        AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamTriggerName, triggerKey.Name);
+        AddCommandParameter(cmd, ParamTriggerGroup, triggerKey.Group);
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         return await rs.ReadAsync(cancellationToken).ConfigureAwait(false);
@@ -812,9 +854,9 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerData));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-        AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamTriggerName, triggerKey.Name);
+        AddCommandParameter(cmd, ParamTriggerGroup, triggerKey.Group);
 
         using var rs = await cmd.ExecuteReaderAsync(System.Data.CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
         if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -837,9 +879,9 @@ public partial class StdAdoDelegate
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerState));
 
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-        AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamTriggerName, triggerKey.Name);
+        AddCommandParameter(cmd, ParamTriggerGroup, triggerKey.Group);
 
         var state = (string?) await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
 
@@ -855,9 +897,9 @@ public partial class StdAdoDelegate
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerStatus));
         TriggerStatus? status = null;
 
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-        AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamTriggerName, triggerKey.Name);
+        AddCommandParameter(cmd, ParamTriggerGroup, triggerKey.Group);
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
@@ -880,9 +922,9 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerType));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-        AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamTriggerName, triggerKey.Name);
+        AddCommandParameter(cmd, ParamTriggerGroup, triggerKey.Group);
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -898,7 +940,7 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectNumTriggers));
-        AddCommandParameter(cmd, "schedulerName", schedName);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
 
         var count = Convert.ToInt32(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
         return count;
@@ -910,7 +952,7 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerGroups));
-        AddCommandParameter(cmd, "schedulerName", schedName);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         List<string> list = new List<string>();
@@ -929,8 +971,8 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerGroupsFiltered));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "triggerGroup", ToSqlLikeClause(matcher));
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamTriggerGroup, ToSqlLikeClause(matcher));
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         List<string> list = new List<string>();
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -961,8 +1003,8 @@ public partial class StdAdoDelegate
         }
 
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(sql));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "triggerGroup", parameter);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamTriggerGroup, parameter);
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         var keys = new HashSet<TriggerKey>();
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -980,8 +1022,8 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertPausedTriggerGroup));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "triggerGroup", groupName);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamTriggerGroup, groupName);
         int rows = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
         return rows;
@@ -994,8 +1036,8 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeletePausedTriggerGroup));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "triggerGroup", groupName);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamTriggerGroup, groupName);
         int rows = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
         return rows;
@@ -1008,8 +1050,8 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeletePausedTriggerGroup));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "triggerGroup", ToSqlLikeClause(matcher));
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamTriggerGroup, ToSqlLikeClause(matcher));
         int rows = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
         return rows;
@@ -1021,7 +1063,7 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeletePausedTriggerGroups));
-        AddCommandParameter(cmd, "schedulerName", schedName);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
         int rows = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         return rows;
     }
@@ -1033,8 +1075,8 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectPausedTriggerGroup));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "triggerGroup", groupName);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamTriggerGroup, groupName);
 
         return await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) != null;
     }
@@ -1046,8 +1088,8 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectNumTriggersInGroup));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "triggerGroup", groupName);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamTriggerGroup, groupName);
 
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false)) > 0;
     }
@@ -1059,9 +1101,9 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerForFireTime));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "state", StateWaiting);
-        AddCommandParameter(cmd, "fireTime", GetDbDateTimeValue(fireTime));
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamState, StateWaiting);
+        AddCommandParameter(cmd, ParamFireTime, GetDbDateTimeValue(fireTime));
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -1088,10 +1130,10 @@ public partial class StdAdoDelegate
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(GetSelectNextTriggerToAcquireSql(maxCount)));
         List<TriggerAcquireResult> nextTriggers = new();
 
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "state", StateWaiting);
-        AddCommandParameter(cmd, "noLaterThan", GetDbDateTimeValue(noLaterThan));
-        AddCommandParameter(cmd, "noEarlierThan", GetDbDateTimeValue(noEarlierThan));
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamState, StateWaiting);
+        AddCommandParameter(cmd, ParamNoLaterThan, GetDbDateTimeValue(noLaterThan));
+        AddCommandParameter(cmd, ParamNoEarlierThan, GetDbDateTimeValue(noEarlierThan));
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         // signal cancel, otherwise ADO.NET might have trouble handling partial reads from open reader
@@ -1136,30 +1178,30 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertFiredTrigger));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "triggerEntryId", trigger.FireInstanceId);
-        AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-        AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
-        AddCommandParameter(cmd, "triggerInstanceName", instanceId);
-        AddCommandParameter(cmd, "triggerFireTime", GetDbDateTimeValue(SystemTime.UtcNow()));
-        AddCommandParameter(cmd, "triggerScheduledTime", GetDbDateTimeValue(trigger.GetNextFireTimeUtc()));
-        AddCommandParameter(cmd, "triggerState", state);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamTriggerEntryId, trigger.FireInstanceId);
+        AddCommandParameter(cmd, ParamTriggerName, trigger.Key.Name);
+        AddCommandParameter(cmd, ParamTriggerGroup, trigger.Key.Group);
+        AddCommandParameter(cmd, ParamTriggerInstanceName, instanceId);
+        AddCommandParameter(cmd, ParamTriggerFireTime, GetDbDateTimeValue(SystemTime.UtcNow()));
+        AddCommandParameter(cmd, ParamTriggerScheduledTime, GetDbDateTimeValue(trigger.GetNextFireTimeUtc()));
+        AddCommandParameter(cmd, ParamTriggerState, state);
         if (job != null)
         {
-            AddCommandParameter(cmd, "triggerJobName", trigger.JobKey.Name);
-            AddCommandParameter(cmd, "triggerJobGroup", trigger.JobKey.Group);
-            AddCommandParameter(cmd, "triggerJobStateful", GetDbBooleanValue(job.ConcurrentExecutionDisallowed));
-            AddCommandParameter(cmd, "triggerJobRequestsRecovery", GetDbBooleanValue(job.RequestsRecovery));
+            AddCommandParameter(cmd, ParamTriggerJobName, trigger.JobKey.Name);
+            AddCommandParameter(cmd, ParamTriggerJobGroup, trigger.JobKey.Group);
+            AddCommandParameter(cmd, ParamTriggerJobStateful, GetDbBooleanValue(job.ConcurrentExecutionDisallowed));
+            AddCommandParameter(cmd, ParamTriggerJobRequestsRecovery, GetDbBooleanValue(job.RequestsRecovery));
         }
         else
         {
-            AddCommandParameter(cmd, "triggerJobName", null);
-            AddCommandParameter(cmd, "triggerJobGroup", null);
-            AddCommandParameter(cmd, "triggerJobStateful", GetDbBooleanValue(false));
-            AddCommandParameter(cmd, "triggerJobRequestsRecovery", GetDbBooleanValue(false));
+            AddCommandParameter(cmd, ParamTriggerJobName, null);
+            AddCommandParameter(cmd, ParamTriggerJobGroup, null);
+            AddCommandParameter(cmd, ParamTriggerJobStateful, GetDbBooleanValue(false));
+            AddCommandParameter(cmd, ParamTriggerJobRequestsRecovery, GetDbBooleanValue(false));
         }
 
-        AddCommandParameter(cmd, "triggerPriority", trigger.Priority);
+        AddCommandParameter(cmd, ParamTriggerPriority, trigger.Priority);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -1201,15 +1243,15 @@ public partial class StdAdoDelegate
         if (triggerName != null)
         {
             cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectFiredTrigger));
-            AddCommandParameter(cmd, "schedulerName", schedName);
-            AddCommandParameter(cmd, "triggerName", triggerName);
-            AddCommandParameter(cmd, "triggerGroup", groupName);
+            AddCommandParameter(cmd, ParamSchedulerName, schedName);
+            AddCommandParameter(cmd, ParamTriggerName, triggerName);
+            AddCommandParameter(cmd, ParamTriggerGroup, groupName);
         }
         else
         {
             cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectFiredTriggerGroup));
-            AddCommandParameter(cmd, "schedulerName", schedName);
-            AddCommandParameter(cmd, "triggerGroup", groupName);
+            AddCommandParameter(cmd, ParamSchedulerName, schedName);
+            AddCommandParameter(cmd, ParamTriggerGroup, groupName);
         }
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
@@ -1250,15 +1292,15 @@ public partial class StdAdoDelegate
         if (jobName != null)
         {
             cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectFiredTriggersOfJob));
-            AddCommandParameter(cmd, "schedulerName", schedName);
-            AddCommandParameter(cmd, "jobName", jobName);
-            AddCommandParameter(cmd, "jobGroup", groupName);
+            AddCommandParameter(cmd, ParamSchedulerName, schedName);
+            AddCommandParameter(cmd, ParamJobName, jobName);
+            AddCommandParameter(cmd, ParamJobGroup, groupName);
         }
         else
         {
             cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectFiredTriggersOfJobGroup));
-            AddCommandParameter(cmd, "schedulerName", schedName);
-            AddCommandParameter(cmd, "jobGroup", groupName);
+            AddCommandParameter(cmd, ParamSchedulerName, schedName);
+            AddCommandParameter(cmd, ParamJobGroup, groupName);
         }
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
@@ -1295,8 +1337,8 @@ public partial class StdAdoDelegate
         List<FiredTriggerRecord> lst = new List<FiredTriggerRecord>();
 
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectInstancesFiredTriggers));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "instanceName", instanceName);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamInstanceName, instanceName);
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
@@ -1328,7 +1370,7 @@ public partial class StdAdoDelegate
     {
         var instanceNames = new HashSet<string>();
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectFiredTriggerInstanceNames));
-        AddCommandParameter(cmd, "schedulerName", schedName);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
@@ -1345,8 +1387,8 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteFiredTrigger));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "triggerEntryId", entryId);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamTriggerEntryId, entryId);
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -1390,9 +1432,9 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerExistence));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-        AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamTriggerName, triggerKey.Name);
+        AddCommandParameter(cmd, ParamTriggerGroup, triggerKey.Group);
 
         using var dr = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         if (await dr.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -1409,9 +1451,9 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectNumTriggersForJob));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "jobName", jobKey.Name);
-        AddCommandParameter(cmd, "jobGroup", jobKey.Group);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
+        AddCommandParameter(cmd, ParamJobName, jobKey.Name);
+        AddCommandParameter(cmd, ParamJobGroup, jobKey.Group);
 
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
     }
@@ -1427,9 +1469,9 @@ public partial class StdAdoDelegate
 
         using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggersForJob)))
         {
-            AddCommandParameter(cmd, "schedulerName", schedName);
-            AddCommandParameter(cmd, "jobName", jobKey.Name);
-            AddCommandParameter(cmd, "jobGroup", jobKey.Group);
+            AddCommandParameter(cmd, ParamSchedulerName, schedName);
+            AddCommandParameter(cmd, ParamJobName, jobKey.Name);
+            AddCommandParameter(cmd, ParamJobGroup, jobKey.Group);
 
             using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
             {
@@ -1461,8 +1503,8 @@ public partial class StdAdoDelegate
         List<TriggerKey> keys = new List<TriggerKey>();
         using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggersForCalendar)))
         {
-            AddCommandParameter(cmd, "schedulerName", schedName);
-            AddCommandParameter(cmd, "calendarName", calName);
+            AddCommandParameter(cmd, ParamSchedulerName, schedName);
+            AddCommandParameter(cmd, ParamCalendarName, calName);
             using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
             {
                 while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -1491,7 +1533,7 @@ public partial class StdAdoDelegate
     {
         var retValue = new HashSet<string>();
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectPausedTriggerGroups));
-        AddCommandParameter(cmd, "schedulerName", schedName);
+        AddCommandParameter(cmd, ParamSchedulerName, schedName);
         using var dr = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while (await dr.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
