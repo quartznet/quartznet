@@ -258,8 +258,8 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
             hashCode = (requestorId.GetHashCode() * 397) ^ lockName.GetHashCode();
         }
 
-        public bool Equals(ThreadLockKey other) 
-            => requestorId.Equals(other.requestorId) && ReferenceEquals(lockName, other.lockName);
+        public bool Equals(ThreadLockKey other)
+            => requestorId.Equals(other.requestorId) && string.Equals(lockName, other.lockName, StringComparison.Ordinal);
 
         public override bool Equals(object? obj) => obj is ThreadLockKey other && Equals(other);
 

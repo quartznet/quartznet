@@ -3203,8 +3203,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
             if (firstCheckIn || failedRecords != null && failedRecords.Count > 0)
             {
-                await LockHandler.ObtainLock(requestorId, conn, LockStateAccess, cancellationToken).ConfigureAwait(false);
-                transStateOwner = true;
+                transStateOwner = await LockHandler.ObtainLock(requestorId, conn, LockStateAccess, cancellationToken).ConfigureAwait(false);
 
                 // Now that we own the lock, make sure we still have work to do.
                 // The first time through, we also need to make sure we update/create our state record
@@ -3219,9 +3218,8 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
                 if (failedRecords.Count > 0)
                 {
-                    await LockHandler.ObtainLock(requestorId, conn, LockTriggerAccess, cancellationToken).ConfigureAwait(false);
+                    transOwner = await LockHandler.ObtainLock(requestorId, conn, LockTriggerAccess, cancellationToken).ConfigureAwait(false);
                     //getLockHandler().obtainLock(conn, LockJobAccess);
-                    transOwner = true;
 
                     await ClusterRecover(conn, failedRecords, cancellationToken).ConfigureAwait(false);
                     recovered = true;
