@@ -46,8 +46,7 @@ public class AdoJobStoreSmokeTest
                 ?? "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=1521)))(CONNECT_DATA=(SERVICE_NAME=xe)));User Id=system;Password=oracle;",
             "SQLServer" => TestConstants.SqlServerConnectionString,
             "SQLServerMOT" => TestConstants.SqlServerConnectionStringMOT,
-            "MySQL" => Environment.GetEnvironmentVariable("MYSQL_CONNECTION_STRING")
-                ?? "Server = localhost; Database = quartznet; Uid = quartznet; Pwd = quartznet",
+            "MySQL" =>  TestConstants.MySqlConnectionString,
             "PostgreSQL" => TestConstants.PostgresConnectionString,
             "Firebird" => Environment.GetEnvironmentVariable("FIREBIRD_CONNECTION_STRING")
                 ?? "User=SYSDBA;Password=masterkey;Database=/firebird/data/quartz.fdb;DataSource=localhost;Port=3050;Dialect=3;Charset=NONE;Role=;Connection lifetime=15;Pooling=true;MinPoolSize=0;MaxPoolSize=50;Packet Size=8192;ServerType=0;",

@@ -422,6 +422,27 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Update trigger state from another state with next fire time,
+    /// but only if the job is not currently executing (for DisallowConcurrentExecution).
+    /// </summary>
+    /// <param name="conn">The DB connection</param>
+    /// <param name="triggerKey">The key identifying the trigger.</param>
+    /// <param name="newState">The new state for the trigger</param>
+    /// <param name="oldState">The old state the trigger must be in</param>
+    /// <param name="nextFireTime">The next fire time the trigger must have</param>
+    /// <param name="checkConcurrency">Whether to check for concurrent execution</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>Number of rows updated (0 if job is already executing)</returns>
+    Task<int> UpdateTriggerStateIfNotExecuting(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        string newState,
+        string oldState,
+        DateTimeOffset nextFireTime,
+        bool checkConcurrency,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Update all triggers in the given group to the given new state, if they
     /// are in one of the given old states.
     /// </summary>

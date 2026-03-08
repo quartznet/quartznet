@@ -7,7 +7,9 @@ namespace Quartz;
     {
         public static string SqlServerUser => Environment.GetEnvironmentVariable("MSSQL_USER") ?? "sa";
         public static string SqlServerPassword => Environment.GetEnvironmentVariable("MSSQL_PASSWORD") ?? "Quartz!DockerP4ss";
-
+        
+        public static string MySqlConnectionString => Environment.GetEnvironmentVariable("MYSQL_CONNECTION_STRING") ?? "Server=localhost;Database=quartznet;Uid=quartznet;Pwd=quartznet";
+        
         public static string SqlServerConnectionString =>
             Environment.GetEnvironmentVariable("MSSQL_CONNECTION_STRING")
             ?? $"Server=localhost;Database=quartznet;User Id={SqlServerUser};Password={SqlServerPassword};";

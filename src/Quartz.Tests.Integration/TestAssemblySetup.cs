@@ -13,7 +13,7 @@ public class TestAssemblySetup
     [OneTimeSetUp]
     public async Task SetUp()
     {
-        // set default directory to make sure file loading works
+        // set a default directory to make sure file loading works
         // (https://youtrack.jetbrains.com/issue/RSRP-451142)
         string codeBase = GetType().GetTypeInfo().Assembly.Location;
         string pathToUse = codeBase;
