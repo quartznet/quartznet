@@ -378,7 +378,7 @@ WHERE {ColumnSchedulerName} = @schedulerName
           WHERE {ColumnTriggerName} = @triggerName
             AND {ColumnTriggerGroup} = @triggerGroup
             AND {ColumnSchedulerName} = @schedulerName
-        ) AS t1
+        ) t1
       )
       AND jd.{ColumnJobGroup} = (
         SELECT t2.{ColumnJobGroup} FROM (
@@ -387,7 +387,7 @@ WHERE {ColumnSchedulerName} = @schedulerName
           WHERE {ColumnTriggerName} = @triggerName
             AND {ColumnTriggerGroup} = @triggerGroup
             AND {ColumnSchedulerName} = @schedulerName
-        ) AS t2
+        ) t2
       )
       AND jd.{ColumnIsNonConcurrent} = @checkConcurrency
       AND (ft.{ColumnEntryState} = '{StateAcquired}' OR ft.{ColumnEntryState} = '{StateExecuting}')
