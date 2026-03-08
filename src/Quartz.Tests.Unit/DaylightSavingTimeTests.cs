@@ -120,4 +120,29 @@ public class DaylightSavingTimeTest
         DateTimeOffset convertedFireTime = TimeZoneInfo.ConvertTime(fireTime.Value, tz);
         Assert.AreEqual(expectedTime, convertedFireTime);
     }
+
+    [Test]
+    public void ShouldNotFireInfinitelyAfterDstFallBackTransition()
+    {
+        // Amsterdam: CEST (UTC+2) → CET (UTC+1) on October 29, 2023 at 3:00 AM CEST (= 1:00 AM UTC).
+        // During the first hour after the fall-back, every-minute cron triggers would previously
+        // compute a NextFireTimeUtc that was 1 hour too early (in the past), causing infinite refires.
+        TimeZoneInfo tz = TZConvert.GetTimeZoneInfo("W. Europe Standard Time");
+
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity("trigger1", "group1")
+            .WithSchedule(CronScheduleBuilder.CronSchedule("0 * * * * ?").InTimeZone(tz))
+            .ForJob("job1", "group1")
+            .Build();
+
+        // Simulates a fire at 01:00:49 UTC (= 02:00:49 CET, which is after the DST fall-back).
+        DateTimeOffset fireTime = new DateTimeOffset(2023, 10, 29, 1, 0, 49, TimeSpan.Zero);
+        DateTimeOffset? nextFireTime = trigger.GetFireTimeAfter(fireTime);
+
+        // Next fire should be 01:01:00 UTC (= 02:01:00 CET), not 00:01:00 UTC (= 02:01:00 CEST).
+        DateTimeOffset expectedUtc = new DateTimeOffset(2023, 10, 29, 1, 1, 0, TimeSpan.Zero);
+
+        Assert.NotNull(nextFireTime);
+        Assert.AreEqual(expectedUtc, nextFireTime!.Value.ToUniversalTime());
+    }
 }

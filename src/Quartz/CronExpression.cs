@@ -22,6 +22,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Text;
@@ -2056,9 +2057,23 @@ public class CronExpression : IDeserializationCallback, ISerializable
             d = new DateTimeOffset(year, d.Month, d.Day, d.Hour, d.Minute, d.Second, d.Offset);
 
             //apply the proper offset for this date
-            d = new DateTimeOffset(d.DateTime, TimeZoneUtil.GetUtcOffset(d.DateTime, TimeZone));
+            var localDateTime = d.DateTime;
+            d = new DateTimeOffset(localDateTime, TimeZoneUtil.GetUtcOffset(localDateTime, TimeZone));
 
             gotOne = true;
+
+            // During DST fall-back transitions, an ambiguous local time may have been
+            // assigned the DST (summer) offset by GetUtcOffset, which picks the first
+            // (DST) occurrence. This can result in a UTC time that is before afterTimeUtc,
+            // causing infinite trigger fires. In that case, use the standard (non-DST)
+            // offset instead, which corresponds to the second occurrence of the local time.
+            // DST always shifts the offset by +1 hour, so the standard offset is always
+            // Min() and the DST offset is always Max() of the two ambiguous offsets.
+            if (d.ToUniversalTime() < afterTimeUtc && TimeZone.IsAmbiguousTime(localDateTime))
+            {
+                TimeSpan standardOffset = TimeZone.GetAmbiguousTimeOffsets(localDateTime).Min();
+                d = new DateTimeOffset(localDateTime, standardOffset);
+            }
         } // while( !done )
 
         return d.ToUniversalTime();
