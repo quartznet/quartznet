@@ -121,7 +121,7 @@ public static class ClusterTestHelper
                         var detectedAt = violationReader.GetDateTime(1);
                         var concurrentCount = Convert.ToInt32(violationReader.GetValue(2));
                         var executionId = violationReader.GetString(3);
-                        var endedAt = violationReader.IsDBNull(4) ? (DateTime?)null : violationReader.GetDateTime(4);
+                        var endedAt = await violationReader.IsDBNullAsync(4).ConfigureAwait(false) ? (DateTime?)null : violationReader.GetDateTime(4);
                         var duration = endedAt.HasValue ? $"{(endedAt.Value - detectedAt).TotalMilliseconds:F0}ms" : "ongoing";
                         sb.Append($"  [{detectedAt:HH:mm:ss.fff}] Node: {nodeId} | Count: {concurrentCount} | Duration: {duration} | Execution: {executionId}\n");
                     }

@@ -72,11 +72,12 @@ public static class TestResultsExporter
             {
                 while (await reader.ReadAsync().ConfigureAwait(false))
                 {
+                    var endTime = await reader.IsDBNullAsync(3).ConfigureAwait(false) ? null : (DateTime?) reader.GetDateTime(3);
                     executions.Add(new ExecutionRecord(
                         reader.GetString(0),
                         reader.GetString(1),
                         reader.GetDateTime(2),
-                        reader.IsDBNull(3) ? null : reader.GetDateTime(3)
+                        endTime
                     ));
                 }
             }
@@ -92,12 +93,13 @@ public static class TestResultsExporter
             {
                 while (await reader.ReadAsync().ConfigureAwait(false))
                 {
+                    var endedAt = await reader.IsDBNullAsync(4).ConfigureAwait(false) ? null : (DateTime?) reader.GetDateTime(4);
                     violations.Add(new ViolationRecord(
                         reader.GetString(0),
                         reader.GetDateTime(1),
                         Convert.ToInt32(reader.GetValue(2)),
                         reader.GetString(3),
-                        reader.IsDBNull(4) ? null : reader.GetDateTime(4)
+                        endedAt
                     ));
                 }
             }

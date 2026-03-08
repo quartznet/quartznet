@@ -17,6 +17,16 @@ namespace Quartz.Tests.ClusterNode;
 [PersistJobDataAfterExecution]
 public class ConcurrentExecutionTestJob : IJob
 {
+    private sealed record ViolationCheckContext(
+        DbConnection Connection,
+        DbTransaction Transaction,
+        IDatabaseProvider Provider,
+        int CurrentCount,
+        int ConcurrentCount,
+        string ExecutionId,
+        string NodeId,
+        ILogger Logger);
+
     // Local tracking for console output
     private static int _localExecutions;
     private readonly ILogger<ConcurrentExecutionTestJob> logger;
@@ -102,8 +112,9 @@ public class ConcurrentExecutionTestJob : IJob
             await InsertExecution(connection, transaction, provider, executionId, nodeId, startTime).ConfigureAwait(false);
 
             var concurrentCount = currentCount + 1;
+            var ctx = new ViolationCheckContext(connection, transaction, provider, currentCount, concurrentCount, executionId, nodeId, logger);
             var (violationIncidentStarted, isInViolatedState) =
-                await UpdateViolationState(connection, transaction, provider, currentCount, concurrentCount, executionId, nodeId, logger).ConfigureAwait(false);
+                await UpdateViolationState(ctx).ConfigureAwait(false);
 
             await transaction.CommitAsync().ConfigureAwait(false);
             return (concurrentCount, violationIncidentStarted, isInViolatedState);
@@ -142,32 +153,30 @@ public class ConcurrentExecutionTestJob : IJob
         await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
     }
 
-    private static async Task<(bool violationIncidentStarted, bool isInViolatedState)> UpdateViolationState(
-        DbConnection connection, DbTransaction transaction, IDatabaseProvider provider,
-        int currentCount, int concurrentCount, string executionId, string nodeId, ILogger logger)
+    private static async Task<(bool violationIncidentStarted, bool isInViolatedState)> UpdateViolationState(ViolationCheckContext ctx)
     {
-        var paramPrefix = provider.GetParameterPrefix();
+        var paramPrefix = ctx.Provider.GetParameterPrefix();
 
         // Check if we were previously in a clean state (no active violations)
-        await using var checkCmd = connection.CreateCommand();
-        checkCmd.Transaction = transaction;
+        await using var checkCmd = ctx.Connection.CreateCommand();
+        checkCmd.Transaction = ctx.Transaction;
         checkCmd.CommandText = "SELECT COUNT(*) FROM ClusterTestViolations WHERE EndedAt IS NULL";
         var result = await checkCmd.ExecuteScalarAsync().ConfigureAwait(false);
         var wasInCleanState = (result != null ? Convert.ToInt32(result) : 0) == 0;
 
         // A new incident starts only when we transition from clean (0) to violated (2+)
-        var violationIncidentStarted = currentCount == 1 && wasInCleanState;
-        var isInViolatedState = currentCount > 0 && !wasInCleanState;
+        var violationIncidentStarted = ctx.CurrentCount == 1 && wasInCleanState;
+        var isInViolatedState = ctx.CurrentCount > 0 && !wasInCleanState;
 
         if (violationIncidentStarted)
         {
-            logger.LogWarning("Recording NEW violation period - concurrent count: {Count}", concurrentCount);
-            await RecordViolation(connection, transaction, paramPrefix, executionId, nodeId, concurrentCount).ConfigureAwait(false);
+            ctx.Logger.LogWarning("Recording NEW violation period - concurrent count: {Count}", ctx.ConcurrentCount);
+            await RecordViolation(ctx.Connection, ctx.Transaction, paramPrefix, ctx.ExecutionId, ctx.NodeId, ctx.ConcurrentCount).ConfigureAwait(false);
         }
-        else if (currentCount == 0 && !wasInCleanState)
+        else if (ctx.CurrentCount == 0 && !wasInCleanState)
         {
-            logger.LogInformation("Violation period ended - returning to clean state");
-            await EndActiveViolations(connection, transaction, paramPrefix).ConfigureAwait(false);
+            ctx.Logger.LogInformation("Violation period ended - returning to clean state");
+            await EndActiveViolations(ctx.Connection, ctx.Transaction, paramPrefix).ConfigureAwait(false);
         }
 
         return (violationIncidentStarted, isInViolatedState);
