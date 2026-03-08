@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 
 using Quartz.Impl;
+using Quartz.Listener;
 using Quartz.Simpl;
 using Quartz.Spi;
 
@@ -44,51 +45,69 @@ public class ShutdownTriggerReleaseTest
 
         ISchedulerFactory sf = new StdSchedulerFactory(properties);
         IScheduler scheduler = await sf.GetScheduler();
+        BlockingAcquireJobStore store = BlockingAcquireJobStore.LastInstance;
 
-        var store = BlockingAcquireJobStore.LastInstance;
+        try
+        {
+            // Register a listener that signals when shutdown has set halted=true.
+            // SchedulerShuttingdown fires after Halt(), guaranteeing halted=true.
+            var shutdownListener = new ShutdownSignalListener();
+            scheduler.ListenerManager.AddSchedulerListener(shutdownListener);
 
-        var job = JobBuilder.Create<NoOpJob>()
-            .WithIdentity("job1", "group1")
-            .Build();
+            var job = JobBuilder.Create<NoOpJob>()
+                .WithIdentity("job1", "group1")
+                .Build();
 
-        // StartNow so timeUntilTrigger <= 0 when the scheduler thread
-        // resumes after AcquireNextTriggers — the trigger wait loop is skipped.
-        var trigger = TriggerBuilder.Create()
-            .WithIdentity("trigger1", "group1")
-            .ForJob(job)
-            .StartNow()
-            .Build();
+            // StartNow so timeUntilTrigger <= 0 when the scheduler thread
+            // resumes after AcquireNextTriggers — the trigger wait loop is skipped.
+            var trigger = TriggerBuilder.Create()
+                .WithIdentity("trigger1", "group1")
+                .ForJob(job)
+                .StartNow()
+                .Build();
 
-        await scheduler.ScheduleJob(job, trigger);
-        await scheduler.Start();
+            await scheduler.ScheduleJob(job, trigger);
+            await scheduler.Start();
 
-        // Wait for the scheduler thread to call AcquireNextTriggers and
-        // acquire our trigger (it's now blocked inside the custom store).
-        await WithTimeout(store.AcquiresReady.Task, TimeSpan.FromSeconds(5));
+            // Wait for the scheduler thread to call AcquireNextTriggers and
+            // acquire our trigger (it's now blocked inside the custom store).
+            await WithTimeout(store.AcquiresReady.Task, TimeSpan.FromSeconds(5));
 
-        // Start shutdown in a background task. This will:
-        //   1. Standby() → paused=true, scheduling change signal
-        //   2. Halt(false) → halted=true, cancel token
-        //   3. schedThread.Shutdown() → wait for thread (blocked on our store)
-        // So this task won't complete until we unblock the store.
-        var shutdownTask = Task.Run(() => scheduler.Shutdown(false));
+            // Start shutdown in a background task. This will:
+            //   1. Standby() → paused=true, scheduling change signal
+            //   2. Halt(false) → halted=true, cancel token
+            //   3. Notify SchedulerShuttingdown listeners ← our signal
+            //   4. schedThread.Shutdown() → wait for thread (blocked on our store)
+            // So this task won't complete until we unblock the store.
+            var shutdownTask = Task.Run(() => scheduler.Shutdown(false));
 
-        // Give Standby + Halt enough time to set halted=true
-        await Task.Delay(500);
+            // Wait for SchedulerShuttingdown which fires after Halt() -
+            // this guarantees halted=true without relying on Task.Delay.
+            await WithTimeout(shutdownListener.ShuttingDown.Task, TimeSpan.FromSeconds(5));
 
-        // Now unblock AcquireNextTriggers. The scheduler thread will resume
-        // with halted=true. Since timeUntilTrigger <= 0, the trigger wait
-        // loop is skipped. goAhead = !halted = false.
-        // Without the fix: triggers are NOT released (bug).
-        // With the fix: triggers ARE released.
-        store.ProceedWithAcquire.TrySetResult(true);
+            // Now unblock AcquireNextTriggers. The scheduler thread will resume
+            // with halted=true. Since timeUntilTrigger <= 0, the trigger wait
+            // loop is skipped. goAhead = !halted = false.
+            // Without the fix: triggers are NOT released (bug).
+            // With the fix: triggers ARE released.
+            store.ProceedWithAcquire.TrySetResult(true);
 
-        // Wait for shutdown to complete
-        await WithTimeout(shutdownTask, TimeSpan.FromSeconds(10));
+            // Wait for shutdown to complete
+            await WithTimeout(shutdownTask, TimeSpan.FromSeconds(10));
 
-        // Verify that ReleaseAcquiredTrigger was called for our trigger
-        Assert.That(store.ReleasedTriggerKeys, Does.Contain(new TriggerKey("trigger1", "group1")),
-            "Acquired triggers must be released during shutdown, not left in ACQUIRED state");
+            // Verify that ReleaseAcquiredTrigger was called for our trigger
+            Assert.That(store.ReleasedTriggerKeys, Does.Contain(new TriggerKey("trigger1", "group1")),
+                "Acquired triggers must be released during shutdown, not left in ACQUIRED state");
+        }
+        finally
+        {
+            // Ensure cleanup even on test failure: unblock the store and shutdown
+            store.ProceedWithAcquire.TrySetResult(true);
+            if (!scheduler.IsShutdown)
+            {
+                await scheduler.Shutdown(false);
+            }
+        }
     }
 
     private static async Task WithTimeout(Task task, TimeSpan timeout)
@@ -100,6 +119,18 @@ public class ShutdownTriggerReleaseTest
         }
 
         await task; // propagate exceptions
+    }
+
+    private class ShutdownSignalListener : SchedulerListenerSupport
+    {
+        public readonly TaskCompletionSource<bool> ShuttingDown =
+            new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override Task SchedulerShuttingdown(CancellationToken cancellationToken = default)
+        {
+            ShuttingDown.TrySetResult(true);
+            return Task.CompletedTask;
+        }
     }
 
     public class NoOpJob : IJob
@@ -117,8 +148,12 @@ public class BlockingAcquireJobStore : RAMJobStore
 {
     public static BlockingAcquireJobStore LastInstance { get; private set; }
 
-    public readonly TaskCompletionSource<bool> AcquiresReady = new TaskCompletionSource<bool>();
-    public readonly TaskCompletionSource<bool> ProceedWithAcquire = new TaskCompletionSource<bool>();
+    public readonly TaskCompletionSource<bool> AcquiresReady =
+        new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    public readonly TaskCompletionSource<bool> ProceedWithAcquire =
+        new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
     public ConcurrentBag<TriggerKey> ReleasedTriggerKeys { get; } = new ConcurrentBag<TriggerKey>();
 
     private int acquireCount;
