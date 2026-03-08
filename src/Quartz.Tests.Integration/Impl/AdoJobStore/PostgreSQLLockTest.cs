@@ -62,7 +62,18 @@ public class PostgreSQLLockTest
 
         try
         {
-            await scheduler.Clear();
+            // Clear the locks table directly to ensure the INSERT race condition is exercised
+            // Without this, scheduler.Clear() would acquire locks and pre-populate the table
+            using (var conn = new Npgsql.NpgsqlConnection(TestConstants.PostgresConnectionString))
+            {
+                await conn.OpenAsync();
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "DELETE FROM QRTZ_LOCKS";
+                    await cmd.ExecuteNonQueryAsync();
+                }
+            }
+
             await scheduler.Start();
 
             // Schedule multiple jobs in parallel to trigger the race condition
