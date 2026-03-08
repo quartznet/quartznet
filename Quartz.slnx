@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/Examples/">
+    <Project Path="src/Quartz.Tests.ClusterNode/Quartz.Tests.ClusterNode.csproj" />
     <Project Path="src/Quartz.Examples.AspNetCore/Quartz.Examples.AspNetCore.csproj" />
     <Project Path="src/Quartz.Examples.Worker/Quartz.Examples.Worker.csproj" />
     <Project Path="src/Quartz.Examples/Quartz.Examples.csproj" />

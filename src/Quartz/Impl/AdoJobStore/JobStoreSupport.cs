@@ -2720,11 +2720,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                         continue;
                     }
 
-                    if (ObjectUtils.IsAttributePresent(jobType, typeof(DisallowConcurrentExecutionAttribute)))
+                    bool jobDisallowsConcurrent = ObjectUtils.IsAttributePresent(jobType, typeof(DisallowConcurrentExecutionAttribute));
+
+                    if (jobDisallowsConcurrent)
                     {
                         if (!acquiredJobKeysForNoConcurrentExec.Add(nextTrigger.JobKey))
                         {
-                            continue; // next trigger
+                            continue; // Already in this node's batch
                         }
                     }
 
@@ -2748,11 +2750,24 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
                     // We now have a acquired trigger, let's add to return list.
                     // If our trigger was no longer in the expected state, try a new one.
-                    int rowsUpdated = await Delegate.UpdateTriggerStateFromOtherStateWithNextFireTime(conn, triggerKey, StateAcquired, StateWaiting, nextFireTimeUtc.Value, cancellationToken).ConfigureAwait(false);
+                    // Use atomic UPDATE with concurrency check for DisallowConcurrent jobs
+                    int rowsUpdated = jobDisallowsConcurrent
+                        ? await Delegate.UpdateTriggerStateIfNotExecuting(
+                            conn, triggerKey, StateAcquired, StateWaiting,
+                            nextFireTimeUtc.Value, true, cancellationToken)
+                            .ConfigureAwait(false)
+                        : await Delegate.UpdateTriggerStateFromOtherStateWithNextFireTime(
+                            conn, triggerKey, StateAcquired, StateWaiting,
+                            nextFireTimeUtc.Value, cancellationToken)
+                            .ConfigureAwait(false);
+
                     if (rowsUpdated <= 0)
                     {
-                        // TODO: Hum... shouldn't we log a warning here?
-                        continue; // next trigger
+                        if (jobDisallowsConcurrent)
+                        {
+                            acquiredJobKeysForNoConcurrentExec.Remove(nextTrigger.JobKey);
+                        }
+                        continue; // Trigger already acquired or job is executing
                     }
                     nextTrigger.FireInstanceId = GetFiredTriggerRecordId();
                     await Delegate.InsertFiredTrigger(conn, nextTrigger, StateAcquired, null, cancellationToken).ConfigureAwait(false);

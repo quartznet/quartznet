@@ -355,6 +355,44 @@ public class StdAdoConstants : AdoConstants
     public static readonly string SqlUpdateTriggerStateFromStateWithNextFireTime =
         Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnTriggerState} = @newState WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup AND {ColumnTriggerState} = @oldState AND {ColumnNextFireTime} = @nextFireTime");
 
+    public static readonly string SqlUpdateTriggerStateIfNotExecuting =
+        Invariant($@"UPDATE {TablePrefixSubst}{TableTriggers}
+SET {ColumnTriggerState} = @newState
+WHERE {ColumnSchedulerName} = @schedulerName
+  AND {ColumnTriggerName} = @triggerName
+  AND {ColumnTriggerGroup} = @triggerGroup
+  AND {ColumnTriggerState} = @oldState
+  AND {ColumnNextFireTime} = @nextFireTime
+  AND NOT EXISTS (
+    SELECT 1
+    FROM {TablePrefixSubst}{TableFiredTriggers} ft
+    JOIN {TablePrefixSubst}{TableJobDetails} jd
+      ON ft.{ColumnJobName} = jd.{ColumnJobName}
+      AND ft.{ColumnJobGroup} = jd.{ColumnJobGroup}
+      AND ft.{ColumnSchedulerName} = jd.{ColumnSchedulerName}
+    WHERE jd.{ColumnSchedulerName} = @schedulerName
+      AND jd.{ColumnJobName} = (
+        SELECT t1.{ColumnJobName} FROM (
+          SELECT {ColumnJobName}
+          FROM {TablePrefixSubst}{TableTriggers}
+          WHERE {ColumnTriggerName} = @triggerName
+            AND {ColumnTriggerGroup} = @triggerGroup
+            AND {ColumnSchedulerName} = @schedulerName
+        ) t1
+      )
+      AND jd.{ColumnJobGroup} = (
+        SELECT t2.{ColumnJobGroup} FROM (
+          SELECT {ColumnJobGroup}
+          FROM {TablePrefixSubst}{TableTriggers}
+          WHERE {ColumnTriggerName} = @triggerName
+            AND {ColumnTriggerGroup} = @triggerGroup
+            AND {ColumnSchedulerName} = @schedulerName
+        ) t2
+      )
+      AND jd.{ColumnIsNonConcurrent} = @checkConcurrency
+      AND (ft.{ColumnEntryState} = '{StateAcquired}' OR ft.{ColumnEntryState} = '{StateExecuting}')
+  )");
+
     public static readonly string SqlUpdateTriggerStatesFromOtherStates =
         Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnTriggerState} = @newState WHERE {ColumnSchedulerName} = @schedulerName AND ({ColumnTriggerState} = @oldState1 OR {ColumnTriggerState} = @oldState2)");
 }

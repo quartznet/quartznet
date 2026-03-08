@@ -15,7 +15,7 @@ namespace Quartz.Tests.Unit;
 
 public class SchedulerBuilderTest
 {
-    private const string TestConnectionString = "Server=localhost;Database=quartznet;";
+    private const string TestConnectionString = "Server=127.0.0.1;Database=quartznet;";
     private const string TestConnectionStringName = "TestConnection";
     private const string TestDataSourceName = "TestSource";
 

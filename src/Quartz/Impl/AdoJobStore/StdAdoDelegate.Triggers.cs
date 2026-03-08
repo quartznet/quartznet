@@ -551,6 +551,28 @@ public partial class StdAdoDelegate
     }
 
     /// <inheritdoc />
+    public virtual async Task<int> UpdateTriggerStateIfNotExecuting(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        string newState,
+        string oldState,
+        DateTimeOffset nextFireTime,
+        bool checkConcurrency,
+        CancellationToken cancellationToken = default)
+    {
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerStateIfNotExecuting));
+        AddCommandParameter(cmd, "schedulerName", schedName);
+        AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+        AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+        AddCommandParameter(cmd, "newState", newState);
+        AddCommandParameter(cmd, "oldState", oldState);
+        AddCommandParameter(cmd, "nextFireTime", GetDbDateTimeValue(nextFireTime));
+        AddCommandParameter(cmd, "checkConcurrency", GetDbBooleanValue(checkConcurrency));
+
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
     public virtual async Task<int> UpdateTriggerGroupStateFromOtherState(
         ConnectionAndTransactionHolder conn,
         GroupMatcher<TriggerKey> matcher,
