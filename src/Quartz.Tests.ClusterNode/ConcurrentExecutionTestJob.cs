@@ -92,110 +92,18 @@ public class ConcurrentExecutionTestJob : IJob
     private static async Task<(int currentCount, bool violationIncidentStarted, bool isInViolatedState)> StartExecution(
         DbConnection connection, IDatabaseProvider provider, string nodeId, string executionId, DateTime startTime, ILogger logger)
     {
-        // Use a transaction to atomically check and update
         await using var transaction = await connection.BeginTransactionAsync(IsolationLevel.Serializable).ConfigureAwait(false);
 
         try
         {
-            // Get the current execution count
-            await using var getCurrentCountCmd = connection.CreateCommand();
-            getCurrentCountCmd.Transaction = transaction;
-            getCurrentCountCmd.CommandText = "SELECT COUNT(*) FROM ClusterTestExecutions WHERE EndTime IS NULL";
-            var currentCountResult = await getCurrentCountCmd.ExecuteScalarAsync().ConfigureAwait(false);
-            var currentCount = currentCountResult != null ? Convert.ToInt32(currentCountResult) : 0;
-
+            var currentCount = await GetActiveExecutionCount(connection, transaction).ConfigureAwait(false);
             logger.LogDebug("Current active executions before insert: {Count}", currentCount);
 
-            // Record this execution
-            var paramPrefix = provider.GetParameterPrefix();
-            var insertCmd = connection.CreateCommand();
-            insertCmd.Transaction = transaction;
-            insertCmd.CommandText = $@"INSERT INTO ClusterTestExecutions (ExecutionId, NodeId, StartTime, EndTime)
-                  VALUES ({paramPrefix}ExecutionId, {paramPrefix}NodeId, {paramPrefix}StartTime, NULL)";
-
-            var executionIdParam = insertCmd.CreateParameter();
-            executionIdParam.ParameterName = $"{paramPrefix}ExecutionId";
-            executionIdParam.Value = executionId;
-            insertCmd.Parameters.Add(executionIdParam);
-
-            var nodeIdParam = insertCmd.CreateParameter();
-            nodeIdParam.ParameterName = $"{paramPrefix}NodeId";
-            nodeIdParam.Value = nodeId;
-            insertCmd.Parameters.Add(nodeIdParam);
-
-            var startTimeParam = insertCmd.CreateParameter();
-            startTimeParam.ParameterName = $"{paramPrefix}StartTime";
-            startTimeParam.Value = startTime;
-            insertCmd.Parameters.Add(startTimeParam);
-
-            await insertCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+            await InsertExecution(connection, transaction, provider, executionId, nodeId, startTime).ConfigureAwait(false);
 
             var concurrentCount = currentCount + 1;
-
-            // Check if we were previously in a clean state (no active violations)
-            // A violation "period" starts when we go from clean (0 executions) to violated (2+ executions)
-            // and ends when we return to a clean state
-            var wasCleanCmd = connection.CreateCommand();
-            wasCleanCmd.Transaction = transaction;
-            wasCleanCmd.CommandText = "SELECT COUNT(*) FROM ClusterTestViolations WHERE EndedAt IS NULL";
-            var activeViolationPeriodsResult = await wasCleanCmd.ExecuteScalarAsync().ConfigureAwait(false);
-            var activeViolationPeriods = activeViolationPeriodsResult != null ? Convert.ToInt32(activeViolationPeriodsResult) : 0;
-            var wasInCleanState = activeViolationPeriods == 0;
-
-            // Count distinct violation incidents, not every overlapping execution.
-            // A new incident starts only when we transition from clean (0) to violated (2+)
-            var violationIncidentStarted = currentCount == 1 && wasInCleanState;  // New violation period
-            var isInViolatedState = currentCount > 0 && !wasInCleanState;          // Continuing violation period
-
-            if (violationIncidentStarted)
-            {
-                logger.LogWarning("Recording NEW violation period - concurrent count: {Count}", concurrentCount);
-
-                var recordViolationCmd = connection.CreateCommand();
-                recordViolationCmd.Transaction = transaction;
-                recordViolationCmd.CommandText = $@"INSERT INTO ClusterTestViolations (ExecutionId, NodeId, DetectedAt, ConcurrentCount, EndedAt)
-                      VALUES ({paramPrefix}ExecutionId, {paramPrefix}NodeId, {paramPrefix}DetectedAt, {paramPrefix}ConcurrentCount, NULL)";
-
-                var violationExecutionIdParam = recordViolationCmd.CreateParameter();
-                violationExecutionIdParam.ParameterName = $"{paramPrefix}ExecutionId";
-                violationExecutionIdParam.Value = executionId;
-                recordViolationCmd.Parameters.Add(violationExecutionIdParam);
-
-                var violationNodeIdParam = recordViolationCmd.CreateParameter();
-                violationNodeIdParam.ParameterName = $"{paramPrefix}NodeId";
-                violationNodeIdParam.Value = nodeId;
-                recordViolationCmd.Parameters.Add(violationNodeIdParam);
-
-                var detectedAtParam = recordViolationCmd.CreateParameter();
-                detectedAtParam.ParameterName = $"{paramPrefix}DetectedAt";
-                detectedAtParam.Value = DateTime.UtcNow;
-                recordViolationCmd.Parameters.Add(detectedAtParam);
-
-                var concurrentCountParam = recordViolationCmd.CreateParameter();
-                concurrentCountParam.ParameterName = $"{paramPrefix}ConcurrentCount";
-                concurrentCountParam.Value = concurrentCount;
-                recordViolationCmd.Parameters.Add(concurrentCountParam);
-
-                await recordViolationCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-            else if (currentCount == 0 && !wasInCleanState)
-            {
-                // We've returned to clean state - end the violation period
-                logger.LogInformation("Violation period ended - returning to clean state");
-
-                var endViolationCmd = connection.CreateCommand();
-                endViolationCmd.Transaction = transaction;
-                endViolationCmd.CommandText = $@"UPDATE ClusterTestViolations
-                      SET EndedAt = {paramPrefix}EndedAt
-                      WHERE EndedAt IS NULL";
-
-                var endedAtParam = endViolationCmd.CreateParameter();
-                endedAtParam.ParameterName = $"{paramPrefix}EndedAt";
-                endedAtParam.Value = DateTime.UtcNow;
-                endViolationCmd.Parameters.Add(endedAtParam);
-
-                await endViolationCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
+            var (violationIncidentStarted, isInViolatedState) =
+                await UpdateViolationState(connection, transaction, provider, currentCount, concurrentCount, executionId, nodeId, logger).ConfigureAwait(false);
 
             await transaction.CommitAsync().ConfigureAwait(false);
             return (concurrentCount, violationIncidentStarted, isInViolatedState);
@@ -208,6 +116,101 @@ public class ConcurrentExecutionTestJob : IJob
         }
     }
 
+    private static async Task<int> GetActiveExecutionCount(DbConnection connection, DbTransaction transaction)
+    {
+        await using var cmd = connection.CreateCommand();
+        cmd.Transaction = transaction;
+        cmd.CommandText = "SELECT COUNT(*) FROM ClusterTestExecutions WHERE EndTime IS NULL";
+        var result = await cmd.ExecuteScalarAsync().ConfigureAwait(false);
+        return result != null ? Convert.ToInt32(result) : 0;
+    }
+
+    private static async Task InsertExecution(
+        DbConnection connection, DbTransaction transaction, IDatabaseProvider provider,
+        string executionId, string nodeId, DateTime startTime)
+    {
+        var paramPrefix = provider.GetParameterPrefix();
+        await using var cmd = connection.CreateCommand();
+        cmd.Transaction = transaction;
+        cmd.CommandText = $@"INSERT INTO ClusterTestExecutions (ExecutionId, NodeId, StartTime, EndTime)
+                  VALUES ({paramPrefix}ExecutionId, {paramPrefix}NodeId, {paramPrefix}StartTime, NULL)";
+
+        AddParameter(cmd, paramPrefix, "ExecutionId", executionId);
+        AddParameter(cmd, paramPrefix, "NodeId", nodeId);
+        AddParameter(cmd, paramPrefix, "StartTime", startTime);
+
+        await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+    }
+
+    private static async Task<(bool violationIncidentStarted, bool isInViolatedState)> UpdateViolationState(
+        DbConnection connection, DbTransaction transaction, IDatabaseProvider provider,
+        int currentCount, int concurrentCount, string executionId, string nodeId, ILogger logger)
+    {
+        var paramPrefix = provider.GetParameterPrefix();
+
+        // Check if we were previously in a clean state (no active violations)
+        await using var checkCmd = connection.CreateCommand();
+        checkCmd.Transaction = transaction;
+        checkCmd.CommandText = "SELECT COUNT(*) FROM ClusterTestViolations WHERE EndedAt IS NULL";
+        var result = await checkCmd.ExecuteScalarAsync().ConfigureAwait(false);
+        var wasInCleanState = (result != null ? Convert.ToInt32(result) : 0) == 0;
+
+        // A new incident starts only when we transition from clean (0) to violated (2+)
+        var violationIncidentStarted = currentCount == 1 && wasInCleanState;
+        var isInViolatedState = currentCount > 0 && !wasInCleanState;
+
+        if (violationIncidentStarted)
+        {
+            logger.LogWarning("Recording NEW violation period - concurrent count: {Count}", concurrentCount);
+            await RecordViolation(connection, transaction, paramPrefix, executionId, nodeId, concurrentCount).ConfigureAwait(false);
+        }
+        else if (currentCount == 0 && !wasInCleanState)
+        {
+            logger.LogInformation("Violation period ended - returning to clean state");
+            await EndActiveViolations(connection, transaction, paramPrefix).ConfigureAwait(false);
+        }
+
+        return (violationIncidentStarted, isInViolatedState);
+    }
+
+    private static async Task RecordViolation(
+        DbConnection connection, DbTransaction transaction, string paramPrefix,
+        string executionId, string nodeId, int concurrentCount)
+    {
+        await using var cmd = connection.CreateCommand();
+        cmd.Transaction = transaction;
+        cmd.CommandText = $@"INSERT INTO ClusterTestViolations (ExecutionId, NodeId, DetectedAt, ConcurrentCount, EndedAt)
+                      VALUES ({paramPrefix}ExecutionId, {paramPrefix}NodeId, {paramPrefix}DetectedAt, {paramPrefix}ConcurrentCount, NULL)";
+
+        AddParameter(cmd, paramPrefix, "ExecutionId", executionId);
+        AddParameter(cmd, paramPrefix, "NodeId", nodeId);
+        AddParameter(cmd, paramPrefix, "DetectedAt", DateTime.UtcNow);
+        AddParameter(cmd, paramPrefix, "ConcurrentCount", concurrentCount);
+
+        await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+    }
+
+    private static async Task EndActiveViolations(DbConnection connection, DbTransaction transaction, string paramPrefix)
+    {
+        await using var cmd = connection.CreateCommand();
+        cmd.Transaction = transaction;
+        cmd.CommandText = $@"UPDATE ClusterTestViolations
+                      SET EndedAt = {paramPrefix}EndedAt
+                      WHERE EndedAt IS NULL";
+
+        AddParameter(cmd, paramPrefix, "EndedAt", DateTime.UtcNow);
+
+        await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+    }
+
+    private static void AddParameter(DbCommand cmd, string paramPrefix, string name, object value)
+    {
+        var param = cmd.CreateParameter();
+        param.ParameterName = $"{paramPrefix}{name}";
+        param.Value = value;
+        cmd.Parameters.Add(param);
+    }
+
     private static async Task EndExecution(DbConnection connection, IDatabaseProvider provider, string executionId, ILogger logger)
     {
         try
@@ -216,15 +219,8 @@ public class ConcurrentExecutionTestJob : IJob
             await using var updateCmd = connection.CreateCommand();
             updateCmd.CommandText = $"UPDATE ClusterTestExecutions SET EndTime = {paramPrefix}EndTime WHERE ExecutionId = {paramPrefix}ExecutionId";
 
-            var endTimeParam = updateCmd.CreateParameter();
-            endTimeParam.ParameterName = $"{paramPrefix}EndTime";
-            endTimeParam.Value = DateTime.UtcNow;
-            updateCmd.Parameters.Add(endTimeParam);
-
-            var executionIdParam = updateCmd.CreateParameter();
-            executionIdParam.ParameterName = $"{paramPrefix}ExecutionId";
-            executionIdParam.Value = executionId;
-            updateCmd.Parameters.Add(executionIdParam);
+            AddParameter(updateCmd, paramPrefix, "EndTime", DateTime.UtcNow);
+            AddParameter(updateCmd, paramPrefix, "ExecutionId", executionId);
 
             await updateCmd.ExecuteNonQueryAsync().ConfigureAwait(false);
 
