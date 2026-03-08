@@ -38,7 +38,8 @@ public class PostgreSQLLockTest
     public async Task TestParallelJobScheduling_ShouldNotCauseTransactionAbort()
     {
         // This test reproduces the race condition where multiple threads try to insert
-        // into the locks table simultaneously, causing a PK violation and transaction abort
+        // into the locks table simultaneously, which would cause a PK violation and 
+        // transaction abort without the PostgreSQL-specific fix
 
         var properties = new NameValueCollection
         {
@@ -86,84 +87,8 @@ public class PostgreSQLLockTest
             }
 
             // Wait for all scheduling operations to complete
-            await Task.WhenAll(tasks);
-
             // If we get here without an exception, the test passes
-            Assert.Pass("Successfully scheduled jobs in parallel without transaction abort");
-        }
-        finally
-        {
-            await scheduler.Shutdown(false);
-        }
-    }
-
-    [Test]
-    [Category("db-postgres")]
-    public async Task TestConcurrentSchedulerStartup_ShouldNotCauseTransactionAbort()
-    {
-        // This test simulates the race condition that occurs during scheduler startup
-        // when multiple threads try to initialize locks in the database simultaneously
-
-        var properties = new NameValueCollection
-        {
-            ["quartz.scheduler.instanceName"] = "TestSchedulerConcurrent",
-            ["quartz.scheduler.instanceId"] = "AUTO",
-            ["quartz.serializer.type"] = TestConstants.DefaultSerializerType,
-            ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
-            ["quartz.jobStore.useProperties"] = "false",
-            ["quartz.jobStore.dataSource"] = "default",
-            ["quartz.jobStore.tablePrefix"] = "QRTZ_",
-            ["quartz.jobStore.clustered"] = "true",
-            ["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.PostgreSQLDelegate, Quartz",
-            ["quartz.dataSource.default.connectionString"] = TestConstants.PostgresConnectionString,
-            ["quartz.dataSource.default.provider"] = "Npgsql",
-            ["quartz.threadPool.maxConcurrency"] = "10"
-        };
-
-        ISchedulerFactory sf = new StdSchedulerFactory(properties);
-        IScheduler scheduler = await sf.GetScheduler();
-
-        try
-        {
-            await scheduler.Clear();
-            await scheduler.Start();
-
-            // Schedule multiple jobs concurrently to stress test the locking mechanism
-            var tasks = new List<Task>();
-            for (int iteration = 0; iteration < 3; iteration++)
-            {
-                // Brief delay between waves to create multiple bursts of concurrent operations
-                // that are more likely to trigger the race condition
-                if (iteration > 0)
-                {
-                    await Task.Delay(TimeSpan.FromMilliseconds(100));
-                }
-
-                for (int i = 0; i < 10; i++)
-                {
-                    int jobIndex = iteration * 10 + i;
-                    var task = Task.Run(async () =>
-                    {
-                        var job = JobBuilder.Create<NoOpJob>()
-                            .WithIdentity($"concurrentJob{jobIndex}", "concurrentGroup")
-                            .Build();
-
-                        var trigger = TriggerBuilder.Create()
-                            .WithIdentity($"concurrentTrigger{jobIndex}", "concurrentGroup")
-                            .StartNow()
-                            .Build();
-
-                        await scheduler.ScheduleJob(job, trigger);
-                    });
-                    tasks.Add(task);
-                }
-            }
-
-            // Wait for all scheduling operations to complete
             await Task.WhenAll(tasks);
-
-            // If we get here without an exception, the test passes
-            Assert.Pass("Successfully handled concurrent scheduler operations without transaction abort");
         }
         finally
         {
