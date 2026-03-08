@@ -207,6 +207,7 @@ public class JobRunShell : SchedulerListenerSupport
                 catch (JobExecutionException jee)
                 {
                     endTimestamp = timeProvider.GetTimestamp();
+                    jee.JobDetail = jobDetail;
                     jobExEx = jee;
                     logger.LogError(jee, "Job {JobDetailKey} threw a JobExecutionException: ", jobDetail.Key);
                 }
@@ -217,6 +218,7 @@ public class JobRunShell : SchedulerListenerSupport
                     SchedulerException se = new JobExecutionProcessException(jec, e);
                     await qs.NotifySchedulerListenersError($"Job {jec.JobDetail.Key} threw an exception.", se, cancellationToken).ConfigureAwait(false);
                     jobExEx = new JobExecutionException(se, refireImmediately: false);
+                    jobExEx.JobDetail = jobDetail;
                 }
 
                 jec.JobRunTime = timeProvider.GetElapsedTime(startTimestamp, endTimestamp);

@@ -134,6 +134,12 @@ public sealed class JobExecutionException : SchedulerException
     public bool RefireImmediately { get; set; }
 
     /// <summary>
+    /// Gets or sets the <see cref="IJobDetail"/> of the job that was being executed
+    /// when the exception was thrown. This is set automatically by the scheduler.
+    /// </summary>
+    public IJobDetail? JobDetail { get; set; }
+
+    /// <summary>
     /// Creates and returns a string representation of the current exception.
     /// </summary>
     /// <returns>
