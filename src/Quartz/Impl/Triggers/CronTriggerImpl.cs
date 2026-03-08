@@ -916,6 +916,12 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// </returns>
     public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? cal)
     {
+        // If the end time is in the past, the trigger should never fire
+        if (EndTimeUtc.HasValue && EndTimeUtc.Value < TimeProvider.GetUtcNow())
+        {
+            return null;
+        }
+
         nextFireTimeUtc = GetFireTimeAfter(startTimeUtc.AddSeconds(-1));
 
         while (nextFireTimeUtc.HasValue && cal is not null && !cal.IsTimeIncluded(nextFireTimeUtc.Value))
