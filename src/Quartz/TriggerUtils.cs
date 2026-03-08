@@ -147,8 +147,18 @@ public static class TriggerUtils
 
         if (t.GetNextFireTimeUtc() is null || !t.GetNextFireTimeUtc().HasValue)
         {
-            t.StartTimeUtc = from;
-            t.EndTimeUtc = to;
+            // Only preserve the trigger's own StartTimeUtc if it falls within
+            // the query range [from, to]. This ensures fire times stay aligned
+            // with the trigger's configured schedule, while still supporting
+            // arbitrary date range queries where from/to define the window.
+            if (t.StartTimeUtc < from || t.StartTimeUtc > to)
+            {
+                t.StartTimeUtc = from;
+            }
+            if (!t.EndTimeUtc.HasValue || t.EndTimeUtc.Value > to)
+            {
+                t.EndTimeUtc = to;
+            }
             t.ComputeFirstFireTimeUtc(calendar);
         }
 
