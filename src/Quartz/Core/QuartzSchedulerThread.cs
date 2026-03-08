@@ -408,6 +408,16 @@ internal sealed class QuartzSchedulerThread
                                 continue;
                             }
                         }
+                        else
+                        {
+                            // Scheduler is shutting down - release acquired triggers
+                            // so they don't remain stuck in ACQUIRED state
+                            foreach (IOperableTrigger t in triggers)
+                            {
+                                await qsRsrcs.JobStore.ReleaseAcquiredTrigger(t, CancellationToken.None).ConfigureAwait(false);
+                            }
+                            continue;
+                        }
 
                         for (int i = 0; i < bndles.Count; i++)
                         {
