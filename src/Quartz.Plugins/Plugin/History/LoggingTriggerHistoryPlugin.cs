@@ -19,7 +19,6 @@
 
 #endregion
 
-using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -219,17 +218,17 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
     /// Get or set the message that is printed upon the completion of a trigger's
     /// firing.
     /// </summary>
-    public virtual string TriggerCompleteMessage { get; set; } = "Trigger {1}.{0} completed firing job {6}.{5} at {4:HH:mm:ss MM/dd/yyyy} with resulting trigger instruction code: {9}";
+    public virtual string TriggerCompleteMessage { get; set; } = "Trigger {TriggerGroup}.{TriggerName} completed firing job {JobGroup}.{JobName} at {FireTime:HH:mm:ss MM/dd/yyyy} with resulting trigger instruction code: {InstructionDescription}";
 
     /// <summary>
     /// Get or set the message that is printed upon a trigger's firing.
     /// </summary>
-    public virtual string TriggerFiredMessage { get; set; } = "Trigger {1}.{0} fired job {6}.{5} at: {4:HH:mm:ss MM/dd/yyyy}";
+    public virtual string TriggerFiredMessage { get; set; } = "Trigger {TriggerGroup}.{TriggerName} fired job {JobGroup}.{JobName} at: {FireTime:HH:mm:ss MM/dd/yyyy}";
 
     /// <summary>
     /// Get or set the message that is printed upon a trigger's mis-firing.
     /// </summary>
-    public virtual string TriggerMisfiredMessage { get; set; } = "Trigger {1}.{0} misfired job {6}.{5} at: {4:HH:mm:ss MM/dd/yyyy}.  Should have fired at: {3:HH:mm:ss MM/dd/yyyy}";
+    public virtual string TriggerMisfiredMessage { get; set; } = "Trigger {TriggerGroup}.{TriggerName} misfired job {JobGroup}.{JobName} at: {FireTime:HH:mm:ss MM/dd/yyyy}.  Should have fired at: {ScheduledFireTime:HH:mm:ss MM/dd/yyyy}";
 
     /// <summary>
     /// Get the name of the <see cref="ITriggerListener" />.
@@ -295,19 +294,16 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
             return Task.CompletedTask;
         }
 
-        object?[] args =
-        {
-            trigger.Key.Name,
+        WriteInfo(TriggerFiredMessage,
             trigger.Key.Group,
+            trigger.Key.Name,
+            context.JobDetail.Key.Group,
+            context.JobDetail.Key.Name,
+            SystemTime.UtcNow(),
             trigger.GetPreviousFireTimeUtc(),
             trigger.GetNextFireTimeUtc(),
-            SystemTime.UtcNow(),
-            context.JobDetail.Key.Name,
-            context.JobDetail.Key.Group,
-            context.RefireCount
-        };
+            context.RefireCount);
 
-        WriteInfo(string.Format(CultureInfo.InvariantCulture, TriggerFiredMessage, args));
         return Task.CompletedTask;
     }
 
@@ -332,18 +328,15 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
             return Task.CompletedTask;
         }
 
-        object?[] args =
-        {
-            trigger.Key.Name,
+        WriteInfo(TriggerMisfiredMessage,
             trigger.Key.Group,
-            trigger.GetPreviousFireTimeUtc(),
-            trigger.GetNextFireTimeUtc(),
-            SystemTime.UtcNow(),
+            trigger.Key.Name,
+            trigger.JobKey.Group,
             trigger.JobKey.Name,
-            trigger.JobKey.Group
-        };
+            SystemTime.UtcNow(),
+            trigger.GetPreviousFireTimeUtc(),
+            trigger.GetNextFireTimeUtc());
 
-        WriteInfo(string.Format(CultureInfo.InvariantCulture, TriggerMisfiredMessage, args));
         return Task.CompletedTask;
     }
 
@@ -369,43 +362,28 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
             return Task.CompletedTask;
         }
 
-        string instrCode = "UNKNOWN";
-        if (triggerInstructionCode == SchedulerInstruction.DeleteTrigger)
+        string instrCode = triggerInstructionCode switch
         {
-            instrCode = "DELETE TRIGGER";
-        }
-        else if (triggerInstructionCode == SchedulerInstruction.NoInstruction)
-        {
-            instrCode = "DO NOTHING";
-        }
-        else if (triggerInstructionCode == SchedulerInstruction.ReExecuteJob)
-        {
-            instrCode = "RE-EXECUTE JOB";
-        }
-        else if (triggerInstructionCode == SchedulerInstruction.SetAllJobTriggersComplete)
-        {
-            instrCode = "SET ALL OF JOB'S TRIGGERS COMPLETE";
-        }
-        else if (triggerInstructionCode == SchedulerInstruction.SetTriggerComplete)
-        {
-            instrCode = "SET THIS TRIGGER COMPLETE";
-        }
-
-        object?[] args =
-        {
-            trigger.Key.Name,
-            trigger.Key.Group,
-            trigger.GetPreviousFireTimeUtc(),
-            trigger.GetNextFireTimeUtc(),
-            SystemTime.UtcNow(),
-            context.JobDetail.Key.Name,
-            context.JobDetail.Key.Group,
-            context.RefireCount,
-            triggerInstructionCode,
-            instrCode
+            SchedulerInstruction.DeleteTrigger => "DELETE TRIGGER",
+            SchedulerInstruction.NoInstruction => "DO NOTHING",
+            SchedulerInstruction.ReExecuteJob => "RE-EXECUTE JOB",
+            SchedulerInstruction.SetAllJobTriggersComplete => "SET ALL OF JOB'S TRIGGERS COMPLETE",
+            SchedulerInstruction.SetTriggerComplete => "SET THIS TRIGGER COMPLETE",
+            _ => "UNKNOWN"
         };
 
-        WriteInfo(string.Format(CultureInfo.InvariantCulture, TriggerCompleteMessage, args));
+        WriteInfo(TriggerCompleteMessage,
+            trigger.Key.Group,
+            trigger.Key.Name,
+            context.JobDetail.Key.Group,
+            context.JobDetail.Key.Name,
+            SystemTime.UtcNow(),
+            trigger.GetPreviousFireTimeUtc(),
+            trigger.GetNextFireTimeUtc(),
+            context.RefireCount,
+            triggerInstructionCode,
+            instrCode);
+
         return Task.CompletedTask;
     }
 
@@ -435,5 +413,10 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
     protected virtual void WriteInfo(string message)
     {
         Log.Info(message);
+    }
+
+    protected virtual void WriteInfo(string messageTemplate, params object?[] args)
+    {
+        Log.InfoFormat(messageTemplate, args);
     }
 }
