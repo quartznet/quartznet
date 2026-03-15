@@ -18,6 +18,10 @@ internal sealed class MisfireHandler
     private readonly QueuedTaskScheduler taskScheduler;
     private Task task = null!;
 
+    // Timeout for waiting for the misfire handler task during shutdown.
+    // This prevents hanging if the scheduler was disposed before it could schedule the task.
+    private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(1);
+
     internal MisfireHandler(JobStoreSupport jobStoreSupport)
     {
         this.jobStoreSupport = jobStoreSupport;
@@ -73,13 +77,33 @@ internal sealed class MisfireHandler
     public async ValueTask Shutdown()
     {
         cancellationTokenSource.Cancel();
+        
+        taskScheduler.Dispose();
+        
+        // Wait for the task to complete, but with a timeout to handle the race condition where
+        // the scheduler was disposed before it could schedule the task.
+        // In that scenario, the task will remain in WaitingForActivation indefinitely.
+        // We use a short timeout because:
+        // 1. If the task was already running, it will complete quickly due to the cancellation
+        // 2. If the task was never scheduled, no amount of waiting will help
         try
         {
-            taskScheduler.Dispose();
-            await task.ConfigureAwait(false);
+            using CancellationTokenSource timeoutCts = new CancellationTokenSource();
+            var timeoutTask = Task.Delay(ShutdownTimeout, timeoutCts.Token);
+            var completedTask = await Task.WhenAny(task, timeoutTask).ConfigureAwait(false);
+            
+            if (completedTask == task)
+            {
+                // Task completed normally, cancel the timeout timer to free resources
+                await timeoutCts.CancelAsync().ConfigureAwait(false);
+                // Await the task to propagate any exceptions
+                await task.ConfigureAwait(false);
+            }
+            // else: Task didn't complete within timeout, it was likely never scheduled
         }
         catch (OperationCanceledException)
         {
+            // Expected when the task is cancelled
         }
     }
 
