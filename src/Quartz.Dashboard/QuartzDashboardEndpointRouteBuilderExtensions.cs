@@ -89,8 +89,11 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
             context.Response.ContentType = contentType;
             context.Response.ContentLength = fileInfo.Length;
 
-            await using var stream = fileInfo.CreateReadStream();
-            await stream.CopyToAsync(context.Response.Body);
+            var stream = fileInfo.CreateReadStream();
+            await using (stream.ConfigureAwait(false))
+            {
+                await stream.CopyToAsync(context.Response.Body, context.RequestAborted).ConfigureAwait(false);
+            }
         }).ExcludeFromDescription();
     }
 }
