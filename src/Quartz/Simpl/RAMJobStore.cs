@@ -1469,7 +1469,7 @@ public class RAMJobStore : IJobStore
     {
         lock (lockObject)
         {
-            if (pausedJobGroups.Contains(jobKey.Group))
+            if (pausedJobGroups.Contains(jobKey.Group) && jobsByKey.ContainsKey(jobKey))
             {
                 resumedJobsInPausedGroups.Add(jobKey);
             }
