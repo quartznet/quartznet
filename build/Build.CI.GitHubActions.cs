@@ -18,7 +18,8 @@ using Nuke.Components;
     InvokedTargets = [nameof(ICompile.Compile), nameof(UnitTest), nameof(PublishAot)],
     CacheKeyFiles = [],
     TimeoutMinutes = 10,
-    ConcurrencyCancelInProgress = true
+    ConcurrencyCancelInProgress = true,
+    ReadPermissions = [GitHubActionsPermissions.Contents]
 )]
 [CustomGitHubActions(
     "pr-tests-integration",
@@ -30,7 +31,8 @@ using Nuke.Components;
     InvokedTargets = [nameof(ICompile.Compile), nameof(IntegrationTest)],
     CacheKeyFiles = [],
     TimeoutMinutes = 10,
-    ConcurrencyCancelInProgress = true
+    ConcurrencyCancelInProgress = true,
+    ReadPermissions = [GitHubActionsPermissions.Contents]
 )]
 [CustomGitHubActions(
     "build",
@@ -46,7 +48,8 @@ using Nuke.Components;
     InvokedTargets = [nameof(ICompile.Compile), nameof(UnitTest), nameof(IntegrationTest), nameof(IPack.Pack), nameof(Publish)],
     ImportSecrets = ["NUGET_API_KEY", "FEEDZ_API_KEY"],
     CacheKeyFiles = [],
-    TimeoutMinutes = 10
+    TimeoutMinutes = 10,
+    ReadPermissions = [GitHubActionsPermissions.Contents]
 )]
 public partial class Build;
 
