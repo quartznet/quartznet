@@ -8,6 +8,8 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - '**/docs*.yml'
+permissions:
+  contents: read
 jobs:
   build:
     name: build and deploy

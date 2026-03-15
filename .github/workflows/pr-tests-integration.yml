@@ -28,6 +28,9 @@ on:
       - '!package-lock.json'
       - '!readme.md'
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.run_id }}
   cancel-in-progress: true

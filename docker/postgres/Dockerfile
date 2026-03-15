@@ -1,3 +1,3 @@
 FROM postgres:latest
 
-ADD tables_postgres.sql /docker-entrypoint-initdb.d/tables_postgres.sql
+COPY tables_postgres.sql /docker-entrypoint-initdb.d/tables_postgres.sql

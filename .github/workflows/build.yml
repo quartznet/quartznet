@@ -30,6 +30,9 @@ on:
       - '!package-lock.json'
       - '!readme.md'
 
+permissions:
+  contents: read
+
 jobs:
   windows-latest:
     name: windows-latest
