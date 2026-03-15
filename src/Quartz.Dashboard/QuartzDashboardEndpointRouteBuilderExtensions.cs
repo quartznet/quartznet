@@ -18,7 +18,10 @@
 #endregion
 
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -51,6 +54,10 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
             .MapRazorComponents<QuartzDashboardApp>()
             .AddInteractiveServerRenderMode();
 
+        // Serve dashboard static web assets via endpoint routing as a fallback
+        // for hosts that don't configure UseStaticFiles() (e.g., API-only projects)
+        MapDashboardStaticAssets(builder);
+
         if (!string.IsNullOrWhiteSpace(options.AuthorizationPolicy))
         {
             hub.RequireAuthorization(options.AuthorizationPolicy);
@@ -58,5 +65,32 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
         }
 
         return components;
+    }
+
+    private static readonly FileExtensionContentTypeProvider ContentTypeProvider = new();
+
+    private static void MapDashboardStaticAssets(IEndpointRouteBuilder builder)
+    {
+        builder.MapGet("_content/Quartz.Dashboard/{**path}", async (HttpContext context, string path) =>
+        {
+            var env = context.RequestServices.GetRequiredService<IWebHostEnvironment>();
+            var fileInfo = env.WebRootFileProvider.GetFileInfo($"_content/Quartz.Dashboard/{path}");
+            if (!fileInfo.Exists)
+            {
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                return;
+            }
+
+            if (!ContentTypeProvider.TryGetContentType(path, out var contentType))
+            {
+                contentType = "application/octet-stream";
+            }
+
+            context.Response.ContentType = contentType;
+            context.Response.ContentLength = fileInfo.Length;
+
+            await using var stream = fileInfo.CreateReadStream();
+            await stream.CopyToAsync(context.Response.Body);
+        }).ExcludeFromDescription();
     }
 }
