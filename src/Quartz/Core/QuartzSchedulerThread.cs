@@ -630,7 +630,13 @@ internal sealed class QuartzSchedulerThread
     public void Start()
     {
         cancellationTokenSource = new CancellationTokenSource();
-        task = Task.Run(Run);
+        task = Task.Factory.StartNew(
+            static state => ((QuartzSchedulerThread) state!).Run(),
+            this,
+            cancellationTokenSource.Token,
+            TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
+            TaskScheduler.Default
+        ).Unwrap();
     }
 
     public async Task Shutdown()
