@@ -54,22 +54,45 @@ internal static class TestcontainersDatabaseEnvironment
                 return;
             }
 
-            string postgresScript = await ReadScriptAsync("database", "tables", "tables_postgres.sql");
-            string sqlServerScript = await ReadScriptAsync("docker", "sqlserver", "tables_sqlServer.sql");
-            string sqlServerMotScript = await ReadScriptAsync("docker", "sqlserver-mot", "tables_sqlServerMOT.sql");
-            string mySqlScript = await ReadScriptAsync("database", "tables", "tables_mysql_innodb.sql");
-            string firebirdCreateDatabaseScript = await ReadScriptAsync("docker", "firebird", "create_database.sql");
-            string firebirdScript = await ReadScriptAsync("docker", "firebird", "tables_firebird.sql");
-            string oracleScript = await ReadScriptAsync("docker", "oracle", "tables_oracle.sql");
+            string targetDatabase = Environment.GetEnvironmentVariable("QUARTZ_TEST_DATABASE")?.ToLowerInvariant();
+            bool startAll = string.IsNullOrEmpty(targetDatabase) || targetDatabase == "all";
+
+            // No containers needed for basic or sqlite tests
+            if (targetDatabase is "basic" or "sqlite")
+            {
+                initialized = true;
+                return;
+            }
 
             try
             {
-                await StartPostgreSqlContainerAsync(postgresScript);
-                await StartSqlServerContainerAsync(sqlServerScript);
-                await StartSqlServerMotContainerAsync(sqlServerMotScript);
-                await StartMySqlContainerAsync(mySqlScript);
-                await StartFirebirdSqlContainerAsync(firebirdCreateDatabaseScript, firebirdScript);
-                await StartOracleContainerAsync(oracleScript);
+                if (startAll || targetDatabase == "postgres")
+                {
+                    await StartPostgreSqlContainerAsync(await ReadScriptAsync("database", "tables", "tables_postgres.sql"));
+                }
+
+                if (startAll || targetDatabase == "sqlserver")
+                {
+                    await StartSqlServerContainerAsync(await ReadScriptAsync("docker", "sqlserver", "tables_sqlServer.sql"));
+                    await StartSqlServerMotContainerAsync(await ReadScriptAsync("docker", "sqlserver-mot", "tables_sqlServerMOT.sql"));
+                }
+
+                if (startAll || targetDatabase == "mysql")
+                {
+                    await StartMySqlContainerAsync(await ReadScriptAsync("database", "tables", "tables_mysql_innodb.sql"));
+                }
+
+                if (startAll || targetDatabase == "firebird")
+                {
+                    await StartFirebirdSqlContainerAsync(
+                        await ReadScriptAsync("docker", "firebird", "create_database.sql"),
+                        await ReadScriptAsync("docker", "firebird", "tables_firebird.sql"));
+                }
+
+                if (startAll || targetDatabase == "oracle")
+                {
+                    await StartOracleContainerAsync(await ReadScriptAsync("docker", "oracle", "tables_oracle.sql"));
+                }
             }
             catch
             {

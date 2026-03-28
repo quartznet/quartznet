@@ -8,8 +8,8 @@
     <PackageVersion Include="AspNetCore.HealthChecks.UI.Client" Version="8.0.1" />
     <PackageVersion Include="AspNetCore.HealthChecks.UI.InMemory.Storage" Version="8.0.1" />
     <PackageVersion Include="BenchmarkDotNet" Version="0.14.0" />
-    <PackageVersion Include="FakeItEasy" Version="8.3.0" />
-    <PackageVersion Include="FirebirdSql.Data.FirebirdClient" Version="10.3.1" />
+    <PackageVersion Include="FakeItEasy" Version="9.0.1" />
+    <PackageVersion Include="FirebirdSql.Data.FirebirdClient" Version="10.3.4" />
     <PackageVersion Include="FluentAssertions" Version="[7.0.0]" />
     <PackageVersion Include="FluentAssertions.Analyzers" Version="0.34.1" />
     <PackageVersion Include="log4net" Version="3.0.4" />
@@ -17,21 +17,21 @@
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.15" />
     <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.15" />
     <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="3.3.4" />
-    <PackageVersion Include="Microsoft.Data.SQLite" Version="8.0.10" />
-    <PackageVersion Include="Microsoft.Data.SqlClient" Version="5.2.2" />
-    <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="8.0.1" />
+    <PackageVersion Include="Microsoft.Data.SQLite" Version="8.0.13" />
+    <PackageVersion Include="Microsoft.Data.SqlClient" Version="6.0.1" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="9.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="8.0.1" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="8.0.1" />
     <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="8.10.0" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
-    <PackageVersion Include="MySqlConnector" Version="2.4.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.3.0" />
+    <PackageVersion Include="MySqlConnector" Version="2.5.0" />
     <PackageVersion Include="NLog.Extensions.Logging" Version="5.3.15" />
     <PackageVersion Include="NSwag.AspNetCore" Version="14.2.0" />
     <PackageVersion Include="NUnit" Version="4.5.1" />
     <PackageVersion Include="NUnit.Analyzers" Version="4.12.0" />
-    <PackageVersion Include="NUnit3TestAdapter" Version="6.1.0" />
+    <PackageVersion Include="NUnit3TestAdapter" Version="6.2.0" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageVersion Include="Npgsql" Version="9.0.3" />
     <PackageVersion Include="Npgsql.DependencyInjection" Version="9.0.3" />
@@ -42,8 +42,8 @@
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.11.1" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Runtime" Version="1.9.0" />
     <PackageVersion Include="OpenTracing" Version="0.12.1" />
-    <PackageVersion Include="Oracle.ManagedDataAccess" Version="21.12.0" />
-    <PackageVersion Include="Oracle.ManagedDataAccess.Core" Version="23.8.0" />
+    <PackageVersion Include="Oracle.ManagedDataAccess" Version="23.26.100" />
+    <PackageVersion Include="Oracle.ManagedDataAccess.Core" Version="23.26.100" />
     <PackageVersion Include="Serilog" Version="4.1.0" />
     <PackageVersion Include="Serilog.Extensions.Hosting" Version="8.0.0" />
     <PackageVersion Include="Serilog.Extensions.Logging" Version="8.0.0" />
@@ -53,11 +53,11 @@
     <PackageVersion Include="System.Data.SQLite.Core" Version="1.0.119" />
     <PackageVersion Include="System.Diagnostics.DiagnosticSource" Version="9.0.2" />
     <PackageVersion Include="System.Text.Json" Version="8.0.5" />
-    <PackageVersion Include="Testcontainers.FirebirdSql" Version="4.10.0" />
-    <PackageVersion Include="Testcontainers.MsSql" Version="4.10.0" />
-    <PackageVersion Include="Testcontainers.MySql" Version="4.10.0" />
-    <PackageVersion Include="Testcontainers.Oracle" Version="4.10.0" />
-    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.10.0" />
+    <PackageVersion Include="Testcontainers.FirebirdSql" Version="4.11.0" />
+    <PackageVersion Include="Testcontainers.MsSql" Version="4.11.0" />
+    <PackageVersion Include="Testcontainers.MySql" Version="4.11.0" />
+    <PackageVersion Include="Testcontainers.Oracle" Version="4.11.0" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.11.0" />
     <PackageVersion Include="TimeZoneConverter" Version="7.0.0" />
     <PackageVersion Include="Topshelf" Version="4.3.0" />
     <PackageVersion Include="Verify.NUnit" Version="28.10.1" />

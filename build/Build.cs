@@ -31,6 +31,9 @@ partial class Build : NukeBuild, ICompile, IPack
 
     public static int Main() => Execute<Build>(x => ((ICompile) x).Compile);
 
+    [Parameter("Database to test against (postgres, sqlserver, mysql, oracle, firebird, sqlite, basic, all)")]
+    readonly string Database;
+
     [GitRepository] readonly GitRepository GitRepository;
 
     AbsolutePath SourceDirectory => RootDirectory / "src";
@@ -120,25 +123,52 @@ partial class Build : NukeBuild, ICompile, IPack
             );
         });
 
+    static readonly string[] DatabaseCategories =
+        ["db-postgres", "db-sqlserver", "db-mysql", "db-oracle", "db-firebird", "db-sqlite"];
+
+    string GetTestFilter(string database) => database switch
+    {
+        "postgres" => "TestCategory=db-postgres",
+        "sqlserver" => "TestCategory=db-sqlserver",
+        "mysql" => "TestCategory=db-mysql",
+        "oracle" => "TestCategory=db-oracle",
+        "firebird" => "TestCategory=db-firebird",
+        "sqlite" => "TestCategory=db-sqlite",
+        "basic" => string.Join("&", DatabaseCategories.Select(c => $"TestCategory!={c}")),
+        _ => null
+    };
+
     Target IntegrationTest => _ => _
         .DependsOn<ICompile>()
         .Before<IPack>()
         .OnlyWhenDynamic(() => Host is GitHubActions && RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         .Executes(() =>
         {
+            var database = Database?.ToLowerInvariant();
+            Environment.SetEnvironmentVariable("QUARTZ_TEST_DATABASE", database ?? "all");
+
+            var filter = GetTestFilter(database);
+
             var solution = ((IHazSolution) this).Solution;
             var configuration = ((ICompile) this).Configuration;
             var integrationTestProjects = new[] { "Quartz.Tests.Integration" };
-            DotNetTest(s => s
-                .EnableNoRestore()
-                .EnableNoBuild()
-                .SetConfiguration(configuration)
-                .SetFramework("net8.0")
-                .SetLoggers("GitHubActions")
-                .CombineWith(integrationTestProjects, (_, testProject) => _
+            DotNetTest(s =>
+            {
+                s = s.EnableNoRestore()
+                    .EnableNoBuild()
+                    .SetConfiguration(configuration)
+                    .SetFramework("net8.0")
+                    .SetLoggers("GitHubActions");
+
+                if (!string.IsNullOrEmpty(filter))
+                {
+                    s = s.SetFilter(filter);
+                }
+
+                return s.CombineWith(integrationTestProjects, (_, testProject) => _
                     .SetProjectFile(solution.GetAllProjects(testProject).First())
-                )
-            );
+                );
+            });
         });
 
     public Configure<DotNetPackSettings> PackSettings => _ => _
