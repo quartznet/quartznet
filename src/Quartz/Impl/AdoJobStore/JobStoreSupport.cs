@@ -3259,8 +3259,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                     var state = await Delegate.SelectTriggerState(conn, trig.Key, cancellationToken).ConfigureAwait(false);
                     if (state.Equals(StateWaiting))
                     {
-                        // Check if this trigger should be treated as misfired, using the already-loaded trigger
-                        await UpdateMisfiredTrigger(conn, (IOperableTrigger)trig, StateWaiting, false, cancellationToken).ConfigureAwait(false);
+                        await UpdateMisfiredTrigger(conn, trig.Key, StateWaiting, false, cancellationToken).ConfigureAwait(false);
                     }
                 }
             }
