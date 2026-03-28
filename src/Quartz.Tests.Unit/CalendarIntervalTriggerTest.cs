@@ -954,6 +954,135 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         Assert.IsNotNull(fireTime);
     }
 
+    [Test]
+    [Description("Daily interval trigger should not loop infinitely during spring-forward DST transition")]
+    public void TestDailyTriggerDoesNotFireInfinitelyDuringSpringForward()
+    {
+        var centralTimeZone = TimeZoneUtil.FindTimeZoneById("Central Standard Time");
+
+        // Start a few days before DST spring-forward (3/10/2024)
+        var startDate = new DateTimeOffset(2024, 3, 7, 2, 1, 0, TimeSpan.FromHours(-6));
+
+        var trigger = new CalendarIntervalTriggerImpl
+        {
+            TimeZone = centralTimeZone,
+            RepeatInterval = 1, // every day
+            RepeatIntervalUnit = IntervalUnit.Day,
+            PreserveHourOfDayAcrossDaylightSavings = true,
+            SkipDayIfHourDoesNotExist = false,
+            StartTimeUtc = startDate
+        };
+
+        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 10);
+
+        Assert.IsNotNull(fireTimes);
+        Assert.That(fireTimes.Count, Is.GreaterThanOrEqualTo(6));
+
+        // 3/7 2:01 AM CST
+        Assert.AreEqual(new DateTimeOffset(2024, 3, 7, 2, 1, 0, TimeSpan.FromHours(-6)), fireTimes[0]);
+        // 3/8 2:01 AM CST
+        Assert.AreEqual(new DateTimeOffset(2024, 3, 8, 2, 1, 0, TimeSpan.FromHours(-6)), fireTimes[1]);
+        // 3/9 2:01 AM CST
+        Assert.AreEqual(new DateTimeOffset(2024, 3, 9, 2, 1, 0, TimeSpan.FromHours(-6)), fireTimes[2]);
+        // 3/10 DST day: 2:01 AM doesn't exist, fire at 3:00 AM CDT
+        Assert.AreEqual(new DateTimeOffset(2024, 3, 10, 3, 0, 0, TimeSpan.FromHours(-5)), fireTimes[3]);
+        // 3/11 2:01 AM CDT (back to normal)
+        Assert.AreEqual(new DateTimeOffset(2024, 3, 11, 2, 1, 0, TimeSpan.FromHours(-5)), fireTimes[4]);
+        // 3/12 2:01 AM CDT
+        Assert.AreEqual(new DateTimeOffset(2024, 3, 12, 2, 1, 0, TimeSpan.FromHours(-5)), fireTimes[5]);
+
+        // All fire times must be strictly increasing
+        for (var i = 1; i < fireTimes.Count; i++)
+        {
+            Assert.IsTrue(fireTimes[i] > fireTimes[i - 1],
+                $"Fire time {i} ({fireTimes[i]}) should be after fire time {i - 1} ({fireTimes[i - 1]})");
+        }
+    }
+
+    [Test]
+    [Description("Monthly interval trigger should not loop infinitely during spring-forward DST transition")]
+    public void TestMonthlyTriggerDoesNotFireInfinitelyDuringSpringForward()
+    {
+        var centralTimeZone = TimeZoneUtil.FindTimeZoneById("Central Standard Time");
+
+        // Start on 1/10/2024 at 2:01 AM CST — the March fire lands on 3/10 (DST day)
+        var startDate = new DateTimeOffset(2024, 1, 10, 2, 1, 0, TimeSpan.FromHours(-6));
+
+        var trigger = new CalendarIntervalTriggerImpl
+        {
+            TimeZone = centralTimeZone,
+            RepeatInterval = 1, // every month
+            RepeatIntervalUnit = IntervalUnit.Month,
+            PreserveHourOfDayAcrossDaylightSavings = true,
+            SkipDayIfHourDoesNotExist = false,
+            StartTimeUtc = startDate
+        };
+
+        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 6);
+
+        Assert.IsNotNull(fireTimes);
+        Assert.That(fireTimes.Count, Is.GreaterThanOrEqualTo(5));
+
+        // 1/10 2:01 AM CST
+        Assert.AreEqual(new DateTimeOffset(2024, 1, 10, 2, 1, 0, TimeSpan.FromHours(-6)), fireTimes[0]);
+        // 2/10 2:01 AM CST
+        Assert.AreEqual(new DateTimeOffset(2024, 2, 10, 2, 1, 0, TimeSpan.FromHours(-6)), fireTimes[1]);
+        // 3/10 DST day: 2:01 AM doesn't exist, fire at 3:00 AM CDT
+        Assert.AreEqual(new DateTimeOffset(2024, 3, 10, 3, 0, 0, TimeSpan.FromHours(-5)), fireTimes[2]);
+        // 4/10 2:01 AM CDT (DST already in effect, 2:01 AM is valid)
+        Assert.AreEqual(new DateTimeOffset(2024, 4, 10, 2, 1, 0, TimeSpan.FromHours(-5)), fireTimes[3]);
+        // 5/10 2:01 AM CDT
+        Assert.AreEqual(new DateTimeOffset(2024, 5, 10, 2, 1, 0, TimeSpan.FromHours(-5)), fireTimes[4]);
+
+        // All fire times must be strictly increasing
+        for (var i = 1; i < fireTimes.Count; i++)
+        {
+            Assert.IsTrue(fireTimes[i] > fireTimes[i - 1],
+                $"Fire time {i} ({fireTimes[i]}) should be after fire time {i - 1} ({fireTimes[i - 1]})");
+        }
+    }
+
+    [Test]
+    [Description("Weekly trigger with EU timezone should not loop infinitely during spring-forward DST transition")]
+    public void TestWeeklyTriggerDoesNotFireInfinitelyDuringEuropeanSpringForward()
+    {
+        // EU DST spring-forward: last Sunday of March, clocks go from 2:00 AM to 3:00 AM CET→CEST
+        // In 2024, this is March 31
+        var cetTimeZone = TimeZoneUtil.FindTimeZoneById("Central European Standard Time");
+
+        // Start 2 weeks before EU DST (3/17/2024 2:01 AM CET)
+        var startDate = new DateTimeOffset(2024, 3, 17, 2, 1, 0, TimeSpan.FromHours(1));
+
+        var trigger = new CalendarIntervalTriggerImpl
+        {
+            TimeZone = cetTimeZone,
+            RepeatInterval = 2, // every 2 weeks
+            RepeatIntervalUnit = IntervalUnit.Week,
+            PreserveHourOfDayAcrossDaylightSavings = true,
+            SkipDayIfHourDoesNotExist = false,
+            StartTimeUtc = startDate
+        };
+
+        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 5);
+
+        Assert.IsNotNull(fireTimes);
+        Assert.That(fireTimes.Count, Is.GreaterThanOrEqualTo(4));
+
+        // 3/17 2:01 AM CET (+01:00)
+        Assert.AreEqual(new DateTimeOffset(2024, 3, 17, 2, 1, 0, TimeSpan.FromHours(1)), fireTimes[0]);
+        // 3/31 DST day: 2:01 AM doesn't exist, fire at 3:00 AM CEST (+02:00)
+        Assert.AreEqual(new DateTimeOffset(2024, 3, 31, 3, 0, 0, TimeSpan.FromHours(2)), fireTimes[1]);
+        // 4/14 2:01 AM CEST (+02:00) - back to normal
+        Assert.AreEqual(new DateTimeOffset(2024, 4, 14, 2, 1, 0, TimeSpan.FromHours(2)), fireTimes[2]);
+
+        // All fire times must be strictly increasing
+        for (var i = 1; i < fireTimes.Count; i++)
+        {
+            Assert.IsTrue(fireTimes[i] > fireTimes[i - 1],
+                $"Fire time {i} ({fireTimes[i]}) should be after fire time {i - 1} ({fireTimes[i - 1]})");
+        }
+    }
+
     // Test subclass to expose protected method
     private class TestableCalendarIntervalTrigger : CalendarIntervalTriggerImpl
     {
