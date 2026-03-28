@@ -22,19 +22,19 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="FakeItEasy" Version="8.3.0" />
+    <PackageReference Include="FakeItEasy" Version="9.0.1" />
     <PackageReference Include="FluentAssertions" Version="[7.2.0]" />
     <PackageReference Include="GitHubActionsTestLogger" Version="2.4.1" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="6.0.1" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="8.10.0" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.3.0" />
     <PackageReference Include="Npgsql.DependencyInjection" Version="8.0.7" />
-    <PackageReference Include="NUnit" Version="4.3.2" />
-    <PackageReference Include="NUnit3TestAdapter" Version="5.0.0" />
+    <PackageReference Include="NUnit" Version="4.5.1" />
+    <PackageReference Include="NUnit3TestAdapter" Version="6.2.0" />
     <PackageReference Include="System.Runtime.Serialization.Formatters" Version="10.0.0" Condition=" '$(TargetFramework)' == 'net10.0' " />
-    <PackageReference Include="Verify.NUnit" Version="28.13.0" />
+    <PackageReference Include="Verify.NUnit" Version="31.13.5" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Quartz.Extensions.DependencyInjection\Quartz.Extensions.DependencyInjection.csproj" />
