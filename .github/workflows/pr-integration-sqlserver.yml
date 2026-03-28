@@ -5,16 +5,16 @@
 #
 #     - To turn off auto-generation set:
 #
-#         [CustomGitHubActions (AutoGenerate = false)]
+#         [DatabaseIntegrationGitHubActions (AutoGenerate = false)]
 #
 #     - To trigger manual generation invoke:
 #
-#         nuke --generate-configuration GitHubActions_pr-tests-integration --host GitHubActions
+#         nuke --generate-configuration GitHubActions_pr-integration-sqlserver --host GitHubActions
 #
 # </auto-generated>
 # ------------------------------------------------------------------------------
 
-name: pr-tests-integration
+name: pr-integration-sqlserver
 
 on:
   pull_request:
@@ -43,5 +43,7 @@ jobs:
           dotnet-version: |
             10.0
       - uses: actions/checkout@v6
-      - name: 'Run: Compile, IntegrationTest'
-        run: ./build.cmd Compile IntegrationTest
+      - name: 'Run: Compile, IntegrationTest (sqlserver)'
+        run: ./build.cmd Compile IntegrationTest --database sqlserver
+        env:
+          QUARTZ_TEST_DATABASE: sqlserver
