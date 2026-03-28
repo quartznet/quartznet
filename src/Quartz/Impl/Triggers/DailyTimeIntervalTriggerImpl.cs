@@ -402,7 +402,7 @@ public class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalT
             }
             SetNextFireTimeUtc(newFireTime);
         }
-        else if (instr == Quartz.MisfireInstruction.CalendarIntervalTrigger.FireOnceNow)
+        else if (instr == Quartz.MisfireInstruction.DailyTimeIntervalTrigger.FireOnceNow)
         {
             // fire once now...
             SetNextFireTimeUtc(SystemTime.UtcNow());
@@ -436,7 +436,7 @@ public class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalT
             }
             SetNextFireTimeUtc(newFireTime);
         }
-        else if (instr == Quartz.MisfireInstruction.CalendarIntervalTrigger.FireOnceNow)
+        else if (instr == Quartz.MisfireInstruction.DailyTimeIntervalTrigger.FireOnceNow)
         {
             SetNextFireTimeUtc(SystemTime.UtcNow());
         }
