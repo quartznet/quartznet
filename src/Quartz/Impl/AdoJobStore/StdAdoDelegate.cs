@@ -44,7 +44,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// implementations. Subclasses should override only those methods that need
 /// special handling for the DBMS driver in question.
 /// </summary>
-public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAccessor
+public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAccessor, IMisfireOriginalFireTimeDelegate
 {
     private const string FileScanListenerName = "FILE_SCAN_LISTENER_NAME";
     private const string DirectoryScanListenerName = "DIRECTORY_SCAN_LISTENER_NAME";

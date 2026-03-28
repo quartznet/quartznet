@@ -62,7 +62,6 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     private MisfireHandler? misfireHandler;
     private ITypeLoadHelper typeLoadHelper = null!;
     private ISchedulerSignaler schedSignaler = null!;
-
     private volatile bool schedulerRunning;
     private volatile bool shutdown;
 
@@ -597,6 +596,10 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     public virtual async Task SchedulerStarted(
         CancellationToken cancellationToken = default)
     {
+        // Probe for optional MISFIRE_ORIG_FIRE_TIME column (added in schema migration).
+        // When present, enables correct ScheduledFireTimeUtc for misfired triggers.
+        await ProbeForMisfireOriginalFireTimeColumn(cancellationToken).ConfigureAwait(false);
+
         if (Clustered)
         {
             clusterManager = new ClusterManager(this);
@@ -618,6 +621,36 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         misfireHandler = new MisfireHandler(this);
         misfireHandler.Initialize();
         schedulerRunning = true;
+    }
+
+    private async Task ProbeForMisfireOriginalFireTimeColumn(CancellationToken cancellationToken)
+    {
+        if (Delegate is not IMisfireOriginalFireTimeDelegate misfireDelegate)
+        {
+            return;
+        }
+
+        ConnectionAndTransactionHolder conn = GetNonManagedTXConnection();
+        try
+        {
+            await misfireDelegate.SupportsMisfireOriginalFireTimeColumn(conn, cancellationToken).ConfigureAwait(false);
+            CommitConnection(conn, false);
+
+            if (!misfireDelegate.HasMisfireOriginalFireTimeColumn)
+            {
+                Log.Warn("Column MISFIRE_ORIG_FIRE_TIME not found in triggers table. " +
+                    "ScheduledFireTimeUtc will not be corrected for misfired triggers with AdoJobStore. " +
+                    "Run the schema migration to add this column.");
+            }
+        }
+        catch (Exception e)
+        {
+            RollbackConnection(conn, e);
+        }
+        finally
+        {
+            CleanupConnection(conn);
+        }
     }
 
     /// <summary>
@@ -886,6 +919,9 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
         await schedSignaler.NotifyTriggerListenersMisfired(trig).ConfigureAwait(false);
 
+        var originalFireTime = trig.GetNextFireTimeUtc();
+        var now = SystemTime.UtcNow();
+
         trig.UpdateAfterMisfire(cal);
 
         if (!trig.GetNextFireTimeUtc().HasValue)
@@ -896,6 +932,20 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         else
         {
             await StoreTrigger(conn, trig, null, true, newStateIfNotComplete, forceState, recovering).ConfigureAwait(false);
+        }
+
+        // Persist original fire time for "fire now" misfire policies when the column is available.
+        // "Fire now" policies set nextFireTimeUtc to ~SystemTime.UtcNow(); "reschedule next"
+        // policies set it to a future schedule time where the existing code is already correct.
+        if (Delegate is IMisfireOriginalFireTimeDelegate { HasMisfireOriginalFireTimeColumn: true } misfireDelegate)
+        {
+            var newFireTime = trig.GetNextFireTimeUtc();
+            if (originalFireTime.HasValue && newFireTime.HasValue
+                && originalFireTime.Value != newFireTime.Value
+                && Math.Abs((newFireTime.Value - now).TotalMilliseconds) < AbstractTrigger.FireNowMisfireDetectionThresholdMs)
+            {
+                await misfireDelegate.UpdateMisfireOriginalFireTime(conn, trig.Key, originalFireTime, CancellationToken.None).ConfigureAwait(false);
+            }
         }
     }
 
@@ -2985,6 +3035,14 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             throw new JobPersistenceException("Couldn't update fired trigger: " + e.Message, e);
         }
 
+        // Read saved original fire time from trigger (populated by SelectTrigger when column exists)
+        DateTimeOffset? scheduledFireTime = (trigger as AbstractTrigger)?.MisfiredFromFireTimeUtc;
+        if (scheduledFireTime.HasValue && Delegate is IMisfireOriginalFireTimeDelegate misfireDelegate)
+        {
+            // Clear so it doesn't persist beyond this firing
+            await misfireDelegate.ClearMisfireOriginalFireTime(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+        }
+
         DateTimeOffset? prevFireTime = trigger.GetPreviousFireTimeUtc();
 
         // call triggered - to update the trigger's next-fire-time state...
@@ -3025,7 +3083,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             cal,
             trigger.Key.Group.Equals(SchedulerConstants.DefaultRecoveryGroup),
             SystemTime.UtcNow(),
-            trigger.GetPreviousFireTimeUtc(),
+            scheduledFireTime ?? trigger.GetPreviousFireTimeUtc(),
             prevFireTime,
             trigger.GetNextFireTimeUtc());
     }

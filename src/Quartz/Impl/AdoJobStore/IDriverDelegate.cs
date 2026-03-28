@@ -1085,6 +1085,44 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Optional delegate capability for persisting the original scheduled fire time
+/// through misfire handling. Implemented by delegates whose schema includes
+/// the MISFIRE_ORIG_FIRE_TIME column on the triggers table.
+/// </summary>
+internal interface IMisfireOriginalFireTimeDelegate
+{
+    /// <summary>
+    /// Whether the MISFIRE_ORIG_FIRE_TIME column is available, set after probing.
+    /// </summary>
+    bool HasMisfireOriginalFireTimeColumn { get; }
+
+    /// <summary>
+    /// Probes whether the MISFIRE_ORIG_FIRE_TIME column exists in the triggers table.
+    /// Sets <see cref="HasMisfireOriginalFireTimeColumn"/>.
+    /// </summary>
+    Task<bool> SupportsMisfireOriginalFireTimeColumn(
+        ConnectionAndTransactionHolder conn,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates the misfire original fire time for the given trigger.
+    /// </summary>
+    Task UpdateMisfireOriginalFireTime(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        DateTimeOffset? fireTime,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Clears the misfire original fire time for the given trigger.
+    /// </summary>
+    Task ClearMisfireOriginalFireTime(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default);
+}
+
 public class TriggerAcquireResult
 {
     public TriggerAcquireResult(string triggerName, string triggerGroup, string jobType)
