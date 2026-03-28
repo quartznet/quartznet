@@ -240,9 +240,9 @@ public class CronTriggerTest
         // Act: Compute the first fire time
         DateTimeOffset? firstFireTime = trigger.ComputeFirstFireTimeUtc(null);
 
-        // Assert: Should return a valid fire time (may be in the past between startDate and now, which would trigger misfire handling)
+        // Assert: Should return a valid fire time in the future (past fire times are advanced to after now)
         Assert.IsNotNull(firstFireTime, "Trigger with future end date should schedule a fire time");
-        Assert.IsTrue(firstFireTime.Value >= startDate, "Fire time should be on or after start date");
+        Assert.IsTrue(firstFireTime.Value >= DateTimeOffset.UtcNow, "Fire time should be in the future");
         Assert.IsTrue(firstFireTime.Value <= endDate, "Fire time should be before end date");
         Assert.IsTrue(trigger.GetMayFireAgain(), "Trigger should be able to fire again");
 
@@ -274,5 +274,48 @@ public class CronTriggerTest
         var firstFireTime = trigger.ComputeFirstFireTimeUtc(null);
 
         Assert.IsNull(firstFireTime, "ComputeFirstFireTimeUtc should return null when EndTimeUtc equals StartTimeUtc");
+    }
+
+    [Test]
+    public void RescheduledTriggerWithOldStartTimeShouldNotFireInPast()
+    {
+        // Simulate the issue from GitHub #764: rebuild a trigger via GetTriggerBuilder().Build()
+        // after it has been running. The rebuilt trigger should not compute a fire time in the past.
+        var pastStartTime = DateTimeOffset.UtcNow.AddHours(-1);
+
+        var originalTrigger = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity("trigger1", "group1")
+            .WithCronSchedule("0 */5 * ? * *",
+                cs => cs.WithMisfireHandlingInstructionDoNothing())
+            .StartAt(pastStartTime)
+            .Build();
+
+        // Rebuild via GetTriggerBuilder (preserves old StartTimeUtc, truncated to seconds by cron)
+        var rebuilt = (IOperableTrigger) originalTrigger.GetTriggerBuilder().Build();
+        Assert.That(rebuilt.StartTimeUtc, Is.LessThan(DateTimeOffset.UtcNow));
+
+        var firstFireTime = rebuilt.ComputeFirstFireTimeUtc(null);
+
+        Assert.IsNotNull(firstFireTime);
+        Assert.That(firstFireTime.Value, Is.GreaterThanOrEqualTo(DateTimeOffset.UtcNow),
+            "Rebuilt trigger's first fire time must not be in the past");
+    }
+
+    [Test]
+    public void TriggerWithFutureStartTimeIsUnaffectedByPastGuard()
+    {
+        var futureStart = DateTimeOffset.UtcNow.AddHours(1);
+
+        var trigger = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity("trigger1", "group1")
+            .WithCronSchedule("0 */5 * ? * *")
+            .StartAt(futureStart)
+            .Build();
+
+        var firstFireTime = trigger.ComputeFirstFireTimeUtc(null);
+
+        Assert.IsNotNull(firstFireTime);
+        Assert.That(firstFireTime.Value, Is.GreaterThanOrEqualTo(futureStart),
+            "Fire time should be on or after the future start time");
     }
 }
