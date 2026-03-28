@@ -16,7 +16,8 @@ using Nuke.Common.Utilities;
     PublishArtifacts = false,
     InvokedTargets = [nameof(Compile), nameof(UnitTest)],
     CacheKeyFiles = [],
-    ConcurrencyCancelInProgress = true),
+    ConcurrencyCancelInProgress = true,
+    ReadPermissions = [GitHubActionsPermissions.Contents]),
 ]
 [DatabaseIntegrationGitHubActions("pr-integration-basic", "basic")]
 [DatabaseIntegrationGitHubActions("pr-integration-postgres", "postgres")]
@@ -38,7 +39,8 @@ using Nuke.Common.Utilities;
     PublishCondition = "runner.os == 'Windows'",
     InvokedTargets = [nameof(Compile), nameof(UnitTest), nameof(IntegrationTest), nameof(Pack), nameof(Publish)],
     ImportSecrets = ["NUGET_API_KEY", "FEEDZ_API_KEY"],
-    CacheKeyFiles = [])
+    CacheKeyFiles = [],
+    ReadPermissions = [GitHubActionsPermissions.Contents])
 ]
 public partial class Build;
 
@@ -77,6 +79,7 @@ class DatabaseIntegrationGitHubActionsAttribute : CustomGitHubActionsAttribute
         InvokedTargets = ["Compile", "IntegrationTest"];
         CacheKeyFiles = [];
         ConcurrencyCancelInProgress = true;
+        ReadPermissions = [GitHubActionsPermissions.Contents];
     }
 
     protected override GitHubActionsJob GetJobs(GitHubActionsImage image, IReadOnlyCollection<ExecutableTarget> relevantTargets)
