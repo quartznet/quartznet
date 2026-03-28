@@ -78,8 +78,8 @@ internal static class TestcontainersDatabaseEnvironment
 
             if (startAll || targetDatabase == "sqlserver")
             {
-                tasks.Add(StartSqlServerContainerAsync(ReadScript("docker", "sqlserver", "tables_sqlServer.sql")));
-                tasks.Add(StartSqlServerMotContainerAsync(ReadScript("docker", "sqlserver-mot", "tables_sqlServerMOT.sql")));
+                tasks.Add(StartSqlServerContainerAsync(ReadScript("database", "tables", "tables_sqlServer.sql")));
+                tasks.Add(StartSqlServerMotContainerAsync(ReadScript("database", "tables", "tables_sqlServerMOT.sql")));
             }
 
             if (startAll || targetDatabase == "mysql")
@@ -90,13 +90,12 @@ internal static class TestcontainersDatabaseEnvironment
             if (startAll || targetDatabase == "firebird")
             {
                 tasks.Add(StartFirebirdSqlContainerAsync(
-                    ReadScript("docker", "firebird", "create_database.sql"),
-                    ReadScript("docker", "firebird", "tables_firebird.sql")));
+                    ReadScript("database", "tables", "tables_firebird.sql")));
             }
 
             if (startAll || targetDatabase == "oracle")
             {
-                tasks.Add(StartOracleContainerAsync(ReadScript("docker", "oracle", "tables_oracle.sql")));
+                tasks.Add(StartOracleContainerAsync(ReadScript("database", "tables", "tables_oracle.sql")));
             }
 
             if (tasks.Count > 0)
@@ -165,6 +164,9 @@ internal static class TestcontainersDatabaseEnvironment
         Environment.SetEnvironmentVariable("PG_PASSWORD", "quartznet");
     }
 
+    private const string SqlServerDatabasePreamble =
+        "CREATE DATABASE quartznet;\nGO\nUSE [quartznet];\nGO\n";
+
     private static async Task StartSqlServerContainerAsync(string script)
     {
         sqlServerContainer = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-CU14-ubuntu-22.04")
@@ -173,7 +175,7 @@ internal static class TestcontainersDatabaseEnvironment
 
         await sqlServerContainer.StartAsync();
 
-        ExecResult result = await sqlServerContainer.ExecScriptAsync(script);
+        ExecResult result = await sqlServerContainer.ExecScriptAsync(SqlServerDatabasePreamble + script);
         EnsureScriptSucceeded("SQL Server", result);
 
         string connectionString = sqlServerContainer.GetConnectionString();
@@ -196,7 +198,7 @@ internal static class TestcontainersDatabaseEnvironment
 
         await sqlServerMotContainer.StartAsync();
 
-        ExecResult result = await sqlServerMotContainer.ExecScriptAsync(script);
+        ExecResult result = await sqlServerMotContainer.ExecScriptAsync(SqlServerDatabasePreamble + script);
         EnsureScriptSucceeded("SQL Server (MOT)", result);
 
         string connectionString = sqlServerMotContainer.GetConnectionString();
@@ -225,7 +227,10 @@ internal static class TestcontainersDatabaseEnvironment
         Environment.SetEnvironmentVariable("MYSQL_CONNECTION_STRING", mySqlContainer.GetConnectionString());
     }
 
-    private static async Task StartFirebirdSqlContainerAsync(string createDatabaseScript, string script)
+    private const string FirebirdCreateDatabaseScript =
+        "CREATE DATABASE '/firebird/data/quartz.fdb' USER 'SYSDBA' PASSWORD 'masterkey';";
+
+    private static async Task StartFirebirdSqlContainerAsync(string script)
     {
         firebirdSqlContainer = new FirebirdSqlBuilder("jacobalberty/firebird:v4.0")
             .WithDatabase("/firebird/data/quartz.fdb")
@@ -236,7 +241,7 @@ internal static class TestcontainersDatabaseEnvironment
 
         await firebirdSqlContainer.StartAsync();
 
-        ExecResult createDatabaseResult = await ExecFirebirdAdminScriptAsync(createDatabaseScript);
+        ExecResult createDatabaseResult = await ExecFirebirdAdminScriptAsync(FirebirdCreateDatabaseScript);
         EnsureScriptSucceeded("Firebird database creation", createDatabaseResult);
 
         ExecResult result = await firebirdSqlContainer.ExecScriptAsync(script);
