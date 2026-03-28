@@ -1358,4 +1358,67 @@ public class DailyTimeIntervalTriggerImplTest
         Assert.That(times, Has.Count.EqualTo(3),
             $"Expected 3 fire times but got {times.Count}: {string.Join(", ", times.Select(t => TimeZoneInfo.ConvertTime(t, timeZoneInfo)))}");
     }
+
+    [Test]
+    [Category("windowstimezoneid")]
+    public void TestDstFallBackWithSecondsIntervalEquivalentTo24Hours()
+    {
+        // Same scenario as #1114 but using WithIntervalInSeconds(86400)
+        TimeZoneInfo timeZoneInfo = TZConvert.GetTimeZoneInfo("Central European Standard Time");
+
+        IOperableTrigger trigger = (IOperableTrigger) DailyTimeIntervalScheduleBuilder.Create()
+            .StartingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(0, 1, 5))
+            .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
+            .OnEveryDay()
+            .WithIntervalInSeconds(86400)
+            .InTimeZone(timeZoneInfo)
+            .Build();
+
+        trigger.StartTimeUtc = new DateTimeOffset(2020, 10, 24, 22, 0, 0, TimeSpan.Zero);
+        trigger.ComputeFirstFireTimeUtc(null);
+
+        DateTimeOffset from = new DateTimeOffset(2020, 10, 24, 22, 0, 0, TimeSpan.Zero);
+        DateTimeOffset to = new DateTimeOffset(2020, 10, 27, 23, 0, 0, TimeSpan.Zero);
+        IReadOnlyList<DateTimeOffset> times = TriggerUtils.ComputeFireTimesBetween(trigger, null, from, to);
+
+        Assert.That(times, Has.Count.EqualTo(3),
+            $"Expected 3 fire times but got {times.Count}: {string.Join(", ", times.Select(t => TimeZoneInfo.ConvertTime(t, timeZoneInfo)))}");
+    }
+
+    [Test]
+    [Category("windowstimezoneid")]
+    public void TestDstFallBackWithAmbiguousStartTimeOfDay()
+    {
+        // When startTimeOfDay falls in the DST ambiguous window (02:00-03:00 CET
+        // on the fall-back day), the trigger should still fire at the correct
+        // wall-clock time on subsequent days.
+        TimeZoneInfo timeZoneInfo = TZConvert.GetTimeZoneInfo("Central European Standard Time");
+
+        IOperableTrigger trigger = (IOperableTrigger) DailyTimeIntervalScheduleBuilder.Create()
+            .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(2, 30))
+            .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
+            .OnEveryDay()
+            .WithIntervalInHours(24)
+            .InTimeZone(timeZoneInfo)
+            .Build();
+
+        trigger.StartTimeUtc = new DateTimeOffset(2020, 10, 24, 0, 0, 0, TimeSpan.Zero);
+        trigger.ComputeFirstFireTimeUtc(null);
+
+        DateTimeOffset from = new DateTimeOffset(2020, 10, 24, 0, 0, 0, TimeSpan.Zero);
+        DateTimeOffset to = new DateTimeOffset(2020, 10, 27, 23, 0, 0, TimeSpan.Zero);
+        IReadOnlyList<DateTimeOffset> times = TriggerUtils.ComputeFireTimesBetween(trigger, null, from, to);
+
+        Assert.That(times, Has.Count.EqualTo(4),
+            $"Expected 4 fire times but got {times.Count}: {string.Join(", ", times.Select(t => TimeZoneInfo.ConvertTime(t, timeZoneInfo)))}");
+
+        // Oct 24 02:30 CEST (+02:00) = Oct 24 00:30 UTC
+        Assert.That(times[0], Is.EqualTo(new DateTimeOffset(2020, 10, 24, 0, 30, 0, TimeSpan.Zero)));
+        // Oct 25 02:30 CEST (+02:00) = Oct 25 00:30 UTC (first/daylight occurrence of ambiguous time)
+        Assert.That(times[1], Is.EqualTo(new DateTimeOffset(2020, 10, 25, 0, 30, 0, TimeSpan.Zero)));
+        // Oct 26 02:30 CET (+01:00) = Oct 26 01:30 UTC
+        Assert.That(times[2], Is.EqualTo(new DateTimeOffset(2020, 10, 26, 1, 30, 0, TimeSpan.Zero)));
+        // Oct 27 02:30 CET (+01:00) = Oct 27 01:30 UTC
+        Assert.That(times[3], Is.EqualTo(new DateTimeOffset(2020, 10, 27, 1, 30, 0, TimeSpan.Zero)));
+    }
 }
