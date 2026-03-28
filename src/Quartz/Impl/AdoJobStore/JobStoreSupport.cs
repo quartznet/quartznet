@@ -2307,6 +2307,33 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     }
 
     /// <summary>
+    /// Checks whether the given job currently has a fired trigger in EXECUTING state.
+    /// Uses <see cref="INextVersionDelegate"/> for an efficient COUNT query when available,
+    /// otherwise falls back to <see cref="IDriverDelegate.SelectFiredTriggerRecordsByJob"/>.
+    /// </summary>
+    private async Task<bool> IsJobCurrentlyExecuting(
+        ConnectionAndTransactionHolder conn,
+        JobKey jobKey,
+        CancellationToken cancellationToken = default)
+    {
+        if (Delegate is INextVersionDelegate nvd)
+        {
+            return await nvd.IsJobCurrentlyExecuting(conn, jobKey.Name, jobKey.Group, cancellationToken).ConfigureAwait(false);
+        }
+
+        IReadOnlyCollection<FiredTriggerRecord> firedRecords = await Delegate.SelectFiredTriggerRecordsByJob(conn, jobKey.Name, jobKey.Group, cancellationToken).ConfigureAwait(false);
+        foreach (FiredTriggerRecord rec in firedRecords)
+        {
+            if (StateExecuting.Equals(rec.FireInstanceState))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Determines if a Trigger for the given job should be blocked.
     /// State can only transition to StatePausedBlocked/StateBlocked from
     /// StatePaused/StateWaiting respectively.
@@ -2823,6 +2850,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                         {
                             continue; // next trigger
                         }
+
+                        // Cluster-safe check: skip if job is already executing on another node
+                        if (await IsJobCurrentlyExecuting(conn, nextTrigger.JobKey, cancellationToken).ConfigureAwait(false))
+                        {
+                            continue;
+                        }
                     }
 
                     var nextFireTimeUtc = nextTrigger.GetNextFireTimeUtc();
@@ -3030,6 +3063,28 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 Log.ErrorException("Unable to set trigger state to ERROR.", sqle);
             }
             throw;
+        }
+
+        // Cluster-safe check: prevent concurrent execution across nodes for
+        // [DisallowConcurrentExecution] jobs by checking the FIRED_TRIGGERS table.
+        // This runs under the TRIGGER_ACCESS lock, providing serialized access.
+        // The current trigger's own fired record has JOB_NAME=null (set during
+        // AcquireNextTrigger) so it won't appear in the query results.
+        if (job.ConcurrentExecutionDisallowed)
+        {
+            try
+            {
+                bool alreadyExecuting = await IsJobCurrentlyExecuting(conn, trigger.JobKey, cancellationToken).ConfigureAwait(false);
+                if (alreadyExecuting)
+                {
+                    Log.Info($"Not firing trigger {trigger.Key} for [DisallowConcurrentExecution] job {trigger.JobKey} - already executing on another node.");
+                    return null;
+                }
+            }
+            catch (Exception e)
+            {
+                throw new JobPersistenceException($"Couldn't check concurrent execution for job '{trigger.JobKey}': " + e.Message, e);
+            }
         }
 
         if (trigger.CalendarName != null)
