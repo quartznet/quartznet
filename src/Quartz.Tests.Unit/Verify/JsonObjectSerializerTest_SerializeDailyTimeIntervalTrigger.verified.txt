@@ -9,7 +9,7 @@
   "CalendarName": null,
   "JobDataMap": {},
   "MisfireInstruction": 0,
-  "StartTimeUtc": "2024-07-01T03:30:00+00:00",
+  "StartTimeUtc": "2024-07-01T00:00:00.5+00:00",
   "EndTimeUtc": "2024-07-02T00:00:01+00:00",
   "Priority": 5,
   "NextFireTimeUtc": "2024-07-01T03:32:06+00:00",
