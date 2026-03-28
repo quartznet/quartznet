@@ -52,8 +52,8 @@ namespace Quartz;
 public interface IDailyTimeIntervalTrigger : ITrigger
 {
     /// <summary>
-    /// Get the number of times for interval this trigger should repeat,
-    /// after which it will be automatically deleted.
+    /// Get the number of times per day this trigger should repeat.
+    /// Setting to 0 means fire once per day; setting to N means fire N+1 times per day.
     /// </summary>
     int RepeatCount { get; }
 

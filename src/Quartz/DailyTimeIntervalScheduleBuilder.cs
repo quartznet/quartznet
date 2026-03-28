@@ -458,10 +458,11 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
     }
 
     /// <summary>
-    /// Set number of times for interval to repeat.
+    /// Set the number of times per day for interval to repeat.
     /// </summary>
     /// <remarks>
-    /// Note: if you want total count = 1 (at start time) + repeatCount
+    /// Note: total fires per day = 1 (at startTimeOfDay) + repeatCount.
+    /// The trigger resets each day and repeats on subsequent valid days.
     /// </remarks>
     /// <param name="repeatCount"></param>
     /// <returns></returns>

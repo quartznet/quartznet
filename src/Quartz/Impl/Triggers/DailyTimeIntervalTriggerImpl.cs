@@ -56,11 +56,12 @@ namespace Quartz.Impl.Triggers;
 /// maybe before or after the startTimeOfDay! So be aware how you set your startTime.
 /// </para>
 /// <para>
-/// This trigger also supports "repeatCount" feature to end the trigger fire time after
-/// a certain number of count is reached. Just as the SimpleTrigger, setting repeatCount=0
-/// means trigger will fire once only! Setting any positive count then the trigger will repeat
-/// count + 1 times. Unlike SimpleTrigger, the default value of repeatCount of this trigger
-/// is set to REPEAT_INDEFINITELY instead of 0 though.
+/// This trigger also supports a "repeatCount" feature to limit the number of times the trigger
+/// fires per day. Setting repeatCount=0 means the trigger will fire once per day at startTimeOfDay.
+/// Setting repeatCount=N means the trigger will fire N+1 times per day (the initial fire plus N
+/// repeats), then advance to the next valid day and repeat. Unlike SimpleTrigger which uses
+/// repeatCount as a global total, DailyTimeIntervalTrigger applies repeatCount per day. The
+/// default value of repeatCount is set to REPEAT_INDEFINITELY.
 /// </para>
 /// </remarks>
 /// <see cref="IDailyTimeIntervalTrigger"/>
@@ -307,8 +308,8 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
     }
 
     /// <summary>
-    /// Get the number of times for interval this trigger should repeat,
-    /// after which it will be automatically deleted.
+    /// Get the number of times per day this trigger should repeat.
+    /// Setting to 0 means fire once per day; setting to N means fire N+1 times per day.
     /// </summary>
     public int RepeatCount
     {
@@ -670,12 +671,6 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
             return null;
         }
 
-        // Check repeatCount limit
-        if (repeatCount != RepeatIndefinitely && TimesTriggered > repeatCount)
-        {
-            return null;
-        }
-
         // a. Increment afterTime by a second, so that we are comparing against a time after it!
         if (afterTime is null)
         {
@@ -745,9 +740,10 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
 
         DateTimeOffset sTime = fireTimeStartDate.ToUniversalTime();
         IntervalUnit repeatUnit = RepeatIntervalUnit;
+        long jumpCount = 0;
         if (repeatUnit == IntervalUnit.Second)
         {
-            long jumpCount = secondsAfterStart / repeatLong;
+            jumpCount = secondsAfterStart / repeatLong;
             if (secondsAfterStart % repeatLong != 0)
             {
                 jumpCount++;
@@ -758,7 +754,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
         }
         else if (repeatUnit == IntervalUnit.Minute)
         {
-            long jumpCount = secondsAfterStart / (repeatLong * 60L);
+            jumpCount = secondsAfterStart / (repeatLong * 60L);
             if (secondsAfterStart % (repeatLong * 60L) != 0)
             {
                 jumpCount++;
@@ -768,7 +764,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
         }
         else if (repeatUnit == IntervalUnit.Hour)
         {
-            long jumpCount = secondsAfterStart / (repeatLong * 60L * 60L);
+            jumpCount = secondsAfterStart / (repeatLong * 60L * 60L);
             if (secondsAfterStart % (repeatLong * 60L * 60L) != 0)
             {
                 jumpCount++;
@@ -777,7 +773,19 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
             fireTime = TimeZoneUtil.ConvertTime(sTime, TimeZone);
         }
 
-        // g. Ensure this new fireTime is within the day, or else we need to advance to next day.
+        // g. Check if we've exceeded the per-day repeat count.
+        if (repeatCount != RepeatIndefinitely && jumpCount > repeatCount)
+        {
+            fireTime = AdvanceToNextDayOfWeekIfNecessary(fireTime.Value, true);
+            if (fireTime is null)
+            {
+                return null;
+            }
+            fireTime = startTimeOfDay.GetTimeOfDayForDate(fireTime);
+            return fireTime?.ToUniversalTime();
+        }
+
+        // h. Ensure this new fireTime is within the day, or else we need to advance to next day.
         if (fireTime > fireTimeEndDate)
         {
             fireTime = AdvanceToNextDayOfWeekIfNecessary(fireTime.Value, IsSameDay(fireTime.Value, fireTimeEndDate));
