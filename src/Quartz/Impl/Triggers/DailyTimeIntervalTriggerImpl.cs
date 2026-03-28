@@ -402,7 +402,7 @@ public class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalT
             }
             SetNextFireTimeUtc(newFireTime);
         }
-        else if (instr == Quartz.MisfireInstruction.CalendarIntervalTrigger.FireOnceNow)
+        else if (instr == Quartz.MisfireInstruction.DailyTimeIntervalTrigger.FireOnceNow)
         {
             // fire once now...
             SetNextFireTimeUtc(SystemTime.UtcNow());
@@ -410,6 +410,35 @@ public class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalT
             // time of day for firing for day/week/month interval triggers,
             // because of the way getFireTimeAfter() works - in its always restarting
             // computation from the start time.
+        }
+    }
+
+    internal override void UpdateAfterMisfire(ICalendar? cal, TimeSpan misfireThreshold)
+    {
+        int instr = MisfireInstruction;
+
+        if (instr == Quartz.MisfireInstruction.IgnoreMisfirePolicy)
+        {
+            return;
+        }
+
+        if (instr == Quartz.MisfireInstruction.SmartPolicy)
+        {
+            instr = Quartz.MisfireInstruction.DailyTimeIntervalTrigger.FireOnceNow;
+        }
+
+        if (instr == Quartz.MisfireInstruction.DailyTimeIntervalTrigger.DoNothing)
+        {
+            DateTimeOffset? newFireTime = GetFireTimeAfter(SystemTime.UtcNow() - misfireThreshold);
+            while (newFireTime != null && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
+            {
+                newFireTime = GetFireTimeAfter(newFireTime);
+            }
+            SetNextFireTimeUtc(newFireTime);
+        }
+        else if (instr == Quartz.MisfireInstruction.DailyTimeIntervalTrigger.FireOnceNow)
+        {
+            SetNextFireTimeUtc(SystemTime.UtcNow());
         }
     }
 

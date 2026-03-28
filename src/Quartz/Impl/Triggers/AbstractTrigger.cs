@@ -53,7 +53,7 @@ namespace Quartz.Impl.Triggers;
 /// <author>Sharada Jambula</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTrigger>
+public abstract class AbstractTrigger : IOperableTrigger, INextVersionTrigger, IEquatable<AbstractTrigger>
 {
     private string name = null!;
     private string group = SchedulerConstants.DefaultGroup;
@@ -301,7 +301,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// </para>
     /// </summary>
     /// <seealso cref="Quartz.MisfireInstruction.InstructionNotSet" />
-    /// <seealso cref="UpdateAfterMisfire" />
+    /// <seealso cref="UpdateAfterMisfire(ICalendar?)" />
     /// <seealso cref="ISimpleTrigger" />
     /// <seealso cref="ICronTrigger" />
     public virtual int MisfireInstruction
@@ -608,6 +608,22 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// </para>
     /// </summary>
     public abstract void UpdateAfterMisfire(ICalendar? cal);
+
+    /// <inheritdoc cref="INextVersionTrigger.UpdateAfterMisfire"/>
+    void INextVersionTrigger.UpdateAfterMisfire(ICalendar? cal, TimeSpan misfireThreshold)
+    {
+        UpdateAfterMisfire(cal, misfireThreshold);
+    }
+
+    /// <summary>
+    /// Threshold-aware version of <see cref="UpdateAfterMisfire(ICalendar?)"/>.
+    /// Fire times within the <paramref name="misfireThreshold"/> window are preserved
+    /// rather than skipped.
+    /// </summary>
+    internal virtual void UpdateAfterMisfire(ICalendar? cal, TimeSpan misfireThreshold)
+    {
+        UpdateAfterMisfire(cal);
+    }
 
     /// <summary>
     /// This method should not be used by the Quartz client.

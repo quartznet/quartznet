@@ -994,4 +994,42 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         Assert.AreEqual(original.RepeatInterval, deserialized.RepeatInterval);
         Assert.AreEqual(original.RepeatIntervalUnit, deserialized.RepeatIntervalUnit);
     }
+
+    [Test]
+    public void DoNothing_WithMisfireThreshold_PreservesWithinThresholdFireTime()
+    {
+        // CalendarInterval: fire every 2 minutes starting at 10:00.
+        // Scheduler recovers at 10:02:30. Threshold = 60s.
+        // 10:02:00 is only 30s old (within threshold) -- should be preserved.
+        var startTime = new DateTimeOffset(2025, 1, 1, 10, 0, 0, TimeSpan.Zero);
+        var frozenNow = new DateTimeOffset(2025, 1, 1, 10, 2, 30, TimeSpan.Zero);
+        var threshold = TimeSpan.FromSeconds(60);
+
+        var trigger = new CalendarIntervalTriggerImpl
+        {
+            Name = "test",
+            Group = "test",
+            StartTimeUtc = startTime,
+            RepeatInterval = 2,
+            RepeatIntervalUnit = IntervalUnit.Minute,
+            MisfireInstruction = MisfireInstruction.CalendarIntervalTrigger.DoNothing
+        };
+        trigger.ComputeFirstFireTimeUtc(null);
+
+        var original = SystemTime.UtcNow;
+        try
+        {
+            SystemTime.UtcNow = () => frozenNow;
+            trigger.UpdateAfterMisfire(null, threshold);
+
+            DateTimeOffset? nextFire = trigger.GetNextFireTimeUtc();
+            Assert.IsNotNull(nextFire);
+            Assert.That(nextFire.Value, Is.EqualTo(new DateTimeOffset(2025, 1, 1, 10, 2, 0, TimeSpan.Zero)),
+                "Should preserve the 10:02 fire time that is within the misfire threshold");
+        }
+        finally
+        {
+            SystemTime.UtcNow = original;
+        }
+    }
 }
