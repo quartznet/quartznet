@@ -147,6 +147,7 @@ public class JobRunShell : SchedulerListenerSupport
                 {
                     string msg = $"Error executing Job {jec.JobDetail.Key}: couldn't begin execution.";
                     await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
+                    await qs.NotifyJobStoreJobComplete(trigger, jobDetail, SchedulerInstruction.NoInstruction, cancellationToken).ConfigureAwait(false);
                     break;
                 }
 
@@ -156,6 +157,7 @@ public class JobRunShell : SchedulerListenerSupport
                 {
                     if (!await NotifyListenersBeginning(jec, cancellationToken).ConfigureAwait(false))
                     {
+                        await qs.NotifyJobStoreJobComplete(trigger, jobDetail, SchedulerInstruction.NoInstruction, cancellationToken).ConfigureAwait(false);
                         break;
                     }
                 }
@@ -240,6 +242,25 @@ public class JobRunShell : SchedulerListenerSupport
                 // notify all job listeners
                 if (!await NotifyJobListenersComplete(jec, jobExEx, cancellationToken).ConfigureAwait(false))
                 {
+                    var failureInstCode = SchedulerInstruction.NoInstruction;
+
+                    // update the trigger to determine the correct instruction, even when listener notification fails
+                    try
+                    {
+                        failureInstCode = trigger.ExecutionComplete(jec, jobExEx);
+                        if (log.IsDebugEnabled())
+                        {
+                            log.Debug($"Trigger instruction : {failureInstCode}");
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        // If this happens, there's a bug in the trigger...
+                        SchedulerException se = new SchedulerException("Trigger threw an unhandled exception.", e);
+                        await qs.NotifySchedulerListenersError("Please report this error to the Quartz developers.", se, cancellationToken).ConfigureAwait(false);
+                    }
+
+                    await qs.NotifyJobStoreJobComplete(trigger, jobDetail, failureInstCode, cancellationToken).ConfigureAwait(false);
                     break;
                 }
 
@@ -264,6 +285,22 @@ public class JobRunShell : SchedulerListenerSupport
                 // notify all trigger listeners
                 if (!await NotifyTriggerListenersComplete(jec, instCode, cancellationToken).ConfigureAwait(false))
                 {
+                    // Ensure finalized notification is still sent when the trigger has no next fire time,
+                    // even if trigger listener notification failed.
+                    try
+                    {
+                        if (jec.Trigger.GetNextFireTimeUtc() == null)
+                        {
+                            await qs.NotifySchedulerListenersFinalized(jec.Trigger, cancellationToken).ConfigureAwait(false);
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        SchedulerException se2 = new SchedulerException("Error notifying scheduler listeners of finalized trigger.", e);
+                        await qs.NotifySchedulerListenersError("Error notifying scheduler listeners of finalized trigger.", se2, cancellationToken).ConfigureAwait(false);
+                    }
+
+                    await qs.NotifyJobStoreJobComplete(trigger, jobDetail, instCode, cancellationToken).ConfigureAwait(false);
                     break;
                 }
                 // update job/trigger or re-Execute job
