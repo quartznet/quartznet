@@ -35,6 +35,9 @@ partial class Build : NukeBuild
     [Parameter("Configuration to build - Default is 'Debug' (local) or 'Release' (server)")]
     readonly Configuration Configuration = IsLocalBuild ? Configuration.Debug : Configuration.Release;
 
+    [Parameter("Database to test against (postgres, sqlserver, mysql, oracle, firebird, sqlite, basic, all)")]
+    readonly string Database;
+
     [Solution] readonly Solution Solution;
     [GitRepository] readonly GitRepository GitRepository;
 
@@ -151,22 +154,49 @@ partial class Build : NukeBuild
             );
         });
 
+    static readonly string[] DatabaseCategories =
+        ["db-postgres", "db-sqlserver", "db-mysql", "db-oracle", "db-firebird", "db-sqlite"];
+
+    string GetTestFilter(string database) => database switch
+    {
+        "postgres" => "TestCategory=db-postgres",
+        "sqlserver" => "TestCategory=db-sqlserver",
+        "mysql" => "TestCategory=db-mysql",
+        "oracle" => "TestCategory=db-oracle",
+        "firebird" => "TestCategory=db-firebird",
+        "sqlite" => "TestCategory=db-sqlite",
+        "basic" => string.Join("&", DatabaseCategories.Select(c => $"TestCategory!={c}")),
+        _ => null
+    };
+
     Target IntegrationTest => _ => _
         .After(Compile)
         .OnlyWhenDynamic(() => Host is GitHubActions && RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         .Executes(() =>
         {
+            var database = Database?.ToLowerInvariant();
+            Environment.SetEnvironmentVariable("QUARTZ_TEST_DATABASE", database ?? "all");
+
+            var filter = GetTestFilter(database);
+
             var integrationTestProjects = new[] { "Quartz.Tests.Integration" };
-            DotNetTest(s => s
-                .EnableNoRestore()
-                .EnableNoBuild()
-                .SetConfiguration(Configuration)
-                .SetFramework("net10.0")
-                .SetLoggers("GitHubActions")
-                .CombineWith(integrationTestProjects, (_, testProject) => _
+            DotNetTest(s =>
+            {
+                s = s.EnableNoRestore()
+                    .EnableNoBuild()
+                    .SetConfiguration(Configuration)
+                    .SetFramework("net10.0")
+                    .SetLoggers("GitHubActions");
+
+                if (!string.IsNullOrEmpty(filter))
+                {
+                    s = s.SetFilter(filter);
+                }
+
+                return s.CombineWith(integrationTestProjects, (_, testProject) => _
                     .SetProjectFile(Solution.GetAllProjects(testProject).First())
-                )
-            );
+                );
+            });
         });
 
     Target Pack => _ => _

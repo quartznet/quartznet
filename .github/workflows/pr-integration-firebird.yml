@@ -5,16 +5,16 @@
 #
 #     - To turn off auto-generation set:
 #
-#         [CustomGitHubActions (AutoGenerate = false)]
+#         [DatabaseIntegrationGitHubActions (AutoGenerate = false)]
 #
 #     - To trigger manual generation invoke:
 #
-#         nuke --generate-configuration GitHubActions_pr-tests-unit --host GitHubActions
+#         nuke --generate-configuration GitHubActions_pr-integration-firebird --host GitHubActions
 #
 # </auto-generated>
 # ------------------------------------------------------------------------------
 
-name: pr-tests-unit
+name: pr-integration-firebird
 
 on:
   pull_request:
@@ -26,6 +26,7 @@ on:
       - '**/*'
       - '!docs/**/*'
       - '!package.json'
+      - '!package-lock.json'
       - '!readme.md'
 
 permissions:
@@ -36,17 +37,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  windows-latest:
-    name: windows-latest
-    runs-on: windows-latest
-    steps:
-      - uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: |
-            10.0
-      - uses: actions/checkout@v6
-      - name: 'Run: Compile, UnitTest'
-        run: ./build.cmd Compile UnitTest
   ubuntu-latest:
     name: ubuntu-latest
     runs-on: ubuntu-latest
@@ -56,16 +46,7 @@ jobs:
           dotnet-version: |
             10.0
       - uses: actions/checkout@v6
-      - name: 'Run: Compile, UnitTest'
-        run: ./build.cmd Compile UnitTest
-  macos-latest:
-    name: macos-latest
-    runs-on: macos-latest
-    steps:
-      - uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: |
-            10.0
-      - uses: actions/checkout@v6
-      - name: 'Run: Compile, UnitTest'
-        run: ./build.cmd Compile UnitTest
+      - name: 'Run: Compile, IntegrationTest (firebird)'
+        run: ./build.cmd Compile IntegrationTest --database firebird
+        env:
+          QUARTZ_TEST_DATABASE: firebird

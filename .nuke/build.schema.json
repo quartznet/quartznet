@@ -114,6 +114,10 @@
             "Release"
           ]
         },
+        "Database": {
+          "type": "string",
+          "description": "Database to test against (postgres, sqlserver, mysql, oracle, firebird, sqlite, basic, all)"
+        },
         "FeedzApiKey": {
           "type": "string",
           "default": "Secrets must be entered via 'nuke :secrets [profile]'"

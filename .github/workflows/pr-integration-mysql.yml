@@ -5,16 +5,16 @@
 #
 #     - To turn off auto-generation set:
 #
-#         [CustomGitHubActions (AutoGenerate = false)]
+#         [DatabaseIntegrationGitHubActions (AutoGenerate = false)]
 #
 #     - To trigger manual generation invoke:
 #
-#         nuke --generate-configuration GitHubActions_pr-tests-integration --host GitHubActions
+#         nuke --generate-configuration GitHubActions_pr-integration-mysql --host GitHubActions
 #
 # </auto-generated>
 # ------------------------------------------------------------------------------
 
-name: pr-tests-integration
+name: pr-integration-mysql
 
 on:
   pull_request:
@@ -28,6 +28,9 @@ on:
       - '!package.json'
       - '!package-lock.json'
       - '!readme.md'
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.run_id }}
@@ -43,5 +46,7 @@ jobs:
           dotnet-version: |
             10.0
       - uses: actions/checkout@v6
-      - name: 'Run: Compile, IntegrationTest'
-        run: ./build.cmd Compile IntegrationTest
+      - name: 'Run: Compile, IntegrationTest (mysql)'
+        run: ./build.cmd Compile IntegrationTest --database mysql
+        env:
+          QUARTZ_TEST_DATABASE: mysql

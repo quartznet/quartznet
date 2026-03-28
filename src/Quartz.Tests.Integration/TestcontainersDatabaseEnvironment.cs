@@ -59,29 +59,57 @@ internal static class TestcontainersDatabaseEnvironment
                 return;
             }
 
-            string postgresScript = ReadScript("database", "tables", "tables_postgres.sql");
-            string sqlServerScript = ReadScript("docker", "sqlserver", "tables_sqlServer.sql");
-            string sqlServerMotScript = ReadScript("docker", "sqlserver-mot", "tables_sqlServerMOT.sql");
-            string mySqlScript = ReadScript("database", "tables", "tables_mysql_innodb.sql");
-            string firebirdCreateDatabaseScript = ReadScript("docker", "firebird", "create_database.sql");
-            string firebirdScript = ReadScript("docker", "firebird", "tables_firebird.sql");
-            string oracleScript = ReadScript("docker", "oracle", "tables_oracle.sql");
+            string targetDatabase = Environment.GetEnvironmentVariable("QUARTZ_TEST_DATABASE")?.ToLowerInvariant();
+            bool startAll = string.IsNullOrEmpty(targetDatabase) || targetDatabase == "all";
 
-            try
+            // No containers needed for basic or sqlite tests
+            if (targetDatabase is "basic" or "sqlite")
             {
-                await Task.WhenAll(
-                    StartPostgreSqlContainerAsync(postgresScript),
-                    StartSqlServerContainerAsync(sqlServerScript),
-                    StartSqlServerMotContainerAsync(sqlServerMotScript),
-                    StartMySqlContainerAsync(mySqlScript),
-                    StartFirebirdSqlContainerAsync(firebirdCreateDatabaseScript, firebirdScript),
-                    StartOracleContainerAsync(oracleScript)
-                );
+                initialized = true;
+                return;
             }
-            catch
+
+            var tasks = new List<Task>();
+
+            if (startAll || targetDatabase == "postgres")
             {
-                await DisposeContainersAsync(throwOnError: false);
-                throw;
+                tasks.Add(StartPostgreSqlContainerAsync(ReadScript("database", "tables", "tables_postgres.sql")));
+            }
+
+            if (startAll || targetDatabase == "sqlserver")
+            {
+                tasks.Add(StartSqlServerContainerAsync(ReadScript("docker", "sqlserver", "tables_sqlServer.sql")));
+                tasks.Add(StartSqlServerMotContainerAsync(ReadScript("docker", "sqlserver-mot", "tables_sqlServerMOT.sql")));
+            }
+
+            if (startAll || targetDatabase == "mysql")
+            {
+                tasks.Add(StartMySqlContainerAsync(ReadScript("database", "tables", "tables_mysql_innodb.sql")));
+            }
+
+            if (startAll || targetDatabase == "firebird")
+            {
+                tasks.Add(StartFirebirdSqlContainerAsync(
+                    ReadScript("docker", "firebird", "create_database.sql"),
+                    ReadScript("docker", "firebird", "tables_firebird.sql")));
+            }
+
+            if (startAll || targetDatabase == "oracle")
+            {
+                tasks.Add(StartOracleContainerAsync(ReadScript("docker", "oracle", "tables_oracle.sql")));
+            }
+
+            if (tasks.Count > 0)
+            {
+                try
+                {
+                    await Task.WhenAll(tasks);
+                }
+                catch
+                {
+                    await DisposeContainersAsync(throwOnError: false);
+                    throw;
+                }
             }
 
             initialized = true;

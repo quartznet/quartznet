@@ -16,19 +16,16 @@ using Nuke.Common.Utilities;
     PublishArtifacts = false,
     InvokedTargets = [nameof(Compile), nameof(UnitTest)],
     CacheKeyFiles = [],
-    ConcurrencyCancelInProgress = true),
+    ConcurrencyCancelInProgress = true,
+    ReadPermissions = [GitHubActionsPermissions.Contents]),
 ]
-[CustomGitHubActions(
-    "pr-tests-integration",
-    GitHubActionsImage.UbuntuLatest,
-    OnPullRequestBranches = ["main", "v4", "3.x"],
-    OnPullRequestIncludePaths = ["**/*"],
-    OnPullRequestExcludePaths = ["docs/**/*", "package.json", "package-lock.json", "readme.md"],
-    PublishArtifacts = false,
-    InvokedTargets = [nameof(Compile), nameof(IntegrationTest)],
-    CacheKeyFiles = [],
-    ConcurrencyCancelInProgress = true),
-]
+[DatabaseIntegrationGitHubActions("pr-integration-basic", "basic")]
+[DatabaseIntegrationGitHubActions("pr-integration-postgres", "postgres")]
+[DatabaseIntegrationGitHubActions("pr-integration-sqlserver", "sqlserver")]
+[DatabaseIntegrationGitHubActions("pr-integration-mysql", "mysql")]
+[DatabaseIntegrationGitHubActions("pr-integration-oracle", "oracle")]
+[DatabaseIntegrationGitHubActions("pr-integration-firebird", "firebird")]
+[DatabaseIntegrationGitHubActions("pr-integration-sqlite", "sqlite")]
 [CustomGitHubActions(
     "build",
     GitHubActionsImage.WindowsLatest,
@@ -42,7 +39,8 @@ using Nuke.Common.Utilities;
     PublishCondition = "runner.os == 'Windows'",
     InvokedTargets = [nameof(Compile), nameof(UnitTest), nameof(IntegrationTest), nameof(Pack), nameof(Publish)],
     ImportSecrets = ["NUGET_API_KEY", "FEEDZ_API_KEY"],
-    CacheKeyFiles = [])
+    CacheKeyFiles = [],
+    ReadPermissions = [GitHubActionsPermissions.Contents])
 ]
 public partial class Build;
 
@@ -63,6 +61,66 @@ class CustomGitHubActionsAttribute : GitHubActionsAttribute
 
         job.Steps = newSteps.ToArray();
         return job;
+    }
+}
+
+class DatabaseIntegrationGitHubActionsAttribute : CustomGitHubActionsAttribute
+{
+    readonly string _database;
+
+    public DatabaseIntegrationGitHubActionsAttribute(string name, string database)
+        : base(name, GitHubActionsImage.UbuntuLatest)
+    {
+        _database = database;
+        OnPullRequestBranches = ["main", "v4", "3.x"];
+        OnPullRequestIncludePaths = ["**/*"];
+        OnPullRequestExcludePaths = ["docs/**/*", "package.json", "package-lock.json", "readme.md"];
+        PublishArtifacts = false;
+        InvokedTargets = ["Compile", "IntegrationTest"];
+        CacheKeyFiles = [];
+        ConcurrencyCancelInProgress = true;
+        ReadPermissions = [GitHubActionsPermissions.Contents];
+    }
+
+    protected override GitHubActionsJob GetJobs(GitHubActionsImage image, IReadOnlyCollection<ExecutableTarget> relevantTargets)
+    {
+        var job = base.GetJobs(image, relevantTargets);
+        var newSteps = new List<GitHubActionsStep>(job.Steps);
+
+        for (int i = 0; i < newSteps.Count; i++)
+        {
+            if (newSteps[i] is GitHubActionsRunStep)
+            {
+                newSteps[i] = new DatabaseIntegrationRunStep(_database);
+            }
+        }
+
+        job.Steps = newSteps.ToArray();
+        return job;
+    }
+}
+
+class DatabaseIntegrationRunStep : GitHubActionsStep
+{
+    readonly string _database;
+
+    public DatabaseIntegrationRunStep(string database)
+    {
+        _database = database;
+    }
+
+    public override void Write(CustomFileWriter writer)
+    {
+        writer.WriteLine($"- name: 'Run: Compile, IntegrationTest ({_database})'");
+        using (writer.Indent())
+        {
+            writer.WriteLine($"run: ./build.cmd Compile IntegrationTest --database {_database}");
+            writer.WriteLine("env:");
+            using (writer.Indent())
+            {
+                writer.WriteLine($"QUARTZ_TEST_DATABASE: {_database}");
+            }
+        }
     }
 }
 
