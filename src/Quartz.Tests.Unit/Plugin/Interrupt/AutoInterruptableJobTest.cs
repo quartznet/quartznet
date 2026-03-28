@@ -42,7 +42,7 @@ public class AutoInterruptableJobTest
         }
     }
 
-    [Test, Timeout(5000)]
+    [Test, CancelAfter(5000)]
     public async Task TestJobAutoInterruption()
     {
         var scheduler = await CreateScheduler<TestInterruptableJob>();
