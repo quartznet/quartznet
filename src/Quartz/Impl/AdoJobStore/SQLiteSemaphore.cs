@@ -51,7 +51,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// </para>
 /// </remarks>
 /// <author>Marko Lahma</author>
-public sealed class SQLiteSemaphore : ISemaphore
+internal sealed class SQLiteSemaphore : ISemaphore
 {
     private readonly SemaphoreSlim globalLock = new(1, 1);
     private readonly object syncRoot = new();
