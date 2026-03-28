@@ -1132,6 +1132,16 @@ internal interface INextVersionDelegate
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Checks whether a job is currently being executed (has a fired trigger in EXECUTING state).
+    /// Used to enforce <see cref="DisallowConcurrentExecutionAttribute"/> across cluster nodes.
+    /// </summary>
+    Task<bool> IsJobCurrentlyExecuting(
+        ConnectionAndTransactionHolder conn,
+        string jobName,
+        string jobGroup,
+        CancellationToken cancellationToken = default);
 }
 
 public class TriggerAcquireResult
