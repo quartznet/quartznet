@@ -152,12 +152,14 @@ internal static class TestcontainersDatabaseEnvironment
         Environment.SetEnvironmentVariable("PG_PASSWORD", "quartznet");
     }
 
-    private const string SqlServerDatabasePreamble = """
-        CREATE DATABASE quartznet;
-        GO
-        USE [quartznet];
-        GO
-        """;
+    /// <summary>
+    /// Prepares a SQL Server table script for use with a fresh Testcontainer by replacing
+    /// the placeholder database name with 'quartznet' and prepending CREATE DATABASE.
+    /// </summary>
+    private static string PrepareSqlServerScript(string script)
+    {
+        return "CREATE DATABASE quartznet;\nGO\n" + script.Replace("[enter_db_name_here]", "[quartznet]");
+    }
 
     private static async Task StartSqlServerContainerAsync(string script)
     {
@@ -167,7 +169,7 @@ internal static class TestcontainersDatabaseEnvironment
 
         await sqlServerContainer.StartAsync();
 
-        ExecResult result = await sqlServerContainer.ExecScriptAsync(SqlServerDatabasePreamble + script);
+        ExecResult result = await sqlServerContainer.ExecScriptAsync(PrepareSqlServerScript(script));
         EnsureScriptSucceeded("SQL Server", result);
 
         string connectionString = sqlServerContainer.GetConnectionString();
@@ -190,7 +192,7 @@ internal static class TestcontainersDatabaseEnvironment
 
         await sqlServerMotContainer.StartAsync();
 
-        ExecResult result = await sqlServerMotContainer.ExecScriptAsync(SqlServerDatabasePreamble + script);
+        ExecResult result = await sqlServerMotContainer.ExecScriptAsync(PrepareSqlServerScript(script));
         EnsureScriptSucceeded("SQL Server (MOT)", result);
 
         string connectionString = sqlServerMotContainer.GetConnectionString();
@@ -235,6 +237,8 @@ internal static class TestcontainersDatabaseEnvironment
         ExecResult createDatabaseResult = await ExecFirebirdAdminScriptAsync(FirebirdCreateDatabaseScript);
         EnsureScriptSucceeded("Firebird database creation", createDatabaseResult);
 
+        // Strip unconditional DROP TABLE statements that fail on a fresh database
+        script = StripDropStatements(script);
         ExecResult result = await firebirdSqlContainer.ExecScriptAsync(script);
         EnsureScriptSucceeded("Firebird", result);
 
@@ -279,6 +283,17 @@ internal static class TestcontainersDatabaseEnvironment
         }
 
         throw new FileNotFoundException("Could not locate required script file.", relativePath);
+    }
+
+    /// <summary>
+    /// Removes unconditional DROP TABLE/INDEX statements from scripts that lack IF EXISTS
+    /// guards (e.g. Firebird), since Testcontainers start with a fresh empty database.
+    /// </summary>
+    private static string StripDropStatements(string script)
+    {
+        var lines = script.Split('\n');
+        var filtered = lines.Where(line => !line.TrimStart().StartsWith("DROP ", StringComparison.OrdinalIgnoreCase));
+        return string.Join('\n', filtered);
     }
 
     private static void EnsureScriptSucceeded(string provider, ExecResult execResult)
