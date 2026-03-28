@@ -195,8 +195,9 @@ public class DailyTimeIntervalScheduleBuilderTest
         Assert.AreEqual("DEFAULT", trigger.Key.Group);
         Assert.AreEqual(IntervalUnit.Hour, trigger.RepeatIntervalUnit);
         Assert.AreEqual(1, trigger.RepeatInterval);
+        // repeatCount=9 means 10 fires per day; trigger continues on subsequent days
         var fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, null, 48);
-        Assert.AreEqual(10, fireTimes.Count);
+        Assert.AreEqual(48, fireTimes.Count);
     }
 
     [Test]

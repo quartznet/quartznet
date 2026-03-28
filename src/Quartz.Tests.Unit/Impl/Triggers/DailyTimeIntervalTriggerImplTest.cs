@@ -555,10 +555,12 @@ public class DailyTimeIntervalTriggerImplTest
             RepeatCount = 7
         };
 
+        // repeatCount=7 allows 8 fires/day, but 8:00-11:00 with 72min interval only allows 3/day
+        // so endTimeOfDay is the effective limiter; trigger continues across days
         var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
-        Assert.AreEqual(8, fireTimes.Count);
+        Assert.AreEqual(48, fireTimes.Count);
         Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011), fireTimes[0]);
-        Assert.AreEqual(DateBuilder.DateOf(9, 12, 0, 3, 1, 2011), fireTimes[7]);
+        Assert.AreEqual(DateBuilder.DateOf(10, 24, 0, 16, 1, 2011), fireTimes[47]);
     }
 
     [Test]
@@ -577,9 +579,105 @@ public class DailyTimeIntervalTriggerImplTest
             RepeatCount = 0
         };
 
-        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
-        Assert.AreEqual(1, fireTimes.Count);
+        // repeatCount=0 means 1 fire per day (at startTimeOfDay), continuing daily
+        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 5);
+        Assert.AreEqual(5, fireTimes.Count);
         Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011), fireTimes[0]);
+        Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 2, 1, 2011), fireTimes[1]);
+        Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 3, 1, 2011), fireTimes[2]);
+        Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 4, 1, 2011), fireTimes[3]);
+        Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 5, 1, 2011), fireTimes[4]);
+    }
+
+    [Test]
+    public void TestRepeatCountLimitsPerDay()
+    {
+        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
+        TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
+        TimeOfDay endTimeOfDay = new TimeOfDay(17, 0, 0);
+        var trigger = new DailyTimeIntervalTriggerImpl
+        {
+            StartTimeUtc = startTime.ToUniversalTime(),
+            StartTimeOfDay = startTimeOfDay,
+            EndTimeOfDay = endTimeOfDay,
+            RepeatIntervalUnit = IntervalUnit.Hour,
+            RepeatInterval = 1,
+            RepeatCount = 2 // 3 fires per day: 8:00, 9:00, 10:00
+        };
+
+        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 9);
+        Assert.AreEqual(9, fireTimes.Count);
+        // Day 1
+        Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011), fireTimes[0]);
+        Assert.AreEqual(DateBuilder.DateOf(9, 0, 0, 1, 1, 2011), fireTimes[1]);
+        Assert.AreEqual(DateBuilder.DateOf(10, 0, 0, 1, 1, 2011), fireTimes[2]);
+        // Day 2
+        Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 2, 1, 2011), fireTimes[3]);
+        Assert.AreEqual(DateBuilder.DateOf(9, 0, 0, 2, 1, 2011), fireTimes[4]);
+        Assert.AreEqual(DateBuilder.DateOf(10, 0, 0, 2, 1, 2011), fireTimes[5]);
+        // Day 3
+        Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 3, 1, 2011), fireTimes[6]);
+        Assert.AreEqual(DateBuilder.DateOf(9, 0, 0, 3, 1, 2011), fireTimes[7]);
+        Assert.AreEqual(DateBuilder.DateOf(10, 0, 0, 3, 1, 2011), fireTimes[8]);
+    }
+
+    [Test]
+    public void TestRepeatCountWithEndTimeUtc()
+    {
+        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
+        DateTimeOffset endTime = DateBuilder.DateOf(0, 0, 0, 3, 1, 2011);
+        TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
+        TimeOfDay endTimeOfDay = new TimeOfDay(17, 0, 0);
+        var trigger = new DailyTimeIntervalTriggerImpl
+        {
+            StartTimeUtc = startTime.ToUniversalTime(),
+            EndTimeUtc = endTime.ToUniversalTime(),
+            StartTimeOfDay = startTimeOfDay,
+            EndTimeOfDay = endTimeOfDay,
+            RepeatIntervalUnit = IntervalUnit.Hour,
+            RepeatInterval = 1,
+            RepeatCount = 1 // 2 fires per day: 8:00, 9:00
+        };
+
+        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
+        Assert.AreEqual(4, fireTimes.Count);
+        // Day 1
+        Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011), fireTimes[0]);
+        Assert.AreEqual(DateBuilder.DateOf(9, 0, 0, 1, 1, 2011), fireTimes[1]);
+        // Day 2
+        Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 2, 1, 2011), fireTimes[2]);
+        Assert.AreEqual(DateBuilder.DateOf(9, 0, 0, 2, 1, 2011), fireTimes[3]);
+    }
+
+    [Test]
+    public void TestRepeatCountWithDaysOfWeek()
+    {
+        // Jan 1 2011 is Saturday
+        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
+        TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
+        TimeOfDay endTimeOfDay = new TimeOfDay(17, 0, 0);
+        var trigger = new DailyTimeIntervalTriggerImpl
+        {
+            StartTimeUtc = startTime.ToUniversalTime(),
+            StartTimeOfDay = startTimeOfDay,
+            EndTimeOfDay = endTimeOfDay,
+            RepeatIntervalUnit = IntervalUnit.Hour,
+            RepeatInterval = 1,
+            RepeatCount = 1, // 2 fires per day
+            DaysOfWeek = new HashSet<DayOfWeek> { DayOfWeek.Monday, DayOfWeek.Wednesday, DayOfWeek.Friday }
+        };
+
+        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 6);
+        Assert.AreEqual(6, fireTimes.Count);
+        // Mon Jan 3
+        Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 3, 1, 2011), fireTimes[0]);
+        Assert.AreEqual(DateBuilder.DateOf(9, 0, 0, 3, 1, 2011), fireTimes[1]);
+        // Wed Jan 5
+        Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 5, 1, 2011), fireTimes[2]);
+        Assert.AreEqual(DateBuilder.DateOf(9, 0, 0, 5, 1, 2011), fireTimes[3]);
+        // Fri Jan 7
+        Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 7, 1, 2011), fireTimes[4]);
+        Assert.AreEqual(DateBuilder.DateOf(9, 0, 0, 7, 1, 2011), fireTimes[5]);
     }
 
     [Test]
