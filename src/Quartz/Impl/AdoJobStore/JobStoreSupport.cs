@@ -303,6 +303,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     public bool AcquireTriggersWithinLock { get; set; }
 
     /// <summary>
+    /// When true, all operations (including reads) acquire a lock before
+    /// accessing the database. Required for SQLite to prevent concurrent
+    /// serializable transactions from causing "database is locked" errors.
+    /// </summary>
+    internal bool LockAllOperations { get; set; }
+
+    /// <summary>
     /// Get or set the ADO.NET driver delegate class name.
     /// </summary>
     public virtual string DriverDelegateType { get; set; } = null!;
@@ -487,15 +494,10 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         typeLoadHelper = loadHelper;
         schedSignaler = signaler;
 
-        if (Delegate is SQLiteDelegate && (LockHandler == null || LockHandler.GetType() != typeof(UpdateLockRowSemaphore)))
+        if (Delegate is SQLiteDelegate && LockHandler is not SQLiteSemaphore)
         {
-            Log.Info("Detected SQLite usage, changing to use UpdateLockRowSemaphore");
-            var lockHandler = new UpdateLockRowSemaphore(DbProvider)
-            {
-                SchedName = InstanceName,
-                TablePrefix = TablePrefix
-            };
-            LockHandler = lockHandler;
+            Log.Info("Detected SQLite usage, changing to use SQLiteSemaphore for in-memory locking");
+            LockHandler = new SQLiteSemaphore();
         }
 
         if (Delegate is SQLiteDelegate)
@@ -508,12 +510,16 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             {
                 Log.Info("With SQLite we need to set AcquireTriggersWithinLock to true, changing");
                 AcquireTriggersWithinLock = true;
-
             }
             if (!TxIsolationLevelSerializable)
             {
                 Log.Info("Detected usage of SQLiteDelegate - defaulting 'txIsolationLevelSerializable' to 'true'");
                 TxIsolationLevelSerializable = true;
+            }
+            if (!LockAllOperations)
+            {
+                Log.Info("With SQLite all operations must be serialized, setting LockAllOperations to true");
+                LockAllOperations = true;
             }
         }
 
@@ -3283,28 +3289,42 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         CancellationToken cancellationToken)
     {
         bool transOwner = false;
-        ConnectionAndTransactionHolder conn = GetNonManagedTXConnection();
+        ConnectionAndTransactionHolder? conn = null;
         try
         {
             RecoverMisfiredJobsResult result = RecoverMisfiredJobsResult.NoOp;
 
-            // Before we make the potentially expensive call to acquire the
-            // trigger lock, peek ahead to see if it is likely we would find
-            // misfired triggers requiring recovery.
-            int misfireCount = DoubleCheckLockMisfireHandler
-                ? await Delegate.CountMisfiredTriggersInState(conn, StateWaiting, MisfireTime, cancellationToken).ConfigureAwait(false)
-                : int.MaxValue;
-
-            if (Log.IsDebugEnabled())
+            if (LockAllOperations)
             {
-                Log.DebugFormat("Found {0} triggers that missed their scheduled fire-time.", misfireCount);
-            }
-
-            if (misfireCount > 0)
-            {
-                transOwner = await LockHandler.ObtainLock(requestorId, conn, LockTriggerAccess, cancellationToken).ConfigureAwait(false);
-
+                // For SQLite: acquire lock before opening connection to avoid
+                // "database is locked" errors from concurrent serializable transactions.
+                // Skip the double-check optimization since in-memory lock is cheap.
+                transOwner = await LockHandler.ObtainLock(requestorId, null, LockTriggerAccess, cancellationToken).ConfigureAwait(false);
+                conn = GetNonManagedTXConnection();
                 result = await RecoverMisfiredJobs(conn, false, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                conn = GetNonManagedTXConnection();
+
+                // Before we make the potentially expensive call to acquire the
+                // trigger lock, peek ahead to see if it is likely we would find
+                // misfired triggers requiring recovery.
+                int misfireCount = DoubleCheckLockMisfireHandler
+                    ? await Delegate.CountMisfiredTriggersInState(conn, StateWaiting, MisfireTime, cancellationToken).ConfigureAwait(false)
+                    : int.MaxValue;
+
+                if (Log.IsDebugEnabled())
+                {
+                    Log.DebugFormat("Found {0} triggers that missed their scheduled fire-time.", misfireCount);
+                }
+
+                if (misfireCount > 0)
+                {
+                    transOwner = await LockHandler.ObtainLock(requestorId, conn, LockTriggerAccess, cancellationToken).ConfigureAwait(false);
+
+                    result = await RecoverMisfiredJobs(conn, false, cancellationToken).ConfigureAwait(false);
+                }
             }
 
             CommitConnection(conn, false);
@@ -3851,6 +3871,17 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             // ignore
         }
 
+        try
+        {
+            if (IsSqliteBusyOrLocked(ex) || (ex.InnerException != null && IsSqliteBusyOrLocked(ex.InnerException)))
+            {
+                return true;
+            }
+        }
+        catch
+        {
+            // ignore
+        }
 
         return ex is TimeoutException;
     }
@@ -3988,6 +4019,36 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         return false;
     }
 
+    /// <summary>
+    /// Checks if the exception is a SQLite BUSY (error code 5) or LOCKED (error code 6) error.
+    /// Uses reflection since Quartz does not take a direct dependency on SQLite libraries.
+    /// </summary>
+    private static bool IsSqliteBusyOrLocked(Exception ex)
+    {
+        string typeName = ex.GetType().Name;
+        if (typeName != "SqliteException" && typeName != "SQLiteException")
+        {
+            return false;
+        }
+
+        // Microsoft.Data.Sqlite: SqliteException.SqliteErrorCode
+        var sqliteErrorCodeProp = ex.GetType().GetProperty("SqliteErrorCode");
+        if (sqliteErrorCodeProp != null)
+        {
+            int code = Convert.ToInt32(sqliteErrorCodeProp.GetValue(ex));
+            return code is 5 /* SQLITE_BUSY */ or 6 /* SQLITE_LOCKED */;
+        }
+
+        // System.Data.SQLite: SQLiteException.ResultCode (enum)
+        var resultCodeProp = ex.GetType().GetProperty("ResultCode");
+        if (resultCodeProp != null)
+        {
+            string? codeValue = resultCodeProp.GetValue(ex)?.ToString();
+            return codeValue is "Busy" or "Locked";
+        }
+
+        return false;
+    }
 
     /// <summary>
     /// Commit the supplied connection.
@@ -4017,7 +4078,10 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteInLock(null, txCallback, cancellationToken);
+        // For SQLite, all operations must be serialized to avoid "database is locked" errors.
+        // Route read operations through the same lock as write operations.
+        string? lockName = LockAllOperations ? LockTriggerAccess : null;
+        return ExecuteInLock(lockName, txCallback, cancellationToken);
     }
 
     protected Task ExecuteInLock(
