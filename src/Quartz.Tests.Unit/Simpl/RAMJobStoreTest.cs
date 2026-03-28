@@ -500,6 +500,111 @@ public class RAMJobStoreTest
         Assert.That(deleteSuccess, Is.False, "Expected RemoveJob to return False when deleting an non-existing job");
     }
 
+    [Test]
+    public async Task TestTriggeredJobComplete_UnblocksTriggersForDisallowConcurrentExecutionJob()
+    {
+        // Store a DisallowConcurrentExecution job with two triggers
+        var job = JobBuilder.Create<DisallowConcurrentNoOpJob>()
+            .WithIdentity(new JobKey("blockedJob", "group1"))
+            .StoreDurably(true)
+            .Build();
+        await fJobStore.StoreJob(job, true);
+
+        var d = DateBuilder.EvenMinuteDateAfterNow();
+        var trigger1 = new SimpleTriggerImpl("trigger1", "group1", job.Key.Name, job.Key.Group,
+            d.AddSeconds(1), d.AddSeconds(200), 10, TimeSpan.FromSeconds(5));
+        var trigger2 = new SimpleTriggerImpl("trigger2", "group1", job.Key.Name, job.Key.Group,
+            d.AddSeconds(1), d.AddSeconds(200), 10, TimeSpan.FromSeconds(5));
+
+        trigger1.ComputeFirstFireTimeUtc(null);
+        trigger2.ComputeFirstFireTimeUtc(null);
+        await fJobStore.StoreTrigger(trigger1, false);
+        await fJobStore.StoreTrigger(trigger2, false);
+
+        // Acquire and fire one trigger
+        var acquiredTriggers = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        Assert.That(acquiredTriggers, Has.Count.EqualTo(1));
+
+        var firedResults = await fJobStore.TriggersFired(acquiredTriggers);
+        Assert.That(firedResults, Has.Count.EqualTo(1));
+
+        // Both triggers should be blocked now (DisallowConcurrentExecution)
+        Assert.That(await fJobStore.GetTriggerState(trigger1.Key), Is.EqualTo(TriggerState.Blocked));
+        Assert.That(await fJobStore.GetTriggerState(trigger2.Key), Is.EqualTo(TriggerState.Blocked));
+
+        // Simulate job completion with NoInstruction (graceful shutdown scenario)
+        var firedResult = firedResults.First();
+        await fJobStore.TriggeredJobComplete(
+            firedResult.TriggerFiredBundle.Trigger,
+            firedResult.TriggerFiredBundle.JobDetail,
+            SchedulerInstruction.NoInstruction);
+
+        // Both triggers should be unblocked (Normal = Waiting)
+        Assert.That(await fJobStore.GetTriggerState(trigger1.Key), Is.EqualTo(TriggerState.Normal));
+        Assert.That(await fJobStore.GetTriggerState(trigger2.Key), Is.EqualTo(TriggerState.Normal));
+    }
+
+    [Test]
+    public async Task TestReleaseAcquiredTrigger_DoesNotUnblockOtherTriggersForDisallowConcurrentExecutionJob()
+    {
+        // This test documents the reason we must use TriggeredJobComplete
+        // (not ReleaseAcquiredTrigger) after TriggersFired for DisallowConcurrentExecution jobs
+
+        var job = JobBuilder.Create<DisallowConcurrentNoOpJob>()
+            .WithIdentity(new JobKey("blockedJob", "group1"))
+            .StoreDurably(true)
+            .Build();
+        await fJobStore.StoreJob(job, true);
+
+        var d = DateBuilder.EvenMinuteDateAfterNow();
+        var trigger1 = new SimpleTriggerImpl("trigger1", "group1", job.Key.Name, job.Key.Group,
+            d.AddSeconds(1), d.AddSeconds(200), 10, TimeSpan.FromSeconds(5));
+        var trigger2 = new SimpleTriggerImpl("trigger2", "group1", job.Key.Name, job.Key.Group,
+            d.AddSeconds(1), d.AddSeconds(200), 10, TimeSpan.FromSeconds(5));
+
+        trigger1.ComputeFirstFireTimeUtc(null);
+        trigger2.ComputeFirstFireTimeUtc(null);
+        await fJobStore.StoreTrigger(trigger1, false);
+        await fJobStore.StoreTrigger(trigger2, false);
+
+        // Acquire and fire one trigger
+        var acquiredTriggers = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        Assert.That(acquiredTriggers, Has.Count.EqualTo(1));
+        var firedTrigger = acquiredTriggers.First();
+
+        var firedResults = await fJobStore.TriggersFired(acquiredTriggers);
+        Assert.That(firedResults, Has.Count.EqualTo(1));
+
+        // Both triggers should be blocked
+        Assert.That(await fJobStore.GetTriggerState(trigger1.Key), Is.EqualTo(TriggerState.Blocked));
+        Assert.That(await fJobStore.GetTriggerState(trigger2.Key), Is.EqualTo(TriggerState.Blocked));
+
+        // ReleaseAcquiredTrigger only handles the specific trigger's Acquired state,
+        // it does NOT unblock other triggers since it doesn't know about job concurrency
+        await fJobStore.ReleaseAcquiredTrigger(firedTrigger);
+
+        // The other trigger remains blocked - this is the bug scenario
+        // that was fixed by using TriggeredJobComplete instead
+        var trigger1State = await fJobStore.GetTriggerState(trigger1.Key);
+        var trigger2State = await fJobStore.GetTriggerState(trigger2.Key);
+
+        // At least one trigger should still be blocked since ReleaseAcquiredTrigger
+        // does not handle the unblocking of all triggers for the job
+        Assert.That(
+            trigger1State == TriggerState.Blocked || trigger2State == TriggerState.Blocked,
+            Is.True,
+            "ReleaseAcquiredTrigger should not unblock all triggers for DisallowConcurrentExecution jobs");
+    }
+
+    [DisallowConcurrentExecution]
+    private class DisallowConcurrentNoOpJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context)
+        {
+            return default;
+        }
+    }
+
     public class SampleSignaler : ISchedulerSignaler
     {
         internal int fMisfireCount;
