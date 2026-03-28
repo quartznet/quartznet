@@ -43,6 +43,54 @@ public class JobStoreSupportTest
     }
 
     [Test]
+    public async Task TestRemoveTrigger_ShouldDeleteFiredTriggersForTriggerKey()
+    {
+        var triggerKey = new TriggerKey("testTrigger", "testGroup");
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+
+        var firedRecord = new FiredTriggerRecord
+        {
+            FireInstanceId = "entry_123"
+        };
+
+        A.CallTo(() => driverDelegate.SelectJobForTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            triggerKey,
+            A<Spi.ITypeLoadHelper>.Ignored,
+            A<bool>.Ignored,
+            A<CancellationToken>.Ignored)).Returns(Task.FromResult<IJobDetail>(null));
+
+        A.CallTo(() => driverDelegate.SelectFiredTriggerRecords(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            triggerKey.Name,
+            triggerKey.Group,
+            A<CancellationToken>.Ignored)).Returns(Task.FromResult<IReadOnlyCollection<FiredTriggerRecord>>(new[] { firedRecord }));
+
+        A.CallTo(() => driverDelegate.DeleteFiredTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            "entry_123",
+            A<CancellationToken>.Ignored)).Returns(Task.FromResult(1));
+
+        A.CallTo(() => driverDelegate.DeleteTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            triggerKey,
+            A<CancellationToken>.Ignored)).Returns(Task.FromResult(1));
+
+        await jobStoreSupport.CallRemoveTrigger(conn, triggerKey);
+
+        A.CallTo(() => driverDelegate.SelectFiredTriggerRecords(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            triggerKey.Name,
+            triggerKey.Group,
+            A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+
+        A.CallTo(() => driverDelegate.DeleteFiredTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            "entry_123",
+            A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
     public async Task TestExecuteInNonManagedTXLock_RetriesOnTransientException()
     {
         int callCount = 0;
@@ -150,6 +198,11 @@ public class JobStoreSupportTest
                 Assert.IsNotNull(fieldInfo);
                 fieldInfo.SetValue(this, value);
             }
+        }
+
+        internal Task<bool> CallRemoveTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
+        {
+            return RemoveTrigger(conn, triggerKey, CancellationToken.None);
         }
     }
 

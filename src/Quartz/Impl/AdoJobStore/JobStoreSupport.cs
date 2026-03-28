@@ -1315,6 +1315,14 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         TriggerKey key,
         CancellationToken cancellationToken)
     {
+        // Clean up any fired trigger records referencing this trigger
+        // to prevent orphaned records that cause recovery with missing JobData (#2083)
+        var firedTriggers = await Delegate.SelectFiredTriggerRecords(conn, key.Name, key.Group, cancellationToken).ConfigureAwait(false);
+        foreach (FiredTriggerRecord rec in firedTriggers)
+        {
+            await Delegate.DeleteFiredTrigger(conn, rec.FireInstanceId!, cancellationToken).ConfigureAwait(false);
+        }
+
         return await Delegate.DeleteTrigger(conn, key, cancellationToken).ConfigureAwait(false) > 0;
     }
 
