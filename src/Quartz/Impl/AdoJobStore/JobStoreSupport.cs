@@ -3490,12 +3490,51 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
                     var triggerKeys = new HashSet<TriggerKey>();
 
+                    // Determine whether to preserve EXECUTING fired trigger records for
+                    // DisallowConcurrentExecution jobs. On the first detection the node may
+                    // still be alive, so we preserve the record and give it a grace period.
+                    // Once the grace period expires (elapsed time exceeds two failure detection
+                    // cycles), full cleanup is performed. This decision is derived entirely from
+                    // DB state so all cluster nodes make the same choice (#2817).
+                    bool isOrphanedInstance = rec.CheckinInterval == default && rec.CheckinTimestamp == default;
+                    bool canDeferRecovery;
+                    if (isOrphanedInstance)
+                    {
+                        canDeferRecovery = false;
+                    }
+                    else
+                    {
+                        TimeSpan elapsed = timeProvider.GetUtcNow() - rec.CheckinTimestamp;
+                        TimeSpan gracePeriod = rec.CheckinInterval.Add(rec.CheckinInterval).Add(ClusterCheckinMisfireThreshold);
+                        canDeferRecovery = elapsed < gracePeriod;
+                    }
+                    HashSet<string>? preservedFireInstanceIds = null;
+                    int deferredCount = 0;
+
                     foreach (FiredTriggerRecord ftRec in firedTriggerRecs)
                     {
                         TriggerKey tKey = ftRec.TriggerKey!;
                         JobKey? jKey = ftRec.JobKey;
 
                         triggerKeys.Add(tKey);
+
+                        // For timed-out (non-orphan) instances on first detection, preserve
+                        // EXECUTING records for DisallowConcurrentExecution jobs. The node may
+                        // still be alive and running the job. If it truly died, on the second
+                        // detection (after the grace period) full cleanup will be performed.
+                        if (canDeferRecovery
+                            && ftRec.FireInstanceState == StateExecuting
+                            && ftRec.JobDisallowsConcurrentExecution)
+                        {
+                            preservedFireInstanceIds ??= [];
+                            preservedFireInstanceIds.Add(ftRec.FireInstanceId!);
+                            deferredCount++;
+                            Logger.LogInformation(
+                                "ClusterManager: Deferring recovery of [DisallowConcurrentExecution] job {JobKey} " +
+                                "(fired trigger {FireInstanceId}) — may still be executing on instance {SchedulerInstanceId}.",
+                                jKey, ftRec.FireInstanceId, rec.SchedulerInstanceId);
+                            continue;
+                        }
 
                         // release blocked triggers..
                         if (ftRec.FireInstanceState == StateBlocked)
@@ -3556,7 +3595,22 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                         }
                     }
 
-                    await Delegate.DeleteFiredTriggers(conn, rec.SchedulerInstanceId, cancellationToken).ConfigureAwait(false);
+                    // Delete fired triggers, preserving EXECUTING records for
+                    // DisallowConcurrentExecution jobs on timed-out (non-orphan) instances
+                    if (preservedFireInstanceIds is { Count: > 0 })
+                    {
+                        foreach (FiredTriggerRecord ftRec in firedTriggerRecs)
+                        {
+                            if (!preservedFireInstanceIds.Contains(ftRec.FireInstanceId!))
+                            {
+                                await Delegate.DeleteFiredTrigger(conn, ftRec.FireInstanceId!, cancellationToken).ConfigureAwait(false);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        await Delegate.DeleteFiredTriggers(conn, rec.SchedulerInstanceId, cancellationToken).ConfigureAwait(false);
+                    }
 
                     // Check if any of the fired triggers we just deleted were the last fired trigger
                     // records of a COMPLETE trigger.
@@ -3584,10 +3638,21 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                         " recoverable job(s) for recovery.");
                     LogWarnIfNonZero(otherCount,
                         "ClusterManager: ......Cleaned-up " + otherCount + " other failed job(s).");
+                    LogWarnIfNonZero(deferredCount,
+                        "ClusterManager: ......Deferred recovery of " + deferredCount + " executing [DisallowConcurrentExecution] job(s).");
 
                     if (rec.SchedulerInstanceId != InstanceId)
                     {
-                        await Delegate.DeleteSchedulerState(conn, rec.SchedulerInstanceId, cancellationToken).ConfigureAwait(false);
+                        if (preservedFireInstanceIds is { Count: > 0 })
+                        {
+                            // Don't delete scheduler state — keep it with the stale timestamp so
+                            // the instance continues to be detected as failed. As elapsed time
+                            // grows past the grace period, the next recovery will do full cleanup.
+                        }
+                        else
+                        {
+                            await Delegate.DeleteSchedulerState(conn, rec.SchedulerInstanceId, cancellationToken).ConfigureAwait(false);
+                        }
                     }
                 }
             }

@@ -75,7 +75,7 @@ public class DisallowConcurrentExecutionJobTest
     [Test]
     public async Task TestNoConcurrentExecOnSameJob()
     {
-        DateTime startTime = DateTime.Now.AddMilliseconds(100).ToUniversalTime(); // make the triggers fire at the same time.
+        DateTime startTime = DateTime.Now.AddMilliseconds(300).ToUniversalTime(); // make the triggers fire at the same time.
 
         IJobDetail job1 = JobBuilder.Create<TestJob>().WithIdentity("job1").Build();
         ITrigger trigger1 = TriggerBuilder.Create().WithSimpleSchedule().StartAt(startTime).Build();
@@ -95,7 +95,7 @@ public class DisallowConcurrentExecutionJobTest
 
         await scheduler.Start();
 
-        barrier.WaitOne();
+        Assert.That(barrier.WaitOne(TimeSpan.FromSeconds(10)), Is.True, "Timed out waiting for 2 job executions");
         await scheduler.Shutdown(true);
 
         Assert.Multiple(() =>
@@ -131,7 +131,7 @@ public class DisallowConcurrentExecutionJobTest
         await scheduler.ScheduleJob(trigger2);
 
         await scheduler.Start();
-        barrier.WaitOne();
+        Assert.That(barrier.WaitOne(TimeSpan.FromSeconds(10)), Is.True, "Timed out waiting for 2 job executions");
         await scheduler.Shutdown(true);
 
         Assert.Multiple(() =>

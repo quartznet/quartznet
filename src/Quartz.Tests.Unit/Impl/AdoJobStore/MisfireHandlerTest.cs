@@ -77,29 +77,19 @@ public class MisfireHandlerTest
     [Test]
     public async Task QueuedTaskScheduler_ShouldNotDeadlock_WhenDisposedBeforeTaskStarts()
     {
-        // This test reproduces the exact scenario from the bug report
+        // This test reproduces the exact scenario from the bug report.
+        // The key assertion is that disposing the scheduler and then waiting with a timeout
+        // (via Task.WhenAny) does not deadlock the caller. The task itself may or may not
+        // complete depending on scheduler timing — both outcomes are acceptable.
         var taskScheduler = new QueuedTaskScheduler(threadCount: 1, "test", useForegroundThreads: false);
 
-        // Initialize() in the original
         Task task = Task.Factory.StartNew(Run, CancellationToken.None, TaskCreationOptions.HideScheduler, taskScheduler).Unwrap();
 
-        // Shutdown() in the original - dispose happens so fast that the taskScheduler has no chance to schedule the Run task
         taskScheduler.Dispose();
-        
-        // This should not deadlock with the fix
-        var taskCompletion = Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(5)));
-        var completedTask = await taskCompletion;
-        
-        // With the fix in Shutdown(), we avoid awaiting a task that will never complete.
-        // In this direct test of QueuedTaskScheduler, the task will usually hang because
-        // the scheduler was disposed before it could run. However, on very fast platforms
-        // (e.g. macOS ARM) the scheduler thread may pick up and complete the task before
-        // Dispose() is called — this is also acceptable since it means no deadlock occurred.
-        if (completedTask == task)
-        {
-            Assert.Pass("Task completed before scheduler disposal (race condition not reproduced, but no deadlock)");
-        }
-        
+
+        // If we complete WhenAny within the timeout, no deadlock occurred
+        await Task.WhenAny(task, Task.Delay(TimeSpan.FromSeconds(5)));
+
         async Task Run()
         {
             await Task.Delay(1000).ConfigureAwait(false);
