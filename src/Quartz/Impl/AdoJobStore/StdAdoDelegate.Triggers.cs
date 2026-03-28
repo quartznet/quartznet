@@ -1501,4 +1501,69 @@ public partial class StdAdoDelegate
 
         return retValue;
     }
+
+    /// <inheritdoc />
+    public virtual async Task<bool> SupportsMisfireOriginalFireTimeColumn(
+        ConnectionAndTransactionHolder conn,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlProbeMisfireOrigFireTimeColumn));
+            await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <inheritdoc />
+    public virtual async Task UpdateMisfireOriginalFireTime(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        DateTimeOffset? fireTime,
+        CancellationToken cancellationToken = default)
+    {
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateMisfireOrigFireTime));
+        AddCommandParameter(cmd, "schedulerName", schedName);
+        AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+        AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+        AddCommandParameter(cmd, "misfireOrigFireTime", GetDbDateTimeValue(fireTime));
+        await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public virtual async Task<DateTimeOffset?> SelectAndClearMisfireOriginalFireTime(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default)
+    {
+        DateTimeOffset? result;
+
+        using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectMisfireOrigFireTime)))
+        {
+            AddCommandParameter(cmd, "schedulerName", schedName);
+            AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+            AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+            using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            result = await rs.ReadAsync(cancellationToken).ConfigureAwait(false)
+                ? GetDateTimeFromDbValue(rs[ColumnMisfireOriginalFireTime])
+                : null;
+        }
+
+        if (result.HasValue)
+        {
+            // Clear the value so it doesn't persist beyond this firing
+            using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateMisfireOrigFireTime));
+            AddCommandParameter(cmd, "schedulerName", schedName);
+            AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+            AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+            AddCommandParameter(cmd, "misfireOrigFireTime", null);
+            await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        return result;
+    }
 }

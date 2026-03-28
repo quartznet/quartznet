@@ -1083,6 +1083,31 @@ public interface IDriverDelegate
     Task ClearData(
         ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Probes whether the MISFIRE_ORIG_FIRE_TIME column exists in the triggers table.
+    /// </summary>
+    /// <returns>True if the column exists, false otherwise.</returns>
+    Task<bool> SupportsMisfireOriginalFireTimeColumn(
+        ConnectionAndTransactionHolder conn,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates the misfire original fire time for the given trigger.
+    /// </summary>
+    Task UpdateMisfireOriginalFireTime(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        DateTimeOffset? fireTime,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reads and clears the misfire original fire time for the given trigger.
+    /// </summary>
+    Task<DateTimeOffset?> SelectAndClearMisfireOriginalFireTime(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default);
 }
 
 public class TriggerAcquireResult

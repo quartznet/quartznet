@@ -202,6 +202,7 @@ CREATE TABLE [dbo].[QRTZ_TRIGGERS] (
   [END_TIME] bigint NULL,
   [CALENDAR_NAME] nvarchar(200) NULL,
   [MISFIRE_INSTR] int NULL,
+  [MISFIRE_ORIG_FIRE_TIME] bigint NULL,
   [JOB_DATA] varbinary(max) NULL
 );
 GO

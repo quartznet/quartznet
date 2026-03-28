@@ -357,4 +357,14 @@ public class StdAdoConstants : AdoConstants
 
     public static readonly string SqlUpdateTriggerStatesFromOtherStates =
         Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnTriggerState} = @newState WHERE {ColumnSchedulerName} = @schedulerName AND ({ColumnTriggerState} = @oldState1 OR {ColumnTriggerState} = @oldState2)");
+
+    // Misfire original fire time support (optional column, probed at startup)
+    public static readonly string SqlProbeMisfireOrigFireTimeColumn =
+        Invariant($"SELECT {ColumnMisfireOriginalFireTime} FROM {TablePrefixSubst}{TableTriggers} WHERE 1 = 0");
+
+    public static readonly string SqlUpdateMisfireOrigFireTime =
+        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnMisfireOriginalFireTime} = @misfireOrigFireTime WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
+
+    public static readonly string SqlSelectMisfireOrigFireTime =
+        Invariant($"SELECT {ColumnMisfireOriginalFireTime} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
 }
