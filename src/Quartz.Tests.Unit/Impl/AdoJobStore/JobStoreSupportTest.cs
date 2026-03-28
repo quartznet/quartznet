@@ -6,6 +6,7 @@ using FakeItEasy;
 using FluentAssertions;
 
 using Quartz.Impl.AdoJobStore;
+using Quartz.Spi;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 
@@ -109,6 +110,109 @@ public class JobStoreSupportTest
         callCount.Should().Be(1);
     }
 
+    [Test]
+    public async Task TriggerFired_ReturnsNull_WhenDisallowConcurrentJobAlreadyExecuting()
+    {
+        ConnectionAndTransactionHolder conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        IOperableTrigger trigger = CreateTestTrigger();
+        IJobDetail job = CreateDisallowConcurrentJob();
+
+        A.CallTo(() => driverDelegate.SelectTriggerState(conn, trigger.Key, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<string>(AdoConstants.StateAcquired));
+        A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Spi.ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<IJobDetail>(job));
+        A.CallTo(() => driverDelegate.IsJobCurrentlyExecuting(conn, trigger.JobKey.Name, trigger.JobKey.Group, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<bool>(true));
+
+        TriggerFiredBundle result = await jobStoreSupport.CallTriggerFired(conn, trigger);
+
+        result.Should().BeNull();
+        A.CallTo(() => driverDelegate.UpdateFiredTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            A<IOperableTrigger>.Ignored,
+            A<string>.Ignored,
+            A<IJobDetail>.Ignored,
+            A<CancellationToken>.Ignored)).MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task TriggerFired_Proceeds_WhenDisallowConcurrentJobNotExecuting()
+    {
+        ConnectionAndTransactionHolder conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        IOperableTrigger trigger = CreateTestTrigger();
+        IJobDetail job = CreateDisallowConcurrentJob();
+
+        A.CallTo(() => driverDelegate.SelectTriggerState(conn, trigger.Key, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<string>(AdoConstants.StateAcquired));
+        A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Spi.ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<IJobDetail>(job));
+        A.CallTo(() => driverDelegate.IsJobCurrentlyExecuting(conn, trigger.JobKey.Name, trigger.JobKey.Group, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<bool>(false));
+
+        TriggerFiredBundle result = await jobStoreSupport.CallTriggerFired(conn, trigger);
+
+        A.CallTo(() => driverDelegate.UpdateFiredTrigger(conn, trigger, AdoConstants.StateExecuting, job, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task TriggerFired_SkipsConcurrencyCheck_WhenConcurrentExecutionAllowed()
+    {
+        ConnectionAndTransactionHolder conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        IOperableTrigger trigger = CreateTestTrigger();
+        IJobDetail job = CreateConcurrentJob();
+
+        A.CallTo(() => driverDelegate.SelectTriggerState(conn, trigger.Key, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<string>(AdoConstants.StateAcquired));
+        A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Spi.ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<IJobDetail>(job));
+
+        await jobStoreSupport.CallTriggerFired(conn, trigger);
+
+        A.CallTo(() => driverDelegate.IsJobCurrentlyExecuting(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            A<string>.Ignored,
+            A<string>.Ignored,
+            A<CancellationToken>.Ignored)).MustNotHaveHappened();
+    }
+
+    private static IOperableTrigger CreateTestTrigger()
+    {
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity("t1", "g1")
+            .ForJob("j1", "jg1")
+            .StartNow()
+            .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
+            .Build();
+        trigger.FireInstanceId = "test-fire-id";
+        return trigger;
+    }
+
+    private static IJobDetail CreateDisallowConcurrentJob()
+    {
+        return JobBuilder.Create<DisallowConcurrentTestJob>()
+            .WithIdentity("j1", "jg1")
+            .Build();
+    }
+
+    private static IJobDetail CreateConcurrentJob()
+    {
+        return JobBuilder.Create<ConcurrentTestJob>()
+            .WithIdentity("j1", "jg1")
+            .Build();
+    }
+
+    [DisallowConcurrentExecution]
+    private class DisallowConcurrentTestJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context) => default;
+    }
+
+    private class ConcurrentTestJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context) => default;
+    }
+
     private static RetryTestJobStoreSupport CreateRetryTestStore(int maxTransientRetries = 3)
     {
         return new RetryTestJobStoreSupport
@@ -144,6 +248,11 @@ public class JobStoreSupportTest
                 Assert.That(fieldInfo, Is.Not.Null);
                 fieldInfo.SetValue(this, value);
             }
+        }
+
+        internal ValueTask<TriggerFiredBundle> CallTriggerFired(ConnectionAndTransactionHolder conn, IOperableTrigger trigger)
+        {
+            return TriggerFired(conn, trigger, CancellationToken.None);
         }
     }
 

@@ -2248,6 +2248,18 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     }
 
     /// <summary>
+    /// Checks whether the given job currently has a fired trigger in EXECUTING state.
+    /// Used to enforce <see cref="DisallowConcurrentExecutionAttribute"/> across cluster nodes.
+    /// </summary>
+    private ValueTask<bool> IsJobCurrentlyExecuting(
+        ConnectionAndTransactionHolder conn,
+        JobKey jobKey,
+        CancellationToken cancellationToken = default)
+    {
+        return Delegate.IsJobCurrentlyExecuting(conn, jobKey.Name, jobKey.Group, cancellationToken);
+    }
+
+    /// <summary>
     /// Determines if a Trigger for the given job should be blocked.
     /// State can only transition to StatePausedBlocked/StateBlocked from
     /// StatePaused/StateWaiting respectively.
@@ -2755,6 +2767,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                         {
                             continue; // next trigger
                         }
+
+                        // Cluster-safe check: skip if job is already executing on another node
+                        if (await IsJobCurrentlyExecuting(conn, nextTrigger.JobKey, cancellationToken).ConfigureAwait(false))
+                        {
+                            continue;
+                        }
                     }
 
                     var nextFireTimeUtc = nextTrigger.GetNextFireTimeUtc();
@@ -2959,6 +2977,28 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 Logger.LogError(sqle, "Unable to set trigger state to ERROR.");
             }
             throw;
+        }
+
+        // Cluster-safe check: prevent concurrent execution across nodes for
+        // [DisallowConcurrentExecution] jobs by checking the FIRED_TRIGGERS table.
+        // This runs under the TRIGGER_ACCESS lock, providing serialized access.
+        // The current trigger's own fired record has JOB_NAME=null (set during
+        // AcquireNextTrigger) so it won't appear in the query results.
+        if (job.ConcurrentExecutionDisallowed)
+        {
+            try
+            {
+                bool alreadyExecuting = await IsJobCurrentlyExecuting(conn, trigger.JobKey, cancellationToken).ConfigureAwait(false);
+                if (alreadyExecuting)
+                {
+                    Logger.LogInformation("Not firing trigger {TriggerKey} for [DisallowConcurrentExecution] job {JobKey} - already executing on another node.", trigger.Key, trigger.JobKey);
+                    return null;
+                }
+            }
+            catch (Exception e)
+            {
+                Throw.JobPersistenceException($"Couldn't check concurrent execution for job '{trigger.JobKey}': " + e.Message, e);
+            }
         }
 
         if (trigger.CalendarName is not null)

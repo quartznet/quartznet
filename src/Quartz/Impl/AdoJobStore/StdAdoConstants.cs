@@ -142,6 +142,9 @@ public class StdAdoConstants : AdoConstants
     public static readonly string SqlSelectFiredTriggersOfJob =
         Invariant($"SELECT * FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup");
 
+    public static readonly string SqlSelectCountExecutingFiredTriggersOfJob =
+        Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup AND {ColumnEntryState} = @executingState");
+
     public static readonly string SqlSelectFiredTriggersOfJobGroup =
         Invariant($"SELECT * FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobGroup} = @jobGroup");
 

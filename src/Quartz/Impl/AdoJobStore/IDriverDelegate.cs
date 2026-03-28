@@ -880,6 +880,16 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Checks whether a job is currently being executed (has a fired trigger in EXECUTING state).
+    /// Used to enforce <see cref="DisallowConcurrentExecutionAttribute"/> across cluster nodes.
+    /// </summary>
+    ValueTask<bool> IsJobCurrentlyExecuting(
+        ConnectionAndTransactionHolder conn,
+        string jobName,
+        string jobGroup,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Select the states of all fired-trigger records for a given scheduler
     /// instance.
     /// </summary>
