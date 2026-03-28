@@ -1069,4 +1069,37 @@ public class DailyTimeIntervalTriggerImplTest
         var times = TriggerUtils.ComputeFireTimesBetween(trigger, null, from, to);
         Assert.That(times, Has.Count.LessThan(200));
     }
+
+    /// <summary>
+    /// Regression test for https://github.com/quartznet/quartznet/issues/859
+    /// GetFireTimeAfter should not mutate the trigger's StartTimeUtc field.
+    /// </summary>
+    [Test]
+    public void GetFireTimeAfterShouldNotMutateStartTimeUtc()
+    {
+        DateTimeOffset originalStartTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2024);
+        var trigger = new DailyTimeIntervalTriggerImpl
+        {
+            StartTimeUtc = originalStartTime,
+            StartTimeOfDay = new TimeOfDay(8, 0, 0),
+            EndTimeOfDay = new TimeOfDay(17, 0, 0),
+            RepeatIntervalUnit = IntervalUnit.Hour,
+            RepeatInterval = 1
+        };
+
+        // Call with a time after the daily start time to exercise the code path
+        // that previously mutated startTimeUtc
+        DateTimeOffset afterTime = DateBuilder.DateOf(10, 0, 0, 1, 1, 2024);
+        trigger.GetFireTimeAfter(afterTime);
+
+        Assert.That(trigger.StartTimeUtc, Is.EqualTo(originalStartTime),
+            "StartTimeUtc should not be modified by GetFireTimeAfter");
+
+        // Also verify ComputeFirstFireTimeUtc doesn't mutate it
+        trigger.StartTimeUtc = originalStartTime;
+        trigger.ComputeFirstFireTimeUtc(null);
+
+        Assert.That(trigger.StartTimeUtc, Is.EqualTo(originalStartTime),
+            "StartTimeUtc should not be modified by ComputeFirstFireTimeUtc");
+    }
 }

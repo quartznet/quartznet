@@ -710,8 +710,8 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
 
         // f. Continue to calculate the fireTime by incremental unit of intervals.
         // recall that if fireTime was less that fireTimeStartDate, we didn't get this far
-        startTimeUtc = TimeZoneUtil.ConvertTime(fireTimeStartDate, TimeZone);
-        long secondsAfterStart = (long) (fireTime.Value - startTimeUtc).TotalSeconds;
+        DateTimeOffset startOfDayUtc = TimeZoneUtil.ConvertTime(fireTimeStartDate, TimeZone);
+        long secondsAfterStart = (long) (fireTime.Value - startOfDayUtc).TotalSeconds;
         long repeatLong = RepeatInterval;
 
         DateTimeOffset sTime = fireTimeStartDate.ToUniversalTime();
