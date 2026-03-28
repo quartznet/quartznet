@@ -17,14 +17,15 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 public class DeleteNonExistsJobTest
 {
     private readonly string provider;
+    private readonly string dataSourceName;
     private static readonly ILog log = LogProvider.GetLogger(typeof(DeleteNonExistsJobTest));
-    private const string DBName = "default";
     private const string SchedulerName = "DeleteNonExistsJobTestScheduler";
     private static IScheduler scheduler;
 
     public DeleteNonExistsJobTest(string provider)
     {
         this.provider = provider;
+        dataSourceName = DatabaseHelper.GetDataSourceName(provider);
     }
 
     [SetUp]
@@ -38,12 +39,12 @@ public class DeleteNonExistsJobTest
         ISchedulerFactory sf = new StdSchedulerFactory(properties);
         scheduler = await sf.GetScheduler();
 
-        await ResetDatabaseData();
+        await ResetDatabaseData(dataSourceName);
     }
 
-    private static async Task ResetDatabaseData()
+    private static async Task ResetDatabaseData(string dataSourceName)
     {
-        using var conn = DBConnectionManager.Instance.GetConnection(DBName);
+        using var conn = DBConnectionManager.Instance.GetConnection(dataSourceName);
         await conn.OpenAsync();
         await RunDbCommand(conn, "delete from qrtz_fired_triggers");
         await RunDbCommand(conn, "delete from qrtz_paused_trigger_grps");
@@ -127,9 +128,9 @@ public class DeleteNonExistsJobTest
         await scheduler.AddJob(jobDetail, true);
     }
 
-    private static async Task ModifyStoredJobClassName()
+    private async Task ModifyStoredJobClassName()
     {
-        using var conn = DBConnectionManager.Instance.GetConnection(DBName);
+        using var conn = DBConnectionManager.Instance.GetConnection(dataSourceName);
         await conn.OpenAsync();
         await RunDbCommand(conn, "update qrtz_job_details set job_class_name='com.FakeNonExistsJob'");
         conn.Close();
