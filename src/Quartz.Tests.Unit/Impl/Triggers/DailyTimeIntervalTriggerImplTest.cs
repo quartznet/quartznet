@@ -1102,4 +1102,44 @@ public class DailyTimeIntervalTriggerImplTest
         Assert.That(trigger.StartTimeUtc, Is.EqualTo(originalStartTime),
             "StartTimeUtc should not be modified by ComputeFirstFireTimeUtc");
     }
+
+    [Test]
+    public void DoNothing_WithMisfireThreshold_PreservesWithinThresholdFireTime()
+    {
+        // DailyTimeInterval: fire every 2 minutes starting at 10:00.
+        // Scheduler recovers at 10:02:30. Threshold = 60s.
+        // 10:02:00 is only 30s old (within threshold) -- should be preserved.
+        var startTime = new DateTimeOffset(2025, 1, 1, 10, 0, 0, TimeSpan.Zero);
+        var frozenNow = new DateTimeOffset(2025, 1, 1, 10, 2, 30, TimeSpan.Zero);
+        var threshold = TimeSpan.FromSeconds(60);
+
+        var trigger = new DailyTimeIntervalTriggerImpl
+        {
+            Name = "test",
+            Group = "test",
+            StartTimeUtc = startTime,
+            StartTimeOfDay = new TimeOfDay(0, 0, 0),
+            EndTimeOfDay = new TimeOfDay(23, 59, 59),
+            RepeatInterval = 2,
+            RepeatIntervalUnit = IntervalUnit.Minute,
+            MisfireInstruction = MisfireInstruction.DailyTimeIntervalTrigger.DoNothing
+        };
+        trigger.ComputeFirstFireTimeUtc(null);
+
+        var original = SystemTime.UtcNow;
+        try
+        {
+            SystemTime.UtcNow = () => frozenNow;
+            trigger.UpdateAfterMisfire(null, threshold);
+
+            DateTimeOffset? nextFire = trigger.GetNextFireTimeUtc();
+            Assert.IsNotNull(nextFire);
+            Assert.That(nextFire.Value, Is.EqualTo(new DateTimeOffset(2025, 1, 1, 10, 2, 0, TimeSpan.Zero)),
+                "Should preserve the 10:02 fire time that is within the misfire threshold");
+        }
+        finally
+        {
+            SystemTime.UtcNow = original;
+        }
+    }
 }

@@ -891,7 +891,14 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         var originalFireTime = trig.GetNextFireTimeUtc();
         var now = timeProvider.GetUtcNow();
 
-        trig.UpdateAfterMisfire(cal);
+        if (trig is INextVersionTrigger nvt)
+        {
+            nvt.UpdateAfterMisfire(cal, MisfireThreshold);
+        }
+        else
+        {
+            trig.UpdateAfterMisfire(cal);
+        }
 
         if (!trig.GetNextFireTimeUtc().HasValue)
         {
