@@ -158,7 +158,42 @@ internal static class TestcontainersDatabaseEnvironment
     /// </summary>
     private static string PrepareSqlServerScript(string script)
     {
-        return "CREATE DATABASE quartznet;\nGO\n" + script.Replace("[enter_db_name_here]", "[quartznet]");
+        // The database/tables/ scripts use placeholder values that need to be replaced
+        // for Testcontainers. The MOT script also needs a file path for memory-optimized data.
+        script = script
+            .Replace("[enter_db_name_here]", "[quartznet]")
+            .Replace("[enter_path_here]", "/tmp");
+
+        // Strip USE [master] — it causes sqlcmd to write "Changed database context" to stderr
+        // which fails the exit code check. ALTER DATABASE works from any context.
+        script = StripUseMasterStatements(script);
+
+        // Prepend CREATE DATABASE before the rest of the script
+        script = "CREATE DATABASE quartznet;\nGO\n" + script;
+
+        return script;
+    }
+
+    private static string StripUseMasterStatements(string script)
+    {
+        var lines = script.Split('\n');
+        var filtered = new List<string>(lines.Length);
+        for (int i = 0; i < lines.Length; i++)
+        {
+            string trimmed = lines[i].Trim().TrimEnd('\r');
+            if (trimmed.Equals("USE [master];", StringComparison.OrdinalIgnoreCase)
+                || trimmed.Equals("USE [master]", StringComparison.OrdinalIgnoreCase))
+            {
+                // Also skip the following GO statement if present
+                if (i + 1 < lines.Length && lines[i + 1].Trim().TrimEnd('\r').Equals("GO", StringComparison.OrdinalIgnoreCase))
+                {
+                    i++;
+                }
+                continue;
+            }
+            filtered.Add(lines[i]);
+        }
+        return string.Join('\n', filtered);
     }
 
     private static async Task StartSqlServerContainerAsync(string script)
