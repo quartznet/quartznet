@@ -50,6 +50,15 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     protected internal const string LockTriggerAccess = "TRIGGER_ACCESS";
     protected internal const string LockStateAccess = "STATE_ACCESS";
 
+    /// <summary>
+    /// Maximum elapsed time (in ms) between SystemTime.UtcNow() captured before
+    /// UpdateAfterMisfire and the new fire time set by a "fire now" misfire policy.
+    /// Used to distinguish "fire now" policies (FireOnceNow, FireNow, RescheduleNowWith*)
+    /// from "reschedule next" policies (DoNothing, RescheduleNextWith*) that set the fire
+    /// time to a future schedule point where the existing code is already correct.
+    /// </summary>
+    internal const double FireNowMisfireDetectionThresholdMs = 500;
+
     private string tablePrefix = DefaultTablePrefix;
     private bool useProperties;
     protected Type delegateType;
@@ -62,7 +71,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     private MisfireHandler? misfireHandler;
     private ITypeLoadHelper typeLoadHelper = null!;
     private ISchedulerSignaler schedSignaler = null!;
-    private bool supportsMisfireOriginalFireTime;
+    private volatile bool supportsMisfireOriginalFireTime;
 
     private volatile bool schedulerRunning;
     private volatile bool shutdown;
@@ -627,10 +636,15 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
     private async Task ProbeForMisfireOriginalFireTimeColumn(CancellationToken cancellationToken)
     {
+        if (Delegate is not IMisfireOriginalFireTimeDelegate misfireDelegate)
+        {
+            return;
+        }
+
         ConnectionAndTransactionHolder conn = GetNonManagedTXConnection();
         try
         {
-            supportsMisfireOriginalFireTime = await Delegate.SupportsMisfireOriginalFireTimeColumn(conn, cancellationToken).ConfigureAwait(false);
+            supportsMisfireOriginalFireTime = await misfireDelegate.SupportsMisfireOriginalFireTimeColumn(conn, cancellationToken).ConfigureAwait(false);
             CommitConnection(conn, false);
 
             if (!supportsMisfireOriginalFireTime)
@@ -935,14 +949,14 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         // Persist original fire time for "fire now" misfire policies when the column is available.
         // "Fire now" policies set nextFireTimeUtc to ~SystemTime.UtcNow(); "reschedule next"
         // policies set it to a future schedule time where the existing code is already correct.
-        if (supportsMisfireOriginalFireTime)
+        if (supportsMisfireOriginalFireTime && Delegate is IMisfireOriginalFireTimeDelegate misfireDelegate)
         {
             var newFireTime = trig.GetNextFireTimeUtc();
             if (originalFireTime.HasValue && newFireTime.HasValue
                 && originalFireTime.Value != newFireTime.Value
-                && Math.Abs((newFireTime.Value - now).TotalMilliseconds) < 500)
+                && Math.Abs((newFireTime.Value - now).TotalMilliseconds) < FireNowMisfireDetectionThresholdMs)
             {
-                await Delegate.UpdateMisfireOriginalFireTime(conn, trig.Key, originalFireTime, CancellationToken.None).ConfigureAwait(false);
+                await misfireDelegate.UpdateMisfireOriginalFireTime(conn, trig.Key, originalFireTime, CancellationToken.None).ConfigureAwait(false);
             }
         }
     }
@@ -3033,11 +3047,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             throw new JobPersistenceException("Couldn't update fired trigger: " + e.Message, e);
         }
 
-        // Read saved original fire time from DB column (set by DoUpdateOfMisfiredTrigger)
-        DateTimeOffset? scheduledFireTime = null;
-        if (supportsMisfireOriginalFireTime)
+        // Read saved original fire time from trigger (populated by SelectTrigger when column exists)
+        DateTimeOffset? scheduledFireTime = (trigger as AbstractTrigger)?.MisfiredFromFireTimeUtc;
+        if (scheduledFireTime.HasValue && Delegate is IMisfireOriginalFireTimeDelegate misfireDelegate)
         {
-            scheduledFireTime = await Delegate.SelectAndClearMisfireOriginalFireTime(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+            // Clear so it doesn't persist beyond this firing
+            await misfireDelegate.ClearMisfireOriginalFireTime(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
         }
 
         DateTimeOffset? prevFireTime = trigger.GetPreviousFireTimeUtc();

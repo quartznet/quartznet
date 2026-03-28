@@ -362,9 +362,38 @@ public class StdAdoConstants : AdoConstants
     public static readonly string SqlProbeMisfireOrigFireTimeColumn =
         Invariant($"SELECT {ColumnMisfireOriginalFireTime} FROM {TablePrefixSubst}{TableTriggers} WHERE 1 = 0");
 
-    public static readonly string SqlUpdateMisfireOrigFireTime =
-        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnMisfireOriginalFireTime} = @misfireOrigFireTime WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
+    public static readonly string SqlSelectTriggerWithMisfireOrigFireTime =
+        Invariant($@"SELECT
+                {ColumnJobName},
+                {ColumnJobGroup},
+                {ColumnDescription},
+                {ColumnNextFireTime},
+                {ColumnPreviousFireTime},
+                {ColumnTriggerType},
+                {ColumnStartTime},
+                {ColumnEndTime},
+                {ColumnCalendarName},
+                {ColumnMifireInstruction},
+                {ColumnPriority},
+                {ColumnJobDataMap},
+                {ColumnCronExpression},
+                {ColumnTimeZoneId},
+                {ColumnRepeatCount},
+                {ColumnRepeatInterval},
+                {ColumnTimesTriggered},
+                t.{ColumnMisfireOriginalFireTime}
+            FROM
+                {TablePrefixSubst}{TableTriggers} t
+            LEFT JOIN
+                {TablePrefixSubst}{TableSimpleTriggers} st ON (st.{ColumnSchedulerName} = t.{ColumnSchedulerName} AND st.{ColumnTriggerGroup} = t.{ColumnTriggerGroup} AND st.{ColumnTriggerName} = t.{ColumnTriggerName})
+            LEFT JOIN
+                {TablePrefixSubst}{TableCronTriggers} ct ON (ct.{ColumnSchedulerName} = t.{ColumnSchedulerName} AND ct.{ColumnTriggerGroup} = t.{ColumnTriggerGroup} AND ct.{ColumnTriggerName} = t.{ColumnTriggerName})
+            WHERE
+                t.{ColumnSchedulerName} = @schedulerName AND t.{ColumnTriggerName} = @triggerName AND t.{ColumnTriggerGroup} = @triggerGroup");
 
     public static readonly string SqlSelectMisfireOrigFireTime =
         Invariant($"SELECT {ColumnMisfireOriginalFireTime} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
+
+    public static readonly string SqlUpdateMisfireOrigFireTime =
+        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnMisfireOriginalFireTime} = @misfireOrigFireTime WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
 }
