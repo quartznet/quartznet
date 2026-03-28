@@ -428,7 +428,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
 
         if (instr == Quartz.MisfireInstruction.CalendarIntervalTrigger.DoNothing)
         {
-            DateTimeOffset? newFireTime = GetFireTimeAfter(SystemTime.UtcNow() - misfireThreshold);
+            DateTimeOffset? newFireTime = GetFireTimeAfter(TimeProvider.GetUtcNow() - misfireThreshold);
             while (newFireTime != null && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
             {
                 newFireTime = GetFireTimeAfter(newFireTime);
@@ -437,7 +437,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
         }
         else if (instr == Quartz.MisfireInstruction.CalendarIntervalTrigger.FireOnceNow)
         {
-            SetNextFireTimeUtc(SystemTime.UtcNow());
+            SetNextFireTimeUtc(TimeProvider.GetUtcNow());
         }
     }
 

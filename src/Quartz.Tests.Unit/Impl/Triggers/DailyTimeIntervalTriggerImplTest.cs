@@ -1106,17 +1106,13 @@ public class DailyTimeIntervalTriggerImplTest
     [Test]
     public void DoNothing_WithMisfireThreshold_PreservesWithinThresholdFireTime()
     {
-        // DailyTimeInterval: fire every 2 minutes starting at 10:00.
-        // Scheduler recovers at 10:02:30. Threshold = 60s.
-        // 10:02:00 is only 30s old (within threshold) -- should be preserved.
         var startTime = new DateTimeOffset(2025, 1, 1, 10, 0, 0, TimeSpan.Zero);
         var frozenNow = new DateTimeOffset(2025, 1, 1, 10, 2, 30, TimeSpan.Zero);
         var threshold = TimeSpan.FromSeconds(60);
 
-        var trigger = new DailyTimeIntervalTriggerImpl
+        var trigger = new DailyTimeIntervalTriggerImpl(new FixedTimeProvider(frozenNow))
         {
-            Name = "test",
-            Group = "test",
+            Key = new TriggerKey("test", "test"),
             StartTimeUtc = startTime,
             StartTimeOfDay = new TimeOfDay(0, 0, 0),
             EndTimeOfDay = new TimeOfDay(23, 59, 59),
@@ -1126,20 +1122,16 @@ public class DailyTimeIntervalTriggerImplTest
         };
         trigger.ComputeFirstFireTimeUtc(null);
 
-        var original = SystemTime.UtcNow;
-        try
-        {
-            SystemTime.UtcNow = () => frozenNow;
-            trigger.UpdateAfterMisfire(null, threshold);
+        trigger.UpdateAfterMisfire(null, threshold);
 
-            DateTimeOffset? nextFire = trigger.GetNextFireTimeUtc();
-            Assert.IsNotNull(nextFire);
-            Assert.That(nextFire.Value, Is.EqualTo(new DateTimeOffset(2025, 1, 1, 10, 2, 0, TimeSpan.Zero)),
-                "Should preserve the 10:02 fire time that is within the misfire threshold");
-        }
-        finally
-        {
-            SystemTime.UtcNow = original;
-        }
+        DateTimeOffset? nextFire = trigger.GetNextFireTimeUtc();
+        Assert.IsNotNull(nextFire);
+        Assert.That(nextFire.Value, Is.EqualTo(new DateTimeOffset(2025, 1, 1, 10, 2, 0, TimeSpan.Zero)),
+            "Should preserve the 10:02 fire time that is within the misfire threshold");
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
     }
 }

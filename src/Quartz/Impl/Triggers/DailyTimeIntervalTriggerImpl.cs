@@ -462,7 +462,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
 
         if (instr == Quartz.MisfireInstruction.DailyTimeIntervalTrigger.DoNothing)
         {
-            DateTimeOffset? newFireTime = GetFireTimeAfter(SystemTime.UtcNow() - misfireThreshold);
+            DateTimeOffset? newFireTime = GetFireTimeAfter(TimeProvider.GetUtcNow() - misfireThreshold);
             while (newFireTime != null && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
             {
                 newFireTime = GetFireTimeAfter(newFireTime);
@@ -471,7 +471,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
         }
         else if (instr == Quartz.MisfireInstruction.DailyTimeIntervalTrigger.FireOnceNow)
         {
-            SetNextFireTimeUtc(SystemTime.UtcNow());
+            SetNextFireTimeUtc(TimeProvider.GetUtcNow());
         }
     }
 

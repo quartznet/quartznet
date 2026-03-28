@@ -782,7 +782,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
 
         if (instr == Quartz.MisfireInstruction.CronTrigger.DoNothing)
         {
-            DateTimeOffset? newFireTime = GetFireTimeAfter(SystemTime.UtcNow() - misfireThreshold);
+            DateTimeOffset? newFireTime = GetFireTimeAfter(TimeProvider.GetUtcNow() - misfireThreshold);
 
             while (newFireTime.HasValue && cal != null
                                         && !cal.IsTimeIncluded(newFireTime.Value))
@@ -793,7 +793,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
         }
         else if (instr == Quartz.MisfireInstruction.CronTrigger.FireOnceNow)
         {
-            SetNextFireTimeUtc(SystemTime.UtcNow());
+            SetNextFireTimeUtc(TimeProvider.GetUtcNow());
         }
     }
 

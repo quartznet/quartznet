@@ -245,17 +245,13 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
     [Test]
     public void RescheduleNextWithExistingCount_WithMisfireThreshold_PreservesWithinThresholdFireTime()
     {
-        // Simple trigger: fires every 2 minutes starting at 10:00:00.
-        // Scheduler recovers at 10:02:30. Threshold = 60s.
-        // 10:02:00 is only 30s old (within threshold) -- should be preserved.
         var startTime = new DateTimeOffset(2025, 1, 1, 10, 0, 0, TimeSpan.Zero);
         var frozenNow = new DateTimeOffset(2025, 1, 1, 10, 2, 30, TimeSpan.Zero);
         var threshold = TimeSpan.FromSeconds(60);
 
-        var trigger = new SimpleTriggerImpl
+        var trigger = new SimpleTriggerImpl(new FixedTimeProvider(frozenNow))
         {
-            Name = "test",
-            Group = "test",
+            Key = new TriggerKey("test", "test"),
             StartTimeUtc = startTime,
             RepeatInterval = TimeSpan.FromMinutes(2),
             RepeatCount = SimpleTriggerImpl.RepeatIndefinitely,
@@ -263,21 +259,12 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
         };
         trigger.ComputeFirstFireTimeUtc(null);
 
-        var original = SystemTime.UtcNow;
-        try
-        {
-            SystemTime.UtcNow = () => frozenNow;
-            trigger.UpdateAfterMisfire(null, threshold);
+        trigger.UpdateAfterMisfire(null, threshold);
 
-            DateTimeOffset? nextFire = trigger.GetNextFireTimeUtc();
-            Assert.IsNotNull(nextFire);
-            Assert.That(nextFire.Value, Is.EqualTo(new DateTimeOffset(2025, 1, 1, 10, 2, 0, TimeSpan.Zero)),
-                "Should preserve the 10:02 fire time that is within the misfire threshold");
-        }
-        finally
-        {
-            SystemTime.UtcNow = original;
-        }
+        DateTimeOffset? nextFire = trigger.GetNextFireTimeUtc();
+        Assert.IsNotNull(nextFire);
+        Assert.That(nextFire.Value, Is.EqualTo(new DateTimeOffset(2025, 1, 1, 10, 2, 0, TimeSpan.Zero)),
+            "Should preserve the 10:02 fire time that is within the misfire threshold");
     }
 
     [Test]
@@ -287,10 +274,9 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
         var frozenNow = new DateTimeOffset(2025, 1, 1, 10, 2, 30, TimeSpan.Zero);
         var threshold = TimeSpan.FromSeconds(60);
 
-        var trigger = new SimpleTriggerImpl
+        var trigger = new SimpleTriggerImpl(new FixedTimeProvider(frozenNow))
         {
-            Name = "test",
-            Group = "test",
+            Key = new TriggerKey("test", "test"),
             StartTimeUtc = startTime,
             RepeatInterval = TimeSpan.FromMinutes(2),
             RepeatCount = 10,
@@ -302,22 +288,18 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
         trigger.SetNextFireTimeUtc(startTime);
         trigger.TimesTriggered = 1;
 
-        var original = SystemTime.UtcNow;
-        try
-        {
-            SystemTime.UtcNow = () => frozenNow;
-            trigger.UpdateAfterMisfire(null, threshold);
+        trigger.UpdateAfterMisfire(null, threshold);
 
-            DateTimeOffset? nextFire = trigger.GetNextFireTimeUtc();
-            Assert.IsNotNull(nextFire);
-            Assert.That(nextFire.Value, Is.EqualTo(new DateTimeOffset(2025, 1, 1, 10, 2, 0, TimeSpan.Zero)),
-                "Should preserve the 10:02 fire time that is within the misfire threshold");
-            // Only 1 fire time missed (10:00 -> 10:02), not 2 (10:00 -> 10:04)
-            Assert.That(trigger.TimesTriggered, Is.EqualTo(2));
-        }
-        finally
-        {
-            SystemTime.UtcNow = original;
-        }
+        DateTimeOffset? nextFire = trigger.GetNextFireTimeUtc();
+        Assert.IsNotNull(nextFire);
+        Assert.That(nextFire.Value, Is.EqualTo(new DateTimeOffset(2025, 1, 1, 10, 2, 0, TimeSpan.Zero)),
+            "Should preserve the 10:02 fire time that is within the misfire threshold");
+        // Only 1 fire time missed (10:00 -> 10:02), not 2 (10:00 -> 10:04)
+        Assert.That(trigger.TimesTriggered, Is.EqualTo(2));
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
     }
 }

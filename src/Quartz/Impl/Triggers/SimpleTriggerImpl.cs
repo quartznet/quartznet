@@ -536,11 +536,11 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
 
         if (instr == Quartz.MisfireInstruction.SimpleTrigger.FireNow)
         {
-            nextFireTimeUtc = SystemTime.UtcNow();
+            nextFireTimeUtc = TimeProvider.GetUtcNow();
         }
         else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount)
         {
-            DateTimeOffset? newFireTime = GetFireTimeAfter(SystemTime.UtcNow() - misfireThreshold);
+            DateTimeOffset? newFireTime = GetFireTimeAfter(TimeProvider.GetUtcNow() - misfireThreshold);
 
             while (newFireTime.HasValue && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
             {
@@ -552,7 +552,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
                 }
 
                 //avoid infinite loop
-                if (newFireTime.Value.Year > YearToGiveupSchedulingAt)
+                if (newFireTime.Value.Year > TriggerConstants.YearToGiveUpSchedulingAt)
                 {
                     newFireTime = null;
                 }
@@ -561,7 +561,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
         }
         else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount)
         {
-            DateTimeOffset? newFireTime = GetFireTimeAfter(SystemTime.UtcNow() - misfireThreshold);
+            DateTimeOffset? newFireTime = GetFireTimeAfter(TimeProvider.GetUtcNow() - misfireThreshold);
 
             while (newFireTime.HasValue && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
             {
@@ -573,7 +573,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
                 }
 
                 //avoid infinite loop
-                if (newFireTime.Value.Year > YearToGiveupSchedulingAt)
+                if (newFireTime.Value.Year > TriggerConstants.YearToGiveUpSchedulingAt)
                 {
                     newFireTime = null;
                 }
@@ -589,7 +589,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
         }
         else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount)
         {
-            DateTimeOffset newFireTime = SystemTime.UtcNow();
+            DateTimeOffset newFireTime = TimeProvider.GetUtcNow();
             if (repeatCount != 0 && repeatCount != RepeatIndefinitely)
             {
                 RepeatCount = RepeatCount - TimesTriggered;
@@ -608,7 +608,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
         }
         else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount)
         {
-            DateTimeOffset newFireTime = SystemTime.UtcNow();
+            DateTimeOffset newFireTime = TimeProvider.GetUtcNow();
             int timesMissed = ComputeNumTimesFiredBetween(nextFireTimeUtc!.Value, newFireTime);
 
             if (repeatCount != 0 && repeatCount != RepeatIndefinitely)
