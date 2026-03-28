@@ -49,6 +49,16 @@ Jobs and triggers are created via `JobBuilder` and `TriggerBuilder` with schedul
 
 After `TriggersFired`, always use `TriggeredJobComplete` (not `ReleaseAcquiredTrigger`) to clean up trigger state. `ReleaseAcquiredTrigger` doesn't unblock sibling triggers for `[DisallowConcurrentExecution]` jobs.
 
+### Adding new delegate methods on the 3.x branch
+
+`IDriverDelegate` is a public SPI interface — adding methods would break external implementations. Use the `INextVersionDelegate` pattern instead:
+
+1. Add the method to `internal interface INextVersionDelegate` in `IDriverDelegate.cs`
+2. Implement it in `StdAdoDelegate` (which already implements `INextVersionDelegate`)
+3. In `JobStoreSupport`, check `if (Delegate is INextVersionDelegate nvd)` and call the new method, with an `else` fallback using existing `IDriverDelegate` methods
+
+This gives built-in delegates the efficient path while keeping the public API stable. All methods on `INextVersionDelegate` should be promoted to `IDriverDelegate` in 4.x.
+
 ## Code Conventions
 
 - **Async throughout:** All public APIs are `async Task` with `CancellationToken cancellationToken = default`. Always use `.ConfigureAwait(false)` on awaited calls (enforced by analyzer).
