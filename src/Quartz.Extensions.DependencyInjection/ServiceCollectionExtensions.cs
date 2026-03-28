@@ -120,7 +120,7 @@ public static class ServiceCollectionExtensions
 #endif
     T>(
         this IServiceCollectionQuartzConfigurator options,
-        JobKey jobKey,
+        JobKey? jobKey,
         Action<IJobConfigurator> configure) where T : IJob
     {
         return options.AddJob(typeof(T), jobKey, (_, jobConfigurator) => configure(jobConfigurator));
@@ -150,7 +150,7 @@ public static class ServiceCollectionExtensions
            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
 #endif
         Type jobType,
-        JobKey jobKey,
+        JobKey? jobKey,
         Action<IJobConfigurator> configure)
     {
         return options.AddJob(jobType, jobKey, (_, jobConfigurator) => configure(jobConfigurator));
