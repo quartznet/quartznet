@@ -1590,15 +1590,24 @@ public class RAMJobStore : IJobStore
 
         signaler.NotifyTriggerListenersMisfired((IOperableTrigger) tw.Trigger.Clone()).ConfigureAwait(false).GetAwaiter().GetResult();
 
-        // Save original scheduled fire time before misfire handling changes it.
-        // This value flows through Clone() via MemberwiseClone to TriggersFired(),
-        // where it's used as the correct ScheduledFireTimeUtc.
-        if (tw.Trigger is AbstractTrigger abstractTrigger)
-        {
-            abstractTrigger.MisfiredFromFireTimeUtc = tw.Trigger.GetNextFireTimeUtc();
-        }
+        // Save the original scheduled fire time before misfire handling changes it.
+        var originalFireTime = tw.Trigger.GetNextFireTimeUtc();
+        var now = SystemTime.UtcNow();
 
         tw.Trigger.UpdateAfterMisfire(cal);
+
+        // Only save for "fire now" misfire policies (FireOnceNow, FireNow, RescheduleNowWith*).
+        // These set nextFireTimeUtc to ~SystemTime.UtcNow(). "Reschedule next" policies
+        // (DoNothing, RescheduleNextWith*) set it to a future schedule time, where the
+        // existing code already produces the correct ScheduledFireTimeUtc.
+        var newFireTime = tw.Trigger.GetNextFireTimeUtc();
+        if (tw.Trigger is AbstractTrigger abstractTrigger
+            && originalFireTime.HasValue && newFireTime.HasValue
+            && originalFireTime.Value != newFireTime.Value
+            && Math.Abs((newFireTime.Value - now).TotalMilliseconds) < 500)
+        {
+            abstractTrigger.MisfiredFromFireTimeUtc = originalFireTime;
+        }
 
         if (!tw.Trigger.GetNextFireTimeUtc().HasValue)
         {

@@ -886,17 +886,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
         await schedSignaler.NotifyTriggerListenersMisfired(trig).ConfigureAwait(false);
 
-        // Save original scheduled fire time before misfire handling changes it.
-        // Persisted via JobDataMap so it survives the DB round-trip to TriggerFired().
-        var originalFireTime = trig.GetNextFireTimeUtc();
-
         trig.UpdateAfterMisfire(cal);
-
-        if (originalFireTime.HasValue && originalFireTime != trig.GetNextFireTimeUtc())
-        {
-            trig.JobDataMap[AbstractTrigger.InternalMisfiredOriginalFireTimeKey] =
-                originalFireTime.Value.UtcTicks.ToString(CultureInfo.InvariantCulture);
-        }
 
         if (!trig.GetNextFireTimeUtc().HasValue)
         {
@@ -2995,15 +2985,6 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             throw new JobPersistenceException("Couldn't update fired trigger: " + e.Message, e);
         }
 
-        // Read saved original fire time from JobDataMap (persisted through DB by DoUpdateOfMisfiredTrigger)
-        DateTimeOffset? scheduledFireTime = null;
-        if (trigger.JobDataMap.TryGetValue(AbstractTrigger.InternalMisfiredOriginalFireTimeKey, out var savedVal)
-            && long.TryParse(savedVal?.ToString(), NumberStyles.None, CultureInfo.InvariantCulture, out var ticks))
-        {
-            scheduledFireTime = new DateTimeOffset(ticks, TimeSpan.Zero);
-            trigger.JobDataMap.Remove(AbstractTrigger.InternalMisfiredOriginalFireTimeKey);
-        }
-
         DateTimeOffset? prevFireTime = trigger.GetPreviousFireTimeUtc();
 
         // call triggered - to update the trigger's next-fire-time state...
@@ -3034,7 +3015,6 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             force = true;
         }
 
-        // StoreTrigger persists the trigger WITHOUT the internal misfire key (already removed above)
         await StoreTrigger(conn, trigger, job, true, state2, force, false, cancellationToken).ConfigureAwait(false);
 
         job.JobDataMap.ClearDirtyFlag();
@@ -3045,7 +3025,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             cal,
             trigger.Key.Group.Equals(SchedulerConstants.DefaultRecoveryGroup),
             SystemTime.UtcNow(),
-            scheduledFireTime ?? trigger.GetPreviousFireTimeUtc(),
+            trigger.GetPreviousFireTimeUtc(),
             prevFireTime,
             trigger.GetNextFireTimeUtc());
     }

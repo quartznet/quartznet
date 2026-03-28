@@ -72,17 +72,10 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// <summary>
     /// Stores the original NextFireTimeUtc before misfire handling changes it.
     /// Used to provide the correct ScheduledFireTimeUtc in JobExecutionContext.
-    /// Copied by MemberwiseClone (works for RAMJobStore), and persisted via
-    /// JobDataMap for AdoJobStore.
+    /// Copied by MemberwiseClone in <see cref="Clone"/> (works for RAMJobStore).
     /// </summary>
     [NonSerialized]
     internal DateTimeOffset? MisfiredFromFireTimeUtc;
-
-    /// <summary>
-    /// Internal JobDataMap key used to persist <see cref="MisfiredFromFireTimeUtc"/>
-    /// through database round-trips in AdoJobStore.
-    /// </summary>
-    internal const string InternalMisfiredOriginalFireTimeKey = "__quartz.misfireOriginalFireTime";
 
     /// <summary>
     /// Get or sets the name of this <see cref="ITrigger" />.
