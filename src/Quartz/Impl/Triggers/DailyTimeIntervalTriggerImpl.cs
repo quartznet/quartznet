@@ -785,6 +785,22 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
             return fireTime?.ToUniversalTime();
         }
 
+        // DST fall-back correction: when the interval is added in UTC and a DST
+        // fall-back occurred, the local day has more than 24 hours. This can cause
+        // the computed fire time to remain on the same local date instead of
+        // advancing to the next day. Detect this by comparing the expected local
+        // date (from wall-clock arithmetic) with the actual computed date.
+        if (fireTime.HasValue)
+        {
+            TimeSpan utcInterval = sTime - fireTimeStartDate.ToUniversalTime();
+            DateTime expectedLocalTime = fireTimeStartDate.DateTime + utcInterval;
+
+            if (expectedLocalTime.Date != fireTime.Value.DateTime.Date)
+            {
+                fireTime = new DateTimeOffset(expectedLocalTime, TimeZoneUtil.GetUtcOffset(expectedLocalTime, TimeZone));
+            }
+        }
+
         // h. Ensure this new fireTime is within the day, or else we need to advance to next day.
         if (fireTime > fireTimeEndDate)
         {
