@@ -53,6 +53,9 @@ public class StdAdoConstants : AdoConstants
     public static readonly string SqlDeleteInstancesFiredTriggers =
         Invariant($"DELETE FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnInstanceName} = @instanceName");
 
+    public static readonly string SqlDeleteFiredTriggersForTrigger =
+        Invariant($"DELETE FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
+
     public static readonly string SqlDeleteJobDetail =
         Invariant($"DELETE FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup");
 

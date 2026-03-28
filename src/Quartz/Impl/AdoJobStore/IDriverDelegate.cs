@@ -1086,11 +1086,10 @@ public interface IDriverDelegate
 }
 
 /// <summary>
-/// Optional delegate capability for persisting the original scheduled fire time
-/// through misfire handling. Implemented by delegates whose schema includes
-/// the MISFIRE_ORIG_FIRE_TIME column on the triggers table.
+/// Optional delegate capabilities that will be part of <see cref="IDriverDelegate"/> in 4.x.
+/// Implemented as a separate internal interface to avoid breaking changes in 3.x.
 /// </summary>
-internal interface IMisfireOriginalFireTimeDelegate
+internal interface INextVersionDelegate
 {
     /// <summary>
     /// Whether the MISFIRE_ORIG_FIRE_TIME column is available, set after probing.
@@ -1118,6 +1117,18 @@ internal interface IMisfireOriginalFireTimeDelegate
     /// Clears the misfire original fire time for the given trigger.
     /// </summary>
     Task ClearMisfireOriginalFireTime(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Delete all fired triggers for the given trigger.
+    /// </summary>
+    /// <param name="conn">The DB Connection</param>
+    /// <param name="triggerKey">The key identifying the trigger.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>The number of rows deleted</returns>
+    Task<int> DeleteFiredTriggers(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default);

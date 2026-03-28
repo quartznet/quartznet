@@ -161,7 +161,6 @@ public class RecoverJobsTest
                 .Build(),
             TriggerBuilder.Create()
                 .WithIdentity(triggerKey)
-                .UsingJobData("customKey", "customValue")
                 .WithSimpleSchedule(x => x
                     .WithInterval(TimeSpan.FromSeconds(1))
                     .RepeatForever()
