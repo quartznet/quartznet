@@ -61,6 +61,7 @@ public class RAMJobStore : IJobStore
     private readonly HashSet<string> pausedTriggerGroups = new HashSet<string>();
     private readonly HashSet<string> pausedJobGroups = new HashSet<string>();
     private readonly HashSet<JobKey> blockedJobs = new HashSet<JobKey>();
+    private readonly HashSet<JobKey> resumedJobsInPausedGroups = new HashSet<JobKey>();
     private TimeSpan misfireThreshold = TimeSpan.FromSeconds(5);
     private ISchedulerSignaler signaler = null!;
 
@@ -195,6 +196,8 @@ public class RAMJobStore : IJobStore
             {
                 RemoveCalendarInternal(name);
             }
+
+            resumedJobsInPausedGroups.Clear();
         }
 
         return Task.CompletedTask;
@@ -321,7 +324,8 @@ public class RAMJobStore : IJobStore
             }
 
             found = jobsByKey.Remove(jobKey) || found;
-                
+            resumedJobsInPausedGroups.Remove(jobKey);
+
             if (found)
             {
                 if (jobsByGroup.TryGetValue(jobKey.Group, out var grpMap))
@@ -481,7 +485,8 @@ public class RAMJobStore : IJobStore
             // add to triggers by FQN map
             triggersByKey[tw.TriggerKey] = tw;
 
-            if (pausedTriggerGroups.Contains(newTrigger.Key.Group) || pausedJobGroups.Contains(newTrigger.JobKey.Group))
+            if (pausedTriggerGroups.Contains(newTrigger.Key.Group) ||
+                (pausedJobGroups.Contains(newTrigger.JobKey.Group) && !resumedJobsInPausedGroups.Contains(newTrigger.JobKey)))
             {
                 tw.state = InternalTriggerState.Paused;
                 if (blockedJobs.Contains(tw.JobKey))
@@ -1271,6 +1276,7 @@ public class RAMJobStore : IJobStore
     {
         lock (lockObject)
         {
+            resumedJobsInPausedGroups.Remove(jobKey);
             var triggersForJob = GetTriggersForJobInternal(jobKey);
             foreach (IOperableTrigger trigger in triggersForJob)
             {
@@ -1299,6 +1305,7 @@ public class RAMJobStore : IJobStore
             StringOperator op = matcher.CompareWithOperator;
             if (Equals(op, StringOperator.Equality))
             {
+                resumedJobsInPausedGroups.RemoveWhere(k => k.Group == matcher.CompareToValue);
                 if (pausedJobGroups.Add(matcher.CompareToValue))
                 {
                     pausedGroups.Add(matcher.CompareToValue);
@@ -1310,6 +1317,7 @@ public class RAMJobStore : IJobStore
                 {
                     if (op.Evaluate(group, matcher.CompareToValue))
                     {
+                        resumedJobsInPausedGroups.RemoveWhere(k => k.Group == group);
                         if (pausedJobGroups.Add(group))
                         {
                             pausedGroups.Add(group);
@@ -1462,6 +1470,11 @@ public class RAMJobStore : IJobStore
     {
         lock (lockObject)
         {
+            if (pausedJobGroups.Contains(jobKey.Group) && jobsByKey.ContainsKey(jobKey))
+            {
+                resumedJobsInPausedGroups.Add(jobKey);
+            }
+
             var triggersForJob = GetTriggersForJobInternal(jobKey);
             foreach (IOperableTrigger trigger in triggersForJob)
             {
@@ -1500,6 +1513,7 @@ public class RAMJobStore : IJobStore
             foreach (string resumedGroup in resumedGroups)
             {
                 pausedJobGroups.Remove(resumedGroup);
+                resumedJobsInPausedGroups.RemoveWhere(k => k.Group == resumedGroup);
             }
 
             foreach (JobKey key in keys)
@@ -1550,6 +1564,7 @@ public class RAMJobStore : IJobStore
         {
             // TODO need a match all here!
             pausedJobGroups.Clear();
+            resumedJobsInPausedGroups.Clear();
 
             foreach (string groupName in triggersByGroup.Keys)
             {
