@@ -27,7 +27,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Logging;
@@ -1605,7 +1604,7 @@ public class RAMJobStore : IJobStore
         if (tw.Trigger is AbstractTrigger abstractTrigger
             && originalFireTime.HasValue && newFireTime.HasValue
             && originalFireTime.Value != newFireTime.Value
-            && Math.Abs((newFireTime.Value - now).TotalMilliseconds) < JobStoreSupport.FireNowMisfireDetectionThresholdMs)
+            && Math.Abs((newFireTime.Value - now).TotalMilliseconds) < AbstractTrigger.FireNowMisfireDetectionThresholdMs)
         {
             abstractTrigger.MisfiredFromFireTimeUtc = originalFireTime;
         }

@@ -50,15 +50,6 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     protected internal const string LockTriggerAccess = "TRIGGER_ACCESS";
     protected internal const string LockStateAccess = "STATE_ACCESS";
 
-    /// <summary>
-    /// Maximum elapsed time (in ms) between SystemTime.UtcNow() captured before
-    /// UpdateAfterMisfire and the new fire time set by a "fire now" misfire policy.
-    /// Used to distinguish "fire now" policies (FireOnceNow, FireNow, RescheduleNowWith*)
-    /// from "reschedule next" policies (DoNothing, RescheduleNextWith*) that set the fire
-    /// time to a future schedule point where the existing code is already correct.
-    /// </summary>
-    internal const double FireNowMisfireDetectionThresholdMs = 500;
-
     private string tablePrefix = DefaultTablePrefix;
     private bool useProperties;
     protected Type delegateType;
@@ -71,8 +62,6 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     private MisfireHandler? misfireHandler;
     private ITypeLoadHelper typeLoadHelper = null!;
     private ISchedulerSignaler schedSignaler = null!;
-    private volatile bool supportsMisfireOriginalFireTime;
-
     private volatile bool schedulerRunning;
     private volatile bool shutdown;
 
@@ -644,10 +633,10 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         ConnectionAndTransactionHolder conn = GetNonManagedTXConnection();
         try
         {
-            supportsMisfireOriginalFireTime = await misfireDelegate.SupportsMisfireOriginalFireTimeColumn(conn, cancellationToken).ConfigureAwait(false);
+            await misfireDelegate.SupportsMisfireOriginalFireTimeColumn(conn, cancellationToken).ConfigureAwait(false);
             CommitConnection(conn, false);
 
-            if (!supportsMisfireOriginalFireTime)
+            if (!misfireDelegate.HasMisfireOriginalFireTimeColumn)
             {
                 Log.Warn("Column MISFIRE_ORIG_FIRE_TIME not found in triggers table. " +
                     "ScheduledFireTimeUtc will not be corrected for misfired triggers with AdoJobStore. " +
@@ -657,7 +646,6 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         catch (Exception e)
         {
             RollbackConnection(conn, e);
-            supportsMisfireOriginalFireTime = false;
         }
         finally
         {
@@ -949,12 +937,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         // Persist original fire time for "fire now" misfire policies when the column is available.
         // "Fire now" policies set nextFireTimeUtc to ~SystemTime.UtcNow(); "reschedule next"
         // policies set it to a future schedule time where the existing code is already correct.
-        if (supportsMisfireOriginalFireTime && Delegate is IMisfireOriginalFireTimeDelegate misfireDelegate)
+        if (Delegate is IMisfireOriginalFireTimeDelegate { HasMisfireOriginalFireTimeColumn: true } misfireDelegate)
         {
             var newFireTime = trig.GetNextFireTimeUtc();
             if (originalFireTime.HasValue && newFireTime.HasValue
                 && originalFireTime.Value != newFireTime.Value
-                && Math.Abs((newFireTime.Value - now).TotalMilliseconds) < FireNowMisfireDetectionThresholdMs)
+                && Math.Abs((newFireTime.Value - now).TotalMilliseconds) < AbstractTrigger.FireNowMisfireDetectionThresholdMs)
             {
                 await misfireDelegate.UpdateMisfireOriginalFireTime(conn, trig.Key, originalFireTime, CancellationToken.None).ConfigureAwait(false);
             }

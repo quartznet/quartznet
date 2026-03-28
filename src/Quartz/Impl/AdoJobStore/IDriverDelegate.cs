@@ -1093,7 +1093,13 @@ public interface IDriverDelegate
 internal interface IMisfireOriginalFireTimeDelegate
 {
     /// <summary>
+    /// Whether the MISFIRE_ORIG_FIRE_TIME column is available, set after probing.
+    /// </summary>
+    bool HasMisfireOriginalFireTimeColumn { get; }
+
+    /// <summary>
     /// Probes whether the MISFIRE_ORIG_FIRE_TIME column exists in the triggers table.
+    /// Sets <see cref="HasMisfireOriginalFireTimeColumn"/>.
     /// </summary>
     Task<bool> SupportsMisfireOriginalFireTimeColumn(
         ConnectionAndTransactionHolder conn,
@@ -1106,15 +1112,6 @@ internal interface IMisfireOriginalFireTimeDelegate
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         DateTimeOffset? fireTime,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Selects a trigger with the misfire original fire time column included.
-    /// Returns the value of MISFIRE_ORIG_FIRE_TIME for the trigger, or null.
-    /// </summary>
-    Task<DateTimeOffset?> SelectTriggerMisfireOriginalFireTime(
-        ConnectionAndTransactionHolder conn,
-        TriggerKey triggerKey,
         CancellationToken cancellationToken = default);
 
     /// <summary>

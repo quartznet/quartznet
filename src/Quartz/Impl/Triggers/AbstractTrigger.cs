@@ -78,6 +78,15 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     internal DateTimeOffset? MisfiredFromFireTimeUtc;
 
     /// <summary>
+    /// Maximum elapsed time (in ms) between SystemTime.UtcNow() captured before
+    /// UpdateAfterMisfire and the new fire time set by a "fire now" misfire policy.
+    /// Used to distinguish "fire now" policies (FireOnceNow, FireNow, RescheduleNowWith*)
+    /// from "reschedule next" policies (DoNothing, RescheduleNextWith*) that set the fire
+    /// time to a future schedule point where the existing code is already correct.
+    /// </summary>
+    internal const double FireNowMisfireDetectionThresholdMs = 500;
+
+    /// <summary>
     /// Get or sets the name of this <see cref="ITrigger" />.
     /// </summary>
     /// <exception cref="ArgumentException">If name is null or empty.</exception>

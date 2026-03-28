@@ -391,9 +391,6 @@ public class StdAdoConstants : AdoConstants
             WHERE
                 t.{ColumnSchedulerName} = @schedulerName AND t.{ColumnTriggerName} = @triggerName AND t.{ColumnTriggerGroup} = @triggerGroup");
 
-    public static readonly string SqlSelectMisfireOrigFireTime =
-        Invariant($"SELECT {ColumnMisfireOriginalFireTime} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
-
     public static readonly string SqlUpdateMisfireOrigFireTime =
         Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnMisfireOriginalFireTime} = @misfireOrigFireTime WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
 }
