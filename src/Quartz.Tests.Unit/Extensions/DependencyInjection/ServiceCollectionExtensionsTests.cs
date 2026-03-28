@@ -456,6 +456,57 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Test]
+    public void AddJob_WithNoArgs_ShouldNotBeAmbiguous()
+    {
+        // Regression test for #2795: these calls must compile without CS0121 ambiguity
+        var services = new ServiceCollection();
+
+        services.AddQuartz(quartz =>
+        {
+            // No-arg generic call
+            quartz.AddJob<DummyJob>();
+
+            // Generic call with jobKey only
+            quartz.AddJob<DummyJob>(new JobKey("test1", "group1"));
+
+            // Non-generic call with type and jobKey only
+            quartz.AddJob(typeof(DummyJob), new JobKey("test2", "group1"));
+        });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var quartzOptions = serviceProvider.GetRequiredService<IOptions<QuartzOptions>>().Value;
+
+        Assert.That(quartzOptions.JobDetails, Has.Exactly(3).Items);
+    }
+
+    [Test]
+    public void AddTrigger_WithExplicitDelegate_ShouldNotBeAmbiguous()
+    {
+        // Regression test for #2795: AddTrigger had the same ambiguity as AddJob
+        var services = new ServiceCollection();
+
+        services.AddQuartz(quartz =>
+        {
+            quartz.AddJob<DummyJob>(new JobKey("job1", "group1"));
+
+            // Explicit Action<ITriggerConfigurator> — must not be ambiguous
+            quartz.AddTrigger(t => t
+                .ForJob(new JobKey("job1", "group1"))
+                .WithSimpleSchedule(s => s.WithRepeatCount(0)));
+
+            // Explicit Action<IServiceProvider, ITriggerConfigurator> — must not be ambiguous
+            quartz.AddTrigger((sp, t) => t
+                .ForJob(new JobKey("job1", "group1"))
+                .WithSimpleSchedule(s => s.WithRepeatCount(0)));
+        });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var quartzOptions = serviceProvider.GetRequiredService<IOptions<QuartzOptions>>().Value;
+
+        Assert.That(quartzOptions.Triggers, Has.Exactly(2).Items);
+    }
+
+    [Test]
     public void ConfiguredDbDataSource_ShouldBeUsed()
     {
         var services = new ServiceCollection();
