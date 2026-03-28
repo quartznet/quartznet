@@ -625,7 +625,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
     private async Task ProbeForMisfireOriginalFireTimeColumn(CancellationToken cancellationToken)
     {
-        if (Delegate is not IMisfireOriginalFireTimeDelegate misfireDelegate)
+        if (Delegate is not INextVersionDelegate misfireDelegate)
         {
             return;
         }
@@ -937,7 +937,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         // Persist original fire time for "fire now" misfire policies when the column is available.
         // "Fire now" policies set nextFireTimeUtc to ~SystemTime.UtcNow(); "reschedule next"
         // policies set it to a future schedule time where the existing code is already correct.
-        if (Delegate is IMisfireOriginalFireTimeDelegate { HasMisfireOriginalFireTimeColumn: true } misfireDelegate)
+        if (Delegate is INextVersionDelegate { HasMisfireOriginalFireTimeColumn: true } misfireDelegate)
         {
             var newFireTime = trig.GetNextFireTimeUtc();
             if (originalFireTime.HasValue && newFireTime.HasValue
@@ -1315,6 +1315,21 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         TriggerKey key,
         CancellationToken cancellationToken)
     {
+        // Clean up any fired trigger records referencing this trigger
+        // to prevent orphaned records that cause recovery with missing JobData (#2083)
+        if (Delegate is INextVersionDelegate nextVersionDelegate)
+        {
+            await nextVersionDelegate.DeleteFiredTriggers(conn, key, cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            var firedTriggers = await Delegate.SelectFiredTriggerRecords(conn, key.Name, key.Group, cancellationToken).ConfigureAwait(false);
+            foreach (FiredTriggerRecord rec in firedTriggers)
+            {
+                await Delegate.DeleteFiredTrigger(conn, rec.FireInstanceId!, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
         return await Delegate.DeleteTrigger(conn, key, cancellationToken).ConfigureAwait(false) > 0;
     }
 
@@ -3037,7 +3052,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
         // Read saved original fire time from trigger (populated by SelectTrigger when column exists)
         DateTimeOffset? scheduledFireTime = (trigger as AbstractTrigger)?.MisfiredFromFireTimeUtc;
-        if (scheduledFireTime.HasValue && Delegate is IMisfireOriginalFireTimeDelegate misfireDelegate)
+        if (scheduledFireTime.HasValue && Delegate is INextVersionDelegate misfireDelegate)
         {
             // Clear so it doesn't persist beyond this firing
             await misfireDelegate.ClearMisfireOriginalFireTime(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
