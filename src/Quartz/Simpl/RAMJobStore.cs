@@ -28,6 +28,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Impl.Matchers;
+using Quartz.Impl.Triggers;
 using Quartz.Logging;
 using Quartz.Spi;
 
@@ -1588,6 +1589,15 @@ public class RAMJobStore : IJobStore
         }
 
         signaler.NotifyTriggerListenersMisfired((IOperableTrigger) tw.Trigger.Clone()).ConfigureAwait(false).GetAwaiter().GetResult();
+
+        // Save original scheduled fire time before misfire handling changes it.
+        // This value flows through Clone() via MemberwiseClone to TriggersFired(),
+        // where it's used as the correct ScheduledFireTimeUtc.
+        if (tw.Trigger is AbstractTrigger abstractTrigger)
+        {
+            abstractTrigger.MisfiredFromFireTimeUtc = tw.Trigger.GetNextFireTimeUtc();
+        }
+
         tw.Trigger.UpdateAfterMisfire(cal);
 
         if (!tw.Trigger.GetNextFireTimeUtc().HasValue)
@@ -1767,6 +1777,18 @@ public class RAMJobStore : IJobStore
                     }
                 }
                 DateTimeOffset? prevFireTime = trigger.GetPreviousFireTimeUtc();
+
+                // Read saved original fire time (set during ApplyMisfire if a misfire occurred)
+                DateTimeOffset? scheduledFireTime = (trigger as AbstractTrigger)?.MisfiredFromFireTimeUtc;
+                if (trigger is AbstractTrigger at)
+                {
+                    at.MisfiredFromFireTimeUtc = null;
+                }
+                if (tw.Trigger is AbstractTrigger twAt)
+                {
+                    twAt.MisfiredFromFireTimeUtc = null;
+                }
+
                 // in case trigger was replaced between acquiring and firing
                 timeTriggers.Remove(tw);
                 // call triggered on our copy, and the scheduler's copy
@@ -1782,7 +1804,7 @@ public class RAMJobStore : IJobStore
                     cal,
                     false,
                     SystemTime.UtcNow(),
-                    trigger.GetPreviousFireTimeUtc(),
+                    scheduledFireTime ?? trigger.GetPreviousFireTimeUtc(),
                     prevFireTime,
                     trigger.GetNextFireTimeUtc());
 

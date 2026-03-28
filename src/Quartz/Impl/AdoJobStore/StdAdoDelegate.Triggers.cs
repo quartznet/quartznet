@@ -1142,7 +1142,15 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
         AddCommandParameter(cmd, "triggerInstanceName", instanceId);
         AddCommandParameter(cmd, "triggerFireTime", GetDbDateTimeValue(SystemTime.UtcNow()));
-        AddCommandParameter(cmd, "triggerScheduledTime", GetDbDateTimeValue(trigger.GetNextFireTimeUtc()));
+
+        // Use saved original fire time if a misfire occurred, otherwise use the current next fire time
+        var scheduledTime = trigger.GetNextFireTimeUtc();
+        if (trigger.JobDataMap.TryGetValue(AbstractTrigger.InternalMisfiredOriginalFireTimeKey, out var savedVal)
+            && long.TryParse(savedVal?.ToString(), NumberStyles.None, CultureInfo.InvariantCulture, out var savedTicks))
+        {
+            scheduledTime = new DateTimeOffset(savedTicks, TimeSpan.Zero);
+        }
+        AddCommandParameter(cmd, "triggerScheduledTime", GetDbDateTimeValue(scheduledTime));
         AddCommandParameter(cmd, "triggerState", state);
         if (job != null)
         {
