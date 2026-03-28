@@ -250,8 +250,9 @@ public class StdAdoConstants : AdoConstants
                 {ColumnTimeZoneId},
                 {ColumnRepeatCount},
                 {ColumnRepeatInterval},
-                {ColumnTimesTriggered} 
-            FROM 
+                {ColumnTimesTriggered},
+                t.{ColumnMisfireOriginalFireTime}
+            FROM
                 {TablePrefixSubst}{TableTriggers} t
             LEFT JOIN
                 {TablePrefixSubst}{TableSimpleTriggers} st ON (st.{ColumnSchedulerName} = t.{ColumnSchedulerName} AND st.{ColumnTriggerGroup} = t.{ColumnTriggerGroup} AND st.{ColumnTriggerName} = t.{ColumnTriggerName})
@@ -360,4 +361,7 @@ public class StdAdoConstants : AdoConstants
 
     public static readonly string SqlUpdateTriggerStatesFromOtherStates =
         Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnTriggerState} = @newState WHERE {ColumnSchedulerName} = @schedulerName AND ({ColumnTriggerState} = @oldState1 OR {ColumnTriggerState} = @oldState2)");
+
+    public static readonly string SqlUpdateMisfireOrigFireTime =
+        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnMisfireOriginalFireTime} = @misfireOrigFireTime WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
 }

@@ -79,6 +79,23 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     internal TimeProvider TimeProvider => timeProvider ?? TimeProvider.System;
 
     /// <summary>
+    /// Stores the original NextFireTimeUtc before misfire handling changes it.
+    /// Used to provide the correct ScheduledFireTimeUtc in JobExecutionContext.
+    /// Copied by MemberwiseClone in <see cref="Clone"/> (works for RAMJobStore).
+    /// </summary>
+    [NonSerialized]
+    internal DateTimeOffset? MisfiredFromFireTimeUtc;
+
+    /// <summary>
+    /// Maximum elapsed time (in ms) between the time captured before UpdateAfterMisfire
+    /// and the new fire time set by a "fire now" misfire policy. Used to distinguish
+    /// "fire now" policies (FireOnceNow, FireNow, RescheduleNowWith*) from "reschedule
+    /// next" policies (DoNothing, RescheduleNextWith*) where the existing code is already
+    /// correct.
+    /// </summary>
+    internal const double FireNowMisfireDetectionThresholdMs = 500;
+
+    /// <summary>
     /// Gets or sets the key of the trigger.
     /// </summary>
     /// <value>The key of the trigger.</value>

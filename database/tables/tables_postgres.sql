@@ -56,6 +56,7 @@ CREATE TABLE qrtz_triggers
     end_time BIGINT NULL,
     calendar_name TEXT NULL,
     misfire_instr SMALLINT NULL,
+    misfire_orig_fire_time BIGINT NULL,
     job_data BYTEA NULL,
     PRIMARY KEY (sched_name, trigger_name, trigger_group),
     FOREIGN KEY (sched_name, job_name, job_group)

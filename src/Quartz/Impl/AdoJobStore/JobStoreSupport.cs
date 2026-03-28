@@ -888,6 +888,9 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
         await schedSignaler.NotifyTriggerListenersMisfired(trig).ConfigureAwait(false);
 
+        var originalFireTime = trig.GetNextFireTimeUtc();
+        var now = timeProvider.GetUtcNow();
+
         trig.UpdateAfterMisfire(cal);
 
         if (!trig.GetNextFireTimeUtc().HasValue)
@@ -898,6 +901,17 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         else
         {
             await StoreTrigger(conn, trig, null, true, newStateIfNotComplete, forceState, recovering).ConfigureAwait(false);
+        }
+
+        // Persist original fire time for "fire now" misfire policies.
+        // "Fire now" policies set nextFireTimeUtc to ~now; "reschedule next" policies
+        // set it to a future schedule time where the existing code is already correct.
+        var newFireTime = trig.GetNextFireTimeUtc();
+        if (originalFireTime.HasValue && newFireTime.HasValue
+            && originalFireTime.Value != newFireTime.Value
+            && Math.Abs((newFireTime.Value - now).TotalMilliseconds) < AbstractTrigger.FireNowMisfireDetectionThresholdMs)
+        {
+            await Delegate.UpdateMisfireOriginalFireTime(conn, trig.Key, originalFireTime, CancellationToken.None).ConfigureAwait(false);
         }
     }
 
@@ -2965,6 +2979,14 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             Throw.JobPersistenceException("Couldn't update fired trigger: " + e.Message, e);
         }
 
+        // Read saved original fire time from trigger (populated by SelectTrigger from DB column)
+        DateTimeOffset? scheduledFireTime = (trigger as AbstractTrigger)?.MisfiredFromFireTimeUtc;
+        if (scheduledFireTime.HasValue)
+        {
+            // Clear so it doesn't persist beyond this firing
+            await Delegate.ClearMisfireOriginalFireTime(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+        }
+
         DateTimeOffset? prevFireTime = trigger.GetPreviousFireTimeUtc();
 
         // call triggered - to update the trigger's next-fire-time state...
@@ -3005,7 +3027,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             cal,
             jobIsRecovering: trigger.Key.Group == SchedulerConstants.DefaultRecoveryGroup,
             timeProvider.GetUtcNow(),
-            trigger.GetPreviousFireTimeUtc(),
+            scheduledFireTime ?? trigger.GetPreviousFireTimeUtc(),
             prevFireTime,
             trigger.GetNextFireTimeUtc());
     }

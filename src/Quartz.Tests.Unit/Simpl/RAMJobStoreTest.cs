@@ -19,6 +19,8 @@
 
 #endregion
 
+using Microsoft.Extensions.Time.Testing;
+
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
@@ -594,6 +596,68 @@ public class RAMJobStoreTest
             trigger1State == TriggerState.Blocked || trigger2State == TriggerState.Blocked,
             Is.True,
             "ReleaseAcquiredTrigger should not unblock all triggers for DisallowConcurrentExecution jobs");
+    }
+
+    [Test]
+    public async Task TestScheduledFireTimeUtc_CronTrigger_WithMisfire_ReturnsOriginalScheduledTime()
+    {
+        var now = new DateTimeOffset(2025, 6, 15, 10, 30, 0, TimeSpan.Zero);
+        var originalScheduledTime = new DateTimeOffset(2025, 6, 15, 10, 29, 0, TimeSpan.Zero);
+        var previousFireTime = new DateTimeOffset(2025, 6, 15, 10, 28, 0, TimeSpan.Zero);
+
+        var fakeTime = new FakeTimeProvider(now);
+        var store = new RAMJobStore { MisfireThreshold = TimeSpan.FromSeconds(5) };
+        ((IJobStore) store).TimeProvider = fakeTime;
+        var signaler = new SampleSignaler();
+        await store.Initialize(null, signaler);
+        await store.SchedulerStarted();
+
+        var job = JobBuilder.Create().OfType<NoOpJob>()
+            .WithIdentity("testJob", "testGroup").StoreDurably(true).Build();
+        await store.StoreJob(job, false);
+
+        var trigger = new CronTriggerImpl("testTrigger", "testGroup", "0 * * * * ?", fakeTime)
+        {
+            JobKey = job.Key,
+            MisfireInstruction = MisfireInstruction.CronTrigger.FireOnceNow
+        };
+        trigger.SetPreviousFireTimeUtc(previousFireTime);
+        trigger.SetNextFireTimeUtc(originalScheduledTime);
+        await store.StoreTrigger(trigger, false);
+
+        var acquired = await store.AcquireNextTriggers(now.AddMinutes(1), 1, TimeSpan.Zero);
+        Assert.That(acquired, Has.Count.EqualTo(1));
+
+        var firedResults = await store.TriggersFired(acquired);
+        Assert.That(firedResults, Has.Count.EqualTo(1));
+
+        var bundle = firedResults[0].TriggerFiredBundle;
+        Assert.That(bundle, Is.Not.Null);
+        Assert.That(bundle!.ScheduledFireTimeUtc, Is.EqualTo(originalScheduledTime),
+            "ScheduledFireTimeUtc should reflect the original scheduled time, not the misfire-adjusted time");
+        Assert.That(bundle.PrevFireTimeUtc, Is.EqualTo(previousFireTime));
+    }
+
+    [Test]
+    public async Task TestScheduledFireTimeUtc_NoMisfire_ReturnsScheduledTime()
+    {
+        var scheduledTime = DateTimeOffset.UtcNow.AddMinutes(1);
+
+        var trigger = new SimpleTriggerImpl("trigger1", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group,
+            scheduledTime, scheduledTime.AddHours(1), 2, TimeSpan.FromMinutes(30));
+        trigger.ComputeFirstFireTimeUtc(null);
+        await fJobStore.StoreTrigger(trigger, false);
+
+        var acquired = await fJobStore.AcquireNextTriggers(scheduledTime.AddSeconds(1), 1, TimeSpan.Zero);
+        Assert.That(acquired, Has.Count.EqualTo(1));
+
+        var firedResults = await fJobStore.TriggersFired(acquired);
+        Assert.That(firedResults, Has.Count.EqualTo(1));
+
+        var bundle = firedResults[0].TriggerFiredBundle;
+        Assert.That(bundle, Is.Not.Null);
+        Assert.That(bundle!.ScheduledFireTimeUtc, Is.EqualTo(scheduledTime),
+            "ScheduledFireTimeUtc should match the trigger's scheduled fire time when no misfire occurred");
     }
 
     [DisallowConcurrentExecution]

@@ -26,6 +26,7 @@ using System.Text;
 using Microsoft.Extensions.Logging;
 
 using Quartz.Impl.Matchers;
+using Quartz.Impl.Triggers;
 using Quartz.Diagnostics;
 using Quartz.Spi;
 
@@ -1707,9 +1708,25 @@ public class RAMJobStore : IJobStore
         }
 
         await signaler.NotifyTriggerListenersMisfired(tw.Trigger.Clone()).ConfigureAwait(false);
+
+        // Save the original scheduled fire time before misfire handling changes it.
+        var originalFireTime = tw.Trigger.GetNextFireTimeUtc();
+        var now = timeProvider.GetUtcNow();
+
         tw.Trigger.UpdateAfterMisfire(cal);
 
+        // Only save for "fire now" misfire policies (FireOnceNow, FireNow, RescheduleNowWith*).
+        // These set nextFireTimeUtc to ~now. "Reschedule next" policies (DoNothing,
+        // RescheduleNextWith*) set it to a future schedule time where the existing code
+        // already produces the correct ScheduledFireTimeUtc.
         var updatedTnft = tw.Trigger.GetNextFireTimeUtc();
+        if (tw.Trigger is AbstractTrigger abstractTrigger
+            && originalFireTime.HasValue && updatedTnft.HasValue
+            && originalFireTime.Value != updatedTnft.Value
+            && Math.Abs((updatedTnft.Value - now).TotalMilliseconds) < AbstractTrigger.FireNowMisfireDetectionThresholdMs)
+        {
+            abstractTrigger.MisfiredFromFireTimeUtc = originalFireTime;
+        }
         if (!updatedTnft.HasValue)
         {
             tw.state = InternalTriggerState.Complete;
@@ -1908,6 +1925,19 @@ public class RAMJobStore : IJobStore
                 }
 
                 DateTimeOffset? prevFireTime = trigger.GetPreviousFireTimeUtc();
+
+                // Read saved original fire time (set during ApplyMisfireNoLock if a misfire occurred)
+                DateTimeOffset? scheduledFireTime = null;
+                if (trigger is AbstractTrigger at)
+                {
+                    scheduledFireTime = at.MisfiredFromFireTimeUtc;
+                    at.MisfiredFromFireTimeUtc = null;
+                }
+                if (tw.Trigger is AbstractTrigger twAt)
+                {
+                    twAt.MisfiredFromFireTimeUtc = null;
+                }
+
                 // in case trigger was replaced between acquiring and firing
                 timeTriggers.Remove(tw);
                 // call triggered on our copy, and the scheduler's copy
@@ -1923,7 +1953,7 @@ public class RAMJobStore : IJobStore
                     cal,
                     jobIsRecovering: false,
                     timeProvider.GetUtcNow(),
-                    trigger.GetPreviousFireTimeUtc(),
+                    scheduledFireTime ?? trigger.GetPreviousFireTimeUtc(),
                     prevFireTime,
                     trigger.GetNextFireTimeUtc());
 

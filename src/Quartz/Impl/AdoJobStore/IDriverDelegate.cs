@@ -1064,6 +1064,23 @@ public interface IDriverDelegate
     ValueTask ClearData(
         ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates the misfire original fire time for the given trigger.
+    /// </summary>
+    ValueTask UpdateMisfireOriginalFireTime(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        DateTimeOffset? fireTime,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Clears the misfire original fire time for the given trigger.
+    /// </summary>
+    ValueTask ClearMisfireOriginalFireTime(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default);
 }
 
 public class TriggerAcquireResult
