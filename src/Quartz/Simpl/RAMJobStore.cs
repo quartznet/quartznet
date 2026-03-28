@@ -1727,6 +1727,7 @@ public class RAMJobStore : IJobStore
         {
             abstractTrigger.MisfiredFromFireTimeUtc = originalFireTime;
         }
+
         if (!updatedTnft.HasValue)
         {
             tw.state = InternalTriggerState.Complete;
