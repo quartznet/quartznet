@@ -456,6 +456,33 @@ public class ServiceCollectionExtensionsTests
         Assert.That(quartzOptions.JobDetails, Has.Exactly(3).Items);
     }
 
+    [Test]
+    public void AddTrigger_WithExplicitDelegate_ShouldNotBeAmbiguous()
+    {
+        // Regression test for #2795: AddTrigger had the same ambiguity as AddJob
+        var services = new ServiceCollection();
+
+        services.AddQuartz(quartz =>
+        {
+            quartz.AddJob<DummyJob>(new JobKey("job1", "group1"));
+
+            // Explicit Action<ITriggerConfigurator> — must not be ambiguous
+            quartz.AddTrigger(t => t
+                .ForJob(new JobKey("job1", "group1"))
+                .WithSimpleSchedule(s => s.WithRepeatCount(0)));
+
+            // Explicit Action<IServiceProvider, ITriggerConfigurator> — must not be ambiguous
+            quartz.AddTrigger((sp, t) => t
+                .ForJob(new JobKey("job1", "group1"))
+                .WithSimpleSchedule(s => s.WithRepeatCount(0)));
+        });
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var quartzOptions = serviceProvider.GetRequiredService<IOptions<QuartzOptions>>().Value;
+
+        Assert.That(quartzOptions.Triggers, Has.Exactly(2).Items);
+    }
+
 #if NET8_0_OR_GREATER
     [Test]
     public void ConfiguredDbDataSource_ShouldBeUsed()

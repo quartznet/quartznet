@@ -211,9 +211,9 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IServiceCollectionQuartzConfigurator AddTrigger(
         this IServiceCollectionQuartzConfigurator options,
-        Action<ITriggerConfigurator>? configure = null)
+        Action<ITriggerConfigurator> configure)
     {
-        return options.AddTrigger((_, triggerConfigurator) => configure?.Invoke(triggerConfigurator));
+        return options.AddTrigger((_, triggerConfigurator) => configure.Invoke(triggerConfigurator));
     }
 
     /// <summary>
@@ -221,12 +221,12 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IServiceCollectionQuartzConfigurator AddTrigger(
         this IServiceCollectionQuartzConfigurator options,
-        Action<IServiceProvider, ITriggerConfigurator>? configure = null)
+        Action<IServiceProvider, ITriggerConfigurator> configure)
     {
         options.Services.AddSingleton<IConfigureOptions<QuartzOptions>>(serviceProvider =>
         {
             var c = new TriggerConfigurator();
-            configure?.Invoke(serviceProvider, c);
+            configure.Invoke(serviceProvider, c);
             var trigger = c.Build();
 
             if (trigger.JobKey is null)
