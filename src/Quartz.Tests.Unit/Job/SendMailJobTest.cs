@@ -35,7 +35,6 @@ namespace Quartz.Tests.Unit.Job;
 /// </summary>
 /// <author>Christian Crowhurst</author>
 /// <author>Marko Lahma (.NET)</author>
-[TestFixture]
 public class SendMailJobTest
 {
     [Test]

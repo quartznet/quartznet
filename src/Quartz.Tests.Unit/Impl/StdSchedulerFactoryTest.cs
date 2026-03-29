@@ -34,7 +34,7 @@ namespace Quartz.Tests.Unit.Impl;
 /// Tests for StdSchedulerFactory.
 /// </summary>
 /// <author>Marko Lahma (.NET)</author>
-[TestFixture]
+[NonParallelizable]
 public class StdSchedulerFactoryTest
 {
     [Test]

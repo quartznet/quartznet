@@ -16,7 +16,7 @@ using System.IO;
 
 namespace Quartz.Tests.Unit;
 
-[TestFixture]
+[NonParallelizable]
 public class SchedulerTest
 {
     [DisallowConcurrentExecution]

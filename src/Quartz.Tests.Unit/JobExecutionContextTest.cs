@@ -27,7 +27,6 @@ namespace Quartz.Tests.Unit;
 /// Tests for JobExecutionContext.
 /// </summary>
 /// <author>Marko Lahma (.NET)</author>
-[TestFixture]
 public class JobExecutionContextTest
 {   
     [Test]

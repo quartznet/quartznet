@@ -34,7 +34,6 @@ namespace Quartz.Tests.Unit.Simpl;
 /// <summary>
 /// Unit test for SystemPropertyInstanceIdGenerator.
 /// </summary>
-[TestFixture]
 public class SystemPropertyInstanceIdGeneratorTest
 {
     [SetUp]

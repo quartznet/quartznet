@@ -13,6 +13,7 @@ using Quartz.Spi;
 
 namespace Quartz.Tests.Integration.Core;
 
+[NonParallelizable]
 public class MissSchedulingChangeSignalTest
 {
     private static readonly ILog log = LogProvider.GetLogger(typeof (MissSchedulingChangeSignalTest));

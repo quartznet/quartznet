@@ -36,6 +36,7 @@ namespace Quartz.Tests.Unit;
 [TestFixture(typeof(BinaryObjectSerializer))]
 [TestFixture(typeof(JsonObjectSerializer))]
 [TestFixture(typeof(SystemTextJsonObjectSerializer))]
+[NonParallelizable]
 public class JobDataMapTest : SerializationTestSupport<JobDataMap>
 {
     public JobDataMapTest(Type serializerType) : base(serializerType)

@@ -31,7 +31,7 @@ namespace Quartz.Tests.Unit;
 /// <summary>
 /// Test job interruption.
 /// </summary>
-[TestFixture]
+[NonParallelizable]
 public class InterruptableJobTest
 {
     private static readonly ManualResetEvent started = new ManualResetEvent(false);

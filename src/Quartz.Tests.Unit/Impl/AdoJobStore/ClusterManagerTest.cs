@@ -34,7 +34,6 @@ using Quartz.Impl.AdoJobStore;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 
-[TestFixture]
 public class ClusterManagerTest
 {
     [Test]

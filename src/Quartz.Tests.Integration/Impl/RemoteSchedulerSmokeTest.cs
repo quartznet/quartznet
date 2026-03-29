@@ -7,6 +7,7 @@ using Quartz.Impl;
 
 namespace Quartz.Tests.Integration.Impl;
 
+[NonParallelizable]
 public class RemoteSchedulerSmokeTest
 {
     [Test]

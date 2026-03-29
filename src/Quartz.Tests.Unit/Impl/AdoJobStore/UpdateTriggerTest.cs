@@ -61,7 +61,6 @@ public class StubConnection : DbConnection
     }
 }
 
-[TestFixture]
 public class UpdateTriggerTest
 {
     [Test]

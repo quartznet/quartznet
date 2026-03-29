@@ -9,7 +9,6 @@ namespace Quartz.Tests.Unit.Core;
 /// <summary>
 /// Tests for <see cref="ListenerManagerImpl" />. 
 /// </summary>
-[TestFixture]
 public class ListenerManagerTest
 {
     private class TestJobListener : JobListenerSupport

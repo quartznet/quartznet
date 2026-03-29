@@ -10,6 +10,7 @@ using Quartz.Logging;
 
 namespace Quartz.Tests.Unit.Core;
 
+[NonParallelizable]
 public class MissSchedulingChangeSignalTest
 {
     private static readonly ILog log = LogProvider.GetLogger(typeof (MissSchedulingChangeSignalTest));
