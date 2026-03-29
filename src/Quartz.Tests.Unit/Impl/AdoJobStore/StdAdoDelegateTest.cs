@@ -562,7 +562,7 @@ public class StdAdoDelegateTest
     /// Test subclass that bypasses actual blob deserialization to return a pre-built trigger,
     /// allowing tests to verify that SelectTrigger sets fire times from DB columns on blob triggers.
     /// </summary>
-    private class BlobTriggerOverrideDelegate : StdAdoDelegate
+    private sealed class BlobTriggerOverrideDelegate : StdAdoDelegate
     {
         private readonly IOperableTrigger blobTrigger;
 
