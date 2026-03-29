@@ -232,4 +232,38 @@ public class SchedulerBuilderTest
     }
 
     private sealed class CustomTimeProvider : TimeProvider;
+
+    [Test]
+    public void IdleWaitTime_Zero_ShouldThrow()
+    {
+        var config = SchedulerBuilder.Create();
+        config.UsePersistentStore(js =>
+        {
+            js.UseNewtonsoftJsonSerializer();
+            Assert.Throws<ArgumentOutOfRangeException>(() => js.IdleWaitTime = 0);
+        });
+    }
+
+    [Test]
+    public void IdleWaitTime_Negative_ShouldThrow()
+    {
+        var config = SchedulerBuilder.Create();
+        config.UsePersistentStore(js =>
+        {
+            js.UseNewtonsoftJsonSerializer();
+            Assert.Throws<ArgumentOutOfRangeException>(() => js.IdleWaitTime = -1000);
+        });
+    }
+
+    [Test]
+    public void IdleWaitTime_Valid_ShouldSetProperty()
+    {
+        var config = SchedulerBuilder.Create();
+        config.UsePersistentStore(js =>
+        {
+            js.UseNewtonsoftJsonSerializer();
+            js.IdleWaitTime = 5000;
+        });
+        Assert.That(config.Properties["quartz.scheduler.idleWaitTime"], Is.EqualTo("5000"));
+    }
 }

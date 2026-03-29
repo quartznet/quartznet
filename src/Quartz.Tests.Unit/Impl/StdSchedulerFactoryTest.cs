@@ -155,6 +155,48 @@ public class StdSchedulerFactoryTest
         await schedulerFactory.GetScheduler();
     }
 
+    [Test]
+    public void IdleWaitTime_Zero_ShouldThrow()
+    {
+        var properties = new NameValueCollection
+        {
+            ["quartz.scheduler.instanceName"] = "IdleWaitTimeZeroTest",
+            ["quartz.serializer.type"] = TestConstants.DefaultSerializerType,
+            ["quartz.scheduler.idleWaitTime"] = "0"
+        };
+
+        var factory = new StdSchedulerFactory(properties);
+        Assert.ThrowsAsync<SchedulerException>(async () => await factory.GetScheduler());
+    }
+
+    [Test]
+    public void IdleWaitTime_Negative_ShouldThrow()
+    {
+        var properties = new NameValueCollection
+        {
+            ["quartz.scheduler.instanceName"] = "IdleWaitTimeNegativeTest",
+            ["quartz.serializer.type"] = TestConstants.DefaultSerializerType,
+            ["quartz.scheduler.idleWaitTime"] = "-1000"
+        };
+
+        var factory = new StdSchedulerFactory(properties);
+        Assert.ThrowsAsync<SchedulerException>(async () => await factory.GetScheduler());
+    }
+
+    [Test]
+    public void IdleWaitTime_LessThan1000ms_ShouldThrow()
+    {
+        var properties = new NameValueCollection
+        {
+            ["quartz.scheduler.instanceName"] = "IdleWaitTimeLowTest",
+            ["quartz.serializer.type"] = TestConstants.DefaultSerializerType,
+            ["quartz.scheduler.idleWaitTime"] = "500"
+        };
+
+        var factory = new StdSchedulerFactory(properties);
+        Assert.ThrowsAsync<SchedulerException>(async () => await factory.GetScheduler());
+    }
+
     private class TestStdSchedulerFactory : StdSchedulerFactory
     {
         public const string PropertyTest = "quartz.scheduler.test";

@@ -409,6 +409,15 @@ Please add configuration to your application config file to correctly initialize
         NameValueCollection tProps;
         bool autoId = false;
         TimeSpan idleWaitTime = cfg!.GetTimeSpanProperty(PropertySchedulerIdleWaitTime, QuartzSchedulerResources.DefaultIdleWaitTime);
+        if (idleWaitTime <= TimeSpan.Zero)
+        {
+            throw new SchedulerException("quartz.scheduler.idleWaitTime of zero or less is not legal.");
+        }
+        if (idleWaitTime < TimeSpan.FromMilliseconds(1000))
+        {
+            throw new SchedulerException("quartz.scheduler.idleWaitTime of less than 1000ms is not legal.");
+        }
+
         TimeSpan dbFailureRetry = TimeSpan.FromSeconds(15);
 
         // Get Scheduler Properties
