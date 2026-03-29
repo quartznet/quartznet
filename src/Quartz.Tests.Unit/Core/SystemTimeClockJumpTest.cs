@@ -12,7 +12,6 @@ namespace Quartz.Tests.Unit.Core;
 /// Tests that the scheduler recovers when the system clock jumps backward,
 /// validating the fix for GitHub issue #1508.
 /// </summary>
-[TestFixture]
 [NonParallelizable]
 public sealed class SystemTimeClockJumpTest
 {
