@@ -19,12 +19,19 @@ public class JobRunShellAsyncLocalTest
 {
     private static readonly AsyncLocal<string> TenantId = new();
 
+    [SetUp]
+    public void SetUp()
+    {
+        AsyncLocalCapturingJob.Executed.Reset();
+        AsyncLocalCapturingJob.CapturedTenantId = null;
+    }
+
     [Test]
     public async Task AsyncLocal_SetInJobFactory_IsVisibleInJobExecute()
     {
         const string expectedTenant = "tenant-42";
 
-        var properties = new NameValueCollection
+        NameValueCollection properties = new NameValueCollection
         {
             ["quartz.serializer.type"] = TestConstants.DefaultSerializerType,
             ["quartz.scheduler.instanceName"] = "AsyncLocalTest",
@@ -36,11 +43,11 @@ public class JobRunShellAsyncLocalTest
 
         try
         {
-            var job = JobBuilder.Create<AsyncLocalCapturingJob>()
+            IJobDetail job = JobBuilder.Create<AsyncLocalCapturingJob>()
                 .WithIdentity("job1", "asynclocal")
                 .Build();
 
-            var trigger = TriggerBuilder.Create()
+            ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("trigger1", "asynclocal")
                 .ForJob(job)
                 .StartNow()

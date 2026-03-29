@@ -123,7 +123,7 @@ public class JobRunShell : SchedulerListenerSupport
         }
         catch (SchedulerException se)
         {
-            await qs!.NotifySchedulerListenersError($"An error occurred instantiating job to be executed. job= '{jobDetail.Key}'", se, cancellationToken).ConfigureAwait(false);
+            await qs!.NotifySchedulerListenersError($"An error occurred instantiating job to be executed. job='{jobDetail.Key}'", se, cancellationToken).ConfigureAwait(false);
 
             IOperableTrigger errorTrigger = (IOperableTrigger) firedTriggerBundle.Trigger;
             SchedulerInstruction instruction = se.InnerException is ObjectDisposedException or OperationCanceledException
@@ -135,10 +135,13 @@ public class JobRunShell : SchedulerListenerSupport
         catch (Exception e)
         {
             SchedulerException se = new SchedulerException($"Problem instantiating type '{jobDetail.JobType.FullName}: {e.Message}'", e);
-            await qs!.NotifySchedulerListenersError($"An error occurred instantiating job to be executed. job= '{jobDetail.Key}, message={e.Message}'", se, cancellationToken).ConfigureAwait(false);
+            await qs!.NotifySchedulerListenersError($"An error occurred instantiating job to be executed. job='{jobDetail.Key}', message='{e.Message}'", se, cancellationToken).ConfigureAwait(false);
 
             IOperableTrigger errorTrigger = (IOperableTrigger) firedTriggerBundle.Trigger;
-            await qs.NotifyJobStoreJobComplete(errorTrigger, jobDetail, SchedulerInstruction.SetAllJobTriggersError, cancellationToken).ConfigureAwait(false);
+            SchedulerInstruction instruction = cancellationToken.IsCancellationRequested || e is ObjectDisposedException or OperationCanceledException
+                ? SchedulerInstruction.NoInstruction
+                : SchedulerInstruction.SetAllJobTriggersError;
+            await qs.NotifyJobStoreJobComplete(errorTrigger, jobDetail, instruction, cancellationToken).ConfigureAwait(false);
             return;
         }
 
