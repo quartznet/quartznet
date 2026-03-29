@@ -2911,16 +2911,27 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                     TriggerFiredResult result;
                     try
                     {
-                        var bundle = await TriggerFired(conn, trigger, cancellationToken).ConfigureAwait(false);
+                        // Clone so that trigger.Triggered() mutation doesn't affect retries
+                        var triggerCopy = (IOperableTrigger) trigger.Clone();
+                        var bundle = await TriggerFired(conn, triggerCopy, cancellationToken).ConfigureAwait(false);
                         result = new TriggerFiredResult(bundle);
                     }
                     catch (JobPersistenceException jpe)
                     {
+                        if (IsTransient(jpe))
+                        {
+                            throw; // Let ExecuteInNonManagedTXLock retry the whole transaction
+                        }
                         Logger.LogError(jpe, "Caught job persistence exception: {ExceptionMessage}", jpe.Message);
                         result = new TriggerFiredResult(jpe);
                     }
                     catch (Exception ex)
                     {
+                        if (IsTransient(ex))
+                        {
+                            // Wrap as JobPersistenceException so outer retry mechanism can handle it
+                            throw new JobPersistenceException("Transient error firing trigger: " + ex.Message, ex);
+                        }
                         Logger.LogError(ex, "Caught exception: {ExceptionMessage}", ex.Message);
                         result = new TriggerFiredResult(ex);
                     }

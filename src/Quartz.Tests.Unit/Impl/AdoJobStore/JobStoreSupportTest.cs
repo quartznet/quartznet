@@ -208,15 +208,15 @@ public class JobStoreSupportTest
             A<CancellationToken>.Ignored)).MustNotHaveHappened();
     }
 
-    private static IOperableTrigger CreateTestTrigger()
+    private static IOperableTrigger CreateTestTrigger(string name = "t1", string fireInstanceId = "test-fire-id")
     {
         IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
-            .WithIdentity("t1", "g1")
+            .WithIdentity(name, "g1")
             .ForJob("j1", "jg1")
             .StartNow()
             .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
             .Build();
-        trigger.FireInstanceId = "test-fire-id";
+        trigger.FireInstanceId = fireInstanceId;
         return trigger;
     }
 
@@ -337,4 +337,189 @@ public class JobStoreSupportTest
         {
         }
     }
+
+    #region TriggersFired transient retry tests
+
+    [Test]
+    public async Task TriggersFired_RetriesOnTransientException()
+    {
+        int selectStateCallCount = 0;
+        TransientTriggersFiredTestStore store = CreateTransientTriggersFiredTestStore();
+        IDriverDelegate del = A.Fake<IDriverDelegate>();
+        store.DirectDelegate = del;
+
+        IOperableTrigger trigger = CreateTestTrigger();
+        IJobDetail job = CreateConcurrentJob();
+
+        // Throw raw TransientTestException (simulates a raw DB exception like SqlException).
+        // TriggerFired wraps it as JobPersistenceException(inner: TransientTestException),
+        // which IsTransient recognizes, enabling the retry in ExecuteInNonManagedTXLock.
+        A.CallTo(() => del.SelectTriggerState(A<ConnectionAndTransactionHolder>.Ignored, trigger.Key, A<CancellationToken>.Ignored))
+            .ReturnsLazily(call =>
+            {
+                selectStateCallCount++;
+                if (selectStateCallCount == 1)
+                {
+                    throw new TransientTestException();
+                }
+                return new ValueTask<string>(AdoConstants.StateAcquired);
+            });
+        A.CallTo(() => del.SelectJobDetail(A<ConnectionAndTransactionHolder>.Ignored, trigger.JobKey, A<ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<IJobDetail>(job));
+
+        List<TriggerFiredResult> results = await store.TriggersFired(new[] { trigger });
+
+        results.Should().HaveCount(1);
+        results[0].TriggerFiredBundle.Should().NotBeNull();
+        results[0].Exception.Should().BeNull();
+        selectStateCallCount.Should().Be(2, "first call throws transient, second succeeds after retry");
+    }
+
+    [Test]
+    public async Task TriggersFired_DoesNotRetryNonTransientException()
+    {
+        TransientTriggersFiredTestStore store = CreateTransientTriggersFiredTestStore();
+        IDriverDelegate del = A.Fake<IDriverDelegate>();
+        store.DirectDelegate = del;
+
+        IOperableTrigger trigger = CreateTestTrigger();
+
+        // A non-transient exception (no TransientTestException in the chain)
+        A.CallTo(() => del.SelectTriggerState(A<ConnectionAndTransactionHolder>.Ignored, trigger.Key, A<CancellationToken>.Ignored))
+            .ThrowsAsync(new InvalidOperationException("permanent error"));
+
+        List<TriggerFiredResult> results = await store.TriggersFired(new[] { trigger });
+
+        // Non-transient exception should be wrapped in result, not retried
+        results.Should().HaveCount(1);
+        results[0].TriggerFiredBundle.Should().BeNull();
+        results[0].Exception.Should().NotBeNull();
+        A.CallTo(() => del.SelectTriggerState(A<ConnectionAndTransactionHolder>.Ignored, trigger.Key, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task TriggersFired_TransientExceptionPropagatesAfterMaxRetries()
+    {
+        TransientTriggersFiredTestStore store = CreateTransientTriggersFiredTestStore(maxTransientRetries: 1);
+        IDriverDelegate del = A.Fake<IDriverDelegate>();
+        store.DirectDelegate = del;
+
+        IOperableTrigger trigger = CreateTestTrigger();
+
+        // Always throw transient — after retries are exhausted, the exception must propagate
+        A.CallTo(() => del.SelectTriggerState(A<ConnectionAndTransactionHolder>.Ignored, trigger.Key, A<CancellationToken>.Ignored))
+            .ThrowsAsync(new TransientTestException());
+
+        Func<Task> act = async () => await store.TriggersFired(new[] { trigger });
+
+        await act.Should().ThrowAsync<JobPersistenceException>();
+        // Initial attempt + 1 retry = 2 total
+        A.CallTo(() => del.SelectTriggerState(A<ConnectionAndTransactionHolder>.Ignored, trigger.Key, A<CancellationToken>.Ignored))
+            .MustHaveHappened(2, Times.Exactly);
+    }
+
+    [Test]
+    public async Task TriggersFired_BatchTransientErrorRollsBackAndRetriesAllTriggers()
+    {
+        int triggerBCallCount = 0;
+        TransientTriggersFiredTestStore store = CreateTransientTriggersFiredTestStore();
+        IDriverDelegate del = A.Fake<IDriverDelegate>();
+        store.DirectDelegate = del;
+
+        IOperableTrigger triggerA = CreateTestTrigger("tA", "fire-A");
+        IOperableTrigger triggerB = CreateTestTrigger("tB", "fire-B");
+        IJobDetail job = CreateConcurrentJob();
+
+        // Capture trigger A's original fire times to verify cloning protects against double-mutation
+        DateTimeOffset? originalNextFireTime = triggerA.GetNextFireTimeUtc();
+        DateTimeOffset? originalPrevFireTime = triggerA.GetPreviousFireTimeUtc();
+
+        // Trigger A always succeeds — but its work is rolled back when B fails
+        A.CallTo(() => del.SelectTriggerState(A<ConnectionAndTransactionHolder>.Ignored, triggerA.Key, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<string>(AdoConstants.StateAcquired));
+
+        // Trigger B throws transient on first call, succeeds on retry
+        A.CallTo(() => del.SelectTriggerState(A<ConnectionAndTransactionHolder>.Ignored, triggerB.Key, A<CancellationToken>.Ignored))
+            .ReturnsLazily(call =>
+            {
+                triggerBCallCount++;
+                if (triggerBCallCount == 1)
+                {
+                    throw new TransientTestException();
+                }
+                return new ValueTask<string>(AdoConstants.StateAcquired);
+            });
+
+        A.CallTo(() => del.SelectJobDetail(A<ConnectionAndTransactionHolder>.Ignored, A<JobKey>.Ignored, A<ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<IJobDetail>(job));
+
+        List<TriggerFiredResult> results = await store.TriggersFired(new[] { triggerA, triggerB });
+
+        // Both triggers should succeed after retry
+        results.Should().HaveCount(2);
+        results.Should().OnlyContain(r => r.TriggerFiredBundle != null && r.Exception == null);
+        // Trigger A was called twice: first attempt (rolled back) + successful retry
+        A.CallTo(() => del.SelectTriggerState(A<ConnectionAndTransactionHolder>.Ignored, triggerA.Key, A<CancellationToken>.Ignored))
+            .MustHaveHappened(2, Times.Exactly);
+        triggerBCallCount.Should().Be(2);
+
+        // Verify original trigger objects were NOT mutated (clone protects against
+        // double-mutation from trigger.Triggered() across retry attempts)
+        triggerA.GetNextFireTimeUtc().Should().Be(originalNextFireTime,
+            "original trigger must not be mutated by TriggersFired — clones should be used");
+        triggerA.GetPreviousFireTimeUtc().Should().Be(originalPrevFireTime,
+            "original trigger must not be mutated by TriggersFired — clones should be used");
+    }
+
+    private static TransientTriggersFiredTestStore CreateTransientTriggersFiredTestStore(int maxTransientRetries = 3)
+    {
+        return new TransientTriggersFiredTestStore
+        {
+            MaxTransientRetries = maxTransientRetries,
+        };
+    }
+
+    /// <summary>
+    /// A <see cref="JobStoreSupport"/> subclass used to test transient retry logic
+    /// in the <see cref="JobStoreSupport.TriggersFired"/> method.
+    /// </summary>
+    public sealed class TransientTriggersFiredTestStore : JobStoreSupport
+    {
+        public TransientTriggersFiredTestStore()
+        {
+            LockHandler = new SimpleSemaphore();
+            TransientRetryInterval = TimeSpan.Zero;
+        }
+
+        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection()
+        {
+            return new ValueTask<ConnectionAndTransactionHolder>(
+                new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null));
+        }
+
+        protected override ValueTask<T> ExecuteInLock<T>(
+            string lockName,
+            Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
+            CancellationToken cancellationToken = default)
+        {
+            return ExecuteInNonManagedTXLock(lockName, txCallback, cancellationToken);
+        }
+
+        protected override bool IsTransient(Exception ex)
+        {
+            return ex is JobPersistenceException { InnerException: TransientTestException };
+        }
+
+        internal IDriverDelegate DirectDelegate
+        {
+            set
+            {
+                FieldInfo fieldInfo = typeof(JobStoreSupport).GetField("driverDelegate", BindingFlags.Instance | BindingFlags.NonPublic)!;
+                fieldInfo.SetValue(this, value);
+            }
+        }
+    }
+
+    #endregion
 }
