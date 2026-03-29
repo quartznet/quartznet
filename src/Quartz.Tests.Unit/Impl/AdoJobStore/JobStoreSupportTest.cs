@@ -234,6 +234,85 @@ public class JobStoreSupportTest
             .Build();
     }
 
+    [Test]
+    public async Task StoreTrigger_PreservesPreviousFireTimeUtc_WhenReplacingExistingTrigger()
+    {
+        var triggerKey = new TriggerKey("t1", "g1");
+        var jobKey = new JobKey("j1", "jg1");
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        DateTimeOffset previousFireTime = new DateTimeOffset(2024, 6, 15, 10, 0, 0, TimeSpan.Zero);
+
+        IJobDetail job = JobBuilder.Create<ConcurrentTestJob>()
+            .WithIdentity(jobKey)
+            .Build();
+
+        IOperableTrigger newTrigger = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity(triggerKey)
+            .ForJob(jobKey)
+            .StartNow()
+            .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
+            .Build();
+
+        IOperableTrigger existingTrigger = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity(triggerKey)
+            .ForJob(jobKey)
+            .StartNow()
+            .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
+            .Build();
+        existingTrigger.SetPreviousFireTimeUtc(previousFireTime);
+
+        A.CallTo(() => driverDelegate.TriggerExists(conn, triggerKey, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<bool>(true));
+
+        A.CallTo(() => driverDelegate.IsTriggerGroupPaused(conn, A<string>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<bool>(false));
+
+        A.CallTo(() => driverDelegate.SelectTrigger(conn, triggerKey, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<IOperableTrigger>(existingTrigger));
+
+        await jobStoreSupport.CallStoreTrigger(conn, newTrigger, job, replaceExisting: true);
+
+        newTrigger.GetPreviousFireTimeUtc().Should().Be(previousFireTime,
+            "PreviousFireTimeUtc should be preserved from the existing trigger when replacing (#1834)");
+
+        A.CallTo(() => driverDelegate.UpdateTrigger(conn, newTrigger, A<string>.Ignored, job, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task StoreTrigger_DoesNotOverridePreviousFireTimeUtc_WhenNewTriggerAlreadyHasIt()
+    {
+        var triggerKey = new TriggerKey("t1", "g1");
+        var jobKey = new JobKey("j1", "jg1");
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        DateTimeOffset newPreviousFireTime = new DateTimeOffset(2024, 7, 1, 12, 0, 0, TimeSpan.Zero);
+
+        IJobDetail job = JobBuilder.Create<ConcurrentTestJob>()
+            .WithIdentity(jobKey)
+            .Build();
+
+        IOperableTrigger newTrigger = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity(triggerKey)
+            .ForJob(jobKey)
+            .StartNow()
+            .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
+            .Build();
+        newTrigger.SetPreviousFireTimeUtc(newPreviousFireTime);
+
+        A.CallTo(() => driverDelegate.TriggerExists(conn, triggerKey, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<bool>(true));
+
+        A.CallTo(() => driverDelegate.IsTriggerGroupPaused(conn, A<string>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<bool>(false));
+
+        await jobStoreSupport.CallStoreTrigger(conn, newTrigger, job, replaceExisting: true);
+
+        newTrigger.GetPreviousFireTimeUtc().Should().Be(newPreviousFireTime);
+
+        A.CallTo(() => driverDelegate.SelectTrigger(conn, triggerKey, A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+    }
+
     [DisallowConcurrentExecution]
     private class DisallowConcurrentTestJob : IJob
     {
@@ -290,6 +369,15 @@ public class JobStoreSupportTest
         internal ValueTask<TriggerFiredBundle> CallTriggerFired(ConnectionAndTransactionHolder conn, IOperableTrigger trigger)
         {
             return TriggerFired(conn, trigger, CancellationToken.None);
+        }
+
+        internal ValueTask CallStoreTrigger(
+            ConnectionAndTransactionHolder conn,
+            IOperableTrigger newTrigger,
+            IJobDetail job,
+            bool replaceExisting)
+        {
+            return StoreTrigger(conn, newTrigger, job, replaceExisting, AdoConstants.StateWaiting, false, false, CancellationToken.None);
         }
     }
 

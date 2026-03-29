@@ -1128,6 +1128,18 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
             if (existingTrigger)
             {
+                // Preserve PreviousFireTimeUtc from the existing trigger when replacing,
+                // so that context.PreviousFireTimeUtc is not lost on application restart (#1834)
+                if (newTrigger.GetPreviousFireTimeUtc() is null)
+                {
+                    IOperableTrigger? existingTrig = await Delegate.SelectTrigger(conn, newTrigger.Key, cancellationToken).ConfigureAwait(false);
+                    var prevFireTime = existingTrig?.GetPreviousFireTimeUtc();
+                    if (prevFireTime is not null)
+                    {
+                        newTrigger.SetPreviousFireTimeUtc(prevFireTime);
+                    }
+                }
+
                 await Delegate.UpdateTrigger(conn, newTrigger, state, job, cancellationToken).ConfigureAwait(false);
             }
             else
