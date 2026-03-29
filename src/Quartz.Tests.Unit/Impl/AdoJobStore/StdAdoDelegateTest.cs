@@ -409,7 +409,7 @@ public class StdAdoDelegateTest
         A.CallTo(() => dataReader[AdoConstants.ColumnJobGroup]).Returns("DEFAULT");
         A.CallTo(() => dataReader[AdoConstants.ColumnDescription]).Returns(DBNull.Value);
         A.CallTo(() => dataReader[AdoConstants.ColumnCalendarName]).Returns(DBNull.Value);
-        A.CallTo(() => dataReader[AdoConstants.ColumnMifireInstruction]).Returns(0);
+        A.CallTo(() => dataReader[AdoConstants.ColumnMifireInstruction]).Returns(2);
         A.CallTo(() => dataReader[AdoConstants.ColumnPriority]).Returns(5);
         A.CallTo(() => dataReader[AdoConstants.ColumnNextFireTime]).Returns(nextFireTime.UtcTicks);
         A.CallTo(() => dataReader[AdoConstants.ColumnPreviousFireTime]).Returns(prevFireTime.UtcTicks);
@@ -446,6 +446,7 @@ public class StdAdoDelegateTest
         {
             Assert.That(trigger.GetNextFireTimeUtc(), Is.EqualTo(nextFireTime));
             Assert.That(trigger.GetPreviousFireTimeUtc(), Is.EqualTo(prevFireTime));
+            Assert.That(trigger.MisfireInstruction, Is.EqualTo(2));
         });
     }
 
@@ -485,7 +486,7 @@ public class StdAdoDelegateTest
         A.CallTo(() => dataReader[AdoConstants.ColumnJobGroup]).Returns("DEFAULT");
         A.CallTo(() => dataReader[AdoConstants.ColumnDescription]).Returns(DBNull.Value);
         A.CallTo(() => dataReader[AdoConstants.ColumnCalendarName]).Returns(DBNull.Value);
-        A.CallTo(() => dataReader[AdoConstants.ColumnMifireInstruction]).Returns(0);
+        A.CallTo(() => dataReader[AdoConstants.ColumnMifireInstruction]).Returns(1);
         A.CallTo(() => dataReader[AdoConstants.ColumnPriority]).Returns(5);
         A.CallTo(() => dataReader[AdoConstants.ColumnNextFireTime]).Returns(nextFireTime.UtcTicks);
         A.CallTo(() => dataReader[AdoConstants.ColumnPreviousFireTime]).Returns(DBNull.Value);
@@ -519,6 +520,7 @@ public class StdAdoDelegateTest
         Assert.Multiple(() =>
         {
             Assert.That(trigger.GetNextFireTimeUtc(), Is.EqualTo(nextFireTime));
+            Assert.That(trigger.MisfireInstruction, Is.EqualTo(1));
             Assert.That(((AbstractTrigger) trigger).MisfiredFromFireTimeUtc, Is.EqualTo(misfireOrigFireTime));
         });
     }

@@ -760,6 +760,7 @@ public partial class StdAdoDelegate
 
             if (trigger is not null)
             {
+                trigger.MisfireInstruction = misFireInstr;
                 trigger.SetNextFireTimeUtc(nextFireTimeUtc);
                 trigger.SetPreviousFireTimeUtc(previousFireTimeUtc);
 
