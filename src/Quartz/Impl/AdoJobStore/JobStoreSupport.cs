@@ -1597,6 +1597,10 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
             if (ts.Equals(StateComplete))
             {
+                if (await IsTriggerCurrentlyExecuting(conn, triggerKey, cancellationToken).ConfigureAwait(false))
+                {
+                    return TriggerState.Blocked;
+                }
                 return TriggerState.Complete;
             }
 
@@ -2338,6 +2342,33 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         foreach (FiredTriggerRecord rec in firedRecords)
         {
             if (StateExecuting.Equals(rec.FireInstanceState))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Checks whether the given trigger currently has a fired trigger in EXECUTING state.
+    /// Uses <see cref="INextVersionDelegate"/> for an efficient COUNT query when available,
+    /// otherwise falls back to <see cref="IDriverDelegate.SelectFiredTriggerRecords"/>.
+    /// </summary>
+    private async Task<bool> IsTriggerCurrentlyExecuting(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default)
+    {
+        if (Delegate is INextVersionDelegate nvd)
+        {
+            return await nvd.IsTriggerCurrentlyExecuting(conn, triggerKey.Name, triggerKey.Group, cancellationToken).ConfigureAwait(false);
+        }
+
+        var firedTriggers = await Delegate.SelectFiredTriggerRecords(conn, triggerKey.Name, triggerKey.Group, cancellationToken).ConfigureAwait(false);
+        foreach (var firedTrigger in firedTriggers)
+        {
+            if (StateExecuting.Equals(firedTrigger.FireInstanceState))
             {
                 return true;
             }

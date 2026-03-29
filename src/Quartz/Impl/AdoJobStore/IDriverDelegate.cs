@@ -1142,6 +1142,16 @@ internal interface INextVersionDelegate
         string jobName,
         string jobGroup,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Checks whether a trigger currently has a fired trigger in EXECUTING state.
+    /// Used to return correct trigger state when trigger is COMPLETE but still executing.
+    /// </summary>
+    Task<bool> IsTriggerCurrentlyExecuting(
+        ConnectionAndTransactionHolder conn,
+        string triggerName,
+        string triggerGroup,
+        CancellationToken cancellationToken = default);
 }
 
 public class TriggerAcquireResult
