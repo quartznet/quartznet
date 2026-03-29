@@ -10,6 +10,7 @@ using Quartz.Spi;
 
 namespace Quartz.Tests.Unit.Impl;
 
+[NonParallelizable]
 public class RemoteSchedulerTest
 {
     [Test]
@@ -53,19 +54,27 @@ public class RemoteSchedulerTest
     [Test]
     public async Task Shutdown_RemovesSchedulerFromRepositoryByLocalName()
     {
+        const string localName = "ShutdownTestScheduler";
         IRemotableSchedulerProxyFactory proxyFactory = A.Fake<IRemotableSchedulerProxyFactory>();
         IRemotableQuartzScheduler remoteProxy = A.Fake<IRemotableQuartzScheduler>();
         A.CallTo(() => proxyFactory.GetProxy()).Returns(remoteProxy);
         A.CallTo(() => remoteProxy.SchedulerName).Returns("RemoteServerName");
 
-        RemoteScheduler scheduler = new RemoteScheduler("uid", proxyFactory, "LocalClientName");
+        RemoteScheduler scheduler = new RemoteScheduler("uid", proxyFactory, localName);
 
         SchedulerRepository repository = SchedulerRepository.Instance;
         repository.Bind(scheduler);
-        Assert.IsNotNull(repository.Lookup("LocalClientName"));
+        try
+        {
+            Assert.IsNotNull(repository.Lookup(localName));
 
-        await scheduler.Shutdown().ConfigureAwait(false);
+            await scheduler.Shutdown().ConfigureAwait(false);
 
-        Assert.IsNull(repository.Lookup("LocalClientName"));
+            Assert.IsNull(repository.Lookup(localName));
+        }
+        finally
+        {
+            repository.Remove(localName);
+        }
     }
 }
