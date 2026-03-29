@@ -757,6 +757,17 @@ public partial class StdAdoDelegate
             {
                 trigger = await GetObjectFromBlob<IOperableTrigger>(rs2, 0, cancellationToken).ConfigureAwait(false);
             }
+
+            if (trigger is not null)
+            {
+                trigger.SetNextFireTimeUtc(nextFireTimeUtc);
+                trigger.SetPreviousFireTimeUtc(previousFireTimeUtc);
+
+                if (misfireOrigFireTime.HasValue && trigger is AbstractTrigger at)
+                {
+                    at.MisfiredFromFireTimeUtc = misfireOrigFireTime;
+                }
+            }
         }
         else
         {
