@@ -290,6 +290,9 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
             logger.LogDebug("No executing jobs remaining, all threads stopped.");
         }
 
+        // Dispose the scheduler to release its resources (e.g. QueuedTaskScheduler threads)
+        (scheduler as IDisposable)?.Dispose();
+
         logger.LogDebug("Shutdown of threadpool complete.");
     }
 }
