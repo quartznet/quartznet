@@ -511,7 +511,7 @@ Please add configuration to your application config file to correctly initialize
 
             string uid = QuartzSchedulerResources.GetUniqueIdentifier(schedName, schedInstId);
 
-            RemoteScheduler remoteScheduler = new RemoteScheduler(uid, factory);
+            RemoteScheduler remoteScheduler = new RemoteScheduler(uid, factory, schedName);
 
             return remoteScheduler;
         }

@@ -47,6 +47,7 @@ public class RemoteScheduler : IScheduler
 {
     private IRemotableQuartzScheduler? rsched;
     private readonly string schedId;
+    private readonly string? schedulerName;
     private readonly IRemotableSchedulerProxyFactory proxyFactory;
 
     /// <summary>
@@ -57,6 +58,20 @@ public class RemoteScheduler : IScheduler
     {
         this.schedId = schedId;
         this.proxyFactory = proxyFactory;
+    }
+
+    /// <summary>
+    /// Construct a <see cref="RemoteScheduler" /> instance to proxy the given
+    /// RemoteableQuartzScheduler instance, using the specified local scheduler name
+    /// instead of fetching the name from the remote scheduler.
+    /// </summary>
+    /// <param name="schedId">The scheduler unique identifier.</param>
+    /// <param name="proxyFactory">The proxy factory for creating remote connections.</param>
+    /// <param name="schedulerName">The local scheduler name to use for this proxy.</param>
+    public RemoteScheduler(string schedId, IRemotableSchedulerProxyFactory proxyFactory, string schedulerName)
+        : this(schedId, proxyFactory)
+    {
+        this.schedulerName = schedulerName;
     }
 
     /// <summary>
@@ -86,7 +101,7 @@ public class RemoteScheduler : IScheduler
     /// </summary>
     public virtual string SchedulerName
     {
-        get { return ReadPropertyInGuard(x => x.SchedulerName); }
+        get { return schedulerName ?? ReadPropertyInGuard(x => x.SchedulerName); }
     }
 
     /// <summary>
