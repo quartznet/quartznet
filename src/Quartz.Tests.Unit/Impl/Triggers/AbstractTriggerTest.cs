@@ -10,7 +10,6 @@ using Quartz.Impl.Triggers;
 
 namespace Quartz.Tests.Unit.Impl.Triggers;
 
-[TestFixture]
 public class AbstractTriggerTest
 {
     [Test]

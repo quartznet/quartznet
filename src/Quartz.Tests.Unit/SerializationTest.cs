@@ -11,7 +11,7 @@ using Quartz.Util;
 
 namespace Quartz.Tests.Unit;
 
-[TestFixture]
+[NonParallelizable]
 public class SerializationTest
 {
     [Test]

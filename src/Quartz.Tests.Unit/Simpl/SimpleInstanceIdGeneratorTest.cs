@@ -29,7 +29,6 @@ using Quartz.Simpl;
 
 namespace Quartz.Tests.Unit.Simpl;
 
-[TestFixture]
 public class SimpleInstanceIdGeneratorTest
 {
     private SimpleInstanceIdGenerator generator;

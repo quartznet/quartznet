@@ -24,6 +24,7 @@ using Quartz.Util;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 
+[NonParallelizable]
 public class AdoJobStoreSmokeTest
 {
     private static readonly Dictionary<string, string> dbConnectionStrings = new Dictionary<string, string>

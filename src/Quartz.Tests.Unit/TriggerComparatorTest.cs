@@ -6,7 +6,6 @@ using Quartz.Spi;
 
 namespace Quartz.Tests.Unit;
 
-[TestFixture]
 public class TriggerComparatorTest
 {
     [Test]

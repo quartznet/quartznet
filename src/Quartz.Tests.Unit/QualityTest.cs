@@ -11,7 +11,6 @@ namespace Quartz.Tests.Unit;
 /// <summary>
 /// http://haacked.com/archive/2014/11/11/async-void-methods/
 /// </summary>
-[TestFixture]
 public class QualityTest
 {
     [Test]

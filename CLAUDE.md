@@ -67,6 +67,7 @@ This gives built-in delegates the efficient path while keeping the public API st
 - **Explicit types preferred over `var`** per `.editorconfig`.
 - **Allman brace style** — opening braces on new lines.
 - **Test framework:** NUnit 4 with `FluentAssertions` and `FakeItEasy`. Legacy assert aliases via `GlobalUsings.cs`.
+- **Test parallelization:** Unit tests run fixtures in parallel (`[assembly: Parallelizable(ParallelScope.Fixtures)]`). Fixtures with shared static state are marked `[NonParallelizable]`. Do **not** add `[TestFixture]` to test classes — NUnit 4 discovers them automatically. Only use `[TestFixture(...)]` with parameters for parameterized fixtures.
 - **Multi-targeting:** Core library targets `net462`, `net472`, `net8.0`, `net9.0`, `net10.0`, `netstandard2.0`. Tests target `net10.0` and `net472`.
 - **Strong naming:** Assemblies signed with `quartz.net.snk`.
 - **Conditional compilation:** `REMOTING` defined for `net462`/`net472`; `DIAGNOSTICS_SOURCE` for everything except `net462`.

@@ -25,7 +25,7 @@ using TimeZoneConverter;
 
 namespace Quartz.Tests.Unit;
 
-[TestFixture]
+[NonParallelizable]
 public class DaylightSavingTimeTest
 {
     private Func<DateTimeOffset> OriginalUtcNow;

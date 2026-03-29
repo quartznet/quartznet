@@ -41,7 +41,7 @@ namespace Quartz.Tests.Unit.Simpl;
 ///  Unit test for RAMJobStore.  These tests were submitted by Johannes Zillmann
 /// as part of issue QUARTZ-306.
 /// </summary>
-[TestFixture]
+[NonParallelizable]
 public class RAMJobStoreTest
 {
     private IJobStore fJobStore;

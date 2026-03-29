@@ -18,7 +18,7 @@ namespace Quartz.Tests.Unit.Core;
 /// Tests that acquired triggers are properly released when the scheduler
 /// shuts down while triggers are acquired but not yet fired.
 /// </summary>
-[TestFixture]
+[NonParallelizable]
 public class ShutdownTriggerReleaseTest
 {
     /// <summary>

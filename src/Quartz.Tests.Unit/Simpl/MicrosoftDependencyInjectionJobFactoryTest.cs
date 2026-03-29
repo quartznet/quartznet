@@ -12,6 +12,7 @@ using Quartz.Simpl;
 
 namespace Quartz.Tests.Unit.Simpl;
 
+[NonParallelizable]
 public class MicrosoftDependencyInjectionJobFactoryTest
 {
     [Test]

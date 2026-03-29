@@ -7,7 +7,6 @@ using Quartz.Simpl;
 
 namespace Quartz.Tests.Unit.Simpl;
 
-[TestFixture]
 public class SimpleJobFactoryTest
 {
     private SimpleJobFactory factory;

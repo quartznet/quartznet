@@ -11,7 +11,6 @@ namespace Quartz.Tests.Unit.Utils;
 /// Unit tests for Key<T>.
 /// </summary>
 /// <author>Gert Driesen</author>
-[TestFixture]
 public class KeyTest
 {
     private static byte[] _serializedKeyStringWithNameAndGroup = new byte[]

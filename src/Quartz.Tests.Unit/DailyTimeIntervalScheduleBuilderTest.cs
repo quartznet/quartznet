@@ -42,6 +42,7 @@ namespace Quartz.Tests.Unit;
 /// </summary>
 /// <author>Zemian Deng saltnlight5@gmail.com</author>
 /// <author>Nuno Maia (.NET)</author>
+[NonParallelizable]
 public class DailyTimeIntervalScheduleBuilderTest
 {
     [Test]

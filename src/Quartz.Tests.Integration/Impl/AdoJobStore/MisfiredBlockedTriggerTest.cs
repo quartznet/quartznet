@@ -14,13 +14,13 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// <summary>
 /// Tests for misfired blocked triggers cleanup issue.
 /// </summary>
-[TestFixture]
+[NonParallelizable]
 public class MisfiredBlockedTriggerTest
 {
     // Test configuration constants
     private const int MisfireThresholdMilliseconds = 1000; // 1 second - triggers that don't fire within this time are considered misfired
     private const int RepeatingTriggerIntervalSeconds = 10; // 10 seconds between repeating trigger fires
-    
+
     [Test]
     [Category("db-sqlserver")]
     public async Task TestMisfiredBlockedTriggerShouldBeDeleted()
@@ -48,6 +48,9 @@ public class MisfiredBlockedTriggerTest
 
         try
         {
+            // Drain any leftover signal from a previous run
+            MisfiredBlockedTriggerTestSlowJob.Started.Wait(0);
+
             // Create a job that takes time to execute and disallows concurrent execution
             var job = JobBuilder.Create<MisfiredBlockedTriggerTestSlowJob>()
                 .WithIdentity("slowJob", "testGroup")
@@ -68,8 +71,11 @@ public class MisfiredBlockedTriggerTest
             await scheduler.ScheduleJob(job, repeatingTrigger);
             await scheduler.Start();
 
-            // Wait for the job to start executing
-            await Task.Delay(500);
+            // Wait for the job to actually start executing (not just a delay)
+            if (!await MisfiredBlockedTriggerTestSlowJob.Started.WaitAsync(TimeSpan.FromSeconds(10)))
+            {
+                Assert.Fail("Job did not start within 10 seconds");
+            }
 
             // Now schedule a fire-and-forget trigger while the job is executing
             // This trigger will be blocked, then will misfire
@@ -86,11 +92,11 @@ public class MisfiredBlockedTriggerTest
 
             // Poll for the trigger deletion with timeout
             // The trigger should misfire and then be deleted after the job completes
-            var maxWaitTime = TimeSpan.FromSeconds(10);
+            var maxWaitTime = TimeSpan.FromSeconds(30);
             var pollInterval = TimeSpan.FromMilliseconds(500);
             var startTime = DateTimeOffset.UtcNow;
             ITrigger trigger = null;
-            
+
             while (DateTimeOffset.UtcNow - startTime < maxWaitTime)
             {
                 trigger = await scheduler.GetTrigger(fireAndForgetTrigger.Key);
@@ -101,7 +107,7 @@ public class MisfiredBlockedTriggerTest
                 }
                 await Task.Delay(pollInterval);
             }
-            
+
             // The trigger should be deleted because it misfired with RepeatCount=0
             Assert.IsNull(trigger, "The misfired fire-and-forget trigger should have been deleted");
 
@@ -121,12 +127,26 @@ public class MisfiredBlockedTriggerTest
 /// The job duration is set to ensure triggers will misfire while blocked.
 /// </summary>
 [DisallowConcurrentExecution]
-internal class MisfiredBlockedTriggerTestSlowJob : IJob
+internal sealed class MisfiredBlockedTriggerTestSlowJob : IJob
 {
     private const int JobDurationMilliseconds = 3000; // 3 seconds
 
+    /// <summary>
+    /// Signal that the job has started executing.
+    /// </summary>
+    internal static readonly SemaphoreSlim Started = new(0, 1);
+
     public async Task Execute(IJobExecutionContext context)
     {
+        try
+        {
+            Started.Release();
+        }
+        catch (SemaphoreFullException)
+        {
+            // Already signaled from a previous execution
+        }
+
         // Simulate a long-running job (duration must exceed misfire threshold)
         await Task.Delay(JobDurationMilliseconds);
     }

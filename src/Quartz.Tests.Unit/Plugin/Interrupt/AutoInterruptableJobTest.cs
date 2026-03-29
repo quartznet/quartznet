@@ -12,6 +12,7 @@ using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Plugin.Interrupt;
 
+[NonParallelizable]
 public class AutoInterruptableJobTest
 {
     private static SemaphoreSlim sync = new(0);

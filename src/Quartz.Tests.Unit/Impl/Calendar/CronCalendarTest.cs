@@ -32,6 +32,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar;
 [TestFixture(typeof(BinaryObjectSerializer))]
 [TestFixture(typeof(JsonObjectSerializer))]
 [TestFixture(typeof(SystemTextJsonObjectSerializer))]
+[NonParallelizable]
 public class CronCalendarTest : SerializationTestSupport<CronCalendar, ICalendar>
 {
     public CronCalendarTest(Type serializerType) : base(serializerType)

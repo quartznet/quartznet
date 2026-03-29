@@ -15,6 +15,7 @@ using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Extensions.DependencyInjection;
 
+[NonParallelizable]
 public class ServiceCollectionExtensionsTests
 {
     [Test]

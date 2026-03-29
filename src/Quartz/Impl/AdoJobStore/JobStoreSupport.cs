@@ -3259,7 +3259,18 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                     var state = await Delegate.SelectTriggerState(conn, trig.Key, cancellationToken).ConfigureAwait(false);
                     if (state.Equals(StateWaiting))
                     {
-                        await UpdateMisfiredTrigger(conn, trig.Key, StateWaiting, false, cancellationToken).ConfigureAwait(false);
+                        var misfired = await UpdateMisfiredTrigger(conn, trig.Key, StateWaiting, false, cancellationToken).ConfigureAwait(false);
+                        if (misfired)
+                        {
+                            // If the trigger was misfired and has no more fire times (e.g., fire-once triggers),
+                            // it was stored as COMPLETE. We need to remove it entirely so that GetTrigger
+                            // returns null and the trigger doesn't linger in the database.
+                            var newState = await Delegate.SelectTriggerState(conn, trig.Key, cancellationToken).ConfigureAwait(false);
+                            if (newState.Equals(StateComplete))
+                            {
+                                await RemoveTrigger(conn, trig.Key, cancellationToken).ConfigureAwait(false);
+                            }
+                        }
                     }
                 }
             }

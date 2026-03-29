@@ -15,6 +15,7 @@ namespace Quartz.Tests.Integration;
 [TestFixture(typeof(JsonObjectSerializer), TestConstants.DefaultSqlServerProvider, Category = "db-sqlserver")]
 [TestFixture(typeof(BinaryObjectSerializer), TestConstants.PostgresProvider, Category = "db-postgres")]
 [TestFixture(typeof(JsonObjectSerializer), TestConstants.PostgresProvider, Category = "db-postgres")]
+[NonParallelizable]
 public class AdoSchedulerTest : AbstractSchedulerTest
 {
     private readonly IObjectSerializer serializer;

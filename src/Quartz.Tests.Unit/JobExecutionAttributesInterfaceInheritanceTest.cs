@@ -17,7 +17,7 @@ namespace Quartz.Tests.Unit;
 /// <seealso cref="PersistJobDataAfterExecutionAttribute"/>
 /// <author>Oleg Kurbatov</author>
 /// <author>Aleksei Kuznetsov</author>
-[TestFixture]
+[NonParallelizable]
 public class JobExecutionAttributesInterfaceInheritanceTest
 {
     private static readonly TimeSpan jobBlockTime = TimeSpan.FromMilliseconds(300);

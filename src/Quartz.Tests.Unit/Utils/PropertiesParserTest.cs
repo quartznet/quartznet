@@ -29,7 +29,6 @@ namespace Quartz.Tests.Unit.Utils;
 /// Unit tests for PropertiesParser.
 /// </summary>
 /// <author>Marko Lahma (.NET)</author>
-[TestFixture]
 public class PropertiesParserTest
 {
     /// <summary>

@@ -32,7 +32,7 @@ using Quartz.Spi;
 namespace Quartz.Tests.Unit.Impl;
 
 /// <author>Marko Lahma (.NET)</author>
-[TestFixture]
+[NonParallelizable]
 public class DirectSchedulerFactoryTest
 {
     [Test]

@@ -33,6 +33,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar;
 [TestFixture(typeof(BinaryObjectSerializer))]
 [TestFixture(typeof(JsonObjectSerializer))]
 [TestFixture(typeof(SystemTextJsonObjectSerializer))]
+[NonParallelizable]
 public class MonthlyCalendarTest : SerializationTestSupport<MonthlyCalendar, ICalendar>
 {
     private MonthlyCalendar cal;
