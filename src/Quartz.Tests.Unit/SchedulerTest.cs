@@ -460,4 +460,59 @@ public class SchedulerTest
 
         await scheduler.Shutdown(true);
     }
+
+    [Test]
+    public async Task ScheduleJobsWithReplace_SwitchFromSimpleToCronTrigger()
+    {
+        NameValueCollection properties = new NameValueCollection
+        {
+            ["quartz.scheduler.instanceName"] = "SchedulerTest_TriggerSwitch",
+            ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
+        };
+        ISchedulerFactory factory = new StdSchedulerFactory(properties);
+        IScheduler scheduler = await factory.GetScheduler();
+
+        var jobKey = new JobKey("switchJob", "switchGroup");
+        var triggerKey = new TriggerKey("switchTrigger", "switchGroup");
+
+        // Schedule job with a SimpleTrigger
+        IJobDetail job = JobBuilder.Create<TestJob>()
+            .WithIdentity(jobKey)
+            .StoreDurably()
+            .Build();
+
+        ITrigger simpleTrigger = TriggerBuilder.Create()
+            .WithIdentity(triggerKey)
+            .WithSimpleSchedule(x => x.WithIntervalInSeconds(30).RepeatForever())
+            .Build();
+
+        await scheduler.ScheduleJob(job, simpleTrigger);
+
+        ITrigger storedTrigger = await scheduler.GetTrigger(triggerKey);
+        Assert.That(storedTrigger, Is.InstanceOf<ISimpleTrigger>(), "Initial trigger should be a SimpleTrigger");
+
+        // Now replace with a CronTrigger using the same trigger key
+        ITrigger cronTrigger = TriggerBuilder.Create()
+            .WithIdentity(triggerKey)
+            .WithCronSchedule("0 0 12 * * ?")
+            .Build();
+
+        IJobDetail updatedJob = JobBuilder.Create<TestJob>()
+            .WithIdentity(jobKey)
+            .StoreDurably()
+            .Build();
+
+        var triggersAndJobs = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>
+        {
+            [updatedJob] = new[] { cronTrigger }
+        };
+
+        await scheduler.ScheduleJobs(triggersAndJobs, replace: true);
+
+        ITrigger updatedTrigger = await scheduler.GetTrigger(triggerKey);
+        Assert.That(updatedTrigger, Is.InstanceOf<ICronTrigger>(), "Trigger should have been replaced with a CronTrigger");
+        Assert.That(((ICronTrigger) updatedTrigger).CronExpressionString, Is.EqualTo("0 0 12 * * ?"));
+
+        await scheduler.Shutdown(false);
+    }
 }

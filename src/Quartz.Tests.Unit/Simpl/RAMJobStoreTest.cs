@@ -743,6 +743,37 @@ public class RAMJobStoreTest
         Assert.That(results[1].TriggerFiredBundle, Is.Null, "paused trigger2 should have null bundle");
     }
 
+    [Test]
+    public async Task TestStoreJobsAndTriggersReplace_SwitchFromSimpleToCronTrigger()
+    {
+        IJobDetail job = JobBuilder.Create<NoOpJob>()
+            .WithIdentity("job-switch", "group1")
+            .StoreDurably(true)
+            .Build();
+
+        IOperableTrigger simpleTrigger = new SimpleTriggerImpl("trigger-switch", "group1", job.Key.Name, job.Key.Group, DateTimeOffset.UtcNow.AddSeconds(30), null, -1, TimeSpan.FromSeconds(30));
+        simpleTrigger.ComputeFirstFireTimeUtc(null);
+
+        await fJobStore.StoreJobAndTrigger(job, simpleTrigger);
+
+        var stored = await fJobStore.RetrieveTrigger(new TriggerKey("trigger-switch", "group1"));
+        Assert.That(stored, Is.InstanceOf<ISimpleTrigger>(), "Initial trigger should be a SimpleTrigger");
+
+        // Now replace with a cron trigger using the same trigger key
+        var cronTrigger = new CronTriggerImpl("trigger-switch", "group1", job.Key.Name, job.Key.Group, "0 0 * * * ?");
+        cronTrigger.ComputeFirstFireTimeUtc(null);
+
+        var triggersAndJobs = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>
+        {
+            [job] = new[] { (ITrigger) cronTrigger }
+        };
+
+        await fJobStore.StoreJobsAndTriggers(triggersAndJobs, replace: true);
+
+        var updated = await fJobStore.RetrieveTrigger(new TriggerKey("trigger-switch", "group1"));
+        Assert.That(updated, Is.InstanceOf<ICronTrigger>(), "Trigger should have been replaced with a CronTrigger");
+    }
+
     [DisallowConcurrentExecution]
     private class DisallowConcurrentNoOpJob : IJob
     {
