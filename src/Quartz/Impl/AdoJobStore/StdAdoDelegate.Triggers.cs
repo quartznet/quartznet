@@ -301,6 +301,23 @@ public partial class StdAdoDelegate
     }
 
     /// <inheritdoc />
+    public virtual async Task<bool> IsTriggerCurrentlyExecuting(
+        ConnectionAndTransactionHolder conn,
+        string triggerName,
+        string triggerGroup,
+        CancellationToken cancellationToken = default)
+    {
+        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectCountExecutingFiredTriggersOfTrigger));
+        AddCommandParameter(cmd, "schedulerName", schedName);
+        AddCommandParameter(cmd, "triggerName", triggerName);
+        AddCommandParameter(cmd, "triggerGroup", triggerGroup);
+        AddCommandParameter(cmd, "executingState", AdoConstants.StateExecuting);
+
+        object? result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        return Convert.ToInt32(result) > 0;
+    }
+
+    /// <inheritdoc />
     public virtual async Task<int> InsertTrigger(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
