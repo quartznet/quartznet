@@ -1145,7 +1145,7 @@ public class CronTestScenarios
             long interval1 = test.Length > 1 ? (long)test[1] : -1;
             long interval2 = test.Length > 2 ? (long)test[2] : interval1;
 
-            var cron = new CronExpression(expression); // You’ll need a CronExpression class
+            var cron = new CronExpression(expression) { TimeZone = TimeZoneInfo.Utc };
             var now = DateTimeOffset.UtcNow;
 
             DateTimeOffset? after = cron.GetTimeAfter(now);

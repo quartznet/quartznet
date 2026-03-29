@@ -174,7 +174,8 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
             RepeatInterval = TimeSpan.FromMilliseconds(10),
             RepeatCount = 1
         };
-        DateTimeOffset neverFireTime = DateBuilder.EvenMinuteDateBefore(dailyCalendar.GetTimeRangeStartingTimeUtc(DateTime.Now));
+        var referenceDate = new DateTimeOffset(2025, 6, 15, 12, 0, 0, TimeSpan.Zero);
+        DateTimeOffset neverFireTime = DateBuilder.EvenMinuteDateBefore(dailyCalendar.GetTimeRangeStartingTimeUtc(referenceDate));
         simpleTrigger.StartTimeUtc = neverFireTime;
 
         simpleTrigger.ComputeFirstFireTimeUtc(dailyCalendar);
