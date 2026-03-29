@@ -427,7 +427,7 @@ Please add configuration to your application config file to correctly initialize
         Type? instanceIdGeneratorType = null;
         NameValueCollection tProps;
         bool autoId = false;
-        TimeSpan idleWaitTime = TimeSpan.Zero;
+        TimeSpan idleWaitTime = TimeSpan.FromSeconds(30);
         TimeSpan dbFailureRetry = TimeSpan.FromSeconds(15);
 
         // Get Scheduler Properties
@@ -462,7 +462,11 @@ Please add configuration to your application config file to correctly initialize
         }
 
         idleWaitTime = cfg.GetTimeSpanProperty(PropertySchedulerIdleWaitTime, idleWaitTime);
-        if (idleWaitTime > TimeSpan.Zero && idleWaitTime < TimeSpan.FromMilliseconds(1000))
+        if (idleWaitTime <= TimeSpan.Zero)
+        {
+            throw new SchedulerException("quartz.scheduler.idleWaitTime of zero or less is not legal.");
+        }
+        if (idleWaitTime < TimeSpan.FromMilliseconds(1000))
         {
             throw new SchedulerException("quartz.scheduler.idleWaitTime of less than 1000ms is not legal.");
         }
