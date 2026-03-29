@@ -27,7 +27,6 @@ using Quartz.Util;
 namespace Quartz.Tests.Unit.Utils;
 
 /// <author>Marko Lahma (.NET)</author>
-[TestFixture]
 public class ObjectUtilsTest
 {
     [Test]

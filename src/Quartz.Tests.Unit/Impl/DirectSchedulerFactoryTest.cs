@@ -27,7 +27,7 @@ using Quartz.Tests.Unit.Core;
 namespace Quartz.Tests.Unit.Impl;
 
 /// <author>Marko Lahma (.NET)</author>
-[TestFixture]
+[NonParallelizable]
 public class DirectSchedulerFactoryTest
 {
     private readonly DirectSchedulerFactory _directSchedulerFactory;

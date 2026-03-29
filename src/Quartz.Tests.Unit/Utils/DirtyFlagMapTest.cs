@@ -31,7 +31,6 @@ namespace Quartz.Tests.Unit.Utils;
 /// sure the isDirty flag is set correctly.
 /// </summary>
 /// <author>Marko Lahma (.NET)</author>
-[TestFixture]
 public class DirtyFlagMapTest
 {
     [Test]

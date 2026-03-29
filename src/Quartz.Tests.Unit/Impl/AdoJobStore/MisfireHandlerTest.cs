@@ -30,7 +30,6 @@ using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 
-[TestFixture]
 public class MisfireHandlerTest
 {
     [Test]

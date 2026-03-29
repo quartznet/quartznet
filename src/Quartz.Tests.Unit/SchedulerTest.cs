@@ -9,7 +9,7 @@ using Quartz.Spi;
 
 namespace Quartz.Tests.Unit;
 
-[TestFixture]
+[NonParallelizable]
 public class SchedulerTest
 {
     [DisallowConcurrentExecution]

@@ -30,7 +30,6 @@ using Quartz.Util;
 namespace Quartz.Tests.Unit;
 
 /// <author>Marko Lahma (.NET)</author>
-[TestFixture]
 public class JobDetailTest
 {
     [Test]

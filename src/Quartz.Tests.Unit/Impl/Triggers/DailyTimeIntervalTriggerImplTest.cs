@@ -34,7 +34,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers;
 /// </summary>
 /// <author>Zemian Deng saltnlight5@gmail.com</author>
 /// <author>Nuno Maia (.NET)</author>
-[TestFixture]
+[NonParallelizable]
 public class DailyTimeIntervalTriggerImplTest
 {
     [Test]

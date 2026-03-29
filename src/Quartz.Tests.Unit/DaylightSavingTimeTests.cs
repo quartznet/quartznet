@@ -21,6 +21,7 @@ using TimeZoneConverter;
 
 namespace Quartz.Tests.Unit;
 
+[NonParallelizable]
 public class DaylightSavingTimeTest
 {
     private sealed class TestTimeProvider : TimeProvider

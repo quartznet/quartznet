@@ -34,7 +34,7 @@ using Quartz.Spi;
 namespace Quartz.Tests.Unit.Core;
 
 /// <author>Marko Lahma (.NET)</author>
-[TestFixture]
+[NonParallelizable]
 public class QuartzSchedulerTest
 {
     [Test]

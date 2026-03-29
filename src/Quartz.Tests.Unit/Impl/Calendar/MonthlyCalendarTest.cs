@@ -28,6 +28,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar;
 /// <author>Marko Lahma (.NET)</author>
 [TestFixture(typeof(NewtonsoftJsonObjectSerializer))]
 [TestFixture(typeof(SystemTextJsonObjectSerializer))]
+[NonParallelizable]
 public class MonthlyCalendarTest : SerializationTestSupport<MonthlyCalendar, ICalendar>
 {
     private MonthlyCalendar cal;

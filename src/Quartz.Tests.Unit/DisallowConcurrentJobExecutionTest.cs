@@ -10,7 +10,7 @@ namespace Quartz.Tests.Unit;
 /// </summary>
 /// <author>Zemian Deng</author>
 /// <author>Marko Lahma (.NET)</author>
-[TestFixture]
+[NonParallelizable]
 public class DisallowConcurrentExecutionJobTest
 {
     private static readonly TimeSpan jobBlockTime = TimeSpan.FromMilliseconds(300);

@@ -9,6 +9,7 @@ namespace Quartz.Tests.Unit.Core;
 /// Verifies that AsyncLocal values set during IJobFactory.NewJob
 /// flow correctly to IJob.Execute (GitHub issue #1528).
 /// </summary>
+[NonParallelizable]
 public class JobRunShellAsyncLocalTest
 {
     private static readonly AsyncLocal<string> TenantId = new();

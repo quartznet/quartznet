@@ -33,6 +33,7 @@ namespace Quartz.Tests.Unit;
 /// </summary>
 [TestFixture(typeof(NewtonsoftJsonObjectSerializer))]
 [TestFixture(typeof(SystemTextJsonObjectSerializer))]
+[NonParallelizable]
 public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
 {
     private static readonly DateTimeOffset StartTime;

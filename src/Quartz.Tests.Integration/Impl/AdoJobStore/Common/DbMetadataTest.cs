@@ -24,7 +24,6 @@ using Quartz.Impl.AdoJobStore.Common;
 namespace Quartz.Tests.Integration.Impl.AdoJobStore.Common;
 
 /// <author>Marko Lahma (.NET)</author>
-[TestFixture]
 public class DbMetadataTest
 {
     [Test]

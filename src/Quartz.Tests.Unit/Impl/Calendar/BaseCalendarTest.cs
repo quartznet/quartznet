@@ -22,7 +22,6 @@ using Quartz.Impl.Calendar;
 namespace Quartz.Tests.Unit.Impl.Calendar;
 
 /// <author>Marko Lahma (.NET)</author>
-[TestFixture]
 public class BaseCalendarTest
 {
     [Test]

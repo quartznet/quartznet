@@ -1,6 +1,6 @@
 namespace Quartz.Tests.Unit;
 
-[TestFixture]
+[NonParallelizable]
 public class TriggerBuilderTest
 {
     [DisallowConcurrentExecution]

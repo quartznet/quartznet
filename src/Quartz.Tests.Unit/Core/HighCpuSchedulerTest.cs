@@ -9,7 +9,7 @@ namespace Quartz.Tests.Unit.Core;
 /// validating the fix for GitHub issue #781 where the scheduler loop
 /// was started via Task.Run (thread pool) instead of a dedicated thread.
 /// </summary>
-[TestFixture]
+[NonParallelizable]
 public class HighCpuSchedulerTest
 {
     /// <summary>

@@ -7,7 +7,6 @@ using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 
-[TestFixture]
 public class JobStoreCMTTest
 {
     private TestJobStoreCMT jobStore;

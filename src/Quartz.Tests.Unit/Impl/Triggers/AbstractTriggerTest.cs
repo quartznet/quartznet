@@ -5,7 +5,6 @@ using Quartz.Tests.Unit.Utils;
 
 namespace Quartz.Tests.Unit.Impl.Triggers;
 
-[TestFixture]
 public class AbstractTriggerTest
 {
     private AbstractTrigger trigger;

@@ -5,7 +5,6 @@ using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Utils;
 
-[TestFixture]
 public class TimeZoneUtilTest
 {
     [Test]

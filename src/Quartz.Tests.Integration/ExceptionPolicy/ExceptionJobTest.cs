@@ -6,7 +6,7 @@ using Quartz.Spi;
 
 namespace Quartz.Tests.Integration.ExceptionPolicy;
 
-[TestFixture]
+[NonParallelizable]
 public class ExceptionHandlingTest
 {
     private IScheduler sched;

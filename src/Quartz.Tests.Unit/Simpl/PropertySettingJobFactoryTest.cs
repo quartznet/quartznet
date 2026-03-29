@@ -26,7 +26,6 @@ namespace Quartz.Tests.Unit.Simpl;
 ///  Unit test for PropertySettingJobFactory.
 /// </summary>
 /// <author>Marko Lahma (.NET)</author>
-[TestFixture]
 public class PropertySettingJobFactoryTest
 {
     private PropertySettingJobFactory factory;

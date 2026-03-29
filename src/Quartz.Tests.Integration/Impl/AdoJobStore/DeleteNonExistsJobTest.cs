@@ -12,6 +12,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 
 [TestFixture(TestConstants.DefaultSqlServerProvider, Category = "db-sqlserver")]
 [TestFixture(TestConstants.PostgresProvider, Category = "db-postgres")]
+[NonParallelizable]
 public class DeleteNonExistsJobTest
 {
     private readonly string provider;

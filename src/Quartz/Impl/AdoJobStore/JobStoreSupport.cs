@@ -3155,6 +3155,34 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StateWaiting, StateBlocked, cancellationToken).ConfigureAwait(false);
                 await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StatePaused, StatePausedBlocked, cancellationToken).ConfigureAwait(false);
                 conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
+
+                // Check for misfired triggers that were just unblocked
+                // Triggers that were blocked and have now transitioned to waiting may have misfired
+                // while they were blocked. We need to handle these misfires now.
+                // Note: We retrieve all triggers and check each one's state because there's no efficient
+                // way to query only triggers that just transitioned from BLOCKED to WAITING.
+                // However, jobs with DisallowConcurrentExecution typically have few triggers.
+                var triggersForJob = await GetTriggersForJob(conn, jobDetail.Key, cancellationToken).ConfigureAwait(false);
+                foreach (var trig in triggersForJob)
+                {
+                    // Only check triggers in WAITING state (those that were just unblocked)
+                    var state = await Delegate.SelectTriggerState(conn, trig.Key, cancellationToken).ConfigureAwait(false);
+                    if (state == StateWaiting)
+                    {
+                        var misfired = await UpdateMisfiredTrigger(conn, trig.Key, StateWaiting, false, cancellationToken).ConfigureAwait(false);
+                        if (misfired)
+                        {
+                            // If the trigger was misfired and has no more fire times (e.g., fire-once triggers),
+                            // it was stored as COMPLETE. We need to remove it entirely so that GetTrigger
+                            // returns null and the trigger doesn't linger in the database.
+                            var newState = await Delegate.SelectTriggerState(conn, trig.Key, cancellationToken).ConfigureAwait(false);
+                            if (newState == StateComplete)
+                            {
+                                await RemoveTrigger(conn, trig.Key, cancellationToken).ConfigureAwait(false);
+                            }
+                        }
+                    }
+                }
             }
             if (jobDetail.PersistJobDataAfterExecution)
             {

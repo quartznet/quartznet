@@ -12,7 +12,7 @@ namespace Quartz.Tests.Unit;
 /// </summary>
 /// <author>Zemian Deng</author>
 /// <author>Marko Lahma (.NET)</author>
-[TestFixture]
+[NonParallelizable]
 public class SchedulerListenerTest
 {
     private static readonly ILogger<SchedulerListenerTest> logger = LogProvider.CreateLogger<SchedulerListenerTest>();

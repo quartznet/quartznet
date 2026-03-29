@@ -30,7 +30,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 /// <summary>
 /// Test for PostgreSQL lock handler race condition.
 /// </summary>
-[TestFixture]
+[NonParallelizable]
 public class PostgreSQLLockTest
 {
     [Test]

@@ -34,6 +34,7 @@ namespace Quartz.Tests.Unit;
 /// <author>Marko Lahma (.NET)</author>
 [TestFixture(typeof(NewtonsoftJsonObjectSerializer))]
 [TestFixture(typeof(SystemTextJsonObjectSerializer))]
+[NonParallelizable]
 public class JobDataMapTest : SerializationTestSupport<JobDataMap>
 {
     public JobDataMapTest(Type serializerType) : base(serializerType)

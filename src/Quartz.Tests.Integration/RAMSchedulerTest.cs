@@ -1,5 +1,8 @@
+using NUnit.Framework;
+
 namespace Quartz.Tests.Integration;
 
+[NonParallelizable]
 public class RAMSchedulerTest : AbstractSchedulerTest
 {
     public RAMSchedulerTest() : base("memory", "default-serializer")

@@ -7,6 +7,7 @@ using Quartz.Diagnostics;
 
 namespace Quartz.Tests.Unit.Core;
 
+[NonParallelizable]
 public class MissSchedulingChangeSignalTest
 {
     private static readonly ILogger<MissSchedulingChangeSignalTest> logger = LogProvider.CreateLogger<MissSchedulingChangeSignalTest>();

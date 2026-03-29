@@ -44,6 +44,7 @@ namespace Quartz.Tests.Integration.Xml;
 /// <author>Marko Lahma (.NET)</author>
 [TestFixture(TestConstants.DefaultSqlServerProvider, Category = "db-sqlserver")]
 [TestFixture(TestConstants.PostgresProvider, Category = "db-postgres")]
+[NonParallelizable]
 public class XMLSchedulingDataProcessorTest
 {
     private readonly string provider;

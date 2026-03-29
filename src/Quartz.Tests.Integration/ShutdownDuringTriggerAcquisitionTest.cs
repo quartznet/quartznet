@@ -4,6 +4,7 @@ namespace Quartz.Tests.Integration;
 /// Tests for the scenario where shutdown is called between trigger acquisition and job execution.
 /// This tests the fix for the issue where triggers were being set to ERROR state instead of being released.
 /// </summary>
+[NonParallelizable]
 public class ShutdownDuringTriggerAcquisitionTest
 {
     /// <summary>

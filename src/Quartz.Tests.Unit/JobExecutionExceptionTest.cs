@@ -1,6 +1,5 @@
 namespace Quartz.Tests.Unit;
 
-[TestFixture]
 public class JobExecutionExceptionTest
 {
     [Test]

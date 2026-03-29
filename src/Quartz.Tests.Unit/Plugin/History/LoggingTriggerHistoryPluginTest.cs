@@ -27,7 +27,6 @@ using Quartz.Spi;
 namespace Quartz.Tests.Unit.Plugin.History;
 
 /// <author>Marko Lahma (.NET)</author>
-[TestFixture]
 public class LoggingTriggerHistoryPluginTest
 {
     private RecordingLoggingTriggerHistoryPlugin plugin;

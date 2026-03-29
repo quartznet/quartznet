@@ -12,6 +12,7 @@ namespace Quartz.Tests.Unit;
 
 [TestFixture(typeof(NewtonsoftJsonObjectSerializer))]
 [TestFixture(typeof(SystemTextJsonObjectSerializer))]
+[NonParallelizable]
 public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarIntervalTriggerImpl>
 {
     public CalendarIntervalTriggerTest(Type serializerType) : base(serializerType)

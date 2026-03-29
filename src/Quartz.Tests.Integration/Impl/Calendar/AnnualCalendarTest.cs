@@ -27,7 +27,7 @@ using Quartz.Impl.Calendar;
 namespace Quartz.Tests.Integration.Impl.Calendar;
 
 /// <author>Marko Lahma (.NET)</author>
-[TestFixture]
+[NonParallelizable]
 public class AnnualCalendarTest : IntegrationTest
 {
     [SetUp]

@@ -23,6 +23,7 @@ using StjJsonSerializerOptions = System.Text.Json.JsonSerializerOptions;
 
 namespace Quartz.Tests.Unit.Simpl;
 
+[NonParallelizable]
 public class JsonObjectSerializerTest
 {
     private NewtonsoftJsonObjectSerializer newtonsoftSerializer;

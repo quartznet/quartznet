@@ -4,7 +4,7 @@ using Quartz.Job;
 
 namespace Quartz.Tests.Integration;
 
-[TestFixture]
+[NonParallelizable]
 public class QuartzMemoryPauseAndResumeTest
 {
     private IScheduler scheduler;

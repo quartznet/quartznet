@@ -2,7 +2,6 @@ using FluentAssertions;
 
 namespace Quartz.Tests.Unit;
 
-[TestFixture]
 public class JobBuilderTest
 {
     [DisallowConcurrentExecution]

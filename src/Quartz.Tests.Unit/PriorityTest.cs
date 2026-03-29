@@ -32,7 +32,7 @@ namespace Quartz.Tests.Unit;
 /// Test Trigger priority support.
 /// </summary>
 /// <author>Marko Lahma (.NET)</author>
-[TestFixture]
+[NonParallelizable]
 public class PriorityTest
 {
     private static StringBuilder result;

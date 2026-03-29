@@ -12,6 +12,7 @@ namespace Quartz.Tests.Integration.Core;
 
 [TestFixture(TestConstants.DefaultSqlServerProvider, Category = "db-sqlserver")]
 [TestFixture(TestConstants.PostgresProvider, Category = "db-postgres")]
+[NonParallelizable]
 public class RecoverJobsTest
 {
     private readonly string provider;

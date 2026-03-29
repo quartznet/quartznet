@@ -9,6 +9,7 @@ namespace Quartz.Tests.Integration;
 
 [TestFixture(TestConstants.DefaultSqlServerProvider, Category = "db-sqlserver")]
 [TestFixture(TestConstants.PostgresProvider, Category = "db-postgres")]
+[NonParallelizable]
 public class JobDataMapStorageTest : IntegrationTest
 {
     private readonly string provider;

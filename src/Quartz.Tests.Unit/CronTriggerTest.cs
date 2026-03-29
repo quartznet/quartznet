@@ -30,7 +30,7 @@ namespace Quartz.Tests.Unit;
 /// Tests for CronTrigger.
 /// </summary>
 /// <author>Marko Lahma (.NET)</author>
-[TestFixture]
+[NonParallelizable]
 public class CronTriggerTest
 {
     /// <summary>

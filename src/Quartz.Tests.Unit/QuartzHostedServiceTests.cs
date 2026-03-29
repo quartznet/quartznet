@@ -7,6 +7,7 @@ using Lifetime = Microsoft.Extensions.Hosting.IHostApplicationLifetime;
 
 namespace Quartz.Tests.Unit;
 
+[NonParallelizable]
 public class QuartzHostedServiceTests
 {
     private sealed class MockApplicationLifetime : Lifetime
