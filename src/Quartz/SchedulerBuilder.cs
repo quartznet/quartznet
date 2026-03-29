@@ -392,7 +392,15 @@ public class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationRoot
         /// </remarks>
         public long IdleWaitTime
         {
-            set => SetProperty("quartz.scheduler.idleWaitTime", value.ToString());
+            set
+            {
+                if (value <= 0)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(value), "IdleWaitTime must be greater than zero.");
+                }
+
+                SetProperty("quartz.scheduler.idleWaitTime", value.ToString());
+            }
         }
 
         /// <summary>
