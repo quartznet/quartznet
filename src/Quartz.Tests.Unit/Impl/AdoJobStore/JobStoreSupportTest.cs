@@ -369,6 +369,100 @@ public class JobStoreSupportTest
             A<CancellationToken>.Ignored)).MustNotHaveHappened();
     }
 
+    [Test]
+    public async Task StoreTrigger_PreservesPreviousFireTimeUtc_WhenReplacingExistingTrigger()
+    {
+        // Arrange
+        var triggerKey = new TriggerKey("t1", "g1");
+        var jobKey = new JobKey("j1", "jg1");
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        DateTimeOffset previousFireTime = new DateTimeOffset(2024, 6, 15, 10, 0, 0, TimeSpan.Zero);
+
+        IJobDetail job = JobBuilder.Create<ConcurrentTestJob>()
+            .WithIdentity(jobKey)
+            .Build();
+
+        // The new trigger (as would be constructed during app restart) has null PreviousFireTimeUtc
+        IOperableTrigger newTrigger = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity(triggerKey)
+            .ForJob(jobKey)
+            .StartNow()
+            .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
+            .Build();
+
+        // The existing trigger in the DB has PreviousFireTimeUtc set from a prior execution
+        IOperableTrigger existingTrigger = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity(triggerKey)
+            .ForJob(jobKey)
+            .StartNow()
+            .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
+            .Build();
+        existingTrigger.SetPreviousFireTimeUtc(previousFireTime);
+
+        // TriggerExists returns true (trigger already in DB)
+        A.CallTo(() => driverDelegate.TriggerExists(conn, triggerKey, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult(true));
+
+        // IsTriggerGroupPaused returns false
+        A.CallTo(() => driverDelegate.IsTriggerGroupPaused(conn, A<string>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult(false));
+
+        // SelectTrigger returns the existing trigger with PreviousFireTimeUtc set
+        A.CallTo(() => driverDelegate.SelectTrigger(conn, triggerKey, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult((IOperableTrigger) existingTrigger));
+
+        // Act
+        await jobStoreSupport.CallStoreTrigger(conn, newTrigger, job, replaceExisting: true);
+
+        // Assert: PreviousFireTimeUtc should be preserved from the existing trigger
+        newTrigger.GetPreviousFireTimeUtc().Should().Be(previousFireTime,
+            "PreviousFireTimeUtc should be preserved from the existing trigger when replacing (#1834)");
+
+        // Verify UpdateTrigger was called (not InsertTrigger)
+        A.CallTo(() => driverDelegate.UpdateTrigger(conn, newTrigger, A<string>.Ignored, job, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task StoreTrigger_DoesNotOverridePreviousFireTimeUtc_WhenNewTriggerAlreadyHasIt()
+    {
+        // Arrange
+        var triggerKey = new TriggerKey("t1", "g1");
+        var jobKey = new JobKey("j1", "jg1");
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        DateTimeOffset newPreviousFireTime = new DateTimeOffset(2024, 7, 1, 12, 0, 0, TimeSpan.Zero);
+
+        IJobDetail job = JobBuilder.Create<ConcurrentTestJob>()
+            .WithIdentity(jobKey)
+            .Build();
+
+        // The new trigger already has PreviousFireTimeUtc set
+        IOperableTrigger newTrigger = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity(triggerKey)
+            .ForJob(jobKey)
+            .StartNow()
+            .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
+            .Build();
+        newTrigger.SetPreviousFireTimeUtc(newPreviousFireTime);
+
+        // TriggerExists returns true
+        A.CallTo(() => driverDelegate.TriggerExists(conn, triggerKey, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult(true));
+
+        A.CallTo(() => driverDelegate.IsTriggerGroupPaused(conn, A<string>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult(false));
+
+        // Act
+        await jobStoreSupport.CallStoreTrigger(conn, newTrigger, job, replaceExisting: true);
+
+        // Assert: should keep the new trigger's own PreviousFireTimeUtc, not query the existing one
+        newTrigger.GetPreviousFireTimeUtc().Should().Be(newPreviousFireTime);
+
+        // SelectTrigger should NOT have been called since newTrigger already had PreviousFireTimeUtc
+        A.CallTo(() => driverDelegate.SelectTrigger(conn, triggerKey, A<CancellationToken>.Ignored))
+            .MustNotHaveHappened();
+    }
+
     private static IOperableTrigger CreateTestTrigger(string name = "t1", string fireInstanceId = "test-fire-id")
     {
         IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
@@ -456,6 +550,15 @@ public class JobStoreSupportTest
         internal Task<bool> CallRemoveJob(ConnectionAndTransactionHolder conn, JobKey jobKey)
         {
             return RemoveJob(conn, jobKey, true, CancellationToken.None);
+        }
+
+        internal Task CallStoreTrigger(
+            ConnectionAndTransactionHolder conn,
+            IOperableTrigger newTrigger,
+            IJobDetail job,
+            bool replaceExisting)
+        {
+            return StoreTrigger(conn, newTrigger, job, replaceExisting, AdoConstants.StateWaiting, false, false, CancellationToken.None);
         }
     }
 
