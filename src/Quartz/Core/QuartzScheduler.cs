@@ -598,6 +598,7 @@ public class QuartzScheduler :
             throw new SchedulerException("Trigger does not reference given job!");
         }
 
+        AdjustSimpleTriggerStartTimeIfInPast(trig);
         trig.Validate();
 
         ICalendar? cal = null;
@@ -642,6 +643,7 @@ public class QuartzScheduler :
         }
 
         IOperableTrigger trig = (IOperableTrigger) trigger;
+        AdjustSimpleTriggerStartTimeIfInPast(trig);
         trig.Validate();
 
         ICalendar? cal = null;
@@ -780,6 +782,7 @@ public class QuartzScheduler :
                 var trigger = (IOperableTrigger) t;
                 trigger.JobKey = job.Key;
 
+                AdjustSimpleTriggerStartTimeIfInPast(trigger);
                 trigger.Validate();
 
                 ICalendar? cal = null;
@@ -901,6 +904,7 @@ public class QuartzScheduler :
         }
 
         trigger.JobKey = oldTrigger.JobKey;
+        AdjustSimpleTriggerStartTimeIfInPast(trigger);
         trigger.Validate();
 
         ICalendar? cal = null;
@@ -939,6 +943,31 @@ public class QuartzScheduler :
         }
 
         return ft;
+    }
+
+    /// <summary>
+    /// For a SimpleTrigger whose StartTimeUtc is in the past and has never fired,
+    /// advance the start time to the current time so that ComputeFirstFireTimeUtc
+    /// will produce a future fire time. This handles the case where a trigger is
+    /// created well before it is actually scheduled.
+    /// </summary>
+    private static void AdjustSimpleTriggerStartTimeIfInPast(IOperableTrigger trigger)
+    {
+        if (trigger is ISimpleTrigger simpleTrigger
+            && trigger.GetPreviousFireTimeUtc() is null
+            && simpleTrigger.RepeatCount != 0
+            && simpleTrigger.RepeatInterval > TimeSpan.Zero)
+        {
+            DateTimeOffset now = SystemTime.UtcNow();
+            if (trigger.StartTimeUtc < now)
+            {
+                // Advance start time to the current time. ComputeFirstFireTimeUtc
+                // will then correctly compute the first fire time from now, and
+                // RepeatCount still controls how many times the trigger fires from
+                // this new start.
+                trigger.StartTimeUtc = now;
+            }
+        }
     }
 
     private string NewTriggerId()
