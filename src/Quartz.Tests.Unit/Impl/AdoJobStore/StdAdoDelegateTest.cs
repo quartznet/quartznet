@@ -34,6 +34,7 @@ using NUnit.Framework;
 
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Impl.Triggers;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
@@ -389,6 +390,159 @@ public class StdAdoDelegateTest
     }
 
     [Test]
+    public async Task TestSelectBlobTriggerPopulatesFireTimesFromDb()
+    {
+        var nextFireTime = new DateTimeOffset(2024, 1, 1, 12, 0, 0, TimeSpan.Zero);
+        var prevFireTime = new DateTimeOffset(2023, 12, 31, 12, 0, 0, TimeSpan.Zero);
+
+        var dbProvider = A.Fake<IDbProvider>();
+        var connection = A.Fake<DbConnection>();
+        var transaction = A.Fake<DbTransaction>();
+        var command = (DbCommand) A.Fake<StubCommand>();
+        var dbMetadata = new DbMetadata();
+        A.CallTo(() => dbProvider.Metadata).Returns(dbMetadata);
+        A.CallTo(() => dbProvider.CreateCommand()).Returns(command);
+
+        var dataReader = A.Fake<DbDataReader>();
+        A.CallTo(command).Where(x => x.Method.Name == "ExecuteDbDataReaderAsync")
+            .WithReturnType<Task<DbDataReader>>()
+            .Returns(Task.FromResult(dataReader));
+
+        A.CallTo(command).Where(x => x.Method.Name == "get_DbParameterCollection")
+            .WithReturnType<DbParameterCollection>()
+            .Returns(new StubParameterCollection());
+
+        A.CallTo(() => command.CommandText).Returns("");
+
+        A.CallTo(command).Where(x => x.Method.Name == "CreateDbParameter")
+            .WithReturnType<DbParameter>()
+            .Returns(new SqlParameter());
+
+        // Both reads succeed (first for TRIGGERS table, second for BLOB_TRIGGERS table)
+        A.CallTo(() => dataReader.ReadAsync(CancellationToken.None)).Returns(true);
+
+        A.CallTo(() => dataReader[AdoConstants.ColumnTriggerType]).Returns(AdoConstants.TriggerTypeBlob);
+        A.CallTo(() => dataReader[AdoConstants.ColumnJobName]).Returns("testJob");
+        A.CallTo(() => dataReader[AdoConstants.ColumnJobGroup]).Returns("DEFAULT");
+        A.CallTo(() => dataReader[AdoConstants.ColumnDescription]).Returns(DBNull.Value);
+        A.CallTo(() => dataReader[AdoConstants.ColumnCalendarName]).Returns(DBNull.Value);
+        A.CallTo(() => dataReader[AdoConstants.ColumnMifireInstruction]).Returns(2);
+        A.CallTo(() => dataReader[AdoConstants.ColumnPriority]).Returns(5);
+        A.CallTo(() => dataReader[AdoConstants.ColumnNextFireTime]).Returns(nextFireTime.UtcTicks);
+        A.CallTo(() => dataReader[AdoConstants.ColumnPreviousFireTime]).Returns(prevFireTime.UtcTicks);
+        A.CallTo(() => dataReader[AdoConstants.ColumnStartTime]).Returns(DateTimeOffset.UtcNow.UtcTicks);
+        A.CallTo(() => dataReader[AdoConstants.ColumnEndTime]).Returns(DBNull.Value);
+        A.CallTo(() => dataReader[AdoConstants.ColumnMisfireOriginalFireTime]).Returns(DBNull.Value);
+        // Return true for IsDBNull on job data map column so that the map is read as null
+        A.CallTo(() => dataReader.IsDBNull(11)).Returns(true);
+
+        // Create a blob trigger with no fire times set (simulating a freshly deserialized custom trigger)
+        var blobTrigger = new SimpleTriggerImpl
+        {
+            Key = new TriggerKey("test", "DEFAULT"),
+            JobKey = new JobKey("testJob", "DEFAULT"),
+        };
+
+        var adoDelegate = new BlobTriggerOverrideDelegate(blobTrigger);
+        adoDelegate.Initialize(new DelegateInitializationArgs
+        {
+            TablePrefix = "QRTZ_",
+            InstanceId = "TESTSCHED",
+            InstanceName = "INSTANCE",
+            TypeLoadHelper = new SimpleTypeLoadHelper(),
+            UseProperties = false,
+            InitString = "",
+            DbProvider = dbProvider
+        });
+
+        var conn = new ConnectionAndTransactionHolder(connection, transaction);
+        IOperableTrigger trigger = await adoDelegate.SelectTrigger(conn, new TriggerKey("test"));
+
+        Assert.That(trigger, Is.Not.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(trigger.GetNextFireTimeUtc(), Is.EqualTo(nextFireTime));
+            Assert.That(trigger.GetPreviousFireTimeUtc(), Is.EqualTo(prevFireTime));
+            Assert.That(trigger.MisfireInstruction, Is.EqualTo(2));
+        });
+    }
+
+    [Test]
+    public async Task TestSelectBlobTriggerPopulatesMisfiredFromFireTimeUtcFromDb()
+    {
+        var nextFireTime = new DateTimeOffset(2024, 1, 1, 12, 0, 0, TimeSpan.Zero);
+        var misfireOrigFireTime = new DateTimeOffset(2024, 1, 1, 10, 0, 0, TimeSpan.Zero);
+
+        var dbProvider = A.Fake<IDbProvider>();
+        var connection = A.Fake<DbConnection>();
+        var transaction = A.Fake<DbTransaction>();
+        var command = (DbCommand) A.Fake<StubCommand>();
+        var dbMetadata = new DbMetadata();
+        A.CallTo(() => dbProvider.Metadata).Returns(dbMetadata);
+        A.CallTo(() => dbProvider.CreateCommand()).Returns(command);
+
+        var dataReader = A.Fake<DbDataReader>();
+        A.CallTo(command).Where(x => x.Method.Name == "ExecuteDbDataReaderAsync")
+            .WithReturnType<Task<DbDataReader>>()
+            .Returns(Task.FromResult(dataReader));
+
+        A.CallTo(command).Where(x => x.Method.Name == "get_DbParameterCollection")
+            .WithReturnType<DbParameterCollection>()
+            .Returns(new StubParameterCollection());
+
+        A.CallTo(() => command.CommandText).Returns("");
+
+        A.CallTo(command).Where(x => x.Method.Name == "CreateDbParameter")
+            .WithReturnType<DbParameter>()
+            .Returns(new SqlParameter());
+
+        A.CallTo(() => dataReader.ReadAsync(CancellationToken.None)).Returns(true);
+
+        A.CallTo(() => dataReader[AdoConstants.ColumnTriggerType]).Returns(AdoConstants.TriggerTypeBlob);
+        A.CallTo(() => dataReader[AdoConstants.ColumnJobName]).Returns("testJob");
+        A.CallTo(() => dataReader[AdoConstants.ColumnJobGroup]).Returns("DEFAULT");
+        A.CallTo(() => dataReader[AdoConstants.ColumnDescription]).Returns(DBNull.Value);
+        A.CallTo(() => dataReader[AdoConstants.ColumnCalendarName]).Returns(DBNull.Value);
+        A.CallTo(() => dataReader[AdoConstants.ColumnMifireInstruction]).Returns(1);
+        A.CallTo(() => dataReader[AdoConstants.ColumnPriority]).Returns(5);
+        A.CallTo(() => dataReader[AdoConstants.ColumnNextFireTime]).Returns(nextFireTime.UtcTicks);
+        A.CallTo(() => dataReader[AdoConstants.ColumnPreviousFireTime]).Returns(DBNull.Value);
+        A.CallTo(() => dataReader[AdoConstants.ColumnStartTime]).Returns(DateTimeOffset.UtcNow.UtcTicks);
+        A.CallTo(() => dataReader[AdoConstants.ColumnEndTime]).Returns(DBNull.Value);
+        A.CallTo(() => dataReader[AdoConstants.ColumnMisfireOriginalFireTime]).Returns(misfireOrigFireTime.UtcTicks);
+        A.CallTo(() => dataReader.IsDBNull(11)).Returns(true);
+
+        var blobTrigger = new SimpleTriggerImpl
+        {
+            Key = new TriggerKey("test", "DEFAULT"),
+            JobKey = new JobKey("testJob", "DEFAULT"),
+        };
+
+        var adoDelegate = new BlobTriggerOverrideDelegate(blobTrigger, hasMisfireOrigColumn: true);
+        adoDelegate.Initialize(new DelegateInitializationArgs
+        {
+            TablePrefix = "QRTZ_",
+            InstanceId = "TESTSCHED",
+            InstanceName = "INSTANCE",
+            TypeLoadHelper = new SimpleTypeLoadHelper(),
+            UseProperties = false,
+            InitString = "",
+            DbProvider = dbProvider
+        });
+
+        var conn = new ConnectionAndTransactionHolder(connection, transaction);
+        IOperableTrigger trigger = await adoDelegate.SelectTrigger(conn, new TriggerKey("test"));
+
+        Assert.That(trigger, Is.Not.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(trigger.GetNextFireTimeUtc(), Is.EqualTo(nextFireTime));
+            Assert.That(trigger.MisfireInstruction, Is.EqualTo(1));
+            Assert.That(((AbstractTrigger) trigger).MisfiredFromFireTimeUtc, Is.EqualTo(misfireOrigFireTime));
+        });
+    }
+
+    [Test]
     public void ShouldSupportAssemblyQualifiedTriggerPersistenceDelegates()
     {
         StdAdoDelegate adoDelegate = new TestStdAdoDelegate(new SimpleTriggerPersistenceDelegate());
@@ -419,6 +573,37 @@ public class StdAdoDelegateTest
         {
             return testDelegate;
         }
+    }
+
+    /// <summary>
+    /// Test subclass that bypasses actual blob deserialization to return a pre-built trigger,
+    /// allowing tests to verify that SelectTrigger sets fire times from DB columns on blob triggers.
+    /// </summary>
+    private sealed class BlobTriggerOverrideDelegate : StdAdoDelegate
+    {
+        private readonly IOperableTrigger blobTrigger;
+
+        public BlobTriggerOverrideDelegate(IOperableTrigger blobTrigger, bool hasMisfireOrigColumn = false)
+        {
+            this.blobTrigger = blobTrigger;
+            if (hasMisfireOrigColumn)
+            {
+                typeof(StdAdoDelegate)
+                    .GetProperty(nameof(HasMisfireOriginalFireTimeColumn))!
+                    .SetValue(this, true);
+            }
+        }
+
+#pragma warning disable CS8632
+        protected override Task<T?> GetObjectFromBlob<T>(DbDataReader rs, int colIndex, CancellationToken cancellationToken = default) where T : class
+        {
+            if (typeof(T) == typeof(IOperableTrigger))
+            {
+                return Task.FromResult((T?) (object) blobTrigger);
+            }
+            return base.GetObjectFromBlob<T>(rs, colIndex, cancellationToken);
+        }
+#pragma warning restore CS8632
     }
 }
 
