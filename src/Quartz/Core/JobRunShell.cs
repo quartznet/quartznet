@@ -82,33 +82,18 @@ public class JobRunShell : SchedulerListenerSupport
     /// <summary>
     /// Initializes the job execution context with given scheduler and bundle.
     /// </summary>
+    /// <remarks>
+    /// Job creation via <see cref="IJobFactory.NewJob"/> is deferred to <see cref="Run"/>
+    /// so that AsyncLocal values set during job factory creation flow correctly to <see cref="IJob.Execute"/>.
+    /// </remarks>
     /// <param name="sched">The scheduler.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public virtual async Task Initialize(
+    public virtual Task Initialize(
         QuartzScheduler sched,
         CancellationToken cancellationToken = default)
     {
         qs = sched;
-
-        IJob job;
-
-        try
-        {
-            job = sched.JobFactory.NewJob(firedTriggerBundle, scheduler);
-        }
-        catch (SchedulerException se)
-        {
-            await sched.NotifySchedulerListenersError($"An error occurred instantiating job to be executed. job= '{firedTriggerBundle.JobDetail.Key}'", se, cancellationToken).ConfigureAwait(false);
-            throw;
-        }
-        catch (Exception e)
-        {
-            SchedulerException se = new SchedulerException($"Problem instantiating type '{firedTriggerBundle.JobDetail.JobType.FullName}: {e.Message}'", e);
-            await sched.NotifySchedulerListenersError($"An error occurred instantiating job to be executed. job= '{firedTriggerBundle.JobDetail.Key}, message={e.Message}'", se, cancellationToken).ConfigureAwait(false);
-            throw se;
-        }
-
-        jec = new JobExecutionContextImpl(scheduler, firedTriggerBundle, job);
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -126,14 +111,45 @@ public class JobRunShell : SchedulerListenerSupport
     public virtual async Task Run(CancellationToken cancellationToken = default)
     {
         Context.CallerId.Value = Guid.NewGuid();
-        qs!.AddInternalSchedulerListener(this);
 
-        IJob job = jec!.jobInstance;
+        // Create the job here (moved from Initialize) so that AsyncLocal values
+        // set during IJobFactory.NewJob flow correctly to IJob.Execute (#1528)
+        IJobDetail jobDetail = firedTriggerBundle.JobDetail;
+        IJob job;
+        try
+        {
+            job = qs!.JobFactory.NewJob(firedTriggerBundle, scheduler);
+            jec = new JobExecutionContextImpl(scheduler, firedTriggerBundle, job);
+        }
+        catch (SchedulerException se)
+        {
+            await qs!.NotifySchedulerListenersError($"An error occurred instantiating job to be executed. job='{jobDetail.Key}'", se, cancellationToken).ConfigureAwait(false);
+
+            IOperableTrigger errorTrigger = (IOperableTrigger) firedTriggerBundle.Trigger;
+            SchedulerInstruction instruction = se.InnerException is ObjectDisposedException or OperationCanceledException
+                ? SchedulerInstruction.NoInstruction
+                : SchedulerInstruction.SetAllJobTriggersError;
+            await qs.NotifyJobStoreJobComplete(errorTrigger, jobDetail, instruction, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+        catch (Exception e)
+        {
+            SchedulerException se = new SchedulerException($"Problem instantiating type '{jobDetail.JobType.FullName}: {e.Message}'", e);
+            await qs!.NotifySchedulerListenersError($"An error occurred instantiating job to be executed. job='{jobDetail.Key}', message='{e.Message}'", se, cancellationToken).ConfigureAwait(false);
+
+            IOperableTrigger errorTrigger = (IOperableTrigger) firedTriggerBundle.Trigger;
+            SchedulerInstruction instruction = e is ObjectDisposedException or OperationCanceledException
+                ? SchedulerInstruction.NoInstruction
+                : SchedulerInstruction.SetAllJobTriggersError;
+            await qs.NotifyJobStoreJobComplete(errorTrigger, jobDetail, instruction, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        qs!.AddInternalSchedulerListener(this);
 
         try
         {
-            IOperableTrigger trigger = (IOperableTrigger) jec.Trigger;
-            IJobDetail jobDetail = jec.JobDetail;
+            IOperableTrigger trigger = (IOperableTrigger) jec!.Trigger;
             do
             {
                 JobExecutionException? jobExEx = null;
