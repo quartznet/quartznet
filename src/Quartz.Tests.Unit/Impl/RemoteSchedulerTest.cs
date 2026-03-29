@@ -1,3 +1,5 @@
+using System.Threading.Tasks;
+
 using FakeItEasy;
 
 using NUnit.Framework;
@@ -46,5 +48,24 @@ public class RemoteSchedulerTest
 
         Assert.AreEqual("LocalClientName", name);
         A.CallTo(() => proxyFactory.GetProxy()).MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task Shutdown_RemovesSchedulerFromRepositoryByLocalName()
+    {
+        IRemotableSchedulerProxyFactory proxyFactory = A.Fake<IRemotableSchedulerProxyFactory>();
+        IRemotableQuartzScheduler remoteProxy = A.Fake<IRemotableQuartzScheduler>();
+        A.CallTo(() => proxyFactory.GetProxy()).Returns(remoteProxy);
+        A.CallTo(() => remoteProxy.SchedulerName).Returns("RemoteServerName");
+
+        RemoteScheduler scheduler = new RemoteScheduler("uid", proxyFactory, "LocalClientName");
+
+        SchedulerRepository repository = SchedulerRepository.Instance;
+        repository.Bind(scheduler);
+        Assert.IsNotNull(repository.Lookup("LocalClientName"));
+
+        await scheduler.Shutdown().ConfigureAwait(false);
+
+        Assert.IsNull(repository.Lookup("LocalClientName"));
     }
 }
