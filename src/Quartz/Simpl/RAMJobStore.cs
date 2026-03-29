@@ -1783,18 +1783,20 @@ public class RAMJobStore : IJobStore
     {
         lock (lockObject)
         {
-            List<TriggerFiredResult> results = new List<TriggerFiredResult>();
+            List<TriggerFiredResult> results = new List<TriggerFiredResult>(triggers.Count);
 
             foreach (IOperableTrigger trigger in triggers)
             {
                 // was the trigger deleted since being acquired?
                 if (!triggersByKey.TryGetValue(trigger.Key, out var tw) || tw.Trigger == null)
                 {
+                    results.Add(new TriggerFiredResult((TriggerFiredBundle?) null));
                     continue;
                 }
                 // was the trigger completed, paused, blocked, etc. since being acquired?
                 if (tw.state != InternalTriggerState.Acquired)
                 {
+                    results.Add(new TriggerFiredResult((TriggerFiredBundle?) null));
                     continue;
                 }
 
@@ -1804,6 +1806,7 @@ public class RAMJobStore : IJobStore
                     calendarsByName.TryGetValue(tw.Trigger.CalendarName, out cal);
                     if (cal == null)
                     {
+                        results.Add(new TriggerFiredResult((TriggerFiredBundle?) null));
                         continue;
                     }
                 }
