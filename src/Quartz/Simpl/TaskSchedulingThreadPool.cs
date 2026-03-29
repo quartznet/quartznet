@@ -250,6 +250,9 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
             Task.WaitAll(tasksArray);
             log.Debug("No executing jobs remaining, all threads stopped.");
         }
+        // Dispose the scheduler to release its resources (e.g. QueuedTaskScheduler threads)
+        (scheduler as IDisposable)?.Dispose();
+
         log.Debug("Shutdown of threadpool complete.");
     }
 }
