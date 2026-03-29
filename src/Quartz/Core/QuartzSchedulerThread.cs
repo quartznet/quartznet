@@ -354,7 +354,10 @@ internal sealed class QuartzSchedulerThread
                                 {
                                     try
                                     {
-                                        await schedulingChangeSignal.WaitAsync(timeUntilTrigger, cancellationTokenSource.Token).ConfigureAwait(false);
+                                        // Cap the wait time to recover from system clock backward jumps.
+                                        // The outer while loop recomputes timeUntilTrigger from the current clock after each wait.
+                                        var waitTime = timeUntilTrigger < qsRsrcs.IdleWaitTime ? timeUntilTrigger : qsRsrcs.IdleWaitTime;
+                                        await schedulingChangeSignal.WaitAsync(waitTime, cancellationTokenSource.Token).ConfigureAwait(false);
                                     }
                                     catch (OperationCanceledException)
                                     {
