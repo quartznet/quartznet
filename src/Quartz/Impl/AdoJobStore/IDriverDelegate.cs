@@ -890,6 +890,16 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Checks whether a trigger currently has a fired trigger in EXECUTING state.
+    /// Used to return correct trigger state when trigger is COMPLETE but still executing.
+    /// </summary>
+    ValueTask<bool> IsTriggerCurrentlyExecuting(
+        ConnectionAndTransactionHolder conn,
+        string triggerName,
+        string triggerGroup,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Select the states of all fired-trigger records for a given scheduler
     /// instance.
     /// </summary>

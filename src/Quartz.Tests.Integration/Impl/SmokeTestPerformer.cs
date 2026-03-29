@@ -371,6 +371,7 @@ public class SmokeTestPerformer
                 await scheduler.GetTriggerGroupNames();
 
                 await TestMatchers(scheduler);
+                await TestGetTriggerStateBlockedWhileExecuting(scheduler);
             }
         }
         finally
@@ -454,6 +455,96 @@ public class SmokeTestPerformer
 
         tkeys = await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupContains("yz"));
         Assert.That(tkeys.Count, Is.EqualTo(2), "Wrong number of triggers found by contains with matcher");
+    }
+
+    /// <summary>
+    /// Regression test for #2255: GetTriggerState should return Blocked (not Complete)
+    /// when a trigger's last fire is currently executing.
+    /// </summary>
+    private async Task TestGetTriggerStateBlockedWhileExecuting(IScheduler scheduler)
+    {
+        await scheduler.Clear();
+        await scheduler.Start();
+
+        var jobStarted = new SemaphoreSlim(0, 1);
+        var jobCanFinish = new SemaphoreSlim(0, 1);
+        scheduler.Context.Put("JobStarted_2255", jobStarted);
+        scheduler.Context.Put("JobCanFinish_2255", jobCanFinish);
+
+        IJobDetail job = JobBuilder.Create<SignallingJob>()
+            .WithIdentity("signalJob_2255", "testGroup")
+            .Build();
+
+        // Single-fire trigger — after it fires, the trigger has no next fire time
+        // so the ADO store marks it COMPLETE in QRTZ_TRIGGERS while FIRED_TRIGGERS has EXECUTING
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity("signalTrigger_2255", "testGroup")
+            .ForJob(job)
+            .StartNow()
+            .Build();
+
+        await scheduler.ScheduleJob(job, trigger);
+
+        try
+        {
+            // Wait for the job to start executing
+            Assert.That(await jobStarted.WaitAsync(TimeSpan.FromSeconds(10)), Is.True, "Job should have started within 10 seconds");
+
+            // While the job is executing, GetTriggerState should return Blocked, not Complete
+            var state = await scheduler.GetTriggerState(trigger.Key);
+            Assert.That(state, Is.EqualTo(TriggerState.Blocked),
+                "GetTriggerState should return Blocked while the trigger's job is executing, not Complete (#2255)");
+
+            // Let the job finish
+            jobCanFinish.Release();
+
+            // Wait for the scheduler to process completion by polling deterministically
+            TriggerState finalState = TriggerState.Blocked;
+            DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(30);
+            while (DateTimeOffset.UtcNow < deadline)
+            {
+                finalState = await scheduler.GetTriggerState(trigger.Key);
+                if (finalState == TriggerState.None)
+                {
+                    break;
+                }
+
+                await Task.Delay(TimeSpan.FromMilliseconds(200));
+            }
+
+            // After job completes, single-fire trigger is removed (DeleteTrigger instruction)
+            Assert.That(finalState, Is.EqualTo(TriggerState.None),
+                "Single-fire trigger should be removed after the job finishes executing (#2255)");
+        }
+        finally
+        {
+            // Release the job if it hasn't been released on the success path,
+            // guarding against SemaphoreFullException on double-release (maxCount=1)
+            if (jobCanFinish.CurrentCount == 0)
+            {
+                jobCanFinish.Release();
+            }
+
+            scheduler.Context.Remove("JobStarted_2255");
+            scheduler.Context.Remove("JobCanFinish_2255");
+            await scheduler.Standby();
+        }
+    }
+}
+
+public class SignallingJob : IJob
+{
+    public async ValueTask Execute(IJobExecutionContext context)
+    {
+        var jobStarted = (SemaphoreSlim) context.Scheduler.Context["JobStarted_2255"];
+        var jobCanFinish = (SemaphoreSlim) context.Scheduler.Context["JobCanFinish_2255"];
+
+        jobStarted.Release();
+        bool acquired = await jobCanFinish.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+        if (!acquired)
+        {
+            throw new JobExecutionException("Job did not receive completion signal within 30 seconds");
+        }
     }
 }
 

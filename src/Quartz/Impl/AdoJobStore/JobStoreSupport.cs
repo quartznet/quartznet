@@ -1555,6 +1555,10 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
             if (ts == (StateComplete))
             {
+                if (await IsTriggerCurrentlyExecuting(conn, triggerKey, cancellationToken).ConfigureAwait(false))
+                {
+                    return TriggerState.Blocked;
+                }
                 return TriggerState.Complete;
             }
 
@@ -2270,6 +2274,17 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         CancellationToken cancellationToken = default)
     {
         return Delegate.IsJobCurrentlyExecuting(conn, jobKey.Name, jobKey.Group, cancellationToken);
+    }
+
+    /// <summary>
+    /// Checks whether the given trigger currently has a fired trigger in EXECUTING state.
+    /// </summary>
+    private ValueTask<bool> IsTriggerCurrentlyExecuting(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default)
+    {
+        return Delegate.IsTriggerCurrentlyExecuting(conn, triggerKey.Name, triggerKey.Group, cancellationToken);
     }
 
     /// <summary>
