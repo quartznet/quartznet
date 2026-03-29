@@ -126,7 +126,7 @@ public class JobRunShell : SchedulerListenerSupport
             await qs!.NotifySchedulerListenersError($"An error occurred instantiating job to be executed. job='{jobDetail.Key}'", se, cancellationToken).ConfigureAwait(false);
 
             IOperableTrigger errorTrigger = (IOperableTrigger) firedTriggerBundle.Trigger;
-            SchedulerInstruction instruction = se.InnerException is ObjectDisposedException or OperationCanceledException
+            SchedulerInstruction instruction = cancellationToken.IsCancellationRequested || se.InnerException is ObjectDisposedException or OperationCanceledException
                 ? SchedulerInstruction.NoInstruction
                 : SchedulerInstruction.SetAllJobTriggersError;
             await qs.NotifyJobStoreJobComplete(errorTrigger, jobDetail, instruction, cancellationToken).ConfigureAwait(false);
