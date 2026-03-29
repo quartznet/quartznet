@@ -255,34 +255,10 @@ public class JobRunShell : SchedulerListenerSupport
                 jobExecutionJobDiagnostics.WriteStopped(activity, endTime, jec);
 #endif
 
-                // notify all job listeners
-                if (!await NotifyJobListenersComplete(jec, jobExEx, cancellationToken).ConfigureAwait(false))
-                {
-                    var failureInstCode = SchedulerInstruction.NoInstruction;
-
-                    // update the trigger to determine the correct instruction, even when listener notification fails
-                    try
-                    {
-                        failureInstCode = trigger.ExecutionComplete(jec, jobExEx);
-                        if (log.IsDebugEnabled())
-                        {
-                            log.Debug($"Trigger instruction : {failureInstCode}");
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        // If this happens, there's a bug in the trigger...
-                        SchedulerException se = new SchedulerException("Trigger threw an unhandled exception.", e);
-                        await qs.NotifySchedulerListenersError("Please report this error to the Quartz developers.", se, cancellationToken).ConfigureAwait(false);
-                    }
-
-                    await qs.NotifyJobStoreJobComplete(trigger, jobDetail, failureInstCode, cancellationToken).ConfigureAwait(false);
-                    break;
-                }
-
                 instCode = SchedulerInstruction.NoInstruction;
 
-                // update the trigger
+                // update the trigger — must happen before listener notifications
+                // so we know whether to refire (and skip notifications) or complete
                 try
                 {
                     instCode = trigger.ExecutionComplete(jec, jobExEx);
@@ -296,6 +272,33 @@ public class JobRunShell : SchedulerListenerSupport
                     // If this happens, there's a bug in the trigger...
                     SchedulerException se = new SchedulerException("Trigger threw an unhandled exception.", e);
                     await qs.NotifySchedulerListenersError("Please report this error to the Quartz developers.", se, cancellationToken).ConfigureAwait(false);
+                }
+
+                // re-Execute job — skip listener notifications so that listeners like
+                // JobChainingJobListener don't see intermediate refire attempts as completions (#663)
+                if (instCode == SchedulerInstruction.ReExecuteJob)
+                {
+                    if (log.IsDebugEnabled())
+                    {
+                        log.Debug("Rescheduling trigger to reexecute");
+                    }
+                    jec.IncrementRefireCount();
+                    try
+                    {
+                        Complete(false);
+                    }
+                    catch (SchedulerException se)
+                    {
+                        await qs.NotifySchedulerListenersError($"Error executing Job {jec.JobDetail.Key}: couldn't finalize execution.", se, cancellationToken).ConfigureAwait(false);
+                    }
+                    continue;
+                }
+
+                // notify all job listeners
+                if (!await NotifyJobListenersComplete(jec, jobExEx, cancellationToken).ConfigureAwait(false))
+                {
+                    await qs.NotifyJobStoreJobComplete(trigger, jobDetail, instCode, cancellationToken).ConfigureAwait(false);
+                    break;
                 }
 
                 // notify all trigger listeners
@@ -318,24 +321,6 @@ public class JobRunShell : SchedulerListenerSupport
 
                     await qs.NotifyJobStoreJobComplete(trigger, jobDetail, instCode, cancellationToken).ConfigureAwait(false);
                     break;
-                }
-                // update job/trigger or re-Execute job
-                if (instCode == SchedulerInstruction.ReExecuteJob)
-                {
-                    if (log.IsDebugEnabled())
-                    {
-                        log.Debug("Rescheduling trigger to reexecute");
-                    }
-                    jec.IncrementRefireCount();
-                    try
-                    {
-                        Complete(false);
-                    }
-                    catch (SchedulerException se)
-                    {
-                        await qs.NotifySchedulerListenersError($"Error executing Job {jec.JobDetail.Key}: couldn't finalize execution.", se, cancellationToken).ConfigureAwait(false);
-                    }
-                    continue;
                 }
 
                 try
