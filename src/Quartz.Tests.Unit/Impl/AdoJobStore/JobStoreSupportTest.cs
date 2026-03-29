@@ -38,6 +38,38 @@ public class JobStoreSupportTest
     }
 
     [Test]
+    public async Task TestRemoveJob_ShouldDeleteFiredTriggersForJobKey()
+    {
+        var jobKey = new JobKey("testJob", "testGroup");
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+
+        // No triggers exist in QRTZ_TRIGGERS for this job
+        A.CallTo(() => driverDelegate.SelectTriggerNamesForJob(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            jobKey,
+            A<CancellationToken>.Ignored)).Returns(new ValueTask<List<TriggerKey>>(new List<TriggerKey>()));
+
+        A.CallTo(() => driverDelegate.DeleteFiredTriggers(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            jobKey,
+            A<CancellationToken>.Ignored)).Returns(new ValueTask<int>(0));
+
+        A.CallTo(() => driverDelegate.DeleteJobDetail(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            jobKey,
+            A<CancellationToken>.Ignored)).Returns(new ValueTask<int>(1));
+
+        // Act
+        await jobStoreSupport.CallRemoveJob(conn, jobKey);
+
+        // Assert: fired triggers for this job key should be cleaned up
+        A.CallTo(() => driverDelegate.DeleteFiredTriggers(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            jobKey,
+            A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
     public async Task TestExecuteInNonManagedTXLock_RetriesOnTransientException()
     {
         int callCount = 0;
@@ -248,6 +280,11 @@ public class JobStoreSupportTest
                 Assert.That(fieldInfo, Is.Not.Null);
                 fieldInfo.SetValue(this, value);
             }
+        }
+
+        internal ValueTask<bool> CallRemoveJob(ConnectionAndTransactionHolder conn, JobKey jobKey)
+        {
+            return RemoveJob(conn, jobKey, true, CancellationToken.None);
         }
 
         internal ValueTask<TriggerFiredBundle> CallTriggerFired(ConnectionAndTransactionHolder conn, IOperableTrigger trigger)

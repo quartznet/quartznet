@@ -271,6 +271,19 @@ public partial class StdAdoDelegate
     }
 
     /// <inheritdoc />
+    public virtual async ValueTask<int> DeleteFiredTriggers(
+        ConnectionAndTransactionHolder conn,
+        JobKey jobKey,
+        CancellationToken cancellationToken = default)
+    {
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteFiredTriggersForJob));
+        AddCommandParameter(cmd, "schedulerName", schedName);
+        AddCommandParameter(cmd, "jobName", jobKey.Name);
+        AddCommandParameter(cmd, "jobGroup", jobKey.Group);
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
     public virtual async ValueTask<bool> IsJobCurrentlyExecuting(
         ConnectionAndTransactionHolder conn,
         string jobName,
