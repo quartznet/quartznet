@@ -93,6 +93,87 @@ public class JobStoreSupportTest
     }
 
     [Test]
+    public async Task TestRemoveJob_ShouldDeleteFiredTriggersForJobKey()
+    {
+        // Arrange: delegate implements INextVersionDelegate
+        IDriverDelegate nvDelegate = A.Fake<IDriverDelegate>(x => x.Implements<INextVersionDelegate>());
+        jobStoreSupport.DirectDelegate = nvDelegate;
+
+        var jobKey = new JobKey("testJob", "testGroup");
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+
+        // No triggers exist in QRTZ_TRIGGERS for this job
+        A.CallTo(() => nvDelegate.SelectTriggerNamesForJob(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            jobKey,
+            A<CancellationToken>.Ignored)).Returns(Task.FromResult<IReadOnlyCollection<TriggerKey>>(Array.Empty<TriggerKey>()));
+
+        A.CallTo(() => nvDelegate.DeleteJobDetail(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            jobKey,
+            A<CancellationToken>.Ignored)).Returns(Task.FromResult(1));
+
+        // Act
+        await jobStoreSupport.CallRemoveJob(conn, jobKey);
+
+        // Assert: fired triggers for this job key should be cleaned up
+        A.CallTo(() => ((INextVersionDelegate) nvDelegate).DeleteFiredTriggers(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            jobKey,
+            A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task TestRemoveJob_FallbackPath_ShouldDeleteFiredTriggersForJobKey()
+    {
+        // Arrange: plain IDriverDelegate (does NOT implement INextVersionDelegate)
+        var jobKey = new JobKey("testJob", "testGroup");
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+
+        // No triggers exist in QRTZ_TRIGGERS for this job
+        A.CallTo(() => driverDelegate.SelectTriggerNamesForJob(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            jobKey,
+            A<CancellationToken>.Ignored)).Returns(Task.FromResult<IReadOnlyCollection<TriggerKey>>(Array.Empty<TriggerKey>()));
+
+        var firedRecord = new FiredTriggerRecord
+        {
+            FireInstanceId = "entry_456"
+        };
+
+        A.CallTo(() => driverDelegate.SelectFiredTriggerRecordsByJob(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            jobKey.Name,
+            jobKey.Group,
+            A<CancellationToken>.Ignored)).Returns(Task.FromResult<IReadOnlyCollection<FiredTriggerRecord>>(new[] { firedRecord }));
+
+        A.CallTo(() => driverDelegate.DeleteFiredTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            "entry_456",
+            A<CancellationToken>.Ignored)).Returns(Task.FromResult(1));
+
+        A.CallTo(() => driverDelegate.DeleteJobDetail(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            jobKey,
+            A<CancellationToken>.Ignored)).Returns(Task.FromResult(1));
+
+        // Act
+        await jobStoreSupport.CallRemoveJob(conn, jobKey);
+
+        // Assert: fallback path should select then delete individual fired triggers
+        A.CallTo(() => driverDelegate.SelectFiredTriggerRecordsByJob(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            jobKey.Name,
+            jobKey.Group,
+            A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+
+        A.CallTo(() => driverDelegate.DeleteFiredTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            "entry_456",
+            A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
     public async Task TestExecuteInNonManagedTXLock_RetriesOnTransientException()
     {
         int callCount = 0;
@@ -369,6 +450,11 @@ public class JobStoreSupportTest
         internal Task<TriggerFiredBundle> CallTriggerFired(ConnectionAndTransactionHolder conn, IOperableTrigger trigger)
         {
             return TriggerFired(conn, trigger, CancellationToken.None);
+        }
+
+        internal Task<bool> CallRemoveJob(ConnectionAndTransactionHolder conn, JobKey jobKey)
+        {
+            return RemoveJob(conn, jobKey, true, CancellationToken.None);
         }
     }
 

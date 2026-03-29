@@ -1314,6 +1314,21 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         JobKey key,
         CancellationToken cancellationToken)
     {
+        // Clean up any fired trigger records referencing this job to prevent
+        // orphaned EXECUTING rows that block re-creation of the same job (#1696)
+        if (Delegate is INextVersionDelegate nextVersionDelegate)
+        {
+            await nextVersionDelegate.DeleteFiredTriggers(conn, key, cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            IReadOnlyCollection<FiredTriggerRecord> firedTriggers = await Delegate.SelectFiredTriggerRecordsByJob(conn, key.Name, key.Group, cancellationToken).ConfigureAwait(false);
+            foreach (FiredTriggerRecord rec in firedTriggers)
+            {
+                await Delegate.DeleteFiredTrigger(conn, rec.FireInstanceId!, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
         return await Delegate.DeleteJobDetail(conn, key, cancellationToken).ConfigureAwait(false) > 0;
     }
 
