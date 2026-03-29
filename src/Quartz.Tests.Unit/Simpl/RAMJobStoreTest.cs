@@ -660,6 +660,88 @@ public class RAMJobStoreTest
             "ScheduledFireTimeUtc should match the trigger's scheduled fire time when no misfire occurred");
     }
 
+    /// <summary>
+    /// Regression test for #1386: TriggersFired must return a result entry for every input trigger,
+    /// using a null bundle for skipped triggers, so that QuartzSchedulerThread can correlate
+    /// results by index position.
+    /// </summary>
+    [Test]
+    public async Task TriggersFired_DeletedTrigger_ReturnsNullBundleInsteadOfSkipping()
+    {
+        DateTimeOffset d = DateTimeOffset.UtcNow;
+
+        IOperableTrigger trigger1 = new SimpleTriggerImpl("trigger1", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group, d.AddSeconds(1), d.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
+        IOperableTrigger trigger2 = new SimpleTriggerImpl("trigger2", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group, d.AddSeconds(1), d.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
+        IOperableTrigger trigger3 = new SimpleTriggerImpl("trigger3", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group, d.AddSeconds(1), d.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
+
+        trigger1.ComputeFirstFireTimeUtc(null);
+        trigger2.ComputeFirstFireTimeUtc(null);
+        trigger3.ComputeFirstFireTimeUtc(null);
+
+        await fJobStore.StoreTrigger(trigger1, false);
+        await fJobStore.StoreTrigger(trigger2, false);
+        await fJobStore.StoreTrigger(trigger3, false);
+
+        // Acquire all three triggers
+        DateTimeOffset firstFireTime = trigger1.GetNextFireTimeUtc()!.Value;
+        var acquired = await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 3, TimeSpan.Zero);
+        Assert.That(acquired, Has.Count.EqualTo(3), "Should acquire all 3 triggers");
+
+        // Delete trigger2 between acquire and fire — simulates the race condition
+        Assert.That(await fJobStore.RemoveTrigger(trigger2.Key), Is.True, "trigger2 should be removed");
+
+        // Fire all acquired triggers
+        var results = await fJobStore.TriggersFired(acquired);
+
+        // Result count must match input count for correct index correlation
+        Assert.That(results, Has.Count.EqualTo(3),
+            "TriggersFired must return one result per input trigger to maintain index alignment with QuartzSchedulerThread");
+
+        // trigger1 and trigger3 should have non-null bundles
+        Assert.That(results[0].TriggerFiredBundle, Is.Not.Null, "trigger1 should have fired successfully");
+        Assert.That(results[2].TriggerFiredBundle, Is.Not.Null, "trigger3 should have fired successfully");
+
+        // trigger2 (deleted) should have a null bundle
+        Assert.That(results[1].TriggerFiredBundle, Is.Null,
+            "Deleted trigger should produce a null bundle, not be omitted from results");
+    }
+
+    /// <summary>
+    /// Regression test for #1386: TriggersFired returns null bundle for triggers
+    /// that changed state (e.g., paused) between acquire and fire.
+    /// </summary>
+    [Test]
+    public async Task TriggersFired_PausedTrigger_ReturnsNullBundleInsteadOfSkipping()
+    {
+        DateTimeOffset d = DateTimeOffset.UtcNow;
+
+        IOperableTrigger trigger1 = new SimpleTriggerImpl("trigger1", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group, d.AddSeconds(1), d.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
+        IOperableTrigger trigger2 = new SimpleTriggerImpl("trigger2", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group, d.AddSeconds(1), d.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
+
+        trigger1.ComputeFirstFireTimeUtc(null);
+        trigger2.ComputeFirstFireTimeUtc(null);
+
+        await fJobStore.StoreTrigger(trigger1, false);
+        await fJobStore.StoreTrigger(trigger2, false);
+
+        // Acquire both triggers
+        DateTimeOffset firstFireTime = trigger1.GetNextFireTimeUtc()!.Value;
+        var acquired = await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 2, TimeSpan.Zero);
+        Assert.That(acquired, Has.Count.EqualTo(2));
+
+        // Pause trigger group between acquire and fire
+        await fJobStore.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("triggerGroup1"));
+
+        // Fire all acquired triggers
+        var results = await fJobStore.TriggersFired(acquired);
+
+        // Both triggers should have entries — paused ones get null bundles
+        Assert.That(results, Has.Count.EqualTo(2),
+            "TriggersFired must return one result per input trigger even when some are paused");
+        Assert.That(results[0].TriggerFiredBundle, Is.Null, "paused trigger1 should have null bundle");
+        Assert.That(results[1].TriggerFiredBundle, Is.Null, "paused trigger2 should have null bundle");
+    }
+
     [DisallowConcurrentExecution]
     private class DisallowConcurrentNoOpJob : IJob
     {

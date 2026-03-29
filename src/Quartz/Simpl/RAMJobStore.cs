@@ -1906,19 +1906,21 @@ public class RAMJobStore : IJobStore
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            List<TriggerFiredResult> results = [];
+            List<TriggerFiredResult> results = new(triggers.Count);
 
             foreach (IOperableTrigger trigger in triggers)
             {
                 // was the trigger deleted since being acquired?
                 if (!triggersByKey.TryGetValue(trigger.Key, out var tw))
                 {
+                    results.Add(new TriggerFiredResult((TriggerFiredBundle?) null));
                     continue;
                 }
 
                 // was the trigger completed, paused, blocked, etc. since being acquired?
                 if (tw.state != InternalTriggerState.Acquired)
                 {
+                    results.Add(new TriggerFiredResult((TriggerFiredBundle?) null));
                     continue;
                 }
 
@@ -1928,6 +1930,7 @@ public class RAMJobStore : IJobStore
                     calendarsByName.TryGetValue(tw.Trigger.CalendarName, out cal);
                     if (cal is null)
                     {
+                        results.Add(new TriggerFiredResult((TriggerFiredBundle?) null));
                         continue;
                     }
                 }
