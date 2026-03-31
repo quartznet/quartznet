@@ -59,6 +59,7 @@ public class RAMJobStore : IJobStore
     private readonly HashSet<string> pausedTriggerGroups = [];
     private readonly HashSet<string> pausedJobGroups = [];
     private readonly HashSet<JobKey> blockedJobs = [];
+    private readonly HashSet<JobKey> resumedJobsInPausedGroups = new HashSet<JobKey>();
     private TimeSpan misfireThreshold = TimeSpan.FromSeconds(5);
     private ISchedulerSignaler signaler = null!;
     private TimeProvider timeProvider = TimeProvider.System;
@@ -199,6 +200,8 @@ public class RAMJobStore : IJobStore
             {
                 RemoveCalendarNoLock(name);
             }
+
+            resumedJobsInPausedGroups.Clear();
         }
         finally
         {
@@ -340,6 +343,7 @@ public class RAMJobStore : IJobStore
         }
 
         found = jobsByKey.TryRemove(jobKey, out _) || found;
+        resumedJobsInPausedGroups.Remove(jobKey);
 
         if (found)
         {
@@ -509,7 +513,8 @@ public class RAMJobStore : IJobStore
         // add to triggers by FQN map
         triggersByKey[tw.TriggerKey] = tw;
 
-        if (pausedTriggerGroups.Contains(tw.TriggerKey.Group) || pausedJobGroups.Contains(tw.JobKey.Group))
+        if (pausedTriggerGroups.Contains(tw.TriggerKey.Group) ||
+            (pausedJobGroups.Contains(tw.JobKey.Group) && !resumedJobsInPausedGroups.Contains(tw.JobKey)))
         {
             tw.state = InternalTriggerState.Paused;
             if (blockedJobs.Contains(tw.JobKey))
@@ -1353,6 +1358,7 @@ public class RAMJobStore : IJobStore
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            resumedJobsInPausedGroups.Remove(jobKey);
             var triggerKeysForJob = GetTriggerKeysForJobNoLock(jobKey);
             foreach (TriggerKey key in triggerKeysForJob)
             {
@@ -1383,6 +1389,7 @@ public class RAMJobStore : IJobStore
             StringOperator op = matcher.CompareWithOperator;
             if (StringOperator.Equality.Equals(op))
             {
+                resumedJobsInPausedGroups.RemoveWhere(k => k.Group == matcher.CompareToValue);
                 if (pausedJobGroups.Add(matcher.CompareToValue))
                 {
                     pausedGroups.Add(matcher.CompareToValue);
@@ -1394,6 +1401,7 @@ public class RAMJobStore : IJobStore
                 {
                     if (op.Evaluate(group, matcher.CompareToValue))
                     {
+                        resumedJobsInPausedGroups.RemoveWhere(k => k.Group == group);
                         if (pausedJobGroups.Add(group))
                         {
                             pausedGroups.Add(group);
@@ -1559,6 +1567,11 @@ public class RAMJobStore : IJobStore
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            if (pausedJobGroups.Contains(jobKey.Group) && jobsByKey.ContainsKey(jobKey))
+            {
+                resumedJobsInPausedGroups.Add(jobKey);
+            }
+
             var triggerKeysForJob = GetTriggerKeysForJobNoLock(jobKey);
             foreach (TriggerKey key in triggerKeysForJob)
             {
@@ -1599,6 +1612,7 @@ public class RAMJobStore : IJobStore
             foreach (string resumedGroup in resumedGroups)
             {
                 pausedJobGroups.Remove(resumedGroup);
+                resumedJobsInPausedGroups.RemoveWhere(k => k.Group == resumedGroup);
             }
 
             foreach (JobKey key in keys)
@@ -1658,6 +1672,7 @@ public class RAMJobStore : IJobStore
         {
             // TODO need a match all here!
             pausedJobGroups.Clear();
+            resumedJobsInPausedGroups.Clear();
 
             foreach (string groupName in triggersByGroup.Keys)
             {

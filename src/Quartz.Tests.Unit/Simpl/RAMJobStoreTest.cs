@@ -301,6 +301,106 @@ public class RAMJobStoreTest
     }
 
     [Test]
+    public async Task ResumeJob_WhenGroupPaused_NewTriggerShouldNotBePaused()
+    {
+        string jobGroup = "ResumeJobGroupTest";
+        var job = JobBuilder.Create<NoOpJob>()
+            .WithIdentity(new JobKey("job1", jobGroup))
+            .StoreDurably(true)
+            .Build();
+        await fJobStore.StoreJob(job, false);
+
+        await fJobStore.PauseJobs(GroupMatcher<JobKey>.GroupEquals(jobGroup));
+        await fJobStore.ResumeJob(job.Key);
+
+        IOperableTrigger tr = new SimpleTriggerImpl("newTrigger", "triggerGroup", DateTimeOffset.UtcNow);
+        tr.JobKey = job.Key;
+        await fJobStore.StoreTrigger(tr, false);
+
+        Assert.That(await fJobStore.GetTriggerState(tr.Key), Is.EqualTo(TriggerState.Normal));
+    }
+
+    [Test]
+    public async Task ResumeJob_WhenGroupPaused_OtherJobsStillPaused()
+    {
+        string jobGroup = "ResumeJobGroupTest2";
+        var job1 = JobBuilder.Create<NoOpJob>()
+            .WithIdentity(new JobKey("job1", jobGroup))
+            .StoreDurably(true)
+            .Build();
+        var job2 = JobBuilder.Create<NoOpJob>()
+            .WithIdentity(new JobKey("job2", jobGroup))
+            .StoreDurably(true)
+            .Build();
+        await fJobStore.StoreJob(job1, false);
+        await fJobStore.StoreJob(job2, false);
+
+        await fJobStore.PauseJobs(GroupMatcher<JobKey>.GroupEquals(jobGroup));
+        await fJobStore.ResumeJob(job1.Key);
+
+        IOperableTrigger tr1 = new SimpleTriggerImpl("trigger1", "triggerGroup", DateTimeOffset.UtcNow);
+        tr1.JobKey = job1.Key;
+        await fJobStore.StoreTrigger(tr1, false);
+
+        IOperableTrigger tr2 = new SimpleTriggerImpl("trigger2", "triggerGroup", DateTimeOffset.UtcNow);
+        tr2.JobKey = job2.Key;
+        await fJobStore.StoreTrigger(tr2, false);
+
+        Assert.That(await fJobStore.GetTriggerState(tr1.Key), Is.EqualTo(TriggerState.Normal));
+        Assert.That(await fJobStore.GetTriggerState(tr2.Key), Is.EqualTo(TriggerState.Paused));
+    }
+
+    [Test]
+    public async Task ResumeJob_ThenRePauseGroup_ExemptionCleared()
+    {
+        string jobGroup = "ResumeJobGroupTest3";
+        var job = JobBuilder.Create<NoOpJob>()
+            .WithIdentity(new JobKey("job1", jobGroup))
+            .StoreDurably(true)
+            .Build();
+        await fJobStore.StoreJob(job, false);
+
+        await fJobStore.PauseJobs(GroupMatcher<JobKey>.GroupEquals(jobGroup));
+        await fJobStore.ResumeJob(job.Key);
+        await fJobStore.PauseJobs(GroupMatcher<JobKey>.GroupEquals(jobGroup));
+
+        IOperableTrigger tr = new SimpleTriggerImpl("newTrigger", "triggerGroup", DateTimeOffset.UtcNow);
+        tr.JobKey = job.Key;
+        await fJobStore.StoreTrigger(tr, false);
+
+        Assert.That(await fJobStore.GetTriggerState(tr.Key), Is.EqualTo(TriggerState.Paused));
+    }
+
+    [Test]
+    public async Task ResumeJob_NonexistentJob_DoesNotCreateExemption()
+    {
+        string jobGroup = "ResumeJobGroupTest4";
+        var job = JobBuilder.Create<NoOpJob>()
+            .WithIdentity(new JobKey("job1", jobGroup))
+            .StoreDurably(true)
+            .Build();
+        await fJobStore.StoreJob(job, false);
+
+        await fJobStore.PauseJobs(GroupMatcher<JobKey>.GroupEquals(jobGroup));
+
+        // resume a nonexistent job — should not create an exemption for that key
+        await fJobStore.ResumeJob(new JobKey("nonexistent", jobGroup));
+
+        // now store the previously-nonexistent job and a trigger for it
+        var laterJob = JobBuilder.Create<NoOpJob>()
+            .WithIdentity(new JobKey("nonexistent", jobGroup))
+            .StoreDurably(true)
+            .Build();
+        await fJobStore.StoreJob(laterJob, false);
+
+        IOperableTrigger tr = new SimpleTriggerImpl("newTrigger", "triggerGroup", DateTimeOffset.UtcNow);
+        tr.JobKey = laterJob.Key;
+        await fJobStore.StoreTrigger(tr, false);
+
+        Assert.That(await fJobStore.GetTriggerState(tr.Key), Is.EqualTo(TriggerState.Paused));
+    }
+
+    [Test]
     public async Task TestRetrieveJob_NoJobFound()
     {
         RAMJobStore store = new RAMJobStore();
