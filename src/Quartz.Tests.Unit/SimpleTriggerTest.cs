@@ -19,10 +19,14 @@
 
 #endregion
 
+using System.Collections.Specialized;
+
 using FakeItEasy;
 
+using Quartz.Impl;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
+using Quartz.Job;
 using Quartz.Simpl;
 using Quartz.Spi;
 
@@ -244,6 +248,188 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
         Assert.That(instruction, Is.EqualTo(SchedulerInstruction.DeleteTrigger));
     }
 
+    /// <summary>
+    /// Regression test for #2455: When a SimpleTrigger is created with a StartTimeUtc
+    /// in the past and later scheduled, the first fire time should be in the future.
+    /// </summary>
+    [Test]
+    public async Task ScheduleJob_WhenStartTimeInPast_ShouldFireInFuture()
+    {
+        DateTimeOffset now = new DateTimeOffset(2026, 6, 15, 12, 0, 0, TimeSpan.Zero);
+        DateTimeOffset pastStart = now.AddHours(-1);
+
+        var config = new NameValueCollection
+        {
+            ["quartz.serializer.type"] = TestConstants.DefaultSerializerType,
+            ["quartz.scheduler.instanceName"] = "SimpleTriggerPastStartTest",
+            ["quartz.timeProvider.type"] = typeof(FixedTimeProvider).AssemblyQualifiedName!,
+        };
+        FixedTimeProvider.UtcNowValue = now;
+
+        IScheduler scheduler = await new StdSchedulerFactory(config).GetScheduler();
+        try
+        {
+            IJobDetail job = JobBuilder.Create<NoOpJob>()
+                .WithIdentity("testJob", "testGroup")
+                .Build();
+
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("testTrigger", "testGroup")
+                .StartAt(pastStart)
+                .WithSimpleSchedule(x => x
+                    .WithIntervalInMinutes(10)
+                    .RepeatForever())
+                .Build();
+
+            DateTimeOffset firstFire = await scheduler.ScheduleJob(job, trigger);
+
+            Assert.That(firstFire, Is.GreaterThanOrEqualTo(now),
+                "First fire time should not be in the past when trigger has never fired");
+
+            ITrigger storedTrigger = await scheduler.GetTrigger(trigger.Key);
+            Assert.IsNotNull(storedTrigger);
+            Assert.That(storedTrigger.GetNextFireTimeUtc(), Is.GreaterThanOrEqualTo(now),
+                "Stored trigger's next fire time should not be in the past");
+        }
+        finally
+        {
+            await scheduler.Shutdown(false);
+        }
+    }
+
+    /// <summary>
+    /// Regression test for #2455: When a SimpleTrigger with a finite repeat count is
+    /// created with a StartTimeUtc in the past and later scheduled, the first fire
+    /// time should be in the future and the repeat count should still be honored.
+    /// </summary>
+    [Test]
+    public async Task ScheduleJob_WhenStartTimeInPast_WithFiniteRepeatCount_ShouldFireInFuture()
+    {
+        DateTimeOffset now = new DateTimeOffset(2026, 6, 15, 12, 0, 0, TimeSpan.Zero);
+        DateTimeOffset pastStart = now.AddMinutes(-25);
+
+        var config = new NameValueCollection
+        {
+            ["quartz.serializer.type"] = TestConstants.DefaultSerializerType,
+            ["quartz.scheduler.instanceName"] = "SimpleTriggerPastStartFiniteTest",
+            ["quartz.timeProvider.type"] = typeof(FixedTimeProvider).AssemblyQualifiedName!,
+        };
+        FixedTimeProvider.UtcNowValue = now;
+
+        IScheduler scheduler = await new StdSchedulerFactory(config).GetScheduler();
+        try
+        {
+            IJobDetail job = JobBuilder.Create<NoOpJob>()
+                .WithIdentity("testJob", "testGroup")
+                .Build();
+
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("testTrigger", "testGroup")
+                .StartAt(pastStart)
+                .WithSimpleSchedule(x => x
+                    .WithIntervalInMinutes(10)
+                    .WithRepeatCount(5))
+                .Build();
+
+            DateTimeOffset firstFire = await scheduler.ScheduleJob(job, trigger);
+
+            Assert.That(firstFire, Is.GreaterThanOrEqualTo(now),
+                "First fire time should not be in the past");
+        }
+        finally
+        {
+            await scheduler.Shutdown(false);
+        }
+    }
+
+    /// <summary>
+    /// Regression test for #2455: A SimpleTrigger with a future StartTimeUtc should
+    /// not be affected by the past-start-time adjustment.
+    /// </summary>
+    [Test]
+    public async Task ScheduleJob_WhenStartTimeInFuture_ShouldNotChange()
+    {
+        DateTimeOffset now = new DateTimeOffset(2026, 6, 15, 12, 0, 0, TimeSpan.Zero);
+        DateTimeOffset futureStart = now.AddHours(1);
+
+        var config = new NameValueCollection
+        {
+            ["quartz.serializer.type"] = TestConstants.DefaultSerializerType,
+            ["quartz.scheduler.instanceName"] = "SimpleTriggerFutureStartTest",
+            ["quartz.timeProvider.type"] = typeof(FixedTimeProvider).AssemblyQualifiedName!,
+        };
+        FixedTimeProvider.UtcNowValue = now;
+
+        IScheduler scheduler = await new StdSchedulerFactory(config).GetScheduler();
+        try
+        {
+            IJobDetail job = JobBuilder.Create<NoOpJob>()
+                .WithIdentity("testJob", "testGroup")
+                .Build();
+
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("testTrigger", "testGroup")
+                .StartAt(futureStart)
+                .WithSimpleSchedule(x => x
+                    .WithIntervalInMinutes(10)
+                    .RepeatForever())
+                .Build();
+
+            DateTimeOffset firstFire = await scheduler.ScheduleJob(job, trigger);
+
+            Assert.That(firstFire, Is.EqualTo(futureStart),
+                "First fire time should be the original start time when it is in the future");
+        }
+        finally
+        {
+            await scheduler.Shutdown(false);
+        }
+    }
+
+    /// <summary>
+    /// Regression test for #2455: A non-repeating SimpleTrigger with a past StartTimeUtc
+    /// should not be affected by the adjustment (it should retain original behavior).
+    /// </summary>
+    [Test]
+    public async Task ScheduleJob_NonRepeating_WhenStartTimeInPast_ShouldRetainOriginalBehavior()
+    {
+        DateTimeOffset now = new DateTimeOffset(2026, 6, 15, 12, 0, 0, TimeSpan.Zero);
+        DateTimeOffset pastStart = now.AddHours(-1);
+
+        var config = new NameValueCollection
+        {
+            ["quartz.serializer.type"] = TestConstants.DefaultSerializerType,
+            ["quartz.scheduler.instanceName"] = "SimpleTriggerNonRepeatingTest",
+            ["quartz.timeProvider.type"] = typeof(FixedTimeProvider).AssemblyQualifiedName!,
+        };
+        FixedTimeProvider.UtcNowValue = now;
+
+        IScheduler scheduler = await new StdSchedulerFactory(config).GetScheduler();
+        try
+        {
+            IJobDetail job = JobBuilder.Create<NoOpJob>()
+                .WithIdentity("testJob", "testGroup")
+                .Build();
+
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("testTrigger", "testGroup")
+                .StartAt(pastStart)
+                .WithSimpleSchedule(x => x
+                    .WithRepeatCount(0))
+                .Build();
+
+            DateTimeOffset firstFire = await scheduler.ScheduleJob(job, trigger);
+
+            // Non-repeating trigger should retain the past start time
+            // (misfire handling will deal with it later)
+            Assert.That(firstFire, Is.EqualTo(pastStart));
+        }
+        finally
+        {
+            await scheduler.Shutdown(false);
+        }
+    }
+
     [Test]
     public void RescheduleNextWithExistingCount_WithMisfireThreshold_PreservesWithinThresholdFireTime()
     {
@@ -302,6 +488,13 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
 
     private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
     {
+        /// <summary>
+        /// Static value used by StdSchedulerFactory instantiation (parameterless constructor).
+        /// </summary>
+        internal static DateTimeOffset UtcNowValue;
+
+        public FixedTimeProvider() : this(UtcNowValue) { }
+
         public override DateTimeOffset GetUtcNow() => utcNow;
     }
 }
