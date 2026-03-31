@@ -945,4 +945,182 @@ public class JobStoreSupportTest
     }
 
     #endregion
+
+    #region DoCheckin transient retry tests
+
+    [Test]
+    public async Task DoCheckin_RetriesOnTransientException()
+    {
+        int updateCallCount = 0;
+        TransientDoCheckinTestStore store = CreateTransientDoCheckinTestStore();
+        IDriverDelegate del = A.Fake<IDriverDelegate>();
+        store.DirectDelegate = del;
+
+        // Not first check-in: ClusterCheckIn path calls SelectSchedulerStateRecords then UpdateSchedulerState
+        store.SetFirstCheckIn(false);
+
+        A.CallTo(() => del.SelectSchedulerStateRecords(A<ConnectionAndTransactionHolder>.Ignored, A<string>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult<IReadOnlyCollection<SchedulerStateRecord>>(new List<SchedulerStateRecord>
+            {
+                new SchedulerStateRecord { SchedulerInstanceId = store.InstanceId, CheckinTimestamp = SystemTime.UtcNow(), CheckinInterval = TimeSpan.FromSeconds(15) }
+            }));
+
+        A.CallTo(() => del.UpdateSchedulerState(A<ConnectionAndTransactionHolder>.Ignored, A<string>.Ignored, A<DateTimeOffset>.Ignored, A<CancellationToken>.Ignored))
+            .ReturnsLazily(call =>
+            {
+                updateCallCount++;
+                if (updateCallCount == 1)
+                {
+                    throw new TransientTestException();
+                }
+                return Task.FromResult(1);
+            });
+
+        bool result = await store.DoCheckin(Guid.NewGuid());
+
+        result.Should().BeFalse("no recovery needed");
+        updateCallCount.Should().Be(2, "first call throws transient, second succeeds after retry");
+    }
+
+    [Test]
+    public async Task DoCheckin_DoesNotRetryNonTransientException()
+    {
+        TransientDoCheckinTestStore store = CreateTransientDoCheckinTestStore();
+        IDriverDelegate del = A.Fake<IDriverDelegate>();
+        store.DirectDelegate = del;
+
+        store.SetFirstCheckIn(false);
+
+        A.CallTo(() => del.SelectSchedulerStateRecords(A<ConnectionAndTransactionHolder>.Ignored, A<string>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult<IReadOnlyCollection<SchedulerStateRecord>>(new List<SchedulerStateRecord>
+            {
+                new SchedulerStateRecord { SchedulerInstanceId = store.InstanceId, CheckinTimestamp = SystemTime.UtcNow(), CheckinInterval = TimeSpan.FromSeconds(15) }
+            }));
+
+        A.CallTo(() => del.UpdateSchedulerState(A<ConnectionAndTransactionHolder>.Ignored, A<string>.Ignored, A<DateTimeOffset>.Ignored, A<CancellationToken>.Ignored))
+            .ThrowsAsync(new InvalidOperationException("permanent error"));
+
+        Func<Task> act = async () => await store.DoCheckin(Guid.NewGuid());
+
+        await act.Should().ThrowAsync<JobPersistenceException>();
+        A.CallTo(() => del.UpdateSchedulerState(A<ConnectionAndTransactionHolder>.Ignored, A<string>.Ignored, A<DateTimeOffset>.Ignored, A<CancellationToken>.Ignored))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task DoCheckin_TransientExceptionPropagatesAfterMaxRetries()
+    {
+        TransientDoCheckinTestStore store = CreateTransientDoCheckinTestStore(maxTransientRetries: 1);
+        IDriverDelegate del = A.Fake<IDriverDelegate>();
+        store.DirectDelegate = del;
+
+        store.SetFirstCheckIn(false);
+
+        A.CallTo(() => del.SelectSchedulerStateRecords(A<ConnectionAndTransactionHolder>.Ignored, A<string>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult<IReadOnlyCollection<SchedulerStateRecord>>(new List<SchedulerStateRecord>
+            {
+                new SchedulerStateRecord { SchedulerInstanceId = store.InstanceId, CheckinTimestamp = SystemTime.UtcNow(), CheckinInterval = TimeSpan.FromSeconds(15) }
+            }));
+
+        A.CallTo(() => del.UpdateSchedulerState(A<ConnectionAndTransactionHolder>.Ignored, A<string>.Ignored, A<DateTimeOffset>.Ignored, A<CancellationToken>.Ignored))
+            .ThrowsAsync(new TransientTestException());
+
+        Func<Task> act = async () => await store.DoCheckin(Guid.NewGuid());
+
+        await act.Should().ThrowAsync<JobPersistenceException>();
+        // Initial attempt + 1 retry = 2 total
+        A.CallTo(() => del.UpdateSchedulerState(A<ConnectionAndTransactionHolder>.Ignored, A<string>.Ignored, A<DateTimeOffset>.Ignored, A<CancellationToken>.Ignored))
+            .MustHaveHappened(2, Times.Exactly);
+    }
+
+    [Test]
+    public async Task DoCheckin_LastCheckinNotAdvancedOnFailure()
+    {
+        TransientDoCheckinTestStore store = CreateTransientDoCheckinTestStore();
+        IDriverDelegate del = A.Fake<IDriverDelegate>();
+        store.DirectDelegate = del;
+
+        store.SetFirstCheckIn(false);
+
+        DateTimeOffset initialCheckin = store.LastCheckin;
+
+        int updateCallCount = 0;
+        A.CallTo(() => del.SelectSchedulerStateRecords(A<ConnectionAndTransactionHolder>.Ignored, A<string>.Ignored, A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult<IReadOnlyCollection<SchedulerStateRecord>>(new List<SchedulerStateRecord>
+            {
+                new SchedulerStateRecord { SchedulerInstanceId = store.InstanceId, CheckinTimestamp = SystemTime.UtcNow(), CheckinInterval = TimeSpan.FromSeconds(15) }
+            }));
+
+        A.CallTo(() => del.UpdateSchedulerState(A<ConnectionAndTransactionHolder>.Ignored, A<string>.Ignored, A<DateTimeOffset>.Ignored, A<CancellationToken>.Ignored))
+            .ReturnsLazily(call =>
+            {
+                updateCallCount++;
+                if (updateCallCount == 1)
+                {
+                    throw new TransientTestException();
+                }
+                return Task.FromResult(1);
+            });
+
+        await store.DoCheckin(Guid.NewGuid());
+
+        store.LastCheckin.Should().BeAfter(initialCheckin, "LastCheckin should advance after successful check-in");
+    }
+
+    private static TransientDoCheckinTestStore CreateTransientDoCheckinTestStore(int maxTransientRetries = 3)
+    {
+        return new TransientDoCheckinTestStore
+        {
+            MaxTransientRetries = maxTransientRetries,
+        };
+    }
+
+    /// <summary>
+    /// A <see cref="JobStoreSupport"/> subclass used to test transient retry logic
+    /// in the <see cref="JobStoreSupport.DoCheckin"/> method.
+    /// </summary>
+    public sealed class TransientDoCheckinTestStore : JobStoreSupport
+    {
+        public TransientDoCheckinTestStore()
+        {
+            LockHandler = new SimpleSemaphore();
+            TransientRetryInterval = TimeSpan.Zero;
+            InstanceId = "test-instance";
+            InstanceName = "test-scheduler";
+        }
+
+        public void SetFirstCheckIn(bool value)
+        {
+            firstCheckIn = value;
+        }
+
+        protected override ConnectionAndTransactionHolder GetNonManagedTXConnection()
+        {
+            return new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        }
+
+        protected override Task<T> ExecuteInLock<T>(
+            string lockName,
+            Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
+            CancellationToken cancellationToken = default)
+        {
+            return ExecuteInNonManagedTXLock(lockName, txCallback, cancellationToken);
+        }
+
+        protected override bool IsTransient(Exception ex)
+        {
+            return ex is JobPersistenceException { InnerException: TransientTestException };
+        }
+
+        internal IDriverDelegate DirectDelegate
+        {
+            set
+            {
+                FieldInfo fieldInfo = typeof(JobStoreSupport).GetField("driverDelegate", BindingFlags.Instance | BindingFlags.NonPublic)!;
+                fieldInfo.SetValue(this, value);
+            }
+        }
+    }
+
+    #endregion
 }
