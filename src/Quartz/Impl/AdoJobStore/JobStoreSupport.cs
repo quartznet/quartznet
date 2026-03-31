@@ -3472,78 +3472,94 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         Guid requestorId,
         CancellationToken cancellationToken = default)
     {
-        bool transOwner = false;
-        bool transStateOwner = false;
-        bool recovered = false;
-
-        ConnectionAndTransactionHolder conn = GetNonManagedTXConnection();
-        try
+        int maxRetries = MaxTransientRetries;
+        int totalAttempts = maxRetries + 1;
+        for (int attempt = 1; attempt <= totalAttempts; attempt++)
         {
-            // Other than the first time, always checkin first to make sure there is
-            // work to be done before we acquire the lock (since that is expensive,
-            // and is almost never necessary).  This must be done in a separate
-            // transaction to prevent a deadlock under recovery conditions.
-            IReadOnlyList<SchedulerStateRecord>? failedRecords = null;
-            if (!firstCheckIn)
-            {
-                failedRecords = await ClusterCheckIn(conn, cancellationToken).ConfigureAwait(false);
-                CommitConnection(conn, true);
-            }
+            bool transOwner = false;
+            bool transStateOwner = false;
+            bool recovered = false;
 
-            if (firstCheckIn || failedRecords != null && failedRecords.Count > 0)
+            ConnectionAndTransactionHolder conn = GetNonManagedTXConnection();
+            try
             {
-                transStateOwner = await LockHandler.ObtainLock(requestorId, conn, LockStateAccess, cancellationToken).ConfigureAwait(false);
-
-                // Now that we own the lock, make sure we still have work to do.
-                // The first time through, we also need to make sure we update/create our state record
-                if (firstCheckIn)
+                // Other than the first time, always checkin first to make sure there is
+                // work to be done before we acquire the lock (since that is expensive,
+                // and is almost never necessary).  This must be done in a separate
+                // transaction to prevent a deadlock under recovery conditions.
+                IReadOnlyList<SchedulerStateRecord>? failedRecords = null;
+                if (!firstCheckIn)
                 {
                     failedRecords = await ClusterCheckIn(conn, cancellationToken).ConfigureAwait(false);
+                    CommitConnection(conn, true);
+                }
+
+                if (firstCheckIn || failedRecords != null && failedRecords.Count > 0)
+                {
+                    transStateOwner = await LockHandler.ObtainLock(requestorId, conn, LockStateAccess, cancellationToken).ConfigureAwait(false);
+
+                    // Now that we own the lock, make sure we still have work to do.
+                    // The first time through, we also need to make sure we update/create our state record
+                    if (firstCheckIn)
+                    {
+                        failedRecords = await ClusterCheckIn(conn, cancellationToken).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        failedRecords = await FindFailedInstances(conn, cancellationToken).ConfigureAwait(false);
+                    }
+
+                    if (failedRecords.Count > 0)
+                    {
+                        transOwner = await LockHandler.ObtainLock(requestorId, conn, LockTriggerAccess, cancellationToken).ConfigureAwait(false);
+                        //getLockHandler().obtainLock(conn, LockJobAccess);
+
+                        await ClusterRecover(conn, failedRecords, cancellationToken).ConfigureAwait(false);
+                        recovered = true;
+                    }
+                }
+
+                CommitConnection(conn, false);
+
+                firstCheckIn = false;
+                return recovered;
+            }
+            catch (JobPersistenceException jpe)
+            {
+                RollbackConnection(conn, jpe);
+                if (attempt < totalAttempts && IsTransient(jpe))
+                {
+                    Log.WarnException($"Transient exception on attempt {attempt} of {totalAttempts} in DoCheckin, will retry after {TransientRetryInterval}", jpe);
                 }
                 else
                 {
-                    failedRecords = await FindFailedInstances(conn, cancellationToken).ConfigureAwait(false);
+                    throw;
                 }
-
-                if (failedRecords.Count > 0)
-                {
-                    transOwner = await LockHandler.ObtainLock(requestorId, conn, LockTriggerAccess, cancellationToken).ConfigureAwait(false);
-                    //getLockHandler().obtainLock(conn, LockJobAccess);
-
-                    await ClusterRecover(conn, failedRecords, cancellationToken).ConfigureAwait(false);
-                    recovered = true;
-                }
-            }
-
-            CommitConnection(conn, false);
-        }
-        catch (JobPersistenceException jpe)
-        {
-            RollbackConnection(conn, jpe);
-            throw;
-        }
-        finally
-        {
-            try
-            {
-                await ReleaseLock(requestorId, LockTriggerAccess, transOwner, cancellationToken).ConfigureAwait(false);
             }
             finally
             {
                 try
                 {
-                    await ReleaseLock(requestorId, LockStateAccess, transStateOwner, cancellationToken).ConfigureAwait(false);
+                    await ReleaseLock(requestorId, LockTriggerAccess, transOwner, cancellationToken).ConfigureAwait(false);
                 }
                 finally
                 {
-                    CleanupConnection(conn);
+                    try
+                    {
+                        await ReleaseLock(requestorId, LockStateAccess, transStateOwner, cancellationToken).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        CleanupConnection(conn);
+                    }
                 }
             }
+
+            // Delay before the next attempt
+            await Task.Delay(TransientRetryInterval, cancellationToken).ConfigureAwait(false);
         }
 
-        firstCheckIn = false;
-
-        return recovered;
+        throw new InvalidOperationException("DoCheckin retry loop exited unexpectedly");
     }
 
     /// <summary>
@@ -3664,11 +3680,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             // TODO: handle self-failed-out
 
             // check in...
-            LastCheckin = SystemTime.UtcNow();
-            if (await Delegate.UpdateSchedulerState(conn, InstanceId, LastCheckin, cancellationToken).ConfigureAwait(false) == 0)
+            var checkinTime = SystemTime.UtcNow();
+            if (await Delegate.UpdateSchedulerState(conn, InstanceId, checkinTime, cancellationToken).ConfigureAwait(false) == 0)
             {
-                await Delegate.InsertSchedulerState(conn, InstanceId, LastCheckin, ClusterCheckinInterval, cancellationToken).ConfigureAwait(false);
+                await Delegate.InsertSchedulerState(conn, InstanceId, checkinTime, ClusterCheckinInterval, cancellationToken).ConfigureAwait(false);
             }
+            LastCheckin = checkinTime;
         }
         catch (Exception e)
         {
