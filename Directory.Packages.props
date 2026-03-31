@@ -10,7 +10,7 @@
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
     <PackageVersion Include="FakeItEasy" Version="9.0.1" />
     <PackageVersion Include="FirebirdSql.Data.FirebirdClient" Version="10.3.4" />
-    <PackageVersion Include="FluentAssertions" Version="[7.0.0]" />
+    <PackageVersion Include="FluentAssertions" Version="[8.9.0]" />
     <PackageVersion Include="FluentAssertions.Analyzers" Version="0.34.1" />
     <PackageVersion Include="log4net" Version="3.3.0" />
     <PackageVersion Include="MELT" Version="1.1.0" />
