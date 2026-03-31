@@ -1698,7 +1698,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                     foreach (IOperableTrigger trigger in triggers)
                     {
                         trigger.UpdateWithNewCalendar(calendar, MisfireThreshold);
-                        await StoreTrigger(conn, trigger, null, true, StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
+                        string triggerState = await Delegate.SelectTriggerState(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+                        if (string.Equals(triggerState, StateDeleted, StringComparison.Ordinal))
+                        {
+                            continue;
+                        }
+                        await StoreTrigger(conn, trigger, null, true, triggerState, true, false, cancellationToken).ConfigureAwait(false);
                     }
                 }
             }
