@@ -661,6 +661,24 @@ internal static class ByRuleExpander
         return result;
     }
 
+    /// <summary>
+    /// Check if the given date's day-of-week matches any entry in the BYDAY array
+    /// (ignoring ordinals). Used by RecurrenceRule for fast-forward/rewind skipping.
+    /// </summary>
+    internal static bool MatchesByDayOfWeek(DateTime dt, (DayOfWeek Day, int Ordinal)[] byDay)
+    {
+        return MatchesByDay(dt, byDay);
+    }
+
+    /// <summary>
+    /// Check if the given date's day-of-month matches any entry in the BYMONTHDAY array.
+    /// Used by RecurrenceRule for fast-forward/rewind skipping.
+    /// </summary>
+    internal static bool MatchesByMonthDayValue(DateTime dt, int[] byMonthDay)
+    {
+        return MatchesByMonthDay(dt, byMonthDay);
+    }
+
     private static bool MatchesByDay(DateTime dt, (DayOfWeek Day, int Ordinal)[] byDay)
     {
         foreach ((DayOfWeek dow, int _) in byDay)

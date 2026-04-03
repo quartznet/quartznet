@@ -345,15 +345,17 @@ internal sealed class RecurrenceRule
         {
             DateTime periodStart = GetPeriodStart(local.Start, i);
 
-            // Fast-backward: for sub-daily frequencies with BYMONTH limiting,
-            // skip to the end of the previous matching month instead of
-            // iterating every period in non-matching months.
-            if (ByMonth != null && Frequency < RecurrenceFrequency.Daily
-                && Array.IndexOf(ByMonth, periodStart.Month) < 0)
+            // Fast-backward: for sub-daily frequencies with limiting BY* rules,
+            // skip backward instead of iterating every period.
+            if (Frequency < RecurrenceFrequency.Daily)
             {
-                i = FastRewindToPreviousMatchingMonth(local.Start, i);
-                iterations++;
-                continue;
+                int? skip = TryFastRewindSubDaily(local.Start, i, periodStart);
+                if (skip != null)
+                {
+                    i = skip.Value;
+                    iterations++;
+                    continue;
+                }
             }
 
             List<DateTime> candidates = ByRuleExpander.ExpandPeriod(this, local.Start, periodStart);
@@ -452,15 +454,17 @@ internal sealed class RecurrenceRule
                 return null;
             }
 
-            // Fast-forward: for sub-daily frequencies with BYMONTH limiting,
-            // skip ahead to the next matching month instead of iterating
-            // through every second/minute/hour of non-matching months.
-            if (ByMonth != null && Frequency < RecurrenceFrequency.Daily
-                && Array.IndexOf(ByMonth, periodStart.Month) < 0)
+            // Fast-forward: for sub-daily frequencies with limiting BY* rules,
+            // skip ahead instead of iterating every second/minute/hour.
+            if (Frequency < RecurrenceFrequency.Daily)
             {
-                i = FastForwardToNextMatchingMonth(local.Start, i);
-                iterations++;
-                continue;
+                int? skip = TryFastForwardSubDaily(local.Start, i, periodStart);
+                if (skip != null)
+                {
+                    i = skip.Value;
+                    iterations++;
+                    continue;
+                }
             }
 
             List<DateTime> candidates = ByRuleExpander.ExpandPeriod(this, local.Start, periodStart);
@@ -494,63 +498,119 @@ internal sealed class RecurrenceRule
     }
 
     /// <summary>
-    /// Find the period index of the start of the next month that matches BYMONTH,
-    /// beginning from the given period index. Used to skip sub-daily frequencies
-    /// past months that will never produce matches.
+    /// For sub-daily frequencies, check if the current period is excluded by a
+    /// limiting BY* rule and return a jump-forward index if so. Returns null
+    /// if no skip is needed (the period may contain valid candidates).
     /// </summary>
-    private int FastForwardToNextMatchingMonth(DateTime start, int currentPeriodIdx)
+    private int? TryFastForwardSubDaily(DateTime start, int currentPeriodIdx, DateTime periodStart)
     {
-        DateTime current = GetPeriodStart(start, currentPeriodIdx);
-
-        for (int attempt = 0; attempt < 13; attempt++)
+        // BYMONTH: skip to next matching month
+        if (ByMonth != null && Array.IndexOf(ByMonth, periodStart.Month) < 0)
         {
-            DateTime nextMonth = new DateTime(current.Year, current.Month, 1)
-                .AddMonths(attempt + 1);
-
-            if (ByMonth != null && Array.IndexOf(ByMonth, nextMonth.Month) >= 0)
+            for (int attempt = 0; attempt < 13; attempt++)
             {
-                // Jump to the first day of the matching month. GetPeriodIndex will
-                // compute the approximate period, which may overshoot slightly due
-                // to dtStart's time-of-day alignment. Subtract 1 to ensure we don't
-                // skip the first valid period in the month.
-                DateTime target = new DateTime(nextMonth.Year, nextMonth.Month, 1, 0, 0, 0);
-                int idx = GetPeriodIndex(start, target);
-                return Math.Max(idx - 1, currentPeriodIdx + 1);
+                DateTime nextMonth = new DateTime(periodStart.Year, periodStart.Month, 1)
+                    .AddMonths(attempt + 1);
+                if (Array.IndexOf(ByMonth, nextMonth.Month) >= 0)
+                {
+                    DateTime target = new DateTime(nextMonth.Year, nextMonth.Month, 1, 0, 0, 0);
+                    int idx = GetPeriodIndex(start, target);
+                    return Math.Max(idx - 1, currentPeriodIdx + 1);
+                }
             }
+            return currentPeriodIdx + 1;
         }
 
-        return currentPeriodIdx + 1;
+        // BYDAY: skip to next matching day-of-week
+        if (ByDay != null && !ByRuleExpander.MatchesByDayOfWeek(periodStart, ByDay))
+        {
+            // Jump forward to the start of the next day, then scan up to 7 days
+            DateTime nextDay = periodStart.Date.AddDays(1);
+            for (int d = 0; d < 7; d++)
+            {
+                DateTime candidate = nextDay.AddDays(d);
+                if (ByRuleExpander.MatchesByDayOfWeek(candidate, ByDay))
+                {
+                    int idx = GetPeriodIndex(start, candidate);
+                    return Math.Max(idx, currentPeriodIdx + 1);
+                }
+            }
+            return currentPeriodIdx + 1;
+        }
+
+        // BYMONTHDAY: skip to next matching day-of-month
+        if (ByMonthDay != null && !ByRuleExpander.MatchesByMonthDayValue(periodStart, ByMonthDay))
+        {
+            // Jump to the start of the next day
+            DateTime nextDay = periodStart.Date.AddDays(1);
+            int idx = GetPeriodIndex(start, nextDay);
+            return Math.Max(idx, currentPeriodIdx + 1);
+        }
+
+        return null;
     }
 
     /// <summary>
-    /// Find the period index at the end of the previous month that matches BYMONTH,
-    /// searching backward. Used by GetLastOccurrenceBefore to skip non-matching months.
+    /// For sub-daily frequencies, check if the current period is excluded by a
+    /// limiting BY* rule and return a jump-backward index if so. Returns null
+    /// if no skip is needed.
     /// </summary>
-    private int FastRewindToPreviousMatchingMonth(DateTime start, int currentPeriodIdx)
+    private int? TryFastRewindSubDaily(DateTime start, int currentPeriodIdx, DateTime periodStart)
     {
-        DateTime current = GetPeriodStart(start, currentPeriodIdx);
-
-        for (int attempt = 0; attempt < 13; attempt++)
+        // BYMONTH: skip backward to end of previous matching month
+        if (ByMonth != null && Array.IndexOf(ByMonth, periodStart.Month) < 0)
         {
-            // Go to the last moment of the previous month
-            DateTime prevMonthEnd = new DateTime(current.Year, current.Month, 1)
-                .AddMonths(-attempt)
-                .AddSeconds(-1);
+            for (int attempt = 0; attempt < 13; attempt++)
+            {
+                DateTime prevMonthEnd = new DateTime(periodStart.Year, periodStart.Month, 1)
+                    .AddMonths(-attempt)
+                    .AddSeconds(-1);
+                if (prevMonthEnd < start)
+                {
+                    return 0;
+                }
+                if (Array.IndexOf(ByMonth, prevMonthEnd.Month) >= 0)
+                {
+                    int idx = GetPeriodIndex(start, prevMonthEnd);
+                    return Math.Min(idx, currentPeriodIdx - 1);
+                }
+            }
+            return Math.Max(currentPeriodIdx - 1, 0);
+        }
 
-            if (prevMonthEnd < start)
+        // BYDAY: skip backward to end of previous matching day
+        if (ByDay != null && !ByRuleExpander.MatchesByDayOfWeek(periodStart, ByDay))
+        {
+            DateTime prevDay = periodStart.Date.AddSeconds(-1);
+            for (int d = 0; d < 7; d++)
+            {
+                DateTime candidate = prevDay.AddDays(-d);
+                if (candidate < start)
+                {
+                    return 0;
+                }
+                if (ByRuleExpander.MatchesByDayOfWeek(candidate, ByDay))
+                {
+                    int idx = GetPeriodIndex(start, candidate);
+                    return Math.Min(idx, currentPeriodIdx - 1);
+                }
+            }
+            return Math.Max(currentPeriodIdx - 1, 0);
+        }
+
+        // BYMONTHDAY: skip backward to end of previous day
+        if (ByMonthDay != null && !ByRuleExpander.MatchesByMonthDayValue(periodStart, ByMonthDay))
+        {
+            DateTime prevDay = periodStart.Date.AddSeconds(-1);
+            if (prevDay < start)
             {
                 return 0;
             }
-
-            if (ByMonth != null && Array.IndexOf(ByMonth, prevMonthEnd.Month) >= 0)
-            {
-                // Land at end of the matching month so backward search finds its last period
-                int idx = GetPeriodIndex(start, prevMonthEnd);
-                return Math.Min(idx, currentPeriodIdx - 1);
-            }
+            int idx = GetPeriodIndex(start, prevDay);
+            return Math.Min(idx, currentPeriodIdx - 1);
         }
 
-        return Math.Max(currentPeriodIdx - 1, 0);
+        return null;
     }
 
     private DateTime? FindNextOccurrenceWithCount(LocalTimes local)
