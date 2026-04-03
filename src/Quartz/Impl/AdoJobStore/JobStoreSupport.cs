@@ -915,7 +915,14 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         int recoveredCount = 0;
         foreach (FiredTriggerRecord rec in firedTriggers)
         {
-            if (rec.FireInstanceState == StateAcquired && rec.FireTimestamp < staleCutoff)
+            // Use the later of scheduled fire time and acquisition time to avoid
+            // premature recovery when IdleWaitTime is large (triggers are legitimately
+            // ACQUIRED until their scheduled fire time arrives).
+            DateTimeOffset effectiveTimestamp = rec.ScheduleTimestamp > rec.FireTimestamp
+                ? rec.ScheduleTimestamp
+                : rec.FireTimestamp;
+
+            if (rec.FireInstanceState == StateAcquired && effectiveTimestamp < staleCutoff)
             {
                 try
                 {
@@ -958,7 +965,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
         foreach (FiredTriggerRecord rec in firedTriggers)
         {
-            if (rec.FireInstanceState == StateAcquired && rec.FireTimestamp < staleCutoff)
+            DateTimeOffset effectiveTimestamp = rec.ScheduleTimestamp > rec.FireTimestamp
+                ? rec.ScheduleTimestamp
+                : rec.FireTimestamp;
+
+            if (rec.FireInstanceState == StateAcquired && effectiveTimestamp < staleCutoff)
             {
                 return true;
             }
