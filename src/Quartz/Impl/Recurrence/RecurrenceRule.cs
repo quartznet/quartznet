@@ -559,30 +559,47 @@ internal sealed class RecurrenceRule
             return 0;
         }
 
+        // Use long arithmetic to avoid overflow for large time spans,
+        // then clamp to int range (downstream iteration caps at MaxIterations anyway).
+        long result;
         switch (Frequency)
         {
             case RecurrenceFrequency.Yearly:
-                return (target.Year - start.Year) / Interval;
+                result = (target.Year - start.Year) / Interval;
+                break;
             case RecurrenceFrequency.Monthly:
-                int months = (target.Year - start.Year) * 12 + (target.Month - start.Month);
-                return months / Interval;
+                long months = (long)(target.Year - start.Year) * 12 + (target.Month - start.Month);
+                result = months / Interval;
+                break;
             case RecurrenceFrequency.Weekly:
                 // Align to WeekStart, matching GetPeriodStart's alignment
                 int daysToWeekStart = ((int)start.DayOfWeek - (int)WeekStart + 7) % 7;
                 DateTime weekBase = start.Date.AddDays(-daysToWeekStart);
-                int days = (int)(target.Date - weekBase).TotalDays;
-                return days / (7 * Interval);
+                long weekDays = (long)(target.Date - weekBase).TotalDays;
+                result = weekDays / (7 * Interval);
+                break;
             case RecurrenceFrequency.Daily:
-                return (int)(target.Date - start.Date).TotalDays / Interval;
+                result = (long)(target.Date - start.Date).TotalDays / Interval;
+                break;
             case RecurrenceFrequency.Hourly:
-                return (int)(target - start).TotalHours / Interval;
+                result = (long)(target - start).TotalHours / Interval;
+                break;
             case RecurrenceFrequency.Minutely:
-                return (int)(target - start).TotalMinutes / Interval;
+                result = (long)(target - start).TotalMinutes / Interval;
+                break;
             case RecurrenceFrequency.Secondly:
-                return (int)(target - start).TotalSeconds / Interval;
+                result = (long)(target - start).TotalSeconds / Interval;
+                break;
             default:
                 return 0;
         }
+
+        // Clamp to int range — values beyond MaxIterations are capped downstream
+        if (result > int.MaxValue)
+        {
+            return int.MaxValue;
+        }
+        return (int)result;
     }
 
     /// <summary>
