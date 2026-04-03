@@ -81,11 +81,13 @@ public class JobStoreSupportTest
         // Act
         await jobStoreSupport.RecoverMisfiredJobs(null, false);
 
-        // Assert: optimized delegate method called (match by name — FakeItEasy records
-        // calls on the primary interface even for methods from Implements<>())
-        A.CallTo(nvDelegate)
-            .Where(call => call.Method.Name == "UpdateMisfiredTrigger")
-            .MustHaveHappenedOnceExactly();
+        // Assert: optimized delegate method called
+        A.CallTo(() => ((INextVersionDelegate) nvDelegate).UpdateMisfiredTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            A<IOperableTrigger>.Ignored,
+            A<string>.Ignored,
+            A<DateTimeOffset?>.Ignored,
+            A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
 
         // Assert: StoreTrigger path NOT taken (no TriggerExists check, no UpdateTrigger)
         A.CallTo(() => nvDelegate.TriggerExists(
@@ -194,9 +196,12 @@ public class JobStoreSupportTest
             A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
 
         // Assert: both triggers updated via optimized path
-        A.CallTo(nvDelegate)
-            .Where(call => call.Method.Name == "UpdateMisfiredTrigger")
-            .MustHaveHappenedTwiceExactly();
+        A.CallTo(() => ((INextVersionDelegate) nvDelegate).UpdateMisfiredTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            A<IOperableTrigger>.Ignored,
+            A<string>.Ignored,
+            A<DateTimeOffset?>.Ignored,
+            A<CancellationToken>.Ignored)).MustHaveHappenedTwiceExactly();
     }
 
     [Test]
