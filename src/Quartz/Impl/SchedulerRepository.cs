@@ -44,9 +44,30 @@ public sealed class SchedulerRepository : ISchedulerRepository
     public static SchedulerRepository Instance { get; } = new();
 
     /// <inheritdoc />
+    /// <remarks>
+    /// This overload reads <see cref="IScheduler.SchedulerInstanceId"/> which is always available
+    /// for local schedulers. For remote schedulers (e.g., <c>HttpScheduler</c>) where
+    /// <see cref="IScheduler.SchedulerInstanceId"/> may require a network call,
+    /// use <see cref="Bind(IScheduler, string)"/> with an explicit instance ID instead.
+    /// If <see cref="IScheduler.SchedulerInstanceId"/> cannot be resolved, the scheduler name
+    /// is used as a fallback, preserving single-scheduler-per-name semantics.
+    /// </remarks>
     public void Bind(IScheduler scheduler)
     {
-        Bind(scheduler, scheduler.SchedulerInstanceId);
+        string instanceId;
+        try
+        {
+            instanceId = scheduler.SchedulerInstanceId;
+        }
+        catch
+        {
+            // Remote schedulers may not be reachable during bind.
+            // Fall back to scheduler name, preserving single-per-name semantics.
+            // Callers needing instance-aware operations should use Bind(scheduler, instanceId).
+            instanceId = scheduler.SchedulerName;
+        }
+
+        Bind(scheduler, instanceId);
     }
 
     /// <inheritdoc />

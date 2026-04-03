@@ -13,6 +13,8 @@ public interface ISchedulerRepository
 {
     /// <summary>
     /// Binds scheduler to registry using its <see cref="IScheduler.SchedulerInstanceId"/> as the instance key.
+    /// For remote schedulers where <see cref="IScheduler.SchedulerInstanceId"/> may require a network call,
+    /// use <see cref="Bind(IScheduler, string)"/> with an explicit instance ID instead.
     /// </summary>
     void Bind(IScheduler scheduler);
 
