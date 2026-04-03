@@ -19,8 +19,6 @@
 
 #endregion
 
-using System.Collections.Concurrent;
-
 using Quartz.Spi;
 
 namespace Quartz.Impl;
@@ -28,10 +26,16 @@ namespace Quartz.Impl;
 /// <summary>
 /// Holds references to Scheduler instances - ensuring uniqueness, and preventing garbage collection, and allowing 'global' lookups.
 /// </summary>
+/// <remarks>
+/// Schedulers are indexed by name. Multiple schedulers with the same name but different instance IDs
+/// can coexist (e.g., remote proxies to different cluster nodes). Use <see cref="Lookup(string, string)"/>
+/// to disambiguate by instance ID.
+/// </remarks>
 /// <author>Marko Lahma (.NET)</author>
 public sealed class SchedulerRepository : ISchedulerRepository
 {
-    private readonly ConcurrentDictionary<string, IScheduler> schedulers = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, List<SchedulerEntry>> schedulers = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Lock syncRoot = new();
 
     /// <summary>
     /// Gets the singleton instance.
@@ -39,39 +43,150 @@ public sealed class SchedulerRepository : ISchedulerRepository
     /// <value>The instance.</value>
     public static SchedulerRepository Instance { get; } = new();
 
-    /// <summary>
-    /// Binds the specified sched.
-    /// </summary>
-    /// <param name="scheduler">The sched.</param>
+    /// <inheritdoc />
     public void Bind(IScheduler scheduler)
     {
-        if (!schedulers.TryAdd(scheduler.SchedulerName, scheduler))
+        Bind(scheduler, scheduler.SchedulerInstanceId);
+    }
+
+    /// <inheritdoc />
+    public void Bind(IScheduler scheduler, string instanceId)
+    {
+        lock (syncRoot)
         {
-            Throw.SchedulerException($"Scheduler with name '{scheduler.SchedulerName}' already exists.");
+            if (schedulers.TryGetValue(scheduler.SchedulerName, out List<SchedulerEntry>? list))
+            {
+                foreach (SchedulerEntry entry in list)
+                {
+                    if (string.Equals(entry.InstanceId, instanceId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        Throw.SchedulerException($"Scheduler with name '{scheduler.SchedulerName}' already exists.");
+                    }
+                }
+
+                list.Add(new SchedulerEntry(instanceId, scheduler));
+            }
+            else
+            {
+                schedulers[scheduler.SchedulerName] = [new SchedulerEntry(instanceId, scheduler)];
+            }
         }
     }
 
-    /// <summary>
-    /// Removes the specified sched name.
-    /// </summary>
-    /// <param name="schedulerName">Name of the sched.</param>
-    /// <returns></returns>
+    /// <inheritdoc />
     public void Remove(string schedulerName)
     {
-        schedulers.Remove(schedulerName, out _);
+        lock (syncRoot)
+        {
+            if (schedulers.TryGetValue(schedulerName, out List<SchedulerEntry>? list))
+            {
+                if (list.Count <= 1)
+                {
+                    schedulers.Remove(schedulerName);
+                }
+                else
+                {
+                    list.RemoveAt(0);
+                }
+            }
+        }
     }
 
+    /// <inheritdoc />
+    public bool Remove(string schedulerName, string instanceId)
+    {
+        lock (syncRoot)
+        {
+            if (!schedulers.TryGetValue(schedulerName, out List<SchedulerEntry>? list))
+            {
+                return false;
+            }
+
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (string.Equals(list[i].InstanceId, instanceId, StringComparison.OrdinalIgnoreCase))
+                {
+                    list.RemoveAt(i);
+                    if (list.Count == 0)
+                    {
+                        schedulers.Remove(schedulerName);
+                    }
+
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
+    /// <inheritdoc />
     public IScheduler? Lookup(string schedulerName)
     {
-        return schedulers.GetValueOrDefault(schedulerName);
+        lock (syncRoot)
+        {
+            if (schedulers.TryGetValue(schedulerName, out List<SchedulerEntry>? list) && list.Count > 0)
+            {
+                return list[0].Scheduler;
+            }
+
+            return null;
+        }
     }
 
-    /// <summary>
-    /// Lookups all.
-    /// </summary>
-    /// <returns></returns>
+    /// <inheritdoc />
+    public IScheduler? Lookup(string schedulerName, string instanceId)
+    {
+        lock (syncRoot)
+        {
+            if (!schedulers.TryGetValue(schedulerName, out List<SchedulerEntry>? list))
+            {
+                return null;
+            }
+
+            foreach (SchedulerEntry entry in list)
+            {
+                if (string.Equals(entry.InstanceId, instanceId, StringComparison.OrdinalIgnoreCase))
+                {
+                    return entry.Scheduler;
+                }
+            }
+
+            return null;
+        }
+    }
+
+    /// <inheritdoc />
+    public List<IScheduler> LookupByName(string schedulerName)
+    {
+        lock (syncRoot)
+        {
+            if (schedulers.TryGetValue(schedulerName, out List<SchedulerEntry>? list))
+            {
+                return list.ConvertAll(e => e.Scheduler);
+            }
+
+            return [];
+        }
+    }
+
+    /// <inheritdoc />
     public List<IScheduler> LookupAll()
     {
-        return [..schedulers.Values];
+        lock (syncRoot)
+        {
+            List<IScheduler> result = new List<IScheduler>();
+            foreach (List<SchedulerEntry> list in schedulers.Values)
+            {
+                foreach (SchedulerEntry entry in list)
+                {
+                    result.Add(entry.Scheduler);
+                }
+            }
+
+            return result;
+        }
     }
+
+    private readonly record struct SchedulerEntry(string InstanceId, IScheduler Scheduler);
 }

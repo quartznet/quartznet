@@ -470,7 +470,7 @@ public sealed class QuartzScheduler
         }
         finally
         {
-            resources.SchedulerRepository.Remove(resources.Name);
+            resources.SchedulerRepository.Remove(resources.Name, resources.InstanceId);
             holdToPreventGc.Clear();
         }
 

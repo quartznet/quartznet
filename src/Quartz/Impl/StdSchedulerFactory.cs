@@ -1150,13 +1150,27 @@ Please add configuration to your application config file to correctly initialize
             }
 
             ISchedulerRepository schedulerRepository = GetSchedulerRepository();
-            IScheduler? sched = schedulerRepository.Lookup(SchedulerName);
+
+            // For proxy schedulers with explicit instance IDs (e.g., connecting to different cluster nodes),
+            // use instance-aware lookup so multiple proxies with the same scheduler name can coexist.
+            string? explicitInstanceId = GetExplicitProxyInstanceId();
+
+            IScheduler? sched = explicitInstanceId is not null
+                ? schedulerRepository.Lookup(SchedulerName, explicitInstanceId)
+                : schedulerRepository.Lookup(SchedulerName);
 
             if (sched is not null)
             {
                 if (sched.IsShutdown)
                 {
-                    schedulerRepository.Remove(SchedulerName);
+                    if (explicitInstanceId is not null)
+                    {
+                        schedulerRepository.Remove(SchedulerName, explicitInstanceId);
+                    }
+                    else
+                    {
+                        schedulerRepository.Remove(SchedulerName);
+                    }
                 }
                 else
                 {
@@ -1165,7 +1179,15 @@ Please add configuration to your application config file to correctly initialize
             }
 
             sched = await Instantiate().ConfigureAwait(false);
-            schedulerRepository.Bind(sched);
+            if (explicitInstanceId is not null)
+            {
+                schedulerRepository.Bind(sched, explicitInstanceId);
+            }
+            else
+            {
+                schedulerRepository.Bind(sched);
+            }
+
             return sched;
         }
         finally
@@ -1182,5 +1204,27 @@ Please add configuration to your application config file to correctly initialize
     public virtual ValueTask<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default)
     {
         return new ValueTask<IScheduler?>(GetSchedulerRepository().Lookup(schedName));
+    }
+
+    /// <summary>
+    /// Returns the explicitly configured instance ID if this is a proxy scheduler configuration,
+    /// or <see langword="null"/> if this is not a proxy or uses auto-generated instance IDs.
+    /// </summary>
+    private string? GetExplicitProxyInstanceId()
+    {
+        bool isProxy = cfg.GetBooleanProperty(PropertySchedulerProxy, false);
+        if (!isProxy)
+        {
+            return null;
+        }
+
+        string rawInstanceId = cfg.GetStringProperty(PropertySchedulerInstanceId, DefaultInstanceId)!;
+        if (rawInstanceId.Equals(AutoGenerateInstanceId, StringComparison.OrdinalIgnoreCase) ||
+            rawInstanceId.Equals(SystemPropertyAsInstanceId, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return rawInstanceId;
     }
 }
