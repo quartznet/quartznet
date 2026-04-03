@@ -147,6 +147,11 @@ public class AdoConstants
     public const string TriggerTypeDailyTimeInterval = "DAILY_I";
 
     /// <summary>
+    /// Recurrence (RRULE) Trigger type.
+    /// </summary>
+    public const string TriggerTypeRecurrence = "RECUR";
+
+    /// <summary>
     /// A general blob Trigger type.
     /// </summary>
     public const string TriggerTypeBlob = "BLOB";
