@@ -1164,6 +1164,27 @@ internal interface INextVersionDelegate
         string triggerName,
         string triggerGroup,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Performs a targeted UPDATE of only the columns that change during misfire recovery,
+    /// bypassing the heavyweight <c>StoreTrigger</c> → <c>UpdateTrigger</c> path which
+    /// performs many unnecessary SELECTs (existence check, pause-group checks, job retrieval,
+    /// trigger-type lookup) that are redundant for a trigger known to be in WAITING state.
+    /// </summary>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="trigger">The trigger after <c>UpdateAfterMisfire</c> has been applied in-memory.</param>
+    /// <param name="newState">The new trigger state (WAITING or COMPLETE).</param>
+    /// <param name="misfireOriginalFireTime">
+    /// The original scheduled fire time for "fire now" misfire policies, or <c>null</c> to clear /
+    /// leave unchanged. Only written when <see cref="HasMisfireOriginalFireTimeColumn"/> is <c>true</c>.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    Task UpdateMisfiredTrigger(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger trigger,
+        string newState,
+        DateTimeOffset? misfireOriginalFireTime,
+        CancellationToken cancellationToken = default);
 }
 
 public class TriggerAcquireResult

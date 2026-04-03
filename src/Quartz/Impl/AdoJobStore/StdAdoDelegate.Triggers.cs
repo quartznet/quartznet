@@ -1646,4 +1646,50 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "misfireOrigFireTime", null);
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
+
+    /// <inheritdoc />
+    public virtual async Task UpdateMisfiredTrigger(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger trigger,
+        string newState,
+        DateTimeOffset? misfireOriginalFireTime,
+        CancellationToken cancellationToken = default)
+    {
+        // Narrow UPDATE: only columns that change during misfire recovery.
+        string sql = HasMisfireOriginalFireTimeColumn
+            ? SqlUpdateTriggerMisfireWithOrigFireTime
+            : SqlUpdateTriggerMisfire;
+
+        using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(sql)))
+        {
+            AddCommandParameter(cmd, "schedulerName", schedName);
+            AddCommandParameter(cmd, "triggerNextFireTime", GetDbDateTimeValue(trigger.GetNextFireTimeUtc()));
+            AddCommandParameter(cmd, "triggerPreviousFireTime", GetDbDateTimeValue(trigger.GetPreviousFireTimeUtc()));
+            AddCommandParameter(cmd, "triggerState", newState);
+            AddCommandParameter(cmd, "triggerStartTime", GetDbDateTimeValue(trigger.StartTimeUtc));
+            if (HasMisfireOriginalFireTimeColumn)
+            {
+                AddCommandParameter(cmd, "triggerMisfireOrigFireTime", GetDbDateTimeValue(misfireOriginalFireTime));
+            }
+            AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
+            AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
+
+            await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        // SimpleTrigger may have modified RepeatCount/TimesTriggered via RescheduleNowWith* policies.
+        // Other trigger types (Cron, CalendarInterval, DailyTimeInterval) do not change extended properties during misfire.
+        if (trigger is ISimpleTrigger simpleTrigger)
+        {
+            using var cmd2 = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateSimpleTrigger));
+            AddCommandParameter(cmd2, "schedulerName", schedName);
+            AddCommandParameter(cmd2, "triggerRepeatCount", simpleTrigger.RepeatCount);
+            AddCommandParameter(cmd2, "triggerRepeatInterval", GetDbTimeSpanValue(simpleTrigger.RepeatInterval));
+            AddCommandParameter(cmd2, "triggerTimesTriggered", simpleTrigger.TimesTriggered);
+            AddCommandParameter(cmd2, "triggerName", trigger.Key.Name);
+            AddCommandParameter(cmd2, "triggerGroup", trigger.Key.Group);
+
+            await cmd2.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
 }

@@ -859,6 +859,10 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             return RecoverMisfiredJobsResult.NoOp;
         }
 
+        // Cache calendars across the batch to avoid redundant DB round-trips
+        // when multiple triggers reference the same calendar.
+        Dictionary<string, ICalendar?>? calendarCache = null;
+
         foreach (TriggerKey triggerKey in misfiredTriggers)
         {
             IOperableTrigger? trig;
@@ -879,7 +883,15 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
             try
             {
-                await DoUpdateOfMisfiredTrigger(conn, trig, false, StateWaiting, recovering).ConfigureAwait(false);
+                if (Delegate is INextVersionDelegate)
+                {
+                    calendarCache ??= new Dictionary<string, ICalendar?>();
+                    await DoUpdateOfMisfiredTriggerOptimized(conn, trig, StateWaiting, recovering, calendarCache, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    await DoUpdateOfMisfiredTrigger(conn, trig, false, StateWaiting, recovering).ConfigureAwait(false);
+                }
             }
             catch (Exception e)
             {
@@ -1061,6 +1073,73 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             {
                 await misfireDelegate.UpdateMisfireOriginalFireTime(conn, trig.Key, originalFireTime, CancellationToken.None).ConfigureAwait(false);
             }
+        }
+    }
+
+    /// <summary>
+    /// Optimized misfire update path that bypasses the StoreTrigger method's unnecessary
+    /// queries (existence check, pause-group checks, job retrieval, blocked-state check,
+    /// trigger-type lookup). Safe because the trigger was found in WAITING state under
+    /// <c>LockTriggerAccess</c> — a WAITING trigger's group is not paused, and its DCE job
+    /// cannot be executing (TriggersFired moves sibling triggers to BLOCKED).
+    /// </summary>
+    private async Task DoUpdateOfMisfiredTriggerOptimized(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger trig,
+        string newStateIfNotComplete,
+        bool recovering,
+        Dictionary<string, ICalendar?> calendarCache,
+        CancellationToken cancellationToken)
+    {
+        INextVersionDelegate nvd = (INextVersionDelegate) Delegate;
+
+        // Calendar lookup with batch-local cache.
+        ICalendar? cal = null;
+        if (trig.CalendarName != null)
+        {
+            if (!calendarCache.TryGetValue(trig.CalendarName, out cal))
+            {
+                cal = await RetrieveCalendar(conn, trig.CalendarName).ConfigureAwait(false);
+                calendarCache[trig.CalendarName] = cal;
+            }
+        }
+
+        await schedSignaler.NotifyTriggerListenersMisfired(trig).ConfigureAwait(false);
+
+        DateTimeOffset? originalFireTime = trig.GetNextFireTimeUtc();
+        DateTimeOffset now = SystemTime.UtcNow();
+
+        if (trig is INextVersionTrigger nvt)
+        {
+            nvt.UpdateAfterMisfire(cal, MisfireThreshold);
+        }
+        else
+        {
+            trig.UpdateAfterMisfire(cal);
+        }
+
+        // Determine new state.
+        string newState = trig.GetNextFireTimeUtc().HasValue ? newStateIfNotComplete : StateComplete;
+
+        // Compute misfire-original-fire-time for "fire now" policies (folded into the single UPDATE).
+        DateTimeOffset? misfireOrigFireTime = null;
+        if (nvd.HasMisfireOriginalFireTimeColumn)
+        {
+            DateTimeOffset? newFireTime = trig.GetNextFireTimeUtc();
+            if (originalFireTime.HasValue && newFireTime.HasValue
+                && originalFireTime.Value != newFireTime.Value
+                && Math.Abs((newFireTime.Value - now).TotalMilliseconds) < AbstractTrigger.FireNowMisfireDetectionThresholdMs)
+            {
+                misfireOrigFireTime = originalFireTime;
+            }
+        }
+
+        // Single targeted UPDATE (1-2 DB round-trips) instead of StoreTrigger's 7-12.
+        await nvd.UpdateMisfiredTrigger(conn, trig, newState, misfireOrigFireTime, cancellationToken).ConfigureAwait(false);
+
+        if (!trig.GetNextFireTimeUtc().HasValue)
+        {
+            await schedSignaler.NotifySchedulerListenersFinalized(trig).ConfigureAwait(false);
         }
     }
 
