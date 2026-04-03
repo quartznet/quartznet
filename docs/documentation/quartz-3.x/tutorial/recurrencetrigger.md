@@ -105,7 +105,7 @@ using the builder's `InTimeZone` method:
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger1", "group1")
     .WithRecurrenceSchedule("FREQ=MONTHLY;BYDAY=2MO", b => b
-        .InTimeZone(Quartz.Util.TimeZoneUtil.FindTimeZoneById("America/New_York")))
+        .InTimeZone(Quartz.Util.TimeZoneUtil.FindTimeZoneById("Eastern Standard Time")))
     .StartNow()
     .Build();
 ```

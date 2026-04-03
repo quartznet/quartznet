@@ -3,6 +3,8 @@ using System;
 using Quartz.Impl.Recurrence;
 using Quartz.Util;
 
+using RRule = Quartz.Impl.Recurrence.RecurrenceRule;
+
 namespace Quartz.Impl.Triggers;
 
 /// <summary>
@@ -29,7 +31,7 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
     internal TimeZoneInfo? timeZone;
 
     [NonSerialized]
-    private volatile RecurrenceRule? parsedRule;
+    private volatile RRule? parsedRule;
 
     // For binary serialization — uses TimeZoneUtil for cross-platform ID resolution
     private string? timeZoneInfoId
@@ -279,7 +281,7 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
         // Find the first occurrence on or after StartTimeUtc.
         // Uses default skipCount=false which is correct here: this method is only called once
         // when the trigger is first added and TimesTriggered is 0, so COUNT walk-from-start is safe.
-        RecurrenceRule rule = GetParsedRule();
+        RRule rule = GetParsedRule();
         DateTimeOffset? first = rule.GetNextOccurrence(StartTimeUtc, StartTimeUtc.AddSeconds(-1), TimeZone, EndTimeUtc);
         if (first != null)
         {
@@ -335,7 +337,7 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
         // For COUNT-based rules, check if we've already exhausted the count.
         // TimesTriggered is the single source of truth for COUNT tracking,
         // avoiding expensive walk-from-start counting in the RRULE engine.
-        RecurrenceRule rule = GetParsedRule();
+        RRule rule = GetParsedRule();
         if (rule.Count != null && TimesTriggered >= rule.Count.Value)
         {
             return null;
@@ -349,7 +351,7 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
     {
         get
         {
-            RecurrenceRule rule = GetParsedRule();
+            RRule rule = GetParsedRule();
 
             // For COUNT-based rules, walk to the final occurrence
             if (rule.Count != null)
@@ -388,7 +390,7 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
         // Validate that the RRULE string is parseable
         try
         {
-            Recurrence.RecurrenceRule.Parse(recurrenceRuleString);
+            RRule.Parse(recurrenceRuleString);
         }
         catch (Exception ex) when (ex is FormatException or OverflowException or ArgumentException)
         {
@@ -418,12 +420,12 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
         return sb;
     }
 
-    private RecurrenceRule GetParsedRule()
+    private RRule GetParsedRule()
     {
-        RecurrenceRule? rule = parsedRule;
+        RRule? rule = parsedRule;
         if (rule == null)
         {
-            rule = Recurrence.RecurrenceRule.Parse(recurrenceRuleString);
+            rule = RRule.Parse(recurrenceRuleString);
             parsedRule = rule;
         }
         return rule;
