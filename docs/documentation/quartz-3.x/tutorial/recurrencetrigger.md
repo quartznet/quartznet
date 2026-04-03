@@ -105,7 +105,7 @@ using the builder's `InTimeZone` method:
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger1", "group1")
     .WithRecurrenceSchedule("FREQ=MONTHLY;BYDAY=2MO", b => b
-        .InTimeZone(TimeZoneInfo.FindSystemTimeZoneById("America/New_York")))
+        .InTimeZone(Quartz.Util.TimeZoneUtil.FindTimeZoneById("America/New_York")))
     .StartNow()
     .Build();
 ```
@@ -128,11 +128,12 @@ services.AddQuartz(q =>
 
 ### RecurrenceTrigger Misfire Instructions
 
-RecurrenceTrigger has two misfire instructions (identical semantics to CronTrigger):
+RecurrenceTrigger has two trigger-specific misfire instructions (identical semantics to CronTrigger),
+plus the generic `IgnoreMisfirePolicy`:
 
-* `MisfireInstruction.IgnoreMisfirePolicy`
 * `MisfireInstruction.RecurrenceTrigger.FireOnceNow`
 * `MisfireInstruction.RecurrenceTrigger.DoNothing`
+* `MisfireInstruction.IgnoreMisfirePolicy`
 
 If the 'smart policy' instruction is used (the default), RecurrenceTrigger will use `FireOnceNow`.
 

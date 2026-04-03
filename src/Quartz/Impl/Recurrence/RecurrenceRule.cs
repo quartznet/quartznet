@@ -302,6 +302,66 @@ internal sealed class RecurrenceRule
         return null;
     }
 
+    /// <summary>
+    /// Returns the last occurrence of the recurrence on or before the effective boundary
+    /// (UNTIL and/or endTime). Searches backward from the boundary for efficiency.
+    /// </summary>
+    internal DateTimeOffset? GetLastOccurrenceBefore(
+        DateTimeOffset dtStart,
+        TimeZoneInfo? timeZone,
+        DateTimeOffset? endTime)
+    {
+        LocalTimes local = ConvertToLocal(dtStart, dtStart.AddSeconds(-1), timeZone, endTime);
+
+        // Determine the effective boundary in local time
+        DateTime? boundary = local.End;
+        if (local.Until != null && (boundary == null || local.Until.Value < boundary.Value))
+        {
+            boundary = local.Until;
+        }
+        if (boundary == null)
+        {
+            return null;
+        }
+
+        // Search backward from the boundary: find the period containing the boundary,
+        // then scan backward through periods until we find one with valid candidates.
+        int boundaryPeriodIdx = GetPeriodIndex(local.Start, boundary.Value);
+
+        for (int i = boundaryPeriodIdx; i >= 0; i--)
+        {
+            DateTime periodStart = GetPeriodStart(local.Start, i);
+            List<DateTime> candidates = ByRuleExpander.ExpandPeriod(this, local.Start, periodStart);
+
+            // Walk candidates in reverse to find the last one within bounds
+            for (int c = candidates.Count - 1; c >= 0; c--)
+            {
+                DateTime candidate = candidates[c];
+                if (candidate < local.Start)
+                {
+                    continue;
+                }
+                if (local.Until != null && candidate > local.Until.Value)
+                {
+                    continue;
+                }
+                if (local.End != null && candidate > local.End.Value)
+                {
+                    continue;
+                }
+                return ToDateTimeOffset(candidate, local.TimeZone);
+            }
+
+            // Safety: don't search more than MaxIterations periods backward
+            if (boundaryPeriodIdx - i > MaxIterations)
+            {
+                return null;
+            }
+        }
+
+        return null;
+    }
+
     private readonly struct LocalTimes
     {
         internal readonly DateTime Start;

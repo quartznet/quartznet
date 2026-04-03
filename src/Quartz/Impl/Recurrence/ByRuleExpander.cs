@@ -47,6 +47,7 @@ internal static class ByRuleExpander
         if (rule.BySetPos != null && candidates.Count > 0)
         {
             candidates.Sort();
+            HashSet<DateTime> seen = new HashSet<DateTime>();
             List<DateTime> filtered = new List<DateTime>();
             foreach (int pos in rule.BySetPos)
             {
@@ -54,7 +55,7 @@ internal static class ByRuleExpander
                 if (idx >= 0 && idx < candidates.Count)
                 {
                     DateTime val = candidates[idx];
-                    if (!filtered.Contains(val))
+                    if (seen.Add(val))
                     {
                         filtered.Add(val);
                     }

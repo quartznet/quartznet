@@ -1,6 +1,7 @@
 using System;
 
 using Quartz.Impl.Recurrence;
+using Quartz.Util;
 
 namespace Quartz.Impl.Triggers;
 
@@ -30,11 +31,11 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
     [NonSerialized]
     private volatile RecurrenceRule? parsedRule;
 
-    // For binary serialization cross-platform timezone support
+    // For binary serialization — uses TimeZoneUtil for cross-platform ID resolution
     private string? timeZoneInfoId
     {
         get => timeZone?.Id;
-        set => timeZone = value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value);
+        set => timeZone = value == null ? null : TimeZoneUtil.FindTimeZoneById(value);
     }
 
     /// <summary>
@@ -356,30 +357,15 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
                 return rule.GetNthOccurrence(StartTimeUtc, rule.Count.Value, TimeZone, EndTimeUtc);
             }
 
-            if (EndTimeUtc != null)
+            if (EndTimeUtc == null && rule.Until == null)
             {
-                return EndTimeUtc;
+                return null;
             }
 
-            if (rule.Until != null)
-            {
-                if (rule.UntilIsUtc)
-                {
-                    return new DateTimeOffset(rule.Until.Value, TimeSpan.Zero);
-                }
-
-                // Use the timezone's actual offset for the UNTIL date, which accounts for DST
-                TimeSpan offset = TimeZone.GetUtcOffset(rule.Until.Value);
-                if (TimeZone.IsInvalidTime(rule.Until.Value))
-                {
-                    // UNTIL falls in a DST gap — advance past it
-                    offset = TimeZone.GetUtcOffset(rule.Until.Value.AddHours(1));
-                }
-                return new DateTimeOffset(rule.Until.Value, offset);
-            }
-
-            // No definitive end
-            return null;
+            // Find the last actual occurrence before the boundary.
+            // We can't just return EndTimeUtc/UNTIL because they may not align
+            // with an actual fire time (e.g., daily at 9:00 with EndTime at 8:00).
+            return rule.GetLastOccurrenceBefore(StartTimeUtc, TimeZone, EndTimeUtc);
         }
     }
 

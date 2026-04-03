@@ -276,7 +276,7 @@ public class RecurrenceTriggerImplTest
     }
 
     [Test]
-    public void TestFinalFireTimeUtcWithEndTime()
+    public void TestFinalFireTimeUtcWithEndTimeAligned()
     {
         RecurrenceTriggerImpl trigger = new RecurrenceTriggerImpl();
         trigger.RecurrenceRule = "FREQ=DAILY";
@@ -284,7 +284,24 @@ public class RecurrenceTriggerImplTest
         trigger.EndTimeUtc = new DateTimeOffset(2025, 1, 10, 9, 0, 0, TimeSpan.Zero);
         trigger.TimeZone = TimeZoneInfo.Utc;
 
+        // EndTime aligns with a fire time (daily at 9:00, EndTime at 9:00 Jan 10)
         Assert.AreEqual(trigger.EndTimeUtc, trigger.FinalFireTimeUtc);
+    }
+
+    [Test]
+    public void TestFinalFireTimeUtcWithEndTimeMisaligned()
+    {
+        RecurrenceTriggerImpl trigger = new RecurrenceTriggerImpl();
+        trigger.RecurrenceRule = "FREQ=DAILY";
+        trigger.StartTimeUtc = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
+        // EndTime at 8:00 AM — doesn't align with the 9:00 AM fire time
+        trigger.EndTimeUtc = new DateTimeOffset(2025, 1, 10, 8, 0, 0, TimeSpan.Zero);
+        trigger.TimeZone = TimeZoneInfo.Utc;
+
+        // Last actual fire should be Jan 9 at 9:00, not Jan 10 at 8:00
+        DateTimeOffset? finalFire = trigger.FinalFireTimeUtc;
+        Assert.IsNotNull(finalFire);
+        Assert.AreEqual(new DateTimeOffset(2025, 1, 9, 9, 0, 0, TimeSpan.Zero), finalFire);
     }
 
     [Test]
