@@ -639,5 +639,25 @@ public class RecurrenceRuleTest
         Assert.AreEqual(-53, rule.ByDay[1].Ordinal);
     }
 
+    [Test]
+    public void TestWeeklyPeriodIndexAlignedWithPeriodStart()
+    {
+        // Regression: GetPeriodIndex WEEKLY branch must align to WeekStart
+        // just like GetPeriodStart does. DTSTART on Wednesday, end boundary
+        // on the following Monday (WeekStart). GetLastOccurrenceBefore must
+        // find the occurrence in that week.
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=WEEKLY;BYDAY=WE,FR");
+        // Wed Jan 1 2025
+        DateTimeOffset start = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
+        // End on Monday Jan 6 (next WeekStart boundary)
+        DateTimeOffset endTime = new DateTimeOffset(2025, 1, 6, 0, 0, 0, TimeSpan.Zero);
+
+        // Last fire before Jan 6 should be Friday Jan 3
+        DateTimeOffset? last = rule.GetLastOccurrenceBefore(start, TimeZoneInfo.Utc, endTime);
+        Assert.IsNotNull(last);
+        Assert.AreEqual(3, last!.Value.Day);
+        Assert.AreEqual(DayOfWeek.Friday, last.Value.DayOfWeek);
+    }
+
     #endregion
 }

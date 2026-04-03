@@ -565,7 +565,10 @@ internal sealed class RecurrenceRule
                 int months = (target.Year - start.Year) * 12 + (target.Month - start.Month);
                 return months / Interval;
             case RecurrenceFrequency.Weekly:
-                int days = (int)(target.Date - start.Date).TotalDays;
+                // Align to WeekStart, matching GetPeriodStart's alignment
+                int daysToWeekStart = ((int)start.DayOfWeek - (int)WeekStart + 7) % 7;
+                DateTime weekBase = start.Date.AddDays(-daysToWeekStart);
+                int days = (int)(target.Date - weekBase).TotalDays;
                 return days / (7 * Interval);
             case RecurrenceFrequency.Daily:
                 return (int)(target.Date - start.Date).TotalDays / Interval;
