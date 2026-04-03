@@ -259,6 +259,13 @@ internal sealed class RecurrenceRule
     /// on COUNT-based rules. Returns null if the rule ends before the Nth occurrence
     /// (either due to COUNT, UNTIL, or endTime).
     /// </summary>
+    /// <summary>
+    /// Hard cap for GetNthOccurrence period scanning. FinalFireTimeUtc is an
+    /// infrequent admin property, so we allow substantial work but not unbounded.
+    /// 10M periods covers ~115 days of SECONDLY or ~19 years of MINUTELY.
+    /// </summary>
+    private const int MaxNthIterations = 10_000_000;
+
     internal DateTimeOffset? GetNthOccurrence(
         DateTimeOffset dtStart,
         int n,
@@ -267,19 +274,38 @@ internal sealed class RecurrenceRule
     {
         LocalTimes local = ConvertToLocal(dtStart, dtStart.AddSeconds(-1), timeZone, endTime);
 
-        // Cap at the rule's own COUNT if it's smaller than the requested N
         int limit = Count != null ? Math.Min(n, Count.Value) : n;
         int occurrenceCount = 0;
 
-        // Iteration bound must scale with the requested occurrence count because
-        // SECONDLY/MINUTELY rules yield at most one occurrence per period.
-        // Add headroom for empty periods (BY* filtering), guard against overflow.
-        long maxPeriodsLong = (long)limit + MaxIterations;
-        int maxPeriods = maxPeriodsLong > int.MaxValue ? int.MaxValue : (int)maxPeriodsLong;
+        int i = 0;
+        int iterations = 0;
+        int maxPeriods = (int)Math.Min((long)limit + MaxIterations, MaxNthIterations);
 
-        for (int i = 0; i < maxPeriods; i++)
+        while (iterations < maxPeriods)
         {
             DateTime periodStart = GetPeriodStart(local.Start, i);
+
+            if (local.Until != null && periodStart > local.Until.Value)
+            {
+                return null;
+            }
+            if (local.End != null && periodStart > local.End.Value)
+            {
+                return null;
+            }
+
+            // Apply sub-daily fast-forward to skip non-matching periods
+            if (Frequency < RecurrenceFrequency.Daily)
+            {
+                int? skip = TryFastForwardSubDaily(local.Start, i, periodStart);
+                if (skip != null)
+                {
+                    i = skip.Value;
+                    iterations++;
+                    continue;
+                }
+            }
+
             List<DateTime> candidates = ByRuleExpander.ExpandPeriod(this, local.Start, periodStart);
 
             foreach (DateTime candidate in candidates)
@@ -300,14 +326,14 @@ internal sealed class RecurrenceRule
                 occurrenceCount++;
                 if (occurrenceCount == limit)
                 {
-                    // Return the candidate only if we actually reached the requested N;
-                    // if limit < n (because COUNT < n), this is the COUNT-th occurrence
-                    // but not the requested Nth, so return null.
                     return occurrenceCount == n
                         ? ToDateTimeOffset(candidate, local.TimeZone)
                         : (DateTimeOffset?)null;
                 }
             }
+
+            i++;
+            iterations++;
         }
 
         return null;
