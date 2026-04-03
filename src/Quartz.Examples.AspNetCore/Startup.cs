@@ -1,8 +1,6 @@
 using System.Globalization;
 using System.Text.Json.Serialization;
 
-using HealthChecks.UI.Client;
-
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 
@@ -308,10 +306,6 @@ public class Startup
             options.WaitForJobsToComplete = true;
         });
 
-        services
-            .AddHealthChecksUI()
-            .AddInMemoryStorage();
-
         services.AddAuthentication(options =>
             {
                 options.DefaultScheme = ApiKeyAuthenticationOptions.Scheme;
@@ -353,9 +347,7 @@ public class Startup
             endpoints.MapHealthChecks("healthz", new HealthCheckOptions
             {
                 Predicate = _ => true,
-                ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
             });
-            endpoints.MapHealthChecksUI();
 
             // Map HTTP API endpoints
             endpoints.MapQuartzApi()

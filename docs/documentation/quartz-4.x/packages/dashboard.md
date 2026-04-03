@@ -121,6 +121,32 @@ For dashboard-only custom checks, prefer ASP.NET Core policy/handler-based autho
 - Multi-scheduler selection
 - Read-only mode support via dashboard options
 
+## Integrating with an existing Blazor Server app
+
+If your host application already uses Blazor Server (i.e., it calls `MapRazorComponents<App>().AddInteractiveServerRenderMode()`), you must use the `MapQuartzDashboard` overload that accepts the existing `RazorComponentsEndpointConventionBuilder`. This avoids registering a second `/_blazor` SignalR endpoint, which would cause routing conflicts.
+
+```csharp
+services.AddRazorComponents().AddInteractiveServerComponents();
+services.AddQuartzDashboard();
+```
+
+```csharp
+app.UseRouting();
+app.UseAntiforgery();
+
+var blazor = app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode();
+
+app.MapQuartzApi().RequireAuthorization();
+app.MapQuartzDashboard(blazor);
+```
+
+The dashboard pages, layout, CSS, and JavaScript interop are automatically registered into the host's Blazor setup via `AddAdditionalAssemblies`. No additional `<link>` or `<script>` tags are needed in your `App.razor`.
+
+::: warning
+Do **not** call the parameterless `MapQuartzDashboard()` alongside your own `MapRazorComponents` — this registers two `/_blazor` endpoints and causes the dashboard's interactive pages to fail.
+:::
+
 ## API-only projects (no .razor files)
 
 If your host project has no `.razor` files of its own (e.g., a pure API project hosting Quartz), and you are running on **.NET 10 or later**, you must add the following to your project file:
