@@ -1656,7 +1656,11 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         // Narrow UPDATE: only columns that change during misfire recovery.
-        string sql = HasMisfireOriginalFireTimeColumn
+        // Only include MISFIRE_ORIG_FIRE_TIME when we have a value to write;
+        // null means "leave unchanged" (matches original DoUpdateOfMisfiredTrigger
+        // which only called UpdateMisfireOriginalFireTime on fire-now detection).
+        bool writeMisfireOrigFireTime = HasMisfireOriginalFireTimeColumn && misfireOriginalFireTime.HasValue;
+        string sql = writeMisfireOrigFireTime
             ? SqlUpdateTriggerMisfireWithOrigFireTime
             : SqlUpdateTriggerMisfire;
 
@@ -1667,7 +1671,7 @@ public partial class StdAdoDelegate
             AddCommandParameter(cmd, "triggerPreviousFireTime", GetDbDateTimeValue(trigger.GetPreviousFireTimeUtc()));
             AddCommandParameter(cmd, "triggerState", newState);
             AddCommandParameter(cmd, "triggerStartTime", GetDbDateTimeValue(trigger.StartTimeUtc));
-            if (HasMisfireOriginalFireTimeColumn)
+            if (writeMisfireOrigFireTime)
             {
                 AddCommandParameter(cmd, "triggerMisfireOrigFireTime", GetDbDateTimeValue(misfireOriginalFireTime));
             }

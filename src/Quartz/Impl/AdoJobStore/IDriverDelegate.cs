@@ -1176,8 +1176,9 @@ internal interface INextVersionDelegate
     /// <param name="newState">The new trigger state (WAITING or COMPLETE).</param>
     /// <param name="misfireOriginalFireTime">
     /// The original scheduled fire time for "fire now" misfire policies. When
-    /// <see cref="HasMisfireOriginalFireTimeColumn"/> is <c>true</c>, this value is written and
-    /// <c>null</c> clears the persisted column. When that column is not available, this value is ignored.
+    /// <see cref="HasMisfireOriginalFireTimeColumn"/> is <c>true</c> and this value is non-<c>null</c>,
+    /// it is written to the persisted column. <c>null</c> leaves the column unchanged, preserving any
+    /// previously stored original fire time. When the column is not available, this value is ignored.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     Task UpdateMisfiredTrigger(
