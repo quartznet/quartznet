@@ -195,16 +195,20 @@ quartz.plugin.triggHistory.triggerCompleteMessage = Trigger {1}.{0} completed fi
 
 ### Sample configuration of Structured Logging Plugins
 
-The structured logging plugins are alternatives to the logging trigger/job history plugins that use named message template parameters for structured logging compatibility. They have no configurable message templates.
+The structured logging plugins are alternatives to the logging trigger/job history plugins that use named message template parameters (e.g. `{JobName}`) instead of index-based placeholders (`{0}`), for compatibility with structured logging sinks like Serilog and NLog. Message templates can be customized via properties, using the same named parameters.
 
 **Sample configuration of StructuredLoggingJobHistoryPlugin**
 ```
 quartz.plugin.structuredJobLogging.type = Quartz.Plugin.History.StructuredLoggingJobHistoryPlugin, Quartz.Plugins
+quartz.plugin.structuredJobLogging.jobToBeFiredMessage = Job {JobGroup}.{JobName} fired by trigger {TriggerGroup}.{TriggerName} at {FireTime} scheduled at {ScheduledFireTime} next fire at {NextFireTime} refire count {RefireCount}
+quartz.plugin.structuredJobLogging.jobSuccessMessage = Job {JobGroup}.{JobName} execution complete at {FireTime} triggered by {TriggerGroup}.{TriggerName} with result {Result}
 ```
 
 **Sample configuration of StructuredLoggingTriggerHistoryPlugin**
 ```
 quartz.plugin.structuredTriggerLogging.type = Quartz.Plugin.History.StructuredLoggingTriggerHistoryPlugin, Quartz.Plugins
+quartz.plugin.structuredTriggerLogging.triggerFiredMessage = Trigger {TriggerGroup}.{TriggerName} fired job {JobGroup}.{JobName} at {FireTime} scheduled at {ScheduledFireTime} next fire at {NextFireTime} refire count {RefireCount}
+quartz.plugin.structuredTriggerLogging.triggerCompleteMessage = Trigger {TriggerGroup}.{TriggerName} completed firing job {JobGroup}.{JobName} at {CompletedTime} scheduled at {ScheduledFireTime} next fire at {NextFireTime} with instruction {TriggerInstructionCode}
 ```
 
 ### Sample configuration of XML Scheduling Data Processor Plugin

@@ -36,20 +36,40 @@ namespace Quartz.Plugin.History;
 /// <remarks>
 /// <para>
 /// This is a structured logging alternative to <see cref="LoggingJobHistoryPlugin"/>.
-/// Unlike <see cref="LoggingJobHistoryPlugin"/>, message templates are fixed and use
-/// named parameters (e.g. <c>{JobName}</c>, <c>{TriggerGroup}</c>) instead of
-/// index-based placeholders. This makes log output compatible with structured logging
-/// sinks like Serilog and NLog, and avoids template cache memory leaks.
+/// Unlike <see cref="LoggingJobHistoryPlugin"/>, message templates use named parameters
+/// (e.g. <c>{JobName}</c>, <c>{TriggerGroup}</c>) instead of index-based placeholders.
+/// This makes log output compatible with structured logging sinks like Serilog and NLog,
+/// and avoids template cache memory leaks.
 /// </para>
 /// <para>
-/// Message templates are not customizable. If you need custom message formats,
-/// use <see cref="LoggingJobHistoryPlugin"/> instead.
+/// Message templates can be customized via properties. The parameter names in the
+/// templates must match the default names exactly (they are positionally mapped).
 /// </para>
 /// </remarks>
 /// <author>Marko Lahma (.NET)</author>
 public sealed class StructuredLoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
 {
     private readonly ILog log = LogProvider.GetLogger(typeof(StructuredLoggingJobHistoryPlugin));
+
+    /// <summary>
+    /// Gets or sets the message that is logged when a Job is about to be executed.
+    /// </summary>
+    public string JobToBeFiredMessage { get; set; } = "Job {JobGroup}.{JobName} fired by trigger {TriggerGroup}.{TriggerName} at {FireTime} scheduled at {ScheduledFireTime} next fire at {NextFireTime} refire count {RefireCount}";
+
+    /// <summary>
+    /// Gets or sets the message that is logged when a Job successfully completes its execution.
+    /// </summary>
+    public string JobSuccessMessage { get; set; } = "Job {JobGroup}.{JobName} execution complete at {FireTime} triggered by {TriggerGroup}.{TriggerName} with result {Result}";
+
+    /// <summary>
+    /// Gets or sets the message that is logged when a Job fails its execution.
+    /// </summary>
+    public string JobFailedMessage { get; set; } = "Job {JobGroup}.{JobName} execution failed at {FireTime} triggered by {TriggerGroup}.{TriggerName} with exception message {ExceptionMessage}";
+
+    /// <summary>
+    /// Gets or sets the message that is logged when a Job execution is vetoed by a trigger listener.
+    /// </summary>
+    public string JobWasVetoedMessage { get; set; } = "Job {JobGroup}.{JobName} was vetoed. It was to be fired by trigger {TriggerGroup}.{TriggerName} at {FireTime}";
 
     /// <summary>
     /// Get the name of the <see cref="IJobListener" />.
@@ -111,7 +131,7 @@ public sealed class StructuredLoggingJobHistoryPlugin : ISchedulerPlugin, IJobLi
         ITrigger trigger = context.Trigger;
 
         log.InfoFormat(
-            "Job {JobGroup}.{JobName} fired by trigger {TriggerGroup}.{TriggerName} at {FireTime} scheduled at {ScheduledFireTime} next fire at {NextFireTime} refire count {RefireCount}",
+            JobToBeFiredMessage,
             context.JobDetail.Key.Group,
             context.JobDetail.Key.Name,
             trigger.Key.Group,
@@ -144,7 +164,7 @@ public sealed class StructuredLoggingJobHistoryPlugin : ISchedulerPlugin, IJobLi
             }
 
             log.WarnException(
-                "Job {JobGroup}.{JobName} execution failed at {FireTime} triggered by {TriggerGroup}.{TriggerName} with exception message {ExceptionMessage}",
+                JobFailedMessage,
                 jobException,
                 context.JobDetail.Key.Group,
                 context.JobDetail.Key.Name,
@@ -163,7 +183,7 @@ public sealed class StructuredLoggingJobHistoryPlugin : ISchedulerPlugin, IJobLi
             string result = Convert.ToString(context.Result, CultureInfo.InvariantCulture) ?? "NULL";
 
             log.InfoFormat(
-                "Job {JobGroup}.{JobName} execution complete at {FireTime} triggered by {TriggerGroup}.{TriggerName} with result {Result}",
+                JobSuccessMessage,
                 context.JobDetail.Key.Group,
                 context.JobDetail.Key.Name,
                 SystemTime.UtcNow(),
@@ -194,7 +214,7 @@ public sealed class StructuredLoggingJobHistoryPlugin : ISchedulerPlugin, IJobLi
         ITrigger trigger = context.Trigger;
 
         log.InfoFormat(
-            "Job {JobGroup}.{JobName} was vetoed. It was to be fired by trigger {TriggerGroup}.{TriggerName} at {FireTime}",
+            JobWasVetoedMessage,
             context.JobDetail.Key.Group,
             context.JobDetail.Key.Name,
             trigger.Key.Group,

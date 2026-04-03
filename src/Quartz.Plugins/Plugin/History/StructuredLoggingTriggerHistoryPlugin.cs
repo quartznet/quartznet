@@ -34,20 +34,35 @@ namespace Quartz.Plugin.History;
 /// <remarks>
 /// <para>
 /// This is a structured logging alternative to <see cref="LoggingTriggerHistoryPlugin"/>.
-/// Unlike <see cref="LoggingTriggerHistoryPlugin"/>, message templates are fixed and use
-/// named parameters (e.g. <c>{TriggerName}</c>, <c>{JobGroup}</c>) instead of
-/// index-based placeholders. This makes log output compatible with structured logging
-/// sinks like Serilog and NLog, and avoids template cache memory leaks.
+/// Unlike <see cref="LoggingTriggerHistoryPlugin"/>, message templates use named parameters
+/// (e.g. <c>{TriggerName}</c>, <c>{JobGroup}</c>) instead of index-based placeholders.
+/// This makes log output compatible with structured logging sinks like Serilog and NLog,
+/// and avoids template cache memory leaks.
 /// </para>
 /// <para>
-/// Message templates are not customizable. If you need custom message formats,
-/// use <see cref="LoggingTriggerHistoryPlugin"/> instead.
+/// Message templates can be customized via properties. The parameter names in the
+/// templates must match the default names exactly (they are positionally mapped).
 /// </para>
 /// </remarks>
 /// <author>Marko Lahma (.NET)</author>
 public sealed class StructuredLoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
 {
     private readonly ILog log = LogProvider.GetLogger(typeof(StructuredLoggingTriggerHistoryPlugin));
+
+    /// <summary>
+    /// Gets or sets the message that is logged when a trigger fires.
+    /// </summary>
+    public string TriggerFiredMessage { get; set; } = "Trigger {TriggerGroup}.{TriggerName} fired job {JobGroup}.{JobName} at {FireTime} scheduled at {ScheduledFireTime} next fire at {NextFireTime} refire count {RefireCount}";
+
+    /// <summary>
+    /// Gets or sets the message that is logged when a trigger misfires.
+    /// </summary>
+    public string TriggerMisfiredMessage { get; set; } = "Trigger {TriggerGroup}.{TriggerName} misfired job {JobGroup}.{JobName} at {FireTime}. Should have fired at {ScheduledFireTime} next fire at {NextFireTime}";
+
+    /// <summary>
+    /// Gets or sets the message that is logged when a trigger completes.
+    /// </summary>
+    public string TriggerCompleteMessage { get; set; } = "Trigger {TriggerGroup}.{TriggerName} completed firing job {JobGroup}.{JobName} at {CompletedTime} scheduled at {ScheduledFireTime} next fire at {NextFireTime} with instruction {TriggerInstructionCode}";
 
     /// <summary>
     /// Get the name of the <see cref="ITriggerListener" />.
@@ -111,7 +126,7 @@ public sealed class StructuredLoggingTriggerHistoryPlugin : ISchedulerPlugin, IT
         }
 
         log.InfoFormat(
-            "Trigger {TriggerGroup}.{TriggerName} fired job {JobGroup}.{JobName} at {FireTime} scheduled at {ScheduledFireTime} next fire at {NextFireTime} refire count {RefireCount}",
+            TriggerFiredMessage,
             trigger.Key.Group,
             trigger.Key.Name,
             context.JobDetail.Key.Group,
@@ -146,7 +161,7 @@ public sealed class StructuredLoggingTriggerHistoryPlugin : ISchedulerPlugin, IT
         }
 
         log.InfoFormat(
-            "Trigger {TriggerGroup}.{TriggerName} misfired job {JobGroup}.{JobName} at {FireTime}. Should have fired at {ScheduledFireTime} next fire at {NextFireTime}",
+            TriggerMisfiredMessage,
             trigger.Key.Group,
             trigger.Key.Name,
             trigger.JobKey.Group,
@@ -181,7 +196,7 @@ public sealed class StructuredLoggingTriggerHistoryPlugin : ISchedulerPlugin, IT
         }
 
         log.InfoFormat(
-            "Trigger {TriggerGroup}.{TriggerName} completed firing job {JobGroup}.{JobName} at {CompletedTime} scheduled at {ScheduledFireTime} next fire at {NextFireTime} with instruction {TriggerInstructionCode}",
+            TriggerCompleteMessage,
             trigger.Key.Group,
             trigger.Key.Name,
             context.JobDetail.Key.Group,

@@ -25,7 +25,16 @@ Logs a history of all job executions (and execution vetoes) and writes the entri
 
 Structured logging alternative to `LoggingJobHistoryPlugin`. Uses named message template parameters (e.g. `{JobName}`, `{TriggerGroup}`) instead of index-based placeholders, making log output compatible with structured logging sinks like Serilog and NLog. This avoids template cache memory leaks that can occur with the original plugin.
 
-Message templates are fixed and not customizable. If you need custom message formats, use `LoggingJobHistoryPlugin` instead.
+Message templates can be customized via properties. When customizing, the parameter names in templates are positionally mapped, so they must appear in the same order as the defaults.
+
+Available template properties:
+
+| Property | Parameters (in order) |
+|---|---|
+| `JobToBeFiredMessage` | `{JobGroup}`, `{JobName}`, `{TriggerGroup}`, `{TriggerName}`, `{FireTime}`, `{ScheduledFireTime}`, `{NextFireTime}`, `{RefireCount}` |
+| `JobSuccessMessage` | `{JobGroup}`, `{JobName}`, `{FireTime}`, `{TriggerGroup}`, `{TriggerName}`, `{Result}` |
+| `JobFailedMessage` | `{JobGroup}`, `{JobName}`, `{FireTime}`, `{TriggerGroup}`, `{TriggerName}`, `{ExceptionMessage}` |
+| `JobWasVetoedMessage` | `{JobGroup}`, `{JobName}`, `{TriggerGroup}`, `{TriggerName}`, `{FireTime}` |
 
 **DI configuration:**
 
@@ -43,6 +52,16 @@ Recommended over `LoggingJobHistoryPlugin` when using structured logging provide
 ### StructuredLoggingTriggerHistoryPlugin
 
 Structured logging alternative to `LoggingTriggerHistoryPlugin`. Logs trigger firings, misfires, and completions using named message template parameters for structured logging compatibility.
+
+Message templates can be customized via properties. When customizing, the parameter names in templates are positionally mapped, so they must appear in the same order as the defaults.
+
+Available template properties:
+
+| Property | Parameters (in order) |
+|---|---|
+| `TriggerFiredMessage` | `{TriggerGroup}`, `{TriggerName}`, `{JobGroup}`, `{JobName}`, `{FireTime}`, `{ScheduledFireTime}`, `{NextFireTime}`, `{RefireCount}` |
+| `TriggerMisfiredMessage` | `{TriggerGroup}`, `{TriggerName}`, `{JobGroup}`, `{JobName}`, `{FireTime}`, `{ScheduledFireTime}`, `{NextFireTime}` |
+| `TriggerCompleteMessage` | `{TriggerGroup}`, `{TriggerName}`, `{JobGroup}`, `{JobName}`, `{CompletedTime}`, `{ScheduledFireTime}`, `{NextFireTime}`, `{TriggerInstructionCode}` |
 
 **DI configuration:**
 
