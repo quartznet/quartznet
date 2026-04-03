@@ -1,0 +1,427 @@
+using System;
+
+using Quartz.Impl.Recurrence;
+
+namespace Quartz.Impl.Triggers;
+
+/// <summary>
+/// A concrete <see cref="ITrigger"/> that fires based on an iCalendar RFC 5545
+/// recurrence rule (RRULE).
+/// </summary>
+/// <remarks>
+/// This trigger supports complex scheduling patterns that cannot be expressed with
+/// CRON expressions, such as "every 2nd Monday of the month", "every other week
+/// on Monday, Wednesday, and Friday", or "the last weekday of March each year".
+/// </remarks>
+/// <seealso cref="IRecurrenceTrigger"/>
+/// <seealso cref="RecurrenceScheduleBuilder"/>
+[Serializable]
+public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
+{
+    private static readonly int YearToGiveupSchedulingAt = DateTime.Now.AddYears(100).Year;
+
+    private DateTimeOffset startTime;
+    private DateTimeOffset? endTime;
+    private DateTimeOffset? nextFireTimeUtc;
+    private DateTimeOffset? previousFireTimeUtc;
+    private string recurrenceRuleString = "";
+    internal TimeZoneInfo? timeZone;
+
+    [NonSerialized]
+    private RecurrenceRule? parsedRule;
+
+    // For binary serialization cross-platform timezone support
+    private string? timeZoneInfoId
+    {
+        get => timeZone?.Id;
+        set => timeZone = value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value);
+    }
+
+    /// <summary>
+    /// Create a <see cref="RecurrenceTriggerImpl"/> with no settings.
+    /// </summary>
+    public RecurrenceTriggerImpl()
+    {
+    }
+
+    /// <summary>
+    /// Create a <see cref="RecurrenceTriggerImpl"/> with the given name, group, and RRULE.
+    /// </summary>
+    public RecurrenceTriggerImpl(string name, string? group, string recurrenceRule)
+        : base(name, group)
+    {
+        RecurrenceRule = recurrenceRule;
+    }
+
+    /// <summary>
+    /// The RFC 5545 RRULE string.
+    /// </summary>
+    public string RecurrenceRule
+    {
+        get => recurrenceRuleString;
+        set
+        {
+            recurrenceRuleString = value ?? throw new ArgumentNullException(nameof(value));
+            parsedRule = null; // Invalidate cache
+        }
+    }
+
+    /// <summary>
+    /// The time zone for recurrence calculations.
+    /// </summary>
+    public TimeZoneInfo TimeZone
+    {
+        get
+        {
+            if (timeZone == null)
+            {
+                timeZone = TimeZoneInfo.Local;
+            }
+            return timeZone;
+        }
+        set => timeZone = value;
+    }
+
+    /// <summary>
+    /// The number of times this trigger has fired.
+    /// </summary>
+    public int TimesTriggered { get; set; }
+
+    /// <inheritdoc/>
+    public override DateTimeOffset StartTimeUtc
+    {
+        get
+        {
+            if (startTime == DateTimeOffset.MinValue)
+            {
+                startTime = SystemTime.UtcNow();
+            }
+            return startTime;
+        }
+        set
+        {
+            if (value == DateTimeOffset.MinValue)
+            {
+                throw new ArgumentException("Start time cannot be DateTimeOffset.MinValue");
+            }
+
+            DateTimeOffset? eTime = EndTimeUtc;
+            if (eTime != null && eTime < value)
+            {
+                throw new ArgumentException("End time cannot be before start time");
+            }
+
+            startTime = value;
+        }
+    }
+
+    /// <inheritdoc/>
+    public override bool HasMillisecondPrecision => false;
+
+    /// <inheritdoc/>
+    public override DateTimeOffset? EndTimeUtc
+    {
+        get => endTime;
+        set
+        {
+            DateTimeOffset sTime = StartTimeUtc;
+            if (value != null && sTime > value)
+            {
+                throw new ArgumentException("End time cannot be before start time");
+            }
+
+            endTime = value;
+        }
+    }
+
+    /// <inheritdoc/>
+    protected override bool ValidateMisfireInstruction(int misfireInstruction)
+    {
+        if (misfireInstruction < Quartz.MisfireInstruction.IgnoreMisfirePolicy)
+        {
+            return false;
+        }
+
+        if (misfireInstruction > Quartz.MisfireInstruction.RecurrenceTrigger.DoNothing)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <inheritdoc/>
+    public override void UpdateAfterMisfire(ICalendar? cal)
+    {
+        int instr = MisfireInstruction;
+
+        if (instr == Quartz.MisfireInstruction.IgnoreMisfirePolicy)
+        {
+            return;
+        }
+
+        if (instr == Quartz.MisfireInstruction.SmartPolicy)
+        {
+            instr = Quartz.MisfireInstruction.RecurrenceTrigger.FireOnceNow;
+        }
+
+        if (instr == Quartz.MisfireInstruction.RecurrenceTrigger.DoNothing)
+        {
+            DateTimeOffset? newFireTime = GetFireTimeAfter(SystemTime.UtcNow());
+            while (newFireTime != null && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
+            {
+                newFireTime = GetFireTimeAfter(newFireTime);
+            }
+            SetNextFireTimeUtc(newFireTime);
+        }
+        else if (instr == Quartz.MisfireInstruction.RecurrenceTrigger.FireOnceNow)
+        {
+            SetNextFireTimeUtc(SystemTime.UtcNow());
+        }
+    }
+
+    /// <inheritdoc/>
+    internal override void UpdateAfterMisfire(ICalendar? cal, TimeSpan misfireThreshold)
+    {
+        int instr = MisfireInstruction;
+
+        if (instr == Quartz.MisfireInstruction.IgnoreMisfirePolicy)
+        {
+            return;
+        }
+
+        if (instr == Quartz.MisfireInstruction.SmartPolicy)
+        {
+            instr = Quartz.MisfireInstruction.RecurrenceTrigger.FireOnceNow;
+        }
+
+        if (instr == Quartz.MisfireInstruction.RecurrenceTrigger.DoNothing)
+        {
+            DateTimeOffset? newFireTime = GetFireTimeAfter(SystemTime.UtcNow() - misfireThreshold);
+            while (newFireTime != null && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
+            {
+                newFireTime = GetFireTimeAfter(newFireTime);
+            }
+            SetNextFireTimeUtc(newFireTime);
+        }
+        else if (instr == Quartz.MisfireInstruction.RecurrenceTrigger.FireOnceNow)
+        {
+            SetNextFireTimeUtc(SystemTime.UtcNow());
+        }
+    }
+
+    /// <inheritdoc/>
+    public override void Triggered(ICalendar? calendar)
+    {
+        TimesTriggered++;
+        previousFireTimeUtc = nextFireTimeUtc;
+        nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+
+        while (nextFireTimeUtc != null && calendar != null
+                                       && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
+        {
+            nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+
+            if (nextFireTimeUtc == null)
+            {
+                break;
+            }
+
+            if (nextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
+            {
+                nextFireTimeUtc = null;
+            }
+        }
+    }
+
+    /// <inheritdoc/>
+    public override void UpdateWithNewCalendar(ICalendar calendar, TimeSpan misfireThreshold)
+    {
+        nextFireTimeUtc = GetFireTimeAfter(previousFireTimeUtc);
+
+        if (nextFireTimeUtc == null || calendar == null)
+        {
+            return;
+        }
+
+        DateTimeOffset now = SystemTime.UtcNow();
+        while (nextFireTimeUtc != null && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
+        {
+            nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+
+            if (nextFireTimeUtc == null)
+            {
+                break;
+            }
+
+            if (nextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
+            {
+                nextFireTimeUtc = null;
+            }
+
+            if (nextFireTimeUtc != null && nextFireTimeUtc < now)
+            {
+                TimeSpan diff = now - nextFireTimeUtc.Value;
+                if (diff >= misfireThreshold)
+                {
+                    nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+                }
+            }
+        }
+    }
+
+    /// <inheritdoc/>
+    public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? calendar)
+    {
+        nextFireTimeUtc = StartTimeUtc;
+
+        // If StartTimeUtc is itself a valid occurrence, use it.
+        // Otherwise, find the first occurrence after start.
+        RecurrenceRule rule = GetParsedRule();
+        DateTimeOffset? first = rule.GetNextOccurrence(StartTimeUtc, StartTimeUtc.AddSeconds(-1), TimeZone, EndTimeUtc);
+        if (first != null)
+        {
+            nextFireTimeUtc = first;
+        }
+
+        while (nextFireTimeUtc != null && calendar != null
+                                       && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
+        {
+            nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+
+            if (nextFireTimeUtc == null)
+            {
+                break;
+            }
+
+            if (nextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
+            {
+                return null;
+            }
+        }
+
+        return nextFireTimeUtc;
+    }
+
+    /// <inheritdoc/>
+    public override DateTimeOffset? GetNextFireTimeUtc()
+    {
+        return nextFireTimeUtc;
+    }
+
+    /// <inheritdoc/>
+    public override DateTimeOffset? GetPreviousFireTimeUtc()
+    {
+        return previousFireTimeUtc;
+    }
+
+    /// <inheritdoc/>
+    public override void SetNextFireTimeUtc(DateTimeOffset? value)
+    {
+        nextFireTimeUtc = value;
+    }
+
+    /// <inheritdoc/>
+    public override void SetPreviousFireTimeUtc(DateTimeOffset? previousFireTimeUtc)
+    {
+        this.previousFireTimeUtc = previousFireTimeUtc;
+    }
+
+    /// <inheritdoc/>
+    public override DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTime)
+    {
+        // For COUNT-based rules, check if we've already exhausted the count
+        RecurrenceRule rule = GetParsedRule();
+        if (rule.Count != null && TimesTriggered >= rule.Count.Value)
+        {
+            return null;
+        }
+
+        return rule.GetNextOccurrence(StartTimeUtc, afterTime ?? SystemTime.UtcNow(), TimeZone, EndTimeUtc);
+    }
+
+    /// <inheritdoc/>
+    public override DateTimeOffset? FinalFireTimeUtc
+    {
+        get
+        {
+            if (EndTimeUtc != null)
+            {
+                return EndTimeUtc;
+            }
+
+            RecurrenceRule rule = GetParsedRule();
+            if (rule.Until != null)
+            {
+                return new DateTimeOffset(rule.Until.Value, rule.UntilIsUtc ? TimeSpan.Zero : TimeZone.BaseUtcOffset);
+            }
+
+            // No definitive end
+            return null;
+        }
+    }
+
+    /// <inheritdoc/>
+    public override bool GetMayFireAgain()
+    {
+        return GetNextFireTimeUtc() != null;
+    }
+
+    /// <inheritdoc/>
+    public override void Validate()
+    {
+        base.Validate();
+
+        if (string.IsNullOrWhiteSpace(recurrenceRuleString))
+        {
+            throw new SchedulerException("RecurrenceRule must be set.");
+        }
+
+        // Validate that the RRULE string is parseable
+        try
+        {
+            Recurrence.RecurrenceRule.Parse(recurrenceRuleString);
+        }
+        catch (FormatException ex)
+        {
+            throw new SchedulerException($"Invalid RecurrenceRule: {ex.Message}", ex);
+        }
+
+        // Validate string length for persistence (SIMPROP_TRIGGERS String1 is 512 chars)
+        if (recurrenceRuleString.Length > 512)
+        {
+            throw new SchedulerException("RecurrenceRule string exceeds maximum length of 512 characters for database persistence.");
+        }
+    }
+
+    /// <inheritdoc/>
+    public override IScheduleBuilder GetScheduleBuilder()
+    {
+        RecurrenceScheduleBuilder sb = RecurrenceScheduleBuilder.Create(recurrenceRuleString)
+            .InTimeZone(TimeZone);
+
+        switch (MisfireInstruction)
+        {
+            case Quartz.MisfireInstruction.RecurrenceTrigger.DoNothing:
+                sb.WithMisfireHandlingInstructionDoNothing();
+                break;
+            case Quartz.MisfireInstruction.RecurrenceTrigger.FireOnceNow:
+                sb.WithMisfireHandlingInstructionFireAndProceed();
+                break;
+            case Quartz.MisfireInstruction.IgnoreMisfirePolicy:
+                sb.WithMisfireHandlingInstructionIgnoreMisfires();
+                break;
+        }
+
+        return sb;
+    }
+
+    private RecurrenceRule GetParsedRule()
+    {
+        if (parsedRule == null)
+        {
+            parsedRule = Recurrence.RecurrenceRule.Parse(recurrenceRuleString);
+        }
+        return parsedRule;
+    }
+}

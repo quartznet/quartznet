@@ -1,0 +1,483 @@
+using System;
+
+using NUnit.Framework;
+
+using Quartz.Impl.Recurrence;
+
+namespace Quartz.Tests.Unit.Impl.Recurrence;
+
+public class RecurrenceRuleTest
+{
+    #region Parser Tests
+
+    [Test]
+    public void TestParseSimpleDaily()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=DAILY");
+        Assert.AreEqual(RecurrenceFrequency.Daily, rule.Frequency);
+        Assert.AreEqual(1, rule.Interval);
+        Assert.IsNull(rule.Count);
+        Assert.IsNull(rule.Until);
+    }
+
+    [Test]
+    public void TestParseWithInterval()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=WEEKLY;INTERVAL=2");
+        Assert.AreEqual(RecurrenceFrequency.Weekly, rule.Frequency);
+        Assert.AreEqual(2, rule.Interval);
+    }
+
+    [Test]
+    public void TestParseWithCount()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=MONTHLY;COUNT=10");
+        Assert.AreEqual(RecurrenceFrequency.Monthly, rule.Frequency);
+        Assert.AreEqual(10, rule.Count);
+    }
+
+    [Test]
+    public void TestParseWithUntilUtc()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=DAILY;UNTIL=20251231T235959Z");
+        Assert.IsNotNull(rule.Until);
+        Assert.AreEqual(new DateTime(2025, 12, 31, 23, 59, 59), rule.Until);
+        Assert.IsTrue(rule.UntilIsUtc);
+    }
+
+    [Test]
+    public void TestParseWithUntilLocal()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=DAILY;UNTIL=20251231T235959");
+        Assert.IsNotNull(rule.Until);
+        Assert.IsFalse(rule.UntilIsUtc);
+    }
+
+    [Test]
+    public void TestParseWithByDay()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=WEEKLY;BYDAY=MO,WE,FR");
+        Assert.IsNotNull(rule.ByDay);
+        Assert.AreEqual(3, rule.ByDay!.Length);
+        Assert.AreEqual(DayOfWeek.Monday, rule.ByDay[0].Day);
+        Assert.AreEqual(0, rule.ByDay[0].Ordinal);
+        Assert.AreEqual(DayOfWeek.Wednesday, rule.ByDay[1].Day);
+        Assert.AreEqual(DayOfWeek.Friday, rule.ByDay[2].Day);
+    }
+
+    [Test]
+    public void TestParseWithByDayOrdinals()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=MONTHLY;BYDAY=2MO");
+        Assert.IsNotNull(rule.ByDay);
+        Assert.AreEqual(1, rule.ByDay!.Length);
+        Assert.AreEqual(DayOfWeek.Monday, rule.ByDay[0].Day);
+        Assert.AreEqual(2, rule.ByDay[0].Ordinal);
+    }
+
+    [Test]
+    public void TestParseWithNegativeByDayOrdinals()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=MONTHLY;BYDAY=-1FR");
+        Assert.IsNotNull(rule.ByDay);
+        Assert.AreEqual(DayOfWeek.Friday, rule.ByDay![0].Day);
+        Assert.AreEqual(-1, rule.ByDay[0].Ordinal);
+    }
+
+    [Test]
+    public void TestParseWithByMonthDay()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=MONTHLY;BYMONTHDAY=15");
+        Assert.IsNotNull(rule.ByMonthDay);
+        Assert.AreEqual(1, rule.ByMonthDay!.Length);
+        Assert.AreEqual(15, rule.ByMonthDay[0]);
+    }
+
+    [Test]
+    public void TestParseWithByMonth()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=YEARLY;BYMONTH=1,6,12");
+        Assert.IsNotNull(rule.ByMonth);
+        Assert.AreEqual(3, rule.ByMonth!.Length);
+    }
+
+    [Test]
+    public void TestParseWithByHourMinuteSecond()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=DAILY;BYHOUR=9,17;BYMINUTE=0,30;BYSECOND=0");
+        Assert.AreEqual(new[] { 9, 17 }, rule.ByHour);
+        Assert.AreEqual(new[] { 0, 30 }, rule.ByMinute);
+        Assert.AreEqual(new[] { 0 }, rule.BySecond);
+    }
+
+    [Test]
+    public void TestParseWithBySetPos()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=MONTHLY;BYDAY=MO,TU,WE,TH,FR;BYSETPOS=-1");
+        Assert.IsNotNull(rule.BySetPos);
+        Assert.AreEqual(new[] { -1 }, rule.BySetPos);
+    }
+
+    [Test]
+    public void TestParseWithWkst()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=WEEKLY;WKST=SU");
+        Assert.AreEqual(DayOfWeek.Sunday, rule.WeekStart);
+    }
+
+    [Test]
+    public void TestParseStripsRrulePrefix()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("RRULE:FREQ=DAILY");
+        Assert.AreEqual(RecurrenceFrequency.Daily, rule.Frequency);
+    }
+
+    [Test]
+    public void TestParseRejectsEmptyString()
+    {
+        Assert.Throws<FormatException>(() => RecurrenceRule.Parse(""));
+    }
+
+    [Test]
+    public void TestParseRejectsMissingFreq()
+    {
+        Assert.Throws<FormatException>(() => RecurrenceRule.Parse("INTERVAL=2"));
+    }
+
+    [Test]
+    public void TestParseRejectsCountAndUntil()
+    {
+        Assert.Throws<FormatException>(() => RecurrenceRule.Parse("FREQ=DAILY;COUNT=5;UNTIL=20251231T235959Z"));
+    }
+
+    [Test]
+    public void TestParseAllFrequencies()
+    {
+        Assert.AreEqual(RecurrenceFrequency.Secondly, RecurrenceRule.Parse("FREQ=SECONDLY").Frequency);
+        Assert.AreEqual(RecurrenceFrequency.Minutely, RecurrenceRule.Parse("FREQ=MINUTELY").Frequency);
+        Assert.AreEqual(RecurrenceFrequency.Hourly, RecurrenceRule.Parse("FREQ=HOURLY").Frequency);
+        Assert.AreEqual(RecurrenceFrequency.Daily, RecurrenceRule.Parse("FREQ=DAILY").Frequency);
+        Assert.AreEqual(RecurrenceFrequency.Weekly, RecurrenceRule.Parse("FREQ=WEEKLY").Frequency);
+        Assert.AreEqual(RecurrenceFrequency.Monthly, RecurrenceRule.Parse("FREQ=MONTHLY").Frequency);
+        Assert.AreEqual(RecurrenceFrequency.Yearly, RecurrenceRule.Parse("FREQ=YEARLY").Frequency);
+    }
+
+    #endregion
+
+    #region ToString Round-Trip Tests
+
+    [Test]
+    public void TestToStringRoundTrip()
+    {
+        string rrule = "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR";
+        RecurrenceRule rule = RecurrenceRule.Parse(rrule);
+        Assert.AreEqual(rrule, rule.ToString());
+    }
+
+    [Test]
+    public void TestToStringRoundTripComplex()
+    {
+        string rrule = "FREQ=YEARLY;COUNT=5;BYMONTH=3;BYDAY=MO,TU,WE,TH,FR;BYSETPOS=-1";
+        RecurrenceRule rule = RecurrenceRule.Parse(rrule);
+        Assert.AreEqual(rrule, rule.ToString());
+    }
+
+    [Test]
+    public void TestToStringOmitsDefaultInterval()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=DAILY;INTERVAL=1");
+        Assert.AreEqual("FREQ=DAILY", rule.ToString());
+    }
+
+    [Test]
+    public void TestToStringOmitsDefaultWkst()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=WEEKLY;WKST=MO");
+        Assert.AreEqual("FREQ=WEEKLY", rule.ToString());
+    }
+
+    #endregion
+
+    #region GetNextOccurrence Tests
+
+    [Test]
+    public void TestDailySimple()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=DAILY");
+        DateTimeOffset start = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
+        DateTimeOffset after = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
+
+        DateTimeOffset? next = rule.GetNextOccurrence(start, after, TimeZoneInfo.Utc, null);
+        Assert.IsNotNull(next);
+        Assert.AreEqual(new DateTimeOffset(2025, 1, 2, 9, 0, 0, TimeSpan.Zero), next);
+    }
+
+    [Test]
+    public void TestDailyWithInterval()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=DAILY;INTERVAL=3");
+        DateTimeOffset start = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
+        DateTimeOffset after = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
+
+        DateTimeOffset? next = rule.GetNextOccurrence(start, after, TimeZoneInfo.Utc, null);
+        Assert.IsNotNull(next);
+        Assert.AreEqual(new DateTimeOffset(2025, 1, 4, 9, 0, 0, TimeSpan.Zero), next);
+    }
+
+    [Test]
+    public void TestWeeklyOnSpecificDays()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=WEEKLY;BYDAY=MO,WE,FR");
+        // Start on Wednesday Jan 1 2025
+        DateTimeOffset start = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
+        DateTimeOffset after = start;
+
+        // Next after Wed Jan 1 should be Fri Jan 3
+        DateTimeOffset? next = rule.GetNextOccurrence(start, after, TimeZoneInfo.Utc, null);
+        Assert.IsNotNull(next);
+        Assert.AreEqual(DayOfWeek.Friday, next!.Value.DayOfWeek);
+        Assert.AreEqual(3, next.Value.Day);
+    }
+
+    [Test]
+    public void TestWeeklyEveryOtherWeek()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=WEEKLY;INTERVAL=2;BYDAY=MO");
+        // Monday Jan 6 2025
+        DateTimeOffset start = new DateTimeOffset(2025, 1, 6, 9, 0, 0, TimeSpan.Zero);
+        DateTimeOffset after = start;
+
+        // Next should be 2 weeks later: Mon Jan 20
+        DateTimeOffset? next = rule.GetNextOccurrence(start, after, TimeZoneInfo.Utc, null);
+        Assert.IsNotNull(next);
+        Assert.AreEqual(new DateTimeOffset(2025, 1, 20, 9, 0, 0, TimeSpan.Zero), next);
+    }
+
+    [Test]
+    public void TestMonthlySecondMonday()
+    {
+        // "Every 2nd Monday of the month"
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=MONTHLY;BYDAY=2MO");
+        DateTimeOffset start = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
+        DateTimeOffset after = start;
+
+        // 2nd Monday of Jan 2025 is Jan 13
+        DateTimeOffset? next = rule.GetNextOccurrence(start, after, TimeZoneInfo.Utc, null);
+        Assert.IsNotNull(next);
+        Assert.AreEqual(13, next!.Value.Day);
+        Assert.AreEqual(DayOfWeek.Monday, next.Value.DayOfWeek);
+    }
+
+    [Test]
+    public void TestMonthlyLastFriday()
+    {
+        // "Last Friday of the month"
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=MONTHLY;BYDAY=-1FR");
+        DateTimeOffset start = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
+        DateTimeOffset after = start;
+
+        // Last Friday of Jan 2025 is Jan 31
+        DateTimeOffset? next = rule.GetNextOccurrence(start, after, TimeZoneInfo.Utc, null);
+        Assert.IsNotNull(next);
+        Assert.AreEqual(31, next!.Value.Day);
+        Assert.AreEqual(DayOfWeek.Friday, next.Value.DayOfWeek);
+    }
+
+    [Test]
+    public void TestMonthlyByMonthDay()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=MONTHLY;BYMONTHDAY=15");
+        DateTimeOffset start = new DateTimeOffset(2025, 1, 1, 10, 0, 0, TimeSpan.Zero);
+        DateTimeOffset after = start;
+
+        DateTimeOffset? next = rule.GetNextOccurrence(start, after, TimeZoneInfo.Utc, null);
+        Assert.IsNotNull(next);
+        Assert.AreEqual(15, next!.Value.Day);
+        Assert.AreEqual(1, next.Value.Month);
+    }
+
+    [Test]
+    public void TestMonthlyLastDayOfMonth()
+    {
+        // BYMONTHDAY=-1 means last day of month
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=MONTHLY;BYMONTHDAY=-1");
+        DateTimeOffset start = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
+        DateTimeOffset after = start;
+
+        // Last day of Jan = 31
+        DateTimeOffset? next = rule.GetNextOccurrence(start, after, TimeZoneInfo.Utc, null);
+        Assert.IsNotNull(next);
+        Assert.AreEqual(31, next!.Value.Day);
+
+        // Next after Jan 31 should be Feb 28
+        DateTimeOffset? next2 = rule.GetNextOccurrence(start, next.Value, TimeZoneInfo.Utc, null);
+        Assert.IsNotNull(next2);
+        Assert.AreEqual(28, next2!.Value.Day);
+        Assert.AreEqual(2, next2.Value.Month);
+    }
+
+    [Test]
+    public void TestYearlyLastWeekdayOfMarch()
+    {
+        // "Last weekday of March each year"
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=YEARLY;BYMONTH=3;BYDAY=MO,TU,WE,TH,FR;BYSETPOS=-1");
+        DateTimeOffset start = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
+        DateTimeOffset after = start;
+
+        // Last weekday of March 2025: March 31 is a Monday
+        DateTimeOffset? next = rule.GetNextOccurrence(start, after, TimeZoneInfo.Utc, null);
+        Assert.IsNotNull(next);
+        Assert.AreEqual(3, next!.Value.Month);
+        Assert.AreEqual(31, next.Value.Day);
+        Assert.AreEqual(DayOfWeek.Monday, next.Value.DayOfWeek);
+    }
+
+    [Test]
+    public void TestYearlySpecificDate()
+    {
+        // Every year on March 15
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=YEARLY;BYMONTH=3;BYMONTHDAY=15");
+        DateTimeOffset start = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
+        DateTimeOffset after = start;
+
+        DateTimeOffset? next = rule.GetNextOccurrence(start, after, TimeZoneInfo.Utc, null);
+        Assert.IsNotNull(next);
+        Assert.AreEqual(new DateTimeOffset(2025, 3, 15, 9, 0, 0, TimeSpan.Zero), next);
+    }
+
+    [Test]
+    public void TestCountStopsAfterN()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=DAILY;COUNT=3");
+        DateTimeOffset start = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
+
+        // 1st: Jan 1, 2nd: Jan 2, 3rd: Jan 3
+        DateTimeOffset? r1 = rule.GetNextOccurrence(start, start.AddSeconds(-1), TimeZoneInfo.Utc, null);
+        Assert.IsNotNull(r1);
+        Assert.AreEqual(1, r1!.Value.Day);
+
+        DateTimeOffset? r2 = rule.GetNextOccurrence(start, r1.Value, TimeZoneInfo.Utc, null);
+        Assert.IsNotNull(r2);
+        Assert.AreEqual(2, r2!.Value.Day);
+
+        DateTimeOffset? r3 = rule.GetNextOccurrence(start, r2.Value, TimeZoneInfo.Utc, null);
+        Assert.IsNotNull(r3);
+        Assert.AreEqual(3, r3!.Value.Day);
+
+        // 4th should be null (COUNT=3 exhausted)
+        DateTimeOffset? r4 = rule.GetNextOccurrence(start, r3.Value, TimeZoneInfo.Utc, null);
+        Assert.IsNull(r4);
+    }
+
+    [Test]
+    public void TestUntilStopsAtCutoff()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=DAILY;UNTIL=20250105T235959Z");
+        DateTimeOffset start = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
+
+        DateTimeOffset? r1 = rule.GetNextOccurrence(start, start, TimeZoneInfo.Utc, null);
+        Assert.IsNotNull(r1);
+
+        // Keep going until we hit null
+        DateTimeOffset? current = r1;
+        int count = 1;
+        while (current != null && count < 100)
+        {
+            DateTimeOffset? next = rule.GetNextOccurrence(start, current.Value, TimeZoneInfo.Utc, null);
+            if (next == null)
+            {
+                break;
+            }
+            count++;
+            Assert.IsTrue(next.Value <= new DateTimeOffset(2025, 1, 5, 23, 59, 59, TimeSpan.Zero));
+            current = next;
+        }
+
+        // Should have 4 days (Jan 2, 3, 4, 5)
+        Assert.AreEqual(4, count);
+    }
+
+    [Test]
+    public void TestEndTimeRespected()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=DAILY");
+        DateTimeOffset start = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
+        DateTimeOffset endTime = new DateTimeOffset(2025, 1, 3, 9, 0, 0, TimeSpan.Zero);
+
+        DateTimeOffset? r1 = rule.GetNextOccurrence(start, start, TimeZoneInfo.Utc, endTime);
+        Assert.IsNotNull(r1);
+        Assert.AreEqual(2, r1!.Value.Day);
+
+        DateTimeOffset? r2 = rule.GetNextOccurrence(start, r1.Value, TimeZoneInfo.Utc, endTime);
+        Assert.IsNotNull(r2);
+        Assert.AreEqual(3, r2!.Value.Day);
+
+        // Next would be Jan 4 which is past endTime
+        DateTimeOffset? r3 = rule.GetNextOccurrence(start, r2.Value, TimeZoneInfo.Utc, endTime);
+        Assert.IsNull(r3);
+    }
+
+    [Test]
+    public void TestHourlyFrequency()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=HOURLY;INTERVAL=2");
+        DateTimeOffset start = new DateTimeOffset(2025, 1, 1, 8, 0, 0, TimeSpan.Zero);
+        DateTimeOffset after = start;
+
+        DateTimeOffset? next = rule.GetNextOccurrence(start, after, TimeZoneInfo.Utc, null);
+        Assert.IsNotNull(next);
+        Assert.AreEqual(new DateTimeOffset(2025, 1, 1, 10, 0, 0, TimeSpan.Zero), next);
+    }
+
+    [Test]
+    public void TestDailyWithByHour()
+    {
+        // Fire daily at 9am and 5pm
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=DAILY;BYHOUR=9,17;BYMINUTE=0;BYSECOND=0");
+        DateTimeOffset start = new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        DateTimeOffset after = start;
+
+        DateTimeOffset? next = rule.GetNextOccurrence(start, after, TimeZoneInfo.Utc, null);
+        Assert.IsNotNull(next);
+        Assert.AreEqual(9, next!.Value.Hour);
+
+        DateTimeOffset? next2 = rule.GetNextOccurrence(start, next.Value, TimeZoneInfo.Utc, null);
+        Assert.IsNotNull(next2);
+        Assert.AreEqual(17, next2!.Value.Hour);
+    }
+
+    [Test]
+    public void TestDailyFilteredByDay()
+    {
+        // Daily but only on weekdays
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR");
+        // Jan 3, 2025 is a Friday
+        DateTimeOffset start = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
+        DateTimeOffset afterFriday = new DateTimeOffset(2025, 1, 3, 9, 0, 0, TimeSpan.Zero);
+
+        // Next after Friday should skip weekend to Monday Jan 6
+        DateTimeOffset? next = rule.GetNextOccurrence(start, afterFriday, TimeZoneInfo.Utc, null);
+        Assert.IsNotNull(next);
+        Assert.AreEqual(6, next!.Value.Day);
+        Assert.AreEqual(DayOfWeek.Monday, next.Value.DayOfWeek);
+    }
+
+    [Test]
+    public void TestMonthlyMultipleByMonthDay()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=MONTHLY;BYMONTHDAY=1,15");
+        DateTimeOffset start = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
+        DateTimeOffset after = start;
+
+        DateTimeOffset? next = rule.GetNextOccurrence(start, after, TimeZoneInfo.Utc, null);
+        Assert.IsNotNull(next);
+        Assert.AreEqual(15, next!.Value.Day);
+
+        DateTimeOffset? next2 = rule.GetNextOccurrence(start, next.Value, TimeZoneInfo.Utc, null);
+        Assert.IsNotNull(next2);
+        Assert.AreEqual(1, next2!.Value.Day);
+        Assert.AreEqual(2, next2.Value.Month);
+    }
+
+    #endregion
+}
