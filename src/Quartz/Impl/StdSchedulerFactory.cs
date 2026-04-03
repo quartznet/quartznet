@@ -1077,7 +1077,7 @@ Please add configuration to your application config file to correctly initialize
             // set scheduler context data...
             foreach (var key in schedCtxtProps)
             {
-                var val = schedCtxtProps.Get((string) key!);
+                var val = schedCtxtProps[(string) key!];
                 sched.Context.Put((string) key!, val);
             }
 

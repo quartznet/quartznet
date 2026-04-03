@@ -569,7 +569,7 @@ public class AdoJobStoreSmokeTest
         {
             try
             {
-                ((ManualResetEventSlim) context.Scheduler.Context.Get(KeyResetEvent)).Wait(TimeSpan.FromSeconds(20));
+                ((ManualResetEventSlim) context.Scheduler.Context[KeyResetEvent]).Wait(TimeSpan.FromSeconds(20));
                 return Task.CompletedTask;
             }
             catch (SchedulerException ex)

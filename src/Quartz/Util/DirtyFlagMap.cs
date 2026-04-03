@@ -166,7 +166,11 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
 
     #region IDictionary Members
 
+#if NET8_0_OR_GREATER
+    public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
+#else
     public bool TryGetValue(TKey key, out TValue value)
+#endif
     {
         return map.TryGetValue(key, out value!);
     }
@@ -175,6 +179,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
     /// Gets the value behind the specified key.
     /// </summary>
     /// <param name="key">The key.</param>
+    [Obsolete("Use the indexer this[key] instead. This method will be removed in a future major version.")]
     public virtual TValue Get(TKey key)
     {
         return this[key]!;
@@ -192,6 +197,12 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
         }
         set
         {
+            if (map.TryGetValue(key, out var existing)
+                && EqualityComparer<TValue>.Default.Equals(existing, value))
+            {
+                return;
+            }
+
             map[key] = value;
             dirty = true;
         }
@@ -528,9 +539,20 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
     /// <returns></returns>
     public virtual object? Put(TKey key, TValue val)
     {
-        dirty = true;
-        map.TryGetValue(key, out var tempObject);
-        map[key] = val;
+        if (map.TryGetValue(key, out var tempObject))
+        {
+            if (!EqualityComparer<TValue>.Default.Equals(tempObject, val))
+            {
+                map[key] = val;
+                dirty = true;
+            }
+        }
+        else
+        {
+            map[key] = val;
+            dirty = true;
+        }
+
         return tempObject;
     }
 
