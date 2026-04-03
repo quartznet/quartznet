@@ -1119,7 +1119,7 @@ public interface IDriverDelegate
     /// </summary>
     /// <param name="conn">The DB connection.</param>
     /// <param name="trigger">The trigger after <c>UpdateAfterMisfire</c> has been applied in-memory.</param>
-    /// <param name="newState">The new trigger state (WAITING or COMPLETE).</param>
+    /// <param name="newState">The new trigger state to persist (e.g. WAITING, COMPLETE, BLOCKED).</param>
     /// <param name="misfireOriginalFireTime">
     /// The original scheduled fire time for "fire now" misfire policies. When non-<c>null</c>,
     /// the value is written to the MISFIRE_ORIG_FIRE_TIME column. <c>null</c> leaves the column

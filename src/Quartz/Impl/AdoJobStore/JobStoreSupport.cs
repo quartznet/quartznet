@@ -829,7 +829,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
         // Cache calendars across the batch to avoid redundant DB round-trips
         // when multiple triggers reference the same calendar.
-        Dictionary<string, ICalendar?>? calendarCache = new();
+        Dictionary<string, ICalendar?> batchCalendarCache = new();
 
         foreach (TriggerKey triggerKey in misfiredTriggers)
         {
@@ -851,7 +851,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
             try
             {
-                await DoUpdateOfMisfiredTriggerOptimized(conn, trig, StateWaiting, calendarCache, cancellationToken).ConfigureAwait(false);
+                await DoUpdateOfMisfiredTriggerOptimized(conn, trig, StateWaiting, batchCalendarCache, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)
             {
