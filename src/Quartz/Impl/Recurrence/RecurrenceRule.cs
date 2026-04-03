@@ -168,28 +168,28 @@ internal sealed class RecurrenceRule
                     byDay = ParseByDay(value);
                     break;
                 case "BYMONTHDAY":
-                    byMonthDay = ParseIntList(value);
+                    byMonthDay = ParseIntList(value, "BYMONTHDAY", -31, 31, allowZero: false);
                     break;
                 case "BYMONTH":
-                    byMonth = ParseIntList(value);
+                    byMonth = ParseIntList(value, "BYMONTH", 1, 12);
                     break;
                 case "BYYEARDAY":
-                    byYearDay = ParseIntList(value);
+                    byYearDay = ParseIntList(value, "BYYEARDAY", -366, 366, allowZero: false);
                     break;
                 case "BYWEEKNO":
-                    byWeekNo = ParseIntList(value);
+                    byWeekNo = ParseIntList(value, "BYWEEKNO", -53, 53, allowZero: false);
                     break;
                 case "BYHOUR":
-                    byHour = ParseIntList(value);
+                    byHour = ParseIntList(value, "BYHOUR", 0, 23);
                     break;
                 case "BYMINUTE":
-                    byMinute = ParseIntList(value);
+                    byMinute = ParseIntList(value, "BYMINUTE", 0, 59);
                     break;
                 case "BYSECOND":
-                    bySecond = ParseIntList(value);
+                    bySecond = ParseIntList(value, "BYSECOND", 0, 59);
                     break;
                 case "BYSETPOS":
-                    bySetPos = ParseIntList(value);
+                    bySetPos = ParseIntList(value, "BYSETPOS", -366, 366, allowZero: false);
                     break;
                 default:
                     // Ignore unknown properties (RFC 5545 allows X- extension properties)
@@ -345,13 +345,14 @@ internal sealed class RecurrenceRule
 
     private DateTime? FindNextOccurrenceNonCount(LocalTimes local)
     {
-        int startPeriodIdx = GetPeriodIndex(local.Start, local.After);
-        if (startPeriodIdx < 0)
+        int i = GetPeriodIndex(local.Start, local.After);
+        if (i < 0)
         {
-            startPeriodIdx = 0;
+            i = 0;
         }
 
-        for (int i = startPeriodIdx; i < startPeriodIdx + MaxIterations; i++)
+        int iterations = 0;
+        while (iterations < MaxIterations)
         {
             DateTime periodStart = GetPeriodStart(local.Start, i);
 
@@ -362,6 +363,17 @@ internal sealed class RecurrenceRule
             if (local.End != null && periodStart > local.End.Value)
             {
                 return null;
+            }
+
+            // Fast-forward: for sub-daily frequencies with BYMONTH limiting,
+            // skip ahead to the next matching month instead of iterating
+            // through every second/minute/hour of non-matching months.
+            if (ByMonth != null && Frequency < RecurrenceFrequency.Daily
+                && Array.IndexOf(ByMonth, periodStart.Month) < 0)
+            {
+                i = FastForwardToNextMatchingMonth(local.Start, i);
+                iterations++;
+                continue;
             }
 
             List<DateTime> candidates = ByRuleExpander.ExpandPeriod(this, local.Start, periodStart);
@@ -386,9 +398,37 @@ internal sealed class RecurrenceRule
                 }
                 return candidate;
             }
+
+            i++;
+            iterations++;
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Find the period index of the start of the next month that matches BYMONTH,
+    /// beginning from the given period index. Used to skip sub-daily frequencies
+    /// past months that will never produce matches.
+    /// </summary>
+    private int FastForwardToNextMatchingMonth(DateTime start, int currentPeriodIdx)
+    {
+        DateTime current = GetPeriodStart(start, currentPeriodIdx);
+
+        for (int attempt = 0; attempt < 13; attempt++)
+        {
+            DateTime nextMonth = new DateTime(current.Year, current.Month, 1)
+                .AddMonths(attempt + 1);
+
+            if (ByMonth != null && Array.IndexOf(ByMonth, nextMonth.Month) >= 0)
+            {
+                DateTime target = new DateTime(nextMonth.Year, nextMonth.Month, 1,
+                    start.Hour, start.Minute, start.Second);
+                return GetPeriodIndex(start, target);
+            }
+        }
+
+        return currentPeriodIdx + 1;
     }
 
     private DateTime? FindNextOccurrenceWithCount(LocalTimes local)
@@ -727,14 +767,19 @@ internal sealed class RecurrenceRule
         return result;
     }
 
-    private static int[] ParseIntList(string value)
+    private static int[] ParseIntList(string value, string propertyName, int min, int max, bool allowZero = true)
     {
         string[] items = value.Split(',');
         int[] result = new int[items.Length];
 
         for (int i = 0; i < items.Length; i++)
         {
-            result[i] = int.Parse(items[i].Trim(), CultureInfo.InvariantCulture);
+            int v = int.Parse(items[i].Trim(), CultureInfo.InvariantCulture);
+            if (v < min || v > max || (!allowZero && v == 0))
+            {
+                throw new FormatException($"{propertyName} value {v} is out of range ({min} to {max}{(allowZero ? "" : ", excluding 0")}).");
+            }
+            result[i] = v;
         }
 
         return result;

@@ -363,7 +363,19 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
 
             if (rule.Until != null)
             {
-                return new DateTimeOffset(rule.Until.Value, rule.UntilIsUtc ? TimeSpan.Zero : TimeZone.BaseUtcOffset);
+                if (rule.UntilIsUtc)
+                {
+                    return new DateTimeOffset(rule.Until.Value, TimeSpan.Zero);
+                }
+
+                // Use the timezone's actual offset for the UNTIL date, which accounts for DST
+                TimeSpan offset = TimeZone.GetUtcOffset(rule.Until.Value);
+                if (TimeZone.IsInvalidTime(rule.Until.Value))
+                {
+                    // UNTIL falls in a DST gap — advance past it
+                    offset = TimeZone.GetUtcOffset(rule.Until.Value.AddHours(1));
+                }
+                return new DateTimeOffset(rule.Until.Value, offset);
             }
 
             // No definitive end
@@ -392,7 +404,7 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
         {
             Recurrence.RecurrenceRule.Parse(recurrenceRuleString);
         }
-        catch (FormatException ex)
+        catch (Exception ex) when (ex is FormatException or OverflowException or ArgumentException)
         {
             throw new SchedulerException($"Invalid RecurrenceRule: {ex.Message}", ex);
         }

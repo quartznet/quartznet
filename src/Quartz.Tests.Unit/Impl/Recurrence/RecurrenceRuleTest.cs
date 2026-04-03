@@ -3,6 +3,7 @@ using System;
 using NUnit.Framework;
 
 using Quartz.Impl.Recurrence;
+using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl.Recurrence;
 
@@ -505,7 +506,7 @@ public class RecurrenceRuleTest
     {
         // US Eastern: March 9, 2025, 2:00 AM doesn't exist (clocks jump to 3:00 AM)
         RecurrenceRule rule = RecurrenceRule.Parse("FREQ=DAILY");
-        TimeZoneInfo eastern = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+        TimeZoneInfo eastern = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
         // Start at 2:30 AM local
         DateTimeOffset start = new DateTimeOffset(2025, 3, 8, 7, 30, 0, TimeSpan.Zero); // 2:30 AM EST = 7:30 UTC
         DateTimeOffset after = start;
@@ -523,7 +524,7 @@ public class RecurrenceRuleTest
     {
         // US Eastern: Nov 2, 2025, 1:30 AM exists twice (clocks fall back at 2:00 AM)
         RecurrenceRule rule = RecurrenceRule.Parse("FREQ=DAILY");
-        TimeZoneInfo eastern = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+        TimeZoneInfo eastern = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
         // Start at 1:30 AM local on Nov 1
         DateTimeOffset start = new DateTimeOffset(2025, 11, 1, 5, 30, 0, TimeSpan.Zero); // 1:30 AM EDT = 5:30 UTC
         DateTimeOffset after = start;
@@ -573,6 +574,53 @@ public class RecurrenceRuleTest
         RecurrenceRule rule = RecurrenceRule.Parse("FREQ=DAILY;X-CUSTOM=foo;INTERVAL=2");
         Assert.AreEqual(RecurrenceFrequency.Daily, rule.Frequency);
         Assert.AreEqual(2, rule.Interval);
+    }
+
+    [Test]
+    public void TestParseRejectsOutOfRangeByMonth()
+    {
+        Assert.Throws<FormatException>(() => RecurrenceRule.Parse("FREQ=YEARLY;BYMONTH=0"));
+        Assert.Throws<FormatException>(() => RecurrenceRule.Parse("FREQ=YEARLY;BYMONTH=13"));
+    }
+
+    [Test]
+    public void TestParseRejectsOutOfRangeByHour()
+    {
+        Assert.Throws<FormatException>(() => RecurrenceRule.Parse("FREQ=DAILY;BYHOUR=-1"));
+        Assert.Throws<FormatException>(() => RecurrenceRule.Parse("FREQ=DAILY;BYHOUR=24"));
+    }
+
+    [Test]
+    public void TestParseRejectsOutOfRangeByMonthDay()
+    {
+        Assert.Throws<FormatException>(() => RecurrenceRule.Parse("FREQ=MONTHLY;BYMONTHDAY=0"));
+        Assert.Throws<FormatException>(() => RecurrenceRule.Parse("FREQ=MONTHLY;BYMONTHDAY=32"));
+        Assert.Throws<FormatException>(() => RecurrenceRule.Parse("FREQ=MONTHLY;BYMONTHDAY=-32"));
+    }
+
+    [Test]
+    public void TestParseAcceptsValidByRanges()
+    {
+        // Boundary values should be accepted
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=YEARLY;BYMONTH=1,12;BYMONTHDAY=-31,31;BYHOUR=0,23;BYMINUTE=0,59;BYSECOND=0,59");
+        Assert.AreEqual(new[] { 1, 12 }, rule.ByMonth);
+        Assert.AreEqual(new[] { -31, 31 }, rule.ByMonthDay);
+        Assert.AreEqual(new[] { 0, 23 }, rule.ByHour);
+    }
+
+    [Test]
+    public void TestHourlyWithByMonthFastForward()
+    {
+        // FREQ=HOURLY;BYMONTH=12 starting in January should still find December
+        // This tests the fast-forward optimization for sub-daily frequencies with BYMONTH
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=HOURLY;BYMONTH=12");
+        DateTimeOffset start = new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        DateTimeOffset after = start;
+
+        DateTimeOffset? next = rule.GetNextOccurrence(start, after, TimeZoneInfo.Utc, null);
+        Assert.IsNotNull(next);
+        Assert.AreEqual(12, next!.Value.Month);
+        Assert.AreEqual(2025, next.Value.Year);
     }
 
     #endregion

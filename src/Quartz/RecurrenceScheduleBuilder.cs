@@ -146,7 +146,7 @@ public static class RecurrenceTriggerBuilderExtensions
         Action<RecurrenceScheduleBuilder> action)
     {
         RecurrenceScheduleBuilder builder = RecurrenceScheduleBuilder.Create(recurrenceRule);
-        action?.Invoke(builder);
+        action(builder);
         return triggerBuilder.WithSchedule(builder);
     }
 }
