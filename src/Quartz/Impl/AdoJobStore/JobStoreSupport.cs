@@ -861,7 +861,8 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
         // Cache calendars across the batch to avoid redundant DB round-trips
         // when multiple triggers reference the same calendar.
-        Dictionary<string, ICalendar?>? calendarCache = null;
+        bool useOptimizedPath = Delegate is INextVersionDelegate;
+        Dictionary<string, ICalendar?>? calendarCache = useOptimizedPath ? new Dictionary<string, ICalendar?>() : null;
 
         foreach (TriggerKey triggerKey in misfiredTriggers)
         {
@@ -883,10 +884,9 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
             try
             {
-                if (Delegate is INextVersionDelegate)
+                if (useOptimizedPath)
                 {
-                    calendarCache ??= new Dictionary<string, ICalendar?>();
-                    await DoUpdateOfMisfiredTriggerOptimized(conn, trig, StateWaiting, recovering, calendarCache, cancellationToken).ConfigureAwait(false);
+                    await DoUpdateOfMisfiredTriggerOptimized(conn, trig, StateWaiting, calendarCache!, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
@@ -1018,7 +1018,14 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 return false;
             }
 
-            await DoUpdateOfMisfiredTrigger(conn, trig, forceState, newStateIfNotComplete, false).ConfigureAwait(false);
+            if (Delegate is INextVersionDelegate)
+            {
+                await DoUpdateOfMisfiredTriggerOptimized(conn, trig, newStateIfNotComplete, calendarCache: null, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await DoUpdateOfMisfiredTrigger(conn, trig, forceState, newStateIfNotComplete, false).ConfigureAwait(false);
+            }
 
             return true;
         }
@@ -1087,20 +1094,22 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trig,
         string newStateIfNotComplete,
-        bool recovering,
-        Dictionary<string, ICalendar?> calendarCache,
+        Dictionary<string, ICalendar?>? calendarCache,
         CancellationToken cancellationToken)
     {
         INextVersionDelegate nvd = (INextVersionDelegate) Delegate;
 
-        // Calendar lookup with batch-local cache.
+        // Calendar lookup with batch-local cache (when available).
         ICalendar? cal = null;
         if (trig.CalendarName != null)
         {
-            if (!calendarCache.TryGetValue(trig.CalendarName, out cal))
+            if (calendarCache == null || !calendarCache.TryGetValue(trig.CalendarName, out cal))
             {
                 cal = await RetrieveCalendar(conn, trig.CalendarName).ConfigureAwait(false);
-                calendarCache[trig.CalendarName] = cal;
+                if (calendarCache != null)
+                {
+                    calendarCache[trig.CalendarName] = cal;
+                }
             }
         }
 
