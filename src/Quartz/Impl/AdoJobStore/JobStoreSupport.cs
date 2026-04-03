@@ -414,6 +414,21 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
     }
 
+    /// <summary>
+    /// Gets the threshold for considering a fired trigger record in ACQUIRED state as stale.
+    /// Uses 2x <see cref="MisfireThreshold"/> with a floor of 2 minutes, which is
+    /// generous enough to never interfere with normal acquisition (which takes at
+    /// most idleWaitTime ~30s plus processing time).
+    /// </summary>
+    protected virtual TimeSpan StaleAcquiredTriggerThreshold
+    {
+        get
+        {
+            TimeSpan threshold = MisfireThreshold + MisfireThreshold;
+            return threshold < TimeSpan.FromMinutes(2) ? TimeSpan.FromMinutes(2) : threshold;
+        }
+    }
+
     protected virtual string GetFiredTriggerRecordId()
     {
         Interlocked.Increment(ref ftrCtr);
@@ -892,15 +907,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default)
     {
-        // Use a generous threshold: triggers stay ACQUIRED for at most idleWaitTime (~30s)
-        // plus some processing time. Using 2x MisfireThreshold with a floor of 2 minutes
-        // ensures we never interfere with normal acquisition.
-        TimeSpan staleThreshold = MisfireThreshold + MisfireThreshold;
-        if (staleThreshold < TimeSpan.FromMinutes(2))
-        {
-            staleThreshold = TimeSpan.FromMinutes(2);
-        }
-
+        TimeSpan staleThreshold = StaleAcquiredTriggerThreshold;
         DateTimeOffset staleCutoff = SystemTime.UtcNow() - staleThreshold;
 
         IReadOnlyCollection<FiredTriggerRecord> firedTriggers = await Delegate.SelectInstancesFiredTriggerRecords(conn, InstanceId, cancellationToken).ConfigureAwait(false);
@@ -915,7 +922,6 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                     await Delegate.UpdateTriggerStateFromOtherState(conn, rec.TriggerKey!, StateWaiting, StateAcquired, cancellationToken).ConfigureAwait(false);
                     await Delegate.DeleteFiredTrigger(conn, rec.FireInstanceId!, cancellationToken).ConfigureAwait(false);
                     recoveredCount++;
-                    Log.Info($"Recovered stale acquired trigger '{rec.TriggerKey}' (acquired at {rec.FireTimestamp:O}, stale threshold {staleThreshold}).");
                 }
                 catch (Exception e)
                 {
@@ -926,7 +932,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
         if (recoveredCount > 0)
         {
-            Log.Info($"Recovered {recoveredCount} trigger(s) stuck in ACQUIRED state.");
+            Log.Info($"Recovered {recoveredCount} trigger(s) stuck in ACQUIRED state (stale threshold: {staleThreshold}).");
         }
 
         return recoveredCount;
@@ -940,13 +946,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default)
     {
-        TimeSpan staleThreshold = MisfireThreshold + MisfireThreshold;
-        if (staleThreshold < TimeSpan.FromMinutes(2))
-        {
-            staleThreshold = TimeSpan.FromMinutes(2);
-        }
-
-        DateTimeOffset staleCutoff = SystemTime.UtcNow() - staleThreshold;
+        DateTimeOffset staleCutoff = SystemTime.UtcNow() - StaleAcquiredTriggerThreshold;
 
         IReadOnlyCollection<FiredTriggerRecord> firedTriggers = await Delegate.SelectInstancesFiredTriggerRecords(conn, InstanceId, cancellationToken).ConfigureAwait(false);
 
