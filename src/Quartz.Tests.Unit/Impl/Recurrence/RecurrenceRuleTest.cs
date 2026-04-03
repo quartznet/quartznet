@@ -624,6 +624,25 @@ public class RecurrenceRuleTest
     }
 
     [Test]
+    public void TestHourlyWithByMonthFastForwardNonMidnightStart()
+    {
+        // Regression: fast-forward must land at the earliest period in the matching
+        // month, not skip to dtStart's hour-of-day within that month.
+        // With FREQ=HOURLY and dtStart at 05:30, periods are at :30 past each hour.
+        // The first Feb occurrence should be Feb 1 at 00:30 (earliest hourly period).
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=HOURLY;BYMONTH=2");
+        DateTimeOffset start = new DateTimeOffset(2025, 1, 15, 5, 30, 0, TimeSpan.Zero);
+        DateTimeOffset after = start;
+
+        DateTimeOffset? next = rule.GetNextOccurrence(start, after, TimeZoneInfo.Utc, null);
+        Assert.IsNotNull(next);
+        Assert.AreEqual(2, next!.Value.Month);
+        Assert.AreEqual(1, next.Value.Day);
+        // First hourly period in Feb should be in the early hours, not at hour 5
+        Assert.IsTrue(next.Value.Hour < 5, $"Expected early hour in Feb, got {next.Value.Hour}");
+    }
+
+    [Test]
     public void TestParseRejectsOutOfRangeByDayOrdinal()
     {
         Assert.Throws<FormatException>(() => RecurrenceRule.Parse("FREQ=MONTHLY;BYDAY=0MO"));

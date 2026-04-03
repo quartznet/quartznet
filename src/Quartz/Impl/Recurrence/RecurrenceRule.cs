@@ -489,9 +489,13 @@ internal sealed class RecurrenceRule
 
             if (ByMonth != null && Array.IndexOf(ByMonth, nextMonth.Month) >= 0)
             {
-                DateTime target = new DateTime(nextMonth.Year, nextMonth.Month, 1,
-                    start.Hour, start.Minute, start.Second);
-                return GetPeriodIndex(start, target);
+                // Jump to the first day of the matching month. GetPeriodIndex will
+                // compute the approximate period, which may overshoot slightly due
+                // to dtStart's time-of-day alignment. Subtract 1 to ensure we don't
+                // skip the first valid period in the month.
+                DateTime target = new DateTime(nextMonth.Year, nextMonth.Month, 1, 0, 0, 0);
+                int idx = GetPeriodIndex(start, target);
+                return Math.Max(idx - 1, currentPeriodIdx + 1);
             }
         }
 
