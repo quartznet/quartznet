@@ -140,6 +140,10 @@ public class JobStoreSupportTest
         IDriverDelegate nvDelegate = A.Fake<IDriverDelegate>(x => x.Implements<INextVersionDelegate>());
         jobStoreSupport.DirectDelegate = nvDelegate;
 
+        // Disable field-level calendarCache so the test validates the batch cache,
+        // not the existing RetrieveCalendar lazy-cache (which is active when Clustered=false).
+        jobStoreSupport.Clustered = true;
+
         string calendarName = "shared-cal";
 
         // Two triggers sharing the same calendar

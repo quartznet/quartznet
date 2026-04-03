@@ -1173,7 +1173,7 @@ internal interface INextVersionDelegate
     /// </summary>
     /// <param name="conn">The DB connection.</param>
     /// <param name="trigger">The trigger after <c>UpdateAfterMisfire</c> has been applied in-memory.</param>
-    /// <param name="newState">The new trigger state (WAITING or COMPLETE).</param>
+    /// <param name="newState">The new trigger state to persist (e.g. WAITING, COMPLETE, BLOCKED).</param>
     /// <param name="misfireOriginalFireTime">
     /// The original scheduled fire time for "fire now" misfire policies. When
     /// <see cref="HasMisfireOriginalFireTimeColumn"/> is <c>true</c> and this value is non-<c>null</c>,
