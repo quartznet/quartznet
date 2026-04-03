@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 
-using HealthChecks.UI.Client;
-
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Hosting;
@@ -16,7 +14,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using OpenTelemetry;
-using OpenTelemetry.Logs;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Quartz.AspNetCore;
@@ -277,10 +274,6 @@ public class Startup
             // when shutting down we want jobs to complete gracefully
             options.WaitForJobsToComplete = true;
         });
-
-        services
-            .AddHealthChecksUI()
-            .AddInMemoryStorage();
     }
 
     // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -308,9 +301,7 @@ public class Startup
             endpoints.MapHealthChecks("healthz", new HealthCheckOptions
             {
                 Predicate = _ => true,
-                ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
             });
-            endpoints.MapHealthChecksUI();
             endpoints.MapQuartzDashboard();
         });
     }

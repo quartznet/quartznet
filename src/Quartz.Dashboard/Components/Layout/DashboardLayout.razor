@@ -4,6 +4,10 @@
 @inject Quartz.Dashboard.Services.SchedulerState SchedulerState
 @inject Microsoft.JSInterop.IJSRuntime JsRuntime
 
+<HeadContent>
+    <link rel="stylesheet" href="_content/Quartz.Dashboard/css/quartz-dashboard.css" />
+</HeadContent>
+
 <div class="qz-dashboard" data-theme="@SchedulerState.SelectedTheme">
     <div class="qz-layout">
         <aside class="qz-sidebar" role="navigation" aria-label="Dashboard navigation">

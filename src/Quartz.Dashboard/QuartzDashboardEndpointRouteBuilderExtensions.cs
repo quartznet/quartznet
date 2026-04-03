@@ -33,10 +33,57 @@ namespace Quartz;
 
 public static class QuartzDashboardEndpointRouteBuilderExtensions
 {
+    /// <summary>
+    /// Maps the Quartz.NET Dashboard endpoints with its own Blazor component root.
+    /// Use this overload when the host application does not have its own Blazor Server setup.
+    /// </summary>
     public static RazorComponentsEndpointConventionBuilder MapQuartzDashboard(this IEndpointRouteBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
+        // Map Blazor components at root level — pages already have /quartz prefix in @page directives
+        RazorComponentsEndpointConventionBuilder components = builder
+            .MapRazorComponents<QuartzDashboardApp>()
+            .AddInteractiveServerRenderMode();
+
+        MapQuartzDashboardCore(builder, components);
+
+        return components;
+    }
+
+    /// <summary>
+    /// Maps the Quartz.NET Dashboard endpoints into an existing Blazor Server application.
+    /// Use this overload when the host application already calls
+    /// <c>MapRazorComponents&lt;App&gt;().AddInteractiveServerRenderMode()</c>
+    /// to avoid registering a second <c>/_blazor</c> SignalR endpoint.
+    /// </summary>
+    /// <example>
+    /// <code>
+    /// var blazor = endpoints.MapRazorComponents&lt;App&gt;()
+    ///     .AddInteractiveServerRenderMode();
+    ///
+    /// endpoints.MapQuartzDashboard(blazor);
+    /// </code>
+    /// </example>
+    public static RazorComponentsEndpointConventionBuilder MapQuartzDashboard(
+        this IEndpointRouteBuilder builder,
+        RazorComponentsEndpointConventionBuilder existingComponents)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(existingComponents);
+
+        // Register dashboard page components with the host's existing Blazor router
+        existingComponents.AddAdditionalAssemblies(typeof(QuartzDashboardApp).Assembly);
+
+        MapQuartzDashboardCore(builder, existingComponents);
+
+        return existingComponents;
+    }
+
+    private static void MapQuartzDashboardCore(
+        IEndpointRouteBuilder builder,
+        RazorComponentsEndpointConventionBuilder components)
+    {
         QuartzDashboardOptions options = builder.ServiceProvider.GetRequiredService<IOptions<QuartzDashboardOptions>>().Value;
         DashboardLiveEventsPlugin.ServiceProvider = builder.ServiceProvider;
         DashboardHistoryPlugin.ServiceProvider = builder.ServiceProvider;
@@ -49,11 +96,6 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
         // Map SignalR hub under the dashboard path
         HubEndpointConventionBuilder hub = builder.MapHub<QuartzDashboardHub>(dashboardPath + "/hub");
 
-        // Map Blazor components at root level — pages already have /quartz prefix in @page directives
-        RazorComponentsEndpointConventionBuilder components = builder
-            .MapRazorComponents<QuartzDashboardApp>()
-            .AddInteractiveServerRenderMode();
-
         // Serve dashboard static web assets via endpoint routing as a fallback
         // for hosts that don't configure UseStaticFiles() (e.g., API-only projects)
         MapDashboardStaticAssets(builder);
@@ -63,8 +105,6 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
             hub.RequireAuthorization(options.AuthorizationPolicy);
             components.RequireAuthorization(options.AuthorizationPolicy);
         }
-
-        return components;
     }
 
     private static readonly FileExtensionContentTypeProvider ContentTypeProvider = new();
