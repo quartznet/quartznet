@@ -862,7 +862,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         // Cache calendars across the batch to avoid redundant DB round-trips
         // when multiple triggers reference the same calendar.
         bool useOptimizedPath = Delegate is INextVersionDelegate;
-        Dictionary<string, ICalendar?>? calendarCache = useOptimizedPath ? new Dictionary<string, ICalendar?>() : null;
+        Dictionary<string, ICalendar?>? batchCalendarCache = useOptimizedPath ? new Dictionary<string, ICalendar?>() : null;
 
         foreach (TriggerKey triggerKey in misfiredTriggers)
         {
@@ -886,7 +886,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             {
                 if (useOptimizedPath)
                 {
-                    await DoUpdateOfMisfiredTriggerOptimized(conn, trig, StateWaiting, calendarCache!, cancellationToken).ConfigureAwait(false);
+                    await DoUpdateOfMisfiredTriggerOptimized(conn, trig, StateWaiting, batchCalendarCache!, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
@@ -1020,7 +1020,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
             if (Delegate is INextVersionDelegate)
             {
-                await DoUpdateOfMisfiredTriggerOptimized(conn, trig, newStateIfNotComplete, calendarCache: null, cancellationToken).ConfigureAwait(false);
+                await DoUpdateOfMisfiredTriggerOptimized(conn, trig, newStateIfNotComplete, batchCalendarCache: null, cancellationToken).ConfigureAwait(false);
             }
             else
             {
@@ -1096,7 +1096,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trig,
         string newStateIfNotComplete,
-        Dictionary<string, ICalendar?>? calendarCache,
+        Dictionary<string, ICalendar?>? batchCalendarCache,
         CancellationToken cancellationToken)
     {
         INextVersionDelegate nvd = (INextVersionDelegate) Delegate;
@@ -1105,12 +1105,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         ICalendar? cal = null;
         if (trig.CalendarName != null)
         {
-            if (calendarCache == null || !calendarCache.TryGetValue(trig.CalendarName, out cal))
+            if (batchCalendarCache == null || !batchCalendarCache.TryGetValue(trig.CalendarName, out cal))
             {
                 cal = await RetrieveCalendar(conn, trig.CalendarName, cancellationToken).ConfigureAwait(false);
-                if (calendarCache != null)
+                if (batchCalendarCache != null)
                 {
-                    calendarCache[trig.CalendarName] = cal;
+                    batchCalendarCache[trig.CalendarName] = cal;
                 }
             }
         }
