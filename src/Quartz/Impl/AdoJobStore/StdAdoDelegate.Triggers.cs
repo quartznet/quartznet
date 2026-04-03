@@ -1610,9 +1610,11 @@ public partial class StdAdoDelegate
             await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        // SimpleTrigger may have modified RepeatCount/TimesTriggered via RescheduleNowWith* policies.
-        // Other trigger types (Cron, CalendarInterval, DailyTimeInterval) do not change extended properties during misfire.
-        if (trigger is ISimpleTrigger simpleTrigger)
+        // Update type-specific table: SimpleTrigger may have modified RepeatCount/TimesTriggered
+        // via RescheduleNowWith* policies; blob triggers need re-serialization to persist all
+        // in-memory changes. Other built-in types (Cron, CalendarInterval, DailyTimeInterval)
+        // do not change extended properties during misfire.
+        if (trigger is ISimpleTrigger simpleTrigger && FindTriggerPersistenceDelegate(trigger) is not null)
         {
             using var cmd2 = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateSimpleTrigger));
             AddCommandParameter(cmd2, "schedulerName", schedName);
@@ -1623,6 +1625,11 @@ public partial class StdAdoDelegate
             AddCommandParameter(cmd2, "triggerGroup", trigger.Key.Group);
 
             await cmd2.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+        else if (FindTriggerPersistenceDelegate(trigger) is null)
+        {
+            // Blob-stored trigger: re-serialize to persist all in-memory misfire changes.
+            await UpdateBlobTrigger(conn, trigger, cancellationToken).ConfigureAwait(false);
         }
     }
 }
