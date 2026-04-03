@@ -70,8 +70,8 @@ The `H` symbol (for "hash") can be used in place of a specific value to spread s
 evenly across time. When many triggers share an identical cron expression such as `0 0 0 * * ?` (midnight daily),
 they all fire simultaneously, causing resource spikes.
 
-`H` resolves to a **deterministic** value derived from the trigger's name. The value stays
-stable as long as the trigger name doesn't change, but different triggers get different
+`H` resolves to a **deterministic** value derived from the trigger's identity (name and group). The value stays
+stable as long as the trigger identity doesn't change, but different triggers get different
 values, spreading load across the allowed range.
 
 ### Syntax

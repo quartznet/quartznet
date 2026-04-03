@@ -1034,6 +1034,7 @@ public class JobStoreSupportTest
     }
 
     [Test]
+    [NonParallelizable]
     public async Task DoCheckin_LastCheckinNotAdvancedOnFailure()
     {
         // Freeze time so the store's initial LastCheckin is at a known point

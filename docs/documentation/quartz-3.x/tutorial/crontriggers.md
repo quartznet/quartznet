@@ -58,10 +58,11 @@ The 'W' is used to specify the weekday (Monday-Friday) nearest the given day. As
 The '#' is used to specify "the nth" XXX weekday of the month. For example, the value of "6#3" or "FRI#3" in the day-of-week field means "the third Friday of the month".
 
 The 'H' (hash) symbol can be used in place of a specific value to spread scheduled tasks evenly across time.
-`H` resolves to a deterministic value derived from the trigger's name, so different triggers get different fire times
-even when using the same cron expression pattern. For example, `0 H H(0-7) * * ?` fires once per day between midnight
-and 7:59 AM at a trigger-specific time. `0 H/15 * * * ?` fires every 15 minutes, starting from a hash-derived offset.
-When using `H` through the builder API, you must call `WithIdentity()` so the hash is derived from a stable name.
+`H` resolves to a deterministic value derived from the trigger's identity (name and group), so different triggers
+get different fire times even when using the same cron expression pattern. For example, `0 H H(0-7) * * ?` fires
+once per day between midnight and 7:59 AM at a trigger-specific time. `0 H/15 * * * ?` fires every 15 minutes,
+starting from a hash-derived offset. When using `H` through the builder API, you must call `WithIdentity()` so
+the hash is derived from a stable trigger identity.
 See the [CronTrigger Tutorial](crontrigger) for full syntax details and usage examples.
 
 ## Example Cron Expressions

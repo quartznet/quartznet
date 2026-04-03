@@ -519,6 +519,7 @@ public class CronExpressionHashTest
     public void HashExpression_ProducesValidFireTimes()
     {
         CronExpression expr = new CronExpression("H H H * * ?", "test-job");
+        expr.TimeZone = TimeZoneInfo.Utc;
         DateTimeOffset now = DateTimeOffset.UtcNow;
 
         DateTimeOffset? next = expr.GetNextValidTimeAfter(now);
