@@ -17,7 +17,7 @@ the base frequency. Other properties refine the pattern:
 |----------|-------------|---------|
 | `FREQ` | Base frequency (required) | `YEARLY`, `MONTHLY`, `WEEKLY`, `DAILY`, `HOURLY`, `MINUTELY`, `SECONDLY` |
 | `INTERVAL` | How often the recurrence repeats (default: 1) | `INTERVAL=2` (every other) |
-| `COUNT` | Maximum number of occurrences | `COUNT=10` |
+| `COUNT` | Maximum number of times the trigger will fire | `COUNT=10` |
 | `UNTIL` | End date/time for the recurrence | `UNTIL=20251231T235959Z` |
 | `BYDAY` | Days of the week, optionally with ordinal | `BYDAY=MO,WE,FR` or `BYDAY=2MO` (2nd Monday) |
 | `BYMONTHDAY` | Days of the month (1-31 or -1 to -31) | `BYMONTHDAY=15` or `BYMONTHDAY=-1` (last day) |
@@ -32,6 +32,13 @@ the base frequency. Other properties refine the pattern:
 
 ::: tip
 `COUNT` and `UNTIL` are mutually exclusive - you cannot use both in the same RRULE.
+:::
+
+::: warning
+`COUNT` tracks the number of times the trigger has actually fired (via `TimesTriggered`),
+not the number of theoretical recurrence occurrences. This means misfired occurrences that
+are skipped (e.g., via `DoNothing` misfire policy) still count toward the limit. This is
+consistent with Quartz.NET trigger semantics but differs from strict RFC 5545 occurrence counting.
 :::
 
 ### Examples

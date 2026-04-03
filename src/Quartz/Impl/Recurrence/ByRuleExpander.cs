@@ -43,10 +43,14 @@ internal static class ByRuleExpander
                 break;
         }
 
+        // Sort and deduplicate to prevent duplicate BY* values (e.g. BYMONTHDAY=1,1)
+        // from inflating COUNT or producing wrong BYSETPOS indices.
+        candidates.Sort();
+        RemoveAdjacentDuplicates(candidates);
+
         // Apply BYSETPOS if specified
         if (rule.BySetPos != null && candidates.Count > 0)
         {
-            candidates.Sort();
             HashSet<DateTime> seen = new HashSet<DateTime>();
             List<DateTime> filtered = new List<DateTime>();
             foreach (int pos in rule.BySetPos)
@@ -65,7 +69,6 @@ internal static class ByRuleExpander
             return filtered;
         }
 
-        candidates.Sort();
         return candidates;
     }
 
@@ -703,5 +706,25 @@ internal static class ByRuleExpander
             }
         }
         return false;
+    }
+
+    /// <summary>
+    /// Remove adjacent duplicate values from an already-sorted list in place.
+    /// </summary>
+    private static void RemoveAdjacentDuplicates(List<DateTime> sorted)
+    {
+        int write = 0;
+        for (int read = 0; read < sorted.Count; read++)
+        {
+            if (read == 0 || sorted[read] != sorted[write - 1])
+            {
+                sorted[write] = sorted[read];
+                write++;
+            }
+        }
+        if (write < sorted.Count)
+        {
+            sorted.RemoveRange(write, sorted.Count - write);
+        }
     }
 }
