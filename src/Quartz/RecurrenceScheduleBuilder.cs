@@ -36,7 +36,15 @@ public sealed class RecurrenceScheduleBuilder : ScheduleBuilder<IRecurrenceTrigg
 
     private RecurrenceScheduleBuilder(string recurrenceRule)
     {
-        this.recurrenceRule = recurrenceRule ?? throw new ArgumentNullException(nameof(recurrenceRule));
+        if (recurrenceRule is null)
+        {
+            throw new ArgumentNullException(nameof(recurrenceRule));
+        }
+
+        // Validate early, matching CronScheduleBuilder's fail-fast behavior
+        Impl.Recurrence.RecurrenceRule.Parse(recurrenceRule);
+
+        this.recurrenceRule = recurrenceRule;
     }
 
     /// <summary>
