@@ -618,7 +618,9 @@ internal sealed class RecurrenceRule
         int occurrenceCount = 0;
         int countLimit = Count!.Value;
 
-        for (int i = 0; i < MaxIterations; i++)
+        int i = 0;
+        int iterations = 0;
+        while (iterations < MaxIterations)
         {
             DateTime periodStart = GetPeriodStart(local.Start, i);
 
@@ -629,6 +631,18 @@ internal sealed class RecurrenceRule
             if (local.End != null && periodStart > local.End.Value)
             {
                 return null;
+            }
+
+            // Apply the same sub-daily fast-forward as the non-COUNT path
+            if (Frequency < RecurrenceFrequency.Daily)
+            {
+                int? skip = TryFastForwardSubDaily(local.Start, i, periodStart);
+                if (skip != null)
+                {
+                    i = skip.Value;
+                    iterations++;
+                    continue;
+                }
             }
 
             List<DateTime> candidates = ByRuleExpander.ExpandPeriod(this, local.Start, periodStart);
@@ -659,6 +673,9 @@ internal sealed class RecurrenceRule
                     return candidate;
                 }
             }
+
+            i++;
+            iterations++;
         }
 
         return null;

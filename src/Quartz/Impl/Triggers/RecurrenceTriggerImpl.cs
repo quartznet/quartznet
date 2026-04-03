@@ -284,9 +284,11 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
 
         // Find the first occurrence on or after StartTimeUtc.
         // Uses default skipCount=false which is correct here: this method is only called once
-        // when the trigger is first added and TimesTriggered is 0, so COUNT walk-from-start is safe.
+        // Uses skipCount: true so COUNT is enforced by TimesTriggered (which is 0 here).
+        // This ensures the sub-daily fast-forward optimizations in FindNextOccurrenceNonCount
+        // are used, avoiding MaxIterations exhaustion for sparse rules like FREQ=SECONDLY;BYMONTH=12.
         RRule rule = GetParsedRule();
-        nextFireTimeUtc = rule.GetNextOccurrence(StartTimeUtc, StartTimeUtc.AddSeconds(-1), TimeZone, EndTimeUtc);
+        nextFireTimeUtc = rule.GetNextOccurrence(StartTimeUtc, StartTimeUtc.AddSeconds(-1), TimeZone, EndTimeUtc, skipCount: true);
 
         if (nextFireTimeUtc == null)
         {
