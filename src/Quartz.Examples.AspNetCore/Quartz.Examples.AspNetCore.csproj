@@ -28,9 +28,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="AspNetCore.HealthChecks.UI" Version="9.0.0" />
-      <PackageReference Include="AspNetCore.HealthChecks.UI.Client" Version="9.0.0" />
-      <PackageReference Include="AspNetCore.HealthChecks.UI.InMemory.Storage" Version="9.0.0" />
       <PackageReference Include="KubernetesClient" Version="18.0.5" />
       <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.3" />
       <PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.14.0" />
