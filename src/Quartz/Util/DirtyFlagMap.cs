@@ -157,7 +157,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
     /// <summary>
     /// Get a direct handle to the underlying Map.
     /// </summary>
-    public IDictionary<TKey, TValue?> WrappedMap => map;
+    internal IDictionary<TKey, TValue?> WrappedMap => map;
 
     /// <summary>
     /// Gets a value indicating whether this instance is empty.
@@ -197,21 +197,31 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
     /// </summary>
     public TValue? this[TKey key]
     {
-        get
-        {
-            map.TryGetValue(key, out TValue? temp);
-            return temp!;
-        }
+        get => map[key];
         set
         {
+            if (map.TryGetValue(key, out TValue? existing)
+                && EqualityComparer<TValue>.Default.Equals(existing, value))
+            {
+                return;
+            }
+
             map[key] = value;
             dirty = true;
         }
     }
 
-    public bool Remove(KeyValuePair<TKey, TValue?> item)
+    bool ICollection<KeyValuePair<TKey, TValue?>>.Remove(KeyValuePair<TKey, TValue?> item)
     {
-        return Remove(item.Key);
+        if (map.TryGetValue(item.Key, out TValue? existing)
+            && EqualityComparer<TValue>.Default.Equals(existing, item.Value))
+        {
+            map.Remove(item.Key);
+            dirty = true;
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -241,15 +251,15 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
 
     public void Add(KeyValuePair<TKey, TValue?> item)
     {
-        Put(item.Key, item.Value);
+        Add(item.Key, item.Value);
     }
 
-    public void Add(object key, object? value)
+    void IDictionary.Add(object key, object? value)
     {
-        Put((TKey) key, (TValue) value!);
+        Add((TKey) key, (TValue) value!);
     }
 
-    public bool Contains(object key)
+    bool IDictionary.Contains(object key)
     {
         return ((IDictionary) map).Contains(key);
     }
@@ -281,17 +291,10 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
         set => this[(TKey) key] = (TValue) value!;
     }
 
-    /// <summary>
-    /// Determines whether the <see cref="DirtyFlagMap{TKey, TValue}"/> contains the specified key.
-    /// Essentially this is a wrapper around <see cref="ContainsKey(TKey)"/>.
-    /// </summary>
-    /// <param name="item">The key to locate in the <see cref="DirtyFlagMap{TKey, TValue}"/>.</param>
-    /// <returns>
-    /// <see langword="true"/> if the <see cref="DirtyFlagMap{TKey, TValue}"/> contains the specified key; otherwise, <see langword="false"/>.
-    /// </returns>
-    public bool Contains(KeyValuePair<TKey, TValue?> item)
+    bool ICollection<KeyValuePair<TKey, TValue?>>.Contains(KeyValuePair<TKey, TValue?> item)
     {
-        return Contains(item.Key);
+        return map.TryGetValue(item.Key, out TValue? existing)
+            && EqualityComparer<TValue>.Default.Equals(existing, item.Value);
     }
 
     public void CopyTo(KeyValuePair<TKey, TValue?>[] array, int arrayIndex)
@@ -546,12 +549,23 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
     /// </summary>
     /// <param name="key">The key to use.</param>
     /// <param name="val">The value to put.</param>
-    /// <returns>The existing value, if any</returns>
-    public object? Put(TKey key, TValue? val)
+    /// <returns>The existing value, if any.</returns>
+    public TValue? Put(TKey key, TValue? val)
     {
-        map.TryGetValue(key, out TValue? tempObject);
-        map[key] = val;
-        dirty = true;
+        if (map.TryGetValue(key, out TValue? tempObject))
+        {
+            if (!EqualityComparer<TValue>.Default.Equals(tempObject, val))
+            {
+                map[key] = val;
+                dirty = true;
+            }
+        }
+        else
+        {
+            map[key] = val;
+            dirty = true;
+        }
+
         return tempObject;
     }
 

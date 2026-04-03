@@ -8,8 +8,8 @@ internal sealed class StringKeyDirtyFlagMapConverter : JsonConverter
 {
     public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
     {
-        var map = (StringKeyDirtyFlagMap) value!;
-        serializer.Serialize(writer, map.WrappedMap);
+        var map = new Dictionary<string, object?>((IDictionary<string, object?>) value!);
+        serializer.Serialize(writer, map);
     }
 
     public override object ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)

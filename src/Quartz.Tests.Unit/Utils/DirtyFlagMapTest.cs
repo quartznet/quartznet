@@ -283,17 +283,6 @@ public class DirtyFlagMapTest
     {
         var dirtyFlagMap = new DirtyFlagMap<string, int>();
 
-        // #1417: This should throw a KeyNotFoundException, see commented code below
-
-        var actual = dirtyFlagMap["a"];
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(dirtyFlagMap.Dirty, Is.False);
-            Assert.That(actual, Is.EqualTo(default(int)));
-        });
-
-        /*
         try
         {
             var actual = dirtyFlagMap["a"];
@@ -303,8 +292,7 @@ public class DirtyFlagMapTest
         {
         }
 
-        Assert.IsFalse(dirtyFlagMap.Dirty);
-        */
+        Assert.That(dirtyFlagMap.Dirty, Is.False);
     }
 
     [Test]
@@ -312,17 +300,6 @@ public class DirtyFlagMapTest
     {
         var dirtyFlagMap = new DirtyFlagMap<string, int?>();
 
-        // #1417: This should throw a KeyNotFoundException, see commented code below
-
-        var actual = dirtyFlagMap["a"];
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(dirtyFlagMap.Dirty, Is.False);
-            Assert.That(actual, Is.Null);
-        });
-
-        /*
         try
         {
             var actual = dirtyFlagMap["a"];
@@ -332,8 +309,7 @@ public class DirtyFlagMapTest
         {
         }
 
-        Assert.IsFalse(dirtyFlagMap.Dirty);
-        */
+        Assert.That(dirtyFlagMap.Dirty, Is.False);
     }
 
     [Test]
@@ -341,17 +317,6 @@ public class DirtyFlagMapTest
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
 
-        // #1417: This should throw a KeyNotFoundException, see commented code below
-
-        var value = dirtyFlagMap["a"];
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(dirtyFlagMap.Dirty, Is.False);
-            Assert.That(value, Is.Null);
-        });
-
-        /*
         try
         {
             var actual = dirtyFlagMap["a"];
@@ -361,8 +326,7 @@ public class DirtyFlagMapTest
         {
         }
 
-        Assert.IsFalse(dirtyFlagMap.Dirty);
-        */
+        Assert.That(dirtyFlagMap.Dirty, Is.False);
     }
 
     [Test]
@@ -431,13 +395,13 @@ public class DirtyFlagMapTest
         dirtyFlagMap.Put("b", null);
         dirtyFlagMap.ClearDirtyFlag();
 
-        dirtyFlagMap["a"] = "y";
+        dirtyFlagMap["a"] = "x";
 
         Assert.Multiple(() =>
         {
-            Assert.That(dirtyFlagMap.Dirty, Is.True);
+            Assert.That(dirtyFlagMap.Dirty, Is.False);
             Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
-            Assert.That(dirtyFlagMap["a"], Is.EqualTo("y"));
+            Assert.That(dirtyFlagMap["a"], Is.EqualTo("x"));
         });
 
         dirtyFlagMap.ClearDirtyFlag();
@@ -446,7 +410,7 @@ public class DirtyFlagMapTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(dirtyFlagMap.Dirty, Is.True);
+            Assert.That(dirtyFlagMap.Dirty, Is.False);
             Assert.That(dirtyFlagMap.ContainsKey("b"), Is.True);
             Assert.That(dirtyFlagMap["b"], Is.Null);
         });
@@ -552,47 +516,25 @@ public class DirtyFlagMapTest
         dirtyFlagMap.Put("a", "x");
         dirtyFlagMap.ClearDirtyFlag();
 
-        Assert.Multiple(() =>
-        {
-            // #1417: We should not remove entry if values are not equal, see commented code below
+        Assert.That(((ICollection<KeyValuePair<string, string>>) dirtyFlagMap).Remove(new KeyValuePair<string, string>("a", null)), Is.False);
+        Assert.That(dirtyFlagMap.Dirty, Is.False);
+        Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
+        Assert.That(dirtyFlagMap["a"], Is.EqualTo("x"));
 
-            Assert.That(dirtyFlagMap.Remove(new KeyValuePair<string, string>("a", null)), Is.True);
-            Assert.That(dirtyFlagMap.Dirty, Is.True);
-            Assert.That(dirtyFlagMap.ContainsKey("a"), Is.False);
-        });
+        dirtyFlagMap.ClearDirtyFlag();
+
+        Assert.That(((ICollection<KeyValuePair<string, string>>) dirtyFlagMap).Remove(new KeyValuePair<string, string>("a", "y")), Is.False);
+        Assert.That(dirtyFlagMap.Dirty, Is.False);
+        Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
+        Assert.That(dirtyFlagMap["a"], Is.EqualTo("x"));
 
         dirtyFlagMap.Clear();
         dirtyFlagMap.Put("a", null);
         dirtyFlagMap.ClearDirtyFlag();
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(dirtyFlagMap.Remove(new KeyValuePair<string, string>("a", "y")), Is.True);
-            Assert.That(dirtyFlagMap.Dirty, Is.True);
-            Assert.That(dirtyFlagMap.ContainsKey("a"), Is.False);
-        });
-
-        /*
-        Assert.IsFalse(dirtyFlagMap.Remove(new KeyValuePair<string, string>("a", null)));
-        Assert.IsFalse(dirtyFlagMap.Dirty);
-        Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
-        Assert.AreEqual("x", dirtyFlagMap["a"]);
-
-        dirtyFlagMap.ClearDirtyFlag();
-
-        Assert.IsFalse(dirtyFlagMap.Remove(new KeyValuePair<string, string>("a", "y")));
-        Assert.IsFalse(dirtyFlagMap.Dirty);
-        Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
-        Assert.AreEqual("x", dirtyFlagMap["a"]);
-
-        dirtyFlagMap.Clear();
-        dirtyFlagMap.Put("a", null);
-        dirtyFlagMap.ClearDirtyFlag();
-
-        Assert.IsTrue(dirtyFlagMap.Remove(new KeyValuePair<string, string>("a", "z")));
-        Assert.IsTrue(dirtyFlagMap.Dirty);
-        Assert.IsFalse(dirtyFlagMap.ContainsKey("a"));
-        */
+        Assert.That(((ICollection<KeyValuePair<string, string>>) dirtyFlagMap).Remove(new KeyValuePair<string, string>("a", "z")), Is.False);
+        Assert.That(dirtyFlagMap.Dirty, Is.False);
+        Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
     }
 
     [Test]
@@ -604,7 +546,7 @@ public class DirtyFlagMapTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(dirtyFlagMap.Remove(new KeyValuePair<string, string>("a", "x")), Is.True);
+            Assert.That(((ICollection<KeyValuePair<string, string>>) dirtyFlagMap).Remove(new KeyValuePair<string, string>("a", "x")), Is.True);
             Assert.That(dirtyFlagMap.Dirty, Is.True);
             Assert.That(dirtyFlagMap.ContainsKey("a"), Is.False);
         });
@@ -614,7 +556,7 @@ public class DirtyFlagMapTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(dirtyFlagMap.Remove(new KeyValuePair<string, string>("a", null)), Is.True);
+            Assert.That(((ICollection<KeyValuePair<string, string>>) dirtyFlagMap).Remove(new KeyValuePair<string, string>("a", null)), Is.True);
             Assert.That(dirtyFlagMap.Dirty, Is.True);
             Assert.That(dirtyFlagMap.ContainsKey("a"), Is.False);
         });
@@ -628,7 +570,7 @@ public class DirtyFlagMapTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(dirtyFlagMap.Remove(kvp), Is.False);
+            Assert.That(((ICollection<KeyValuePair<string, string>>) dirtyFlagMap).Remove(kvp), Is.False);
             Assert.That(dirtyFlagMap.Dirty, Is.False);
         });
     }
@@ -641,7 +583,7 @@ public class DirtyFlagMapTest
 
         try
         {
-            dirtyFlagMap.Remove(kvp);
+            ((ICollection<KeyValuePair<string, string>>) dirtyFlagMap).Remove(kvp);
             Assert.Fail();
         }
         catch (ArgumentNullException ex)
@@ -850,40 +792,6 @@ public class DirtyFlagMapTest
         dirtyFlagMap.Put("a", "x");
         dirtyFlagMap.ClearDirtyFlag();
 
-        // #1417: We should throw ArgumentException, see commented code below
-
-        dirtyFlagMap.Add(new KeyValuePair<string, string>("a", "y"));
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(dirtyFlagMap.Dirty, Is.True);
-            Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
-            Assert.That(dirtyFlagMap["a"], Is.EqualTo("y"));
-        });
-
-        dirtyFlagMap.ClearDirtyFlag();
-
-        dirtyFlagMap.Add(new KeyValuePair<string, string>("a", null));
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(dirtyFlagMap.Dirty, Is.True);
-            Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
-            Assert.That(dirtyFlagMap["a"], Is.Null);
-        });
-
-        dirtyFlagMap.ClearDirtyFlag();
-
-        dirtyFlagMap.Add(new KeyValuePair<string, string>("a", "z"));
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(dirtyFlagMap.Dirty, Is.True);
-            Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
-            Assert.That(dirtyFlagMap["a"], Is.EqualTo("z"));
-        });
-
-        /*
         try
         {
             dirtyFlagMap.Add(new KeyValuePair<string, string>("a", "y"));
@@ -894,9 +802,9 @@ public class DirtyFlagMapTest
             // An item with the same key has already been added. Key: a
         }
 
-        Assert.IsFalse(dirtyFlagMap.Dirty);
-        Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
-        Assert.AreEqual("x", dirtyFlagMap["a"]);
+        Assert.That(dirtyFlagMap.Dirty, Is.False);
+        Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
+        Assert.That(dirtyFlagMap["a"], Is.EqualTo("x"));
 
         dirtyFlagMap.ClearDirtyFlag();
 
@@ -910,9 +818,9 @@ public class DirtyFlagMapTest
             // An item with the same key has already been added. Key: a
         }
 
-        Assert.IsFalse(dirtyFlagMap.Dirty);
-        Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
-        Assert.AreEqual("x", dirtyFlagMap["a"]);
+        Assert.That(dirtyFlagMap.Dirty, Is.False);
+        Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
+        Assert.That(dirtyFlagMap["a"], Is.EqualTo("x"));
 
         dirtyFlagMap.Clear();
         dirtyFlagMap.Add("a", null);
@@ -928,10 +836,9 @@ public class DirtyFlagMapTest
             // An item with the same key has already been added. Key: a
         }
 
-        Assert.IsFalse(dirtyFlagMap.Dirty);
-        Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
-        Assert.IsNull(dirtyFlagMap["a"]);
-        */
+        Assert.That(dirtyFlagMap.Dirty, Is.False);
+        Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
+        Assert.That(dirtyFlagMap["a"], Is.Null);
     }
 
     [Test]
@@ -941,27 +848,37 @@ public class DirtyFlagMapTest
         dirtyFlagMap.Put("a", "x");
         dirtyFlagMap.ClearDirtyFlag();
 
-        dirtyFlagMap.Add(new KeyValuePair<string, string>("a", "x"));
-
-        Assert.Multiple(() =>
+        try
         {
-            Assert.That(dirtyFlagMap.Dirty, Is.True);
-            Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
-            Assert.That(dirtyFlagMap["a"], Is.EqualTo("x"));
-        });
+            dirtyFlagMap.Add(new KeyValuePair<string, string>("a", "x"));
+            Assert.Fail();
+        }
+        catch (ArgumentException)
+        {
+            // An item with the same key has already been added. Key: a
+        }
+
+        Assert.That(dirtyFlagMap.Dirty, Is.False);
+        Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
+        Assert.That(dirtyFlagMap["a"], Is.EqualTo("x"));
 
         dirtyFlagMap.Clear();
         dirtyFlagMap.Put("a", null);
         dirtyFlagMap.ClearDirtyFlag();
 
-        dirtyFlagMap.Add(new KeyValuePair<string, string>("a", null));
-
-        Assert.Multiple(() =>
+        try
         {
-            Assert.That(dirtyFlagMap.Dirty, Is.True);
-            Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
-            Assert.That(dirtyFlagMap["a"], Is.Null);
-        });
+            dirtyFlagMap.Add(new KeyValuePair<string, string>("a", null));
+            Assert.Fail();
+        }
+        catch (ArgumentException)
+        {
+            // An item with the same key has already been added. Key: a
+        }
+
+        Assert.That(dirtyFlagMap.Dirty, Is.False);
+        Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
+        Assert.That(dirtyFlagMap["a"], Is.Null);
     }
 
     [Test]
@@ -1011,10 +928,10 @@ public class DirtyFlagMapTest
         catch (ArgumentException ex)
         {
             // The value "5" is not of type "System.String" and cannot be used in this generic collection
-            Assert.AreEqual("key", ex.ParamName);
+            Assert.That(ex.ParamName, Is.EqualTo("key"));
         }
 
-        Assert.IsFalse(dirtyFlagMap.Dirty);
+        Assert.That(dirtyFlagMap.Dirty, Is.False);
         */
     }
 
@@ -1038,7 +955,6 @@ public class DirtyFlagMapTest
         Assert.That(dirtyFlagMap.Dirty, Is.False);
 
         /*
-
         try
         {
             ((IDictionary) dirtyFlagMap).Add(key, 5);
@@ -1047,10 +963,10 @@ public class DirtyFlagMapTest
         catch (ArgumentException ex)
         {
             // The value "5" is not of type "System.String" and cannot be used in this generic collection
-            Assert.AreEqual("value", ex.ParamName);
+            Assert.That(ex.ParamName, Is.EqualTo("value"));
         }
 
-        Assert.IsFalse(dirtyFlagMap.Dirty);
+        Assert.That(dirtyFlagMap.Dirty, Is.False);
         */
     }
 
@@ -1097,11 +1013,11 @@ public class DirtyFlagMapTest
         }
         catch (ArgumentNullException ex)
         {
-            Assert.AreEqual("value", ex.ParamName);
+            Assert.That(ex.ParamName, Is.EqualTo("value"));
         }
 
-        Assert.IsFalse(dirtyFlagMap.Dirty);
-        Assert.IsFalse(dirtyFlagMap.ContainsKey("a"));
+        Assert.That(dirtyFlagMap.Dirty, Is.False);
+        Assert.That(dirtyFlagMap.ContainsKey("a"), Is.False);
         */
     }
 
@@ -1144,40 +1060,6 @@ public class DirtyFlagMapTest
         dirtyFlagMap.Add("a", "x");
         dirtyFlagMap.ClearDirtyFlag();
 
-        // #1417: We should throw ArgumentException, see commented code below
-
-        ((IDictionary) dirtyFlagMap).Add("a", "y");
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(dirtyFlagMap.Dirty, Is.True);
-            Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
-            Assert.That(dirtyFlagMap["a"], Is.EqualTo("y"));
-        });
-
-        dirtyFlagMap.ClearDirtyFlag();
-
-        ((IDictionary) dirtyFlagMap).Add("a", null);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(dirtyFlagMap.Dirty, Is.True);
-            Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
-            Assert.That(dirtyFlagMap["a"], Is.Null);
-        });
-
-        dirtyFlagMap.ClearDirtyFlag();
-
-        ((IDictionary) dirtyFlagMap).Add("a", "z");
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(dirtyFlagMap.Dirty, Is.True);
-            Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
-            Assert.That(dirtyFlagMap["a"], Is.EqualTo("z"));
-        });
-
-        /*
         try
         {
             ((IDictionary) dirtyFlagMap).Add("a", "y");
@@ -1188,9 +1070,9 @@ public class DirtyFlagMapTest
             // An item with the same key has already been added. Key: a
         }
 
-        Assert.IsFalse(dirtyFlagMap.Dirty);
-        Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
-        Assert.AreEqual("x", dirtyFlagMap["a"]);
+        Assert.That(dirtyFlagMap.Dirty, Is.False);
+        Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
+        Assert.That(dirtyFlagMap["a"], Is.EqualTo("x"));
 
         dirtyFlagMap.ClearDirtyFlag();
 
@@ -1204,9 +1086,9 @@ public class DirtyFlagMapTest
             // An item with the same key has already been added. Key: a
         }
 
-        Assert.IsFalse(dirtyFlagMap.Dirty);
-        Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
-        Assert.AreEqual("x", dirtyFlagMap["a"]);
+        Assert.That(dirtyFlagMap.Dirty, Is.False);
+        Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
+        Assert.That(dirtyFlagMap["a"], Is.EqualTo("x"));
 
         dirtyFlagMap.Clear();
         dirtyFlagMap.Add("a", null);
@@ -1222,10 +1104,9 @@ public class DirtyFlagMapTest
             // An item with the same key has already been added. Key: a
         }
 
-        Assert.IsFalse(dirtyFlagMap.Dirty);
-        Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
-        Assert.IsNull(dirtyFlagMap["a"]);
-        */
+        Assert.That(dirtyFlagMap.Dirty, Is.False);
+        Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
+        Assert.That(dirtyFlagMap["a"], Is.Null);
     }
 
     [Test]
@@ -1237,7 +1118,7 @@ public class DirtyFlagMapTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(dirtyFlagMap.Remove(new KeyValuePair<string, string>("a", "x")), Is.True);
+            Assert.That(((ICollection<KeyValuePair<string, string>>) dirtyFlagMap).Remove(new KeyValuePair<string, string>("a", "x")), Is.True);
             Assert.That(dirtyFlagMap.Dirty, Is.True);
             Assert.That(dirtyFlagMap.ContainsKey("a"), Is.False);
         });
@@ -1248,7 +1129,7 @@ public class DirtyFlagMapTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(dirtyFlagMap.Remove(new KeyValuePair<string, string>("a", null)), Is.True);
+            Assert.That(((ICollection<KeyValuePair<string, string>>) dirtyFlagMap).Remove(new KeyValuePair<string, string>("a", null)), Is.True);
             Assert.That(dirtyFlagMap.Dirty, Is.True);
             Assert.That(dirtyFlagMap.ContainsKey("a"), Is.False);
         });
@@ -1275,8 +1156,8 @@ public class DirtyFlagMapTest
         /*
         var actual = ((IDictionary) dirtyFlagMap)[5];
 
-        Assert.IsFalse(dirtyFlagMap.Dirty);
-        Assert.IsNull(actual);
+        Assert.That(dirtyFlagMap.Dirty, Is.False);
+        Assert.That(actual, Is.Null);
         */
     }
 
@@ -1318,18 +1199,6 @@ public class DirtyFlagMapTest
     {
         var dirtyFlagMap = new DirtyFlagMap<string, int>();
 
-        // #1417: This should throw a KeyNotFoundException, see commented code below
-
-        var actual = ((IDictionary) dirtyFlagMap)["a"];
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(dirtyFlagMap.Dirty, Is.False);
-            Assert.That(actual, Is.Not.Null);
-            Assert.That(actual, Is.EqualTo(default(int)));
-        });
-
-        /*
         try
         {
             var actual = ((IDictionary) dirtyFlagMap)["a"];
@@ -1339,8 +1208,7 @@ public class DirtyFlagMapTest
         {
         }
 
-        Assert.IsFalse(dirtyFlagMap.Dirty);
-        */
+        Assert.That(dirtyFlagMap.Dirty, Is.False);
     }
 
     [Test]
@@ -1348,17 +1216,6 @@ public class DirtyFlagMapTest
     {
         var dirtyFlagMap = new DirtyFlagMap<string, int?>();
 
-        // #1417: This should throw a KeyNotFoundException, see commented code below
-
-        var actual = ((IDictionary) dirtyFlagMap)["a"];
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(dirtyFlagMap.Dirty, Is.False);
-            Assert.That(actual, Is.Null);
-        });
-
-        /*
         try
         {
             var actual = ((IDictionary) dirtyFlagMap)["a"];
@@ -1368,8 +1225,7 @@ public class DirtyFlagMapTest
         {
         }
 
-        Assert.IsFalse(dirtyFlagMap.Dirty);
-        */
+        Assert.That(dirtyFlagMap.Dirty, Is.False);
     }
 
     [Test]
@@ -1377,17 +1233,6 @@ public class DirtyFlagMapTest
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
 
-        // #1417: This should throw a KeyNotFoundException, see commented code below
-
-        var value = ((IDictionary) dirtyFlagMap)["a"];
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(dirtyFlagMap.Dirty, Is.False);
-            Assert.That(value, Is.Null);
-        });
-
-        /*
         try
         {
             var actual = ((IDictionary) dirtyFlagMap)["a"];
@@ -1397,8 +1242,7 @@ public class DirtyFlagMapTest
         {
         }
 
-        Assert.IsFalse(dirtyFlagMap.Dirty);
-        */
+        Assert.That(dirtyFlagMap.Dirty, Is.False);
     }
 
     [Test]
@@ -1448,10 +1292,10 @@ public class DirtyFlagMapTest
         catch (ArgumentException ex)
         {
             // The value "True" is not of type "System.String" and cannot be used in this generic collection
-            Assert.AreEqual(nameof(key), ex.ParamName);
+            Assert.That(ex.ParamName, Is.EqualTo(nameof(key)));
         }
 
-        Assert.IsFalse(dirtyFlagMap.Dirty);
+        Assert.That(dirtyFlagMap.Dirty, Is.False);
         */
     }
 
@@ -1502,13 +1346,13 @@ public class DirtyFlagMapTest
         dirtyFlagMap.Put("b", null);
         dirtyFlagMap.ClearDirtyFlag();
 
-        ((IDictionary) dirtyFlagMap)["a"] = "y";
+        ((IDictionary) dirtyFlagMap)["a"] = "x";
 
         Assert.Multiple(() =>
         {
-            Assert.That(dirtyFlagMap.Dirty, Is.True);
+            Assert.That(dirtyFlagMap.Dirty, Is.False);
             Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
-            Assert.That(dirtyFlagMap["a"], Is.EqualTo("y"));
+            Assert.That(dirtyFlagMap["a"], Is.EqualTo("x"));
         });
 
         dirtyFlagMap.ClearDirtyFlag();
@@ -1517,7 +1361,7 @@ public class DirtyFlagMapTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(dirtyFlagMap.Dirty, Is.True);
+            Assert.That(dirtyFlagMap.Dirty, Is.False);
             Assert.That(dirtyFlagMap.ContainsKey("b"), Is.True);
             Assert.That(dirtyFlagMap["b"], Is.Null);
         });
@@ -1595,10 +1439,10 @@ public class DirtyFlagMapTest
         catch (ArgumentException ex)
         {
             // The value "True" is not of type "System.String" and cannot be used in this generic collection
-            Assert.AreEqual("value", ex.ParamName);
+            Assert.That(ex.ParamName, Is.EqualTo("value"));
         }
 
-        Assert.IsFalse(dirtyFlagMap.Dirty);
+        Assert.That(dirtyFlagMap.Dirty, Is.False);
         */
     }
 
@@ -1643,7 +1487,7 @@ public class DirtyFlagMapTest
         /*
         ((IDictionary) dirtyFlagMap).Remove(key);
 
-        Assert.IsFalse(dirtyFlagMap.Dirty);
+        Assert.That(dirtyFlagMap.Dirty, Is.False);
         */
     }
 
@@ -1697,7 +1541,7 @@ public class DirtyFlagMapTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(dirtyFlagMap.Contains("a"), Is.True);
+            Assert.That(((IDictionary) dirtyFlagMap).Contains("a"), Is.True);
             Assert.That(dirtyFlagMap.Dirty, Is.False);
         });
     }
@@ -1710,7 +1554,7 @@ public class DirtyFlagMapTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(dirtyFlagMap.Contains(key), Is.False);
+            Assert.That(((IDictionary) dirtyFlagMap).Contains(key), Is.False);
             Assert.That(dirtyFlagMap.Dirty, Is.False);
         });
     }
@@ -1723,7 +1567,7 @@ public class DirtyFlagMapTest
 
         try
         {
-            dirtyFlagMap.Contains(key);
+            ((IDictionary) dirtyFlagMap).Contains(key);
             Assert.Fail();
         }
         catch (ArgumentNullException ex)
@@ -1756,7 +1600,7 @@ public class DirtyFlagMapTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(dirtyFlagMap.Contains(new KeyValuePair<string, string>("a", "x")), Is.False);
+            Assert.That(((ICollection<KeyValuePair<string, string>>) dirtyFlagMap).Contains(new KeyValuePair<string, string>("a", "x")), Is.False);
             Assert.That(dirtyFlagMap.Dirty, Is.False);
         });
     }
@@ -1770,12 +1614,10 @@ public class DirtyFlagMapTest
 
         Assert.Multiple(() =>
         {
-            // #1417: this should return false
-            Assert.That(dirtyFlagMap.Contains(new KeyValuePair<string, string>("a", "y")), Is.True);
+            Assert.That(((ICollection<KeyValuePair<string, string>>) dirtyFlagMap).Contains(new KeyValuePair<string, string>("a", "y")), Is.False);
             Assert.That(dirtyFlagMap.Dirty, Is.False);
 
-            // #1417: this should return false
-            Assert.That(dirtyFlagMap.Contains(new KeyValuePair<string, string>("a", null)), Is.True);
+            Assert.That(((ICollection<KeyValuePair<string, string>>) dirtyFlagMap).Contains(new KeyValuePair<string, string>("a", null)), Is.False);
             Assert.That(dirtyFlagMap.Dirty, Is.False);
         });
     }
@@ -1789,7 +1631,7 @@ public class DirtyFlagMapTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(dirtyFlagMap.Contains(new KeyValuePair<string, string>("a", "x")), Is.True);
+            Assert.That(((ICollection<KeyValuePair<string, string>>) dirtyFlagMap).Contains(new KeyValuePair<string, string>("a", "x")), Is.True);
             Assert.That(dirtyFlagMap.Dirty, Is.False);
         });
 
@@ -1798,7 +1640,7 @@ public class DirtyFlagMapTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(dirtyFlagMap.Contains(new KeyValuePair<string, string>("b", null)), Is.True);
+            Assert.That(((ICollection<KeyValuePair<string, string>>) dirtyFlagMap).Contains(new KeyValuePair<string, string>("b", null)), Is.True);
             Assert.That(dirtyFlagMap.Dirty, Is.False);
         });
     }
@@ -1912,7 +1754,6 @@ public class DirtyFlagMapTest
         Assert.Multiple(() =>
         {
             Assert.That(dirtyFlagMap.Dirty, Is.True);
-            Assert.That(original, Is.Not.Null);
             Assert.That(original, Is.EqualTo(5));
             Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
             Assert.That(dirtyFlagMap["a"], Is.EqualTo(4));
@@ -1925,7 +1766,6 @@ public class DirtyFlagMapTest
         Assert.Multiple(() =>
         {
             Assert.That(dirtyFlagMap.Dirty, Is.True);
-            Assert.That(original, Is.Not.Null);
             Assert.That(original, Is.EqualTo(4));
             Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
             Assert.That(dirtyFlagMap["a"], Is.EqualTo(0));
@@ -1938,7 +1778,6 @@ public class DirtyFlagMapTest
         Assert.Multiple(() =>
         {
             Assert.That(dirtyFlagMap.Dirty, Is.True);
-            Assert.That(original, Is.Not.Null);
             Assert.That(original, Is.EqualTo(0));
             Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
             Assert.That(dirtyFlagMap["a"], Is.EqualTo(7));
@@ -2044,8 +1883,7 @@ public class DirtyFlagMapTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(dirtyFlagMap.Dirty, Is.True);
-            Assert.That(original, Is.Not.Null);
+            Assert.That(dirtyFlagMap.Dirty, Is.False);
             Assert.That(original, Is.EqualTo(5));
             Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
             Assert.That(dirtyFlagMap["a"], Is.EqualTo(5));
@@ -2059,8 +1897,7 @@ public class DirtyFlagMapTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(dirtyFlagMap.Dirty, Is.True);
-            Assert.That(original, Is.Not.Null);
+            Assert.That(dirtyFlagMap.Dirty, Is.False);
             Assert.That(original, Is.EqualTo(0));
             Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
             Assert.That(dirtyFlagMap["a"], Is.EqualTo(0));
@@ -2078,7 +1915,7 @@ public class DirtyFlagMapTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(dirtyFlagMap.Dirty, Is.True);
+            Assert.That(dirtyFlagMap.Dirty, Is.False);
             Assert.That(original, Is.Not.Null);
             Assert.That(original, Is.EqualTo(5));
             Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
@@ -2093,7 +1930,7 @@ public class DirtyFlagMapTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(dirtyFlagMap.Dirty, Is.True);
+            Assert.That(dirtyFlagMap.Dirty, Is.False);
             Assert.That(original, Is.Null);
             Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
             Assert.That(dirtyFlagMap["a"], Is.Null);
@@ -2111,7 +1948,7 @@ public class DirtyFlagMapTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(dirtyFlagMap.Dirty, Is.True);
+            Assert.That(dirtyFlagMap.Dirty, Is.False);
             Assert.That(original, Is.Not.Null);
             Assert.That(original, Is.EqualTo("x"));
             Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
@@ -2126,7 +1963,7 @@ public class DirtyFlagMapTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(dirtyFlagMap.Dirty, Is.True);
+            Assert.That(dirtyFlagMap.Dirty, Is.False);
             Assert.That(original, Is.Null);
             Assert.That(dirtyFlagMap.ContainsKey("a"), Is.True);
             Assert.That(dirtyFlagMap["a"], Is.Null);
