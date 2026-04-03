@@ -824,6 +824,11 @@ internal sealed class RecurrenceRule
                 {
                     throw new FormatException($"Invalid ordinal in BYDAY: '{ordStr}'");
                 }
+                // RFC 5545: ordinal must be -53..53, excluding 0
+                if (ordinal == 0 || ordinal < -53 || ordinal > 53)
+                {
+                    throw new FormatException($"BYDAY ordinal {ordinal} is out of range (-53 to 53, excluding 0).");
+                }
             }
 
             result[i] = (day, ordinal);

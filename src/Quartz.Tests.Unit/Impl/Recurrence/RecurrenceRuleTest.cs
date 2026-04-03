@@ -623,5 +623,21 @@ public class RecurrenceRuleTest
         Assert.AreEqual(2025, next.Value.Year);
     }
 
+    [Test]
+    public void TestParseRejectsOutOfRangeByDayOrdinal()
+    {
+        Assert.Throws<FormatException>(() => RecurrenceRule.Parse("FREQ=MONTHLY;BYDAY=0MO"));
+        Assert.Throws<FormatException>(() => RecurrenceRule.Parse("FREQ=MONTHLY;BYDAY=54MO"));
+        Assert.Throws<FormatException>(() => RecurrenceRule.Parse("FREQ=MONTHLY;BYDAY=-54FR"));
+    }
+
+    [Test]
+    public void TestParseAcceptsValidByDayOrdinalBoundary()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=YEARLY;BYDAY=53MO,-53FR");
+        Assert.AreEqual(53, rule.ByDay![0].Ordinal);
+        Assert.AreEqual(-53, rule.ByDay[1].Ordinal);
+    }
+
     #endregion
 }

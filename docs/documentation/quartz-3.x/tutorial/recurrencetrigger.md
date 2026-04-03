@@ -160,4 +160,4 @@ ITrigger trigger = TriggerBuilder.Create()
 ### Persistence
 
 RecurrenceTrigger uses the existing `QRTZ_SIMPROP_TRIGGERS` table for persistence - no database schema changes are required.
-The RRULE string is stored in the `STRING_PROP_1` column (max 512 characters). The trigger type discriminator is `RECUR`.
+The RRULE string is stored in the `STR_PROP_1` column (max 512 characters). The trigger type discriminator is `RECUR`.
