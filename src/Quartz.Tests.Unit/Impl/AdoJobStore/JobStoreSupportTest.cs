@@ -85,6 +85,10 @@ public class JobStoreSupportTest
     [Test]
     public async Task RecoverMisfiredJobs_ShouldCacheCalendars_AcrossBatch()
     {
+        // Disable field-level calendarCache so the test validates the batch cache,
+        // not the existing RetrieveCalendar lazy-cache (which is active when Clustered=false).
+        jobStoreSupport.Clustered = true;
+
         string calendarName = "shared-cal";
 
         var key1 = new TriggerKey("misfired1", "g1");
