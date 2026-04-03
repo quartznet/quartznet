@@ -40,11 +40,11 @@ public class SendMailJobTest
         var job = new TestSendMailJob();
 
         var context = TestUtil.NewJobExecutionContextFor(job);
-        context.MergedJobDataMap.Put("smtp_host", "someserver");
-        context.MergedJobDataMap.Put("recipient", expectedMail.recipient);
-        context.MergedJobDataMap.Put("sender", expectedMail.sender);
-        context.MergedJobDataMap.Put("subject", expectedMail.subject);
-        context.MergedJobDataMap.Put("message", expectedMail.message);
+        context.MergedJobDataMap["smtp_host"] = "someserver";
+        context.MergedJobDataMap["recipient"] = expectedMail.recipient;
+        context.MergedJobDataMap["sender"] = expectedMail.sender;
+        context.MergedJobDataMap["subject"] = expectedMail.subject;
+        context.MergedJobDataMap["message"] = expectedMail.message;
 
         //When
         job.Execute(context);
@@ -67,13 +67,13 @@ public class SendMailJobTest
         var job = new TestSendMailJob();
 
         var context = TestUtil.NewJobExecutionContextFor(job);
-        context.MergedJobDataMap.Put("smtp_host", "someserver");
-        context.MergedJobDataMap.Put("recipient", expectedMail.recipient);
-        context.MergedJobDataMap.Put("cc_recipient", expectedMail.ccRecipient);
-        context.MergedJobDataMap.Put("sender", expectedMail.sender);
-        context.MergedJobDataMap.Put("reply_to", expectedMail.replyTo);
-        context.MergedJobDataMap.Put("subject", expectedMail.subject);
-        context.MergedJobDataMap.Put("message", expectedMail.message);
+        context.MergedJobDataMap["smtp_host"] = "someserver";
+        context.MergedJobDataMap["recipient"] = expectedMail.recipient;
+        context.MergedJobDataMap["cc_recipient"] = expectedMail.ccRecipient;
+        context.MergedJobDataMap["sender"] = expectedMail.sender;
+        context.MergedJobDataMap["reply_to"] = expectedMail.replyTo;
+        context.MergedJobDataMap["subject"] = expectedMail.subject;
+        context.MergedJobDataMap["message"] = expectedMail.message;
 
         //When
         job.Execute(context);
@@ -96,14 +96,14 @@ public class SendMailJobTest
         var job = new TestSendMailJob();
 
         var context = TestUtil.NewJobExecutionContextFor(job);
-        context.MergedJobDataMap.Put("smtp_host", "someserver");
-        context.MergedJobDataMap.Put("recipient", expectedMail.recipient);
-        context.MergedJobDataMap.Put("sender", expectedMail.sender);
-        context.MergedJobDataMap.Put("subject", expectedMail.subject);
-        context.MergedJobDataMap.Put("message", expectedMail.message);
-        context.MergedJobDataMap.Put("smtp_username", "user 123");
-        context.MergedJobDataMap.Put("smtp_password", "pass 321");
-        context.MergedJobDataMap.Put("smtp_port", "123");
+        context.MergedJobDataMap["smtp_host"] = "someserver";
+        context.MergedJobDataMap["recipient"] = expectedMail.recipient;
+        context.MergedJobDataMap["sender"] = expectedMail.sender;
+        context.MergedJobDataMap["subject"] = expectedMail.subject;
+        context.MergedJobDataMap["message"] = expectedMail.message;
+        context.MergedJobDataMap["smtp_username"] = "user 123";
+        context.MergedJobDataMap["smtp_password"] = "pass 321";
+        context.MergedJobDataMap["smtp_port"] = "123";
 
         //When
         job.Execute(context);

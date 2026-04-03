@@ -63,7 +63,7 @@ public class SimpleRecoveryJob : IJob
             count = 0;
         }
         count++;
-        data.Put(Count, count);
+        data[Count] = count;
 
         Console.WriteLine("SimpleRecoveryJob: {0} done at {1:r}\n Execution #{2}", jobKey, DateTime.Now, count);
     }

@@ -68,14 +68,14 @@ public class StdAdoDelegateTest
         del.SerializeJobData(jdm);
 
         jdm.Clear();
-        jdm.Put("key", "value");
-        jdm.Put("key2", null);
+        jdm["key"] = "value";
+        jdm["key2"] = null;
         del.SerializeJobData(jdm);
 
         jdm.Clear();
-        jdm.Put("key1", "value");
-        jdm.Put("key2", null);
-        jdm.Put("key3", new NonSerializableTestClass());
+        jdm["key1"] = "value";
+        jdm["key2"] = null;
+        jdm["key3"] = new NonSerializableTestClass();
 
         try
         {

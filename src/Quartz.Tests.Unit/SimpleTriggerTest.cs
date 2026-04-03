@@ -63,7 +63,7 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
     protected override SimpleTriggerImpl GetTargetObject()
     {
         JobDataMap jobDataMap = new JobDataMap();
-        jobDataMap.Put("A", "B");
+        jobDataMap["A"] = "B";
 
         SimpleTriggerImpl t = new SimpleTriggerImpl("SimpleTrigger", "SimpleGroup",
             "JobName", "JobGroup", StartTime,
@@ -145,8 +145,8 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
         Assert.That(clone.JobDataMap, Is.Empty);
 
         // Make sure non-empty sub-objects are cloned okay
-        simpleTrigger.JobDataMap.Put("K1", "V1");
-        simpleTrigger.JobDataMap.Put("K2", "V2");
+        simpleTrigger.JobDataMap["K1"] = "V1";
+        simpleTrigger.JobDataMap["K2"] = "V2";
         clone = simpleTrigger.Clone();
         Assert.Multiple(() =>
         {

@@ -84,7 +84,7 @@ public class DirectoryScanJobTest
 
             // Use legacy approach - put listener in SchedulerContext
             var listener = new TestDirectoryScanListener();
-            scheduler.Context.Put(nameof(TestDirectoryScanListener), listener);
+            scheduler.Context[nameof(TestDirectoryScanListener)] = listener;
 
             var jobDetail = JobBuilder.Create<DirectoryScanJob>()
                 .WithIdentity("TestJob2")

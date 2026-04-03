@@ -224,10 +224,10 @@ public partial class StdAdoDelegate
 
             // load job data map and transfer information
             JobDataMap jd = await SelectTriggerJobDataMap(conn, key, cancellationToken).ConfigureAwait(false);
-            jd.Put(SchedulerConstants.FailedJobOriginalTriggerName, key.Name);
-            jd.Put(SchedulerConstants.FailedJobOriginalTriggerGroup, key.Group);
-            jd.Put(SchedulerConstants.FailedJobOriginalTriggerFiretime, Convert.ToString(dataHolder.FireTimestamp, CultureInfo.InvariantCulture)!);
-            jd.Put(SchedulerConstants.FailedJobOriginalTriggerScheduledFiretime, Convert.ToString(dataHolder.ScheduleTimestamp, CultureInfo.InvariantCulture)!);
+            jd[SchedulerConstants.FailedJobOriginalTriggerName] = key.Name;
+            jd[SchedulerConstants.FailedJobOriginalTriggerGroup] = key.Group;
+            jd[SchedulerConstants.FailedJobOriginalTriggerFiretime] = Convert.ToString(dataHolder.FireTimestamp, CultureInfo.InvariantCulture)!;
+            jd[SchedulerConstants.FailedJobOriginalTriggerScheduledFiretime] = Convert.ToString(dataHolder.ScheduleTimestamp, CultureInfo.InvariantCulture)!;
             trigger.JobDataMap = jd;
         }
 

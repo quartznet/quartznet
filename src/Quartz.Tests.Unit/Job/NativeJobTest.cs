@@ -11,7 +11,7 @@ public class NativeJobTest
     {
         var job = new NativeJob();
         var context = TestUtil.NewJobExecutionContextFor(job);
-        context.MergedJobDataMap.Put(NativeJob.PropertyCommand, "Test");
+        context.MergedJobDataMap[NativeJob.PropertyCommand] = "Test";
 
         Action act = () => job.Execute(context);
 

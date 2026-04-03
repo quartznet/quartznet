@@ -52,7 +52,10 @@ public sealed class SchedulerContext : StringKeyDirtyFlagMap
     /// </summary>
     public SchedulerContext(IDictionary<string, object?> map) : this()
     {
-        PutAll(map);
+        foreach (var pair in map)
+        {
+            this[pair.Key] = pair.Value;
+        }
     }
 
     /// <summary>

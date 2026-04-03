@@ -119,7 +119,7 @@ public class JobInterruptMonitorPlugin : TriggerListenerSupport, ISchedulerPlugi
         this.name = name;
 
         taskScheduler = new QueuedTaskScheduler(1, "JobInterruptMonitorPlugin");
-        scheduler.Context.Put(JobInterruptMonitorKey, this);
+        scheduler.Context[JobInterruptMonitorKey] = this;
         this.scheduler = scheduler;
 
         // Set the trigger Listener as this class to the ListenerManager here

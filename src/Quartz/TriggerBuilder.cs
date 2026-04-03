@@ -393,7 +393,7 @@ public sealed class TriggerBuilder
     /// <seealso cref="ITrigger.JobDataMap" />
     public TriggerBuilder UsingJobData(string key, string value)
     {
-        jobDataMap.Put(key, value);
+        jobDataMap[key] = value;
         return this;
     }
 
@@ -406,7 +406,7 @@ public sealed class TriggerBuilder
     /// <seealso cref="ITrigger.JobDataMap" />
     public TriggerBuilder UsingJobData(string key, int value)
     {
-        jobDataMap.Put(key, value);
+        jobDataMap[key] = value;
         return this;
     }
 
@@ -419,7 +419,7 @@ public sealed class TriggerBuilder
     /// <seealso cref="ITrigger.JobDataMap" />
     public TriggerBuilder UsingJobData(string key, long value)
     {
-        jobDataMap.Put(key, value);
+        jobDataMap[key] = value;
         return this;
     }
 
@@ -433,7 +433,7 @@ public sealed class TriggerBuilder
     /// <seealso cref="ITrigger.JobDataMap" />
     public TriggerBuilder UsingJobData(string key, float value)
     {
-        jobDataMap.Put(key, value);
+        jobDataMap[key] = value;
         return this;
     }
 
@@ -447,7 +447,7 @@ public sealed class TriggerBuilder
     /// <seealso cref="ITrigger.JobDataMap" />
     public TriggerBuilder UsingJobData(string key, double value)
     {
-        jobDataMap.Put(key, value);
+        jobDataMap[key] = value;
         return this;
     }
 
@@ -461,7 +461,7 @@ public sealed class TriggerBuilder
     /// <seealso cref="ITrigger.JobDataMap" />
     public TriggerBuilder UsingJobData(string key, decimal value)
     {
-        jobDataMap.Put(key, value);
+        jobDataMap[key] = value;
         return this;
     }
 
@@ -474,7 +474,7 @@ public sealed class TriggerBuilder
     /// <seealso cref="ITrigger.JobDataMap" />
     public TriggerBuilder UsingJobData(string key, bool value)
     {
-        jobDataMap.Put(key, value);
+        jobDataMap[key] = value;
         return this;
     }
 
@@ -487,7 +487,7 @@ public sealed class TriggerBuilder
     /// <seealso cref="ITrigger.JobDataMap" />
     public TriggerBuilder UsingJobData(string key, Guid value)
     {
-        jobDataMap.Put(key, value);
+        jobDataMap[key] = value;
         return this;
     }
 
@@ -500,7 +500,7 @@ public sealed class TriggerBuilder
     /// <seealso cref="ITrigger.JobDataMap" />
     public TriggerBuilder UsingJobData(string key, char value)
     {
-        jobDataMap.Put(key, value);
+        jobDataMap[key] = value;
         return this;
     }
 
@@ -516,7 +516,7 @@ public sealed class TriggerBuilder
         // add data from new map to existing map hereby overriding old values
         foreach (string k in newJobDataMap.Keys)
         {
-            jobDataMap.Put(k, newJobDataMap[k]);
+            jobDataMap[k] = newJobDataMap[k];
         }
 
         return this;

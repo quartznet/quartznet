@@ -1042,7 +1042,7 @@ Please add configuration to your application config file to correctly initialize
             foreach (var key in schedCtxtProps)
             {
                 var val = schedCtxtProps.Get((string) key!);
-                sched.Context.Put((string) key!, val);
+                sched.Context[(string) key!] = val;
             }
 
             // fire up job store, and job run shell factory

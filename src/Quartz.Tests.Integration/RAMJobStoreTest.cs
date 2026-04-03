@@ -352,8 +352,8 @@ public abstract class AbstractSchedulerTest
         Barrier barrier = new Barrier(2);
 
         IScheduler sched = await CreateScheduler("testAbilityToFireImmediatelyWhenStartedBefore", 5);
-        sched.Context.Put(Barrier, barrier);
-        sched.Context.Put(DateStamps, jobExecTimestamps);
+        sched.Context[Barrier] = barrier;
+        sched.Context[DateStamps] = jobExecTimestamps;
         await sched.Start();
 
         IJobDetail job1 = JobBuilder.Create<TestJobWithSync>()
@@ -386,8 +386,8 @@ public abstract class AbstractSchedulerTest
         IScheduler sched = await CreateScheduler("testAbilityToFireImmediatelyWhenStartedBeforeWithTriggerJob", 5);
         await sched.Clear();
 
-        sched.Context.Put(Barrier, barrier);
-        sched.Context.Put(DateStamps, jobExecTimestamps);
+        sched.Context[Barrier] = barrier;
+        sched.Context[DateStamps] = jobExecTimestamps;
 
         await sched.Start();
 
@@ -418,8 +418,8 @@ public abstract class AbstractSchedulerTest
 
         IScheduler sched = await CreateScheduler("testAbilityToFireImmediatelyWhenStartedAfter", 5);
         await sched.Clear();
-        sched.Context.Put(Barrier, barrier);
-        sched.Context.Put(DateStamps, jobExecTimestamps);
+        sched.Context[Barrier] = barrier;
+        sched.Context[DateStamps] = jobExecTimestamps;
 
         IJobDetail job1 = JobBuilder.Create<TestJobWithSync>().WithIdentity("job1").Build();
         ITrigger trigger1 = TriggerBuilder.Create().ForJob(job1).Build();
@@ -515,8 +515,8 @@ public abstract class AbstractSchedulerTest
         IScheduler scheduler = await CreateScheduler("testShutdownWithoutWaitIsUnclean", 8);
         try
         {
-            scheduler.Context.Put(Barrier, barrier);
-            scheduler.Context.Put(DateStamps, jobExecTimestamps);
+            scheduler.Context[Barrier] = barrier;
+            scheduler.Context[DateStamps] = jobExecTimestamps;
             await scheduler.Start();
             string jobName = Guid.NewGuid().ToString();
             await scheduler.AddJob(JobBuilder.Create<TestJobWithSync>().WithIdentity(jobName).StoreDurably().Build(), false);
@@ -543,8 +543,8 @@ public abstract class AbstractSchedulerTest
         IScheduler scheduler = await CreateScheduler("testShutdownWithoutWaitIsUnclean", 8);
         try
         {
-            scheduler.Context.Put(Barrier, barrier);
-            scheduler.Context.Put(DateStamps, jobExecTimestamps);
+            scheduler.Context[Barrier] = barrier;
+            scheduler.Context[DateStamps] = jobExecTimestamps;
             await scheduler.Start();
             string jobName = Guid.NewGuid().ToString();
             await scheduler.AddJob(JobBuilder.Create<TestJobWithSync>().WithIdentity(jobName).StoreDurably().Build(), false);

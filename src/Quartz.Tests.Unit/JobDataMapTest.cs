@@ -49,7 +49,7 @@ public class JobDataMapTest : SerializationTestSupport<JobDataMap>
     protected override JobDataMap GetTargetObject()
     {
         JobDataMap m = new JobDataMap();
-        m.Put("key", 5);
+        m["key"] = 5;
         return m;
     }
 

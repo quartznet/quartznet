@@ -93,7 +93,7 @@ internal sealed class DirectoryScanJobModel
             : LastModTime;
 
         // It is the JobDataMap on the JobDetail which is actually stateful
-        JobDetailJobDataMap.Put(DirectoryScanJob.LastModifiedTime, newLastModifiedDate);
+        JobDetailJobDataMap[DirectoryScanJob.LastModifiedTime] = newLastModifiedDate;
     }
 
     /// <summary>
@@ -102,7 +102,7 @@ internal sealed class DirectoryScanJobModel
     /// <param name="fileList"></param>
     internal void UpdateFileList(List<FileInfo> fileList)
     {
-        JobDetailJobDataMap.Put(DirectoryScanJob.CurrentFileList, fileList);
+        JobDetailJobDataMap[DirectoryScanJob.CurrentFileList] = fileList;
     }
 
 

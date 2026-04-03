@@ -46,22 +46,22 @@ public class PropertySettingJobFactoryTest
     public void TestSetObjectPropsPrimitives(Type serializerType)
     {
         JobDataMap jobDataMap = new JobDataMap();
-        jobDataMap.Put("intValue", 1);
-        jobDataMap.Put("longValue", 2L);
-        jobDataMap.Put("floatValue", 3.0f);
-        jobDataMap.Put("doubleValue", 4.0);
-        jobDataMap.Put("booleanValue", true);
-        jobDataMap.Put("shortValue", 5);
-        jobDataMap.Put("charValue", 'a');
-        jobDataMap.Put("byteValue", 6);
-        jobDataMap.Put("stringValue", "S1");
-        jobDataMap.Put("enumValue1", DayOfWeek.Monday);
-        jobDataMap.Put("enumValue2", 1);
-        jobDataMap.Put("enumValue3", "Monday");
+        jobDataMap["intValue"] = 1;
+        jobDataMap["longValue"] = 2L;
+        jobDataMap["floatValue"] = 3.0f;
+        jobDataMap["doubleValue"] = 4.0;
+        jobDataMap["booleanValue"] = true;
+        jobDataMap["shortValue"] = 5;
+        jobDataMap["charValue"] = 'a';
+        jobDataMap["byteValue"] = 6;
+        jobDataMap["stringValue"] = "S1";
+        jobDataMap["enumValue1"] = DayOfWeek.Monday;
+        jobDataMap["enumValue2"] = 1;
+        jobDataMap["enumValue3"] = "Monday";
 
         var map = new Dictionary<string, string>();
         map.Add("A", "B");
-        jobDataMap.Put("mapValue", map);
+        jobDataMap["mapValue"] = map;
 
         if (serializerType is not null)
         {
@@ -96,7 +96,7 @@ public class PropertySettingJobFactoryTest
     public void TestSetObjectPropsUnknownProperty()
     {
         JobDataMap jobDataMap = new JobDataMap();
-        jobDataMap.Put("bogusValue", 1);
+        jobDataMap["bogusValue"] = 1;
         try
         {
             factory.SetObjectProperties(new TestObject(), jobDataMap);
@@ -111,7 +111,7 @@ public class PropertySettingJobFactoryTest
     public void TestSetObjectPropsNullPrimitive()
     {
         JobDataMap jobDataMap = new JobDataMap();
-        jobDataMap.Put("intValue", null);
+        jobDataMap["intValue"] = null;
         try
         {
             factory.SetObjectProperties(new TestObject(), jobDataMap);
@@ -126,7 +126,7 @@ public class PropertySettingJobFactoryTest
     public void TestSetObjectPropsNullNonPrimitive()
     {
         JobDataMap jobDataMap = new JobDataMap();
-        jobDataMap.Put("mapValue", null);
+        jobDataMap["mapValue"] = null;
         TestObject testObject = new TestObject();
         Dictionary<string, string> map = new Dictionary<string, string>();
         map.Add("A", "B");
@@ -139,7 +139,7 @@ public class PropertySettingJobFactoryTest
     public void TestSetObjectPropsWrongPrimitiveType()
     {
         JobDataMap jobDataMap = new JobDataMap();
-        jobDataMap.Put("intValue", "myvalue");
+        jobDataMap["intValue"] = "myvalue";
         try
         {
             factory.SetObjectProperties(new TestObject(), jobDataMap);
@@ -154,7 +154,7 @@ public class PropertySettingJobFactoryTest
     public void TestSetObjectPropsWrongNonPrimitiveType()
     {
         JobDataMap jobDataMap = new JobDataMap();
-        jobDataMap.Put("mapValue", 7.2f);
+        jobDataMap["mapValue"] = 7.2f;
         try
         {
             factory.SetObjectProperties(new TestObject(), jobDataMap);
@@ -169,7 +169,7 @@ public class PropertySettingJobFactoryTest
     public void TestSetObjectPropsCharStringTooShort()
     {
         JobDataMap jobDataMap = new JobDataMap();
-        jobDataMap.Put("charValue", "");
+        jobDataMap["charValue"] = "";
         try
         {
             factory.SetObjectProperties(new TestObject(), jobDataMap);
@@ -184,7 +184,7 @@ public class PropertySettingJobFactoryTest
     public void TestSetObjectPropsCharStringTooLong()
     {
         JobDataMap jobDataMap = new JobDataMap();
-        jobDataMap.Put("charValue", "abba");
+        jobDataMap["charValue"] = "abba";
         try
         {
             factory.SetObjectProperties(new TestObject(), jobDataMap);
@@ -199,14 +199,14 @@ public class PropertySettingJobFactoryTest
     public void TestSetObjectPropsFromStrings()
     {
         JobDataMap jobDataMap = new JobDataMap();
-        jobDataMap.Put("intValue", "1");
-        jobDataMap.Put("longValue", "2");
-        jobDataMap.Put("floatValue", "3.0");
-        jobDataMap.Put("doubleValue", "4.0");
-        jobDataMap.Put("booleanValue", "true");
-        jobDataMap.Put("shortValue", "5");
-        jobDataMap.Put("charValue", "a");
-        jobDataMap.Put("byteValue", "6");
+        jobDataMap["intValue"] = "1";
+        jobDataMap["longValue"] = "2";
+        jobDataMap["floatValue"] = "3.0";
+        jobDataMap["doubleValue"] = "4.0";
+        jobDataMap["booleanValue"] = "true";
+        jobDataMap["shortValue"] = "5";
+        jobDataMap["charValue"] = "a";
+        jobDataMap["byteValue"] = "6";
 
         TestObject myObject = new TestObject();
         factory.SetObjectProperties(myObject, jobDataMap);

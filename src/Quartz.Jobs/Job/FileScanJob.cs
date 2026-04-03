@@ -157,7 +157,7 @@ public class FileScanJob : IJob
             logger.LogDebug("File '{FileName}' unchanged.", fileName);
         }
 
-        context.JobDetail.JobDataMap.Put(LastModifiedTime, newDate);
+        context.JobDetail.JobDataMap[LastModifiedTime] = newDate;
     }
 
     /// <summary>

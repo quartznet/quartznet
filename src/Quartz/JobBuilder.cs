@@ -334,7 +334,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// <seealso cref="IJobDetail.JobDataMap" />
     public JobBuilder UsingJobData(string key, string? value)
     {
-        jobDataMap.Put(key, value);
+        jobDataMap[key] = value;
         return this;
     }
 
@@ -345,7 +345,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// <seealso cref="IJobDetail.JobDataMap" />
     public JobBuilder UsingJobData(string key, int value)
     {
-        jobDataMap.Put(key, value);
+        jobDataMap[key] = value;
         return this;
     }
 
@@ -356,7 +356,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// <seealso cref="IJobDetail.JobDataMap" />
     public JobBuilder UsingJobData(string key, long value)
     {
-        jobDataMap.Put(key, value);
+        jobDataMap[key] = value;
         return this;
     }
 
@@ -367,7 +367,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// <seealso cref="IJobDetail.JobDataMap" />
     public JobBuilder UsingJobData(string key, float value)
     {
-        jobDataMap.Put(key, value);
+        jobDataMap[key] = value;
         return this;
     }
 
@@ -378,7 +378,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// <seealso cref="IJobDetail.JobDataMap" />
     public JobBuilder UsingJobData(string key, double value)
     {
-        jobDataMap.Put(key, value);
+        jobDataMap[key] = value;
         return this;
     }
 
@@ -389,7 +389,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// <seealso cref="IJobDetail.JobDataMap" />
     public JobBuilder UsingJobData(string key, bool value)
     {
-        jobDataMap.Put(key, value);
+        jobDataMap[key] = value;
         return this;
     }
 
@@ -400,7 +400,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// <seealso cref="IJobDetail.JobDataMap" />
     public JobBuilder UsingJobData(string key, Guid value)
     {
-        jobDataMap.Put(key, value);
+        jobDataMap[key] = value;
         return this;
     }
 
@@ -411,7 +411,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// <seealso cref="IJobDetail.JobDataMap" />
     public JobBuilder UsingJobData(string key, char value)
     {
-        jobDataMap.Put(key, value);
+        jobDataMap[key] = value;
         return this;
     }
 
@@ -427,7 +427,10 @@ public sealed class JobBuilder : IJobConfigurator
         {
             Throw.ArgumentNullException(nameof(newJobDataMap));
         }
-        jobDataMap.PutAll(newJobDataMap);
+        foreach (var pair in newJobDataMap)
+        {
+            jobDataMap[pair.Key] = pair.Value;
+        }
         return this;
     }
 

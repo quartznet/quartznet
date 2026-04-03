@@ -56,7 +56,7 @@ public class BadJob1 : IJob
 
             // fix denominator so the next time this job run
             // it won't fail again
-            dataMap.Put("denominator", "1");
+            dataMap["denominator"] = "1";
 
             // this job will refire immediately
             e2.RefireImmediately = true;

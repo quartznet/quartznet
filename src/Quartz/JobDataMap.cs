@@ -81,7 +81,10 @@ public sealed class JobDataMap : StringKeyDirtyFlagMap
     /// </summary>
     public JobDataMap(IDictionary<string, object?> map) : this(map.Count)
     {
-        PutAll(map);
+        foreach (var pair in map)
+        {
+            this[pair.Key] = pair.Value;
+        }
 
         // When constructing a new data map from another existing map, we should NOT mark dirty flag as true
         // Use case: loading JobDataMap from DB
@@ -128,7 +131,7 @@ public sealed class JobDataMap : StringKeyDirtyFlagMap
     /// </summary>
     public void PutAsString<T>(string key, T value) where T : IConvertible
     {
-        Put(key, value.ToString(CultureInfo.InvariantCulture));
+        this[key] = value.ToString(CultureInfo.InvariantCulture);
     }
 
     /// <summary>
@@ -138,7 +141,7 @@ public sealed class JobDataMap : StringKeyDirtyFlagMap
     public void PutAsString(string key, DateTimeOffset value)
     {
         string strValue = value.ToString(CultureInfo.InvariantCulture);
-        Put(key, strValue);
+        this[key] = strValue;
     }
 
     /// <summary>
@@ -148,7 +151,7 @@ public sealed class JobDataMap : StringKeyDirtyFlagMap
     public void PutAsString(string key, TimeSpan value)
     {
         string strValue = value.ToString();
-        Put(key, strValue);
+        this[key] = strValue;
     }
 
     /// <summary>
@@ -158,7 +161,7 @@ public sealed class JobDataMap : StringKeyDirtyFlagMap
     public void PutAsString(string key, Guid value)
     {
         string strValue = value.ToString("N");
-        Put(key, strValue);
+        this[key] = strValue;
     }
 
     /// <summary>
@@ -168,7 +171,7 @@ public sealed class JobDataMap : StringKeyDirtyFlagMap
     public void PutAsString(string key, Guid? value)
     {
         string? strValue = value?.ToString("N");
-        Put(key, strValue!);
+        this[key] = strValue!;
     }
 
     internal override DirtyFlagMap<string, object> Clone()

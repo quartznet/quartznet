@@ -468,8 +468,8 @@ public class SmokeTestPerformer
 
         var jobStarted = new SemaphoreSlim(0, 1);
         var jobCanFinish = new SemaphoreSlim(0, 1);
-        scheduler.Context.Put("JobStarted_2255", jobStarted);
-        scheduler.Context.Put("JobCanFinish_2255", jobCanFinish);
+        scheduler.Context["JobStarted_2255"] = jobStarted;
+        scheduler.Context["JobCanFinish_2255"] = jobCanFinish;
 
         IJobDetail job = JobBuilder.Create<SignallingJob>()
             .WithIdentity("signalJob_2255", "testGroup")

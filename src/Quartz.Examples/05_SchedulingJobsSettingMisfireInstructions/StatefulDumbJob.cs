@@ -51,7 +51,7 @@ public class StatefulDumbJob : IJob
 
         executeCount++;
 
-        map.Put(NumExecutions, executeCount);
+        map[NumExecutions] = executeCount;
 
         int delay = 5;
         if (map.ContainsKey(ExecutionDelay))

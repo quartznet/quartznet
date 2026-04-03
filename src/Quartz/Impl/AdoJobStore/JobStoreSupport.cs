@@ -3802,9 +3802,9 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                                 rcvryTrig.MisfireInstruction = MisfireInstruction.SimpleTrigger.FireNow;
                                 rcvryTrig.Priority = ftRec.Priority;
                                 JobDataMap jd = await Delegate.SelectTriggerJobDataMap(conn, tKey, cancellationToken).ConfigureAwait(false);
-                                jd.Put(SchedulerConstants.FailedJobOriginalTriggerName, tKey.Name);
-                                jd.Put(SchedulerConstants.FailedJobOriginalTriggerGroup, tKey.Group);
-                                jd.Put(SchedulerConstants.FailedJobOriginalTriggerFiretime, Convert.ToString(ftRec.FireTimestamp, CultureInfo.InvariantCulture));
+                                jd[SchedulerConstants.FailedJobOriginalTriggerName] = tKey.Name;
+                                jd[SchedulerConstants.FailedJobOriginalTriggerGroup] = tKey.Group;
+                                jd[SchedulerConstants.FailedJobOriginalTriggerFiretime] = Convert.ToString(ftRec.FireTimestamp, CultureInfo.InvariantCulture);
                                 rcvryTrig.JobDataMap = jd;
 
                                 rcvryTrig.ComputeFirstFireTimeUtc(null);

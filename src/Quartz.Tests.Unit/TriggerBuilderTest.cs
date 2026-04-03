@@ -91,7 +91,7 @@ public class TriggerBuilderTest
     public void TestOverwriting()
     {
         var map = new JobDataMap();
-        map.Put("key", "overwritingvalue");
+        map["key"] = "overwritingvalue";
         var trigger = TriggerBuilder.Create()
             .UsingJobData("key", "originalvalue")
             .UsingJobData(map)

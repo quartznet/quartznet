@@ -117,9 +117,18 @@ public class PropertySettingJobFactory : SimpleJobFactory
             return jobDataMap;
         }
 
-        jobDataMap.PutAll(scheduler.Context);
-        jobDataMap.PutAll(bundle.JobDetail.JobDataMap);
-        jobDataMap.PutAll(bundle.Trigger.JobDataMap);
+        foreach (var pair in scheduler.Context)
+        {
+            jobDataMap[pair.Key] = pair.Value;
+        }
+        foreach (var pair in bundle.JobDetail.JobDataMap)
+        {
+            jobDataMap[pair.Key] = pair.Value;
+        }
+        foreach (var pair in bundle.Trigger.JobDataMap)
+        {
+            jobDataMap[pair.Key] = pair.Value;
+        }
         return jobDataMap;
     }
 

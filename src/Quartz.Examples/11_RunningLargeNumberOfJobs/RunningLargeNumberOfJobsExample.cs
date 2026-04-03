@@ -55,7 +55,7 @@ public class RunningLargeNumberOfJobsExample : IExample
 
             // tell the job to delay some small amount... to simulate work...
             long timeDelay = (long) (r.NextDouble() * 2500);
-            job.JobDataMap.Put(SimpleJob.DelayTime, timeDelay);
+            job.JobDataMap[SimpleJob.DelayTime] = timeDelay;
 
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("trigger_" + count, "group_1")

@@ -161,7 +161,7 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
             {
                 if (ScanInterval > TimeSpan.Zero)
                 {
-                    Scheduler.Context.Put(JobInitializationPluginName + '_' + Name, this);
+                    Scheduler.Context[JobInitializationPluginName + '_' + Name] = this;
                 }
 
                 foreach (KeyValuePair<string, JobFile> pair in jobFiles)
@@ -189,8 +189,8 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
                             .WithIdentity(new JobKey(jobTriggerName, JobInitializationPluginName))
                             .Build();
 
-                        job.JobDataMap.Put(FileScanJob.FileName, jobFile.FilePath);
-                        job.JobDataMap.Put(FileScanJob.FileScanListenerName, JobInitializationPluginName + '_' + Name);
+                        job.JobDataMap[FileScanJob.FileName] = jobFile.FilePath;
+                        job.JobDataMap[FileScanJob.FileScanListenerName] = JobInitializationPluginName + '_' + Name;
 
                         await Scheduler.ScheduleJob(job, trig, cancellationToken).ConfigureAwait(false);
                         logger.LogDebug("Scheduled file scan job for data file: {FileName}, at interval: {ScanInterval}", jobFile.FileName, ScanInterval);

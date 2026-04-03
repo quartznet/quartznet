@@ -58,8 +58,8 @@ public class JobParametersAndJobsStateMaintenanceExample : IExample
             .Build();
 
         // pass initialization parameters into the job
-        job1.JobDataMap.Put(ColorJob.FavoriteColor, "Green");
-        job1.JobDataMap.Put(ColorJob.ExecutionCount, 1);
+        job1.JobDataMap[ColorJob.FavoriteColor] = "Green";
+        job1.JobDataMap[ColorJob.ExecutionCount] = 1;
 
         // schedule the job to run
         DateTimeOffset scheduleTime1 = await sched.ScheduleJob(job1, trigger1);
@@ -79,8 +79,8 @@ public class JobParametersAndJobsStateMaintenanceExample : IExample
 
         // pass initialization parameters into the job
         // this job has a different favorite color!
-        job2.JobDataMap.Put(ColorJob.FavoriteColor, "Red");
-        job2.JobDataMap.Put(ColorJob.ExecutionCount, 1);
+        job2.JobDataMap[ColorJob.FavoriteColor] = "Red";
+        job2.JobDataMap[ColorJob.ExecutionCount] = 1;
 
         // schedule the job to run
         DateTimeOffset scheduleTime2 = await sched.ScheduleJob(job2, trigger2);

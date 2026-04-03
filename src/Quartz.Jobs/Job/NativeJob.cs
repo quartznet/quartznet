@@ -34,7 +34,7 @@ namespace Quartz.Job;
 /// <remarks>
 /// <example>
 ///     JobDetail job = new JobDetail("dumbJob", null, typeof(Quartz.Jobs.NativeJob));
-///     job.JobDataMap.Put(Quartz.Jobs.NativeJob.PropertyCommand, "echo \"hi\" >> foobar.txt");
+///     job.JobDataMap[Quartz.Jobs.NativeJob.PropertyCommand] = "echo \"hi\" >> foobar.txt";
 ///     Trigger trigger = TriggerUtils.MakeSecondlyTrigger(5);
 ///     trigger.Name = "dumbTrigger";
 ///     sched.ScheduleJob(job, trigger);

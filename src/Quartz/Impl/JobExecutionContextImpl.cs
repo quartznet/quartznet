@@ -184,8 +184,14 @@ public sealed class JobExecutionContextImpl : ICancellableJobExecutionContext, I
                     if (jobDataMap is null)
                     {
                         jobDataMap = new JobDataMap(jobDetail.JobDataMap.Count + trigger.JobDataMap.Count);
-                        jobDataMap.PutAll(jobDetail.JobDataMap);
-                        jobDataMap.PutAll(trigger.JobDataMap);
+                        foreach (var pair in jobDetail.JobDataMap)
+                        {
+                            jobDataMap[pair.Key] = pair.Value;
+                        }
+                        foreach (var pair in trigger.JobDataMap)
+                        {
+                            jobDataMap[pair.Key] = pair.Value;
+                        }
                     }
                 }
             }

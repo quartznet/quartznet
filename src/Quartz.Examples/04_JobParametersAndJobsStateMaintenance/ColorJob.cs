@@ -64,7 +64,7 @@ public class ColorJob : IJob
         // increment the count and store it back into the
         // job map so that job state can be properly maintained
         count++;
-        data.Put(ExecutionCount, count);
+        data[ExecutionCount] = count;
 
         // Increment the local member variable
         // This serves no real purpose since job state can not

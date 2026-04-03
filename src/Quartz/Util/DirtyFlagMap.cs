@@ -249,7 +249,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
     /// <value></value>
     public ICollection<TValue?> Values => map.Values;
 
-    public void Add(KeyValuePair<TKey, TValue?> item)
+    void ICollection<KeyValuePair<TKey, TValue?>>.Add(KeyValuePair<TKey, TValue?> item)
     {
         Add(item.Key, item.Value);
     }
@@ -280,7 +280,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
         map.Clear();
     }
 
-    public void Remove(object key)
+    void IDictionary.Remove(object key)
     {
         Remove((TKey) key);
     }
@@ -544,45 +544,4 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
         return GetEnumerator();
     }
 
-    /// <summary>
-    /// Puts the value behind a specified key.
-    /// </summary>
-    /// <param name="key">The key to use.</param>
-    /// <param name="val">The value to put.</param>
-    /// <returns>The existing value, if any.</returns>
-    public TValue? Put(TKey key, TValue? val)
-    {
-        if (map.TryGetValue(key, out TValue? tempObject))
-        {
-            if (!EqualityComparer<TValue>.Default.Equals(tempObject, val))
-            {
-                map[key] = val;
-                dirty = true;
-            }
-        }
-        else
-        {
-            map[key] = val;
-            dirty = true;
-        }
-
-        return tempObject;
-    }
-
-    /// <summary>
-    /// Puts all values from source dictionary into this map.
-    /// </summary>
-    /// <param name="source">The source dictionary.</param>
-    public void PutAll(IDictionary<TKey, TValue?> source)
-    {
-        if (source is null)
-        {
-            return;
-        }
-
-        foreach (KeyValuePair<TKey, TValue?> pair in source)
-        {
-            this[pair.Key] = pair.Value;
-        }
-    }
 }
