@@ -31,6 +31,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Collections;
+using Quartz.Impl;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Logging;
@@ -531,7 +532,15 @@ public class QuartzScheduler :
         }
         finally
         {
-            resources.SchedulerRepository.Remove(resources.Name);
+            if (resources.SchedulerRepository is SchedulerRepository concreteRepo)
+            {
+                concreteRepo.Remove(resources.Name, resources.InstanceId);
+            }
+            else
+            {
+                resources.SchedulerRepository.Remove(resources.Name);
+            }
+
             holdToPreventGc.Clear();
         }
 

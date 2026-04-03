@@ -149,6 +149,8 @@ public class DirectSchedulerFactory : ISchedulerFactory
 
         var proxyBuilder = new RemotingSchedulerProxyFactory();
         proxyBuilder.Address = proxyAddress;
+        // Note: RepositoryInstanceId is not set here, so multiple remote schedulers with the
+        // same name cannot coexist via DirectSchedulerFactory. Use StdSchedulerFactory for that.
         RemoteScheduler remoteScheduler = new RemoteScheduler(uid, proxyBuilder);
 
         SchedulerRepository schedRep = SchedulerRepository.Instance;
