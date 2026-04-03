@@ -148,6 +148,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
         AddTriggerPersistenceDelegate(new CronTriggerPersistenceDelegate());
         AddTriggerPersistenceDelegate(new CalendarIntervalTriggerPersistenceDelegate());
         AddTriggerPersistenceDelegate(new DailyTimeIntervalTriggerPersistenceDelegate());
+        AddTriggerPersistenceDelegate(new RecurrenceTriggerPersistenceDelegate());
     }
 
     protected virtual bool CanUseProperties => useProperties;

@@ -18,6 +18,7 @@ internal sealed class TriggerConverter : JsonConverter<ITrigger>
         AddTriggerSerializer<CronTriggerImpl>(new CronTriggerSerializer());
         AddTriggerSerializer<DailyTimeIntervalTriggerImpl>(new DailyTimeIntervalTriggerSerializer());
         AddTriggerSerializer<SimpleTriggerImpl>(new SimpleTriggerSerializer());
+        AddTriggerSerializer<RecurrenceTriggerImpl>(new RecurrenceTriggerSerializer());
     }
 
     public override bool CanConvert(Type typeToConvert) => typeof(ITrigger).IsAssignableFrom(typeToConvert);

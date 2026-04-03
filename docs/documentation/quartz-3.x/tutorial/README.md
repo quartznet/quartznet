@@ -14,6 +14,7 @@ next: false
 * [Lesson 5: More About Triggers](more-about-triggers.md)
 * [Lesson 6: SimpleTriggers](simpletriggers.md)
 * [Lesson 7: CronTriggers](crontriggers.md)
+* [RecurrenceTrigger (RRULE)](recurrencetrigger.md)
 * [Lesson 8: TriggerListeners & JobListeners](trigger-and-job-listeners.md)
 * [Lesson 9: SchedulerListeners](scheduler-listeners.md)
 * [Lesson 10: JobStores](job-stores.md)

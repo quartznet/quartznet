@@ -18,6 +18,7 @@ internal sealed class TriggerConverter : JsonConverter
         AddTriggerSerializer<CronTriggerImpl>(new CronTriggerSerializer());
         AddTriggerSerializer<DailyTimeIntervalTriggerImpl>(new DailyTimeIntervalTriggerSerializer());
         AddTriggerSerializer<SimpleTriggerImpl>(new SimpleTriggerSerializer());
+        AddTriggerSerializer<RecurrenceTriggerImpl>(new RecurrenceTriggerSerializer());
     }
 
     public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)

@@ -92,4 +92,34 @@ public static class TriggerExtensions
         triggerBuilder.WithSchedule(schedule);
         return triggerBuilder;
     }
+
+    /// <summary>
+    /// Set the trigger to use an RFC 5545 RRULE-based schedule.
+    /// </summary>
+    /// <param name="triggerBuilder">The trigger builder.</param>
+    /// <param name="recurrenceRule">
+    /// An RFC 5545 RRULE string, e.g. "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR".
+    /// </param>
+    /// <param name="action">Action to further configure the schedule builder.</param>
+    public static ITriggerConfigurator WithRecurrenceSchedule(
+        this ITriggerConfigurator triggerBuilder,
+        string recurrenceRule,
+        Action<RecurrenceScheduleBuilder>? action = null)
+    {
+        RecurrenceScheduleBuilder builder = RecurrenceScheduleBuilder.Create(recurrenceRule);
+        action?.Invoke(builder);
+        triggerBuilder.WithSchedule(builder);
+        return triggerBuilder;
+    }
+
+    /// <summary>
+    /// Set the trigger to use an RFC 5545 RRULE-based schedule.
+    /// </summary>
+    public static ITriggerConfigurator WithRecurrenceSchedule(
+        this ITriggerConfigurator triggerBuilder,
+        RecurrenceScheduleBuilder schedule)
+    {
+        triggerBuilder.WithSchedule(schedule);
+        return triggerBuilder;
+    }
 }
