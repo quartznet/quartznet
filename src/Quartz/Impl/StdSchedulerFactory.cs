@@ -512,6 +512,8 @@ Please add configuration to your application config file to correctly initialize
             string uid = QuartzSchedulerResources.GetUniqueIdentifier(schedName, schedInstId);
 
             RemoteScheduler remoteScheduler = new RemoteScheduler(uid, factory, schedName);
+            remoteScheduler.RepositoryInstanceId = schedInstId;
+            remoteScheduler.SchedulerRepositoryOverride = GetSchedulerRepository();
 
             return remoteScheduler;
         }
@@ -1190,13 +1192,33 @@ Please add configuration to your application config file to correctly initialize
             }
 
             var schedulerRepository = GetSchedulerRepository();
-            IScheduler? sched = schedulerRepository.Lookup(SchedulerName);
+
+            // For proxy schedulers with explicit instance IDs (e.g., connecting to different cluster nodes),
+            // use instance-aware lookup so multiple proxies with the same scheduler name can coexist.
+            string? explicitInstanceId = GetExplicitProxyInstanceId();
+
+            IScheduler? sched;
+            if (explicitInstanceId is not null && schedulerRepository is SchedulerRepository concreteRepo)
+            {
+                sched = concreteRepo.Lookup(SchedulerName, explicitInstanceId);
+            }
+            else
+            {
+                sched = schedulerRepository.Lookup(SchedulerName);
+            }
 
             if (sched != null)
             {
                 if (sched.IsShutdown)
                 {
-                    schedulerRepository.Remove(SchedulerName);
+                    if (explicitInstanceId is not null && schedulerRepository is SchedulerRepository cr)
+                    {
+                        cr.Remove(SchedulerName, explicitInstanceId);
+                    }
+                    else
+                    {
+                        schedulerRepository.Remove(SchedulerName);
+                    }
                 }
                 else
                 {
@@ -1223,5 +1245,27 @@ Please add configuration to your application config file to correctly initialize
     public virtual Task<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default)
     {
         return Task.FromResult(GetSchedulerRepository().Lookup(schedName));
+    }
+
+    /// <summary>
+    /// Returns the explicitly configured instance ID if this is a proxy scheduler configuration,
+    /// or <see langword="null"/> if this is not a proxy or uses auto-generated instance IDs.
+    /// </summary>
+    private string? GetExplicitProxyInstanceId()
+    {
+        bool isProxy = cfg.GetBooleanProperty(PropertySchedulerProxy, false);
+        if (!isProxy)
+        {
+            return null;
+        }
+
+        string rawInstanceId = cfg.GetStringProperty(PropertySchedulerInstanceId, DefaultInstanceId)!;
+        if (rawInstanceId.Equals(AutoGenerateInstanceId, StringComparison.OrdinalIgnoreCase) ||
+            rawInstanceId.Equals(SystemPropertyAsInstanceId, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return rawInstanceId;
     }
 }

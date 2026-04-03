@@ -51,6 +51,18 @@ public class RemoteScheduler : IScheduler
     private readonly IRemotableSchedulerProxyFactory proxyFactory;
 
     /// <summary>
+    /// Locally-stored instance ID to avoid remote calls during repository operations.
+    /// Set by the factory when creating a proxy scheduler.
+    /// </summary>
+    internal string? RepositoryInstanceId { get; set; }
+
+    /// <summary>
+    /// Optional scheduler repository override to use instead of the static singleton.
+    /// Allows proper DI integration and correct cleanup of the right scheduler entry.
+    /// </summary>
+    internal ISchedulerRepository? SchedulerRepositoryOverride { get; set; }
+
+    /// <summary>
     /// Construct a <see cref="RemoteScheduler" /> instance to proxy the given
     /// RemoteableQuartzScheduler instance.
     /// </summary>
@@ -269,7 +281,7 @@ public class RemoteScheduler : IScheduler
         {
             string schedulerName = SchedulerName;
             GetRemoteScheduler().Shutdown();
-            SchedulerRepository.Instance.Remove(schedulerName);
+            RemoveFromRepository(schedulerName);
             return Task.CompletedTask;
         }
 #if REMOTING
@@ -289,7 +301,21 @@ public class RemoteScheduler : IScheduler
         bool waitForJobsToComplete,
         CancellationToken cancellationToken = default)
     {
-        return CallInGuard(x => x.Shutdown(waitForJobsToComplete));
+        try
+        {
+            string schedulerName = SchedulerName;
+            GetRemoteScheduler().Shutdown(waitForJobsToComplete);
+            RemoveFromRepository(schedulerName);
+            return Task.CompletedTask;
+        }
+#if REMOTING
+            catch (RemotingException re)
+#else // REMOTING
+        catch (Exception re) // TODO (NetCore Port): Determine the correct exception type
+#endif // REMOTING
+        {
+            throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
+        }
     }
 
     /// <summary>
@@ -778,5 +804,18 @@ public class RemoteScheduler : IScheduler
         rsched = null;
         SchedulerException ex = new SchedulerException(msg, cause);
         return ex;
+    }
+
+    private void RemoveFromRepository(string schedulerName)
+    {
+        ISchedulerRepository repo = SchedulerRepositoryOverride ?? SchedulerRepository.Instance;
+        if (RepositoryInstanceId is not null && repo is SchedulerRepository concreteRepo)
+        {
+            concreteRepo.Remove(schedulerName, RepositoryInstanceId);
+        }
+        else
+        {
+            repo.Remove(schedulerName);
+        }
     }
 }
