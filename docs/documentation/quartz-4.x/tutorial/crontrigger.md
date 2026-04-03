@@ -20,12 +20,12 @@ Fields can contain any of the allowed values, along with various combinations of
 
 | **Field Name** | **Mandatory** | **Allowed Values** | **Allowed Special Characters** |
 |----------------|---------------|--------------------|--------------------------------|
-| Seconds        | YES           | 0-59               | , - * /                        |
-| Minutes        | YES           | 0-59               | , - * /                        |
-| Hours          | YES           | 0-23               | , - * /                        |
-| Day of month   | YES           | 1-31               | , - * ? / L W                  |
-| Month          | YES           | 1-12 or JAN-DEC    | , - * /                        |
-| Day of week    | YES           | 1-7 or SUN-SAT     | , - * ? / L #                  |
+| Seconds        | YES           | 0-59               | , - * / H                      |
+| Minutes        | YES           | 0-59               | , - * / H                      |
+| Hours          | YES           | 0-23               | , - * / H                      |
+| Day of month   | YES           | 1-31               | , - * ? / L W H                |
+| Month          | YES           | 1-12 or JAN-DEC    | , - * / H                      |
+| Day of week    | YES           | 1-7 or SUN-SAT     | , - * ? / L # H                |
 | Year           | NO            | empty, 1970-2099   | , - * /                        |
 
 So cron expressions can be as simple as this: `* * * * ? *`
@@ -70,6 +70,71 @@ Note that if you specify `#5` and there is not 5 of the given day-of-week in the
 The legal characters and the names of months and days of the week are not case sensitive. MON is the same as mon.
 :::
 
+## H (hash) for load distribution
+
+The `H` symbol (for "hash") can be used in place of a specific value to spread scheduled tasks
+evenly across time. When many triggers share an identical cron expression such as `0 0 0 * * ?` (midnight daily),
+they all fire simultaneously, causing resource spikes.
+
+`H` resolves to a **deterministic** value derived from the trigger's identity (name and group). The value stays
+stable as long as the trigger identity doesn't change, but different triggers get different
+values, spreading load across the allowed range.
+
+### Syntax
+
+| **Expression** | **Meaning** |
+|:---------------|:------------|
+| `H`            | Hash value within the full range of the field |
+| `H(0-7)`       | Hash value constrained to the range 0 through 7 |
+| `H/15`         | Hash-derived offset, then repeat every 15 (e.g., 7, 22, 37, 52) |
+| `H(0-29)/10`   | Hash-derived offset in 0-29, then repeat every 10 (e.g., 3, 13, 23) |
+
+`H` can appear in **comma-separated lists** alongside fixed values (e.g., `H,30,45`).
+
+`H` is **not** supported in the Year field, and cannot be combined with `L`, `W`, or `#`.
+
+### Examples
+
+| **Expression** | **Description** |
+|:---------------|:----------------|
+| `0 H H * * ?`       | Once per day at a hash-derived hour and minute |
+| `0 H H(0-7) * * ?`  | Once per day between midnight and 7:59 AM |
+| `0 H/15 * * * ?`    | Every 15 minutes, starting from a hash-derived offset |
+| `H H H * * ?`       | Once per day at a unique second, minute, and hour |
+
+### Usage with TriggerBuilder
+
+When using `H` through the builder API, the trigger identity is used as the hash seed.
+You **must** call `WithIdentity()` so the hash is derived from a stable, meaningful name
+rather than a random GUID:
+
+```csharp
+ITrigger trigger = TriggerBuilder.Create()
+    .WithIdentity("nightly-cleanup")
+    .WithCronSchedule("0 H H(0-7) * * ?")
+    .Build();
+```
+
+You can also provide an explicit hash key, which does not require a trigger identity:
+
+```csharp
+ITrigger trigger = TriggerBuilder.Create()
+    .WithCronSchedule("0 H H(0-7) * * ?", "nightly-cleanup")
+    .Build();
+```
+
+Or construct a `CronExpression` directly:
+
+```csharp
+var expr = new CronExpression("0 H H(0-7) * * ?", "nightly-cleanup");
+```
+
+::: tip
+`CronExpressionString` returns the **resolved** expression (e.g., `"0 23 3 * * ?"`) after H
+tokens are replaced with their computed values. This resolved form is what gets persisted to
+the database, ensuring stability across scheduler restarts.
+:::
+
 ## Examples
 
 Here are some full examples:
@@ -97,6 +162,9 @@ Here are some full examples:
 | `0 0 12 1/5 * ?`           | Fire at 12pm (noon) every 5 days every month, starting on the first day of the month.                                               |
 | `0 11 11 11 11 ?`          | Fire every November 11th at 11:11am.                                                                                                |
 | `0 15 10 1,2,3 * MON,FRI`  | Fire at 10:15am on the 1st, 2nd, 3rd of the month, and every Monday and Friday                                                      |
+| `H H H * * ?`              | Fire once per day at a hash-derived second, minute, and hour (spread across triggers)                                               |
+| `0 H H(0-7) * * ?`         | Fire once per day between midnight and 7:59 AM, at a hash-derived time                                                             |
+| `0 H/15 * * * ?`           | Fire every 15 minutes, starting from a hash-derived offset                                                                          |
 
 ::: tip
 Pay attention to the effects of '?' and '*' in the day-of-week and day-of-month fields!

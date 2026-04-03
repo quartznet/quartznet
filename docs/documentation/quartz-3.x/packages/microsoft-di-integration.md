@@ -145,6 +145,14 @@ public void ConfigureServices(IServiceCollection services)
             .WithDescription("my awesome cron trigger")
         );
 
+        // use H (hash) to spread trigger fire times based on trigger identity
+        q.AddTrigger(t => t
+            .WithIdentity("Spread Cron Trigger")
+            .ForJob(jobKey)
+            .WithCronSchedule("H * * * * ?")
+            .WithDescription("fires once per minute at a hash-derived second")
+        );
+
         // you can add calendars too (requires version 3.2)
         const string calendarName = "myHolidayCalendar";
         q.AddCalendar<HolidayCalendar>(

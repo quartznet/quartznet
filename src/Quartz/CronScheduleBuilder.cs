@@ -25,6 +25,17 @@ using Quartz.Spi;
 namespace Quartz;
 
 /// <summary>
+/// Internal interface for schedule builders that support deferred H (hash)
+/// token resolution. <see cref="TriggerBuilder"/> uses this to pass the
+/// trigger key before <see cref="IScheduleBuilder.Build"/> is called.
+/// </summary>
+internal interface IHashKeyAwareScheduleBuilder
+{
+    bool RequiresHashKey { get; }
+    void SetHashKey(TriggerKey key);
+}
+
+/// <summary>
 /// CronScheduleBuilder is a <see cref="IScheduleBuilder" /> that defines
 /// <see cref="CronExpression" />-based schedules for <see cref="ITrigger" />s.
 /// </summary>
@@ -58,9 +69,11 @@ namespace Quartz;
 /// <seealso cref="SimpleScheduleBuilder" />
 /// <seealso cref="CalendarIntervalScheduleBuilder" />
 /// <seealso cref="TriggerBuilder" />
-public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>
+public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>, IHashKeyAwareScheduleBuilder
 {
-    private readonly CronExpression cronExpression;
+    private CronExpression? cronExpression;
+    private readonly string? deferredHashExpression;
+    private TimeZoneInfo? deferredTimeZone;
     private int misfireInstruction = MisfireInstruction.SmartPolicy;
 
     private CronScheduleBuilder(CronExpression cronExpression)
@@ -73,6 +86,15 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>
     }
 
     /// <summary>
+    /// Creates a CronScheduleBuilder with a deferred H (hash) expression
+    /// that will be resolved when the trigger key is provided.
+    /// </summary>
+    private CronScheduleBuilder(string deferredHashExpression)
+    {
+        this.deferredHashExpression = deferredHashExpression;
+    }
+
+    /// <summary>
     /// Build the actual Trigger -- NOT intended to be invoked by end users,
     /// but will rather be invoked by a TriggerBuilder which this
     /// ScheduleBuilder is given to.
@@ -80,6 +102,14 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>
     /// <seealso cref="TriggerBuilder.WithSchedule" />
     public override IMutableTrigger Build()
     {
+        if (cronExpression is null)
+        {
+            Throw.FormatException(
+                "Cron expression contains H (hash) tokens which require a trigger identity for resolution. "
+                + "Use TriggerBuilder with WithIdentity(), or provide an explicit hash key via "
+                + "CronScheduleBuilder.CronScheduleWithHash() or new CronExpression(expression, hashKey).");
+        }
+
         CronTriggerImpl ct = new CronTriggerImpl();
 
         ct.CronExpression = cronExpression;
@@ -101,6 +131,18 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>
     /// <seealso cref="CronExpression" />
     public static CronScheduleBuilder CronSchedule(string cronExpression)
     {
+        if (cronExpression is null)
+        {
+            Throw.ArgumentException("cronExpression cannot be null", nameof(cronExpression));
+        }
+
+        if (CronExpression.ContainsHashToken(cronExpression))
+        {
+            string resolved = CronExpression.ResolveHash(cronExpression, 0);
+            CronExpression.ValidateExpression(resolved);
+            return new CronScheduleBuilder(cronExpression);
+        }
+
         CronExpression.ValidateExpression(cronExpression);
         return CronScheduleNoParseException(cronExpression);
     }
@@ -136,6 +178,30 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>
     public static CronScheduleBuilder CronSchedule(CronExpression cronExpression)
     {
         return new CronScheduleBuilder(cronExpression);
+    }
+
+    /// <summary>
+    /// Create a CronScheduleBuilder with H (hash) tokens resolved immediately
+    /// using the given hash key.
+    /// </summary>
+    /// <param name="cronExpression">Cron expression that may contain H tokens</param>
+    /// <param name="hashKey">A stable string key used to derive hash values (e.g., trigger name)</param>
+    /// <returns>the new CronScheduleBuilder</returns>
+    public static CronScheduleBuilder CronScheduleWithHash(string cronExpression, string hashKey)
+    {
+        return CronSchedule(new CronExpression(cronExpression, hashKey));
+    }
+
+    /// <summary>
+    /// Create a CronScheduleBuilder with H (hash) tokens resolved immediately
+    /// using the given integer hash seed.
+    /// </summary>
+    /// <param name="cronExpression">Cron expression that may contain H tokens</param>
+    /// <param name="hashSeed">An integer seed used to derive hash values</param>
+    /// <returns>the new CronScheduleBuilder</returns>
+    public static CronScheduleBuilder CronScheduleWithHash(string cronExpression, int hashSeed)
+    {
+        return CronSchedule(new CronExpression(cronExpression, hashSeed));
     }
 
     /// <summary>
@@ -242,7 +308,14 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>
     /// <seealso cref="CronExpression.TimeZone" />
     public CronScheduleBuilder InTimeZone(TimeZoneInfo tz)
     {
-        cronExpression.TimeZone = tz;
+        if (cronExpression is not null)
+        {
+            cronExpression.TimeZone = tz;
+        }
+        else
+        {
+            deferredTimeZone = tz;
+        }
         return this;
     }
 
@@ -294,6 +367,26 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>
         misfireInstruction = readMisfireInstructionFromString;
         return this;
     }
+
+    bool IHashKeyAwareScheduleBuilder.RequiresHashKey => deferredHashExpression is not null;
+
+    void IHashKeyAwareScheduleBuilder.SetHashKey(TriggerKey key)
+    {
+        if (deferredHashExpression is not null)
+        {
+            // Use unambiguous encoding to avoid hash collisions between different keys.
+            // Default-group keys are prefixed with ':' (discriminator) so they cannot collide
+            // with the non-default format which always starts with a digit (length prefix).
+            string hashKey = key.Group == SchedulerConstants.DefaultGroup
+                ? $":{key.Name}"
+                : $"{key.Group.Length}:{key.Group}{key.Name}";
+            cronExpression = new CronExpression(deferredHashExpression, hashKey);
+            if (deferredTimeZone is not null)
+            {
+                cronExpression.TimeZone = deferredTimeZone;
+            }
+        }
+    }
 }
 
 /// <summary>
@@ -310,6 +403,27 @@ public static class CronScheduleTriggerBuilderExtensions
     public static TriggerBuilder WithCronSchedule(this TriggerBuilder triggerBuilder, string cronExpression, Action<CronScheduleBuilder> action)
     {
         CronScheduleBuilder builder = CronScheduleBuilder.CronSchedule(cronExpression);
+        action(builder);
+        return triggerBuilder.WithSchedule(builder);
+    }
+
+    /// <summary>
+    /// Set the trigger's schedule to a cron expression with H (hash) tokens
+    /// resolved using the given hash key.
+    /// </summary>
+    public static TriggerBuilder WithCronSchedule(this TriggerBuilder triggerBuilder, string cronExpression, string hashKey)
+    {
+        CronScheduleBuilder builder = CronScheduleBuilder.CronScheduleWithHash(cronExpression, hashKey);
+        return triggerBuilder.WithSchedule(builder);
+    }
+
+    /// <summary>
+    /// Set the trigger's schedule to a cron expression with H (hash) tokens
+    /// resolved using the given hash key, with additional schedule configuration.
+    /// </summary>
+    public static TriggerBuilder WithCronSchedule(this TriggerBuilder triggerBuilder, string cronExpression, string hashKey, Action<CronScheduleBuilder> action)
+    {
+        CronScheduleBuilder builder = CronScheduleBuilder.CronScheduleWithHash(cronExpression, hashKey);
         action(builder);
         return triggerBuilder.WithSchedule(builder);
     }

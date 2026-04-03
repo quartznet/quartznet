@@ -111,8 +111,17 @@ __Calendar Example__
   .WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(11, 30)) // execute job daily at 11:30
   .ModifiedByCalendar("myHolidays") // but not on holidays
   .Build();
-    
-    // .. schedule job with trigger2 
+
+	// Use H (hash) to spread triggers across time instead of a fixed schedule.
+	// The trigger identity is used as the hash seed, so each trigger fires at a unique time.
+	ITrigger t3 = TriggerBuilder.Create()
+		.WithIdentity("myTrigger3")
+		.ForJob("myJob3")
+		.WithCronSchedule("0 H H(9-17) * * ?") // execute at a hash-derived time during business hours
+		.ModifiedByCalendar("myHolidays")
+		.Build();
+
+    // .. schedule jobs with triggers
 ```
 
 The details of the construction/building of triggers will be given in the next couple lessons.

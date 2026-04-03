@@ -261,6 +261,10 @@ public sealed class CronExpression : ISerializable
     [NonSerialized] private bool calendarDayOfMonth;
 
     private static readonly Regex regex = new("^L(-\\d{1,2})?(W(-\\d{1,2})?)?$", RegexOptions.Compiled | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(5)); //e.g. LW L-0W L-4 L-12W LW-4 LW-12
+
+    // Field ranges for H (hash) token resolution: [min, max] indexed by field type (Second=0 through DayOfWeek=5)
+    private static readonly int[] HashFieldMins = { 0, 0, 0, 1, 1, 1 };
+    private static readonly int[] HashFieldMaxes = { 59, 59, 23, 31, 12, 7 };
     private static readonly Regex offsetRegex = new("LW-(?<offset>[0-9]+)", RegexOptions.Compiled | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(5));
 
     static CronExpression()
@@ -282,6 +286,31 @@ public sealed class CronExpression : ISerializable
 
         CronExpressionString = CultureInfo.InvariantCulture.TextInfo.ToUpper(cronExpression).Trim();
         BuildExpression(CronExpressionString);
+    }
+
+    /// <summary>
+    /// Constructs a new <see cref="CronExpression" /> with H (hash) tokens resolved
+    /// using the specified hash key. The hash key is typically the trigger or job name,
+    /// producing deterministic but spread-out fire times across different triggers.
+    /// </summary>
+    /// <param name="cronExpression">Cron expression that may contain H tokens</param>
+    /// <param name="hashKey">A stable string key used to derive hash values (e.g., trigger name)</param>
+    /// <seealso cref="ResolveHash(string, string)" />
+    public CronExpression(string cronExpression, string hashKey)
+        : this(ResolveHash(cronExpression, hashKey))
+    {
+    }
+
+    /// <summary>
+    /// Constructs a new <see cref="CronExpression" /> with H (hash) tokens resolved
+    /// using the specified integer hash seed.
+    /// </summary>
+    /// <param name="cronExpression">Cron expression that may contain H tokens</param>
+    /// <param name="hashSeed">An integer seed used to derive hash values</param>
+    /// <seealso cref="ResolveHash(string, int)" />
+    public CronExpression(string cronExpression, int hashSeed)
+        : this(ResolveHash(cronExpression, hashSeed))
+    {
     }
 
     private static int GetVersion(SerializationInfo info)
@@ -444,6 +473,304 @@ public sealed class CronExpression : ISerializable
     public static void ValidateExpression(string cronExpression)
     {
         var _ = new CronExpression(cronExpression);
+    }
+
+    /// <summary>
+    /// Indicates whether the specified cron expression (which may contain H hash tokens)
+    /// can be parsed into a valid cron expression when resolved with the given hash key.
+    /// </summary>
+    public static bool IsValidExpression(string cronExpression, string hashKey)
+    {
+        try
+        {
+            var _ = new CronExpression(cronExpression, hashKey);
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Validates that the specified cron expression (which may contain H hash tokens)
+    /// can be parsed into a valid cron expression when resolved with the given hash key.
+    /// </summary>
+    public static void ValidateExpression(string cronExpression, string hashKey)
+    {
+        var _ = new CronExpression(cronExpression, hashKey);
+    }
+
+    /// <summary>
+    /// Resolves H (hash) tokens in a cron expression to deterministic numeric values
+    /// based on the given hash key. The resulting expression is a standard cron expression
+    /// with no H tokens.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The H symbol can be thought of as a deterministic value over a range, derived from
+    /// a hash of the key. It produces stable scheduling that spreads load across time.
+    /// </para>
+    /// <para>Supported H token forms:</para>
+    /// <list type="bullet">
+    /// <item><description><c>H</c> — hash value within the full range of the field</description></item>
+    /// <item><description><c>H(min-max)</c> — hash value within the specified range</description></item>
+    /// <item><description><c>H/step</c> — hash-derived offset, then every step</description></item>
+    /// <item><description><c>H(min-max)/step</c> — hash-derived offset in range, then every step</description></item>
+    /// </list>
+    /// </remarks>
+    /// <param name="cronExpression">Cron expression that may contain H tokens</param>
+    /// <param name="hashKey">A stable string key used to derive hash values (e.g., trigger name)</param>
+    /// <returns>A standard cron expression string with all H tokens resolved to numeric values</returns>
+    public static string ResolveHash(string cronExpression, string hashKey)
+    {
+        if (cronExpression is null)
+        {
+            Throw.ArgumentException("cronExpression cannot be null", nameof(cronExpression));
+        }
+
+        if (hashKey is null)
+        {
+            Throw.ArgumentException("hashKey cannot be null", nameof(hashKey));
+        }
+
+        return ResolveHashTokens(
+            CultureInfo.InvariantCulture.TextInfo.ToUpper(cronExpression),
+            HashStringToSeed(hashKey));
+    }
+
+    /// <summary>
+    /// Resolves H (hash) tokens in a cron expression to deterministic numeric values
+    /// based on the given integer seed.
+    /// </summary>
+    /// <param name="cronExpression">Cron expression that may contain H tokens</param>
+    /// <param name="hashSeed">An integer seed used to derive hash values</param>
+    /// <returns>A standard cron expression string with all H tokens resolved to numeric values</returns>
+    public static string ResolveHash(string cronExpression, int hashSeed)
+    {
+        if (cronExpression is null)
+        {
+            Throw.ArgumentException("cronExpression cannot be null", nameof(cronExpression));
+        }
+
+        return ResolveHashTokens(
+            CultureInfo.InvariantCulture.TextInfo.ToUpper(cronExpression),
+            hashSeed);
+    }
+
+    /// <summary>
+    /// Checks whether the given cron expression string contains any H (hash) tokens.
+    /// </summary>
+    internal static bool ContainsHashToken(string cronExpression)
+    {
+        ReadOnlySpan<char> upper = CultureInfo.InvariantCulture.TextInfo.ToUpper(cronExpression);
+        foreach (ReadOnlySpan<char> field in upper.SpanSplit(' ', '\t'))
+        {
+            if (field.IsEmpty)
+            {
+                continue;
+            }
+            foreach (ReadOnlySpan<char> token in field.SpanSplit(','))
+            {
+                if (!token.IsEmpty && token[0] == 'H')
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static string ResolveHashTokens(string upperExpression, int seed)
+    {
+        int[] fieldMins = HashFieldMins;
+        int[] fieldMaxes = HashFieldMaxes;
+
+        int fieldCount = 0;
+        StringBuilder result = new StringBuilder();
+        foreach (ReadOnlySpan<char> field in upperExpression.AsSpan().SpanSplit(' ', '\t'))
+        {
+            if (field.IsEmpty)
+            {
+                continue;
+            }
+
+            int fieldIndex = fieldCount++;
+            if (fieldIndex > 0)
+            {
+                result.Append(' ');
+            }
+
+            // Year field: pass through but reject H
+            if (fieldIndex == CronExpressionConstants.Year)
+            {
+                foreach (ReadOnlySpan<char> yt in field.SpanSplit(','))
+                {
+                    if (!yt.IsEmpty && yt[0] == 'H')
+                    {
+                        throw new FormatException("H (hash) token is not supported in the year field.");
+                    }
+                }
+                result.Append(field);
+                continue;
+            }
+
+            // Fields 0-5: resolve H tokens
+            if (fieldIndex < 6)
+            {
+                int fieldSeed = MixFieldSeed(seed, fieldIndex);
+                int fieldMin = fieldMins[fieldIndex];
+                int fieldMax = fieldMaxes[fieldIndex];
+
+                bool first = true;
+                foreach (ReadOnlySpan<char> token in field.SpanSplit(','))
+                {
+                    if (!first)
+                    {
+                        result.Append(',');
+                    }
+                    first = false;
+                    ResolveFieldToken(token, fieldSeed, fieldMin, fieldMax, result);
+                }
+            }
+            else
+            {
+                result.Append(field);
+            }
+        }
+
+        if (fieldCount < 6 || fieldCount > 7)
+        {
+            throw new FormatException($"Invalid cron expression (expected 6-7 fields): {upperExpression}");
+        }
+
+        return result.ToString();
+    }
+
+    private static void ResolveFieldToken(ReadOnlySpan<char> token, int fieldSeed, int fieldMin, int fieldMax, StringBuilder result)
+    {
+        if (token.IsEmpty || token[0] != 'H')
+        {
+            result.Append(token);
+            return;
+        }
+
+        int pos = 1;
+        int rangeMin = fieldMin;
+        int rangeMax = fieldMax;
+
+        if (pos < token.Length && token[pos] == '(')
+        {
+            int closeParen = token.Slice(pos).IndexOf(')');
+            if (closeParen < 0)
+            {
+                throw new FormatException($"Missing closing parenthesis in H token: {token.ToString()}");
+            }
+            closeParen += pos; // adjust to absolute position
+
+            ReadOnlySpan<char> rangeSpan = token.Slice(pos + 1, closeParen - pos - 1);
+            int dashIndex = rangeSpan.IndexOf('-');
+            if (dashIndex < 0)
+            {
+                throw new FormatException($"Invalid range format in H token (expected min-max): {token.ToString()}");
+            }
+
+            if (!int.TryParse(rangeSpan.Slice(0, dashIndex), NumberStyles.Integer, CultureInfo.InvariantCulture, out rangeMin)
+                || !int.TryParse(rangeSpan.Slice(dashIndex + 1), NumberStyles.Integer, CultureInfo.InvariantCulture, out rangeMax))
+            {
+                throw new FormatException($"Invalid numeric values in H range: {token.ToString()}");
+            }
+
+            if (rangeMin > rangeMax)
+            {
+                throw new FormatException($"Invalid range in H token (min > max): {token.ToString()}");
+            }
+
+            if (rangeMin < fieldMin || rangeMax > fieldMax)
+            {
+                throw new FormatException(
+                    $"H range ({rangeMin}-{rangeMax}) exceeds field bounds ({fieldMin}-{fieldMax}): {token.ToString()}");
+            }
+
+            pos = closeParen + 1;
+        }
+
+        int step = 0;
+        if (pos < token.Length && token[pos] == '/')
+        {
+            ReadOnlySpan<char> stepSpan = token.Slice(pos + 1);
+            if (!int.TryParse(stepSpan, NumberStyles.Integer, CultureInfo.InvariantCulture, out step) || step <= 0)
+            {
+                throw new FormatException($"Invalid step value in H token: {token.ToString()}");
+            }
+            pos = token.Length;
+        }
+
+        if (pos < token.Length)
+        {
+            throw new FormatException($"Unexpected characters after H token: {token.ToString()}");
+        }
+
+        int range = rangeMax - rangeMin + 1;
+
+        if (step > 0)
+        {
+            int effectiveStep = Math.Min(step, range);
+            int offset = (fieldSeed & 0x7FFFFFFF) % effectiveStep;
+            int startValue = rangeMin + offset;
+
+            if (rangeMin == fieldMin && rangeMax == fieldMax)
+            {
+                result.Append(startValue);
+                result.Append('/');
+                result.Append(step);
+                return;
+            }
+
+            result.Append(startValue);
+            result.Append('-');
+            result.Append(rangeMax);
+            result.Append('/');
+            result.Append(step);
+            return;
+        }
+
+        int hashValue = (fieldSeed & 0x7FFFFFFF) % range + rangeMin;
+        result.Append(hashValue);
+    }
+
+    /// <summary>
+    /// Computes a deterministic hash seed from a string using FNV-1a 32-bit.
+    /// Unlike <see cref="string.GetHashCode()"/>, this is deterministic across
+    /// .NET runtimes and process restarts.
+    /// </summary>
+    internal static int HashStringToSeed(string key)
+    {
+        unchecked
+        {
+            uint hash = 2166136261;
+            foreach (char c in key)
+            {
+                hash ^= c;
+                hash *= 16777619;
+            }
+            return (int) (hash & 0x7FFFFFFF);
+        }
+    }
+
+    private static int MixFieldSeed(int baseSeed, int fieldIndex)
+    {
+        unchecked
+        {
+            uint h = (uint) baseSeed + (uint) fieldIndex * 0x9E3779B9;
+            h ^= h >> 16;
+            h *= 0x85EBCA6B;
+            h ^= h >> 13;
+            h *= 0xC2B2AE35;
+            h ^= h >> 16;
+            return (int) (h & 0x7FFFFFFF);
+        }
     }
 
     ////////////////////////////////////////////////////////////////////////////

@@ -55,7 +55,7 @@ var example = TriggerBuilder.Create()
 ```
 
 **CronTrigger** is useful if you wish to have triggering based on calendar-like schedules -
-such as "every Friday, at noon" or "at 10:15 on the 10th day of every month.". You can use [Cron Maker](http://www.cronmaker.com/) to explore the syntax.
+such as "every Friday, at noon" or "at 10:15 on the 10th day of every month.". `WithCronSchedule` supports `H` (hash) tokens to [spread fire times across triggers](crontrigger#h-hash-for-load-distribution). You can use [Cron Maker](http://www.cronmaker.com/) to explore the syntax.
 
 ```csharp
 var example = TriggerBuilder.Create()

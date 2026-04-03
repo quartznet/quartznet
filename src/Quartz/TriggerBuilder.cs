@@ -107,6 +107,20 @@ public sealed class TriggerBuilder
         {
             scheduleBuilder = SimpleScheduleBuilder.Create();
         }
+
+        // Resolve deferred H (hash) tokens using trigger identity
+        if (scheduleBuilder is IHashKeyAwareScheduleBuilder hashAware && hashAware.RequiresHashKey)
+        {
+            if (key is null)
+            {
+                throw new FormatException(
+                    "Trigger identity must be set via WithIdentity() when using H (hash) tokens "
+                    + "in cron expressions. The trigger key (name + group) is used as the hash "
+                    + "seed to produce deterministic, spread-out fire times.");
+            }
+            hashAware.SetHashKey(key);
+        }
+
         IMutableTrigger trig = scheduleBuilder.Build();
 
         trig.CalendarName = calendarName;

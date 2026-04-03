@@ -47,7 +47,7 @@ Likewise, the block of code that builds the trigger is using `TriggerBuilder`'s 
 Possible schedule extension methods are:
 
 * `WithCalendarIntervalSchedule`
-* `WithCronSchedule`
+* `WithCronSchedule` — supports `H` (hash) tokens to [spread fire times across triggers](crontrigger#h-hash-for-load-distribution)
 * `WithDailyTimeIntervalSchedule`
 * `WithSimpleSchedule`
 
