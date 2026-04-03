@@ -1086,9 +1086,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <summary>
     /// Optimized misfire update path that bypasses the StoreTrigger method's unnecessary
     /// queries (existence check, pause-group checks, job retrieval, blocked-state check,
-    /// trigger-type lookup). Safe because the trigger was found in WAITING state under
-    /// <c>LockTriggerAccess</c> — a WAITING trigger's group is not paused, and its DCE job
-    /// cannot be executing (TriggersFired moves sibling triggers to BLOCKED).
+    /// trigger-type lookup). Safe when the caller already holds <c>LockTriggerAccess</c>
+    /// and has determined the trigger's persisted state and corresponding
+    /// <paramref name="newStateIfNotComplete"/> to use across the misfire update.
+    /// This covers triggers found in WAITING state during batch recovery as well as
+    /// single-trigger misfire handling in the acquisition and resume paths.
     /// </summary>
     private async Task DoUpdateOfMisfiredTriggerOptimized(
         ConnectionAndTransactionHolder conn,
@@ -1105,7 +1107,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         {
             if (calendarCache == null || !calendarCache.TryGetValue(trig.CalendarName, out cal))
             {
-                cal = await RetrieveCalendar(conn, trig.CalendarName).ConfigureAwait(false);
+                cal = await RetrieveCalendar(conn, trig.CalendarName, cancellationToken).ConfigureAwait(false);
                 if (calendarCache != null)
                 {
                     calendarCache[trig.CalendarName] = cal;
