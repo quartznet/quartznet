@@ -1110,6 +1110,28 @@ public interface IDriverDelegate
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Performs a targeted UPDATE of only the columns that change during misfire recovery,
+    /// bypassing the heavyweight <c>StoreTrigger</c> / <c>UpdateTrigger</c> path which
+    /// performs many unnecessary SELECTs (existence check, pause-group checks, job retrieval,
+    /// trigger-type lookup) that are redundant for a trigger known to be in WAITING state.
+    /// </summary>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="trigger">The trigger after <c>UpdateAfterMisfire</c> has been applied in-memory.</param>
+    /// <param name="newState">The new trigger state (WAITING or COMPLETE).</param>
+    /// <param name="misfireOriginalFireTime">
+    /// The original scheduled fire time for "fire now" misfire policies. When non-<c>null</c>,
+    /// the value is written to the MISFIRE_ORIG_FIRE_TIME column. <c>null</c> leaves the column
+    /// unchanged, preserving any previously stored original fire time.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask UpdateMisfiredTrigger(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger trigger,
+        string newState,
+        DateTimeOffset? misfireOriginalFireTime,
+        CancellationToken cancellationToken = default);
 }
 
 public class TriggerAcquireResult
