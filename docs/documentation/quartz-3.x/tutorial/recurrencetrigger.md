@@ -36,9 +36,11 @@ the base frequency. Other properties refine the pattern:
 
 ::: warning
 `COUNT` tracks the number of times the trigger has actually fired (via `TimesTriggered`),
-not the number of theoretical recurrence occurrences. This means misfired occurrences that
-are skipped (e.g., via `DoNothing` misfire policy) still count toward the limit. This is
-consistent with Quartz.NET trigger semantics but differs from strict RFC 5545 occurrence counting.
+not the number of theoretical recurrence occurrences. Misfired occurrences that are skipped
+(e.g., via `DoNothing` misfire policy) do **not** count toward the limit. However, if the
+misfire policy causes an immediate fire (e.g., `FireOnceNow`), that fire **does** count.
+This is consistent with Quartz.NET trigger semantics but differs from strict RFC 5545
+occurrence counting.
 :::
 
 ### Examples
