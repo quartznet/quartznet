@@ -276,6 +276,12 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
     /// <inheritdoc/>
     public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? calendar)
     {
+        // If the end time is already in the past, the trigger should never fire
+        if (EndTimeUtc.HasValue && EndTimeUtc.Value < SystemTime.UtcNow())
+        {
+            return null;
+        }
+
         nextFireTimeUtc = StartTimeUtc;
 
         // Find the first occurrence on or after StartTimeUtc.
