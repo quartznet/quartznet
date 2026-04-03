@@ -271,9 +271,11 @@ internal sealed class RecurrenceRule
         int limit = Count != null ? Math.Min(n, Count.Value) : n;
         int occurrenceCount = 0;
 
-        // Iteration bound must be at least limit+1 (each period may produce only one occurrence)
-        // plus headroom for periods with no valid candidates, capped at 2x MaxIterations.
-        int maxPeriods = Math.Min(limit + MaxIterations, MaxIterations * 2);
+        // Iteration bound must scale with the requested occurrence count because
+        // SECONDLY/MINUTELY rules yield at most one occurrence per period.
+        // Add headroom for empty periods (BY* filtering), guard against overflow.
+        long maxPeriodsLong = (long)limit + MaxIterations;
+        int maxPeriods = maxPeriodsLong > int.MaxValue ? int.MaxValue : (int)maxPeriodsLong;
 
         for (int i = 0; i < maxPeriods; i++)
         {
@@ -336,10 +338,24 @@ internal sealed class RecurrenceRule
         // Search backward from the boundary: find the period containing the boundary,
         // then scan backward through periods until we find one with valid candidates.
         int boundaryPeriodIdx = GetPeriodIndex(local.Start, boundary.Value);
+        int iterations = 0;
+        int i = boundaryPeriodIdx;
 
-        for (int i = boundaryPeriodIdx; i >= 0; i--)
+        while (i >= 0 && iterations < MaxIterations)
         {
             DateTime periodStart = GetPeriodStart(local.Start, i);
+
+            // Fast-backward: for sub-daily frequencies with BYMONTH limiting,
+            // skip to the end of the previous matching month instead of
+            // iterating every period in non-matching months.
+            if (ByMonth != null && Frequency < RecurrenceFrequency.Daily
+                && Array.IndexOf(ByMonth, periodStart.Month) < 0)
+            {
+                i = FastRewindToPreviousMatchingMonth(local.Start, i);
+                iterations++;
+                continue;
+            }
+
             List<DateTime> candidates = ByRuleExpander.ExpandPeriod(this, local.Start, periodStart);
 
             // Walk candidates in reverse to find the last one within bounds
@@ -361,8 +377,10 @@ internal sealed class RecurrenceRule
                 return ToDateTimeOffset(candidate, local.TimeZone);
             }
 
-            // Safety: don't search more than MaxIterations periods backward
-            if (boundaryPeriodIdx - i > MaxIterations)
+            i--;
+            iterations++;
+
+            if (iterations >= MaxIterations)
             {
                 return null;
             }
@@ -502,6 +520,37 @@ internal sealed class RecurrenceRule
         }
 
         return currentPeriodIdx + 1;
+    }
+
+    /// <summary>
+    /// Find the period index at the end of the previous month that matches BYMONTH,
+    /// searching backward. Used by GetLastOccurrenceBefore to skip non-matching months.
+    /// </summary>
+    private int FastRewindToPreviousMatchingMonth(DateTime start, int currentPeriodIdx)
+    {
+        DateTime current = GetPeriodStart(start, currentPeriodIdx);
+
+        for (int attempt = 0; attempt < 13; attempt++)
+        {
+            // Go to the last moment of the previous month
+            DateTime prevMonthEnd = new DateTime(current.Year, current.Month, 1)
+                .AddMonths(-attempt)
+                .AddSeconds(-1);
+
+            if (prevMonthEnd < start)
+            {
+                return 0;
+            }
+
+            if (ByMonth != null && Array.IndexOf(ByMonth, prevMonthEnd.Month) >= 0)
+            {
+                // Land at end of the matching month so backward search finds its last period
+                int idx = GetPeriodIndex(start, prevMonthEnd);
+                return Math.Min(idx, currentPeriodIdx - 1);
+            }
+        }
+
+        return Math.Max(currentPeriodIdx - 1, 0);
     }
 
     private DateTime? FindNextOccurrenceWithCount(LocalTimes local)
