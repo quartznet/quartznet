@@ -49,6 +49,10 @@ Jobs and triggers are created via `JobBuilder` and `TriggerBuilder` with schedul
 
 After `TriggersFired`, always use `TriggeredJobComplete` (not `ReleaseAcquiredTrigger`) to clean up trigger state. `ReleaseAcquiredTrigger` doesn't unblock sibling triggers for `[DisallowConcurrentExecution]` jobs.
 
+### Property-based configuration and `StdSchedulerFactory`
+
+`StdSchedulerFactory` configures components (plugins, job stores, thread pools, etc.) by reading `quartz.*` properties and injecting values into public setters via `ObjectUtils.SetObjectProperties()` using reflection. The property key `quartz.plugin.myPlugin.someProperty` maps to a public `SomeProperty` setter on the plugin instance (case-insensitive match). This means any public settable property on a plugin, job store, or thread pool class is automatically configurable through the standard property system — no special registration needed. When adding configurable options to these components, expose them as public properties with sensible defaults rather than requiring constructor parameters or DI.
+
 ### Adding new delegate methods on the 3.x branch
 
 `IDriverDelegate` is a public SPI interface — adding methods would break external implementations. Use the `INextVersionDelegate` pattern instead:
