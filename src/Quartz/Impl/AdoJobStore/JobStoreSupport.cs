@@ -1768,6 +1768,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                 return false;
             }
 
+            if (!update.HasDescription && !update.HasPriority && !update.HasJobDataMap
+                && !update.HasCalendarName && !update.HasMisfireInstruction)
+            {
+                return true;
+            }
+
             if (update.HasCalendarName && update.CalendarName is not null)
             {
                 bool calExists = await CalendarExists(conn, update.CalendarName, cancellationToken).ConfigureAwait(false);

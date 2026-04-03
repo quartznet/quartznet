@@ -3,6 +3,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using FakeItEasy;
+
 using NUnit.Framework;
 
 using Quartz.Impl;
@@ -355,6 +357,16 @@ public class UpdateTriggerDetailsTest
         Assert.AreEqual(nextFireBefore, retrieved.GetNextFireTimeUtc());
 
         await scheduler.Shutdown(false);
+    }
+
+    [Test]
+    public void ExtensionMethod_ThrowsForNonStdScheduler()
+    {
+        IScheduler fakeScheduler = A.Fake<IScheduler>();
+        TriggerDetailsUpdate update = new TriggerDetailsUpdate().WithDescription("test");
+
+        Assert.ThrowsAsync<SchedulerException>(async () =>
+            await fakeScheduler.UpdateTriggerDetails(new TriggerKey("t", "g"), update));
     }
 
     private sealed class TestSignaler : ISchedulerSignaler

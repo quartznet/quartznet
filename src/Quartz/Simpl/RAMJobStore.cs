@@ -640,6 +640,12 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
                 return Task.FromResult(false);
             }
 
+            if (!update.HasDescription && !update.HasPriority && !update.HasJobDataMap
+                && !update.HasCalendarName && !update.HasMisfireInstruction)
+            {
+                return Task.FromResult(true);
+            }
+
             IOperableTrigger trigger = tw.Trigger;
 
             if (update.HasCalendarName && update.CalendarName is not null)
