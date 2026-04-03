@@ -142,10 +142,17 @@ public class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>, IHashKeyAwareS
     /// <seealso cref="CronExpression" />
     public static CronScheduleBuilder CronSchedule(string cronExpression)
     {
+        if (cronExpression is null)
+        {
+            throw new ArgumentException("cronExpression cannot be null", nameof(cronExpression));
+        }
+
         if (CronExpression.ContainsHashToken(cronExpression))
         {
-            // Validate syntax by resolving with a dummy seed — throws FormatException on invalid syntax
-            CronExpression.ResolveHash(cronExpression, 0);
+            // Validate H-token syntax by resolving with a dummy seed, then validate
+            // the fully resolved cron expression to preserve early validation behavior
+            string resolved = CronExpression.ResolveHash(cronExpression, 0);
+            CronExpression.ValidateExpression(resolved);
             return new CronScheduleBuilder(cronExpression);
         }
 
@@ -382,9 +389,11 @@ public class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>, IHashKeyAwareS
     {
         if (deferredHashExpression is not null)
         {
+            // Use length-prefixed encoding to avoid collisions when group/name contain dots
+            // e.g., group="a", name="b.c" vs group="a.b", name="c" must produce different keys
             string hashKey = key.Group == SchedulerConstants.DefaultGroup
                 ? key.Name
-                : $"{key.Group}.{key.Name}";
+                : $"{key.Group.Length}:{key.Group}{key.Name}";
             cronExpression = new CronExpression(deferredHashExpression, hashKey);
             if (deferredTimeZone is not null)
             {

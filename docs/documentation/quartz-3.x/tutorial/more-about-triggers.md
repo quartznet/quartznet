@@ -113,7 +113,7 @@ __Calendar Example__
 	ITrigger t3 = TriggerBuilder.Create()
 		.WithIdentity("myTrigger3")
 		.ForJob("myJob3")
-		.WithCronSchedule("H H(9-17) * * ?") // execute at a hash-derived time during business hours
+		.WithCronSchedule("0 H H(9-17) * * ?") // execute at a hash-derived time during business hours
 		.ModifiedByCalendar("myHolidays")
 		.Build();
 

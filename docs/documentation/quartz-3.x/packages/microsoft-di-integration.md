@@ -141,7 +141,7 @@ public void ConfigureServices(IServiceCollection services)
         q.AddTrigger(t => t
             .WithIdentity("Spread Cron Trigger")
             .ForJob(jobKey)
-            .WithCronSchedule("H H * * * ?")
+            .WithCronSchedule("H * * * * ?")
             .WithDescription("fires once per minute at a hash-derived second")
         );
 

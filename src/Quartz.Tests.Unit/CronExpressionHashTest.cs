@@ -124,14 +124,22 @@ public class CronExpressionHashTest
     [Test]
     public void ResolveHash_DifferentFieldsGetDifferentValues()
     {
-        // With seed 42, H in seconds and H in minutes should give different values
-        string resolved = CronExpression.ResolveHash("H H * * * ?", 42);
-        string[] fields = resolved.Split(' ');
-        int seconds = int.Parse(fields[0], CultureInfo.InvariantCulture);
-        int minutes = int.Parse(fields[1], CultureInfo.InvariantCulture);
+        // Per-field mixing should produce different values for most seeds,
+        // but modulo 60 can legitimately collide for some seeds
+        int differentCount = 0;
+        for (int seed = 0; seed < 100; seed++)
+        {
+            string resolved = CronExpression.ResolveHash("H H * * * ?", seed);
+            string[] fields = resolved.Split(' ');
+            int seconds = int.Parse(fields[0], CultureInfo.InvariantCulture);
+            int minutes = int.Parse(fields[1], CultureInfo.InvariantCulture);
+            if (seconds != minutes)
+            {
+                differentCount++;
+            }
+        }
 
-        // Different fields should produce different values (same range 0-59)
-        Assert.AreNotEqual(seconds, minutes, "H in seconds and minutes should resolve to different values");
+        differentCount.Should().BeGreaterThan(90, "seconds and minutes should differ for most seeds");
     }
 
     [Test]

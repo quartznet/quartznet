@@ -67,7 +67,7 @@ The legal characters and the names of months and days of the week are not case s
 ## H (hash) for load distribution
 
 The `H` symbol (for "hash") can be used in place of a specific value to spread scheduled tasks
-evenly across time. When many triggers share an identical cron expression such as `0 0 * * ?` (midnight daily),
+evenly across time. When many triggers share an identical cron expression such as `0 0 0 * * ?` (midnight daily),
 they all fire simultaneously, causing resource spikes.
 
 `H` resolves to a **deterministic** value derived from the trigger's name. The value stays
@@ -105,7 +105,7 @@ rather than a random GUID:
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("nightly-cleanup")
-    .WithCronSchedule("H H(0-7) * * ?")
+    .WithCronSchedule("0 H H(0-7) * * ?")
     .Build();
 ```
 
@@ -113,14 +113,14 @@ You can also provide an explicit hash key, which does not require a trigger iden
 
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
-    .WithCronSchedule("H H(0-7) * * ?", "nightly-cleanup")
+    .WithCronSchedule("0 H H(0-7) * * ?", "nightly-cleanup")
     .Build();
 ```
 
 Or construct a `CronExpression` directly:
 
 ```csharp
-var expr = new CronExpression("H H(0-7) * * ?", "nightly-cleanup");
+var expr = new CronExpression("0 H H(0-7) * * ?", "nightly-cleanup");
 ```
 
 ::: tip
