@@ -537,6 +537,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
     /// <param name="key">The key.</param>
     /// <param name="val">The val.</param>
     /// <returns></returns>
+    [Obsolete("Use the indexer this[key] = value instead. This method will be removed in a future major version.")]
     public virtual object? Put(TKey key, TValue val)
     {
         if (map.TryGetValue(key, out var tempObject))
@@ -560,6 +561,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
     /// Puts all values from source dictionary into this map.
     /// </summary>
     /// <param name="t">The source dictionary.</param>
+    [Obsolete("Use the indexer this[key] = value in a loop instead. This method will be removed in a future major version.")]
     public virtual void PutAll(IDictionary<TKey, TValue> t)
     {
         if (t == null)

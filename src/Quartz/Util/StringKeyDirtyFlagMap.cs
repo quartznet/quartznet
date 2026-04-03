@@ -122,6 +122,7 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// All keys must be <see cref="string" />s, and all values must be serializable.
     /// </para>
     /// </summary>
+    [Obsolete("Use the indexer this[key] = value in a loop instead. This method will be removed in a future major version.")]
     public override void PutAll(IDictionary<string, object> map)
     {
         foreach (KeyValuePair<string, object> pair in map)
@@ -135,6 +136,7 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// Adds the given <see cref="int" /> value to the <see cref="IJob" />'s
     /// data map.
     /// </summary>
+    [Obsolete("Use the indexer this[key] = value instead. This method will be removed in a future major version.")]
     public virtual void Put(string key, int value)
     {
         base.Put(key, value);
@@ -144,6 +146,7 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// Adds the given <see cref="long" /> value to the <see cref="IJob" />'s
     /// data map.
     /// </summary>
+    [Obsolete("Use the indexer this[key] = value instead. This method will be removed in a future major version.")]
     public virtual void Put(string key, long value)
     {
         base.Put(key, value);
@@ -153,6 +156,7 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// Adds the given <see cref="float" /> value to the <see cref="IJob" />'s
     /// data map.
     /// </summary>
+    [Obsolete("Use the indexer this[key] = value instead. This method will be removed in a future major version.")]
     public virtual void Put(string key, float value)
     {
         base.Put(key, value);
@@ -162,6 +166,7 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// Adds the given <see cref="double" /> value to the <see cref="IJob" />'s
     /// data map.
     /// </summary>
+    [Obsolete("Use the indexer this[key] = value instead. This method will be removed in a future major version.")]
     public virtual void Put(string key, double value)
     {
         base.Put(key, value);
@@ -171,6 +176,7 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// Adds the given <see cref="bool" /> value to the <see cref="IJob" />'s
     /// data map.
     /// </summary>
+    [Obsolete("Use the indexer this[key] = value instead. This method will be removed in a future major version.")]
     public virtual void Put(string key, bool value)
     {
         base.Put(key, value);
@@ -180,6 +186,7 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// Adds the given <see cref="char" /> value to the <see cref="IJob" />'s
     /// data map.
     /// </summary>
+    [Obsolete("Use the indexer this[key] = value instead. This method will be removed in a future major version.")]
     public virtual void Put(string key, char value)
     {
         base.Put(key, value);
@@ -189,6 +196,7 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// Adds the given <see cref="string" /> value to the <see cref="IJob" />'s
     /// data map.
     /// </summary>
+    [Obsolete("Use the indexer this[key] = value instead. This method will be removed in a future major version.")]
     public virtual void Put(string key, string? value)
     {
         base.Put(key, value!);
@@ -198,6 +206,7 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// Adds the given <see cref="Guid" /> value to the <see cref="IJob" />'s
     /// data map.
     /// </summary>
+    [Obsolete("Use the indexer this[key] = value instead. This method will be removed in a future major version.")]
     public virtual void Put(string key, Guid value)
     {
         base.Put(key, value);

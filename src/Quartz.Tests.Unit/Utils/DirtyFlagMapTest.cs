@@ -58,7 +58,7 @@ public class DirtyFlagMapTest
     public void TryGetValue_KeyIsFound_ValueIsNull()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", null);
+        dirtyFlagMap["a"] = null;
         dirtyFlagMap.ClearDirtyFlag();
 
         Assert.IsTrue(dirtyFlagMap.TryGetValue("a", out var value));
@@ -70,7 +70,7 @@ public class DirtyFlagMapTest
     public void TryGetValue_KeyIsFound_ValueIsNotNull()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", "x");
+        dirtyFlagMap["a"] = "x";
         dirtyFlagMap.ClearDirtyFlag();
 
         Assert.IsTrue(dirtyFlagMap.TryGetValue("a", out var value));
@@ -114,7 +114,7 @@ public class DirtyFlagMapTest
     public void Indexer_Get_KeyIsFound_ValueIsNotNull()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", "x");
+        dirtyFlagMap["a"] = "x";
         dirtyFlagMap.ClearDirtyFlag();
 
         var actual = dirtyFlagMap["a"];
@@ -128,7 +128,7 @@ public class DirtyFlagMapTest
     public void Indexer_Get_KeyIsFound_ValueIsNull()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", null);
+        dirtyFlagMap["a"] = null;
         dirtyFlagMap.ClearDirtyFlag();
 
         var actual = dirtyFlagMap["a"];
@@ -239,7 +239,7 @@ public class DirtyFlagMapTest
     public void Indexer_Set_KeyIsFound_ValidDoesNotEqualCurrentValue()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", "x");
+        dirtyFlagMap["a"] = "x";
         dirtyFlagMap.ClearDirtyFlag();
 
         dirtyFlagMap["a"] = "y";
@@ -269,8 +269,8 @@ public class DirtyFlagMapTest
     public void Indexer_Set_KeyIsFound_ValidEqualsCurrentValue()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", "x");
-        dirtyFlagMap.Put("b", null);
+        dirtyFlagMap["a"] = "x";
+        dirtyFlagMap["b"] = null;
         dirtyFlagMap.ClearDirtyFlag();
 
         dirtyFlagMap["a"] = "y";
@@ -373,7 +373,7 @@ public class DirtyFlagMapTest
     public void Remove_KeyValuePair_KeyIsFound_ValueDoesNotEqualCurrentValue()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", "x");
+        dirtyFlagMap["a"] = "x";
         dirtyFlagMap.ClearDirtyFlag();
 
         // #1417: We should not remove entry if values are not equal, see commented code below
@@ -383,7 +383,7 @@ public class DirtyFlagMapTest
         Assert.IsFalse(dirtyFlagMap.ContainsKey("a"));
 
         dirtyFlagMap.Clear();
-        dirtyFlagMap.Put("a", null);
+        dirtyFlagMap["a"] = null;
         dirtyFlagMap.ClearDirtyFlag();
 
         Assert.IsTrue(dirtyFlagMap.Remove(new KeyValuePair<string, string>("a", "y")));
@@ -417,14 +417,14 @@ public class DirtyFlagMapTest
     public void Remove_KeyValuePair_KeyIsFound_ValueEqualsCurrentValue()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", "x");
+        dirtyFlagMap["a"] = "x";
         dirtyFlagMap.ClearDirtyFlag();
 
         Assert.IsTrue(dirtyFlagMap.Remove(new KeyValuePair<string, string>("a", "x")));
         Assert.IsTrue(dirtyFlagMap.Dirty);
         Assert.IsFalse(dirtyFlagMap.ContainsKey("a"));
 
-        dirtyFlagMap.Put("a", null);
+        dirtyFlagMap["a"] = null;
         dirtyFlagMap.ClearDirtyFlag();
 
         Assert.IsTrue(dirtyFlagMap.Remove(new KeyValuePair<string, string>("a", null)));
@@ -465,7 +465,7 @@ public class DirtyFlagMapTest
     public void Add_KeyAndValue_KeyIsFound_ValueDoesNotEqualCurrentValue()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", "x");
+        dirtyFlagMap["a"] = "x";
         dirtyFlagMap.ClearDirtyFlag();
 
         try
@@ -482,7 +482,7 @@ public class DirtyFlagMapTest
         Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
         Assert.AreEqual("x", dirtyFlagMap["a"]);
 
-        dirtyFlagMap.Put("b", null);
+        dirtyFlagMap["b"] = null;
         dirtyFlagMap.ClearDirtyFlag();
 
         try
@@ -499,7 +499,7 @@ public class DirtyFlagMapTest
         Assert.IsTrue(dirtyFlagMap.ContainsKey("b"));
         Assert.IsNull(dirtyFlagMap["b"]);
 
-        dirtyFlagMap.Put("c", "z");
+        dirtyFlagMap["c"] = "z";
         dirtyFlagMap.ClearDirtyFlag();
 
         try
@@ -521,7 +521,7 @@ public class DirtyFlagMapTest
     public void Add_KeyAndValue_KeyIsFound_ValueEqualsCurrentValue()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", "x");
+        dirtyFlagMap["a"] = "x";
         dirtyFlagMap.ClearDirtyFlag();
 
         try
@@ -539,7 +539,7 @@ public class DirtyFlagMapTest
         Assert.AreEqual("x", dirtyFlagMap["a"]);
 
         dirtyFlagMap.Clear();
-        dirtyFlagMap.Put("a", null);
+        dirtyFlagMap["a"] = null;
         dirtyFlagMap.ClearDirtyFlag();
 
         try
@@ -632,7 +632,7 @@ public class DirtyFlagMapTest
     public void Add_KeyValuePair_KeyIsFound_ValueDoesNotEqualCurrentValue()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", "x");
+        dirtyFlagMap["a"] = "x";
         dirtyFlagMap.ClearDirtyFlag();
 
         // #1417: We should throw ArgumentException, see commented code below
@@ -714,7 +714,7 @@ public class DirtyFlagMapTest
     public void Add_KeyValuePair_KeyIsFound_ValueEqualsCurrentValue()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", "x");
+        dirtyFlagMap["a"] = "x";
         dirtyFlagMap.ClearDirtyFlag();
 
         dirtyFlagMap.Add(new KeyValuePair<string, string>("a", "x"));
@@ -724,7 +724,7 @@ public class DirtyFlagMapTest
         Assert.AreEqual("x", dirtyFlagMap["a"]);
 
         dirtyFlagMap.Clear();
-        dirtyFlagMap.Put("a", null);
+        dirtyFlagMap["a"] = null;
         dirtyFlagMap.ClearDirtyFlag();
 
         dirtyFlagMap.Add(new KeyValuePair<string, string>("a", null));
@@ -985,7 +985,7 @@ public class DirtyFlagMapTest
     public void IDictionary_Add_KeyAndValue_KeyIsFound_ValueEqualsCurrentValue()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", "x");
+        dirtyFlagMap["a"] = "x";
         dirtyFlagMap.ClearDirtyFlag();
 
         Assert.IsTrue(dirtyFlagMap.Remove(new KeyValuePair<string, string>("a", "x")));
@@ -993,7 +993,7 @@ public class DirtyFlagMapTest
         Assert.IsFalse(dirtyFlagMap.ContainsKey("a"));
 
         dirtyFlagMap.Clear();
-        dirtyFlagMap.Put("a", null);
+        dirtyFlagMap["a"] = null;
         dirtyFlagMap.ClearDirtyFlag();
 
         Assert.IsTrue(dirtyFlagMap.Remove(new KeyValuePair<string, string>("a", null)));
@@ -1031,7 +1031,7 @@ public class DirtyFlagMapTest
     public void IDictionary_Indexer_Get_KeyIsFound_ValueIsNotNull()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", "x");
+        dirtyFlagMap["a"] = "x";
         dirtyFlagMap.ClearDirtyFlag();
 
         var actual = ((IDictionary) dirtyFlagMap)["a"];
@@ -1045,7 +1045,7 @@ public class DirtyFlagMapTest
     public void IDictionary_Indexer_Get_KeyIsFound_ValueIsNull()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", null);
+        dirtyFlagMap["a"] = null;
         dirtyFlagMap.ClearDirtyFlag();
 
         var actual = ((IDictionary) dirtyFlagMap)["a"];
@@ -1191,7 +1191,7 @@ public class DirtyFlagMapTest
     public void IDictionary_Indexer_Set_KeyIsFound_ValidDoesNotEqualCurrentValue()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", "x");
+        dirtyFlagMap["a"] = "x";
         dirtyFlagMap.ClearDirtyFlag();
 
         ((IDictionary) dirtyFlagMap)["a"] = "y";
@@ -1221,8 +1221,8 @@ public class DirtyFlagMapTest
     public void IDictionary_Indexer_Set_KeyIsFound_ValidEqualsCurrentValue()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", "x");
-        dirtyFlagMap.Put("b", null);
+        dirtyFlagMap["a"] = "x";
+        dirtyFlagMap["b"] = null;
         dirtyFlagMap.ClearDirtyFlag();
 
         ((IDictionary) dirtyFlagMap)["a"] = "y";
@@ -1399,7 +1399,7 @@ public class DirtyFlagMapTest
     public void Contains_Key_KeyIsFound()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", "x");
+        dirtyFlagMap["a"] = "x";
         dirtyFlagMap.ClearDirtyFlag();
 
         Assert.IsTrue(dirtyFlagMap.Contains((object) "a"));
@@ -1496,7 +1496,7 @@ public class DirtyFlagMapTest
     public void ContainsKey_KeyIsFound()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", "x");
+        dirtyFlagMap["a"] = "x";
         dirtyFlagMap.ClearDirtyFlag();
 
         Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
@@ -1507,7 +1507,7 @@ public class DirtyFlagMapTest
     public void ContainsKey_KeyIsNotFound()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", "x");
+        dirtyFlagMap["a"] = "x";
         dirtyFlagMap.ClearDirtyFlag();
 
         Assert.IsFalse(dirtyFlagMap.ContainsKey("x"));
@@ -1535,8 +1535,8 @@ public class DirtyFlagMapTest
     public void ContainsValue_ValueIsFound()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", "x");
-        dirtyFlagMap.Put("b", null);
+        dirtyFlagMap["a"] = "x";
+        dirtyFlagMap["b"] = null;
         dirtyFlagMap.ClearDirtyFlag();
 
         Assert.IsTrue(dirtyFlagMap.ContainsValue("x"));
@@ -1550,7 +1550,7 @@ public class DirtyFlagMapTest
     public void ContainsValue_ValueIsNotFound()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", "x");
+        dirtyFlagMap["a"] = "x";
         dirtyFlagMap.ClearDirtyFlag();
 
         Assert.IsFalse(dirtyFlagMap.ContainsValue("y"));
@@ -1571,7 +1571,7 @@ public class DirtyFlagMapTest
 
         dirtyFlagMap.Clear();
         Assert.IsFalse(dirtyFlagMap.Dirty);
-        dirtyFlagMap.Put("X", "Y");
+        dirtyFlagMap["X"] = "Y";
         dirtyFlagMap.ClearDirtyFlag();
         dirtyFlagMap.Clear();
         Assert.IsTrue(dirtyFlagMap.Dirty);
@@ -1808,7 +1808,7 @@ public class DirtyFlagMapTest
     public void TestRemove()
     {
         DirtyFlagMap<string, string> dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", "Y");
+        dirtyFlagMap["a"] = "Y";
         dirtyFlagMap.ClearDirtyFlag();
 
         dirtyFlagMap.Remove("b");
@@ -1878,8 +1878,8 @@ public class DirtyFlagMapTest
     public void PutAll_AllValuesEqualCurrentValues_DirtyFlagNotSet()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", "x");
-        dirtyFlagMap.Put("b", "y");
+        dirtyFlagMap["a"] = "x";
+        dirtyFlagMap["b"] = "y";
         dirtyFlagMap.ClearDirtyFlag();
 
         dirtyFlagMap.PutAll(new Dictionary<string, string>
@@ -1897,8 +1897,8 @@ public class DirtyFlagMapTest
     public void PutAll_SomeValuesChanged_DirtyFlagSet()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", "x");
-        dirtyFlagMap.Put("b", "y");
+        dirtyFlagMap["a"] = "x";
+        dirtyFlagMap["b"] = "y";
         dirtyFlagMap.ClearDirtyFlag();
 
         dirtyFlagMap.PutAll(new Dictionary<string, string>
@@ -1916,7 +1916,7 @@ public class DirtyFlagMapTest
     public void PutAll_NewKeys_DirtyFlagSet()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", "x");
+        dirtyFlagMap["a"] = "x";
         dirtyFlagMap.ClearDirtyFlag();
 
         dirtyFlagMap.PutAll(new Dictionary<string, string>
@@ -1933,7 +1933,7 @@ public class DirtyFlagMapTest
     public void PutAll_EmptySource_DirtyFlagNotSet()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", "x");
+        dirtyFlagMap["a"] = "x";
         dirtyFlagMap.ClearDirtyFlag();
 
         dirtyFlagMap.PutAll(new Dictionary<string, string>());
@@ -1945,7 +1945,7 @@ public class DirtyFlagMapTest
     public void PutAll_NullSource_DirtyFlagNotSet()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        dirtyFlagMap.Put("a", "x");
+        dirtyFlagMap["a"] = "x";
         dirtyFlagMap.ClearDirtyFlag();
 
         dirtyFlagMap.PutAll(null);
