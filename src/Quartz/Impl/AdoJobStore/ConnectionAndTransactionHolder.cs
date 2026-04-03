@@ -142,9 +142,18 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
     {
         if (transaction is not null)
         {
+            if (transaction.Connection is null)
+            {
+                // Transaction lost its connection - nothing to rollback, the database
+                // will have already aborted it. This commonly happens with transient
+                // connectivity issues (see https://github.com/quartznet/quartznet/issues/2290)
+                var log = LogProvider.CreateLogger<ConnectionAndTransactionHolder>();
+                log.LogDebug("Rollback skipped - transaction is no longer connected, database will have aborted it");
+                return;
+            }
+
             try
             {
-                CheckNotZombied();
                 await transaction.RollbackAsync().ConfigureAwait(false);
             }
             catch (Exception e)
