@@ -919,7 +919,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             {
                 try
                 {
+                    // Mirror ReleaseAcquiredTrigger: update from both ACQUIRED and BLOCKED,
+                    // because TriggersFired may have moved the trigger to BLOCKED state (for
+                    // DisallowConcurrentExecution jobs) while the fired record is still ACQUIRED.
                     await Delegate.UpdateTriggerStateFromOtherState(conn, rec.TriggerKey!, StateWaiting, StateAcquired, cancellationToken).ConfigureAwait(false);
+                    await Delegate.UpdateTriggerStateFromOtherState(conn, rec.TriggerKey!, StateWaiting, StateBlocked, cancellationToken).ConfigureAwait(false);
                     await Delegate.DeleteFiredTrigger(conn, rec.FireInstanceId!, cancellationToken).ConfigureAwait(false);
                     recoveredCount++;
                 }
@@ -939,8 +943,10 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     }
 
     /// <summary>
-    /// Lightweight check (no lock required) to see if there are any fired trigger records
-    /// in ACQUIRED state that have exceeded the stale threshold.
+    /// Pre-check (no lock required) to see if there are any fired trigger records in
+    /// ACQUIRED state that have exceeded the stale threshold. Queries the same data as
+    /// <see cref="RecoverStaleAcquiredTriggers"/> but only to decide whether to acquire
+    /// the lock; the actual recovery re-queries under lock for correctness.
     /// </summary>
     private async Task<bool> HasStaleAcquiredTriggers(
         ConnectionAndTransactionHolder conn,
