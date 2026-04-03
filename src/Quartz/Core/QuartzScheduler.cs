@@ -955,6 +955,43 @@ public class QuartzScheduler :
     }
 
     /// <summary>
+    /// Updates non-schedule properties of an existing trigger without rescheduling.
+    /// Properties like Description, Priority, and JobDataMap can be changed without
+    /// affecting the trigger's fire times, state, or misfire handling.
+    /// </summary>
+    /// <param name="triggerKey">The key identifying the trigger to update.</param>
+    /// <param name="update">The details to update.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns><see langword="true"/> if the trigger was found and updated, <see langword="false"/> if not found.</returns>
+    /// <exception cref="SchedulerException">If the job store does not support this operation.</exception>
+    public virtual async Task<bool> UpdateTriggerDetails(
+        TriggerKey triggerKey,
+        TriggerDetailsUpdate update,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateState();
+
+        if (triggerKey is null)
+        {
+            throw new ArgumentNullException(nameof(triggerKey));
+        }
+
+        if (update is null)
+        {
+            throw new ArgumentNullException(nameof(update));
+        }
+
+        if (resources.JobStore is not INextVersionJobStore nvjs)
+        {
+            throw new SchedulerException(
+                "The configured job store does not support UpdateTriggerDetails. " +
+                "Use RescheduleJob instead, or upgrade the job store implementation.");
+        }
+
+        return await nvjs.UpdateTriggerDetails(triggerKey, update, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// For a SimpleTrigger whose StartTimeUtc is in the past and has never fired,
     /// advance the start time to the current time so that ComputeFirstFireTimeUtc
     /// will produce a future fire time. This handles the case where a trigger is

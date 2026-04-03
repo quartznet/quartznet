@@ -45,7 +45,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public abstract class JobStoreSupport : AdoConstants, IJobStore
+public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJobStore
 {
     protected internal const string LockTriggerAccess = "TRIGGER_ACCESS";
     protected internal const string LockStateAccess = "STATE_ACCESS";
@@ -1739,6 +1739,95 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         catch (Exception e)
         {
             throw new JobPersistenceException("Couldn't remove trigger: " + e.Message, e);
+        }
+    }
+
+    /// <inheritdoc />
+    public Task<bool> UpdateTriggerDetails(
+        TriggerKey triggerKey,
+        TriggerDetailsUpdate update,
+        CancellationToken cancellationToken = default)
+    {
+        return ExecuteInLock(
+            LockTriggerAccess,
+            conn => UpdateTriggerDetails(conn, triggerKey, update, cancellationToken),
+            cancellationToken);
+    }
+
+    protected virtual async Task<bool> UpdateTriggerDetails(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        TriggerDetailsUpdate update,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            IOperableTrigger? existing = await Delegate.SelectTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+            if (existing is null)
+            {
+                return false;
+            }
+
+            if (update.HasCalendarName && update.CalendarName is not null)
+            {
+                bool calExists = await CalendarExists(conn, update.CalendarName, cancellationToken).ConfigureAwait(false);
+                if (!calExists)
+                {
+                    throw new JobPersistenceException($"Calendar '{update.CalendarName}' does not exist.");
+                }
+            }
+
+            if (update.HasDescription)
+            {
+                existing.Description = update.Description;
+            }
+
+            if (update.HasPriority)
+            {
+                existing.Priority = update.Priority;
+            }
+
+            if (update.HasJobDataMap)
+            {
+                JobDataMap newMap = new JobDataMap();
+                if (update.JobDataMap is { Count: > 0 })
+                {
+                    newMap.PutAll(update.JobDataMap);
+                }
+                else
+                {
+                    // Force dirty flag so Delegate.UpdateTrigger writes the (empty) BLOB
+                    newMap.Remove("_");
+                }
+
+                existing.JobDataMap = newMap;
+            }
+
+            if (update.HasCalendarName)
+            {
+                existing.CalendarName = update.CalendarName;
+            }
+
+            if (update.HasMisfireInstruction)
+            {
+                existing.MisfireInstruction = update.MisfireInstruction;
+            }
+
+            string state = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+            IJobDetail? job = await Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoadHelper, cancellationToken).ConfigureAwait(false);
+
+            if (job is null)
+            {
+                throw new JobPersistenceException($"The job referenced by trigger '{triggerKey}' does not exist.");
+            }
+
+            await Delegate.UpdateTrigger(conn, existing, state, job, cancellationToken).ConfigureAwait(false);
+
+            return true;
+        }
+        catch (Exception e) when (e is not JobPersistenceException)
+        {
+            throw new JobPersistenceException($"Couldn't update trigger details for '{triggerKey}': {e.Message}", e);
         }
     }
 
