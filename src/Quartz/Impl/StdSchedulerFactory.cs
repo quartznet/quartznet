@@ -1191,7 +1191,7 @@ Please add configuration to your application config file to correctly initialize
                 Initialize();
             }
 
-            var schedulerRepository = GetSchedulerRepository();
+            ISchedulerRepository schedulerRepository = GetSchedulerRepository();
 
             // For proxy schedulers with explicit instance IDs (e.g., connecting to different cluster nodes),
             // use instance-aware lookup so multiple proxies with the same scheduler name can coexist.

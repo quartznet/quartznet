@@ -61,10 +61,10 @@ public sealed class SchedulerRepository : ISchedulerRepository
     {
         lock (syncRoot)
         {
-            if (schedulers.TryGetValue(scheduler.SchedulerName, out var list))
+            if (schedulers.TryGetValue(scheduler.SchedulerName, out List<IScheduler>? list))
             {
                 string? newInstanceId = TryGetLocalInstanceId(scheduler);
-                foreach (var existing in list)
+                foreach (IScheduler existing in list)
                 {
                     string? existingInstanceId = TryGetLocalInstanceId(existing);
                     if (newInstanceId is null || existingInstanceId is null ||
@@ -90,7 +90,7 @@ public sealed class SchedulerRepository : ISchedulerRepository
     {
         lock (syncRoot)
         {
-            if (schedulers.TryGetValue(schedulerName, out var list))
+            if (schedulers.TryGetValue(schedulerName, out List<IScheduler>? list))
             {
                 if (list.Count <= 1)
                 {
@@ -112,7 +112,7 @@ public sealed class SchedulerRepository : ISchedulerRepository
     {
         lock (syncRoot)
         {
-            if (!schedulers.TryGetValue(schedulerName, out var list))
+            if (!schedulers.TryGetValue(schedulerName, out List<IScheduler>? list))
             {
                 return false;
             }
@@ -143,7 +143,7 @@ public sealed class SchedulerRepository : ISchedulerRepository
     {
         lock (syncRoot)
         {
-            if (schedulers.TryGetValue(schedulerName, out var list) && list.Count > 0)
+            if (schedulers.TryGetValue(schedulerName, out List<IScheduler>? list) && list.Count > 0)
             {
                 return list[0];
             }
@@ -159,12 +159,12 @@ public sealed class SchedulerRepository : ISchedulerRepository
     {
         lock (syncRoot)
         {
-            if (!schedulers.TryGetValue(schedulerName, out var list))
+            if (!schedulers.TryGetValue(schedulerName, out List<IScheduler>? list))
             {
                 return null;
             }
 
-            foreach (var scheduler in list)
+            foreach (IScheduler scheduler in list)
             {
                 string? existingId = TryGetLocalInstanceId(scheduler);
                 if (string.Equals(existingId, instanceId, StringComparison.OrdinalIgnoreCase))
@@ -184,7 +184,7 @@ public sealed class SchedulerRepository : ISchedulerRepository
     {
         lock (syncRoot)
         {
-            if (schedulers.TryGetValue(schedulerName, out var list))
+            if (schedulers.TryGetValue(schedulerName, out List<IScheduler>? list))
             {
                 return [..list];
             }
@@ -200,8 +200,8 @@ public sealed class SchedulerRepository : ISchedulerRepository
     {
         lock (syncRoot)
         {
-            var result = new List<IScheduler>();
-            foreach (var list in schedulers.Values)
+            List<IScheduler> result = new List<IScheduler>();
+            foreach (List<IScheduler> list in schedulers.Values)
             {
                 result.AddRange(list);
             }
