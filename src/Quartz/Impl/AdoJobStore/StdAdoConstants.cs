@@ -370,6 +370,14 @@ public class StdAdoConstants : AdoConstants
     public static readonly string SqlUpdateTriggerStatesFromOtherStates =
         Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnTriggerState} = @newState WHERE {ColumnSchedulerName} = @schedulerName AND ({ColumnTriggerState} = @oldState1 OR {ColumnTriggerState} = @oldState2)");
 
+    // Targeted misfire recovery UPDATE — only touches columns that change during UpdateAfterMisfire.
+    // START_TIME is included because SimpleTrigger's RescheduleNowWith* policies modify it.
+    public static readonly string SqlUpdateTriggerMisfire =
+        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnNextFireTime} = @triggerNextFireTime, {ColumnPreviousFireTime} = @triggerPreviousFireTime, {ColumnTriggerState} = @triggerState, {ColumnStartTime} = @triggerStartTime WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
+
+    public static readonly string SqlUpdateTriggerMisfireWithOrigFireTime =
+        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnNextFireTime} = @triggerNextFireTime, {ColumnPreviousFireTime} = @triggerPreviousFireTime, {ColumnTriggerState} = @triggerState, {ColumnStartTime} = @triggerStartTime, {ColumnMisfireOriginalFireTime} = @triggerMisfireOrigFireTime WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
+
     // Misfire original fire time support (optional column, probed at startup)
     public static readonly string SqlProbeMisfireOrigFireTimeColumn =
         Invariant($"SELECT {ColumnMisfireOriginalFireTime} FROM {TablePrefixSubst}{TableTriggers} WHERE 1 = 0");
