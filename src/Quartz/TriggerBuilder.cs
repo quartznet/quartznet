@@ -515,7 +515,7 @@ public class TriggerBuilder
         // add data from new map to existing map (overrides old values)
         foreach (string k in newJobDataMap.Keys)
         {
-            jobDataMap.Put(k, newJobDataMap.Get(k));
+            jobDataMap.Put(k, newJobDataMap[k]);
         }
         return this;
     }

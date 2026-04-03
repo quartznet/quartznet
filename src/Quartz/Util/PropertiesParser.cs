@@ -58,7 +58,7 @@ public class PropertiesParser
     /// <returns></returns>
     public virtual string? GetStringProperty(string? name)
     {
-        var val = props.Get(name);
+        var val = props[name];
         return val?.Trim();
     }
 

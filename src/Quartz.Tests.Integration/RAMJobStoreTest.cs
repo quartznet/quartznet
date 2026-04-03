@@ -53,8 +53,8 @@ public abstract class AbstractSchedulerTest
         {
             try
             {
-                List<DateTime> jobExecTimestamps = (List<DateTime>) context.Scheduler.Context.Get(DateStamps);
-                Barrier barrier = (Barrier) context.Scheduler.Context.Get(Barrier);
+                List<DateTime> jobExecTimestamps = (List<DateTime>) context.Scheduler.Context[DateStamps];
+                Barrier barrier = (Barrier) context.Scheduler.Context[Barrier];
 
                 jobExecTimestamps.Add(DateTime.UtcNow);
 

@@ -539,8 +539,8 @@ public class SignallingJob : IJob
 {
     public async Task Execute(IJobExecutionContext context)
     {
-        var jobStarted = (SemaphoreSlim) context.Scheduler.Context.Get("JobStarted_2255");
-        var jobCanFinish = (SemaphoreSlim) context.Scheduler.Context.Get("JobCanFinish_2255");
+        var jobStarted = (SemaphoreSlim) context.Scheduler.Context["JobStarted_2255"];
+        var jobCanFinish = (SemaphoreSlim) context.Scheduler.Context["JobCanFinish_2255"];
 
         jobStarted.Release();
         bool acquired = await jobCanFinish.WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
