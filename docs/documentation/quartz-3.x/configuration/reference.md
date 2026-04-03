@@ -193,6 +193,20 @@ quartz.plugin.triggHistory.triggerFiredMessage = Trigger {1}.{0} fired job {6}.{
 quartz.plugin.triggHistory.triggerCompleteMessage = Trigger {1}.{0} completed firing job {6}.{5} at {4:HH:mm:ss MM/dd/yyyy} with resulting trigger instruction code: {9}
 ```
 
+### Sample configuration of Structured Logging Plugins
+
+The structured logging plugins are alternatives to the logging trigger/job history plugins that use named message template parameters for structured logging compatibility. They have no configurable message templates.
+
+**Sample configuration of StructuredLoggingJobHistoryPlugin**
+```
+quartz.plugin.structuredJobLogging.type = Quartz.Plugin.History.StructuredLoggingJobHistoryPlugin, Quartz.Plugins
+```
+
+**Sample configuration of StructuredLoggingTriggerHistoryPlugin**
+```
+quartz.plugin.structuredTriggerLogging.type = Quartz.Plugin.History.StructuredLoggingTriggerHistoryPlugin, Quartz.Plugins
+```
+
 ### Sample configuration of XML Scheduling Data Processor Plugin
 
 Job initialization plugin reads a set of jobs and triggers from an XML file, and adds them to the scheduler during initialization. It can also delete exiting data.
