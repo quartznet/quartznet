@@ -414,7 +414,14 @@ public class QuartzSchedulerThread
                                 // we release them and loop again
                                 foreach (IOperableTrigger t in triggers)
                                 {
-                                    await qsRsrcs.JobStore.ReleaseAcquiredTrigger(t, CancellationToken.None).ConfigureAwait(false);
+                                    try
+                                    {
+                                        await qsRsrcs.JobStore.ReleaseAcquiredTrigger(t, CancellationToken.None).ConfigureAwait(false);
+                                    }
+                                    catch (Exception releaseEx)
+                                    {
+                                        Log.ErrorException($"Error releasing acquired trigger '{t.Key}' after TriggersFired failure.", releaseEx);
+                                    }
                                 }
                                 continue;
                             }
@@ -425,7 +432,14 @@ public class QuartzSchedulerThread
                             // so they don't remain stuck in ACQUIRED state
                             foreach (IOperableTrigger t in triggers)
                             {
-                                await qsRsrcs.JobStore.ReleaseAcquiredTrigger(t, CancellationToken.None).ConfigureAwait(false);
+                                try
+                                {
+                                    await qsRsrcs.JobStore.ReleaseAcquiredTrigger(t, CancellationToken.None).ConfigureAwait(false);
+                                }
+                                catch (Exception releaseEx)
+                                {
+                                    Log.ErrorException($"Error releasing acquired trigger '{t.Key}' during shutdown.", releaseEx);
+                                }
                             }
                             continue;
                         }
@@ -441,7 +455,14 @@ public class QuartzSchedulerThread
                             if (exception != null && (exception is DbException || exception.InnerException is DbException))
                             {
                                 Log.ErrorException("DbException while firing trigger " + trigger, exception);
-                                await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger, CancellationToken.None).ConfigureAwait(false);
+                                try
+                                {
+                                    await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger, CancellationToken.None).ConfigureAwait(false);
+                                }
+                                catch (Exception releaseEx)
+                                {
+                                    Log.ErrorException($"Error releasing acquired trigger '{trigger.Key}' after DbException.", releaseEx);
+                                }
                                 continue;
                             }
 
@@ -450,7 +471,14 @@ public class QuartzSchedulerThread
                             // fired at this time...  or if the scheduler was shutdown (halted)
                             if (bndle == null)
                             {
-                                await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger, CancellationToken.None).ConfigureAwait(false);
+                                try
+                                {
+                                    await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger, CancellationToken.None).ConfigureAwait(false);
+                                }
+                                catch (Exception releaseEx)
+                                {
+                                    Log.ErrorException($"Error releasing acquired trigger '{trigger.Key}'.", releaseEx);
+                                }
                                 continue;
                             }
 
@@ -581,10 +609,17 @@ public class QuartzSchedulerThread
     {
         if (IsCandidateNewTimeEarlierWithinReason(triggerTime, true))
         {
+            // above call does a clearSignaledSchedulingChange()
             foreach (IOperableTrigger trigger in triggers)
             {
-                // above call does a clearSignaledSchedulingChange()
-                await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger).ConfigureAwait(false);
+                try
+                {
+                    await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger).ConfigureAwait(false);
+                }
+                catch (Exception releaseEx)
+                {
+                    Log.ErrorException($"Error releasing acquired trigger '{trigger.Key}' after schedule change.", releaseEx);
+                }
             }
             triggers.Clear();
             return true;
