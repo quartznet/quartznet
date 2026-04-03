@@ -266,7 +266,11 @@ internal sealed class RecurrenceRule
         int limit = Count != null ? Math.Min(n, Count.Value) : n;
         int occurrenceCount = 0;
 
-        for (int i = 0; i < MaxIterations; i++)
+        // Iteration bound must be at least n (each period may produce only one occurrence),
+        // capped at a reasonable maximum to prevent runaway for pathological rules.
+        int maxPeriods = Math.Max(MaxIterations, limit + MaxIterations);
+
+        for (int i = 0; i < maxPeriods; i++)
         {
             DateTime periodStart = GetPeriodStart(local.Start, i);
             List<DateTime> candidates = ByRuleExpander.ExpandPeriod(this, local.Start, periodStart);

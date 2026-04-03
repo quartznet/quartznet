@@ -4,7 +4,7 @@ using Quartz.Util;
 
 namespace Quartz.Triggers;
 
-internal sealed class RecurrenceTriggerSerializer : TriggerSerializer<IRecurrenceTrigger>
+public sealed class RecurrenceTriggerSerializer : TriggerSerializer<IRecurrenceTrigger>
 {
     public override string TriggerTypeForJson => "RecurrenceTrigger";
 
