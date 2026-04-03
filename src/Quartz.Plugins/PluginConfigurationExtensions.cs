@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
+using Quartz.Plugin.History;
 using Quartz.Plugin.Interrupt;
 using Quartz.Plugin.Xml;
 using Quartz.Util;
@@ -19,6 +20,42 @@ public static class PluginConfigurationExtensions
         }
         configurer.SetProperty("quartz.plugin.xml.type", typeof(XMLSchedulingDataProcessorPlugin).AssemblyQualifiedNameWithoutVersion());
         configure.Invoke(new XmlSchedulingOptions(configurer));
+        return configurer;
+    }
+
+    /// <summary>
+    /// Configures <see cref="StructuredLoggingJobHistoryPlugin"/> into use.
+    /// </summary>
+    /// <remarks>
+    /// This is a structured logging alternative to <see cref="LoggingJobHistoryPlugin"/>.
+    /// Message templates use named parameters for compatibility with structured logging sinks.
+    /// </remarks>
+    public static T UseStructuredJobLogging<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        this T configurer) where T : IPropertyConfigurationRoot
+    {
+        if (configurer is IContainerConfigurationSupport containerConfigurationSupport)
+        {
+            containerConfigurationSupport.RegisterSingleton<StructuredLoggingJobHistoryPlugin, StructuredLoggingJobHistoryPlugin>();
+        }
+        configurer.SetProperty("quartz.plugin.structuredJobLogging.type", typeof(StructuredLoggingJobHistoryPlugin).AssemblyQualifiedNameWithoutVersion());
+        return configurer;
+    }
+
+    /// <summary>
+    /// Configures <see cref="StructuredLoggingTriggerHistoryPlugin"/> into use.
+    /// </summary>
+    /// <remarks>
+    /// This is a structured logging alternative to <see cref="LoggingTriggerHistoryPlugin"/>.
+    /// Message templates use named parameters for compatibility with structured logging sinks.
+    /// </remarks>
+    public static T UseStructuredTriggerLogging<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        this T configurer) where T : IPropertyConfigurationRoot
+    {
+        if (configurer is IContainerConfigurationSupport containerConfigurationSupport)
+        {
+            containerConfigurationSupport.RegisterSingleton<StructuredLoggingTriggerHistoryPlugin, StructuredLoggingTriggerHistoryPlugin>();
+        }
+        configurer.SetProperty("quartz.plugin.structuredTriggerLogging.type", typeof(StructuredLoggingTriggerHistoryPlugin).AssemblyQualifiedNameWithoutVersion());
         return configurer;
     }
 

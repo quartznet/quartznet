@@ -201,6 +201,26 @@ quartz.plugin.triggHistory.triggerFiredMessage = Trigger {1}.{0} fired job {6}.{
 quartz.plugin.triggHistory.triggerCompleteMessage = Trigger {1}.{0} completed firing job {6}.{5} at {4:HH:mm:ss MM/dd/yyyy} with resulting trigger instruction code: {9}
 ```
 
+### Sample configuration of Structured Logging Plugins
+
+The structured logging plugins are alternatives to the logging trigger/job history plugins that use named message template parameters (e.g. `{JobName}`) instead of index-based placeholders (`{0}`), for compatibility with structured logging sinks like Serilog and NLog. Message templates can be customized via properties, using the same named parameters.
+
+**Sample configuration of StructuredLoggingJobHistoryPlugin**
+
+```text
+quartz.plugin.structuredJobLogging.type = Quartz.Plugin.History.StructuredLoggingJobHistoryPlugin, Quartz.Plugins
+quartz.plugin.structuredJobLogging.jobToBeFiredMessage = Job {JobGroup}.{JobName} fired by trigger {TriggerGroup}.{TriggerName} at {FireTime} scheduled at {ScheduledFireTime} next fire at {NextFireTime} refire count {RefireCount}
+quartz.plugin.structuredJobLogging.jobSuccessMessage = Job {JobGroup}.{JobName} execution complete at {FireTime} triggered by {TriggerGroup}.{TriggerName} with result {Result}
+```
+
+**Sample configuration of StructuredLoggingTriggerHistoryPlugin**
+
+```text
+quartz.plugin.structuredTriggerLogging.type = Quartz.Plugin.History.StructuredLoggingTriggerHistoryPlugin, Quartz.Plugins
+quartz.plugin.structuredTriggerLogging.triggerFiredMessage = Trigger {TriggerGroup}.{TriggerName} fired job {JobGroup}.{JobName} at {FireTime} scheduled at {ScheduledFireTime} next fire at {NextFireTime} refire count {RefireCount}
+quartz.plugin.structuredTriggerLogging.triggerCompleteMessage = Trigger {TriggerGroup}.{TriggerName} completed firing job {JobGroup}.{JobName} at {CompletedTime} scheduled at {ScheduledFireTime} next fire at {NextFireTime} with instruction {TriggerInstructionCode}
+```
+
 ### Sample configuration of XML Scheduling Data Processor Plugin
 
 Job initialization plugin reads a set of jobs and triggers from an XML file, and adds them to the scheduler during initialization. It can also delete exiting data.
