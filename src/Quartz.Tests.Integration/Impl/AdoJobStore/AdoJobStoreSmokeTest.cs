@@ -430,7 +430,7 @@ public class AdoJobStoreSmokeTest
         await scheduler.Start();
 
         var manualResetEvent = new ManualResetEventSlim(false);
-        scheduler.Context.Put(KeyResetEvent, manualResetEvent);
+        scheduler.Context[KeyResetEvent] = manualResetEvent;
 
         IJobDetail goodJob = JobBuilder.Create<GoodJob>().WithIdentity("good").Build();
         IJobDetail badJob = JobBuilder.Create<BadJob>().WithIdentity("bad").Build();
@@ -635,7 +635,7 @@ public class SimpleRecoveryJob : IJob
             count = 0;
         }
         count++;
-        data.Put(Count, count);
+        data[Count] = count;
     }
 }
 
