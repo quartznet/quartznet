@@ -910,6 +910,10 @@ internal sealed class RecurrenceRule
         if (datePart.Length == 15 && datePart[8] == 'T')
         {
             DateTime dt = DateTime.ParseExact(datePart, "yyyyMMdd'T'HHmmss", CultureInfo.InvariantCulture);
+            if (isUtc)
+            {
+                dt = DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+            }
             return (dt, isUtc);
         }
         // Try date-only format: yyyyMMdd
@@ -918,6 +922,10 @@ internal sealed class RecurrenceRule
             DateTime dt = DateTime.ParseExact(datePart, "yyyyMMdd", CultureInfo.InvariantCulture);
             // Per RFC 5545, date-only UNTIL means end of that day (23:59:59)
             dt = dt.AddDays(1).AddSeconds(-1);
+            if (isUtc)
+            {
+                dt = DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+            }
             return (dt, isUtc);
         }
 
