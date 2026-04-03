@@ -22,6 +22,7 @@ public class JobStoreSupportTest
         jobStoreSupport = new TestJobStoreSupport();
         driverDelegate = A.Fake<IDriverDelegate>();
         jobStoreSupport.DirectDelegate = driverDelegate;
+        jobStoreSupport.DirectSignaler = A.Fake<ISchedulerSignaler>();
     }
 
     [Test]
@@ -36,6 +37,114 @@ public class JobStoreSupportTest
             A<int>.Ignored,
             A<IList<TriggerKey>>.Ignored,
             CancellationToken.None)).MustHaveHappened();
+    }
+
+    [Test]
+    public async Task RecoverMisfiredJobs_ShouldUseOptimizedPath()
+    {
+        var triggerKey = new TriggerKey("misfired1", "g1");
+        IOperableTrigger trigger = CreateTestTrigger("misfired1");
+        trigger.SetNextFireTimeUtc(DateTimeOffset.UtcNow - TimeSpan.FromMinutes(10));
+
+        A.CallTo(() => driverDelegate.HasMisfiredTriggersInState(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            A<string>.Ignored,
+            A<DateTimeOffset>.Ignored,
+            A<int>.Ignored,
+            A<ICollection<TriggerKey>>.Ignored,
+            A<CancellationToken>.Ignored))
+            .Invokes((ConnectionAndTransactionHolder _, string _, DateTimeOffset _, int _, ICollection<TriggerKey> list, CancellationToken _) =>
+            {
+                list.Add(triggerKey);
+            })
+            .Returns(new ValueTask<bool>(false));
+
+        A.CallTo(() => driverDelegate.SelectTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            triggerKey,
+            A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<IOperableTrigger>(trigger));
+
+        await jobStoreSupport.RecoverMisfiredJobs(null, false);
+
+        // Assert: optimized delegate method called
+        A.CallTo(() => driverDelegate.UpdateMisfiredTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            A<IOperableTrigger>.Ignored,
+            A<string>.Ignored,
+            A<DateTimeOffset?>.Ignored,
+            A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+
+        // Assert: StoreTrigger path NOT taken (no TriggerExists check)
+        A.CallTo(() => driverDelegate.TriggerExists(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            A<TriggerKey>.Ignored,
+            A<CancellationToken>.Ignored)).MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task RecoverMisfiredJobs_ShouldCacheCalendars_AcrossBatch()
+    {
+        string calendarName = "shared-cal";
+
+        var key1 = new TriggerKey("misfired1", "g1");
+        var key2 = new TriggerKey("misfired2", "g1");
+
+        IOperableTrigger trigger1 = CreateTestTrigger("misfired1");
+        trigger1.SetNextFireTimeUtc(DateTimeOffset.UtcNow - TimeSpan.FromMinutes(10));
+        trigger1.CalendarName = calendarName;
+
+        IOperableTrigger trigger2 = CreateTestTrigger("misfired2");
+        trigger2.SetNextFireTimeUtc(DateTimeOffset.UtcNow - TimeSpan.FromMinutes(5));
+        trigger2.CalendarName = calendarName;
+
+        A.CallTo(() => driverDelegate.HasMisfiredTriggersInState(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            A<string>.Ignored,
+            A<DateTimeOffset>.Ignored,
+            A<int>.Ignored,
+            A<ICollection<TriggerKey>>.Ignored,
+            A<CancellationToken>.Ignored))
+            .Invokes((ConnectionAndTransactionHolder _, string _, DateTimeOffset _, int _, ICollection<TriggerKey> list, CancellationToken _) =>
+            {
+                list.Add(key1);
+                list.Add(key2);
+            })
+            .Returns(new ValueTask<bool>(false));
+
+        A.CallTo(() => driverDelegate.SelectTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            key1,
+            A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<IOperableTrigger>(trigger1));
+
+        A.CallTo(() => driverDelegate.SelectTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            key2,
+            A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<IOperableTrigger>(trigger2));
+
+        A.CallTo(() => driverDelegate.SelectCalendar(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            calendarName,
+            A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<ICalendar>(new BaseCalendar()));
+
+        await jobStoreSupport.RecoverMisfiredJobs(null, false);
+
+        // Assert: calendar retrieved only once despite two triggers
+        A.CallTo(() => driverDelegate.SelectCalendar(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            calendarName,
+            A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+
+        // Assert: both triggers updated via optimized path
+        A.CallTo(() => driverDelegate.UpdateMisfiredTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            A<IOperableTrigger>.Ignored,
+            A<string>.Ignored,
+            A<DateTimeOffset?>.Ignored,
+            A<CancellationToken>.Ignored)).MustHaveHappenedTwiceExactly();
     }
 
     [Test]
@@ -669,6 +778,16 @@ public class JobStoreSupportTest
             set
             {
                 FieldInfo fieldInfo = typeof(JobStoreSupport).GetField("driverDelegate", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.That(fieldInfo, Is.Not.Null);
+                fieldInfo.SetValue(this, value);
+            }
+        }
+
+        internal ISchedulerSignaler DirectSignaler
+        {
+            set
+            {
+                FieldInfo fieldInfo = typeof(JobStoreSupport).GetField("schedSignaler", BindingFlags.Instance | BindingFlags.NonPublic);
                 Assert.That(fieldInfo, Is.Not.Null);
                 fieldInfo.SetValue(this, value);
             }
