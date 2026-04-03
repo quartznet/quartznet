@@ -479,5 +479,101 @@ public class RecurrenceRuleTest
         Assert.AreEqual(2, next2.Value.Month);
     }
 
+    [Test]
+    public void TestMonthlyByMonthDay31SkipsFebruary()
+    {
+        // BYMONTHDAY=31 should skip months with fewer than 31 days
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=MONTHLY;BYMONTHDAY=31");
+        DateTimeOffset start = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
+        DateTimeOffset after = start;
+
+        // Jan 31
+        DateTimeOffset? r1 = rule.GetNextOccurrence(start, after, TimeZoneInfo.Utc, null);
+        Assert.IsNotNull(r1);
+        Assert.AreEqual(31, r1!.Value.Day);
+        Assert.AreEqual(1, r1.Value.Month);
+
+        // Feb has no 31st, skip to Mar 31
+        DateTimeOffset? r2 = rule.GetNextOccurrence(start, r1.Value, TimeZoneInfo.Utc, null);
+        Assert.IsNotNull(r2);
+        Assert.AreEqual(31, r2!.Value.Day);
+        Assert.AreEqual(3, r2.Value.Month);
+    }
+
+    [Test]
+    public void TestDstSpringForwardGap()
+    {
+        // US Eastern: March 9, 2025, 2:00 AM doesn't exist (clocks jump to 3:00 AM)
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=DAILY");
+        TimeZoneInfo eastern = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+        // Start at 2:30 AM local
+        DateTimeOffset start = new DateTimeOffset(2025, 3, 8, 7, 30, 0, TimeSpan.Zero); // 2:30 AM EST = 7:30 UTC
+        DateTimeOffset after = start;
+
+        // Next occurrence should be March 9 - time should be adjusted past the gap
+        DateTimeOffset? next = rule.GetNextOccurrence(start, after, eastern, null);
+        Assert.IsNotNull(next);
+        Assert.AreEqual(9, next!.Value.Day);
+        // The time should be valid (not 2:30 AM which doesn't exist)
+        Assert.IsFalse(eastern.IsInvalidTime(next.Value.DateTime));
+    }
+
+    [Test]
+    public void TestDstFallBackAmbiguous()
+    {
+        // US Eastern: Nov 2, 2025, 1:30 AM exists twice (clocks fall back at 2:00 AM)
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=DAILY");
+        TimeZoneInfo eastern = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+        // Start at 1:30 AM local on Nov 1
+        DateTimeOffset start = new DateTimeOffset(2025, 11, 1, 5, 30, 0, TimeSpan.Zero); // 1:30 AM EDT = 5:30 UTC
+        DateTimeOffset after = start;
+
+        // Nov 2 at 1:30 AM is ambiguous - should resolve to a valid offset
+        DateTimeOffset? next = rule.GetNextOccurrence(start, after, eastern, null);
+        Assert.IsNotNull(next);
+        Assert.AreEqual(2, next!.Value.Day);
+    }
+
+    [Test]
+    public void TestCountWithSkipCountParameter()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=DAILY;COUNT=3");
+        DateTimeOffset start = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
+
+        // With skipCount=true, COUNT should be ignored
+        DateTimeOffset? r1 = rule.GetNextOccurrence(start, new DateTimeOffset(2025, 1, 3, 9, 0, 0, TimeSpan.Zero), TimeZoneInfo.Utc, null, skipCount: true);
+        Assert.IsNotNull(r1);
+        Assert.AreEqual(4, r1!.Value.Day); // Would be null with COUNT enforced
+
+        // With skipCount=false (default), COUNT is enforced
+        DateTimeOffset? r2 = rule.GetNextOccurrence(start, new DateTimeOffset(2025, 1, 3, 9, 0, 0, TimeSpan.Zero), TimeZoneInfo.Utc, null, skipCount: false);
+        Assert.IsNull(r2); // 3 occurrences already consumed
+    }
+
+    [Test]
+    public void TestGetNthOccurrence()
+    {
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=DAILY;COUNT=5");
+        DateTimeOffset start = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
+
+        // 5th occurrence should be Jan 5
+        DateTimeOffset? fifth = rule.GetNthOccurrence(start, 5, TimeZoneInfo.Utc, null);
+        Assert.IsNotNull(fifth);
+        Assert.AreEqual(5, fifth!.Value.Day);
+
+        // 6th occurrence doesn't exist (COUNT=5)
+        DateTimeOffset? sixth = rule.GetNthOccurrence(start, 6, TimeZoneInfo.Utc, null);
+        Assert.IsNull(sixth);
+    }
+
+    [Test]
+    public void TestParseIgnoresUnknownProperties()
+    {
+        // RFC 5545 allows X- extension properties
+        RecurrenceRule rule = RecurrenceRule.Parse("FREQ=DAILY;X-CUSTOM=foo;INTERVAL=2");
+        Assert.AreEqual(RecurrenceFrequency.Daily, rule.Frequency);
+        Assert.AreEqual(2, rule.Interval);
+    }
+
     #endregion
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 
 using Quartz.Impl.Recurrence;
 
@@ -28,7 +29,7 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
     internal TimeZoneInfo? timeZone;
 
     [NonSerialized]
-    private RecurrenceRule? parsedRule;
+    private volatile RecurrenceRule? parsedRule;
 
     // For binary serialization cross-platform timezone support
     private string? timeZoneInfoId
@@ -330,14 +331,16 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
     /// <inheritdoc/>
     public override DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTime)
     {
-        // For COUNT-based rules, check if we've already exhausted the count
+        // For COUNT-based rules, check if we've already exhausted the count.
+        // TimesTriggered is the single source of truth for COUNT tracking,
+        // avoiding expensive walk-from-start counting in the RRULE engine.
         RecurrenceRule rule = GetParsedRule();
         if (rule.Count != null && TimesTriggered >= rule.Count.Value)
         {
             return null;
         }
 
-        return rule.GetNextOccurrence(StartTimeUtc, afterTime ?? SystemTime.UtcNow(), TimeZone, EndTimeUtc);
+        return rule.GetNextOccurrence(StartTimeUtc, afterTime ?? SystemTime.UtcNow(), TimeZone, EndTimeUtc, skipCount: true);
     }
 
     /// <inheritdoc/>
@@ -345,12 +348,19 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
     {
         get
         {
+            RecurrenceRule rule = GetParsedRule();
+
+            // For COUNT-based rules, walk to the final occurrence
+            if (rule.Count != null)
+            {
+                return rule.GetNthOccurrence(StartTimeUtc, rule.Count.Value, TimeZone, EndTimeUtc);
+            }
+
             if (EndTimeUtc != null)
             {
                 return EndTimeUtc;
             }
 
-            RecurrenceRule rule = GetParsedRule();
             if (rule.Until != null)
             {
                 return new DateTimeOffset(rule.Until.Value, rule.UntilIsUtc ? TimeSpan.Zero : TimeZone.BaseUtcOffset);
@@ -418,10 +428,12 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
 
     private RecurrenceRule GetParsedRule()
     {
-        if (parsedRule == null)
+        RecurrenceRule? rule = parsedRule;
+        if (rule == null)
         {
-            parsedRule = Recurrence.RecurrenceRule.Parse(recurrenceRuleString);
+            rule = Recurrence.RecurrenceRule.Parse(recurrenceRuleString);
+            parsedRule = rule;
         }
-        return parsedRule;
+        return rule;
     }
 }

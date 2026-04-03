@@ -190,7 +190,8 @@ internal sealed class RecurrenceRule
                     bySetPos = ParseIntList(value);
                     break;
                 default:
-                    throw new FormatException($"Unknown RRULE property: '{name}'");
+                    // Ignore unknown properties (RFC 5545 allows X- extension properties)
+                    break;
             }
         }
 
@@ -214,19 +215,113 @@ internal sealed class RecurrenceRule
     /// Returns the first occurrence of the recurrence strictly after <paramref name="after"/>,
     /// where DTSTART is <paramref name="dtStart"/>. Returns null if no further occurrences exist.
     /// </summary>
+    /// <param name="dtStart">The recurrence start time (DTSTART).</param>
+    /// <param name="after">Find the next occurrence strictly after this time.</param>
+    /// <param name="timeZone">Timezone for wall-clock calculations.</param>
+    /// <param name="endTime">Optional end time boundary.</param>
+    /// <param name="skipCount">
+    /// When true, ignore the COUNT property during evaluation. This is used when
+    /// the trigger tracks TimesTriggered externally as the single source of truth
+    /// for COUNT enforcement, avoiding an expensive walk-from-start on every call.
+    /// </param>
     internal DateTimeOffset? GetNextOccurrence(
         DateTimeOffset dtStart,
         DateTimeOffset after,
         TimeZoneInfo? timeZone,
+        DateTimeOffset? endTime,
+        bool skipCount = false)
+    {
+        LocalTimes local = ConvertToLocal(dtStart, after, timeZone, endTime);
+
+        bool useCount = Count != null && !skipCount;
+        DateTime? result = useCount
+            ? FindNextOccurrenceWithCount(local)
+            : FindNextOccurrenceNonCount(local);
+
+        if (result == null)
+        {
+            return null;
+        }
+
+        return ToDateTimeOffset(result.Value, local.TimeZone);
+    }
+
+    /// <summary>
+    /// Returns the Nth occurrence of the recurrence (1-based), used for computing
+    /// <see cref="Quartz.Impl.Triggers.RecurrenceTriggerImpl.FinalFireTimeUtc"/>
+    /// on COUNT-based rules. Respects both the requested N and the rule's own COUNT limit.
+    /// </summary>
+    internal DateTimeOffset? GetNthOccurrence(
+        DateTimeOffset dtStart,
+        int n,
+        TimeZoneInfo? timeZone,
         DateTimeOffset? endTime)
     {
-        TimeZoneInfo tz = timeZone ?? TimeZoneInfo.Utc;
+        LocalTimes local = ConvertToLocal(dtStart, dtStart.AddSeconds(-1), timeZone, endTime);
 
-        // Convert to wall-clock time for calculations
+        // The effective limit is the smaller of requested N and the rule's COUNT
+        int effectiveLimit = Count != null ? Math.Min(n, Count.Value) : n;
+        int occurrenceCount = 0;
+
+        for (int i = 0; i < MaxIterations; i++)
+        {
+            DateTime periodStart = GetPeriodStart(local.Start, i);
+            List<DateTime> candidates = ByRuleExpander.ExpandPeriod(this, local.Start, periodStart);
+
+            foreach (DateTime candidate in candidates)
+            {
+                if (candidate < local.Start)
+                {
+                    continue;
+                }
+                if (local.Until != null && candidate > local.Until.Value)
+                {
+                    return null;
+                }
+                if (local.End != null && candidate > local.End.Value)
+                {
+                    return null;
+                }
+
+                occurrenceCount++;
+                if (occurrenceCount == n)
+                {
+                    return ToDateTimeOffset(candidate, local.TimeZone);
+                }
+                if (occurrenceCount >= effectiveLimit)
+                {
+                    return null;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private readonly struct LocalTimes
+    {
+        internal readonly DateTime Start;
+        internal readonly DateTime After;
+        internal readonly DateTime? Until;
+        internal readonly DateTime? End;
+        internal readonly TimeZoneInfo TimeZone;
+
+        internal LocalTimes(DateTime start, DateTime after, DateTime? until, DateTime? end, TimeZoneInfo timeZone)
+        {
+            Start = start;
+            After = after;
+            Until = until;
+            End = end;
+            TimeZone = timeZone;
+        }
+    }
+
+    private LocalTimes ConvertToLocal(DateTimeOffset dtStart, DateTimeOffset after, TimeZoneInfo? timeZone, DateTimeOffset? endTime)
+    {
+        TimeZoneInfo tz = timeZone ?? TimeZoneInfo.Utc;
         DateTime localStart = TimeZoneInfo.ConvertTime(dtStart, tz).DateTime;
         DateTime localAfter = TimeZoneInfo.ConvertTime(after, tz).DateTime;
 
-        // Check UNTIL bound (convert to local if it was UTC)
         DateTime? localUntil = null;
         if (Until != null)
         {
@@ -241,32 +336,12 @@ internal sealed class RecurrenceRule
             localEnd = TimeZoneInfo.ConvertTime(endTime.Value, tz).DateTime;
         }
 
-        DateTime? result = FindNextOccurrence(localStart, localAfter, localUntil, localEnd);
-
-        if (result == null)
-        {
-            return null;
-        }
-
-        return ToDateTimeOffset(result.Value, tz);
+        return new LocalTimes(localStart, localAfter, localUntil, localEnd, tz);
     }
 
-    private DateTime? FindNextOccurrence(DateTime localStart, DateTime localAfter, DateTime? localUntil, DateTime? localEnd)
+    private DateTime? FindNextOccurrenceNonCount(LocalTimes local)
     {
-        // If COUNT is specified, we must walk forward from the start counting occurrences
-        if (Count != null)
-        {
-            return FindNextOccurrenceWithCount(localStart, localAfter, localUntil, localEnd);
-        }
-
-        // For non-COUNT rules, we can jump to the approximate period
-        return FindNextOccurrenceNonCount(localStart, localAfter, localUntil, localEnd);
-    }
-
-    private DateTime? FindNextOccurrenceNonCount(DateTime localStart, DateTime localAfter, DateTime? localUntil, DateTime? localEnd)
-    {
-        // Find the period index that contains localAfter (or just before it)
-        int startPeriodIdx = GetPeriodIndex(localStart, localAfter);
+        int startPeriodIdx = GetPeriodIndex(local.Start, local.After);
         if (startPeriodIdx < 0)
         {
             startPeriodIdx = 0;
@@ -274,35 +349,34 @@ internal sealed class RecurrenceRule
 
         for (int i = startPeriodIdx; i < startPeriodIdx + MaxIterations; i++)
         {
-            DateTime periodStart = GetPeriodStart(localStart, i);
+            DateTime periodStart = GetPeriodStart(local.Start, i);
 
-            // If period start is past bounds, stop
-            if (localUntil != null && periodStart > localUntil.Value)
+            if (local.Until != null && periodStart > local.Until.Value)
             {
                 return null;
             }
-            if (localEnd != null && periodStart > localEnd.Value)
+            if (local.End != null && periodStart > local.End.Value)
             {
                 return null;
             }
 
-            List<DateTime> candidates = ByRuleExpander.ExpandPeriod(this, localStart, periodStart);
+            List<DateTime> candidates = ByRuleExpander.ExpandPeriod(this, local.Start, periodStart);
 
             foreach (DateTime candidate in candidates)
             {
-                if (candidate < localStart)
+                if (candidate < local.Start)
                 {
                     continue;
                 }
-                if (candidate <= localAfter)
+                if (candidate <= local.After)
                 {
                     continue;
                 }
-                if (localUntil != null && candidate > localUntil.Value)
+                if (local.Until != null && candidate > local.Until.Value)
                 {
                     return null;
                 }
-                if (localEnd != null && candidate > localEnd.Value)
+                if (local.End != null && candidate > local.End.Value)
                 {
                     return null;
                 }
@@ -313,37 +387,37 @@ internal sealed class RecurrenceRule
         return null;
     }
 
-    private DateTime? FindNextOccurrenceWithCount(DateTime localStart, DateTime localAfter, DateTime? localUntil, DateTime? localEnd)
+    private DateTime? FindNextOccurrenceWithCount(LocalTimes local)
     {
         int occurrenceCount = 0;
         int countLimit = Count!.Value;
 
         for (int i = 0; i < MaxIterations; i++)
         {
-            DateTime periodStart = GetPeriodStart(localStart, i);
+            DateTime periodStart = GetPeriodStart(local.Start, i);
 
-            if (localUntil != null && periodStart > localUntil.Value)
+            if (local.Until != null && periodStart > local.Until.Value)
             {
                 return null;
             }
-            if (localEnd != null && periodStart > localEnd.Value)
+            if (local.End != null && periodStart > local.End.Value)
             {
                 return null;
             }
 
-            List<DateTime> candidates = ByRuleExpander.ExpandPeriod(this, localStart, periodStart);
+            List<DateTime> candidates = ByRuleExpander.ExpandPeriod(this, local.Start, periodStart);
 
             foreach (DateTime candidate in candidates)
             {
-                if (candidate < localStart)
+                if (candidate < local.Start)
                 {
                     continue;
                 }
-                if (localUntil != null && candidate > localUntil.Value)
+                if (local.Until != null && candidate > local.Until.Value)
                 {
                     return null;
                 }
-                if (localEnd != null && candidate > localEnd.Value)
+                if (local.End != null && candidate > local.End.Value)
                 {
                     return null;
                 }
@@ -354,7 +428,7 @@ internal sealed class RecurrenceRule
                     return null;
                 }
 
-                if (candidate > localAfter)
+                if (candidate > local.After)
                 {
                     return candidate;
                 }
@@ -434,7 +508,8 @@ internal sealed class RecurrenceRule
 
     /// <summary>
     /// Convert local DateTime to DateTimeOffset in the given timezone.
-    /// Handles DST gaps by advancing to next valid time.
+    /// Handles DST gaps by advancing to next valid time, and DST overlaps
+    /// by choosing the earlier (daylight/first) offset.
     /// </summary>
     private static DateTimeOffset ToDateTimeOffset(DateTime local, TimeZoneInfo tz)
     {
@@ -443,12 +518,10 @@ internal sealed class RecurrenceRule
             return new DateTimeOffset(local, TimeSpan.Zero);
         }
 
-        // Check if time falls in a DST gap
+        // Check if time falls in a DST gap (spring forward)
         if (tz.IsInvalidTime(local))
         {
-            // Advance past the gap
-            TimeSpan[] offsets = GetAmbiguousOrGapOffsets(tz, local);
-            // Simple approach: add the DST transition delta (typically 1 hour)
+            // Advance past the gap by computing the DST transition delta
             TimeSpan adjustment = tz.GetUtcOffset(local.AddHours(2)) - tz.GetUtcOffset(local.AddHours(-2));
             if (adjustment > TimeSpan.Zero)
             {
@@ -462,11 +535,12 @@ internal sealed class RecurrenceRule
 
         TimeSpan offset = tz.GetUtcOffset(local);
 
-        // For ambiguous times (DST overlap), use the first (earlier/standard) offset
+        // For ambiguous times (DST overlap / fall back), use the daylight offset
+        // (the larger UTC offset = earlier UTC instant), matching CalendarIntervalTriggerImpl behavior
         if (tz.IsAmbiguousTime(local))
         {
-            TimeSpan[] offsets = GetAmbiguousOrGapOffsets(tz, local);
-            offset = offsets[0]; // Standard time offset (larger value = earlier UTC time)
+            TimeSpan[] offsets = tz.GetAmbiguousTimeOffsets(local);
+            offset = offsets[0];
             for (int i = 1; i < offsets.Length; i++)
             {
                 if (offsets[i] > offset)
@@ -477,18 +551,6 @@ internal sealed class RecurrenceRule
         }
 
         return new DateTimeOffset(local, offset);
-    }
-
-    private static TimeSpan[] GetAmbiguousOrGapOffsets(TimeZoneInfo tz, DateTime local)
-    {
-        try
-        {
-            return tz.GetAmbiguousTimeOffsets(local);
-        }
-        catch
-        {
-            return new[] { tz.BaseUtcOffset };
-        }
     }
 
     /// <summary>

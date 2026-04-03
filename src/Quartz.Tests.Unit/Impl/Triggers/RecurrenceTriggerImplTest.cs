@@ -2,8 +2,10 @@ using System;
 
 using NUnit.Framework;
 
+using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
+using Quartz.Spi;
 
 namespace Quartz.Tests.Unit.Impl.Triggers;
 
@@ -251,5 +253,102 @@ public class RecurrenceTriggerImplTest
 
         Assert.IsInstanceOf<IRecurrenceTrigger>(trigger);
         Assert.AreEqual("FREQ=DAILY", ((IRecurrenceTrigger)trigger).RecurrenceRule);
+    }
+
+    [Test]
+    public void TestFinalFireTimeUtcWithCount()
+    {
+        RecurrenceTriggerImpl trigger = new RecurrenceTriggerImpl();
+        trigger.RecurrenceRule = "FREQ=DAILY;COUNT=5";
+        trigger.StartTimeUtc = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
+        trigger.TimeZone = TimeZoneInfo.Utc;
+
+        // FinalFireTimeUtc should be the 5th occurrence = Jan 5
+        DateTimeOffset? finalFire = trigger.FinalFireTimeUtc;
+        Assert.IsNotNull(finalFire);
+        Assert.AreEqual(5, finalFire!.Value.Day);
+        Assert.AreEqual(1, finalFire.Value.Month);
+    }
+
+    [Test]
+    public void TestFinalFireTimeUtcWithEndTime()
+    {
+        RecurrenceTriggerImpl trigger = new RecurrenceTriggerImpl();
+        trigger.RecurrenceRule = "FREQ=DAILY";
+        trigger.StartTimeUtc = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
+        trigger.EndTimeUtc = new DateTimeOffset(2025, 1, 10, 9, 0, 0, TimeSpan.Zero);
+        trigger.TimeZone = TimeZoneInfo.Utc;
+
+        Assert.AreEqual(trigger.EndTimeUtc, trigger.FinalFireTimeUtc);
+    }
+
+    [Test]
+    public void TestFinalFireTimeUtcNoEnd()
+    {
+        RecurrenceTriggerImpl trigger = new RecurrenceTriggerImpl();
+        trigger.RecurrenceRule = "FREQ=DAILY";
+        trigger.StartTimeUtc = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
+        trigger.TimeZone = TimeZoneInfo.Utc;
+
+        Assert.IsNull(trigger.FinalFireTimeUtc);
+    }
+
+    [Test]
+    public void TestPersistenceDelegateRoundTrip()
+    {
+        RecurrenceTriggerPersistenceDelegate del = new RecurrenceTriggerPersistenceDelegate();
+
+        RecurrenceTriggerImpl trigger = new RecurrenceTriggerImpl();
+        trigger.RecurrenceRule = "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR";
+        trigger.TimesTriggered = 7;
+        trigger.TimeZone = TimeZoneInfo.Utc;
+        trigger.StartTimeUtc = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
+
+        Assert.IsTrue(del.CanHandleTriggerType(trigger));
+        Assert.AreEqual("RECUR", del.GetHandledTriggerTypeDiscriminator());
+
+        // Serialize to properties
+        SimplePropertiesTriggerProperties props = (SimplePropertiesTriggerProperties)
+            typeof(RecurrenceTriggerPersistenceDelegate)
+                .GetMethod("GetTriggerProperties", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+                .Invoke(del, new object[] { trigger })!;
+
+        Assert.AreEqual("FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR", props.String1);
+        Assert.AreEqual(7, props.Int1);
+        Assert.AreEqual("UTC", props.TimeZoneId);
+
+        // Deserialize from properties
+        TriggerPropertyBundle bundle = (TriggerPropertyBundle)
+            typeof(RecurrenceTriggerPersistenceDelegate)
+                .GetMethod("GetTriggerPropertyBundle", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!
+                .Invoke(del, new object[] { props })!;
+
+        IMutableTrigger rebuilt = bundle.ScheduleBuilder.Build();
+        Assert.IsInstanceOf<RecurrenceTriggerImpl>(rebuilt);
+
+        IRecurrenceTrigger recRebuilt = (IRecurrenceTrigger)rebuilt;
+        Assert.AreEqual("FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR", recRebuilt.RecurrenceRule);
+        Assert.AreEqual(TimeZoneInfo.Utc, recRebuilt.TimeZone);
+
+        // Verify state properties
+        Assert.AreEqual("timesTriggered", bundle.StatePropertyNames![0]);
+        Assert.AreEqual(7, bundle.StatePropertyValues![0]);
+    }
+
+    [Test]
+    public void TestCountExhaustionViaTimesTriggered()
+    {
+        // Verify that TimesTriggered is the single source of truth for COUNT
+        RecurrenceTriggerImpl trigger = new RecurrenceTriggerImpl();
+        trigger.RecurrenceRule = "FREQ=DAILY;COUNT=3";
+        trigger.StartTimeUtc = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
+        trigger.TimeZone = TimeZoneInfo.Utc;
+
+        // Simulate that trigger has already fired 3 times externally
+        trigger.TimesTriggered = 3;
+
+        // GetFireTimeAfter should return null because TimesTriggered >= COUNT
+        DateTimeOffset? next = trigger.GetFireTimeAfter(new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero));
+        Assert.IsNull(next);
     }
 }
