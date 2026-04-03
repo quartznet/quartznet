@@ -96,19 +96,24 @@ public class RecurrenceTriggerImplTest
     }
 
     [Test]
-    public void TestCalendarExclusion()
+    public void TestCalendarExclusionSkipsExcludedDates()
     {
         RecurrenceTriggerImpl trigger = new RecurrenceTriggerImpl();
         trigger.RecurrenceRule = "FREQ=DAILY";
         trigger.StartTimeUtc = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
         trigger.TimeZone = TimeZoneInfo.Utc;
 
-        // Create a calendar that excludes Jan 2
-        DailyCalendar cal = new DailyCalendar("9:00", "9:59");
-        // DailyCalendar inverts by default - it excludes the specified range
-        // Let's use a simpler approach: compute first fire time with no calendar
-        trigger.ComputeFirstFireTimeUtc(null);
-        Assert.IsNotNull(trigger.GetNextFireTimeUtc());
+        // Exclude Jan 2 via AnnualCalendar
+        AnnualCalendar cal = new AnnualCalendar();
+        cal.SetDayExcluded(new DateTime(2025, 1, 2), true);
+
+        trigger.ComputeFirstFireTimeUtc(cal);
+        // First fire = Jan 1
+        Assert.AreEqual(new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero), trigger.GetNextFireTimeUtc());
+
+        // After triggering, next should skip Jan 2 (excluded) and land on Jan 3
+        trigger.Triggered(cal);
+        Assert.AreEqual(new DateTimeOffset(2025, 1, 3, 9, 0, 0, TimeSpan.Zero), trigger.GetNextFireTimeUtc());
     }
 
     [Test]

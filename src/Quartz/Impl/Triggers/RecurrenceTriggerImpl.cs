@@ -1,5 +1,4 @@
 using System;
-using System.Threading;
 
 using Quartz.Impl.Recurrence;
 
@@ -276,8 +275,9 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
     {
         nextFireTimeUtc = StartTimeUtc;
 
-        // If StartTimeUtc is itself a valid occurrence, use it.
-        // Otherwise, find the first occurrence after start.
+        // Find the first occurrence on or after StartTimeUtc.
+        // Uses default skipCount=false which is correct here: this method is only called once
+        // when the trigger is first added and TimesTriggered is 0, so COUNT walk-from-start is safe.
         RecurrenceRule rule = GetParsedRule();
         DateTimeOffset? first = rule.GetNextOccurrence(StartTimeUtc, StartTimeUtc.AddSeconds(-1), TimeZone, EndTimeUtc);
         if (first != null)

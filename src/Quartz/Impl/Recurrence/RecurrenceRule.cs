@@ -7,7 +7,9 @@ namespace Quartz.Impl.Recurrence;
 
 /// <summary>
 /// Parses and evaluates RFC 5545 RRULE recurrence rules.
-/// Thread-safe after construction (all properties are readonly).
+/// Thread-safe after construction: all properties are set once in the private constructor
+/// and must not be mutated afterward. Array properties are internal for performance
+/// (avoiding copies); callers must treat them as read-only.
 /// </summary>
 internal sealed class RecurrenceRule
 {
@@ -249,7 +251,8 @@ internal sealed class RecurrenceRule
     /// <summary>
     /// Returns the Nth occurrence of the recurrence (1-based), used for computing
     /// <see cref="Quartz.Impl.Triggers.RecurrenceTriggerImpl.FinalFireTimeUtc"/>
-    /// on COUNT-based rules. Respects both the requested N and the rule's own COUNT limit.
+    /// on COUNT-based rules. Returns null if the rule ends before the Nth occurrence
+    /// (either due to COUNT, UNTIL, or endTime).
     /// </summary>
     internal DateTimeOffset? GetNthOccurrence(
         DateTimeOffset dtStart,
@@ -259,8 +262,8 @@ internal sealed class RecurrenceRule
     {
         LocalTimes local = ConvertToLocal(dtStart, dtStart.AddSeconds(-1), timeZone, endTime);
 
-        // The effective limit is the smaller of requested N and the rule's COUNT
-        int effectiveLimit = Count != null ? Math.Min(n, Count.Value) : n;
+        // Cap at the rule's own COUNT if it's smaller than the requested N
+        int limit = Count != null ? Math.Min(n, Count.Value) : n;
         int occurrenceCount = 0;
 
         for (int i = 0; i < MaxIterations; i++)
@@ -284,13 +287,14 @@ internal sealed class RecurrenceRule
                 }
 
                 occurrenceCount++;
-                if (occurrenceCount == n)
+                if (occurrenceCount == limit)
                 {
-                    return ToDateTimeOffset(candidate, local.TimeZone);
-                }
-                if (occurrenceCount >= effectiveLimit)
-                {
-                    return null;
+                    // Return the candidate only if we actually reached the requested N;
+                    // if limit < n (because COUNT < n), this is the COUNT-th occurrence
+                    // but not the requested Nth, so return null.
+                    return occurrenceCount == n
+                        ? ToDateTimeOffset(candidate, local.TimeZone)
+                        : (DateTimeOffset?)null;
                 }
             }
         }
