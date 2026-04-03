@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
+using Quartz.Util;
+
 namespace Quartz.Impl.Recurrence;
 
 /// <summary>
@@ -390,8 +392,8 @@ internal sealed class RecurrenceRule
     private LocalTimes ConvertToLocal(DateTimeOffset dtStart, DateTimeOffset after, TimeZoneInfo? timeZone, DateTimeOffset? endTime)
     {
         TimeZoneInfo tz = timeZone ?? TimeZoneInfo.Utc;
-        DateTime localStart = TimeZoneInfo.ConvertTime(dtStart, tz).DateTime;
-        DateTime localAfter = TimeZoneInfo.ConvertTime(after, tz).DateTime;
+        DateTime localStart = TimeZoneUtil.ConvertTime(dtStart, tz).DateTime;
+        DateTime localAfter = TimeZoneUtil.ConvertTime(after, tz).DateTime;
 
         DateTime? localUntil = null;
         if (Until != null)
@@ -404,7 +406,7 @@ internal sealed class RecurrenceRule
         DateTime? localEnd = null;
         if (endTime != null)
         {
-            localEnd = TimeZoneInfo.ConvertTime(endTime.Value, tz).DateTime;
+            localEnd = TimeZoneUtil.ConvertTime(endTime.Value, tz).DateTime;
         }
 
         return new LocalTimes(localStart, localAfter, localUntil, localEnd, tz);
