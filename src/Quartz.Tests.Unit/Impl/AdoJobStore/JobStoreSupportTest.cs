@@ -678,6 +678,14 @@ public class JobStoreSupportTest
             AdoConstants.StateAcquired,
             A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
 
+        // Should also update from BLOCKED→WAITING to mirror ReleaseAcquiredTrigger
+        A.CallTo(() => driverDelegate.UpdateTriggerStateFromOtherState(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            triggerKey,
+            AdoConstants.StateWaiting,
+            AdoConstants.StateBlocked,
+            A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+
         A.CallTo(() => driverDelegate.DeleteFiredTrigger(
             A<ConnectionAndTransactionHolder>.Ignored,
             "entry_stale_1",
@@ -732,6 +740,14 @@ public class JobStoreSupportTest
             staleTrigger,
             AdoConstants.StateWaiting,
             AdoConstants.StateAcquired,
+            A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+
+        // Should also update from BLOCKED→WAITING to mirror ReleaseAcquiredTrigger
+        A.CallTo(() => driverDelegate.UpdateTriggerStateFromOtherState(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            staleTrigger,
+            AdoConstants.StateWaiting,
+            AdoConstants.StateBlocked,
             A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
 
         A.CallTo(() => driverDelegate.DeleteFiredTrigger(

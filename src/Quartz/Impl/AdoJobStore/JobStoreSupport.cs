@@ -924,14 +924,20 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
             if (rec.FireInstanceState == StateAcquired && effectiveTimestamp < staleCutoff)
             {
+                if (rec.TriggerKey is null || rec.FireInstanceId is null)
+                {
+                    Log.Warn($"Skipping stale acquired trigger recovery: invalid fired trigger record (TriggerKey: '{rec.TriggerKey}', FireInstanceId: '{rec.FireInstanceId}').");
+                    continue;
+                }
+
                 try
                 {
                     // Mirror ReleaseAcquiredTrigger: update from both ACQUIRED and BLOCKED,
                     // because TriggersFired may have moved the trigger to BLOCKED state (for
                     // DisallowConcurrentExecution jobs) while the fired record is still ACQUIRED.
-                    await Delegate.UpdateTriggerStateFromOtherState(conn, rec.TriggerKey!, StateWaiting, StateAcquired, cancellationToken).ConfigureAwait(false);
-                    await Delegate.UpdateTriggerStateFromOtherState(conn, rec.TriggerKey!, StateWaiting, StateBlocked, cancellationToken).ConfigureAwait(false);
-                    await Delegate.DeleteFiredTrigger(conn, rec.FireInstanceId!, cancellationToken).ConfigureAwait(false);
+                    await Delegate.UpdateTriggerStateFromOtherState(conn, rec.TriggerKey, StateWaiting, StateAcquired, cancellationToken).ConfigureAwait(false);
+                    await Delegate.UpdateTriggerStateFromOtherState(conn, rec.TriggerKey, StateWaiting, StateBlocked, cancellationToken).ConfigureAwait(false);
+                    await Delegate.DeleteFiredTrigger(conn, rec.FireInstanceId, cancellationToken).ConfigureAwait(false);
                     recoveredCount++;
                 }
                 catch (Exception e)
