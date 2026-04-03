@@ -113,8 +113,8 @@ public class TriggerBuilder
             {
                 throw new FormatException(
                     "Trigger identity must be set via WithIdentity() when using H (hash) tokens "
-                    + "in cron expressions. The trigger name is used as the hash seed to produce "
-                    + "deterministic, spread-out fire times.");
+                    + "in cron expressions. The trigger key (name + group) is used as the hash "
+                    + "seed to produce deterministic, spread-out fire times.");
             }
             hashAware.SetHashKey(key);
         }

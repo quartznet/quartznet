@@ -353,14 +353,14 @@ public class CronExpressionHashTest
     [Test]
     public void TriggerBuilder_DefaultGroup_UsesNameOnly()
     {
-        // With default group, only the name is used as hash key
+        // With default group, the hash key is ":name" (colon prefix discriminator)
         ITrigger trigger = TriggerBuilder.Create()
             .WithIdentity("myTrigger")
             .WithCronSchedule("H H * * * ?")
             .Build();
 
-        // Compare with explicit key using just the name
-        CronExpression explicit_ = new CronExpression("H H * * * ?", "myTrigger");
+        // Compare with explicit key matching the internal encoding
+        CronExpression explicit_ = new CronExpression("H H * * * ?", ":myTrigger");
 
         ICronTrigger cronTrigger = (ICronTrigger) trigger;
         Assert.AreEqual(explicit_.CronExpressionString, cronTrigger.CronExpressionString);

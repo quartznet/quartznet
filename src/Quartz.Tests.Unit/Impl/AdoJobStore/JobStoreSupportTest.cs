@@ -1038,6 +1038,7 @@ public class JobStoreSupportTest
     public async Task DoCheckin_LastCheckinNotAdvancedOnFailure()
     {
         // Freeze time so the store's initial LastCheckin is at a known point
+        Func<DateTimeOffset> originalUtcNow = SystemTime.UtcNow;
         DateTimeOffset frozenStart = new DateTimeOffset(2025, 6, 1, 12, 0, 0, TimeSpan.Zero);
         DateTimeOffset advancedTime = frozenStart.AddSeconds(1);
         int callCount = 0;
@@ -1083,7 +1084,7 @@ public class JobStoreSupportTest
         }
         finally
         {
-            SystemTime.UtcNow = () => DateTimeOffset.UtcNow;
+            SystemTime.UtcNow = originalUtcNow;
         }
     }
 

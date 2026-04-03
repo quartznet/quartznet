@@ -389,10 +389,12 @@ public class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>, IHashKeyAwareS
     {
         if (deferredHashExpression is not null)
         {
-            // Use length-prefixed encoding to avoid collisions when group/name contain dots
-            // e.g., group="a", name="b.c" vs group="a.b", name="c" must produce different keys
+            // Use unambiguous encoding to avoid hash collisions between different keys.
+            // Default-group keys are prefixed with ':' (discriminator) so they cannot collide
+            // with the non-default format which always starts with a digit (length prefix).
+            // e.g., default-group name "1:abc" → ":1:abc", group "a" + name "bc" → "1:abc"
             string hashKey = key.Group == SchedulerConstants.DefaultGroup
-                ? key.Name
+                ? $":{key.Name}"
                 : $"{key.Group.Length}:{key.Group}{key.Name}";
             cronExpression = new CronExpression(deferredHashExpression, hashKey);
             if (deferredTimeZone is not null)
