@@ -159,7 +159,9 @@ internal static class ByRuleExpander
 
     private static void ExpandWeekly(RecurrenceRule rule, DateTime dtStart, DateTime periodStart, List<DateTime> candidates)
     {
-        // WEEKLY: BYDAY expands, everything else limits
+        // WEEKLY per RFC 5545 Section 3.3.10:
+        //   BYDAY: Expand    BYMONTH: Limit    BYHOUR/BYMINUTE/BYSECOND: Expand
+        //   BYMONTHDAY, BYYEARDAY, BYWEEKNO: N/A (ignored if present)
         List<DateTime> days = new List<DateTime>();
 
         if (rule.ByDay != null)

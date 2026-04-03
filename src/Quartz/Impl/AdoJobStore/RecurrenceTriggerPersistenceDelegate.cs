@@ -28,6 +28,13 @@ public sealed class RecurrenceTriggerPersistenceDelegate : SimplePropertiesTrigg
     {
         RecurrenceTriggerImpl recTrig = (RecurrenceTriggerImpl) trigger;
 
+        // SIMPROP_TRIGGERS STRING_PROP_1 column is typically 512 chars
+        if (recTrig.RecurrenceRule.Length > 512)
+        {
+            throw new JobPersistenceException(
+                "RecurrenceRule string exceeds maximum length of 512 characters for database persistence.");
+        }
+
         SimplePropertiesTriggerProperties props = new SimplePropertiesTriggerProperties();
 
         props.String1 = recTrig.RecurrenceRule;

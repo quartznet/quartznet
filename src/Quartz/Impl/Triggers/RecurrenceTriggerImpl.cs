@@ -394,12 +394,6 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
         {
             throw new SchedulerException($"Invalid RecurrenceRule: {ex.Message}", ex);
         }
-
-        // Validate string length for persistence (SIMPROP_TRIGGERS String1 is 512 chars)
-        if (recurrenceRuleString.Length > 512)
-        {
-            throw new SchedulerException("RecurrenceRule string exceeds maximum length of 512 characters for database persistence.");
-        }
     }
 
     /// <inheritdoc/>
