@@ -13,8 +13,10 @@ namespace Quartz.Impl.Recurrence;
 /// </summary>
 internal sealed class RecurrenceRule
 {
-    private const int MaxIterations = 1000;
-    private const int MaxIterationsHardCap = 100_000;
+    // Search cap for GetNextOccurrence/GetLastOccurrenceBefore. Must be large enough
+    // for sub-daily frequencies with restrictive BY* rules (e.g. FREQ=SECONDLY;BYHOUR=23
+    // starting at midnight needs ~82,800 iterations). 100K covers >1 day of seconds.
+    private const int MaxIterations = 100_000;
 
     private static readonly Dictionary<string, DayOfWeek> DayMap = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -267,9 +269,9 @@ internal sealed class RecurrenceRule
         int limit = Count != null ? Math.Min(n, Count.Value) : n;
         int occurrenceCount = 0;
 
-        // Iteration bound must be at least n (each period may produce only one occurrence).
-        // Hard-capped to prevent runaway for pathological COUNT values.
-        int maxPeriods = Math.Min(Math.Max(MaxIterations, limit + MaxIterations), MaxIterationsHardCap);
+        // Iteration bound must be at least limit+1 (each period may produce only one occurrence)
+        // plus headroom for periods with no valid candidates, capped at 2x MaxIterations.
+        int maxPeriods = Math.Min(limit + MaxIterations, MaxIterations * 2);
 
         for (int i = 0; i < maxPeriods; i++)
         {
