@@ -470,6 +470,173 @@ public class JobStoreSupportTest
         public ValueTask Execute(IJobExecutionContext context) => default;
     }
 
+    [Test]
+    public async Task RecoverStaleAcquiredTriggers_ShouldRecoverTriggersStuckInAcquiredState()
+    {
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        var triggerKey = new TriggerKey("staleTrigger", "group");
+
+        var staleRecord = new FiredTriggerRecord
+        {
+            FireInstanceId = "entry_stale_1",
+            FireInstanceState = AdoConstants.StateAcquired,
+            FireTimestamp = DateTimeOffset.UtcNow - TimeSpan.FromMinutes(10),
+            TriggerKey = triggerKey,
+            SchedulerInstanceId = "TestInstanceId"
+        };
+
+        A.CallTo(() => driverDelegate.SelectInstancesFiredTriggerRecords(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            A<string>.Ignored,
+            A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<List<FiredTriggerRecord>>(new List<FiredTriggerRecord> { staleRecord }));
+
+        int recovered = await jobStoreSupport.CallRecoverStaleAcquiredTriggers(conn);
+
+        recovered.Should().Be(1);
+
+        A.CallTo(() => driverDelegate.UpdateTriggerStateFromOtherState(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            triggerKey,
+            AdoConstants.StateWaiting,
+            AdoConstants.StateAcquired,
+            A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+
+        // Should also update from BLOCKED→WAITING to mirror ReleaseAcquiredTrigger
+        A.CallTo(() => driverDelegate.UpdateTriggerStateFromOtherState(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            triggerKey,
+            AdoConstants.StateWaiting,
+            AdoConstants.StateBlocked,
+            A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+
+        A.CallTo(() => driverDelegate.DeleteFiredTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            "entry_stale_1",
+            A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task RecoverStaleAcquiredTriggers_ShouldMixRecoverableAndNonRecoverableRecords()
+    {
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        var staleTrigger = new TriggerKey("staleTrigger", "group");
+        var executingTrigger = new TriggerKey("executingTrigger", "group");
+        var recentTrigger = new TriggerKey("recentTrigger", "group");
+
+        var records = new[]
+        {
+            new FiredTriggerRecord
+            {
+                FireInstanceId = "entry_stale",
+                FireInstanceState = AdoConstants.StateAcquired,
+                FireTimestamp = DateTimeOffset.UtcNow - TimeSpan.FromMinutes(10),
+                TriggerKey = staleTrigger,
+            },
+            new FiredTriggerRecord
+            {
+                FireInstanceId = "entry_executing",
+                FireInstanceState = AdoConstants.StateExecuting,
+                FireTimestamp = DateTimeOffset.UtcNow - TimeSpan.FromMinutes(10),
+                TriggerKey = executingTrigger,
+            },
+            new FiredTriggerRecord
+            {
+                FireInstanceId = "entry_recent",
+                FireInstanceState = AdoConstants.StateAcquired,
+                FireTimestamp = DateTimeOffset.UtcNow - TimeSpan.FromSeconds(10),
+                TriggerKey = recentTrigger,
+            },
+        };
+
+        A.CallTo(() => driverDelegate.SelectInstancesFiredTriggerRecords(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            A<string>.Ignored,
+            A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<List<FiredTriggerRecord>>(new List<FiredTriggerRecord>(records)));
+
+        int recovered = await jobStoreSupport.CallRecoverStaleAcquiredTriggers(conn);
+
+        recovered.Should().Be(1, "only the stale ACQUIRED trigger should be recovered");
+
+        A.CallTo(() => driverDelegate.UpdateTriggerStateFromOtherState(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            staleTrigger,
+            AdoConstants.StateWaiting,
+            AdoConstants.StateAcquired,
+            A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+
+        // Should also update from BLOCKED→WAITING to mirror ReleaseAcquiredTrigger
+        A.CallTo(() => driverDelegate.UpdateTriggerStateFromOtherState(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            staleTrigger,
+            AdoConstants.StateWaiting,
+            AdoConstants.StateBlocked,
+            A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+
+        A.CallTo(() => driverDelegate.DeleteFiredTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            "entry_stale",
+            A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+    }
+
+    [Test]
+    public async Task RecoverStaleAcquiredTriggers_ShouldNotRecoverRecentlyAcquiredTriggers()
+    {
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+
+        var recentRecord = new FiredTriggerRecord
+        {
+            FireInstanceId = "entry_recent_1",
+            FireInstanceState = AdoConstants.StateAcquired,
+            FireTimestamp = DateTimeOffset.UtcNow - TimeSpan.FromSeconds(10),
+            TriggerKey = new TriggerKey("recentTrigger", "group"),
+            SchedulerInstanceId = "TestInstanceId"
+        };
+
+        A.CallTo(() => driverDelegate.SelectInstancesFiredTriggerRecords(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            A<string>.Ignored,
+            A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<List<FiredTriggerRecord>>(new List<FiredTriggerRecord> { recentRecord }));
+
+        int recovered = await jobStoreSupport.CallRecoverStaleAcquiredTriggers(conn);
+
+        recovered.Should().Be(0);
+
+        A.CallTo(() => driverDelegate.UpdateTriggerStateFromOtherState(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            A<TriggerKey>.Ignored,
+            A<string>.Ignored,
+            A<string>.Ignored,
+            A<CancellationToken>.Ignored)).MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task RecoverStaleAcquiredTriggers_ShouldNotRecoverExecutingTriggers()
+    {
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+
+        var executingRecord = new FiredTriggerRecord
+        {
+            FireInstanceId = "entry_exec_1",
+            FireInstanceState = AdoConstants.StateExecuting,
+            FireTimestamp = DateTimeOffset.UtcNow - TimeSpan.FromMinutes(10),
+            TriggerKey = new TriggerKey("executingTrigger", "group"),
+            SchedulerInstanceId = "TestInstanceId"
+        };
+
+        A.CallTo(() => driverDelegate.SelectInstancesFiredTriggerRecords(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            A<string>.Ignored,
+            A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<List<FiredTriggerRecord>>(new List<FiredTriggerRecord> { executingRecord }));
+
+        int recovered = await jobStoreSupport.CallRecoverStaleAcquiredTriggers(conn);
+
+        recovered.Should().Be(0);
+    }
+
     private static RetryTestJobStoreSupport CreateRetryTestStore(int maxTransientRetries = 3)
     {
         return new RetryTestJobStoreSupport
@@ -524,6 +691,11 @@ public class JobStoreSupportTest
             bool replaceExisting)
         {
             return StoreTrigger(conn, newTrigger, job, replaceExisting, AdoConstants.StateWaiting, false, false, CancellationToken.None);
+        }
+
+        internal Task<int> CallRecoverStaleAcquiredTriggers(ConnectionAndTransactionHolder conn)
+        {
+            return RecoverStaleAcquiredTriggers(conn, CancellationToken.None);
         }
 
         internal ValueTask CallStoreCalendar(

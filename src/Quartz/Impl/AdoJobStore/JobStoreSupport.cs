@@ -416,6 +416,21 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
     }
 
+    /// <summary>
+    /// Gets the threshold for considering a fired trigger record in ACQUIRED state as stale.
+    /// Uses 2x <see cref="MisfireThreshold"/> with a floor of 2 minutes, which is
+    /// generous enough to never interfere with normal acquisition (which takes at
+    /// most idleWaitTime ~30s plus processing time).
+    /// </summary>
+    protected virtual TimeSpan StaleAcquiredTriggerThreshold
+    {
+        get
+        {
+            TimeSpan threshold = MisfireThreshold + MisfireThreshold;
+            return threshold < TimeSpan.FromMinutes(2) ? TimeSpan.FromMinutes(2) : threshold;
+        }
+    }
+
     protected virtual string GetFiredTriggerRecordId()
     {
         Interlocked.Increment(ref ftrCtr);
@@ -848,6 +863,93 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
 
         return new RecoverMisfiredJobsResult(hasMoreMisfiredTriggers, misfiredTriggers.Count, earliestNewTime);
+    }
+
+    /// <summary>
+    /// Recover triggers that have been stuck in the ACQUIRED state for longer than
+    /// expected. This can happen when <see cref="Spi.IJobStore.ReleaseAcquiredTrigger"/>
+    /// fails after <see cref="Spi.IJobStore.TriggersFired"/> fails, leaving the trigger
+    /// in ACQUIRED state with no one to fire or release it.
+    /// </summary>
+    protected virtual async Task<int> RecoverStaleAcquiredTriggers(
+        ConnectionAndTransactionHolder conn,
+        CancellationToken cancellationToken = default)
+    {
+        TimeSpan staleThreshold = StaleAcquiredTriggerThreshold;
+        DateTimeOffset staleCutoff = timeProvider.GetUtcNow() - staleThreshold;
+
+        IReadOnlyCollection<FiredTriggerRecord> firedTriggers = await Delegate.SelectInstancesFiredTriggerRecords(conn, InstanceId, cancellationToken).ConfigureAwait(false);
+
+        int recoveredCount = 0;
+        foreach (FiredTriggerRecord rec in firedTriggers)
+        {
+            // Use the later of scheduled fire time and acquisition time to avoid
+            // premature recovery when IdleWaitTime is large (triggers are legitimately
+            // ACQUIRED until their scheduled fire time arrives).
+            DateTimeOffset effectiveTimestamp = rec.ScheduleTimestamp > rec.FireTimestamp
+                ? rec.ScheduleTimestamp
+                : rec.FireTimestamp;
+
+            if (rec.FireInstanceState == StateAcquired && effectiveTimestamp < staleCutoff)
+            {
+                if (rec.TriggerKey is null || rec.FireInstanceId is null)
+                {
+                    Logger.LogWarning("Skipping stale acquired trigger recovery: invalid fired trigger record (TriggerKey: '{TriggerKey}', FireInstanceId: '{FireInstanceId}')", rec.TriggerKey, rec.FireInstanceId);
+                    continue;
+                }
+
+                try
+                {
+                    // Mirror ReleaseAcquiredTrigger: update from both ACQUIRED and BLOCKED,
+                    // because TriggersFired may have moved the trigger to BLOCKED state (for
+                    // DisallowConcurrentExecution jobs) while the fired record is still ACQUIRED.
+                    await Delegate.UpdateTriggerStateFromOtherState(conn, rec.TriggerKey, StateWaiting, StateAcquired, cancellationToken).ConfigureAwait(false);
+                    await Delegate.UpdateTriggerStateFromOtherState(conn, rec.TriggerKey, StateWaiting, StateBlocked, cancellationToken).ConfigureAwait(false);
+                    await Delegate.DeleteFiredTrigger(conn, rec.FireInstanceId, cancellationToken).ConfigureAwait(false);
+                    recoveredCount++;
+                }
+                catch (Exception e)
+                {
+                    Logger.LogError(e, "Error recovering stale acquired trigger '{TriggerKey}'", rec.TriggerKey);
+                }
+            }
+        }
+
+        if (recoveredCount > 0)
+        {
+            Logger.LogInformation("Recovered {RecoveredCount} trigger(s) stuck in ACQUIRED state (stale threshold: {StaleThreshold})", recoveredCount, staleThreshold);
+        }
+
+        return recoveredCount;
+    }
+
+    /// <summary>
+    /// Pre-check (no lock required) to see if there are any fired trigger records in
+    /// ACQUIRED state that have exceeded the stale threshold. Queries the same data as
+    /// <see cref="RecoverStaleAcquiredTriggers"/> but only to decide whether to acquire
+    /// the lock; the actual recovery re-queries under lock for correctness.
+    /// </summary>
+    private async Task<bool> HasStaleAcquiredTriggers(
+        ConnectionAndTransactionHolder conn,
+        CancellationToken cancellationToken = default)
+    {
+        DateTimeOffset staleCutoff = timeProvider.GetUtcNow() - StaleAcquiredTriggerThreshold;
+
+        IReadOnlyCollection<FiredTriggerRecord> firedTriggers = await Delegate.SelectInstancesFiredTriggerRecords(conn, InstanceId, cancellationToken).ConfigureAwait(false);
+
+        foreach (FiredTriggerRecord rec in firedTriggers)
+        {
+            DateTimeOffset effectiveTimestamp = rec.ScheduleTimestamp > rec.FireTimestamp
+                ? rec.ScheduleTimestamp
+                : rec.FireTimestamp;
+
+            if (rec.FireInstanceState == StateAcquired && effectiveTimestamp < staleCutoff)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     protected virtual async ValueTask<bool> UpdateMisfiredTrigger(
@@ -3278,6 +3380,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         try
         {
             RecoverMisfiredJobsResult result = RecoverMisfiredJobsResult.NoOp;
+            int staleCount = 0;
 
             if (LockAllOperations)
             {
@@ -3287,6 +3390,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 transOwner = await LockHandler.ObtainLock(requestorId, null, LockTriggerAccess, cancellationToken).ConfigureAwait(false);
                 conn = await GetNonManagedTXConnection().ConfigureAwait(false);
                 result = await RecoverMisfiredJobs(conn, false, cancellationToken).ConfigureAwait(false);
+                staleCount = await RecoverStaleAcquiredTriggers(conn, cancellationToken).ConfigureAwait(false);
             }
             else
             {
@@ -3309,7 +3413,25 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                     transOwner = await LockHandler.ObtainLock(requestorId, conn, LockTriggerAccess, cancellationToken).ConfigureAwait(false);
 
                     result = await RecoverMisfiredJobs(conn, false, cancellationToken).ConfigureAwait(false);
+                    staleCount = await RecoverStaleAcquiredTriggers(conn, cancellationToken).ConfigureAwait(false);
                 }
+                else if (await HasStaleAcquiredTriggers(conn, cancellationToken).ConfigureAwait(false))
+                {
+                    // Even when no misfired triggers exist, check for triggers stuck
+                    // in ACQUIRED state (e.g., from a failed ReleaseAcquiredTrigger call)
+                    transOwner = await LockHandler.ObtainLock(requestorId, conn, LockTriggerAccess, cancellationToken).ConfigureAwait(false);
+                    staleCount = await RecoverStaleAcquiredTriggers(conn, cancellationToken).ConfigureAwait(false);
+                }
+            }
+
+            // Include stale recovery count so the caller signals the scheduler thread
+            if (staleCount > 0)
+            {
+                int totalCount = result.ProcessedMisfiredTriggerCount + staleCount;
+                DateTimeOffset earliestNewTime = result.EarliestNewTime < timeProvider.GetUtcNow()
+                    ? result.EarliestNewTime
+                    : timeProvider.GetUtcNow();
+                result = new RecoverMisfiredJobsResult(result.HasMoreMisfiredTriggers, totalCount, earliestNewTime);
             }
 
             await CommitConnection(conn, false).ConfigureAwait(false);
