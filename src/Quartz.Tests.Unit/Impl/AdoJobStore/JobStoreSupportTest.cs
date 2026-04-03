@@ -1036,35 +1036,54 @@ public class JobStoreSupportTest
     [Test]
     public async Task DoCheckin_LastCheckinNotAdvancedOnFailure()
     {
-        TransientDoCheckinTestStore store = CreateTransientDoCheckinTestStore();
-        IDriverDelegate del = A.Fake<IDriverDelegate>();
-        store.DirectDelegate = del;
+        // Freeze time so the store's initial LastCheckin is at a known point
+        DateTimeOffset frozenStart = new DateTimeOffset(2025, 6, 1, 12, 0, 0, TimeSpan.Zero);
+        DateTimeOffset advancedTime = frozenStart.AddSeconds(1);
+        int callCount = 0;
+        SystemTime.UtcNow = () =>
+        {
+            // First call: store construction. Subsequent calls: after DoCheckin starts.
+            callCount++;
+            return callCount <= 1 ? frozenStart : advancedTime;
+        };
 
-        store.SetFirstCheckIn(false);
+        try
+        {
+            TransientDoCheckinTestStore store = CreateTransientDoCheckinTestStore();
+            IDriverDelegate del = A.Fake<IDriverDelegate>();
+            store.DirectDelegate = del;
 
-        DateTimeOffset initialCheckin = store.LastCheckin;
+            store.SetFirstCheckIn(false);
 
-        int updateCallCount = 0;
-        A.CallTo(() => del.SelectSchedulerStateRecords(A<ConnectionAndTransactionHolder>.Ignored, A<string>.Ignored, A<CancellationToken>.Ignored))
-            .Returns(Task.FromResult<IReadOnlyCollection<SchedulerStateRecord>>(new List<SchedulerStateRecord>
-            {
-                new SchedulerStateRecord { SchedulerInstanceId = store.InstanceId, CheckinTimestamp = SystemTime.UtcNow(), CheckinInterval = TimeSpan.FromSeconds(15) }
-            }));
+            DateTimeOffset initialCheckin = store.LastCheckin;
+            initialCheckin.Should().Be(frozenStart);
 
-        A.CallTo(() => del.UpdateSchedulerState(A<ConnectionAndTransactionHolder>.Ignored, A<string>.Ignored, A<DateTimeOffset>.Ignored, A<CancellationToken>.Ignored))
-            .ReturnsLazily(call =>
-            {
-                updateCallCount++;
-                if (updateCallCount == 1)
+            int updateCallCount = 0;
+            A.CallTo(() => del.SelectSchedulerStateRecords(A<ConnectionAndTransactionHolder>.Ignored, A<string>.Ignored, A<CancellationToken>.Ignored))
+                .Returns(Task.FromResult<IReadOnlyCollection<SchedulerStateRecord>>(new List<SchedulerStateRecord>
                 {
-                    throw new TransientTestException();
-                }
-                return Task.FromResult(1);
-            });
+                    new SchedulerStateRecord { SchedulerInstanceId = store.InstanceId, CheckinTimestamp = SystemTime.UtcNow(), CheckinInterval = TimeSpan.FromSeconds(15) }
+                }));
 
-        await store.DoCheckin(Guid.NewGuid());
+            A.CallTo(() => del.UpdateSchedulerState(A<ConnectionAndTransactionHolder>.Ignored, A<string>.Ignored, A<DateTimeOffset>.Ignored, A<CancellationToken>.Ignored))
+                .ReturnsLazily(call =>
+                {
+                    updateCallCount++;
+                    if (updateCallCount == 1)
+                    {
+                        throw new TransientTestException();
+                    }
+                    return Task.FromResult(1);
+                });
 
-        store.LastCheckin.Should().BeAfter(initialCheckin, "LastCheckin should advance after successful check-in");
+            await store.DoCheckin(Guid.NewGuid());
+
+            store.LastCheckin.Should().BeAfter(initialCheckin, "LastCheckin should advance after successful check-in");
+        }
+        finally
+        {
+            SystemTime.UtcNow = () => DateTimeOffset.UtcNow;
+        }
     }
 
     private static TransientDoCheckinTestStore CreateTransientDoCheckinTestStore(int maxTransientRetries = 3)
