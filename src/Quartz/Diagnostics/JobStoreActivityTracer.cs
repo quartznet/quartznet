@@ -58,7 +58,10 @@ internal sealed class JobStoreActivityTracer
     {
         activity.SetTag(ActivityOptions.SchedulerName, schedulerName);
         activity.SetTag(ActivityOptions.SchedulerId, schedulerId);
-        enrichActivity?.Invoke(activity);
+        if (activity.IsAllDataRequested)
+        {
+            enrichActivity?.Invoke(activity);
+        }
         activity.Start();
         try
         {
@@ -83,7 +86,10 @@ internal sealed class JobStoreActivityTracer
     {
         activity.SetTag(ActivityOptions.SchedulerName, schedulerName);
         activity.SetTag(ActivityOptions.SchedulerId, schedulerId);
-        enrichActivity?.Invoke(activity);
+        if (activity.IsAllDataRequested)
+        {
+            enrichActivity?.Invoke(activity);
+        }
         activity.Start();
         try
         {
