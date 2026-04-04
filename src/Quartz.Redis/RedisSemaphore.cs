@@ -168,7 +168,7 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
 
         try
         {
-            IConnectionMultiplexer connection = await GetConnectionAsync().ConfigureAwait(false);
+            IConnectionMultiplexer connection = await GetConnectionAsync(cancellationToken).ConfigureAwait(false);
             IDatabase db = connection.GetDatabase();
             string key = BuildKey(lockName);
             string value = requestorId.ToString("N");
@@ -266,14 +266,14 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
         return $"{KeyPrefix}{lockName}";
     }
 
-    private async Task<IConnectionMultiplexer> GetConnectionAsync()
+    private async Task<IConnectionMultiplexer> GetConnectionAsync(CancellationToken cancellationToken = default)
     {
         if (redis != null)
         {
             return redis;
         }
 
-        await connectionLock.WaitAsync().ConfigureAwait(false);
+        await connectionLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             if (redis != null)
