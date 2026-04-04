@@ -26,6 +26,7 @@ using Nuke.Common.Utilities;
 [DatabaseIntegrationGitHubActions("pr-integration-oracle", "oracle")]
 [DatabaseIntegrationGitHubActions("pr-integration-firebird", "firebird")]
 [DatabaseIntegrationGitHubActions("pr-integration-sqlite", "sqlite")]
+[DatabaseIntegrationGitHubActions("pr-integration-redis", "redis")]
 [CustomGitHubActions(
     "build",
     GitHubActionsImage.WindowsLatest,
