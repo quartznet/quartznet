@@ -1,4 +1,4 @@
-using Quartz.Logging;
+using Quartz.Diagnostics;
 
 namespace Quartz.OpenTelemetry.Instrumentation;
 

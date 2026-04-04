@@ -28,7 +28,7 @@ internal sealed class JobStoreActivityTracer
         Func<ValueTask<T>> operation,
         Action<Activity>? enrichActivity = null)
     {
-        Activity? activity = activitySource.CreateActivity(operationName, ActivityKind.Internal);
+        Activity? activity = activitySource.CreateActivity(operationName, ActivityKind.Client);
         if (activity is null)
         {
             return operation();
@@ -42,7 +42,7 @@ internal sealed class JobStoreActivityTracer
         Func<ValueTask> operation,
         Action<Activity>? enrichActivity = null)
     {
-        Activity? activity = activitySource.CreateActivity(operationName, ActivityKind.Internal);
+        Activity? activity = activitySource.CreateActivity(operationName, ActivityKind.Client);
         if (activity is null)
         {
             return operation();
