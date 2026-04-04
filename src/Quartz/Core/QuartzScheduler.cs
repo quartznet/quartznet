@@ -955,12 +955,12 @@ public class QuartzScheduler :
     }
 
     /// <summary>
-    /// Updates non-schedule properties of an existing trigger without rescheduling.
-    /// Properties like Description, Priority, and JobDataMap can be changed without
-    /// affecting the trigger's fire times, state, or misfire handling.
+    /// Updates trigger metadata and selected settings without rescheduling.
+    /// Fire times and trigger state are preserved. Supported properties include
+    /// Description, Priority, JobDataMap, CalendarName, and MisfireInstruction.
     /// </summary>
     /// <param name="triggerKey">The key identifying the trigger to update.</param>
-    /// <param name="update">The details to update.</param>
+    /// <param name="update">The details to update. See <see cref="TriggerDetailsUpdate"/> for available properties.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns><see langword="true"/> if the trigger was found and updated, <see langword="false"/> if not found.</returns>
     /// <exception cref="SchedulerException">If the job store does not support this operation.</exception>

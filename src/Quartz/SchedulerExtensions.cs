@@ -13,8 +13,9 @@ namespace Quartz;
 public static class SchedulerExtensions
 {
     /// <summary>
-    /// Updates non-schedule properties of an existing trigger without rescheduling.
-    /// Preserves the trigger's fire times, state, and misfire handling context.
+    /// Updates trigger metadata and selected settings without rescheduling.
+    /// Fire times and trigger state are preserved. Supported properties include
+    /// Description, Priority, JobDataMap, CalendarName, and MisfireInstruction.
     /// </summary>
     /// <remarks>
     /// This operation is supported when the underlying scheduler is a <see cref="StdScheduler"/>
