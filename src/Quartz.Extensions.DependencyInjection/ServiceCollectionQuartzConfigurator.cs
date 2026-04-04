@@ -197,34 +197,6 @@ internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQu
         schedulerBuilder.UseDedicatedThreadPool(configure);
     }
 
-    /// <inheritdoc />
-    public void UseExecutionLimits(Action<ExecutionLimits> configure)
-    {
-        if (configure is null)
-        {
-            throw new ArgumentNullException(nameof(configure));
-        }
-
-        ExecutionLimits limits = new();
-        configure(limits);
-
-        foreach (var kvp in limits)
-        {
-            string propKey;
-            if (kvp.Key == ExecutionLimits.DefaultGroupKey)
-            {
-                propKey = "_";
-            }
-            else
-            {
-                propKey = kvp.Key;
-            }
-
-            string propValue = kvp.Value?.ToString() ?? "unlimited";
-            SetProperty($"{StdSchedulerFactory.PropertyExecutionLimitPrefix}.{propKey}", propValue);
-        }
-    }
-
     public TimeSpan MisfireThreshold
     {
         set => schedulerBuilder.MisfireThreshold = value;

@@ -28,7 +28,6 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Impl.AdoJobStore;
-using Quartz.Impl.Triggers;
 using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
@@ -496,7 +495,7 @@ public class QuartzSchedulerThread
                                 continue;
                             }
 
-                            string? execGroup = (trigger as AbstractTrigger)?.ExecutionGroup;
+                            string? execGroup = (trigger as INextVersionTrigger)?.ExecutionGroup;
                             string normalizedGroup = ExecutionLimits.NormalizeGroupKey(execGroup);
 
                             // Always track counts so that limits enabled at runtime

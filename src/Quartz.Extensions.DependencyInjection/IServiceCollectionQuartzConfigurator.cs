@@ -79,14 +79,6 @@ public interface IServiceCollectionQuartzConfigurator : IPropertyConfigurer, IPr
     void UseDedicatedThreadPool(int maxConcurrency, Action<SchedulerBuilder.ThreadPoolOptions>? configure = null);
     void UseDedicatedThreadPool(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null);
 
-    /// <summary>
-    /// Configures execution group limits for this scheduler node. Execution groups
-    /// allow per-node thread limits so that resource-intensive jobs do not saturate
-    /// all available threads.
-    /// </summary>
-    /// <param name="configure">Action to configure the execution limits.</param>
-    void UseExecutionLimits(Action<ExecutionLimits> configure);
-
     void AddSchedulerListener<
 #if NET6_0_OR_GREATER
         [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
