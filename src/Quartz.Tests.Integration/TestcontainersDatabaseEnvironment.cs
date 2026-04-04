@@ -63,7 +63,7 @@ internal static class TestcontainersDatabaseEnvironment
             string targetDatabase = Environment.GetEnvironmentVariable("QUARTZ_TEST_DATABASE")?.ToLowerInvariant();
             bool startAll = string.IsNullOrEmpty(targetDatabase) || targetDatabase == "all";
 
-            // No containers needed for basic, sqlite, or redis tests
+            // No database containers needed for basic, sqlite, or redis tests (redis has its own container via RedisTestEnvironment)
             if (targetDatabase is "basic" or "sqlite" or "redis")
             {
                 initialized = true;

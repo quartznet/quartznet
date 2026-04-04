@@ -63,6 +63,8 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
 
     private IConnectionMultiplexer? redis;
     private readonly SemaphoreSlim connectionLock = new(1, 1);
+    private int lockTtlMilliseconds = 30_000;
+    private int lockRetryIntervalMilliseconds = 100;
 
     public RedisSemaphore()
     {
@@ -93,7 +95,19 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
     /// Defaults to <c>30000</c> (30 seconds). The lock automatically expires after this
     /// duration, allowing recovery when a node crashes while holding a lock.
     /// </remarks>
-    public int LockTtlMilliseconds { get; set; } = 30_000;
+    public int LockTtlMilliseconds
+    {
+        get => lockTtlMilliseconds;
+        set
+        {
+            if (value <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(value), "LockTtlMilliseconds must be greater than zero.");
+            }
+
+            lockTtlMilliseconds = value;
+        }
+    }
 
     /// <summary>
     /// Gets or sets the polling interval in milliseconds between <c>SET NX</c> retry attempts.
@@ -101,7 +115,19 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
     /// <remarks>
     /// Defaults to <c>100</c> milliseconds.
     /// </remarks>
-    public int LockRetryIntervalMilliseconds { get; set; } = 100;
+    public int LockRetryIntervalMilliseconds
+    {
+        get => lockRetryIntervalMilliseconds;
+        set
+        {
+            if (value <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(value), "LockRetryIntervalMilliseconds must be greater than zero.");
+            }
+
+            lockRetryIntervalMilliseconds = value;
+        }
+    }
 
     /// <summary>
     /// Table prefix (unused, but required by <see cref="ITablePrefixAware"/>
