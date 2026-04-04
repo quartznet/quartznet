@@ -187,7 +187,7 @@ public class RedisSemaphoreTest
             RedisConfiguration = RedisTestEnvironment.ConnectionString,
             SchedName = "TestScheduler",
             KeyPrefix = "quartz:test:lock:",
-            LockTtlMilliseconds = 1000 // 1 second TTL
+            LockTtlMilliseconds = 2000 // 2 second TTL
         };
 
         Guid requestorId = Guid.NewGuid();
@@ -195,8 +195,8 @@ public class RedisSemaphoreTest
         await shortTtlSemaphore.ObtainLock(
             requestorId, null, JobStoreSupport.LockTriggerAccess);
 
-        // Wait for the TTL to expire
-        await Task.Delay(1500);
+        // Wait for the TTL to expire (generous margin for slow CI)
+        await Task.Delay(3000);
 
         // Key should be gone
         IDatabase db = redis.GetDatabase();

@@ -62,7 +62,7 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
     private readonly ILog log;
 
     private IConnectionMultiplexer? redis;
-    private readonly object connectionLock = new();
+    private readonly SemaphoreSlim connectionLock = new(1, 1);
 
     public RedisSemaphore()
     {
@@ -168,7 +168,8 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
 
         try
         {
-            IDatabase db = GetConnection().GetDatabase();
+            IConnectionMultiplexer connection = await GetConnectionAsync().ConfigureAwait(false);
+            IDatabase db = connection.GetDatabase();
             string key = BuildKey(lockName);
             string value = requestorId.ToString("N");
             TimeSpan ttl = TimeSpan.FromMilliseconds(LockTtlMilliseconds);
@@ -230,7 +231,8 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
 
         try
         {
-            IDatabase db = GetConnection().GetDatabase();
+            IConnectionMultiplexer connection = await GetConnectionAsync().ConfigureAwait(false);
+            IDatabase db = connection.GetDatabase();
             string key = BuildKey(lockName);
             string value = requestorId.ToString("N");
 
@@ -263,23 +265,28 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
         return $"{KeyPrefix}{lockName}";
     }
 
-    private IConnectionMultiplexer GetConnection()
+    private async Task<IConnectionMultiplexer> GetConnectionAsync()
     {
         if (redis != null)
         {
             return redis;
         }
 
-        lock (connectionLock)
+        await connectionLock.WaitAsync().ConfigureAwait(false);
+        try
         {
             if (redis != null)
             {
                 return redis;
             }
 
-            log.Info($"Connecting to Redis: {RedisConfiguration}");
-            redis = ConnectionMultiplexer.Connect(RedisConfiguration);
+            log.Info("Connecting to Redis");
+            redis = await ConnectionMultiplexer.ConnectAsync(RedisConfiguration).ConfigureAwait(false);
             return redis;
+        }
+        finally
+        {
+            connectionLock.Release();
         }
     }
 
