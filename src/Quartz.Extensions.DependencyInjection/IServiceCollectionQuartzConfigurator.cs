@@ -11,6 +11,8 @@ public interface IServiceCollectionQuartzConfigurator : IPropertyConfigurer, IPr
 {
     internal IServiceCollection Services { get; }
 
+    internal string OptionsName { get; }
+
     void UseTypeLoader<
 #if NET6_0_OR_GREATER
         [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]

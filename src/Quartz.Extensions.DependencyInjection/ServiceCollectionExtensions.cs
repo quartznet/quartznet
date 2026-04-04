@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Specialized;
 using System.Data.Common;
+using System.Linq;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -89,6 +90,131 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<ISchedulerFactory, ServiceCollectionSchedulerFactory>();
 
         // Note: TryAddEnumerable() is used here to ensure the initializers are registered only once.
+        services.TryAddEnumerable(new[]
+        {
+            ServiceDescriptor.Singleton<IPostConfigureOptions<QuartzOptions>, QuartzConfiguration>()
+        });
+
+        return services;
+    }
+
+    /// <summary>
+    /// Configures a named Quartz scheduler, allowing multiple independent schedulers in a single DI container.
+    /// Each named scheduler has its own jobs, triggers, listeners, and configuration.
+    /// Use <c>AddQuartzHostedService</c> to start all registered schedulers.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="name">Unique scheduler name, used as both the scheduler instance name and the options key.</param>
+    /// <param name="configure">Optional configuration action for jobs, triggers, listeners, etc.</param>
+    public static IServiceCollection AddQuartz(
+        this IServiceCollection services,
+        string name,
+        Action<IServiceCollectionQuartzConfigurator>? configure = null)
+    {
+        return AddQuartz(services, name, new NameValueCollection(), configure);
+    }
+
+    /// <summary>
+    /// Configures a named Quartz scheduler with explicit properties, allowing multiple independent schedulers in a single DI container.
+    /// Each named scheduler has its own jobs, triggers, listeners, and configuration.
+    /// Use <c>AddQuartzHostedService</c> to start all registered schedulers.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="name">Unique scheduler name, used as both the scheduler instance name and the options key.</param>
+    /// <param name="properties">Quartz configuration properties for this scheduler.</param>
+    /// <param name="configure">Optional configuration action for jobs, triggers, listeners, etc.</param>
+    public static IServiceCollection AddQuartz(
+        this IServiceCollection services,
+        string name,
+        NameValueCollection properties,
+        Action<IServiceCollectionQuartzConfigurator>? configure = null)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new ArgumentException("Scheduler name must not be null or empty.", nameof(name));
+        }
+
+        if (properties is null)
+        {
+            throw new ArgumentNullException(nameof(properties));
+        }
+
+        services.AddOptions();
+        services.TryAddSingleton<MicrosoftLoggingProvider>(serviceProvider =>
+        {
+            var loggerFactory = serviceProvider.GetService<ILoggerFactory>();
+
+            if (loggerFactory is null)
+            {
+                throw new InvalidOperationException($"{nameof(ILoggerFactory)} service is required");
+            }
+
+            LogContext.SetCurrentLogProvider(loggerFactory);
+
+            return (LogProvider.CurrentLogProvider as MicrosoftLoggingProvider)!;
+        });
+
+        // Force the scheduler instance name to the provided name
+        properties[StdSchedulerFactory.PropertySchedulerInstanceName] = name;
+
+        SchedulerBuilder schedulerBuilder = SchedulerBuilder.Create(properties);
+        if (configure != null)
+        {
+            ServiceCollectionQuartzConfigurator target = new ServiceCollectionQuartzConfigurator(services, schedulerBuilder, name);
+            configure(target);
+        }
+
+        // Re-force the scheduler instance name after configuration so it cannot drift
+        // from the named options key / registry entry via SetProperty() or Properties[]
+        schedulerBuilder.Properties[StdSchedulerFactory.PropertySchedulerInstanceName] = name;
+
+        // Shared singletons -- safe to register multiple times via TryAdd
+        services.TryAddSingleton<ISchedulerRepository, SchedulerRepository>();
+        services.TryAddSingleton<IDbConnectionManager, DBConnectionManager>();
+
+        if (string.IsNullOrWhiteSpace(properties[StdSchedulerFactory.PropertySchedulerTypeLoadHelperType]))
+        {
+            services.TryAddSingleton(typeof(ITypeLoadHelper), typeof(SimpleTypeLoadHelper));
+        }
+
+        if (string.IsNullOrWhiteSpace(properties[StdSchedulerFactory.PropertySchedulerJobFactoryType]))
+        {
+            properties[StdSchedulerFactory.PropertySchedulerJobFactoryType] = typeof(MicrosoftDependencyInjectionJobFactory).AssemblyQualifiedNameWithoutVersion();
+            services.TryAddSingleton(typeof(IJobFactory), typeof(MicrosoftDependencyInjectionJobFactory));
+        }
+
+        // Configure named options for this scheduler
+        services.Configure<QuartzOptions>(name, options =>
+        {
+            foreach (var key in schedulerBuilder.Properties.AllKeys)
+            {
+                if (key is not null)
+                {
+                    options[key] = schedulerBuilder.Properties[key];
+                }
+            }
+        });
+
+        // Register this scheduler name in the registry
+        ServiceDescriptor? existing = services.FirstOrDefault(d => d.ServiceType == typeof(SchedulerNameRegistry));
+        if (existing?.ImplementationInstance is SchedulerNameRegistry existingRegistry)
+        {
+            existingRegistry.Add(name);
+        }
+        else
+        {
+            if (existing != null)
+            {
+                services.Remove(existing);
+            }
+            SchedulerNameRegistry newRegistry = new SchedulerNameRegistry();
+            newRegistry.Add(name);
+            services.AddSingleton(newRegistry);
+        }
+
+        // Note: ISchedulerFactory and ContainerConfigurationProcessor are NOT registered here.
+        // Named schedulers are created by NamedSchedulerHostedService using NamedSchedulerFactory.
+
         services.TryAddEnumerable(new[]
         {
             ServiceDescriptor.Singleton<IPostConfigureOptions<QuartzOptions>, QuartzConfiguration>()
@@ -192,11 +318,12 @@ public static class ServiceCollectionExtensions
             c.WithIdentity(jobKey);
         }
 
+        var optionsName = options.OptionsName;
         options.Services.AddSingleton<IConfigureOptions<QuartzOptions>>(serviceProvider =>
         {
             var jobDetail = ConfigureAndBuildJobDetail(serviceProvider, jobType, c, configure, hasCustomKey: out _);
 
-            return new ConfigureNamedOptions<QuartzOptions>(Options.DefaultName, x =>
+            return new ConfigureNamedOptions<QuartzOptions>(optionsName, x =>
             {
                 x.jobDetails.Add(jobDetail);
             });
@@ -223,6 +350,7 @@ public static class ServiceCollectionExtensions
         this IServiceCollectionQuartzConfigurator options,
         Action<IServiceProvider, ITriggerConfigurator> configure)
     {
+        var optionsName = options.OptionsName;
         options.Services.AddSingleton<IConfigureOptions<QuartzOptions>>(serviceProvider =>
         {
             var c = new TriggerConfigurator();
@@ -234,7 +362,7 @@ public static class ServiceCollectionExtensions
                 throw new InvalidOperationException("Trigger hasn't been associated with a job");
             }
 
-            return new ConfigureNamedOptions<QuartzOptions>(Options.DefaultName, x =>
+            return new ConfigureNamedOptions<QuartzOptions>(optionsName, x =>
             {
                 x.triggers.Add(trigger);
             });
@@ -275,9 +403,10 @@ public static class ServiceCollectionExtensions
             throw new ArgumentNullException(nameof(trigger));
         }
 
+        var optionsName = options.OptionsName;
         options.Services.AddSingleton<IConfigureOptions<QuartzOptions>>(serviceProvider =>
         {
-            return new ConfigureNamedOptions<QuartzOptions>(Options.DefaultName, quartzOptions =>
+            return new ConfigureNamedOptions<QuartzOptions>(optionsName, quartzOptions =>
             {
                 var jobConfigurator = new JobConfigurator();
                 var jobDetail = ConfigureAndBuildJobDetail(serviceProvider, typeof(T), jobConfigurator, job, out var jobHasCustomKey);
@@ -354,12 +483,13 @@ public static class ServiceCollectionExtensions
         bool updateTriggers,
         Action<IServiceProvider, T> configure) where T : ICalendar, new()
     {
+        var optionsName = configurator.OptionsName;
         configurator.Services.AddSingleton(serviceProvider =>
         {
             var calendar = new T();
             configure(serviceProvider, calendar);
 
-            return new CalendarConfiguration(name, calendar, replace, updateTriggers);
+            return new CalendarConfiguration(name, calendar, replace, updateTriggers, optionsName);
         });
         return configurator;
     }
@@ -371,7 +501,7 @@ public static class ServiceCollectionExtensions
         bool replace,
         bool updateTriggers)
     {
-        configurator.Services.AddSingleton(new CalendarConfiguration(name, calendar, replace, updateTriggers));
+        configurator.Services.AddSingleton(new CalendarConfiguration(name, calendar, replace, updateTriggers, configurator.OptionsName));
         return configurator;
     }
 
