@@ -295,7 +295,11 @@ internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQu
         where TService : class
         where TImplementation : class, TService
     {
-
-        services.AddSingleton<TService, TImplementation>();
+        // Named schedulers get their components from StdSchedulerFactory via properties;
+        // only register global DI singletons for the default scheduler
+        if (!IsNamedScheduler)
+        {
+            services.AddSingleton<TService, TImplementation>();
+        }
     }
 }

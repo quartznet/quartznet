@@ -175,6 +175,8 @@ internal sealed class NamedSchedulerFactory : StdSchedulerFactory
             return service;
         }
 
-        return ObjectUtils.InstantiateType<T>(implementationType);
+        throw new InvalidOperationException(
+            $"No service registered for {typeof(T).Name} and no implementation type was provided. " +
+            $"Ensure the required service is registered in DI or configured via scheduler properties.");
     }
 }

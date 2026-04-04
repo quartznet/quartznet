@@ -73,6 +73,7 @@ internal sealed class NamedSchedulerHostedService : IHostedLifecycleService
         {
             // Startup was canceled -- shut down any schedulers that were already created
             await ShutdownAllSchedulersAsync(CancellationToken.None).ConfigureAwait(false);
+            throw;
         }
         catch (Exception)
         {
