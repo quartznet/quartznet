@@ -8,9 +8,18 @@ namespace Quartz.Logging;
 
 internal sealed class JobStoreDiagnosticsWriter
 {
-    private readonly DiagnosticListener diagnosticListener = LogContext.Cached.Default.Value;
+    private readonly DiagnosticListener diagnosticListener;
     private string schedulerName = "";
     private string schedulerId = "";
+
+    internal JobStoreDiagnosticsWriter() : this(LogContext.Cached.Default.Value)
+    {
+    }
+
+    internal JobStoreDiagnosticsWriter(DiagnosticListener diagnosticListener)
+    {
+        this.diagnosticListener = diagnosticListener;
+    }
 
     internal void SetSchedulerContext(string name, string id)
     {

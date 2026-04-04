@@ -151,6 +151,49 @@ public sealed class JobStoreDiagnosticsWriterTest : IDisposable
         events.Should().Contain(e => e.Key == OperationName.JobStore.ClearAllSchedulingData + ".Exception");
     }
 
+    [Test]
+    public async Task Trace_FastPath_NoEventsWhenNotEnabled()
+    {
+        // Use a separate DiagnosticListener with no subscribers to test the fast path
+        var isolatedListener = new DiagnosticListener("Quartz.Test.Isolated");
+        var writer = new JobStoreDiagnosticsWriter(isolatedListener);
+        writer.SetSchedulerContext("Test", "1");
+
+        // No subscriber on isolatedListener, so IsEnabled() returns false
+        int result = await writer.Trace(
+            OperationName.JobStore.AcquireNextTriggers,
+            () => Task.FromResult(42)).ConfigureAwait(false);
+
+        result.Should().Be(42);
+
+        // The shared listener's events should not contain any events for this operation
+        events.Should().NotContain(e => e.Key.StartsWith(OperationName.JobStore.AcquireNextTriggers));
+
+        isolatedListener.Dispose();
+    }
+
+    [Test]
+    public async Task Trace_VoidFastPath_NoEventsWhenNotEnabled()
+    {
+        var isolatedListener = new DiagnosticListener("Quartz.Test.Isolated2");
+        var writer = new JobStoreDiagnosticsWriter(isolatedListener);
+        writer.SetSchedulerContext("Test", "1");
+
+        bool executed = false;
+        await writer.Trace(
+            OperationName.JobStore.PauseAll,
+            () =>
+            {
+                executed = true;
+                return Task.CompletedTask;
+            }).ConfigureAwait(false);
+
+        executed.Should().BeTrue();
+        events.Should().NotContain(e => e.Key.StartsWith(OperationName.JobStore.PauseAll));
+
+        isolatedListener.Dispose();
+    }
+
     private sealed class TestObserver : IObserver<KeyValuePair<string, object>>
     {
         private readonly List<KeyValuePair<string, object>> events;

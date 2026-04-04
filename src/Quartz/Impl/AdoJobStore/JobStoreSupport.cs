@@ -3387,7 +3387,14 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         return jobStoreDiagnostics.Trace(
             OperationName.JobStore.AcquireNextTriggers,
             DoAcquire,
-            activity => activity.AddTag(DiagnosticHeaders.BatchSize, maxCount.ToString()));
+            activity =>
+            {
+#if NET5_0_OR_GREATER
+                activity.SetTag(DiagnosticHeaders.BatchSize, maxCount);
+#else
+                activity.AddTag(DiagnosticHeaders.BatchSize, maxCount.ToString());
+#endif
+            });
 #else
         return DoAcquire();
 #endif
@@ -3664,7 +3671,14 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         return jobStoreDiagnostics.Trace(
             OperationName.JobStore.TriggersFired,
             DoTriggersFired,
-            activity => activity.AddTag(DiagnosticHeaders.TriggerCount, triggers.Count.ToString()));
+            activity =>
+            {
+#if NET5_0_OR_GREATER
+                activity.SetTag(DiagnosticHeaders.TriggerCount, triggers.Count);
+#else
+                activity.AddTag(DiagnosticHeaders.TriggerCount, triggers.Count.ToString());
+#endif
+            });
 #else
         return DoTriggersFired();
 #endif
