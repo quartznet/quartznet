@@ -18,7 +18,37 @@ public class QuartzInstrumentationOptions
     public static readonly IEnumerable<string> DefaultTracedOperations = new[]
     {
         OperationName.Job.Execute,
-        OperationName.Job.Veto
+        OperationName.Job.Veto,
+
+        // Job store operations
+        OperationName.JobStore.AcquireNextTriggers,
+        OperationName.JobStore.TriggersFired,
+        OperationName.JobStore.TriggeredJobComplete,
+        OperationName.JobStore.ReleaseAcquiredTrigger,
+        OperationName.JobStore.StoreJobAndTrigger,
+        OperationName.JobStore.StoreJob,
+        OperationName.JobStore.StoreJobsAndTriggers,
+        OperationName.JobStore.StoreTrigger,
+        OperationName.JobStore.StoreCalendar,
+        OperationName.JobStore.RemoveJob,
+        OperationName.JobStore.RemoveJobs,
+        OperationName.JobStore.RemoveTrigger,
+        OperationName.JobStore.RemoveTriggers,
+        OperationName.JobStore.RemoveCalendar,
+        OperationName.JobStore.ReplaceTrigger,
+        OperationName.JobStore.UpdateTriggerDetails,
+        OperationName.JobStore.PauseTrigger,
+        OperationName.JobStore.PauseTriggers,
+        OperationName.JobStore.PauseJob,
+        OperationName.JobStore.PauseJobs,
+        OperationName.JobStore.ResumeTrigger,
+        OperationName.JobStore.ResumeTriggers,
+        OperationName.JobStore.ResumeJob,
+        OperationName.JobStore.ResumeJobs,
+        OperationName.JobStore.PauseAll,
+        OperationName.JobStore.ResumeAll,
+        OperationName.JobStore.ResetTriggerFromErrorState,
+        OperationName.JobStore.ClearAllSchedulingData,
     };
 
     /// <summary>

@@ -65,6 +65,10 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     private volatile bool schedulerRunning;
     private volatile bool shutdown;
 
+#if DIAGNOSTICS_SOURCE
+    private readonly JobStoreDiagnosticsWriter jobStoreDiagnostics = new();
+#endif
+
     /// <summary>
     /// Initializes a new instance of the <see cref="JobStoreSupport"/> class.
     /// </summary>
@@ -594,6 +598,10 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                 Log.Warn("Detected usage of SQL Server provider without SqlServerDelegate, SqlServerDelegate would provide better performance");
             }
         }
+
+#if DIAGNOSTICS_SOURCE
+        jobStoreDiagnostics.SetSchedulerContext(InstanceName, InstanceId);
+#endif
 
         if (PerformSchemaValidation && driverDelegate is StdAdoDelegate adoDelegate)
         {
@@ -1160,17 +1168,32 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     /// <param name="newJob">Job to be stored.</param>
     /// <param name="newTrigger">Trigger to be stored.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public async Task StoreJobAndTrigger(
+    public Task StoreJobAndTrigger(
         IJobDetail newJob,
         IOperableTrigger newTrigger,
         CancellationToken cancellationToken = default)
     {
-        await ExecuteInLock<object?>(LockOnInsert ? LockTriggerAccess : null, async conn =>
+        Task DoStore() => ExecuteInLock<object?>(LockOnInsert ? LockTriggerAccess : null, async conn =>
         {
             await StoreJob(conn, newJob, false, cancellationToken).ConfigureAwait(false);
             await StoreTrigger(conn, newTrigger, newJob, false, StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
             return null;
-        }, cancellationToken).ConfigureAwait(false);
+        }, cancellationToken);
+
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(
+            OperationName.JobStore.StoreJobAndTrigger,
+            DoStore,
+            activity =>
+            {
+                activity.AddTag(DiagnosticHeaders.JobGroup, newJob.Key.Group);
+                activity.AddTag(DiagnosticHeaders.JobName, newJob.Key.Name);
+                activity.AddTag(DiagnosticHeaders.TriggerGroup, newTrigger.Key.Group);
+                activity.AddTag(DiagnosticHeaders.TriggerName, newTrigger.Key.Name);
+            });
+#else
+        return DoStore();
+#endif
     }
 
     /// <summary>
@@ -1213,10 +1236,24 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         bool replaceExisting,
         CancellationToken cancellationToken = default)
     {
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(
+            OperationName.JobStore.StoreJob,
+            () => ExecuteInLock(
+                LockOnInsert || replaceExisting ? LockTriggerAccess : null,
+                conn => StoreJob(conn, newJob, replaceExisting, cancellationToken),
+                cancellationToken),
+            activity =>
+            {
+                activity.AddTag(DiagnosticHeaders.JobGroup, newJob.Key.Group);
+                activity.AddTag(DiagnosticHeaders.JobName, newJob.Key.Name);
+            });
+#else
         return ExecuteInLock(
             LockOnInsert || replaceExisting ? LockTriggerAccess : null,
             conn => StoreJob(conn, newJob, replaceExisting, cancellationToken),
             cancellationToken);
+#endif
     }
 
     /// <summary> <para>
@@ -1296,10 +1333,24 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         bool replaceExisting,
         CancellationToken cancellationToken = default)
     {
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(
+            OperationName.JobStore.StoreTrigger,
+            () => ExecuteInLock(
+                LockOnInsert || replaceExisting ? LockTriggerAccess : null,
+                conn => StoreTrigger(conn, newTrigger, null, replaceExisting, StateWaiting, false, false, cancellationToken),
+                cancellationToken),
+            activity =>
+            {
+                activity.AddTag(DiagnosticHeaders.TriggerGroup, newTrigger.Key.Group);
+                activity.AddTag(DiagnosticHeaders.TriggerName, newTrigger.Key.Name);
+            });
+#else
         return ExecuteInLock(
             LockOnInsert || replaceExisting ? LockTriggerAccess : null,
             conn => StoreTrigger(conn, newTrigger, null, replaceExisting, StateWaiting, false, false, cancellationToken),
             cancellationToken);
+#endif
     }
 
     /// <summary>
@@ -1421,7 +1472,18 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     /// </returns>
     public Task<bool> RemoveJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(
+            OperationName.JobStore.RemoveJob,
+            () => ExecuteInLock(LockTriggerAccess, conn => RemoveJob(conn, jobKey, true, cancellationToken), cancellationToken),
+            activity =>
+            {
+                activity.AddTag(DiagnosticHeaders.JobGroup, jobKey.Group);
+                activity.AddTag(DiagnosticHeaders.JobName, jobKey.Name);
+            });
+#else
         return ExecuteInLock(LockTriggerAccess, conn => RemoveJob(conn, jobKey, true, cancellationToken), cancellationToken);
+#endif
     }
 
     protected virtual async Task<bool> RemoveJob(
@@ -1451,7 +1513,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         IReadOnlyCollection<JobKey> jobKeys,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteInLock(
+        Task<bool> DoRemoveJobs() => ExecuteInLock(
             LockTriggerAccess, async conn =>
             {
                 bool allFound = true;
@@ -1464,13 +1526,19 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
 
                 return allFound;
             }, cancellationToken);
+
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(OperationName.JobStore.RemoveJobs, DoRemoveJobs);
+#else
+        return DoRemoveJobs();
+#endif
     }
 
     public Task<bool> RemoveTriggers(
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteInLock(
+        Task<bool> DoRemoveTriggers() => ExecuteInLock(
             LockTriggerAccess,
             async conn =>
             {
@@ -1484,6 +1552,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
 
                 return allFound;
             }, cancellationToken);
+
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(OperationName.JobStore.RemoveTriggers, DoRemoveTriggers);
+#else
+        return DoRemoveTriggers();
+#endif
     }
 
     public Task StoreJobsAndTriggers(
@@ -1491,7 +1565,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         bool replace,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteInLock(
+        Task DoStoreJobsAndTriggers() => ExecuteInLock(
             LockOnInsert || replace ? LockTriggerAccess : null, async conn =>
             {
                 // TODO: make this more efficient with a true bulk operation...
@@ -1506,6 +1580,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                     }
                 }
             }, cancellationToken);
+
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(OperationName.JobStore.StoreJobsAndTriggers, DoStoreJobsAndTriggers);
+#else
+        return DoStoreJobsAndTriggers();
+#endif
     }
 
     /// <summary>
@@ -1632,10 +1712,24 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(
+            OperationName.JobStore.RemoveTrigger,
+            () => ExecuteInLock(
+                LockTriggerAccess,
+                conn => RemoveTrigger(conn, triggerKey, cancellationToken),
+                cancellationToken),
+            activity =>
+            {
+                activity.AddTag(DiagnosticHeaders.TriggerGroup, triggerKey.Group);
+                activity.AddTag(DiagnosticHeaders.TriggerName, triggerKey.Name);
+            });
+#else
         return ExecuteInLock(
             LockTriggerAccess,
             conn => RemoveTrigger(conn, triggerKey, cancellationToken),
             cancellationToken);
+#endif
     }
 
     protected virtual Task<bool> RemoveTrigger(
@@ -1704,9 +1798,22 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         IOperableTrigger newTrigger,
         CancellationToken cancellationToken = default)
     {
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(
+            OperationName.JobStore.ReplaceTrigger,
+            () => ExecuteInLock(LockTriggerAccess,
+                conn => ReplaceTrigger(conn, triggerKey, newTrigger, cancellationToken),
+                cancellationToken),
+            activity =>
+            {
+                activity.AddTag(DiagnosticHeaders.TriggerGroup, triggerKey.Group);
+                activity.AddTag(DiagnosticHeaders.TriggerName, triggerKey.Name);
+            });
+#else
         return ExecuteInLock(LockTriggerAccess,
             conn => ReplaceTrigger(conn, triggerKey, newTrigger, cancellationToken),
             cancellationToken);
+#endif
     }
 
     protected virtual async Task<bool> ReplaceTrigger(
@@ -1748,10 +1855,24 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         TriggerDetailsUpdate update,
         CancellationToken cancellationToken = default)
     {
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(
+            OperationName.JobStore.UpdateTriggerDetails,
+            () => ExecuteInLock(
+                LockTriggerAccess,
+                conn => UpdateTriggerDetails(conn, triggerKey, update, cancellationToken),
+                cancellationToken),
+            activity =>
+            {
+                activity.AddTag(DiagnosticHeaders.TriggerGroup, triggerKey.Group);
+                activity.AddTag(DiagnosticHeaders.TriggerName, triggerKey.Name);
+            });
+#else
         return ExecuteInLock(
             LockTriggerAccess,
             conn => UpdateTriggerDetails(conn, triggerKey, update, cancellationToken),
             cancellationToken);
+#endif
     }
 
     protected virtual async Task<bool> UpdateTriggerDetails(
@@ -1948,10 +2069,24 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
 
     public Task ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(
+            OperationName.JobStore.ResetTriggerFromErrorState,
+            () => ExecuteInLock(
+                LockTriggerAccess,
+                conn => ResetTriggerFromErrorState(conn, triggerKey, cancellationToken),
+                cancellationToken),
+            activity =>
+            {
+                activity.AddTag(DiagnosticHeaders.TriggerGroup, triggerKey.Group);
+                activity.AddTag(DiagnosticHeaders.TriggerName, triggerKey.Name);
+            });
+#else
         return ExecuteInLock(
             LockTriggerAccess,
             conn => ResetTriggerFromErrorState(conn, triggerKey, cancellationToken),
             cancellationToken);
+#endif
     }
 
     private async Task ResetTriggerFromErrorState(
@@ -2001,10 +2136,19 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         bool updateTriggers,
         CancellationToken cancellationToken = default)
     {
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(
+            OperationName.JobStore.StoreCalendar,
+            () => ExecuteInLock(
+                LockOnInsert || updateTriggers ? LockTriggerAccess : null,
+                conn => StoreCalendar(conn, calName, calendar, replaceExisting, updateTriggers, cancellationToken),
+                cancellationToken));
+#else
         return ExecuteInLock(
             LockOnInsert || updateTriggers ? LockTriggerAccess : null,
             conn => StoreCalendar(conn, calName, calendar, replaceExisting, updateTriggers, cancellationToken),
             cancellationToken);
+#endif
     }
 
     protected virtual async Task StoreCalendar(
@@ -2104,7 +2248,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         string calName,
         CancellationToken cancellationToken = default)
     {
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(
+            OperationName.JobStore.RemoveCalendar,
+            () => ExecuteInLock(LockTriggerAccess, conn => RemoveCalendar(conn, calName, cancellationToken), cancellationToken));
+#else
         return ExecuteInLock(LockTriggerAccess, conn => RemoveCalendar(conn, calName, cancellationToken), cancellationToken);
+#endif
     }
 
     protected virtual async Task<bool> RemoveCalendar(
@@ -2390,7 +2540,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     /// </remarks>
     public Task ClearAllSchedulingData(CancellationToken cancellationToken = default)
     {
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(
+            OperationName.JobStore.ClearAllSchedulingData,
+            () => ExecuteInLock(LockTriggerAccess, conn => ClearAllSchedulingData(conn, cancellationToken), cancellationToken));
+#else
         return ExecuteInLock(LockTriggerAccess, conn => ClearAllSchedulingData(conn, cancellationToken), cancellationToken);
+#endif
     }
 
     protected async Task ClearAllSchedulingData(
@@ -2563,7 +2719,18 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(
+            OperationName.JobStore.PauseTrigger,
+            () => ExecuteInLock(LockTriggerAccess, conn => PauseTrigger(conn, triggerKey, cancellationToken), cancellationToken),
+            activity =>
+            {
+                activity.AddTag(DiagnosticHeaders.TriggerGroup, triggerKey.Group);
+                activity.AddTag(DiagnosticHeaders.TriggerName, triggerKey.Name);
+            });
+#else
         return ExecuteInLock(LockTriggerAccess, conn => PauseTrigger(conn, triggerKey, cancellationToken), cancellationToken);
+#endif
     }
 
     /// <summary>
@@ -2603,7 +2770,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteInLock(LockTriggerAccess, async conn =>
+        Task DoPauseJob() => ExecuteInLock(LockTriggerAccess, async conn =>
         {
             var triggers = await GetTriggersForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
             foreach (IOperableTrigger trigger in triggers)
@@ -2611,6 +2778,19 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                 await PauseTrigger(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
             }
         }, cancellationToken);
+
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(
+            OperationName.JobStore.PauseJob,
+            DoPauseJob,
+            activity =>
+            {
+                activity.AddTag(DiagnosticHeaders.JobGroup, jobKey.Group);
+                activity.AddTag(DiagnosticHeaders.JobName, jobKey.Name);
+            });
+#else
+        return DoPauseJob();
+#endif
     }
 
     /// <summary>
@@ -2622,7 +2802,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         GroupMatcher<JobKey> matcher,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteInLock(LockTriggerAccess, async conn =>
+        Task<IReadOnlyCollection<string>> DoPauseJobs() => ExecuteInLock(LockTriggerAccess, async conn =>
         {
             var groupNames = new HashSet<string>();
             var jobNames = await GetJobNames(conn, matcher, cancellationToken).ConfigureAwait(false);
@@ -2639,6 +2819,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
 
             return (IReadOnlyCollection<string>) groupNames;
         }, cancellationToken);
+
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(OperationName.JobStore.PauseJobs, DoPauseJobs);
+#else
+        return DoPauseJobs();
+#endif
     }
 
     /// <summary>
@@ -2739,7 +2925,18 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(
+            OperationName.JobStore.ResumeTrigger,
+            () => ExecuteInLock(LockTriggerAccess, conn => ResumeTrigger(conn, triggerKey, cancellationToken), cancellationToken),
+            activity =>
+            {
+                activity.AddTag(DiagnosticHeaders.TriggerGroup, triggerKey.Group);
+                activity.AddTag(DiagnosticHeaders.TriggerName, triggerKey.Name);
+            });
+#else
         return ExecuteInLock(LockTriggerAccess, conn => ResumeTrigger(conn, triggerKey, cancellationToken), cancellationToken);
+#endif
     }
 
     /// <summary>
@@ -2807,7 +3004,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteInLock(LockTriggerAccess, async conn =>
+        Task DoResumeJob() => ExecuteInLock(LockTriggerAccess, async conn =>
         {
             var triggers = await GetTriggersForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
             foreach (IOperableTrigger trigger in triggers)
@@ -2815,6 +3012,19 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                 await ResumeTrigger(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
             }
         }, cancellationToken);
+
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(
+            OperationName.JobStore.ResumeJob,
+            DoResumeJob,
+            activity =>
+            {
+                activity.AddTag(DiagnosticHeaders.JobGroup, jobKey.Group);
+                activity.AddTag(DiagnosticHeaders.JobName, jobKey.Name);
+            });
+#else
+        return DoResumeJob();
+#endif
     }
 
     /// <summary>
@@ -2831,7 +3041,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         GroupMatcher<JobKey> matcher,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteInLock(LockTriggerAccess, async conn =>
+        Task<IReadOnlyCollection<string>> DoResumeJobs() => ExecuteInLock(LockTriggerAccess, async conn =>
         {
             IReadOnlyCollection<JobKey> jobKeys = await GetJobNames(conn, matcher, cancellationToken).ConfigureAwait(false);
             var groupNames = new HashSet<string>();
@@ -2847,6 +3057,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
             }
             return (IReadOnlyCollection<string>) groupNames;
         }, cancellationToken);
+
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(OperationName.JobStore.ResumeJobs, DoResumeJobs);
+#else
+        return DoResumeJobs();
+#endif
     }
 
     /// <summary>
@@ -2857,10 +3073,19 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(
+            OperationName.JobStore.PauseTriggers,
+            () => ExecuteInLock(
+                LockTriggerAccess,
+                conn => PauseTriggerGroup(conn, matcher, cancellationToken),
+                cancellationToken));
+#else
         return ExecuteInLock(
             LockTriggerAccess,
             conn => PauseTriggerGroup(conn, matcher, cancellationToken),
             cancellationToken);
+#endif
     }
 
     /// <summary>
@@ -2933,9 +3158,17 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(
+            OperationName.JobStore.ResumeTriggers,
+            () => ExecuteInLock(
+                LockTriggerAccess, conn => ResumeTriggers(conn, matcher, cancellationToken),
+                cancellationToken));
+#else
         return ExecuteInLock(
             LockTriggerAccess, conn => ResumeTriggers(conn, matcher, cancellationToken),
             cancellationToken);
+#endif
     }
 
     /// <summary>
@@ -3007,7 +3240,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
 
     public virtual Task PauseAll(CancellationToken cancellationToken = default)
     {
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(
+            OperationName.JobStore.PauseAll,
+            () => ExecuteInLock(LockTriggerAccess, conn => PauseAll(conn, cancellationToken), cancellationToken));
+#else
         return ExecuteInLock(LockTriggerAccess, conn => PauseAll(conn, cancellationToken), cancellationToken);
+#endif
     }
 
     /// <summary>
@@ -3054,7 +3293,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     /// <seealso cref="PauseAll(CancellationToken)" />
     public virtual Task ResumeAll(CancellationToken cancellationToken = default)
     {
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(
+            OperationName.JobStore.ResumeAll,
+            () => ExecuteInLock(LockTriggerAccess, conn => ResumeAll(conn, cancellationToken), cancellationToken));
+#else
         return ExecuteInLock(LockTriggerAccess, conn => ResumeAll(conn, cancellationToken), cancellationToken);
+#endif
     }
 
     /// <summary>
@@ -3110,7 +3355,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
             lockName = null;
         }
 
-        return ExecuteInNonManagedTXLock(
+        Task<IReadOnlyCollection<IOperableTrigger>> DoAcquire() => ExecuteInNonManagedTXLock(
             lockName,
             conn => AcquireNextTrigger(conn, noLaterThan, maxCount, timeWindow, cancellationToken), async (conn, result) =>
             {
@@ -3137,6 +3382,22 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                 }
             },
             cancellationToken);
+
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(
+            OperationName.JobStore.AcquireNextTriggers,
+            DoAcquire,
+            activity =>
+            {
+#if NET5_0_OR_GREATER
+                activity.SetTag(DiagnosticHeaders.BatchSize, maxCount);
+#else
+                activity.AddTag(DiagnosticHeaders.BatchSize, maxCount.ToString());
+#endif
+            });
+#else
+        return DoAcquire();
+#endif
     }
 
     // TODO: this really ought to return something like a FiredTriggerBundle,
@@ -3290,10 +3551,24 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         IOperableTrigger trigger,
         CancellationToken cancellationToken = default)
     {
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(
+            OperationName.JobStore.ReleaseAcquiredTrigger,
+            () => RetryExecuteInNonManagedTXLock(
+                LockTriggerAccess,
+                conn => ReleaseAcquiredTrigger(conn, trigger, cancellationToken),
+                cancellationToken),
+            activity =>
+            {
+                activity.AddTag(DiagnosticHeaders.TriggerGroup, trigger.Key.Group);
+                activity.AddTag(DiagnosticHeaders.TriggerName, trigger.Key.Name);
+            });
+#else
         return RetryExecuteInNonManagedTXLock(
             LockTriggerAccess,
             conn => ReleaseAcquiredTrigger(conn, trigger, cancellationToken),
             cancellationToken);
+#endif
     }
 
     protected virtual async Task ReleaseAcquiredTrigger(
@@ -3317,7 +3592,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         IReadOnlyCollection<IOperableTrigger> triggers,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteInNonManagedTXLock(
+        Task<IReadOnlyCollection<TriggerFiredResult>> DoTriggersFired() => ExecuteInNonManagedTXLock(
             LockTriggerAccess,
             async conn =>
             {
@@ -3391,6 +3666,22 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                 }
             },
             cancellationToken);
+
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(
+            OperationName.JobStore.TriggersFired,
+            DoTriggersFired,
+            activity =>
+            {
+#if NET5_0_OR_GREATER
+                activity.SetTag(DiagnosticHeaders.TriggerCount, triggers.Count);
+#else
+                activity.AddTag(DiagnosticHeaders.TriggerCount, triggers.Count.ToString());
+#endif
+            });
+#else
+        return DoTriggersFired();
+#endif
     }
 
     protected virtual async Task<TriggerFiredBundle?> TriggerFired(
@@ -3544,10 +3835,26 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         SchedulerInstruction triggerInstCode,
         CancellationToken cancellationToken = default)
     {
+#if DIAGNOSTICS_SOURCE
+        return jobStoreDiagnostics.Trace(
+            OperationName.JobStore.TriggeredJobComplete,
+            () => RetryExecuteInNonManagedTXLock(
+                LockTriggerAccess,
+                conn => TriggeredJobComplete(conn, trigger, jobDetail, triggerInstCode, cancellationToken),
+                cancellationToken),
+            activity =>
+            {
+                activity.AddTag(DiagnosticHeaders.TriggerGroup, trigger.Key.Group);
+                activity.AddTag(DiagnosticHeaders.TriggerName, trigger.Key.Name);
+                activity.AddTag(DiagnosticHeaders.JobGroup, jobDetail.Key.Group);
+                activity.AddTag(DiagnosticHeaders.JobName, jobDetail.Key.Name);
+            });
+#else
         return RetryExecuteInNonManagedTXLock(
             LockTriggerAccess,
             conn => TriggeredJobComplete(conn, trigger, jobDetail, triggerInstCode, cancellationToken),
             cancellationToken);
+#endif
     }
 
     protected virtual async Task TriggeredJobComplete(
