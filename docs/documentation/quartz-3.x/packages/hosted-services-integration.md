@@ -33,6 +33,8 @@ This will add a hosted Quartz server into process that will be started and stopp
 
 ::: tip
 See [Quartz.Extensions.DependencyInjection documentation](microsoft-di-integration) to learn more about configuring Quartz scheduler, jobs and triggers.
+
+Need multiple independent schedulers in one application? See [Multiple Schedulers](multiple-schedulers.md).
 :::
 
 **Example program utilizing hosted services configuration**

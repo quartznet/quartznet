@@ -68,6 +68,7 @@ export const sidebarEn: SidebarConfig = [
           "/documentation/quartz-3.x/packages/aspnet-core-integration",
           "/documentation/quartz-3.x/packages/hosted-services-integration",
           "/documentation/quartz-3.x/packages/microsoft-di-integration",
+          "/documentation/quartz-3.x/packages/multiple-schedulers",
           "/documentation/quartz-3.x/packages/opentelemetry-integration",
           "/documentation/quartz-3.x/packages/opentracing-integration",
           "/documentation/quartz-3.x/packages/timezoneconverter-integration",
