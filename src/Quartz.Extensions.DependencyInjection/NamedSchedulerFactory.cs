@@ -65,7 +65,7 @@ internal sealed class NamedSchedulerFactory : StdSchedulerFactory
         foreach (JobListenerConfiguration configuration in jobListenerConfigurations)
         {
             IJobListener listener = CreateJobListener(configuration);
-            scheduler.ListenerManager.AddJobListener(listener, configuration.Matchers);
+            scheduler.ListenerManager.AddJobListener(listener, configuration.Matchers ?? Array.Empty<IMatcher<JobKey>>());
         }
 
         // Trigger listeners for this named scheduler
@@ -75,7 +75,7 @@ internal sealed class NamedSchedulerFactory : StdSchedulerFactory
         foreach (TriggerListenerConfiguration configuration in triggerListenerConfigurations)
         {
             ITriggerListener listener = CreateTriggerListener(configuration);
-            scheduler.ListenerManager.AddTriggerListener(listener, configuration.Matchers);
+            scheduler.ListenerManager.AddTriggerListener(listener, configuration.Matchers ?? Array.Empty<IMatcher<TriggerKey>>());
         }
 
         // Calendars for this named scheduler

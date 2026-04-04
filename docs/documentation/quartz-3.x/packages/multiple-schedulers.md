@@ -159,6 +159,11 @@ builder.Services.AddQuartz("Auxiliary", q =>
 builder.Services.AddQuartzHostedService();
 ```
 
+::: warning
+When using the unnamed default scheduler, call `services.AddQuartz(...)` before `services.AddQuartzHostedService(...)`.
+`AddQuartzHostedService()` only registers the default hosted service when `ISchedulerFactory` is already present in the service collection, so reversing the order prevents the default scheduler from being started.
+:::
+
 ## Configuration via appsettings.json
 
 Named scheduler properties can be supplied through the standard options pattern:
