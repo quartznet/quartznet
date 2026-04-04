@@ -327,7 +327,7 @@ public partial class StdAdoDelegate
     {
         var jobData = SerializeJobData(trigger.JobDataMap);
 
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertTriggerWithExecutionGroup));
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertTrigger));
         AddCommandParameter(cmd, "schedulerName", schedName);
         AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
         AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
@@ -405,7 +405,7 @@ public partial class StdAdoDelegate
         var updateJobData = trigger.JobDataMap.Dirty;
         var jobData = updateJobData ? SerializeJobData(trigger.JobDataMap) : null;
 
-        string sqlUpdate = updateJobData ? SqlUpdateTriggerWithExecutionGroup : SqlUpdateTriggerSkipDataWithExecutionGroup;
+        string sqlUpdate = updateJobData ? SqlUpdateTrigger : SqlUpdateTriggerSkipData;
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(sqlUpdate));
 
         AddCommandParameter(cmd, "schedulerName", schedName);
@@ -722,7 +722,7 @@ public partial class StdAdoDelegate
         ITriggerPersistenceDelegate? tDel = null;
         TriggerPropertyBundle? triggerProps = null;
 
-        using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerWithExecutionGroup)))
+        using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTrigger)))
         {
             AddCommandParameter(cmd, "schedulerName", schedName);
             AddCommandParameter(cmd, "triggerName", triggerKey.Name);
@@ -1211,7 +1211,7 @@ public partial class StdAdoDelegate
             maxCount = 1;
         }
 
-        string sql = GetSelectNextTriggerToAcquireWithExecutionGroupSql(maxCount);
+        string sql = GetSelectNextTriggerToAcquireSql(maxCount);
 
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(sql));
         List<TriggerAcquireResult> nextTriggers = new();
@@ -1260,15 +1260,6 @@ public partial class StdAdoDelegate
         }
 
         return nextTriggers;
-    }
-
-    /// <summary>
-    /// Gets the SQL to select the next triggers including the EXECUTION_GROUP column.
-    /// </summary>
-    protected virtual string GetSelectNextTriggerToAcquireWithExecutionGroupSql(int maxCount)
-    {
-        // by default we don't support limits, this is db specific
-        return SqlSelectNextTriggerToAcquireWithExecutionGroup;
     }
 
     /// <inheritdoc />
