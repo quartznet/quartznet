@@ -76,7 +76,8 @@ internal sealed class NamedSchedulerHostedService : IHostedService
         }
         catch (OperationCanceledException)
         {
-            // if the operation was canceled, we should not start the schedulers
+            // Startup was canceled -- shut down any schedulers that were already created
+            await ShutdownAllSchedulersAsync(CancellationToken.None).ConfigureAwait(false);
         }
         catch (Exception)
         {
@@ -122,14 +123,18 @@ internal sealed class NamedSchedulerHostedService : IHostedService
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
-        if (schedulers.Count == 0 || startupTask is null)
+        if (schedulers.Count == 0)
         {
             return;
         }
 
         try
         {
-            await Task.WhenAny(startupTask, Task.Delay(Timeout.Infinite, cancellationToken)).ConfigureAwait(false);
+            // Wait for any ongoing startup logic to finish (if it was started)
+            if (startupTask is not null)
+            {
+                await Task.WhenAny(startupTask, Task.Delay(Timeout.Infinite, cancellationToken)).ConfigureAwait(false);
+            }
         }
         finally
         {

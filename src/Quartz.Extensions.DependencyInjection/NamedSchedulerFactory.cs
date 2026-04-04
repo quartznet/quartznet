@@ -161,11 +161,26 @@ internal sealed class NamedSchedulerFactory : StdSchedulerFactory
 
     protected override T InstantiateType<T>(Type? implementationType)
     {
-        T? service = serviceProvider.GetService<T>();
-        if (service is null)
+        // For named schedulers, prefer creating from the concrete implementationType determined
+        // by this scheduler's properties. Resolving by interface (GetService<T>) would pick up
+        // singletons registered by the default scheduler or other named schedulers, breaking isolation.
+        if (implementationType is not null)
         {
-            service = ObjectUtils.InstantiateType<T>(implementationType);
+            object? concrete = serviceProvider.GetService(implementationType);
+            if (concrete is T typed)
+            {
+                return typed;
+            }
+
+            return (T) ActivatorUtilities.CreateInstance(serviceProvider, implementationType);
         }
-        return service;
+
+        T? service = serviceProvider.GetService<T>();
+        if (service is not null)
+        {
+            return service;
+        }
+
+        return ObjectUtils.InstantiateType<T>(implementationType);
     }
 }
