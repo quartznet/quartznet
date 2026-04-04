@@ -123,16 +123,12 @@ quartz.executionLimit.* = 10
 The `[DisallowConcurrentExecution]` attribute is checked **before** execution group limits during trigger acquisition.
 This means `[DisallowConcurrentExecution]` is always respected regardless of execution group configuration.
 
-## Database migration
+## Database schema
 
-For ADO.NET job stores, execution groups are stored in an `EXECUTION_GROUP` column on the
-`QRTZ_TRIGGERS` table. Without this column, execution group values set via `WithExecutionGroup()`
-are not persisted — all triggers appear ungrouped after restart. Execution group limits still
-work with RAMJobStore (in-memory) without any schema changes.
+In Quartz.NET 4.x, the `EXECUTION_GROUP` column is part of the standard schema and is
+**required** for ADO.NET job stores. The column is included in all table creation scripts.
 
-For ADO job stores, adding the column is recommended when using execution groups.
-
-To add the column to `QRTZ_TRIGGERS` (required):
+If you are upgrading from a 3.x database, add the column:
 
 ```sql
 -- SQL Server
@@ -154,7 +150,7 @@ ALTER TABLE QRTZ_FIRED_TRIGGERS ADD COLUMN EXECUTION_GROUP VARCHAR(200) NULL;  -
 ALTER TABLE QRTZ_FIRED_TRIGGERS ADD (EXECUTION_GROUP VARCHAR2(200) NULL);  -- Oracle
 ```
 
-The scheduler probes for column existence at startup and logs at Debug level if the column is missing.
+RAMJobStore requires no schema changes.
 
 ## Dashboard
 
