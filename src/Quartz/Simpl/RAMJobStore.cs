@@ -47,7 +47,7 @@ namespace Quartz.Simpl;
 /// <author>James House</author>
 /// <author>Sharada Jambula</author>
 /// <author>Marko Lahma (.NET)</author>
-public class RAMJobStore : IJobStore
+public class RAMJobStore : IJobStore, INextVersionJobStore
 {
     private readonly Lock lockObject = new();
 
@@ -625,6 +625,76 @@ public class RAMJobStore : IJobStore
             }
         }
         return Task.FromResult(found);
+    }
+
+    /// <inheritdoc />
+    public virtual Task<bool> UpdateTriggerDetails(
+        TriggerKey triggerKey,
+        TriggerDetailsUpdate update,
+        CancellationToken cancellationToken = default)
+    {
+        lock (lockObject)
+        {
+            if (!triggersByKey.TryGetValue(triggerKey, out TriggerWrapper? tw))
+            {
+                return Task.FromResult(false);
+            }
+
+            if (!update.HasDescription && !update.HasPriority && !update.HasJobDataMap
+                && !update.HasCalendarName && !update.HasMisfireInstruction)
+            {
+                return Task.FromResult(true);
+            }
+
+            IOperableTrigger trigger = tw.Trigger;
+
+            if (update.HasCalendarName && update.CalendarName is not null)
+            {
+                if (!calendarsByName.ContainsKey(update.CalendarName))
+                {
+                    throw new JobPersistenceException($"Calendar '{update.CalendarName}' does not exist.");
+                }
+            }
+
+            if (update.HasDescription)
+            {
+                trigger.Description = update.Description;
+            }
+
+            if (update.HasPriority)
+            {
+                // Priority affects SortedSet ordering, must remove/re-add
+                bool wasInTimeTriggers = timeTriggers.Remove(tw);
+                trigger.Priority = update.Priority;
+                if (wasInTimeTriggers)
+                {
+                    timeTriggers.Add(tw);
+                }
+            }
+
+            if (update.HasJobDataMap)
+            {
+                JobDataMap newMap = new JobDataMap();
+                if (update.JobDataMap is { Count: > 0 })
+                {
+                    newMap.PutAll(update.JobDataMap);
+                }
+
+                trigger.JobDataMap = newMap;
+            }
+
+            if (update.HasCalendarName)
+            {
+                trigger.CalendarName = update.CalendarName;
+            }
+
+            if (update.HasMisfireInstruction)
+            {
+                trigger.MisfireInstruction = update.MisfireInstruction;
+            }
+        }
+
+        return Task.FromResult(true);
     }
 
     /// <summary>

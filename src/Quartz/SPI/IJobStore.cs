@@ -678,3 +678,27 @@ public interface IJobStore
 
     */
 }
+
+/// <summary>
+/// Optional job store capabilities that will be part of <see cref="IJobStore"/> in 4.x.
+/// Implemented as a separate internal interface to avoid breaking changes in 3.x.
+/// </summary>
+internal interface INextVersionJobStore
+{
+    /// <summary>
+    /// Updates trigger metadata and selected settings without deleting/recreating
+    /// the trigger and without resetting fire times or trigger state.
+    /// </summary>
+    /// <param name="triggerKey">The key identifying the trigger to update.</param>
+    /// <param name="update">
+    /// The details to update. Only properties explicitly set will be changed.
+    /// May include <see cref="TriggerDetailsUpdate.CalendarName"/> and
+    /// <see cref="TriggerDetailsUpdate.MisfireInstruction"/> which can affect firing behavior.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns><see langword="true"/> if the trigger was found and updated, <see langword="false"/> if not found.</returns>
+    Task<bool> UpdateTriggerDetails(
+        TriggerKey triggerKey,
+        TriggerDetailsUpdate update,
+        CancellationToken cancellationToken = default);
+}
