@@ -1221,7 +1221,12 @@ internal interface INextVersionDelegate
 
 public class TriggerAcquireResult
 {
-    public TriggerAcquireResult(string triggerName, string triggerGroup, string jobType, string? executionGroup = null)
+    public TriggerAcquireResult(string triggerName, string triggerGroup, string jobType)
+        : this(triggerName, triggerGroup, jobType, null)
+    {
+    }
+
+    public TriggerAcquireResult(string triggerName, string triggerGroup, string jobType, string? executionGroup)
     {
         TriggerName = triggerName;
         TriggerGroup = triggerGroup;
