@@ -47,7 +47,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// <para>
 /// Configure via properties:
 /// <code>
-/// quartz.jobStore.lockHandler.type = Quartz.Impl.AdoJobStore.RedisSemaphore, Quartz.Redis.LockHandler
+/// quartz.jobStore.lockHandler.type = Quartz.Impl.AdoJobStore.RedisSemaphore, Quartz.Redis
 /// quartz.jobStore.lockHandler.redisConfiguration = localhost:6379
 /// </code>
 /// </para>
