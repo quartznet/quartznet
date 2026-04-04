@@ -119,6 +119,7 @@ module.exports = {
               ['/documentation/quartz-3.x/packages/multiple-schedulers', 'Multiple Schedulers'],
               ['/documentation/quartz-3.x/packages/opentelemetry-integration', 'OpenTelemetry Integration'],
               ['/documentation/quartz-3.x/packages/opentracing-integration', 'OpenTracing Integration'],
+              ['/documentation/quartz-3.x/packages/redis', 'Redis Lock Handler'],
               ['/documentation/quartz-3.x/packages/timezoneconverter-integration', 'TimeZoneConverter Integration'],
             ]
           }

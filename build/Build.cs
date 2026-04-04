@@ -155,7 +155,7 @@ partial class Build : NukeBuild
         });
 
     static readonly string[] DatabaseCategories =
-        ["db-postgres", "db-sqlserver", "db-mysql", "db-oracle", "db-firebird", "db-sqlite"];
+        ["db-postgres", "db-sqlserver", "db-mysql", "db-oracle", "db-firebird", "db-sqlite", "db-redis"];
 
     string GetTestFilter(string database) => database switch
     {
@@ -165,6 +165,7 @@ partial class Build : NukeBuild
         "oracle" => "TestCategory=db-oracle",
         "firebird" => "TestCategory=db-firebird",
         "sqlite" => "TestCategory=db-sqlite",
+        "redis" => "TestCategory=db-redis",
         "basic" => string.Join("&", DatabaseCategories.Select(c => $"TestCategory!={c}")),
         _ => null
     };
@@ -219,7 +220,8 @@ partial class Build : NukeBuild
                 "Quartz.Plugins",
                 "Quartz.Plugins.TimeZoneConverter",
                 "Quartz.OpenTelemetry.Instrumentation",
-                "Quartz.OpenTracing"
+                "Quartz.OpenTracing",
+                "Quartz.Redis"
             };
 
             foreach (var project in packTargetProjects)
