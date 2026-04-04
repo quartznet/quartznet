@@ -8,8 +8,6 @@ using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Impl.Triggers;
-using Quartz.Simpl;
-using Quartz.Spi;
 
 namespace Quartz.Tests.Unit;
 
@@ -414,14 +412,5 @@ public sealed class ExecutionGroupsTest
     public class NoOpJob : IJob
     {
         public Task Execute(IJobExecutionContext context) => Task.CompletedTask;
-    }
-
-    private sealed class NullSignaler : ISchedulerSignaler
-    {
-        public Task NotifyTriggerListenersMisfired(ITrigger trigger, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task NotifySchedulerListenersFinalized(ITrigger trigger, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task NotifySchedulerListenersJobDeleted(JobKey jobKey, CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public void SignalSchedulingChange(DateTimeOffset? candidateNewNextFireTimeUtc, CancellationToken cancellationToken = default) { }
-        public Task NotifySchedulerListenersError(string message, SchedulerException jpe, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 }

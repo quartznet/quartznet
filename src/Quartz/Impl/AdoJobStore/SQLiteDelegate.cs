@@ -41,6 +41,11 @@ public class SQLiteDelegate : StdAdoDelegate
         return SqlSelectNextTriggerToAcquire + " LIMIT " + maxCount;
     }
 
+    protected override string GetSelectNextTriggerToAcquireWithExecutionGroupSql(int maxCount)
+    {
+        return SqlSelectNextTriggerToAcquireWithExecutionGroup + " LIMIT " + maxCount;
+    }
+
     protected override Task<byte[]?> ReadBytesFromBlob(IDataReader dr, int colIndex, CancellationToken cancellationToken)
     {
 #if !NETFRAMEWORK

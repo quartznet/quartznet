@@ -37,6 +37,13 @@ public class MySQLDelegate : StdAdoDelegate
             + " LIMIT " + maxCount;
     }
 
+    protected override string GetSelectNextTriggerToAcquireWithExecutionGroupSql(int maxCount)
+    {
+        return SqlSelectNextTriggerToAcquireWithExecutionGroup
+            .Replace("{0}TRIGGERS t", "{0}TRIGGERS t FORCE INDEX (IDX_{0}T_NFT_ST)")
+            + " LIMIT " + maxCount;
+    }
+
     protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
     {
         if (count != -1)

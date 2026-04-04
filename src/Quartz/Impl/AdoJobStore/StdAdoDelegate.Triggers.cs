@@ -1246,11 +1246,14 @@ public partial class StdAdoDelegate
             maxCount = 1;
         }
 
-        // If the execution group column isn't available, fall back to the standard query
-        // but still apply in-memory filtering via CheckExecutionLimits
+        // Use the wider query when the EXECUTION_GROUP column exists,
+        // otherwise fall back to the standard query with in-memory-only filtering
         bool hasColumn = HasExecutionGroupColumn;
+        string sql = hasColumn
+            ? GetSelectNextTriggerToAcquireWithExecutionGroupSql(maxCount)
+            : GetSelectNextTriggerToAcquireSql(maxCount);
 
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(GetSelectNextTriggerToAcquireSql(maxCount)));
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(sql));
         List<TriggerAcquireResult> nextTriggers = new();
 
         AddCommandParameter(cmd, "schedulerName", schedName);
@@ -1311,6 +1314,16 @@ public partial class StdAdoDelegate
     {
         // by default we don't support limits, this is db specific
         return SqlSelectNextTriggerToAcquire;
+    }
+
+    /// <summary>
+    /// Gets the SQL to select the next triggers including the EXECUTION_GROUP column.
+    /// Used when the column has been probed and exists.
+    /// </summary>
+    protected virtual string GetSelectNextTriggerToAcquireWithExecutionGroupSql(int maxCount)
+    {
+        // by default we don't support limits, this is db specific
+        return SqlSelectNextTriggerToAcquireWithExecutionGroup;
     }
 
     /// <inheritdoc />
