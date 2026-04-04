@@ -18,6 +18,8 @@ You can also configure properties using standard .NET Core `appsettings.json` in
 
 ::: tip
 [Quartz.Extensions.Hosting](hosted-services-integration.md) allows you to have a background service for your application that handles starting and stopping the scheduler.
+
+Need multiple independent schedulers in one application? See [Multiple Schedulers](multiple-schedulers.md).
 :::
 
 **Example appsettings.json**

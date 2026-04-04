@@ -11,6 +11,8 @@ public interface IServiceCollectionQuartzConfigurator : IPropertyConfigurer, IPr
 {
     internal IServiceCollection Services { get; }
 
+    internal string OptionsName { get; }
+
     void SetLoggerFactory(ILoggerFactory loggerFactory);
 
     void UseTypeLoader<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>() where T : ITypeLoadHelper;
