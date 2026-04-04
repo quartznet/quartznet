@@ -36,6 +36,12 @@ public sealed class JobStoreDiagnosticsWriterTest : IDisposable
         subscription.Dispose();
     }
 
+    [SetUp]
+    public void SetUp()
+    {
+        events.Clear();
+    }
+
     [Test]
     public async Task Trace_StartsAndStopsActivity()
     {

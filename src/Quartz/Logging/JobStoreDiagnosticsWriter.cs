@@ -57,15 +57,16 @@ internal sealed class JobStoreDiagnosticsWriter
         diagnosticListener.StartActivity(activity, operationName);
         try
         {
-            T result = await operation().ConfigureAwait(false);
-            diagnosticListener.StopActivity(activity, operationName);
-            return result;
+            return await operation().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             diagnosticListener.Write(operationName + ".Exception", ex);
-            diagnosticListener.StopActivity(activity, operationName);
             throw;
+        }
+        finally
+        {
+            diagnosticListener.StopActivity(activity, operationName);
         }
     }
 
@@ -83,13 +84,15 @@ internal sealed class JobStoreDiagnosticsWriter
         try
         {
             await operation().ConfigureAwait(false);
-            diagnosticListener.StopActivity(activity, operationName);
         }
         catch (Exception ex)
         {
             diagnosticListener.Write(operationName + ".Exception", ex);
-            diagnosticListener.StopActivity(activity, operationName);
             throw;
+        }
+        finally
+        {
+            diagnosticListener.StopActivity(activity, operationName);
         }
     }
 }
