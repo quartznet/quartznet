@@ -19,7 +19,10 @@ public static class QuartzServiceCollectionExtensions
         }
 
         // Only register the default QuartzHostedService if a default ISchedulerFactory was registered
-        // (i.e., user called the unnamed AddQuartz() overload)
+        // (i.e., user called the unnamed AddQuartz() overload). We cannot register it unconditionally
+        // because QuartzHostedService requires ISchedulerFactory as a constructor dependency --
+        // the DI container would fail at host startup when only named schedulers are used.
+        // This means AddQuartz() must be called before AddQuartzHostedService() for the default scheduler.
         if (services.Any(d => d.ServiceType == typeof(ISchedulerFactory)))
         {
             services.AddSingleton<IHostedService, QuartzHostedService>();

@@ -82,7 +82,34 @@ builder.Services.AddQuartz("Scheduler2", q =>
 
 ## Accessing Named Schedulers Programmatically
 
-All schedulers -- whether created via DI or directly -- are registered in the shared `SchedulerRepository`. You can retrieve any scheduler by name:
+All schedulers -- whether created via DI or directly -- are registered in the shared `ISchedulerRepository`. You can retrieve any scheduler by name using the repository:
+
+```csharp
+public class MyService
+{
+    private readonly ISchedulerRepository schedulerRepository;
+
+    public MyService(ISchedulerRepository schedulerRepository)
+    {
+        this.schedulerRepository = schedulerRepository;
+    }
+
+    public async Task DoWork()
+    {
+        // Get a specific named scheduler
+        var scheduler = schedulerRepository.Lookup("FastScheduler");
+        if (scheduler != null)
+        {
+            await scheduler.TriggerJob(new JobKey("my-job"));
+        }
+
+        // Or get all schedulers
+        var all = schedulerRepository.LookupAll();
+    }
+}
+```
+
+If you also have a default scheduler (registered via unnamed `AddQuartz()`), you can inject `ISchedulerFactory` and use `GetScheduler(name)`:
 
 ```csharp
 public class MyService
@@ -97,21 +124,14 @@ public class MyService
     public async Task DoWork()
     {
         var scheduler = await schedulerFactory.GetScheduler("FastScheduler");
-        if (scheduler != null)
-        {
-            await scheduler.TriggerJob(new JobKey("my-job"));
-        }
-
-        // Or get all schedulers
-        var all = await schedulerFactory.GetAllSchedulers();
     }
 }
 ```
 
 ::: warning
-`GetScheduler(name)` only returns schedulers that have been created and started. During application startup, named schedulers may not yet be available.
+Named schedulers are only available after the hosted service has created and started them. During application startup, they may not yet be in the repository.
 
-Note that `ISchedulerFactory` injected from DI resolves to the **default** scheduler (registered via the unnamed `AddQuartz()` overload). If you only use named schedulers, call `GetScheduler(name)` or `GetAllSchedulers()`.
+`ISchedulerFactory` is only available from DI when a default (unnamed) `AddQuartz()` call has been made. If you only use named schedulers, inject `ISchedulerRepository` instead.
 :::
 
 ## Mixing Default and Named Schedulers
