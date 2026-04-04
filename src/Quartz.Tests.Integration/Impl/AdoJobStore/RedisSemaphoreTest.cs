@@ -195,13 +195,21 @@ public class RedisSemaphoreTest
         await shortTtlSemaphore.ObtainLock(
             requestorId, null, JobStoreSupport.LockTriggerAccess);
 
-        // Wait for the TTL to expire (generous margin for slow CI)
-        await Task.Delay(3000);
-
-        // Key should be gone
+        // Poll until the key expires rather than using a fixed delay (avoids flakiness on slow CI)
         IDatabase db = redis.GetDatabase();
-        RedisValue value = await db.StringGetAsync("quartz:test:lock:TestScheduler:TRIGGER_ACCESS");
-        Assert.That(value.HasValue, Is.False);
+        string redisKey = "quartz:test:lock:TestScheduler:TRIGGER_ACCESS";
+        bool expired = false;
+        for (int i = 0; i < 30; i++)
+        {
+            await Task.Delay(200);
+            if (!await db.KeyExistsAsync(redisKey))
+            {
+                expired = true;
+                break;
+            }
+        }
+
+        Assert.That(expired, Is.True, "Redis lock key should have expired after TTL");
 
         // Release local semaphore to clean up
         await shortTtlSemaphore.ReleaseLock(requestorId, JobStoreSupport.LockTriggerAccess);
