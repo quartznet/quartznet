@@ -141,6 +141,6 @@ public sealed record AddJobRequest(JobDetailDto Job, bool Replace, bool? StoreNo
 
 public sealed record JobHistoryPageDto(JsonElement Value);
 
-public sealed record ExecutionLimitsDto(Dictionary<string, int?> Limits);
+public sealed record ExecutionLimitsDto(IReadOnlyDictionary<string, int?> Limits);
 
 

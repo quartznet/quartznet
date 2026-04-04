@@ -3353,43 +3353,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         TimeSpan timeWindow,
         CancellationToken cancellationToken = default)
     {
-        string? lockName;
-        if (AcquireTriggersWithinLock || maxCount > 1)
-        {
-            lockName = LockTriggerAccess;
-        }
-        else
-        {
-            lockName = null;
-        }
-
-        Task<IReadOnlyCollection<IOperableTrigger>> DoAcquire() => ExecuteInNonManagedTXLock(
-            lockName,
-            conn => AcquireNextTrigger(conn, noLaterThan, maxCount, timeWindow, cancellationToken), async (conn, result) =>
-            {
-                try
-                {
-                    var acquired = await Delegate.SelectInstancesFiredTriggerRecords(conn, InstanceId, cancellationToken).ConfigureAwait(false);
-                    var fireInstanceIds = new HashSet<string>();
-                    foreach (FiredTriggerRecord ft in acquired)
-                    {
-                        fireInstanceIds.Add(ft.FireInstanceId!);
-                    }
-                    foreach (IOperableTrigger tr in result)
-                    {
-                        if (fireInstanceIds.Contains(tr.FireInstanceId))
-                        {
-                            return true;
-                        }
-                    }
-                    return false;
-                }
-                catch (Exception e)
-                {
-                    throw new JobPersistenceException("error validating trigger acquisition", e);
-                }
-            },
-            cancellationToken);
+        Task<IReadOnlyCollection<IOperableTrigger>> DoAcquire() => AcquireNextTriggers(noLaterThan, maxCount, timeWindow, executionLimits: null, cancellationToken);
 
 #if DIAGNOSTICS_SOURCE
         return jobStoreDiagnostics.Trace(
@@ -3494,7 +3458,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                 IReadOnlyCollection<TriggerAcquireResult> results;
                 if (executionLimits != null && Delegate is INextVersionDelegate nvd)
                 {
-                    results = await nvd.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, maxCount, timeWindow, executionLimits, cancellationToken).ConfigureAwait(false);
+                    results = await nvd.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, maxCount, executionLimits, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {

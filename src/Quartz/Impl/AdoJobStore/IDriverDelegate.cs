@@ -1206,15 +1206,15 @@ internal interface INextVersionDelegate
     /// </summary>
     /// <param name="conn">The DB connection.</param>
     /// <param name="noLaterThan">Upper bound for next fire time.</param>
+    /// <param name="noEarlierThan">Lower bound for next fire time (typically misfire time).</param>
     /// <param name="maxCount">Maximum number of triggers to return.</param>
-    /// <param name="timeWindow">Batch time window.</param>
     /// <param name="executionLimits">Execution group available slots (mutable working copy).</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     Task<List<TriggerAcquireResult>> SelectTriggerToAcquire(
         ConnectionAndTransactionHolder conn,
         DateTimeOffset noLaterThan,
+        DateTimeOffset noEarlierThan,
         int maxCount,
-        TimeSpan timeWindow,
         Dictionary<string, int?> executionLimits,
         CancellationToken cancellationToken = default);
 }

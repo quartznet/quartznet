@@ -552,8 +552,9 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
 
             return Task.FromResult<ExecutionLimitsDto?>(new ExecutionLimitsDto(dict));
         }
-        catch
+        catch (SchedulerException)
         {
+            // Scheduler implementation doesn't support execution limits
             return Task.FromResult<ExecutionLimitsDto?>(null);
         }
     }

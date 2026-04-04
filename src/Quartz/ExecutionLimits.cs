@@ -19,6 +19,8 @@ namespace Quartz;
 /// </para>
 /// <para>Use <see cref="OtherGroups"/> as a catch-all default for groups not
 /// explicitly listed.</para>
+/// <para>Instances passed to <see cref="SchedulerExtensions.SetExecutionLimits"/> are
+/// snapshotted — subsequent mutations do not affect the scheduler.</para>
 /// </remarks>
 public sealed class ExecutionLimits : IReadOnlyDictionary<string, int?>
 {
@@ -36,16 +38,38 @@ public sealed class ExecutionLimits : IReadOnlyDictionary<string, int?>
     private readonly Dictionary<string, int?> limits = new(StringComparer.Ordinal);
 
     /// <summary>
+    /// Initializes a new empty <see cref="ExecutionLimits"/> instance.
+    /// </summary>
+    public ExecutionLimits()
+    {
+    }
+
+    /// <summary>
+    /// Copy constructor — creates a frozen snapshot of the given limits.
+    /// </summary>
+    private ExecutionLimits(Dictionary<string, int?> source)
+    {
+        limits = new Dictionary<string, int?>(source, StringComparer.Ordinal);
+    }
+
+    /// <summary>
     /// Set the concurrency limit for a named execution group.
     /// </summary>
     /// <param name="group">The execution group name.</param>
-    /// <param name="maxConcurrent">Maximum concurrent threads, or <c>0</c> to forbid execution.</param>
+    /// <param name="maxConcurrent">Maximum concurrent threads (must be &gt;= 0), or <c>0</c> to forbid execution.</param>
     /// <returns>This instance for fluent chaining.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="group"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxConcurrent"/> is negative.</exception>
     public ExecutionLimits ForGroup(string group, int maxConcurrent)
     {
         if (group is null)
         {
             throw new ArgumentNullException(nameof(group));
+        }
+
+        if (maxConcurrent < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxConcurrent), maxConcurrent, "Execution limit must be non-negative.");
         }
 
         limits[group] = maxConcurrent;
@@ -55,10 +79,16 @@ public sealed class ExecutionLimits : IReadOnlyDictionary<string, int?>
     /// <summary>
     /// Set the concurrency limit for triggers that have no execution group.
     /// </summary>
-    /// <param name="maxConcurrent">Maximum concurrent threads, or <c>0</c> to forbid execution.</param>
+    /// <param name="maxConcurrent">Maximum concurrent threads (must be &gt;= 0), or <c>0</c> to forbid execution.</param>
     /// <returns>This instance for fluent chaining.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxConcurrent"/> is negative.</exception>
     public ExecutionLimits ForDefaultGroup(int maxConcurrent)
     {
+        if (maxConcurrent < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxConcurrent), maxConcurrent, "Execution limit must be non-negative.");
+        }
+
         limits[DefaultGroupKey] = maxConcurrent;
         return this;
     }
@@ -66,10 +96,16 @@ public sealed class ExecutionLimits : IReadOnlyDictionary<string, int?>
     /// <summary>
     /// Set the default concurrency limit applied to any execution group not explicitly configured.
     /// </summary>
-    /// <param name="maxConcurrent">Maximum concurrent threads, or <c>0</c> to forbid execution.</param>
+    /// <param name="maxConcurrent">Maximum concurrent threads (must be &gt;= 0), or <c>0</c> to forbid execution.</param>
     /// <returns>This instance for fluent chaining.</returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxConcurrent"/> is negative.</exception>
     public ExecutionLimits ForOtherGroups(int maxConcurrent)
     {
+        if (maxConcurrent < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxConcurrent), maxConcurrent, "Execution limit must be non-negative.");
+        }
+
         limits[OtherGroups] = maxConcurrent;
         return this;
     }
@@ -90,6 +126,15 @@ public sealed class ExecutionLimits : IReadOnlyDictionary<string, int?>
 
         limits[group] = null;
         return this;
+    }
+
+    /// <summary>
+    /// Creates an immutable snapshot of these limits. The returned instance is
+    /// safe to share across threads without further mutation concerns.
+    /// </summary>
+    internal ExecutionLimits Snapshot()
+    {
+        return new ExecutionLimits(limits);
     }
 
     /// <summary>

@@ -159,6 +159,7 @@ public class StdSchedulerFactory : ISchedulerFactory
         PropertyDataSourcePrefix,
         PropertyDbProvider,
         PropertyDbProviderType,
+        PropertyExecutionLimitPrefix,
         PropertyPluginPrefix,
         PropertyJobListenerPrefix,
         PropertyTriggerListenerPrefix,

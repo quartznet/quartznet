@@ -997,7 +997,7 @@ public class QuartzScheduler :
     /// </summary>
     internal void SetExecutionLimits(ExecutionLimits? limits)
     {
-        executionLimits = limits;
+        executionLimits = limits?.Snapshot();
     }
 
     /// <summary>

@@ -1236,8 +1236,8 @@ public partial class StdAdoDelegate
     public virtual async Task<List<TriggerAcquireResult>> SelectTriggerToAcquire(
         ConnectionAndTransactionHolder conn,
         DateTimeOffset noLaterThan,
+        DateTimeOffset noEarlierThan,
         int maxCount,
-        TimeSpan timeWindow,
         Dictionary<string, int?> executionLimits,
         CancellationToken cancellationToken = default)
     {
@@ -1256,7 +1256,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "schedulerName", schedName);
         AddCommandParameter(cmd, "state", StateWaiting);
         AddCommandParameter(cmd, "noLaterThan", GetDbDateTimeValue(noLaterThan));
-        AddCommandParameter(cmd, "noEarlierThan", GetDbDateTimeValue(noLaterThan - timeWindow));
+        AddCommandParameter(cmd, "noEarlierThan", GetDbDateTimeValue(noEarlierThan));
 
         // Create a working copy to decrement during iteration
         Dictionary<string, int?> limitsWorkingCopy = new(executionLimits, StringComparer.Ordinal);

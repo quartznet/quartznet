@@ -522,6 +522,12 @@ public class QuartzSchedulerThread
                             var threadPoolRunResult = qsRsrcs.ThreadPool.RunInThread(jobRunner);
                             if (threadPoolRunResult == false)
                             {
+                                // The lambda never ran — decrement the count we pre-incremented
+                                if (trackingGroup)
+                                {
+                                    runningExecutionGroupCounts.AddOrUpdate(normalizedGroup, 0, (_, c) => Math.Max(c - 1, 0));
+                                }
+
                                 // Check if the scheduler is being shutdown
                                 if (halted || cancellationTokenSource.Token.IsCancellationRequested)
                                 {
