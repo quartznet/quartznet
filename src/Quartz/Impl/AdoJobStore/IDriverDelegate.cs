@@ -1134,19 +1134,6 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Whether the EXECUTION_GROUP column is available, set after probing.
-    /// </summary>
-    bool HasExecutionGroupColumn { get; }
-
-    /// <summary>
-    /// Probes whether the EXECUTION_GROUP column exists in the triggers table.
-    /// Sets <see cref="HasExecutionGroupColumn"/>.
-    /// </summary>
-    ValueTask<bool> SupportsExecutionGroupColumn(
-        ConnectionAndTransactionHolder conn,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Selects the next triggers to acquire, filtering by execution group constraints.
     /// </summary>
     /// <param name="conn">The DB connection.</param>

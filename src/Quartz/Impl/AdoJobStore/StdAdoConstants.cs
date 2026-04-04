@@ -374,15 +374,50 @@ public class StdAdoConstants : AdoConstants
     public static readonly string SqlUpdateMisfireOrigFireTime =
         Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnMisfireOriginalFireTime} = @misfireOrigFireTime WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
 
-    // Execution group support (optional column, probed at startup)
-    public static readonly string SqlProbeExecutionGroupColumn =
-        Invariant($"SELECT {ColumnExecutionGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE 1 = 0");
+    // Execution group support
+    public static readonly string SqlInsertTriggerWithExecutionGroup =
+        Invariant($@"INSERT INTO {TablePrefixSubst}{TableTriggers} ({ColumnSchedulerName}, {ColumnTriggerName}, {ColumnTriggerGroup}, {ColumnJobName}, {ColumnJobGroup}, {ColumnDescription}, {ColumnNextFireTime}, {ColumnPreviousFireTime}, {ColumnTriggerState}, {ColumnTriggerType}, {ColumnStartTime}, {ColumnEndTime}, {ColumnCalendarName}, {ColumnMifireInstruction}, {ColumnJobDataMap}, {ColumnPriority}, {ColumnExecutionGroup})
+                        VALUES(@schedulerName, @triggerName, @triggerGroup, @triggerJobName, @triggerJobGroup, @triggerDescription, @triggerNextFireTime, @triggerPreviousFireTime, @triggerState, @triggerType, @triggerStartTime, @triggerEndTime, @triggerCalendarName, @triggerMisfireInstruction, @triggerJobJobDataMap, @triggerPriority, @triggerExecutionGroup)");
 
-    public static readonly string SqlSelectTriggerExecutionGroup =
-        Invariant($"SELECT {ColumnExecutionGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
+    public static readonly string SqlUpdateTriggerWithExecutionGroup =
+        Invariant($@"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnJobName} = @triggerJobName, {ColumnJobGroup} = @triggerJobGroup, {ColumnDescription} = @triggerDescription, {ColumnNextFireTime} = @triggerNextFireTime, {ColumnPreviousFireTime} = @triggerPreviousFireTime,
+                        {ColumnTriggerState} = @triggerState, {ColumnTriggerType} = @triggerType, {ColumnStartTime} = @triggerStartTime, {ColumnEndTime} = @triggerEndTime, {ColumnCalendarName} = @triggerCalendarName, {ColumnMifireInstruction} = @triggerMisfireInstruction, {ColumnPriority} = @triggerPriority, {ColumnJobDataMap} = @triggerJobJobDataMap, {ColumnExecutionGroup} = @triggerExecutionGroup
+                        WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
 
-    public static readonly string SqlUpdateTriggerExecutionGroup =
-        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnExecutionGroup} = @triggerExecutionGroup WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
+    public static readonly string SqlUpdateTriggerSkipDataWithExecutionGroup =
+        Invariant($@"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnJobName} = @triggerJobName, {ColumnJobGroup} = @triggerJobGroup, {ColumnDescription} = @triggerDescription, {ColumnNextFireTime} = @triggerNextFireTime, {ColumnPreviousFireTime} = @triggerPreviousFireTime,
+                        {ColumnTriggerState} = @triggerState, {ColumnTriggerType} = @triggerType, {ColumnStartTime} = @triggerStartTime, {ColumnEndTime} = @triggerEndTime, {ColumnCalendarName} = @triggerCalendarName, {ColumnMifireInstruction} = @triggerMisfireInstruction, {ColumnPriority} = @triggerPriority, {ColumnExecutionGroup} = @triggerExecutionGroup
+                        WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
+
+    public static readonly string SqlSelectTriggerWithExecutionGroup =
+        Invariant($@"SELECT
+                {ColumnJobName},
+                {ColumnJobGroup},
+                {ColumnDescription},
+                {ColumnNextFireTime},
+                {ColumnPreviousFireTime},
+                {ColumnTriggerType},
+                {ColumnStartTime},
+                {ColumnEndTime},
+                {ColumnCalendarName},
+                {ColumnMifireInstruction},
+                {ColumnPriority},
+                {ColumnJobDataMap},
+                {ColumnCronExpression},
+                {ColumnTimeZoneId},
+                {ColumnRepeatCount},
+                {ColumnRepeatInterval},
+                {ColumnTimesTriggered},
+                t.{ColumnMisfireOriginalFireTime},
+                t.{ColumnExecutionGroup}
+            FROM
+                {TablePrefixSubst}{TableTriggers} t
+            LEFT JOIN
+                {TablePrefixSubst}{TableSimpleTriggers} st ON (st.{ColumnSchedulerName} = t.{ColumnSchedulerName} AND st.{ColumnTriggerGroup} = t.{ColumnTriggerGroup} AND st.{ColumnTriggerName} = t.{ColumnTriggerName})
+            LEFT JOIN
+                {TablePrefixSubst}{TableCronTriggers} ct ON (ct.{ColumnSchedulerName} = t.{ColumnSchedulerName} AND ct.{ColumnTriggerGroup} = t.{ColumnTriggerGroup} AND ct.{ColumnTriggerName} = t.{ColumnTriggerName})
+            WHERE
+                t.{ColumnSchedulerName} = @schedulerName AND t.{ColumnTriggerName} = @triggerName AND t.{ColumnTriggerGroup} = @triggerGroup");
 
     public static readonly string SqlSelectNextTriggerToAcquireWithExecutionGroup =
         Invariant($@"SELECT

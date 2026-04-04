@@ -620,24 +620,6 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
         }
 
-        // Probe for optional EXECUTION_GROUP column
-        try
-        {
-            await ExecuteWithoutLock<bool>(
-                conn => Delegate.SupportsExecutionGroupColumn(conn, cancellationToken),
-                cancellationToken).ConfigureAwait(false);
-
-            if (!Delegate.HasExecutionGroupColumn)
-            {
-                Logger.LogDebug("Column EXECUTION_GROUP not found in triggers table. " +
-                    "Execution group persistence is not available. " +
-                    "Run the schema migration to add this column for full support.");
-            }
-        }
-        catch (Exception e)
-        {
-            Logger.LogDebug(e, "Error probing for EXECUTION_GROUP column");
-        }
     }
 
     /// <seealso cref="IJobStore.SchedulerStarted(CancellationToken)" />

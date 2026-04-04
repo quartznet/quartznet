@@ -327,16 +327,7 @@ public partial class StdAdoDelegate
     {
         var jobData = SerializeJobData(trigger.JobDataMap);
 
-        string insertSql = SqlInsertTrigger;
-        if (HasExecutionGroupColumn)
-        {
-            // Append EXECUTION_GROUP column and parameter to the INSERT
-            insertSql = insertSql
-                .Replace($"{ColumnPriority})", $"{ColumnPriority}, {ColumnExecutionGroup})")
-                .Replace("@triggerPriority)", "@triggerPriority, @triggerExecutionGroup)");
-        }
-
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(insertSql));
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertTriggerWithExecutionGroup));
         AddCommandParameter(cmd, "schedulerName", schedName);
         AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
         AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
@@ -363,11 +354,8 @@ public partial class StdAdoDelegate
 
         AddCommandParameter(cmd, "triggerPriority", trigger.Priority);
 
-        if (HasExecutionGroupColumn)
-        {
-            string? execGroup = trigger.ExecutionGroup;
-            AddCommandParameter(cmd, "triggerExecutionGroup", (object?) execGroup ?? DBNull.Value);
-        }
+        string? execGroup = trigger.ExecutionGroup;
+        AddCommandParameter(cmd, "triggerExecutionGroup", (object?) execGroup ?? DBNull.Value);
 
         int insertResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
@@ -417,7 +405,7 @@ public partial class StdAdoDelegate
         var updateJobData = trigger.JobDataMap.Dirty;
         var jobData = updateJobData ? SerializeJobData(trigger.JobDataMap) : null;
 
-        var sqlUpdate = updateJobData ? SqlUpdateTrigger : SqlUpdateTriggerSkipData;
+        string sqlUpdate = updateJobData ? SqlUpdateTriggerWithExecutionGroup : SqlUpdateTriggerSkipDataWithExecutionGroup;
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(sqlUpdate));
 
         AddCommandParameter(cmd, "schedulerName", schedName);
@@ -449,22 +437,15 @@ public partial class StdAdoDelegate
         if (updateJobData)
         {
             AddCommandParameter(cmd, JobDataMapParameter, jobData, DbProvider.Metadata.DbBinaryType);
-            AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-            AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
         }
-        else
-        {
-            AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-            AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
-        }
+
+        string? execGroup = trigger.ExecutionGroup;
+        AddCommandParameter(cmd, "triggerExecutionGroup", (object?) execGroup ?? DBNull.Value);
+
+        AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
+        AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
 
         var updateResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-
-        // Update execution group in a separate statement (column is optional)
-        if (HasExecutionGroupColumn)
-        {
-            await UpdateTriggerExecutionGroup(conn, trigger, cancellationToken).ConfigureAwait(false);
-        }
 
         if (type == existingType)
         {
@@ -519,33 +500,6 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-    }
-
-    private async ValueTask<string?> ReadTriggerExecutionGroup(
-        ConnectionAndTransactionHolder conn,
-        TriggerKey triggerKey,
-        CancellationToken cancellationToken = default)
-    {
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerExecutionGroup));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-        AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
-        var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-        return result is null or DBNull ? null : (string) result;
-    }
-
-    private async ValueTask UpdateTriggerExecutionGroup(
-        ConnectionAndTransactionHolder conn,
-        IOperableTrigger trigger,
-        CancellationToken cancellationToken = default)
-    {
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerExecutionGroup));
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-        AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
-        string? execGroup = trigger.ExecutionGroup;
-        AddCommandParameter(cmd, "triggerExecutionGroup", (object?) execGroup ?? DBNull.Value);
-        await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -763,11 +717,12 @@ public partial class StdAdoDelegate
         DateTimeOffset startTimeUtc;
         DateTimeOffset? endTimeUtc;
         DateTimeOffset? misfireOrigFireTime;
+        string? executionGroup;
 
         ITriggerPersistenceDelegate? tDel = null;
         TriggerPropertyBundle? triggerProps = null;
 
-        using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTrigger)))
+        using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerWithExecutionGroup)))
         {
             AddCommandParameter(cmd, "schedulerName", schedName);
             AddCommandParameter(cmd, "triggerName", triggerKey.Name);
@@ -803,6 +758,9 @@ public partial class StdAdoDelegate
                 }
 
                 misfireOrigFireTime = GetDateTimeFromDbValue(rs[ColumnMisfireOriginalFireTime]);
+
+                int execGroupOrdinal = rs.GetOrdinal(ColumnExecutionGroup);
+                executionGroup = rs.IsDBNull(execGroupOrdinal) ? null : rs.GetString(execGroupOrdinal);
             }
         }
 
@@ -893,10 +851,9 @@ public partial class StdAdoDelegate
             SetTriggerStateProperties(trigger, triggerProps);
         }
 
-        // Read execution group if column is available
-        if (trigger is not null && HasExecutionGroupColumn)
+        if (trigger is not null)
         {
-            trigger.ExecutionGroup = await ReadTriggerExecutionGroup(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+            trigger.ExecutionGroup = executionGroup;
         }
 
         return trigger;
@@ -1241,29 +1198,6 @@ public partial class StdAdoDelegate
     }
 
     /// <inheritdoc />
-    public bool HasExecutionGroupColumn { get; private set; }
-
-    /// <inheritdoc />
-    public virtual async ValueTask<bool> SupportsExecutionGroupColumn(
-        ConnectionAndTransactionHolder conn,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlProbeExecutionGroupColumn));
-            await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-            HasExecutionGroupColumn = true;
-            return true;
-        }
-        catch (Exception ex)
-        {
-            logger.LogDebug(ex, "Probe for EXECUTION_GROUP column failed");
-            HasExecutionGroupColumn = false;
-            return false;
-        }
-    }
-
-    /// <inheritdoc />
     public virtual async ValueTask<List<TriggerAcquireResult>> SelectTriggerToAcquire(
         ConnectionAndTransactionHolder conn,
         DateTimeOffset noLaterThan,
@@ -1277,12 +1211,7 @@ public partial class StdAdoDelegate
             maxCount = 1;
         }
 
-        // Use the wider query when the EXECUTION_GROUP column exists,
-        // otherwise fall back to the standard query with in-memory-only filtering
-        bool hasColumn = HasExecutionGroupColumn;
-        string sql = hasColumn
-            ? GetSelectNextTriggerToAcquireWithExecutionGroupSql(maxCount)
-            : GetSelectNextTriggerToAcquireSql(maxCount);
+        string sql = GetSelectNextTriggerToAcquireWithExecutionGroupSql(maxCount);
 
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(sql));
         List<TriggerAcquireResult> nextTriggers = new();
@@ -1296,19 +1225,8 @@ public partial class StdAdoDelegate
         Dictionary<string, int?> limitsWorkingCopy = new(executionLimits, StringComparer.Ordinal);
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        int execGroupOrdinal = hasColumn && await rs.ReadAsync(cancellationToken).ConfigureAwait(false)
-            ? rs.GetOrdinal(ColumnExecutionGroup)
-            : -1;
-
-        // If we consumed a row during ordinal lookup, process it before looping
-        bool hasFirstRow = execGroupOrdinal >= 0;
-        if (!hasColumn)
-        {
-            hasFirstRow = await rs.ReadAsync(cancellationToken).ConfigureAwait(false);
-        }
-
         var shouldStop = false;
-        for (bool hasRow = hasFirstRow; hasRow; hasRow = await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+        while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             if (shouldStop)
             {
@@ -1318,11 +1236,9 @@ public partial class StdAdoDelegate
 
             if (nextTriggers.Count < maxCount)
             {
-                string? executionGroup = null;
-                if (execGroupOrdinal >= 0)
-                {
-                    executionGroup = rs.IsDBNull(execGroupOrdinal) ? null : rs.GetString(execGroupOrdinal);
-                }
+                string? executionGroup = rs.IsDBNull(rs.GetOrdinal(ColumnExecutionGroup))
+                    ? null
+                    : rs.GetString(rs.GetOrdinal(ColumnExecutionGroup));
 
                 // Check execution limits
                 if (!ExecutionLimits.CheckExecutionLimits(executionGroup, limitsWorkingCopy))
@@ -1348,7 +1264,6 @@ public partial class StdAdoDelegate
 
     /// <summary>
     /// Gets the SQL to select the next triggers including the EXECUTION_GROUP column.
-    /// Used when the column has been probed and exists.
     /// </summary>
     protected virtual string GetSelectNextTriggerToAcquireWithExecutionGroupSql(int maxCount)
     {
