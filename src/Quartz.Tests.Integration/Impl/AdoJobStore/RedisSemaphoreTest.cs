@@ -17,8 +17,8 @@ public class RedisSemaphoreTest
     private RedisSemaphore semaphore;
     private IConnectionMultiplexer redis;
 
-    [SetUp]
-    public async Task SetUp()
+    [OneTimeSetUp]
+    public async Task OneTimeSetUp()
     {
         semaphore = new RedisSemaphore
         {
@@ -28,7 +28,17 @@ public class RedisSemaphoreTest
         };
 
         redis = await ConnectionMultiplexer.ConnectAsync(RedisTestEnvironment.ConnectionString);
+    }
 
+    [OneTimeTearDown]
+    public void OneTimeTearDown()
+    {
+        redis?.Dispose();
+    }
+
+    [SetUp]
+    public async Task SetUp()
+    {
         // Clean up any leftover keys from previous tests
         IDatabase db = redis.GetDatabase();
         await db.KeyDeleteAsync("quartz:test:lock:TestScheduler:TRIGGER_ACCESS");
@@ -38,13 +48,9 @@ public class RedisSemaphoreTest
     [TearDown]
     public async Task TearDown()
     {
-        if (redis != null)
-        {
-            IDatabase db = redis.GetDatabase();
-            await db.KeyDeleteAsync("quartz:test:lock:TestScheduler:TRIGGER_ACCESS");
-            await db.KeyDeleteAsync("quartz:test:lock:TestScheduler:STATE_ACCESS");
-            redis.Dispose();
-        }
+        IDatabase db = redis.GetDatabase();
+        await db.KeyDeleteAsync("quartz:test:lock:TestScheduler:TRIGGER_ACCESS");
+        await db.KeyDeleteAsync("quartz:test:lock:TestScheduler:STATE_ACCESS");
     }
 
     [Test]
