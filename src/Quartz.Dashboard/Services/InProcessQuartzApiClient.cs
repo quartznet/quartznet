@@ -26,7 +26,7 @@ using Quartz.Spi;
 
 namespace Quartz.Dashboard.Services;
 
-public sealed class InProcessQuartzApiClient : IQuartzApiClient
+public sealed class InProcessQuartzApiClient : IQuartzApiClient, IQuartzApiClientExecutionLimits
 {
     private static readonly JsonSerializerOptions serializerOptions = new()
     {
@@ -150,8 +150,8 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
         List<TriggerHeaderDto> result = [];
         foreach (ITrigger trigger in triggers)
         {
-            string? execGroup = (trigger as Impl.Triggers.AbstractTrigger)?.ExecutionGroup;
-            result.Add(new TriggerHeaderDto(trigger.Key.Group, trigger.Key.Name, execGroup));
+            string? execGroup = (trigger as Spi.INextVersionTrigger)?.ExecutionGroup;
+            result.Add(new TriggerHeaderDto(trigger.Key.Group, trigger.Key.Name) { ExecutionGroup = execGroup });
         }
 
         return result;
@@ -165,14 +165,14 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
         List<CurrentlyExecutingJobDto> result = [];
         foreach (IJobExecutionContext jobExecutionContext in currentlyExecutingJobs)
         {
-            string? execGroup = (jobExecutionContext.Trigger as Impl.Triggers.AbstractTrigger)?.ExecutionGroup;
+            string? execGroup = (jobExecutionContext.Trigger as Spi.INextVersionTrigger)?.ExecutionGroup;
             result.Add(
                 new CurrentlyExecutingJobDto(
                     JobKey: new JobKeyDto(jobExecutionContext.JobDetail.Key.Group, jobExecutionContext.JobDetail.Key.Name),
                     TriggerKey: new TriggerKeyDto(jobExecutionContext.Trigger.Key.Group, jobExecutionContext.Trigger.Key.Name),
                     FireTimeUtc: jobExecutionContext.FireTimeUtc,
-                    FireInstanceId: jobExecutionContext.FireInstanceId,
-                    ExecutionGroup: execGroup));
+                    FireInstanceId: jobExecutionContext.FireInstanceId)
+                { ExecutionGroup = execGroup });
         }
 
         return result;
