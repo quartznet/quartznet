@@ -65,3 +65,86 @@ GO
 
 -- Firebird
 -- ALTER TABLE QRTZ_TRIGGERS ADD MISFIRE_ORIG_FIRE_TIME BIGINT;
+
+--
+-- Adds the EXECUTION_GROUP column to the QRTZ_TRIGGERS and QRTZ_FIRED_TRIGGERS tables.
+-- This column stores the execution group tag for per-node thread limit enforcement.
+--
+-- This column is REQUIRED for 4.x. Apply the appropriate ALTER TABLE for your database.
+--
+-- NOTE: This column was added as optional in Quartz.NET 3.17. If you are already
+-- running 3.17 or later with execution groups, this column may already exist.
+--
+
+-- SQL Server
+IF COL_LENGTH('QRTZ_TRIGGERS','EXECUTION_GROUP') IS NULL
+BEGIN
+  ALTER TABLE [dbo].[QRTZ_TRIGGERS] ADD [EXECUTION_GROUP] nvarchar(200) NULL;
+END
+GO
+
+IF COL_LENGTH('QRTZ_FIRED_TRIGGERS','EXECUTION_GROUP') IS NULL
+BEGIN
+  ALTER TABLE [dbo].[QRTZ_FIRED_TRIGGERS] ADD [EXECUTION_GROUP] nvarchar(200) NULL;
+END
+GO
+
+-- PostgreSQL (check existence before adding)
+-- DO $$
+-- BEGIN
+--   IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+--                  WHERE table_name = 'qrtz_triggers' AND column_name = 'execution_group') THEN
+--     ALTER TABLE qrtz_triggers ADD COLUMN execution_group VARCHAR(200);
+--   END IF;
+--   IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+--                  WHERE table_name = 'qrtz_fired_triggers' AND column_name = 'execution_group') THEN
+--     ALTER TABLE qrtz_fired_triggers ADD COLUMN execution_group VARCHAR(200);
+--   END IF;
+-- END $$;
+
+-- MySQL (check existence before adding)
+-- SET @dbname = DATABASE();
+-- SET @preparedStatement = (SELECT IF(
+--   (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+--    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'QRTZ_TRIGGERS' AND COLUMN_NAME = 'EXECUTION_GROUP') > 0,
+--   'SELECT 1',
+--   'ALTER TABLE QRTZ_TRIGGERS ADD COLUMN EXECUTION_GROUP VARCHAR(200) NULL'
+-- ));
+-- PREPARE alterIfNotExists FROM @preparedStatement;
+-- EXECUTE alterIfNotExists;
+-- DEALLOCATE PREPARE alterIfNotExists;
+--
+-- SET @preparedStatement = (SELECT IF(
+--   (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+--    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'QRTZ_FIRED_TRIGGERS' AND COLUMN_NAME = 'EXECUTION_GROUP') > 0,
+--   'SELECT 1',
+--   'ALTER TABLE QRTZ_FIRED_TRIGGERS ADD COLUMN EXECUTION_GROUP VARCHAR(200) NULL'
+-- ));
+-- PREPARE alterIfNotExists FROM @preparedStatement;
+-- EXECUTE alterIfNotExists;
+-- DEALLOCATE PREPARE alterIfNotExists;
+
+-- SQLite
+-- ALTER TABLE QRTZ_TRIGGERS ADD COLUMN EXECUTION_GROUP NVARCHAR(200);
+-- ALTER TABLE QRTZ_FIRED_TRIGGERS ADD COLUMN EXECUTION_GROUP NVARCHAR(200);
+
+-- Oracle (check existence before adding)
+-- DECLARE
+--   column_exists NUMBER;
+-- BEGIN
+--   SELECT COUNT(*) INTO column_exists FROM user_tab_columns
+--   WHERE table_name = 'QRTZ_TRIGGERS' AND column_name = 'EXECUTION_GROUP';
+--   IF column_exists = 0 THEN
+--     EXECUTE IMMEDIATE 'ALTER TABLE QRTZ_TRIGGERS ADD (EXECUTION_GROUP VARCHAR2(200))';
+--   END IF;
+--   SELECT COUNT(*) INTO column_exists FROM user_tab_columns
+--   WHERE table_name = 'QRTZ_FIRED_TRIGGERS' AND column_name = 'EXECUTION_GROUP';
+--   IF column_exists = 0 THEN
+--     EXECUTE IMMEDIATE 'ALTER TABLE QRTZ_FIRED_TRIGGERS ADD (EXECUTION_GROUP VARCHAR2(200))';
+--   END IF;
+-- END;
+-- /
+
+-- Firebird
+-- ALTER TABLE QRTZ_TRIGGERS ADD EXECUTION_GROUP VARCHAR(200);
+-- ALTER TABLE QRTZ_FIRED_TRIGGERS ADD EXECUTION_GROUP VARCHAR(200);

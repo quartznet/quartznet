@@ -120,8 +120,10 @@ quartz.executionLimit.* = 10
 
 ## Interaction with DisallowConcurrentExecution
 
-The `[DisallowConcurrentExecution]` attribute is checked **before** execution group limits during trigger acquisition.
-This means `[DisallowConcurrentExecution]` is always respected regardless of execution group configuration.
+`[DisallowConcurrentExecution]` is always respected regardless of execution group configuration.
+In the ADO job store, execution group filtering happens at the SQL level during trigger candidate selection,
+while `[DisallowConcurrentExecution]` is enforced afterward in the acquisition loop. Both constraints
+are applied — a trigger must satisfy both to be acquired.
 
 ## Database schema
 
