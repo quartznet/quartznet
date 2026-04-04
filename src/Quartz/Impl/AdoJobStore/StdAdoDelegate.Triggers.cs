@@ -378,7 +378,7 @@ public partial class StdAdoDelegate
 
         if (HasExecutionGroupColumn)
         {
-            string? execGroup = (trigger as AbstractTrigger)?.ExecutionGroup;
+            string? execGroup = (trigger as INextVersionTrigger)?.ExecutionGroup;
             AddCommandParameter(cmd, "triggerExecutionGroup", (object?) execGroup ?? DBNull.Value);
         }
 
@@ -538,7 +538,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "schedulerName", schedName);
         AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
         AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
-        string? execGroup = (trigger as AbstractTrigger)?.ExecutionGroup;
+        string? execGroup = (trigger as INextVersionTrigger)?.ExecutionGroup;
         AddCommandParameter(cmd, "triggerExecutionGroup", (object?) execGroup ?? DBNull.Value);
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -915,9 +915,9 @@ public partial class StdAdoDelegate
         }
 
         // Read execution group if column is available
-        if (trigger is AbstractTrigger aTrigger && HasExecutionGroupColumn)
+        if (trigger is INextVersionTrigger nvTrigger && HasExecutionGroupColumn)
         {
-            aTrigger.ExecutionGroup = await ReadTriggerExecutionGroup(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+            nvTrigger.ExecutionGroup = await ReadTriggerExecutionGroup(conn, triggerKey, cancellationToken).ConfigureAwait(false);
         }
 
         return trigger;

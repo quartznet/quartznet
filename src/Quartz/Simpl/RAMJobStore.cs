@@ -1808,7 +1808,7 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
                 // Check execution group limits
                 if (limitsWorkingCopy != null)
                 {
-                    string? execGroup = (tw.Trigger as Impl.Triggers.AbstractTrigger)?.ExecutionGroup;
+                    string? execGroup = (tw.Trigger as INextVersionTrigger)?.ExecutionGroup;
                     if (!ExecutionLimits.CheckExecutionLimits(execGroup, limitsWorkingCopy))
                     {
                         excludedTriggers.Add(tw);

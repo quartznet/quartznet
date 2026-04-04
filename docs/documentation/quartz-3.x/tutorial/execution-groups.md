@@ -125,9 +125,12 @@ This means `[DisallowConcurrentExecution]` is always respected regardless of exe
 
 ## Database migration
 
-For ADO.NET job stores, execution groups are stored in an optional `EXECUTION_GROUP` column.
-Without this column, execution group information is not persisted to the database, but in-memory
-filtering still works for RAMJobStore and for limits enforcement during trigger acquisition.
+For ADO.NET job stores, execution groups are stored in an `EXECUTION_GROUP` column on the
+`QRTZ_TRIGGERS` table. Without this column, execution group values set via `WithExecutionGroup()`
+are not persisted — all triggers appear ungrouped after restart. Execution group limits still
+work with RAMJobStore (in-memory) without any schema changes.
+
+For ADO job stores, adding the column is recommended when using execution groups.
 
 To add the column to `QRTZ_TRIGGERS` (required):
 
