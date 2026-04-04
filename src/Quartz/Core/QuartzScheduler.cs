@@ -885,6 +885,28 @@ public sealed class QuartzScheduler
     }
 
     /// <summary>
+    /// Updates trigger metadata and selected settings without rescheduling.
+    /// Fire times and trigger state are preserved. Supported properties include
+    /// Description, Priority, JobDataMap, CalendarName, and MisfireInstruction.
+    /// </summary>
+    /// <param name="triggerKey">The key identifying the trigger to update.</param>
+    /// <param name="update">The details to update. See <see cref="TriggerDetailsUpdate"/> for available properties.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns><see langword="true"/> if the trigger was found and updated, <see langword="false"/> if not found.</returns>
+    public async ValueTask<bool> UpdateTriggerDetails(
+        TriggerKey triggerKey,
+        TriggerDetailsUpdate update,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateState();
+
+        ArgumentNullException.ThrowIfNull(triggerKey);
+        ArgumentNullException.ThrowIfNull(update);
+
+        return await resources.JobStore.UpdateTriggerDetails(triggerKey, update, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// For a SimpleTrigger whose StartTimeUtc is in the past and has never fired,
     /// advance the start time to the current time so that ComputeFirstFireTimeUtc
     /// will produce a future fire time. This handles the case where a trigger is

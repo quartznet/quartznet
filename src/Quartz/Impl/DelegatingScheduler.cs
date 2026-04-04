@@ -122,6 +122,11 @@ public class DelegatingScheduler : IScheduler
         return scheduler.RescheduleJob(triggerKey, newTrigger, cancellationToken);
     }
 
+    public ValueTask<bool> UpdateTriggerDetails(TriggerKey triggerKey, TriggerDetailsUpdate update, CancellationToken cancellationToken = default)
+    {
+        return scheduler.UpdateTriggerDetails(triggerKey, update, cancellationToken);
+    }
+
     public ValueTask AddJob(IJobDetail jobDetail, bool replace, CancellationToken cancellationToken = default)
     {
         return scheduler.AddJob(jobDetail, replace, cancellationToken);

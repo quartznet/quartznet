@@ -341,6 +341,17 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
+    public virtual ValueTask<bool> UpdateTriggerDetails(
+        TriggerKey triggerKey,
+        TriggerDetailsUpdate update,
+        CancellationToken cancellationToken = default)
+    {
+        return sched.UpdateTriggerDetails(triggerKey, update, cancellationToken);
+    }
+
+    /// <summary>
+    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+    /// </summary>
     public virtual ValueTask TriggerJob(
         JobKey jobKey,
         CancellationToken cancellationToken = default)

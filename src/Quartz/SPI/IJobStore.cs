@@ -228,6 +228,20 @@ public interface IJobStore
     ValueTask<bool> ReplaceTrigger(TriggerKey triggerKey, IOperableTrigger trigger, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Updates trigger metadata and selected settings without deleting/recreating
+    /// the trigger and without resetting fire times or trigger state.
+    /// </summary>
+    /// <param name="triggerKey">The key identifying the trigger to update.</param>
+    /// <param name="update">
+    /// The details to update. Only properties explicitly set will be changed.
+    /// May include <see cref="TriggerDetailsUpdate.CalendarName"/> and
+    /// <see cref="TriggerDetailsUpdate.MisfireInstruction"/> which can affect firing behavior.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns><see langword="true"/> if the trigger was found and updated, <see langword="false"/> if not found.</returns>
+    ValueTask<bool> UpdateTriggerDetails(TriggerKey triggerKey, TriggerDetailsUpdate update, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Retrieve the given <see cref="ITrigger" />.
     /// </summary>
     /// <returns>

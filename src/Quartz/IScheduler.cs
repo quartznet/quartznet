@@ -393,6 +393,20 @@ public interface IScheduler
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Updates trigger metadata and selected settings without rescheduling.
+    /// Fire times and trigger state are preserved. Supported properties include
+    /// Description, Priority, JobDataMap, CalendarName, and MisfireInstruction.
+    /// </summary>
+    /// <param name="triggerKey">The key identifying the trigger to update.</param>
+    /// <param name="update">The details to update. See <see cref="TriggerDetailsUpdate"/> for available properties.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns><see langword="true"/> if the trigger was found and updated, <see langword="false"/> if not found.</returns>
+    ValueTask<bool> UpdateTriggerDetails(
+        TriggerKey triggerKey,
+        TriggerDetailsUpdate update,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Add the given <see cref="IJob" /> to the Scheduler - with no associated
     /// <see cref="ITrigger" />. The <see cref="IJob" /> will be 'dormant' until
     /// it is scheduled with a <see cref="ITrigger" />, or <see cref="TriggerJob(Quartz.JobKey, CancellationToken)" />

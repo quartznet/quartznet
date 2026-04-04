@@ -660,6 +660,76 @@ public class RAMJobStore : IJobStore
         return found;
     }
 
+    /// <inheritdoc />
+    public virtual async ValueTask<bool> UpdateTriggerDetails(TriggerKey triggerKey, TriggerDetailsUpdate update, CancellationToken cancellationToken = default)
+    {
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (!triggersByKey.TryGetValue(triggerKey, out TriggerWrapper? tw))
+            {
+                return false;
+            }
+
+            if (!update.HasDescription && !update.HasPriority && !update.HasJobDataMap
+                && !update.HasCalendarName && !update.HasMisfireInstruction)
+            {
+                return true;
+            }
+
+            IOperableTrigger trigger = tw.Trigger;
+
+            if (update.HasCalendarName && update.CalendarName is not null)
+            {
+                if (!calendarsByName.ContainsKey(update.CalendarName))
+                {
+                    Throw.JobPersistenceException($"Calendar '{update.CalendarName}' does not exist.");
+                }
+            }
+
+            if (update.HasDescription)
+            {
+                trigger.Description = update.Description;
+            }
+
+            if (update.HasPriority)
+            {
+                // Priority affects SortedSet ordering, must remove/re-add
+                bool wasInTimeTriggers = timeTriggers.Remove(tw);
+                trigger.Priority = update.Priority;
+                if (wasInTimeTriggers)
+                {
+                    timeTriggers.Add(tw);
+                }
+            }
+
+            if (update.HasJobDataMap)
+            {
+                JobDataMap newMap = update.JobDataMap is { Count: > 0 }
+                    ? new JobDataMap((IDictionary<string, object?>) update.JobDataMap)
+                    : new JobDataMap();
+
+                trigger.JobDataMap = newMap;
+            }
+
+            if (update.HasCalendarName)
+            {
+                trigger.CalendarName = update.CalendarName;
+            }
+
+            if (update.HasMisfireInstruction)
+            {
+                trigger.MisfireInstruction = update.MisfireInstruction;
+            }
+
+            return true;
+        }
+        finally
+        {
+            lockObject.Release();
+        }
+    }
+
     /// <summary>
     /// Retrieve the <see cref="IJobDetail" /> for the given
     /// <see cref="IJob" />.

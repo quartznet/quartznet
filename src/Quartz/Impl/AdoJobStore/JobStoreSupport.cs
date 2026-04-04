@@ -1668,6 +1668,99 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
     }
 
+    /// <inheritdoc />
+    public ValueTask<bool> UpdateTriggerDetails(
+        TriggerKey triggerKey,
+        TriggerDetailsUpdate update,
+        CancellationToken cancellationToken = default)
+    {
+        return ExecuteInLock(
+            LockTriggerAccess,
+            conn => UpdateTriggerDetails(conn, triggerKey, update, cancellationToken),
+            cancellationToken);
+    }
+
+    protected virtual async ValueTask<bool> UpdateTriggerDetails(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        TriggerDetailsUpdate update,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            IOperableTrigger? existing = await Delegate.SelectTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+            if (existing is null)
+            {
+                return false;
+            }
+
+            if (!update.HasDescription && !update.HasPriority && !update.HasJobDataMap
+                && !update.HasCalendarName && !update.HasMisfireInstruction)
+            {
+                return true;
+            }
+
+            if (update.HasCalendarName && update.CalendarName is not null)
+            {
+                bool calExists = await CalendarExists(conn, update.CalendarName, cancellationToken).ConfigureAwait(false);
+                if (!calExists)
+                {
+                    Throw.JobPersistenceException($"Calendar '{update.CalendarName}' does not exist.");
+                }
+            }
+
+            if (update.HasDescription)
+            {
+                existing.Description = update.Description;
+            }
+
+            if (update.HasPriority)
+            {
+                existing.Priority = update.Priority;
+            }
+
+            if (update.HasJobDataMap)
+            {
+                JobDataMap newMap = update.JobDataMap is { Count: > 0 }
+                    ? new JobDataMap((IDictionary<string, object?>) update.JobDataMap)
+                    : new JobDataMap();
+
+                // Force dirty flag so Delegate.UpdateTrigger writes the BLOB
+                newMap[SchedulerConstants.ForceJobDataMapDirty] = true;
+                newMap.Remove(SchedulerConstants.ForceJobDataMapDirty);
+
+                existing.JobDataMap = newMap;
+            }
+
+            if (update.HasCalendarName)
+            {
+                existing.CalendarName = update.CalendarName;
+            }
+
+            if (update.HasMisfireInstruction)
+            {
+                existing.MisfireInstruction = update.MisfireInstruction;
+            }
+
+            string state = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+            IJobDetail? job = await Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoadHelper, cancellationToken).ConfigureAwait(false);
+
+            if (job is null)
+            {
+                Throw.JobPersistenceException($"The job referenced by trigger '{triggerKey}' does not exist.");
+            }
+
+            await Delegate.UpdateTrigger(conn, existing, state, job!, cancellationToken).ConfigureAwait(false);
+
+            return true;
+        }
+        catch (Exception e) when (e is not JobPersistenceException)
+        {
+            Throw.JobPersistenceException($"Couldn't update trigger details for '{triggerKey}': {e.Message}", e);
+            return default;
+        }
+    }
+
     /// <summary>
     /// Retrieve the given <see cref="ITrigger" />.
     /// </summary>

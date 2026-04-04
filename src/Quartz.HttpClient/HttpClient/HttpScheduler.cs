@@ -263,6 +263,11 @@ public class HttpScheduler : IScheduler
         return result.FirstFireTimeUtc;
     }
 
+    public ValueTask<bool> UpdateTriggerDetails(TriggerKey triggerKey, TriggerDetailsUpdate update, CancellationToken cancellationToken = default)
+    {
+        throw new NotSupportedException("UpdateTriggerDetails is not yet supported via the HTTP API.");
+    }
+
     public ValueTask AddJob(IJobDetail jobDetail, bool replace, CancellationToken cancellationToken = default)
     {
         var request = new AddJobRequest(
