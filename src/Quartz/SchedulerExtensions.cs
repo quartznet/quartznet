@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -32,6 +33,11 @@ public static class SchedulerExtensions
         TriggerDetailsUpdate update,
         CancellationToken cancellationToken = default)
     {
+        if (scheduler is null)
+        {
+            throw new ArgumentNullException(nameof(scheduler));
+        }
+
         if (scheduler is StdScheduler std)
         {
             return std.UpdateTriggerDetails(triggerKey, update, cancellationToken);

@@ -674,7 +674,13 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
 
             if (update.HasJobDataMap)
             {
-                trigger.JobDataMap = update.JobDataMap ?? new JobDataMap();
+                JobDataMap newMap = new JobDataMap();
+                if (update.JobDataMap is { Count: > 0 })
+                {
+                    newMap.PutAll(update.JobDataMap);
+                }
+
+                trigger.JobDataMap = newMap;
             }
 
             if (update.HasCalendarName)

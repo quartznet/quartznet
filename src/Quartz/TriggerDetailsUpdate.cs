@@ -1,9 +1,15 @@
 namespace Quartz;
 
 /// <summary>
-/// Specifies which non-schedule properties of a trigger to update.
+/// Specifies which trigger properties to update without rescheduling.
 /// Only properties explicitly set via the builder methods will be changed.
 /// </summary>
+/// <remarks>
+/// Most properties here are pure metadata, but <see cref="CalendarName"/> and
+/// <see cref="MisfireInstruction"/> can affect firing behavior. Changing them via this
+/// API does not recompute fire times — the new values take effect starting from the
+/// next scheduling evaluation.
+/// </remarks>
 /// <seealso cref="SchedulerExtensions.UpdateTriggerDetails"/>
 public sealed class TriggerDetailsUpdate
 {

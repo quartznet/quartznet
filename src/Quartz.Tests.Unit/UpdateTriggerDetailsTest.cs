@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Specialized;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -325,7 +326,12 @@ public class UpdateTriggerDetailsTest
     [Test]
     public async Task SchedulerExtensionMethod_WorksWithStdScheduler()
     {
-        IScheduler scheduler = await new StdSchedulerFactory().GetScheduler();
+        NameValueCollection config = new NameValueCollection
+        {
+            ["quartz.scheduler.instanceName"] = "UpdateTriggerDetailsExtMethodTest",
+            ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
+        };
+        IScheduler scheduler = await new StdSchedulerFactory(config).GetScheduler();
 
         IJobDetail job = JobBuilder.Create<NoOpJob>()
             .WithIdentity("extJob", "extGroup")

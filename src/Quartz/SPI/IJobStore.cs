@@ -686,11 +686,15 @@ public interface IJobStore
 internal interface INextVersionJobStore
 {
     /// <summary>
-    /// Updates non-schedule properties of an existing trigger without deleting/recreating
+    /// Updates trigger metadata and selected settings without deleting/recreating
     /// the trigger and without resetting fire times or trigger state.
     /// </summary>
     /// <param name="triggerKey">The key identifying the trigger to update.</param>
-    /// <param name="update">The details to update. Only properties explicitly set will be changed.</param>
+    /// <param name="update">
+    /// The details to update. Only properties explicitly set will be changed.
+    /// May include <see cref="TriggerDetailsUpdate.CalendarName"/> and
+    /// <see cref="TriggerDetailsUpdate.MisfireInstruction"/> which can affect firing behavior.
+    /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns><see langword="true"/> if the trigger was found and updated, <see langword="false"/> if not found.</returns>
     Task<bool> UpdateTriggerDetails(

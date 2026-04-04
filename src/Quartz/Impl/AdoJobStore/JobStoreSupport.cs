@@ -1800,11 +1800,10 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                 {
                     newMap.PutAll(update.JobDataMap);
                 }
-                else
-                {
-                    // Force dirty flag so Delegate.UpdateTrigger writes the (empty) BLOB
-                    newMap.Remove("_");
-                }
+
+                // Force dirty flag so Delegate.UpdateTrigger writes the BLOB
+                newMap.Put(SchedulerConstants.ForceJobDataMapDirty, true);
+                newMap.Remove(SchedulerConstants.ForceJobDataMapDirty);
 
                 existing.JobDataMap = newMap;
             }
