@@ -1319,8 +1319,19 @@ public partial class StdAdoDelegate
         Dictionary<string, int?> limitsWorkingCopy = new(executionLimits, StringComparer.Ordinal);
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        int execGroupOrdinal = hasColumn && await rs.ReadAsync(cancellationToken).ConfigureAwait(false)
+            ? rs.GetOrdinal(ColumnExecutionGroup)
+            : -1;
+
+        // If we consumed a row during ordinal lookup, process it before looping
+        bool hasFirstRow = execGroupOrdinal >= 0;
+        if (!hasColumn)
+        {
+            hasFirstRow = await rs.ReadAsync(cancellationToken).ConfigureAwait(false);
+        }
+
         var shouldStop = false;
-        while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+        for (bool hasRow = hasFirstRow; hasRow; hasRow = await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             if (shouldStop)
             {
@@ -1331,10 +1342,9 @@ public partial class StdAdoDelegate
             if (nextTriggers.Count < maxCount)
             {
                 string? executionGroup = null;
-                if (hasColumn)
+                if (execGroupOrdinal >= 0)
                 {
-                    int ordinal = rs.GetOrdinal(ColumnExecutionGroup);
-                    executionGroup = rs.IsDBNull(ordinal) ? null : rs.GetString(ordinal);
+                    executionGroup = rs.IsDBNull(execGroupOrdinal) ? null : rs.GetString(execGroupOrdinal);
                 }
 
                 // Check execution limits

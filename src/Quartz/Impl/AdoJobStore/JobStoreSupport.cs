@@ -675,8 +675,8 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
 
             if (!misfireDelegate.HasExecutionGroupColumn)
             {
-                Log.Warn("Column EXECUTION_GROUP not found in triggers table. " +
-                    "Execution group limits will use in-memory filtering only. " +
+                Log.Debug("Column EXECUTION_GROUP not found in triggers table. " +
+                    "Execution group persistence is not available. " +
                     "Run the schema migration to add this column for full support.");
             }
         }

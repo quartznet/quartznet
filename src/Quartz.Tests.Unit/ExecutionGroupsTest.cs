@@ -313,8 +313,9 @@ public sealed class ExecutionGroupsTest
         {
             ["quartz.executionLimit.a"] = "unlimited",
             ["quartz.executionLimit.b"] = "none",
-            ["quartz.executionLimit.c"] = "null",
-            ["quartz.executionLimit.d"] = "5"
+            ["quartz.executionLimit.c"] = "null",   // value "null" means unlimited for group "c"
+            ["quartz.executionLimit.d"] = "5",
+            ["quartz.executionLimit._"] = "8"        // underscore key = default (null) group
         };
         StdSchedulerFactory factory = new(props);
         IScheduler scheduler = await factory.GetScheduler().ConfigureAwait(false);
@@ -322,10 +323,11 @@ public sealed class ExecutionGroupsTest
         {
             ExecutionLimits limits = scheduler.GetExecutionLimits();
             Assert.That(limits, Is.Not.Null);
-            Assert.That(limits["a"], Is.Null); // unlimited
-            Assert.That(limits["b"], Is.Null); // none
-            // "c" mapped via "null" alias to default group, not present as "c"
+            Assert.That(limits["a"], Is.Null);  // "unlimited" → null
+            Assert.That(limits["b"], Is.Null);  // "none" → null
+            Assert.That(limits["c"], Is.Null);  // "null" value → null (unlimited)
             Assert.That(limits["d"], Is.EqualTo(5));
+            Assert.That(limits[ExecutionLimits.DefaultGroupKey], Is.EqualTo(8)); // "_" key → default group
         }
         finally
         {

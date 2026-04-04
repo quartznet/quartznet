@@ -228,7 +228,7 @@ public class TriggerBuilder
     /// <returns>the updated TriggerBuilder</returns>
     public TriggerBuilder WithExecutionGroup(string? executionGroup)
     {
-        this.executionGroup = executionGroup;
+        this.executionGroup = string.IsNullOrWhiteSpace(executionGroup) ? null : executionGroup;
         return this;
     }
 

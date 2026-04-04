@@ -200,6 +200,11 @@ internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQu
     /// <inheritdoc />
     public void UseExecutionLimits(Action<ExecutionLimits> configure)
     {
+        if (configure is null)
+        {
+            throw new ArgumentNullException(nameof(configure));
+        }
+
         ExecutionLimits limits = new();
         configure(limits);
 

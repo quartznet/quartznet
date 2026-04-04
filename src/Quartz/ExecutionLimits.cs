@@ -67,6 +67,13 @@ public sealed class ExecutionLimits : IReadOnlyDictionary<string, int?>
             throw new ArgumentNullException(nameof(group));
         }
 
+        if (group.Length == 0 || group == OtherGroups)
+        {
+            throw new ArgumentException(
+                $"Group name '{group}' is reserved. Use ForDefaultGroup() for the default group or ForOtherGroups() for the catch-all.",
+                nameof(group));
+        }
+
         if (maxConcurrent < 0)
         {
             throw new ArgumentOutOfRangeException(nameof(maxConcurrent), maxConcurrent, "Execution limit must be non-negative.");
@@ -122,6 +129,13 @@ public sealed class ExecutionLimits : IReadOnlyDictionary<string, int?>
         if (group is null)
         {
             throw new ArgumentNullException(nameof(group));
+        }
+
+        if (group.Length == 0 || group == OtherGroups)
+        {
+            throw new ArgumentException(
+                $"Group name '{group}' is reserved. Use ForDefaultGroup() for the default group or ForOtherGroups() for the catch-all.",
+                nameof(group));
         }
 
         limits[group] = null;
