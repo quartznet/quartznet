@@ -332,37 +332,41 @@ public class UpdateTriggerDetailsTest
             ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
         };
         IScheduler scheduler = await new StdSchedulerFactory(config).GetScheduler();
+        try
+        {
+            IJobDetail job = JobBuilder.Create<NoOpJob>()
+                .WithIdentity("extJob", "extGroup")
+                .StoreDurably()
+                .Build();
 
-        IJobDetail job = JobBuilder.Create<NoOpJob>()
-            .WithIdentity("extJob", "extGroup")
-            .StoreDurably()
-            .Build();
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("extTrigger", "extGroup")
+                .ForJob(job)
+                .WithCronSchedule("0/30 * * * * ?")
+                .Build();
 
-        ITrigger trigger = TriggerBuilder.Create()
-            .WithIdentity("extTrigger", "extGroup")
-            .ForJob(job)
-            .WithCronSchedule("0/30 * * * * ?")
-            .Build();
+            await scheduler.AddJob(job, true);
+            await scheduler.ScheduleJob(trigger);
 
-        await scheduler.AddJob(job, true);
-        await scheduler.ScheduleJob(trigger);
+            DateTimeOffset nextFireBefore = trigger.GetNextFireTimeUtc().Value;
 
-        DateTimeOffset nextFireBefore = trigger.GetNextFireTimeUtc().Value;
+            TriggerDetailsUpdate update = new TriggerDetailsUpdate()
+                .WithDescription("via extension method")
+                .WithPriority(8);
 
-        TriggerDetailsUpdate update = new TriggerDetailsUpdate()
-            .WithDescription("via extension method")
-            .WithPriority(8);
+            bool result = await scheduler.UpdateTriggerDetails(trigger.Key, update);
 
-        bool result = await scheduler.UpdateTriggerDetails(trigger.Key, update);
-
-        Assert.IsTrue(result);
-        ITrigger retrieved = await scheduler.GetTrigger(trigger.Key);
-        Assert.IsNotNull(retrieved);
-        Assert.AreEqual("via extension method", retrieved.Description);
-        Assert.AreEqual(8, retrieved.Priority);
-        Assert.AreEqual(nextFireBefore, retrieved.GetNextFireTimeUtc());
-
-        await scheduler.Shutdown(false);
+            Assert.IsTrue(result);
+            ITrigger retrieved = await scheduler.GetTrigger(trigger.Key);
+            Assert.IsNotNull(retrieved);
+            Assert.AreEqual("via extension method", retrieved.Description);
+            Assert.AreEqual(8, retrieved.Priority);
+            Assert.AreEqual(nextFireBefore, retrieved.GetNextFireTimeUtc());
+        }
+        finally
+        {
+            await scheduler.Shutdown(false);
+        }
     }
 
     [Test]
