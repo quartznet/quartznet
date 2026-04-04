@@ -224,6 +224,7 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
             if (log.IsWarnEnabled())
             {
                 log.Warn($"Lock '{lockName}' attempt to return by: {requestorId} -- but not owner!");
+                log.Warn("stack-trace of wrongful returner: " + Environment.StackTrace);
             }
 
             return;
@@ -247,7 +248,7 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
         }
         catch (Exception ex)
         {
-            log.Warn($"Failed to release Redis lock '{lockName}': {ex.Message}");
+            log.WarnException($"Failed to release Redis lock '{lockName}'", ex);
         }
         finally
         {
