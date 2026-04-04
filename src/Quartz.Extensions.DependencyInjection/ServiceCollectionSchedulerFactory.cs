@@ -87,13 +87,17 @@ internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
 
     private async Task InitializeScheduler(IScheduler scheduler, CancellationToken cancellationToken)
     {
+        // Default scheduler uses flat ISchedulerListener services (backward compatible)
         foreach (var listener in serviceProvider.GetServices<ISchedulerListener>())
         {
             scheduler.ListenerManager.AddSchedulerListener(listener);
         }
 
+        // Filter configurations to only those belonging to the default (unnamed) scheduler
         var jobListeners = serviceProvider.GetServices<IJobListener>();
-        var jobListenerConfigurations = serviceProvider.GetServices<JobListenerConfiguration>().ToArray();
+        var jobListenerConfigurations = serviceProvider.GetServices<JobListenerConfiguration>()
+            .Where(x => x.OptionsName.Length == 0)
+            .ToArray();
         foreach (var listener in jobListeners)
         {
             var configuration = jobListenerConfigurations.SingleOrDefault(x => x.ListenerType == listener.GetType());
@@ -101,20 +105,23 @@ internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
         }
 
         var triggerListeners = serviceProvider.GetServices<ITriggerListener>();
-        var triggerListenerConfigurations = serviceProvider.GetServices<TriggerListenerConfiguration>().ToArray();
+        var triggerListenerConfigurations = serviceProvider.GetServices<TriggerListenerConfiguration>()
+            .Where(x => x.OptionsName.Length == 0)
+            .ToArray();
         foreach (var listener in triggerListeners)
         {
             var configuration = triggerListenerConfigurations.SingleOrDefault(x => x.ListenerType == listener.GetType());
             scheduler.ListenerManager.AddTriggerListener(listener, configuration?.Matchers ?? Array.Empty<IMatcher<TriggerKey>>());
         }
 
-        var calendars = serviceProvider.GetServices<CalendarConfiguration>();
+        var calendars = serviceProvider.GetServices<CalendarConfiguration>()
+            .Where(x => x.OptionsName.Length == 0);
         foreach (var configuration in calendars)
         {
-            await scheduler.AddCalendar(configuration.Name, configuration.Calendar, configuration.Replace, configuration.UpdateTriggers, cancellationToken);
+            await scheduler.AddCalendar(configuration.Name, configuration.Calendar, configuration.Replace, configuration.UpdateTriggers, cancellationToken).ConfigureAwait(false);
         }
 
-        await processor.ScheduleJobs(scheduler, cancellationToken);
+        await processor.ScheduleJobs(scheduler, cancellationToken).ConfigureAwait(false);
     }
 
     protected override ISchedulerRepository GetSchedulerRepository()

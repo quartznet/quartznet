@@ -13,16 +13,23 @@ internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQu
 {
     private readonly IServiceCollection services;
     private readonly SchedulerBuilder schedulerBuilder;
+    private readonly string optionsName;
 
     internal ServiceCollectionQuartzConfigurator(
         IServiceCollection collection,
-        SchedulerBuilder schedulerBuilder)
+        SchedulerBuilder schedulerBuilder,
+        string? optionsName = null)
     {
         services = collection;
         this.schedulerBuilder = schedulerBuilder;
+        this.optionsName = optionsName ?? "";
     }
 
     IServiceCollection IServiceCollectionQuartzConfigurator.Services => services;
+
+    string IServiceCollectionQuartzConfigurator.OptionsName => optionsName;
+
+    private bool IsNamedScheduler => optionsName.Length > 0;
 
     public void UseSimpleTypeLoader()
     {
@@ -177,7 +184,14 @@ internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQu
 #endif
         T>() where T : class, ISchedulerListener
     {
-        services.AddSingleton<ISchedulerListener, T>();
+        if (IsNamedScheduler)
+        {
+            services.AddSingleton(new SchedulerListenerConfiguration(typeof(T), optionsName));
+        }
+        else
+        {
+            services.AddSingleton<ISchedulerListener, T>();
+        }
     }
 
     public void AddSchedulerListener<
@@ -186,7 +200,14 @@ internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQu
 #endif
         T>(T implementationInstance) where T : class, ISchedulerListener
     {
-        services.AddSingleton<ISchedulerListener>(implementationInstance);
+        if (IsNamedScheduler)
+        {
+            services.AddSingleton(new SchedulerListenerConfiguration(typeof(T), optionsName, listenerInstance: implementationInstance));
+        }
+        else
+        {
+            services.AddSingleton<ISchedulerListener>(implementationInstance);
+        }
     }
 
     public void AddSchedulerListener<
@@ -195,7 +216,14 @@ internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQu
 #endif
         T>(Func<IServiceProvider, T> implementationFactory) where T : class, ISchedulerListener
     {
-        services.AddSingleton<ISchedulerListener>(implementationFactory);
+        if (IsNamedScheduler)
+        {
+            services.AddSingleton(new SchedulerListenerConfiguration(typeof(T), optionsName, listenerFactory: sp => implementationFactory(sp)));
+        }
+        else
+        {
+            services.AddSingleton<ISchedulerListener>(implementationFactory);
+        }
     }
 
     public void AddJobListener<
@@ -204,8 +232,11 @@ internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQu
 #endif
         T>(params IMatcher<JobKey>[] matchers) where T : class, IJobListener
     {
-        services.AddSingleton(new JobListenerConfiguration(typeof(T), matchers));
-        services.AddSingleton<IJobListener, T>();
+        services.AddSingleton(new JobListenerConfiguration(typeof(T), matchers, optionsName));
+        if (!IsNamedScheduler)
+        {
+            services.AddSingleton<IJobListener, T>();
+        }
     }
 
     public void AddJobListener<
@@ -214,8 +245,11 @@ internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQu
 #endif
         T>(T implementationInstance, params IMatcher<JobKey>[] matchers) where T : class, IJobListener
     {
-        services.AddSingleton(new JobListenerConfiguration(typeof(T), matchers));
-        services.AddSingleton<IJobListener>(implementationInstance);
+        services.AddSingleton(new JobListenerConfiguration(typeof(T), matchers, optionsName, listenerInstance: implementationInstance));
+        if (!IsNamedScheduler)
+        {
+            services.AddSingleton<IJobListener>(implementationInstance);
+        }
     }
 
     public void AddJobListener<
@@ -224,8 +258,11 @@ internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQu
 #endif
         T>(Func<IServiceProvider, T> implementationFactory, params IMatcher<JobKey>[] matchers) where T : class, IJobListener
     {
-        services.AddSingleton(new JobListenerConfiguration(typeof(T), matchers));
-        services.AddSingleton<IJobListener>(implementationFactory);
+        services.AddSingleton(new JobListenerConfiguration(typeof(T), matchers, optionsName, listenerFactory: sp => implementationFactory(sp)));
+        if (!IsNamedScheduler)
+        {
+            services.AddSingleton<IJobListener>(implementationFactory);
+        }
     }
 
     public void AddTriggerListener<
@@ -234,8 +271,11 @@ internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQu
 #endif
         T>(params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener
     {
-        services.AddSingleton(new TriggerListenerConfiguration(typeof(T), matchers));
-        services.AddSingleton<ITriggerListener, T>();
+        services.AddSingleton(new TriggerListenerConfiguration(typeof(T), matchers, optionsName));
+        if (!IsNamedScheduler)
+        {
+            services.AddSingleton<ITriggerListener, T>();
+        }
     }
 
     public void AddTriggerListener<
@@ -244,8 +284,11 @@ internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQu
 #endif
         T>(T implementationInstance, params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener
     {
-        services.AddSingleton(new TriggerListenerConfiguration(typeof(T), matchers));
-        services.AddSingleton<ITriggerListener>(implementationInstance);
+        services.AddSingleton(new TriggerListenerConfiguration(typeof(T), matchers, optionsName, listenerInstance: implementationInstance));
+        if (!IsNamedScheduler)
+        {
+            services.AddSingleton<ITriggerListener>(implementationInstance);
+        }
     }
 
     public void AddTriggerListener<
@@ -254,8 +297,11 @@ internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQu
 #endif
         T>(Func<IServiceProvider, T> implementationFactory, params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener
     {
-        services.AddSingleton(new TriggerListenerConfiguration(typeof(T), matchers));
-        services.AddSingleton<ITriggerListener>(implementationFactory);
+        services.AddSingleton(new TriggerListenerConfiguration(typeof(T), matchers, optionsName, listenerFactory: sp => implementationFactory(sp)));
+        if (!IsNamedScheduler)
+        {
+            services.AddSingleton<ITriggerListener>(implementationFactory);
+        }
     }
 
     public void RegisterSingleton<
