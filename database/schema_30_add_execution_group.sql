@@ -1,6 +1,7 @@
 -- Quartz.NET schema migration: add EXECUTION_GROUP column
 -- Supports execution groups feature (per-node thread limits by execution group)
--- This migration is optional. Without it, execution groups will use in-memory filtering only.
+-- For 3.x: this migration is optional (column probed at startup, in-memory filtering as fallback).
+-- For 4.x: the column is part of the standard schema and required by ADO job stores.
 
 -- SQL Server
 -- ALTER TABLE QRTZ_TRIGGERS ADD EXECUTION_GROUP NVARCHAR(200) NULL;

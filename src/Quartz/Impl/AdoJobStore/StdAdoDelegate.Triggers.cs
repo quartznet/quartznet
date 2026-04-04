@@ -1176,10 +1176,12 @@ public partial class StdAdoDelegate
 
             if (nextTriggers.Count < maxCount)
             {
+                string? executionGroup = rs.IsDBNull(rs.GetOrdinal(ColumnExecutionGroup)) ? null : (string) rs[ColumnExecutionGroup];
                 var result = new TriggerAcquireResult(
                     (string) rs[ColumnTriggerName],
                     (string) rs[ColumnTriggerGroup],
-                    (string) rs[ColumnJobClass]);
+                    (string) rs[ColumnJobClass],
+                    executionGroup);
                 nextTriggers.Add(result);
             }
             else

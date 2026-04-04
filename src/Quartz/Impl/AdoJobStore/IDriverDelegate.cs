@@ -1151,23 +1151,4 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 }
 
-public sealed class TriggerAcquireResult
-{
-    public TriggerAcquireResult(string triggerName, string triggerGroup, string jobType)
-        : this(triggerName, triggerGroup, jobType, null)
-    {
-    }
-
-    public TriggerAcquireResult(string triggerName, string triggerGroup, string jobType, string? executionGroup)
-    {
-        TriggerName = triggerName;
-        TriggerGroup = triggerGroup;
-        JobType = jobType;
-        ExecutionGroup = executionGroup;
-    }
-
-    public string TriggerName { get; }
-    public string TriggerGroup { get; }
-    public string JobType { get; }
-    public string? ExecutionGroup { get; }
-}
+public readonly record struct TriggerAcquireResult(string TriggerName, string TriggerGroup, string JobType, string? ExecutionGroup);

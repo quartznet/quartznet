@@ -419,19 +419,26 @@ public class SmokeTestPerformer
         Assert.That(retrievedNoGroup, Is.Not.Null);
         Assert.That(retrievedNoGroup.ExecutionGroup, Is.Null, "Trigger without execution group should have null");
 
-        // Test execution limits API
-        scheduler.SetExecutionLimits(new ExecutionLimits()
-            .ForGroup("batch-jobs", 2)
-            .ForOtherGroups(5));
+        // Test execution limits API (not supported by HTTP proxy schedulers)
+        try
+        {
+            scheduler.SetExecutionLimits(new ExecutionLimits()
+                .ForGroup("batch-jobs", 2)
+                .ForOtherGroups(5));
 
-        ExecutionLimits limits = scheduler.GetExecutionLimits();
-        Assert.That(limits, Is.Not.Null);
-        Assert.That(limits["batch-jobs"], Is.EqualTo(2));
-        Assert.That(limits[ExecutionLimits.OtherGroups], Is.EqualTo(5));
+            ExecutionLimits limits = scheduler.GetExecutionLimits();
+            Assert.That(limits, Is.Not.Null);
+            Assert.That(limits["batch-jobs"], Is.EqualTo(2));
+            Assert.That(limits[ExecutionLimits.OtherGroups], Is.EqualTo(5));
 
-        // Clear limits
-        scheduler.SetExecutionLimits(null);
-        Assert.That(scheduler.GetExecutionLimits(), Is.Null);
+            // Clear limits
+            scheduler.SetExecutionLimits(null);
+            Assert.That(scheduler.GetExecutionLimits(), Is.Null);
+        }
+        catch (NotSupportedException)
+        {
+            // HTTP proxy schedulers don't support execution limits
+        }
 
         await scheduler.Clear();
     }
