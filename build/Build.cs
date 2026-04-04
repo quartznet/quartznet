@@ -124,7 +124,7 @@ partial class Build : NukeBuild, ICompile, IPack
         });
 
     static readonly string[] DatabaseCategories =
-        ["db-postgres", "db-sqlserver", "db-mysql", "db-oracle", "db-firebird", "db-sqlite"];
+        ["db-postgres", "db-sqlserver", "db-mysql", "db-oracle", "db-firebird", "db-sqlite", "db-redis"];
 
     string GetTestFilter(string database) => database switch
     {
@@ -134,6 +134,7 @@ partial class Build : NukeBuild, ICompile, IPack
         "oracle" => "TestCategory=db-oracle",
         "firebird" => "TestCategory=db-firebird",
         "sqlite" => "TestCategory=db-sqlite",
+        "redis" => "TestCategory=db-redis",
         "basic" => string.Join("&", DatabaseCategories.Select(c => $"TestCategory!={c}")),
         _ => null
     };
