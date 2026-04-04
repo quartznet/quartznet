@@ -1187,18 +1187,55 @@ internal interface INextVersionDelegate
         string newState,
         DateTimeOffset? misfireOriginalFireTime,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Whether the EXECUTION_GROUP column is available, set after probing.
+    /// </summary>
+    bool HasExecutionGroupColumn { get; }
+
+    /// <summary>
+    /// Probes whether the EXECUTION_GROUP column exists in the triggers table.
+    /// Sets <see cref="HasExecutionGroupColumn"/>.
+    /// </summary>
+    Task<bool> SupportsExecutionGroupColumn(
+        ConnectionAndTransactionHolder conn,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Selects the next triggers to acquire, filtering by execution group constraints.
+    /// </summary>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="noLaterThan">Upper bound for next fire time.</param>
+    /// <param name="noEarlierThan">Lower bound for next fire time (typically misfire time).</param>
+    /// <param name="maxCount">Maximum number of triggers to return.</param>
+    /// <param name="executionLimits">Execution group available slots (mutable working copy).</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    Task<List<TriggerAcquireResult>> SelectTriggerToAcquire(
+        ConnectionAndTransactionHolder conn,
+        DateTimeOffset noLaterThan,
+        DateTimeOffset noEarlierThan,
+        int maxCount,
+        Dictionary<string, int?> executionLimits,
+        CancellationToken cancellationToken = default);
 }
 
 public class TriggerAcquireResult
 {
     public TriggerAcquireResult(string triggerName, string triggerGroup, string jobType)
+        : this(triggerName, triggerGroup, jobType, null)
+    {
+    }
+
+    public TriggerAcquireResult(string triggerName, string triggerGroup, string jobType, string? executionGroup)
     {
         TriggerName = triggerName;
         TriggerGroup = triggerGroup;
         JobType = jobType;
+        ExecutionGroup = executionGroup;
     }
 
     public string TriggerName { get; }
     public string TriggerGroup { get; }
     public string JobType { get; }
+    public string? ExecutionGroup { get; }
 }

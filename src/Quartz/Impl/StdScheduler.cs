@@ -360,6 +360,19 @@ public class StdScheduler : IScheduler
     }
 
     /// <summary>
+    /// Sets the execution group limits for this scheduler node.
+    /// </summary>
+    internal void SetExecutionLimits(ExecutionLimits? limits)
+    {
+        sched.SetExecutionLimits(limits);
+    }
+
+    /// <summary>
+    /// Gets the currently configured execution group limits.
+    /// </summary>
+    internal ExecutionLimits? GetExecutionLimits() => sched.GetExecutionLimits()?.Snapshot();
+
+    /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
     public virtual Task TriggerJob(

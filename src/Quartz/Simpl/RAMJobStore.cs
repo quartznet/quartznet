@@ -1730,6 +1730,17 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
         TimeSpan timeWindow,
         CancellationToken cancellationToken = default)
     {
+        return AcquireNextTriggers(noLaterThan, maxCount, timeWindow, executionLimits: null, cancellationToken);
+    }
+
+    /// <inheritdoc cref="INextVersionJobStore.AcquireNextTriggers"/>
+    public virtual Task<IReadOnlyCollection<IOperableTrigger>> AcquireNextTriggers(
+        DateTimeOffset noLaterThan,
+        int maxCount,
+        TimeSpan timeWindow,
+        Dictionary<string, int?>? executionLimits,
+        CancellationToken cancellationToken = default)
+    {
         lock (lockObject)
         {
             var result = new List<IOperableTrigger>();
@@ -1743,6 +1754,11 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
             var acquiredJobKeysForNoConcurrentExec = new HashSet<JobKey>();
             var excludedTriggers = new HashSet<TriggerWrapper>();
             DateTimeOffset batchEnd = noLaterThan;
+
+            // execution limits will be modified during processing
+            Dictionary<string, int?>? limitsWorkingCopy = executionLimits != null
+                ? new Dictionary<string, int?>(executionLimits, StringComparer.Ordinal)
+                : null;
 
             while (true)
             {
@@ -1786,6 +1802,17 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
                     {
                         excludedTriggers.Add(tw);
                         continue; // go to next trigger in store.
+                    }
+                }
+
+                // Check execution group limits
+                if (limitsWorkingCopy != null)
+                {
+                    string? execGroup = (tw.Trigger as INextVersionTrigger)?.ExecutionGroup;
+                    if (!ExecutionLimits.CheckExecutionLimits(execGroup, limitsWorkingCopy))
+                    {
+                        excludedTriggers.Add(tw);
+                        continue;
                     }
                 }
 

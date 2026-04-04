@@ -90,6 +90,14 @@ public interface IQuartzApiClient
     Task<JobHistoryPageDto?> GetHistory(JobHistoryQueryDto query);
 }
 
+/// <summary>
+/// Optional capability for API clients that support execution group limits.
+/// </summary>
+public interface IQuartzApiClientExecutionLimits
+{
+    Task<ExecutionLimitsDto?> GetExecutionLimits(string schedulerName);
+}
+
 public sealed record JobHistoryQueryDto(
     string SchedulerName,
     int Page = 1,
@@ -105,7 +113,10 @@ public sealed record JobKeyDto(string Group, string Name);
 
 public sealed record TriggerKeyDto(string Group, string Name);
 
-public sealed record TriggerHeaderDto(string Group, string Name);
+public sealed record TriggerHeaderDto(string Group, string Name)
+{
+    public string? ExecutionGroup { get; init; }
+}
 
 public sealed record JobDetailDto(
     string Name,
@@ -122,7 +133,10 @@ public sealed record CurrentlyExecutingJobDto(
     JobKeyDto JobKey,
     TriggerKeyDto TriggerKey,
     DateTimeOffset FireTimeUtc,
-    string? FireInstanceId);
+    string? FireInstanceId)
+{
+    public string? ExecutionGroup { get; init; }
+}
 
 public sealed record TriggerDetailDto(JsonElement Value);
 
@@ -138,3 +152,4 @@ public sealed record AddJobRequest(JobDetailDto Job, bool Replace, bool? StoreNo
 
 public sealed record JobHistoryPageDto(JsonElement Value);
 
+public sealed record ExecutionLimitsDto(IReadOnlyDictionary<string, int?> Limits);

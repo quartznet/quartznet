@@ -382,6 +382,28 @@ public class StdAdoConstants : AdoConstants
     public static readonly string SqlProbeMisfireOrigFireTimeColumn =
         Invariant($"SELECT {ColumnMisfireOriginalFireTime} FROM {TablePrefixSubst}{TableTriggers} WHERE 1 = 0");
 
+    // Execution group support (optional column, probed at startup)
+    public static readonly string SqlProbeExecutionGroupColumn =
+        Invariant($"SELECT {ColumnExecutionGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE 1 = 0");
+
+    public static readonly string SqlSelectTriggerExecutionGroup =
+        Invariant($"SELECT {ColumnExecutionGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
+
+    public static readonly string SqlUpdateTriggerExecutionGroup =
+        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnExecutionGroup} = @triggerExecutionGroup WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
+
+    public static readonly string SqlSelectNextTriggerToAcquireWithExecutionGroup =
+        Invariant($@"SELECT
+                t.{ColumnTriggerName}, t.{ColumnTriggerGroup}, jd.{ColumnJobClass}, t.{ColumnExecutionGroup}
+              FROM
+                {TablePrefixSubst}{TableTriggers} t
+              JOIN
+                {TablePrefixSubst}{TableJobDetails} jd ON (jd.{ColumnSchedulerName} = t.{ColumnSchedulerName} AND  jd.{ColumnJobGroup} = t.{ColumnJobGroup} AND jd.{ColumnJobName} = t.{ColumnJobName})
+              WHERE
+                t.{ColumnSchedulerName} = @schedulerName AND {ColumnTriggerState} = @state AND {ColumnNextFireTime} <= @noLaterThan AND ({ColumnMifireInstruction} = -1 OR ({ColumnMifireInstruction} <> -1 AND {ColumnNextFireTime} >= @noEarlierThan))
+              ORDER BY
+                {ColumnNextFireTime} ASC, {ColumnPriority} DESC");
+
     public static readonly string SqlSelectTriggerWithMisfireOrigFireTime =
         Invariant($@"SELECT
                 {ColumnJobName},

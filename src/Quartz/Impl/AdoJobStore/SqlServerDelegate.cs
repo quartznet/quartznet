@@ -45,6 +45,13 @@ public class SqlServerDelegate : StdAdoDelegate
         return sqlSelectNextTriggerToAcquire;
     }
 
+    protected override string GetSelectNextTriggerToAcquireWithExecutionGroupSql(int maxCount)
+    {
+        string sql = SqlSelectNextTriggerToAcquireWithExecutionGroup;
+        sql = "SELECT TOP " + maxCount + " " + sql.Substring(6);
+        return sql;
+    }
+
     protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
     {
         if (count != -1)
