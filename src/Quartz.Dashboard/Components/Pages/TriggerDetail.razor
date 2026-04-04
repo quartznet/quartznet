@@ -48,6 +48,7 @@
         <table class="qz-table">
             <tbody>
                 <tr><th>Type</th><td>@DisplayValueHelper.GetString(_trigger, "TriggerType", "Type")</td></tr>
+                <tr><th>Execution Group</th><td>@(DisplayValueHelper.GetString(_trigger, "ExecutionGroup") is { Length: > 0 } eg ? eg : "\u2014")</td></tr>
                 <tr><th>Description</th><td>@DisplayValueHelper.GetString(_trigger, "Description")</td></tr>
                 <tr><th>Schedule</th><td>@BuildScheduleDescription()</td></tr>
                 <tr><th>Next Fire</th><td>@FormatDate(DisplayValueHelper.GetDateTimeOffset(_trigger, "NextFireTimeUtc", "NextFireTime"))</td></tr>

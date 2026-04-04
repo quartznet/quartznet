@@ -1842,7 +1842,18 @@ public class RAMJobStore : IJobStore
     /// by the calling scheduler.
     /// </summary>
     /// <seealso cref="ITrigger" />
-    public virtual async ValueTask<List<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow, CancellationToken cancellationToken = default)
+    public virtual ValueTask<List<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow, CancellationToken cancellationToken = default)
+    {
+        return AcquireNextTriggers(noLaterThan, maxCount, timeWindow, executionLimits: null, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    public virtual async ValueTask<List<IOperableTrigger>> AcquireNextTriggers(
+        DateTimeOffset noLaterThan,
+        int maxCount,
+        TimeSpan timeWindow,
+        Dictionary<string, int?>? executionLimits,
+        CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -1857,6 +1868,11 @@ public class RAMJobStore : IJobStore
             var acquiredJobKeysForNoConcurrentExec = new HashSet<JobKey>();
             var excludedTriggers = new HashSet<TriggerWrapper>();
             DateTimeOffset batchEnd = noLaterThan;
+
+            // execution limits will be modified during processing
+            Dictionary<string, int?>? limitsWorkingCopy = executionLimits is not null
+                ? new Dictionary<string, int?>(executionLimits, StringComparer.Ordinal)
+                : null;
 
             while (true)
             {
@@ -1915,6 +1931,17 @@ public class RAMJobStore : IJobStore
                     {
                         excludedTriggers.Add(tw);
                         continue; // go to next trigger in store.
+                    }
+                }
+
+                // Check execution group limits
+                if (limitsWorkingCopy is not null)
+                {
+                    string? execGroup = tw.Trigger.ExecutionGroup;
+                    if (!ExecutionLimits.CheckExecutionLimits(execGroup, limitsWorkingCopy))
+                    {
+                        excludedTriggers.Add(tw);
+                        continue;
                     }
                 }
 

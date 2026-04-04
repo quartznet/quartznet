@@ -139,6 +139,11 @@ public class JobRunShellBenchmark
             throw new NotImplementedException();
         }
 
+        public ValueTask<List<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow, Dictionary<string, int?>? executionLimits, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
         public ValueTask<bool> CalendarExists(string calName, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();

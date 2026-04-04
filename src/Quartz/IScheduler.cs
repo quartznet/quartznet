@@ -407,6 +407,25 @@ public interface IScheduler
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Sets the execution group limits for this scheduler node. Execution groups
+    /// allow per-node thread limits so that resource-intensive jobs do not saturate
+    /// all available threads.
+    /// </summary>
+    /// <remarks>
+    /// Limits take effect on the next trigger acquisition cycle. Pass <see langword="null"/>
+    /// to clear all limits.
+    /// </remarks>
+    /// <param name="limits">The execution limits to apply, or <see langword="null"/> to clear.</param>
+    void SetExecutionLimits(ExecutionLimits? limits);
+
+    /// <summary>
+    /// Gets the currently configured execution group limits, or <see langword="null"/>
+    /// if none are configured.
+    /// </summary>
+    /// <returns>A snapshot of the current execution limits, or <see langword="null"/>.</returns>
+    ExecutionLimits? GetExecutionLimits();
+
+    /// <summary>
     /// Add the given <see cref="IJob" /> to the Scheduler - with no associated
     /// <see cref="ITrigger" />. The <see cref="IJob" /> will be 'dormant' until
     /// it is scheduled with a <see cref="ITrigger" />, or <see cref="TriggerJob(Quartz.JobKey, CancellationToken)" />

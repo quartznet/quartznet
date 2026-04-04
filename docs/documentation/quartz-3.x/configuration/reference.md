@@ -598,3 +598,27 @@ quartz.jobStore.clusterCheckinInterval = 20000
 quartz.dataSource.myDS.provider = SqlServer
 quartz.dataSource.myDS.connectionString = Server=localhost;Database=quartznet;User Id=quartznet;Password=quartznet;
 ```
+
+## Execution Limits
+
+Execution limits control how many threads each execution group may consume concurrently on a given scheduler node.
+See the [Execution Groups tutorial](../tutorial/execution-groups.md) for full details.
+
+| Property Name | Required | Type | Default Value |
+|---|---|---|---|
+| quartz.executionLimit.{groupName} | no | int or string | |
+
+**Property values:**
+- A non-negative integer: maximum concurrent threads for the group (0 = forbidden on this node)
+- `unlimited`, `none`, or `null`: no restriction (same as not listing the group)
+
+**Special group keys:**
+- `_` (underscore) or `null`: limit for triggers with no execution group (the key `null` is a case-insensitive alias for `_`; this is distinct from the *value* `null` which means unlimited)
+- `*` (asterisk): default limit for named groups not explicitly listed (does not apply to ungrouped triggers)
+
+```
+quartz.executionLimit.batch-jobs = 2
+quartz.executionLimit.high-cpu = 3
+quartz.executionLimit._ = 10
+quartz.executionLimit.* = 5
+```

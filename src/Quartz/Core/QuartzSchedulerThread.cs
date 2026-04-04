@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Collections.Concurrent;
 using System.Data.Common;
 
 using Microsoft.Extensions.Logging;
@@ -53,6 +54,8 @@ internal sealed class QuartzSchedulerThread
     private DateTimeOffset? signaledNextFireTimeUtc;
     private volatile bool paused;
     private volatile bool halted;
+
+    private readonly ConcurrentDictionary<string, int> runningExecutionGroupCounts = new(StringComparer.Ordinal);
 
     private CancellationTokenSource cancellationTokenSource = null!;
     private Task task = null!;
@@ -293,7 +296,15 @@ internal sealed class QuartzSchedulerThread
                     {
                         var noLaterThan = now + qsRsrcs.IdleWaitTime;
                         var maxCount = Math.Min(availThreadCount, qsRsrcs.MaxBatchSize);
-                        triggers = new List<IOperableTrigger>(await qsRsrcs.JobStore.AcquireNextTriggers(noLaterThan, maxCount, qsRsrcs.BatchTimeWindow, CancellationToken.None).ConfigureAwait(false));
+                        Dictionary<string, int?>? availableLimits = ComputeAvailableExecutionGroupLimits();
+                        if (availableLimits is not null)
+                        {
+                            triggers = new List<IOperableTrigger>(await qsRsrcs.JobStore.AcquireNextTriggers(noLaterThan, maxCount, qsRsrcs.BatchTimeWindow, availableLimits, CancellationToken.None).ConfigureAwait(false));
+                        }
+                        else
+                        {
+                            triggers = new List<IOperableTrigger>(await qsRsrcs.JobStore.AcquireNextTriggers(noLaterThan, maxCount, qsRsrcs.BatchTimeWindow, CancellationToken.None).ConfigureAwait(false));
+                        }
                         acquiresFailed = 0;
                         if (logger.IsEnabled(LogLevel.Debug))
                         {
@@ -477,9 +488,31 @@ internal sealed class QuartzSchedulerThread
                                 continue;
                             }
 
-                            var threadPoolRunResult = qsRsrcs.ThreadPool.RunInThread(() => shell.Run(CancellationToken.None));
+                            string? execGroup = trigger.ExecutionGroup;
+                            string normalizedGroup = ExecutionLimits.NormalizeGroupKey(execGroup);
+
+                            // Always track counts so that limits enabled at runtime
+                            // will see accurate in-flight counts immediately
+                            runningExecutionGroupCounts.AddOrUpdate(normalizedGroup, 1, (_, c) => c + 1);
+
+                            Func<Task> jobRunner = async () =>
+                            {
+                                try
+                                {
+                                    await shell.Run(CancellationToken.None).ConfigureAwait(false);
+                                }
+                                finally
+                                {
+                                    DecrementExecutionGroupCount(normalizedGroup);
+                                }
+                            };
+
+                            var threadPoolRunResult = qsRsrcs.ThreadPool.RunInThread(jobRunner);
                             if (!threadPoolRunResult)
                             {
+                                // The lambda never ran - decrement the count we pre-incremented
+                                DecrementExecutionGroupCount(normalizedGroup);
+
                                 // Check if the scheduler is being shutdown
                                 if (halted || cancellationTokenSource.Token.IsCancellationRequested)
                                 {
@@ -559,6 +592,63 @@ internal sealed class QuartzSchedulerThread
         }
 
         return delay;
+    }
+
+    private void DecrementExecutionGroupCount(string normalizedGroup)
+    {
+        int newCount = runningExecutionGroupCounts.AddOrUpdate(normalizedGroup, 0, (_, c) => Math.Max(c - 1, 0));
+        // Remove zero entries to prevent unbounded growth with high-cardinality group names
+        if (newCount <= 0)
+        {
+            ((ICollection<KeyValuePair<string, int>>) runningExecutionGroupCounts)
+                .Remove(new KeyValuePair<string, int>(normalizedGroup, 0));
+        }
+    }
+
+    /// <summary>
+    /// Takes prescribed limits for execution groups (if any) and lowers them
+    /// according to jobs currently executing on this node.
+    /// </summary>
+    private Dictionary<string, int?>? ComputeAvailableExecutionGroupLimits()
+    {
+        ExecutionLimits? limits = qs.GetExecutionLimits();
+        if (limits is null || limits.Count == 0)
+        {
+            return null;
+        }
+
+        Dictionary<string, int?> available = limits.ToWorkingCopy();
+
+        foreach (KeyValuePair<string, int> running in runningExecutionGroupCounts)
+        {
+            string runningGroup = running.Key;
+            int runningCount = running.Value;
+            if (runningCount <= 0)
+            {
+                continue;
+            }
+
+            if (available.TryGetValue(runningGroup, out int? limit))
+            {
+                if (limit is not null)
+                {
+                    available[runningGroup] = Math.Max(limit.Value - runningCount, 0);
+                }
+                // null means unlimited, nothing to update
+            }
+            else if (runningGroup != ExecutionLimits.DefaultGroupKey
+                     && available.TryGetValue(ExecutionLimits.OtherGroups, out int? defaultLimit))
+            {
+                // OtherGroups ("*") applies to named groups only, not to the
+                // default (ungrouped) key - consistent with CheckExecutionLimits
+                if (defaultLimit is not null)
+                {
+                    available[runningGroup] = Math.Max(defaultLimit.Value - runningCount, 0);
+                }
+            }
+        }
+
+        return available;
     }
 
     private async Task SafeReleaseAcquiredTrigger(IOperableTrigger trigger, string context)

@@ -350,6 +350,19 @@ internal class StdScheduler : IScheduler
     }
 
     /// <summary>
+    /// Sets the execution group limits for this scheduler node.
+    /// </summary>
+    public void SetExecutionLimits(ExecutionLimits? limits)
+    {
+        sched.SetExecutionLimits(limits);
+    }
+
+    /// <summary>
+    /// Gets the currently configured execution group limits.
+    /// </summary>
+    public ExecutionLimits? GetExecutionLimits() => sched.GetExecutionLimits()?.Snapshot();
+
+    /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
     public virtual ValueTask TriggerJob(

@@ -573,6 +573,27 @@ public interface IJobStore
     ValueTask<List<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Acquires the next triggers to be fired, respecting execution group limits.
+    /// </summary>
+    /// <param name="noLaterThan">If &gt; <see cref="DateTimeOffset.MinValue"/>, the JobStore should only return a Trigger
+    /// that will fire no later than the time represented in this value.</param>
+    /// <param name="maxCount">The maximum number of triggers to return.</param>
+    /// <param name="timeWindow">Time window to batch triggers together.</param>
+    /// <param name="executionLimits">Per-execution-group available thread counts. The key is the
+    /// normalized group name (empty string for triggers without a group, <c>"*"</c> for the default
+    /// limit for unlisted groups). The value is the number of remaining slots
+    /// (<see langword="null"/> = unlimited, <c>0</c> = forbidden). May be <see langword="null"/>
+    /// if no execution limits are configured.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>The acquired triggers.</returns>
+    ValueTask<List<IOperableTrigger>> AcquireNextTriggers(
+        DateTimeOffset noLaterThan,
+        int maxCount,
+        TimeSpan timeWindow,
+        Dictionary<string, int?>? executionLimits,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Inform the <see cref="IJobStore" /> that the scheduler no longer plans to
     /// fire the given <see cref="ITrigger" />, that it had previously acquired
     /// (reserved).
@@ -605,7 +626,7 @@ public interface IJobStore
     /// Get the amount of time (in ms) to wait when accessing this job store repeatedly fails.
     /// </summary>
     /// <remarks>
-    /// Called by the executor thread(s) when calls to <see cref="AcquireNextTriggers"/> fail more than once in succession,
+    /// Called by the executor thread(s) when calls to <see cref="AcquireNextTriggers(DateTimeOffset, int, TimeSpan, CancellationToken)"/> fail more than once in succession,
     /// and the thread thus wants to wait a bit before trying again, to not consume 100% CPU,
     /// write huge amounts of errors into logs, etc. in cases like the DB being offline/restarting.
     ///

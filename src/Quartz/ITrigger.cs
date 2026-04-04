@@ -80,6 +80,17 @@ public interface ITrigger
     string? Description { get; }
 
     /// <summary>
+    /// Gets the execution group for this trigger. Execution groups allow
+    /// per-node thread limits to be configured so that resource-intensive jobs
+    /// do not saturate all available threads.
+    /// </summary>
+    /// <remarks>
+    /// A <see langword="null"/> value means the trigger has no execution group
+    /// (the default, backward-compatible behavior).
+    /// </remarks>
+    string? ExecutionGroup { get; }
+
+    /// <summary>
     /// Get or set  the <see cref="ICalendar" /> with the given name with
     /// this Trigger. Use <see langword="null" /> when setting to dis-associate a Calendar.
     /// </summary>

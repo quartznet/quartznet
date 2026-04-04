@@ -62,6 +62,7 @@ public sealed class QuartzScheduler
     private volatile bool closed;
     private volatile bool shuttingDown;
     private DateTimeOffset? initialStart;
+    private volatile ExecutionLimits? executionLimits;
 
     /// <summary>
     /// Initializes the <see cref="QuartzScheduler"/> class.
@@ -905,6 +906,19 @@ public sealed class QuartzScheduler
 
         return await resources.JobStore.UpdateTriggerDetails(triggerKey, update, cancellationToken).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// Sets the execution group limits for this scheduler node.
+    /// </summary>
+    internal void SetExecutionLimits(ExecutionLimits? limits)
+    {
+        executionLimits = limits?.Snapshot();
+    }
+
+    /// <summary>
+    /// Gets the currently configured execution group limits, or <see langword="null"/> if none are configured.
+    /// </summary>
+    internal ExecutionLimits? GetExecutionLimits() => executionLimits;
 
     /// <summary>
     /// For a SimpleTrigger whose StartTimeUtc is in the past and has never fired,

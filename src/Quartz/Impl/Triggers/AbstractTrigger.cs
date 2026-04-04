@@ -72,6 +72,7 @@ public abstract class AbstractTrigger : IOperableTrigger, INextVersionTrigger, I
 
     private DateTimeOffset? endTimeUtc;
     private DateTimeOffset startTimeUtc;
+    private string? executionGroup;
 
     [NonSerialized]
     private TimeProvider timeProvider;
@@ -152,6 +153,7 @@ public abstract class AbstractTrigger : IOperableTrigger, INextVersionTrigger, I
             .ModifiedByCalendar(CalendarName)
             .UsingJobData(JobDataMap)
             .WithDescription(Description)
+            .WithExecutionGroup(ExecutionGroup)
             .EndAt(EndTimeUtc)
             .WithIdentity(Key)
             .WithPriority(Priority)
@@ -172,6 +174,21 @@ public abstract class AbstractTrigger : IOperableTrigger, INextVersionTrigger, I
     /// this Trigger. Use <see langword="null" /> when setting to dis-associate a Calendar.
     /// </summary>
     public virtual string? CalendarName { get; set; }
+
+    /// <summary>
+    /// Gets or sets the execution group for this trigger. Execution groups allow
+    /// per-node thread limits to be configured so that resource-intensive jobs
+    /// do not saturate all available threads.
+    /// </summary>
+    /// <remarks>
+    /// <para>A <see langword="null"/> value means the trigger has no execution group
+    /// (the default, backward-compatible behavior).</para>
+    /// </remarks>
+    public string? ExecutionGroup
+    {
+        get => executionGroup;
+        set => executionGroup = string.IsNullOrWhiteSpace(value) ? null : value!.Trim();
+    }
 
     /// <summary>
     /// Get or set the <see cref="JobDataMap" /> that is associated with the

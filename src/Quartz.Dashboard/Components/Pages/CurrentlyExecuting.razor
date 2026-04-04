@@ -29,6 +29,7 @@
             <tr>
                 <th>Job</th>
                 <th>Trigger</th>
+                <th>Execution Group</th>
                 <th>Fire Time</th>
                 <th>Run Time</th>
                 @if (!IsReadOnly)
@@ -56,6 +57,10 @@
                     <tr>
                         <td><KeyBadge GroupName="@jobGroup" ItemName="@jobName" /></td>
                         <td><KeyBadge GroupName="@triggerGroup" ItemName="@triggerName" /></td>
+                        @{
+                            string execGroup = DisplayValueHelper.GetString(executingJob, "ExecutionGroup");
+                        }
+                        <td>@(string.IsNullOrEmpty(execGroup) ? "\u2014" : execGroup)</td>
                         <td>@FormatFireTime(fireTime)</td>
                         <td>@FormatRunTime(fireTime)</td>
                         @if (!IsReadOnly)
@@ -81,7 +86,7 @@
     private DateTimeOffset? _lastUpdatedAt;
 
     private bool IsReadOnly => Options.Value.ReadOnly;
-    private int TableColumnCount => IsReadOnly ? 4 : 5;
+    private int TableColumnCount => IsReadOnly ? 5 : 6;
 
     protected override async Task OnInitializedAsync()
     {

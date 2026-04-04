@@ -268,6 +268,16 @@ public class HttpScheduler : IScheduler
         throw new NotSupportedException("UpdateTriggerDetails is not yet supported via the HTTP API.");
     }
 
+    public void SetExecutionLimits(ExecutionLimits? limits)
+    {
+        throw new NotSupportedException("SetExecutionLimits is not supported via the HTTP API. Configure execution limits on the scheduler node directly.");
+    }
+
+    public ExecutionLimits? GetExecutionLimits()
+    {
+        throw new NotSupportedException("GetExecutionLimits is not supported via the HTTP API.");
+    }
+
     public ValueTask AddJob(IJobDetail jobDetail, bool replace, CancellationToken cancellationToken = default)
     {
         var request = new AddJobRequest(

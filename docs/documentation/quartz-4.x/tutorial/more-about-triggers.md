@@ -55,6 +55,25 @@ configured misfire instructions. When you start using Quartz.NET in your own pro
 that are defined on the given trigger types, and explained in their API documentation. More specific information about misfire instructions will be given within
 the tutorial lessons specific to each trigger type.
 
+## Execution Groups
+
+Triggers can optionally be assigned an **execution group** -- a tag that characterizes the resource
+requirements of the associated job (e.g. `"batch-jobs"`, `"high-cpu"`). Execution groups allow each
+scheduler node to limit how many threads a particular category of job may consume concurrently,
+preventing resource-intensive jobs from starving other work.
+
+Set an execution group via `TriggerBuilder`:
+
+```csharp
+TriggerBuilder.Create()
+    .WithIdentity("myTrigger")
+    .WithExecutionGroup("batch-jobs")
+    // ...
+    .Build();
+```
+
+See the [Execution Groups tutorial](execution-groups.md) for full details on configuration and usage.
+
 ## Calendars
 
 Quartz.NET Calendar objects implementing `ICalendar` interface can be associated with triggers at the time the trigger is stored in the scheduler.

@@ -73,6 +73,7 @@ public sealed class TriggerBuilder
     private string? calendarName;
     private JobKey? jobKey;
     private readonly JobDataMap jobDataMap = new JobDataMap();
+    private string? executionGroup;
 
     private IScheduleBuilder? scheduleBuilder;
 
@@ -143,6 +144,8 @@ public sealed class TriggerBuilder
             trig.JobDataMap = jobDataMap;
         }
 
+        trig.ExecutionGroup = executionGroup;
+
         return trig;
     }
 
@@ -211,6 +214,33 @@ public sealed class TriggerBuilder
     public TriggerBuilder WithDescription(string? description)
     {
         this.description = description;
+        return this;
+    }
+
+    /// <summary>
+    /// Set the execution group for the Trigger. Execution groups allow per-node
+    /// thread limits to be configured so that resource-intensive jobs do not
+    /// saturate all available threads.
+    /// </summary>
+    /// <param name="executionGroup">the execution group name, or <see langword="null"/> to clear</param>
+    /// <returns>the updated TriggerBuilder</returns>
+    public TriggerBuilder WithExecutionGroup(string? executionGroup)
+    {
+        if (string.IsNullOrWhiteSpace(executionGroup))
+        {
+            this.executionGroup = null;
+        }
+        else
+        {
+            executionGroup = executionGroup!.Trim();
+            if (executionGroup == ExecutionLimits.OtherGroups)
+            {
+                throw new ArgumentException(
+                    $"Execution group name '{executionGroup}' is reserved for limits configuration.",
+                    nameof(executionGroup));
+            }
+            this.executionGroup = executionGroup;
+        }
         return this;
     }
 

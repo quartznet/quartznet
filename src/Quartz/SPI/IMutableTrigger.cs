@@ -17,6 +17,17 @@ public interface IMutableTrigger : ITrigger
     new string? Description { get; set; }
 
     /// <summary>
+    /// Gets or sets the execution group for this trigger. Execution groups allow
+    /// per-node thread limits to be configured so that resource-intensive jobs
+    /// do not saturate all available threads.
+    /// </summary>
+    /// <remarks>
+    /// A <see langword="null"/> value means the trigger has no execution group
+    /// (the default, backward-compatible behavior).
+    /// </remarks>
+    new string? ExecutionGroup { get; set; }
+
+    /// <summary>
     /// Associate the <see cref="ICalendar" /> with the given name with this Trigger.
     /// </summary>
     new string? CalendarName { set; get; }

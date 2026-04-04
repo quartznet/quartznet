@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 
 using Quartz.Diagnostics;
+using Quartz.Impl;
 using Quartz.Simpl;
 using Quartz.Spi;
 
@@ -300,6 +301,21 @@ internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQu
         if (!IsNamedScheduler)
         {
             services.AddSingleton<TService, TImplementation>();
+        }
+    }
+
+    public void UseExecutionLimits(Action<ExecutionLimits> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+
+        ExecutionLimits limits = new();
+        configure(limits);
+
+        foreach (var kvp in limits)
+        {
+            string propKey = kvp.Key == ExecutionLimits.DefaultGroupKey ? "_" : kvp.Key;
+            string propValue = kvp.Value?.ToString() ?? "unlimited";
+            SetProperty($"{StdSchedulerFactory.PropertyExecutionLimitPrefix}.{propKey}", propValue);
         }
     }
 }

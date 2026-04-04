@@ -35,6 +35,11 @@ public class OracleDelegate : StdAdoDelegate
         return "SELECT * FROM (" + SqlSelectNextTriggerToAcquire + ") WHERE rownum <= " + maxCount;
     }
 
+    protected override string GetSelectNextTriggerToAcquireWithExecutionGroupSql(int maxCount)
+    {
+        return "SELECT * FROM (" + SqlSelectNextTriggerToAcquireWithExecutionGroup + ") WHERE rownum <= " + maxCount;
+    }
+
     protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
     {
         if (count != -1)

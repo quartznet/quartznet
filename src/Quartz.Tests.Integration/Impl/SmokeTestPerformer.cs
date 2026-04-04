@@ -370,6 +370,7 @@ public class SmokeTestPerformer
                 await scheduler.GetCalendarNames();
                 await scheduler.GetTriggerGroupNames();
 
+                await TestExecutionGroups(scheduler);
                 await TestMatchers(scheduler);
                 await TestGetTriggerStateBlockedWhileExecuting(scheduler);
             }
@@ -378,6 +379,61 @@ public class SmokeTestPerformer
         {
             await scheduler.Shutdown(false);
         }
+    }
+
+    private async Task TestExecutionGroups(IScheduler scheduler)
+    {
+        await scheduler.Clear();
+
+        // Schedule a job with a trigger that has an execution group
+        IJobDetail egJob = JobBuilder.Create<NoOpJob>()
+            .WithIdentity("execGroupJob", "execGroupTest")
+            .StoreDurably()
+            .Build();
+        await scheduler.AddJob(egJob, true);
+
+        ITrigger egTrigger = TriggerBuilder.Create()
+            .WithIdentity("execGroupTrigger", "execGroupTest")
+            .ForJob(egJob)
+            .WithExecutionGroup("batch-jobs")
+            .WithSimpleSchedule(s => s.WithRepeatCount(0))
+            .StartAt(DateTimeOffset.UtcNow.AddHours(1))
+            .Build();
+        await scheduler.ScheduleJob(egTrigger);
+
+        // Verify the execution group round-trips through store/retrieve
+        ITrigger retrievedTrigger = await scheduler.GetTrigger(egTrigger.Key);
+        Assert.That(retrievedTrigger, Is.Not.Null, "Trigger with execution group should be retrievable");
+        Assert.That(retrievedTrigger.ExecutionGroup, Is.EqualTo("batch-jobs"), "Execution group should round-trip through job store");
+
+        // Schedule a trigger without an execution group
+        ITrigger noGroupTrigger = TriggerBuilder.Create()
+            .WithIdentity("noGroupTrigger", "execGroupTest")
+            .ForJob(egJob)
+            .WithSimpleSchedule(s => s.WithRepeatCount(0))
+            .StartAt(DateTimeOffset.UtcNow.AddHours(1))
+            .Build();
+        await scheduler.ScheduleJob(noGroupTrigger);
+
+        ITrigger retrievedNoGroup = await scheduler.GetTrigger(noGroupTrigger.Key);
+        Assert.That(retrievedNoGroup, Is.Not.Null);
+        Assert.That(retrievedNoGroup.ExecutionGroup, Is.Null, "Trigger without execution group should have null");
+
+        // Test execution limits API
+        scheduler.SetExecutionLimits(new ExecutionLimits()
+            .ForGroup("batch-jobs", 2)
+            .ForOtherGroups(5));
+
+        ExecutionLimits limits = scheduler.GetExecutionLimits();
+        Assert.That(limits, Is.Not.Null);
+        Assert.That(limits["batch-jobs"], Is.EqualTo(2));
+        Assert.That(limits[ExecutionLimits.OtherGroups], Is.EqualTo(5));
+
+        // Clear limits
+        scheduler.SetExecutionLimits(null);
+        Assert.That(scheduler.GetExecutionLimits(), Is.Null);
+
+        await scheduler.Clear();
     }
 
     private async Task TestMatchers(IScheduler scheduler)

@@ -632,4 +632,10 @@ public sealed class QuartzApiClient : IQuartzApiClient
 
         return value.Clone();
     }
+
+    public ValueTask<ExecutionLimitsDto?> GetExecutionLimits(string schedulerName)
+    {
+        // HTTP API does not support execution limits retrieval
+        return ValueTask.FromResult<ExecutionLimitsDto?>(null);
+    }
 }

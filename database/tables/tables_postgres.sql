@@ -57,6 +57,7 @@ CREATE TABLE qrtz_triggers
     calendar_name TEXT NULL,
     misfire_instr SMALLINT NULL,
     misfire_orig_fire_time BIGINT NULL,
+    execution_group VARCHAR(200) NULL,
     job_data BYTEA NULL,
     PRIMARY KEY (sched_name, trigger_name, trigger_group),
     FOREIGN KEY (sched_name, job_name, job_group)
@@ -155,6 +156,7 @@ CREATE TABLE qrtz_fired_triggers
     job_group TEXT NULL,
     is_nonconcurrent BOOL NOT NULL,
     requests_recovery BOOL NULL,
+    execution_group VARCHAR(200) NULL,
     PRIMARY KEY (sched_name, entry_id)
 );
 

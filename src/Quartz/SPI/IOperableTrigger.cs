@@ -121,4 +121,9 @@ internal interface INextVersionTrigger
     /// misfire threshold so that fire times within the threshold window are preserved.
     /// </summary>
     void UpdateAfterMisfire(ICalendar? cal, TimeSpan misfireThreshold);
+
+    /// <summary>
+    /// Gets or sets the execution group for this trigger.
+    /// </summary>
+    string? ExecutionGroup { get; set; }
 }

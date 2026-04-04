@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
+using Quartz.Impl;
 using Quartz.Spi;
 
 namespace Quartz;
@@ -68,4 +69,12 @@ public interface IServiceCollectionQuartzConfigurator : IPropertyConfigurer, IPr
     void AddTriggerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener;
     void AddTriggerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(T implementationInstance, params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener;
     void AddTriggerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(Func<IServiceProvider, T> implementationFactory, params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener;
+
+    /// <summary>
+    /// Configures execution group limits for this scheduler node. Execution groups
+    /// allow per-node thread limits so that resource-intensive jobs do not saturate
+    /// all available threads.
+    /// </summary>
+    /// <param name="configure">Action to configure the execution limits.</param>
+    void UseExecutionLimits(Action<ExecutionLimits> configure);
 }
