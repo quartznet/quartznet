@@ -511,7 +511,7 @@ public class QuartzSchedulerThread
                                 }
                                 finally
                                 {
-                                    runningExecutionGroupCounts.AddOrUpdate(normalizedGroup, 0, (_, c) => Math.Max(c - 1, 0));
+                                    DecrementExecutionGroupCount(normalizedGroup);
                                 }
                             };
 
@@ -519,7 +519,7 @@ public class QuartzSchedulerThread
                             if (threadPoolRunResult == false)
                             {
                                 // The lambda never ran — decrement the count we pre-incremented
-                                runningExecutionGroupCounts.AddOrUpdate(normalizedGroup, 0, (_, c) => Math.Max(c - 1, 0));
+                                DecrementExecutionGroupCount(normalizedGroup);
 
                                 // Check if the scheduler is being shutdown
                                 if (halted || cancellationTokenSource.Token.IsCancellationRequested)
@@ -608,6 +608,17 @@ public class QuartzSchedulerThread
         }
 
         return delay;
+    }
+
+    private void DecrementExecutionGroupCount(string normalizedGroup)
+    {
+        int newCount = runningExecutionGroupCounts.AddOrUpdate(normalizedGroup, 0, (_, c) => Math.Max(c - 1, 0));
+        // Remove zero entries to prevent unbounded growth with high-cardinality group names
+        if (newCount <= 0)
+        {
+            ((ICollection<KeyValuePair<string, int>>) runningExecutionGroupCounts)
+                .Remove(new KeyValuePair<string, int>(normalizedGroup, 0));
+        }
     }
 
     /// <summary>

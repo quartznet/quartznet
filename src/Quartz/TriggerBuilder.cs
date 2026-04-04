@@ -19,7 +19,6 @@
 
 using System;
 
-using Quartz.Impl.Triggers;
 using Quartz.Spi;
 
 namespace Quartz;
@@ -143,9 +142,9 @@ public class TriggerBuilder
             trig.JobDataMap = jobDataMap;
         }
 
-        if (executionGroup != null && trig is AbstractTrigger at)
+        if (executionGroup != null && trig is INextVersionTrigger nvt)
         {
-            at.ExecutionGroup = executionGroup;
+            nvt.ExecutionGroup = executionGroup;
         }
 
         return trig;

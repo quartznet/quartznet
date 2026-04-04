@@ -169,13 +169,15 @@ public sealed class ExecutionLimits : IReadOnlyDictionary<string, int?>
         {
             limit = groupLimit;
         }
-        else if (availableLimits.TryGetValue(OtherGroups, out int? otherLimit))
+        else if (key != DefaultGroupKey && availableLimits.TryGetValue(OtherGroups, out int? otherLimit))
         {
+            // OtherGroups ("*") is a catch-all for named groups only,
+            // not for the default (null/ungrouped) triggers
             limit = otherLimit;
         }
         else
         {
-            return true; // no limit configured at all
+            return true; // no limit configured for this group
         }
 
         if (limit is null)

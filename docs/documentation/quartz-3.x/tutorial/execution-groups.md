@@ -129,24 +129,29 @@ For ADO.NET job stores, execution groups are stored in an optional `EXECUTION_GR
 Without this column, execution group information is not persisted to the database, but in-memory
 filtering still works for RAMJobStore and for limits enforcement during trigger acquisition.
 
-To add the column:
+To add the column to `QRTZ_TRIGGERS` (required):
 
 ```sql
 -- SQL Server
 ALTER TABLE QRTZ_TRIGGERS ADD EXECUTION_GROUP NVARCHAR(200) NULL;
-ALTER TABLE QRTZ_FIRED_TRIGGERS ADD EXECUTION_GROUP NVARCHAR(200) NULL;
 
 -- PostgreSQL / MySQL / SQLite
 ALTER TABLE QRTZ_TRIGGERS ADD COLUMN EXECUTION_GROUP VARCHAR(200) NULL;
-ALTER TABLE QRTZ_FIRED_TRIGGERS ADD COLUMN EXECUTION_GROUP VARCHAR(200) NULL;
 
 -- Oracle
 ALTER TABLE QRTZ_TRIGGERS ADD (EXECUTION_GROUP VARCHAR2(200) NULL);
-ALTER TABLE QRTZ_FIRED_TRIGGERS ADD (EXECUTION_GROUP VARCHAR2(200) NULL);
 ```
 
-The scheduler probes for column existence at startup and logs a warning if the column is missing
-while execution limits are configured.
+Optionally, add the column to `QRTZ_FIRED_TRIGGERS` for forward compatibility (not currently
+read/written, but reserved for future cluster-wide execution group counting):
+
+```sql
+ALTER TABLE QRTZ_FIRED_TRIGGERS ADD EXECUTION_GROUP NVARCHAR(200) NULL;  -- SQL Server
+ALTER TABLE QRTZ_FIRED_TRIGGERS ADD COLUMN EXECUTION_GROUP VARCHAR(200) NULL;  -- PostgreSQL/MySQL/SQLite
+ALTER TABLE QRTZ_FIRED_TRIGGERS ADD (EXECUTION_GROUP VARCHAR2(200) NULL);  -- Oracle
+```
+
+The scheduler probes for column existence at startup and logs at Debug level if the column is missing.
 
 ## Dashboard
 
