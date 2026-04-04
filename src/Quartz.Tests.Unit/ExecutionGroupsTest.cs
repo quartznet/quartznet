@@ -336,6 +336,27 @@ public sealed class ExecutionGroupsTest
     }
 
     [Test]
+    public async Task ParseExecutionLimits_NullKeyAlias()
+    {
+        NameValueCollection props = new()
+        {
+            ["quartz.executionLimit.null"] = "7"   // "null" key = default (null) group alias
+        };
+        StdSchedulerFactory factory = new(props);
+        IScheduler scheduler = await factory.GetScheduler().ConfigureAwait(false);
+        try
+        {
+            ExecutionLimits limits = scheduler.GetExecutionLimits();
+            Assert.That(limits, Is.Not.Null);
+            Assert.That(limits[ExecutionLimits.DefaultGroupKey], Is.EqualTo(7));
+        }
+        finally
+        {
+            await scheduler.Shutdown(false).ConfigureAwait(false);
+        }
+    }
+
+    [Test]
     public async Task ParseExecutionLimits_NoLimits_ReturnsNull()
     {
         NameValueCollection props = new();

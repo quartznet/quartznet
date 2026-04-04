@@ -273,7 +273,7 @@ public abstract class AbstractTrigger : IOperableTrigger, INextVersionTrigger, I
     public string? ExecutionGroup
     {
         get => executionGroup;
-        set => executionGroup = value;
+        set => executionGroup = string.IsNullOrWhiteSpace(value) ? null : value!.Trim();
     }
 
     /// <summary>

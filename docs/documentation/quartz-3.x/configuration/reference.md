@@ -605,8 +605,8 @@ See the [Execution Groups tutorial](../tutorial/execution-groups.md) for full de
 - `unlimited`, `none`, or `null`: no restriction (same as not listing the group)
 
 **Special group keys:**
-- `_` (underscore): limit for triggers with no execution group (null group)
-- `*` (asterisk): default limit for groups not explicitly listed
+- `_` (underscore) or `null`: limit for triggers with no execution group (the key `null` is a case-insensitive alias for `_`; this is distinct from the *value* `null` which means unlimited)
+- `*` (asterisk): default limit for named groups not explicitly listed (does not apply to ungrouped triggers)
 
 ```
 quartz.executionLimit.batch-jobs = 2

@@ -227,7 +227,21 @@ public class TriggerBuilder
     /// <returns>the updated TriggerBuilder</returns>
     public TriggerBuilder WithExecutionGroup(string? executionGroup)
     {
-        this.executionGroup = string.IsNullOrWhiteSpace(executionGroup) ? null : executionGroup;
+        if (string.IsNullOrWhiteSpace(executionGroup))
+        {
+            this.executionGroup = null;
+        }
+        else
+        {
+            executionGroup = executionGroup!.Trim();
+            if (executionGroup == ExecutionLimits.OtherGroups)
+            {
+                throw new ArgumentException(
+                    $"Execution group name '{executionGroup}' is reserved for limits configuration.",
+                    nameof(executionGroup));
+            }
+            this.executionGroup = executionGroup;
+        }
         return this;
     }
 
