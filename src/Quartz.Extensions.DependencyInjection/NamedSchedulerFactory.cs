@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,7 +12,6 @@ using Quartz.Impl;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
-using Quartz.Xml;
 
 namespace Quartz;
 
@@ -41,7 +41,7 @@ internal sealed class NamedSchedulerFactory : StdSchedulerFactory
 
         Initialize(quartzOptions.ToNameValueCollection());
 
-        var scheduler = await base.GetScheduler(cancellationToken).ConfigureAwait(false);
+        IScheduler scheduler = await base.GetScheduler(cancellationToken).ConfigureAwait(false);
         await InitializeScheduler(scheduler, cancellationToken).ConfigureAwait(false);
 
         return scheduler;
@@ -50,45 +50,45 @@ internal sealed class NamedSchedulerFactory : StdSchedulerFactory
     private async Task InitializeScheduler(IScheduler scheduler, CancellationToken cancellationToken)
     {
         // Scheduler listeners for this named scheduler
-        var schedulerListenerConfigurations = serviceProvider.GetServices<SchedulerListenerConfiguration>()
+        IEnumerable<SchedulerListenerConfiguration> schedulerListenerConfigurations = serviceProvider.GetServices<SchedulerListenerConfiguration>()
             .Where(x => x.OptionsName == optionsName);
-        foreach (var configuration in schedulerListenerConfigurations)
+        foreach (SchedulerListenerConfiguration configuration in schedulerListenerConfigurations)
         {
-            var listener = CreateSchedulerListener(configuration);
+            ISchedulerListener listener = CreateSchedulerListener(configuration);
             scheduler.ListenerManager.AddSchedulerListener(listener);
         }
 
         // Job listeners for this named scheduler
-        var jobListenerConfigurations = serviceProvider.GetServices<JobListenerConfiguration>()
+        JobListenerConfiguration[] jobListenerConfigurations = serviceProvider.GetServices<JobListenerConfiguration>()
             .Where(x => x.OptionsName == optionsName)
             .ToArray();
-        foreach (var configuration in jobListenerConfigurations)
+        foreach (JobListenerConfiguration configuration in jobListenerConfigurations)
         {
-            var listener = CreateJobListener(configuration);
+            IJobListener listener = CreateJobListener(configuration);
             scheduler.ListenerManager.AddJobListener(listener, configuration.Matchers);
         }
 
         // Trigger listeners for this named scheduler
-        var triggerListenerConfigurations = serviceProvider.GetServices<TriggerListenerConfiguration>()
+        TriggerListenerConfiguration[] triggerListenerConfigurations = serviceProvider.GetServices<TriggerListenerConfiguration>()
             .Where(x => x.OptionsName == optionsName)
             .ToArray();
-        foreach (var configuration in triggerListenerConfigurations)
+        foreach (TriggerListenerConfiguration configuration in triggerListenerConfigurations)
         {
-            var listener = CreateTriggerListener(configuration);
+            ITriggerListener listener = CreateTriggerListener(configuration);
             scheduler.ListenerManager.AddTriggerListener(listener, configuration.Matchers);
         }
 
         // Calendars for this named scheduler
-        var calendars = serviceProvider.GetServices<CalendarConfiguration>()
+        IEnumerable<CalendarConfiguration> calendars = serviceProvider.GetServices<CalendarConfiguration>()
             .Where(x => x.OptionsName == optionsName);
-        foreach (var configuration in calendars)
+        foreach (CalendarConfiguration configuration in calendars)
         {
             await scheduler.AddCalendar(configuration.Name, configuration.Calendar, configuration.Replace, configuration.UpdateTriggers, cancellationToken).ConfigureAwait(false);
         }
 
         // Schedule jobs and triggers from options
-        var typeLoadHelper = serviceProvider.GetRequiredService<ITypeLoadHelper>();
-        var processor = new ContainerConfigurationProcessor(typeLoadHelper, Options.Create(quartzOptions));
+        ITypeLoadHelper typeLoadHelper = serviceProvider.GetRequiredService<ITypeLoadHelper>();
+        ContainerConfigurationProcessor processor = new ContainerConfigurationProcessor(typeLoadHelper, Options.Create(quartzOptions));
         await processor.ScheduleJobs(scheduler, cancellationToken).ConfigureAwait(false);
     }
 
@@ -149,8 +149,8 @@ internal sealed class NamedSchedulerFactory : StdSchedulerFactory
 
     protected override string? GetNamedConnectionString(string connectionStringName)
     {
-        var configuration = serviceProvider.GetService<IConfiguration>();
-        var connectionString = configuration?.GetConnectionString(connectionStringName);
+        IConfiguration? configuration = serviceProvider.GetService<IConfiguration>();
+        string? connectionString = configuration?.GetConnectionString(connectionStringName);
         if (!string.IsNullOrWhiteSpace(connectionString))
         {
             return connectionString;
@@ -161,7 +161,7 @@ internal sealed class NamedSchedulerFactory : StdSchedulerFactory
 
     protected override T InstantiateType<T>(Type? implementationType)
     {
-        var service = serviceProvider.GetService<T>();
+        T? service = serviceProvider.GetService<T>();
         if (service is null)
         {
             service = ObjectUtils.InstantiateType<T>(implementationType);

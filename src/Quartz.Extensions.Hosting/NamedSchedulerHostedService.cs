@@ -42,7 +42,7 @@ internal sealed class NamedSchedulerHostedService : IHostedService
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        var registry = serviceProvider.GetService<SchedulerNameRegistry>();
+        SchedulerNameRegistry? registry = serviceProvider.GetService<SchedulerNameRegistry>();
         if (registry == null || registry.Names.Count == 0)
         {
             return;
@@ -51,11 +51,11 @@ internal sealed class NamedSchedulerHostedService : IHostedService
         try
         {
             // Create all named schedulers (requires successful initialization for app startup)
-            foreach (var name in registry.Names)
+            foreach (string name in registry.Names)
             {
-                var quartzOptions = optionsMonitor.Get(name);
-                var factory = new NamedSchedulerFactory(serviceProvider, name, quartzOptions);
-                var scheduler = await factory.CreateAndInitializeScheduler(cancellationToken).ConfigureAwait(false);
+                QuartzOptions quartzOptions = optionsMonitor.Get(name);
+                NamedSchedulerFactory factory = new NamedSchedulerFactory(serviceProvider, name, quartzOptions);
+                IScheduler scheduler = await factory.CreateAndInitializeScheduler(cancellationToken).ConfigureAwait(false);
                 schedulers.Add(scheduler);
             }
 
@@ -78,11 +78,17 @@ internal sealed class NamedSchedulerHostedService : IHostedService
         {
             // if the operation was canceled, we should not start the schedulers
         }
+        catch (Exception)
+        {
+            // If creation fails partway through, shut down any schedulers that were already created
+            await ShutdownAllSchedulersAsync(CancellationToken.None).ConfigureAwait(false);
+            throw;
+        }
     }
 
     private async Task AwaitStartupCompletionAndStartSchedulersAsync(CancellationToken startupCancellationToken)
     {
-        using var combinedCancellationSource = CancellationTokenSource.CreateLinkedTokenSource(startupCancellationToken, applicationLifetime.ApplicationStarted);
+        using CancellationTokenSource combinedCancellationSource = CancellationTokenSource.CreateLinkedTokenSource(startupCancellationToken, applicationLifetime.ApplicationStarted);
 
         await Task.Delay(Timeout.InfiniteTimeSpan, combinedCancellationSource.Token)
             .ContinueWith(_ => { }, TaskContinuationOptions.OnlyOnCanceled)
@@ -101,7 +107,7 @@ internal sealed class NamedSchedulerHostedService : IHostedService
             return;
         }
 
-        foreach (var scheduler in schedulers)
+        foreach (IScheduler scheduler in schedulers)
         {
             if (hostedServiceOptions.Value.StartDelay.HasValue)
             {
@@ -127,10 +133,31 @@ internal sealed class NamedSchedulerHostedService : IHostedService
         }
         finally
         {
-            foreach (var scheduler in schedulers)
+            await ShutdownAllSchedulersAsync(cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task ShutdownAllSchedulersAsync(CancellationToken cancellationToken)
+    {
+        List<Exception>? exceptions = null;
+        foreach (IScheduler scheduler in schedulers)
+        {
+            try
             {
                 await scheduler.Shutdown(hostedServiceOptions.Value.WaitForJobsToComplete, cancellationToken).ConfigureAwait(false);
             }
+            catch (Exception ex)
+            {
+                exceptions ??= new List<Exception>();
+                exceptions.Add(ex);
+            }
+        }
+
+        schedulers.Clear();
+
+        if (exceptions is { Count: > 0 })
+        {
+            throw new AggregateException("One or more named scheduler shutdowns failed.", exceptions);
         }
     }
 }

@@ -342,6 +342,90 @@ public sealed class MultipleSchedulerTests
         configs.Where(c => c.OptionsName == "Named").Should().BeEmpty();
     }
 
+    [Test]
+    public void AddQuartz_WithDuplicateName_ShouldThrow()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddLogging();
+
+        services.AddQuartz("Duplicate", q => { });
+
+        Action act = () => services.AddQuartz("Duplicate", q => { });
+        act.Should().Throw<ArgumentException>().WithMessage("*already been registered*");
+    }
+
+    [Test]
+    public void ScheduleJob_WithNamedScheduler_ShouldWork()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddLogging();
+
+        services.AddQuartz("Named", q =>
+        {
+            q.ScheduleJob<TestJobA>(
+                trigger => trigger
+                    .WithIdentity("scheduledTrigger")
+                    .StartNow()
+                    .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).RepeatForever()),
+                job => job.WithIdentity("scheduledJob"));
+        });
+
+        using var provider = services.BuildServiceProvider();
+        var optionsMonitor = provider.GetRequiredService<IOptionsMonitor<QuartzOptions>>();
+        var namedOptions = optionsMonitor.Get("Named");
+
+        namedOptions.JobDetails.Should().HaveCount(1);
+        namedOptions.JobDetails[0].Key.Name.Should().Be("scheduledJob");
+        namedOptions.Triggers.Should().HaveCount(1);
+        namedOptions.Triggers[0].Key.Name.Should().Be("scheduledTrigger");
+
+        // Default options should be empty
+        var defaultOptions = optionsMonitor.Get(Options.DefaultName);
+        defaultOptions.JobDetails.Should().BeEmpty();
+    }
+
+    [Test]
+    public void SchedulerName_SetterOnNamedConfigurator_ShouldThrow()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddLogging();
+
+        Action act = () => services.AddQuartz("MyName", q =>
+        {
+            q.SchedulerName = "Other";
+        });
+
+        act.Should().Throw<InvalidOperationException>().WithMessage("*cannot be changed*");
+    }
+
+    [Test]
+    public void AddQuartzHostedService_WithoutAnyAddQuartz_ShouldNotThrow()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddLogging();
+
+        // No AddQuartz calls at all
+        services.AddQuartzHostedService();
+
+        // Should only have NamedSchedulerHostedService (which will no-op)
+        var hostedServices = services.Where(d => d.ServiceType == typeof(IHostedService)).ToList();
+        hostedServices.Should().HaveCount(1);
+        hostedServices[0].ImplementationType.Should().Be(typeof(NamedSchedulerHostedService));
+    }
+
+    [Test]
+    public void AddQuartz_WithNullProperties_ShouldThrow()
+    {
+        var services = new ServiceCollection();
+
+        Action act = () => services.AddQuartz("Test", (System.Collections.Specialized.NameValueCollection) null, q => { });
+        act.Should().Throw<ArgumentNullException>();
+    }
+
     #region Test helpers
 
     private sealed class TestJobA : IJob

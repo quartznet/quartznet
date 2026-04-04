@@ -134,6 +134,11 @@ public static class ServiceCollectionExtensions
             throw new ArgumentException("Scheduler name must not be null or empty.", nameof(name));
         }
 
+        if (properties is null)
+        {
+            throw new ArgumentNullException(nameof(properties));
+        }
+
         services.AddOptions();
         services.TryAddSingleton<MicrosoftLoggingProvider>(serviceProvider =>
         {
@@ -152,10 +157,10 @@ public static class ServiceCollectionExtensions
         // Force the scheduler instance name to the provided name
         properties[StdSchedulerFactory.PropertySchedulerInstanceName] = name;
 
-        var schedulerBuilder = SchedulerBuilder.Create(properties);
+        SchedulerBuilder schedulerBuilder = SchedulerBuilder.Create(properties);
         if (configure != null)
         {
-            var target = new ServiceCollectionQuartzConfigurator(services, schedulerBuilder, name);
+            ServiceCollectionQuartzConfigurator target = new ServiceCollectionQuartzConfigurator(services, schedulerBuilder, name);
             configure(target);
         }
 
@@ -187,21 +192,20 @@ public static class ServiceCollectionExtensions
         });
 
         // Register this scheduler name in the registry
-        services.TryAddSingleton<SchedulerNameRegistry>();
-
-        // Use a configure action to add the name after the registry is created
-        // We register the name via a one-time post-configure that captures the name
-        var registry = services.FirstOrDefault(d => d.ServiceType == typeof(SchedulerNameRegistry));
-        if (registry?.ImplementationInstance is SchedulerNameRegistry existingRegistry)
+        ServiceDescriptor? existing = services.FirstOrDefault(d => d.ServiceType == typeof(SchedulerNameRegistry));
+        if (existing?.ImplementationInstance is SchedulerNameRegistry existingRegistry)
         {
             existingRegistry.Add(name);
         }
         else
         {
-            // First named scheduler -- replace with instance registration
-            var newRegistry = new SchedulerNameRegistry();
+            if (existing != null)
+            {
+                services.Remove(existing);
+            }
+            SchedulerNameRegistry newRegistry = new SchedulerNameRegistry();
             newRegistry.Add(name);
-            services.Replace(ServiceDescriptor.Singleton(newRegistry));
+            services.AddSingleton(newRegistry);
         }
 
         // Note: ISchedulerFactory and ContainerConfigurationProcessor are NOT registered here.

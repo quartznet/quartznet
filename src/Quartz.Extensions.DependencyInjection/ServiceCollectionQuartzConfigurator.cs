@@ -50,7 +50,15 @@ internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQu
 
     public string SchedulerName
     {
-        set => schedulerBuilder.SchedulerName = value;
+        set
+        {
+            if (IsNamedScheduler)
+            {
+                throw new InvalidOperationException(
+                    $"SchedulerName cannot be changed for a named scheduler. The name '{optionsName}' was set when calling AddQuartz(\"{optionsName}\", ...).");
+            }
+            schedulerBuilder.SchedulerName = value;
+        }
     }
 
     public bool InterruptJobsOnShutdown
@@ -94,7 +102,12 @@ internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQu
 #endif
         T>(Action<SchedulerBuilder.PersistentStoreOptions> configure) where T : class, IJobStore
     {
-        services.AddSingleton<IJobStore, T>();
+        // Named schedulers get their own IJobStore from StdSchedulerFactory via properties;
+        // only register the global DI singleton for the default scheduler
+        if (!IsNamedScheduler)
+        {
+            services.AddSingleton<IJobStore, T>();
+        }
         schedulerBuilder.UsePersistentStore<T>(configure);
     }
 
@@ -111,14 +124,19 @@ internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQu
         T>(Action<JobFactoryOptions>? configure = null) where T : class, IJobFactory
     {
         schedulerBuilder.UseJobFactory<T>();
-        services.Replace(ServiceDescriptor.Singleton(typeof(IJobFactory), typeof(T)));
+        // Named schedulers configure job factories via properties; only replace the global
+        // DI singleton for the default scheduler to avoid cross-scheduler side effects
+        if (!IsNamedScheduler)
+        {
+            services.Replace(ServiceDescriptor.Singleton(typeof(IJobFactory), typeof(T)));
+        }
         if (configure != null)
         {
-            services.Configure<QuartzOptions>(options =>
+            services.Configure<QuartzOptions>(optionsName, options =>
             {
                 configure(options.JobFactory);
             });
-        };
+        }
     }
 
     public void UseTypeLoader<
@@ -128,7 +146,12 @@ internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQu
         T>() where T : ITypeLoadHelper
     {
         schedulerBuilder.UseTypeLoader<T>();
-        services.Replace(ServiceDescriptor.Singleton(typeof(ITypeLoadHelper), typeof(T)));
+        // Named schedulers configure type loaders via properties; only replace the global
+        // DI singleton for the default scheduler to avoid cross-scheduler side effects
+        if (!IsNamedScheduler)
+        {
+            services.Replace(ServiceDescriptor.Singleton(typeof(ITypeLoadHelper), typeof(T)));
+        }
     }
 
     public void UseThreadPool<

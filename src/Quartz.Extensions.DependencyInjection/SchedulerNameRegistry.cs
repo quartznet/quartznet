@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Quartz;
@@ -8,5 +9,13 @@ internal sealed class SchedulerNameRegistry
 
     public IReadOnlyList<string> Names => names;
 
-    public void Add(string name) => names.Add(name);
+    public void Add(string name)
+    {
+        if (names.Contains(name))
+        {
+            throw new ArgumentException($"A scheduler with name '{name}' has already been registered.", nameof(name));
+        }
+
+        names.Add(name);
+    }
 }
