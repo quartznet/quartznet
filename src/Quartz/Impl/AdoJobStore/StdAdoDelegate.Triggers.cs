@@ -340,7 +340,16 @@ public partial class StdAdoDelegate
     {
         var jobData = SerializeJobData(trigger.JobDataMap);
 
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertTrigger));
+        string insertSql = SqlInsertTrigger;
+        if (HasExecutionGroupColumn)
+        {
+            // Append EXECUTION_GROUP column and parameter to the INSERT
+            insertSql = insertSql
+                .Replace($"{ColumnPriority})", $"{ColumnPriority}, {ColumnExecutionGroup})")
+                .Replace("@triggerPriority)", "@triggerPriority, @triggerExecutionGroup)");
+        }
+
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(insertSql));
         AddCommandParameter(cmd, "schedulerName", schedName);
         AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
         AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
@@ -366,6 +375,12 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "triggerJobJobDataMap", jobData, DbProvider.Metadata.DbBinaryType);
 
         AddCommandParameter(cmd, "triggerPriority", trigger.Priority);
+
+        if (HasExecutionGroupColumn)
+        {
+            string? execGroup = (trigger as AbstractTrigger)?.ExecutionGroup;
+            AddCommandParameter(cmd, "triggerExecutionGroup", (object?) execGroup ?? DBNull.Value);
+        }
 
         int insertResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
@@ -458,6 +473,12 @@ public partial class StdAdoDelegate
 
         var updateResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
+        // Update execution group in a separate statement (column is optional)
+        if (HasExecutionGroupColumn)
+        {
+            await UpdateTriggerExecutionGroup(conn, trigger, cancellationToken).ConfigureAwait(false);
+        }
+
         if (type == existingType)
         {
             if (tDel == null)
@@ -493,6 +514,33 @@ public partial class StdAdoDelegate
         }
 
         return updateResult;
+    }
+
+    private async Task<string?> ReadTriggerExecutionGroup(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default)
+    {
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerExecutionGroup));
+        AddCommandParameter(cmd, "schedulerName", schedName);
+        AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+        AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+        var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        return result == null || result == DBNull.Value ? null : (string) result;
+    }
+
+    private async Task UpdateTriggerExecutionGroup(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger trigger,
+        CancellationToken cancellationToken = default)
+    {
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerExecutionGroup));
+        AddCommandParameter(cmd, "schedulerName", schedName);
+        AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
+        AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
+        string? execGroup = (trigger as AbstractTrigger)?.ExecutionGroup;
+        AddCommandParameter(cmd, "triggerExecutionGroup", (object?) execGroup ?? DBNull.Value);
+        await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -864,6 +912,12 @@ public partial class StdAdoDelegate
             }
 
             SetTriggerStateProperties(trigger, triggerProps);
+        }
+
+        // Read execution group if column is available
+        if (trigger is AbstractTrigger aTrigger && HasExecutionGroupColumn)
+        {
+            aTrigger.ExecutionGroup = await ReadTriggerExecutionGroup(conn, triggerKey, cancellationToken).ConfigureAwait(false);
         }
 
         return trigger;

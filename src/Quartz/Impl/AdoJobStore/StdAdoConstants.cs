@@ -386,6 +386,12 @@ public class StdAdoConstants : AdoConstants
     public static readonly string SqlProbeExecutionGroupColumn =
         Invariant($"SELECT {ColumnExecutionGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE 1 = 0");
 
+    public static readonly string SqlSelectTriggerExecutionGroup =
+        Invariant($"SELECT {ColumnExecutionGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
+
+    public static readonly string SqlUpdateTriggerExecutionGroup =
+        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnExecutionGroup} = @triggerExecutionGroup WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
+
     public static readonly string SqlSelectNextTriggerToAcquireWithExecutionGroup =
         Invariant($@"SELECT
                 t.{ColumnTriggerName}, t.{ColumnTriggerGroup}, jd.{ColumnJobClass}, t.{ColumnExecutionGroup}
