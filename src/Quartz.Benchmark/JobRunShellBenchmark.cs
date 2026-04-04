@@ -294,6 +294,11 @@ public class JobRunShellBenchmark
             throw new NotImplementedException();
         }
 
+        public ValueTask<bool> UpdateTriggerDetails(TriggerKey triggerKey, TriggerDetailsUpdate update, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
         public ValueTask ResumeAll(CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
