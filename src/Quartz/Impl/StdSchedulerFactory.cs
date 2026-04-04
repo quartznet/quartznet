@@ -1308,7 +1308,7 @@ Please add configuration to your application config file to correctly initialize
             {
                 limitValue = null; // unlimited
             }
-            else if (!int.TryParse(rawValue, out int parsed))
+            else if (!int.TryParse(rawValue, out int parsed) || parsed < 0)
             {
                 throw new SchedulerConfigException(
                     $"Invalid execution limit value '{rawValue}' for group '{groupKey}'. " +

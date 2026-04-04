@@ -652,8 +652,11 @@ public class QuartzSchedulerThread
                 }
                 // null means unlimited, nothing to update
             }
-            else if (available.TryGetValue(ExecutionLimits.OtherGroups, out int? defaultLimit))
+            else if (runningGroup != ExecutionLimits.DefaultGroupKey
+                     && available.TryGetValue(ExecutionLimits.OtherGroups, out int? defaultLimit))
             {
+                // OtherGroups ("*") applies to named groups only, not to the
+                // default (ungrouped) key — consistent with CheckExecutionLimits
                 if (defaultLimit is not null)
                 {
                     available[runningGroup] = Math.Max(defaultLimit.Value - runningCount, 0);
