@@ -116,6 +116,7 @@ public class StdSchedulerFactory : ISchedulerFactory
     public const string PropertyDataSourceProvider = "provider";
     public const string PropertyDataSourceConnectionString = "connectionString";
     public const string PropertyDataSourceConnectionStringName = "connectionStringName";
+    public const string PropertyExecutionLimitPrefix = "quartz.executionLimit";
     public const string PropertyPluginPrefix = "quartz.plugin";
     public const string PropertyPluginType = "type";
     public const string PropertyJobListenerPrefix = "quartz.jobListener";
@@ -1051,6 +1052,13 @@ Please add configuration to your application config file to correctly initialize
             qs = new QuartzScheduler(rsrcs, idleWaitTime);
             qsInited = true;
 
+            // Parse execution limits
+            ExecutionLimits? executionLimits = ParseExecutionLimits(cfg);
+            if (executionLimits != null)
+            {
+                qs.SetExecutionLimits(executionLimits);
+            }
+
             // Create Scheduler ref...
             IScheduler sched = Instantiate(rsrcs, qs);
 
@@ -1267,5 +1275,78 @@ Please add configuration to your application config file to correctly initialize
         }
 
         return rawInstanceId;
+    }
+
+    /// <summary>
+    /// Parses execution limit properties (quartz.executionLimit.*) into an <see cref="ExecutionLimits"/> instance.
+    /// </summary>
+    private static ExecutionLimits? ParseExecutionLimits(PropertiesParser cfg)
+    {
+        var limitProps = cfg.GetPropertyGroup(PropertyExecutionLimitPrefix, true);
+        if (limitProps == null || limitProps.Count == 0)
+        {
+            return null;
+        }
+
+        ExecutionLimits limits = new();
+        foreach (string? groupKey in limitProps.Keys)
+        {
+            if (groupKey == null)
+            {
+                continue;
+            }
+
+            string? rawValue = limitProps[groupKey]?.Trim();
+
+            // Parse the limit value
+            int? limitValue;
+            if (string.IsNullOrEmpty(rawValue) ||
+                string.Equals(rawValue, "unlimited", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(rawValue, "none", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(rawValue, "null", StringComparison.OrdinalIgnoreCase))
+            {
+                limitValue = null; // unlimited
+            }
+            else if (!int.TryParse(rawValue, out int parsed))
+            {
+                throw new SchedulerConfigException(
+                    $"Invalid execution limit value '{rawValue}' for group '{groupKey}'. " +
+                    "Expected a non-negative integer, 'unlimited', 'none', or 'null'.");
+            }
+            else
+            {
+                limitValue = parsed;
+            }
+
+            // Map property key to the appropriate method
+            if (groupKey == "*")
+            {
+                if (limitValue.HasValue)
+                {
+                    limits.ForOtherGroups(limitValue.Value);
+                }
+            }
+            else if (groupKey == "_" || string.Equals(groupKey, "null", StringComparison.OrdinalIgnoreCase))
+            {
+                // underscore and "null" are aliases for the default (null execution group)
+                if (limitValue.HasValue)
+                {
+                    limits.ForDefaultGroup(limitValue.Value);
+                }
+            }
+            else
+            {
+                if (limitValue.HasValue)
+                {
+                    limits.ForGroup(groupKey, limitValue.Value);
+                }
+                else
+                {
+                    limits.Unlimited(groupKey);
+                }
+            }
+        }
+
+        return limits.Count > 0 ? limits : null;
     }
 }

@@ -663,6 +663,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         try
         {
             await misfireDelegate.SupportsMisfireOriginalFireTimeColumn(conn, cancellationToken).ConfigureAwait(false);
+            await misfireDelegate.SupportsExecutionGroupColumn(conn, cancellationToken).ConfigureAwait(false);
             CommitConnection(conn, false);
 
             if (!misfireDelegate.HasMisfireOriginalFireTimeColumn)
@@ -670,6 +671,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                 Log.Warn("Column MISFIRE_ORIG_FIRE_TIME not found in triggers table. " +
                     "ScheduledFireTimeUtc will not be corrected for misfired triggers with AdoJobStore. " +
                     "Run the schema migration to add this column.");
+            }
+
+            if (!misfireDelegate.HasExecutionGroupColumn)
+            {
+                Log.Warn("Column EXECUTION_GROUP not found in triggers table. " +
+                    "Execution group limits will use in-memory filtering only. " +
+                    "Run the schema migration to add this column for full support.");
             }
         }
         catch (Exception e)
@@ -3400,6 +3408,53 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
 #endif
     }
 
+    /// <inheritdoc cref="INextVersionJobStore.AcquireNextTriggers"/>
+    public virtual Task<IReadOnlyCollection<IOperableTrigger>> AcquireNextTriggers(
+        DateTimeOffset noLaterThan,
+        int maxCount,
+        TimeSpan timeWindow,
+        Dictionary<string, int?>? executionLimits,
+        CancellationToken cancellationToken = default)
+    {
+        string? lockName;
+        if (AcquireTriggersWithinLock || maxCount > 1)
+        {
+            lockName = LockTriggerAccess;
+        }
+        else
+        {
+            lockName = null;
+        }
+
+        return ExecuteInNonManagedTXLock(
+            lockName,
+            conn => AcquireNextTrigger(conn, noLaterThan, maxCount, timeWindow, executionLimits, cancellationToken), async (conn, result) =>
+            {
+                try
+                {
+                    var acquired = await Delegate.SelectInstancesFiredTriggerRecords(conn, InstanceId, cancellationToken).ConfigureAwait(false);
+                    var fireInstanceIds = new HashSet<string>();
+                    foreach (FiredTriggerRecord ft in acquired)
+                    {
+                        fireInstanceIds.Add(ft.FireInstanceId!);
+                    }
+                    foreach (IOperableTrigger tr in result)
+                    {
+                        if (fireInstanceIds.Contains(tr.FireInstanceId))
+                        {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                catch (Exception e)
+                {
+                    throw new JobPersistenceException("error validating trigger acquisition", e);
+                }
+            },
+            cancellationToken);
+    }
+
     // TODO: this really ought to return something like a FiredTriggerBundle,
     // so that the fireInstanceId doesn't have to be on the trigger...
 
@@ -3408,6 +3463,17 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         DateTimeOffset noLaterThan,
         int maxCount,
         TimeSpan timeWindow,
+        CancellationToken cancellationToken = default)
+    {
+        return await AcquireNextTrigger(conn, noLaterThan, maxCount, timeWindow, executionLimits: null, cancellationToken).ConfigureAwait(false);
+    }
+
+    protected virtual async Task<IReadOnlyCollection<IOperableTrigger>> AcquireNextTrigger(
+        ConnectionAndTransactionHolder conn,
+        DateTimeOffset noLaterThan,
+        int maxCount,
+        TimeSpan timeWindow,
+        Dictionary<string, int?>? executionLimits,
         CancellationToken cancellationToken = default)
     {
         if (timeWindow < TimeSpan.Zero)
@@ -3425,7 +3491,15 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
             currentLoopCount++;
             try
             {
-                var results = await Delegate.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, maxCount, cancellationToken).ConfigureAwait(false);
+                IReadOnlyCollection<TriggerAcquireResult> results;
+                if (executionLimits != null && Delegate is INextVersionDelegate nvd)
+                {
+                    results = await nvd.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, maxCount, timeWindow, executionLimits, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    results = await Delegate.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, maxCount, cancellationToken).ConfigureAwait(false);
+                }
 
                 // No trigger is ready to fire yet.
                 if (results.Count == 0)

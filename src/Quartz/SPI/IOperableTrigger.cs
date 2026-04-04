@@ -123,4 +123,16 @@ internal interface INextVersionTrigger
     /// misfire threshold so that fire times within the threshold window are preserved.
     /// </summary>
     void UpdateAfterMisfire(ICalendar? cal, TimeSpan misfireThreshold);
+
+    /// <summary>
+    /// Gets or sets the execution group for this trigger. Execution groups allow
+    /// per-node thread limits to be configured so that resource-intensive jobs
+    /// do not saturate all available threads.
+    /// </summary>
+    /// <remarks>
+    /// <para>A <see langword="null"/> value means the trigger has no execution group
+    /// (the default, backward-compatible behavior).</para>
+    /// <para>This will be promoted to <see cref="ITrigger"/> in 4.x.</para>
+    /// </remarks>
+    string? ExecutionGroup { get; set; }
 }

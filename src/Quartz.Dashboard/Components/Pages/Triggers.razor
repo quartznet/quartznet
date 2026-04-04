@@ -49,6 +49,7 @@
                         <tr>
                             <th class="qz-col-key">Trigger</th>
                             <th class="qz-col-state">State</th>
+                            <th>Execution Group</th>
                             <th class="qz-col-details">Details</th>
                             @if (!IsReadOnly)
                             {
@@ -72,6 +73,19 @@
                                 </td>
                                 <td class="qz-col-state">
                                     <StateIndicator State="@state" />
+                                </td>
+                                <td>
+                                    @{
+                                        string execGroup = DisplayValueHelper.GetString(trigger, "ExecutionGroup");
+                                    }
+                                    @if (!string.IsNullOrEmpty(execGroup))
+                                    {
+                                        <span class="qz-badge">@execGroup</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="qz-muted">&mdash;</span>
+                                    }
                                 </td>
                                 <td class="qz-col-details">
                                     <a class="qz-details-link" href="@GetTriggerPath(triggerGroup, triggerName)" @onclick:stopPropagation="true">View details</a>

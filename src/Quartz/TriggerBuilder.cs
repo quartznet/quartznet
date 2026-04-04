@@ -19,6 +19,7 @@
 
 using System;
 
+using Quartz.Impl.Triggers;
 using Quartz.Spi;
 
 namespace Quartz;
@@ -74,6 +75,7 @@ public class TriggerBuilder
     private string? calendarName;
     private JobKey? jobKey;
     private readonly JobDataMap jobDataMap = new JobDataMap();
+    private string? executionGroup;
 
     private IScheduleBuilder? scheduleBuilder;
 
@@ -139,6 +141,11 @@ public class TriggerBuilder
         if (!jobDataMap.IsEmpty)
         {
             trig.JobDataMap = jobDataMap;
+        }
+
+        if (executionGroup != null && trig is AbstractTrigger at)
+        {
+            at.ExecutionGroup = executionGroup;
         }
 
         return trig;
@@ -209,6 +216,19 @@ public class TriggerBuilder
     public TriggerBuilder WithDescription(string? description)
     {
         this.description = description;
+        return this;
+    }
+
+    /// <summary>
+    /// Set the execution group for the Trigger. Execution groups allow per-node
+    /// thread limits to be configured so that resource-intensive jobs do not
+    /// saturate all available threads.
+    /// </summary>
+    /// <param name="executionGroup">the execution group name, or <see langword="null"/> to clear</param>
+    /// <returns>the updated TriggerBuilder</returns>
+    public TriggerBuilder WithExecutionGroup(string? executionGroup)
+    {
+        this.executionGroup = executionGroup;
         return this;
     }
 

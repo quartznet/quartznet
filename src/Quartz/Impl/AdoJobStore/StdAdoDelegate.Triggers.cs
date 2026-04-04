@@ -1209,6 +1209,99 @@ public partial class StdAdoDelegate
         return nextTriggers;
     }
 
+    /// <inheritdoc />
+    public bool HasExecutionGroupColumn { get; private set; }
+
+    /// <inheritdoc />
+    public virtual async Task<bool> SupportsExecutionGroupColumn(
+        ConnectionAndTransactionHolder conn,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlProbeExecutionGroupColumn));
+            await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            HasExecutionGroupColumn = true;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.DebugException("Probe for EXECUTION_GROUP column failed", ex);
+            HasExecutionGroupColumn = false;
+            return false;
+        }
+    }
+
+    /// <inheritdoc />
+    public virtual async Task<List<TriggerAcquireResult>> SelectTriggerToAcquire(
+        ConnectionAndTransactionHolder conn,
+        DateTimeOffset noLaterThan,
+        int maxCount,
+        TimeSpan timeWindow,
+        Dictionary<string, int?> executionLimits,
+        CancellationToken cancellationToken = default)
+    {
+        if (maxCount < 1)
+        {
+            maxCount = 1;
+        }
+
+        // If the execution group column isn't available, fall back to the standard query
+        // but still apply in-memory filtering via CheckExecutionLimits
+        bool hasColumn = HasExecutionGroupColumn;
+
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(GetSelectNextTriggerToAcquireSql(maxCount)));
+        List<TriggerAcquireResult> nextTriggers = new();
+
+        AddCommandParameter(cmd, "schedulerName", schedName);
+        AddCommandParameter(cmd, "state", StateWaiting);
+        AddCommandParameter(cmd, "noLaterThan", GetDbDateTimeValue(noLaterThan));
+        AddCommandParameter(cmd, "noEarlierThan", GetDbDateTimeValue(noLaterThan - timeWindow));
+
+        // Create a working copy to decrement during iteration
+        Dictionary<string, int?> limitsWorkingCopy = new(executionLimits, StringComparer.Ordinal);
+
+        using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        var shouldStop = false;
+        while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            if (shouldStop)
+            {
+                cmd.Cancel();
+                break;
+            }
+
+            if (nextTriggers.Count < maxCount)
+            {
+                string? executionGroup = null;
+                if (hasColumn)
+                {
+                    int ordinal = rs.GetOrdinal(ColumnExecutionGroup);
+                    executionGroup = rs.IsDBNull(ordinal) ? null : rs.GetString(ordinal);
+                }
+
+                // Check execution limits
+                if (!ExecutionLimits.CheckExecutionLimits(executionGroup, limitsWorkingCopy))
+                {
+                    continue; // skip this trigger, its group is at limit
+                }
+
+                var result = new TriggerAcquireResult(
+                    (string) rs[ColumnTriggerName],
+                    (string) rs[ColumnTriggerGroup],
+                    (string) rs[ColumnJobClass],
+                    executionGroup);
+                nextTriggers.Add(result);
+            }
+            else
+            {
+                shouldStop = true;
+            }
+        }
+
+        return nextTriggers;
+    }
+
     protected virtual string GetCountMisfiredTriggersInStateSql()
     {
         return SqlCountMisfiredTriggersInStates;

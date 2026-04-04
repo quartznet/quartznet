@@ -701,4 +701,25 @@ internal interface INextVersionJobStore
         TriggerKey triggerKey,
         TriggerDetailsUpdate update,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Acquires the next triggers to be fired, respecting execution group limits.
+    /// </summary>
+    /// <param name="noLaterThan">If &gt; <see cref="DateTimeOffset.MinValue"/>, the JobStore should only return a Trigger
+    /// that will fire no later than the time represented in this value.</param>
+    /// <param name="maxCount">The maximum number of triggers to return.</param>
+    /// <param name="timeWindow">Time window to batch triggers together.</param>
+    /// <param name="executionLimits">Per-execution-group available thread counts. The key is the
+    /// normalized group name (empty string for triggers without a group, <c>"*"</c> for the default
+    /// limit for unlisted groups). The value is the number of remaining slots
+    /// (<see langword="null"/> = unlimited, <c>0</c> = forbidden). May be <see langword="null"/>
+    /// if no execution limits are configured.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>The acquired triggers.</returns>
+    Task<IReadOnlyCollection<IOperableTrigger>> AcquireNextTriggers(
+        DateTimeOffset noLaterThan,
+        int maxCount,
+        TimeSpan timeWindow,
+        Dictionary<string, int?>? executionLimits,
+        CancellationToken cancellationToken = default);
 }

@@ -4,6 +4,7 @@ using System.Collections.Specialized;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
+using Quartz.Impl;
 using Quartz.Simpl;
 using Quartz.Spi;
 
@@ -194,6 +195,29 @@ internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQu
     public void UseDedicatedThreadPool(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null)
     {
         schedulerBuilder.UseDedicatedThreadPool(configure);
+    }
+
+    /// <inheritdoc />
+    public void UseExecutionLimits(Action<ExecutionLimits> configure)
+    {
+        ExecutionLimits limits = new();
+        configure(limits);
+
+        foreach (var kvp in limits)
+        {
+            string propKey;
+            if (kvp.Key == ExecutionLimits.DefaultGroupKey)
+            {
+                propKey = "_";
+            }
+            else
+            {
+                propKey = kvp.Key;
+            }
+
+            string propValue = kvp.Value?.ToString() ?? "unlimited";
+            SetProperty($"{StdSchedulerFactory.PropertyExecutionLimitPrefix}.{propKey}", propValue);
+        }
     }
 
     public TimeSpan MisfireThreshold

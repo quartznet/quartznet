@@ -1187,18 +1187,50 @@ internal interface INextVersionDelegate
         string newState,
         DateTimeOffset? misfireOriginalFireTime,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Whether the EXECUTION_GROUP column is available, set after probing.
+    /// </summary>
+    bool HasExecutionGroupColumn { get; }
+
+    /// <summary>
+    /// Probes whether the EXECUTION_GROUP column exists in the triggers table.
+    /// Sets <see cref="HasExecutionGroupColumn"/>.
+    /// </summary>
+    Task<bool> SupportsExecutionGroupColumn(
+        ConnectionAndTransactionHolder conn,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Selects the next triggers to acquire, filtering by execution group constraints.
+    /// </summary>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="noLaterThan">Upper bound for next fire time.</param>
+    /// <param name="maxCount">Maximum number of triggers to return.</param>
+    /// <param name="timeWindow">Batch time window.</param>
+    /// <param name="executionLimits">Execution group available slots (mutable working copy).</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    Task<List<TriggerAcquireResult>> SelectTriggerToAcquire(
+        ConnectionAndTransactionHolder conn,
+        DateTimeOffset noLaterThan,
+        int maxCount,
+        TimeSpan timeWindow,
+        Dictionary<string, int?> executionLimits,
+        CancellationToken cancellationToken = default);
 }
 
 public class TriggerAcquireResult
 {
-    public TriggerAcquireResult(string triggerName, string triggerGroup, string jobType)
+    public TriggerAcquireResult(string triggerName, string triggerGroup, string jobType, string? executionGroup = null)
     {
         TriggerName = triggerName;
         TriggerGroup = triggerGroup;
         JobType = jobType;
+        ExecutionGroup = executionGroup;
     }
 
     public string TriggerName { get; }
     public string TriggerGroup { get; }
     public string JobType { get; }
+    public string? ExecutionGroup { get; }
 }

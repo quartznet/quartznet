@@ -48,4 +48,61 @@ public static class SchedulerExtensions
             $"UpdateTriggerDetails is not supported by scheduler implementation '{scheduler.GetType().Name}'. " +
             "This feature requires StdScheduler with a compatible job store.");
     }
+
+    /// <summary>
+    /// Sets the execution group limits for this scheduler node. Execution groups
+    /// allow per-node thread limits so that resource-intensive jobs do not saturate
+    /// all available threads.
+    /// </summary>
+    /// <remarks>
+    /// Limits take effect on the next trigger acquisition cycle. Pass <see langword="null"/>
+    /// to clear all limits.
+    /// </remarks>
+    /// <param name="scheduler">The scheduler instance.</param>
+    /// <param name="limits">The execution limits to apply, or <see langword="null"/> to clear.</param>
+    /// <exception cref="SchedulerException">If the scheduler implementation does not support this operation.</exception>
+    public static void SetExecutionLimits(
+        this IScheduler scheduler,
+        ExecutionLimits? limits)
+    {
+        if (scheduler is null)
+        {
+            throw new ArgumentNullException(nameof(scheduler));
+        }
+
+        if (scheduler is StdScheduler std)
+        {
+            std.SetExecutionLimits(limits);
+            return;
+        }
+
+        throw new SchedulerException(
+            $"SetExecutionLimits is not supported by scheduler implementation '{scheduler.GetType().Name}'. " +
+            "This feature requires StdScheduler.");
+    }
+
+    /// <summary>
+    /// Gets the currently configured execution group limits for this scheduler node,
+    /// or <see langword="null"/> if none are configured.
+    /// </summary>
+    /// <param name="scheduler">The scheduler instance.</param>
+    /// <returns>The current execution limits, or <see langword="null"/>.</returns>
+    /// <exception cref="SchedulerException">If the scheduler implementation does not support this operation.</exception>
+    public static ExecutionLimits? GetExecutionLimits(
+        this IScheduler scheduler)
+    {
+        if (scheduler is null)
+        {
+            throw new ArgumentNullException(nameof(scheduler));
+        }
+
+        if (scheduler is StdScheduler std)
+        {
+            return std.GetExecutionLimits();
+        }
+
+        throw new SchedulerException(
+            $"GetExecutionLimits is not supported by scheduler implementation '{scheduler.GetType().Name}'. " +
+            "This feature requires StdScheduler.");
+    }
 }

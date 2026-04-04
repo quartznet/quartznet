@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
@@ -27,6 +28,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Impl.AdoJobStore;
+using Quartz.Impl.Triggers;
 using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
@@ -56,6 +58,7 @@ public class QuartzSchedulerThread
     private volatile bool halted;
 
     private readonly QuartzRandom random = new QuartzRandom();
+    private readonly ConcurrentDictionary<string, int> runningExecutionGroupCounts = new(StringComparer.Ordinal);
 
     private const int PausedWaitCheckIntervalMs = 1000;
 
@@ -301,7 +304,15 @@ public class QuartzSchedulerThread
                     {
                         var noLaterThan = now + idleWaitTime;
                         var maxCount = Math.Min(availThreadCount, qsRsrcs.MaxBatchSize);
-                        triggers = new List<IOperableTrigger>(await qsRsrcs.JobStore.AcquireNextTriggers(noLaterThan, maxCount, qsRsrcs.BatchTimeWindow, CancellationToken.None).ConfigureAwait(false));
+                        Dictionary<string, int?>? availableLimits = ComputeAvailableExecutionGroupLimits();
+                        if (availableLimits != null && qsRsrcs.JobStore is INextVersionJobStore nvjs)
+                        {
+                            triggers = new List<IOperableTrigger>(await nvjs.AcquireNextTriggers(noLaterThan, maxCount, qsRsrcs.BatchTimeWindow, availableLimits, CancellationToken.None).ConfigureAwait(false));
+                        }
+                        else
+                        {
+                            triggers = new List<IOperableTrigger>(await qsRsrcs.JobStore.AcquireNextTriggers(noLaterThan, maxCount, qsRsrcs.BatchTimeWindow, CancellationToken.None).ConfigureAwait(false));
+                        }
                         acquiresFailed = 0;
                         if (Log.IsDebugEnabled())
                         {
@@ -485,7 +496,30 @@ public class QuartzSchedulerThread
                                 continue;
                             }
 
-                            var threadPoolRunResult = qsRsrcs.ThreadPool.RunInThread(() => shell.Run(CancellationToken.None));
+                            string? execGroup = (trigger as AbstractTrigger)?.ExecutionGroup;
+                            string normalizedGroup = ExecutionLimits.NormalizeGroupKey(execGroup);
+                            bool trackingGroup = qs.GetExecutionLimits() != null;
+                            if (trackingGroup)
+                            {
+                                runningExecutionGroupCounts.AddOrUpdate(normalizedGroup, 1, (_, c) => c + 1);
+                            }
+
+                            Func<Task> jobRunner = async () =>
+                            {
+                                try
+                                {
+                                    await shell.Run(CancellationToken.None).ConfigureAwait(false);
+                                }
+                                finally
+                                {
+                                    if (trackingGroup)
+                                    {
+                                        runningExecutionGroupCounts.AddOrUpdate(normalizedGroup, 0, (_, c) => Math.Max(c - 1, 0));
+                                    }
+                                }
+                            };
+
+                            var threadPoolRunResult = qsRsrcs.ThreadPool.RunInThread(jobRunner);
                             if (threadPoolRunResult == false)
                             {
                                 // Check if the scheduler is being shutdown
@@ -576,7 +610,50 @@ public class QuartzSchedulerThread
 
         return delay;
     }
-        
+
+    /// <summary>
+    /// Takes prescribed limits for execution groups (if any) and lowers them
+    /// according to jobs currently executing on this node.
+    /// </summary>
+    private Dictionary<string, int?>? ComputeAvailableExecutionGroupLimits()
+    {
+        ExecutionLimits? limits = qs.GetExecutionLimits();
+        if (limits == null || limits.Count == 0)
+        {
+            return null;
+        }
+
+        Dictionary<string, int?> available = limits.ToWorkingCopy();
+
+        foreach (KeyValuePair<string, int> running in runningExecutionGroupCounts)
+        {
+            string runningGroup = running.Key;
+            int runningCount = running.Value;
+            if (runningCount <= 0)
+            {
+                continue;
+            }
+
+            if (available.TryGetValue(runningGroup, out int? limit))
+            {
+                if (limit is not null)
+                {
+                    available[runningGroup] = Math.Max(limit.Value - runningCount, 0);
+                }
+                // null means unlimited, nothing to update
+            }
+            else if (available.TryGetValue(ExecutionLimits.OtherGroups, out int? defaultLimit))
+            {
+                if (defaultLimit is not null)
+                {
+                    available[runningGroup] = Math.Max(defaultLimit.Value - runningCount, 0);
+                }
+            }
+        }
+
+        return available;
+    }
+
     private async Task SafeReleaseAcquiredTrigger(IOperableTrigger trigger, string context)
     {
         try

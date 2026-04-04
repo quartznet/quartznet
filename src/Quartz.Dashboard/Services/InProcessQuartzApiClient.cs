@@ -150,7 +150,8 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
         List<TriggerHeaderDto> result = [];
         foreach (ITrigger trigger in triggers)
         {
-            result.Add(new TriggerHeaderDto(trigger.Key.Group, trigger.Key.Name));
+            string? execGroup = (trigger as Impl.Triggers.AbstractTrigger)?.ExecutionGroup;
+            result.Add(new TriggerHeaderDto(trigger.Key.Group, trigger.Key.Name, execGroup));
         }
 
         return result;
@@ -164,12 +165,14 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
         List<CurrentlyExecutingJobDto> result = [];
         foreach (IJobExecutionContext jobExecutionContext in currentlyExecutingJobs)
         {
+            string? execGroup = (jobExecutionContext.Trigger as Impl.Triggers.AbstractTrigger)?.ExecutionGroup;
             result.Add(
                 new CurrentlyExecutingJobDto(
                     JobKey: new JobKeyDto(jobExecutionContext.JobDetail.Key.Group, jobExecutionContext.JobDetail.Key.Name),
                     TriggerKey: new TriggerKeyDto(jobExecutionContext.Trigger.Key.Group, jobExecutionContext.Trigger.Key.Name),
                     FireTimeUtc: jobExecutionContext.FireTimeUtc,
-                    FireInstanceId: jobExecutionContext.FireInstanceId));
+                    FireInstanceId: jobExecutionContext.FireInstanceId,
+                    ExecutionGroup: execGroup));
         }
 
         return result;
@@ -526,6 +529,33 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
         }
 
         return "Unknown";
+    }
+
+    public Task<ExecutionLimitsDto?> GetExecutionLimits(string schedulerName)
+    {
+        IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
+        try
+        {
+            ExecutionLimits? limits = scheduler.GetExecutionLimits();
+            if (limits == null || limits.Count == 0)
+            {
+                return Task.FromResult<ExecutionLimitsDto?>(null);
+            }
+
+            Dictionary<string, int?> dict = new();
+            foreach (var kvp in limits)
+            {
+                // Use display-friendly keys
+                string key = kvp.Key == ExecutionLimits.DefaultGroupKey ? "(default)" : kvp.Key;
+                dict[key] = kvp.Value;
+            }
+
+            return Task.FromResult<ExecutionLimitsDto?>(new ExecutionLimitsDto(dict));
+        }
+        catch
+        {
+            return Task.FromResult<ExecutionLimitsDto?>(null);
+        }
     }
 }
 

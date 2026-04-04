@@ -88,6 +88,8 @@ public interface IQuartzApiClient
     Task DeleteCalendar(string schedulerName, string calendarName);
 
     Task<JobHistoryPageDto?> GetHistory(JobHistoryQueryDto query);
+
+    Task<ExecutionLimitsDto?> GetExecutionLimits(string schedulerName);
 }
 
 public sealed record JobHistoryQueryDto(
@@ -105,7 +107,7 @@ public sealed record JobKeyDto(string Group, string Name);
 
 public sealed record TriggerKeyDto(string Group, string Name);
 
-public sealed record TriggerHeaderDto(string Group, string Name);
+public sealed record TriggerHeaderDto(string Group, string Name, string? ExecutionGroup = null);
 
 public sealed record JobDetailDto(
     string Name,
@@ -122,7 +124,8 @@ public sealed record CurrentlyExecutingJobDto(
     JobKeyDto JobKey,
     TriggerKeyDto TriggerKey,
     DateTimeOffset FireTimeUtc,
-    string? FireInstanceId);
+    string? FireInstanceId,
+    string? ExecutionGroup = null);
 
 public sealed record TriggerDetailDto(JsonElement Value);
 
@@ -137,4 +140,7 @@ public sealed record AddCalendarRequest(string CalendarName, JsonElement Calenda
 public sealed record AddJobRequest(JobDetailDto Job, bool Replace, bool? StoreNonDurableWhileAwaitingScheduling);
 
 public sealed record JobHistoryPageDto(JsonElement Value);
+
+public sealed record ExecutionLimitsDto(Dictionary<string, int?> Limits);
+
 
