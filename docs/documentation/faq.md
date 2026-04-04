@@ -7,7 +7,7 @@ sidebarDepth: 0
 # FAQ
 
 ::: tip
-This FAQ was adapted from Quartz Java
+Having problems? Check the [Troubleshooting Guide](troubleshooting.md) for common issues and solutions.
 :::
 
 # General Questions
@@ -147,7 +147,7 @@ Trigger referencing it).
 
 ## How do I keep a Job from firing concurrently?
 
-**Quartz.NET 2.x**
+**Quartz.NET 2.x, 3.x, and 4.x**
 
 Implement **IJob** and also decorate your job class with `[DisallowConcurrentExecution]` attribute. Read the API
 documentation for `DisallowConcurrentExecutionAttribute` for more information.
@@ -159,9 +159,9 @@ documentation for `IStatefulJob` for more information.
 
 ## How do I stop a Job that is currently executing?
 
-Quartz 1.x and 2x: See the `Quartz.IInterruptableJob` interface, and the `IScheduler.Interrupt(string, string)` method.
+Quartz 1.x and 2.x: See the `Quartz.IInterruptableJob` interface, and the `IScheduler.Interrupt(string, string)` method.
 
-Quartz 3.x: See `IJobExecutionContext`'s `CancellationToken.IsCancellationRequested`
+Quartz 3.x and 4.x: Check `IJobExecutionContext.CancellationToken.IsCancellationRequested` in your job's `Execute` method and return early when cancellation is requested.
 
 # Questions About Triggers
 
@@ -284,4 +284,42 @@ You should also always prefer the latest version of the library. Quartz.NET 2.0 
 
 By default IIS recycles and stops app pools from time to time. This means that even if you have Application_Start event to start Quartz when web app is being first accessed, the scheduler might get disposed later on due to site inactivity.
 
-If you have a IIS 8 available, you can configure your site to be pre-loaded and kept running. See [this blog post](https://blogs.msdn.microsoft.com/vijaysk/2012/10/11/iis-8-whats-new-website-settings/) for details.
+If you have IIS 8 available, you can configure your site to be pre-loaded and kept running. See [this blog post](https://blogs.msdn.microsoft.com/vijaysk/2012/10/11/iis-8-whats-new-website-settings/) for details.
+
+For more detailed guidance on web environments, IIS, and hosted services, see the [Troubleshooting Guide](troubleshooting.md#scheduler-in-web-environments).
+
+# Quartz.NET 4.x Questions
+
+## What .NET version does Quartz 4.x require?
+
+Quartz.NET 4.x targets .NET 8.0 and .NET 9.0. You must be running at least .NET 8.0 to use Quartz 4.x.
+
+## Can I use Task instead of ValueTask in Quartz 4.x?
+
+Quartz 4.x changed all `Task` return types to `ValueTask`. Your `IJob.Execute` method must now return `ValueTask`:
+
+```csharp
+public async ValueTask Execute(IJobExecutionContext context)
+{
+    // your job logic
+}
+```
+
+If you need `Task` semantics elsewhere (e.g., to await a result multiple times), call `.AsTask()` on the `ValueTask` once and work with the resulting `Task`.
+
+For more details, see the [Migration Guide](/documentation/quartz-4.x/migration-guide.md#tasks-changed-to-valuetask).
+
+## What happened to Quartz.Extensions.DependencyInjection and Quartz.Extensions.Hosting?
+
+These packages have been merged into the main `Quartz` package in 4.x. You can remove the separate package references. The `AddQuartz()` and `AddQuartzHostedService()` extension methods are now available directly from the `Quartz` package.
+
+## How do I replace SystemTime in Quartz 4.x?
+
+`SystemTime` was removed in 4.x. Use the .NET `TimeProvider` abstraction instead:
+
+```csharp
+var builder = SchedulerBuilder.Create();
+builder.UseTimeProvider<FakeTimeProvider>();
+```
+
+This is particularly useful for unit testing where you need to control the passage of time.

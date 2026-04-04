@@ -16,7 +16,7 @@ public class SampleJob : IJob
     // like pause all jobs in group "integration"
     public static readonly JobKey Key = new JobKey("sample-job", "examples");
 
-    public async Task Execute(IJobExecutionContext context)
+    public async ValueTask Execute(IJobExecutionContext context)
     {
         if (context.RefireCount > 10)
         {

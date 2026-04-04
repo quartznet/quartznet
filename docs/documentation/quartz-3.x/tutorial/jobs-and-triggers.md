@@ -65,6 +65,16 @@ var example = TriggerBuilder.Create()
     .Build();
 ```
 
+**[RecurrenceTrigger](recurrencetrigger.md)** (Quartz 3.18+) is useful for complex calendar-based patterns that cron cannot express — such as "every 2nd Monday of the month", "every other week on specific days", or "the last weekday of March each year". It uses RFC 5545 RRULE strings.
+
+```csharp
+var example = TriggerBuilder.Create()
+    .WithIdentity("trigger-name", "trigger-group")
+    .ForJob("job-name", "job-group")
+    .WithRecurrenceSchedule("FREQ=MONTHLY;BYDAY=2MO")
+    .Build();
+```
+
 ## Why Jobs and Triggers?
 
 Many job schedulers do not have separate notions of jobs and triggers. Some define a 'job' as simply an execution time (or schedule)

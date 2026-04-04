@@ -17,6 +17,7 @@ export const sidebarEn: SidebarConfig = [
           "/documentation/quartz-3.x/tutorial/more-about-triggers",
           "/documentation/quartz-3.x/tutorial/simpletriggers",
           "/documentation/quartz-3.x/tutorial/crontriggers",
+          "/documentation/quartz-3.x/tutorial/recurrencetrigger",
           "/documentation/quartz-3.x/tutorial/trigger-and-job-listeners",
           "/documentation/quartz-3.x/tutorial/scheduler-listeners",
           "/documentation/quartz-3.x/tutorial/job-stores",
@@ -28,6 +29,7 @@ export const sidebarEn: SidebarConfig = [
       "/documentation/quartz-3.x/configuration/reference",
       "/documentation/faq",
       "/documentation/best-practices",
+      "/documentation/troubleshooting",
       {
         text: "API Documentation",
         link: "https://docs.quartz-scheduler.net/apidoc/3.0",
@@ -93,6 +95,7 @@ export const sidebarEn: SidebarConfig = [
               "/documentation/quartz-4.x/tutorial/more-about-triggers",
               "/documentation/quartz-4.x/tutorial/simpletriggers",
               "/documentation/quartz-4.x/tutorial/crontriggers",
+              "/documentation/quartz-4.x/tutorial/recurrencetrigger",
               "/documentation/quartz-4.x/tutorial/trigger-and-job-listeners",
               "/documentation/quartz-4.x/tutorial/scheduler-listeners",
               "/documentation/quartz-4.x/tutorial/job-stores",
@@ -104,6 +107,7 @@ export const sidebarEn: SidebarConfig = [
           },
           "/documentation/quartz-4.x/configuration/reference",
           "/documentation/quartz-4.x/migration-guide",
+          "/documentation/troubleshooting",
           {
             link: "https://docs.quartz-scheduler.net/apidoc/4.0",
             text: "API Documentation",

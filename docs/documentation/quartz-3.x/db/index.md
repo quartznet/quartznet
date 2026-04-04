@@ -15,7 +15,7 @@ When using ADO.NET-based job store (the usual being `JobStoreTX`), Quartz requir
 | qrtz_fired_triggers | triggers that are currently running |
 | qrtz_blob_triggers | trigger table with a binary blob data storage |
 | qrtz_simple_triggers | data for very simple repeat triggers |
-| qrtz_simprop_triggers | Reusable table for custom triggers. Currently `ICalendarIntervalTrigger` and `IDailyTimeIntervalTrigger` use this |
+| qrtz_simprop_triggers | Reusable table for custom triggers. `ICalendarIntervalTrigger`, `IDailyTimeIntervalTrigger`, and `IRecurrenceTrigger` (3.18+) use this |
 | qrtz_paused_trigger_grps | `IScheduler.PauseTriggers` data |
 
 The scripts to create these tables for various providers can be found [here](https://github.com/quartznet/quartznet/tree/main/database/tables)

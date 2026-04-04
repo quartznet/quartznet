@@ -49,6 +49,7 @@ Possible schedule extension methods are:
 * `WithCalendarIntervalSchedule`
 * `WithCronSchedule` — supports `H` (hash) tokens to [spread fire times across triggers](crontrigger#h-hash-for-load-distribution)
 * `WithDailyTimeIntervalSchedule`
+* `WithRecurrenceSchedule` — uses [RFC 5545 RRULE](recurrencetrigger) for complex patterns like "2nd Monday of the month"
 * `WithSimpleSchedule`
 
 The `DateBuilder` type contains various methods for easily constructing DateTimeOffset instances for particular points in time
@@ -86,6 +87,8 @@ are SimpleTrigger (interface `ISimpleTrigger`) and CronTrigger (interface `ICron
 SimpleTrigger is handy if you need 'one-shot' execution (just single execution of a job at a given moment in time), or if you need to fire a job at a given time,
 and have it repeat N times, with a delay of T between executions. CronTrigger is useful if you wish to have triggering based on calendar-like schedules -
 such as "every Friday, at noon" or "at 10:15 on the 10th day of every month."
+
+For complex calendar-based patterns that cron cannot express — such as "every 2nd Monday of the month", "every other week on specific days", or "the last weekday of March each year" — [RecurrenceTrigger](recurrencetrigger.md) (interface `IRecurrenceTrigger`) uses RFC 5545 RRULE strings.
 
 Why Jobs AND Triggers? Many job schedulers do not have separate notions of jobs and triggers. Some define a 'job' as simply an execution time (or schedule)
 along with some small job identifier. Others are much like the union of Quartz's job and trigger objects. While developing Quartz, we decided that it made sense

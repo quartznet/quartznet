@@ -15,7 +15,7 @@ public class HelloJob : IJob
 {
     public static readonly JobKey Key = new JobKey("customer-process", "group");
 
-    public async Task Execute(IJobExecutionContext context)
+    public async ValueTask Execute(IJobExecutionContext context)
     {
         var customerId = context.MergedJobDataMap.GetString("CustomerId");
         var batchSize = context.MergedJobDataMap.GetString("batch-size");

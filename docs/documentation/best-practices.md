@@ -41,6 +41,11 @@ public class SomeJob : IJob
 }
 ```
 
+::: tip Quartz 4.x
+In Quartz 4.x, the `Execute` method returns `ValueTask` instead of `Task`:
+`public ValueTask Execute(IJobExecutionContext context)`
+:::
+
 ## Job Tips
 
 ### Static Job Key
@@ -53,7 +58,7 @@ public class SomeJob : IJob
 {
     public static readonly JobKey Key = new JobKey("job-name", "group-name");
 
-    public Task Execute(IJobExecutionContext context) { /* elided */ }
+    public Task Execute(IJobExecutionContext context) { /* elided */ } // ValueTask in Quartz 4.x
 }
 ```
 
@@ -110,6 +115,19 @@ foreach (var data in allData)
 }
 await scheduler.ScheduleJobs(jobsDictionary, replace: true);
 ```
+
+### Choose the Right Trigger Type
+
+| Scenario | Recommended Trigger |
+|----------|-------------------|
+| Fixed interval (every 10 seconds) | SimpleTrigger |
+| Cron-expressible pattern (every weekday at 9am) | CronTrigger |
+| Nth day-of-week in month (2nd Monday) | RecurrenceTrigger (RRULE) |
+| Last weekday of a month | RecurrenceTrigger (RRULE) |
+| Every other week on specific days | RecurrenceTrigger (RRULE) |
+| Calendar interval (every 5 months) | CalendarIntervalTrigger |
+
+If you find yourself writing complex workarounds with CronTrigger or multiple triggers, consider whether [RecurrenceTrigger](/documentation/quartz-3.x/tutorial/recurrencetrigger) (RFC 5545 RRULE) can express the pattern directly.
 
 ## ADO.NET JobStore
 

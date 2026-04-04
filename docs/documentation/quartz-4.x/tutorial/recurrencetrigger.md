@@ -2,10 +2,6 @@
 title: 'RecurrenceTrigger'
 ---
 
-::: tip
-RecurrenceTrigger is available from Quartz.NET 3.18 onwards.
-:::
-
 RecurrenceTrigger uses iCalendar RFC 5545 recurrence rules (RRULE) to define schedules. This trigger type enables complex scheduling
 patterns that cannot be expressed with CronTrigger or SimpleTrigger, such as "every 2nd Monday of the month", "every other week on
 Monday, Wednesday and Friday", or "the last weekday of March each year".

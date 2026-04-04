@@ -17,5 +17,7 @@
     "MD036": false,
     "MD046": {
         "style": "fenced"
-    }
+    },
+    "MD059": false, /* link text style - existing docs use short links */
+    "MD060": false  /* table column style - existing docs use compact style */
 }

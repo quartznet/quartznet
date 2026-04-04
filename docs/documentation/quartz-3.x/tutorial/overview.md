@@ -55,6 +55,7 @@ Possible schedule extension methods are:
 * `WithCalendarIntervalSchedule`
 * `WithCronSchedule`
 * `WithDailyTimeIntervalSchedule`
+* `WithRecurrenceSchedule` — uses [RFC 5545 RRULE](recurrencetrigger) for complex patterns like "2nd Monday of the month" (Quartz 3.18+)
 * `WithSimpleSchedule`
 
 The `DateBuilder` type contains various methods for easily constructing `DateTimeOffset`
