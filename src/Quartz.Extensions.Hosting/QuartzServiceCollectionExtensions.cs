@@ -25,7 +25,7 @@ public static class QuartzServiceCollectionExtensions
         // This means AddQuartz() must be called before AddQuartzHostedService() for the default scheduler.
         if (services.Any(d => d.ServiceType == typeof(ISchedulerFactory)))
         {
-            services.AddSingleton<IHostedService, QuartzHostedService>();
+            services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, QuartzHostedService>());
         }
 
         // Always register NamedSchedulerHostedService -- it no-ops if no named schedulers exist

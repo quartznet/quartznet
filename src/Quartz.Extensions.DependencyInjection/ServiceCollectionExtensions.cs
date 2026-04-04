@@ -164,6 +164,10 @@ public static class ServiceCollectionExtensions
             configure(target);
         }
 
+        // Re-force the scheduler instance name after configuration so it cannot drift
+        // from the named options key / registry entry via SetProperty() or Properties[]
+        schedulerBuilder.Properties[StdSchedulerFactory.PropertySchedulerInstanceName] = name;
+
         // Shared singletons -- safe to register multiple times via TryAdd
         services.TryAddSingleton<ISchedulerRepository, SchedulerRepository>();
         services.TryAddSingleton<IDbConnectionManager, DBConnectionManager>();
