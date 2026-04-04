@@ -13,4 +13,8 @@ public static class ActivityOptions
     public const string JobType = "job.type";
     public const string JobGroup = "job.group";
     public const string JobName = "job.name";
+
+    // Job store operation tags
+    public const string TriggerCount = "jobstore.trigger.count";
+    public const string BatchSize = "jobstore.batch.size";
 }
