@@ -1,7 +1,30 @@
+#region License
+
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ */
+
+#endregion
+
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
+using System.Reflection;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -363,7 +386,10 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
             DateTimeOffset startTime = SystemTime.UtcNow();
             if (triggerDef.StartTime is not null)
             {
-                startTime = DateTimeOffset.Parse(triggerDef.StartTime, CultureInfo.InvariantCulture);
+                if (!DateTimeOffset.TryParse(triggerDef.StartTime, CultureInfo.InvariantCulture, DateTimeStyles.None, out startTime))
+                {
+                    throw new SchedulerConfigException($"JSON trigger '{triggerName}': invalid StartTime value '{triggerDef.StartTime}'.");
+                }
             }
             else if (triggerDef.StartTimeSecondsInFuture.HasValue)
             {
@@ -373,7 +399,11 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
             DateTimeOffset? endTime = null;
             if (triggerDef.EndTime is not null)
             {
-                endTime = DateTimeOffset.Parse(triggerDef.EndTime, CultureInfo.InvariantCulture);
+                if (!DateTimeOffset.TryParse(triggerDef.EndTime, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTimeOffset parsedEnd))
+                {
+                    throw new SchedulerConfigException($"JSON trigger '{triggerName}': invalid EndTime value '{triggerDef.EndTime}'.");
+                }
+                endTime = parsedEnd;
             }
 
             IScheduleBuilder schedule = BuildSchedule(triggerDef, triggerName);
@@ -468,7 +498,16 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
             throw new SchedulerConfigException($"JSON trigger '{triggerName}': Cron schedule is missing required 'Expression' property.");
         }
 
-        CronScheduleBuilder builder = CronScheduleBuilder.CronSchedule(cron.Expression);
+        CronScheduleBuilder builder;
+        try
+        {
+            builder = CronScheduleBuilder.CronSchedule(cron.Expression);
+        }
+        catch (FormatException ex)
+        {
+            throw new SchedulerConfigException($"JSON trigger '{triggerName}': invalid cron expression '{cron.Expression}': {ex.Message}", ex);
+        }
+
         if (cron.TimeZone is not null)
         {
             builder.InTimeZone(TimeZoneUtil.FindTimeZoneById(cron.TimeZone));
@@ -484,7 +523,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
 
     private static CalendarIntervalScheduleBuilder BuildCalendarIntervalSchedule(JsonFileCalendarIntervalSchedule cal)
     {
-        IntervalUnit unit = (IntervalUnit) Enum.Parse(typeof(IntervalUnit), cal.RepeatIntervalUnit, ignoreCase: true);
+        IntervalUnit unit = SafeParseEnum<IntervalUnit>(cal.RepeatIntervalUnit, "CalendarInterval.RepeatIntervalUnit");
         CalendarIntervalScheduleBuilder builder = CalendarIntervalScheduleBuilder.Create()
             .WithInterval(cal.RepeatInterval, unit);
 
@@ -498,7 +537,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
 
     private static DailyTimeIntervalScheduleBuilder BuildDailyTimeIntervalSchedule(JsonFileDailyTimeIntervalSchedule daily)
     {
-        IntervalUnit unit = (IntervalUnit) Enum.Parse(typeof(IntervalUnit), daily.RepeatIntervalUnit, ignoreCase: true);
+        IntervalUnit unit = SafeParseEnum<IntervalUnit>(daily.RepeatIntervalUnit, "DailyTimeInterval.RepeatIntervalUnit");
         DailyTimeIntervalScheduleBuilder builder = DailyTimeIntervalScheduleBuilder.Create()
             .WithInterval(daily.RepeatInterval, unit)
             .WithRepeatCount(daily.RepeatCount);
@@ -518,7 +557,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
             HashSet<DayOfWeek> days = new HashSet<DayOfWeek>();
             foreach (string dayStr in daily.DaysOfWeek)
             {
-                days.Add((DayOfWeek) Enum.Parse(typeof(DayOfWeek), dayStr, ignoreCase: true));
+                days.Add(SafeParseEnum<DayOfWeek>(dayStr, "DailyTimeInterval.DaysOfWeek"));
             }
             builder.OnDaysOfTheWeek(days);
         }
@@ -550,19 +589,46 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
 
     private static TimeOfDay ParseTimeOfDay(string value)
     {
-        TimeSpan ts = TimeSpan.Parse(value, CultureInfo.InvariantCulture);
+        if (!TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out TimeSpan ts))
+        {
+            throw new SchedulerConfigException($"JSON schedule: invalid TimeOfDay value '{value}'.");
+        }
+        if (ts < TimeSpan.Zero || ts > TimeSpan.FromHours(24))
+        {
+            throw new SchedulerConfigException($"JSON schedule: TimeOfDay value '{value}' must be between 00:00:00 and 24:00:00.");
+        }
         return new TimeOfDay(ts.Hours, ts.Minutes, ts.Seconds);
     }
 
     private static int ParseMisfireInstruction(string value)
     {
-        Constants c = new Constants(
-            typeof(MisfireInstruction),
-            typeof(MisfireInstruction.CronTrigger),
-            typeof(MisfireInstruction.SimpleTrigger),
-            typeof(MisfireInstruction.CalendarIntervalTrigger),
-            typeof(MisfireInstruction.DailyTimeIntervalTrigger));
-        return c.AsNumber(value);
+        // Search through MisfireInstruction and all its nested types for a matching constant
+        Type misfireType = typeof(MisfireInstruction);
+        Type[] types = new[] { misfireType }
+            .Concat(misfireType.GetNestedTypes(BindingFlags.Public))
+            .ToArray();
+
+        foreach (Type type in types)
+        {
+            foreach (FieldInfo field in type.GetFields(BindingFlags.Public | BindingFlags.Static))
+            {
+                if (string.Equals(field.Name, value, StringComparison.OrdinalIgnoreCase))
+                {
+                    return (int) field.GetValue(null)!;
+                }
+            }
+        }
+
+        throw new SchedulerConfigException($"Unknown misfire instruction: '{value}'");
+    }
+
+    private static T SafeParseEnum<T>(string value, string property) where T : struct
+    {
+        if (!Enum.TryParse(value, ignoreCase: true, out T result))
+        {
+            throw new SchedulerConfigException($"JSON schedule: invalid {typeof(T).Name} value '{value}' for '{property}'.");
+        }
+        return result;
     }
 
     private static string? NormalizeEmpty(string? value)

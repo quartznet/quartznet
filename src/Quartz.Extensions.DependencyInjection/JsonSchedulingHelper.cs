@@ -86,7 +86,11 @@ internal static class JsonSchedulingHelper
             bool durable = ParseBool(jobSection[nameof(JsonJobDefinition.Durable)]);
             bool recover = ParseBool(jobSection[nameof(JsonJobDefinition.Recover)]);
 
-            Type jobType = typeLoadHelper.LoadType(jobTypeName!)!;
+            Type? jobType = typeLoadHelper.LoadType(jobTypeName!);
+            if (jobType is null)
+            {
+                throw new SchedulerConfigException($"JSON job definition '{name}': could not load type '{jobTypeName}'.");
+            }
 
             JobBuilder builder = JobBuilder.Create(jobType);
             if (group is not null)
@@ -109,7 +113,11 @@ internal static class JsonSchedulingHelper
             {
                 foreach (IConfigurationSection entry in dataMapSection.GetChildren())
                 {
-                    jobDetail.JobDataMap[entry.Key] = entry.Value!;
+                    if (entry.Value is null)
+                    {
+                        throw new SchedulerConfigException($"JSON job '{name}': JobDataMap entry '{entry.Key}' has a null value. Only string values are supported.");
+                    }
+                    jobDetail.JobDataMap[entry.Key] = entry.Value;
                 }
             }
 
@@ -160,24 +168,31 @@ internal static class JsonSchedulingHelper
             int priority = TriggerConstants.DefaultPriority;
             if (priorityStr is not null)
             {
-                priority = int.Parse(priorityStr, CultureInfo.InvariantCulture);
+                priority = SafeParseInt(priorityStr, "Priority", name!);
             }
 
             DateTimeOffset startTime = SystemTime.UtcNow();
             if (startTimeStr is not null)
             {
-                startTime = DateTimeOffset.Parse(startTimeStr, CultureInfo.InvariantCulture);
+                if (!DateTimeOffset.TryParse(startTimeStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out startTime))
+                {
+                    throw new SchedulerConfigException($"JSON trigger '{name}': invalid StartTime value '{startTimeStr}'.");
+                }
             }
             else if (startTimeFutureStr is not null)
             {
-                int seconds = int.Parse(startTimeFutureStr, CultureInfo.InvariantCulture);
+                int seconds = SafeParseInt(startTimeFutureStr, "StartTimeSecondsInFuture", name!);
                 startTime = startTime.AddSeconds(seconds);
             }
 
             DateTimeOffset? endTime = null;
             if (endTimeStr is not null)
             {
-                endTime = DateTimeOffset.Parse(endTimeStr, CultureInfo.InvariantCulture);
+                if (!DateTimeOffset.TryParse(endTimeStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTimeOffset parsedEnd))
+                {
+                    throw new SchedulerConfigException($"JSON trigger '{name}': invalid EndTime value '{endTimeStr}'.");
+                }
+                endTime = parsedEnd;
             }
 
             IScheduleBuilder schedule = BuildSchedule(triggerSection, name!);
@@ -215,7 +230,11 @@ internal static class JsonSchedulingHelper
             {
                 foreach (IConfigurationSection entry in dataMapSection.GetChildren())
                 {
-                    trigger.JobDataMap[entry.Key] = entry.Value!;
+                    if (entry.Value is null)
+                    {
+                        throw new SchedulerConfigException($"JSON trigger '{name}': JobDataMap entry '{entry.Key}' has a null value. Only string values are supported.");
+                    }
+                    trigger.JobDataMap[entry.Key] = entry.Value;
                 }
             }
 
@@ -274,11 +293,11 @@ internal static class JsonSchedulingHelper
         string? repeatCountStr = section[nameof(JsonSimpleSchedule.RepeatCount)];
 
         TimeSpan interval = intervalStr is not null
-            ? TimeSpan.Parse(intervalStr, CultureInfo.InvariantCulture)
+            ? SafeParseTimeSpan(intervalStr, "Simple.Interval")
             : TimeSpan.Zero;
 
         int repeatCount = repeatCountStr is not null
-            ? int.Parse(repeatCountStr, CultureInfo.InvariantCulture)
+            ? SafeParseInt(repeatCountStr, "Simple.RepeatCount")
             : 0;
 
         SimpleScheduleBuilder builder = SimpleScheduleBuilder.Create()
@@ -305,7 +324,16 @@ internal static class JsonSchedulingHelper
         string? timeZoneStr = section[nameof(JsonCronSchedule.TimeZone)];
         TimeZoneInfo? tz = timeZoneStr is not null ? TimeZoneUtil.FindTimeZoneById(timeZoneStr) : null;
 
-        CronScheduleBuilder builder = CronScheduleBuilder.CronSchedule(expression!);
+        CronScheduleBuilder builder;
+        try
+        {
+            builder = CronScheduleBuilder.CronSchedule(expression!);
+        }
+        catch (FormatException ex)
+        {
+            throw new SchedulerConfigException($"JSON trigger '{triggerName}': invalid cron expression '{expression}': {ex.Message}", ex);
+        }
+
         if (tz is not null)
         {
             builder.InTimeZone(tz);
@@ -326,11 +354,11 @@ internal static class JsonSchedulingHelper
         string? unitStr = section[nameof(JsonCalendarIntervalSchedule.RepeatIntervalUnit)];
 
         int interval = intervalStr is not null
-            ? int.Parse(intervalStr, CultureInfo.InvariantCulture)
+            ? SafeParseInt(intervalStr, "CalendarInterval.RepeatInterval")
             : 1;
 
         IntervalUnit unit = unitStr is not null
-            ? (IntervalUnit) Enum.Parse(typeof(IntervalUnit), unitStr, ignoreCase: true)
+            ? SafeParseEnum<IntervalUnit>(unitStr, "CalendarInterval.RepeatIntervalUnit")
             : IntervalUnit.Day;
 
         CalendarIntervalScheduleBuilder builder = CalendarIntervalScheduleBuilder.Create()
@@ -355,11 +383,11 @@ internal static class JsonSchedulingHelper
         string? timeZoneStr = section[nameof(JsonDailyTimeIntervalSchedule.TimeZone)];
 
         int interval = intervalStr is not null
-            ? int.Parse(intervalStr, CultureInfo.InvariantCulture)
+            ? SafeParseInt(intervalStr, "DailyTimeInterval.RepeatInterval")
             : 1;
 
         IntervalUnit unit = unitStr is not null
-            ? (IntervalUnit) Enum.Parse(typeof(IntervalUnit), unitStr, ignoreCase: true)
+            ? SafeParseEnum<IntervalUnit>(unitStr, "DailyTimeInterval.RepeatIntervalUnit")
             : IntervalUnit.Minute;
 
         DailyTimeIntervalScheduleBuilder builder = DailyTimeIntervalScheduleBuilder.Create()
@@ -367,7 +395,7 @@ internal static class JsonSchedulingHelper
 
         if (repeatCountStr is not null)
         {
-            int repeatCount = int.Parse(repeatCountStr, CultureInfo.InvariantCulture);
+            int repeatCount = SafeParseInt(repeatCountStr, "DailyTimeInterval.RepeatCount");
             builder.WithRepeatCount(repeatCount);
         }
 
@@ -389,7 +417,7 @@ internal static class JsonSchedulingHelper
             {
                 if (day.Value is not null)
                 {
-                    days.Add((DayOfWeek) Enum.Parse(typeof(DayOfWeek), day.Value, ignoreCase: true));
+                    days.Add(SafeParseEnum<DayOfWeek>(day.Value, "DailyTimeInterval.DaysOfWeek"));
                 }
             }
 
@@ -427,7 +455,14 @@ internal static class JsonSchedulingHelper
 
     private static TimeOfDay ParseTimeOfDay(string value)
     {
-        TimeSpan ts = TimeSpan.Parse(value, CultureInfo.InvariantCulture);
+        if (!TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out TimeSpan ts))
+        {
+            throw new SchedulerConfigException($"JSON schedule: invalid TimeOfDay value '{value}'.");
+        }
+        if (ts < TimeSpan.Zero || ts > TimeSpan.FromHours(24))
+        {
+            throw new SchedulerConfigException($"JSON schedule: TimeOfDay value '{value}' must be between 00:00:00 and 24:00:00.");
+        }
         return new TimeOfDay(ts.Hours, ts.Minutes, ts.Seconds);
     }
 
@@ -450,14 +485,48 @@ internal static class JsonSchedulingHelper
         throw new SchedulerConfigException($"Unknown misfire instruction: '{value}'");
     }
 
-    private static bool ParseBool(string? value)
+    private static bool ParseBool(string? value, string context = "")
     {
         if (value is null)
         {
             return false;
         }
 
-        return bool.Parse(value);
+        if (!bool.TryParse(value, out bool result))
+        {
+            throw new SchedulerConfigException($"JSON configuration: invalid boolean value '{value}'{(context.Length > 0 ? $" for '{context}'" : "")}.");
+        }
+        return result;
+    }
+
+    private static int SafeParseInt(string value, string property, string? context = null)
+    {
+        if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int result))
+        {
+            string location = context is not null ? $"'{context}': " : "";
+            throw new SchedulerConfigException($"JSON schedule: {location}invalid integer value '{value}' for '{property}'.");
+        }
+        return result;
+    }
+
+    private static TimeSpan SafeParseTimeSpan(string value, string property, string? context = null)
+    {
+        if (!TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out TimeSpan result))
+        {
+            string location = context is not null ? $"'{context}': " : "";
+            throw new SchedulerConfigException($"JSON schedule: {location}invalid TimeSpan value '{value}' for '{property}'.");
+        }
+        return result;
+    }
+
+    private static T SafeParseEnum<T>(string value, string property, string? context = null) where T : struct
+    {
+        if (!Enum.TryParse(value, ignoreCase: true, out T result))
+        {
+            string location = context is not null ? $"'{context}': " : "";
+            throw new SchedulerConfigException($"JSON schedule: {location}invalid {typeof(T).Name} value '{value}' for '{property}'.");
+        }
+        return result;
     }
 
     /// <summary>
