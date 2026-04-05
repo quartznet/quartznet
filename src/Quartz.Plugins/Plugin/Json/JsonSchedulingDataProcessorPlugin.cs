@@ -108,7 +108,10 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
 
         Log.Info("Registering Quartz JSON Job Initialization Plug-in.");
 
-        string[] tokens = FileNames.Split(FileNameDelimiter).Select(x => x.TrimStart()).ToArray();
+        string[] tokens = FileNames
+            .Split(new[] { FileNameDelimiter }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => x.Trim())
+            .ToArray();
 
         foreach (string token in tokens)
         {
