@@ -129,42 +129,17 @@ internal sealed class DeferredServiceCollection : IServiceCollection
             return true;
         }
 
-        // Intercept direct IJobListener registrations (default scheduler path).
-        // The configurator normally registers BOTH a JobListenerConfiguration (with matchers)
-        // AND the IJobListener interface. If the *Configuration was already captured above,
-        // suppress the interface to avoid duplicate registration. Otherwise, create a
-        // fallback configuration so the listener is not dropped.
-        if (descriptor.ServiceType == typeof(IJobListener))
+        // Intercept direct IJobListener/ITriggerListener registrations (default scheduler path).
+        // The configurator always registers BOTH a *Configuration object (with matchers, factory,
+        // and the concrete type) AND the bare interface. The *Configuration is already captured
+        // above with full metadata. Suppress the interface registration unconditionally to avoid
+        // duplicate listener creation during scheduler initialization.
+        //
+        // This is safe because IServiceCollectionQuartzConfigurator.Services is internal —
+        // all listener registrations go through the configurator's AddJobListener/AddTriggerListener
+        // methods which always emit the paired *Configuration.
+        if (descriptor.ServiceType == typeof(IJobListener) || descriptor.ServiceType == typeof(ITriggerListener))
         {
-            Type? listenerType = descriptor.ImplementationType ?? descriptor.ServiceType;
-            if (options.deferredJobListeners.Exists(c => c.ListenerType == listenerType))
-            {
-                return true;
-            }
-
-            // No matching *Configuration found — create one from the descriptor
-            Func<IServiceProvider, IJobListener>? factory = descriptor.ImplementationFactory != null
-                ? sp => (IJobListener) descriptor.ImplementationFactory(sp) : null;
-            IJobListener? instance = descriptor.ImplementationInstance as IJobListener;
-            options.deferredJobListeners.Add(
-                new JobListenerConfiguration(listenerType, Array.Empty<IMatcher<JobKey>>(), optionsName, factory, instance));
-            return true;
-        }
-
-        // Same pattern for ITriggerListener
-        if (descriptor.ServiceType == typeof(ITriggerListener))
-        {
-            Type? listenerType = descriptor.ImplementationType ?? descriptor.ServiceType;
-            if (options.deferredTriggerListeners.Exists(c => c.ListenerType == listenerType))
-            {
-                return true;
-            }
-
-            Func<IServiceProvider, ITriggerListener>? factory = descriptor.ImplementationFactory != null
-                ? sp => (ITriggerListener) descriptor.ImplementationFactory(sp) : null;
-            ITriggerListener? instance = descriptor.ImplementationInstance as ITriggerListener;
-            options.deferredTriggerListeners.Add(
-                new TriggerListenerConfiguration(listenerType, Array.Empty<IMatcher<TriggerKey>>(), optionsName, factory, instance));
             return true;
         }
 

@@ -3,6 +3,8 @@ using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
+using Quartz.Impl;
+
 namespace Quartz;
 
 /// <summary>
@@ -53,6 +55,14 @@ internal sealed class DeferredQuartzConfiguration : IConfigureNamedOptions<Quart
         ServiceCollectionQuartzConfigurator configurator = new ServiceCollectionQuartzConfigurator(deferredServices, schedulerBuilder, optionsName);
 
         configure(configurator, serviceProvider);
+
+        // Re-force the scheduler instance name for named schedulers so it cannot drift
+        // via SetProperty() or Properties[] in the deferred lambda. This mirrors the
+        // same guard in the immediate AddQuartz(name, properties, configure) overload.
+        if (optionsName.Length > 0)
+        {
+            schedulerBuilder.Properties[StdSchedulerFactory.PropertySchedulerInstanceName] = optionsName;
+        }
 
         // Copy all properties from the SchedulerBuilder back to QuartzOptions.
         // Properties that were not modified will have the same values they had before.
