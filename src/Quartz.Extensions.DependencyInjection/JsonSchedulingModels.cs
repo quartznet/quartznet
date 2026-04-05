@@ -6,7 +6,7 @@ namespace Quartz;
 /// <summary>
 /// Represents a job definition from JSON configuration.
 /// </summary>
-public sealed class JsonJobDefinition
+internal sealed class JsonJobDefinition
 {
     /// <summary>
     /// The job name.
@@ -49,7 +49,7 @@ public sealed class JsonJobDefinition
 /// Exactly one schedule type (<see cref="Simple"/>, <see cref="Cron"/>, <see cref="CalendarInterval"/>, or <see cref="DailyTimeInterval"/>)
 /// must be specified.
 /// </summary>
-public sealed class JsonTriggerDefinition
+internal sealed class JsonTriggerDefinition
 {
     /// <summary>
     /// The trigger name.
@@ -130,7 +130,7 @@ public sealed class JsonTriggerDefinition
 /// <summary>
 /// Simple schedule configuration for a trigger.
 /// </summary>
-public sealed class JsonSimpleSchedule
+internal sealed class JsonSimpleSchedule
 {
     /// <summary>
     /// Number of times to repeat. Use <c>-1</c> for indefinite. Defaults to <c>0</c> (fire once).
@@ -151,7 +151,7 @@ public sealed class JsonSimpleSchedule
 /// <summary>
 /// Cron schedule configuration for a trigger.
 /// </summary>
-public sealed class JsonCronSchedule
+internal sealed class JsonCronSchedule
 {
     /// <summary>
     /// The cron expression (e.g., "0/10 * * * * ?").
@@ -172,7 +172,7 @@ public sealed class JsonCronSchedule
 /// <summary>
 /// Calendar interval schedule configuration for a trigger.
 /// </summary>
-public sealed class JsonCalendarIntervalSchedule
+internal sealed class JsonCalendarIntervalSchedule
 {
     /// <summary>
     /// The repeat interval.
@@ -193,7 +193,7 @@ public sealed class JsonCalendarIntervalSchedule
 /// <summary>
 /// Daily time interval schedule configuration for a trigger.
 /// </summary>
-public sealed class JsonDailyTimeIntervalSchedule
+internal sealed class JsonDailyTimeIntervalSchedule
 {
     /// <summary>
     /// The repeat interval.

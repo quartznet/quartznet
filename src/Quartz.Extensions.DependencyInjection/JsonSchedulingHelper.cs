@@ -80,15 +80,24 @@ internal static class JsonSchedulingHelper
                 throw new SchedulerConfigException($"JSON job definition '{name}' is missing required 'JobType' property.");
             }
 
-            string? group = jobSection[nameof(JsonJobDefinition.Group)];
+            string? group = NormalizeEmpty(jobSection[nameof(JsonJobDefinition.Group)]);
             string? description = jobSection[nameof(JsonJobDefinition.Description)];
             bool durable = ParseBool(jobSection[nameof(JsonJobDefinition.Durable)]);
             bool recover = ParseBool(jobSection[nameof(JsonJobDefinition.Recover)]);
 
             Type jobType = typeLoadHelper.LoadType(jobTypeName!)!;
 
-            IJobDetail jobDetail = JobBuilder.Create(jobType)
-                .WithIdentity(name!, group!)
+            JobBuilder builder = JobBuilder.Create(jobType);
+            if (group is not null)
+            {
+                builder.WithIdentity(name!, group);
+            }
+            else
+            {
+                builder.WithIdentity(name!);
+            }
+
+            IJobDetail jobDetail = builder
                 .WithDescription(description)
                 .StoreDurably(durable)
                 .RequestRecovery(recover)
@@ -133,8 +142,8 @@ internal static class JsonSchedulingHelper
                 throw new SchedulerConfigException($"JSON trigger definition '{name}' is missing required 'JobName' property.");
             }
 
-            string? group = triggerSection[nameof(JsonTriggerDefinition.Group)];
-            string? jobGroup = triggerSection[nameof(JsonTriggerDefinition.JobGroup)];
+            string? group = NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.Group)]);
+            string? jobGroup = NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.JobGroup)]);
             string? description = triggerSection[nameof(JsonTriggerDefinition.Description)];
             string? calendarName = triggerSection[nameof(JsonTriggerDefinition.CalendarName)];
             string? priorityStr = triggerSection[nameof(JsonTriggerDefinition.Priority)];
@@ -172,10 +181,27 @@ internal static class JsonSchedulingHelper
 
             IScheduleBuilder schedule = BuildSchedule(triggerSection, name!);
 
-            IMutableTrigger trigger = (IMutableTrigger) TriggerBuilder.Create()
-                .WithIdentity(name!, group!)
+            TriggerBuilder triggerBuilder = TriggerBuilder.Create();
+            if (group is not null)
+            {
+                triggerBuilder.WithIdentity(name!, group);
+            }
+            else
+            {
+                triggerBuilder.WithIdentity(name!);
+            }
+
+            if (jobGroup is not null)
+            {
+                triggerBuilder.ForJob(jobName!, jobGroup);
+            }
+            else
+            {
+                triggerBuilder.ForJob(jobName!);
+            }
+
+            IMutableTrigger trigger = (IMutableTrigger) triggerBuilder
                 .WithDescription(description)
-                .ForJob(jobName!, jobGroup!)
                 .StartAt(startTime)
                 .EndAt(endTime)
                 .WithPriority(priority)
@@ -431,5 +457,14 @@ internal static class JsonSchedulingHelper
         }
 
         return bool.Parse(value);
+    }
+
+    /// <summary>
+    /// Normalizes empty or whitespace-only strings to null so they fall back to Quartz defaults
+    /// (e.g., the default group) instead of throwing ArgumentException.
+    /// </summary>
+    private static string? NormalizeEmpty(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value;
     }
 }
