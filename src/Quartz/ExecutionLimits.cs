@@ -85,7 +85,7 @@ public sealed class ExecutionLimits : IReadOnlyDictionary<string, int?>
         ArgumentNullException.ThrowIfNull(group);
         group = group.Trim();
 
-        if (group.Length == 0 || group == OtherGroups)
+        if (group.Length == 0 || group == OtherGroups || group == "_" || group.Equals("null", StringComparison.OrdinalIgnoreCase))
         {
             throw new ArgumentException(
                 $"Group name '{group}' is reserved. Use ForDefaultGroup() for the default group or ForOtherGroups() for the catch-all.",
@@ -147,7 +147,7 @@ public sealed class ExecutionLimits : IReadOnlyDictionary<string, int?>
         ArgumentNullException.ThrowIfNull(group);
         group = group.Trim();
 
-        if (group.Length == 0 || group == OtherGroups)
+        if (group.Length == 0 || group == OtherGroups || group == "_" || group.Equals("null", StringComparison.OrdinalIgnoreCase))
         {
             throw new ArgumentException(
                 $"Group name '{group}' is reserved. Use ForDefaultGroup() for the default group or ForOtherGroups() for the catch-all.",
