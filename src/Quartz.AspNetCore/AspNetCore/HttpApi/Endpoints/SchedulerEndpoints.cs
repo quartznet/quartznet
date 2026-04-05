@@ -205,19 +205,19 @@ internal static class SchedulerEndpoints
                 limits = new ExecutionLimits();
                 foreach (KeyValuePair<string, int?> kvp in request.Limits)
                 {
-                    if (kvp.Key == ExecutionLimits.OtherGroups)
+                    string key = kvp.Key.Trim();
+                    if (key == ExecutionLimits.OtherGroups)
                     {
                         if (kvp.Value.HasValue) limits.ForOtherGroups(kvp.Value.Value);
                     }
-                    else if (kvp.Key == ExecutionLimits.DefaultGroupKey || kvp.Key == "_"
-                             || kvp.Key.Equals("null", StringComparison.OrdinalIgnoreCase))
+                    else if (key is "" or "_" || key.Equals("null", StringComparison.OrdinalIgnoreCase))
                     {
                         if (kvp.Value.HasValue) limits.ForDefaultGroup(kvp.Value.Value);
                     }
                     else
                     {
-                        if (kvp.Value.HasValue) limits.ForGroup(kvp.Key, kvp.Value.Value);
-                        else limits.Unlimited(kvp.Key);
+                        if (kvp.Value.HasValue) limits.ForGroup(key, kvp.Value.Value);
+                        else limits.Unlimited(key);
                     }
                 }
             }

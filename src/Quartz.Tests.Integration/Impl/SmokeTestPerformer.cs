@@ -419,26 +419,19 @@ public class SmokeTestPerformer
         Assert.That(retrievedNoGroup, Is.Not.Null);
         Assert.That(retrievedNoGroup.ExecutionGroup, Is.Null, "Trigger without execution group should have null");
 
-        // Test execution limits API (not supported by HTTP proxy schedulers)
-        try
-        {
-            await scheduler.SetExecutionLimits(new ExecutionLimits()
-                .ForGroup("batch-jobs", 2)
-                .ForOtherGroups(5)).ConfigureAwait(false);
+        // Test execution limits API
+        await scheduler.SetExecutionLimits(new ExecutionLimits()
+            .ForGroup("batch-jobs", 2)
+            .ForOtherGroups(5)).ConfigureAwait(false);
 
-            ExecutionLimits limits = await scheduler.GetExecutionLimits().ConfigureAwait(false);
-            Assert.That(limits, Is.Not.Null);
-            Assert.That(limits["batch-jobs"], Is.EqualTo(2));
-            Assert.That(limits[ExecutionLimits.OtherGroups], Is.EqualTo(5));
+        ExecutionLimits limits = await scheduler.GetExecutionLimits().ConfigureAwait(false);
+        Assert.That(limits, Is.Not.Null);
+        Assert.That(limits["batch-jobs"], Is.EqualTo(2));
+        Assert.That(limits[ExecutionLimits.OtherGroups], Is.EqualTo(5));
 
-            // Clear limits
-            await scheduler.SetExecutionLimits(null).ConfigureAwait(false);
-            Assert.That(await scheduler.GetExecutionLimits().ConfigureAwait(false), Is.Null);
-        }
-        catch (NotSupportedException)
-        {
-            // HTTP proxy schedulers don't support execution limits
-        }
+        // Clear limits
+        await scheduler.SetExecutionLimits(null).ConfigureAwait(false);
+        Assert.That(await scheduler.GetExecutionLimits().ConfigureAwait(false), Is.Null);
 
         await scheduler.Clear();
     }
