@@ -62,8 +62,9 @@ public static class ServiceCollectionExtensions
         {
             throw new SchedulerConfigException(
                 "The Quartz configuration section contains both a 'Schedulers' sub-section and direct scheduler " +
-                "configuration (e.g., 'Scheduler', 'ThreadPool'). Use 'Schedulers' for named schedulers or " +
-                "direct configuration for a single default scheduler, but not both.");
+                "configuration (for example, hierarchical sections like 'Scheduler' or 'ThreadPool', or legacy " +
+                "flat 'quartz.*' keys such as 'quartz.scheduler.instanceName'). Use 'Schedulers' for named " +
+                "schedulers or direct configuration for a single default scheduler, but not both.");
         }
 
         if (hasNamedSchedulers)
