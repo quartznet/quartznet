@@ -141,6 +141,13 @@ internal sealed class DeferredServiceCollection : IServiceCollection
         return false;
     }
 
+    /// <summary>
+    /// Resolves the service instance from a descriptor's factory or cached instance.
+    /// Returns null for type-only descriptors (ImplementationType without factory/instance).
+    /// This is safe because all Quartz configurator registrations we intercept use either
+    /// ImplementationInstance (e.g. <c>new XxxConfiguration(...)</c>) or ImplementationFactory
+    /// (e.g. <c>serviceProvider => ...</c>), never bare ImplementationType.
+    /// </summary>
     private object? ResolveInstance(ServiceDescriptor descriptor)
     {
         if (descriptor.ImplementationInstance != null)
@@ -157,18 +164,23 @@ internal sealed class DeferredServiceCollection : IServiceCollection
     }
 
     // --- IList<ServiceDescriptor> delegation ---
+    // Read operations delegate to the inner collection so that TryAddSingleton
+    // and similar helpers can check for existing registrations.
+    // Write operations (other than Add/Insert handled above) are no-ops to
+    // prevent accidental mutation of the original IServiceCollection after
+    // the IServiceProvider has been built.
 
     public ServiceDescriptor this[int index]
     {
         get => inner[index];
-        set => inner[index] = value;
+        set { } // no-op — service provider already built
     }
 
     public int Count => inner.Count;
 
-    public bool IsReadOnly => inner.IsReadOnly;
+    public bool IsReadOnly => true;
 
-    public void Clear() => inner.Clear();
+    public void Clear() { } // no-op
 
     public bool Contains(ServiceDescriptor item) => inner.Contains(item);
 
@@ -188,9 +200,9 @@ internal sealed class DeferredServiceCollection : IServiceCollection
         // Silently discard — same rationale as Add
     }
 
-    public bool Remove(ServiceDescriptor item) => inner.Remove(item);
+    public bool Remove(ServiceDescriptor item) => false; // no-op
 
-    public void RemoveAt(int index) => inner.RemoveAt(index);
+    public void RemoveAt(int index) { } // no-op
 
     IEnumerator IEnumerable.GetEnumerator() => ((IEnumerable) inner).GetEnumerator();
 }
