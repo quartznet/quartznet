@@ -143,8 +143,10 @@ ALTER TABLE QRTZ_TRIGGERS ADD COLUMN EXECUTION_GROUP VARCHAR(200) NULL;
 ALTER TABLE QRTZ_TRIGGERS ADD (EXECUTION_GROUP VARCHAR2(200) NULL);
 ```
 
-Optionally, add the column to `QRTZ_FIRED_TRIGGERS` for forward compatibility (not currently
-read/written, but reserved for future cluster-wide execution group counting):
+The standard 4.x schema also includes an `EXECUTION_GROUP` column on `QRTZ_FIRED_TRIGGERS`.
+It is currently not read or written by execution group logic, but is reserved for forward
+compatibility and possible future cluster-wide execution group counting. If upgrading from 3.x,
+add it alongside the `QRTZ_TRIGGERS` column:
 
 ```sql
 ALTER TABLE QRTZ_FIRED_TRIGGERS ADD EXECUTION_GROUP NVARCHAR(200) NULL;  -- SQL Server
