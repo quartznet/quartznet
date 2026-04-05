@@ -179,7 +179,8 @@ internal static class SchedulerEndpoints
                 dict = new Dictionary<string, int?>();
                 foreach (KeyValuePair<string, int?> kvp in limits)
                 {
-                    dict[kvp.Key] = kvp.Value;
+                    string key = kvp.Key == ExecutionLimits.DefaultGroupKey ? "_" : kvp.Key;
+                    dict[key] = kvp.Value;
                 }
             }
             return Task.FromResult(new ExecutionLimitsResponse(dict));
