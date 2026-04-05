@@ -196,7 +196,9 @@ public abstract class AbstractTrigger : IOperableTrigger, INextVersionTrigger, I
             else
             {
                 string trimmed = value!.Trim();
-                if (trimmed == ExecutionLimits.OtherGroups)
+                if (trimmed == ExecutionLimits.OtherGroups
+                    || trimmed == "_"
+                    || trimmed.Equals("null", StringComparison.OrdinalIgnoreCase))
                 {
                     throw new ArgumentException(
                         $"Execution group name '{trimmed}' is reserved for limits configuration.",
