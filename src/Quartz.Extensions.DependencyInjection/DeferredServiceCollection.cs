@@ -39,9 +39,11 @@ internal sealed class DeferredServiceCollection : IServiceCollection
             return;
         }
 
-        // Fall through to inner collection — harmless since the service provider
-        // is already built and won't pick up new registrations.
-        inner.Add(item);
+        // Silently discard — the service provider is already built, so adding
+        // to the original IServiceCollection would have no effect and could
+        // cause confusion if the collection is inspected later.
+        // Registrations that matter (jobs, triggers, listeners, calendars)
+        // are all intercepted above.
     }
 
     private bool TryHandleDeferred(ServiceDescriptor descriptor)
@@ -127,46 +129,12 @@ internal sealed class DeferredServiceCollection : IServiceCollection
             return true;
         }
 
-        // Intercept direct IJobListener registrations (default scheduler path)
-        if (descriptor.ServiceType == typeof(IJobListener))
+        // Intercept direct IJobListener/ITriggerListener registrations (default scheduler path).
+        // The configurator registers BOTH a *Configuration object (with matchers) AND the interface.
+        // We only store the *Configuration (handled above) to avoid duplicate listener registration.
+        // Suppress the interface registration here without storing it.
+        if (descriptor.ServiceType == typeof(IJobListener) || descriptor.ServiceType == typeof(ITriggerListener))
         {
-            Type? listenerType = descriptor.ImplementationType ?? descriptor.ServiceType;
-            Func<IServiceProvider, IJobListener>? factory = null;
-            IJobListener? instance = null;
-
-            if (descriptor.ImplementationFactory != null)
-            {
-                factory = sp => (IJobListener) descriptor.ImplementationFactory(sp);
-            }
-            else if (descriptor.ImplementationInstance is IJobListener inst)
-            {
-                instance = inst;
-            }
-
-            // No matchers available from a bare IJobListener registration
-            options.deferredJobListeners.Add(
-                new JobListenerConfiguration(listenerType, Array.Empty<IMatcher<JobKey>>(), optionsName, factory, instance));
-            return true;
-        }
-
-        // Intercept direct ITriggerListener registrations (default scheduler path)
-        if (descriptor.ServiceType == typeof(ITriggerListener))
-        {
-            Type? listenerType = descriptor.ImplementationType ?? descriptor.ServiceType;
-            Func<IServiceProvider, ITriggerListener>? factory = null;
-            ITriggerListener? instance = null;
-
-            if (descriptor.ImplementationFactory != null)
-            {
-                factory = sp => (ITriggerListener) descriptor.ImplementationFactory(sp);
-            }
-            else if (descriptor.ImplementationInstance is ITriggerListener inst)
-            {
-                instance = inst;
-            }
-
-            options.deferredTriggerListeners.Add(
-                new TriggerListenerConfiguration(listenerType, Array.Empty<IMatcher<TriggerKey>>(), optionsName, factory, instance));
             return true;
         }
 
@@ -217,7 +185,7 @@ internal sealed class DeferredServiceCollection : IServiceCollection
             return;
         }
 
-        inner.Insert(index, item);
+        // Silently discard — same rationale as Add
     }
 
     public bool Remove(ServiceDescriptor item) => inner.Remove(item);

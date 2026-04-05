@@ -473,6 +473,9 @@ public sealed class DeferredQuartzConfigurationTests
             IReadOnlyCollection<IJobListener> listeners = scheduler.ListenerManager.GetJobListeners();
             listeners.Should().Contain(l => l is TestJobListener);
 
+            // Verify no duplicate — the listener should be registered exactly once
+            listeners.Where(l => l is TestJobListener).Should().HaveCount(1);
+
             await scheduler.Shutdown();
         }
         finally
