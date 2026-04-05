@@ -271,6 +271,65 @@ Each named scheduler section supports the same hierarchical properties, `Schedul
 Defining both a `Schedulers` sub-section and direct scheduler configuration (e.g., `Scheduler`, `ThreadPool` at the top level) is an error. Use one or the other.
 :::
 
-## Standalone JSON Files
+## Standalone JSON Files (quartz_jobs.json)
 
-For file-based scheduling with hot-reload support, use `JsonSchedulingDataProcessorPlugin` from the `Quartz.Plugins` package. See [Quartz Plugins](quartz-plugins.md) for details.
+For file-based scheduling with hot-reload support, use `JsonSchedulingDataProcessorPlugin` from the `Quartz.Plugins` package. See [Quartz Plugins](quartz-plugins.md) for plugin configuration.
+
+Standalone JSON files use the same `Jobs` and `Triggers` format as the `Schedule` section above, wrapped in an envelope with optional `PreProcessingCommands` and `ProcessingDirectives`:
+
+```json
+{
+  "PreProcessingCommands": {
+    "DeleteJobsInGroup": ["obsoleteGroup"],
+    "DeleteTriggersInGroup": ["oldTriggerGroup"],
+    "DeleteJobs": [
+      { "Name": "oldJob", "Group": "DEFAULT" }
+    ],
+    "DeleteTriggers": [
+      { "Name": "oldTrigger" }
+    ]
+  },
+  "ProcessingDirectives": {
+    "OverWriteExistingData": true,
+    "IgnoreDuplicates": false,
+    "ScheduleTriggerRelativeToReplacedTrigger": false
+  },
+  "Schedule": {
+    "Jobs": [
+      {
+        "Name": "myJob",
+        "JobType": "MyApp.Jobs.MyJob, MyApp",
+        "Durable": true
+      }
+    ],
+    "Triggers": [
+      {
+        "Name": "myTrigger",
+        "JobName": "myJob",
+        "Cron": {
+          "Expression": "0/30 * * * * ?"
+        }
+      }
+    ]
+  }
+}
+```
+
+### PreProcessingCommands
+
+Commands executed before scheduling. All fields are optional:
+
+| Field | Description |
+|---|---|
+| `DeleteJobsInGroup` | Array of group names. Use `"*"` to delete jobs in all groups. |
+| `DeleteTriggersInGroup` | Array of group names. Use `"*"` to delete triggers in all groups. |
+| `DeleteJobs` | Array of `{ "Name": "...", "Group": "..." }` objects. Group is optional. |
+| `DeleteTriggers` | Array of `{ "Name": "...", "Group": "..." }` objects. Group is optional. |
+
+### ProcessingDirectives
+
+| Field | Default | Description |
+|---|---|---|
+| `OverWriteExistingData` | `true` | Replace existing jobs/triggers with the same identity. |
+| `IgnoreDuplicates` | `false` | When `OverWriteExistingData` is `false`, silently skip duplicates instead of erroring. |
+| `ScheduleTriggerRelativeToReplacedTrigger` | `false` | Adjust new trigger timing based on old trigger's last fire time. |

@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 
 using System.Reflection;
 
+using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
 
@@ -37,7 +38,7 @@ internal static class JsonSchedulingHelper
 
         services.AddSingleton<IConfigureOptions<QuartzOptions>>(serviceProvider =>
         {
-            ITypeLoadHelper typeLoadHelper = serviceProvider.GetRequiredService<ITypeLoadHelper>();
+            ITypeLoadHelper typeLoadHelper = serviceProvider.GetService<ITypeLoadHelper>() ?? new SimpleTypeLoadHelper();
             List<IJobDetail> jobs = ReadJobs(scheduleSection.GetSection("Jobs"), typeLoadHelper);
             List<ITrigger> triggers = ReadTriggers(scheduleSection.GetSection("Triggers"));
 
