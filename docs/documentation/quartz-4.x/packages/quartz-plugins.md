@@ -94,6 +94,31 @@ This plugin loads XML file(s) to add jobs and schedule them with triggers as the
 The periodically scanning of files for changes is not currently supported in a clustered environment.
 :::
 
+### JsonSchedulingDataProcessorPlugin
+
+This plugin loads JSON file(s) to add jobs and schedule them with triggers as the scheduler is initialized, and can optionally periodically scan the file for changes. It is the JSON analog of `XMLSchedulingDataProcessorPlugin`.
+
+::: warning
+The periodically scanning of files for changes is not currently supported in a clustered environment.
+:::
+
+**DI configuration:**
+
+```csharp
+services.AddQuartz(q =>
+{
+    q.UseJsonSchedulingConfiguration(x =>
+    {
+        x.Files = ["quartz_jobs.json"];
+        x.ScanInterval = TimeSpan.FromMinutes(1);
+        x.FailOnFileNotFound = true;
+        x.FailOnSchedulingError = true;
+    });
+});
+```
+
+See [JSON Configuration](json-configuration.md) for the full JSON file format and trigger type reference.
+
 ### JobInterruptMonitorPlugin
 
 This plugin catches the event of job running for a long time (more than the configured max time) and tells the scheduler to "try" interrupting it if enabled.

@@ -2,6 +2,7 @@ using System.Collections.Specialized;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
 
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -25,6 +26,89 @@ public static class ServiceCollectionExtensions
         Action<IServiceCollectionQuartzConfigurator>? configure = null)
     {
         return AddQuartz(services, new NameValueCollection(), configure);
+    }
+
+    /// <summary>
+    /// Configures Quartz services from a hierarchical <see cref="IConfiguration"/> section.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Nested JSON properties are automatically converted to flat Quartz property keys
+    /// (e.g., <c>Scheduler:InstanceName</c> becomes <c>quartz.scheduler.instanceName</c>).
+    /// A <c>Schedule</c> sub-section with <c>Jobs</c> and <c>Triggers</c> arrays is also supported.
+    /// </para>
+    /// <para>
+    /// If a <c>Schedulers</c> sub-section is present, each child is registered as a named scheduler.
+    /// Defining both <c>Schedulers</c> and direct scheduler configuration is an error.
+    /// </para>
+    /// </remarks>
+    public static IServiceCollection AddQuartz(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        Action<IServiceCollectionQuartzConfigurator>? configure = null)
+    {
+        var schedulersSection = configuration.GetSection("Schedulers");
+        var hasNamedSchedulers = schedulersSection.Exists();
+        var hasDirectConfig = HasDirectSchedulerConfiguration(configuration);
+
+        if (hasNamedSchedulers && hasDirectConfig)
+        {
+            throw new SchedulerConfigException(
+                "The Quartz configuration section contains both a 'Schedulers' sub-section and direct scheduler " +
+                "configuration (for example, hierarchical sections like 'Scheduler' or 'ThreadPool', or legacy " +
+                "flat 'quartz.*' keys such as 'quartz.scheduler.instanceName'). Use 'Schedulers' for named " +
+                "schedulers or direct configuration for a single default scheduler, but not both.");
+        }
+
+        if (hasNamedSchedulers)
+        {
+            foreach (var child in schedulersSection.GetChildren())
+            {
+                AddQuartz(services, child.Key, child, configure);
+            }
+            return services;
+        }
+
+        var properties = QuartzConfigurationHelper.ToNameValueCollection(configuration);
+        AddQuartz(services, properties, configure);
+        JsonSchedulingHelper.ConfigureOptionsFromConfiguration(services, configuration);
+        return services;
+    }
+
+    /// <summary>
+    /// Configures a named Quartz scheduler from a hierarchical <see cref="IConfiguration"/> section.
+    /// </summary>
+    public static IServiceCollection AddQuartz(
+        this IServiceCollection services,
+        string name,
+        IConfiguration configuration,
+        Action<IServiceCollectionQuartzConfigurator>? configure = null)
+    {
+        var properties = QuartzConfigurationHelper.ToNameValueCollection(configuration);
+        AddQuartz(services, name, properties, configure);
+        JsonSchedulingHelper.ConfigureOptionsFromConfiguration(services, configuration, name);
+        return services;
+    }
+
+    private static bool HasDirectSchedulerConfiguration(IConfiguration configuration)
+    {
+        foreach (var child in configuration.GetChildren())
+        {
+            var key = child.Key;
+            if (string.Equals(key, "Schedulers", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(key, "Schedule", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(key, "Scheduling", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (key.StartsWith("quartz.", StringComparison.OrdinalIgnoreCase) || child.Value is null)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
