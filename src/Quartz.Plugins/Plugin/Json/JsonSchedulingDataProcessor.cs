@@ -375,6 +375,10 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
     private static TimeOfDay ParseTimeOfDay(string value)
     {
         var ts = TimeSpan.Parse(value, CultureInfo.InvariantCulture);
+        if (ts < TimeSpan.Zero || ts >= TimeSpan.FromHours(24))
+        {
+            throw new SchedulerConfigException($"TimeOfDay value '{value}' is out of range. Must be between 00:00:00 and 23:59:59.");
+        }
         return new TimeOfDay(ts.Hours, ts.Minutes, ts.Seconds);
     }
 

@@ -125,10 +125,10 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
                 }
             }
         }
-        catch (SchedulerException)
+        catch (SchedulerException ex)
         {
             if (FailOnSchedulingError) throw;
-            logger.LogError("Error starting background-task for watching JSON jobs file");
+            logger.LogError(ex, "Error starting background-task for watching JSON jobs file");
         }
         finally
         {
