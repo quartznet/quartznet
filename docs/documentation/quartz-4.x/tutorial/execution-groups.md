@@ -82,7 +82,7 @@ services.AddQuartz(q =>
 ### Via scheduler API at runtime
 
 ```csharp
-scheduler.SetExecutionLimits(
+await scheduler.SetExecutionLimits(
     new ExecutionLimits()
         .ForGroup("batch-jobs", 2)
         .ForDefaultGroup(10)
@@ -92,7 +92,7 @@ scheduler.SetExecutionLimits(
 Limits take effect on the next trigger acquisition cycle. Pass `null` to clear all limits:
 
 ```csharp
-scheduler.SetExecutionLimits(null);
+await scheduler.SetExecutionLimits(null);
 ```
 
 ## How it works

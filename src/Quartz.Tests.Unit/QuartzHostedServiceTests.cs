@@ -234,12 +234,12 @@ public class QuartzHostedServiceTests
             throw new NotImplementedException();
         }
 
-        public void SetExecutionLimits(ExecutionLimits limits)
+        public ValueTask SetExecutionLimits(ExecutionLimits limits, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
 
-        public ExecutionLimits GetExecutionLimits()
+        public ValueTask<ExecutionLimits> GetExecutionLimits(CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }

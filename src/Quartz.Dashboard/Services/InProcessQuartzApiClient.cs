@@ -518,31 +518,31 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
         return "Unknown";
     }
 
-    public ValueTask<ExecutionLimitsDto?> GetExecutionLimits(string schedulerName)
+    public async ValueTask<ExecutionLimitsDto?> GetExecutionLimits(string schedulerName)
     {
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         try
         {
-            ExecutionLimits? limits = scheduler.GetExecutionLimits();
+            ExecutionLimits? limits = await scheduler.GetExecutionLimits().ConfigureAwait(false);
             if (limits is null || limits.Count == 0)
             {
-                return ValueTask.FromResult<ExecutionLimitsDto?>(null);
+                return null;
             }
 
             Dictionary<string, int?> dict = new();
-            foreach (var kvp in limits)
+            foreach (KeyValuePair<string, int?> kvp in limits)
             {
                 // Use display-friendly keys
                 string key = kvp.Key == ExecutionLimits.DefaultGroupKey ? "(default)" : kvp.Key;
                 dict[key] = kvp.Value;
             }
 
-            return ValueTask.FromResult<ExecutionLimitsDto?>(new ExecutionLimitsDto(dict));
+            return new ExecutionLimitsDto(dict);
         }
         catch (NotSupportedException)
         {
             // Scheduler implementation doesn't support execution limits (e.g. HTTP proxy)
-            return ValueTask.FromResult<ExecutionLimitsDto?>(null);
+            return null;
         }
     }
 }

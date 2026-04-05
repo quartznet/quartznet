@@ -287,7 +287,7 @@ public sealed class ExecutionGroupsTest
         IScheduler scheduler = await factory.GetScheduler().ConfigureAwait(false);
         try
         {
-            ExecutionLimits limits = scheduler.GetExecutionLimits();
+            ExecutionLimits limits = await scheduler.GetExecutionLimits().ConfigureAwait(false);
             Assert.That(limits, Is.Not.Null);
             Assert.That(limits["batch-jobs"], Is.EqualTo(2));
             Assert.That(limits["high-cpu"], Is.EqualTo(5));
@@ -315,7 +315,7 @@ public sealed class ExecutionGroupsTest
         IScheduler scheduler = await factory.GetScheduler().ConfigureAwait(false);
         try
         {
-            ExecutionLimits limits = scheduler.GetExecutionLimits();
+            ExecutionLimits limits = await scheduler.GetExecutionLimits().ConfigureAwait(false);
             Assert.That(limits, Is.Not.Null);
             Assert.That(limits["a"], Is.Null);  // "unlimited" → null
             Assert.That(limits["b"], Is.Null);  // "none" → null
@@ -340,7 +340,7 @@ public sealed class ExecutionGroupsTest
         IScheduler scheduler = await factory.GetScheduler().ConfigureAwait(false);
         try
         {
-            ExecutionLimits limits = scheduler.GetExecutionLimits();
+            ExecutionLimits limits = await scheduler.GetExecutionLimits().ConfigureAwait(false);
             Assert.That(limits, Is.Not.Null);
             Assert.That(limits[ExecutionLimits.DefaultGroupKey], Is.EqualTo(7));
         }
@@ -358,7 +358,7 @@ public sealed class ExecutionGroupsTest
         IScheduler scheduler = await factory.GetScheduler().ConfigureAwait(false);
         try
         {
-            ExecutionLimits limits = scheduler.GetExecutionLimits();
+            ExecutionLimits limits = await scheduler.GetExecutionLimits().ConfigureAwait(false);
             Assert.That(limits, Is.Null);
         }
         finally

@@ -416,14 +416,16 @@ public interface IScheduler
     /// to clear all limits.
     /// </remarks>
     /// <param name="limits">The execution limits to apply, or <see langword="null"/> to clear.</param>
-    void SetExecutionLimits(ExecutionLimits? limits);
+    /// <param name="cancellationToken">Cancellation token.</param>
+    ValueTask SetExecutionLimits(ExecutionLimits? limits, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets the currently configured execution group limits, or <see langword="null"/>
     /// if none are configured.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A snapshot of the current execution limits, or <see langword="null"/>.</returns>
-    ExecutionLimits? GetExecutionLimits();
+    ValueTask<ExecutionLimits?> GetExecutionLimits(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Add the given <see cref="IJob" /> to the Scheduler - with no associated

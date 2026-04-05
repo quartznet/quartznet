@@ -127,14 +127,14 @@ public class DelegatingScheduler : IScheduler
         return scheduler.UpdateTriggerDetails(triggerKey, update, cancellationToken);
     }
 
-    public void SetExecutionLimits(ExecutionLimits? limits)
+    public ValueTask SetExecutionLimits(ExecutionLimits? limits, CancellationToken cancellationToken = default)
     {
-        scheduler.SetExecutionLimits(limits);
+        return scheduler.SetExecutionLimits(limits, cancellationToken);
     }
 
-    public ExecutionLimits? GetExecutionLimits()
+    public ValueTask<ExecutionLimits?> GetExecutionLimits(CancellationToken cancellationToken = default)
     {
-        return scheduler.GetExecutionLimits();
+        return scheduler.GetExecutionLimits(cancellationToken);
     }
 
     public ValueTask AddJob(IJobDetail jobDetail, bool replace, CancellationToken cancellationToken = default)

@@ -170,9 +170,9 @@ internal static class SchedulerEndpoints
         string schedulerName,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, scheduler =>
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
-            ExecutionLimits? limits = scheduler.GetExecutionLimits();
+            ExecutionLimits? limits = await scheduler.GetExecutionLimits(cancellationToken).ConfigureAwait(false);
             Dictionary<string, int?>? dict = null;
             if (limits is not null && limits.Count > 0)
             {
@@ -183,7 +183,7 @@ internal static class SchedulerEndpoints
                     dict[key] = kvp.Value;
                 }
             }
-            return Task.FromResult(new ExecutionLimitsResponse(dict));
+            return new ExecutionLimitsResponse(dict);
         });
     }
 
@@ -197,7 +197,7 @@ internal static class SchedulerEndpoints
     {
         EndpointHelper.AssertIsValid(request);
 
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler =>
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             ExecutionLimits? limits = null;
             if (request.Limits is { Count: > 0 })
@@ -222,8 +222,7 @@ internal static class SchedulerEndpoints
                 }
             }
 
-            scheduler.SetExecutionLimits(limits);
-            return Task.CompletedTask;
+            await scheduler.SetExecutionLimits(limits, cancellationToken).ConfigureAwait(false);
         });
     }
 
@@ -234,10 +233,9 @@ internal static class SchedulerEndpoints
         string schedulerName,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler =>
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, async scheduler =>
         {
-            scheduler.SetExecutionLimits(null);
-            return Task.CompletedTask;
+            await scheduler.SetExecutionLimits(null, cancellationToken).ConfigureAwait(false);
         });
     }
 }

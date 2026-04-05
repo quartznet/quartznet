@@ -268,38 +268,38 @@ public class HttpScheduler : IScheduler
         throw new NotSupportedException("UpdateTriggerDetails is not yet supported via the HTTP API.");
     }
 
-    public void SetExecutionLimits(ExecutionLimits? limits)
+    public async ValueTask SetExecutionLimits(ExecutionLimits? limits, CancellationToken cancellationToken = default)
     {
         if (limits is null)
         {
-            using var response = httpClient.DeleteAsync($"{SchedulerEndpointUrl()}/execution-limits").GetAwaiter().GetResult();
+            using HttpResponseMessage response = await httpClient.DeleteAsync($"{SchedulerEndpointUrl()}/execution-limits", cancellationToken).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
         }
         else
         {
             Dictionary<string, int?> dict = new();
-            foreach (var kvp in limits)
+            foreach (KeyValuePair<string, int?> kvp in limits)
             {
                 dict[kvp.Key] = kvp.Value;
             }
-            httpClient.Post(
+            await httpClient.Post(
                 $"{SchedulerEndpointUrl()}/execution-limits",
                 new SetExecutionLimitsRequest(dict),
                 jsonSerializerOptions,
-                CancellationToken.None).AsTask().GetAwaiter().GetResult();
+                cancellationToken).ConfigureAwait(false);
         }
     }
 
-    public ExecutionLimits? GetExecutionLimits()
+    public async ValueTask<ExecutionLimits?> GetExecutionLimits(CancellationToken cancellationToken = default)
     {
-        var response = httpClient.Get<ExecutionLimitsResponse>($"{SchedulerEndpointUrl()}/execution-limits", jsonSerializerOptions, CancellationToken.None).AsTask().GetAwaiter().GetResult();
+        ExecutionLimitsResponse response = await httpClient.Get<ExecutionLimitsResponse>($"{SchedulerEndpointUrl()}/execution-limits", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
         if (response.Limits is null || response.Limits.Count == 0)
         {
             return null;
         }
 
         ExecutionLimits limits = new();
-        foreach (var kvp in response.Limits)
+        foreach (KeyValuePair<string, int?> kvp in response.Limits)
         {
             if (kvp.Key == ExecutionLimits.OtherGroups)
             {
