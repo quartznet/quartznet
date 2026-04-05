@@ -376,6 +376,38 @@ public sealed class DeferredQuartzConfigurationTests
         await scheduler.Shutdown();
     }
 
+    // --- Deferred UsePersistentStore sets properties correctly ---
+
+    [Test]
+    public void DeferredLambda_UsePersistentStore_ShouldSetAllExpectedProperties()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddSingleton<IConnectionStringProvider>(new TestConnectionStringProvider("Server=deferred;Database=quartz"));
+
+        services.AddQuartz((q, sp) =>
+        {
+            var connProvider = sp.GetRequiredService<IConnectionStringProvider>();
+            q.UsePersistentStore(s =>
+            {
+                s.UseSqlServer("default", c =>
+                {
+                    c.ConnectionString = connProvider.GetConnectionString();
+                });
+                s.UseClustering();
+            });
+        });
+
+        using var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptions<QuartzOptions>>().Value;
+
+        // Verify property-based configuration works correctly in deferred context
+        options["quartz.dataSource.default.connectionString"].Should().Be("Server=deferred;Database=quartz");
+        options["quartz.jobStore.type"].Should().NotBeNullOrWhiteSpace();
+        options["quartz.jobStore.driverDelegateType"].Should().NotBeNullOrWhiteSpace();
+        options["quartz.jobStore.clustered"].Should().Be("true");
+    }
+
     // --- API proof ---
 
     [Test]
