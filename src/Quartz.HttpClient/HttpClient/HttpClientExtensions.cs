@@ -44,7 +44,7 @@ internal static class HttpClientExtensions
         JsonSerializerOptions serializerOptions,
         CancellationToken cancellationToken)
     {
-        var response = await client.PostAsync(requestUri, content: null!, cancellationToken).ConfigureAwait(false);
+        using var response = await client.PostAsync(requestUri, content: null!, cancellationToken).ConfigureAwait(false);
         await response.CheckResponseStatusCode(serializerOptions, cancellationToken).ConfigureAwait(false);
     }
 
@@ -55,7 +55,7 @@ internal static class HttpClientExtensions
         JsonSerializerOptions serializerOptions,
         CancellationToken cancellationToken)
     {
-        var response = await client.PostAsJsonAsync(requestUri, value, serializerOptions, cancellationToken).ConfigureAwait(false);
+        using var response = await client.PostAsJsonAsync(requestUri, value, serializerOptions, cancellationToken).ConfigureAwait(false);
         await response.CheckResponseStatusCode(serializerOptions, cancellationToken).ConfigureAwait(false);
     }
 
@@ -65,7 +65,7 @@ internal static class HttpClientExtensions
         JsonSerializerOptions serializerOptions,
         CancellationToken cancellationToken)
     {
-        var response = await client.PostAsync(requestUri, content: null!, cancellationToken).ConfigureAwait(false);
+        using var response = await client.PostAsync(requestUri, content: null!, cancellationToken).ConfigureAwait(false);
         await response.CheckResponseStatusCode(serializerOptions, cancellationToken).ConfigureAwait(false);
 
         return await response.Content.ReadOrThrow<TResponse>(serializerOptions, cancellationToken).ConfigureAwait(false);
@@ -78,7 +78,7 @@ internal static class HttpClientExtensions
         JsonSerializerOptions serializerOptions,
         CancellationToken cancellationToken)
     {
-        var response = await client.PostAsJsonAsync(requestUri, value, serializerOptions, cancellationToken).ConfigureAwait(false);
+        using var response = await client.PostAsJsonAsync(requestUri, value, serializerOptions, cancellationToken).ConfigureAwait(false);
         await response.CheckResponseStatusCode(serializerOptions, cancellationToken).ConfigureAwait(false);
 
         return await response.Content.ReadOrThrow<TResponse>(serializerOptions, cancellationToken).ConfigureAwait(false);
@@ -90,7 +90,7 @@ internal static class HttpClientExtensions
         JsonSerializerOptions serializerOptions,
         CancellationToken cancellationToken)
     {
-        var response = await client.DeleteAsync(requestUri, cancellationToken).ConfigureAwait(false);
+        using var response = await client.DeleteAsync(requestUri, cancellationToken).ConfigureAwait(false);
         await response.CheckResponseStatusCode(serializerOptions, cancellationToken).ConfigureAwait(false);
     }
 
@@ -100,7 +100,7 @@ internal static class HttpClientExtensions
         JsonSerializerOptions serializerOptions,
         CancellationToken cancellationToken)
     {
-        var response = await client.DeleteAsync(requestUri, cancellationToken).ConfigureAwait(false);
+        using var response = await client.DeleteAsync(requestUri, cancellationToken).ConfigureAwait(false);
         await response.CheckResponseStatusCode(serializerOptions, cancellationToken).ConfigureAwait(false);
 
         return await response.Content.ReadOrThrow<TResponse>(serializerOptions, cancellationToken).ConfigureAwait(false);
