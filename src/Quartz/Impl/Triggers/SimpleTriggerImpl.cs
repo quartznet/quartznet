@@ -510,7 +510,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
         }
     }
 
-    internal override void UpdateAfterMisfire(ICalendar? cal, TimeSpan misfireThreshold)
+    public override void UpdateAfterMisfire(ICalendar? cal, TimeSpan misfireThreshold)
     {
         int instr = MisfireInstruction;
         if (instr == Quartz.MisfireInstruction.SmartPolicy)

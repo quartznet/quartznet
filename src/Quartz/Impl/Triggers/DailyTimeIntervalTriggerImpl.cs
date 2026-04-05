@@ -447,7 +447,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
         }
     }
 
-    internal override void UpdateAfterMisfire(ICalendar? cal, TimeSpan misfireThreshold)
+    public override void UpdateAfterMisfire(ICalendar? cal, TimeSpan misfireThreshold)
     {
         int instr = MisfireInstruction;
 

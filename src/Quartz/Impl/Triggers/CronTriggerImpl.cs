@@ -771,7 +771,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
         }
     }
 
-    internal override void UpdateAfterMisfire(ICalendar? cal, TimeSpan misfireThreshold)
+    public override void UpdateAfterMisfire(ICalendar? cal, TimeSpan misfireThreshold)
     {
         int instr = MisfireInstruction;
 

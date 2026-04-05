@@ -52,7 +52,7 @@ namespace Quartz.Impl.Triggers;
 /// <author>Sharada Jambula</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public abstract class AbstractTrigger : IOperableTrigger, INextVersionTrigger, IEquatable<AbstractTrigger>
+public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTrigger>
 {
 #pragma warning disable IDE0052
     // We use these field to (de)serialize the Key and JobKey for backward compatibility
@@ -561,18 +561,12 @@ public abstract class AbstractTrigger : IOperableTrigger, INextVersionTrigger, I
     /// </summary>
     public abstract void UpdateAfterMisfire(ICalendar? cal);
 
-    /// <inheritdoc cref="INextVersionTrigger.UpdateAfterMisfire"/>
-    void INextVersionTrigger.UpdateAfterMisfire(ICalendar? cal, TimeSpan misfireThreshold)
-    {
-        UpdateAfterMisfire(cal, misfireThreshold);
-    }
-
     /// <summary>
     /// Threshold-aware version of <see cref="UpdateAfterMisfire(ICalendar?)"/>.
     /// Fire times within the <paramref name="misfireThreshold"/> window are preserved
     /// rather than skipped.
     /// </summary>
-    internal virtual void UpdateAfterMisfire(ICalendar? cal, TimeSpan misfireThreshold)
+    public virtual void UpdateAfterMisfire(ICalendar? cal, TimeSpan misfireThreshold)
     {
         UpdateAfterMisfire(cal);
     }

@@ -1798,14 +1798,7 @@ public class RAMJobStore : IJobStore
         var originalFireTime = tw.Trigger.GetNextFireTimeUtc();
         var now = timeProvider.GetUtcNow();
 
-        if (tw.Trigger is INextVersionTrigger nvt)
-        {
-            nvt.UpdateAfterMisfire(cal, MisfireThreshold);
-        }
-        else
-        {
-            tw.Trigger.UpdateAfterMisfire(cal);
-        }
+        tw.Trigger.UpdateAfterMisfire(cal, MisfireThreshold);
 
         // Only save for "fire now" misfire policies (FireOnceNow, FireNow, RescheduleNowWith*).
         // These set nextFireTimeUtc to ~now. "Reschedule next" policies (DoNothing,

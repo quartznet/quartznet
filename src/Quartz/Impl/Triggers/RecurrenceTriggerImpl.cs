@@ -174,7 +174,7 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
     }
 
     /// <inheritdoc/>
-    internal override void UpdateAfterMisfire(ICalendar? cal, TimeSpan misfireThreshold)
+    public override void UpdateAfterMisfire(ICalendar? cal, TimeSpan misfireThreshold)
     {
         int instr = MisfireInstruction;
 
