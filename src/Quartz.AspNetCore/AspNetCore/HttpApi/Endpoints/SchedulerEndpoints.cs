@@ -194,6 +194,8 @@ internal static class SchedulerEndpoints
         [FromBody] SetExecutionLimitsRequest request,
         CancellationToken cancellationToken = default)
     {
+        EndpointHelper.AssertIsValid(request);
+
         return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler =>
         {
             ExecutionLimits? limits = null;

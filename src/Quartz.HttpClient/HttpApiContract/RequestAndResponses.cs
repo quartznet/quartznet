@@ -120,4 +120,26 @@ internal record UnscheduleJobsResponse(bool AllTriggersFound);
 
 internal record ExecutionLimitsResponse(Dictionary<string, int?>? Limits);
 
-internal record SetExecutionLimitsRequest(Dictionary<string, int?>? Limits);
+internal record SetExecutionLimitsRequest(Dictionary<string, int?>? Limits) : IValidatable
+{
+    public IEnumerable<string> Validate()
+    {
+        if (Limits is null)
+        {
+            yield break;
+        }
+
+        foreach (var kvp in Limits)
+        {
+            if (kvp.Key is null)
+            {
+                yield return "Limit key must not be null";
+            }
+
+            if (kvp.Value.HasValue && kvp.Value.Value < 0)
+            {
+                yield return $"Limit value for group '{kvp.Key}' must be non-negative, got {kvp.Value.Value}";
+            }
+        }
+    }
+}

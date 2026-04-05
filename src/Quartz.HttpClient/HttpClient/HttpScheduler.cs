@@ -272,7 +272,8 @@ public class HttpScheduler : IScheduler
     {
         if (limits is null)
         {
-            httpClient.DeleteAsync($"{SchedulerEndpointUrl()}/execution-limits").GetAwaiter().GetResult();
+            using var response = httpClient.DeleteAsync($"{SchedulerEndpointUrl()}/execution-limits").GetAwaiter().GetResult();
+            response.EnsureSuccessStatusCode();
         }
         else
         {

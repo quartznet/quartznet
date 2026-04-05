@@ -637,7 +637,7 @@ public sealed class QuartzApiClient : IQuartzApiClient
     {
         using System.Net.Http.HttpClient client = CreateClient();
         string url = $"{GetSchedulerPath(schedulerName)}/execution-limits";
-        HttpResponseMessage response = await client.GetAsync(url).ConfigureAwait(false);
+        using HttpResponseMessage response = await client.GetAsync(url).ConfigureAwait(false);
 
         if (!response.IsSuccessStatusCode)
         {
