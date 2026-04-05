@@ -531,31 +531,31 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient, IQuartzApiClien
         return "Unknown";
     }
 
-    public Task<ExecutionLimitsDto?> GetExecutionLimits(string schedulerName)
+    public async Task<ExecutionLimitsDto?> GetExecutionLimits(string schedulerName)
     {
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         try
         {
-            ExecutionLimits? limits = scheduler.GetExecutionLimits();
+            ExecutionLimits? limits = await scheduler.GetExecutionLimits().ConfigureAwait(false);
             if (limits == null || limits.Count == 0)
             {
-                return Task.FromResult<ExecutionLimitsDto?>(null);
+                return null;
             }
 
             Dictionary<string, int?> dict = new();
-            foreach (var kvp in limits)
+            foreach (KeyValuePair<string, int?> kvp in limits)
             {
                 // Use display-friendly keys
                 string key = kvp.Key == ExecutionLimits.DefaultGroupKey ? "(default)" : kvp.Key;
                 dict[key] = kvp.Value;
             }
 
-            return Task.FromResult<ExecutionLimitsDto?>(new ExecutionLimitsDto(dict));
+            return new ExecutionLimitsDto(dict);
         }
-        catch (SchedulerException)
+        catch (NotSupportedException)
         {
-            // Scheduler implementation doesn't support execution limits
-            return Task.FromResult<ExecutionLimitsDto?>(null);
+            // Scheduler implementation doesn't support execution limits (e.g. remote proxy)
+            return null;
         }
     }
 }

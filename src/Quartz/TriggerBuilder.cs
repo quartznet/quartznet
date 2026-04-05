@@ -234,7 +234,9 @@ public class TriggerBuilder
         else
         {
             executionGroup = executionGroup!.Trim();
-            if (executionGroup == ExecutionLimits.OtherGroups)
+            if (executionGroup == ExecutionLimits.OtherGroups
+                || executionGroup == "_"
+                || executionGroup.Equals("null", StringComparison.OrdinalIgnoreCase))
             {
                 throw new ArgumentException(
                     $"Execution group name '{executionGroup}' is reserved for limits configuration.",

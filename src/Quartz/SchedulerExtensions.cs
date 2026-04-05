@@ -60,10 +60,12 @@ public static class SchedulerExtensions
     /// </remarks>
     /// <param name="scheduler">The scheduler instance.</param>
     /// <param name="limits">The execution limits to apply, or <see langword="null"/> to clear.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <exception cref="SchedulerException">If the scheduler implementation does not support this operation.</exception>
-    public static void SetExecutionLimits(
+    public static Task SetExecutionLimits(
         this IScheduler scheduler,
-        ExecutionLimits? limits)
+        ExecutionLimits? limits,
+        CancellationToken cancellationToken = default)
     {
         if (scheduler is null)
         {
@@ -73,7 +75,7 @@ public static class SchedulerExtensions
         if (scheduler is StdScheduler std)
         {
             std.SetExecutionLimits(limits);
-            return;
+            return Task.CompletedTask;
         }
 
         throw new SchedulerException(
@@ -86,10 +88,12 @@ public static class SchedulerExtensions
     /// or <see langword="null"/> if none are configured.
     /// </summary>
     /// <param name="scheduler">The scheduler instance.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The current execution limits, or <see langword="null"/>.</returns>
     /// <exception cref="SchedulerException">If the scheduler implementation does not support this operation.</exception>
-    public static ExecutionLimits? GetExecutionLimits(
-        this IScheduler scheduler)
+    public static Task<ExecutionLimits?> GetExecutionLimits(
+        this IScheduler scheduler,
+        CancellationToken cancellationToken = default)
     {
         if (scheduler is null)
         {
@@ -98,7 +102,7 @@ public static class SchedulerExtensions
 
         if (scheduler is StdScheduler std)
         {
-            return std.GetExecutionLimits();
+            return Task.FromResult(std.GetExecutionLimits());
         }
 
         throw new SchedulerException(

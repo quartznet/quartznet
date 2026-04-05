@@ -428,18 +428,18 @@ public class SmokeTestPerformer
         // Test execution limits API (only supported by StdScheduler, not remote proxies)
         try
         {
-            scheduler.SetExecutionLimits(new ExecutionLimits()
+            await scheduler.SetExecutionLimits(new ExecutionLimits()
                 .ForGroup("batch-jobs", 2)
-                .ForOtherGroups(5));
+                .ForOtherGroups(5)).ConfigureAwait(false);
 
-            ExecutionLimits limits = scheduler.GetExecutionLimits();
+            ExecutionLimits limits = await scheduler.GetExecutionLimits().ConfigureAwait(false);
             Assert.That(limits, Is.Not.Null);
             Assert.That(limits["batch-jobs"], Is.EqualTo(2));
             Assert.That(limits[ExecutionLimits.OtherGroups], Is.EqualTo(5));
 
             // Clear limits
-            scheduler.SetExecutionLimits(null);
-            Assert.That(scheduler.GetExecutionLimits(), Is.Null);
+            await scheduler.SetExecutionLimits(null).ConfigureAwait(false);
+            Assert.That(await scheduler.GetExecutionLimits().ConfigureAwait(false), Is.Null);
         }
         catch (SchedulerException)
         {

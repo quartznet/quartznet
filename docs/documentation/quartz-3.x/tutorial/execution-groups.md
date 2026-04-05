@@ -35,6 +35,16 @@ ITrigger trigger = TriggerBuilder.Create()
 Triggers without an execution group (`null`) use the default behavior. It is expected that all triggers
 for a given job share the same execution group.
 
+### Reserved names
+
+The following names are reserved and cannot be used as execution group names:
+
+- `*` — used for the "other groups" catch-all limit
+- `_` — used as a property-config alias for the default (ungrouped) triggers
+- `null` (case-insensitive) — same alias as `_`
+
+Empty or whitespace-only strings are normalized to `null` (no group).
+
 ## Configuring execution limits
 
 ### Via properties
@@ -75,7 +85,7 @@ services.AddQuartz(q =>
 ### Via scheduler API at runtime
 
 ```csharp
-scheduler.SetExecutionLimits(
+await scheduler.SetExecutionLimits(
     new ExecutionLimits()
         .ForGroup("batch-jobs", 2)
         .ForDefaultGroup(10)
@@ -85,7 +95,7 @@ scheduler.SetExecutionLimits(
 Limits take effect on the next trigger acquisition cycle. Pass `null` to clear all limits:
 
 ```csharp
-scheduler.SetExecutionLimits(null);
+await scheduler.SetExecutionLimits(null);
 ```
 
 ## How it works
