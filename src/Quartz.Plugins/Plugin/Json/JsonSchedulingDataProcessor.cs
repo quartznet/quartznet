@@ -45,6 +45,10 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
     private readonly List<JobKey> jsonJobsToDelete = new List<JobKey>();
     private readonly List<TriggerKey> jsonTriggersToDelete = new List<TriggerKey>();
 
+    // Groups protected from deletion (mirrors base class's private neverDelete lists)
+    private readonly HashSet<string> protectedJobGroups = new HashSet<string>();
+    private readonly HashSet<string> protectedTriggerGroups = new HashSet<string>();
+
     public JsonSchedulingDataProcessor(ITypeLoadHelper typeLoadHelper) : base(typeLoadHelper)
     {
         log = LogProvider.GetLogger(GetType());
@@ -53,6 +57,24 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
     // Internal accessors for testing — base class properties are protected
     internal IReadOnlyList<IJobDetail> ParsedJobs => LoadedJobs;
     internal IReadOnlyList<ITrigger> ParsedTriggers => LoadedTriggers;
+
+    /// <summary>
+    /// Marks a job group as protected from pre-processing delete commands.
+    /// Call this alongside <see cref="XMLSchedulingDataProcessor.AddJobGroupToNeverDelete"/>.
+    /// </summary>
+    internal void ProtectJobGroup(string groupName)
+    {
+        protectedJobGroups.Add(groupName);
+    }
+
+    /// <summary>
+    /// Marks a trigger group as protected from pre-processing delete commands.
+    /// Call this alongside <see cref="XMLSchedulingDataProcessor.AddTriggerGroupToNeverDelete"/>.
+    /// </summary>
+    internal void ProtectTriggerGroup(string groupName)
+    {
+        protectedTriggerGroups.Add(groupName);
+    }
 
     /// <summary>
     /// Process the JSON file and schedule all jobs defined within it.
@@ -187,18 +209,24 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
                 log.Info("Deleting all jobs in ALL groups.");
                 foreach (string groupName in await scheduler.GetJobGroupNames(cancellationToken).ConfigureAwait(false))
                 {
-                    foreach (JobKey key in await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(groupName), cancellationToken).ConfigureAwait(false))
+                    if (!protectedJobGroups.Contains(groupName))
                     {
-                        await scheduler.DeleteJob(key, cancellationToken).ConfigureAwait(false);
+                        foreach (JobKey key in await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(groupName), cancellationToken).ConfigureAwait(false))
+                        {
+                            await scheduler.DeleteJob(key, cancellationToken).ConfigureAwait(false);
+                        }
                     }
                 }
             }
             else
             {
-                log.InfoFormat("Deleting all jobs in group: {0}", group);
-                foreach (JobKey key in await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(group), cancellationToken).ConfigureAwait(false))
+                if (!protectedJobGroups.Contains(group))
                 {
-                    await scheduler.DeleteJob(key, cancellationToken).ConfigureAwait(false);
+                    log.InfoFormat("Deleting all jobs in group: {0}", group);
+                    foreach (JobKey key in await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(group), cancellationToken).ConfigureAwait(false))
+                    {
+                        await scheduler.DeleteJob(key, cancellationToken).ConfigureAwait(false);
+                    }
                 }
             }
         }
@@ -210,32 +238,44 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
                 log.Info("Deleting all triggers in ALL groups.");
                 foreach (string groupName in await scheduler.GetTriggerGroupNames(cancellationToken).ConfigureAwait(false))
                 {
-                    foreach (TriggerKey key in await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(groupName), cancellationToken).ConfigureAwait(false))
+                    if (!protectedTriggerGroups.Contains(groupName))
                     {
-                        await scheduler.UnscheduleJob(key, cancellationToken).ConfigureAwait(false);
+                        foreach (TriggerKey key in await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(groupName), cancellationToken).ConfigureAwait(false))
+                        {
+                            await scheduler.UnscheduleJob(key, cancellationToken).ConfigureAwait(false);
+                        }
                     }
                 }
             }
             else
             {
-                log.InfoFormat("Deleting all triggers in group: {0}", group);
-                foreach (TriggerKey key in await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(group), cancellationToken).ConfigureAwait(false))
+                if (!protectedTriggerGroups.Contains(group))
                 {
-                    await scheduler.UnscheduleJob(key, cancellationToken).ConfigureAwait(false);
+                    log.InfoFormat("Deleting all triggers in group: {0}", group);
+                    foreach (TriggerKey key in await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(group), cancellationToken).ConfigureAwait(false))
+                    {
+                        await scheduler.UnscheduleJob(key, cancellationToken).ConfigureAwait(false);
+                    }
                 }
             }
         }
 
         foreach (JobKey key in jsonJobsToDelete)
         {
-            log.InfoFormat("Deleting job: {0}", key);
-            await scheduler.DeleteJob(key, cancellationToken).ConfigureAwait(false);
+            if (!protectedJobGroups.Contains(key.Group))
+            {
+                log.InfoFormat("Deleting job: {0}", key);
+                await scheduler.DeleteJob(key, cancellationToken).ConfigureAwait(false);
+            }
         }
 
         foreach (TriggerKey key in jsonTriggersToDelete)
         {
-            log.InfoFormat("Deleting trigger: {0}", key);
-            await scheduler.UnscheduleJob(key, cancellationToken).ConfigureAwait(false);
+            if (!protectedTriggerGroups.Contains(key.Group))
+            {
+                log.InfoFormat("Deleting trigger: {0}", key);
+                await scheduler.UnscheduleJob(key, cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 
@@ -256,7 +296,12 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
                 throw new SchedulerConfigException($"JSON job definition '{jobName}' is missing required 'JobType' property.");
             }
 
-            Type jobType = TypeLoadHelper.LoadType(jobTypeName)!;
+            Type? jobType = TypeLoadHelper.LoadType(jobTypeName);
+            if (jobType is null)
+            {
+                throw new SchedulerConfigException($"JSON job definition '{jobName}': could not load type '{jobTypeName}'.");
+            }
+
             string? jobGroup = NormalizeEmpty(jobDef.Group);
 
             JobBuilder jobBuilder = JobBuilder.Create(jobType);

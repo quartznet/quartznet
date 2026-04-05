@@ -234,6 +234,8 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
 
             processor.AddJobGroupToNeverDelete(PluginName);
             processor.AddTriggerGroupToNeverDelete(PluginName);
+            processor.ProtectJobGroup(PluginName);
+            processor.ProtectTriggerGroup(PluginName);
 
             await processor.ProcessJsonFileAndScheduleJobs(
                 jobFile.FileName,

@@ -146,7 +146,7 @@ internal static class JsonSchedulingHelper
             string? group = NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.Group)]);
             string? jobGroup = NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.JobGroup)]);
             string? description = triggerSection[nameof(JsonTriggerDefinition.Description)];
-            string? calendarName = triggerSection[nameof(JsonTriggerDefinition.CalendarName)];
+            string? calendarName = NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.CalendarName)]);
             string? priorityStr = triggerSection[nameof(JsonTriggerDefinition.Priority)];
             string? startTimeStr = triggerSection[nameof(JsonTriggerDefinition.StartTime)];
             string? startTimeFutureStr = triggerSection[nameof(JsonTriggerDefinition.StartTimeSecondsInFuture)];
