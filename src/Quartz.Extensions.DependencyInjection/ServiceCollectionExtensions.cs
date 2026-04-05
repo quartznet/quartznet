@@ -85,13 +85,12 @@ public static class ServiceCollectionExtensions
 
     private static bool HasDirectSchedulerConfiguration(IConfiguration configuration)
     {
-        // Check for known top-level scheduler configuration sections
-        // that indicate a single (non-named) scheduler is being configured.
+        // Any key that is not a reserved section name is treated as direct scheduler configuration.
         foreach (IConfigurationSection child in configuration.GetChildren())
         {
             string key = child.Key;
 
-            // Skip sections that are not scheduler configuration
+            // Skip reserved sections that are not direct scheduler configuration
             if (string.Equals(key, "Schedulers", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(key, "Schedule", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(key, "Scheduling", StringComparison.OrdinalIgnoreCase))
@@ -99,12 +98,7 @@ public static class ServiceCollectionExtensions
                 continue;
             }
 
-            // A flat quartz.* key or any hierarchical config section = direct config
-            if (key.StartsWith("quartz.", StringComparison.OrdinalIgnoreCase) ||
-                child.Value is null) // sections (non-leaf) like Scheduler, ThreadPool, JobStore
-            {
-                return true;
-            }
+            return true;
         }
 
         return false;
