@@ -300,7 +300,16 @@ internal static class JsonSchedulingHelper
         var timeZoneStr = section[nameof(JsonCronSchedule.TimeZone)];
         var tz = timeZoneStr is not null ? TimeZoneUtil.FindTimeZoneById(timeZoneStr) : null;
 
-        var builder = CronScheduleBuilder.CronSchedule(expression!);
+        CronScheduleBuilder builder;
+        try
+        {
+            builder = CronScheduleBuilder.CronSchedule(expression!);
+        }
+        catch (Exception ex)
+        {
+            throw new SchedulerConfigException($"JSON trigger '{triggerName}': invalid cron expression '{expression}'. {ex.Message}", ex);
+        }
+
         if (tz is not null)
         {
             builder.InTimeZone(tz);

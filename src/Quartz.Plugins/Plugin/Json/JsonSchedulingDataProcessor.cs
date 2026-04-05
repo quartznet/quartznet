@@ -369,7 +369,16 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
         if (string.IsNullOrWhiteSpace(cron.Expression))
             throw new SchedulerConfigException($"JSON trigger '{triggerName}': Cron schedule is missing required 'Expression' property.");
 
-        var builder = CronScheduleBuilder.CronSchedule(cron.Expression);
+        CronScheduleBuilder builder;
+        try
+        {
+            builder = CronScheduleBuilder.CronSchedule(cron.Expression);
+        }
+        catch (Exception ex)
+        {
+            throw new SchedulerConfigException($"JSON trigger '{triggerName}': invalid cron expression '{cron.Expression}'. {ex.Message}", ex);
+        }
+
         if (cron.TimeZone is not null) builder.InTimeZone(TimeZoneUtil.FindTimeZoneById(cron.TimeZone));
         if (cron.MisfireInstruction is not null) builder.WithMisfireHandlingInstruction(ParseMisfireInstruction(cron.MisfireInstruction));
         return builder;
