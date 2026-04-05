@@ -600,8 +600,7 @@ internal sealed class QuartzSchedulerThread
         // Remove zero entries to prevent unbounded growth with high-cardinality group names
         if (newCount <= 0)
         {
-            ((ICollection<KeyValuePair<string, int>>) runningExecutionGroupCounts)
-                .Remove(new KeyValuePair<string, int>(normalizedGroup, 0));
+            runningExecutionGroupCounts.TryRemove(new KeyValuePair<string, int>(normalizedGroup, 0));
         }
     }
 

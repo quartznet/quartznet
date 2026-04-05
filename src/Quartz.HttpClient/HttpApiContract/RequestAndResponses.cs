@@ -131,7 +131,8 @@ internal record SetExecutionLimitsRequest(Dictionary<string, int?>? Limits) : IV
 
         foreach (var kvp in Limits)
         {
-            if (kvp.Key is null || (string.IsNullOrWhiteSpace(kvp.Key) && kvp.Key != "" && kvp.Key != "*"))
+            bool isValidKey = kvp.Key is "" or "*" or "_" || !string.IsNullOrWhiteSpace(kvp.Key);
+            if (!isValidKey)
             {
                 yield return $"Limit key '{kvp.Key}' is invalid";
             }
