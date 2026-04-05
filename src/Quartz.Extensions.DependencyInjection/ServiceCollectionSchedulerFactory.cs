@@ -93,6 +93,13 @@ internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
             scheduler.ListenerManager.AddSchedulerListener(listener);
         }
 
+        // Process deferred scheduler listeners from factory-based AddQuartz overload
+        foreach (var config in options.Value.deferredSchedulerListeners.Where(x => x.OptionsName.Length == 0))
+        {
+            var listener = ListenerCreationHelper.CreateSchedulerListener(config, serviceProvider);
+            scheduler.ListenerManager.AddSchedulerListener(listener);
+        }
+
         // Filter configurations to only those belonging to the default (unnamed) scheduler
         var jobListeners = serviceProvider.GetServices<IJobListener>();
         var jobListenerConfigurations = serviceProvider.GetServices<JobListenerConfiguration>()
@@ -102,6 +109,13 @@ internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
         {
             var configuration = jobListenerConfigurations.SingleOrDefault(x => x.ListenerType == listener.GetType());
             scheduler.ListenerManager.AddJobListener(listener, configuration?.Matchers ?? Array.Empty<IMatcher<JobKey>>());
+        }
+
+        // Process deferred job listeners from factory-based AddQuartz overload
+        foreach (var config in options.Value.deferredJobListeners.Where(x => x.OptionsName.Length == 0))
+        {
+            var listener = ListenerCreationHelper.CreateJobListener(config, serviceProvider);
+            scheduler.ListenerManager.AddJobListener(listener, config.Matchers ?? Array.Empty<IMatcher<JobKey>>());
         }
 
         var triggerListeners = serviceProvider.GetServices<ITriggerListener>();
@@ -114,9 +128,22 @@ internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
             scheduler.ListenerManager.AddTriggerListener(listener, configuration?.Matchers ?? Array.Empty<IMatcher<TriggerKey>>());
         }
 
+        // Process deferred trigger listeners from factory-based AddQuartz overload
+        foreach (var config in options.Value.deferredTriggerListeners.Where(x => x.OptionsName.Length == 0))
+        {
+            var listener = ListenerCreationHelper.CreateTriggerListener(config, serviceProvider);
+            scheduler.ListenerManager.AddTriggerListener(listener, config.Matchers ?? Array.Empty<IMatcher<TriggerKey>>());
+        }
+
         var calendars = serviceProvider.GetServices<CalendarConfiguration>()
             .Where(x => x.OptionsName.Length == 0);
         foreach (var configuration in calendars)
+        {
+            await scheduler.AddCalendar(configuration.Name, configuration.Calendar, configuration.Replace, configuration.UpdateTriggers, cancellationToken).ConfigureAwait(false);
+        }
+
+        // Process deferred calendars from factory-based AddQuartz overload
+        foreach (var configuration in options.Value.deferredCalendars.Where(x => x.OptionsName.Length == 0))
         {
             await scheduler.AddCalendar(configuration.Name, configuration.Calendar, configuration.Replace, configuration.UpdateTriggers, cancellationToken).ConfigureAwait(false);
         }
