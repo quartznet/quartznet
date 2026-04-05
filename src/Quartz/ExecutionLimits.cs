@@ -1,3 +1,24 @@
+#region License
+
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ */
+
+#endregion
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -19,7 +40,7 @@ namespace Quartz;
 /// </para>
 /// <para>Use <see cref="OtherGroups"/> as a catch-all default for groups not
 /// explicitly listed.</para>
-/// <para>Instances passed to <see cref="SchedulerExtensions.SetExecutionLimits"/> are
+/// <para>Instances passed to <c>SetExecutionLimits</c> are
 /// snapshotted — subsequent mutations do not affect the scheduler.</para>
 /// </remarks>
 public sealed class ExecutionLimits : IReadOnlyDictionary<string, int?>
@@ -67,7 +88,9 @@ public sealed class ExecutionLimits : IReadOnlyDictionary<string, int?>
             throw new ArgumentNullException(nameof(group));
         }
 
-        if (group.Length == 0 || group == OtherGroups)
+        group = group.Trim();
+
+        if (group.Length == 0 || group == OtherGroups || group == "_" || group.Equals("null", StringComparison.OrdinalIgnoreCase))
         {
             throw new ArgumentException(
                 $"Group name '{group}' is reserved. Use ForDefaultGroup() for the default group or ForOtherGroups() for the catch-all.",
@@ -131,7 +154,9 @@ public sealed class ExecutionLimits : IReadOnlyDictionary<string, int?>
             throw new ArgumentNullException(nameof(group));
         }
 
-        if (group.Length == 0 || group == OtherGroups)
+        group = group.Trim();
+
+        if (group.Length == 0 || group == OtherGroups || group == "_" || group.Equals("null", StringComparison.OrdinalIgnoreCase))
         {
             throw new ArgumentException(
                 $"Group name '{group}' is reserved. Use ForDefaultGroup() for the default group or ForOtherGroups() for the catch-all.",

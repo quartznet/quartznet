@@ -273,7 +273,26 @@ public abstract class AbstractTrigger : IOperableTrigger, INextVersionTrigger, I
     public string? ExecutionGroup
     {
         get => executionGroup;
-        set => executionGroup = string.IsNullOrWhiteSpace(value) ? null : value!.Trim();
+        set
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                executionGroup = null;
+            }
+            else
+            {
+                string trimmed = value!.Trim();
+                if (trimmed == ExecutionLimits.OtherGroups
+                    || trimmed == "_"
+                    || trimmed.Equals("null", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new ArgumentException(
+                        $"Execution group name '{trimmed}' is reserved for limits configuration.",
+                        nameof(value));
+                }
+                executionGroup = trimmed;
+            }
+        }
     }
 
     /// <summary>
