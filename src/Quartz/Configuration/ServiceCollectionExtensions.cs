@@ -102,10 +102,8 @@ public static class ServiceCollectionExtensions
                 continue;
             }
 
-            if (key.StartsWith("quartz.", StringComparison.OrdinalIgnoreCase) || child.Value is null)
-            {
-                return true;
-            }
+            // Any non-reserved key (flat quartz.* key, hierarchical section, or scalar) is direct config
+            return true;
         }
 
         return false;
