@@ -191,6 +191,76 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
+    /// Configures Quartz services with access to <see cref="IServiceProvider"/>.
+    /// The configuration delegate is deferred until the service provider is available,
+    /// allowing resolution of registered services (e.g. to obtain connection strings).
+    /// </summary>
+    public static IServiceCollection AddQuartz(
+        this IServiceCollection services,
+        Action<IServiceCollectionQuartzConfigurator, IServiceProvider> configure)
+    {
+        return AddQuartz(services, new NameValueCollection(), configure);
+    }
+
+    /// <summary>
+    /// Configures Quartz services with initial properties and access to <see cref="IServiceProvider"/>.
+    /// The configuration delegate is deferred until the service provider is available,
+    /// allowing resolution of registered services (e.g. to obtain connection strings).
+    /// </summary>
+    public static IServiceCollection AddQuartz(
+        this IServiceCollection services,
+        NameValueCollection properties,
+        Action<IServiceCollectionQuartzConfigurator, IServiceProvider> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+
+        // Register core services via the base overload (idempotent due to TryAdd)
+        services.AddQuartz(properties);
+
+        // Register the deferred configuration — runs when IOptions<QuartzOptions>.Value is accessed
+        services.AddSingleton<IConfigureOptions<QuartzOptions>>(sp =>
+            new DeferredQuartzConfiguration(sp, services, configure, optionsName: ""));
+
+        return services;
+    }
+
+    /// <summary>
+    /// Configures a named Quartz scheduler with access to <see cref="IServiceProvider"/>.
+    /// The configuration delegate is deferred until the service provider is available,
+    /// allowing resolution of registered services (e.g. to obtain connection strings).
+    /// </summary>
+    public static IServiceCollection AddQuartz(
+        this IServiceCollection services,
+        string name,
+        Action<IServiceCollectionQuartzConfigurator, IServiceProvider> configure)
+    {
+        return AddQuartz(services, name, new NameValueCollection(), configure);
+    }
+
+    /// <summary>
+    /// Configures a named Quartz scheduler with explicit properties and access to <see cref="IServiceProvider"/>.
+    /// The configuration delegate is deferred until the service provider is available,
+    /// allowing resolution of registered services (e.g. to obtain connection strings).
+    /// </summary>
+    public static IServiceCollection AddQuartz(
+        this IServiceCollection services,
+        string name,
+        NameValueCollection properties,
+        Action<IServiceCollectionQuartzConfigurator, IServiceProvider> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+
+        // Register core services via the base named overload (idempotent due to TryAdd)
+        services.AddQuartz(name, properties);
+
+        // Register the deferred configuration — runs when IOptionsMonitor<QuartzOptions>.Get(name) is accessed
+        services.AddSingleton<IConfigureOptions<QuartzOptions>>(sp =>
+            new DeferredQuartzConfiguration(sp, services, configure, optionsName: name));
+
+        return services;
+    }
+
+    /// <summary>
     /// Add job to underlying service collection. This API maybe change!
     /// </summary>
     public static IServiceCollectionQuartzConfigurator AddJob<

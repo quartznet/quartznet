@@ -1,6 +1,7 @@
 using System.Collections.Specialized;
 using System.Diagnostics.CodeAnalysis;
 
+using Quartz.Configuration;
 using Quartz.Impl;
 
 namespace Quartz;
@@ -9,6 +10,13 @@ public class QuartzOptions : Dictionary<string, string?>
 {
     internal readonly List<IJobDetail> _jobDetails = new();
     internal readonly List<ITrigger> _triggers = new();
+
+    // Deferred configuration lists — populated by DeferredServiceCollection when
+    // AddQuartz(Action<IServiceCollectionQuartzConfigurator, IServiceProvider>) is used.
+    internal readonly List<SchedulerListenerConfiguration> _deferredSchedulerListeners = new();
+    internal readonly List<JobListenerConfiguration> _deferredJobListeners = new();
+    internal readonly List<TriggerListenerConfiguration> _deferredTriggerListeners = new();
+    internal readonly List<CalendarConfiguration> _deferredCalendars = new();
 
     public string? SchedulerId
     {

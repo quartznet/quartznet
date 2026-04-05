@@ -46,7 +46,14 @@ internal sealed class NamedSchedulerFactory : StdSchedulerFactory
             .Where(x => x.OptionsName == optionsName);
         foreach (SchedulerListenerConfiguration configuration in schedulerListenerConfigurations)
         {
-            ISchedulerListener listener = CreateSchedulerListener(configuration);
+            ISchedulerListener listener = ListenerCreationHelper.CreateSchedulerListener(configuration, serviceProvider);
+            scheduler.ListenerManager.AddSchedulerListener(listener);
+        }
+
+        // Deferred scheduler listeners from factory-based AddQuartz overload
+        foreach (SchedulerListenerConfiguration configuration in quartzOptions._deferredSchedulerListeners.Where(x => x.OptionsName == optionsName))
+        {
+            ISchedulerListener listener = ListenerCreationHelper.CreateSchedulerListener(configuration, serviceProvider);
             scheduler.ListenerManager.AddSchedulerListener(listener);
         }
 
@@ -56,7 +63,14 @@ internal sealed class NamedSchedulerFactory : StdSchedulerFactory
             .ToArray();
         foreach (JobListenerConfiguration configuration in jobListenerConfigurations)
         {
-            IJobListener listener = CreateJobListener(configuration);
+            IJobListener listener = ListenerCreationHelper.CreateJobListener(configuration, serviceProvider);
+            scheduler.ListenerManager.AddJobListener(listener, configuration.Matchers ?? []);
+        }
+
+        // Deferred job listeners from factory-based AddQuartz overload
+        foreach (JobListenerConfiguration configuration in quartzOptions._deferredJobListeners.Where(x => x.OptionsName == optionsName))
+        {
+            IJobListener listener = ListenerCreationHelper.CreateJobListener(configuration, serviceProvider);
             scheduler.ListenerManager.AddJobListener(listener, configuration.Matchers ?? []);
         }
 
@@ -66,7 +80,14 @@ internal sealed class NamedSchedulerFactory : StdSchedulerFactory
             .ToArray();
         foreach (TriggerListenerConfiguration configuration in triggerListenerConfigurations)
         {
-            ITriggerListener listener = CreateTriggerListener(configuration);
+            ITriggerListener listener = ListenerCreationHelper.CreateTriggerListener(configuration, serviceProvider);
+            scheduler.ListenerManager.AddTriggerListener(listener, configuration.Matchers ?? []);
+        }
+
+        // Deferred trigger listeners from factory-based AddQuartz overload
+        foreach (TriggerListenerConfiguration configuration in quartzOptions._deferredTriggerListeners.Where(x => x.OptionsName == optionsName))
+        {
+            ITriggerListener listener = ListenerCreationHelper.CreateTriggerListener(configuration, serviceProvider);
             scheduler.ListenerManager.AddTriggerListener(listener, configuration.Matchers ?? []);
         }
 
@@ -78,57 +99,18 @@ internal sealed class NamedSchedulerFactory : StdSchedulerFactory
             await scheduler.AddCalendar(configuration.Name, configuration.Calendar, configuration.Replace, configuration.UpdateTriggers, cancellationToken).ConfigureAwait(false);
         }
 
+        // Deferred calendars from factory-based AddQuartz overload
+        foreach (CalendarConfiguration configuration in quartzOptions._deferredCalendars.Where(x => x.OptionsName == optionsName))
+        {
+            await scheduler.AddCalendar(configuration.Name, configuration.Calendar, configuration.Replace, configuration.UpdateTriggers, cancellationToken).ConfigureAwait(false);
+        }
+
         // Schedule jobs and triggers from options
         ITypeLoadHelper typeLoadHelper = serviceProvider.GetRequiredService<ITypeLoadHelper>();
         ILogger<Xml.XMLSchedulingDataProcessor> xmlLogger = serviceProvider.GetRequiredService<ILogger<Xml.XMLSchedulingDataProcessor>>();
         TimeProvider timeProvider = serviceProvider.GetRequiredService<TimeProvider>();
         ContainerConfigurationProcessor processor = new(xmlLogger, typeLoadHelper, timeProvider, Options.Create(quartzOptions));
         await processor.ScheduleJobs(scheduler, cancellationToken).ConfigureAwait(false);
-    }
-
-    private ISchedulerListener CreateSchedulerListener(SchedulerListenerConfiguration configuration)
-    {
-        if (configuration.ListenerInstance is not null)
-        {
-            return configuration.ListenerInstance;
-        }
-
-        if (configuration.ListenerFactory is not null)
-        {
-            return configuration.ListenerFactory(serviceProvider);
-        }
-
-        return (ISchedulerListener) ActivatorUtilities.CreateInstance(serviceProvider, configuration.ListenerType);
-    }
-
-    private IJobListener CreateJobListener(JobListenerConfiguration configuration)
-    {
-        if (configuration.ListenerInstance is not null)
-        {
-            return configuration.ListenerInstance;
-        }
-
-        if (configuration.ListenerFactory is not null)
-        {
-            return configuration.ListenerFactory(serviceProvider);
-        }
-
-        return (IJobListener) ActivatorUtilities.CreateInstance(serviceProvider, configuration.ListenerType);
-    }
-
-    private ITriggerListener CreateTriggerListener(TriggerListenerConfiguration configuration)
-    {
-        if (configuration.ListenerInstance is not null)
-        {
-            return configuration.ListenerInstance;
-        }
-
-        if (configuration.ListenerFactory is not null)
-        {
-            return configuration.ListenerFactory(serviceProvider);
-        }
-
-        return (ITriggerListener) ActivatorUtilities.CreateInstance(serviceProvider, configuration.ListenerType);
     }
 
     protected override ISchedulerRepository GetSchedulerRepository()
