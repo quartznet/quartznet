@@ -62,9 +62,6 @@ public class Startup
 
         services.AddRazorPages();
 
-        // base configuration for DI, read from appSettings.json
-        services.Configure<QuartzOptions>(Configuration.GetSection("Quartz"));
-
         // if you are using persistent job store, you might want to alter some options
         services.Configure<QuartzOptions>(options =>
         {
@@ -78,7 +75,9 @@ public class Startup
         // async disposable
         services.AddScoped<AsyncDisposableDependency>();
 
-        services.AddQuartz(q =>
+        // base configuration for DI, read from appSettings.json using hierarchical JSON
+        // this reads both Quartz properties (Scheduler, ThreadPool, etc.) and scheduling data (Schedule section)
+        services.AddQuartz(Configuration.GetSection("Quartz"), q =>
         {
             // handy when part of cluster or you want to otherwise identify multiple schedulers
             q.SchedulerId = "Scheduler-Core";
