@@ -129,12 +129,42 @@ internal sealed class DeferredServiceCollection : IServiceCollection
             return true;
         }
 
-        // Intercept direct IJobListener/ITriggerListener registrations (default scheduler path).
-        // The configurator registers BOTH a *Configuration object (with matchers) AND the interface.
-        // We only store the *Configuration (handled above) to avoid duplicate listener registration.
-        // Suppress the interface registration here without storing it.
-        if (descriptor.ServiceType == typeof(IJobListener) || descriptor.ServiceType == typeof(ITriggerListener))
+        // Intercept direct IJobListener registrations (default scheduler path).
+        // The configurator normally registers BOTH a JobListenerConfiguration (with matchers)
+        // AND the IJobListener interface. If the *Configuration was already captured above,
+        // suppress the interface to avoid duplicate registration. Otherwise, create a
+        // fallback configuration so the listener is not dropped.
+        if (descriptor.ServiceType == typeof(IJobListener))
         {
+            Type? listenerType = descriptor.ImplementationType ?? descriptor.ServiceType;
+            if (options.deferredJobListeners.Exists(c => c.ListenerType == listenerType))
+            {
+                return true;
+            }
+
+            // No matching *Configuration found — create one from the descriptor
+            Func<IServiceProvider, IJobListener>? factory = descriptor.ImplementationFactory != null
+                ? sp => (IJobListener) descriptor.ImplementationFactory(sp) : null;
+            IJobListener? instance = descriptor.ImplementationInstance as IJobListener;
+            options.deferredJobListeners.Add(
+                new JobListenerConfiguration(listenerType, Array.Empty<IMatcher<JobKey>>(), optionsName, factory, instance));
+            return true;
+        }
+
+        // Same pattern for ITriggerListener
+        if (descriptor.ServiceType == typeof(ITriggerListener))
+        {
+            Type? listenerType = descriptor.ImplementationType ?? descriptor.ServiceType;
+            if (options.deferredTriggerListeners.Exists(c => c.ListenerType == listenerType))
+            {
+                return true;
+            }
+
+            Func<IServiceProvider, ITriggerListener>? factory = descriptor.ImplementationFactory != null
+                ? sp => (ITriggerListener) descriptor.ImplementationFactory(sp) : null;
+            ITriggerListener? instance = descriptor.ImplementationInstance as ITriggerListener;
+            options.deferredTriggerListeners.Add(
+                new TriggerListenerConfiguration(listenerType, Array.Empty<IMatcher<TriggerKey>>(), optionsName, factory, instance));
             return true;
         }
 
