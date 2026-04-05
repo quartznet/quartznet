@@ -4,6 +4,7 @@ using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Plugin.TimeZoneConverter;
+using Quartz.Plugin.Json;
 using Quartz.Plugin.Xml;
 using Quartz.Simpl;
 using Quartz.Util;
@@ -219,6 +220,28 @@ public class SchedulerBuilderTest
             Assert.That(builder.Properties["quartz.plugin.xml.failOnFileNotFound"], Is.EqualTo("true"));
             Assert.That(builder.Properties["quartz.plugin.xml.failOnSchedulingError"], Is.EqualTo("true"));
             Assert.That(builder.Properties["quartz.plugin.xml.scanInterval"], Is.EqualTo("2"));
+        });
+    }
+
+    [Test]
+    public void TestJsonSchedulingPlugin()
+    {
+        var builder = SchedulerBuilder.Create()
+            .UseJsonSchedulingConfiguration(x =>
+            {
+                x.Files = ["jobs.json", "jobs2.json"];
+                x.ScanInterval = TimeSpan.FromSeconds(5);
+                x.FailOnFileNotFound = true;
+                x.FailOnSchedulingError = true;
+            });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(builder.Properties["quartz.plugin.json.type"], Is.EqualTo(typeof(JsonSchedulingDataProcessorPlugin).AssemblyQualifiedNameWithoutVersion()));
+            Assert.That(builder.Properties["quartz.plugin.json.fileNames"], Is.EqualTo("jobs.json,jobs2.json"));
+            Assert.That(builder.Properties["quartz.plugin.json.failOnFileNotFound"], Is.EqualTo("true"));
+            Assert.That(builder.Properties["quartz.plugin.json.failOnSchedulingError"], Is.EqualTo("true"));
+            Assert.That(builder.Properties["quartz.plugin.json.scanInterval"], Is.EqualTo("5"));
         });
     }
 
