@@ -78,7 +78,8 @@ internal static class JsonSchedulingHelper
             var durable = ParseBool(jobSection[nameof(JsonJobDefinition.Durable)]);
             var recover = ParseBool(jobSection[nameof(JsonJobDefinition.Recover)]);
 
-            var jobType = typeLoadHelper.LoadType(jobTypeName!)!;
+            var jobType = typeLoadHelper.LoadType(jobTypeName!)
+                ?? throw new SchedulerConfigException($"JSON job definition '{name}': could not load type '{jobTypeName}'.");
 
             var builder = JobBuilder.Create(jobType);
             if (group is not null)
@@ -101,7 +102,11 @@ internal static class JsonSchedulingHelper
             {
                 foreach (var entry in dataMapSection.GetChildren())
                 {
-                    jobDetail.JobDataMap[entry.Key] = entry.Value!;
+                    if (entry.Value is null)
+                    {
+                        throw new SchedulerConfigException($"JSON job '{name}': JobDataMap key '{entry.Key}' has a non-string value. Only string values are supported.");
+                    }
+                    jobDetail.JobDataMap[entry.Key] = entry.Value;
                 }
             }
 
@@ -207,7 +212,11 @@ internal static class JsonSchedulingHelper
             {
                 foreach (var entry in dataMapSection.GetChildren())
                 {
-                    trigger.JobDataMap[entry.Key] = entry.Value!;
+                    if (entry.Value is null)
+                    {
+                        throw new SchedulerConfigException($"JSON trigger '{name}': JobDataMap key '{entry.Key}' has a non-string value. Only string values are supported.");
+                    }
+                    trigger.JobDataMap[entry.Key] = entry.Value;
                 }
             }
 
@@ -388,6 +397,10 @@ internal static class JsonSchedulingHelper
     private static TimeOfDay ParseTimeOfDay(string value)
     {
         var ts = TimeSpan.Parse(value, CultureInfo.InvariantCulture);
+        if (ts < TimeSpan.Zero || ts >= TimeSpan.FromHours(24))
+        {
+            throw new SchedulerConfigException($"TimeOfDay value '{value}' is out of range. Must be between 00:00:00 and 23:59:59.");
+        }
         return new TimeOfDay(ts.Hours, ts.Minutes, ts.Seconds);
     }
 

@@ -28,6 +28,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
     };
 
     private readonly ILogger<JsonSchedulingDataProcessor> logger;
+    private readonly TimeProvider timeProvider;
 
     private readonly List<string> jsonJobGroupsToDelete = [];
     private readonly List<string> jsonTriggerGroupsToDelete = [];
@@ -44,6 +45,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
         : base(LogProvider.CreateLogger<XMLSchedulingDataProcessor>(), typeLoadHelper, timeProvider)
     {
         this.logger = logger;
+        this.timeProvider = timeProvider;
     }
 
     internal IReadOnlyList<IJobDetail> ParsedJobs => LoadedJobs;
@@ -268,7 +270,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
 
             var priority = triggerDef.Priority ?? TriggerConstants.DefaultPriority;
 
-            var startTime = DateTimeOffset.UtcNow;
+            var startTime = timeProvider.GetUtcNow();
             if (triggerDef.StartTime is not null) startTime = DateTimeOffset.Parse(triggerDef.StartTime, CultureInfo.InvariantCulture);
             else if (triggerDef.StartTimeSecondsInFuture.HasValue) startTime = startTime.AddSeconds(triggerDef.StartTimeSecondsInFuture.Value);
 
