@@ -633,9 +633,30 @@ public sealed class QuartzApiClient : IQuartzApiClient
         return value.Clone();
     }
 
-    public ValueTask<ExecutionLimitsDto?> GetExecutionLimits(string schedulerName)
+    public async ValueTask<ExecutionLimitsDto?> GetExecutionLimits(string schedulerName)
     {
-        // HTTP API does not support execution limits retrieval
-        return ValueTask.FromResult<ExecutionLimitsDto?>(null);
+        using System.Net.Http.HttpClient client = CreateClient();
+        string url = $"{GetSchedulerPath(schedulerName)}/execution-limits";
+        HttpResponseMessage response = await client.GetAsync(url).ConfigureAwait(false);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        JsonElement json = await ParseJsonAsync(response).ConfigureAwait(false);
+        if (!json.TryGetProperty("limits", out JsonElement limitsElement) || limitsElement.ValueKind == JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        Dictionary<string, int?> dict = new();
+        foreach (JsonProperty prop in limitsElement.EnumerateObject())
+        {
+            string key = prop.Name == ExecutionLimits.DefaultGroupKey ? "(default)" : prop.Name;
+            dict[key] = prop.Value.ValueKind == JsonValueKind.Null ? null : prop.Value.GetInt32();
+        }
+
+        return dict.Count > 0 ? new ExecutionLimitsDto(dict) : null;
     }
 }

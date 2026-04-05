@@ -270,12 +270,53 @@ public class HttpScheduler : IScheduler
 
     public void SetExecutionLimits(ExecutionLimits? limits)
     {
-        throw new NotSupportedException("SetExecutionLimits is not supported via the HTTP API. Configure execution limits on the scheduler node directly.");
+        if (limits is null)
+        {
+            httpClient.DeleteAsync($"{SchedulerEndpointUrl()}/execution-limits").GetAwaiter().GetResult();
+        }
+        else
+        {
+            Dictionary<string, int?> dict = new();
+            foreach (var kvp in limits)
+            {
+                dict[kvp.Key] = kvp.Value;
+            }
+            httpClient.Post(
+                $"{SchedulerEndpointUrl()}/execution-limits",
+                new SetExecutionLimitsRequest(dict),
+                jsonSerializerOptions,
+                CancellationToken.None).AsTask().GetAwaiter().GetResult();
+        }
     }
 
     public ExecutionLimits? GetExecutionLimits()
     {
-        throw new NotSupportedException("GetExecutionLimits is not supported via the HTTP API.");
+        var response = httpClient.Get<ExecutionLimitsResponse>($"{SchedulerEndpointUrl()}/execution-limits", jsonSerializerOptions, CancellationToken.None).AsTask().GetAwaiter().GetResult();
+        if (response.Limits is null || response.Limits.Count == 0)
+        {
+            return null;
+        }
+
+        ExecutionLimits limits = new();
+        foreach (var kvp in response.Limits)
+        {
+            if (kvp.Key == ExecutionLimits.OtherGroups)
+            {
+                if (kvp.Value.HasValue) limits.ForOtherGroups(kvp.Value.Value);
+            }
+            else if (kvp.Key == ExecutionLimits.DefaultGroupKey || kvp.Key == "_")
+            {
+                if (kvp.Value.HasValue) limits.ForDefaultGroup(kvp.Value.Value);
+                // null value = unlimited, nothing to set
+            }
+            else
+            {
+                if (kvp.Value.HasValue) limits.ForGroup(kvp.Key, kvp.Value.Value);
+                else limits.Unlimited(kvp.Key);
+            }
+        }
+
+        return limits;
     }
 
     public ValueTask AddJob(IJobDetail jobDetail, bool replace, CancellationToken cancellationToken = default)

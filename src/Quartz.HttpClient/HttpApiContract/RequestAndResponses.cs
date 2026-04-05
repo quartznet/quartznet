@@ -117,3 +117,7 @@ internal record UnscheduleJobsRequest(KeyDto[] Triggers) : IValidatable
 }
 
 internal record UnscheduleJobsResponse(bool AllTriggersFound);
+
+internal record ExecutionLimitsResponse(Dictionary<string, int?>? Limits);
+
+internal record SetExecutionLimitsRequest(Dictionary<string, int?>? Limits);

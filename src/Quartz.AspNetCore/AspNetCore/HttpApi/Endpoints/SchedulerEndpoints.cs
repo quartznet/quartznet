@@ -41,6 +41,15 @@ internal static class SchedulerEndpoints
 
         yield return builder.MapPost(patternPrefix + "/{schedulerName}/resume-all", ResumeAll)
             .WithQuartzDefaults(nameof(ResumeAll), "Resume (un-pause) all triggers");
+
+        yield return builder.MapGet(patternPrefix + "/{schedulerName}/execution-limits", GetExecutionLimits)
+            .WithQuartzDefaults(nameof(GetExecutionLimits), "Get execution group limits");
+
+        yield return builder.MapPost(patternPrefix + "/{schedulerName}/execution-limits", SetExecutionLimits)
+            .WithQuartzDefaults(nameof(SetExecutionLimits), "Set execution group limits");
+
+        yield return builder.MapDelete(patternPrefix + "/{schedulerName}/execution-limits", ClearExecutionLimits)
+            .WithQuartzDefaults(nameof(ClearExecutionLimits), "Clear execution group limits");
     }
 
     [ProducesResponseType(typeof(SchedulerHeaderDto[]), StatusCodes.Status200OK)]
@@ -152,5 +161,79 @@ internal static class SchedulerEndpoints
         CancellationToken cancellationToken = default)
     {
         return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler => scheduler.ResumeAll(cancellationToken).AsTask());
+    }
+
+    [ProducesResponseType(typeof(ExecutionLimitsResponse), StatusCodes.Status200OK)]
+    private static Task<IResult> GetExecutionLimits(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        string schedulerName,
+        CancellationToken cancellationToken = default)
+    {
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, scheduler =>
+        {
+            ExecutionLimits? limits = scheduler.GetExecutionLimits();
+            Dictionary<string, int?>? dict = null;
+            if (limits is not null && limits.Count > 0)
+            {
+                dict = new Dictionary<string, int?>();
+                foreach (var kvp in limits)
+                {
+                    dict[kvp.Key] = kvp.Value;
+                }
+            }
+            return Task.FromResult(new ExecutionLimitsResponse(dict));
+        });
+    }
+
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    private static Task<IResult> SetExecutionLimits(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        string schedulerName,
+        [FromBody] SetExecutionLimitsRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler =>
+        {
+            ExecutionLimits? limits = null;
+            if (request.Limits is { Count: > 0 })
+            {
+                limits = new ExecutionLimits();
+                foreach (var kvp in request.Limits)
+                {
+                    if (kvp.Key == ExecutionLimits.OtherGroups)
+                    {
+                        if (kvp.Value.HasValue) limits.ForOtherGroups(kvp.Value.Value);
+                    }
+                    else if (kvp.Key == ExecutionLimits.DefaultGroupKey || kvp.Key == "_")
+                    {
+                        if (kvp.Value.HasValue) limits.ForDefaultGroup(kvp.Value.Value);
+                    }
+                    else
+                    {
+                        if (kvp.Value.HasValue) limits.ForGroup(kvp.Key, kvp.Value.Value);
+                        else limits.Unlimited(kvp.Key);
+                    }
+                }
+            }
+
+            scheduler.SetExecutionLimits(limits);
+            return Task.CompletedTask;
+        });
+    }
+
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    private static Task<IResult> ClearExecutionLimits(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        string schedulerName,
+        CancellationToken cancellationToken = default)
+    {
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler =>
+        {
+            scheduler.SetExecutionLimits(null);
+            return Task.CompletedTask;
+        });
     }
 }
