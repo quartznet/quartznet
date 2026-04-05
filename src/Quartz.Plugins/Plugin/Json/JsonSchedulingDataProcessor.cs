@@ -152,7 +152,8 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
                 {
                     throw new SchedulerConfigException("Encountered a 'DeleteJobs' command without a name specified.");
                 }
-                jsonJobsToDelete.Add(new JobKey(name, cmd.Group?.TrimEmptyToNull()!));
+                string? group = NormalizeEmpty(cmd.Group);
+                jsonJobsToDelete.Add(group is not null ? new JobKey(name, group) : new JobKey(name));
             }
         }
 
@@ -165,7 +166,8 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
                 {
                     throw new SchedulerConfigException("Encountered a 'DeleteTriggers' command without a name specified.");
                 }
-                jsonTriggersToDelete.Add(new TriggerKey(name, cmd.Group?.TrimEmptyToNull()!));
+                string? group = NormalizeEmpty(cmd.Group);
+                jsonTriggersToDelete.Add(group is not null ? new TriggerKey(name, group) : new TriggerKey(name));
             }
         }
     }
@@ -251,9 +253,19 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
             }
 
             Type jobType = TypeLoadHelper.LoadType(jobTypeName)!;
+            string? jobGroup = NormalizeEmpty(jobDef.Group);
 
-            IJobDetail jobDetail = JobBuilder.Create(jobType)
-                .WithIdentity(jobName, jobDef.Group?.TrimEmptyToNull()!)
+            JobBuilder jobBuilder = JobBuilder.Create(jobType);
+            if (jobGroup is not null)
+            {
+                jobBuilder.WithIdentity(jobName, jobGroup);
+            }
+            else
+            {
+                jobBuilder.WithIdentity(jobName);
+            }
+
+            IJobDetail jobDetail = jobBuilder
                 .WithDescription(jobDef.Description?.TrimEmptyToNull())
                 .StoreDurably(jobDef.Durable)
                 .RequestRecovery(jobDef.Recover)
@@ -316,11 +328,30 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
             }
 
             IScheduleBuilder schedule = BuildSchedule(triggerDef, triggerName);
+            string? triggerGroup = NormalizeEmpty(triggerDef.Group);
+            string? triggerJobGroup = NormalizeEmpty(triggerDef.JobGroup);
 
-            IMutableTrigger trigger = (IMutableTrigger) TriggerBuilder.Create()
-                .WithIdentity(triggerName, triggerDef.Group?.TrimEmptyToNull()!)
+            TriggerBuilder tb = TriggerBuilder.Create();
+            if (triggerGroup is not null)
+            {
+                tb.WithIdentity(triggerName, triggerGroup);
+            }
+            else
+            {
+                tb.WithIdentity(triggerName);
+            }
+
+            if (triggerJobGroup is not null)
+            {
+                tb.ForJob(triggerJobName, triggerJobGroup);
+            }
+            else
+            {
+                tb.ForJob(triggerJobName);
+            }
+
+            IMutableTrigger trigger = (IMutableTrigger) tb
                 .WithDescription(triggerDef.Description?.TrimEmptyToNull())
-                .ForJob(triggerJobName, triggerDef.JobGroup?.TrimEmptyToNull()!)
                 .StartAt(startTime)
                 .EndAt(endTime)
                 .WithPriority(priority)
@@ -483,5 +514,10 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
             typeof(MisfireInstruction.CalendarIntervalTrigger),
             typeof(MisfireInstruction.DailyTimeIntervalTrigger));
         return c.AsNumber(value);
+    }
+
+    private static string? NormalizeEmpty(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value;
     }
 }
