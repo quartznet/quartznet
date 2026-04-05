@@ -657,7 +657,7 @@ public sealed class QuartzApiClient : IQuartzApiClient
         Dictionary<string, int?> dict = new();
         foreach (JsonProperty prop in limitsElement.EnumerateObject())
         {
-            string key = prop.Name == ExecutionLimits.DefaultGroupKey ? "(default)" : prop.Name;
+            string key = prop.Name is "" or "_" ? "(default)" : prop.Name;
             dict[key] = prop.Value.ValueKind == JsonValueKind.Null ? null : prop.Value.GetInt32();
         }
 

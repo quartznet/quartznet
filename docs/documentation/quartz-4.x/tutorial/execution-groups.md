@@ -35,6 +35,13 @@ ITrigger trigger = TriggerBuilder.Create()
 Triggers without an execution group (`null`) use the default behavior. It is expected that all triggers
 for a given job share the same execution group.
 
+The following names are reserved and cannot be used as execution group names:
+- `*` — used for the "other groups" catch-all limit
+- `_` — used as a property-config alias for the default (ungrouped) triggers
+- `null` (case-insensitive) — same alias as `_`
+
+Empty or whitespace-only strings are normalized to `null` (no group).
+
 ## Configuring execution limits
 
 ### Via properties
