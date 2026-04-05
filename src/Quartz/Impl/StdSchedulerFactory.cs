@@ -1257,6 +1257,11 @@ Please add configuration to your application config file to correctly initialize
             }
 
             string groupKey = rawGroupKey.Trim();
+            if (groupKey.Length == 0)
+            {
+                throw new SchedulerConfigException(
+                    $"Empty execution limit group key in property '{PropertyExecutionLimitPrefix}.{rawGroupKey}'.");
+            }
             string? rawValue = limitProps[rawGroupKey]?.Trim();
 
             // Parse the limit value

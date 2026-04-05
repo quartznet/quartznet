@@ -354,6 +354,7 @@ internal class StdScheduler : IScheduler
     /// </summary>
     public ValueTask SetExecutionLimits(ExecutionLimits? limits, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         sched.SetExecutionLimits(limits);
         return default;
     }
@@ -363,6 +364,7 @@ internal class StdScheduler : IScheduler
     /// </summary>
     public ValueTask<ExecutionLimits?> GetExecutionLimits(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         return new ValueTask<ExecutionLimits?>(sched.GetExecutionLimits()?.Snapshot());
     }
 
