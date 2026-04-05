@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -40,7 +41,7 @@ internal static class JsonSchedulingHelper
             List<IJobDetail> jobs = ReadJobs(scheduleSection.GetSection("Jobs"), typeLoadHelper);
             List<ITrigger> triggers = ReadTriggers(scheduleSection.GetSection("Triggers"));
 
-            return new ConfigureNamedOptions<QuartzOptions>(optionsName, options =>
+            return new ConfigureNamedOptions<QuartzOptions>(optionsName ?? Options.DefaultName, options =>
             {
                 foreach (IJobDetail job in jobs)
                 {
@@ -405,8 +406,9 @@ internal static class JsonSchedulingHelper
 
     private static int ParseMisfireInstruction(string value)
     {
-        // Search through MisfireInstruction and its nested types for a matching constant
-        Type[] types = { typeof(MisfireInstruction), typeof(MisfireInstruction.CronTrigger), typeof(MisfireInstruction.SimpleTrigger) };
+        // Search through MisfireInstruction and all its nested types for a matching constant
+        Type misfireType = typeof(MisfireInstruction);
+        Type[] types = new[] { misfireType }.Concat(misfireType.GetNestedTypes(BindingFlags.Public)).ToArray();
         foreach (Type type in types)
         {
             foreach (FieldInfo field in type.GetFields(BindingFlags.Public | BindingFlags.Static))

@@ -63,7 +63,7 @@ You can also define jobs and triggers in JSON. See [JSON Configuration](json-con
 ```csharp
 services.Configure<QuartzOptions>(Configuration.GetSection("Quartz"));
 services.AddQuartz(q => { /* ... */ });
-````
+```
 
 ## DI aware job factories
 

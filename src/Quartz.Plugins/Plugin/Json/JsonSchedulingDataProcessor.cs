@@ -476,7 +476,12 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
 
     private static int ParseMisfireInstruction(string value)
     {
-        Constants c = new Constants(typeof(MisfireInstruction), typeof(MisfireInstruction.CronTrigger), typeof(MisfireInstruction.SimpleTrigger));
+        Constants c = new Constants(
+            typeof(MisfireInstruction),
+            typeof(MisfireInstruction.CronTrigger),
+            typeof(MisfireInstruction.SimpleTrigger),
+            typeof(MisfireInstruction.CalendarIntervalTrigger),
+            typeof(MisfireInstruction.DailyTimeIntervalTrigger));
         return c.AsNumber(value);
     }
 }
