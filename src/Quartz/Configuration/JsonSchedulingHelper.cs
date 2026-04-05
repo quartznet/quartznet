@@ -157,24 +157,37 @@ internal static class JsonSchedulingHelper
             var priority = TriggerConstants.DefaultPriority;
             if (priorityStr is not null)
             {
-                priority = int.Parse(priorityStr, CultureInfo.InvariantCulture);
+                if (!int.TryParse(priorityStr, CultureInfo.InvariantCulture, out priority))
+                {
+                    throw new SchedulerConfigException($"JSON trigger '{name}': invalid Priority value '{priorityStr}'.");
+                }
             }
 
             var startTime = DateTimeOffset.UtcNow;
             if (startTimeStr is not null)
             {
-                startTime = DateTimeOffset.Parse(startTimeStr, CultureInfo.InvariantCulture);
+                if (!DateTimeOffset.TryParse(startTimeStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out startTime))
+                {
+                    throw new SchedulerConfigException($"JSON trigger '{name}': invalid StartTime value '{startTimeStr}'.");
+                }
             }
             else if (startTimeFutureStr is not null)
             {
-                var seconds = int.Parse(startTimeFutureStr, CultureInfo.InvariantCulture);
+                if (!int.TryParse(startTimeFutureStr, CultureInfo.InvariantCulture, out var seconds))
+                {
+                    throw new SchedulerConfigException($"JSON trigger '{name}': invalid StartTimeSecondsInFuture value '{startTimeFutureStr}'.");
+                }
                 startTime = startTime.AddSeconds(seconds);
             }
 
             DateTimeOffset? endTime = null;
             if (endTimeStr is not null)
             {
-                endTime = DateTimeOffset.Parse(endTimeStr, CultureInfo.InvariantCulture);
+                if (!DateTimeOffset.TryParse(endTimeStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed))
+                {
+                    throw new SchedulerConfigException($"JSON trigger '{name}': invalid EndTime value '{endTimeStr}'.");
+                }
+                endTime = parsed;
             }
 
             var schedule = BuildSchedule(triggerSection, name!);

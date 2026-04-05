@@ -15,7 +15,7 @@ namespace Quartz.Plugin.Json;
 /// file for changes.
 /// </summary>
 /// <remarks>
-/// This is the JSON analog of <see cref="Xml.XMLSchedulingDataProcessorPlugin"/>.
+/// This is the JSON analog of <see cref="Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin"/>.
 /// The periodically scanning of files for changes is not currently supported in a
 /// clustered environment.
 /// </remarks>

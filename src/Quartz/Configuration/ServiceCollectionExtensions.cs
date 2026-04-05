@@ -47,6 +47,8 @@ public static class ServiceCollectionExtensions
         IConfiguration configuration,
         Action<IServiceCollectionQuartzConfigurator>? configure = null)
     {
+        ArgumentNullException.ThrowIfNull(configuration);
+
         var schedulersSection = configuration.GetSection("Schedulers");
         var hasNamedSchedulers = schedulersSection.Exists();
         var hasDirectConfig = HasDirectSchedulerConfiguration(configuration);
@@ -84,6 +86,8 @@ public static class ServiceCollectionExtensions
         IConfiguration configuration,
         Action<IServiceCollectionQuartzConfigurator>? configure = null)
     {
+        ArgumentNullException.ThrowIfNull(configuration);
+
         var properties = QuartzConfigurationHelper.ToNameValueCollection(configuration);
         AddQuartz(services, name, properties, configure);
         JsonSchedulingHelper.ConfigureOptionsFromConfiguration(services, configuration, name);
