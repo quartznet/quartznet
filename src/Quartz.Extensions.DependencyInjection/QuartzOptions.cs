@@ -11,6 +11,13 @@ public class QuartzOptions : Dictionary<string, string?>
     internal readonly List<IJobDetail> jobDetails = new();
     internal readonly List<ITrigger> triggers = new();
 
+    // Deferred configuration lists — populated by DeferredServiceCollection when
+    // AddQuartz(Action<IServiceCollectionQuartzConfigurator, IServiceProvider>) is used.
+    internal readonly List<SchedulerListenerConfiguration> deferredSchedulerListeners = new();
+    internal readonly List<JobListenerConfiguration> deferredJobListeners = new();
+    internal readonly List<TriggerListenerConfiguration> deferredTriggerListeners = new();
+    internal readonly List<CalendarConfiguration> deferredCalendars = new();
+
     public string? SchedulerId
     {
         get
