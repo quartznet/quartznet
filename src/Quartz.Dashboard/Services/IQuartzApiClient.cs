@@ -61,7 +61,7 @@ public interface IQuartzApiClient
 
     ValueTask AddJob(string schedulerName, AddJobRequest request);
 
-    ValueTask<List<TriggerKeyDto>> GetTriggerKeys(string schedulerName, string? groupFilter = null);
+    ValueTask<List<TriggerHeaderDto>> GetTriggerKeys(string schedulerName, string? groupFilter = null);
 
     ValueTask<TriggerDetailDto> GetTrigger(string schedulerName, string group, string name);
 

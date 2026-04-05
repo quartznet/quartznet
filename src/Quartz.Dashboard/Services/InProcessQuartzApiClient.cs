@@ -245,16 +245,17 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
         return scheduler.AddJob(jobDetail, request.Replace);
     }
 
-    public async ValueTask<List<TriggerKeyDto>> GetTriggerKeys(string schedulerName, string? groupFilter = null)
+    public async ValueTask<List<TriggerHeaderDto>> GetTriggerKeys(string schedulerName, string? groupFilter = null)
     {
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         GroupMatcher<TriggerKey> matcher = groupFilter is null ? GroupMatcher<TriggerKey>.AnyGroup() : GroupMatcher<TriggerKey>.GroupContains(groupFilter);
         List<TriggerKey> triggerKeys = await scheduler.GetTriggerKeys(matcher).ConfigureAwait(false);
 
-        List<TriggerKeyDto> result = [];
+        List<TriggerHeaderDto> result = [];
         foreach (TriggerKey triggerKey in triggerKeys)
         {
-            result.Add(new TriggerKeyDto(triggerKey.Group, triggerKey.Name));
+            ITrigger? trigger = await scheduler.GetTrigger(triggerKey).ConfigureAwait(false);
+            result.Add(new TriggerHeaderDto(triggerKey.Group, triggerKey.Name, trigger?.ExecutionGroup));
         }
 
         return result;

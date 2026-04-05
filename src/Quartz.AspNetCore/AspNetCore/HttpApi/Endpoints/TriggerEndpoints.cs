@@ -67,7 +67,7 @@ internal static class TriggerEndpoints
             .WithQuartzDefaults(nameof(RescheduleJob), "Reschedule job");
     }
 
-    [ProducesResponseType(typeof(KeyDto[]), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(TriggerHeaderKeyDto[]), StatusCodes.Status200OK)]
     private static Task<IResult> GetTriggerKeys(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
@@ -83,7 +83,13 @@ internal static class TriggerEndpoints
             var matcher = EndpointHelper.GetGroupMatcher<TriggerKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
             var triggerKeys = await scheduler.GetTriggerKeys(matcher, cancellationToken).ConfigureAwait(false);
 
-            var result = triggerKeys.Select(KeyDto.Create).ToArray();
+            var result = new TriggerHeaderKeyDto[triggerKeys.Count];
+            for (int i = 0; i < triggerKeys.Count; i++)
+            {
+                ITrigger? trigger = await scheduler.GetTrigger(triggerKeys[i], cancellationToken).ConfigureAwait(false);
+                result[i] = TriggerHeaderKeyDto.Create(triggerKeys[i], trigger?.ExecutionGroup);
+            }
+
             return result;
         });
     }
