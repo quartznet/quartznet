@@ -1249,14 +1249,15 @@ Please add configuration to your application config file to correctly initialize
         }
 
         ExecutionLimits limits = new();
-        foreach (string? groupKey in limitProps.Keys)
+        foreach (string? rawGroupKey in limitProps.Keys)
         {
-            if (groupKey is null)
+            if (rawGroupKey is null)
             {
                 continue;
             }
 
-            string? rawValue = limitProps[groupKey]?.Trim();
+            string groupKey = rawGroupKey.Trim();
+            string? rawValue = limitProps[rawGroupKey]?.Trim();
 
             // Parse the limit value
             int? limitValue;

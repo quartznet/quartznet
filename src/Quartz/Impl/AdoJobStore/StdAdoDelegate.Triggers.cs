@@ -1165,6 +1165,7 @@ public partial class StdAdoDelegate
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         // signal cancel, otherwise ADO.NET might have trouble handling partial reads from open reader
+        int execGroupOrdinal = -1;
         var shouldStop = false;
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
@@ -1174,9 +1175,14 @@ public partial class StdAdoDelegate
                 break;
             }
 
+            if (execGroupOrdinal < 0)
+            {
+                execGroupOrdinal = rs.GetOrdinal(ColumnExecutionGroup);
+            }
+
             if (nextTriggers.Count < maxCount)
             {
-                string? executionGroup = rs.IsDBNull(rs.GetOrdinal(ColumnExecutionGroup)) ? null : (string) rs[ColumnExecutionGroup];
+                string? executionGroup = rs.IsDBNull(execGroupOrdinal) ? null : rs.GetString(execGroupOrdinal);
                 var result = new TriggerAcquireResult(
                     (string) rs[ColumnTriggerName],
                     (string) rs[ColumnTriggerGroup],
@@ -1227,6 +1233,7 @@ public partial class StdAdoDelegate
         Dictionary<string, int?> limitsWorkingCopy = new(executionLimits, StringComparer.Ordinal);
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        int execGroupOrdinal = -1;
         var shouldStop = false;
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
@@ -1236,11 +1243,16 @@ public partial class StdAdoDelegate
                 break;
             }
 
+            if (execGroupOrdinal < 0)
+            {
+                execGroupOrdinal = rs.GetOrdinal(ColumnExecutionGroup);
+            }
+
             if (nextTriggers.Count < maxCount)
             {
-                string? executionGroup = rs.IsDBNull(rs.GetOrdinal(ColumnExecutionGroup))
+                string? executionGroup = rs.IsDBNull(execGroupOrdinal)
                     ? null
-                    : rs.GetString(rs.GetOrdinal(ColumnExecutionGroup));
+                    : rs.GetString(execGroupOrdinal);
 
                 // Check execution limits
                 if (!ExecutionLimits.CheckExecutionLimits(executionGroup, limitsWorkingCopy))

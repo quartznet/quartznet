@@ -83,6 +83,7 @@ public sealed class ExecutionLimits : IReadOnlyDictionary<string, int?>
     public ExecutionLimits ForGroup(string group, int maxConcurrent)
     {
         ArgumentNullException.ThrowIfNull(group);
+        group = group.Trim();
 
         if (group.Length == 0 || group == OtherGroups)
         {
@@ -144,6 +145,7 @@ public sealed class ExecutionLimits : IReadOnlyDictionary<string, int?>
     public ExecutionLimits Unlimited(string group)
     {
         ArgumentNullException.ThrowIfNull(group);
+        group = group.Trim();
 
         if (group.Length == 0 || group == OtherGroups)
         {

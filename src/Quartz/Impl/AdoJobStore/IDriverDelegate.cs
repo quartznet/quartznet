@@ -1140,7 +1140,8 @@ public interface IDriverDelegate
     /// <param name="noLaterThan">Upper bound for next fire time.</param>
     /// <param name="noEarlierThan">Lower bound for next fire time (typically misfire time).</param>
     /// <param name="maxCount">Maximum number of triggers to return.</param>
-    /// <param name="executionLimits">Execution group available slots (mutable working copy).</param>
+    /// <param name="executionLimits">Execution group available slots. Implementations must create
+    /// their own working copy before mutating — the caller may reuse this instance across retries.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask<List<TriggerAcquireResult>> SelectTriggerToAcquire(
         ConnectionAndTransactionHolder conn,
