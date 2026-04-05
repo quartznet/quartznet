@@ -275,8 +275,8 @@ internal static class JsonSchedulingHelper
         var intervalStr = section[nameof(JsonSimpleSchedule.Interval)];
         var repeatCountStr = section[nameof(JsonSimpleSchedule.RepeatCount)];
 
-        var interval = intervalStr is not null ? TimeSpan.Parse(intervalStr, CultureInfo.InvariantCulture) : TimeSpan.Zero;
-        var repeatCount = repeatCountStr is not null ? int.Parse(repeatCountStr, CultureInfo.InvariantCulture) : 0;
+        var interval = intervalStr is not null ? SafeParseTimeSpan(intervalStr, "Simple.Interval") : TimeSpan.Zero;
+        var repeatCount = repeatCountStr is not null ? SafeParseInt(repeatCountStr, "Simple.RepeatCount") : 0;
 
         var builder = SimpleScheduleBuilder.Create().WithInterval(interval).WithRepeatCount(repeatCount);
 
@@ -320,8 +320,8 @@ internal static class JsonSchedulingHelper
         var intervalStr = section[nameof(JsonCalendarIntervalSchedule.RepeatInterval)];
         var unitStr = section[nameof(JsonCalendarIntervalSchedule.RepeatIntervalUnit)];
 
-        var interval = intervalStr is not null ? int.Parse(intervalStr, CultureInfo.InvariantCulture) : 1;
-        var unit = unitStr is not null ? Enum.Parse<IntervalUnit>(unitStr, ignoreCase: true) : IntervalUnit.Day;
+        var interval = intervalStr is not null ? SafeParseInt(intervalStr, "CalendarInterval.RepeatInterval") : 1;
+        var unit = unitStr is not null ? SafeParseEnum<IntervalUnit>(unitStr, "CalendarInterval.RepeatIntervalUnit") : IntervalUnit.Day;
 
         var builder = CalendarIntervalScheduleBuilder.Create().WithInterval(interval, unit);
 
@@ -343,14 +343,14 @@ internal static class JsonSchedulingHelper
         var endTodStr = section[nameof(JsonDailyTimeIntervalSchedule.EndTimeOfDay)];
         var timeZoneStr = section[nameof(JsonDailyTimeIntervalSchedule.TimeZone)];
 
-        var interval = intervalStr is not null ? int.Parse(intervalStr, CultureInfo.InvariantCulture) : 1;
-        var unit = unitStr is not null ? Enum.Parse<IntervalUnit>(unitStr, ignoreCase: true) : IntervalUnit.Minute;
+        var interval = intervalStr is not null ? SafeParseInt(intervalStr, "DailyTimeInterval.RepeatInterval") : 1;
+        var unit = unitStr is not null ? SafeParseEnum<IntervalUnit>(unitStr, "DailyTimeInterval.RepeatIntervalUnit") : IntervalUnit.Minute;
 
         var builder = DailyTimeIntervalScheduleBuilder.Create().WithInterval(interval, unit);
 
         if (repeatCountStr is not null)
         {
-            builder.WithRepeatCount(int.Parse(repeatCountStr, CultureInfo.InvariantCulture));
+            builder.WithRepeatCount(SafeParseInt(repeatCountStr, "DailyTimeInterval.RepeatCount"));
         }
 
         if (startTodStr is not null)
@@ -371,7 +371,7 @@ internal static class JsonSchedulingHelper
             {
                 if (day.Value is not null)
                 {
-                    days.Add(Enum.Parse<DayOfWeek>(day.Value, ignoreCase: true));
+                    days.Add(SafeParseEnum<DayOfWeek>(day.Value, "DailyTimeInterval.DaysOfWeek"));
                 }
             }
 
@@ -435,7 +435,30 @@ internal static class JsonSchedulingHelper
         throw new SchedulerConfigException($"Unknown misfire instruction: '{value}'");
     }
 
-    private static bool ParseBool(string? value) => value is not null && bool.Parse(value);
+    private static bool ParseBool(string? value, string context = "")
+    {
+        if (value is null) return false;
+        if (bool.TryParse(value, out var result)) return result;
+        throw new SchedulerConfigException($"Invalid boolean value '{value}'{(context.Length > 0 ? " for " + context : "")}.");
+    }
+
+    private static int SafeParseInt(string value, string context)
+    {
+        if (int.TryParse(value, CultureInfo.InvariantCulture, out var result)) return result;
+        throw new SchedulerConfigException($"Invalid integer value '{value}' for {context}.");
+    }
+
+    private static TimeSpan SafeParseTimeSpan(string value, string context)
+    {
+        if (TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out var result)) return result;
+        throw new SchedulerConfigException($"Invalid TimeSpan value '{value}' for {context}.");
+    }
+
+    private static T SafeParseEnum<T>(string value, string context) where T : struct, Enum
+    {
+        if (Enum.TryParse<T>(value, ignoreCase: true, out var result)) return result;
+        throw new SchedulerConfigException($"Invalid {typeof(T).Name} value '{value}' for {context}.");
+    }
 
     private static string? NormalizeEmpty(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
 }
