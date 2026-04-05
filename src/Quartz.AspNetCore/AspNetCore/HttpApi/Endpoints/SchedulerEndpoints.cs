@@ -177,7 +177,7 @@ internal static class SchedulerEndpoints
             if (limits is not null && limits.Count > 0)
             {
                 dict = new Dictionary<string, int?>();
-                foreach (var kvp in limits)
+                foreach (KeyValuePair<string, int?> kvp in limits)
                 {
                     dict[kvp.Key] = kvp.Value;
                 }
@@ -202,13 +202,14 @@ internal static class SchedulerEndpoints
             if (request.Limits is { Count: > 0 })
             {
                 limits = new ExecutionLimits();
-                foreach (var kvp in request.Limits)
+                foreach (KeyValuePair<string, int?> kvp in request.Limits)
                 {
                     if (kvp.Key == ExecutionLimits.OtherGroups)
                     {
                         if (kvp.Value.HasValue) limits.ForOtherGroups(kvp.Value.Value);
                     }
-                    else if (kvp.Key == ExecutionLimits.DefaultGroupKey || kvp.Key == "_")
+                    else if (kvp.Key == ExecutionLimits.DefaultGroupKey || kvp.Key == "_"
+                             || kvp.Key.Equals("null", StringComparison.OrdinalIgnoreCase))
                     {
                         if (kvp.Value.HasValue) limits.ForDefaultGroup(kvp.Value.Value);
                     }

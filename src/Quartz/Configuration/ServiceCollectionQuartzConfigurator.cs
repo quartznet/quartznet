@@ -311,7 +311,7 @@ internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQu
         ExecutionLimits limits = new();
         configure(limits);
 
-        foreach (var kvp in limits)
+        foreach (KeyValuePair<string, int?> kvp in limits)
         {
             string propKey = kvp.Key == ExecutionLimits.DefaultGroupKey ? "_" : kvp.Key;
             string propValue = kvp.Value?.ToString() ?? "unlimited";
