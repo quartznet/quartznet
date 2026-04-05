@@ -409,7 +409,11 @@ internal static class JsonSchedulingHelper
 
     private static TimeOfDay ParseTimeOfDay(string value)
     {
-        var ts = TimeSpan.Parse(value, CultureInfo.InvariantCulture);
+        if (!TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out var ts))
+        {
+            throw new SchedulerConfigException($"Invalid TimeOfDay value '{value}'. Expected format 'HH:mm:ss'.");
+        }
+
         if (ts < TimeSpan.Zero || ts >= TimeSpan.FromHours(24))
         {
             throw new SchedulerConfigException($"TimeOfDay value '{value}' is out of range. Must be between 00:00:00 and 23:59:59.");
