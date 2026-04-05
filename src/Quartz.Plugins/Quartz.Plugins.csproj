@@ -10,6 +10,9 @@
     <None Include="../../docs/documentation/quartz-3.x/packages/quartz-plugins.md" Pack="true" PackagePath="\" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="8.0.5" Condition=" '$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'net462' or '$(TargetFramework)' == 'net472' " />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Quartz.Jobs\Quartz.Jobs.csproj" />
   </ItemGroup>
 </Project>

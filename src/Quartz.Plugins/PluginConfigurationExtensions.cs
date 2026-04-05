@@ -3,6 +3,7 @@ using System.Globalization;
 
 using Quartz.Plugin.History;
 using Quartz.Plugin.Interrupt;
+using Quartz.Plugin.Json;
 using Quartz.Plugin.Xml;
 using Quartz.Util;
 
@@ -72,6 +73,29 @@ public static class PluginConfigurationExtensions
     }
 
     /// <summary>
+    /// Configures <see cref="JsonSchedulingDataProcessorPlugin"/> to load jobs and triggers from JSON file(s).
+    /// </summary>
+    /// <remarks>
+    /// This is the JSON analog of <see cref="UseXmlSchedulingConfiguration{T}"/>.
+    /// </remarks>
+    public static T UseJsonSchedulingConfiguration<
+#if NET6_0_OR_GREATER
+            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
+#endif
+        T>(
+        this T configurer,
+        Action<JsonSchedulingOptions> configure) where T : IPropertyConfigurationRoot
+    {
+        if (configurer is IContainerConfigurationSupport containerConfigurationSupport)
+        {
+            containerConfigurationSupport.RegisterSingleton<JsonSchedulingDataProcessorPlugin, JsonSchedulingDataProcessorPlugin>();
+        }
+        configurer.SetProperty("quartz.plugin.json.type", typeof(JsonSchedulingDataProcessorPlugin).AssemblyQualifiedNameWithoutVersion());
+        configure.Invoke(new JsonSchedulingOptions(configurer));
+        return configurer;
+    }
+
+    /// <summary>
     /// Configures <see cref="JobInterruptMonitorPlugin "/> into use.
     /// </summary>
     public static T UseJobAutoInterrupt<
@@ -133,6 +157,48 @@ public class XmlSchedulingOptions : PropertiesSetter
         set => SetProperty("failOnSchedulingError", value.ToString().ToLowerInvariant());
     }
 
+    public TimeSpan ScanInterval
+    {
+        set => SetProperty("scanInterval", ((int) value.TotalSeconds).ToString());
+    }
+}
+
+/// <summary>
+/// Configuration options for <see cref="JsonSchedulingDataProcessorPlugin"/>.
+/// </summary>
+public sealed class JsonSchedulingOptions : PropertiesSetter
+{
+    internal JsonSchedulingOptions(IPropertySetter parent) : base(parent, "quartz.plugin.json")
+    {
+    }
+
+    /// <summary>
+    /// JSON file(s) to read job and trigger definitions from. Default is "quartz_jobs.json".
+    /// </summary>
+    public string[] Files
+    {
+        set => SetProperty("fileNames", string.Join(",", value));
+    }
+
+    /// <summary>
+    /// Whether initialization should fail if the file cannot be found. Default is <c>true</c>.
+    /// </summary>
+    public bool FailOnFileNotFound
+    {
+        set => SetProperty("failOnFileNotFound", value.ToString().ToLowerInvariant());
+    }
+
+    /// <summary>
+    /// Whether starting should fail if the file cannot be processed. Default is <c>false</c>.
+    /// </summary>
+    public bool FailOnSchedulingError
+    {
+        set => SetProperty("failOnSchedulingError", value.ToString().ToLowerInvariant());
+    }
+
+    /// <summary>
+    /// The interval at which to scan for changes to the file. Default is <see cref="TimeSpan.Zero"/> (disabled).
+    /// </summary>
     public TimeSpan ScanInterval
     {
         set => SetProperty("scanInterval", ((int) value.TotalSeconds).ToString());

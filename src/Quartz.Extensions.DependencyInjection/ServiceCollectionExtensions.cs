@@ -3,6 +3,7 @@ using System.Collections.Specialized;
 using System.Data.Common;
 using System.Linq;
 
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -27,6 +28,105 @@ public static class ServiceCollectionExtensions
         Action<IServiceCollectionQuartzConfigurator>? configure = null)
     {
         return AddQuartz(services, new NameValueCollection(), configure);
+    }
+
+    /// <summary>
+    /// Configures Quartz services from a hierarchical <see cref="IConfiguration"/> section (typically <c>Configuration.GetSection("Quartz")</c>).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Nested JSON properties are automatically converted to flat Quartz property keys
+    /// (e.g., <c>Scheduler:InstanceName</c> becomes <c>quartz.scheduler.instanceName</c>).
+    /// A <c>Schedule</c> sub-section with <c>Jobs</c> and <c>Triggers</c> arrays is also supported.
+    /// </para>
+    /// <para>
+    /// If a <c>Schedulers</c> sub-section is present, each child is registered as a named scheduler.
+    /// If the section contains direct scheduler configuration (e.g., <c>Scheduler</c>, <c>ThreadPool</c>),
+    /// a single default scheduler is registered. Defining both <c>Schedulers</c> and direct scheduler
+    /// configuration is an error.
+    /// </para>
+    /// </remarks>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configuration">The configuration section containing Quartz settings.</param>
+    /// <param name="configure">Optional configuration action applied to each scheduler (or the default scheduler).</param>
+    public static IServiceCollection AddQuartz(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        Action<IServiceCollectionQuartzConfigurator>? configure = null)
+    {
+        IConfigurationSection schedulersSection = configuration.GetSection("Schedulers");
+        bool hasNamedSchedulers = schedulersSection.Exists();
+        bool hasDirectConfig = HasDirectSchedulerConfiguration(configuration);
+
+        if (hasNamedSchedulers && hasDirectConfig)
+        {
+            throw new SchedulerConfigException(
+                "The Quartz configuration section contains both a 'Schedulers' sub-section and direct scheduler " +
+                "configuration (e.g., 'Scheduler', 'ThreadPool'). Use 'Schedulers' for named schedulers or " +
+                "direct configuration for a single default scheduler, but not both.");
+        }
+
+        if (hasNamedSchedulers)
+        {
+            foreach (IConfigurationSection child in schedulersSection.GetChildren())
+            {
+                AddQuartz(services, child.Key, child, configure);
+            }
+            return services;
+        }
+
+        // Default single scheduler
+        NameValueCollection properties = QuartzConfigurationHelper.ToNameValueCollection(configuration);
+        AddQuartz(services, properties, configure);
+        JsonSchedulingHelper.ConfigureOptionsFromConfiguration(services, configuration);
+        return services;
+    }
+
+    private static bool HasDirectSchedulerConfiguration(IConfiguration configuration)
+    {
+        // Check for known top-level scheduler configuration sections
+        // that indicate a single (non-named) scheduler is being configured.
+        foreach (IConfigurationSection child in configuration.GetChildren())
+        {
+            string key = child.Key;
+
+            // Skip sections that are not scheduler configuration
+            if (string.Equals(key, "Schedulers", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(key, "Schedule", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(key, "Scheduling", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            // A flat quartz.* key or any hierarchical config section = direct config
+            if (key.StartsWith("quartz.", StringComparison.OrdinalIgnoreCase) ||
+                child.Value is null) // sections (non-leaf) like Scheduler, ThreadPool, JobStore
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Configures a named Quartz scheduler from a hierarchical <see cref="IConfiguration"/> section.
+    /// Nested JSON properties are automatically converted to flat Quartz property keys.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="name">Unique scheduler name, used as both the scheduler instance name and the options key.</param>
+    /// <param name="configuration">The configuration section containing Quartz settings.</param>
+    /// <param name="configure">Optional configuration action for jobs, triggers, listeners, etc.</param>
+    public static IServiceCollection AddQuartz(
+        this IServiceCollection services,
+        string name,
+        IConfiguration configuration,
+        Action<IServiceCollectionQuartzConfigurator>? configure = null)
+    {
+        NameValueCollection properties = QuartzConfigurationHelper.ToNameValueCollection(configuration);
+        AddQuartz(services, name, properties, configure);
+        JsonSchedulingHelper.ConfigureOptionsFromConfiguration(services, configuration, name);
+        return services;
     }
 
     /// <summary>

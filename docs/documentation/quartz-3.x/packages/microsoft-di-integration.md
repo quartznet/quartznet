@@ -23,21 +23,46 @@ You can also configure properties using standard .NET Core `appsettings.json` in
 Need multiple independent schedulers in one application? See [Multiple Schedulers](multiple-schedulers.md).
 :::
 
-**Example appsettings.json**
+**Example appsettings.json (hierarchical format)**
 
 ```json
 {
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft": "Warning",
-      "Microsoft.Hosting.Lifetime": "Information"
+  "Quartz": {
+    "Scheduler": {
+      "InstanceName": "Quartz ASP.NET Core Sample Scheduler",
+      "InstanceId": "AUTO"
+    },
+    "ThreadPool": {
+      "MaxConcurrency": 10
     }
-  },
+  }
+}
+```
+
+Use the `IConfiguration` overload of `AddQuartz` to read hierarchical JSON:
+
+```csharp
+services.AddQuartz(Configuration.GetSection("Quartz"), q =>
+{
+    // Additional code-based configuration
+});
+```
+
+You can also define jobs and triggers in JSON. See [JSON Configuration](json-configuration.md) for the full reference.
+
+**Legacy flat-key format (still supported)**
+
+```json
+{
   "Quartz": {
     "quartz.scheduler.instanceName": "Quartz ASP.NET Core Sample Scheduler"
   }
 }
+```
+
+```csharp
+services.Configure<QuartzOptions>(Configuration.GetSection("Quartz"));
+services.AddQuartz(q => { /* ... */ });
 ````
 
 ## DI aware job factories
