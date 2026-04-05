@@ -626,7 +626,7 @@ public interface IJobStore
     /// Get the amount of time (in ms) to wait when accessing this job store repeatedly fails.
     /// </summary>
     /// <remarks>
-    /// Called by the executor thread(s) when calls to <see cref="AcquireNextTriggers(DateTimeOffset, int, TimeSpan, CancellationToken)"/> fail more than once in succession,
+    /// Called by the executor thread(s) when calls to <c>AcquireNextTriggers</c> fail more than once in succession,
     /// and the thread thus wants to wait a bit before trying again, to not consume 100% CPU,
     /// write huge amounts of errors into logs, etc. in cases like the DB being offline/restarting.
     ///
