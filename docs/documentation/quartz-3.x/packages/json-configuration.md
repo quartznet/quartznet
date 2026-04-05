@@ -3,7 +3,7 @@
 Quartz.NET supports hierarchical JSON configuration in `appsettings.json`, providing a modern alternative to flat property keys. This includes both scheduler properties and declarative job/trigger definitions.
 
 ::: tip
-Requires Quartz 3.x or later with the `Quartz.Extensions.DependencyInjection` package.
+Requires Quartz 3.18 or later with the `Quartz.Extensions.DependencyInjection` package.
 :::
 
 ## Hierarchical Properties

@@ -50,6 +50,10 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
         log = LogProvider.GetLogger(GetType());
     }
 
+    // Internal accessors for testing — base class properties are protected
+    internal IReadOnlyList<IJobDetail> ParsedJobs => LoadedJobs;
+    internal IReadOnlyList<ITrigger> ParsedTriggers => LoadedTriggers;
+
     /// <summary>
     /// Process the JSON file and schedule all jobs defined within it.
     /// </summary>
