@@ -19,6 +19,7 @@
 
 using System;
 using System.Globalization;
+using System.Runtime.Serialization;
 
 using Quartz.Spi;
 
@@ -66,6 +67,17 @@ public abstract class AbstractTrigger : IOperableTrigger, INextVersionTrigger, I
     private DateTimeOffset? endTimeUtc;
     private DateTimeOffset startTimeUtc;
     private string? executionGroup;
+
+    // Optional so binary payloads serialized by older versions still deserialize
+    [OptionalField]
+    private string? preferredNode;
+
+    // Tracks whether preferredNode was changed on this instance (vs. loaded from the DB);
+    // the ADO.NET job store only persists PREFERRED_NODE on update when set. Serialized
+    // (optionally, for old-payload compatibility) so an explicit pin change survives
+    // by-value marshaling such as the net472 remoting boundary.
+    [OptionalField]
+    private bool preferredNodeDirty;
 
     [NonSerialized] // we have the key in string fields
     private TriggerKey? key;
@@ -234,12 +246,15 @@ public abstract class AbstractTrigger : IOperableTrigger, INextVersionTrigger, I
 
     public TriggerBuilder GetTriggerBuilder()
     {
+        // PreferredNode getter already normalizes (strips "auto:" prefix),
+        // so the builder receives a plain node name for auto-pinned triggers.
         return TriggerBuilder.Create()
             .ForJob(JobKey)
             .ModifiedByCalendar(CalendarName)
             .UsingJobData(JobDataMap)
             .WithDescription(Description)
             .WithExecutionGroup(ExecutionGroup)
+            .WithPreferredNode(PreferredNode)
             .EndAt(EndTimeUtc)
             .WithIdentity(Key)
             .WithPriority(Priority)
@@ -294,6 +309,70 @@ public abstract class AbstractTrigger : IOperableTrigger, INextVersionTrigger, I
             }
         }
     }
+
+    /// <summary>
+    /// Gets or sets the preferred node for this trigger. When set to a specific
+    /// scheduler instance id (matching <c>quartz.scheduler.instanceId</c>),
+    /// only that node will acquire the trigger in a cluster (with automatic
+    /// failover if the node is down). When set to <c>"*"</c>, the first node
+    /// to fire the trigger pins it automatically.
+    /// </summary>
+    /// <remarks>
+    /// <para>A <see langword="null"/> value means the trigger has no node preference
+    /// (the default, backward-compatible behavior).</para>
+    /// </remarks>
+    public string? PreferredNode
+    {
+        // Public getter normalizes: strips internal "auto:" prefix so callers
+        // see "nodeA" instead of "auto:nodeA". Internal code that needs the raw
+        // value (persistence, acquisition) accesses via INextVersionTrigger cast.
+        get => preferredNode != null
+            && preferredNode.StartsWith(PreferredNodeValidation.AutoPinPrefix, StringComparison.OrdinalIgnoreCase)
+            ? preferredNode.Substring(PreferredNodeValidation.AutoPinPrefix.Length)
+            : preferredNode;
+        set
+        {
+            preferredNode = PreferredNodeValidation.NormalizeUserValue(value, nameof(value));
+            preferredNodeDirty = true;
+        }
+    }
+
+    // Explicit interface implementation returns the raw backing field (including
+    // "auto:" prefix) for internal use by persistence and acquisition code.
+    string? Spi.INextVersionTrigger.PreferredNode
+    {
+        get => preferredNode;
+        set => PreferredNode = value; // delegate to validated public setter
+    }
+
+    /// <inheritdoc cref="Spi.INextVersionTrigger.SetPreferredNodeRaw"/>
+    void Spi.INextVersionTrigger.SetPreferredNodeRaw(string? value, bool markDirty)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            preferredNode = null;
+        }
+        else
+        {
+            string trimmed = value!.Trim();
+            // Normalize any-case auto-pin prefix to lowercase "auto:" so the SQL
+            // REPLACE('auto:', '') matches on case-sensitive databases (PostgreSQL, etc.).
+            if (trimmed.StartsWith(PreferredNodeValidation.AutoPinPrefix, StringComparison.OrdinalIgnoreCase)
+                && !trimmed.StartsWith(PreferredNodeValidation.AutoPinPrefix, StringComparison.Ordinal))
+            {
+                trimmed = PreferredNodeValidation.AutoPinPrefix + trimmed.Substring(PreferredNodeValidation.AutoPinPrefix.Length);
+            }
+            preferredNode = trimmed;
+        }
+
+        // markDirty: false means "synchronize from the trigger's own database row" — the
+        // in-memory value now mirrors persistent state, so any earlier dirtiness (e.g. a
+        // blob deserializer marking the value changed) is cleared as well.
+        preferredNodeDirty = markDirty;
+    }
+
+    /// <inheritdoc cref="Spi.INextVersionTrigger.PreferredNodeDirty"/>
+    bool Spi.INextVersionTrigger.PreferredNodeDirty => preferredNodeDirty;
 
     /// <summary>
     /// Get or set the <see cref="JobDataMap" /> that is associated with the

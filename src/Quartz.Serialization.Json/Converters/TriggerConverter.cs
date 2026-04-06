@@ -71,6 +71,10 @@ internal sealed class TriggerConverter : JsonConverter
             {
                 writer.WritePropertyName("ExecutionGroup");
                 writer.WriteValue(nvt.ExecutionGroup);
+                writer.WritePropertyName("PreferredNode");
+                // Serialize the raw internal value (may include "auto:" prefix) so that
+                // auto-pin state survives round-trips through JSON serialization.
+                writer.WriteValue(nvt.PreferredNode);
             }
 
             triggerSerializer.SerializeFields(writer, trigger);
@@ -138,6 +142,7 @@ internal sealed class TriggerConverter : JsonConverter
             if (trigger is Quartz.Spi.INextVersionTrigger nvt)
             {
                 nvt.ExecutionGroup = source.Value<string>("ExecutionGroup");
+                nvt.SetPreferredNodeRaw(source.Value<string>("PreferredNode"));
             }
 
             triggerSerializer.DeserializeFields(trigger, source);

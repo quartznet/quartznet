@@ -140,6 +140,12 @@ public class JobStoreCMT : JobStoreSupport
         Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
         CancellationToken cancellationToken = default)
     {
+        // Retry deferred optional-column probing (no-op once completed) so operations before
+        // Start() see correct column availability even when the database was unreachable during
+        // Initialize. The base ExecuteInNonManagedTXLock does this for JobStoreTX; JobStoreCMT
+        // overrides ExecuteInLock independently, so it must probe here too.
+        await EnsureOptionalColumnsProbed(cancellationToken).ConfigureAwait(false);
+
         bool transOwner = false;
         ConnectionAndTransactionHolder? conn = null;
         Guid requestorId = Guid.NewGuid();

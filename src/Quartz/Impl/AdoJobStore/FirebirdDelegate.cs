@@ -20,6 +20,16 @@ public class FirebirdDelegate : StdAdoDelegate
         return SqlSelectNextTriggerToAcquireWithExecutionGroup + " ROWS " + maxCount;
     }
 
+    protected override string GetSelectNextTriggerToAcquireWithPreferredNodeSql(int maxCount)
+    {
+        return SqlSelectNextTriggerToAcquireWithPreferredNode + " ROWS " + maxCount;
+    }
+
+    protected override string GetSelectNextTriggerToAcquireWithPreferredNodeOnlySql(int maxCount)
+    {
+        return SqlSelectNextTriggerToAcquireWithPreferredNodeOnly + " ROWS " + maxCount;
+    }
+
     protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
     {
         if (count != -1)

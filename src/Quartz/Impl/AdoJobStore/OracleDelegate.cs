@@ -42,6 +42,16 @@ public class OracleDelegate : StdAdoDelegate
         return "SELECT * FROM (" + SqlSelectNextTriggerToAcquireWithExecutionGroup + ") WHERE rownum <= " + maxCount;
     }
 
+    protected override string GetSelectNextTriggerToAcquireWithPreferredNodeSql(int maxCount)
+    {
+        return "SELECT * FROM (" + SqlSelectNextTriggerToAcquireWithPreferredNode + ") WHERE rownum <= " + maxCount;
+    }
+
+    protected override string GetSelectNextTriggerToAcquireWithPreferredNodeOnlySql(int maxCount)
+    {
+        return "SELECT * FROM (" + SqlSelectNextTriggerToAcquireWithPreferredNodeOnly + ") WHERE rownum <= " + maxCount;
+    }
+
     protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
     {
         if (count != -1)

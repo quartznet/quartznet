@@ -1,0 +1,361 @@
+using System;
+using System.Linq;
+using System.Threading.Tasks;
+
+using NUnit.Framework;
+
+using Quartz.Impl.AdoJobStore;
+using Quartz.Impl.Triggers;
+
+namespace Quartz.Tests.Integration.Impl.AdoJobStore;
+
+/// <summary>
+/// Tests for preferred-node failover semantics using PostgreSQL.
+/// Validates that auto-pinned triggers are re-pinned during ClusterRecover
+/// while explicitly pinned triggers are preserved through failover.
+/// Runs against the assembly-wide PostgreSQL database (see ClusteredPostgresTestBase).
+/// </summary>
+[Category("db-postgres")]
+[NonParallelizable]
+public sealed class PreferredNodeFailoverPostgresTest : ClusteredPostgresTestBase
+{
+    protected override string SchedulerName => "FailoverTest";
+
+    [Test]
+    public async Task ExplicitPin_PreservedThroughFailover()
+    {
+        // Explicit pin to nodeA — should NOT be re-pinned during failover.
+        IScheduler nodeA = await CreateScheduler("nodeA").ConfigureAwait(false);
+        try
+        {
+            await nodeA.Start().ConfigureAwait(false);
+            await Task.Delay(2000).ConfigureAwait(false);
+
+            IJobDetail job = JobBuilder.Create<RecordingJob>()
+                .WithIdentity("explicitPinJob", "failoverTest")
+                .StoreDurably()
+                .Build();
+            await nodeA.AddJob(job, true).ConfigureAwait(false);
+
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("explicitPinTrigger", "failoverTest")
+                .ForJob(job)
+                .WithPreferredNode("nodeA")
+                .WithSimpleSchedule(s => s
+                    .WithIntervalInSeconds(1)
+                    .RepeatForever())
+                .StartAt(DateTimeOffset.UtcNow.AddSeconds(3))
+                .Build();
+            await nodeA.ScheduleJob(trigger).ConfigureAwait(false);
+
+            await nodeA.Shutdown(false).ConfigureAwait(false);
+        }
+        catch
+        {
+            await nodeA.Shutdown(false).ConfigureAwait(false);
+            throw;
+        }
+
+        // Wait for nodeA's checkin to become stale
+        await Task.Delay(10_000).ConfigureAwait(false);
+
+        IScheduler nodeB = await CreateScheduler("nodeB").ConfigureAwait(false);
+        try
+        {
+            await nodeB.Start().ConfigureAwait(false);
+
+            // The trigger should fire on nodeB via the NOT IN failover SQL
+            await WaitForExecutionCount(1, 15_000).ConfigureAwait(false);
+            Assert.That(RecordingJob.Executions, Does.Contain("nodeB"),
+                "The job should have executed on nodeB via NOT IN failover");
+
+            ITrigger retrieved = await nodeB.GetTrigger(new TriggerKey("explicitPinTrigger", "failoverTest")).ConfigureAwait(false);
+            Assert.That(retrieved, Is.Not.Null, "Repeating trigger should still exist after failover");
+
+            // Explicit pin should NOT be re-pinned — stays as "nodeA" even after nodeB fired it
+            Assert.That(((AbstractTrigger) retrieved).PreferredNode, Is.EqualTo("nodeA"),
+                "Explicit pin should be preserved through failover, not re-pinned to nodeB");
+        }
+        finally
+        {
+            RecordingJob.Reset();
+            await nodeB.Clear().ConfigureAwait(false);
+            await nodeB.Shutdown(false).ConfigureAwait(false);
+        }
+    }
+
+    [Test]
+    public async Task AutoPin_RepinnedThroughFailover()
+    {
+        // Auto-pin (*) to nodeA — should be re-pinned to nodeB during failover.
+        IScheduler nodeA = await CreateScheduler("nodeA").ConfigureAwait(false);
+        try
+        {
+            await nodeA.Start().ConfigureAwait(false);
+            await Task.Delay(2000).ConfigureAwait(false);
+
+            IJobDetail job = JobBuilder.Create<RecordingJob>()
+                .WithIdentity("autoPinFailoverJob", "failoverTest")
+                .StoreDurably()
+                .Build();
+            await nodeA.AddJob(job, true).ConfigureAwait(false);
+
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("autoPinFailoverTrigger", "failoverTest")
+                .ForJob(job)
+                .WithPreferredNode("*")
+                .WithSimpleSchedule(s => s
+                    .WithIntervalInSeconds(1)
+                    .RepeatForever())
+                .StartNow()
+                .Build();
+            await nodeA.ScheduleJob(trigger).ConfigureAwait(false);
+
+            // Wait for auto-pin to happen (first fire pins to nodeA)
+            await WaitForExecutionCount(1, 10_000).ConfigureAwait(false);
+
+            ITrigger pinnedTrigger = await nodeA.GetTrigger(trigger.Key).ConfigureAwait(false);
+            Assert.That(pinnedTrigger, Is.Not.Null);
+            // Public getter normalizes (strips "auto:" prefix)
+            Assert.That(((AbstractTrigger) pinnedTrigger).PreferredNode, Is.EqualTo("nodeA"),
+                "Auto-pin should resolve to 'nodeA' after first fire");
+
+            await nodeA.Shutdown(false).ConfigureAwait(false);
+        }
+        catch
+        {
+            await nodeA.Shutdown(false).ConfigureAwait(false);
+            throw;
+        }
+
+        // Reset recordings so nodeA's earlier executions don't satisfy nodeB's assertions
+        RecordingJob.Reset();
+
+        // Wait for nodeA's checkin to become stale
+        await Task.Delay(10_000).ConfigureAwait(false);
+
+        IScheduler nodeB = await CreateScheduler("nodeB").ConfigureAwait(false);
+        try
+        {
+            await nodeB.Start().ConfigureAwait(false);
+
+            // Wait for nodeB to execute the trigger (proves failover worked)
+            await WaitForExecutionCount(1, 15_000).ConfigureAwait(false);
+
+            Assert.That(RecordingJob.Executions, Does.Contain("nodeB"),
+                "The job should have executed on nodeB after failover");
+
+            // Poll until auto-pin settles (sentinel "*" resolved to "nodeB" after first fire)
+            TriggerKey failoverKey = new TriggerKey("autoPinFailoverTrigger", "failoverTest");
+            await WaitForCondition(async () =>
+            {
+                ITrigger t = await nodeB.GetTrigger(failoverKey).ConfigureAwait(false);
+                return t != null && ((AbstractTrigger) t).PreferredNode == "nodeB";
+            }, 10_000, "auto-pin to settle on nodeB").ConfigureAwait(false);
+
+            // Regression for the auto-pin write-back race: a fire that acquired the trigger
+            // with the stale "auto:nodeA" value before ClusterRecover reset it must not write
+            // the dead node back. The pin must remain on nodeB across subsequent fires.
+            RecordingJob.Reset();
+            await WaitForExecutionCount(2, 10_000).ConfigureAwait(false);
+            Assert.That(RecordingJob.Executions, Has.All.EqualTo("nodeB"));
+            ITrigger settled = await nodeB.GetTrigger(failoverKey).ConfigureAwait(false);
+            Assert.That(((AbstractTrigger) settled).PreferredNode, Is.EqualTo("nodeB"),
+                "Pin must remain on the surviving node and never revert to the dead node");
+        }
+        finally
+        {
+            RecordingJob.Reset();
+            await nodeB.Clear().ConfigureAwait(false);
+            await nodeB.Shutdown(false).ConfigureAwait(false);
+        }
+    }
+
+    [Test]
+    public async Task ThreeNode_AutoPinnedTrigger_SettlesOnSingleSurvivorAfterFailover()
+    {
+        IScheduler nodeA = await CreateScheduler("nodeA").ConfigureAwait(false);
+        IScheduler nodeB = await CreateScheduler("nodeB").ConfigureAwait(false);
+        IScheduler survivor = null;
+        string survivorId = null;
+        try
+        {
+            await nodeA.Start().ConfigureAwait(false);
+            await nodeB.Start().ConfigureAwait(false);
+            await Task.Delay(2000).ConfigureAwait(false);
+
+            IJobDetail job = JobBuilder.Create<RecordingJob>()
+                .WithIdentity("threeNodeJob", "failoverTest")
+                .StoreDurably()
+                .Build();
+            await nodeA.AddJob(job, true).ConfigureAwait(false);
+
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("threeNodeTrigger", "failoverTest")
+                .ForJob(job)
+                .WithPreferredNode("*")
+                .WithSimpleSchedule(s => s
+                    .WithIntervalInSeconds(1)
+                    .RepeatForever())
+                .StartNow()
+                .Build();
+            await nodeA.ScheduleJob(trigger).ConfigureAwait(false);
+
+            // Wait for auto-pin to first fire on whichever node acquires it
+            await WaitForExecutionCount(1, 10_000).ConfigureAwait(false);
+
+            // Shut down the pinned node; the other original node keeps running as a survivor
+            string pinnedNodeId = RecordingJob.Executions.First();
+            if (pinnedNodeId == "nodeA")
+            {
+                await nodeA.Shutdown(false).ConfigureAwait(false);
+                survivor = nodeB;
+                survivorId = "nodeB";
+            }
+            else
+            {
+                await nodeB.Shutdown(false).ConfigureAwait(false);
+                survivor = nodeA;
+                survivorId = "nodeA";
+            }
+        }
+        catch
+        {
+            await nodeA.Shutdown(false).ConfigureAwait(false);
+            await nodeB.Shutdown(false).ConfigureAwait(false);
+            throw;
+        }
+
+        RecordingJob.Reset();
+
+        // Start nodeC so two nodes are live while the pinned node's checkin goes stale
+        IScheduler nodeC = await CreateScheduler("nodeC").ConfigureAwait(false);
+        try
+        {
+            await nodeC.Start().ConfigureAwait(false);
+
+            // Wait for the dead node's checkin to go stale + ClusterRecover + takeover fires
+            await WaitForExecutionCount(3, 30_000).ConfigureAwait(false);
+
+            // The trigger must settle on exactly one of the two live survivors
+            TriggerKey threeNodeKey = new TriggerKey("threeNodeTrigger", "failoverTest");
+            string[] liveNodes = { survivorId, "nodeC" };
+            await WaitForCondition(async () =>
+            {
+                ITrigger t = await nodeC.GetTrigger(threeNodeKey).ConfigureAwait(false);
+                string pin = t != null ? ((AbstractTrigger) t).PreferredNode : null;
+                return pin != null && pin != "*" && liveNodes.Contains(pin);
+            }, 15_000, "auto-pin to settle on a live survivor").ConfigureAwait(false);
+
+            // Let any fire acquired just before the claim landed drain (such a fire may
+            // legitimately move the claim once more), then snapshot the settled pin.
+            await Task.Delay(2000).ConfigureAwait(false);
+            ITrigger claimed = await nodeC.GetTrigger(threeNodeKey).ConfigureAwait(false);
+            string settledPin = ((AbstractTrigger) claimed).PreferredNode;
+            Assert.That(liveNodes, Does.Contain(settledPin));
+
+            // Stability: once claimed, all further executions happen on the claimant only
+            RecordingJob.Reset();
+            await WaitForExecutionCount(3, 10_000).ConfigureAwait(false);
+            Assert.That(RecordingJob.Executions, Has.All.EqualTo(settledPin),
+                "After the claim settles, the trigger must not bounce between survivors");
+
+            ITrigger settled = await nodeC.GetTrigger(threeNodeKey).ConfigureAwait(false);
+            Assert.That(((AbstractTrigger) settled).PreferredNode, Is.EqualTo(settledPin),
+                "The settled pin must be stable across subsequent fires");
+        }
+        finally
+        {
+            RecordingJob.Reset();
+            await nodeC.Clear().ConfigureAwait(false);
+            await nodeC.Shutdown(false).ConfigureAwait(false);
+            if (survivor != null)
+            {
+                await survivor.Shutdown(false).ConfigureAwait(false);
+            }
+        }
+    }
+
+    [Test]
+    public async Task Failover_ExecutionGroupSaturatedSurvivor_DoesNotClaimTrigger()
+    {
+        // ClusterRecover resets auto-pins to "*" (instead of re-pinning to the recovering
+        // node) precisely so that execution group limits are respected: a survivor that is
+        // not allowed to run the trigger's group must not end up owning it.
+        IScheduler nodeA = await CreateScheduler("nodeA").ConfigureAwait(false);
+        try
+        {
+            await nodeA.Start().ConfigureAwait(false);
+            await Task.Delay(2000).ConfigureAwait(false);
+
+            IJobDetail job = JobBuilder.Create<RecordingJob>()
+                .WithIdentity("saturationJob", "failoverTest")
+                .StoreDurably()
+                .Build();
+            await nodeA.AddJob(job, true).ConfigureAwait(false);
+
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("saturationTrigger", "failoverTest")
+                .ForJob(job)
+                .WithPreferredNode("*")
+                .WithExecutionGroup("heavy")
+                .WithSimpleSchedule(s => s
+                    .WithIntervalInSeconds(1)
+                    .RepeatForever())
+                .StartNow()
+                .Build();
+            await nodeA.ScheduleJob(trigger).ConfigureAwait(false);
+
+            // First fire auto-pins the trigger to nodeA
+            await WaitForExecutionCount(1, 10_000).ConfigureAwait(false);
+
+            await nodeA.Shutdown(false).ConfigureAwait(false);
+        }
+        catch
+        {
+            await nodeA.Shutdown(false).ConfigureAwait(false);
+            throw;
+        }
+
+        RecordingJob.Reset();
+
+        // Two survivors: one forbidden from running group "heavy" (limit 0), one eligible
+        IScheduler saturated = await CreateScheduler(
+            "saturatedNode",
+            configure: p => p["quartz.executionLimit.heavy"] = "0").ConfigureAwait(false);
+        IScheduler eligible = await CreateScheduler("eligibleNode").ConfigureAwait(false);
+        try
+        {
+            await saturated.Start().ConfigureAwait(false);
+            await eligible.Start().ConfigureAwait(false);
+
+            // Wait for the dead node to go stale, ClusterRecover to reset the pin, and the
+            // eligible node to take over
+            try
+            {
+                await WaitForExecutionCount(2, 30_000).ConfigureAwait(false);
+            }
+            catch (Exception)
+            {
+                TestContext.Out.WriteLine("DB state at timeout:\n" + await DumpDatabaseState().ConfigureAwait(false));
+                throw;
+            }
+            Assert.That(RecordingJob.Executions, Has.All.EqualTo("eligibleNode"),
+                "Only the node allowed to run group 'heavy' may execute the trigger");
+
+            TriggerKey saturationKey = new TriggerKey("saturationTrigger", "failoverTest");
+            await WaitForCondition(async () =>
+            {
+                ITrigger t = await eligible.GetTrigger(saturationKey).ConfigureAwait(false);
+                return t != null && ((AbstractTrigger) t).PreferredNode == "eligibleNode";
+            }, 10_000, "auto-pin to settle on the eligible node").ConfigureAwait(false);
+        }
+        finally
+        {
+            RecordingJob.Reset();
+            await eligible.Clear().ConfigureAwait(false);
+            await saturated.Shutdown(false).ConfigureAwait(false);
+            await eligible.Shutdown(false).ConfigureAwait(false);
+        }
+    }
+}

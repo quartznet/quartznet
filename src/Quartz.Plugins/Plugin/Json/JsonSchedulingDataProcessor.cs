@@ -436,6 +436,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
                 .WithPriority(priority)
                 .ModifiedByCalendar(triggerDef.CalendarName?.TrimEmptyToNull())
                 .WithExecutionGroup(triggerDef.ExecutionGroup?.TrimEmptyToNull())
+                .WithPreferredNode(triggerDef.PreferredNode?.TrimEmptyToNull())
                 .WithSchedule(schedule)
                 .Build();
 

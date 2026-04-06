@@ -75,6 +75,7 @@ public class TriggerBuilder
     private JobKey? jobKey;
     private readonly JobDataMap jobDataMap = new JobDataMap();
     private string? executionGroup;
+    private string? preferredNode;
 
     private IScheduleBuilder? scheduleBuilder;
 
@@ -142,9 +143,17 @@ public class TriggerBuilder
             trig.JobDataMap = jobDataMap;
         }
 
-        if (executionGroup != null && trig is INextVersionTrigger nvt)
+        if (trig is INextVersionTrigger nvt)
         {
-            nvt.ExecutionGroup = executionGroup;
+            if (executionGroup != null)
+            {
+                nvt.ExecutionGroup = executionGroup;
+            }
+
+            // Assign unconditionally: a builder-built trigger fully defines the pin, so a
+            // definition without WithPreferredNode clears a previously stored value when it
+            // replaces an existing trigger (consistent with how ExecutionGroup is persisted).
+            nvt.PreferredNode = preferredNode;
         }
 
         return trig;
@@ -244,6 +253,26 @@ public class TriggerBuilder
             }
             this.executionGroup = executionGroup;
         }
+        return this;
+    }
+
+    /// <summary>
+    /// Set the preferred node for the Trigger. When set, only the specified cluster
+    /// node will execute this trigger, with automatic failover to other nodes if the
+    /// preferred node goes down.
+    /// </summary>
+    /// <param name="preferredNode">
+    /// The scheduler instance id of the target node (matching
+    /// <c>quartz.scheduler.instanceId</c>),
+    /// <c>"*"</c> for automatic first-fire pinning, or <see langword="null"/> to clear.
+    /// The value must match the instance id exactly — pin comparisons happen in SQL
+    /// using the database's string collation, so a value differing only in case is a
+    /// different (and on case-sensitive databases, never-matching) node.
+    /// </param>
+    /// <returns>the updated TriggerBuilder</returns>
+    public TriggerBuilder WithPreferredNode(string? preferredNode)
+    {
+        this.preferredNode = Quartz.Impl.Triggers.PreferredNodeValidation.NormalizeUserValue(preferredNode, nameof(preferredNode));
         return this;
     }
 
