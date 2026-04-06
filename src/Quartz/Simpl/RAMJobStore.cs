@@ -641,7 +641,7 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
             }
 
             if (!update.HasDescription && !update.HasPriority && !update.HasJobDataMap
-                && !update.HasCalendarName && !update.HasMisfireInstruction)
+                && !update.HasCalendarName && !update.HasMisfireInstruction && !update.HasPreferredNode)
             {
                 return Task.FromResult(true);
             }
@@ -691,6 +691,11 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
             if (update.HasMisfireInstruction)
             {
                 trigger.MisfireInstruction = update.MisfireInstruction;
+            }
+
+            if (update.HasPreferredNode && trigger is INextVersionTrigger nvtUpdate)
+            {
+                nvtUpdate.PreferredNode = update.PreferredNode;
             }
         }
 

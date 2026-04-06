@@ -404,6 +404,62 @@ public class StdAdoConstants : AdoConstants
               ORDER BY
                 {ColumnNextFireTime} ASC, {ColumnPriority} DESC");
 
+    // Preferred node support (optional column, probed at startup)
+    // Auto-pinned triggers are stored with this prefix to distinguish them from explicit pins.
+    // ClusterRecover only re-pins "auto:" prefixed values; explicit pins are preserved through failover.
+    public const string AutoPinPrefix = "auto:";
+
+    public static readonly string SqlProbePreferredNodeColumn =
+        Invariant($"SELECT {ColumnPreferredNode} FROM {TablePrefixSubst}{TableTriggers} WHERE 1 = 0");
+
+    public static readonly string SqlSelectTriggerPreferredNode =
+        Invariant($"SELECT {ColumnPreferredNode} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
+
+    public static readonly string SqlUpdateTriggerPreferredNode =
+        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnPreferredNode} = @triggerPreferredNode WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
+
+    public static readonly string SqlRepinTriggersFromDeadNode =
+        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnPreferredNode} = @newPreferredNode WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnPreferredNode} = @oldPreferredNode");
+
+    // The preferred node WHERE clause uses a checkin-time-aware subquery against SCHEDULER_STATE
+    // to determine which nodes are alive. LAST_CHECKIN_TIME is stored in ticks, CHECKIN_INTERVAL
+    // in milliseconds (10000 ticks per ms). @liveNodeCutoff = (now - misfireThreshold).UtcTicks.
+    //
+    // @instanceId matches explicit pins to this node.
+    // @autoInstanceId matches auto-pins (prefixed with "auto:") to this node.
+    // @autoPinSentinel matches the "*" sentinel (unclaimed auto-pin).
+    // REPLACE strips the "auto:" prefix before comparing against live INSTANCE_NAMEs,
+    // so both "nodeA" and "auto:nodeA" are evaluated against the same liveness check.
+    private static readonly string PreferredNodeWhereClause =
+        Invariant($@"AND (t.{ColumnPreferredNode} IS NULL OR t.{ColumnPreferredNode} = @instanceId OR t.{ColumnPreferredNode} = @autoInstanceId OR t.{ColumnPreferredNode} = @autoPinSentinel
+                     OR REPLACE(t.{ColumnPreferredNode}, '{AutoPinPrefix}', '') NOT IN (SELECT ss.{ColumnInstanceName} FROM {TablePrefixSubst}{TableSchedulerState} ss WHERE ss.{ColumnSchedulerName} = @schedulerName AND ss.{ColumnLastCheckinTime} + ss.{ColumnCheckinInterval} * 10000 >= @liveNodeCutoff))");
+
+    public static readonly string SqlSelectNextTriggerToAcquireWithPreferredNode =
+        Invariant($@"SELECT
+                t.{ColumnTriggerName}, t.{ColumnTriggerGroup}, jd.{ColumnJobClass}, t.{ColumnExecutionGroup}, t.{ColumnPreferredNode}
+              FROM
+                {TablePrefixSubst}{TableTriggers} t
+              JOIN
+                {TablePrefixSubst}{TableJobDetails} jd ON (jd.{ColumnSchedulerName} = t.{ColumnSchedulerName} AND  jd.{ColumnJobGroup} = t.{ColumnJobGroup} AND jd.{ColumnJobName} = t.{ColumnJobName})
+              WHERE
+                t.{ColumnSchedulerName} = @schedulerName AND {ColumnTriggerState} = @state AND {ColumnNextFireTime} <= @noLaterThan AND ({ColumnMifireInstruction} = -1 OR ({ColumnMifireInstruction} <> -1 AND {ColumnNextFireTime} >= @noEarlierThan))
+                {PreferredNodeWhereClause}
+              ORDER BY
+                {ColumnNextFireTime} ASC, {ColumnPriority} DESC");
+
+    public static readonly string SqlSelectNextTriggerToAcquireWithPreferredNodeOnly =
+        Invariant($@"SELECT
+                t.{ColumnTriggerName}, t.{ColumnTriggerGroup}, jd.{ColumnJobClass}, t.{ColumnPreferredNode}
+              FROM
+                {TablePrefixSubst}{TableTriggers} t
+              JOIN
+                {TablePrefixSubst}{TableJobDetails} jd ON (jd.{ColumnSchedulerName} = t.{ColumnSchedulerName} AND  jd.{ColumnJobGroup} = t.{ColumnJobGroup} AND jd.{ColumnJobName} = t.{ColumnJobName})
+              WHERE
+                t.{ColumnSchedulerName} = @schedulerName AND {ColumnTriggerState} = @state AND {ColumnNextFireTime} <= @noLaterThan AND ({ColumnMifireInstruction} = -1 OR ({ColumnMifireInstruction} <> -1 AND {ColumnNextFireTime} >= @noEarlierThan))
+                {PreferredNodeWhereClause}
+              ORDER BY
+                {ColumnNextFireTime} ASC, {ColumnPriority} DESC");
+
     public static readonly string SqlSelectTriggerWithMisfireOrigFireTime =
         Invariant($@"SELECT
                 {ColumnJobName},

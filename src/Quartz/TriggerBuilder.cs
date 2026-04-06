@@ -75,6 +75,7 @@ public class TriggerBuilder
     private JobKey? jobKey;
     private readonly JobDataMap jobDataMap = new JobDataMap();
     private string? executionGroup;
+    private string? preferredNode;
 
     private IScheduleBuilder? scheduleBuilder;
 
@@ -142,9 +143,16 @@ public class TriggerBuilder
             trig.JobDataMap = jobDataMap;
         }
 
-        if (executionGroup != null && trig is INextVersionTrigger nvt)
+        if (trig is INextVersionTrigger nvt)
         {
-            nvt.ExecutionGroup = executionGroup;
+            if (executionGroup != null)
+            {
+                nvt.ExecutionGroup = executionGroup;
+            }
+            if (preferredNode != null)
+            {
+                nvt.PreferredNode = preferredNode;
+            }
         }
 
         return trig;
@@ -243,6 +251,39 @@ public class TriggerBuilder
                     nameof(executionGroup));
             }
             this.executionGroup = executionGroup;
+        }
+        return this;
+    }
+
+    /// <summary>
+    /// Set the preferred node for the Trigger. When set, only the specified cluster
+    /// node will execute this trigger, with automatic failover to other nodes if the
+    /// preferred node goes down.
+    /// </summary>
+    /// <param name="preferredNode">
+    /// The scheduler instance id of the target node (matching
+    /// <c>quartz.scheduler.instanceId</c>),
+    /// <c>"*"</c> for automatic first-fire pinning, or <see langword="null"/> to clear.
+    /// </param>
+    /// <returns>the updated TriggerBuilder</returns>
+    public TriggerBuilder WithPreferredNode(string? preferredNode)
+    {
+        if (string.IsNullOrWhiteSpace(preferredNode))
+        {
+            this.preferredNode = null;
+        }
+        else
+        {
+            string trimmed = preferredNode!.Trim();
+            if (trimmed.IndexOf("auto:", StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                throw new ArgumentException(
+                    "The 'auto:' substring is reserved for internal auto-pin tracking. " +
+                    "Use \"*\" for auto-pin or a plain node name for explicit pin.",
+                    nameof(preferredNode));
+            }
+
+            this.preferredNode = trimmed;
         }
         return this;
     }

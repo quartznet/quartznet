@@ -66,6 +66,7 @@ public abstract class AbstractTrigger : IOperableTrigger, INextVersionTrigger, I
     private DateTimeOffset? endTimeUtc;
     private DateTimeOffset startTimeUtc;
     private string? executionGroup;
+    private string? preferredNode;
 
     [NonSerialized] // we have the key in string fields
     private TriggerKey? key;
@@ -234,12 +235,15 @@ public abstract class AbstractTrigger : IOperableTrigger, INextVersionTrigger, I
 
     public TriggerBuilder GetTriggerBuilder()
     {
+        // PreferredNode getter already normalizes (strips "auto:" prefix),
+        // so the builder receives a plain node name for auto-pinned triggers.
         return TriggerBuilder.Create()
             .ForJob(JobKey)
             .ModifiedByCalendar(CalendarName)
             .UsingJobData(JobDataMap)
             .WithDescription(Description)
             .WithExecutionGroup(ExecutionGroup)
+            .WithPreferredNode(PreferredNode)
             .EndAt(EndTimeUtc)
             .WithIdentity(Key)
             .WithPriority(Priority)
@@ -292,6 +296,77 @@ public abstract class AbstractTrigger : IOperableTrigger, INextVersionTrigger, I
                 }
                 executionGroup = trimmed;
             }
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the preferred node for this trigger. When set to a specific
+    /// scheduler instance id (matching <c>quartz.scheduler.instanceId</c>),
+    /// only that node will acquire the trigger in a cluster (with automatic
+    /// failover if the node is down). When set to <c>"*"</c>, the first node
+    /// to fire the trigger pins it automatically.
+    /// </summary>
+    /// <remarks>
+    /// <para>A <see langword="null"/> value means the trigger has no node preference
+    /// (the default, backward-compatible behavior).</para>
+    /// </remarks>
+    public string? PreferredNode
+    {
+        // Public getter normalizes: strips internal "auto:" prefix so callers
+        // see "nodeA" instead of "auto:nodeA". Internal code that needs the raw
+        // value (persistence, acquisition) accesses via INextVersionTrigger cast.
+        get => preferredNode != null
+            && preferredNode.StartsWith("auto:", StringComparison.OrdinalIgnoreCase)
+            ? preferredNode.Substring("auto:".Length)
+            : preferredNode;
+        set
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                preferredNode = null;
+            }
+            else
+            {
+                string trimmed = value!.Trim();
+                if (trimmed.IndexOf("auto:", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    throw new ArgumentException(
+                        "The 'auto:' substring is reserved for internal auto-pin tracking. " +
+                        "Use \"*\" for auto-pin or a plain node name for explicit pin.",
+                        nameof(value));
+                }
+
+                preferredNode = trimmed;
+            }
+        }
+    }
+
+    // Explicit interface implementation returns the raw backing field (including
+    // "auto:" prefix) for internal use by persistence and acquisition code.
+    string? Spi.INextVersionTrigger.PreferredNode
+    {
+        get => preferredNode;
+        set => PreferredNode = value; // delegate to validated public setter
+    }
+
+    /// <inheritdoc cref="Spi.INextVersionTrigger.SetPreferredNodeRaw"/>
+    void Spi.INextVersionTrigger.SetPreferredNodeRaw(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            preferredNode = null;
+        }
+        else
+        {
+            string trimmed = value!.Trim();
+            // Normalize any-case auto-pin prefix to lowercase "auto:" so the SQL
+            // REPLACE('auto:', '') matches on case-sensitive databases (PostgreSQL, etc.).
+            if (trimmed.StartsWith("auto:", StringComparison.OrdinalIgnoreCase)
+                && !trimmed.StartsWith("auto:", StringComparison.Ordinal))
+            {
+                trimmed = "auto:" + trimmed.Substring("auto:".Length);
+            }
+            preferredNode = trimmed;
         }
     }
 
