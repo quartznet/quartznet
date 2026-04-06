@@ -201,6 +201,7 @@ public class XMLSchedulingDataProcessor
 
         OverWriteExistingData = true;
         IgnoreDuplicates = false;
+        ScheduleTriggerRelativeToReplacedTrigger = false;
 
         jobGroupsToDelete.Clear();
         jobsToDelete.Clear();

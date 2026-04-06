@@ -20,6 +20,7 @@ internal sealed class JsonTriggerDefinition
     public string? Description { get; set; }
     public int? Priority { get; set; }
     public string? CalendarName { get; set; }
+    public string? ExecutionGroup { get; set; }
     public DateTimeOffset? StartTime { get; set; }
     public int? StartTimeSecondsInFuture { get; set; }
     public DateTimeOffset? EndTime { get; set; }

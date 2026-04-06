@@ -113,8 +113,137 @@ public class JsonSchedulingTests
         options.JobDetails.Should().BeEmpty();
     }
 
+    [Test]
+    public void AddQuartz_SchedulingSectionInJson_PopulatesSchedulingOptions()
+    {
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Scheduling:OverWriteExistingData", "false" },
+            { "Scheduling:IgnoreDuplicates", "true" },
+            { "Scheduling:ScheduleTriggerRelativeToReplacedTrigger", "true" },
+            { "Schedule:Jobs:0:Name", "testJob" },
+            { "Schedule:Jobs:0:JobType", "Quartz.Job.NativeJob, Quartz.Jobs" },
+            { "Schedule:Jobs:0:Durable", "true" },
+            { "Schedule:Triggers:0:Name", "testTrigger" },
+            { "Schedule:Triggers:0:JobName", "testJob" },
+            { "Schedule:Triggers:0:Cron:Expression", "0 0 12 * * ?" },
+        });
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQuartz(config);
+
+        var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptions<QuartzOptions>>().Value;
+
+        options.Scheduling.OverWriteExistingData.Should().BeFalse();
+        options.Scheduling.IgnoreDuplicates.Should().BeTrue();
+        options.Scheduling.ScheduleTriggerRelativeToReplacedTrigger.Should().BeTrue();
+        options.JobDetails.Should().HaveCount(1);
+    }
+
+    [Test]
+    public void AddQuartz_SchedulingSectionOnly_WithoutScheduleSection_WorksFine()
+    {
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Scheduler:InstanceName", "SchedulingOnly" },
+            { "Scheduling:OverWriteExistingData", "false" },
+            { "Scheduling:IgnoreDuplicates", "true" },
+        });
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQuartz(config);
+
+        var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptions<QuartzOptions>>().Value;
+
+        options.Scheduling.OverWriteExistingData.Should().BeFalse();
+        options.Scheduling.IgnoreDuplicates.Should().BeTrue();
+        options.JobDetails.Should().BeEmpty();
+    }
+
+    [Test]
+    public void AddQuartz_NamedScheduler_WithCustomTypeLoader_UsesConfiguredLoader()
+    {
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Schedule:Jobs:0:Name", "customLoaderJob" },
+            { "Schedule:Jobs:0:JobType", "MyApp.AliasedJob" },
+            { "Schedule:Jobs:0:Durable", "true" },
+            { "Schedule:Triggers:0:Name", "customLoaderTrigger" },
+            { "Schedule:Triggers:0:JobName", "customLoaderJob" },
+            { "Schedule:Triggers:0:Cron:Expression", "0 0 * * * ?" },
+        });
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQuartz("CustomLoader", config, c =>
+        {
+            c.UseTypeLoader<AliasTypeLoadHelper>();
+        });
+
+        var provider = services.BuildServiceProvider();
+        var snapshot = provider.GetRequiredService<IOptionsSnapshot<QuartzOptions>>();
+        var options = snapshot.Get("CustomLoader");
+
+        options.JobDetails.Should().HaveCount(1);
+        options.JobDetails[0].Key.Name.Should().Be("customLoaderJob");
+        options.JobDetails[0].JobType.FullName.Should().Contain("Quartz.Job.NativeJob");
+    }
+
+    [Test]
+    public void AddQuartz_WithExecutionGroupInJson_PopulatesOptions()
+    {
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Schedule:Jobs:0:Name", "groupJob" },
+            { "Schedule:Jobs:0:JobType", "Quartz.Job.NativeJob, Quartz.Jobs" },
+            { "Schedule:Jobs:0:Durable", "true" },
+            { "Schedule:Triggers:0:Name", "groupTrigger" },
+            { "Schedule:Triggers:0:JobName", "groupJob" },
+            { "Schedule:Triggers:0:ExecutionGroup", "batch" },
+            { "Schedule:Triggers:0:Cron:Expression", "0 0 * * * ?" },
+        });
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQuartz(config);
+
+        var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptions<QuartzOptions>>().Value;
+
+        options.Triggers.Should().HaveCount(1);
+        var trigger = (Quartz.Impl.Triggers.AbstractTrigger) options.Triggers[0];
+        trigger.ExecutionGroup.Should().Be("batch");
+    }
+
     private static IConfiguration BuildConfig(Dictionary<string, string> values)
     {
         return new ConfigurationBuilder().AddInMemoryCollection(values).Build();
+    }
+
+    /// <summary>
+    /// A type load helper that maps the alias "MyApp.AliasedJob" to NativeJob,
+    /// proving the custom loader was used instead of the default.
+    /// </summary>
+    private sealed class AliasTypeLoadHelper : Quartz.Spi.ITypeLoadHelper
+    {
+        private readonly Quartz.Simpl.SimpleTypeLoadHelper inner = new();
+
+        public void Initialize()
+        {
+            inner.Initialize();
+        }
+
+        public Type LoadType(string name)
+        {
+            if (name == "MyApp.AliasedJob")
+            {
+                return inner.LoadType("Quartz.Job.NativeJob, Quartz.Jobs");
+            }
+            return inner.LoadType(name);
+        }
     }
 }

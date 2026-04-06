@@ -330,6 +330,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
                 .EndAt(endTime)
                 .WithPriority(priority)
                 .ModifiedByCalendar(NormalizeEmpty(triggerDef.CalendarName))
+                .WithExecutionGroup(NormalizeEmpty(triggerDef.ExecutionGroup))
                 .WithSchedule(schedule)
                 .Build();
 
@@ -429,6 +430,10 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
         if (ts < TimeSpan.Zero || ts >= TimeSpan.FromHours(24))
         {
             throw new SchedulerConfigException($"TimeOfDay value '{value}' is out of range. Must be between 00:00:00 and 23:59:59.");
+        }
+        if (ts.Milliseconds != 0 || ts.Ticks % TimeSpan.TicksPerMillisecond != 0)
+        {
+            throw new SchedulerConfigException($"TimeOfDay value '{value}' must not contain fractional seconds.");
         }
         return new TimeOfDay(ts.Hours, ts.Minutes, ts.Seconds);
     }
