@@ -550,17 +550,21 @@ internal static class JsonSchedulingHelper
     /// </summary>
     private static ITypeLoadHelper ResolveTypeLoadHelper(QuartzOptions options, IServiceProvider serviceProvider)
     {
+        ITypeLoadHelper typeLoadHelper;
+
         if (options.TryGetValue(StdSchedulerFactory.PropertySchedulerTypeLoadHelperType, out string? typeName)
             && !string.IsNullOrWhiteSpace(typeName))
         {
-            Type? type = Type.GetType(typeName);
-            if (type is not null)
-            {
-                return ObjectUtils.InstantiateType<ITypeLoadHelper>(type);
-            }
+            Type type = Type.GetType(typeName, throwOnError: true)!;
+            typeLoadHelper = ObjectUtils.InstantiateType<ITypeLoadHelper>(type);
+        }
+        else
+        {
+            typeLoadHelper = serviceProvider.GetService<ITypeLoadHelper>() ?? new SimpleTypeLoadHelper();
         }
 
-        return serviceProvider.GetService<ITypeLoadHelper>() ?? new SimpleTypeLoadHelper();
+        typeLoadHelper.Initialize();
+        return typeLoadHelper;
     }
 
     /// <summary>
