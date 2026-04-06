@@ -435,6 +435,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
                 .EndAt(endTime)
                 .WithPriority(priority)
                 .ModifiedByCalendar(triggerDef.CalendarName?.TrimEmptyToNull())
+                .WithExecutionGroup(triggerDef.ExecutionGroup?.TrimEmptyToNull())
                 .WithSchedule(schedule)
                 .Build();
 
@@ -593,9 +594,9 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
         {
             throw new SchedulerConfigException($"JSON schedule: invalid TimeOfDay value '{value}'.");
         }
-        if (ts < TimeSpan.Zero || ts > TimeSpan.FromHours(24))
+        if (ts < TimeSpan.Zero || ts >= TimeSpan.FromHours(24))
         {
-            throw new SchedulerConfigException($"JSON schedule: TimeOfDay value '{value}' must be between 00:00:00 and 24:00:00.");
+            throw new SchedulerConfigException($"JSON schedule: TimeOfDay value '{value}' must be between 00:00:00 and 23:59:59.");
         }
         return new TimeOfDay(ts.Hours, ts.Minutes, ts.Seconds);
     }

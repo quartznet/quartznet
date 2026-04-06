@@ -276,6 +276,63 @@ public class JsonSchedulingDataProcessorTest
     }
 
     [Test]
+    public void SecondProcessJsonContent_WithoutDirectives_ResetsScheduleTriggerRelativeFlag()
+    {
+        string jsonWithDirectives = @"{
+            ""ProcessingDirectives"": {
+                ""OverWriteExistingData"": false,
+                ""IgnoreDuplicates"": true,
+                ""ScheduleTriggerRelativeToReplacedTrigger"": true
+            },
+            ""Schedule"": { ""Jobs"": [], ""Triggers"": [] }
+        }";
+
+        string jsonWithoutDirectives = @"{
+            ""Schedule"": { ""Jobs"": [], ""Triggers"": [] }
+        }";
+
+        JsonSchedulingDataProcessor processor = CreateProcessor();
+
+        // First load sets the flags
+        processor.ProcessJsonContent(jsonWithDirectives);
+        processor.ScheduleTriggerRelativeToReplacedTrigger.Should().BeTrue();
+        processor.OverWriteExistingData.Should().BeFalse();
+        processor.IgnoreDuplicates.Should().BeTrue();
+
+        // Second load (hot reload) without directives should reset all flags to defaults
+        processor.ProcessJsonContent(jsonWithoutDirectives);
+        processor.ScheduleTriggerRelativeToReplacedTrigger.Should().BeFalse();
+        processor.OverWriteExistingData.Should().BeTrue();
+        processor.IgnoreDuplicates.Should().BeFalse();
+    }
+
+    [Test]
+    public void ParsesExecutionGroup()
+    {
+        string json = @"{
+            ""Schedule"": {
+                ""Jobs"": [{
+                    ""Name"": ""testJob"",
+                    ""JobType"": ""Quartz.Job.NativeJob, Quartz.Jobs""
+                }],
+                ""Triggers"": [{
+                    ""Name"": ""testTrigger"",
+                    ""JobName"": ""testJob"",
+                    ""ExecutionGroup"": ""batch"",
+                    ""Cron"": { ""Expression"": ""0 0 12 * * ?"" }
+                }]
+            }
+        }";
+
+        JsonSchedulingDataProcessor processor = CreateProcessor();
+        processor.ProcessJsonContent(json);
+
+        processor.ParsedTriggers.Should().HaveCount(1);
+        Quartz.Impl.Triggers.AbstractTrigger trigger = (Quartz.Impl.Triggers.AbstractTrigger) processor.ParsedTriggers[0];
+        trigger.ExecutionGroup.Should().Be("batch");
+    }
+
+    [Test]
     public void MissingJobName_Throws()
     {
         string json = @"{

@@ -19,6 +19,7 @@
   "Priority": 15,
   "NextFireTimeUtc": "2024-07-01T00:02:48.5+00:00",
   "PreviousFireTimeUtc": "2024-07-01T00:02:06.5+00:00",
+  "ExecutionGroup": null,
   "RepeatInterval": 42,
   "RepeatIntervalUnit": "Second",
   "TimeZone": "UTC",
