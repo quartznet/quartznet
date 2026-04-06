@@ -65,7 +65,7 @@
     <PackageVersion Include="Verify.NUnit" Version="28.10.1" />
   </ItemGroup>
   <ItemGroup>
-    <GlobalPackageReference Include="GitHubActionsTestLogger" Version="3.0.2" />
+    <GlobalPackageReference Include="GitHubActionsTestLogger" Version="3.0.3" />
     <GlobalPackageReference Include="Meziantou.Analyzer" Version="2.0.177" />
     <GlobalPackageReference Include="PolySharp" Version="1.15.0" />
   </ItemGroup>
