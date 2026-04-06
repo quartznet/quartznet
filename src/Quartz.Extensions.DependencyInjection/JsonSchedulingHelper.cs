@@ -477,6 +477,10 @@ internal static class JsonSchedulingHelper
         {
             throw new SchedulerConfigException($"JSON schedule: TimeOfDay value '{value}' must be between 00:00:00 and 23:59:59.");
         }
+        if (ts.Milliseconds != 0 || ts.Ticks % TimeSpan.TicksPerMillisecond != 0)
+        {
+            throw new SchedulerConfigException($"JSON schedule: TimeOfDay value '{value}' must not contain fractional seconds.");
+        }
         return new TimeOfDay(ts.Hours, ts.Minutes, ts.Seconds);
     }
 
