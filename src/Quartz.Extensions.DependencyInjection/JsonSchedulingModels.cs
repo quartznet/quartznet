@@ -87,6 +87,11 @@ internal sealed class JsonTriggerDefinition
     public string? CalendarName { get; set; }
 
     /// <summary>
+    /// Optional execution group for this trigger.
+    /// </summary>
+    public string? ExecutionGroup { get; set; }
+
+    /// <summary>
     /// Optional absolute start time (ISO 8601). Mutually exclusive with <see cref="StartTimeSecondsInFuture"/>.
     /// </summary>
     public DateTimeOffset? StartTime { get; set; }

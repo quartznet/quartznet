@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 
 using System.Reflection;
 
+using Quartz.Impl;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
@@ -31,27 +32,38 @@ internal static class JsonSchedulingHelper
         string? optionsName = null)
     {
         IConfigurationSection scheduleSection = configuration.GetSection("Schedule");
-        if (!scheduleSection.Exists())
+        IConfigurationSection schedulingSection = configuration.GetSection("Scheduling");
+        if (!scheduleSection.Exists() && !schedulingSection.Exists())
         {
             return;
         }
 
         services.AddSingleton<IConfigureOptions<QuartzOptions>>(serviceProvider =>
         {
-            ITypeLoadHelper typeLoadHelper = serviceProvider.GetService<ITypeLoadHelper>() ?? new SimpleTypeLoadHelper();
-            List<IJobDetail> jobs = ReadJobs(scheduleSection.GetSection("Jobs"), typeLoadHelper);
-            List<ITrigger> triggers = ReadTriggers(scheduleSection.GetSection("Triggers"));
-
             return new ConfigureNamedOptions<QuartzOptions>(optionsName ?? Options.DefaultName, options =>
             {
-                foreach (IJobDetail job in jobs)
+                // Bind Scheduling directives (OverWriteExistingData, IgnoreDuplicates, etc.)
+                if (schedulingSection.Exists())
                 {
-                    options.jobDetails.Add(job);
+                    BindSchedulingOptions(schedulingSection, options.Scheduling);
                 }
 
-                foreach (ITrigger trigger in triggers)
+                // Read jobs and triggers from the Schedule section
+                if (scheduleSection.Exists())
                 {
-                    options.triggers.Add(trigger);
+                    ITypeLoadHelper typeLoadHelper = ResolveTypeLoadHelper(options, serviceProvider);
+                    List<IJobDetail> jobs = ReadJobs(scheduleSection.GetSection("Jobs"), typeLoadHelper);
+                    List<ITrigger> triggers = ReadTriggers(scheduleSection.GetSection("Triggers"));
+
+                    foreach (IJobDetail job in jobs)
+                    {
+                        options.jobDetails.Add(job);
+                    }
+
+                    foreach (ITrigger trigger in triggers)
+                    {
+                        options.triggers.Add(trigger);
+                    }
                 }
             });
         });
@@ -155,6 +167,7 @@ internal static class JsonSchedulingHelper
             string? jobGroup = NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.JobGroup)]);
             string? description = triggerSection[nameof(JsonTriggerDefinition.Description)];
             string? calendarName = NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.CalendarName)]);
+            string? executionGroup = NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.ExecutionGroup)]);
             string? priorityStr = triggerSection[nameof(JsonTriggerDefinition.Priority)];
             string? startTimeStr = triggerSection[nameof(JsonTriggerDefinition.StartTime)];
             string? startTimeFutureStr = triggerSection[nameof(JsonTriggerDefinition.StartTimeSecondsInFuture)];
@@ -222,6 +235,7 @@ internal static class JsonSchedulingHelper
                 .EndAt(endTime)
                 .WithPriority(priority)
                 .ModifiedByCalendar(calendarName)
+                .WithExecutionGroup(executionGroup)
                 .WithSchedule(schedule)
                 .Build();
 
@@ -459,9 +473,13 @@ internal static class JsonSchedulingHelper
         {
             throw new SchedulerConfigException($"JSON schedule: invalid TimeOfDay value '{value}'.");
         }
-        if (ts < TimeSpan.Zero || ts > TimeSpan.FromHours(24))
+        if (ts < TimeSpan.Zero || ts >= TimeSpan.FromHours(24))
         {
-            throw new SchedulerConfigException($"JSON schedule: TimeOfDay value '{value}' must be between 00:00:00 and 24:00:00.");
+            throw new SchedulerConfigException($"JSON schedule: TimeOfDay value '{value}' must be between 00:00:00 and 23:59:59.");
+        }
+        if (ts.Milliseconds != 0 || ts.Ticks % TimeSpan.TicksPerMillisecond != 0)
+        {
+            throw new SchedulerConfigException($"JSON schedule: TimeOfDay value '{value}' must not contain fractional seconds.");
         }
         return new TimeOfDay(ts.Hours, ts.Minutes, ts.Seconds);
     }
@@ -527,6 +545,54 @@ internal static class JsonSchedulingHelper
             throw new SchedulerConfigException($"JSON schedule: {location}invalid {typeof(T).Name} value '{value}' for '{property}'.");
         }
         return result;
+    }
+
+    /// <summary>
+    /// Resolves the <see cref="ITypeLoadHelper"/> to use for loading job types from JSON configuration.
+    /// Checks the scheduler-specific property first (set via <c>UseTypeLoader&lt;T&gt;()</c>),
+    /// then falls back to the DI-registered singleton, then to <see cref="SimpleTypeLoadHelper"/>.
+    /// </summary>
+    private static ITypeLoadHelper ResolveTypeLoadHelper(QuartzOptions options, IServiceProvider serviceProvider)
+    {
+        ITypeLoadHelper typeLoadHelper;
+
+        if (options.TryGetValue(StdSchedulerFactory.PropertySchedulerTypeLoadHelperType, out string? typeName)
+            && !string.IsNullOrWhiteSpace(typeName))
+        {
+            Type type = Type.GetType(typeName, throwOnError: true)!;
+            typeLoadHelper = ObjectUtils.InstantiateType<ITypeLoadHelper>(type);
+        }
+        else
+        {
+            typeLoadHelper = serviceProvider.GetService<ITypeLoadHelper>() ?? new SimpleTypeLoadHelper();
+        }
+
+        typeLoadHelper.Initialize();
+        return typeLoadHelper;
+    }
+
+    /// <summary>
+    /// Binds values from the <c>Scheduling</c> configuration section into a <see cref="SchedulingOptions"/> instance.
+    /// </summary>
+    private static void BindSchedulingOptions(IConfigurationSection section, SchedulingOptions scheduling)
+    {
+        string? overwrite = section[nameof(SchedulingOptions.OverWriteExistingData)];
+        if (overwrite is not null)
+        {
+            scheduling.OverWriteExistingData = ParseBool(overwrite, nameof(SchedulingOptions.OverWriteExistingData));
+        }
+
+        string? ignoreDups = section[nameof(SchedulingOptions.IgnoreDuplicates)];
+        if (ignoreDups is not null)
+        {
+            scheduling.IgnoreDuplicates = ParseBool(ignoreDups, nameof(SchedulingOptions.IgnoreDuplicates));
+        }
+
+        string? relative = section[nameof(SchedulingOptions.ScheduleTriggerRelativeToReplacedTrigger)];
+        if (relative is not null)
+        {
+            scheduling.ScheduleTriggerRelativeToReplacedTrigger = ParseBool(relative, nameof(SchedulingOptions.ScheduleTriggerRelativeToReplacedTrigger));
+        }
     }
 
     /// <summary>

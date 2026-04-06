@@ -78,6 +78,11 @@ internal sealed class TriggerConverter : JsonConverter<ITrigger>
                 operableTrigger.SetPreviousFireTimeUtc(previousFireTimeUtc);
             }
 
+            if (trigger is Quartz.Spi.INextVersionTrigger nvt)
+            {
+                nvt.ExecutionGroup = rootElement.GetPropertyOrNull(options.GetPropertyName("ExecutionGroup"))?.GetString();
+            }
+
             triggerSerializer.DeserializeFields(trigger, rootElement, options);
             return trigger;
         }
@@ -109,6 +114,11 @@ internal sealed class TriggerConverter : JsonConverter<ITrigger>
             writer.WriteNumber(options.GetPropertyName("Priority"), value.Priority);
             writer.WriteString(options.GetPropertyName("NextFireTimeUtc"), value.GetNextFireTimeUtc());
             writer.WriteString(options.GetPropertyName("PreviousFireTimeUtc"), value.GetPreviousFireTimeUtc());
+
+            if (value is Quartz.Spi.INextVersionTrigger nvt)
+            {
+                writer.WriteString(options.GetPropertyName("ExecutionGroup"), nvt.ExecutionGroup);
+            }
 
             triggerSerializer.SerializeFields(writer, value, options);
             writer.WriteEndObject();
