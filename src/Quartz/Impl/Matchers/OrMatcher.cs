@@ -79,7 +79,7 @@ public sealed class OrMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
 
     public override bool Equals(object? obj)
     {
-        if (this == obj)
+        if (ReferenceEquals(this, obj))
         {
             return true;
         }

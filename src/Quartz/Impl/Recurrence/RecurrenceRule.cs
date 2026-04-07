@@ -801,7 +801,7 @@ internal sealed class RecurrenceRule
     /// </summary>
     private static DateTimeOffset ToDateTimeOffset(DateTime local, TimeZoneInfo tz)
     {
-        if (tz == TimeZoneInfo.Utc)
+        if (ReferenceEquals(tz, TimeZoneInfo.Utc))
         {
             return new DateTimeOffset(local, TimeSpan.Zero);
         }
