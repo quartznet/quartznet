@@ -975,6 +975,53 @@ public class JobStoreSupportTest
         recovered.Should().Be(0);
     }
 
+    [Test]
+    public async Task IsJobGroupPaused_ShouldReturnFalse()
+    {
+        bool result = await jobStoreSupport.IsJobGroupPaused("anyGroup");
+        result.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task IsTriggerGroupPaused_ShouldDelegateToDriverDelegate()
+    {
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+
+        A.CallTo(() => driverDelegate.IsTriggerGroupPaused(conn, "pausedGroup", A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult(true));
+
+        bool result = await jobStoreSupport.CallIsTriggerGroupPaused(conn, "pausedGroup");
+
+        result.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task IsTriggerGroupPaused_ShouldReturnFalse_WhenGroupNotPaused()
+    {
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+
+        A.CallTo(() => driverDelegate.IsTriggerGroupPaused(conn, "activeGroup", A<CancellationToken>.Ignored))
+            .Returns(Task.FromResult(false));
+
+        bool result = await jobStoreSupport.CallIsTriggerGroupPaused(conn, "activeGroup");
+
+        result.Should().BeFalse();
+    }
+
+    [Test]
+    public void IsTriggerGroupPaused_ShouldWrapException_InJobPersistenceException()
+    {
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+
+        A.CallTo(() => driverDelegate.IsTriggerGroupPaused(conn, "group", A<CancellationToken>.Ignored))
+            .Throws(new Exception("db error"));
+
+        Func<Task> act = () => jobStoreSupport.CallIsTriggerGroupPaused(conn, "group");
+
+        act.Should().ThrowAsync<JobPersistenceException>()
+            .WithMessage("*group*");
+    }
+
     private static RetryTestJobStoreSupport CreateRetryTestStore(int maxTransientRetries = 3)
     {
         return new RetryTestJobStoreSupport
@@ -1059,6 +1106,11 @@ public class JobStoreSupportTest
             bool updateTriggers)
         {
             return StoreCalendar(conn, calName, calendar, replaceExisting, updateTriggers, CancellationToken.None);
+        }
+
+        internal Task<bool> CallIsTriggerGroupPaused(ConnectionAndTransactionHolder conn, string groupName)
+        {
+            return IsTriggerGroupPaused(conn, groupName, CancellationToken.None);
         }
     }
 
