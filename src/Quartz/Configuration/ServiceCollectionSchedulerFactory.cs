@@ -73,6 +73,9 @@ internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
 
     private async Task InitializeScheduler(IScheduler scheduler, CancellationToken cancellationToken)
     {
+        // Make the DI service provider available to plugins via SchedulerContext
+        scheduler.Context["Quartz.ServiceProvider"] = serviceProvider;
+
         // Default scheduler uses flat ISchedulerListener services (backward compatible)
         foreach (var listener in serviceProvider.GetServices<ISchedulerListener>())
         {

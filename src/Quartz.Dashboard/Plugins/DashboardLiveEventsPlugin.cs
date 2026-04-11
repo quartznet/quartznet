@@ -29,8 +29,7 @@ namespace Quartz.Dashboard.Plugins;
 
 public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, ITriggerListener, ISchedulerListener
 {
-    public static IServiceProvider? ServiceProvider { get; set; }
-
+    private IScheduler? scheduler;
     private IHubContext<QuartzDashboardHub, IQuartzDashboardHubClient>? hubContext;
     private string schedulerName = string.Empty;
 
@@ -39,6 +38,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
     public ValueTask Initialize(string pluginName, IScheduler scheduler, CancellationToken cancellationToken = default)
     {
         Name = pluginName;
+        this.scheduler = scheduler;
         schedulerName = scheduler.SchedulerName;
 
         scheduler.ListenerManager.AddJobListener(this, EverythingMatcher<JobKey>.AllJobs());
@@ -210,23 +210,33 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
 
     public ValueTask SchedulingDataCleared(CancellationToken cancellationToken = default) => default;
 
-    private ValueTask BroadcastToScheduler(string scheduler, Func<IQuartzDashboardHubClient, Task> send)
+    private async ValueTask BroadcastToScheduler(string schedulerName, Func<IQuartzDashboardHubClient, Task> send)
     {
-        if (string.IsNullOrWhiteSpace(scheduler))
+        if (string.IsNullOrWhiteSpace(schedulerName))
         {
-            return default;
+            return;
         }
 
-        // Lazily resolve hub context — ServiceProvider is set by MapQuartzDashboard()
-        // which runs after the scheduler (and this plugin) is initialized
-        hubContext ??= ServiceProvider?.GetService<IHubContext<QuartzDashboardHub, IQuartzDashboardHubClient>>();
-
-        if (hubContext is null)
+        try
         {
-            return default;
-        }
+            if (hubContext is null
+                && scheduler?.Context is { } ctx
+                && ctx.TryGetValue(DashboardPluginKeys.ServiceProvider, out var value)
+                && value is IServiceProvider sp)
+            {
+                hubContext = sp.GetService<IHubContext<QuartzDashboardHub, IQuartzDashboardHubClient>>();
+            }
 
-        Task task = send(hubContext.Clients.Group(scheduler));
-        return new ValueTask(task);
+            if (hubContext is null)
+            {
+                return;
+            }
+
+            await send(hubContext.Clients.Group(schedulerName)).ConfigureAwait(false);
+        }
+        catch (ObjectDisposedException)
+        {
+            // Host is disposing — silently ignore, dashboard events are non-critical
+        }
     }
 }
