@@ -28,9 +28,8 @@ public class SchedulerSignalRaceTest
     public async Task RapidScheduling_TriggersFirePromptly()
     {
         int triggerCount = 20;
-        int firedCount = 0;
         ManualResetEventSlim allFired = new ManualResetEventSlim(false);
-        RapidFireJob.Reset(triggerCount, ref firedCount, allFired);
+        RapidFireJob.Reset(triggerCount, allFired);
 
         NameValueCollection properties = new NameValueCollection
         {
@@ -66,7 +65,7 @@ public class SchedulerSignalRaceTest
             // With the old bug, some would wait up to 30 s for the idle timeout.
             bool completed = allFired.Wait(TimeSpan.FromSeconds(10));
             Assert.That(completed, Is.True,
-                $"Only {Volatile.Read(ref firedCount)}/{triggerCount} triggers fired within 10 s — possible signal loss");
+                $"Only {Volatile.Read(ref RapidFireJob.FiredCount)}/{triggerCount} triggers fired within 10 s — possible signal loss");
         }
         finally
         {
@@ -178,20 +177,19 @@ public class SchedulerSignalRaceTest
     public class RapidFireJob : IJob
     {
         private static int expectedCount;
-        private static int firedCountRef;
+        internal static int FiredCount;
         private static ManualResetEventSlim allFiredSignal = null!;
 
-        internal static void Reset(int expected, ref int firedCount, ManualResetEventSlim signal)
+        internal static void Reset(int expected, ManualResetEventSlim signal)
         {
             expectedCount = expected;
-            firedCount = 0;
-            firedCountRef = 0;
+            FiredCount = 0;
             allFiredSignal = signal;
         }
 
         public Task Execute(IJobExecutionContext context)
         {
-            if (Interlocked.Increment(ref firedCountRef) >= expectedCount)
+            if (Interlocked.Increment(ref FiredCount) >= expectedCount)
             {
                 allFiredSignal.Set();
             }
