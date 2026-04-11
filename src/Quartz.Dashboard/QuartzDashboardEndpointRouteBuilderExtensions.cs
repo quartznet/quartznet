@@ -94,7 +94,8 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
         }
 
         // Map SignalR hub under the dashboard path
-        HubEndpointConventionBuilder hub = builder.MapHub<QuartzDashboardHub>(dashboardPath + "/hub");
+        HubEndpointConventionBuilder hub = builder.MapHub<QuartzDashboardHub>(dashboardPath + "/hub")
+            .DisableAntiforgery();
 
         // Serve dashboard static web assets via endpoint routing as a fallback
         // for hosts that don't configure UseStaticFiles() (e.g., API-only projects)
