@@ -151,14 +151,19 @@ public class QuartzSchedulerThread
     /// </summary>
     internal async Task Halt(bool wait)
     {
+        bool wasPaused;
         lock (sigLock)
         {
+            wasPaused = paused;
             halted = true;
         }
 
-        // Release the pause signal in case Run() is blocked in the paused wait loop.
-        // CancellationToken cancellation will also interrupt any pending WaitAsync calls.
-        pauseSignal.Release();
+        // Release the pause signal only if the loop is actually paused,
+        // otherwise we'd accumulate a stale permit on repeated Halt() calls.
+        if (wasPaused)
+        {
+            pauseSignal.Release();
+        }
 
         cancellationTokenSource.Cancel();
 
