@@ -1214,7 +1214,10 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         string groupName,
         CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException();
+        // The ADO.NET store does not persist paused job group state.
+        // PauseJobs() only pauses individual triggers of jobs in the group
+        // without recording the job group itself as paused.
+        return Task.FromResult(false);
     }
 
     /// <summary>
@@ -1227,7 +1230,26 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         string groupName,
         CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException();
+        // no locks necessary for read...
+        return ExecuteWithoutLock(conn => IsTriggerGroupPaused(conn, groupName, cancellationToken), cancellationToken);
+    }
+
+    /// <summary>
+    /// Returns true if the given TriggerGroup is paused.
+    /// </summary>
+    public virtual async Task<bool> IsTriggerGroupPaused(
+        ConnectionAndTransactionHolder conn,
+        string groupName,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await Delegate.IsTriggerGroupPaused(conn, groupName, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception e)
+        {
+            throw new JobPersistenceException("Couldn't determine if trigger group '" + groupName + "' is paused: " + e.Message, e);
+        }
     }
 
     /// <summary>
