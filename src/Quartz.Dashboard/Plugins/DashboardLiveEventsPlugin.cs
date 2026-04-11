@@ -29,8 +29,10 @@ namespace Quartz.Dashboard.Plugins;
 
 public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, ITriggerListener, ISchedulerListener
 {
+    [Obsolete("ServiceProvider is now stored per-scheduler in SchedulerContext. This property will be removed in a future version.")]
     public static IServiceProvider? ServiceProvider { get; set; }
 
+    private IScheduler? scheduler;
     private IHubContext<QuartzDashboardHub, IQuartzDashboardHubClient>? hubContext;
     private string schedulerName = string.Empty;
 
@@ -39,6 +41,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
     public Task Initialize(string pluginName, IScheduler scheduler, CancellationToken cancellationToken = default)
     {
         Name = pluginName;
+        this.scheduler = scheduler;
         schedulerName = scheduler.SchedulerName;
 
         scheduler.ListenerManager.AddJobListener(this, EverythingMatcher<JobKey>.AllJobs());
@@ -210,23 +213,41 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
 
     public Task SchedulingDataCleared(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
-    private Task BroadcastToScheduler(string scheduler, Func<IQuartzDashboardHubClient, Task> send)
+    private async Task BroadcastToScheduler(string schedulerName, Func<IQuartzDashboardHubClient, Task> send)
     {
-        if (string.IsNullOrWhiteSpace(scheduler))
+        if (string.IsNullOrWhiteSpace(schedulerName))
         {
-            return Task.CompletedTask;
+            return;
         }
 
-        // Lazily resolve hub context — ServiceProvider is set by MapQuartzDashboard()
-        // which runs after the scheduler (and this plugin) is initialized
-        hubContext ??= ServiceProvider?.GetService<IHubContext<QuartzDashboardHub, IQuartzDashboardHubClient>>();
-
-        if (hubContext is null)
+        try
         {
-            return Task.CompletedTask;
-        }
+            if (hubContext is null)
+            {
+                IServiceProvider? sp = null;
+                if (scheduler?.Context is { } ctx
+                    && ctx.TryGetValue(DashboardPluginKeys.ServiceProvider, out var value))
+                {
+                    sp = value as IServiceProvider;
+                }
 
-        Task task = send(hubContext.Clients.Group(scheduler));
-        return task;
+#pragma warning disable CS0618 // Type or member is obsolete
+                sp ??= ServiceProvider;
+#pragma warning restore CS0618
+
+                hubContext = sp?.GetService<IHubContext<QuartzDashboardHub, IQuartzDashboardHubClient>>();
+            }
+
+            if (hubContext is null)
+            {
+                return;
+            }
+
+            await send(hubContext.Clients.Group(schedulerName)).ConfigureAwait(false);
+        }
+        catch (ObjectDisposedException)
+        {
+            // Host is disposing — silently ignore, dashboard events are non-critical
+        }
     }
 }

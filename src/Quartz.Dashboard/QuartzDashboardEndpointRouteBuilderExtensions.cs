@@ -27,7 +27,6 @@ using Microsoft.Extensions.Options;
 
 using Quartz.Dashboard.Components;
 using Quartz.Dashboard.Hubs;
-using Quartz.Dashboard.Plugins;
 
 namespace Quartz;
 
@@ -85,8 +84,6 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
         RazorComponentsEndpointConventionBuilder components)
     {
         QuartzDashboardOptions options = builder.ServiceProvider.GetRequiredService<IOptions<QuartzDashboardOptions>>().Value;
-        DashboardLiveEventsPlugin.ServiceProvider = builder.ServiceProvider;
-        DashboardHistoryPlugin.ServiceProvider = builder.ServiceProvider;
         string dashboardPath = options.TrimmedDashboardPath;
         if (string.IsNullOrWhiteSpace(dashboardPath))
         {
