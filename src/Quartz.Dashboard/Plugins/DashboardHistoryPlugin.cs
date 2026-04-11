@@ -54,14 +54,18 @@ public sealed class DashboardHistoryPlugin : ISchedulerPlugin, IJobListener
     {
         try
         {
-            if (scheduler?.Context is not { } ctx
-                || !ctx.TryGetValue(DashboardPluginKeys.ServiceProvider, out var value)
-                || value is not IServiceProvider sp)
+            IServiceProvider? sp = null;
+            if (scheduler?.Context is { } ctx
+                && ctx.TryGetValue(DashboardPluginKeys.ServiceProvider, out var value))
             {
-                return Task.CompletedTask;
+                sp = value as IServiceProvider;
             }
 
-            IDashboardHistoryStore? store = sp.GetService<IDashboardHistoryStore>();
+#pragma warning disable CS0618 // Type or member is obsolete
+            sp ??= ServiceProvider;
+#pragma warning restore CS0618
+
+            IDashboardHistoryStore? store = sp?.GetService<IDashboardHistoryStore>();
             if (store is null)
             {
                 return Task.CompletedTask;

@@ -222,12 +222,20 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
 
         try
         {
-            if (hubContext is null
-                && scheduler?.Context is { } ctx
-                && ctx.TryGetValue(DashboardPluginKeys.ServiceProvider, out var value)
-                && value is IServiceProvider sp)
+            if (hubContext is null)
             {
-                hubContext = sp.GetService<IHubContext<QuartzDashboardHub, IQuartzDashboardHubClient>>();
+                IServiceProvider? sp = null;
+                if (scheduler?.Context is { } ctx
+                    && ctx.TryGetValue(DashboardPluginKeys.ServiceProvider, out var value))
+                {
+                    sp = value as IServiceProvider;
+                }
+
+#pragma warning disable CS0618 // Type or member is obsolete
+                sp ??= ServiceProvider;
+#pragma warning restore CS0618
+
+                hubContext = sp?.GetService<IHubContext<QuartzDashboardHub, IQuartzDashboardHubClient>>();
             }
 
             if (hubContext is null)

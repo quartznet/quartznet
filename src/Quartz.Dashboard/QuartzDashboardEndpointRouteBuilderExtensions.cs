@@ -27,7 +27,6 @@ using Microsoft.Extensions.Options;
 
 using Quartz.Dashboard.Components;
 using Quartz.Dashboard.Hubs;
-using Quartz.Dashboard.Plugins;
 
 namespace Quartz;
 
@@ -85,16 +84,6 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
         RazorComponentsEndpointConventionBuilder components)
     {
         QuartzDashboardOptions options = builder.ServiceProvider.GetRequiredService<IOptions<QuartzDashboardOptions>>().Value;
-
-        ISchedulerFactory schedulerFactory = builder.ServiceProvider.GetRequiredService<ISchedulerFactory>();
-        // Ensure the default scheduler is created, then store the service provider
-        // in every scheduler's context so each plugin instance resolves its own host's services
-        schedulerFactory.GetScheduler().GetAwaiter().GetResult();
-        IReadOnlyList<IScheduler> allSchedulers = schedulerFactory.GetAllSchedulers().GetAwaiter().GetResult();
-        foreach (IScheduler scheduler in allSchedulers)
-        {
-            scheduler.Context[DashboardPluginKeys.ServiceProvider] = builder.ServiceProvider;
-        }
         string dashboardPath = options.TrimmedDashboardPath;
         if (string.IsNullOrWhiteSpace(dashboardPath))
         {
