@@ -7,6 +7,8 @@
     <Description>Quartz.NET Redis integration - distributed lock handler for clustered scheduling; $(Description)</Description>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <PackageReadmeFile>redis.md</PackageReadmeFile>
+    <!-- Temporarily excluded from publishing until NuGet package ID is registered and API key permissions are configured -->
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>
