@@ -27,13 +27,14 @@ namespace Quartz.Dashboard.Plugins;
 
 public sealed class DashboardHistoryPlugin : ISchedulerPlugin, IJobListener
 {
-    public static IServiceProvider? ServiceProvider { get; set; }
+    private IScheduler? scheduler;
 
     public string Name { get; private set; } = "QuartzDashboardHistory";
 
     public Task Initialize(string pluginName, IScheduler scheduler, CancellationToken cancellationToken = default)
     {
         Name = pluginName;
+        this.scheduler = scheduler;
         scheduler.ListenerManager.AddJobListener(this, EverythingMatcher<JobKey>.AllJobs());
         return Task.CompletedTask;
     }
@@ -48,24 +49,38 @@ public sealed class DashboardHistoryPlugin : ISchedulerPlugin, IJobListener
 
     public Task JobWasExecuted(IJobExecutionContext context, JobExecutionException? jobException, CancellationToken cancellationToken = default)
     {
-        IDashboardHistoryStore? store = ServiceProvider?.GetService<IDashboardHistoryStore>();
-        if (store is null)
+        try
+        {
+            if (scheduler?.Context is not { } ctx
+                || !ctx.TryGetValue(DashboardPluginKeys.ServiceProvider, out var value)
+                || value is not IServiceProvider sp)
+            {
+                return Task.CompletedTask;
+            }
+
+            IDashboardHistoryStore? store = sp.GetService<IDashboardHistoryStore>();
+            if (store is null)
+            {
+                return Task.CompletedTask;
+            }
+
+            DashboardHistoryEntry entry = new(
+                SchedulerName: context.Scheduler.SchedulerName,
+                JobGroup: context.JobDetail.Key.Group,
+                JobName: context.JobDetail.Key.Name,
+                TriggerGroup: context.Trigger.Key.Group,
+                TriggerName: context.Trigger.Key.Name,
+                FiredAtUtc: context.FireTimeUtc,
+                DurationMs: (long) context.JobRunTime.TotalMilliseconds,
+                Succeeded: jobException is null,
+                ExceptionMessage: jobException?.Message);
+
+            store.Add(entry);
+            return Task.CompletedTask;
+        }
+        catch (ObjectDisposedException)
         {
             return Task.CompletedTask;
         }
-
-        DashboardHistoryEntry entry = new(
-            SchedulerName: context.Scheduler.SchedulerName,
-            JobGroup: context.JobDetail.Key.Group,
-            JobName: context.JobDetail.Key.Name,
-            TriggerGroup: context.Trigger.Key.Group,
-            TriggerName: context.Trigger.Key.Name,
-            FiredAtUtc: context.FireTimeUtc,
-            DurationMs: (long) context.JobRunTime.TotalMilliseconds,
-            Succeeded: jobException is null,
-            ExceptionMessage: jobException?.Message);
-
-        store.Add(entry);
-        return Task.CompletedTask;
     }
 }

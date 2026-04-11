@@ -85,8 +85,10 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
         RazorComponentsEndpointConventionBuilder components)
     {
         QuartzDashboardOptions options = builder.ServiceProvider.GetRequiredService<IOptions<QuartzDashboardOptions>>().Value;
-        DashboardLiveEventsPlugin.ServiceProvider = builder.ServiceProvider;
-        DashboardHistoryPlugin.ServiceProvider = builder.ServiceProvider;
+
+        ISchedulerFactory schedulerFactory = builder.ServiceProvider.GetRequiredService<ISchedulerFactory>();
+        IScheduler scheduler = schedulerFactory.GetScheduler().GetAwaiter().GetResult();
+        scheduler.Context[DashboardPluginKeys.ServiceProvider] = builder.ServiceProvider;
         string dashboardPath = options.TrimmedDashboardPath;
         if (string.IsNullOrWhiteSpace(dashboardPath))
         {
