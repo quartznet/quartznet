@@ -29,6 +29,9 @@ namespace Quartz.Dashboard.Plugins;
 
 public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, ITriggerListener, ISchedulerListener
 {
+    [Obsolete("ServiceProvider is now stored per-scheduler in SchedulerContext. This property will be removed in a future version.")]
+    public static IServiceProvider? ServiceProvider { get; set; }
+
     private IScheduler? scheduler;
     private IHubContext<QuartzDashboardHub, IQuartzDashboardHubClient>? hubContext;
     private string schedulerName = string.Empty;
@@ -210,11 +213,11 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
 
     public Task SchedulingDataCleared(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
-    private Task BroadcastToScheduler(string schedulerName, Func<IQuartzDashboardHubClient, Task> send)
+    private async Task BroadcastToScheduler(string schedulerName, Func<IQuartzDashboardHubClient, Task> send)
     {
         if (string.IsNullOrWhiteSpace(schedulerName))
         {
-            return Task.CompletedTask;
+            return;
         }
 
         try
@@ -229,14 +232,14 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
 
             if (hubContext is null)
             {
-                return Task.CompletedTask;
+                return;
             }
 
-            return send(hubContext.Clients.Group(schedulerName));
+            await send(hubContext.Clients.Group(schedulerName)).ConfigureAwait(false);
         }
         catch (ObjectDisposedException)
         {
-            return Task.CompletedTask;
+            // Host is disposing — silently ignore, dashboard events are non-critical
         }
     }
 }

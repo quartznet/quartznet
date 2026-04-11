@@ -27,6 +27,9 @@ namespace Quartz.Dashboard.Plugins;
 
 public sealed class DashboardHistoryPlugin : ISchedulerPlugin, IJobListener
 {
+    [Obsolete("ServiceProvider is now stored per-scheduler in SchedulerContext. This property will be removed in a future version.")]
+    public static IServiceProvider? ServiceProvider { get; set; }
+
     private IScheduler? scheduler;
 
     public string Name { get; private set; } = "QuartzDashboardHistory";

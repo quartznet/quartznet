@@ -87,8 +87,14 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
         QuartzDashboardOptions options = builder.ServiceProvider.GetRequiredService<IOptions<QuartzDashboardOptions>>().Value;
 
         ISchedulerFactory schedulerFactory = builder.ServiceProvider.GetRequiredService<ISchedulerFactory>();
-        IScheduler scheduler = schedulerFactory.GetScheduler().GetAwaiter().GetResult();
-        scheduler.Context[DashboardPluginKeys.ServiceProvider] = builder.ServiceProvider;
+        // Ensure the default scheduler is created, then store the service provider
+        // in every scheduler's context so each plugin instance resolves its own host's services
+        schedulerFactory.GetScheduler().GetAwaiter().GetResult();
+        IReadOnlyList<IScheduler> allSchedulers = schedulerFactory.GetAllSchedulers().GetAwaiter().GetResult();
+        foreach (IScheduler scheduler in allSchedulers)
+        {
+            scheduler.Context[DashboardPluginKeys.ServiceProvider] = builder.ServiceProvider;
+        }
         string dashboardPath = options.TrimmedDashboardPath;
         if (string.IsNullOrWhiteSpace(dashboardPath))
         {
