@@ -47,8 +47,8 @@ internal sealed class QuartzSchedulerThread
     private readonly QuartzSchedulerResources qsRsrcs;
     private readonly int idleWaitVariableness;
     private readonly Lock sigLock = new();
-    private readonly SemaphoreSlim schedulingChangeSignal = new(0, 1);
-    private readonly SemaphoreSlim pauseSignal = new(0, 1);
+    private readonly SemaphoreSlim schedulingChangeSignal = new(0);
+    private readonly SemaphoreSlim pauseSignal = new(0);
 
     private bool signaled;
     private DateTimeOffset? signaledNextFireTimeUtc;
@@ -129,17 +129,13 @@ internal sealed class QuartzSchedulerThread
 
         if (pause)
         {
+            // Drain stale resume permits so the paused wait loop blocks properly
+            while (pauseSignal.Wait(0)) { }
             SignalSchedulingChange(SchedulerConstants.SchedulingSignalDateTime);
         }
         else
         {
-            try
-            {
-                pauseSignal.Release();
-            }
-            catch (SemaphoreFullException)
-            {
-            }
+            pauseSignal.Release();
         }
     }
 
@@ -148,19 +144,18 @@ internal sealed class QuartzSchedulerThread
     /// </summary>
     internal async Task Halt(bool wait)
     {
+        bool wasPaused;
         lock (sigLock)
         {
+            wasPaused = paused;
             halted = true;
         }
 
-        // Release the pause signal in case Run() is blocked in the paused wait loop.
-        // CancellationToken cancellation will also interrupt any pending WaitAsync calls.
-        try
+        // Release the pause signal only if the loop is actually paused,
+        // otherwise we'd accumulate a stale permit on repeated Halt() calls.
+        if (wasPaused)
         {
             pauseSignal.Release();
-        }
-        catch (SemaphoreFullException)
-        {
         }
 
         await cancellationTokenSource.CancelAsync().ConfigureAwait(false);
@@ -195,13 +190,7 @@ internal sealed class QuartzSchedulerThread
             signaledNextFireTimeUtc = candidateNewNextFireTimeUtc;
         }
 
-        try
-        {
-            schedulingChangeSignal.Release();
-        }
-        catch (SemaphoreFullException)
-        {
-        }
+        schedulingChangeSignal.Release();
     }
 
     public void ClearSignaledSchedulingChange()
@@ -211,6 +200,10 @@ internal sealed class QuartzSchedulerThread
             signaled = false;
             signaledNextFireTimeUtc = SchedulerConstants.SchedulingSignalDateTime;
         }
+
+        // Drain any buffered permits so WaitAsync blocks cleanly on next call.
+        // Prevents stale permits from causing unbounded spurious wakeups.
+        while (schedulingChangeSignal.Wait(0)) { }
     }
 
     public bool IsScheduleChanged()
