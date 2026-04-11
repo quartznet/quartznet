@@ -1,4 +1,5 @@
 @page "/quartz/live"
+@using Microsoft.AspNetCore.Http.Connections
 @using Microsoft.AspNetCore.SignalR.Client
 @using Microsoft.Extensions.Options
 @using Quartz
@@ -157,29 +158,20 @@
             _hubConnection = new HubConnectionBuilder()
                 .WithUrl(hubUri, connectionOptions =>
                 {
+                    connectionOptions.Transports = HttpTransportType.WebSockets;
+                    connectionOptions.SkipNegotiation = true;
                     if (!string.IsNullOrWhiteSpace(cookieHeader))
                     {
                         connectionOptions.Headers["Cookie"] = cookieHeader;
                     }
                 })
-                .WithAutomaticReconnect()
                 .Build();
 
             RegisterEventHandlers(_hubConnection);
-            _hubConnection.Reconnecting += _ex =>
-            {
-                _ = InvokeAsync(StateHasChanged);
-                return Task.CompletedTask;
-            };
             _hubConnection.Closed += _ex =>
             {
                 _ = InvokeAsync(StateHasChanged);
                 return Task.CompletedTask;
-            };
-            _hubConnection.Reconnected += async _ =>
-            {
-                await JoinSchedulerAsync(Scheduler.ActiveSchedulerName);
-                await InvokeAsync(StateHasChanged);
             };
 
             await _hubConnection.StartAsync();
