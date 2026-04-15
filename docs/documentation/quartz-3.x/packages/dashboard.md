@@ -163,4 +163,12 @@ If your host project has no `.razor` files of its own (e.g., a pure API project 
 
 This property tells the .NET SDK to include the Blazor framework scripts (`_framework/blazor.web.js`, `blazor.server.js`) in the app's static web assets. Without it, requests to `/_framework/blazor.web.js` return HTTP 404 because in .NET 10+, these files are no longer embedded in the ASP.NET Core assemblies — they are served as static web assets instead.
 
+Additionally, static files must be enabled in the request pipeline:
+
+```csharp
+app.UseRouting();
+app.Antiforgery();
+app.UseStaticFiles();
+```
+
 On .NET 8 and .NET 9, the framework scripts are served via endpoint routing and no extra configuration is needed.
