@@ -1019,6 +1019,24 @@ years: *
         actualTimeAfter.Should().Be(expectedTimeAfter);
     }
 
+    [Test]
+    public void GetTimeBeforeDoesNotThrowForPositiveOffsetTimeZone()
+    {
+        // Issue #3046: GetTimeBefore threw ArgumentOutOfRangeException when the
+        // timezone had a positive UTC offset, because the inverse binary search
+        // stepped into year 1 where internal DateTimeOffset constructions inside
+        // GetTimeAfter produced a UTC instant before year 1.
+        TimeZoneInfo plus11 = TimeZoneInfo.CreateCustomTimeZone(
+            "Test+11", TimeSpan.FromHours(11), "Test+11", "Test+11");
+        CronExpression cron = new CronExpression("0 0 0 ? * FRI *") { TimeZone = plus11 };
+        DateTimeOffset time = new DateTimeOffset(2026, 4, 16, 0, 0, 0, TimeSpan.Zero);
+
+        DateTimeOffset? before = null;
+        Assert.DoesNotThrow(() => before = cron.GetTimeBefore(time));
+        Assert.That(before, Is.Not.Null);
+        Assert.That(before!.Value, Is.LessThan(time));
+    }
+
     [TestCaseSource(typeof(CronTestScenarios), nameof(CronTestScenarios.TestCases))]
     public void CronExpressionReturnsExpectedNextFireTime(CronExpression cronExpression, DateTimeOffset timeAfterDate, DateTimeOffset expectedNextFireTime)    {
         var nextFireTime = cronExpression.GetTimeAfter(timeAfterDate);
