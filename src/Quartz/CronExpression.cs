@@ -2463,10 +2463,18 @@ public class CronExpression : IDeserializationCallback, ISerializable
     public virtual DateTimeOffset? GetTimeBefore(DateTimeOffset endTime)
     {
         long end = endTime.Ticks;
-        long min = new DateTimeOffset(1, 1, 1, 0, 0, 0, TimeSpan.Zero).Ticks;
+        // Start at year 2 so that DateTimeOffset constructions inside GetTimeAfter —
+        // which combine year/month/day with a timezone offset of up to +14 hours —
+        // cannot produce a UTC instant below year 1.
+        long min = new DateTimeOffset(2, 1, 1, 0, 0, 0, TimeSpan.Zero).Ticks;
         long max = end;
 
-        DateTimeOffset date = new DateTimeOffset(1, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        if (end <= min)
+        {
+            return null;
+        }
+
+        DateTimeOffset date = new DateTimeOffset(min, TimeSpan.Zero);
         DateTimeOffset? after = GetTimeAfter(date);
         if (after == null || after.Value.Ticks >= end)
         {
@@ -2475,7 +2483,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
 
         // Inverse binary search for tighter lower bound
         long interval = TimeSpan.FromHours(1).Ticks;
-        while (interval < max)
+        while (interval < max - min)
         {
             date = new DateTimeOffset(max - interval, TimeSpan.Zero);
             after = GetTimeAfter(date);
