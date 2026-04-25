@@ -19,4 +19,13 @@
     <PackageDownload Include="GitVersion.Tool" Version="[5.7.0]" />
   </ItemGroup>
 
+  <!--
+    Override vulnerable transitive dependencies pulled in by Nuke.Common.
+    Remove these when Nuke.Common ships a release that bumps them itself.
+  -->
+  <ItemGroup>
+    <PackageReference Include="NuGet.Packaging" Version="7.3.1" />
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.7" />
+  </ItemGroup>
+
 </Project>
