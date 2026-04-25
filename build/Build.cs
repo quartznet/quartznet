@@ -221,7 +221,7 @@ partial class Build : NukeBuild
                 "Quartz.Plugins.TimeZoneConverter",
                 "Quartz.OpenTelemetry.Instrumentation",
                 "Quartz.OpenTracing",
-                "Quartz.Redis"
+                "Quartz.Extensions.Redis"
             };
 
             foreach (var project in packTargetProjects)

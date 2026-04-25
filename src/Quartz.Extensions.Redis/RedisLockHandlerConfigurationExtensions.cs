@@ -1,7 +1,7 @@
 using System;
 
 using Quartz.Impl;
-using Quartz.Impl.AdoJobStore;
+using Quartz.Impl.Redis;
 using Quartz.Util;
 
 namespace Quartz;

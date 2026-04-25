@@ -5,10 +5,11 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 
 using Quartz.Impl.AdoJobStore;
+using Quartz.Impl.Redis;
 
 using StackExchange.Redis;
 
-namespace Quartz.Tests.Integration.Impl.AdoJobStore.Redis;
+namespace Quartz.Tests.Integration.Impl.Redis;
 
 [NonParallelizable]
 [Category("db-redis")]
