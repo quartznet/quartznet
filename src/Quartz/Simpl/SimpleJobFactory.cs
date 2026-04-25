@@ -60,9 +60,19 @@ public class SimpleJobFactory : IJobFactory
     /// <param name="bundle">The TriggerFiredBundle from which the <see cref="IJobDetail" />
     ///   and other info relating to the trigger firing can be obtained.</param>
     /// <param name="scheduler"></param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>the newly instantiated Job</returns>
     /// <throws>  SchedulerException if there is a problem instantiating the Job. </throws>
-    public virtual IJob NewJob(TriggerFiredBundle bundle, IScheduler scheduler)
+    public virtual ValueTask<IJob> NewJob(TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<IJob>(InstantiateJobCore(bundle));
+    }
+
+    /// <summary>
+    /// Synchronous core of <see cref="NewJob" /> that derived classes can call when
+    /// they need a job instance without driving the asynchronous code path.
+    /// </summary>
+    protected IJob InstantiateJobCore(TriggerFiredBundle bundle)
     {
         IJobDetail jobDetail = bundle.JobDetail;
         Type jobType = jobDetail.JobType;

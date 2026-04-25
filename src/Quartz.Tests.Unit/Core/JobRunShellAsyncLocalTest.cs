@@ -19,6 +19,7 @@ public class JobRunShellAsyncLocalTest
     {
         AsyncLocalCapturingJob.Executed.Reset();
         AsyncLocalCapturingJob.CapturedTenantId = null;
+        AwaitingJobFactory.AwaitedWorkCompleted = false;
     }
 
     [Test]
@@ -62,6 +63,45 @@ public class JobRunShellAsyncLocalTest
         }
     }
 
+    [Test]
+    public async Task AsyncJobFactory_AwaitedWorkCompletesBeforeJobExecute()
+    {
+        NameValueCollection properties = new NameValueCollection
+        {
+            ["quartz.serializer.type"] = TestConstants.DefaultSerializerType,
+            ["quartz.scheduler.instanceName"] = "AsyncJobFactoryTest",
+        };
+
+        ISchedulerFactory sf = new StdSchedulerFactory(properties);
+        IScheduler scheduler = await sf.GetScheduler();
+        scheduler.JobFactory = new AwaitingJobFactory();
+
+        try
+        {
+            IJobDetail job = JobBuilder.Create<AsyncLocalCapturingJob>()
+                .WithIdentity("job1", "asyncfactory")
+                .Build();
+
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("trigger1", "asyncfactory")
+                .ForJob(job)
+                .StartNow()
+                .Build();
+
+            await scheduler.ScheduleJob(job, trigger);
+            await scheduler.Start();
+
+            bool signaled = AsyncLocalCapturingJob.Executed.Wait(TimeSpan.FromSeconds(10));
+            Assert.That(signaled, Is.True, "Job did not execute within timeout");
+            Assert.That(AwaitingJobFactory.AwaitedWorkCompleted, Is.True,
+                "Awaited work in IJobFactory.NewJob must complete before IJob.Execute runs");
+        }
+        finally
+        {
+            await scheduler.Shutdown(true);
+        }
+    }
+
     private sealed class AsyncLocalSettingJobFactory : IJobFactory
     {
         private readonly string tenantId;
@@ -71,10 +111,10 @@ public class JobRunShellAsyncLocalTest
             this.tenantId = tenantId;
         }
 
-        public IJob NewJob(TriggerFiredBundle bundle, IScheduler scheduler)
+        public ValueTask<IJob> NewJob(TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default)
         {
             TenantId.Value = tenantId;
-            return new AsyncLocalCapturingJob();
+            return new ValueTask<IJob>(new AsyncLocalCapturingJob());
         }
 
         public ValueTask ReturnJob(IJob job)
@@ -94,5 +134,20 @@ public class JobRunShellAsyncLocalTest
             Executed.Set();
             return default;
         }
+    }
+
+    private sealed class AwaitingJobFactory : IJobFactory
+    {
+        public static volatile bool AwaitedWorkCompleted;
+
+        public async ValueTask<IJob> NewJob(TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default)
+        {
+            await Task.Yield();
+            await Task.Delay(50, cancellationToken).ConfigureAwait(false);
+            AwaitedWorkCompleted = true;
+            return new AsyncLocalCapturingJob();
+        }
+
+        public ValueTask ReturnJob(IJob job) => default;
     }
 }

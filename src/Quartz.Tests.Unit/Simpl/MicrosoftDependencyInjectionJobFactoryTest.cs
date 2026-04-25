@@ -13,10 +13,10 @@ public class MicrosoftDependencyInjectionJobFactoryTest
 {
     [Test]
     [Ignore("WIP")]
-    public void DisposedServiceProviderShouldThrowSchedulerException()
+    public async Task DisposedServiceProviderShouldThrowSchedulerException()
     {
         var factory = new MicrosoftDependencyInjectionJobFactory(new TestServiceProvider(), Options.Create(new QuartzOptions()));
-        factory.NewJob(TestUtil.NewMinimalTriggerFiredBundle(), null!);
+        await factory.NewJob(TestUtil.NewMinimalTriggerFiredBundle(), null!);
     }
 
     [Test]

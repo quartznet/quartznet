@@ -71,6 +71,11 @@
   * `Task` return types and parameters have been changed to `ValueTask`.  Any consumers of Quartz expecting a `Task` will require to update the signatures to `ValueTask`,
      or use the `AsTask()` Method on ValueTask to Return the `ValueTask` as a `Task`  (#988)
 
+  * `IJobFactory.NewJob` now returns `ValueTask<IJob>` and accepts a `CancellationToken`, allowing factories to perform asynchronous work
+    (such as resolving tenant context from an external store) before producing a job instance. Existing synchronous implementations should return
+    `new ValueTask<IJob>(job)`. Built-in factories that derive from `SimpleJobFactory` can call the new protected `InstantiateJobCore` helper
+    when they need a job instance from the synchronous code path. (#3045)
+
   * To configure JSON serialization to be used in job store instead of old `UseJsonSerializer` you should now use either `UseSystemTextJsonSerializer` or `UseNewtonsoftJsonSerializer`
     and remove the old package reference `Quartz.Serialization.Json` (and if Newtonsoft used, reference `Quartz.Serialization.Newtonsoft`). Change was made to distinguish the two common
     serializers that are being used (System.Text.Json and JSON.NET).

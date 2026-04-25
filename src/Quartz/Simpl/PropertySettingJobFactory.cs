@@ -92,9 +92,10 @@ public class PropertySettingJobFactory : SimpleJobFactory
     /// <param name="bundle">The TriggerFiredBundle from which the <see cref="IJobDetail" />
     ///   and other info relating to the trigger firing can be obtained.</param>
     /// <param name="scheduler"></param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>the newly instantiated Job</returns>
     /// <throws>  SchedulerException if there is a problem instantiating the Job. </throws>
-    public override IJob NewJob(TriggerFiredBundle bundle, IScheduler scheduler)
+    public override ValueTask<IJob> NewJob(TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default)
     {
         IJob job = InstantiateJob(bundle, scheduler);
 
@@ -105,7 +106,7 @@ public class PropertySettingJobFactory : SimpleJobFactory
             SetObjectProperties(job, jobDataMap);
         }
 
-        return job;
+        return new ValueTask<IJob>(job);
     }
 
     protected virtual JobDataMap BuildJobDataMap(TriggerFiredBundle bundle, IScheduler scheduler)
@@ -134,7 +135,7 @@ public class PropertySettingJobFactory : SimpleJobFactory
 
     protected virtual IJob InstantiateJob(TriggerFiredBundle bundle, IScheduler scheduler)
     {
-        return base.NewJob(bundle, scheduler);
+        return InstantiateJobCore(bundle);
     }
 
     /// <summary>

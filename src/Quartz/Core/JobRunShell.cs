@@ -118,7 +118,7 @@ public class JobRunShell : SchedulerListenerSupport
         IJob job;
         try
         {
-            job = qs!.JobFactory.NewJob(firedTriggerBundle, scheduler);
+            job = await qs!.JobFactory.NewJob(firedTriggerBundle, scheduler, cancellationToken).ConfigureAwait(false);
             jec = new JobExecutionContextImpl(scheduler, firedTriggerBundle, job);
         }
         catch (SchedulerException se)

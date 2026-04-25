@@ -49,16 +49,21 @@ public interface IJobFactory
     /// <see cref="TriggerState.Error" /> state, which will require human
     /// intervention (e.g. an application restart after fixing whatever
     /// configuration problem led to the issue with instantiating the Job).
+    /// <para>
+    /// Implementations may perform asynchronous work (for example, resolving
+    /// tenant context from an external store) before returning the job instance.
+    /// </para>
     /// </remarks>
     /// <param name="bundle">
     ///   The TriggerFiredBundle from which the <see cref="IJobDetail" />
     ///   and other info relating to the trigger firing can be obtained.
     /// </param>
     /// <param name="scheduler">a handle to the scheduler that is about to execute the job</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <throws>  SchedulerException if there is a problem instantiating the Job. </throws>
     /// <returns> the newly instantiated Job
     /// </returns>
-    IJob NewJob(TriggerFiredBundle bundle, IScheduler scheduler);
+    ValueTask<IJob> NewJob(TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Allows the job factory to destroy/cleanup the job if needed.
