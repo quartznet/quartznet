@@ -50,7 +50,7 @@
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
     <ProjectReference Include="..\Quartz.Jobs\Quartz.Jobs.csproj" />
     <ProjectReference Include="..\Quartz.Serialization.Newtonsoft\Quartz.Serialization.Newtonsoft.csproj" />
-    <ProjectReference Include="..\Quartz.Redis\Quartz.Redis.csproj" />
+    <ProjectReference Include="..\Quartz.Extensions.Redis\Quartz.Extensions.Redis.csproj" />
   </ItemGroup>
 
   <ItemGroup>

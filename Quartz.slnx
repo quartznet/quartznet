@@ -45,7 +45,7 @@
   <Project Path="src/Quartz.Jobs/Quartz.Jobs.csproj" />
   <Project Path="src/Quartz.Plugins.TimeZoneConverter/Quartz.Plugins.TimeZoneConverter.csproj" />
   <Project Path="src/Quartz.Plugins/Quartz.Plugins.csproj" />
-  <Project Path="src/Quartz.Redis/Quartz.Redis.csproj" />
+  <Project Path="src/Quartz.Extensions.Redis/Quartz.Extensions.Redis.csproj" />
   <Project Path="src/Quartz.Serialization.Newtonsoft/Quartz.Serialization.Newtonsoft.csproj" />
   <Project Path="src/Quartz.Server/Quartz.Server.csproj" />
   <Project Path="src/Quartz/Quartz.csproj" />

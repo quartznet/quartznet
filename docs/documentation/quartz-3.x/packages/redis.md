@@ -2,7 +2,7 @@
 title: Redis Lock Handler
 ---
 
-[Quartz.Redis](https://www.nuget.org/packages/Quartz.Redis) provides a Redis-based distributed lock handler (`ISemaphore`) that replaces database row locks in clustered Quartz.NET setups.
+[Quartz.Extensions.Redis](https://www.nuget.org/packages/Quartz.Extensions.Redis) provides a Redis-based distributed lock handler (`ISemaphore`) that replaces database row locks in clustered Quartz.NET setups.
 
 ::: tip
 Useful when database row locks (the default for clustered setups) cause deadlocks or performance issues under heavy scheduling load.
@@ -15,7 +15,7 @@ Quartz 3.18 or later required.
 ## Installation
 
 ```shell
-Install-Package Quartz.Redis
+Install-Package Quartz.Extensions.Redis
 ```
 
 ## Why Redis Locks?
@@ -54,7 +54,7 @@ var properties = new NameValueCollection
 {
     ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
     ["quartz.jobStore.clustered"] = "true",
-    ["quartz.jobStore.lockHandler.type"] = "Quartz.Impl.AdoJobStore.RedisSemaphore, Quartz.Redis",
+    ["quartz.jobStore.lockHandler.type"] = "Quartz.Impl.Redis.RedisSemaphore, Quartz.Extensions.Redis",
     ["quartz.jobStore.lockHandler.redisConfiguration"] = "redis-server:6379"
 };
 ```
