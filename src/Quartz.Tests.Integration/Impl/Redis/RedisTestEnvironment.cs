@@ -4,7 +4,7 @@ using NUnit.Framework;
 
 using Testcontainers.Redis;
 
-namespace Quartz.Tests.Integration.Impl.AdoJobStore.Redis;
+namespace Quartz.Tests.Integration.Impl.Redis;
 
 [SetUpFixture]
 public class RedisTestEnvironment

@@ -23,11 +23,12 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Quartz.Impl.AdoJobStore;
 using Quartz.Logging;
 
 using StackExchange.Redis;
 
-namespace Quartz.Impl.AdoJobStore;
+namespace Quartz.Impl.Redis;
 
 /// <summary>
 /// A Redis-based <see cref="ISemaphore"/> that uses distributed locks
@@ -47,7 +48,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// <para>
 /// Configure via properties:
 /// <code>
-/// quartz.jobStore.lockHandler.type = Quartz.Impl.AdoJobStore.RedisSemaphore, Quartz.Redis
+/// quartz.jobStore.lockHandler.type = Quartz.Impl.Redis.RedisSemaphore, Quartz.Extensions.Redis
 /// quartz.jobStore.lockHandler.redisConfiguration = localhost:6379
 /// </code>
 /// </para>
