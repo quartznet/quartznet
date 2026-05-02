@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://www.quartz-scheduler.net/documentation/index.html
+    about: Read the docs first — many questions are answered there.
+  - name: GitHub Discussions
+    url: https://github.com/quartznet/quartznet/discussions
+    about: Ask usage questions, share ideas, get community help.
+  - name: Stack Overflow
+    url: https://stackoverflow.com/questions/tagged/quartz.net
+    about: Post questions with the [quartz.net] tag for the broadest audience.
+  - name: Report a security vulnerability
+    url: https://github.com/quartznet/quartznet/security/advisories/new
+    about: Please report security issues privately, not as public issues.

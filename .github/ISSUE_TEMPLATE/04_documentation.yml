@@ -1,0 +1,34 @@
+name: Documentation issue
+description: Report missing, unclear, or incorrect documentation.
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve the docs. Documentation lives at
+        <https://www.quartz-scheduler.net/documentation/> and the source is in this repository under `docs/`.
+
+  - type: input
+    id: page
+    attributes:
+      label: Documentation page or file
+      description: URL of the docs page, or path inside the `docs/` folder.
+      placeholder: https://www.quartz-scheduler.net/documentation/quartz-4.x/configuration/...
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong or missing?
+      description: Quote the confusing passage or describe what is absent.
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested correction
+      description: Optional. If you know what the docs should say, propose wording here — pull requests welcome too.
+    validations:
+      required: false

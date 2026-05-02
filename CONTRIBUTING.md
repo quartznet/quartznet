@@ -32,15 +32,17 @@ https://gitter.im/quartznet/quartznet and https://groups.google.com/forum/#!foru
 
 ## Filing issues
 
-The best way to get your bug fixed is to be as detailed as you can be about the problem.
-Providing a minimal project with steps to reproduce the problem is ideal.
-Here are questions you can answer before you file a bug to make sure you're not missing any important information.
+Use the issue forms at https://github.com/quartznet/quartznet/issues/new/choose. Each form prompts
+for the information we need to investigate, so please fill in every required field.
 
-1. Did you read the [documentation](https://www.quartz-scheduler.net/documentation/index.html)?
-2. Did you include the snippet of broken code in the issue?
-3. What are the *EXACT* steps to reproduce this problem (including source/destination types, mapping configuration and execution)?
+The fastest path to a fix is a minimal, runnable reproduction in a public GitHub repo we can clone —
+isolated repros get triaged first. If your issue is a usage question, please use
+[Discussions](https://github.com/quartznet/quartznet/discussions) or the
+[`[quartz.net]` tag on Stack Overflow](https://stackoverflow.com/questions/tagged/quartz.net) instead.
 
-GitHub supports [markdown](http://github.github.com/github-flavored-markdown/), so when filing bugs make sure you check the formatting before clicking submit.
+Believe you have found a security vulnerability? Do **not** open a public issue. Use
+[Security Advisories](https://github.com/quartznet/quartznet/security/advisories/new); see
+[`SECURITY.md`](.github/SECURITY.md) for details.
 
 ## Contributing code and content
 

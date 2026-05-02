@@ -1,0 +1,79 @@
+name: Question / usage help
+description: Ask how to do something with Quartz.NET. Prefer Discussions or Stack Overflow first.
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Please try these first
+
+        The issue tracker is for confirmed bugs and feature proposals. Usage questions are usually
+        answered faster — and to a wider audience — in one of these places:
+
+        - [GitHub Discussions](https://github.com/quartznet/quartznet/discussions) — community Q&A.
+        - [Stack Overflow `[quartz.net]`](https://stackoverflow.com/questions/tagged/quartz.net) — searchable, broad reach.
+        - [Documentation](https://www.quartz-scheduler.net/documentation/index.html) — covers most common scenarios.
+
+        If none of those fit and you still want to ask here, please fill in every required field.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Pre-flight checks
+      options:
+        - label: I have searched [Discussions](https://github.com/quartznet/quartznet/discussions) and could not find an answer.
+          required: true
+        - label: I have searched the [`[quartz.net]` tag on Stack Overflow](https://stackoverflow.com/questions/tagged/quartz.net).
+          required: true
+        - label: I have checked the [documentation](https://www.quartz-scheduler.net/documentation/index.html).
+          required: true
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What are you trying to do, and what is unclear or not working?
+    validations:
+      required: true
+
+  - type: textarea
+    id: code
+    attributes:
+      label: What you have tried
+      description: Code, configuration, or steps you have already attempted.
+      render: csharp
+    validations:
+      required: false
+
+  - type: textarea
+    id: exception
+    attributes:
+      label: Errors or stack traces (if any)
+      render: text
+    validations:
+      required: false
+
+  - type: input
+    id: version-quartz
+    attributes:
+      label: Quartz.NET version
+      placeholder: e.g. 4.0.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: jobstore
+    attributes:
+      label: Job store
+      options:
+        - RAMJobStore (in-memory)
+        - AdoJobStore — SQL Server
+        - AdoJobStore — PostgreSQL
+        - AdoJobStore — MySQL / MariaDB
+        - AdoJobStore — SQLite
+        - AdoJobStore — Oracle
+        - AdoJobStore — Firebird
+        - Redis
+        - Other / not sure
+    validations:
+      required: false

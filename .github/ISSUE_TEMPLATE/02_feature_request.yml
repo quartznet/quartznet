@@ -1,0 +1,81 @@
+name: Feature request
+description: Suggest a new feature, API addition, or behavior change.
+labels: ["feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing an improvement. Quartz.NET tries to keep its public API small and stable,
+        so feature requests are most likely to land when they include a clear problem statement and a
+        concrete proposal. Please discuss substantial changes here before opening a pull request.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Pre-flight checks
+      options:
+        - label: I have searched [open](https://github.com/quartznet/quartznet/issues) and [closed](https://github.com/quartznet/quartznet/issues?q=is%3Aissue+is%3Aclosed) issues and could not find an existing proposal.
+          required: true
+        - label: I have checked the [documentation](https://www.quartz-scheduler.net/documentation/index.html) and confirmed this is not already supported.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe the use case and why the current API or behavior makes it hard. Concrete scenarios beat abstract wishes.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: |
+        Describe the API surface or behavior you would like. For new APIs, include a usage example.
+      render: csharp
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you tried, workarounds you currently use, or designs you explicitly want to avoid.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected component
+      description: Which part of Quartz.NET would this touch? Pick the closest match.
+      options:
+        - Cron expressions
+        - Triggers / scheduling
+        - AdoJobStore (persistence)
+        - RAMJobStore (in-memory)
+        - Clustering
+        - Dependency injection / hosting
+        - Serialization
+        - Listeners / plugins
+        - Dashboard / observability
+        - Documentation
+        - Other (describe in proposal)
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I am willing to submit a pull request for this if the proposal is accepted.
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Links to prior art, related issues, or external references.
+    validations:
+      required: false
