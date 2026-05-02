@@ -17,7 +17,11 @@
  */
 #endregion
 
+using System.Reflection;
+
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Components.Endpoints;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -100,8 +104,30 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
 
         if (!string.IsNullOrWhiteSpace(options.AuthorizationPolicy))
         {
-            hub.RequireAuthorization(options.AuthorizationPolicy);
-            components.RequireAuthorization(options.AuthorizationPolicy);
+            string policyName = options.AuthorizationPolicy;
+            hub.RequireAuthorization(policyName);
+
+            // Apply the policy ONLY to dashboard page endpoints. Calling RequireAuthorization on
+            // 'components' would otherwise apply to every endpoint owned by the builder, which in
+            // the integrated overload is the host app's own pages too (#3066).
+            Assembly dashboardAssembly = typeof(QuartzDashboardApp).Assembly;
+            components.Add(endpointBuilder =>
+            {
+                ComponentTypeMetadata? typeMetadata = null;
+                foreach (object metadata in endpointBuilder.Metadata)
+                {
+                    if (metadata is ComponentTypeMetadata m)
+                    {
+                        typeMetadata = m;
+                        break;
+                    }
+                }
+
+                if (typeMetadata?.Type.Assembly == dashboardAssembly)
+                {
+                    endpointBuilder.Metadata.Add(new AuthorizeAttribute(policyName));
+                }
+            });
         }
     }
 
