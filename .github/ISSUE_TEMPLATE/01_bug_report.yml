@@ -1,0 +1,201 @@
+name: Bug report
+description: Report a defect in Quartz.NET so it can be reproduced and fixed.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report. To help us reproduce and fix the issue quickly,
+        please fill in every required field below. Issues missing version, repro, or environment
+        information are very hard to act on and may be closed with a request for more detail.
+
+        - Have a usage question instead? Please use [Discussions](https://github.com/quartznet/quartznet/discussions) or [Stack Overflow](https://stackoverflow.com/questions/tagged/quartz.net) — pick the **Question** template if you must file an issue.
+        - Believe you found a security vulnerability? Do **not** open a public issue. Use [Security Advisories](https://github.com/quartznet/quartznet/security/advisories/new) instead.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Pre-flight checks
+      description: Please confirm all of the following before filing.
+      options:
+        - label: I have searched [open](https://github.com/quartznet/quartznet/issues) and [closed](https://github.com/quartznet/quartznet/issues?q=is%3Aissue+is%3Aclosed) issues and could not find a duplicate.
+          required: true
+        - label: I have checked the [documentation](https://www.quartz-scheduler.net/documentation/index.html).
+          required: true
+        - label: I can reproduce this against a recent release of Quartz.NET (or the latest pre-release).
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what is going wrong.
+      placeholder: When I schedule a CronTrigger with [...] the scheduler [...]
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: |
+        Provide minimal, runnable steps. The fastest path to a fix is a small public GitHub repo we can `git clone` and run.
+
+        Issues will likely be closed if:
+        - The repro is a large or proprietary project we cannot run.
+        - The repro is attached as a `.zip` file or hosted in a private repository.
+        - We cannot reproduce the behavior at all.
+      placeholder: |
+        1. Clone https://github.com/<you>/<minimal-repro>
+        2. `dotnet run`
+        3. Observe that ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect Quartz.NET to do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What did Quartz.NET actually do? Include relevant log output if any.
+    validations:
+      required: true
+
+  - type: textarea
+    id: code
+    attributes:
+      label: Code sample
+      description: Job, trigger, or scheduler code that demonstrates the problem (in addition to a repro repo, not instead of one).
+      render: csharp
+    validations:
+      required: false
+
+  - type: textarea
+    id: exception
+    attributes:
+      label: Exception / stack trace
+      description: Full exception message and stack trace, if any. Paste as text rather than a screenshot so it is searchable.
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: configuration
+    attributes:
+      label: Quartz configuration
+      description: |
+        Your `AddQuartz(...)` setup, `quartz.config`, or programmatic configuration — many AdoJobStore, clustering,
+        and DI issues are configuration related. Redact secrets such as connection strings.
+      render: csharp
+    validations:
+      required: false
+
+  - type: input
+    id: version-quartz
+    attributes:
+      label: Quartz.NET version
+      description: The exact version from your project file or `dotnet list package`.
+      placeholder: e.g. 4.0.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: version-dotnet
+    attributes:
+      label: .NET version
+      options:
+        - net9.0
+        - net8.0
+        - net7.0 (out of support)
+        - net6.0 (out of support)
+        - net48 / net472
+        - netstandard2.0
+        - Other (specify in Additional context)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: jobstore
+    attributes:
+      label: Job store
+      options:
+        - RAMJobStore (in-memory)
+        - AdoJobStore — SQL Server
+        - AdoJobStore — PostgreSQL
+        - AdoJobStore — MySQL / MariaDB
+        - AdoJobStore — SQLite
+        - AdoJobStore — Oracle
+        - AdoJobStore — Firebird
+        - Redis
+        - Other (specify in Additional context)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: serializer
+    attributes:
+      label: Serializer
+      options:
+        - System.Text.Json (Quartz.Serialization.SystemTextJson)
+        - Newtonsoft.Json (Quartz.Serialization.Newtonsoft)
+        - Not applicable (RAMJobStore)
+        - Other (specify in Additional context)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: clustering
+    attributes:
+      label: Clustering
+      options:
+        - "No — single scheduler node"
+        - "Yes — clustered scheduler"
+        - Not applicable
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: hosting
+    attributes:
+      label: Hosting / integration
+      description: Select all that apply.
+      options:
+        - label: Quartz.Extensions.Hosting (IHostedService)
+        - label: Quartz.Extensions.DependencyInjection
+        - label: Quartz.AspNetCore (health checks, dashboard)
+        - label: Plain console / manually managed scheduler
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - Linux
+        - macOS
+        - Container (Docker / Kubernetes)
+        - Other (specify in Additional context)
+    validations:
+      required: false
+
+  - type: input
+    id: regression
+    attributes:
+      label: Regression?
+      description: If this used to work, what was the last Quartz.NET version that worked?
+      placeholder: e.g. worked in 3.13.1, broke in 4.0.0
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Anything else that might help — links to related issues, screenshots, profiler output, etc.
+    validations:
+      required: false
