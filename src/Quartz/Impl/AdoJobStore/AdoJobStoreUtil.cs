@@ -45,13 +45,21 @@ public static class AdoJobStoreUtil
 
     /// <summary>
     /// Replace the table prefix in a query by replacing any occurrences of
-    /// "{0}" with the table prefix.
+    /// "{0}" with the table prefix, and "{1}" with the unqualified portion of
+    /// the table prefix (everything after the last '.', or the whole prefix when
+    /// the prefix has no schema qualifier).
     /// </summary>
+    /// <remarks>
+    /// The "{1}" placeholder is intended for identifiers that must not include
+    /// a schema, such as MySQL index names in <c>FORCE INDEX</c> hints.
+    /// </remarks>
     /// <param name="query">The unsubstituted query</param>
     /// <param name="tablePrefix">The table prefix</param>
     /// <returns>The query, with proper table prefix substituted</returns>
     public static string ReplaceTablePrefix(string query, string tablePrefix)
     {
-        return string.Format(CultureInfo.InvariantCulture, query, tablePrefix);
+        var lastDot = tablePrefix.LastIndexOf('.');
+        var unqualifiedPrefix = lastDot >= 0 ? tablePrefix.Substring(lastDot + 1) : tablePrefix;
+        return string.Format(CultureInfo.InvariantCulture, query, tablePrefix, unqualifiedPrefix);
     }
 }

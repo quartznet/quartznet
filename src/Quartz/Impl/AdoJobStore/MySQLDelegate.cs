@@ -33,14 +33,14 @@ public class MySQLDelegate : StdAdoDelegate
     protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
     {
         return SqlSelectNextTriggerToAcquire
-            .Replace("{0}TRIGGERS t", "{0}TRIGGERS t FORCE INDEX (IDX_{0}T_NFT_ST)")
+            .Replace("{0}TRIGGERS t", "{0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST)")
             + " LIMIT " + maxCount;
     }
 
     protected override string GetSelectNextTriggerToAcquireWithExecutionGroupSql(int maxCount)
     {
         return SqlSelectNextTriggerToAcquireWithExecutionGroup
-            .Replace("{0}TRIGGERS t", "{0}TRIGGERS t FORCE INDEX (IDX_{0}T_NFT_ST)")
+            .Replace("{0}TRIGGERS t", "{0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST)")
             + " LIMIT " + maxCount;
     }
 
@@ -49,7 +49,7 @@ public class MySQLDelegate : StdAdoDelegate
         if (count != -1)
         {
             return SqlSelectHasMisfiredTriggersInState
-                .Replace("{0}TRIGGERS WHERE", "{0}TRIGGERS FORCE INDEX (IDX_{0}T_NFT_ST_MISFIRE) WHERE")
+                .Replace("{0}TRIGGERS WHERE", "{0}TRIGGERS FORCE INDEX (IDX_{1}T_NFT_ST_MISFIRE) WHERE")
                 + " LIMIT " + count;
         }
         return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
@@ -58,6 +58,6 @@ public class MySQLDelegate : StdAdoDelegate
     protected override string GetCountMisfiredTriggersInStateSql()
     {
         return SqlCountMisfiredTriggersInStates
-            .Replace("{0}TRIGGERS WHERE", "{0}TRIGGERS FORCE INDEX (IDX_{0}T_NFT_ST_MISFIRE) WHERE");
+            .Replace("{0}TRIGGERS WHERE", "{0}TRIGGERS FORCE INDEX (IDX_{1}T_NFT_ST_MISFIRE) WHERE");
     }
 }
