@@ -137,7 +137,7 @@ public partial class StdAdoDelegate
         DateTimeOffset ts,
         CancellationToken cancellationToken = default)
     {
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlCountMisfiredTriggersInStates));
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(GetCountMisfiredTriggersInStateSql()));
         AddCommandParameter(cmd, "schedulerName", schedName);
         AddCommandParameter(cmd, "nextFireTime", GetDbDateTimeValue(ts));
         AddCommandParameter(cmd, "state1", state1);
@@ -1203,6 +1203,11 @@ public partial class StdAdoDelegate
     {
         // by default we don't support limits, this is db specific
         return SqlSelectNextTriggerToAcquire;
+    }
+
+    protected virtual string GetCountMisfiredTriggersInStateSql()
+    {
+        return SqlCountMisfiredTriggersInStates;
     }
 
     /// <inheritdoc />

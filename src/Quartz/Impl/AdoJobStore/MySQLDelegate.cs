@@ -27,20 +27,29 @@ public class MySQLDelegate : StdAdoDelegate
 {
     /// <summary>
     /// Gets the select next trigger to acquire SQL clause.
-    /// MySQL version with LIMIT support.
+    /// MySQL version with LIMIT support and a FORCE INDEX hint pointing at IDX_*_T_NFT_ST.
     /// </summary>
-    /// <returns></returns>
     protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
     {
-        return SqlSelectNextTriggerToAcquire + " LIMIT " + maxCount;
+        return SqlSelectNextTriggerToAcquire
+            .Replace("{0}TRIGGERS t", "{0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST)")
+            + " LIMIT " + maxCount;
     }
 
     protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
     {
         if (count != -1)
         {
-            return SqlSelectHasMisfiredTriggersInState + " LIMIT " + count;
+            return SqlSelectHasMisfiredTriggersInState
+                .Replace("{0}TRIGGERS WHERE", "{0}TRIGGERS FORCE INDEX (IDX_{1}T_NFT_ST_MISFIRE) WHERE")
+                + " LIMIT " + count;
         }
         return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
+    }
+
+    protected override string GetCountMisfiredTriggersInStateSql()
+    {
+        return SqlCountMisfiredTriggersInStates
+            .Replace("{0}TRIGGERS WHERE", "{0}TRIGGERS FORCE INDEX (IDX_{1}T_NFT_ST_MISFIRE) WHERE");
     }
 }
