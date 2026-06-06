@@ -217,7 +217,8 @@
             }
         }
 
-        return Navigation.ToAbsoluteUri(Options.Value.TrimmedDashboardPath + "/hub");
+        // Base-relative so the URL honors both DashboardPath and any path base set by the host
+        return Navigation.ToAbsoluteUri(DashboardLink.To(Options.Value, "hub"));
     }
 
     private async Task RunConnectionMonitorAsync(CancellationToken cancellationToken)

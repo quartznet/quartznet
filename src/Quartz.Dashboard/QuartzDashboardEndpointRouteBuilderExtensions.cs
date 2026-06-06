@@ -25,6 +25,7 @@ using Microsoft.AspNetCore.Components.Endpoints;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.Routing.Patterns;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -90,9 +91,39 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
     {
         QuartzDashboardOptions options = builder.ServiceProvider.GetRequiredService<IOptions<QuartzDashboardOptions>>().Value;
         string dashboardPath = options.TrimmedDashboardPath;
-        if (string.IsNullOrWhiteSpace(dashboardPath))
+
+        bool hasCustomPath = !string.Equals(dashboardPath, QuartzDashboardOptions.DefaultDashboardPath, StringComparison.OrdinalIgnoreCase);
+        if (hasCustomPath && !dashboardOwnsComponents)
         {
-            dashboardPath = "/quartz";
+            throw new InvalidOperationException(
+                $"A custom QuartzDashboardOptions.DashboardPath ('{options.DashboardPath}') is not supported when integrating with an existing Blazor application " +
+                $"because the dashboard page routes are fixed at '{QuartzDashboardOptions.DefaultDashboardPath}'. " +
+                "Use the MapQuartzDashboard() overload without an existing components builder to serve the dashboard under a custom path.");
+        }
+
+        if (hasCustomPath)
+        {
+            // Re-root the dashboard page endpoints from the compile-time /quartz prefix to the
+            // configured path so the initial page load and enhanced navigations resolve (#3093).
+            // Interactive navigation is handled by the dashboard's own route matching in Routes.razor.
+            components.Add(endpointBuilder =>
+            {
+                if (endpointBuilder is not RouteEndpointBuilder routeEndpointBuilder
+                    || GetComponentType(endpointBuilder)?.Assembly != typeof(QuartzDashboardApp).Assembly)
+                {
+                    return;
+                }
+
+                string? rawText = routeEndpointBuilder.RoutePattern.RawText;
+                if (rawText is null
+                    || !rawText.StartsWith(QuartzDashboardOptions.DefaultDashboardPath, StringComparison.OrdinalIgnoreCase)
+                    || (rawText.Length > QuartzDashboardOptions.DefaultDashboardPath.Length && rawText[QuartzDashboardOptions.DefaultDashboardPath.Length] != '/'))
+                {
+                    return;
+                }
+
+                routeEndpointBuilder.RoutePattern = RoutePatternFactory.Parse(string.Concat(dashboardPath, rawText.AsSpan(QuartzDashboardOptions.DefaultDashboardPath.Length)));
+            });
         }
 
         // Map SignalR hub under the dashboard path
@@ -129,17 +160,7 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
                 Assembly dashboardAssembly = typeof(QuartzDashboardApp).Assembly;
                 components.Add(endpointBuilder =>
                 {
-                    ComponentTypeMetadata? typeMetadata = null;
-                    foreach (object metadata in endpointBuilder.Metadata)
-                    {
-                        if (metadata is ComponentTypeMetadata m)
-                        {
-                            typeMetadata = m;
-                            break;
-                        }
-                    }
-
-                    if (typeMetadata?.Type.Assembly == dashboardAssembly)
+                    if (GetComponentType(endpointBuilder)?.Assembly == dashboardAssembly)
                     {
                         endpointBuilder.Metadata.Add(new AuthorizeAttribute(policyName));
                     }
@@ -153,6 +174,19 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
             // public package content (#3097).
             staticAssets.AllowAnonymous();
         }
+    }
+
+    private static Type? GetComponentType(EndpointBuilder endpointBuilder)
+    {
+        foreach (object metadata in endpointBuilder.Metadata)
+        {
+            if (metadata is ComponentTypeMetadata componentTypeMetadata)
+            {
+                return componentTypeMetadata.Type;
+            }
+        }
+
+        return null;
     }
 
     private static readonly FileExtensionContentTypeProvider ContentTypeProvider = new();

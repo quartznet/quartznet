@@ -221,9 +221,9 @@
         return Task.CompletedTask;
     }
 
-    private static string GetJobDetailPath(string group, string name)
+    private string GetJobDetailPath(string group, string name)
     {
-        return "/quartz/jobs/" + Uri.EscapeDataString(group) + "/" + Uri.EscapeDataString(name);
+        return DashboardLink.To(Options.Value, "jobs/" + Uri.EscapeDataString(group) + "/" + Uri.EscapeDataString(name));
     }
 
     private string GetGroupState(string group)

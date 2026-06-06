@@ -139,9 +139,9 @@
         }
     }
 
-    private static string GetCalendarPath(string name)
+    private string GetCalendarPath(string name)
     {
-        return "/quartz/calendars/" + Uri.EscapeDataString(name);
+        return DashboardLink.To(Options.Value, "calendars/" + Uri.EscapeDataString(name));
     }
 
     private async Task CreateOrUpdateCalendarAsync()
