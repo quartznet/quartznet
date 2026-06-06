@@ -58,6 +58,25 @@ app.UseEndpoints(endpoints =>
 
 By default, dashboard UI is available at `/quartz`.
 
+## Hosting under a custom path
+
+When the dashboard hosts its own Blazor root (the parameterless `MapQuartzDashboard()` overload), the dashboard can be served from a custom base path:
+
+```csharp
+services.AddQuartzDashboard(options =>
+{
+    options.DashboardPath = "/my-api/quartz";
+});
+```
+
+All dashboard pages, navigation links and the SignalR hub are then served under the configured path (for example `/my-api/quartz/jobs`).
+
+Dashboard links are generated relative to the application base URI, so the dashboard also works behind a reverse proxy or an application path base (`UsePathBase`) — the configured `DashboardPath` is interpreted relative to the path base.
+
+::: warning
+A custom `DashboardPath` is **not** supported when integrating into an existing Blazor application with `MapQuartzDashboard(blazor)`; the dashboard page routes are fixed at `/quartz` in that mode and startup fails with a descriptive exception if a custom path is configured.
+:::
+
 ## Enabling history plugin
 
 To populate execution history and make related views useful, enable Quartz history plugins in `QuartzOptions`:
@@ -99,6 +118,8 @@ app.UseEndpoints(endpoints =>
     endpoints.MapQuartzDashboard();
 });
 ```
+
+When `AuthorizationPolicy` is set, the policy is applied to the dashboard pages, the SignalR hub and the dashboard static asset endpoint. Without a policy, the static asset endpoint (`_content/Quartz.Dashboard/*`) explicitly allows anonymous access so that applications enforcing a fail-closed `FallbackPolicy` can still load the dashboard CSS and JavaScript — the files are public package content.
 
 ### API key or custom authorization checks
 
@@ -152,10 +173,25 @@ var blazor = app.MapRazorComponents<App>()
 app.MapQuartzDashboard(blazor);
 ```
 
-The dashboard pages, layout, CSS, and JavaScript interop are automatically registered into the host's Blazor setup via `AddAdditionalAssemblies`. No additional `<link>` or `<script>` tags are needed in your `App.razor`.
+In addition, the host application's interactive router must be able to resolve the dashboard pages. Add the dashboard assembly to the `AdditionalAssemblies` of the `<Router>` in your `Routes.razor`:
+
+```razor
+<Router AppAssembly="typeof(App).Assembly"
+        AdditionalAssemblies="new[] { typeof(Quartz.Dashboard.Components.QuartzDashboardApp).Assembly }">
+    ...
+</Router>
+```
+
+Without this, the dashboard renders server-side on the initial request, but the interactive router cannot match the `/quartz` routes once the circuit starts — the dashboard flashes briefly and is then replaced by the application's not-found page.
+
+The dashboard pages, layout, CSS, and JavaScript interop are automatically registered into the host's Blazor endpoint routing via `AddAdditionalAssemblies`. No additional `<link>` or `<script>` tags are needed in your `App.razor`.
 
 ::: warning
 Do **not** call the parameterless `MapQuartzDashboard()` alongside your own `MapRazorComponents` — this registers two `/_blazor` endpoints and causes the dashboard's interactive pages to fail.
+:::
+
+::: tip
+The dashboard pages do not declare a render mode of their own, so the host application needs to use global interactive server rendering (for example `<Routes @rendermode="InteractiveServer" />` in `App.razor`). With per-page/component interactivity the dashboard pages render as static SSR and their actions are not functional.
 :::
 
 ## API-only projects (no .razor files)
