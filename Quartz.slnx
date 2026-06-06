@@ -39,6 +39,7 @@
   <Project Path="src/Quartz.Serialization.Json/Quartz.Serialization.Json.csproj" />
   <Project Path="src/Quartz.Serialization.SystemTextJson/Quartz.Serialization.SystemTextJson.csproj" />
   <Project Path="src/Quartz.Server/Quartz.Server.csproj" />
+  <Project Path="src/Quartz.Tests.AspNetCore/Quartz.Tests.AspNetCore.csproj" />
   <Project Path="src/Quartz.Tests.Integration/Quartz.Tests.Integration.csproj" />
   <Project Path="src/Quartz.Tests.Unit/Quartz.Tests.Unit.csproj" />
   <Project Path="src/Quartz/Quartz.csproj" />
