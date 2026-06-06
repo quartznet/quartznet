@@ -49,7 +49,7 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
             .MapRazorComponents<QuartzDashboardApp>()
             .AddInteractiveServerRenderMode();
 
-        MapQuartzDashboardCore(builder, components);
+        MapQuartzDashboardCore(builder, components, dashboardOwnsComponents: true);
 
         return components;
     }
@@ -78,14 +78,15 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
         // Register dashboard page components with the host's existing Blazor router
         existingComponents.AddAdditionalAssemblies(typeof(QuartzDashboardApp).Assembly);
 
-        MapQuartzDashboardCore(builder, existingComponents);
+        MapQuartzDashboardCore(builder, existingComponents, dashboardOwnsComponents: false);
 
         return existingComponents;
     }
 
     private static void MapQuartzDashboardCore(
         IEndpointRouteBuilder builder,
-        RazorComponentsEndpointConventionBuilder components)
+        RazorComponentsEndpointConventionBuilder components,
+        bool dashboardOwnsComponents)
     {
         QuartzDashboardOptions options = builder.ServiceProvider.GetRequiredService<IOptions<QuartzDashboardOptions>>().Value;
         string dashboardPath = options.TrimmedDashboardPath;
@@ -100,42 +101,65 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
 
         // Serve dashboard static web assets via endpoint routing as a fallback
         // for hosts that don't configure UseStaticFiles() (e.g., API-only projects)
-        MapDashboardStaticAssets(builder);
+        RouteHandlerBuilder staticAssets = MapDashboardStaticAssets(builder);
 
         if (!string.IsNullOrWhiteSpace(options.AuthorizationPolicy))
         {
             string policyName = options.AuthorizationPolicy;
             hub.RequireAuthorization(policyName);
 
-            // Apply the policy ONLY to dashboard page endpoints. Calling RequireAuthorization on
-            // 'components' would otherwise apply to every endpoint owned by the builder, which in
-            // the integrated overload is the host app's own pages too (#3066).
-            Assembly dashboardAssembly = typeof(QuartzDashboardApp).Assembly;
-            components.Add(endpointBuilder =>
-            {
-                ComponentTypeMetadata? typeMetadata = null;
-                foreach (object metadata in endpointBuilder.Metadata)
-                {
-                    if (metadata is ComponentTypeMetadata m)
-                    {
-                        typeMetadata = m;
-                        break;
-                    }
-                }
+            // Gate static assets with the same policy as the rest of the dashboard so the endpoint
+            // carries explicit authorization metadata and keeps working in applications that use a
+            // fail-closed FallbackPolicy (#3097).
+            staticAssets.RequireAuthorization(policyName);
 
-                if (typeMetadata?.Type.Assembly == dashboardAssembly)
+            if (dashboardOwnsComponents)
+            {
+                // Standalone mode: the components builder contains only dashboard endpoints (pages,
+                // framework script and circuit endpoints), so the policy can safely cover them all.
+                // This also keeps /_framework and /_blazor reachable in applications using a
+                // fail-closed FallbackPolicy (#3097).
+                components.RequireAuthorization(policyName);
+            }
+            else
+            {
+                // Integrated mode: apply the policy ONLY to dashboard page endpoints. Calling
+                // RequireAuthorization on 'components' would otherwise apply to every endpoint owned
+                // by the builder, including the host app's own pages (#3066).
+                Assembly dashboardAssembly = typeof(QuartzDashboardApp).Assembly;
+                components.Add(endpointBuilder =>
                 {
-                    endpointBuilder.Metadata.Add(new AuthorizeAttribute(policyName));
-                }
-            });
+                    ComponentTypeMetadata? typeMetadata = null;
+                    foreach (object metadata in endpointBuilder.Metadata)
+                    {
+                        if (metadata is ComponentTypeMetadata m)
+                        {
+                            typeMetadata = m;
+                            break;
+                        }
+                    }
+
+                    if (typeMetadata?.Type.Assembly == dashboardAssembly)
+                    {
+                        endpointBuilder.Metadata.Add(new AuthorizeAttribute(policyName));
+                    }
+                });
+            }
+        }
+        else
+        {
+            // Without a dashboard policy, static assets opt out of authorization so applications
+            // enforcing a fail-closed FallbackPolicy can still load dashboard CSS/JS; the files are
+            // public package content (#3097).
+            staticAssets.AllowAnonymous();
         }
     }
 
     private static readonly FileExtensionContentTypeProvider ContentTypeProvider = new();
 
-    private static void MapDashboardStaticAssets(IEndpointRouteBuilder builder)
+    private static RouteHandlerBuilder MapDashboardStaticAssets(IEndpointRouteBuilder builder)
     {
-        builder.MapGet("_content/Quartz.Dashboard/{**path}", async (HttpContext context, string path) =>
+        return builder.MapGet("_content/Quartz.Dashboard/{**path}", async (HttpContext context, string path) =>
         {
             var env = context.RequestServices.GetRequiredService<IWebHostEnvironment>();
             var fileInfo = env.WebRootFileProvider.GetFileInfo($"_content/Quartz.Dashboard/{path}");
