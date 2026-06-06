@@ -61,12 +61,24 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
     /// <c>MapRazorComponents&lt;App&gt;().AddInteractiveServerRenderMode()</c>
     /// to avoid registering a second <c>/_blazor</c> SignalR endpoint.
     /// </summary>
+    /// <remarks>
+    /// The host application's interactive router must also be able to resolve the dashboard pages:
+    /// add <c>typeof(QuartzDashboardApp).Assembly</c> to the <c>AdditionalAssemblies</c> of the
+    /// <c>&lt;Router&gt;</c> in the host's <c>Routes.razor</c>. Otherwise the dashboard renders on the
+    /// initial request but the interactive router replaces it with the application's not-found page
+    /// once the circuit starts.
+    /// </remarks>
     /// <example>
     /// <code>
     /// var blazor = endpoints.MapRazorComponents&lt;App&gt;()
     ///     .AddInteractiveServerRenderMode();
     ///
     /// endpoints.MapQuartzDashboard(blazor);
+    /// </code>
+    /// And in the host's <c>Routes.razor</c>:
+    /// <code>
+    /// &lt;Router AppAssembly="typeof(App).Assembly"
+    ///         AdditionalAssemblies="new[] { typeof(Quartz.Dashboard.Components.QuartzDashboardApp).Assembly }"&gt;
     /// </code>
     /// </example>
     public static RazorComponentsEndpointConventionBuilder MapQuartzDashboard(
