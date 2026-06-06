@@ -194,15 +194,15 @@
         return _triggerStates.TryGetValue(key, out string? state) ? state : "Unknown";
     }
 
-    private static string GetTriggerPath(string group, string name)
+    private string GetTriggerPath(string group, string name)
     {
-        return "/quartz/triggers/" + Uri.EscapeDataString(group) + "/" + Uri.EscapeDataString(name);
+        return DashboardLink.To(Options.Value, "triggers/" + Uri.EscapeDataString(group) + "/" + Uri.EscapeDataString(name));
     }
 
-    private static string GetHistoryPathForJob(string group, string name)
+    private string GetHistoryPathForJob(string group, string name)
     {
         string filterValue = Uri.EscapeDataString(DisplayValueHelper.FormatKey(group, name));
-        return "/quartz/history?job=" + filterValue;
+        return DashboardLink.To(Options.Value, "history?job=" + filterValue);
     }
 
     private Task PauseAsync()
@@ -263,7 +263,7 @@
         _showDeleteConfirm = false;
         if (succeeded)
         {
-            Navigation.NavigateTo("/quartz/jobs");
+            Navigation.NavigateTo(DashboardLink.To(Options.Value, "jobs"));
         }
     }
 
