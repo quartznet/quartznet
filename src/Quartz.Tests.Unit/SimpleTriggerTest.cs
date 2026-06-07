@@ -431,11 +431,15 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
     }
 
     [Test]
-    public void RescheduleNextWithExistingCount_WithMisfireThreshold_PreservesWithinThresholdFireTime()
+    public void RescheduleNextWithExistingCount_AfterMisfire_YieldsStrictlyFutureFireTime()
     {
+        // Simple trigger: fires every 2 minutes starting at 10:00:00 (in the past).
+        // Misfire handling runs at 10:02:30. The trigger must be rescheduled to the
+        // next fire time strictly after 'now' (10:04:00) and must not fire immediately,
+        // even though the 10:02:00 fire time would be within a typical misfire
+        // threshold window (#3096).
         var startTime = new DateTimeOffset(2025, 1, 1, 10, 0, 0, TimeSpan.Zero);
         var frozenNow = new DateTimeOffset(2025, 1, 1, 10, 2, 30, TimeSpan.Zero);
-        var threshold = TimeSpan.FromSeconds(60);
 
         var trigger = new SimpleTriggerImpl(new FixedTimeProvider(frozenNow))
         {
@@ -447,20 +451,21 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
         };
         trigger.ComputeFirstFireTimeUtc(null);
 
-        trigger.UpdateAfterMisfire(null, threshold);
+        trigger.UpdateAfterMisfire(null);
 
         DateTimeOffset? nextFire = trigger.GetNextFireTimeUtc();
         Assert.IsNotNull(nextFire);
-        Assert.That(nextFire.Value, Is.EqualTo(new DateTimeOffset(2025, 1, 1, 10, 2, 0, TimeSpan.Zero)),
-            "Should preserve the 10:02 fire time that is within the misfire threshold");
+        Assert.That(nextFire.Value, Is.GreaterThan(frozenNow),
+            "Trigger must not fire immediately after misfire handling (#3096)");
+        Assert.That(nextFire.Value, Is.EqualTo(new DateTimeOffset(2025, 1, 1, 10, 4, 0, TimeSpan.Zero)),
+            "Should reschedule to the next scheduled time strictly after now");
     }
 
     [Test]
-    public void RescheduleNextWithRemainingCount_WithMisfireThreshold_PreservesWithinThresholdFireTime()
+    public void RescheduleNextWithRemainingCount_AfterMisfire_YieldsStrictlyFutureFireTime()
     {
         var startTime = new DateTimeOffset(2025, 1, 1, 10, 0, 0, TimeSpan.Zero);
         var frozenNow = new DateTimeOffset(2025, 1, 1, 10, 2, 30, TimeSpan.Zero);
-        var threshold = TimeSpan.FromSeconds(60);
 
         var trigger = new SimpleTriggerImpl(new FixedTimeProvider(frozenNow))
         {
@@ -476,14 +481,16 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
         trigger.SetNextFireTimeUtc(startTime);
         trigger.TimesTriggered = 1;
 
-        trigger.UpdateAfterMisfire(null, threshold);
+        trigger.UpdateAfterMisfire(null);
 
         DateTimeOffset? nextFire = trigger.GetNextFireTimeUtc();
         Assert.IsNotNull(nextFire);
-        Assert.That(nextFire.Value, Is.EqualTo(new DateTimeOffset(2025, 1, 1, 10, 2, 0, TimeSpan.Zero)),
-            "Should preserve the 10:02 fire time that is within the misfire threshold");
-        // Only 1 fire time missed (10:00 -> 10:02), not 2 (10:00 -> 10:04)
-        Assert.That(trigger.TimesTriggered, Is.EqualTo(2));
+        Assert.That(nextFire.Value, Is.GreaterThan(frozenNow),
+            "Trigger must not fire immediately after misfire handling (#3096)");
+        Assert.That(nextFire.Value, Is.EqualTo(new DateTimeOffset(2025, 1, 1, 10, 4, 0, TimeSpan.Zero)),
+            "Should reschedule to the next scheduled time strictly after now");
+        // 2 fire times missed (10:00 and 10:02)
+        Assert.That(trigger.TimesTriggered, Is.EqualTo(3));
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
