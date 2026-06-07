@@ -1,15 +1,53 @@
-<Router AppAssembly="typeof(Routes).Assembly">
-    <Found Context="routeData">
-        <RouteView RouteData="routeData" DefaultLayout="typeof(DashboardLayout)" />
-        <FocusOnNavigate RouteData="routeData" Selector="h1" />
-    </Found>
-    <NotFound>
-        <LayoutView Layout="typeof(DashboardLayout)">
-            <div class="qz-page">
-                <h1>Not Found</h1>
-                <p class="qz-muted">The requested page was not found.</p>
-                <a href="/quartz" class="qz-button">Return to Dashboard</a>
-            </div>
-        </LayoutView>
-    </NotFound>
-</Router>
+@using Microsoft.Extensions.Options
+@implements IDisposable
+@inject NavigationManager Navigation
+@inject IOptions<QuartzDashboardOptions> Options
+
+@* The built-in Blazor Router can only match the compile-time "/quartz" page templates, so the
+   standalone dashboard matches routes itself to honor a custom QuartzDashboardOptions.DashboardPath (#3093). *@
+@if (_routeData is not null)
+{
+    <RouteView RouteData="_routeData" DefaultLayout="typeof(DashboardLayout)" />
+    <FocusOnNavigate RouteData="_routeData" Selector="h1" />
+}
+else
+{
+    <LayoutView Layout="typeof(DashboardLayout)">
+        <div class="qz-page">
+            <h1>Not Found</h1>
+            <p class="qz-muted">The requested page was not found.</p>
+            <a href="@DashboardLink.To(Options.Value, "")" class="qz-button">Return to Dashboard</a>
+        </div>
+    </LayoutView>
+}
+
+@code
+{
+    private RouteData? _routeData;
+
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += OnLocationChanged;
+        UpdateRouteData(Navigation.Uri);
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        UpdateRouteData(e.Location);
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void UpdateRouteData(string uri)
+    {
+        // ToBaseRelativePath throws for URIs outside the base URI space; treat those as not found
+        string baseUri = Navigation.BaseUri;
+        _routeData = uri.StartsWith(baseUri, StringComparison.OrdinalIgnoreCase)
+            ? DashboardRouteTable.Match(uri.Substring(baseUri.Length), Options.Value)
+            : null;
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
+}

@@ -1,4 +1,6 @@
+@using Microsoft.Extensions.Options
 @inject NavigationManager NavigationManager
+@inject IOptions<QuartzDashboardOptions> Options
 @implements IDisposable
 
 <div class="qz-sidebar-brand">
@@ -18,7 +20,7 @@
         <li class="qz-sidebar-section">Overview</li>
 
         <li class="qz-nav-item">
-            <a class="qz-nav-link @NavClass("/quartz")" href="/quartz">
+            <a class="qz-nav-link @NavClass("")" href="@Link("")">
                 <svg class="qz-nav-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <rect x="1" y="1" width="7" height="7" rx="1" />
                     <rect x="10" y="1" width="7" height="7" rx="1" />
@@ -32,7 +34,7 @@
         <li class="qz-sidebar-section">Management</li>
 
         <li class="qz-nav-item">
-            <a class="qz-nav-link @NavClass("/quartz/jobs")" href="/quartz/jobs">
+            <a class="qz-nav-link @NavClass("jobs")" href="@Link("jobs")">
                 <svg class="qz-nav-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <rect x="2" y="2" width="14" height="14" rx="2" />
                     <line x1="6" y1="6" x2="12" y2="6" />
@@ -44,7 +46,7 @@
         </li>
 
         <li class="qz-nav-item">
-            <a class="qz-nav-link @NavClass("/quartz/triggers")" href="/quartz/triggers">
+            <a class="qz-nav-link @NavClass("triggers")" href="@Link("triggers")">
                 <svg class="qz-nav-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <circle cx="9" cy="9" r="7" />
                     <polyline points="9,5 9,9 12,11" />
@@ -54,7 +56,7 @@
         </li>
 
         <li class="qz-nav-item">
-            <a class="qz-nav-link @NavClass("/quartz/calendars")" href="/quartz/calendars">
+            <a class="qz-nav-link @NavClass("calendars")" href="@Link("calendars")">
                 <svg class="qz-nav-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <rect x="2" y="3" width="14" height="13" rx="2" />
                     <line x1="2" y1="7" x2="16" y2="7" />
@@ -68,7 +70,7 @@
         <li class="qz-sidebar-section">Monitoring</li>
 
         <li class="qz-nav-item">
-            <a class="qz-nav-link @NavClass("/quartz/executing")" href="/quartz/executing">
+            <a class="qz-nav-link @NavClass("executing")" href="@Link("executing")">
                 <svg class="qz-nav-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <polygon points="6,3 15,9 6,15" />
                 </svg>
@@ -77,7 +79,7 @@
         </li>
 
         <li class="qz-nav-item">
-            <a class="qz-nav-link @NavClass("/quartz/history")" href="/quartz/history">
+            <a class="qz-nav-link @NavClass("history")" href="@Link("history")">
                 <svg class="qz-nav-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <polyline points="1,9 4,6 7,9" />
                     <path d="M4,6 L4,13 A5,5 0 1,0 14,13" />
@@ -88,7 +90,7 @@
         </li>
 
         <li class="qz-nav-item">
-            <a class="qz-nav-link @NavClass("/quartz/live")" href="/quartz/live">
+            <a class="qz-nav-link @NavClass("live")" href="@Link("live")">
                 <svg class="qz-nav-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M4,4 A7.07,7.07 0 0,1 14,4" />
                     <path d="M6,7 A4.24,4.24 0 0,1 12,7" />
@@ -99,7 +101,7 @@
         </li>
 
         <li class="qz-nav-item">
-            <a class="qz-nav-link @NavClass("/quartz/actions")" href="/quartz/actions">
+            <a class="qz-nav-link @NavClass("actions")" href="@Link("actions")">
                 <svg class="qz-nav-icon" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <line x1="3" y1="4" x2="15" y2="4" />
                     <line x1="3" y1="9" x2="15" y2="9" />
@@ -124,27 +126,24 @@
         NavigationManager.LocationChanged += OnLocationChanged;
     }
 
+    private string Link(string subPath)
+    {
+        return DashboardLink.To(Options.Value, subPath);
+    }
+
     private string NavClass(string route)
     {
-        string relativePath = NavigationManager.ToBaseRelativePath(_currentUri);
-
-        // Normalize: strip trailing slash, ensure leading slash
-        if (!relativePath.StartsWith('/'))
-        {
-            relativePath = "/" + relativePath;
-        }
-
-        relativePath = relativePath.TrimEnd('/');
-        string normalizedRoute = route.TrimEnd('/');
+        string relativePath = DashboardLink.NormalizeRelativePath(NavigationManager.ToBaseRelativePath(_currentUri));
+        string target = Link(route);
 
         // Exact match for dashboard root, prefix match for sub-pages
-        if (normalizedRoute == "/quartz")
+        if (route.Length == 0)
         {
-            return relativePath == "/quartz" ? "qz-nav-active" : string.Empty;
+            return relativePath.Equals(target, StringComparison.OrdinalIgnoreCase) ? "qz-nav-active" : string.Empty;
         }
 
-        bool isActive = relativePath.Equals(normalizedRoute, StringComparison.OrdinalIgnoreCase)
-            || relativePath.StartsWith(normalizedRoute + "/", StringComparison.OrdinalIgnoreCase);
+        bool isActive = relativePath.Equals(target, StringComparison.OrdinalIgnoreCase)
+            || relativePath.StartsWith(target + "/", StringComparison.OrdinalIgnoreCase);
 
         return isActive ? "qz-nav-active" : string.Empty;
     }

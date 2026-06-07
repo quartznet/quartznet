@@ -21,7 +21,15 @@ namespace Quartz;
 
 public class QuartzDashboardOptions
 {
-    public string DashboardPath { get; set; } = "/quartz";
+    internal const string DefaultDashboardPath = "/quartz";
+
+    /// <summary>
+    /// The base path the dashboard UI is served from. Defaults to "/quartz".
+    /// A custom value is honored when the dashboard hosts its own Blazor root
+    /// (the parameterless <c>MapQuartzDashboard()</c> overload). When integrating into an
+    /// existing Blazor application the dashboard page routes are fixed at "/quartz".
+    /// </summary>
+    public string DashboardPath { get; set; } = DefaultDashboardPath;
 
     public string? AuthorizationPolicy { get; set; }
 
@@ -31,7 +39,23 @@ public class QuartzDashboardOptions
 
     public string ApiPath { get; set; } = "/quartz-api";
 
-    internal string TrimmedDashboardPath => DashboardPath.TrimEnd('/');
+    /// <summary>
+    /// <see cref="DashboardPath"/> normalized to a rooted path without a trailing slash,
+    /// falling back to <see cref="DefaultDashboardPath"/> when unset or empty.
+    /// </summary>
+    internal string TrimmedDashboardPath
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(DashboardPath))
+            {
+                return DefaultDashboardPath;
+            }
+
+            string trimmed = DashboardPath.Trim().Trim('/');
+            return trimmed.Length == 0 ? DefaultDashboardPath : "/" + trimmed;
+        }
+    }
 
     internal string TrimmedApiPath => ApiPath.TrimEnd('/');
 }

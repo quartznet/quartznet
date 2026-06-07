@@ -158,7 +158,7 @@
             ActionLog.Record(schedulerName, "DeleteCalendar", CalendarName, succeeded: true);
             Toasts.Success("Deleted calendar " + CalendarName + ".");
             _showDeleteConfirm = false;
-            Navigation.NavigateTo("/quartz/calendars");
+            Navigation.NavigateTo(DashboardLink.To(Options.Value, "calendars"));
         }
         catch (Exception ex)
         {

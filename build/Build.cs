@@ -141,7 +141,7 @@ partial class Build : NukeBuild
                 framework = "net8.0";
             }
 
-            var testProjects = new[] { "Quartz.Tests.Unit" };
+            var testProjects = new[] { "Quartz.Tests.Unit", "Quartz.Tests.AspNetCore" };
             DotNetTest(s => s
                 .EnableNoRestore()
                 .EnableNoBuild()
