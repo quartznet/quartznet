@@ -277,82 +277,12 @@ public class CronTriggerTest
     }
 
     [Test]
-    public void DoNothing_WithMisfireThreshold_PreservesWithinThresholdFireTime()
+    public void DoNothing_AfterMisfire_YieldsStrictlyFutureFireTime()
     {
         // Cron: fire every 2 minutes at :00, :02, :04, etc.
-        // Scheduler recovers at 10:02:30. Threshold = 60s.
-        // 10:02:00 is only 30s past due (within threshold) -- should be preserved.
-        var startTime = new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);
-        var frozenNow = new DateTimeOffset(2025, 1, 1, 10, 2, 30, TimeSpan.Zero);
-        var threshold = TimeSpan.FromSeconds(60);
-
-        var trigger = new CronTriggerImpl
-        {
-            Name = "test",
-            Group = "test",
-            CronExpressionString = "0 0/2 * * * ?",
-            StartTimeUtc = startTime,
-            MisfireInstruction = MisfireInstruction.CronTrigger.DoNothing
-        };
-        trigger.ComputeFirstFireTimeUtc(null);
-
-        var original = SystemTime.UtcNow;
-        try
-        {
-            SystemTime.UtcNow = () => frozenNow;
-            trigger.UpdateAfterMisfire(null, threshold);
-
-            DateTimeOffset? nextFire = trigger.GetNextFireTimeUtc();
-            Assert.IsNotNull(nextFire);
-            Assert.That(nextFire.Value, Is.EqualTo(new DateTimeOffset(2025, 1, 1, 10, 2, 0, TimeSpan.Zero)),
-                "Should preserve the 10:02 fire time that is within the misfire threshold");
-        }
-        finally
-        {
-            SystemTime.UtcNow = original;
-        }
-    }
-
-    [Test]
-    public void DoNothing_WithMisfireThreshold_SkipsGenuinelyMisfiredTimes()
-    {
-        // At 10:04:30 with 60s threshold, both 10:00 and 10:02 are > 60s old.
-        // Next fire time should be 10:04:00 (within threshold).
-        var startTime = new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);
-        var frozenNow = new DateTimeOffset(2025, 1, 1, 10, 4, 30, TimeSpan.Zero);
-        var threshold = TimeSpan.FromSeconds(60);
-
-        var trigger = new CronTriggerImpl
-        {
-            Name = "test",
-            Group = "test",
-            CronExpressionString = "0 0/2 * * * ?",
-            StartTimeUtc = startTime,
-            MisfireInstruction = MisfireInstruction.CronTrigger.DoNothing
-        };
-        trigger.ComputeFirstFireTimeUtc(null);
-
-        var original = SystemTime.UtcNow;
-        try
-        {
-            SystemTime.UtcNow = () => frozenNow;
-            trigger.UpdateAfterMisfire(null, threshold);
-
-            DateTimeOffset? nextFire = trigger.GetNextFireTimeUtc();
-            Assert.IsNotNull(nextFire);
-            Assert.That(nextFire.Value, Is.EqualTo(new DateTimeOffset(2025, 1, 1, 10, 4, 0, TimeSpan.Zero)),
-                "Should advance to 10:04 which is within the threshold window");
-        }
-        finally
-        {
-            SystemTime.UtcNow = original;
-        }
-    }
-
-    [Test]
-    public void DoNothing_WithoutThreshold_SkipsAllPastFireTimes()
-    {
-        // Without threshold, the old behavior: next fire time is after now.
+        // Misfire handling runs at 10:02:30. DoNothing must reschedule to the next
+        // time strictly after 'now' (10:04:00) and must not fire immediately, even
+        // though 10:02:00 is only 30s past due (#3096).
         var startTime = new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);
         var frozenNow = new DateTimeOffset(2025, 1, 1, 10, 2, 30, TimeSpan.Zero);
 
@@ -374,8 +304,46 @@ public class CronTriggerTest
 
             DateTimeOffset? nextFire = trigger.GetNextFireTimeUtc();
             Assert.IsNotNull(nextFire);
+            Assert.That(nextFire.Value, Is.GreaterThan(frozenNow),
+                "Trigger must not fire immediately after misfire handling (#3096)");
             Assert.That(nextFire.Value, Is.EqualTo(new DateTimeOffset(2025, 1, 1, 10, 4, 0, TimeSpan.Zero)),
-                "Without threshold, should skip to next fire time after now");
+                "Should skip to the next fire time strictly after now");
+        }
+        finally
+        {
+            SystemTime.UtcNow = original;
+        }
+    }
+
+    [Test]
+    public void DoNothing_AfterMisfire_SkipsAllPastDueFireTimes()
+    {
+        // At 10:04:30 the fire times 10:00, 10:02 and 10:04 are all past due.
+        // DoNothing skips all of them - including 10:04 which is only 30s old -
+        // and reschedules to 10:06:00.
+        var startTime = new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var frozenNow = new DateTimeOffset(2025, 1, 1, 10, 4, 30, TimeSpan.Zero);
+
+        var trigger = new CronTriggerImpl
+        {
+            Name = "test",
+            Group = "test",
+            CronExpressionString = "0 0/2 * * * ?",
+            StartTimeUtc = startTime,
+            MisfireInstruction = MisfireInstruction.CronTrigger.DoNothing
+        };
+        trigger.ComputeFirstFireTimeUtc(null);
+
+        var original = SystemTime.UtcNow;
+        try
+        {
+            SystemTime.UtcNow = () => frozenNow;
+            trigger.UpdateAfterMisfire(null);
+
+            DateTimeOffset? nextFire = trigger.GetNextFireTimeUtc();
+            Assert.IsNotNull(nextFire);
+            Assert.That(nextFire.Value, Is.EqualTo(new DateTimeOffset(2025, 1, 1, 10, 6, 0, TimeSpan.Zero)),
+                "Should skip all past-due fire times and reschedule strictly after now");
         }
         finally
         {

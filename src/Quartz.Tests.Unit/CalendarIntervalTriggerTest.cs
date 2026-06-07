@@ -1126,14 +1126,13 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
     }
 
     [Test]
-    public void DoNothing_WithMisfireThreshold_PreservesWithinThresholdFireTime()
+    public void DoNothing_AfterMisfire_YieldsStrictlyFutureFireTime()
     {
-        // CalendarInterval: fire every 2 minutes starting at 10:00.
-        // Scheduler recovers at 10:02:30. Threshold = 60s.
-        // 10:02:00 is only 30s old (within threshold) -- should be preserved.
+        // CalendarInterval: fire every 2 minutes starting at 10:00 (in the past).
+        // Misfire handling runs at 10:02:30. DoNothing must reschedule to the next
+        // time strictly after 'now' (10:04:00) and must not fire immediately (#3096).
         var startTime = new DateTimeOffset(2025, 1, 1, 10, 0, 0, TimeSpan.Zero);
         var frozenNow = new DateTimeOffset(2025, 1, 1, 10, 2, 30, TimeSpan.Zero);
-        var threshold = TimeSpan.FromSeconds(60);
 
         var trigger = new CalendarIntervalTriggerImpl
         {
@@ -1150,12 +1149,14 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         try
         {
             SystemTime.UtcNow = () => frozenNow;
-            trigger.UpdateAfterMisfire(null, threshold);
+            trigger.UpdateAfterMisfire(null);
 
             DateTimeOffset? nextFire = trigger.GetNextFireTimeUtc();
             Assert.IsNotNull(nextFire);
-            Assert.That(nextFire.Value, Is.EqualTo(new DateTimeOffset(2025, 1, 1, 10, 2, 0, TimeSpan.Zero)),
-                "Should preserve the 10:02 fire time that is within the misfire threshold");
+            Assert.That(nextFire.Value, Is.GreaterThan(frozenNow),
+                "Trigger must not fire immediately after misfire handling (#3096)");
+            Assert.That(nextFire.Value, Is.EqualTo(new DateTimeOffset(2025, 1, 1, 10, 4, 0, TimeSpan.Zero)),
+                "Should skip to the next fire time strictly after now");
         }
         finally
         {

@@ -742,32 +742,6 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
         }
     }
 
-    internal override void UpdateAfterMisfire(ICalendar? cal, TimeSpan misfireThreshold)
-    {
-        int instr = MisfireInstruction;
-
-        if (instr == Quartz.MisfireInstruction.SmartPolicy)
-        {
-            instr = Quartz.MisfireInstruction.CronTrigger.FireOnceNow;
-        }
-
-        if (instr == Quartz.MisfireInstruction.CronTrigger.DoNothing)
-        {
-            DateTimeOffset? newFireTime = GetFireTimeAfter(SystemTime.UtcNow() - misfireThreshold);
-
-            while (newFireTime.HasValue && cal != null
-                                        && !cal.IsTimeIncluded(newFireTime.Value))
-            {
-                newFireTime = GetFireTimeAfter(newFireTime);
-            }
-            SetNextFireTimeUtc(newFireTime);
-        }
-        else if (instr == Quartz.MisfireInstruction.CronTrigger.FireOnceNow)
-        {
-            SetNextFireTimeUtc(SystemTime.UtcNow());
-        }
-    }
-
     /// <summary>
     /// <para>
     /// Determines whether the date and (optionally) time of the given Calendar

@@ -119,12 +119,6 @@ public interface IOperableTrigger : IMutableTrigger
 internal interface INextVersionTrigger
 {
     /// <summary>
-    /// Updates the trigger's state based on its misfire instruction, accounting for the
-    /// misfire threshold so that fire times within the threshold window are preserved.
-    /// </summary>
-    void UpdateAfterMisfire(ICalendar? cal, TimeSpan misfireThreshold);
-
-    /// <summary>
     /// Gets or sets the execution group for this trigger. Execution groups allow
     /// per-node thread limits to be configured so that resource-intensive jobs
     /// do not saturate all available threads.
