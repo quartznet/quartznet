@@ -176,10 +176,10 @@
         return Scheduler.FormatInSelectedTimeZone(value, "u");
     }
 
-    private static string GetHistoryPathForTrigger(string group, string name)
+    private string GetHistoryPathForTrigger(string group, string name)
     {
         string filterValue = Uri.EscapeDataString(DisplayValueHelper.FormatKey(group, name));
-        return "/quartz/history?trigger=" + filterValue;
+        return DashboardLink.To(Options.Value, "history?trigger=" + filterValue);
     }
 
     private Task PauseAsync()
@@ -315,7 +315,7 @@
         _showUnscheduleConfirm = false;
         if (succeeded)
         {
-            Navigation.NavigateTo("/quartz/triggers");
+            Navigation.NavigateTo(DashboardLink.To(Options.Value, "triggers"));
         }
     }
 

@@ -294,9 +294,9 @@
         }
     }
 
-    private static string GetTriggerPath(string group, string name)
+    private string GetTriggerPath(string group, string name)
     {
-        return "/quartz/triggers/" + Uri.EscapeDataString(group) + "/" + Uri.EscapeDataString(name);
+        return DashboardLink.To(Options.Value, "triggers/" + Uri.EscapeDataString(group) + "/" + Uri.EscapeDataString(name));
     }
 
     private void OnTriggerRowKeyDown(Microsoft.AspNetCore.Components.Web.KeyboardEventArgs args, string group, string name)

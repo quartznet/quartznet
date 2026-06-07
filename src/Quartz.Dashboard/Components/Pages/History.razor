@@ -1,8 +1,10 @@
 @page "/quartz/history"
+@using Microsoft.Extensions.Options
 @using Quartz.Dashboard.Components.Shared
 @implements IDisposable
 @inject IQuartzApiClient Api
 @inject SchedulerState Scheduler
+@inject IOptions<QuartzDashboardOptions> Options
 @inject NavigationManager Navigation
 
 <div class="qz-page">
@@ -301,8 +303,8 @@
         string normalizedTriggerFilter = triggerFilter.Trim();
 
         string updatedPath = BuildHistoryRelativeUri(normalizedPage, normalizedJobFilter, normalizedTriggerFilter);
-        string currentPath = "/" + Navigation.ToBaseRelativePath(Navigation.Uri).TrimStart('/');
-        if (string.Equals(updatedPath, currentPath, StringComparison.Ordinal))
+        string currentPath = Navigation.ToBaseRelativePath(Navigation.Uri).TrimStart('/');
+        if (PathsEqual(updatedPath, currentPath))
         {
             _page = normalizedPage;
             _appliedJobFilter = normalizedJobFilter;
@@ -314,7 +316,23 @@
         return Task.CompletedTask;
     }
 
-    private static string BuildHistoryRelativeUri(int page, string jobFilter, string triggerFilter)
+    private static bool PathsEqual(string left, string right)
+    {
+        // The path segment compares case-insensitively (route matching is case-insensitive,
+        // so the browser URL casing may differ from the configured DashboardPath casing),
+        // while the query string compares ordinally because filter values are case-sensitive
+        int leftQueryIndex = left.IndexOf('?');
+        int rightQueryIndex = right.IndexOf('?');
+        ReadOnlySpan<char> leftPath = leftQueryIndex >= 0 ? left.AsSpan(0, leftQueryIndex) : left.AsSpan();
+        ReadOnlySpan<char> rightPath = rightQueryIndex >= 0 ? right.AsSpan(0, rightQueryIndex) : right.AsSpan();
+        ReadOnlySpan<char> leftQuery = leftQueryIndex >= 0 ? left.AsSpan(leftQueryIndex) : default;
+        ReadOnlySpan<char> rightQuery = rightQueryIndex >= 0 ? right.AsSpan(rightQueryIndex) : default;
+
+        return leftPath.Equals(rightPath, StringComparison.OrdinalIgnoreCase)
+            && leftQuery.SequenceEqual(rightQuery);
+    }
+
+    private string BuildHistoryRelativeUri(int page, string jobFilter, string triggerFilter)
     {
         List<string> queryParts = [];
         if (page > 1)
@@ -334,10 +352,10 @@
 
         if (queryParts.Count == 0)
         {
-            return "/quartz/history";
+            return DashboardLink.To(Options.Value, "history");
         }
 
-        return "/quartz/history?" + string.Join("&", queryParts);
+        return DashboardLink.To(Options.Value, "history?" + string.Join("&", queryParts));
     }
 
     private string BuildFilterSummary()

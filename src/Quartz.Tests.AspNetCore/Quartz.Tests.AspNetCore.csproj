@@ -5,6 +5,7 @@
     <IsPackable>false</IsPackable>
     <GenerateProgramFile>false</GenerateProgramFile>
     <SonarQubeExclude>true</SonarQubeExclude>
+    <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
   <ItemGroup>
@@ -27,6 +28,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
     <ProjectReference Include="..\Quartz.AspNetCore\Quartz.AspNetCore.csproj" />
+    <ProjectReference Include="..\Quartz.Dashboard\Quartz.Dashboard.csproj" />
     <ProjectReference Include="..\Quartz.HttpClient\Quartz.HttpClient.csproj" />
   </ItemGroup>
 
