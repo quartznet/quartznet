@@ -398,6 +398,17 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
             while (newFireTime is not null && cal is not null && !cal.IsTimeIncluded(newFireTime.Value))
             {
                 newFireTime = GetFireTimeAfter(newFireTime);
+
+                if (newFireTime is null)
+                {
+                    break;
+                }
+
+                //avoid infinite loop
+                if (newFireTime.Value.Year > TriggerConstants.YearToGiveUpSchedulingAt)
+                {
+                    newFireTime = null;
+                }
             }
             SetNextFireTimeUtc(newFireTime);
         }

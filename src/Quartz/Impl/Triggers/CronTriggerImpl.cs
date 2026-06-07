@@ -762,6 +762,17 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
                                         && !cal.IsTimeIncluded(newFireTime.Value))
             {
                 newFireTime = GetFireTimeAfter(newFireTime);
+
+                if (!newFireTime.HasValue)
+                {
+                    break;
+                }
+
+                //avoid infinite loop
+                if (newFireTime.Value.Year > TriggerConstants.YearToGiveUpSchedulingAt)
+                {
+                    newFireTime = null;
+                }
             }
             SetNextFireTimeUtc(newFireTime);
         }

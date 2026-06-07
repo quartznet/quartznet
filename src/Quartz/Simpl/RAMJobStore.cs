@@ -1795,7 +1795,7 @@ public class RAMJobStore : IJobStore
         await signaler.NotifyTriggerListenersMisfired(tw.Trigger.Clone()).ConfigureAwait(false);
 
         // Save the original scheduled fire time before misfire handling changes it.
-        var originalFireTime = tw.Trigger.GetNextFireTimeUtc();
+        var originalFireTime = tnft;
         var now = timeProvider.GetUtcNow();
 
         tw.Trigger.UpdateAfterMisfire(cal);
