@@ -768,6 +768,62 @@ public class RAMJobStoreTest
     }
 
     [Test]
+    public async Task RescheduleNextWithExistingCount_PastStartTime_DoesNotFireImmediately()
+    {
+        // Regression test for #3096: a trigger with a start time in the past and the
+        // RescheduleNextWithExistingCount misfire policy must not fire immediately on
+        // scheduler start, even when 'now' is just after one of the scheduled fire
+        // times (within the misfire threshold window). Misfire handling must
+        // reschedule to the next scheduled time strictly after 'now'.
+        var startTime = new DateTimeOffset(2025, 6, 15, 9, 0, 0, TimeSpan.Zero);
+        // 30 seconds after the 10:30:00 occurrence, within the 60s misfire threshold
+        var now = new DateTimeOffset(2025, 6, 15, 10, 30, 30, TimeSpan.Zero);
+
+        var originalUtcNow = SystemTime.UtcNow;
+        try
+        {
+            SystemTime.UtcNow = () => now;
+
+            var store = new RAMJobStore { MisfireThreshold = TimeSpan.FromSeconds(60) };
+            var signaler = new SampleSignaler();
+            await store.Initialize(null, signaler);
+            await store.SchedulerStarted();
+
+            var job = new JobDetailImpl("testJob", "testGroup", typeof(NoOpJob)) { Durable = true };
+            await store.StoreJob(job, false);
+
+            var trigger = (IOperableTrigger) TriggerBuilder.Create()
+                .WithIdentity("testTrigger", "testGroup")
+                .ForJob(job)
+                .StartAt(startTime)
+                .WithSimpleSchedule(x => x
+                    .WithIntervalInMinutes(5)
+                    .RepeatForever()
+                    .WithMisfireHandlingInstructionNextWithExistingCount())
+                .Build();
+
+            trigger.ComputeFirstFireTimeUtc(null);
+            await store.StoreTrigger(trigger, false);
+
+            // Act: acquiring triggers due by 'now' applies the misfire handling
+            var acquired = await store.AcquireNextTriggers(now, 1, TimeSpan.Zero);
+
+            // Assert: nothing is due now; the trigger was rescheduled to 10:35:00
+            Assert.AreEqual(0, acquired.Count,
+                "Trigger must not fire immediately after misfire handling (#3096)");
+
+            var stored = await store.RetrieveTrigger(trigger.Key);
+            Assert.IsNotNull(stored);
+            Assert.AreEqual(new DateTimeOffset(2025, 6, 15, 10, 35, 0, TimeSpan.Zero), stored.GetNextFireTimeUtc(),
+                "Trigger should be rescheduled to the next scheduled time strictly after now");
+        }
+        finally
+        {
+            SystemTime.UtcNow = originalUtcNow;
+        }
+    }
+
+    [Test]
     public async Task TestScheduledFireTimeUtc_NoMisfire_ReturnsScheduledTime()
     {
         // Arrange: trigger fires on time (no misfire)

@@ -645,22 +645,6 @@ public abstract class AbstractTrigger : IOperableTrigger, INextVersionTrigger, I
     /// </summary>
     public abstract void UpdateAfterMisfire(ICalendar? cal);
 
-    /// <inheritdoc cref="INextVersionTrigger.UpdateAfterMisfire"/>
-    void INextVersionTrigger.UpdateAfterMisfire(ICalendar? cal, TimeSpan misfireThreshold)
-    {
-        UpdateAfterMisfire(cal, misfireThreshold);
-    }
-
-    /// <summary>
-    /// Threshold-aware version of <see cref="UpdateAfterMisfire(ICalendar?)"/>.
-    /// Fire times within the <paramref name="misfireThreshold"/> window are preserved
-    /// rather than skipped.
-    /// </summary>
-    internal virtual void UpdateAfterMisfire(ICalendar? cal, TimeSpan misfireThreshold)
-    {
-        UpdateAfterMisfire(cal);
-    }
-
     /// <summary>
     /// This method should not be used by the Quartz client.
     /// <para>

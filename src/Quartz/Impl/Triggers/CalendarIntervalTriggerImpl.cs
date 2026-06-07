@@ -364,6 +364,17 @@ public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTri
             while (newFireTime != null && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
             {
                 newFireTime = GetFireTimeAfter(newFireTime);
+
+                if (newFireTime == null)
+                {
+                    break;
+                }
+
+                //avoid infinite loop
+                if (newFireTime.Value.Year > YearToGiveupSchedulingAt)
+                {
+                    newFireTime = null;
+                }
             }
             SetNextFireTimeUtc(newFireTime);
         }
@@ -375,35 +386,6 @@ public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTri
             // time of day for firing for day/week/month interval triggers,
             // because of the way getFireTimeAfter() works - in its always restarting
             // computation from the start time.
-        }
-    }
-
-    internal override void UpdateAfterMisfire(ICalendar? cal, TimeSpan misfireThreshold)
-    {
-        int instr = MisfireInstruction;
-
-        if (instr == Quartz.MisfireInstruction.IgnoreMisfirePolicy)
-        {
-            return;
-        }
-
-        if (instr == Quartz.MisfireInstruction.SmartPolicy)
-        {
-            instr = Quartz.MisfireInstruction.CalendarIntervalTrigger.FireOnceNow;
-        }
-
-        if (instr == Quartz.MisfireInstruction.CalendarIntervalTrigger.DoNothing)
-        {
-            DateTimeOffset? newFireTime = GetFireTimeAfter(SystemTime.UtcNow() - misfireThreshold);
-            while (newFireTime != null && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
-            {
-                newFireTime = GetFireTimeAfter(newFireTime);
-            }
-            SetNextFireTimeUtc(newFireTime);
-        }
-        else if (instr == Quartz.MisfireInstruction.CalendarIntervalTrigger.FireOnceNow)
-        {
-            SetNextFireTimeUtc(SystemTime.UtcNow());
         }
     }
 
