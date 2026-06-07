@@ -407,19 +407,7 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient, IQuartzApiClien
     private static JsonSerializerOptions CreateDeserializerOptions()
     {
         JsonSerializerOptions options = new(JsonSerializerDefaults.Web);
-
-        Type? extensionsType = Type.GetType("Quartz.Serialization.SystemTextJson.JsonConfigurationExtensions, Quartz.Serialization.SystemTextJson", throwOnError: false);
-        System.Reflection.MethodInfo? addConvertersMethod = extensionsType?.GetMethod(
-            "AddQuartzConverters",
-            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic,
-            binder: null,
-            types: [typeof(JsonSerializerOptions), typeof(bool)],
-            modifiers: null);
-        if (addConvertersMethod is not null)
-        {
-            _ = addConvertersMethod.Invoke(null, [options, false]);
-        }
-
+        options.AddQuartzConverters(newtonsoftCompatibilityMode: false);
         return options;
     }
 
