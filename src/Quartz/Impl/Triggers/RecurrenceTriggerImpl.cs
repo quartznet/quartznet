@@ -174,6 +174,17 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
             while (newFireTime != null && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
             {
                 newFireTime = GetFireTimeAfter(newFireTime);
+
+                if (newFireTime == null)
+                {
+                    break;
+                }
+
+                //avoid infinite loop
+                if (newFireTime.Value.Year > YearToGiveupSchedulingAt)
+                {
+                    newFireTime = null;
+                }
             }
             SetNextFireTimeUtc(newFireTime);
         }

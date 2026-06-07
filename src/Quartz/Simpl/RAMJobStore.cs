@@ -1676,7 +1676,7 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
         signaler.NotifyTriggerListenersMisfired((IOperableTrigger) tw.Trigger.Clone()).ConfigureAwait(false).GetAwaiter().GetResult();
 
         // Save the original scheduled fire time before misfire handling changes it.
-        var originalFireTime = tw.Trigger.GetNextFireTimeUtc();
+        var originalFireTime = tnft;
         var now = SystemTime.UtcNow();
 
         tw.Trigger.UpdateAfterMisfire(cal);
@@ -1694,17 +1694,16 @@ public class RAMJobStore : IJobStore, INextVersionJobStore
             abstractTrigger.MisfiredFromFireTimeUtc = originalFireTime;
         }
 
-        if (!tw.Trigger.GetNextFireTimeUtc().HasValue)
+        if (!newFireTime.HasValue)
         {
             tw.state = InternalTriggerState.Complete;
             signaler.NotifySchedulerListenersFinalized(tw.Trigger).ConfigureAwait(false).GetAwaiter().GetResult();
-            ;
             lock (lockObject)
             {
                 timeTriggers.Remove(tw);
             }
         }
-        else if (tnft.Equals(tw.Trigger.GetNextFireTimeUtc()))
+        else if (tnft.Equals(newFireTime))
         {
             return false;
         }
