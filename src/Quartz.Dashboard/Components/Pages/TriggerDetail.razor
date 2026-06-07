@@ -272,7 +272,8 @@
             endTimeUtc = endTime,
             priority,
             timeZone,
-            cronExpressionString = cronExpression
+            cronExpressionString = cronExpression,
+            executionGroup = DisplayValueHelper.GetString(_trigger, "ExecutionGroup", "executionGroup")
         };
 
         return JsonSerializer.SerializeToElement(payload, requestSerializerOptions);
