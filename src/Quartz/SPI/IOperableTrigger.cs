@@ -108,10 +108,4 @@ public interface IOperableTrigger : IMutableTrigger
     void SetNextFireTimeUtc(DateTimeOffset? value);
 
     void SetPreviousFireTimeUtc(DateTimeOffset? value);
-
-    /// <summary>
-    /// Updates the trigger's state based on its misfire instruction, accounting for the
-    /// misfire threshold so that fire times within the threshold window are preserved.
-    /// </summary>
-    void UpdateAfterMisfire(ICalendar? cal, TimeSpan misfireThreshold);
 }

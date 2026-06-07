@@ -1007,7 +1007,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         var originalFireTime = trig.GetNextFireTimeUtc();
         var now = timeProvider.GetUtcNow();
 
-        trig.UpdateAfterMisfire(cal, MisfireThreshold);
+        trig.UpdateAfterMisfire(cal);
 
         if (!trig.GetNextFireTimeUtc().HasValue)
         {
@@ -1066,7 +1066,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         DateTimeOffset? originalFireTime = trig.GetNextFireTimeUtc();
         DateTimeOffset now = timeProvider.GetUtcNow();
 
-        trig.UpdateAfterMisfire(cal, MisfireThreshold);
+        trig.UpdateAfterMisfire(cal);
 
         // Determine new state.
         string newState = trig.GetNextFireTimeUtc().HasValue ? newStateIfNotComplete : StateComplete;

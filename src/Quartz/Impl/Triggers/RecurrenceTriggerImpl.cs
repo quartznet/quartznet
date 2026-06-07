@@ -164,36 +164,17 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
             while (newFireTime != null && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
             {
                 newFireTime = GetFireTimeAfter(newFireTime);
-            }
-            SetNextFireTimeUtc(newFireTime);
-        }
-        else if (instr == Quartz.MisfireInstruction.RecurrenceTrigger.FireOnceNow)
-        {
-            SetNextFireTimeUtc(TimeProvider.GetUtcNow());
-        }
-    }
 
-    /// <inheritdoc/>
-    public override void UpdateAfterMisfire(ICalendar? cal, TimeSpan misfireThreshold)
-    {
-        int instr = MisfireInstruction;
+                if (newFireTime == null)
+                {
+                    break;
+                }
 
-        if (instr == Quartz.MisfireInstruction.IgnoreMisfirePolicy)
-        {
-            return;
-        }
-
-        if (instr == Quartz.MisfireInstruction.SmartPolicy)
-        {
-            instr = Quartz.MisfireInstruction.RecurrenceTrigger.FireOnceNow;
-        }
-
-        if (instr == Quartz.MisfireInstruction.RecurrenceTrigger.DoNothing)
-        {
-            DateTimeOffset? newFireTime = GetFireTimeAfter(TimeProvider.GetUtcNow() - misfireThreshold);
-            while (newFireTime != null && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
-            {
-                newFireTime = GetFireTimeAfter(newFireTime);
+                //avoid infinite loop
+                if (newFireTime.Value.Year > YearToGiveupSchedulingAt)
+                {
+                    newFireTime = null;
+                }
             }
             SetNextFireTimeUtc(newFireTime);
         }

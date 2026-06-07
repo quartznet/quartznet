@@ -398,6 +398,17 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
             while (newFireTime is not null && cal is not null && !cal.IsTimeIncluded(newFireTime.Value))
             {
                 newFireTime = GetFireTimeAfter(newFireTime);
+
+                if (newFireTime is null)
+                {
+                    break;
+                }
+
+                //avoid infinite loop
+                if (newFireTime.Value.Year > TriggerConstants.YearToGiveUpSchedulingAt)
+                {
+                    newFireTime = null;
+                }
             }
             SetNextFireTimeUtc(newFireTime);
         }
@@ -409,35 +420,6 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
             // time of day for firing for day/week/month interval triggers,
             // because of the way getFireTimeAfter() works - in its always restarting
             // computation from the start time.
-        }
-    }
-
-    public override void UpdateAfterMisfire(ICalendar? cal, TimeSpan misfireThreshold)
-    {
-        int instr = MisfireInstruction;
-
-        if (instr == Quartz.MisfireInstruction.IgnoreMisfirePolicy)
-        {
-            return;
-        }
-
-        if (instr == Quartz.MisfireInstruction.SmartPolicy)
-        {
-            instr = Quartz.MisfireInstruction.CalendarIntervalTrigger.FireOnceNow;
-        }
-
-        if (instr == Quartz.MisfireInstruction.CalendarIntervalTrigger.DoNothing)
-        {
-            DateTimeOffset? newFireTime = GetFireTimeAfter(TimeProvider.GetUtcNow() - misfireThreshold);
-            while (newFireTime != null && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
-            {
-                newFireTime = GetFireTimeAfter(newFireTime);
-            }
-            SetNextFireTimeUtc(newFireTime);
-        }
-        else if (instr == Quartz.MisfireInstruction.CalendarIntervalTrigger.FireOnceNow)
-        {
-            SetNextFireTimeUtc(TimeProvider.GetUtcNow());
         }
     }
 

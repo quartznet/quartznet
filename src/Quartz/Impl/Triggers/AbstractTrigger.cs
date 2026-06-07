@@ -562,16 +562,6 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     public abstract void UpdateAfterMisfire(ICalendar? cal);
 
     /// <summary>
-    /// Threshold-aware version of <see cref="UpdateAfterMisfire(ICalendar?)"/>.
-    /// Fire times within the <paramref name="misfireThreshold"/> window are preserved
-    /// rather than skipped.
-    /// </summary>
-    public virtual void UpdateAfterMisfire(ICalendar? cal, TimeSpan misfireThreshold)
-    {
-        UpdateAfterMisfire(cal);
-    }
-
-    /// <summary>
     /// This method should not be used by the Quartz client.
     /// <para>
     /// The implementation should update the <see cref="ITrigger" />'s state
