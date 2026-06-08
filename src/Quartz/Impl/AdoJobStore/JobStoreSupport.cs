@@ -3499,11 +3499,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                     {
                         jobType = typeLoadHelper.LoadType(result.JobType)!;
                     }
-                    catch (JobPersistenceException jpe)
+                    catch (Exception e)
                     {
                         try
                         {
-                            Log.ErrorException("Error retrieving job, setting trigger state to ERROR.", jpe);
+                            Log.ErrorException("Error retrieving job, setting trigger state to ERROR.", e);
                             await Delegate.UpdateTriggerState(conn, triggerKey, StateError, cancellationToken).ConfigureAwait(false);
                         }
                         catch (Exception ex)
