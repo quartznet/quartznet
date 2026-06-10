@@ -129,4 +129,26 @@ internal interface INextVersionTrigger
     /// <para>This will be promoted to <see cref="ITrigger"/> in 4.x.</para>
     /// </remarks>
     string? ExecutionGroup { get; set; }
+
+    /// <summary>
+    /// Gets or sets the preferred node for this trigger. When set to a specific
+    /// scheduler instance id (matching <c>quartz.scheduler.instanceId</c>),
+    /// only that node will acquire the trigger in a cluster (with automatic
+    /// failover if the node is down). When set to <c>"*"</c>, the first node
+    /// to fire the trigger pins it automatically.
+    /// </summary>
+    /// <remarks>
+    /// <para>A <see langword="null"/> value means the trigger has no node preference
+    /// (the default, backward-compatible behavior).</para>
+    /// <para>This will be promoted to <see cref="ITrigger"/> in 4.x.</para>
+    /// </remarks>
+    string? PreferredNode { get; set; }
+
+    /// <summary>
+    /// Sets the preferred node without validation. Used internally by Quartz for
+    /// auto-pin writes (<c>"auto:nodeA"</c>) and database reads that may contain
+    /// the <c>"auto:"</c> prefix. External code should use the validated
+    /// <see cref="PreferredNode"/> setter or <c>TriggerBuilder.WithPreferredNode()</c>.
+    /// </summary>
+    void SetPreferredNodeRaw(string? value);
 }

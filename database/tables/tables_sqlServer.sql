@@ -205,6 +205,7 @@ CREATE TABLE [dbo].[QRTZ_TRIGGERS] (
   [MISFIRE_INSTR] int NULL,
   [MISFIRE_ORIG_FIRE_TIME] bigint NULL,
   [EXECUTION_GROUP] nvarchar(200) NULL,
+  [PREFERRED_NODE] nvarchar(250) NULL,
   [JOB_DATA] varbinary(max) NULL
 );
 GO

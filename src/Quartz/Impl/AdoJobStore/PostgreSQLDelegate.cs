@@ -42,6 +42,16 @@ public class PostgreSQLDelegate : StdAdoDelegate
         return SqlSelectNextTriggerToAcquireWithExecutionGroup + " LIMIT " + maxCount;
     }
 
+    protected override string GetSelectNextTriggerToAcquireWithPreferredNodeSql(int maxCount)
+    {
+        return SqlSelectNextTriggerToAcquireWithPreferredNode + " LIMIT " + maxCount;
+    }
+
+    protected override string GetSelectNextTriggerToAcquireWithPreferredNodeOnlySql(int maxCount)
+    {
+        return SqlSelectNextTriggerToAcquireWithPreferredNodeOnly + " LIMIT " + maxCount;
+    }
+
     protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
     {
         if (count != -1)

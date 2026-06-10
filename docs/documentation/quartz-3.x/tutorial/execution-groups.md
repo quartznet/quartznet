@@ -2,6 +2,10 @@
 title: 'Execution Groups'
 ---
 
+::: tip
+Available from Quartz.NET 3.18 onwards. See also [Node Affinity](node-affinity.md) for controlling which cluster node runs a trigger.
+:::
+
 Execution groups allow you to limit how many threads a category of job can use concurrently on a given scheduler node.
 This prevents resource-intensive jobs from starving lightweight jobs of available threads.
 

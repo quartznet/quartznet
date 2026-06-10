@@ -55,6 +55,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     protected Type delegateType;
     protected readonly Dictionary<string, ICalendar?> calendarCache = new Dictionary<string, ICalendar?>();
     private IDriverDelegate driverDelegate = null!;
+    private INextVersionDelegate? nextVersionDelegate;
     private TimeSpan misfireThreshold = TimeSpan.FromMinutes(1); // one minute
     private TimeSpan? misfirehandlerFrequence;
 
@@ -619,16 +620,15 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                 throw new SchedulerException(error, ex);
             }
         }
+
+        // Probe for optional columns early so triggers scheduled before Start() are persisted correctly
+        await ProbeForOptionalColumns(cancellationToken).ConfigureAwait(false);
     }
 
     /// <seealso cref="IJobStore.SchedulerStarted(CancellationToken)" />
     public virtual async Task SchedulerStarted(
         CancellationToken cancellationToken = default)
     {
-        // Probe for optional MISFIRE_ORIG_FIRE_TIME column (added in schema migration).
-        // When present, enables correct ScheduledFireTimeUtc for misfired triggers.
-        await ProbeForMisfireOriginalFireTimeColumn(cancellationToken).ConfigureAwait(false);
-
         if (Clustered)
         {
             clusterManager = new ClusterManager(this);
@@ -652,33 +652,80 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         schedulerRunning = true;
     }
 
-    private async Task ProbeForMisfireOriginalFireTimeColumn(CancellationToken cancellationToken)
+    private async Task ProbeForOptionalColumns(CancellationToken cancellationToken)
     {
         if (Delegate is not INextVersionDelegate misfireDelegate)
         {
             return;
         }
 
+        // Cache the cast for hot-path use (avoids repeated pattern matching in AcquireNextTrigger/TriggerFired)
+        nextVersionDelegate = misfireDelegate;
+
+        // Each probe runs on its own connection because on PostgreSQL a failed probe
+        // (missing column) aborts the transaction, causing subsequent probes on the
+        // same connection to fail even if the column exists.
+        await ProbeColumn(
+            conn => misfireDelegate.SupportsMisfireOriginalFireTimeColumn(conn, cancellationToken),
+            cancellationToken).ConfigureAwait(false);
+
+        await ProbeColumn(
+            conn => misfireDelegate.SupportsExecutionGroupColumn(conn, cancellationToken),
+            cancellationToken).ConfigureAwait(false);
+
+        await ProbeColumn(
+            conn => misfireDelegate.SupportsPreferredNodeColumn(conn, cancellationToken),
+            cancellationToken).ConfigureAwait(false);
+
+        if (!misfireDelegate.HasMisfireOriginalFireTimeColumn)
+        {
+            Log.Warn("Column MISFIRE_ORIG_FIRE_TIME not found in triggers table. " +
+                "ScheduledFireTimeUtc will not be corrected for misfired triggers with AdoJobStore. " +
+                "Run the schema migration to add this column.");
+        }
+
+        if (!misfireDelegate.HasExecutionGroupColumn)
+        {
+            Log.Debug("Column EXECUTION_GROUP not found in triggers table. " +
+                "Execution group persistence is not available. " +
+                "Run the schema migration to add this column for full support.");
+        }
+
+        if (!misfireDelegate.HasPreferredNodeColumn)
+        {
+            Log.Warn("Column PREFERRED_NODE not found in triggers table. " +
+                "Preferred node (node affinity) is not available. " +
+                "Run the schema migration to add this column for full support.");
+        }
+        else if (InstanceId != null)
+        {
+            if (InstanceId.IndexOf(StdAdoConstants.AutoPinPrefix, StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                throw new SchedulerConfigException(
+                    $"Scheduler instance id '{InstanceId}' contains the reserved 'auto:' substring. " +
+                    "Rename the instance id to use preferred node (node affinity) support.");
+            }
+
+            // Warn about auto-generated instance IDs that change on every restart,
+            // which break preferred node affinity (stored pin references a stale ID).
+            if (InstanceId.Contains(Environment.MachineName) && InstanceId.Length > Environment.MachineName.Length + 5)
+            {
+                Log.Warn("Scheduler instance id appears to be auto-generated ('" + InstanceId + "'). " +
+                    "Preferred node (node affinity) requires a stable instance id. " +
+                    "Set quartz.scheduler.instanceId to a fixed value.");
+            }
+        }
+    }
+
+    private async Task ProbeColumn(
+        Func<ConnectionAndTransactionHolder, Task> probe,
+        CancellationToken cancellationToken)
+    {
         ConnectionAndTransactionHolder conn = GetNonManagedTXConnection();
         try
         {
-            await misfireDelegate.SupportsMisfireOriginalFireTimeColumn(conn, cancellationToken).ConfigureAwait(false);
-            await misfireDelegate.SupportsExecutionGroupColumn(conn, cancellationToken).ConfigureAwait(false);
+            await probe(conn).ConfigureAwait(false);
             CommitConnection(conn, false);
-
-            if (!misfireDelegate.HasMisfireOriginalFireTimeColumn)
-            {
-                Log.Warn("Column MISFIRE_ORIG_FIRE_TIME not found in triggers table. " +
-                    "ScheduledFireTimeUtc will not be corrected for misfired triggers with AdoJobStore. " +
-                    "Run the schema migration to add this column.");
-            }
-
-            if (!misfireDelegate.HasExecutionGroupColumn)
-            {
-                Log.Debug("Column EXECUTION_GROUP not found in triggers table. " +
-                    "Execution group persistence is not available. " +
-                    "Run the schema migration to add this column for full support.");
-            }
         }
         catch (Exception e)
         {
@@ -1906,7 +1953,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
             }
 
             if (!update.HasDescription && !update.HasPriority && !update.HasJobDataMap
-                && !update.HasCalendarName && !update.HasMisfireInstruction)
+                && !update.HasCalendarName && !update.HasMisfireInstruction && !update.HasPreferredNode)
             {
                 return true;
             }
@@ -1953,6 +2000,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
             if (update.HasMisfireInstruction)
             {
                 existing.MisfireInstruction = update.MisfireInstruction;
+            }
+
+            if (update.HasPreferredNode && existing is INextVersionTrigger nvtUpdate)
+            {
+                nvtUpdate.PreferredNode = update.PreferredNode;
             }
 
             string state = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);
@@ -3464,9 +3516,30 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
             try
             {
                 IReadOnlyCollection<TriggerAcquireResult> results;
-                if (executionLimits != null && Delegate is INextVersionDelegate nvd)
+                bool hasPreferredNode = nextVersionDelegate is { HasPreferredNodeColumn: true };
+                string? prefNodeInstanceId = hasPreferredNode ? InstanceId : null;
+
+                // The liveness cutoff determines when a preferred node is considered dead.
+                // SQL check: node is live if (now - lastCheckin) <= checkinInterval + misfireThreshold.
+                // This is equivalent to CalcFailedIfAfter for healthy acquiring nodes. The formulas
+                // only diverge when the acquiring node itself is unhealthy (its own checkins are late),
+                // in which case CalcFailedIfAfter becomes MORE lenient while the SQL stays fixed.
+                // Being more aggressive in that edge case is the safer direction — it prevents triggers
+                // pinned to a dead node from being stuck when the surviving nodes are under load.
+                long liveNodeCutoff = hasPreferredNode
+                    ? (SystemTime.UtcNow() - ClusterCheckinMisfireThreshold).UtcTicks
+                    : 0;
+
+                if (hasPreferredNode && nextVersionDelegate != null)
                 {
-                    results = await nvd.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, maxCount, executionLimits, cancellationToken).ConfigureAwait(false);
+                    // Preferred node requires the 7-arg overload with liveness parameters
+                    results = await nextVersionDelegate.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, maxCount, executionLimits, prefNodeInstanceId, liveNodeCutoff, cancellationToken).ConfigureAwait(false);
+                }
+                else if (executionLimits != null && nextVersionDelegate != null)
+                {
+                    // Execution limits only — use the 5-arg overload so custom delegate
+                    // subclasses that override this virtual method are not bypassed.
+                    results = await nextVersionDelegate.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, maxCount, executionLimits, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
@@ -3813,6 +3886,17 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         catch (Exception e)
         {
             throw new JobPersistenceException("Couldn't update fired trigger: " + e.Message, e);
+        }
+
+        // Auto-pin: when preferred node is the "*" sentinel, assign this node's instance id
+        // with the "auto:" prefix to distinguish from explicit pins. Explicit pins are NOT
+        // re-pinned during ClusterRecover failover — only "auto:" prefixed values are.
+        // Only the in-memory value is set here; the DB write happens in StoreTrigger →
+        // UpdateTrigger below, avoiding a redundant UPDATE on the hot path.
+        if (nextVersionDelegate is { HasPreferredNodeColumn: true }
+            && trigger is INextVersionTrigger { PreferredNode: "*" } nvtPrefNode)
+        {
+            nvtPrefNode.SetPreferredNodeRaw(StdAdoConstants.AutoPinPrefix + InstanceId);
         }
 
         // Read saved original fire time from trigger (populated by SelectTrigger when column exists)
@@ -4543,6 +4627,26 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                         }
                         else
                         {
+                            // Sticky failover: re-pin only AUTO-PINNED triggers from the dead node.
+                            // Only triggers with the "auto:" prefix are re-pinned; explicit pins
+                            // are left untouched so the original node reclaims them when it returns.
+                            // Uses a single batch UPDATE for efficiency. This must happen before
+                            // deleting the state row, and uses the already-confirmed dead-node
+                            // detection from FindFailedInstances.
+                            if (nextVersionDelegate is { HasPreferredNodeColumn: true })
+                            {
+                                // Reset auto-pinned triggers back to the "*" sentinel so any
+                                // eligible node can claim them on the next fire. This avoids
+                                // pinning to a node that might not be able to run them (e.g.,
+                                // due to execution group limits).
+                                string oldAutoPin = StdAdoConstants.AutoPinPrefix + rec.SchedulerInstanceId;
+                                int repinned = await nextVersionDelegate.RepinTriggersFromDeadNode(conn, oldAutoPin, "*", cancellationToken).ConfigureAwait(false);
+                                if (repinned > 0)
+                                {
+                                    Log.Info($"ClusterManager: Reset {repinned} auto-pinned trigger(s) from dead node '{rec.SchedulerInstanceId}' to auto-pin sentinel for re-acquisition.");
+                                }
+                            }
+
                             await Delegate.DeleteSchedulerState(conn, rec.SchedulerInstanceId, cancellationToken).ConfigureAwait(false);
                         }
                     }

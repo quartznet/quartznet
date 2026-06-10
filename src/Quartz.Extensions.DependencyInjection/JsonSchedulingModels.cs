@@ -92,6 +92,12 @@ internal sealed class JsonTriggerDefinition
     public string? ExecutionGroup { get; set; }
 
     /// <summary>
+    /// Optional preferred node for cluster node affinity. Set to a specific scheduler instance id
+    /// for explicit pinning, or <c>"*"</c> for auto-pin on first fire.
+    /// </summary>
+    public string? PreferredNode { get; set; }
+
+    /// <summary>
     /// Optional absolute start time (ISO 8601). Mutually exclusive with <see cref="StartTimeSecondsInFuture"/>.
     /// </summary>
     public DateTimeOffset? StartTime { get; set; }

@@ -395,6 +395,61 @@ public class JsonSchedulingTests
         trigger.ExecutionGroup.Should().Be("batch");
     }
 
+    [Test]
+    public void AddQuartz_WithPreferredNodeAndExecutionGroup_PopulatesOptions()
+    {
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Schedule:Jobs:0:Name", "affinityJob" },
+            { "Schedule:Jobs:0:JobType", "Quartz.Job.NativeJob, Quartz.Jobs" },
+            { "Schedule:Jobs:0:Durable", "true" },
+            { "Schedule:Triggers:0:Name", "affinityTrigger" },
+            { "Schedule:Triggers:0:JobName", "affinityJob" },
+            { "Schedule:Triggers:0:PreferredNode", "node-1" },
+            { "Schedule:Triggers:0:ExecutionGroup", "batch" },
+            { "Schedule:Triggers:0:Cron:Expression", "0 0 * * * ?" }
+        });
+
+        ServiceCollection services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQuartz(config);
+
+        ServiceProvider provider = services.BuildServiceProvider();
+        QuartzOptions options = provider.GetRequiredService<IOptions<QuartzOptions>>().Value;
+
+        options.Triggers.Should().HaveCount(1);
+        Quartz.Impl.Triggers.AbstractTrigger trigger = (Quartz.Impl.Triggers.AbstractTrigger) options.Triggers[0];
+        trigger.PreferredNode.Should().Be("node-1");
+        trigger.ExecutionGroup.Should().Be("batch");
+    }
+
+    [Test]
+    public void AddQuartz_WithAutoPin_PopulatesOptions()
+    {
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Schedule:Jobs:0:Name", "autoPinJob" },
+            { "Schedule:Jobs:0:JobType", "Quartz.Job.NativeJob, Quartz.Jobs" },
+            { "Schedule:Jobs:0:Durable", "true" },
+            { "Schedule:Triggers:0:Name", "autoPinTrigger" },
+            { "Schedule:Triggers:0:JobName", "autoPinJob" },
+            { "Schedule:Triggers:0:PreferredNode", "*" },
+            { "Schedule:Triggers:0:Cron:Expression", "0 0 * * * ?" }
+        });
+
+        ServiceCollection services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQuartz(config);
+
+        ServiceProvider provider = services.BuildServiceProvider();
+        QuartzOptions options = provider.GetRequiredService<IOptions<QuartzOptions>>().Value;
+
+        options.Triggers.Should().HaveCount(1);
+        Quartz.Impl.Triggers.AbstractTrigger trigger = (Quartz.Impl.Triggers.AbstractTrigger) options.Triggers[0];
+        trigger.PreferredNode.Should().Be("*");
+    }
+
+
     private static IConfiguration BuildConfig(Dictionary<string, string> values)
     {
         return new ConfigurationBuilder()

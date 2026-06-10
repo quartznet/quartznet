@@ -375,6 +375,7 @@ public class SmokeTestPerformer
                 await scheduler.GetTriggerGroupNames();
 
                 await TestExecutionGroups(scheduler);
+                await TestPreferredNode(scheduler);
                 await TestMatchers(scheduler);
                 await TestGetTriggerStateBlockedWhileExecuting(scheduler);
             }
@@ -445,6 +446,79 @@ public class SmokeTestPerformer
         {
             // Scheduler implementation doesn't support execution limits (e.g. remote proxy)
         }
+
+        await scheduler.Clear();
+    }
+
+    private async Task TestPreferredNode(IScheduler scheduler)
+    {
+        await scheduler.Clear();
+
+        // Schedule a job with a trigger that has a preferred node
+        IJobDetail pnJob = JobBuilder.Create<NoOpJob>()
+            .WithIdentity("prefNodeJob", "prefNodeTest")
+            .StoreDurably()
+            .Build();
+        await scheduler.AddJob(pnJob, true);
+
+        ITrigger pnTrigger = TriggerBuilder.Create()
+            .WithIdentity("prefNodeTrigger", "prefNodeTest")
+            .ForJob(pnJob)
+            .WithPreferredNode("specific-node")
+            .WithSimpleSchedule(s => s.WithRepeatCount(0))
+            .StartAt(DateTimeOffset.UtcNow.AddHours(1))
+            .Build();
+        await scheduler.ScheduleJob(pnTrigger);
+
+        // Verify the preferred node round-trips through store/retrieve
+        ITrigger retrievedTrigger = await scheduler.GetTrigger(pnTrigger.Key);
+        Assert.That(retrievedTrigger, Is.Not.Null, "Trigger with preferred node should be retrievable");
+        string retrievedNode = ((AbstractTrigger) retrievedTrigger).PreferredNode;
+        Assert.That(retrievedNode, Is.EqualTo("specific-node"), "Preferred node should round-trip through job store");
+
+        // Schedule a trigger with auto-pin sentinel
+        ITrigger autoPinTrigger = TriggerBuilder.Create()
+            .WithIdentity("autoPinTrigger", "prefNodeTest")
+            .ForJob(pnJob)
+            .WithPreferredNode("*")
+            .WithSimpleSchedule(s => s.WithRepeatCount(0))
+            .StartAt(DateTimeOffset.UtcNow.AddHours(1))
+            .Build();
+        await scheduler.ScheduleJob(autoPinTrigger);
+
+        ITrigger retrievedAutoPin = await scheduler.GetTrigger(autoPinTrigger.Key);
+        Assert.That(retrievedAutoPin, Is.Not.Null);
+        Assert.That(((AbstractTrigger) retrievedAutoPin).PreferredNode, Is.EqualTo("*"), "Auto-pin sentinel should round-trip");
+
+        // Schedule a trigger without a preferred node
+        ITrigger noNodeTrigger = TriggerBuilder.Create()
+            .WithIdentity("noNodeTrigger", "prefNodeTest")
+            .ForJob(pnJob)
+            .WithSimpleSchedule(s => s.WithRepeatCount(0))
+            .StartAt(DateTimeOffset.UtcNow.AddHours(1))
+            .Build();
+        await scheduler.ScheduleJob(noNodeTrigger);
+
+        ITrigger retrievedNoNode = await scheduler.GetTrigger(noNodeTrigger.Key);
+        Assert.That(retrievedNoNode, Is.Not.Null);
+        Assert.That(((AbstractTrigger) retrievedNoNode).PreferredNode, Is.Null, "Trigger without preferred node should have null");
+
+        // Test that preferred node works together with execution group
+        ITrigger combinedTrigger = TriggerBuilder.Create()
+            .WithIdentity("combinedTrigger", "prefNodeTest")
+            .ForJob(pnJob)
+            .WithPreferredNode("node-2")
+            .WithExecutionGroup("batch-jobs")
+            .WithSimpleSchedule(s => s.WithRepeatCount(0))
+            .StartAt(DateTimeOffset.UtcNow.AddHours(1))
+            .Build();
+        await scheduler.ScheduleJob(combinedTrigger);
+
+        ITrigger retrievedCombined = await scheduler.GetTrigger(combinedTrigger.Key);
+        Assert.That(retrievedCombined, Is.Not.Null);
+        AbstractTrigger combinedAt = (AbstractTrigger) retrievedCombined;
+        Assert.That(combinedAt.PreferredNode, Is.EqualTo("node-2"), "Preferred node should persist alongside execution group");
+        Assert.That(combinedAt.ExecutionGroup, Is.EqualTo("batch-jobs"), "Execution group should persist alongside preferred node");
 
         await scheduler.Clear();
     }

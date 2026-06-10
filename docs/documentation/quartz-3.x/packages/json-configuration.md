@@ -212,6 +212,8 @@ All trigger types support these optional fields:
 | `Description` | Trigger description |
 | `Priority` | Trigger priority (integer) |
 | `CalendarName` | Calendar to apply |
+| `ExecutionGroup` | Execution group for thread pool limits (see [Execution Groups](../tutorial/execution-groups.md)) |
+| `PreferredNode` | Preferred cluster node — instance id for explicit pin, `"*"` for auto-pin (see [Node Affinity](../tutorial/node-affinity.md)) |
 | `StartTime` | ISO 8601 start time (e.g., `"2024-01-01T00:00:00Z"`) |
 | `StartTimeSecondsInFuture` | Start time as seconds from now (mutually exclusive with StartTime) |
 | `EndTime` | ISO 8601 end time |

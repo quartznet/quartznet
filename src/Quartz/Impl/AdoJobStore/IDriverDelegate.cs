@@ -1217,25 +1217,80 @@ internal interface INextVersionDelegate
         int maxCount,
         Dictionary<string, int?> executionLimits,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Whether the PREFERRED_NODE column is available, set after probing.
+    /// </summary>
+    bool HasPreferredNodeColumn { get; }
+
+    /// <summary>
+    /// Probes whether the PREFERRED_NODE column exists in the triggers table.
+    /// Sets <see cref="HasPreferredNodeColumn"/>.
+    /// </summary>
+    Task<bool> SupportsPreferredNodeColumn(
+        ConnectionAndTransactionHolder conn,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates the PREFERRED_NODE column for a trigger (used during auto-pin on first fire).
+    /// </summary>
+    Task UpdateTriggerPreferredNode(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        string? preferredNode,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Re-pins all triggers with a given preferred node to a new node (batch UPDATE).
+    /// Used during ClusterRecover to implement sticky failover.
+    /// </summary>
+    Task<int> RepinTriggersFromDeadNode(
+        ConnectionAndTransactionHolder conn,
+        string oldPreferredNode,
+        string newPreferredNode,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Selects the next triggers to acquire, with optional execution group and preferred node support.
+    /// When instanceId is non-null, the query filters triggers at the SQL level so only triggers
+    /// this node can acquire are returned (no affinity, auto-pin, pinned to this node, or pinned
+    /// to a node whose checkin has expired based on liveNodeCutoff).
+    /// </summary>
+    Task<List<TriggerAcquireResult>> SelectTriggerToAcquire(
+        ConnectionAndTransactionHolder conn,
+        DateTimeOffset noLaterThan,
+        DateTimeOffset noEarlierThan,
+        int maxCount,
+        Dictionary<string, int?>? executionLimits,
+        string? instanceId,
+        long liveNodeCutoff,
+        CancellationToken cancellationToken = default);
 }
 
 public class TriggerAcquireResult
 {
     public TriggerAcquireResult(string triggerName, string triggerGroup, string jobType)
-        : this(triggerName, triggerGroup, jobType, null)
+        : this(triggerName, triggerGroup, jobType, null, null)
     {
     }
 
     public TriggerAcquireResult(string triggerName, string triggerGroup, string jobType, string? executionGroup)
+        : this(triggerName, triggerGroup, jobType, executionGroup, null)
+    {
+    }
+
+    public TriggerAcquireResult(string triggerName, string triggerGroup, string jobType, string? executionGroup, string? preferredNode)
     {
         TriggerName = triggerName;
         TriggerGroup = triggerGroup;
         JobType = jobType;
         ExecutionGroup = executionGroup;
+        PreferredNode = preferredNode;
     }
 
     public string TriggerName { get; }
     public string TriggerGroup { get; }
     public string JobType { get; }
     public string? ExecutionGroup { get; }
+    public string? PreferredNode { get; }
 }

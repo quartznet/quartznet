@@ -27,3 +27,7 @@ You may get serious data corruption, and will definitely experience erratic beha
 Monitor and ensure that your nodes have enough CPU resources to complete jobs.
 When some nodes are in 100% CPU, they may be unable to update the job store and other nodes can consider these jobs lost and recover them by re-running.  
 :::
+
+For advanced cluster control, see:
+- [Node Affinity](node-affinity.md) — pin triggers to specific cluster nodes with automatic failover
+- [Execution Groups](execution-groups.md) — limit concurrent threads per job category on each node
