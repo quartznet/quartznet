@@ -181,10 +181,32 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
         }
         else
         {
-            // Without a dashboard policy, static assets opt out of authorization so applications
-            // enforcing a fail-closed FallbackPolicy can still load dashboard CSS/JS; the files are
-            // public package content (#3097).
+            // Without a dashboard policy the dashboard adds no authorization of its own. The static
+            // asset endpoint opts out of authorization so applications enforcing a fail-closed
+            // FallbackPolicy can still load dashboard CSS/JS; the files are public package content (#3097).
             staticAssets.AllowAnonymous();
+
+            if (dashboardOwnsComponents)
+            {
+                // Standalone mode: the components builder contains only dashboard pages plus the
+                // Blazor framework/circuit endpoints (e.g. /_blazor). Mark the non-page endpoints
+                // AllowAnonymous so the circuit stays reachable under a fail-closed FallbackPolicy;
+                // the dashboard pages and the live-events hub are intentionally left without
+                // metadata so they remain governed by the host's policies and scheduler data is
+                // never silently exposed to anonymous users (#3117).
+                components.Add(endpointBuilder =>
+                {
+                    if (GetComponentType(endpointBuilder) is null)
+                    {
+                        endpointBuilder.Metadata.Add(new AllowAnonymousAttribute());
+                    }
+                });
+            }
+
+            // Integrated mode: the host owns its pages and Blazor plumbing, so the dashboard does
+            // not touch the shared components builder here (#3066). Set
+            // QuartzDashboardOptions.AuthorizationPolicy to make the dashboard reachable under a
+            // fail-closed FallbackPolicy in that case.
         }
     }
 
