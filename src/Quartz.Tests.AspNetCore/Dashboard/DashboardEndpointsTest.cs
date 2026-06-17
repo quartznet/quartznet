@@ -84,6 +84,36 @@ public class DashboardEndpointsTest
     }
 
     [Test]
+    public async Task StandaloneWithoutPolicyShouldAllowAnonymousCircuitButProtectPages()
+    {
+        // #3117: without a dashboard policy the Blazor circuit (/_blazor) opts out of authorization
+        // so it stays reachable under a fail-closed FallbackPolicy, while the dashboard pages and the
+        // live-events hub carry no metadata of their own and remain governed by the host's policies
+        // (so scheduler data is never silently exposed to anonymous users).
+        await using WebApplication app = CreateApp();
+        app.MapQuartzDashboard();
+
+        List<RouteEndpoint> endpoints = GetRouteEndpoints(app);
+
+        // the /_blazor circuit endpoints are marked anonymous
+        List<RouteEndpoint> frameworkEndpoints = endpoints
+            .Where(e => e.RoutePattern.RawText?.StartsWith("/_blazor", StringComparison.Ordinal) == true)
+            .ToList();
+        frameworkEndpoints.Should().NotBeEmpty();
+        frameworkEndpoints.Should().OnlyContain(e => e.Metadata.GetMetadata<IAllowAnonymous>() != null);
+
+        // dashboard pages stay subject to the host fallback (neither anonymous nor explicitly authorized)
+        RouteEndpoint dashboardPage = endpoints.First(e => e.RoutePattern.RawText == "/quartz");
+        dashboardPage.Metadata.GetMetadata<IAllowAnonymous>().Should().BeNull();
+        dashboardPage.Metadata.GetMetadata<IAuthorizeData>().Should().BeNull();
+
+        // the live-events hub also stays behind the host fallback (it carries scheduler data)
+        RouteEndpoint hub = endpoints.First(e => e.RoutePattern.RawText == "/quartz/hub");
+        hub.Metadata.GetMetadata<IAllowAnonymous>().Should().BeNull();
+        hub.Metadata.GetMetadata<IAuthorizeData>().Should().BeNull();
+    }
+
+    [Test]
     public async Task IntegratedPolicyShouldNotLeakToHostEndpoints()
     {
         // regression test for #3066
