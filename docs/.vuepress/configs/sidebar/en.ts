@@ -27,6 +27,7 @@ export const sidebarEn: SidebarConfig = [
         ],
       },
       "/documentation/quartz-3.x/configuration/reference",
+      "/documentation/quartz-3.x/packages/json-configuration",
       "/documentation/faq",
       "/documentation/best-practices",
       "/documentation/troubleshooting",
@@ -108,6 +109,7 @@ export const sidebarEn: SidebarConfig = [
             ],
           },
           "/documentation/quartz-4.x/configuration/reference",
+          "/documentation/quartz-4.x/packages/json-configuration",
           "/documentation/quartz-4.x/migration-guide",
           "/documentation/troubleshooting",
           {
