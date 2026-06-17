@@ -38,3 +38,25 @@ public void ConfigureServices(IServiceCollection services)
     });
 }
 ```
+
+## Health checks
+
+On target frameworks with health check support `AddQuartzServer` also registers an
+[ASP.NET Core health check](https://learn.microsoft.com/aspnet/core/host-and-deploy/health-checks)
+named `quartz-scheduler` that reports unhealthy when the scheduler is not running or cannot reach its store.
+
+You can attach tags to this health check so it can be filtered, for example into separate
+liveness and readiness probes:
+
+```csharp
+services.AddQuartzServer(
+    options => options.WaitForJobsToComplete = true,
+    healthCheckTags: ["ready", "live"]);
+```
+
+```csharp
+app.MapHealthChecks("/healthz/ready", new HealthCheckOptions
+{
+    Predicate = registration => registration.Tags.Contains("ready")
+});
+```
