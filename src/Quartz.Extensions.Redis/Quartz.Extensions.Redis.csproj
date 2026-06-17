@@ -6,11 +6,11 @@
     <Title>Quartz.NET Redis Integration</Title>
     <Description>Quartz.NET Redis integration - distributed lock handler for clustered scheduling; $(Description)</Description>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
-    <PackageReadmeFile>redis.md</PackageReadmeFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="../../docs/documentation/quartz-3.x/packages/redis.md" Pack="true" PackagePath="\" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>

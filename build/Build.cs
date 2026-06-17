@@ -13,13 +13,11 @@ using Nuke.Common.IO;
 using Nuke.Common.ProjectModel;
 using Nuke.Common.Tooling;
 using Nuke.Common.Tools.DotNet;
-using Nuke.Common.Tools.Npm;
 using Nuke.Common.Utilities.Collections;
 
 using Serilog;
 
 using static Nuke.Common.Tools.DotNet.DotNetTasks;
-using static Nuke.Common.Tools.Npm.NpmTasks;
 
 [ShutdownDotNetAfterServerBuild]
 partial class Build : NukeBuild
@@ -106,30 +104,6 @@ partial class Build : NukeBuild
                 .SetConfiguration(Configuration)
             );
         });
-
-    Target DocsBuild => _ => _
-        .Executes(() =>
-        {
-            if (IsServerBuild)
-            {
-                NpmCi();
-            }
-            else
-            {
-                NpmInstall();
-            }
-
-            // https://stackoverflow.com/a/69699772/111604
-            var nodeVersion = ProcessTasks.StartProcess("node", "--version").AssertWaitForExit().Output.FirstOrDefault().Text.Trim();
-            var major = Convert.ToInt32(Regex.Match(nodeVersion, "^v(\\d+)").Groups[1].Captures[0].Value);
-
-            Log.Information("Detected Node.js major version {Version}", major);
-
-            NpmRun(_ => _
-                .SetCommand("docs:build")
-            );
-        });
-
 
     Target UnitTest => _ => _
         .After(Compile)
