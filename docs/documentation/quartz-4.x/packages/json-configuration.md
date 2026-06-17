@@ -267,8 +267,18 @@ services.AddQuartzHostedService();
 
 Each named scheduler section supports the same hierarchical properties, `Schedule` sub-section with `Jobs`/`Triggers`, and code-based overrides.
 
+You can also register a single named scheduler explicitly. The named overload accepts either the
+scheduler's own section or the root `Quartz` section — when given the root section it resolves the
+matching `Schedulers:{name}` sub-section automatically:
+
+```csharp
+// Both lines are equivalent
+services.AddQuartz("Primary", Configuration.GetSection("Quartz"));
+services.AddQuartz("Primary", Configuration.GetSection("Quartz:Schedulers:Primary"));
+```
+
 ::: warning
-Defining both a `Schedulers` sub-section and direct scheduler configuration (e.g., `Scheduler`, `ThreadPool` at the top level) is an error. Use one or the other.
+Defining both a `Schedulers` sub-section and direct scheduler configuration (e.g., `Scheduler`, `ThreadPool` at the top level) is an error. Use one or the other. A top-level `Schedule`/`Scheduling` section cannot be combined with `Schedulers` either — move it under the appropriate `Schedulers:{name}` entry.
 :::
 
 ## Standalone JSON Files (quartz_jobs.json)
