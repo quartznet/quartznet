@@ -17,6 +17,14 @@ Run `build.cmd` or `build.sh` from the command line. This builds and runs tests.
 
 Integration tests provision their database dependencies through [Testcontainers for .NET](https://dotnet.testcontainers.org/). Ensure your Docker daemon is running before executing integration tests.
 
+## Documentation
+
+The documentation website is built and published from the **`main`** branch only; the full Quartz 3.x documentation lives there under `docs/documentation/quartz-3.x/`.
+
+This `3.x` maintenance branch intentionally does **not** carry the documentation site. The only docs it keeps are the per-package NuGet README files at `src/<Project>/README.md`, which are packed into the published NuGet packages.
+
+Each `src/<Project>/README.md` is a compact, NuGet-rendered mirror of the corresponding page under `docs/documentation/quartz-3.x/` on `main`. Keep the two **consistent in substance**: when you change behaviour documented in one, update the other in a companion PR (the same double-PR convention we use for code fixes). Keep the README NuGet-friendly — plain CommonMark (no VuePress frontmatter, `:::` containers or components), absolute links, and concise; link out to the full page rather than duplicating it.
+
 ## Bugs and feature requests?
 
 Please log a new issue in the GitHub repo.

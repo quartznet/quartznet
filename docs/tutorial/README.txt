@@ -1,1 +1,0 @@
-this is placeholder for redirects to latest documentation

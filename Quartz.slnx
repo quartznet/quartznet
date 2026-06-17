@@ -11,7 +11,6 @@
     <File Path="changelog.md" />
     <File Path="docker-compose.yml" />
     <File Path="Dockerfile" />
-    <File Path="package.json" />
     <File Path="qodana.yaml" />
     <File Path="README.md" />
     <File Path="src/Directory.Build.props" />
@@ -19,7 +18,6 @@
   <Folder Name="/Solution Items/GitHub/" />
   <Folder Name="/Solution Items/GitHub/Workflows/">
     <File Path=".github/workflows/build.yml" />
-    <File Path=".github/workflows/docs.yml" />
     <File Path=".github/workflows/pr.yml" />
   </Folder>
   <Project Path="build/_build.csproj">

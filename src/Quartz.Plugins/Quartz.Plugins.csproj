@@ -4,10 +4,10 @@
     <TargetFrameworks>net462;net472;netstandard2.0</TargetFrameworks>
     <RootNamespace>Quartz</RootNamespace>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
-    <PackageReadmeFile>quartz-plugins.md</PackageReadmeFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="../../docs/documentation/quartz-3.x/packages/quartz-plugins.md" Pack="true" PackagePath="\" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="System.Text.Json" Version="8.0.5" />

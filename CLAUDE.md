@@ -13,6 +13,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Nuke targets:** `Clean`, `Restore`, `Compile`, `UnitTest`, `IntegrationTest`, `Pack` (defined in `build/Build.cs`)
 - **Warnings are errors** globally via `src/Directory.Build.props`
 
+## Documentation
+
+The documentation website is built and published from the **`main`** branch only. The full Quartz 3.x docs live on `main` under `docs/documentation/quartz-3.x/`; this `3.x` branch deliberately does **not** contain the docs site.
+
+The only documentation kept on this branch is the per-package NuGet README at `src/<Project>/README.md`, packed into each package via `<PackageReadmeFile>README.md</PackageReadmeFile>` + `<None Include="README.md" Pack="true" PackagePath="\" />`. Each README is a compact, NuGet-rendered (CommonMark) mirror of the matching page under `docs/documentation/quartz-3.x/` on `main`. Keep the two consistent in substance — change one, change the other in a companion PR. Keep READMEs NuGet-friendly: no VuePress frontmatter / `:::` containers / components, absolute links only, concise, and link out to the full page on `main`.
+
 ## Architecture
 
 Quartz.NET is a .NET port of the Java Quartz scheduler. The core scheduling loop lives in `QuartzSchedulerThread`, which acquires triggers from a job store, fires them, and delegates job execution to `JobRunShell` via `IThreadPool`.
