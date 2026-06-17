@@ -64,6 +64,17 @@ public static class ServiceCollectionExtensions
 
         if (hasNamedSchedulers)
         {
+            // Top-level Schedule/Scheduling has no scheduler to attach to when named schedulers are used.
+            // These are reserved keys that HasDirectSchedulerConfiguration intentionally ignores, so they
+            // slip past the check above and would otherwise be silently dropped. Fail with a clear message.
+            if (configuration.GetSection("Schedule").Exists() || configuration.GetSection("Scheduling").Exists())
+            {
+                throw new SchedulerConfigException(
+                    "The Quartz configuration section contains a 'Schedulers' sub-section together with a top-level " +
+                    "'Schedule' or 'Scheduling' section. Top-level scheduling data has no scheduler to attach to when " +
+                    "named schedulers are used. Move 'Schedule'/'Scheduling' under the appropriate 'Schedulers:{name}' entry.");
+            }
+
             foreach (var child in schedulersSection.GetChildren())
             {
                 AddQuartz(services, child.Key, child, configure);
@@ -88,9 +99,15 @@ public static class ServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(configuration);
 
-        var properties = QuartzConfigurationHelper.ToNameValueCollection(configuration);
+        // Allow passing either the scheduler's own section or the root "Quartz" section that contains a
+        // "Schedulers:{name}" sub-section (issue #3106). Resolve to the scheduler-specific section so its
+        // flat properties, Schedule and Scheduling sub-sections are found.
+        var schedulerSection = configuration.GetSection("Schedulers").GetSection(name);
+        IConfiguration effectiveConfiguration = schedulerSection.Exists() ? schedulerSection : configuration;
+
+        var properties = QuartzConfigurationHelper.ToNameValueCollection(effectiveConfiguration);
         AddQuartz(services, name, properties, configure);
-        JsonSchedulingHelper.ConfigureOptionsFromConfiguration(services, configuration, name);
+        JsonSchedulingHelper.ConfigureOptionsFromConfiguration(services, effectiveConfiguration, name);
         return services;
     }
 
