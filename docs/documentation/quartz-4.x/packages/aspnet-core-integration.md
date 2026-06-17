@@ -95,3 +95,33 @@ builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 ```
 
 For more information on cron triggers and their format, you can use the tutorial directly from Quartz - [Cron Triggers](../tutorial/crontriggers.md).
+
+## Health checks
+
+Call `AddQuartzHealthChecks` to register an
+[ASP.NET Core health check](https://learn.microsoft.com/aspnet/core/host-and-deploy/health-checks)
+that reports unhealthy when the scheduler is not running or cannot reach its store.
+
+```csharp
+services.AddQuartzHealthChecks();
+```
+
+The registration can be customized via the optional configuration callback, for example to attach
+tags so the check can be filtered into separate liveness and readiness probes:
+
+```csharp
+services.AddQuartzHealthChecks(options =>
+{
+    options.Name = "quartz-scheduler";   // defaults to "quartz-scheduler"
+    options.Tags.Add("ready");
+    options.Tags.Add("live");
+    options.FailureStatus = HealthStatus.Unhealthy;
+});
+```
+
+```csharp
+app.MapHealthChecks("/healthz/ready", new HealthCheckOptions
+{
+    Predicate = registration => registration.Tags.Contains("ready")
+});
+```
