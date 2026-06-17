@@ -40,7 +40,7 @@
     "markdownlint": "^0.40.0",
     "markdownlint-cli2": "^0.22.0",
     "sass-embedded": "^1.97.3",
-    "vite": "^8.0.5"
+    "vite": "^8.0.16"
   },
   "overrides": {
     "serialize-javascript": "^7.0.5",
@@ -48,6 +48,13 @@
     "picomatch@^2": "^2.3.2",
     "picomatch@^4": "^4.0.4",
     "lodash": "^4.18.0",
-    "smol-toml": "^1.6.1"
+    "smol-toml": "^1.6.1",
+    "shell-quote": "^1.8.4",
+    "esbuild": "^0.28.1",
+    "qs": "^6.15.2",
+    "uuid": "^11.1.1",
+    "ws": "^8.20.1",
+    "webpack-dev-server": "^5.2.4",
+    "launch-editor": "^2.14.1"
   }
 }
