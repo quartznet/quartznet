@@ -16,11 +16,28 @@ namespace Quartz.AspNetCore;
 
 public static class QuartzServiceCollectionExtensions
 {
-    public static IServiceCollection AddQuartzHealthChecks(this IServiceCollection services)
+    /// <summary>
+    /// Registers a health check for the Quartz scheduler that reports unhealthy when the scheduler
+    /// is not running or cannot reach its store.
+    /// </summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="configure">
+    /// Optional configuration for the health check registration, allowing the name, tags and failure
+    /// status to be customized (for example to attach liveness/readiness probe tags).
+    /// </param>
+    public static IServiceCollection AddQuartzHealthChecks(
+        this IServiceCollection services,
+        Action<QuartzHealthCheckOptions>? configure = null)
     {
+        var options = new QuartzHealthCheckOptions();
+        configure?.Invoke(options);
+
         services
             .AddHealthChecks()
-            .AddTypeActivatedCheck<QuartzHealthCheck>("quartz-scheduler");
+            .AddTypeActivatedCheck<QuartzHealthCheck>(
+                options.Name,
+                failureStatus: options.FailureStatus,
+                tags: options.Tags);
 
         return services;
     }
