@@ -166,6 +166,36 @@ public class JsonSchedulingTests
     }
 
     [Test]
+    public void AddQuartz_NamedScheduler_WithRootSectionContainingSchedulers_ResolvesSubsection()
+    {
+        // Reproduces #3106: passing the root "Quartz" section (which holds the scheduler under
+        // "Schedulers:{name}") to the named overload should resolve down to that scheduler's section.
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Schedulers:LocalScheduler:ThreadPool:MaxConcurrency", "7" },
+            { "Schedulers:LocalScheduler:Schedule:Jobs:0:Name", "rootJob" },
+            { "Schedulers:LocalScheduler:Schedule:Jobs:0:JobType", "Quartz.Job.NativeJob, Quartz.Jobs" },
+            { "Schedulers:LocalScheduler:Schedule:Jobs:0:Durable", "true" },
+            { "Schedulers:LocalScheduler:Schedule:Triggers:0:Name", "rootTrigger" },
+            { "Schedulers:LocalScheduler:Schedule:Triggers:0:JobName", "rootJob" },
+            { "Schedulers:LocalScheduler:Schedule:Triggers:0:Cron:Expression", "0 0 * * * ?" }
+        });
+
+        ServiceCollection services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQuartz("LocalScheduler", config);
+
+        ServiceProvider provider = services.BuildServiceProvider();
+        IOptionsSnapshot<QuartzOptions> optionsSnapshot = provider.GetRequiredService<IOptionsSnapshot<QuartzOptions>>();
+        QuartzOptions options = optionsSnapshot.Get("LocalScheduler");
+
+        options["quartz.threadPool.maxConcurrency"].Should().Be("7");
+        options.JobDetails.Should().HaveCount(1);
+        options.JobDetails[0].Key.Name.Should().Be("rootJob");
+        options.Triggers.Should().HaveCount(1);
+    }
+
+    [Test]
     public void AddQuartz_SchedulersSection_RegistersNamedSchedulers()
     {
         var config = BuildConfig(new Dictionary<string, string>
@@ -211,6 +241,24 @@ public class JsonSchedulingTests
         Action act = () => services.AddQuartz(config);
         act.Should().Throw<SchedulerConfigException>()
             .WithMessage("*both*Schedulers*");
+    }
+
+    [Test]
+    public void AddQuartz_SchedulersWithTopLevelSchedule_Throws()
+    {
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Schedulers:Primary:ThreadPool:MaxConcurrency", "5" },
+            { "Schedule:Jobs:0:Name", "strayJob" },
+            { "Schedule:Jobs:0:JobType", "Quartz.Job.NativeJob, Quartz.Jobs" },
+        });
+
+        ServiceCollection services = new ServiceCollection();
+        services.AddLogging();
+
+        Action act = () => services.AddQuartz(config);
+        act.Should().Throw<SchedulerConfigException>()
+            .WithMessage("*top-level*Schedule*");
     }
 
     [Test]
