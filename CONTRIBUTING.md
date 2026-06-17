@@ -22,6 +22,12 @@ Integration tests provision their database dependencies through Testcontainers f
 
 This builds and runs tests like the CI server does.
 
+## Documentation
+
+The documentation website is built and published from this **`main`** branch. All versioned docs live under `docs/documentation/` (for example `docs/documentation/quartz-3.x/` for the current stable line and `docs/documentation/quartz-4.x/` for the next release). Edit the docs here; the `3.x` maintenance branch no longer carries the docs site.
+
+The published Quartz 3.x package pages under `docs/documentation/quartz-3.x/packages/` are mirrored, in compact NuGet-rendered form, by the per-package `src/<Project>/README.md` files on the `3.x` branch (which are packed into the NuGet packages). When you change one, update the other in a companion PR so the published page and the shipped package README stay consistent.
+
 ## Bugs and feature requests?
 
 Please log a new issue in the GitHub repo.
