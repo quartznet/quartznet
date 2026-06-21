@@ -56,6 +56,8 @@
     "ws": "^8.20.1",
     "webpack-dev-server": "^5.2.4",
     "launch-editor": "^2.14.1",
-    "markdown-it": "^14.2.0"
+    "markdown-it": "^14.2.0",
+    "undici": "^7.28.0",
+    "http-proxy-middleware": "^3.0.6"
   }
 }
