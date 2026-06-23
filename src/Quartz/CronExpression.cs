@@ -347,6 +347,33 @@ public class CronExpression : IDeserializationCallback, ISerializable
     /// </summary>
     [NonSerialized] protected bool expressionParsed;
 
+    // Bitmask fast-path representations of the parsed fields, derived from the
+    // SortedSet fields after parsing (see BuildBitmasks). GetTimeAfter uses
+    // these to locate the next allowed value via a trailing-zero bit scan
+    // instead of a SortedSet lookup, avoiding the GetViewBetween allocation and
+    // the red-black-tree walk on the hot path. Only values 0-63 are encoded;
+    // the years field stays on the set path because its range is open-ended.
+    // The sets remain the source of truth (and the public/protected surface).
+    [NonSerialized] private ulong secondsBits;
+    [NonSerialized] private ulong minutesBits;
+    [NonSerialized] private ulong hoursBits;
+    [NonSerialized] private ulong daysOfMonthBits;
+    [NonSerialized] private ulong monthsBits;
+    [NonSerialized] private ulong daysOfWeekBits;
+
+    // Cached minimums (== the corresponding set's Min), read on the wrap-around
+    // path in GetTimeAfter.
+    [NonSerialized] private int secondsMin;
+    [NonSerialized] private int minutesMin;
+    [NonSerialized] private int hoursMin;
+    [NonSerialized] private int daysOfMonthMin;
+    [NonSerialized] private int monthsMin;
+    [NonSerialized] private int daysOfWeekMin;
+
+    // Cached "is '?' (no specific value)" flags for the day fields.
+    [NonSerialized] private bool daysOfMonthNoSpec;
+    [NonSerialized] private bool daysOfWeekNoSpec;
+
     public static readonly int MaxYear = DateTime.Now.Year + 100;
 
     private static readonly char[] splitSeparators = [' ', '\t', '\r', '\n'];
@@ -966,6 +993,8 @@ public class CronExpression : IDeserializationCallback, ISerializable
             {
                 throw new FormatException("Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.");
             }
+
+            BuildBitmasks();
         }
         catch (FormatException)
         {
@@ -975,6 +1004,52 @@ public class CronExpression : IDeserializationCallback, ISerializable
         {
             throw new FormatException($"Illegal cron expression format ({e.Message})", e);
         }
+    }
+
+    /// <summary>
+    /// Builds the bitmask fast-path representation from the parsed SortedSet
+    /// fields. Called at the end of <see cref="BuildExpression" /> — which runs
+    /// from both the constructor and deserialization — so the masks always stay
+    /// in sync with the sets, including for subclasses that override
+    /// <see cref="AddToSet" /> or <see cref="GetSet" />. Sentinel markers
+    /// (AllSpec, NoSpec) and any value outside 0-63 are skipped; the years field
+    /// is intentionally not masked because its range is open-ended.
+    /// </summary>
+    private void BuildBitmasks()
+    {
+        secondsBits = ToBitmask(seconds);
+        minutesBits = ToBitmask(minutes);
+        hoursBits = ToBitmask(hours);
+        daysOfMonthBits = ToBitmask(daysOfMonth);
+        monthsBits = ToBitmask(months);
+        daysOfWeekBits = ToBitmask(daysOfWeek);
+
+        secondsMin = seconds.Min;
+        minutesMin = minutes.Min;
+        hoursMin = hours.Min;
+        daysOfMonthMin = daysOfMonth.Min;
+        monthsMin = months.Min;
+        daysOfWeekMin = daysOfWeek.Min;
+
+        daysOfMonthNoSpec = daysOfMonth.Contains(NoSpec);
+        daysOfWeekNoSpec = daysOfWeek.Contains(NoSpec);
+    }
+
+    private static ulong ToBitmask(SortedSet<int> set)
+    {
+        ulong bits = 0;
+        foreach (int value in set)
+        {
+            // Skip the AllSpec/NoSpec sentinels (98/99) and any out-of-range
+            // value; for '*' the set also contains the real values, so the mask
+            // still captures the wildcard correctly.
+            if ((uint) value <= 63)
+            {
+                bits |= 1UL << value;
+            }
+        }
+
+        return bits;
     }
 
     /// <summary>
@@ -1931,13 +2006,13 @@ public class CronExpression : IDeserializationCallback, ISerializable
             int sec = d.Second;
 
             // get second.................................................
-            if (seconds.TryGetMinValueStartingFrom(sec, out int nextSec))
+            if (BitUtil.TryGetMinValueStartingFrom(secondsBits, sec, out int nextSec))
             {
                 sec = nextSec;
             }
             else
             {
-                sec = seconds.Min;
+                sec = secondsMin;
                 d = d.AddMinutes(1);
             }
             d = new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, sec, d.Millisecond, d.Offset);
@@ -1947,14 +2022,14 @@ public class CronExpression : IDeserializationCallback, ISerializable
             t = -1;
 
             // get minute.................................................
-            if (minutes.TryGetMinValueStartingFrom(min, out int nextMin))
+            if (BitUtil.TryGetMinValueStartingFrom(minutesBits, min, out int nextMin))
             {
                 t = min;
                 min = nextMin;
             }
             else
             {
-                min = minutes.Min;
+                min = minutesMin;
                 hr++;
             }
             if (min != t)
@@ -1970,14 +2045,14 @@ public class CronExpression : IDeserializationCallback, ISerializable
             t = -1;
 
             // get hour...................................................
-            if (hours.TryGetMinValueStartingFrom(hr, out int nextHr))
+            if (BitUtil.TryGetMinValueStartingFrom(hoursBits, hr, out int nextHr))
             {
                 t = hr;
                 hr = nextHr;
             }
             else
             {
-                hr = hours.Min;
+                hr = hoursMin;
                 day++;
             }
             if (hr != t)
@@ -2002,12 +2077,12 @@ public class CronExpression : IDeserializationCallback, ISerializable
             int tmon = mon;
 
             // get day...................................................
-            bool dayOfMSpec = !daysOfMonth.Contains(NoSpec);
-            bool dayOfWSpec = !daysOfWeek.Contains(NoSpec);
+            bool dayOfMSpec = !daysOfMonthNoSpec;
+            bool dayOfWSpec = !daysOfWeekNoSpec;
             if (dayOfMSpec && !dayOfWSpec)
             {
                 // get day by day of month rule
-                bool found = daysOfMonth.TryGetMinValueStartingFrom(day, out int nextDay);
+                bool found = BitUtil.TryGetMinValueStartingFrom(daysOfMonthBits, day, out int nextDay);
                 if (lastdayOfMonth)
                 {
                     if (!nearestWeekday)
@@ -2067,7 +2142,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
                 else if (nearestWeekday)
                 {
                     t = day;
-                    day = daysOfMonth.Min;
+                    day = daysOfMonthMin;
 
                     int ldom = GetLastDayOfMonth(mon, d.Year);
                     if (day > ldom)
@@ -2099,7 +2174,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
                     tcal = new DateTimeOffset(tcal.Year, mon, day, hr, min, sec, d.Offset);
                     if (tcal.ToUniversalTime() < afterTimeUtc)
                     {
-                        day = daysOfMonth.Min;
+                        day = daysOfMonthMin;
                         mon++;
                     }
                 }
@@ -2112,13 +2187,13 @@ public class CronExpression : IDeserializationCallback, ISerializable
                     int lastDay = GetLastDayOfMonth(mon, d.Year);
                     if (day > lastDay)
                     {
-                        day = daysOfMonth.Min;
+                        day = daysOfMonthMin;
                         mon++;
                     }
                 }
                 else
                 {
-                    day = daysOfMonth.Min;
+                    day = daysOfMonthMin;
                     mon++;
                 }
 
@@ -2153,7 +2228,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
                 {
                     // are we looking for the last XXX day of
                     // the month?
-                    int dow = daysOfWeek.Min; // desired
+                    int dow = daysOfWeekMin; // desired
                     // d-o-w
                     int cDow = (int) d.DayOfWeek + 1; // current d-o-w
                     int daysToAdd = 0;
@@ -2203,7 +2278,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
                 else if (nthdayOfWeek != 0)
                 {
                     // are we looking for the Nth XXX day in the month?
-                    int dow = daysOfWeek.Min; // desired
+                    int dow = daysOfWeekMin; // desired
                     // d-o-w
                     int cDow = (int) d.DayOfWeek + 1; // current d-o-w
                     int daysToAdd = 0;
@@ -2251,9 +2326,9 @@ public class CronExpression : IDeserializationCallback, ISerializable
                 else if (everyNthWeek != 0)
                 {
                     int cDow = (int)d.DayOfWeek + 1; // current d-o-w
-                    int dow = daysOfWeek.Min; // desired
+                    int dow = daysOfWeekMin; // desired
                     // d-o-w
-                    if (daysOfWeek.TryGetMinValueStartingFrom(cDow, out int nextDow))
+                    if (BitUtil.TryGetMinValueStartingFrom(daysOfWeekBits, cDow, out int nextDow))
                     {
                         dow = nextDow;
                     }
@@ -2297,9 +2372,9 @@ public class CronExpression : IDeserializationCallback, ISerializable
                 else
                 {
                     int cDow = (int) d.DayOfWeek + 1; // current d-o-w
-                    int dow = daysOfWeek.Min; // desired
+                    int dow = daysOfWeekMin; // desired
                     // d-o-w
-                    if (daysOfWeek.TryGetMinValueStartingFrom(cDow, out int nextDow))
+                    if (BitUtil.TryGetMinValueStartingFrom(daysOfWeekBits, cDow, out int nextDow))
                     {
                         dow = nextDow;
                     }
@@ -2360,14 +2435,14 @@ public class CronExpression : IDeserializationCallback, ISerializable
             }
 
             // get month...................................................
-            if (months.TryGetMinValueStartingFrom(mon, out int nextMonth))
+            if (BitUtil.TryGetMinValueStartingFrom(monthsBits, mon, out int nextMonth))
             {
                 t = mon;
                 mon = nextMonth;
             }
             else
             {
-                mon = months.Min;
+                mon = monthsMin;
                 year++;
             }
             if (mon != t)

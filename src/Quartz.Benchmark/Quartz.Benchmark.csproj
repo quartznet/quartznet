@@ -9,6 +9,8 @@
 
   <ItemGroup>
     <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
+    <!-- External reference point for the cron head-to-head benchmark. -->
+    <PackageReference Include="Cronos" Version="0.13.0" />
   </ItemGroup>
 
   <ItemGroup>
