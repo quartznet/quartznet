@@ -1873,10 +1873,12 @@ public sealed class CronExpression : ISerializable
     /// <returns>The calculated last day of the month, adjusted to the nearest weekday.</returns>
     private int CalculateNearestWeekdayForLastDay(DateTimeOffset currentDate, int lastDayOfMonthWithOffset)
     {
-        var checkDay = new DateTimeOffset(currentDate.Year, currentDate.Month, lastDayOfMonthWithOffset, currentDate.Hour, currentDate.Minute, currentDate.Second, currentDate.Millisecond, currentDate.Offset);
+        // Day-of-week doesn't depend on time or offset, so build a plain DateTime
+        // (cheaper than a full DateTimeOffset) just to read it.
+        var checkDayOfWeek = new DateTime(currentDate.Year, currentDate.Month, lastDayOfMonthWithOffset).DayOfWeek;
         var calculatedDay = lastDayOfMonthWithOffset;
 
-        switch (checkDay.DayOfWeek)
+        switch (checkDayOfWeek)
         {
             case DayOfWeek.Saturday:
                 calculatedDay -= 1;
@@ -1909,8 +1911,8 @@ public sealed class CronExpression : ISerializable
         int setMin = MaskMin(dayMask);
         int minDay = (setMin > endDayOfMonth) ? endDayOfMonth : setMin;
 
-        DateTimeOffset firstDayOfMonth = new DateTimeOffset(currentDate.Year, currentDate.Month, minDay, 0, 0, 0, currentDate.Offset);
-        DayOfWeek dayOfWeek = firstDayOfMonth.DayOfWeek;
+        // Day-of-week doesn't depend on time or offset, so a plain DateTime suffices.
+        DayOfWeek dayOfWeek = new DateTime(currentDate.Year, currentDate.Month, minDay).DayOfWeek;
 
         // Evict the original date if it is not a weekday
         if (dayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
@@ -2159,10 +2161,10 @@ public sealed class CronExpression : ISerializable
         else if (everyNthWeek != 0)
         {
             var cDow = (int) d.DayOfWeek + 1; // current d-o-w
-            var dow = daysOfWeek.Min; // desired d-o-w
-            if (daysOfWeek.TryGetMinValueStartingFrom(cDow, out var min))
+            // desired d-o-w: next allowed at or after the current one, else the field minimum
+            if (!daysOfWeek.TryGetMinValueStartingFrom(cDow, out var dow))
             {
-                dow = min;
+                dow = daysOfWeek.Min;
             }
 
             var daysToAdd = 0;
@@ -2187,10 +2189,10 @@ public sealed class CronExpression : ISerializable
         else
         {
             var cDow = (int) d.DayOfWeek + 1; // current d-o-w
-            var dow = daysOfWeek.Min; // desired d-o-w
-            if (daysOfWeek.TryGetMinValueStartingFrom(cDow, out var min))
+            // desired d-o-w: next allowed at or after the current one, else the field minimum
+            if (!daysOfWeek.TryGetMinValueStartingFrom(cDow, out var dow))
             {
-                dow = min;
+                dow = daysOfWeek.Min;
             }
 
             var daysToAdd = 0;
