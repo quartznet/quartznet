@@ -1789,9 +1789,12 @@ public sealed class CronExpression : ISerializable
         return new NextFireTimeCursor(false, d);
     }
 
-    private (SortedSet<int> daysOfMonthSet, bool dayHasNegativeOffset) CalculateDaysOfMonth(DateTimeOffset currentDate)
+    private (uint dayMask, bool dayHasNegativeOffset) CalculateDaysOfMonth(DateTimeOffset currentDate)
     {
-        var daysOfMonthSet = new SortedSet<int>(daysOfMonth);
+        // Build the candidate days as a bitmask (days 1-31) instead of allocating
+        // a SortedSet per call. 'L'/'LW'/'L-n' add no concrete days to the field,
+        // so the field bits start empty for those; '15W' starts with its day bit.
+        var dayMask = daysOfMonth.GetDayBits();
         var dayHasNegativeOffset = false;
 
         if (lastDayOfMonth)
@@ -1802,19 +1805,64 @@ public sealed class CronExpression : ISerializable
             if (nearestWeekday)
             {
                 int calculatedLastDay = CalculateNearestWeekdayForLastDay(currentDate, lastDayOfMonthWithOffset);
-                daysOfMonthSet.Add(calculatedLastDay);
+                dayMask = SetDayBit(dayMask, calculatedLastDay);
             }
             else
             {
-                daysOfMonthSet.Add(lastDayOfMonthWithOffset);
+                dayMask = SetDayBit(dayMask, lastDayOfMonthWithOffset);
             }
         }
         else if (nearestWeekday)
         {
-            (daysOfMonthSet, dayHasNegativeOffset) = CalculateNearestWeekdayForDaysOfMonth(currentDate, daysOfMonthSet);
+            (dayMask, dayHasNegativeOffset) = CalculateNearestWeekdayForDaysOfMonth(currentDate, dayMask);
         }
 
-        return (daysOfMonthSet, dayHasNegativeOffset);
+        return (dayMask, dayHasNegativeOffset);
+    }
+
+    // Sets the bit for a day, dropping days outside 1-31 (e.g. a large negative
+    // L-offset in a short month). Such a "day" never matched under the previous
+    // SortedSet implementation either, so behavior is preserved.
+    private static uint SetDayBit(uint dayMask, int day)
+    {
+        return day is >= 1 and <= 31 ? dayMask | (1u << day) : dayMask;
+    }
+
+    // The smallest day in the mask, or 0 when empty (mirrors SortedSet.Min).
+    private static int MaskMin(uint dayMask)
+    {
+        return dayMask == 0 ? 0 : BitUtil.TrailingZeroCount(dayMask);
+    }
+
+    // Bitmask equivalent of the day-of-month SortedSet lookup: the smallest
+    // candidate day >= start.Day, with the W-modifier "earlier weekday" case.
+    private static bool TryGetNextDay(uint dayMask, DateTimeOffset start, bool allowValueBeforeStartDay, out int minimumDay)
+    {
+        minimumDay = MaskMin(dayMask);
+        var startDay = start.Day;
+
+        // current day itself is a candidate
+        if ((dayMask & (1u << startDay)) != 0)
+        {
+            minimumDay = startDay;
+            return true;
+        }
+
+        // W modifier may match a weekday earlier than the requested day
+        if (allowValueBeforeStartDay && minimumDay < startDay)
+        {
+            return true;
+        }
+
+        // smallest candidate at or after startDay
+        uint atOrAbove = dayMask & (~0u << startDay);
+        if (atOrAbove != 0)
+        {
+            minimumDay = BitUtil.TrailingZeroCount(atOrAbove);
+            return true;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -1853,12 +1901,13 @@ public sealed class CronExpression : ISerializable
     /// Calculates the nearest weekday for the specified days of the month.
     /// </summary>
     /// <param name="currentDate">The current date.</param>
-    /// <param name="daysOfMonthSet">The set of days of the month.</param>
-    /// <returns>A tuple containing the updated set of days of the month and a flag indicating if any day has a negative offset.</returns>
-    private static (SortedSet<int> daysOfMonthSet, bool dayHasNegativeOffset) CalculateNearestWeekdayForDaysOfMonth(DateTimeOffset currentDate, SortedSet<int> daysOfMonthSet)
+    /// <param name="dayMask">The candidate days of the month as a bitmask.</param>
+    /// <returns>A tuple containing the updated day bitmask and a flag indicating if any day has a negative offset.</returns>
+    private static (uint dayMask, bool dayHasNegativeOffset) CalculateNearestWeekdayForDaysOfMonth(DateTimeOffset currentDate, uint dayMask)
     {
         int endDayOfMonth = GetLastDayOfMonth(currentDate.Month, currentDate.Year);
-        int minDay = (daysOfMonthSet.Min > endDayOfMonth) ? endDayOfMonth : daysOfMonthSet.Min;
+        int setMin = MaskMin(dayMask);
+        int minDay = (setMin > endDayOfMonth) ? endDayOfMonth : setMin;
 
         DateTimeOffset firstDayOfMonth = new DateTimeOffset(currentDate.Year, currentDate.Month, minDay, 0, 0, 0, currentDate.Offset);
         DayOfWeek dayOfWeek = firstDayOfMonth.DayOfWeek;
@@ -1866,13 +1915,13 @@ public sealed class CronExpression : ISerializable
         // Evict the original date if it is not a weekday
         if (dayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
         {
-            daysOfMonthSet.Remove(minDay);
+            dayMask &= ~(1u << minDay);
         }
 
         var (adjustedDay, dayHasNegativeOffset) = AdjustDayToNearestWeekday(minDay, dayOfWeek, endDayOfMonth);
-        daysOfMonthSet.Add(adjustedDay);
+        dayMask = SetDayBit(dayMask, adjustedDay);
 
-        return (daysOfMonthSet, dayHasNegativeOffset);
+        return (dayMask, dayHasNegativeOffset);
     }
 
     /// <summary>
@@ -1942,9 +1991,10 @@ public sealed class CronExpression : ISerializable
         }
         else
         {
-            // 'L' / 'W' modifiers: build the per-month set of candidate days.
-            var (daysOfMonthCalculated, setIncludesDayBeforeStartDay) = CalculateDaysOfMonth(d);
-            if (daysOfMonthCalculated.TryGetMinValueStartingFrom(d, setIncludesDayBeforeStartDay, out var min))
+            // 'L' / 'W' modifiers: build the per-month candidate days as a bitmask
+            // (no per-call allocation).
+            var (dayMask, setIncludesDayBeforeStartDay) = CalculateDaysOfMonth(d);
+            if (TryGetNextDay(dayMask, d, setIncludesDayBeforeStartDay, out var min))
             {
                 t = day;
                 day = min;
@@ -1953,7 +2003,7 @@ public sealed class CronExpression : ISerializable
                 var lastDay = GetLastDayOfMonth(month, d.Year);
                 if (day > lastDay)
                 {
-                    day = daysOfMonthCalculated.Min;
+                    day = MaskMin(dayMask);
                     month++;
                 }
             }
@@ -1961,7 +2011,7 @@ public sealed class CronExpression : ISerializable
             {
                 if (lastDayOfMonth)
                 {
-                    day = daysOfMonthCalculated.Min; //for lastDayOfMonth use calculated fields
+                    day = MaskMin(dayMask); //for lastDayOfMonth use calculated fields
                 }
                 else
                 {
@@ -2700,6 +2750,16 @@ internal sealed class CronField : IEnumerable<int>
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Returns the day-of-month values (1-31) as a bitmask, where bit <c>i</c>
+    /// set means day <c>i</c> is allowed. Only meaningful for the day-of-month
+    /// field; the '*'/'?' markers are flags and never produce bits.
+    /// </summary>
+    internal uint GetDayBits()
+    {
+        return unchecked((uint) bits);
     }
 
     public void Add(int value)
