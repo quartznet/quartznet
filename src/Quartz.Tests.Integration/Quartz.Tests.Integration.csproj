@@ -34,6 +34,12 @@
     <DefineConstants>$(DefineConstants);NETCORE</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
+    <!-- GHSA-2m69-gcr7-jv3q: bundled SQLite < 3.50.2 in SQLitePCLRaw, pulled in transitively by
+         Microsoft.Data.Sqlite. No patched SQLitePCLRaw has shipped (all versions <= 2.1.11 are flagged).
+         This is a non-shipping integration test project; suppress the audit until an upstream fix is released. -->
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-2m69-gcr7-jv3q" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="..\Quartz.Serialization.SystemTextJson\Quartz.Serialization.SystemTextJson.csproj" />
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
     <ProjectReference Include="..\Quartz.Jobs\Quartz.Jobs.csproj" />
