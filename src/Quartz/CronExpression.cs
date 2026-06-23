@@ -1908,32 +1908,60 @@ public sealed class CronExpression : ISerializable
         var tmon = month;
 
         // get day by day of month rule
-        var (daysOfMonthCalculated, setIncludesDayBeforeStartDay) = CalculateDaysOfMonth(d);
-        if (daysOfMonthCalculated.TryGetMinValueStartingFrom(d, setIncludesDayBeforeStartDay, out var min))
+        if (!lastDayOfMonth && !nearestWeekday)
         {
-            t = day;
-            day = min;
-
-            // make sure we don't over-run a short month, such as february
-            var lastDay = GetLastDayOfMonth(month, d.Year);
-            if (day > lastDay)
+            // Common case: no 'L'/'W' modifier. Query the bitmask field directly,
+            // which avoids the per-call SortedSet allocation in CalculateDaysOfMonth.
+            // Equivalent to the calculated path with allowValueBeforeStartDay == false.
+            if (daysOfMonth.TryGetMinValueStartingFrom(day, out var min))
             {
-                day = daysOfMonthCalculated.Min;
+                t = day;
+                day = min;
+
+                // make sure we don't over-run a short month, such as february
+                var lastDay = GetLastDayOfMonth(month, d.Year);
+                if (day > lastDay)
+                {
+                    day = daysOfMonth.Min;
+                    month++;
+                }
+            }
+            else
+            {
+                day = daysOfMonth.Min;
                 month++;
             }
         }
         else
         {
-            if (lastDayOfMonth)
+            // 'L' / 'W' modifiers: build the per-month set of candidate days.
+            var (daysOfMonthCalculated, setIncludesDayBeforeStartDay) = CalculateDaysOfMonth(d);
+            if (daysOfMonthCalculated.TryGetMinValueStartingFrom(d, setIncludesDayBeforeStartDay, out var min))
             {
-                day = daysOfMonthCalculated.Min; //for lastDayOfMonth use calculated fields
+                t = day;
+                day = min;
+
+                // make sure we don't over-run a short month, such as february
+                var lastDay = GetLastDayOfMonth(month, d.Year);
+                if (day > lastDay)
+                {
+                    day = daysOfMonthCalculated.Min;
+                    month++;
+                }
             }
             else
             {
-                day = daysOfMonth.Min; //if not, then initial set of days uncalculated (to avoid issue with stale weekday in wrong month value)
-            }
+                if (lastDayOfMonth)
+                {
+                    day = daysOfMonthCalculated.Min; //for lastDayOfMonth use calculated fields
+                }
+                else
+                {
+                    day = daysOfMonth.Min; //if not, then initial set of days uncalculated (to avoid issue with stale weekday in wrong month value)
+                }
 
-            month++;
+                month++;
+            }
         }
 
         if (day != t || month != tmon)
@@ -2237,6 +2265,47 @@ public sealed class CronExpression : ISerializable
     }
 
     /// <summary>
+    /// Runs the per-field progressors (second, minute, hour, day, month, year)
+    /// in order, stopping early when one signals a restart or runs out of dates.
+    /// Replaces a delegate-array iteration so the next-fire-time loop allocates
+    /// nothing per call.
+    /// </summary>
+    private NextFireTimeCursor ProgressNextFireTime(DateTimeOffset d)
+    {
+        var cursor = ProgressNextFireTimeSecond(d);
+        if (cursor.RestartLoop || cursor.Date is null)
+        {
+            return cursor;
+        }
+
+        cursor = ProgressNextFireTimeMinute(cursor.Date.Value);
+        if (cursor.RestartLoop || cursor.Date is null)
+        {
+            return cursor;
+        }
+
+        cursor = ProgressNextFireTimeHour(cursor.Date.Value);
+        if (cursor.RestartLoop || cursor.Date is null)
+        {
+            return cursor;
+        }
+
+        cursor = ProgressNextFireTimeDay(cursor.Date.Value);
+        if (cursor.RestartLoop || cursor.Date is null)
+        {
+            return cursor;
+        }
+
+        cursor = ProgressNextFireTimeMonth(cursor.Date.Value);
+        if (cursor.RestartLoop || cursor.Date is null)
+        {
+            return cursor;
+        }
+
+        return ProgressNextFireTimeYear(cursor.Date.Value);
+    }
+
+    /// <summary>
     /// Gets the next fire time after the given time.
     /// </summary>
     /// <param name="afterTimeUtc">The UTC time to start searching from.</param>
@@ -2253,30 +2322,15 @@ public sealed class CronExpression : ISerializable
         // change to specified time zone
         d = TimeZoneUtil.ConvertTime(d, TimeZone);
 
-        var nextFireTimeProgressors = new[] { ProgressNextFireTimeSecond, ProgressNextFireTimeMinute, ProgressNextFireTimeHour, ProgressNextFireTimeDay, ProgressNextFireTimeMonth, ProgressNextFireTimeYear };
-
         var nextFireTimeCursor = new NextFireTimeCursor(false, d);
         var foundNextFireTime = false;
 
         // loop until we've computed the next time, or we've past the endTime
         while (!foundNextFireTime)
         {
-            foreach (var progressor in nextFireTimeProgressors)
-            {
-                if (nextFireTimeCursor.Date.HasValue)
-                {
-                    nextFireTimeCursor = progressor(nextFireTimeCursor.Date.Value);
-                }
-                else
-                {
-                    break;
-                }
-
-                if (nextFireTimeCursor.RestartLoop)
-                {
-                    break;
-                }
-            }
+            // Run the field progressors in order. Calling them directly (rather
+            // than iterating a delegate array) keeps this hot path allocation-free.
+            nextFireTimeCursor = ProgressNextFireTime(nextFireTimeCursor.Date!.Value);
 
             // test for expressions that never generate a valid fire date,
             if (nextFireTimeCursor.Date is null || nextFireTimeCursor.Date.Value.Year > TriggerConstants.YearToGiveUpSchedulingAt)
@@ -2506,14 +2560,23 @@ internal readonly record struct ValueAndPosition(int Value, int Position);
 internal readonly record struct NextFireTimeCursor(bool RestartLoop, DateTimeOffset? Date);
 
 /// <summary>
-/// Optimized structure to hold either one value or multiple.
+/// Holds the allowed values of a single cron field as a bitmask.
 /// </summary>
+/// <remarks>
+/// Values 0-63 (which covers every field except years) are stored in a single
+/// <see cref="ulong" />, so membership, minimum and "next value at or after"
+/// queries are O(1) bit operations with no allocation — the lever behind the
+/// cron engine's speed. The '*' and '?' markers are kept as flags rather than
+/// stored numerically. The years field is open-ended, so values above 63 fall
+/// back to a <see cref="SortedSet{T}" />. The public surface is unchanged so the
+/// next-fire-time algorithm and ToString summary are untouched.
+/// </remarks>
 internal sealed class CronField : IEnumerable<int>
 {
-    // null == not set, all spec or individual value
-    private int? singleValue;
-    private SortedSet<int>? values;
-    private bool hasAllOrNoSpec;
+    private ulong bits;                 // bit i set <=> value i is allowed, for i in [0, 63]
+    private SortedSet<int>? overflow;   // values > 63 (years only); null in the common case
+    private bool isAllSpec;             // '*'
+    private bool isNoSpec;              // '?'
 
     public CronField()
     {
@@ -2524,12 +2587,14 @@ internal sealed class CronField : IEnumerable<int>
     {
         get
         {
-            if (singleValue is not null)
+            // A stored '*' or '?' marker counts as the single special value,
+            // matching the previous single-value behaviour.
+            if (isAllSpec || isNoSpec)
             {
                 return 1;
             }
 
-            return values?.Count ?? 0;
+            return BitUtil.PopCount(bits) + (overflow?.Count ?? 0);
         }
     }
 
@@ -2537,14 +2602,19 @@ internal sealed class CronField : IEnumerable<int>
     {
         get
         {
-            if (singleValue is not null)
+            if (isAllSpec || isNoSpec)
             {
-                return hasAllOrNoSpec ? 0 : singleValue.Value;
+                return 0;
             }
 
-            if (values is not null)
+            if (bits != 0)
             {
-                return hasAllOrNoSpec ? 0 : values.Min;
+                return BitUtil.TrailingZeroCount(bits);
+            }
+
+            if (overflow is { Count: > 0 })
+            {
+                return overflow.Min;
             }
 
             return 0;
@@ -2553,65 +2623,67 @@ internal sealed class CronField : IEnumerable<int>
 
     internal void Clear()
     {
-        singleValue = null;
-        values = null;
-        hasAllOrNoSpec = false;
+        bits = 0;
+        overflow = null;
+        isAllSpec = false;
+        isNoSpec = false;
     }
 
     internal bool TryGetMinValueStartingFrom(int start, out int min)
     {
         min = 0;
 
-        if (singleValue == CronExpressionConstants.AllSpec)
+        if (isAllSpec)
         {
             min = start;
             return true;
         }
 
-        if (singleValue is not null)
+        if (isNoSpec)
         {
-            if (singleValue >= start)
+            // '?' was stored as the sentinel value 98; preserve that behaviour.
+            if (CronExpressionConstants.NoSpec >= start)
             {
-                min = singleValue.Value;
+                min = CronExpressionConstants.NoSpec;
                 return true;
             }
 
-            // didn't match
             return false;
         }
 
-        var set = values;
-
-        if (set is null)
+        if (bits != 0)
         {
-            return false;
+            // In-range values (every field except years): O(1) bit scan.
+            return BitUtil.TryGetMinValueStartingFrom(bits, start, out min);
         }
 
-        min = set.Min;
-
-        if (set.Contains(start))
+        if (overflow is not null)
         {
-            min = start;
-            return true;
-        }
+            // Years: open-ended range, kept on the sorted-set path.
+            min = overflow.Min;
 
-        if (set.Count == 0 || set.Max < start)
-        {
-            return false;
-        }
+            if (overflow.Contains(start))
+            {
+                min = start;
+                return true;
+            }
 
-        if (set.Min >= start)
-        {
-            // value is contained and would be returned from view
-            return true;
-        }
+            if (overflow.Max < start)
+            {
+                return false;
+            }
 
-        // slow path
-        var view = set.GetViewBetween(start, int.MaxValue);
-        if (view.Count > 0)
-        {
-            min = view.Min;
-            return true;
+            if (overflow.Min >= start)
+            {
+                return true;
+            }
+
+            var view = overflow.GetViewBetween(start, int.MaxValue);
+            if (view.Count > 0)
+            {
+                min = view.Min;
+                return true;
+            }
         }
 
         return false;
@@ -2619,48 +2691,83 @@ internal sealed class CronField : IEnumerable<int>
 
     public void Add(int value)
     {
-        hasAllOrNoSpec = value is CronExpressionConstants.AllSpec or CronExpressionConstants.NoSpec;
-
-        if (singleValue is null)
+        if (value == CronExpressionConstants.AllSpec)
         {
-            if (values is null)
-            {
-                singleValue = value;
-            }
-            else
-            {
-                values.Add(value);
-            }
+            isAllSpec = true;
+            return;
         }
-        else if (singleValue != value)
+
+        if (value == CronExpressionConstants.NoSpec)
         {
-            values = [singleValue.Value, value];
-            singleValue = null;
+            isNoSpec = true;
+            return;
+        }
+
+        if ((uint) value <= 63)
+        {
+            bits |= 1UL << value;
+        }
+        else
+        {
+            (overflow ??= []).Add(value);
         }
     }
 
     public bool Contains(int value)
     {
-        if (singleValue == value
-            || (value != CronExpressionConstants.AllSpec && value != CronExpressionConstants.NoSpec && hasAllOrNoSpec))
+        if (value == CronExpressionConstants.AllSpec)
+        {
+            return isAllSpec;
+        }
+
+        if (value == CronExpressionConstants.NoSpec)
+        {
+            return isNoSpec;
+        }
+
+        // A concrete value matches when the field is a wildcard/no-spec marker
+        // (preserving the previous behaviour) or when its bit is set.
+        if (isAllSpec || isNoSpec)
         {
             return true;
         }
 
-        return values is not null && values.Contains(value);
+        if ((uint) value <= 63)
+        {
+            return (bits & (1UL << value)) != 0;
+        }
+
+        return overflow is not null && overflow.Contains(value);
     }
 
     public IEnumerator<int> GetEnumerator()
     {
-        if (singleValue is not null)
+        // Yield the marker sentinel for '*'/'?' exactly as before, so callers
+        // that enumerate the field (e.g. ToString, CalculateDaysOfMonth) are
+        // unaffected.
+        if (isAllSpec)
         {
-            yield return singleValue.Value;
+            yield return CronExpressionConstants.AllSpec;
             yield break;
         }
 
-        if (values is not null)
+        if (isNoSpec)
         {
-            foreach (var value in values)
+            yield return CronExpressionConstants.NoSpec;
+            yield break;
+        }
+
+        ulong remaining = bits;
+        while (remaining != 0)
+        {
+            int value = BitUtil.TrailingZeroCount(remaining);
+            yield return value;
+            remaining &= remaining - 1; // clear lowest set bit
+        }
+
+        if (overflow is not null)
+        {
+            foreach (var value in overflow)
             {
                 yield return value;
             }
