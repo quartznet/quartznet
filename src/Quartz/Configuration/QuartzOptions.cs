@@ -17,6 +17,7 @@ public class QuartzOptions : Dictionary<string, string?>
     internal readonly List<JobListenerConfiguration> _deferredJobListeners = new();
     internal readonly List<TriggerListenerConfiguration> _deferredTriggerListeners = new();
     internal readonly List<CalendarConfiguration> _deferredCalendars = new();
+    internal readonly DeferredSingletonRegistry _deferredSingletons = new();
 
     public string? SchedulerId
     {

@@ -41,6 +41,9 @@ internal sealed class NamedSchedulerFactory : StdSchedulerFactory
 
     private async Task InitializeScheduler(IScheduler scheduler, CancellationToken cancellationToken)
     {
+        // Deferred listeners may depend on singletons registered during deferred configuration
+        IServiceProvider deferredAwareServiceProvider = quartzOptions._deferredSingletons.WrapServiceProvider(serviceProvider);
+
         // Scheduler listeners for this named scheduler
         IEnumerable<SchedulerListenerConfiguration> schedulerListenerConfigurations = serviceProvider.GetServices<SchedulerListenerConfiguration>()
             .Where(x => x.OptionsName == optionsName);
@@ -53,7 +56,7 @@ internal sealed class NamedSchedulerFactory : StdSchedulerFactory
         // Deferred scheduler listeners from factory-based AddQuartz overload
         foreach (SchedulerListenerConfiguration configuration in quartzOptions._deferredSchedulerListeners.Where(x => x.OptionsName == optionsName))
         {
-            ISchedulerListener listener = ListenerCreationHelper.CreateSchedulerListener(configuration, serviceProvider);
+            ISchedulerListener listener = ListenerCreationHelper.CreateSchedulerListener(configuration, deferredAwareServiceProvider);
             scheduler.ListenerManager.AddSchedulerListener(listener);
         }
 
@@ -70,7 +73,7 @@ internal sealed class NamedSchedulerFactory : StdSchedulerFactory
         // Deferred job listeners from factory-based AddQuartz overload
         foreach (JobListenerConfiguration configuration in quartzOptions._deferredJobListeners.Where(x => x.OptionsName == optionsName))
         {
-            IJobListener listener = ListenerCreationHelper.CreateJobListener(configuration, serviceProvider);
+            IJobListener listener = ListenerCreationHelper.CreateJobListener(configuration, deferredAwareServiceProvider);
             scheduler.ListenerManager.AddJobListener(listener, configuration.Matchers ?? []);
         }
 
@@ -87,7 +90,7 @@ internal sealed class NamedSchedulerFactory : StdSchedulerFactory
         // Deferred trigger listeners from factory-based AddQuartz overload
         foreach (TriggerListenerConfiguration configuration in quartzOptions._deferredTriggerListeners.Where(x => x.OptionsName == optionsName))
         {
-            ITriggerListener listener = ListenerCreationHelper.CreateTriggerListener(configuration, serviceProvider);
+            ITriggerListener listener = ListenerCreationHelper.CreateTriggerListener(configuration, deferredAwareServiceProvider);
             scheduler.ListenerManager.AddTriggerListener(listener, configuration.Matchers ?? []);
         }
 
@@ -148,7 +151,23 @@ internal sealed class NamedSchedulerFactory : StdSchedulerFactory
                 return typed;
             }
 
-            return (T) ActivatorUtilities.CreateInstance(serviceProvider, implementationType);
+            // Singleton registrations captured during deferred configuration cannot be part of the
+            // already-built container; consult the registry first so that those instances (and their
+            // companion services) are used, then fall back to plain ActivatorUtilities construction
+            // with the deferred registrations available as constructor dependencies. Consult both the
+            // service type and the configured concrete type so registrations are found regardless of
+            // which one they were keyed with (this matches ServiceCollectionSchedulerFactory).
+            if (quartzOptions._deferredSingletons.Resolve(typeof(T), serviceProvider) is T deferred)
+            {
+                return deferred;
+            }
+            if (implementationType != typeof(T)
+                && quartzOptions._deferredSingletons.Resolve(implementationType, serviceProvider) is T deferredConcrete)
+            {
+                return deferredConcrete;
+            }
+
+            return (T) ActivatorUtilities.CreateInstance(quartzOptions._deferredSingletons.WrapServiceProvider(serviceProvider), implementationType);
         }
 
         T? service = serviceProvider.GetService<T>();

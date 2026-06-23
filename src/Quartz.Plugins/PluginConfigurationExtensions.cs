@@ -5,7 +5,6 @@ using Quartz.Plugin.History;
 using Quartz.Plugin.Interrupt;
 using Quartz.Plugin.Json;
 using Quartz.Plugin.Xml;
-using Quartz.Util;
 
 namespace Quartz;
 
@@ -15,11 +14,7 @@ public static class PluginConfigurationExtensions
         this T configurer,
         Action<XmlSchedulingOptions> configure) where T : IPropertyConfigurationRoot
     {
-        if (configurer is IContainerConfigurationSupport containerConfigurationSupport)
-        {
-            containerConfigurationSupport.RegisterSingleton<XMLSchedulingDataProcessorPlugin, XMLSchedulingDataProcessorPlugin>();
-        }
-        configurer.SetProperty("quartz.plugin.xml.type", typeof(XMLSchedulingDataProcessorPlugin).AssemblyQualifiedNameWithoutVersion());
+        configurer.UsePlugin<XMLSchedulingDataProcessorPlugin>("xml");
         configure.Invoke(new XmlSchedulingOptions(configurer));
         return configurer;
     }
@@ -34,11 +29,7 @@ public static class PluginConfigurationExtensions
     public static T UseStructuredJobLogging<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         this T configurer) where T : IPropertyConfigurationRoot
     {
-        if (configurer is IContainerConfigurationSupport containerConfigurationSupport)
-        {
-            containerConfigurationSupport.RegisterSingleton<StructuredLoggingJobHistoryPlugin, StructuredLoggingJobHistoryPlugin>();
-        }
-        configurer.SetProperty("quartz.plugin.structuredJobLogging.type", typeof(StructuredLoggingJobHistoryPlugin).AssemblyQualifiedNameWithoutVersion());
+        configurer.UsePlugin<StructuredLoggingJobHistoryPlugin>("structuredJobLogging");
         return configurer;
     }
 
@@ -52,11 +43,7 @@ public static class PluginConfigurationExtensions
     public static T UseStructuredTriggerLogging<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         this T configurer) where T : IPropertyConfigurationRoot
     {
-        if (configurer is IContainerConfigurationSupport containerConfigurationSupport)
-        {
-            containerConfigurationSupport.RegisterSingleton<StructuredLoggingTriggerHistoryPlugin, StructuredLoggingTriggerHistoryPlugin>();
-        }
-        configurer.SetProperty("quartz.plugin.structuredTriggerLogging.type", typeof(StructuredLoggingTriggerHistoryPlugin).AssemblyQualifiedNameWithoutVersion());
+        configurer.UsePlugin<StructuredLoggingTriggerHistoryPlugin>("structuredTriggerLogging");
         return configurer;
     }
 
@@ -67,11 +54,7 @@ public static class PluginConfigurationExtensions
         this T configurer,
         Action<JsonSchedulingOptions> configure) where T : IPropertyConfigurationRoot
     {
-        if (configurer is IContainerConfigurationSupport containerConfigurationSupport)
-        {
-            containerConfigurationSupport.RegisterSingleton<JsonSchedulingDataProcessorPlugin, JsonSchedulingDataProcessorPlugin>();
-        }
-        configurer.SetProperty("quartz.plugin.json.type", typeof(JsonSchedulingDataProcessorPlugin).AssemblyQualifiedNameWithoutVersion());
+        configurer.UsePlugin<JsonSchedulingDataProcessorPlugin>("json");
         configure.Invoke(new JsonSchedulingOptions(configurer));
         return configurer;
     }
@@ -83,11 +66,7 @@ public static class PluginConfigurationExtensions
         this T configurer,
         Action<JobAutoInterruptOptions>? configure = null) where T : IPropertyConfigurationRoot
     {
-        if (configurer is IContainerConfigurationSupport containerConfigurationSupport)
-        {
-            containerConfigurationSupport.RegisterSingleton<JobInterruptMonitorPlugin, JobInterruptMonitorPlugin>();
-        }
-        configurer.SetProperty("quartz.plugin.jobAutoInterrupt.type", typeof(JobInterruptMonitorPlugin).AssemblyQualifiedNameWithoutVersion());
+        configurer.UsePlugin<JobInterruptMonitorPlugin>("jobAutoInterrupt");
         configure?.Invoke(new JobAutoInterruptOptions(configurer));
         return configurer;
     }

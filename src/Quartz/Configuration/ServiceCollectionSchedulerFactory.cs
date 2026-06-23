@@ -76,6 +76,9 @@ internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
         // Make the DI service provider available to plugins via SchedulerContext
         scheduler.Context["Quartz.ServiceProvider"] = serviceProvider;
 
+        // Deferred listeners may depend on singletons registered during deferred configuration
+        var deferredAwareServiceProvider = options.Value._deferredSingletons.WrapServiceProvider(serviceProvider);
+
         // Default scheduler uses flat ISchedulerListener services (backward compatible)
         foreach (var listener in serviceProvider.GetServices<ISchedulerListener>())
         {
@@ -85,7 +88,7 @@ internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
         // Process deferred scheduler listeners from factory-based AddQuartz overload
         foreach (var config in options.Value._deferredSchedulerListeners.Where(x => x.OptionsName.Length == 0))
         {
-            var listener = ListenerCreationHelper.CreateSchedulerListener(config, serviceProvider);
+            var listener = ListenerCreationHelper.CreateSchedulerListener(config, deferredAwareServiceProvider);
             scheduler.ListenerManager.AddSchedulerListener(listener);
         }
 
@@ -103,7 +106,7 @@ internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
         // Process deferred job listeners from factory-based AddQuartz overload
         foreach (var config in options.Value._deferredJobListeners.Where(x => x.OptionsName.Length == 0))
         {
-            var listener = ListenerCreationHelper.CreateJobListener(config, serviceProvider);
+            var listener = ListenerCreationHelper.CreateJobListener(config, deferredAwareServiceProvider);
             scheduler.ListenerManager.AddJobListener(listener, config.Matchers ?? []);
         }
 
@@ -120,7 +123,7 @@ internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
         // Process deferred trigger listeners from factory-based AddQuartz overload
         foreach (var config in options.Value._deferredTriggerListeners.Where(x => x.OptionsName.Length == 0))
         {
-            var listener = ListenerCreationHelper.CreateTriggerListener(config, serviceProvider);
+            var listener = ListenerCreationHelper.CreateTriggerListener(config, deferredAwareServiceProvider);
             scheduler.ListenerManager.AddTriggerListener(listener, config.Matchers ?? []);
         }
 
@@ -165,11 +168,25 @@ internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
     protected override T InstantiateType<T>(Type? implementationType)
     {
         var service = serviceProvider.GetService<T>();
-        if (service is null)
+        if (service is not null)
         {
-            service = ObjectUtils.InstantiateType<T>(implementationType);
+            return service;
         }
 
-        return service;
+        // Singleton registrations captured during deferred configuration cannot be part of the
+        // already-built container; construct them here with constructor injection support.
+        // Consult both the service type and the configured concrete type so registrations are
+        // found regardless of which one they were keyed with.
+        if (options.Value._deferredSingletons.Resolve(typeof(T), serviceProvider) is T deferred)
+        {
+            return deferred;
+        }
+        if (implementationType is not null && implementationType != typeof(T)
+            && options.Value._deferredSingletons.Resolve(implementationType, serviceProvider) is T deferredConcrete)
+        {
+            return deferredConcrete;
+        }
+
+        return ObjectUtils.InstantiateType<T>(implementationType);
     }
 }
