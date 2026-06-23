@@ -1699,6 +1699,12 @@ public sealed class CronExpression : ISerializable
         var sec = d.Second;
         if (seconds.TryGetMinValueStartingFrom(sec, out var min))
         {
+            // already a valid second - nothing to change, avoid rebuilding the date
+            if (min == sec)
+            {
+                return new NextFireTimeCursor(false, d);
+            }
+
             sec = min;
         }
         else
@@ -1738,7 +1744,8 @@ public sealed class CronExpression : ISerializable
             return new NextFireTimeCursor(true, d);
         }
 
-        return new NextFireTimeCursor(false, new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, minute, d.Second, d.Millisecond, d.Offset));
+        // minute unchanged - the rebuilt date would equal d, so return it as-is
+        return new NextFireTimeCursor(false, d);
     }
 
     /// <summary>
@@ -1778,7 +1785,8 @@ public sealed class CronExpression : ISerializable
             return new NextFireTimeCursor(true, d);
         }
 
-        return new NextFireTimeCursor(false, new DateTimeOffset(d.Year, d.Month, d.Day, hour, d.Minute, d.Second, d.Millisecond, d.Offset));
+        // hour unchanged - the rebuilt date would equal d, so return it as-is
+        return new NextFireTimeCursor(false, d);
     }
 
     private (SortedSet<int> daysOfMonthSet, bool dayHasNegativeOffset) CalculateDaysOfMonth(DateTimeOffset currentDate)
@@ -2173,7 +2181,10 @@ public sealed class CronExpression : ISerializable
             }
         }
 
-        return new NextFireTimeCursor(false, new DateTimeOffset(d.Year, d.Month, day, d.Hour, d.Minute, d.Second, d.Offset));
+        // day unchanged - the rebuilt date would equal d, so return it as-is
+        return new NextFireTimeCursor(false, day == d.Day
+            ? d
+            : new DateTimeOffset(d.Year, d.Month, day, d.Hour, d.Minute, d.Second, d.Offset));
     }
 
     /// <summary>
@@ -2236,9 +2247,10 @@ public sealed class CronExpression : ISerializable
             year++;
         }
 
+        // month unchanged - the rebuilt date would equal d, so return it as-is
         return mon != t
             ? new NextFireTimeCursor(true, new DateTimeOffset(year, mon, 1, 0, 0, 0, d.Offset))
-            : new NextFireTimeCursor(false, new DateTimeOffset(d.Year, mon, d.Day, d.Hour, d.Minute, d.Second, d.Offset));
+            : new NextFireTimeCursor(false, d);
     }
 
     private NextFireTimeCursor ProgressNextFireTimeYear(DateTimeOffset d)
@@ -2261,7 +2273,8 @@ public sealed class CronExpression : ISerializable
             return new NextFireTimeCursor(true, new DateTimeOffset(year, 1, 1, 0, 0, 0, d.Offset));
         }
 
-        return new NextFireTimeCursor(false, new DateTimeOffset(year, d.Month, d.Day, d.Hour, d.Minute, d.Second, d.Offset));
+        // year unchanged - the rebuilt date would equal d, so return it as-is
+        return new NextFireTimeCursor(false, d);
     }
 
     /// <summary>

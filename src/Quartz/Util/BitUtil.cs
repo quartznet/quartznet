@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 #if NET8_0_OR_GREATER
 using System.Numerics;
 #endif
@@ -39,6 +41,7 @@ internal static class BitUtil
     /// i.e. the zero-based index of its lowest set bit. Returns 64 when
     /// <paramref name="value" /> is zero (matching <c>BitOperations</c>).
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static int TrailingZeroCount(ulong value)
     {
 #if NET8_0_OR_GREATER
@@ -59,6 +62,7 @@ internal static class BitUtil
     /// <summary>
     /// Returns the number of set bits in <paramref name="value" />.
     /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static int PopCount(ulong value)
     {
 #if NET8_0_OR_GREATER
@@ -82,13 +86,12 @@ internal static class BitUtil
     /// <param name="start">Inclusive lower bound to search from.</param>
     /// <param name="min">The matched value, when one exists.</param>
     /// <returns><see langword="true" /> when a value &gt;= <paramref name="start" /> exists; otherwise <see langword="false" />.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static bool TryGetMinValueStartingFrom(ulong bits, int start, out int min)
     {
-        if (start is < 0 or > 63)
-        {
-            min = 0;
-            return false;
-        }
+        // Callers only ever pass a value within the field's natural domain
+        // (0-59, 0-23, 1-31, 1-12, 1-7), so start is always in [0, 63].
+        Debug.Assert(start is >= 0 and <= 63, "start must be in [0, 63]");
 
         // Mask off everything below start, then the lowest remaining set bit is
         // the next allowed value.
