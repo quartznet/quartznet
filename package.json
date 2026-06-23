@@ -24,7 +24,8 @@
     "docs:serve": "anywhere -s -h localhost -d .vuepress/dist",
     "docs:publish": "cd docs/.vuepress/dist && git init && git fetch https://github.com/quartznet/quartznet.github.io.git && git checkout 9966bc53c0685311bc9199498ef2338629f6ec4d && git checkout -b master && git add . && git commit -am \"Deploy Documentation\" && git push --force --set-upstream https://github.com/quartznet/quartznet.github.io.git master",
     "docs:lint": "markdownlint-cli2 docs/**/*.md",
-    "docs:lint-fix": "markdownlint-cli2-fix docs/**/*.md !docs/_posts/**"
+    "docs:lint-fix": "markdownlint-cli2-fix docs/**/*.md !docs/_posts/**",
+    "postinstall": "patch-package"
   },
   "repository": {
     "type": "git",
@@ -39,6 +40,7 @@
   "devDependencies": {
     "markdownlint": "^0.40.0",
     "markdownlint-cli2": "^0.22.0",
+    "patch-package": "^8.0.1",
     "sass-embedded": "^1.97.3",
     "vite": "^8.0.16"
   },
@@ -58,6 +60,7 @@
     "launch-editor": "^2.14.1",
     "markdown-it": "^14.2.0",
     "undici": "^7.28.0",
-    "http-proxy-middleware": "^3.0.6"
+    "http-proxy-middleware": "^3.0.6",
+    "js-yaml": "^4.2.0"
   }
 }
