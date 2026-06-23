@@ -135,6 +135,64 @@ var job = JobBuilder.Create<SlowJob>()
     .WithIdentity("slowJob")
     .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable, true)
     // allow only five seconds for this job, overriding default configuration
-    .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime, TimeSpan.FromSeconds(5).TotalMilliseconds.ToString()));
+    .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime, TimeSpan.FromSeconds(5).TotalMilliseconds.ToString())
     .Build();
+```
+
+## Authoring plugin configuration extensions
+
+When you write your own `ISchedulerPlugin`, you can offer the same strongly typed configuration experience as the built-in plugins by creating an extension method that targets `IPropertyConfigurationRoot`. The `UsePlugin` helper takes care of the whole registration: it sets the `quartz.plugin.{name}.type` property and, when the configuration is backed by Microsoft DI (`AddQuartz`), registers the plugin type into the container so it gets constructed with constructor injection.
+
+```csharp
+public static class MyPluginConfigurationExtensions
+{
+    public static T UseMyPlugin<T>(this T configurer, Action<MyPluginOptions>? configure = null)
+        where T : IPropertyConfigurationRoot
+    {
+        configurer.UsePlugin<MyPlugin>("myPlugin");
+
+        // optional: register companion services your plugin needs injected;
+        // returns false when there is no container (plain SchedulerBuilder usage)
+        configurer.TryRegisterSingleton<IMyPluginDependency, MyPluginDependency>();
+
+        configure?.Invoke(new MyPluginOptions(configurer));
+        return configurer;
+    }
+}
+```
+
+Strongly typed options use the `PropertiesSetter` base class with the plugin's property prefix; each property setter maps to a `quartz.plugin.{name}.{property}` configuration key that gets applied to the plugin's public setters:
+
+```csharp
+public sealed class MyPluginOptions : PropertiesSetter
+{
+    internal MyPluginOptions(IPropertySetter parent) : base(parent, "quartz.plugin.myPlugin")
+    {
+    }
+
+    // maps to quartz.plugin.myPlugin.someSetting and MyPlugin.SomeSetting setter
+    public string SomeSetting
+    {
+        set => SetProperty("someSetting", value);
+    }
+}
+```
+
+The same extension method then works with all configuration styles:
+
+```csharp
+// Microsoft DI - plugin is constructed by the container, constructor injection available
+services.AddQuartz(q =>
+{
+    q.UseMyPlugin(options =>
+    {
+        options.SomeSetting = "value";
+    });
+});
+
+// plain SchedulerBuilder - plugin is created via reflection and needs
+// a public parameterless constructor
+var scheduler = await SchedulerBuilder.Create()
+    .UseMyPlugin()
+    .BuildScheduler();
 ```

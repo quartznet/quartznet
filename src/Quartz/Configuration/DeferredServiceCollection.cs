@@ -40,12 +40,19 @@ internal sealed class DeferredServiceCollection : IServiceCollection
         // Silently discard — the service provider is already built, so adding
         // to the original IServiceCollection would have no effect and could
         // cause confusion if the collection is inspected later.
-        // Registrations that matter (jobs, triggers, listeners, calendars)
-        // are all intercepted above.
+        // Registrations that matter (jobs, triggers, listeners, calendars,
+        // singleton type registrations) are all intercepted above.
     }
 
     private bool TryHandleDeferred(ServiceDescriptor descriptor)
     {
+        // Keyed descriptors throw from ImplementationType/ImplementationInstance/ImplementationFactory
+        // and cannot match any of the shapes below; let them fall through to the discard path.
+        if (descriptor.IsKeyedService)
+        {
+            return false;
+        }
+
         // Intercept IConfigureOptions<QuartzOptions> factory registrations.
         // These come from AddJob/AddTrigger/ScheduleJob/AddCalendar extension methods
         // which register IConfigureOptions<QuartzOptions> to add job details and triggers.
@@ -138,6 +145,19 @@ internal sealed class DeferredServiceCollection : IServiceCollection
         // methods which always emit the paired *Configuration.
         if (descriptor.ServiceType == typeof(IJobListener) || descriptor.ServiceType == typeof(ITriggerListener))
         {
+            return true;
+        }
+
+        // Capture bare singleton type registrations, e.g. plugin self-registrations coming from
+        // UsePlugin / IContainerConfigurationSupport.RegisterSingleton. They cannot be added to
+        // the already-built container; the scheduler factories consult the registry when
+        // instantiating components so that constructor injection still works.
+        if (descriptor.Lifetime == ServiceLifetime.Singleton
+            && descriptor.ImplementationInstance is null
+            && descriptor.ImplementationFactory is null
+            && descriptor.ImplementationType is not null)
+        {
+            options._deferredSingletons.Register(descriptor.ServiceType, descriptor.ImplementationType);
             return true;
         }
 
