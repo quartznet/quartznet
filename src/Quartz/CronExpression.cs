@@ -2006,16 +2006,25 @@ public class CronExpression : IDeserializationCallback, ISerializable
             int sec = d.Second;
 
             // get second.................................................
+            bool secondChanged;
             if (BitUtil.TryGetMinValueStartingFrom(secondsBits, sec, out int nextSec))
             {
+                secondChanged = nextSec != sec;
                 sec = nextSec;
             }
             else
             {
                 sec = secondsMin;
                 d = d.AddMinutes(1);
+                secondChanged = true;
             }
-            d = new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, sec, d.Millisecond, d.Offset);
+
+            // only rebuild the date when something actually changed; each d.* read
+            // re-decomposes the tick count, so the unchanged case is pure waste
+            if (secondChanged)
+            {
+                d = new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, sec, d.Millisecond, d.Offset);
+            }
 
             int min = d.Minute;
             int hr = d.Hour;
@@ -2038,7 +2047,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
                 d = SetCalendarHour(d, hr);
                 continue;
             }
-            d = new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, min, d.Second, d.Millisecond, d.Offset);
+            // minute unchanged here (min == t), so d already holds the right value
 
             hr = d.Hour;
             int day = d.Day;
@@ -2069,7 +2078,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
                 d = SetCalendarHour(d, hr);
                 continue;
             }
-            d = new DateTimeOffset(d.Year, d.Month, d.Day, hr, d.Minute, d.Second, d.Millisecond, d.Offset);
+            // hour unchanged here (hr == t), so d already holds the right value
 
             day = d.Day;
             int mon = d.Month;
@@ -2422,7 +2431,12 @@ public class CronExpression : IDeserializationCallback, ISerializable
                     "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.");
             }
 
-            d = new DateTimeOffset(d.Year, d.Month, day, d.Hour, d.Minute, d.Second, d.Offset);
+            // only rebuild when the day actually changed (it often already matches)
+            if (day != d.Day)
+            {
+                d = new DateTimeOffset(d.Year, d.Month, day, d.Hour, d.Minute, d.Second, d.Offset);
+            }
+
             mon = d.Month;
             int year = d.Year;
             t = -1;
@@ -2450,7 +2464,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
                 d = new DateTimeOffset(year, mon, 1, 0, 0, 0, d.Offset);
                 continue;
             }
-            d = new DateTimeOffset(d.Year, mon, d.Day, d.Hour, d.Minute, d.Second, d.Offset);
+            // month unchanged here (mon == t), so d already holds the right value
             year = d.Year;
             t = -1;
 
@@ -2470,7 +2484,7 @@ public class CronExpression : IDeserializationCallback, ISerializable
                 d = new DateTimeOffset(year, 1, 1, 0, 0, 0, d.Offset);
                 continue;
             }
-            d = new DateTimeOffset(year, d.Month, d.Day, d.Hour, d.Minute, d.Second, d.Offset);
+            // year unchanged here (year == t), so d already holds the right value
 
             //apply the proper offset for this date
             var localDateTime = d.DateTime;
