@@ -56,6 +56,9 @@
             </tbody>
         </table>
 
+        <h2>JobDataMap</h2>
+        <JobDataMapEditor DataMap="@TriggerDataMap" ReadOnly="true" />
+
         @if (!IsReadOnly && !string.IsNullOrWhiteSpace(_cronExpression))
         {
             <section class="qz-section">
@@ -105,6 +108,8 @@
     public string Name { get; set; } = string.Empty;
 
     private bool IsReadOnly => Options.Value.ReadOnly;
+
+    private JobDataMap? TriggerDataMap => DisplayValueHelper.GetJobDataMap(_trigger, "JobDataMap", "jobDataMap");
 
     protected override async Task OnInitializedAsync()
     {
@@ -162,10 +167,17 @@
             return cronExpression;
         }
 
-        string repeatInterval = DisplayValueHelper.GetString(_trigger, "RepeatInterval", "RepeatIntervalTimeSpan");
+        string repeatInterval = DisplayValueHelper.GetString(_trigger, "RepeatIntervalTimeSpan", "RepeatInterval");
         if (!string.IsNullOrWhiteSpace(repeatInterval))
         {
-            return "Every " + repeatInterval;
+            string description = "Every " + repeatInterval;
+            string repeatCount = DisplayValueHelper.GetString(_trigger, "RepeatCount");
+            if (int.TryParse(repeatCount, NumberStyles.Integer, CultureInfo.InvariantCulture, out int count))
+            {
+                description += count < 0 ? ", repeat forever" : ", " + count + " time(s)";
+            }
+
+            return description;
         }
 
         return DisplayValueHelper.GetString(_trigger, "TriggerType", "Type");

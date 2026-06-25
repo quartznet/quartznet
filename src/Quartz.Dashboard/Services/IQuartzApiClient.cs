@@ -107,7 +107,12 @@ public sealed record JobKeyDto(string Group, string Name);
 
 public sealed record TriggerKeyDto(string Group, string Name);
 
-public sealed record TriggerHeaderDto(string Group, string Name, string? ExecutionGroup = null);
+public sealed record TriggerHeaderDto(string Group, string Name, string? ExecutionGroup = null)
+{
+    public string? TriggerType { get; init; }
+
+    public string? ScheduleSummary { get; init; }
+}
 
 public sealed record JobDetailDto(
     string Name,

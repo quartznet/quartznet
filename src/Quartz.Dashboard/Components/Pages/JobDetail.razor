@@ -77,6 +77,8 @@
                 <thead>
                     <tr>
                         <th>Trigger</th>
+                        <th>Type</th>
+                        <th>Schedule</th>
                         <th>State</th>
                     </tr>
                 </thead>
@@ -85,6 +87,8 @@
                     {
                         string triggerGroup = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
                         string triggerName = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
+                        string triggerType = DisplayValueHelper.GetString(trigger, "TriggerType");
+                        string triggerSchedule = DisplayValueHelper.GetString(trigger, "ScheduleSummary");
                         string triggerState = GetTriggerState(triggerGroup, triggerName);
                         <tr>
                             <td>
@@ -92,6 +96,8 @@
                                     <KeyBadge GroupName="@triggerGroup" ItemName="@triggerName" />
                                 </a>
                             </td>
+                            <td>@(triggerType is { Length: > 0 } ? triggerType : "—")</td>
+                            <td>@(triggerSchedule is { Length: > 0 } ? triggerSchedule : "—")</td>
                             <td><StateIndicator State="@triggerState" /></td>
                         </tr>
                     }
@@ -128,7 +134,7 @@
 
     private bool IsReadOnly => Options.Value.ReadOnly;
 
-    private JobDataMap? JobDataMap => DisplayValueHelper.GetObject(_job, "JobDataMap") as JobDataMap;
+    private JobDataMap? JobDataMap => DisplayValueHelper.GetJobDataMap(_job, "JobDataMap");
 
     protected override async Task OnInitializedAsync()
     {
