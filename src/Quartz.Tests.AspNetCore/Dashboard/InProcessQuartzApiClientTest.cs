@@ -5,6 +5,7 @@ using FluentAssertions;
 
 using Microsoft.Extensions.Options;
 
+using Quartz.Dashboard.Components.Shared;
 using Quartz.Dashboard.Services;
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
@@ -106,6 +107,112 @@ public class InProcessQuartzApiClientTest
             CronCalendar cronCalendar = calendar.Should().BeOfType<CronCalendar>().Subject;
             cronCalendar.CronExpression.CronExpressionString.Should().Be("0 0 3 * * ?");
             cronCalendar.Description.Should().Be("maintenance window");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    [Test]
+    public async Task GetJobExposesJobDataMapThatConvertsBackToJobDataMap()
+    {
+        // regression test for #3130 - JobDetail.razor cast the JsonElement directly to JobDataMap,
+        // which always produced null. DisplayValueHelper.GetJobDataMap now performs the conversion.
+        IScheduler scheduler = await CreateScheduler("GetJobDataMapTest");
+        try
+        {
+            JobKey jobKey = new("job1", "group1");
+            IJobDetail job = JobBuilder.Create<NoOpJob>()
+                .WithIdentity(jobKey)
+                .UsingJobData("Name", "abc")
+                .UsingJobData("Count", 5)
+                .UsingJobData("Enabled", true)
+                .StoreDurably()
+                .Build();
+            await scheduler.AddJob(job, replace: true);
+
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+            JobDetailDto dto = await client.GetJob(scheduler.SchedulerName, jobKey.Group, jobKey.Name);
+
+            dto.JobDataMap.GetProperty("Name").GetString().Should().Be("abc");
+
+            JobDataMap? map = DisplayValueHelper.GetJobDataMap(dto, "JobDataMap");
+            map.Should().NotBeNull();
+            map!["Name"].Should().Be("abc");
+            map["Count"].Should().Be(5);
+            map["Enabled"].Should().Be(true);
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    [Test]
+    public async Task GetTriggerForSimpleTriggerIncludesTypeScheduleAndJobDataMap()
+    {
+        // regression test for #3130 - simple triggers were serialized via plain reflection, so the
+        // detail page was missing TriggerType / schedule / JobDataMap. GetTrigger now uses the
+        // canonical Quartz converters.
+        IScheduler scheduler = await CreateScheduler("GetSimpleTriggerTest");
+        try
+        {
+            JobKey jobKey = new("job1", "group1");
+            IJobDetail job = JobBuilder.Create<NoOpJob>().WithIdentity(jobKey).StoreDurably().Build();
+            TriggerKey triggerKey = new("trigger1", "group1");
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity(triggerKey)
+                .ForJob(jobKey)
+                .UsingJobData("Color", "red")
+                .WithSimpleSchedule(x => x.WithIntervalInSeconds(30).WithRepeatCount(3))
+                .Build();
+            await scheduler.ScheduleJob(job, trigger);
+
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+            TriggerDetailDto detail = await client.GetTrigger(scheduler.SchedulerName, triggerKey.Group, triggerKey.Name);
+
+            JsonElement value = detail.Value;
+            value.GetProperty("triggerType").GetString().Should().Be("SimpleTrigger");
+            value.GetProperty("jobDataMap").GetProperty("Color").GetString().Should().Be("red");
+            value.TryGetProperty("repeatIntervalTimeSpan", out _).Should().BeTrue();
+
+            DisplayValueHelper.GetJobDataMap(value, "JobDataMap", "jobDataMap")!["Color"].Should().Be("red");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    [Test]
+    public async Task GetJobTriggersPopulatesTypeAndScheduleSummary()
+    {
+        // regression test for #3130 - the associated triggers table now shows each trigger's type
+        // and a schedule summary, so SimpleSchedule triggers are no longer indistinguishable.
+        IScheduler scheduler = await CreateScheduler("GetJobTriggersTest");
+        try
+        {
+            JobKey jobKey = new("job1", "group1");
+            IJobDetail job = JobBuilder.Create<NoOpJob>().WithIdentity(jobKey).StoreDurably().Build();
+            await scheduler.ScheduleJob(
+                job,
+                TriggerBuilder.Create().WithIdentity("simple", "group1").ForJob(jobKey)
+                    .WithSimpleSchedule(x => x.WithIntervalInSeconds(30).WithRepeatCount(2)).Build());
+            await scheduler.ScheduleJob(
+                TriggerBuilder.Create().WithIdentity("cron", "group1").ForJob(jobKey)
+                    .WithCronSchedule("0 0 1 * * ?").Build());
+
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+            List<TriggerHeaderDto> headers = await client.GetJobTriggers(scheduler.SchedulerName, jobKey.Group, jobKey.Name);
+
+            headers.Should().HaveCount(2);
+            TriggerHeaderDto simple = headers.Single(h => h.Name == "simple");
+            simple.TriggerType.Should().Be("Simple");
+            simple.ScheduleSummary.Should().Contain("Every").And.Contain("time(s)");
+            TriggerHeaderDto cron = headers.Single(h => h.Name == "cron");
+            cron.TriggerType.Should().Be("Cron");
+            cron.ScheduleSummary.Should().Be("0 0 1 * * ?");
         }
         finally
         {

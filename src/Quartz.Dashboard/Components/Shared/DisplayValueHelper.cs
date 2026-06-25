@@ -21,10 +21,15 @@ using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
 
+using Quartz;
+
 namespace Quartz.Dashboard.Components.Shared;
 
 internal static class DisplayValueHelper
 {
+    private static readonly JsonSerializerOptions JobDataMapOptions =
+        new JsonSerializerOptions(JsonSerializerDefaults.Web).AddQuartzConverters(newtonsoftCompatibilityMode: false);
+
     public static object? GetObject(object? source, params string[] paths)
     {
         if (source is null)
@@ -38,6 +43,22 @@ internal static class DisplayValueHelper
             {
                 return value;
             }
+        }
+
+        return null;
+    }
+
+    public static JobDataMap? GetJobDataMap(object? source, params string[] paths)
+    {
+        object? value = GetObject(source, paths);
+        if (value is JobDataMap dataMap)
+        {
+            return dataMap;
+        }
+
+        if (value is JsonElement { ValueKind: JsonValueKind.Object } element)
+        {
+            return element.Deserialize<JobDataMap>(JobDataMapOptions);
         }
 
         return null;
