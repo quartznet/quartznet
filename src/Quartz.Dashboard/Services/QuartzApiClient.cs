@@ -155,7 +155,11 @@ public sealed class QuartzApiClient : IQuartzApiClient
             string triggerName = GetStringProperty(key, "name");
             string triggerGroup = GetStringProperty(key, "group");
             string? executionGroup = GetNullableStringProperty(trigger, "executionGroup");
-            result.Add(new TriggerHeaderDto(triggerGroup, triggerName, executionGroup));
+            result.Add(new TriggerHeaderDto(triggerGroup, triggerName, executionGroup)
+            {
+                TriggerType = GetNullableStringProperty(trigger, "triggerType"),
+                ScheduleSummary = DescribeSchedule(trigger)
+            });
         }
 
         return result;
@@ -635,6 +639,25 @@ public sealed class QuartzApiClient : IQuartzApiClient
         }
 
         return value.Clone();
+    }
+
+    private static string? DescribeSchedule(JsonElement trigger)
+    {
+        string? cron = GetNullableStringProperty(trigger, "cronExpressionString");
+        if (!string.IsNullOrWhiteSpace(cron))
+        {
+            return cron;
+        }
+
+        string? repeatInterval = GetNullableStringProperty(trigger, "repeatIntervalTimeSpan");
+        if (!string.IsNullOrWhiteSpace(repeatInterval))
+        {
+            string summary = "Every " + repeatInterval;
+            int repeatCount = GetIntProperty(trigger, "repeatCount");
+            return summary + (repeatCount < 0 ? ", repeat forever" : ", " + repeatCount + " time(s)");
+        }
+
+        return null;
     }
 
     public async ValueTask<ExecutionLimitsDto?> GetExecutionLimits(string schedulerName)
