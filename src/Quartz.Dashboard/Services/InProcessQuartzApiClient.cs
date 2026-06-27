@@ -151,7 +151,12 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient, IQuartzApiClien
         foreach (ITrigger trigger in triggers)
         {
             string? execGroup = (trigger as Spi.INextVersionTrigger)?.ExecutionGroup;
-            result.Add(new TriggerHeaderDto(trigger.Key.Group, trigger.Key.Name) { ExecutionGroup = execGroup });
+            result.Add(new TriggerHeaderDto(trigger.Key.Group, trigger.Key.Name)
+            {
+                ExecutionGroup = execGroup,
+                TriggerType = GetTriggerTypeName(trigger),
+                ScheduleSummary = DescribeSchedule(trigger)
+            });
         }
 
         return result;
@@ -272,8 +277,7 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient, IQuartzApiClien
             throw new KeyNotFoundException($"Trigger '{group}.{name}' was not found in scheduler '{schedulerName}'.");
         }
 
-        JsonElement triggerJson = JsonSerializer.SerializeToElement<object>(trigger, serializerOptions);
-        return new TriggerDetailDto(triggerJson);
+        return new TriggerDetailDto(SerializeTrigger(trigger));
     }
 
     public async Task<string> GetTriggerState(string schedulerName, string group, string name)
@@ -409,6 +413,49 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient, IQuartzApiClien
         JsonSerializerOptions options = new(JsonSerializerDefaults.Web);
         options.AddQuartzConverters(newtonsoftCompatibilityMode: false);
         return options;
+    }
+
+    private static JsonElement SerializeTrigger(ITrigger trigger)
+    {
+        try
+        {
+            // Use the canonical Quartz converters (same options used for deserialization) so the JSON
+            // exposes TriggerType, schedule fields, JobDataMap and fire times under the property names
+            // the dashboard UI reads. Plain reflection omits most of these.
+            return JsonSerializer.SerializeToElement<object>(trigger, deserializerOptions);
+        }
+        catch (JsonSerializationException)
+        {
+            // Custom trigger types aren't handled by the converter; fall back to a best-effort
+            // reflection serialization so the detail page still renders.
+            return JsonSerializer.SerializeToElement<object>(trigger, serializerOptions);
+        }
+    }
+
+    private static string GetTriggerTypeName(ITrigger trigger)
+    {
+        return trigger switch
+        {
+            ICronTrigger => "Cron",
+            ISimpleTrigger => "Simple",
+            ICalendarIntervalTrigger => "Calendar interval",
+            IDailyTimeIntervalTrigger => "Daily time interval",
+            _ => trigger.GetType().Name
+        };
+    }
+
+    private static string? DescribeSchedule(ITrigger trigger)
+    {
+        switch (trigger)
+        {
+            case ICronTrigger cron:
+                return cron.CronExpressionString;
+            case ISimpleTrigger simple:
+                string summary = "Every " + simple.RepeatInterval;
+                return summary + (simple.RepeatCount < 0 ? ", repeat forever" : ", " + simple.RepeatCount + " time(s)");
+            default:
+                return null;
+        }
     }
 
     private static JobDataMap DeserializeJobDataMap(JsonElement element)
