@@ -50,30 +50,32 @@ internal static class DashboardLink
     /// </summary>
     internal static string? ToDashboardRelativePath(string uri, string baseUri, QuartzDashboardOptions options)
     {
-        string relative;
-        if (uri.StartsWith(baseUri, StringComparison.OrdinalIgnoreCase))
+        string? relative = ToBaseRelative(uri, baseUri);
+        if (relative is null)
         {
-            relative = NormalizeRelativePath(uri.Substring(baseUri.Length));
-        }
-        else
-        {
-            // Mirror NavigationManager.ToBaseRelativePath's special case: the document URL may equal
-            // the base URI without its trailing slash (e.g. "/my-api/quartz" with base "/my-api/quartz/")
-            int delimiterIndex = uri.IndexOfAny(['?', '#']);
-            string uriWithoutSuffix = delimiterIndex >= 0 ? uri.Substring(0, delimiterIndex) : uri;
-            if (string.Concat(uriWithoutSuffix, "/").Equals(baseUri, StringComparison.OrdinalIgnoreCase))
-            {
-                return string.Empty;
-            }
-
             return null;
         }
 
-        // During static server-side rendering the base URI is the application path base, so the
-        // base-relative path still carries the dashboard path prefix; strip it. This is also the
-        // only shape used in default-path mode. Checked first so a pathological path base ending
-        // in the dashboard path still resolves deterministically.
-        string dashboardRoot = options.TrimmedDashboardPath.TrimStart('/');
+        relative = NormalizeRelativePath(relative);
+
+        // Decide which shape the base URI has before touching the relative path. On the interactive
+        // circuit in custom-path mode the base URI is the rendered dashboard-rooted <base href>, so
+        // the base-relative path is already dashboard-rooted and must not be prefix-stripped — a
+        // dashboard path whose name collides with a page route (e.g. "/jobs") would otherwise be
+        // misresolved. Comparisons use the percent-encoded form because browsers emit encoded URIs.
+        // The leading slash of the dashboard path keeps the EndsWith comparison segment-aligned.
+        string dashboardPath = options.EscapedDashboardPath;
+        if (options.HasCustomDashboardPath
+            && baseUri.TrimEnd('/').EndsWith(dashboardPath, StringComparison.OrdinalIgnoreCase))
+        {
+            return relative;
+        }
+
+        // Otherwise the base URI is the application path base (static server-side rendering; also
+        // the only shape used in default-path mode) and the base-relative path carries the dashboard
+        // path prefix; strip it. A path-base-rooted URI without the prefix (e.g. the application
+        // root itself) is not a dashboard location.
+        string dashboardRoot = dashboardPath.TrimStart('/');
         if (relative.Equals(dashboardRoot, StringComparison.OrdinalIgnoreCase))
         {
             return string.Empty;
@@ -84,13 +86,25 @@ internal static class DashboardLink
             return relative.Substring(dashboardRoot.Length + 1);
         }
 
-        // In custom-path mode the interactive circuit's base URI is the rendered dashboard-rooted
-        // <base href>, so the base-relative path is already dashboard-rooted. The leading slash of
-        // TrimmedDashboardPath keeps the EndsWith comparison segment-aligned.
-        if (options.HasCustomDashboardPath
-            && new Uri(baseUri).AbsolutePath.TrimEnd('/').EndsWith(options.TrimmedDashboardPath, StringComparison.OrdinalIgnoreCase))
+        return null;
+    }
+
+    /// <summary>
+    /// Returns the base-relative part of an absolute URI, or <see langword="null"/> when the URI
+    /// lies outside the base URI space.
+    /// </summary>
+    private static string? ToBaseRelative(string uri, string baseUri)
+    {
+        if (uri.StartsWith(baseUri, StringComparison.OrdinalIgnoreCase))
         {
-            return relative;
+            return uri.Substring(baseUri.Length);
+        }
+
+        // Mirror NavigationManager.ToBaseRelativePath's special case: the document URL may equal
+        // the base URI without its trailing slash (e.g. "/my-api/quartz" with base "/my-api/quartz/")
+        if (string.Concat(StripQueryAndFragment(uri), "/").Equals(baseUri, StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Empty;
         }
 
         return null;
@@ -103,12 +117,12 @@ internal static class DashboardLink
     /// </summary>
     internal static string NormalizeRelativePath(string relativePath)
     {
-        int delimiterIndex = relativePath.IndexOfAny(['?', '#']);
-        if (delimiterIndex >= 0)
-        {
-            relativePath = relativePath.Substring(0, delimiterIndex);
-        }
+        return StripQueryAndFragment(relativePath).Trim('/');
+    }
 
-        return relativePath.Trim('/');
+    private static string StripQueryAndFragment(string uriOrPath)
+    {
+        int delimiterIndex = uriOrPath.IndexOfAny(['?', '#']);
+        return delimiterIndex >= 0 ? uriOrPath.Substring(0, delimiterIndex) : uriOrPath;
     }
 }

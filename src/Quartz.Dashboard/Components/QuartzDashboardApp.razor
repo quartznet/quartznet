@@ -34,8 +34,10 @@
 
             // Custom-path standalone mode: root the document at the dashboard itself so the framework
             // script, stylesheet, _blazor circuit and navigation links all resolve under DashboardPath —
-            // the only prefix a path-forwarding reverse proxy is guaranteed to expose (#3134)
-            return pathBase.TrimEnd('/') + options.TrimmedDashboardPath + "/";
+            // the only prefix a path-forwarding reverse proxy is guaranteed to expose (#3134).
+            // The percent-encoded form keeps the browser's document.baseURI comparable to the
+            // configured path (the path base from Navigation.BaseUri is already encoded).
+            return pathBase.TrimEnd('/') + options.EscapedDashboardPath + "/";
         }
     }
 }

@@ -118,11 +118,11 @@
 
 @code
 {
-    private string _currentUri = string.Empty;
+    private string? _currentRelativePath;
 
     protected override void OnInitialized()
     {
-        _currentUri = NavigationManager.Uri;
+        UpdateCurrentRelativePath(NavigationManager.Uri);
         NavigationManager.LocationChanged += OnLocationChanged;
     }
 
@@ -131,11 +131,16 @@
         return DashboardLink.To(Options.Value, subPath);
     }
 
+    private void UpdateCurrentRelativePath(string uri)
+    {
+        // Resolved once per location change (NavClass runs for every nav link on every render):
+        // ToDashboardRelativePath handles both the prerender and the interactive base URI shapes
+        _currentRelativePath = DashboardLink.ToDashboardRelativePath(uri, NavigationManager.BaseUri, Options.Value);
+    }
+
     private string NavClass(string route)
     {
-        // Compare dashboard-root-relative paths so highlighting works in every render context:
-        // ToDashboardRelativePath resolves both the prerender and the interactive base URI shapes
-        string? relativePath = DashboardLink.ToDashboardRelativePath(_currentUri, NavigationManager.BaseUri, Options.Value);
+        string? relativePath = _currentRelativePath;
         if (relativePath is null)
         {
             return string.Empty;
@@ -155,7 +160,7 @@
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
-        _currentUri = e.Location;
+        UpdateCurrentRelativePath(e.Location);
         InvokeAsync(StateHasChanged);
     }
 

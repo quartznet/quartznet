@@ -66,4 +66,11 @@ public class QuartzDashboardOptions
     /// </summary>
     internal bool HasCustomDashboardPath =>
         !string.Equals(TrimmedDashboardPath, DefaultDashboardPath, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// <see cref="TrimmedDashboardPath"/> in its percent-encoded form, as browsers emit it in
+    /// request URIs and the &lt;base href&gt;. Server-side route patterns keep the raw form
+    /// (route matching compares decoded values); client-side URI comparisons need this one.
+    /// </summary>
+    internal string EscapedDashboardPath => new Uri("http://localhost" + TrimmedDashboardPath).AbsolutePath;
 }

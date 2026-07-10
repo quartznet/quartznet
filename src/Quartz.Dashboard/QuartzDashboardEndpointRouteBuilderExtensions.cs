@@ -30,6 +30,7 @@ using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Options;
+using Microsoft.Net.Http.Headers;
 
 using Quartz.Dashboard.Components;
 using Quartz.Dashboard.Hubs;
@@ -168,18 +169,19 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
 
         // Serve dashboard static web assets via endpoint routing as a fallback
         // for hosts that don't configure UseStaticFiles() (e.g., API-only projects)
-        RouteHandlerBuilder staticAssets = MapDashboardStaticAssets(builder, pathPrefix: string.Empty);
+        List<IEndpointConventionBuilder> assetEndpoints =
+        [
+            MapDashboardStaticAssets(builder, pathPrefix: string.Empty)
+        ];
 
-        RouteHandlerBuilder? prefixedStaticAssets = null;
-        IEndpointConventionBuilder? frameworkScript = null;
         if (hasCustomPath)
         {
             // With a custom path the shell renders a dashboard-rooted <base href>, so the browser
             // requests the static assets and the Blazor framework script under the dashboard path.
             // Mirror them there so a reverse proxy that forwards only the dashboard prefix can reach
             // them (#3134); the root asset endpoint stays for backwards compatibility.
-            prefixedStaticAssets = MapDashboardStaticAssets(builder, pathPrefix: dashboardPath);
-            frameworkScript = MapDashboardFrameworkScript(builder, dashboardPath);
+            assetEndpoints.Add(MapDashboardStaticAssets(builder, pathPrefix: dashboardPath));
+            assetEndpoints.Add(MapDashboardFrameworkScript(builder, dashboardPath));
         }
 
         if (!string.IsNullOrWhiteSpace(options.AuthorizationPolicy))
@@ -187,12 +189,13 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
             string policyName = options.AuthorizationPolicy;
             hub.RequireAuthorization(policyName);
 
-            // Gate static assets with the same policy as the rest of the dashboard so the endpoint
-            // carries explicit authorization metadata and keeps working in applications that use a
+            // Gate static assets with the same policy as the rest of the dashboard so the endpoints
+            // carry explicit authorization metadata and keep working in applications that use a
             // fail-closed FallbackPolicy (#3097).
-            staticAssets.RequireAuthorization(policyName);
-            prefixedStaticAssets?.RequireAuthorization(policyName);
-            frameworkScript?.RequireAuthorization(policyName);
+            foreach (IEndpointConventionBuilder assetEndpoint in assetEndpoints)
+            {
+                assetEndpoint.RequireAuthorization(policyName);
+            }
 
             if (dashboardOwnsComponents)
             {
@@ -222,9 +225,10 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
             // Without a dashboard policy the dashboard adds no authorization of its own. The static
             // asset endpoints opt out of authorization so applications enforcing a fail-closed
             // FallbackPolicy can still load dashboard CSS/JS; the files are public package content (#3097).
-            staticAssets.AllowAnonymous();
-            prefixedStaticAssets?.AllowAnonymous();
-            frameworkScript?.AllowAnonymous();
+            foreach (IEndpointConventionBuilder assetEndpoint in assetEndpoints)
+            {
+                assetEndpoint.AllowAnonymous();
+            }
 
             if (dashboardOwnsComponents)
             {
@@ -331,13 +335,22 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
 
     private static async Task WriteFileAsync(HttpContext context, IFileInfo fileInfo, string contentType)
     {
+        // Stable validator so browsers can revalidate with If-None-Match and get a 304
+        // instead of re-downloading the body on every full page load
+        var etag = new EntityTagHeaderValue($"\"{fileInfo.Length:x}-{fileInfo.LastModified.UtcTicks:x}\"");
+        context.Response.Headers.ETag = etag.ToString();
+
+        foreach (EntityTagHeaderValue requestTag in context.Request.GetTypedHeaders().IfNoneMatch)
+        {
+            if (requestTag.Compare(etag, useStrongComparison: false))
+            {
+                context.Response.StatusCode = StatusCodes.Status304NotModified;
+                return;
+            }
+        }
+
         context.Response.ContentType = contentType;
         context.Response.ContentLength = fileInfo.Length;
-
-        Stream stream = fileInfo.CreateReadStream();
-        await using (stream.ConfigureAwait(false))
-        {
-            await stream.CopyToAsync(context.Response.Body, context.RequestAborted).ConfigureAwait(false);
-        }
+        await context.Response.SendFileAsync(fileInfo, context.RequestAborted).ConfigureAwait(false);
     }
 }
