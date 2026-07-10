@@ -65,6 +65,9 @@ public class DashboardRouteTableTest
     [TestCase("https://host/other", "https://host/", null)]
     [TestCase("https://host/quartzx", "https://host/", null)]
     [TestCase("https://elsewhere/quartz", "https://host/", null)]
+    // the application root itself (with or without the trailing slash) is not a dashboard location
+    [TestCase("https://host", "https://host/", null)]
+    [TestCase("https://host/app", "https://host/app/", null)]
     // default path with UsePathBase("/quartz"): the dashboard lives at /quartz/quartz, a bare
     // /quartz/jobs is a host application URL and must not resolve as a dashboard location
     [TestCase("https://host/quartz/quartz/jobs", "https://host/quartz/", "jobs")]
@@ -72,6 +75,29 @@ public class DashboardRouteTableTest
     public void ToDashboardRelativePathShouldResolveDefaultPathUris(string uri, string baseUri, string? expected)
     {
         DashboardLink.ToDashboardRelativePath(uri, baseUri, DefaultOptions).Should().Be(expected);
+    }
+
+    // a custom DashboardPath whose name collides with a dashboard page route must not be
+    // prefix-stripped on the interactive circuit, where the base URI is already dashboard-rooted
+    [TestCase("https://host/jobs/jobs", "https://host/jobs/", "jobs")]
+    [TestCase("https://host/jobs/jobs/DEFAULT/x", "https://host/jobs/", "jobs/DEFAULT/x")]
+    [TestCase("https://host/jobs", "https://host/jobs/", "")]
+    [TestCase("https://host/jobs/jobs", "https://host/", "jobs")]
+    [TestCase("https://host/jobs", "https://host/", "")]
+    public void ToDashboardRelativePathShouldResolveRouteNameCollidingCustomPath(string uri, string baseUri, string? expected)
+    {
+        var options = new QuartzDashboardOptions { DashboardPath = "/jobs" };
+        DashboardLink.ToDashboardRelativePath(uri, baseUri, options).Should().Be(expected);
+    }
+
+    // browsers emit percent-encoded URIs; the configured path must be compared in encoded form
+    [TestCase("https://host/my%20path/jobs", "https://host/", "jobs")]
+    [TestCase("https://host/my%20path/jobs", "https://host/my%20path/", "jobs")]
+    [TestCase("https://host/my%20path", "https://host/my%20path/", "")]
+    public void ToDashboardRelativePathShouldCompareEncodedForms(string uri, string baseUri, string? expected)
+    {
+        var options = new QuartzDashboardOptions { DashboardPath = "/my path" };
+        DashboardLink.ToDashboardRelativePath(uri, baseUri, options).Should().Be(expected);
     }
 
     // custom path, static SSR shape: the base URI is the application root (or path base); the
@@ -143,5 +169,14 @@ public class DashboardRouteTableTest
     public void HasCustomDashboardPathShouldCompareAgainstDefault(string configured, bool expected)
     {
         new QuartzDashboardOptions { DashboardPath = configured }.HasCustomDashboardPath.Should().Be(expected);
+    }
+
+    [TestCase("/quartz", "/quartz")]
+    [TestCase("/my-api/quartz", "/my-api/quartz")]
+    [TestCase("/my path", "/my%20path")]
+    [TestCase("/työt", "/ty%C3%B6t")]
+    public void EscapedDashboardPathShouldPercentEncode(string configured, string expected)
+    {
+        new QuartzDashboardOptions { DashboardPath = configured }.EscapedDashboardPath.Should().Be(expected);
     }
 }
