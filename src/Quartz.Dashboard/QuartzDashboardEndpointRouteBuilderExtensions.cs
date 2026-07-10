@@ -28,6 +28,7 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Routing.Patterns;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Options;
 
 using Quartz.Dashboard.Components;
@@ -104,7 +105,7 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
         QuartzDashboardOptions options = builder.ServiceProvider.GetRequiredService<IOptions<QuartzDashboardOptions>>().Value;
         string dashboardPath = options.TrimmedDashboardPath;
 
-        bool hasCustomPath = !string.Equals(dashboardPath, QuartzDashboardOptions.DefaultDashboardPath, StringComparison.OrdinalIgnoreCase);
+        bool hasCustomPath = options.HasCustomDashboardPath;
         if (hasCustomPath && !dashboardOwnsComponents)
         {
             throw new InvalidOperationException(
@@ -120,14 +121,37 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
             // Interactive navigation is handled by the dashboard's own route matching in Routes.razor.
             components.Add(endpointBuilder =>
             {
-                if (endpointBuilder is not RouteEndpointBuilder routeEndpointBuilder
-                    || GetComponentType(endpointBuilder)?.Assembly != typeof(QuartzDashboardApp).Assembly)
+                if (endpointBuilder is not RouteEndpointBuilder routeEndpointBuilder)
                 {
                     return;
                 }
 
                 string? rawText = routeEndpointBuilder.RoutePattern.RawText;
-                if (rawText is null
+                if (string.IsNullOrEmpty(rawText) || rawText[0] != '/')
+                {
+                    return;
+                }
+
+                Type? componentType = GetComponentType(endpointBuilder);
+                if (componentType is null)
+                {
+                    // The /_blazor circuit endpoints move under the dashboard path so a reverse proxy
+                    // that forwards only the dashboard prefix can reach them (#3134); SignalR dispatch
+                    // does not depend on the route pattern. Other framework-owned endpoints stay put:
+                    // newer runtimes register the blazor.web.js script endpoint through this data
+                    // source and it serves content keyed by its original path, so re-rooting it breaks
+                    // it — the dashboard maps its own copy under the dashboard path instead.
+                    // Standalone mode only: a custom path is rejected in integrated mode, so the
+                    // builder never contains host application endpoints here.
+                    if (rawText == "/_blazor" || rawText.StartsWith("/_blazor/", StringComparison.Ordinal))
+                    {
+                        routeEndpointBuilder.RoutePattern = RoutePatternFactory.Parse(dashboardPath + rawText);
+                    }
+
+                    return;
+                }
+
+                if (componentType.Assembly != typeof(QuartzDashboardApp).Assembly
                     || !rawText.StartsWith(QuartzDashboardOptions.DefaultDashboardPath, StringComparison.OrdinalIgnoreCase)
                     || (rawText.Length > QuartzDashboardOptions.DefaultDashboardPath.Length && rawText[QuartzDashboardOptions.DefaultDashboardPath.Length] != '/'))
                 {
@@ -144,7 +168,19 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
 
         // Serve dashboard static web assets via endpoint routing as a fallback
         // for hosts that don't configure UseStaticFiles() (e.g., API-only projects)
-        RouteHandlerBuilder staticAssets = MapDashboardStaticAssets(builder);
+        RouteHandlerBuilder staticAssets = MapDashboardStaticAssets(builder, pathPrefix: string.Empty);
+
+        RouteHandlerBuilder? prefixedStaticAssets = null;
+        IEndpointConventionBuilder? frameworkScript = null;
+        if (hasCustomPath)
+        {
+            // With a custom path the shell renders a dashboard-rooted <base href>, so the browser
+            // requests the static assets and the Blazor framework script under the dashboard path.
+            // Mirror them there so a reverse proxy that forwards only the dashboard prefix can reach
+            // them (#3134); the root asset endpoint stays for backwards compatibility.
+            prefixedStaticAssets = MapDashboardStaticAssets(builder, pathPrefix: dashboardPath);
+            frameworkScript = MapDashboardFrameworkScript(builder, dashboardPath);
+        }
 
         if (!string.IsNullOrWhiteSpace(options.AuthorizationPolicy))
         {
@@ -155,6 +191,8 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
             // carries explicit authorization metadata and keeps working in applications that use a
             // fail-closed FallbackPolicy (#3097).
             staticAssets.RequireAuthorization(policyName);
+            prefixedStaticAssets?.RequireAuthorization(policyName);
+            frameworkScript?.RequireAuthorization(policyName);
 
             if (dashboardOwnsComponents)
             {
@@ -182,9 +220,11 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
         else
         {
             // Without a dashboard policy the dashboard adds no authorization of its own. The static
-            // asset endpoint opts out of authorization so applications enforcing a fail-closed
+            // asset endpoints opt out of authorization so applications enforcing a fail-closed
             // FallbackPolicy can still load dashboard CSS/JS; the files are public package content (#3097).
             staticAssets.AllowAnonymous();
+            prefixedStaticAssets?.AllowAnonymous();
+            frameworkScript?.AllowAnonymous();
 
             if (dashboardOwnsComponents)
             {
@@ -225,9 +265,13 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
 
     private static readonly FileExtensionContentTypeProvider ContentTypeProvider = new();
 
-    private static RouteHandlerBuilder MapDashboardStaticAssets(IEndpointRouteBuilder builder)
+    private static RouteHandlerBuilder MapDashboardStaticAssets(IEndpointRouteBuilder builder, string pathPrefix)
     {
-        return builder.MapGet("_content/Quartz.Dashboard/{**path}", async (HttpContext context, string path) =>
+        string pattern = pathPrefix.Length == 0
+            ? "_content/Quartz.Dashboard/{**path}"
+            : pathPrefix + "/_content/Quartz.Dashboard/{**path}";
+
+        return builder.MapGet(pattern, async (HttpContext context, string path) =>
         {
             var env = context.RequestServices.GetRequiredService<IWebHostEnvironment>();
             var fileInfo = env.WebRootFileProvider.GetFileInfo($"_content/Quartz.Dashboard/{path}");
@@ -242,14 +286,58 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
                 contentType = "application/octet-stream";
             }
 
-            context.Response.ContentType = contentType;
-            context.Response.ContentLength = fileInfo.Length;
-
-            var stream = fileInfo.CreateReadStream();
-            await using (stream.ConfigureAwait(false))
-            {
-                await stream.CopyToAsync(context.Response.Body, context.RequestAborted).ConfigureAwait(false);
-            }
+            await WriteFileAsync(context, fileInfo, contentType).ConfigureAwait(false);
         }).ExcludeFromDescription();
+    }
+
+    private static readonly Lazy<IFileProvider?> FrameworkScriptFallbackProvider = new(static () =>
+    {
+        try
+        {
+            // .NET 8 and 9 embed blazor.web.js into Microsoft.AspNetCore.Components.Endpoints; this is
+            // the same source the framework-owned /_framework/blazor.web.js endpoint serves it from
+            return new ManifestEmbeddedFileProvider(typeof(RazorComponentsEndpointRouteBuilderExtensions).Assembly);
+        }
+        catch (InvalidOperationException)
+        {
+            // .NET 10+ ships the script as a static web asset instead of an embedded manifest;
+            // the WebRootFileProvider lookup covers those hosts
+            return null;
+        }
+    });
+
+    private static IEndpointConventionBuilder MapDashboardFrameworkScript(IEndpointRouteBuilder builder, string dashboardPath)
+    {
+        return builder.MapGet(dashboardPath + "/_framework/blazor.web.js", async (HttpContext context) =>
+        {
+            var env = context.RequestServices.GetRequiredService<IWebHostEnvironment>();
+            IFileInfo fileInfo = env.WebRootFileProvider.GetFileInfo("_framework/blazor.web.js");
+            if (!fileInfo.Exists && FrameworkScriptFallbackProvider.Value is { } fallbackProvider)
+            {
+                fileInfo = fallbackProvider.GetFileInfo("_framework/blazor.web.js");
+            }
+
+            if (!fileInfo.Exists)
+            {
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
+                return;
+            }
+
+            // parity with the framework-owned script endpoint
+            context.Response.Headers.CacheControl = "no-cache";
+            await WriteFileAsync(context, fileInfo, "text/javascript").ConfigureAwait(false);
+        }).ExcludeFromDescription();
+    }
+
+    private static async Task WriteFileAsync(HttpContext context, IFileInfo fileInfo, string contentType)
+    {
+        context.Response.ContentType = contentType;
+        context.Response.ContentLength = fileInfo.Length;
+
+        Stream stream = fileInfo.CreateReadStream();
+        await using (stream.ConfigureAwait(false))
+        {
+            await stream.CopyToAsync(context.Response.Body, context.RequestAborted).ConfigureAwait(false);
+        }
     }
 }

@@ -39,11 +39,8 @@ else
 
     private void UpdateRouteData(string uri)
     {
-        // ToBaseRelativePath throws for URIs outside the base URI space; treat those as not found
-        string baseUri = Navigation.BaseUri;
-        _routeData = uri.StartsWith(baseUri, StringComparison.OrdinalIgnoreCase)
-            ? DashboardRouteTable.Match(uri.Substring(baseUri.Length), Options.Value)
-            : null;
+        string? relative = DashboardLink.ToDashboardRelativePath(uri, Navigation.BaseUri, Options.Value);
+        _routeData = relative is null ? null : DashboardRouteTable.Match(relative);
     }
 
     public void Dispose()

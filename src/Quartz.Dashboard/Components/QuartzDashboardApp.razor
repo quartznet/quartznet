@@ -1,11 +1,12 @@
 @inject Microsoft.AspNetCore.Components.NavigationManager Navigation
+@inject Microsoft.Extensions.Options.IOptions<QuartzDashboardOptions> Options
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Quartz.NET Dashboard</title>
-    <base href="@(new Uri(Navigation.BaseUri).AbsolutePath)" />
+    <base href="@BaseHref" />
     <HeadOutlet @rendermode="RenderMode.InteractiveServer" />
 </head>
 <body>
@@ -14,3 +15,27 @@
     <script src="_framework/blazor.web.js"></script>
 </body>
 </html>
+
+@code
+{
+    private string BaseHref
+    {
+        get
+        {
+            // Path base of the host application ("/" when none); this shell only renders during
+            // static server-side rendering, where Navigation.BaseUri reflects HttpRequest.PathBase
+            string pathBase = new Uri(Navigation.BaseUri).AbsolutePath;
+
+            QuartzDashboardOptions options = Options.Value;
+            if (!options.HasCustomDashboardPath)
+            {
+                return pathBase;
+            }
+
+            // Custom-path standalone mode: root the document at the dashboard itself so the framework
+            // script, stylesheet, _blazor circuit and navigation links all resolve under DashboardPath —
+            // the only prefix a path-forwarding reverse proxy is guaranteed to expose (#3134)
+            return pathBase.TrimEnd('/') + options.TrimmedDashboardPath + "/";
+        }
+    }
+}
