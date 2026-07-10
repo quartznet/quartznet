@@ -34,27 +34,15 @@ internal static class DashboardRouteTable
     private static readonly Lazy<List<RouteEntry>> Routes = new(BuildRouteTable);
 
     /// <summary>
-    /// Matches a base-relative path (no leading slash, as produced by
-    /// <c>NavigationManager.ToBaseRelativePath</c>) against the dashboard route table.
-    /// Returns <see langword="null"/> when the path does not map to a dashboard page.
+    /// Matches a dashboard-root-relative path ("" for the dashboard root, no leading slash, as
+    /// produced by <see cref="DashboardLink.ToDashboardRelativePath"/>) against the dashboard
+    /// route table. Returns <see langword="null"/> when the path does not map to a dashboard page.
     /// </summary>
-    internal static RouteData? Match(string relativePath, QuartzDashboardOptions options)
+    internal static RouteData? Match(string dashboardRelativePath)
     {
-        relativePath = DashboardLink.NormalizeRelativePath(relativePath);
+        dashboardRelativePath = DashboardLink.NormalizeRelativePath(dashboardRelativePath);
 
-        string dashboardRoot = options.TrimmedDashboardPath.TrimStart('/');
-        if (!relativePath.StartsWith(dashboardRoot, StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        string remainder = relativePath.Substring(dashboardRoot.Length);
-        if (remainder.Length > 0 && remainder[0] != '/')
-        {
-            return null;
-        }
-
-        string[] segments = remainder.Length == 0 ? [] : remainder.TrimStart('/').Split('/');
+        string[] segments = dashboardRelativePath.Length == 0 ? [] : dashboardRelativePath.Split('/');
 
         foreach (RouteEntry route in Routes.Value)
         {

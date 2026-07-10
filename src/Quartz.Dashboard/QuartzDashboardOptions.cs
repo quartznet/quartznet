@@ -58,4 +58,12 @@ public class QuartzDashboardOptions
     }
 
     internal string TrimmedApiPath => ApiPath.TrimEnd('/');
+
+    /// <summary>
+    /// Whether <see cref="DashboardPath"/> differs from the compile-time default "/quartz".
+    /// A custom path implies the standalone hosting mode because it is rejected when
+    /// integrating with an existing Blazor application.
+    /// </summary>
+    internal bool HasCustomDashboardPath =>
+        !string.Equals(TrimmedDashboardPath, DefaultDashboardPath, StringComparison.OrdinalIgnoreCase);
 }

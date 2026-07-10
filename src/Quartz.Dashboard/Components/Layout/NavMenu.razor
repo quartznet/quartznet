@@ -133,17 +133,22 @@
 
     private string NavClass(string route)
     {
-        string relativePath = DashboardLink.NormalizeRelativePath(NavigationManager.ToBaseRelativePath(_currentUri));
-        string target = Link(route);
+        // Compare dashboard-root-relative paths so highlighting works in every render context:
+        // ToDashboardRelativePath resolves both the prerender and the interactive base URI shapes
+        string? relativePath = DashboardLink.ToDashboardRelativePath(_currentUri, NavigationManager.BaseUri, Options.Value);
+        if (relativePath is null)
+        {
+            return string.Empty;
+        }
 
         // Exact match for dashboard root, prefix match for sub-pages
         if (route.Length == 0)
         {
-            return relativePath.Equals(target, StringComparison.OrdinalIgnoreCase) ? "qz-nav-active" : string.Empty;
+            return relativePath.Length == 0 ? "qz-nav-active" : string.Empty;
         }
 
-        bool isActive = relativePath.Equals(target, StringComparison.OrdinalIgnoreCase)
-            || relativePath.StartsWith(target + "/", StringComparison.OrdinalIgnoreCase);
+        bool isActive = relativePath.Equals(route, StringComparison.OrdinalIgnoreCase)
+            || relativePath.StartsWith(route + "/", StringComparison.OrdinalIgnoreCase);
 
         return isActive ? "qz-nav-active" : string.Empty;
     }
