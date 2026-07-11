@@ -37,7 +37,20 @@
             // the only prefix a path-forwarding reverse proxy is guaranteed to expose (#3134).
             // The percent-encoded form keeps the browser's document.baseURI comparable to the
             // configured path (the path base from Navigation.BaseUri is already encoded).
-            return pathBase.TrimEnd('/') + options.EscapedDashboardPath + "/";
+            string baseHrefPath = pathBase.TrimEnd('/') + options.EscapedDashboardPath;
+
+            // Server-side route matching is case-insensitive, so the request URL may carry different
+            // casing than the configured path; keep the request's casing in the <base href> so the
+            // document base URI stays an ordinal prefix of the browser URL (relative navigations and
+            // NavigationManager.ToBaseRelativePath depend on that)
+            string requestPath = new Uri(Navigation.Uri).AbsolutePath;
+            if (requestPath.StartsWith(baseHrefPath, StringComparison.OrdinalIgnoreCase)
+                && (requestPath.Length == baseHrefPath.Length || requestPath[baseHrefPath.Length] == '/'))
+            {
+                return requestPath.Substring(0, baseHrefPath.Length) + "/";
+            }
+
+            return baseHrefPath + "/";
         }
     }
 }

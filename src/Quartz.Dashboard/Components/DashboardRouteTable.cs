@@ -34,6 +34,37 @@ internal static class DashboardRouteTable
     private static readonly Lazy<List<RouteEntry>> Routes = new(BuildRouteTable);
 
     /// <summary>
+    /// Matches like <see cref="Match(string)"/> but retries with the dashboard path prefix
+    /// stripped when the direct match fails. The relative path form is ambiguous when the
+    /// application path base happens to end with the custom dashboard path: static server-side
+    /// rendering then produces a dashboard-prefixed relative path that the base URI shape check
+    /// in <see cref="DashboardLink.ToDashboardRelativePath"/> cannot distinguish from an
+    /// interactive leaf, so a failed match gets a second chance without the prefix.
+    /// </summary>
+    internal static RouteData? Match(string dashboardRelativePath, QuartzDashboardOptions options)
+    {
+        RouteData? match = Match(dashboardRelativePath);
+        if (match is not null || !options.HasCustomDashboardPath)
+        {
+            return match;
+        }
+
+        string normalized = DashboardLink.NormalizeRelativePath(dashboardRelativePath);
+        string dashboardRoot = options.EscapedDashboardPath.TrimStart('/');
+        if (normalized.Equals(dashboardRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            return Match(string.Empty);
+        }
+
+        if (normalized.StartsWith(dashboardRoot + "/", StringComparison.OrdinalIgnoreCase))
+        {
+            return Match(normalized.Substring(dashboardRoot.Length + 1));
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Matches a dashboard-root-relative path ("" for the dashboard root, no leading slash, as
     /// produced by <see cref="DashboardLink.ToDashboardRelativePath"/>) against the dashboard
     /// route table. Returns <see langword="null"/> when the path does not map to a dashboard page.
