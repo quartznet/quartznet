@@ -43,19 +43,7 @@ public class QuartzDashboardOptions
     /// <see cref="DashboardPath"/> normalized to a rooted path without a trailing slash,
     /// falling back to <see cref="DefaultDashboardPath"/> when unset or empty.
     /// </summary>
-    internal string TrimmedDashboardPath
-    {
-        get
-        {
-            if (string.IsNullOrWhiteSpace(DashboardPath))
-            {
-                return DefaultDashboardPath;
-            }
-
-            string trimmed = DashboardPath.Trim().Trim('/');
-            return trimmed.Length == 0 ? DefaultDashboardPath : "/" + trimmed;
-        }
-    }
+    internal string TrimmedDashboardPath => DashboardPathCache.Trimmed;
 
     internal string TrimmedApiPath => ApiPath.TrimEnd('/');
 
@@ -64,13 +52,47 @@ public class QuartzDashboardOptions
     /// A custom path implies the standalone hosting mode because it is rejected when
     /// integrating with an existing Blazor application.
     /// </summary>
-    internal bool HasCustomDashboardPath =>
-        !string.Equals(TrimmedDashboardPath, DefaultDashboardPath, StringComparison.OrdinalIgnoreCase);
+    internal bool HasCustomDashboardPath => DashboardPathCache.HasCustom;
 
     /// <summary>
     /// <see cref="TrimmedDashboardPath"/> in its percent-encoded form, as browsers emit it in
     /// request URIs and the &lt;base href&gt;. Server-side route patterns keep the raw form
     /// (route matching compares decoded values); client-side URI comparisons need this one.
     /// </summary>
-    internal string EscapedDashboardPath => new Uri("http://localhost" + TrimmedDashboardPath).AbsolutePath;
+    internal string EscapedDashboardPath => DashboardPathCache.Escaped;
+
+    private (string Source, string Trimmed, string Escaped, bool HasCustom)? dashboardPathCache;
+
+    /// <summary>
+    /// Values derived from <see cref="DashboardPath"/>, computed once and reused — they are read
+    /// on Blazor render hot paths (links, route matching) while the option itself only changes
+    /// during startup configuration.
+    /// </summary>
+    private (string Source, string Trimmed, string Escaped, bool HasCustom) DashboardPathCache
+    {
+        get
+        {
+            string source = DashboardPath;
+            var cache = dashboardPathCache;
+            if (cache is null || !string.Equals(cache.Value.Source, source, StringComparison.Ordinal))
+            {
+                string trimmed = DefaultDashboardPath;
+                if (!string.IsNullOrWhiteSpace(source))
+                {
+                    string candidate = source.Trim().Trim('/');
+                    if (candidate.Length > 0)
+                    {
+                        trimmed = "/" + candidate;
+                    }
+                }
+
+                string escaped = new Uri("http://localhost" + trimmed).AbsolutePath;
+                bool hasCustom = !string.Equals(trimmed, DefaultDashboardPath, StringComparison.OrdinalIgnoreCase);
+                cache = (source, trimmed, escaped, hasCustom);
+                dashboardPathCache = cache;
+            }
+
+            return cache.Value;
+        }
+    }
 }

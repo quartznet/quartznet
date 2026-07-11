@@ -40,7 +40,7 @@ else
     private void UpdateRouteData(string uri)
     {
         string? relative = DashboardLink.ToDashboardRelativePath(uri, Navigation.BaseUri, Options.Value);
-        _routeData = relative is null ? null : DashboardRouteTable.Match(relative);
+        _routeData = relative is null ? null : DashboardRouteTable.Match(relative, Options.Value);
     }
 
     public void Dispose()

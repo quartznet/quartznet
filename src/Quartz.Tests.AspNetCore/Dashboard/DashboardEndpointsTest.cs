@@ -154,9 +154,10 @@ public class DashboardEndpointsTest
         patterns.Should().Contain(p => p != null && p.StartsWith("/ops/scheduler/_blazor", StringComparison.Ordinal));
         patterns.Should().Contain(p => p != null && p.StartsWith("/ops/scheduler/_blazor", StringComparison.Ordinal) && p.EndsWith("negotiate", StringComparison.Ordinal));
 
-        // dashboard-owned framework script and static asset endpoints exist under the dashboard
-        // path; the root-level asset endpoint stays for backwards compatibility
+        // dashboard-owned framework script, opaque-redirect and static asset endpoints exist under
+        // the dashboard path; the root-level asset endpoint stays for backwards compatibility
         patterns.Should().Contain("/ops/scheduler/_framework/blazor.web.js");
+        patterns.Should().Contain("/ops/scheduler/_framework/opaque-redirect");
         patterns.Should().Contain("/ops/scheduler/_content/Quartz.Dashboard/{**path}");
         patterns.Should().Contain("_content/Quartz.Dashboard/{**path}");
     }
@@ -186,6 +187,8 @@ public class DashboardEndpointsTest
 
         endpoints.First(e => e.RoutePattern.RawText == "/ops/scheduler/_framework/blazor.web.js")
             .Metadata.GetMetadata<IAuthorizeData>()!.Policy.Should().Be("dashboard-policy");
+        endpoints.First(e => e.RoutePattern.RawText == "/ops/scheduler/_framework/opaque-redirect")
+            .Metadata.GetMetadata<IAuthorizeData>()!.Policy.Should().Be("dashboard-policy");
         endpoints.First(e => e.RoutePattern.RawText == "/ops/scheduler/_content/Quartz.Dashboard/{**path}")
             .Metadata.GetMetadata<IAuthorizeData>()!.Policy.Should().Be("dashboard-policy");
     }
@@ -208,6 +211,8 @@ public class DashboardEndpointsTest
         circuitEndpoints.Should().OnlyContain(e => e.Metadata.GetMetadata<IAllowAnonymous>() != null);
 
         endpoints.First(e => e.RoutePattern.RawText == "/ops/scheduler/_framework/blazor.web.js")
+            .Metadata.GetMetadata<IAllowAnonymous>().Should().NotBeNull();
+        endpoints.First(e => e.RoutePattern.RawText == "/ops/scheduler/_framework/opaque-redirect")
             .Metadata.GetMetadata<IAllowAnonymous>().Should().NotBeNull();
         endpoints.First(e => e.RoutePattern.RawText == "/ops/scheduler/_content/Quartz.Dashboard/{**path}")
             .Metadata.GetMetadata<IAllowAnonymous>().Should().NotBeNull();
@@ -389,6 +394,83 @@ public class DashboardEndpointsTest
             // root-level endpoints stay reachable for backwards compatibility
             using HttpResponseMessage rootCssResponse = await client.GetAsync("/_content/Quartz.Dashboard/css/quartz-dashboard.css");
             rootCssResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        }
+        finally
+        {
+            await app.StopAsync();
+        }
+    }
+
+    [Test]
+    public async Task CustomDashboardPathScriptShouldSupportHeadAndConditionalRequests()
+    {
+        await using WebApplication app = CreateApp(options => options.DashboardPath = "/my-api/quartz");
+        app.MapQuartzDashboard();
+        await app.StartAsync();
+        try
+        {
+            using System.Net.Http.HttpClient client = app.GetTestClient();
+            const string scriptUrl = "/my-api/quartz/_framework/blazor.web.js";
+
+            // HEAD returns the headers without a body (probes, link checkers)
+            using var headRequest = new HttpRequestMessage(HttpMethod.Head, scriptUrl);
+            using HttpResponseMessage headResponse = await client.SendAsync(headRequest);
+            headResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+            (await headResponse.Content.ReadAsByteArrayAsync()).Should().BeEmpty();
+
+            using HttpResponseMessage getResponse = await client.GetAsync(scriptUrl);
+            getResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+            string etag = getResponse.Headers.ETag!.ToString();
+
+            // revalidation with the served validator returns 304 without a body
+            using var conditionalRequest = new HttpRequestMessage(HttpMethod.Get, scriptUrl);
+            conditionalRequest.Headers.TryAddWithoutValidation("If-None-Match", etag);
+            using HttpResponseMessage notModified = await client.SendAsync(conditionalRequest);
+            notModified.StatusCode.Should().Be(HttpStatusCode.NotModified);
+
+            // RFC 9110: "*" matches any current representation
+            using var anyRequest = new HttpRequestMessage(HttpMethod.Get, scriptUrl);
+            anyRequest.Headers.TryAddWithoutValidation("If-None-Match", "*");
+            using HttpResponseMessage anyNotModified = await client.SendAsync(anyRequest);
+            anyNotModified.StatusCode.Should().Be(HttpStatusCode.NotModified);
+        }
+        finally
+        {
+            await app.StopAsync();
+        }
+    }
+
+    [Test]
+    public async Task CustomDashboardPathShouldForwardOpaqueRedirectToRootEndpoint()
+    {
+        // the framework emits enhanced-navigation redirects as URLs relative to the document base,
+        // so with a dashboard-rooted <base href> the browser requests them under the dashboard path
+        await using WebApplication app = CreateApp(options => options.DashboardPath = "/my-api/quartz");
+        app.MapQuartzDashboard();
+
+        GetRouteEndpoints(app).Select(e => e.RoutePattern.RawText)
+            .Should().Contain("/my-api/quartz/_framework/opaque-redirect");
+
+        await app.StartAsync();
+        try
+        {
+            using System.Net.Http.HttpClient client = app.GetTestClient();
+
+            // without a valid protected payload the framework endpoint rejects the request (it may
+            // even throw), but anything other than the mirror's own 404 proves the request was
+            // forwarded to the framework-owned root endpoint
+            HttpStatusCode? status = null;
+            try
+            {
+                using HttpResponseMessage response = await client.GetAsync("/my-api/quartz/_framework/opaque-redirect");
+                status = response.StatusCode;
+            }
+            catch (Exception)
+            {
+                // the root endpoint threw while rejecting the unprotected payload — forwarding worked
+            }
+
+            status.Should().NotBe(HttpStatusCode.NotFound);
         }
         finally
         {
