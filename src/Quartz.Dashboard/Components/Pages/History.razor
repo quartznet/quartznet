@@ -307,11 +307,7 @@
         // Not Navigation.ToBaseRelativePath: it compares ordinally and throws when the browser URL
         // casing differs from the base URI casing (server-side route matching is case-insensitive,
         // so such URLs render fine); an unmatched base just falls through to NavigateTo below
-        string uri = Navigation.Uri;
-        string baseUri = Navigation.BaseUri;
-        string currentPath = uri.StartsWith(baseUri, StringComparison.OrdinalIgnoreCase)
-            ? uri.Substring(baseUri.Length).TrimStart('/')
-            : string.Empty;
+        string currentPath = (DashboardLink.ToBaseRelative(Navigation.Uri, Navigation.BaseUri) ?? string.Empty).TrimStart('/');
         if (PathsEqual(updatedPath, currentPath))
         {
             _page = normalizedPage;

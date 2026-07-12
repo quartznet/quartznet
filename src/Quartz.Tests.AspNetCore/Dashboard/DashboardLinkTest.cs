@@ -80,6 +80,17 @@ public class DashboardLinkTest
         DashboardLink.ToDashboardRelativePath(uri, baseUri, options).Should().Be(expected);
     }
 
+    // the shape check must compare the base URI's PATH, not the whole absolute URI: a host name
+    // whose tail equals the dashboard path (e.g. host "scheduler" with DashboardPath "/scheduler")
+    // must not be mistaken for the interactive dashboard-rooted shape
+    [TestCase("http://scheduler/scheduler/jobs", "http://scheduler/", "jobs")]
+    [TestCase("http://scheduler/scheduler", "http://scheduler/", "")]
+    public void ToDashboardRelativePathShouldNotMatchHostNameSuffix(string uri, string baseUri, string? expected)
+    {
+        var options = new QuartzDashboardOptions { DashboardPath = "/scheduler" };
+        DashboardLink.ToDashboardRelativePath(uri, baseUri, options).Should().Be(expected);
+    }
+
     [Test]
     public void LinksShouldBeDashboardRelativeWithCustomPath()
     {

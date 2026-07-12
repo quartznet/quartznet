@@ -134,8 +134,11 @@
     private void UpdateCurrentRelativePath(string uri)
     {
         // Resolved once per location change (NavClass runs for every nav link on every render):
-        // ToDashboardRelativePath handles both the prerender and the interactive base URI shapes
-        _currentRelativePath = DashboardLink.ToDashboardRelativePath(uri, NavigationManager.BaseUri, Options.Value);
+        // ToDashboardRelativePath handles both the prerender and the interactive base URI shapes,
+        // and ResolveLeaf applies the same prefix-strip retry as route matching so highlighting is
+        // correct even when the application path base ends with the custom dashboard path
+        string? relative = DashboardLink.ToDashboardRelativePath(uri, NavigationManager.BaseUri, Options.Value);
+        _currentRelativePath = relative is null ? null : DashboardRouteTable.ResolveLeaf(relative, Options.Value);
     }
 
     private string NavClass(string route)

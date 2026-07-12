@@ -296,7 +296,10 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
                 contentType = "application/octet-stream";
             }
 
-            await WriteFileAsync(context, assetPath, fileInfo, contentType).ConfigureAwait(false);
+            // Key the ETag cache by the resolved physical path (canonical, not the request path);
+            // a non-physical provider yields null, which disables caching rather than caching under
+            // attacker-controlled input
+            await WriteFileAsync(context, fileInfo, contentType, etagCacheKey: fileInfo.PhysicalPath).ConfigureAwait(false);
         }).ExcludeFromDescription();
     }
 
@@ -308,10 +311,12 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
             // the same source the framework-owned /_framework/blazor.web.js endpoint serves it from
             return new ManifestEmbeddedFileProvider(typeof(RazorComponentsEndpointRouteBuilderExtensions).Assembly);
         }
-        catch (InvalidOperationException)
+        catch (Exception)
         {
-            // .NET 10+ ships the script as a static web asset instead of an embedded manifest;
-            // the WebRootFileProvider lookup and the root-endpoint forwarding cover those hosts
+            // .NET 10+ ships the script as a static web asset instead of an embedded manifest, so the
+            // provider cannot be constructed; the WebRootFileProvider lookup and the root-endpoint
+            // forwarding cover those hosts. Any failure must yield null rather than escape the Lazy
+            // factory, which would cache the exception and rethrow it on every later access.
             return null;
         }
     });
@@ -332,7 +337,8 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
             {
                 // parity with the framework-owned script endpoint
                 context.Response.Headers.CacheControl = "no-cache";
-                await WriteFileAsync(context, "_framework/blazor.web.js", fileInfo, "text/javascript").ConfigureAwait(false);
+                // the embedded provider exposes no physical path, so fall back to a fixed logical key
+                await WriteFileAsync(context, fileInfo, "text/javascript", etagCacheKey: fileInfo.PhysicalPath ?? "_framework/blazor.web.js").ConfigureAwait(false);
                 return;
             }
 
@@ -405,11 +411,11 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
 
     private static readonly ConcurrentDictionary<string, (long Length, DateTimeOffset LastModified, EntityTagHeaderValue ETag)> ETagCache = new();
 
-    private static async Task WriteFileAsync(HttpContext context, string assetPath, IFileInfo fileInfo, string contentType)
+    private static async Task WriteFileAsync(HttpContext context, IFileInfo fileInfo, string contentType, string? etagCacheKey)
     {
         // Stable validator so browsers can revalidate with If-None-Match and get a 304
         // instead of re-downloading the body on every full page load
-        EntityTagHeaderValue etag = await GetETagAsync(assetPath, fileInfo, context.RequestAborted).ConfigureAwait(false);
+        EntityTagHeaderValue etag = await GetETagAsync(fileInfo, etagCacheKey, context.RequestAborted).ConfigureAwait(false);
         context.Response.Headers.ETag = etag.ToString();
 
         foreach (EntityTagHeaderValue requestTag in context.Request.GetTypedHeaders().IfNoneMatch)
@@ -433,12 +439,17 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
         await context.Response.SendFileAsync(fileInfo, context.RequestAborted).ConfigureAwait(false);
     }
 
-    private static async ValueTask<EntityTagHeaderValue> GetETagAsync(string assetPath, IFileInfo fileInfo, CancellationToken cancellationToken)
+    private static async ValueTask<EntityTagHeaderValue> GetETagAsync(IFileInfo fileInfo, string? cacheKey, CancellationToken cancellationToken)
     {
-        // Content-derived so identical files validate identically across machines and restarts
-        // (the embedded provider stamps LastModified from the assembly file's write time, which
-        // differs per instance); Length + LastModified only guard the per-process cache entry
-        if (ETagCache.TryGetValue(assetPath, out var cached)
+        // The cache is keyed by a canonical identity supplied by the caller (the file's physical
+        // path, or a fixed logical key for embedded content) — never the request path, so an
+        // unauthenticated client cannot grow it without bound by requesting the same file under many
+        // non-canonical path variants (casing, duplicate slashes) that all resolve to one file.
+        // The ETag itself is content-derived so identical files validate identically across machines
+        // and restarts (the embedded provider stamps LastModified from the assembly file's write
+        // time); Length + LastModified only guard the per-process cache entry.
+        if (cacheKey is not null
+            && ETagCache.TryGetValue(cacheKey, out var cached)
             && cached.Length == fileInfo.Length
             && cached.LastModified == fileInfo.LastModified)
         {
@@ -453,7 +464,11 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
         }
 
         var etag = new EntityTagHeaderValue($"\"{Convert.ToHexString(hash)}\"");
-        ETagCache[assetPath] = (fileInfo.Length, fileInfo.LastModified, etag);
+        if (cacheKey is not null)
+        {
+            ETagCache[cacheKey] = (fileInfo.Length, fileInfo.LastModified, etag);
+        }
+
         return etag;
     }
 }
