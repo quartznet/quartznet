@@ -440,6 +440,19 @@ public class DashboardEndpointsTest
         }
     }
 
+    [TestCase("/tenant{env}")]
+    [TestCase("/ops/../quartz")]
+    [TestCase("/ops?x=1")]
+    [TestCase("/ops#frag")]
+    [TestCase("/ops//scheduler")]
+    public async Task InvalidDashboardPathShouldFailValidation(string dashboardPath)
+    {
+        await using WebApplication app = CreateApp(options => options.DashboardPath = dashboardPath);
+
+        Action act = () => app.MapQuartzDashboard();
+        act.Should().Throw<Microsoft.Extensions.Options.OptionsValidationException>().WithMessage("*DashboardPath*");
+    }
+
     [Test]
     public async Task CustomDashboardPathShouldForwardOpaqueRedirectToRootEndpoint()
     {
@@ -456,21 +469,11 @@ public class DashboardEndpointsTest
         {
             using System.Net.Http.HttpClient client = app.GetTestClient();
 
-            // without a valid protected payload the framework endpoint rejects the request (it may
-            // even throw), but anything other than the mirror's own 404 proves the request was
-            // forwarded to the framework-owned root endpoint
-            HttpStatusCode? status = null;
-            try
-            {
-                using HttpResponseMessage response = await client.GetAsync("/my-api/quartz/_framework/opaque-redirect");
-                status = response.StatusCode;
-            }
-            catch (Exception)
-            {
-                // the root endpoint threw while rejecting the unprotected payload — forwarding worked
-            }
-
-            status.Should().NotBe(HttpStatusCode.NotFound);
+            // the framework endpoint rejects the missing protected payload (400); a 404 would mean
+            // the mirror found nothing to forward to, and a throw from the mirror itself would
+            // surface as a test error rather than passing vacuously
+            using HttpResponseMessage response = await client.GetAsync("/my-api/quartz/_framework/opaque-redirect");
+            response.StatusCode.Should().NotBe(HttpStatusCode.NotFound);
         }
         finally
         {

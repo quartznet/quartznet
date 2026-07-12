@@ -77,4 +77,22 @@ public class DashboardRouteTableTest
     {
         DashboardRouteTable.Match("quartz/jobs", new QuartzDashboardOptions()).Should().BeNull();
     }
+
+    [Test]
+    public void ResolveLeafShouldStripAmbiguousPrefixOnlyWhenItYieldsARoute()
+    {
+        // used by NavMenu for active-link highlighting; must mirror Match's retry
+        var options = new QuartzDashboardOptions { DashboardPath = "/ops" };
+
+        // path base ends with the dashboard path → static SSR relative carries the prefix
+        DashboardRouteTable.ResolveLeaf("ops/jobs", options).Should().Be("jobs");
+        DashboardRouteTable.ResolveLeaf("ops", options).Should().Be("");
+
+        // a route-colliding leaf resolves directly and is not stripped
+        var collide = new QuartzDashboardOptions { DashboardPath = "/jobs" };
+        DashboardRouteTable.ResolveLeaf("jobs", collide).Should().Be("jobs");
+
+        // no route either way → returns the direct form (no highlight)
+        DashboardRouteTable.ResolveLeaf("ops/nope", options).Should().Be("ops/nope");
+    }
 }

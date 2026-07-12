@@ -61,20 +61,22 @@ public class QuartzDashboardOptions
     /// </summary>
     internal string EscapedDashboardPath => DashboardPathCache.Escaped;
 
-    private (string Source, string Trimmed, string Escaped, bool HasCustom)? dashboardPathCache;
+    private DerivedDashboardPath? dashboardPathCache;
 
     /// <summary>
     /// Values derived from <see cref="DashboardPath"/>, computed once and reused — they are read
     /// on Blazor render hot paths (links, route matching) while the option itself only changes
-    /// during startup configuration.
+    /// during startup configuration. Held behind a single reference so a concurrent reader always
+    /// observes a fully-populated instance (reference reads/writes are atomic) even if the option
+    /// is mutated mid-render.
     /// </summary>
-    private (string Source, string Trimmed, string Escaped, bool HasCustom) DashboardPathCache
+    private DerivedDashboardPath DashboardPathCache
     {
         get
         {
             string source = DashboardPath;
-            var cache = dashboardPathCache;
-            if (cache is null || !string.Equals(cache.Value.Source, source, StringComparison.Ordinal))
+            DerivedDashboardPath? cache = dashboardPathCache;
+            if (cache is null || !string.Equals(cache.Source, source, StringComparison.Ordinal))
             {
                 string trimmed = DefaultDashboardPath;
                 if (!string.IsNullOrWhiteSpace(source))
@@ -88,11 +90,13 @@ public class QuartzDashboardOptions
 
                 string escaped = new Uri("http://localhost" + trimmed).AbsolutePath;
                 bool hasCustom = !string.Equals(trimmed, DefaultDashboardPath, StringComparison.OrdinalIgnoreCase);
-                cache = (source, trimmed, escaped, hasCustom);
+                cache = new DerivedDashboardPath(source, trimmed, escaped, hasCustom);
                 dashboardPathCache = cache;
             }
 
-            return cache.Value;
+            return cache;
         }
     }
+
+    private sealed record DerivedDashboardPath(string Source, string Trimmed, string Escaped, bool HasCustom);
 }

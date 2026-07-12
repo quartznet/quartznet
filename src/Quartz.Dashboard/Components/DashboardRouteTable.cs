@@ -43,25 +43,29 @@ internal static class DashboardRouteTable
     /// </summary>
     internal static RouteData? Match(string dashboardRelativePath, QuartzDashboardOptions options)
     {
-        RouteData? match = Match(dashboardRelativePath);
-        if (match is not null || !options.HasCustomDashboardPath)
-        {
-            return match;
-        }
+        return Match(ResolveLeaf(dashboardRelativePath, options));
+    }
 
+    /// <summary>
+    /// Resolves a dashboard-relative path to the leaf that actually maps to a dashboard page,
+    /// applying the same prefix-strip retry as <see cref="Match(string, QuartzDashboardOptions)"/>.
+    /// Used where the leaf itself is needed (navigation highlighting) rather than the route data.
+    /// Returns the direct form when neither the direct nor the stripped path maps to a page.
+    /// </summary>
+    internal static string ResolveLeaf(string dashboardRelativePath, QuartzDashboardOptions options)
+    {
         string normalized = DashboardLink.NormalizeRelativePath(dashboardRelativePath);
-        string dashboardRoot = options.EscapedDashboardPath.TrimStart('/');
-        if (normalized.Equals(dashboardRoot, StringComparison.OrdinalIgnoreCase))
+        if (!options.HasCustomDashboardPath || Match(normalized) is not null)
         {
-            return Match(string.Empty);
+            return normalized;
         }
 
-        if (normalized.StartsWith(dashboardRoot + "/", StringComparison.OrdinalIgnoreCase))
+        if (DashboardLink.TryStripDashboardPrefix(normalized, options, out string stripped) && Match(stripped) is not null)
         {
-            return Match(normalized.Substring(dashboardRoot.Length + 1));
+            return stripped;
         }
 
-        return null;
+        return normalized;
     }
 
     /// <summary>

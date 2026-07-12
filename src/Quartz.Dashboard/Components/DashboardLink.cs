@@ -62,11 +62,11 @@ internal static class DashboardLink
         // circuit in custom-path mode the base URI is the rendered dashboard-rooted <base href>, so
         // the base-relative path is already dashboard-rooted and must not be prefix-stripped — a
         // dashboard path whose name collides with a page route (e.g. "/jobs") would otherwise be
-        // misresolved. Comparisons use the percent-encoded form because browsers emit encoded URIs.
-        // The leading slash of the dashboard path keeps the EndsWith comparison segment-aligned.
-        string dashboardPath = options.EscapedDashboardPath;
+        // misresolved. The comparison is against the base URI's PATH (not the whole absolute URI,
+        // whose host name could otherwise spuriously match the dashboard path) in its percent-encoded
+        // form (browsers emit encoded URIs); the leading slash keeps the EndsWith segment-aligned.
         if (options.HasCustomDashboardPath
-            && baseUri.TrimEnd('/').EndsWith(dashboardPath, StringComparison.OrdinalIgnoreCase))
+            && GetAbsolutePath(baseUri).TrimEnd('/').EndsWith(options.EscapedDashboardPath, StringComparison.OrdinalIgnoreCase))
         {
             return relative;
         }
@@ -75,25 +75,45 @@ internal static class DashboardLink
         // the only shape used in default-path mode) and the base-relative path carries the dashboard
         // path prefix; strip it. A path-base-rooted URI without the prefix (e.g. the application
         // root itself) is not a dashboard location.
-        string dashboardRoot = dashboardPath.TrimStart('/');
-        if (relative.Equals(dashboardRoot, StringComparison.OrdinalIgnoreCase))
+        return TryStripDashboardPrefix(relative, options, out string stripped) ? stripped : null;
+    }
+
+    /// <summary>
+    /// Strips the dashboard path prefix from an already-normalized base-relative path. Returns
+    /// <see langword="true"/> with <paramref name="stripped"/> set to the remaining leaf ("" for the
+    /// dashboard root) when the path is under the dashboard root, otherwise <see langword="false"/>.
+    /// The comparison uses the percent-encoded dashboard path, matching browser-emitted URIs.
+    /// </summary>
+    internal static bool TryStripDashboardPrefix(string normalizedPath, QuartzDashboardOptions options, out string stripped)
+    {
+        string dashboardRoot = options.EscapedDashboardPath.TrimStart('/');
+        if (normalizedPath.Equals(dashboardRoot, StringComparison.OrdinalIgnoreCase))
         {
-            return string.Empty;
+            stripped = string.Empty;
+            return true;
         }
 
-        if (relative.StartsWith(dashboardRoot + "/", StringComparison.OrdinalIgnoreCase))
+        if (normalizedPath.StartsWith(dashboardRoot + "/", StringComparison.OrdinalIgnoreCase))
         {
-            return relative.Substring(dashboardRoot.Length + 1);
+            stripped = normalizedPath.Substring(dashboardRoot.Length + 1);
+            return true;
         }
 
-        return null;
+        stripped = normalizedPath;
+        return false;
+    }
+
+    private static string GetAbsolutePath(string baseUri)
+    {
+        return Uri.TryCreate(baseUri, UriKind.Absolute, out Uri? parsed) ? parsed.AbsolutePath : baseUri;
     }
 
     /// <summary>
     /// Returns the base-relative part of an absolute URI, or <see langword="null"/> when the URI
-    /// lies outside the base URI space.
+    /// lies outside the base URI space. Matches the application base URI case-insensitively so it
+    /// does not throw on casing differences the way <c>NavigationManager.ToBaseRelativePath</c> does.
     /// </summary>
-    private static string? ToBaseRelative(string uri, string baseUri)
+    internal static string? ToBaseRelative(string uri, string baseUri)
     {
         if (uri.StartsWith(baseUri, StringComparison.OrdinalIgnoreCase))
         {
