@@ -234,7 +234,11 @@ public class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>, IHashKeyAwareS
         DateBuilder.ValidateHour(hour);
         DateBuilder.ValidateMinute(minute);
 
-        string cronExpression = $"0 {minute} {hour} ? * *";
+        string cronExpression = CronExpressionBuilder.Create()
+            .WithSecond(0)
+            .WithMinute(minute)
+            .WithHour(hour)
+            .ToString();
 
         return CronScheduleNoParseException(cronExpression);
     }
@@ -258,12 +262,12 @@ public class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>, IHashKeyAwareS
         DateBuilder.ValidateHour(hour);
         DateBuilder.ValidateMinute(minute);
 
-        string cronExpression = $"0 {minute} {hour} ? * {(int) daysOfWeek[0] + 1}";
-
-        for (int i = 1; i < daysOfWeek.Length; i++)
-        {
-            cronExpression = cronExpression + "," + ((int) daysOfWeek[i] + 1);
-        }
+        string cronExpression = CronExpressionBuilder.Create()
+            .WithSecond(0)
+            .WithMinute(minute)
+            .WithHour(hour)
+            .OnDaysOfWeek(daysOfWeek)
+            .ToString();
 
         return CronScheduleNoParseException(cronExpression);
     }
@@ -285,7 +289,12 @@ public class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>, IHashKeyAwareS
         DateBuilder.ValidateHour(hour);
         DateBuilder.ValidateMinute(minute);
 
-        string cronExpression = $"0 {minute} {hour} ? * {(int) dayOfWeek + 1}";
+        string cronExpression = CronExpressionBuilder.Create()
+            .WithSecond(0)
+            .WithMinute(minute)
+            .WithHour(hour)
+            .OnDaysOfWeek(dayOfWeek)
+            .ToString();
 
         return CronScheduleNoParseException(cronExpression);
     }
@@ -308,7 +317,12 @@ public class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>, IHashKeyAwareS
         DateBuilder.ValidateHour(hour);
         DateBuilder.ValidateMinute(minute);
 
-        string cronExpression = $"0 {minute} {hour} {dayOfMonth} * ?";
+        string cronExpression = CronExpressionBuilder.Create()
+            .WithSecond(0)
+            .WithMinute(minute)
+            .WithHour(hour)
+            .WithDayOfMonth(dayOfMonth)
+            .ToString();
 
         return CronScheduleNoParseException(cronExpression);
     }
