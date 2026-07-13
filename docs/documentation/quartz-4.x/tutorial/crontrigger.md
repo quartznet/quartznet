@@ -135,6 +135,48 @@ tokens are replaced with their computed values. This resolved form is what gets 
 the database, ensuring stability across scheduler restarts.
 :::
 
+## Building cron expressions programmatically
+
+When a schedule is assembled from user input - for example a scheduling UI that offers
+dropdowns instead of a free-form cron field - you can compose the expression with the fluent
+`CronExpressionBuilder` instead of concatenating strings:
+
+```csharp
+CronExpression expression = CronExpressionBuilder.Create()
+    .WithSecond(0)
+    .WithMinuteIncrements(0, 15) // every 15 minutes
+    .WithHourRange(8, 17)        // between 8:00 and 17:59
+    .OnWeekdays()                // Monday through Friday
+    .Build(); // "0 0/15 8-17 ? * MON-FRI"
+
+ITrigger trigger = TriggerBuilder.Create()
+    .WithIdentity("myTrigger")
+    .WithSchedule(CronScheduleBuilder.CronSchedule(expression))
+    .Build();
+```
+
+Each field offers a single value, list, range and increment form (e.g. `WithHour`,
+`WithHours`, `WithHourRange`, `WithHourIncrements`), and the special characters are
+available through dedicated methods:
+
+```csharp
+CronExpressionBuilder.Create().OnLastDayOfMonth();                         // "* * * L * ?"
+CronExpressionBuilder.Create().OnNearestWeekdayOfMonth(15);                // "* * * 15W * ?"
+CronExpressionBuilder.Create().OnNthDayOfWeekOfMonth(DayOfWeek.Friday, 3); // "* * * ? * FRI#3"
+CronExpressionBuilder.Create().OnLastDayOfWeekOfMonth(DayOfWeek.Friday);   // "* * * ? * FRIL"
+```
+
+A few rules to be aware of:
+
+- Unconfigured fields default to `*` (every value).
+- Each field can be configured only once; configuring it again throws `InvalidOperationException`.
+- Day-of-month and day-of-week are mutually exclusive per cron syntax - the builder renders
+  the unused one as `?` and throws if you try to configure both.
+- Values are validated eagerly against each field's allowed range, and `Build()` returns a
+  fully validated `CronExpression`; use `ToString()` if you only need the expression string.
+- Days of the week are emitted using their textual names (`MON`, `FRI`, ...), so the produced
+  expressions stay unambiguous across cron dialects that number weekdays differently.
+
 ## Examples
 
 Here are some full examples:

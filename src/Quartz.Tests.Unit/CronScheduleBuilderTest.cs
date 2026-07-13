@@ -10,12 +10,75 @@ public class CronScheduleBuilderTest
             .WithSchedule(CronScheduleBuilder.AtHourAndMinuteOnGivenDaysOfWeek(10, 0, DayOfWeek.Monday, DayOfWeek.Thursday, DayOfWeek.Friday))
             .Build();
 
-        Assert.That(trigger.CronExpressionString, Is.EqualTo("0 0 10 ? * 2,5,6"));
+        Assert.That(trigger.CronExpressionString, Is.EqualTo("0 0 10 ? * MON,THU,FRI"));
 
         trigger = (ICronTrigger) TriggerBuilder.Create().WithIdentity("test")
             .WithSchedule(CronScheduleBuilder.AtHourAndMinuteOnGivenDaysOfWeek(10, 0, DayOfWeek.Wednesday))
             .Build();
 
-        Assert.That(trigger.CronExpressionString, Is.EqualTo("0 0 10 ? * 4"));
+        Assert.That(trigger.CronExpressionString, Is.EqualTo("0 0 10 ? * WED"));
+    }
+
+    [Test]
+    public void TestAtHourAndMinuteOnGivenDaysOfWeekRejectsInvalidArguments()
+    {
+        Assert.Throws<ArgumentException>(() => CronScheduleBuilder.AtHourAndMinuteOnGivenDaysOfWeek(25, 0, DayOfWeek.Monday));
+        Assert.Throws<ArgumentException>(() => CronScheduleBuilder.AtHourAndMinuteOnGivenDaysOfWeek(13, 68, DayOfWeek.Monday));
+        Assert.Throws<ArgumentException>(() => CronScheduleBuilder.AtHourAndMinuteOnGivenDaysOfWeek(13, 25));
+    }
+
+    [Test]
+    public void TestDailyAtHourAndMinute()
+    {
+        var trigger = (ICronTrigger) TriggerBuilder.Create()
+            .WithIdentity("test")
+            .WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(10, 20))
+            .Build();
+
+        Assert.That(trigger.CronExpressionString, Is.EqualTo("0 20 10 ? * *"));
+    }
+
+    [Test]
+    public void TestDailyAtHourAndMinuteRejectsInvalidArguments()
+    {
+        Assert.Throws<ArgumentException>(() => CronScheduleBuilder.DailyAtHourAndMinute(26, 23));
+        Assert.Throws<ArgumentException>(() => CronScheduleBuilder.DailyAtHourAndMinute(11, 78));
+    }
+
+    [Test]
+    public void TestWeeklyOnDayAndHourAndMinute()
+    {
+        var trigger = (ICronTrigger) TriggerBuilder.Create()
+            .WithIdentity("test")
+            .WithSchedule(CronScheduleBuilder.WeeklyOnDayAndHourAndMinute(DayOfWeek.Saturday, 11, 41))
+            .Build();
+
+        Assert.That(trigger.CronExpressionString, Is.EqualTo("0 41 11 ? * SAT"));
+    }
+
+    [Test]
+    public void TestWeeklyOnDayAndHourAndMinuteRejectsInvalidArguments()
+    {
+        Assert.Throws<ArgumentException>(() => CronScheduleBuilder.WeeklyOnDayAndHourAndMinute(DayOfWeek.Monday, 25, 2));
+        Assert.Throws<ArgumentException>(() => CronScheduleBuilder.WeeklyOnDayAndHourAndMinute(DayOfWeek.Monday, 2, 62));
+    }
+
+    [Test]
+    public void TestMonthlyOnDayAndHourAndMinute()
+    {
+        var trigger = (ICronTrigger) TriggerBuilder.Create()
+            .WithIdentity("test")
+            .WithSchedule(CronScheduleBuilder.MonthlyOnDayAndHourAndMinute(6, 18, 30))
+            .Build();
+
+        Assert.That(trigger.CronExpressionString, Is.EqualTo("0 30 18 6 * ?"));
+    }
+
+    [Test]
+    public void TestMonthlyOnDayAndHourAndMinuteRejectsInvalidArguments()
+    {
+        Assert.Throws<ArgumentException>(() => CronScheduleBuilder.MonthlyOnDayAndHourAndMinute(32, 18, 30));
+        Assert.Throws<ArgumentException>(() => CronScheduleBuilder.MonthlyOnDayAndHourAndMinute(18, 25, 1));
+        Assert.Throws<ArgumentException>(() => CronScheduleBuilder.MonthlyOnDayAndHourAndMinute(16, 19, 61));
     }
 }

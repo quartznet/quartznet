@@ -133,6 +133,23 @@ tokens are replaced with their computed values. This resolved form is what gets 
 the database, ensuring stability across scheduler restarts.
 :::
 
+## Building cron expressions programmatically
+
+Cron expression strings can also be composed programmatically with the fluent
+`CronExpressionBuilder` - useful when the schedule is assembled from user input:
+
+```csharp
+CronExpression expression = CronExpressionBuilder.Create()
+    .WithSecond(0)
+    .WithMinuteIncrements(0, 15)
+    .WithHourRange(8, 17)
+    .OnWeekdays()
+    .Build(); // "0 0/15 8-17 ? * MON-FRI"
+```
+
+See [Building cron expressions programmatically](../tutorial/crontrigger.md#building-cron-expressions-programmatically)
+in the tutorial for the full API description.
+
 ## Examples
 
 Here are some full examples:
