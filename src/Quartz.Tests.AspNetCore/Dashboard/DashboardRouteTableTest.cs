@@ -10,24 +10,21 @@ namespace Quartz.Tests.AspNetCore.Dashboard;
 
 public class DashboardRouteTableTest
 {
-    private static QuartzDashboardOptions DefaultOptions => new();
-
-    private static QuartzDashboardOptions CustomPathOptions => new() { DashboardPath = "/my-api/quartz" };
-
-    [TestCase("quartz", typeof(Pages.Dashboard))]
-    [TestCase("quartz/", typeof(Pages.Dashboard))]
-    [TestCase("quartz/jobs", typeof(Pages.Jobs))]
-    [TestCase("QUARTZ/JOBS", typeof(Pages.Jobs))]
-    [TestCase("quartz/triggers", typeof(Pages.Triggers))]
-    [TestCase("quartz/calendars", typeof(Pages.Calendars))]
-    [TestCase("quartz/executing", typeof(Pages.CurrentlyExecuting))]
-    [TestCase("quartz/history", typeof(Pages.History))]
-    [TestCase("quartz/history?page=2&job=x", typeof(Pages.History))]
-    [TestCase("quartz/live", typeof(Pages.LiveLogs))]
-    [TestCase("quartz/actions", typeof(Pages.ActionLog))]
-    public void ShouldMatchDefaultPathRoutes(string relativePath, Type expectedPageType)
+    [TestCase("", typeof(Pages.Dashboard))]
+    [TestCase("/", typeof(Pages.Dashboard))]
+    [TestCase("jobs", typeof(Pages.Jobs))]
+    [TestCase("JOBS", typeof(Pages.Jobs))]
+    [TestCase("jobs?page=2", typeof(Pages.Jobs))]
+    [TestCase("triggers", typeof(Pages.Triggers))]
+    [TestCase("calendars", typeof(Pages.Calendars))]
+    [TestCase("executing", typeof(Pages.CurrentlyExecuting))]
+    [TestCase("history", typeof(Pages.History))]
+    [TestCase("history?page=2&job=x", typeof(Pages.History))]
+    [TestCase("live", typeof(Pages.LiveLogs))]
+    [TestCase("actions", typeof(Pages.ActionLog))]
+    public void ShouldMatchDashboardRelativeRoutes(string dashboardRelativePath, Type expectedPageType)
     {
-        RouteData? routeData = DashboardRouteTable.Match(relativePath, DefaultOptions);
+        RouteData? routeData = DashboardRouteTable.Match(dashboardRelativePath);
 
         routeData.Should().NotBeNull();
         routeData!.PageType.Should().Be(expectedPageType);
@@ -36,7 +33,7 @@ public class DashboardRouteTableTest
     [Test]
     public void ShouldExtractRouteParameterValues()
     {
-        RouteData? routeData = DashboardRouteTable.Match("quartz/jobs/DEFAULT/my%20job", DefaultOptions);
+        RouteData? routeData = DashboardRouteTable.Match("jobs/DEFAULT/my%20job");
 
         routeData.Should().NotBeNull();
         routeData!.PageType.Should().Be<Pages.JobDetail>();
@@ -44,51 +41,58 @@ public class DashboardRouteTableTest
         routeData.RouteValues["Name"].Should().Be("my job");
     }
 
-    [TestCase("quartz/unknown")]
-    [TestCase("quartzx")]
-    [TestCase("other/path")]
-    [TestCase("")]
-    public void ShouldNotMatchUnknownRoutes(string relativePath)
+    [TestCase("unknown")]
+    [TestCase("jobs/too/many/segments")]
+    [TestCase("quartz/jobs")]
+    public void ShouldNotMatchUnknownRoutes(string dashboardRelativePath)
     {
-        DashboardRouteTable.Match(relativePath, DefaultOptions).Should().BeNull();
+        DashboardRouteTable.Match(dashboardRelativePath).Should().BeNull();
     }
 
     [Test]
-    public void ShouldMatchRoutesUnderCustomDashboardPath()
+    public void MatchWithOptionsShouldRetryWithPrefixStrippedWhenDirectMatchFails()
     {
-        RouteData? routeData = DashboardRouteTable.Match("my-api/quartz/triggers/g/n", CustomPathOptions);
+        // static SSR under an application path base that ends with the custom dashboard path
+        // produces dashboard-prefixed relative paths that the base URI shape check cannot
+        // distinguish from an interactive leaf; the failed direct match retries stripped
+        var options = new QuartzDashboardOptions { DashboardPath = "/ops" };
 
-        routeData.Should().NotBeNull();
-        routeData!.PageType.Should().Be<Pages.TriggerDetail>();
-        routeData.RouteValues["Group"].Should().Be("g");
-        routeData.RouteValues["Name"].Should().Be("n");
+        DashboardRouteTable.Match("ops/jobs", options)!.PageType.Should().Be<Pages.Jobs>();
+        DashboardRouteTable.Match("ops", options)!.PageType.Should().Be<Pages.Dashboard>();
+        DashboardRouteTable.Match("ops/nope", options).Should().BeNull();
     }
 
     [Test]
-    public void ShouldNotMatchDefaultPathWhenCustomPathConfigured()
+    public void MatchWithOptionsShouldPreferTheDirectMatch()
     {
-        DashboardRouteTable.Match("quartz/jobs", CustomPathOptions).Should().BeNull();
+        // an interactive leaf that begins with a route-colliding dashboard path name must not be stripped
+        var options = new QuartzDashboardOptions { DashboardPath = "/jobs" };
+
+        DashboardRouteTable.Match("jobs/DEFAULT/x", options)!.PageType.Should().Be<Pages.JobDetail>();
+        DashboardRouteTable.Match("jobs", options)!.PageType.Should().Be<Pages.Jobs>();
     }
 
-    [TestCase("quartz/jobs?page=2", "quartz/jobs")]
-    [TestCase("/quartz/jobs/#fragment", "quartz/jobs")]
-    [TestCase("quartz/", "quartz")]
-    [TestCase("", "")]
-    public void NormalizeRelativePathShouldStripQueryFragmentAndSlashes(string input, string expected)
+    [Test]
+    public void MatchWithOptionsShouldNotFallBackWithDefaultPath()
     {
-        DashboardLink.NormalizeRelativePath(input).Should().Be(expected);
+        DashboardRouteTable.Match("quartz/jobs", new QuartzDashboardOptions()).Should().BeNull();
     }
 
-    [TestCase("/quartz", "/quartz")]
-    [TestCase("/quartz/", "/quartz")]
-    [TestCase("/my-api/quartz", "/my-api/quartz")]
-    [TestCase("/my-api/quartz/", "/my-api/quartz")]
-    [TestCase("my-api/quartz", "/my-api/quartz")]
-    [TestCase("/", "/quartz")]
-    [TestCase("", "/quartz")]
-    [TestCase("   ", "/quartz")]
-    public void TrimmedDashboardPathShouldNormalize(string configured, string expected)
+    [Test]
+    public void ResolveLeafShouldStripAmbiguousPrefixOnlyWhenItYieldsARoute()
     {
-        new QuartzDashboardOptions { DashboardPath = configured }.TrimmedDashboardPath.Should().Be(expected);
+        // used by NavMenu for active-link highlighting; must mirror Match's retry
+        var options = new QuartzDashboardOptions { DashboardPath = "/ops" };
+
+        // path base ends with the dashboard path → static SSR relative carries the prefix
+        DashboardRouteTable.ResolveLeaf("ops/jobs", options).Should().Be("jobs");
+        DashboardRouteTable.ResolveLeaf("ops", options).Should().Be("");
+
+        // a route-colliding leaf resolves directly and is not stripped
+        var collide = new QuartzDashboardOptions { DashboardPath = "/jobs" };
+        DashboardRouteTable.ResolveLeaf("jobs", collide).Should().Be("jobs");
+
+        // no route either way → returns the direct form (no highlight)
+        DashboardRouteTable.ResolveLeaf("ops/nope", options).Should().Be("ops/nope");
     }
 }

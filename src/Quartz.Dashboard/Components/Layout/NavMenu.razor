@@ -118,11 +118,11 @@
 
 @code
 {
-    private string _currentUri = string.Empty;
+    private string? _currentRelativePath;
 
     protected override void OnInitialized()
     {
-        _currentUri = NavigationManager.Uri;
+        UpdateCurrentRelativePath(NavigationManager.Uri);
         NavigationManager.LocationChanged += OnLocationChanged;
     }
 
@@ -131,26 +131,39 @@
         return DashboardLink.To(Options.Value, subPath);
     }
 
+    private void UpdateCurrentRelativePath(string uri)
+    {
+        // Resolved once per location change (NavClass runs for every nav link on every render):
+        // ToDashboardRelativePath handles both the prerender and the interactive base URI shapes,
+        // and ResolveLeaf applies the same prefix-strip retry as route matching so highlighting is
+        // correct even when the application path base ends with the custom dashboard path
+        string? relative = DashboardLink.ToDashboardRelativePath(uri, NavigationManager.BaseUri, Options.Value);
+        _currentRelativePath = relative is null ? null : DashboardRouteTable.ResolveLeaf(relative, Options.Value);
+    }
+
     private string NavClass(string route)
     {
-        string relativePath = DashboardLink.NormalizeRelativePath(NavigationManager.ToBaseRelativePath(_currentUri));
-        string target = Link(route);
+        string? relativePath = _currentRelativePath;
+        if (relativePath is null)
+        {
+            return string.Empty;
+        }
 
         // Exact match for dashboard root, prefix match for sub-pages
         if (route.Length == 0)
         {
-            return relativePath.Equals(target, StringComparison.OrdinalIgnoreCase) ? "qz-nav-active" : string.Empty;
+            return relativePath.Length == 0 ? "qz-nav-active" : string.Empty;
         }
 
-        bool isActive = relativePath.Equals(target, StringComparison.OrdinalIgnoreCase)
-            || relativePath.StartsWith(target + "/", StringComparison.OrdinalIgnoreCase);
+        bool isActive = relativePath.Equals(route, StringComparison.OrdinalIgnoreCase)
+            || relativePath.StartsWith(route + "/", StringComparison.OrdinalIgnoreCase);
 
         return isActive ? "qz-nav-active" : string.Empty;
     }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
-        _currentUri = e.Location;
+        UpdateCurrentRelativePath(e.Location);
         InvokeAsync(StateHasChanged);
     }
 
