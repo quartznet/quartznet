@@ -216,6 +216,7 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>, IHashKe
     /// <seealso cref="CronExpression" />
     public static CronScheduleBuilder DailyAtHourAndMinute(int hour, int minute)
     {
+        // DateBuilder validation first preserves this method's historical plain-ArgumentException contract
         DateBuilder.ValidateHour(hour);
         DateBuilder.ValidateMinute(minute);
 
@@ -239,6 +240,8 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>, IHashKe
     /// <seealso cref="CronExpression" />
     public static CronScheduleBuilder AtHourAndMinuteOnGivenDaysOfWeek(int hour, int minute, params DayOfWeek[] daysOfWeek)
     {
+        // these guards run before the builder's own validation to preserve this
+        // method's historical plain-ArgumentException contract and messages
         if (daysOfWeek is null || daysOfWeek.Length == 0)
         {
             Throw.ArgumentException("You must specify at least one day of week.");
@@ -271,6 +274,13 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>, IHashKe
     /// <seealso cref="CronExpression" />
     public static CronScheduleBuilder WeeklyOnDayAndHourAndMinute(DayOfWeek dayOfWeek, int hour, int minute)
     {
+        // validate here so an invalid enum value reports this method's own parameter name
+        if (dayOfWeek < DayOfWeek.Sunday || dayOfWeek > DayOfWeek.Saturday)
+        {
+            throw new ArgumentOutOfRangeException(nameof(dayOfWeek), $"Invalid day-of-week value: {dayOfWeek}.");
+        }
+
+        // DateBuilder validation first preserves this method's historical plain-ArgumentException contract
         DateBuilder.ValidateHour(hour);
         DateBuilder.ValidateMinute(minute);
 
@@ -298,6 +308,7 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>, IHashKe
     /// <seealso cref="CronExpression" />
     public static CronScheduleBuilder MonthlyOnDayAndHourAndMinute(int dayOfMonth, int hour, int minute)
     {
+        // DateBuilder validation first preserves this method's historical plain-ArgumentException contract
         DateBuilder.ValidateDayOfMonth(dayOfMonth);
         DateBuilder.ValidateHour(hour);
         DateBuilder.ValidateMinute(minute);

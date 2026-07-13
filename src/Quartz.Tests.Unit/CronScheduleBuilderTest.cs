@@ -61,6 +61,9 @@ public class CronScheduleBuilderTest
     {
         Assert.Throws<ArgumentException>(() => CronScheduleBuilder.WeeklyOnDayAndHourAndMinute(DayOfWeek.Monday, 25, 2));
         Assert.Throws<ArgumentException>(() => CronScheduleBuilder.WeeklyOnDayAndHourAndMinute(DayOfWeek.Monday, 2, 62));
+
+        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => CronScheduleBuilder.WeeklyOnDayAndHourAndMinute((DayOfWeek) 8, 10, 0));
+        Assert.That(exception.ParamName, Is.EqualTo("dayOfWeek"));
     }
 
     [Test]

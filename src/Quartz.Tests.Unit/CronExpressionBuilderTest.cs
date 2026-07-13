@@ -153,6 +153,7 @@ public class CronExpressionBuilderTest
         Invoking(x => x.WithDayOfMonthIncrements(1, 32)).Should().Throw<ArgumentOutOfRangeException>();
         Invoking(x => x.WithMonthIncrements(1, 13)).Should().Throw<ArgumentOutOfRangeException>();
         Invoking(x => x.OnDayOfWeekIncrements(DayOfWeek.Monday, 0)).Should().Throw<ArgumentOutOfRangeException>();
+        Invoking(x => x.OnDayOfWeekIncrements(DayOfWeek.Monday, 8)).Should().Throw<ArgumentOutOfRangeException>();
         Invoking(x => x.WithYearIncrements(2030, 0)).Should().Throw<ArgumentOutOfRangeException>();
     }
 
