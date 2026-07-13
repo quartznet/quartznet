@@ -68,6 +68,8 @@ public sealed class CronExpressionBuilder
     private string? dayOfWeek;
     private string? year;
 
+    // the only intended source difference to the main branch version of this file,
+    // where the year cap lives in internal TriggerConstants.YearToGiveUpSchedulingAt
     private static int MaxYear => CronExpression.MaxYear;
 
     private CronExpressionBuilder()
@@ -409,15 +411,11 @@ public sealed class CronExpressionBuilder
     /// week.
     /// </remarks>
     /// <param name="start">the day of the week to start at</param>
-    /// <param name="increment">the number of days between values (&gt;= 1)</param>
+    /// <param name="increment">the number of days between values (1-7)</param>
     /// <returns>the updated CronExpressionBuilder</returns>
     public CronExpressionBuilder OnDayOfWeekIncrements(DayOfWeek start, int increment)
     {
-        if (increment < 1)
-        {
-            throw new ArgumentOutOfRangeException(nameof(increment), "Invalid increment (must be >= 1).");
-        }
-
+        ValidateIncrement(increment, 7);
         GetDayName(start, nameof(start));
 
         int startIndex = (int) start;
@@ -495,17 +493,7 @@ public sealed class CronExpressionBuilder
     /// <returns>the updated CronExpressionBuilder</returns>
     public CronExpressionBuilder WithYears(params int[] years)
     {
-        if (years is null || years.Length == 0)
-        {
-            throw new ArgumentException("At least one year must be specified.", nameof(years));
-        }
-
-        foreach (int value in years)
-        {
-            ValidateYear(value, nameof(years));
-        }
-
-        return SetYear(string.Join(",", years));
+        return SetYear(JoinValues(years, TriggerConstants.EarliestYear, MaxYear, "year", nameof(years)));
     }
 
     /// <summary>
@@ -566,90 +554,44 @@ public sealed class CronExpressionBuilder
         return year is null ? expression : $"{expression} {year}";
     }
 
-    private CronExpressionBuilder SetSecond(string value)
-    {
-        if (second is not null)
-        {
-            throw new InvalidOperationException("Second has already been configured.");
-        }
+    private CronExpressionBuilder SetSecond(string value) => SetField(ref second, "Second", value);
 
-        second = value;
-        return this;
-    }
+    private CronExpressionBuilder SetMinute(string value) => SetField(ref minute, "Minute", value);
 
-    private CronExpressionBuilder SetMinute(string value)
-    {
-        if (minute is not null)
-        {
-            throw new InvalidOperationException("Minute has already been configured.");
-        }
-
-        minute = value;
-        return this;
-    }
-
-    private CronExpressionBuilder SetHour(string value)
-    {
-        if (hour is not null)
-        {
-            throw new InvalidOperationException("Hour has already been configured.");
-        }
-
-        hour = value;
-        return this;
-    }
+    private CronExpressionBuilder SetHour(string value) => SetField(ref hour, "Hour", value);
 
     private CronExpressionBuilder SetDayOfMonth(string value)
     {
-        if (dayOfMonth is not null)
-        {
-            throw new InvalidOperationException("Day-of-month has already been configured.");
-        }
-
         if (dayOfWeek is not null)
         {
             throw new InvalidOperationException("Day-of-month cannot be configured because day-of-week has already been configured. Cron expressions do not support specifying both day-of-month and day-of-week.");
         }
 
-        dayOfMonth = value;
-        return this;
+        return SetField(ref dayOfMonth, "Day-of-month", value);
     }
 
-    private CronExpressionBuilder SetMonth(string value)
-    {
-        if (month is not null)
-        {
-            throw new InvalidOperationException("Month has already been configured.");
-        }
-
-        month = value;
-        return this;
-    }
+    private CronExpressionBuilder SetMonth(string value) => SetField(ref month, "Month", value);
 
     private CronExpressionBuilder SetDayOfWeek(string value)
     {
-        if (dayOfWeek is not null)
-        {
-            throw new InvalidOperationException("Day-of-week has already been configured.");
-        }
-
         if (dayOfMonth is not null)
         {
             throw new InvalidOperationException("Day-of-week cannot be configured because day-of-month has already been configured. Cron expressions do not support specifying both day-of-month and day-of-week.");
         }
 
-        dayOfWeek = value;
-        return this;
+        return SetField(ref dayOfWeek, "Day-of-week", value);
     }
 
-    private CronExpressionBuilder SetYear(string value)
+    private CronExpressionBuilder SetYear(string value) => SetField(ref year, "Year", value);
+
+    private CronExpressionBuilder SetField(ref string? field, string fieldName, string value)
     {
-        if (year is not null)
+        if (field is not null)
         {
-            throw new InvalidOperationException("Year has already been configured.");
+            throw new InvalidOperationException($"{fieldName} has already been configured.");
         }
 
-        year = value;
+        field = value;
         return this;
     }
 
@@ -680,13 +622,7 @@ public sealed class CronExpressionBuilder
         }
     }
 
-    private static void ValidateYear(int year, string paramName)
-    {
-        if (year < TriggerConstants.EarliestYear || year > MaxYear)
-        {
-            throw new ArgumentOutOfRangeException(paramName, $"Invalid year (must be >= {TriggerConstants.EarliestYear} and <= {MaxYear}).");
-        }
-    }
+    private static void ValidateYear(int year, string paramName) => ValidateRange(year, TriggerConstants.EarliestYear, MaxYear, "year", paramName);
 
     private static string JoinValues(int[] values, int min, int max, string description, string paramName)
     {
