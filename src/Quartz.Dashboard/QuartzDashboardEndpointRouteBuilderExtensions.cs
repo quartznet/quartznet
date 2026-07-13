@@ -17,7 +17,9 @@
  */
 #endregion
 
+using System.Collections.Concurrent;
 using System.Reflection;
+using System.Security.Cryptography;
 
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
@@ -28,7 +30,9 @@ using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Routing.Patterns;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Options;
+using Microsoft.Net.Http.Headers;
 
 using Quartz.Dashboard.Components;
 using Quartz.Dashboard.Hubs;
@@ -104,7 +108,7 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
         QuartzDashboardOptions options = builder.ServiceProvider.GetRequiredService<IOptions<QuartzDashboardOptions>>().Value;
         string dashboardPath = options.TrimmedDashboardPath;
 
-        bool hasCustomPath = !string.Equals(dashboardPath, QuartzDashboardOptions.DefaultDashboardPath, StringComparison.OrdinalIgnoreCase);
+        bool hasCustomPath = options.HasCustomDashboardPath;
         if (hasCustomPath && !dashboardOwnsComponents)
         {
             throw new InvalidOperationException(
@@ -120,14 +124,37 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
             // Interactive navigation is handled by the dashboard's own route matching in Routes.razor.
             components.Add(endpointBuilder =>
             {
-                if (endpointBuilder is not RouteEndpointBuilder routeEndpointBuilder
-                    || GetComponentType(endpointBuilder)?.Assembly != typeof(QuartzDashboardApp).Assembly)
+                if (endpointBuilder is not RouteEndpointBuilder routeEndpointBuilder)
                 {
                     return;
                 }
 
                 string? rawText = routeEndpointBuilder.RoutePattern.RawText;
-                if (rawText is null
+                if (string.IsNullOrEmpty(rawText) || rawText[0] != '/')
+                {
+                    return;
+                }
+
+                Type? componentType = GetComponentType(endpointBuilder);
+                if (componentType is null)
+                {
+                    // The /_blazor circuit endpoints move under the dashboard path so a reverse proxy
+                    // that forwards only the dashboard prefix can reach them (#3134); SignalR dispatch
+                    // does not depend on the route pattern. Other framework-owned endpoints stay put:
+                    // newer runtimes register the blazor.web.js script endpoint through this data
+                    // source and it serves content keyed by its original path, so re-rooting it breaks
+                    // it — the dashboard maps its own copy under the dashboard path instead.
+                    // Standalone mode only: a custom path is rejected in integrated mode, so the
+                    // builder never contains host application endpoints here.
+                    if (rawText == "/_blazor" || rawText.StartsWith("/_blazor/", StringComparison.Ordinal))
+                    {
+                        routeEndpointBuilder.RoutePattern = RoutePatternFactory.Parse(dashboardPath + rawText);
+                    }
+
+                    return;
+                }
+
+                if (componentType.Assembly != typeof(QuartzDashboardApp).Assembly
                     || !rawText.StartsWith(QuartzDashboardOptions.DefaultDashboardPath, StringComparison.OrdinalIgnoreCase)
                     || (rawText.Length > QuartzDashboardOptions.DefaultDashboardPath.Length && rawText[QuartzDashboardOptions.DefaultDashboardPath.Length] != '/'))
                 {
@@ -144,17 +171,34 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
 
         // Serve dashboard static web assets via endpoint routing as a fallback
         // for hosts that don't configure UseStaticFiles() (e.g., API-only projects)
-        RouteHandlerBuilder staticAssets = MapDashboardStaticAssets(builder);
+        List<IEndpointConventionBuilder> assetEndpoints =
+        [
+            MapDashboardStaticAssets(builder, pathPrefix: string.Empty)
+        ];
+
+        if (hasCustomPath)
+        {
+            // With a custom path the shell renders a dashboard-rooted <base href>, so the browser
+            // requests the static assets and the Blazor framework plumbing under the dashboard path.
+            // Mirror them there so a reverse proxy that forwards only the dashboard prefix can reach
+            // them (#3134); the root asset endpoint stays for backwards compatibility.
+            assetEndpoints.Add(MapDashboardStaticAssets(builder, pathPrefix: dashboardPath));
+            assetEndpoints.Add(MapDashboardFrameworkScript(builder, dashboardPath));
+            assetEndpoints.Add(MapDashboardOpaqueRedirect(builder, dashboardPath));
+        }
 
         if (!string.IsNullOrWhiteSpace(options.AuthorizationPolicy))
         {
             string policyName = options.AuthorizationPolicy;
             hub.RequireAuthorization(policyName);
 
-            // Gate static assets with the same policy as the rest of the dashboard so the endpoint
-            // carries explicit authorization metadata and keeps working in applications that use a
+            // Gate static assets with the same policy as the rest of the dashboard so the endpoints
+            // carry explicit authorization metadata and keep working in applications that use a
             // fail-closed FallbackPolicy (#3097).
-            staticAssets.RequireAuthorization(policyName);
+            foreach (IEndpointConventionBuilder assetEndpoint in assetEndpoints)
+            {
+                assetEndpoint.RequireAuthorization(policyName);
+            }
 
             if (dashboardOwnsComponents)
             {
@@ -182,9 +226,12 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
         else
         {
             // Without a dashboard policy the dashboard adds no authorization of its own. The static
-            // asset endpoint opts out of authorization so applications enforcing a fail-closed
+            // asset endpoints opt out of authorization so applications enforcing a fail-closed
             // FallbackPolicy can still load dashboard CSS/JS; the files are public package content (#3097).
-            staticAssets.AllowAnonymous();
+            foreach (IEndpointConventionBuilder assetEndpoint in assetEndpoints)
+            {
+                assetEndpoint.AllowAnonymous();
+            }
 
             if (dashboardOwnsComponents)
             {
@@ -225,12 +272,19 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
 
     private static readonly FileExtensionContentTypeProvider ContentTypeProvider = new();
 
-    private static RouteHandlerBuilder MapDashboardStaticAssets(IEndpointRouteBuilder builder)
+    private static readonly string[] GetAndHeadMethods = ["GET", "HEAD"];
+
+    private static RouteHandlerBuilder MapDashboardStaticAssets(IEndpointRouteBuilder builder, string pathPrefix)
     {
-        return builder.MapGet("_content/Quartz.Dashboard/{**path}", async (HttpContext context, string path) =>
+        string pattern = pathPrefix.Length == 0
+            ? "_content/Quartz.Dashboard/{**path}"
+            : pathPrefix + "/_content/Quartz.Dashboard/{**path}";
+
+        return builder.MapMethods(pattern, GetAndHeadMethods, async (HttpContext context, string path) =>
         {
             var env = context.RequestServices.GetRequiredService<IWebHostEnvironment>();
-            var fileInfo = env.WebRootFileProvider.GetFileInfo($"_content/Quartz.Dashboard/{path}");
+            string assetPath = $"_content/Quartz.Dashboard/{path}";
+            var fileInfo = env.WebRootFileProvider.GetFileInfo(assetPath);
             if (!fileInfo.Exists)
             {
                 context.Response.StatusCode = StatusCodes.Status404NotFound;
@@ -242,14 +296,179 @@ public static class QuartzDashboardEndpointRouteBuilderExtensions
                 contentType = "application/octet-stream";
             }
 
-            context.Response.ContentType = contentType;
-            context.Response.ContentLength = fileInfo.Length;
+            // Key the ETag cache by the resolved physical path (canonical, not the request path);
+            // a non-physical provider yields null, which disables caching rather than caching under
+            // attacker-controlled input
+            await WriteFileAsync(context, fileInfo, contentType, etagCacheKey: fileInfo.PhysicalPath).ConfigureAwait(false);
+        }).ExcludeFromDescription();
+    }
 
-            var stream = fileInfo.CreateReadStream();
-            await using (stream.ConfigureAwait(false))
+    private static readonly Lazy<IFileProvider?> FrameworkScriptFallbackProvider = new(static () =>
+    {
+        try
+        {
+            // .NET 8 and 9 embed blazor.web.js into Microsoft.AspNetCore.Components.Endpoints; this is
+            // the same source the framework-owned /_framework/blazor.web.js endpoint serves it from
+            return new ManifestEmbeddedFileProvider(typeof(RazorComponentsEndpointRouteBuilderExtensions).Assembly);
+        }
+        catch (Exception)
+        {
+            // .NET 10+ ships the script as a static web asset instead of an embedded manifest, so the
+            // provider cannot be constructed; the WebRootFileProvider lookup and the root-endpoint
+            // forwarding cover those hosts. Any failure must yield null rather than escape the Lazy
+            // factory, which would cache the exception and rethrow it on every later access.
+            return null;
+        }
+    });
+
+    private static IEndpointConventionBuilder MapDashboardFrameworkScript(IEndpointRouteBuilder builder, string dashboardPath)
+    {
+        const string scriptPath = "/_framework/blazor.web.js";
+        return builder.MapMethods(dashboardPath + scriptPath, GetAndHeadMethods, async (HttpContext context) =>
+        {
+            var env = context.RequestServices.GetRequiredService<IWebHostEnvironment>();
+            IFileInfo fileInfo = env.WebRootFileProvider.GetFileInfo("_framework/blazor.web.js");
+            if (!fileInfo.Exists && FrameworkScriptFallbackProvider.Value is { } fallbackProvider)
             {
-                await stream.CopyToAsync(context.Response.Body, context.RequestAborted).ConfigureAwait(false);
+                fileInfo = fallbackProvider.GetFileInfo("_framework/blazor.web.js");
+            }
+
+            if (fileInfo.Exists)
+            {
+                // parity with the framework-owned script endpoint
+                context.Response.Headers.CacheControl = "no-cache";
+                // the embedded provider exposes no physical path, so fall back to a fixed logical key
+                await WriteFileAsync(context, fileInfo, "text/javascript", etagCacheKey: fileInfo.PhysicalPath ?? "_framework/blazor.web.js").ConfigureAwait(false);
+                return;
+            }
+
+            // .NET 10+ hosts serve the script through MapStaticAssets endpoints rather than the web
+            // root or an embedded manifest; forward to the framework-owned root endpoint when present
+            if (!await TryForwardToRootEndpointAsync(context, scriptPath).ConfigureAwait(false))
+            {
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
             }
         }).ExcludeFromDescription();
+    }
+
+    private static IEndpointConventionBuilder MapDashboardOpaqueRedirect(IEndpointRouteBuilder builder, string dashboardPath)
+    {
+        // The framework emits enhanced-navigation redirects as URLs relative to the document base,
+        // which the dashboard-rooted <base href> resolves under the dashboard path; forward those
+        // requests to the framework-owned root endpoint so the redirect flow completes (#3134)
+        const string redirectPath = "/_framework/opaque-redirect";
+        return builder.MapGet(dashboardPath + redirectPath, async (HttpContext context) =>
+        {
+            if (!await TryForwardToRootEndpointAsync(context, redirectPath).ConfigureAwait(false))
+            {
+                context.Response.StatusCode = StatusCodes.Status404NotFound;
+            }
+        }).ExcludeFromDescription();
+    }
+
+    private static async Task<bool> TryForwardToRootEndpointAsync(HttpContext context, string rootPath)
+    {
+        var dataSource = context.RequestServices.GetRequiredService<EndpointDataSource>();
+        RouteEndpoint? rootEndpoint = null;
+        foreach (Endpoint endpoint in dataSource.Endpoints)
+        {
+            if (endpoint is RouteEndpoint { RequestDelegate: not null } routeEndpoint)
+            {
+                string? rawText = routeEndpoint.RoutePattern.RawText;
+                if (rawText is not null
+                    && (rootPath.Equals(rawText, StringComparison.OrdinalIgnoreCase)
+                        || (rawText.Length == rootPath.Length - 1 && rootPath.EndsWith(rawText, StringComparison.OrdinalIgnoreCase))))
+                {
+                    rootEndpoint = routeEndpoint;
+                    break;
+                }
+            }
+        }
+
+        if (rootEndpoint is null)
+        {
+            return false;
+        }
+
+        // Handlers resolve content from the request path and the endpoint metadata, so both must
+        // describe the root endpoint while its delegate runs
+        PathString originalPath = context.Request.Path;
+        Endpoint? originalEndpoint = context.GetEndpoint();
+        context.Request.Path = rootPath;
+        context.SetEndpoint(rootEndpoint);
+        try
+        {
+            await rootEndpoint.RequestDelegate!(context).ConfigureAwait(false);
+        }
+        finally
+        {
+            context.Request.Path = originalPath;
+            context.SetEndpoint(originalEndpoint);
+        }
+
+        return true;
+    }
+
+    private static readonly ConcurrentDictionary<string, (long Length, DateTimeOffset LastModified, EntityTagHeaderValue ETag)> ETagCache = new();
+
+    private static async Task WriteFileAsync(HttpContext context, IFileInfo fileInfo, string contentType, string? etagCacheKey)
+    {
+        // Stable validator so browsers can revalidate with If-None-Match and get a 304
+        // instead of re-downloading the body on every full page load
+        EntityTagHeaderValue etag = await GetETagAsync(fileInfo, etagCacheKey, context.RequestAborted).ConfigureAwait(false);
+        context.Response.Headers.ETag = etag.ToString();
+
+        foreach (EntityTagHeaderValue requestTag in context.Request.GetTypedHeaders().IfNoneMatch)
+        {
+            // RFC 9110: "*" matches any current representation
+            if (EntityTagHeaderValue.Any.Equals(requestTag) || requestTag.Compare(etag, useStrongComparison: false))
+            {
+                context.Response.StatusCode = StatusCodes.Status304NotModified;
+                return;
+            }
+        }
+
+        context.Response.ContentType = contentType;
+        context.Response.ContentLength = fileInfo.Length;
+
+        if (HttpMethods.IsHead(context.Request.Method))
+        {
+            return;
+        }
+
+        await context.Response.SendFileAsync(fileInfo, context.RequestAborted).ConfigureAwait(false);
+    }
+
+    private static async ValueTask<EntityTagHeaderValue> GetETagAsync(IFileInfo fileInfo, string? cacheKey, CancellationToken cancellationToken)
+    {
+        // The cache is keyed by a canonical identity supplied by the caller (the file's physical
+        // path, or a fixed logical key for embedded content) — never the request path, so an
+        // unauthenticated client cannot grow it without bound by requesting the same file under many
+        // non-canonical path variants (casing, duplicate slashes) that all resolve to one file.
+        // The ETag itself is content-derived so identical files validate identically across machines
+        // and restarts (the embedded provider stamps LastModified from the assembly file's write
+        // time); Length + LastModified only guard the per-process cache entry.
+        if (cacheKey is not null
+            && ETagCache.TryGetValue(cacheKey, out var cached)
+            && cached.Length == fileInfo.Length
+            && cached.LastModified == fileInfo.LastModified)
+        {
+            return cached.ETag;
+        }
+
+        byte[] hash;
+        Stream stream = fileInfo.CreateReadStream();
+        await using (stream.ConfigureAwait(false))
+        {
+            hash = await SHA256.HashDataAsync(stream, cancellationToken).ConfigureAwait(false);
+        }
+
+        var etag = new EntityTagHeaderValue($"\"{Convert.ToHexString(hash)}\"");
+        if (cacheKey is not null)
+        {
+            ETagCache[cacheKey] = (fileInfo.Length, fileInfo.LastModified, etag);
+        }
+
+        return etag;
     }
 }

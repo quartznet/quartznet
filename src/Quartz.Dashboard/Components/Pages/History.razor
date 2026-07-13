@@ -303,7 +303,11 @@
         string normalizedTriggerFilter = triggerFilter.Trim();
 
         string updatedPath = BuildHistoryRelativeUri(normalizedPage, normalizedJobFilter, normalizedTriggerFilter);
-        string currentPath = Navigation.ToBaseRelativePath(Navigation.Uri).TrimStart('/');
+
+        // Not Navigation.ToBaseRelativePath: it compares ordinally and throws when the browser URL
+        // casing differs from the base URI casing (server-side route matching is case-insensitive,
+        // so such URLs render fine); an unmatched base just falls through to NavigateTo below
+        string currentPath = (DashboardLink.ToBaseRelative(Navigation.Uri, Navigation.BaseUri) ?? string.Empty).TrimStart('/');
         if (PathsEqual(updatedPath, currentPath))
         {
             _page = normalizedPage;

@@ -50,19 +50,60 @@ public class QuartzDashboardOptions
     /// <see cref="DashboardPath"/> normalized to a rooted path without a trailing slash,
     /// falling back to <see cref="DefaultDashboardPath"/> when unset or empty.
     /// </summary>
-    internal string TrimmedDashboardPath
+    internal string TrimmedDashboardPath => DashboardPathCache.Trimmed;
+
+    internal string TrimmedApiPath => ApiPath.TrimEnd('/');
+
+    /// <summary>
+    /// Whether <see cref="DashboardPath"/> differs from the compile-time default "/quartz".
+    /// A custom path implies the standalone hosting mode because it is rejected when
+    /// integrating with an existing Blazor application.
+    /// </summary>
+    internal bool HasCustomDashboardPath => DashboardPathCache.HasCustom;
+
+    /// <summary>
+    /// <see cref="TrimmedDashboardPath"/> in its percent-encoded form, as browsers emit it in
+    /// request URIs and the &lt;base href&gt;. Server-side route patterns keep the raw form
+    /// (route matching compares decoded values); client-side URI comparisons need this one.
+    /// </summary>
+    internal string EscapedDashboardPath => DashboardPathCache.Escaped;
+
+    private DerivedDashboardPath? dashboardPathCache;
+
+    /// <summary>
+    /// Values derived from <see cref="DashboardPath"/>, computed once and reused — they are read
+    /// on Blazor render hot paths (links, route matching) while the option itself only changes
+    /// during startup configuration. Held behind a single reference so a concurrent reader always
+    /// observes a fully-populated instance (reference reads/writes are atomic) even if the option
+    /// is mutated mid-render.
+    /// </summary>
+    private DerivedDashboardPath DashboardPathCache
     {
         get
         {
-            if (string.IsNullOrWhiteSpace(DashboardPath))
+            string source = DashboardPath;
+            DerivedDashboardPath? cache = dashboardPathCache;
+            if (cache is null || !string.Equals(cache.Source, source, StringComparison.Ordinal))
             {
-                return DefaultDashboardPath;
+                string trimmed = DefaultDashboardPath;
+                if (!string.IsNullOrWhiteSpace(source))
+                {
+                    string candidate = source.Trim().Trim('/');
+                    if (candidate.Length > 0)
+                    {
+                        trimmed = "/" + candidate;
+                    }
+                }
+
+                string escaped = new Uri("http://localhost" + trimmed).AbsolutePath;
+                bool hasCustom = !string.Equals(trimmed, DefaultDashboardPath, StringComparison.OrdinalIgnoreCase);
+                cache = new DerivedDashboardPath(source, trimmed, escaped, hasCustom);
+                dashboardPathCache = cache;
             }
 
-            string trimmed = DashboardPath.Trim().Trim('/');
-            return trimmed.Length == 0 ? DefaultDashboardPath : "/" + trimmed;
+            return cache;
         }
     }
 
-    internal string TrimmedApiPath => ApiPath.TrimEnd('/');
+    private sealed record DerivedDashboardPath(string Source, string Trimmed, string Escaped, bool HasCustom);
 }

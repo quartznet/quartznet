@@ -34,27 +34,50 @@ internal static class DashboardRouteTable
     private static readonly Lazy<List<RouteEntry>> Routes = new(BuildRouteTable);
 
     /// <summary>
-    /// Matches a base-relative path (no leading slash, as produced by
-    /// <c>NavigationManager.ToBaseRelativePath</c>) against the dashboard route table.
-    /// Returns <see langword="null"/> when the path does not map to a dashboard page.
+    /// Matches like <see cref="Match(string)"/> but retries with the dashboard path prefix
+    /// stripped when the direct match fails. The relative path form is ambiguous when the
+    /// application path base happens to end with the custom dashboard path: static server-side
+    /// rendering then produces a dashboard-prefixed relative path that the base URI shape check
+    /// in <see cref="DashboardLink.ToDashboardRelativePath"/> cannot distinguish from an
+    /// interactive leaf, so a failed match gets a second chance without the prefix.
     /// </summary>
-    internal static RouteData? Match(string relativePath, QuartzDashboardOptions options)
+    internal static RouteData? Match(string dashboardRelativePath, QuartzDashboardOptions options)
     {
-        relativePath = DashboardLink.NormalizeRelativePath(relativePath);
+        return Match(ResolveLeaf(dashboardRelativePath, options));
+    }
 
-        string dashboardRoot = options.TrimmedDashboardPath.TrimStart('/');
-        if (!relativePath.StartsWith(dashboardRoot, StringComparison.OrdinalIgnoreCase))
+    /// <summary>
+    /// Resolves a dashboard-relative path to the leaf that actually maps to a dashboard page,
+    /// applying the same prefix-strip retry as <see cref="Match(string, QuartzDashboardOptions)"/>.
+    /// Used where the leaf itself is needed (navigation highlighting) rather than the route data.
+    /// Returns the direct form when neither the direct nor the stripped path maps to a page.
+    /// </summary>
+    internal static string ResolveLeaf(string dashboardRelativePath, QuartzDashboardOptions options)
+    {
+        string normalized = DashboardLink.NormalizeRelativePath(dashboardRelativePath);
+        if (!options.HasCustomDashboardPath || Match(normalized) is not null)
         {
-            return null;
+            return normalized;
         }
 
-        string remainder = relativePath.Substring(dashboardRoot.Length);
-        if (remainder.Length > 0 && remainder[0] != '/')
+        if (DashboardLink.TryStripDashboardPrefix(normalized, options, out string stripped) && Match(stripped) is not null)
         {
-            return null;
+            return stripped;
         }
 
-        string[] segments = remainder.Length == 0 ? [] : remainder.TrimStart('/').Split('/');
+        return normalized;
+    }
+
+    /// <summary>
+    /// Matches a dashboard-root-relative path ("" for the dashboard root, no leading slash, as
+    /// produced by <see cref="DashboardLink.ToDashboardRelativePath"/>) against the dashboard
+    /// route table. Returns <see langword="null"/> when the path does not map to a dashboard page.
+    /// </summary>
+    internal static RouteData? Match(string dashboardRelativePath)
+    {
+        dashboardRelativePath = DashboardLink.NormalizeRelativePath(dashboardRelativePath);
+
+        string[] segments = dashboardRelativePath.Length == 0 ? [] : dashboardRelativePath.Split('/');
 
         foreach (RouteEntry route in Routes.Value)
         {
