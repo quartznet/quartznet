@@ -201,6 +201,154 @@ public class CronExpressionDifferentialTest
         }
     }
 
+    /// <summary>
+    /// End-to-end property test for the day-of-month 'L'/'LW'/'L-n'/'nW' combined
+    /// path: random mixes of plain days, last-day offsets and (possibly multiple)
+    /// nearest-weekday tokens anywhere in the month, verified by an independent
+    /// day-by-day membership scan. This guards the per-month candidate-mask
+    /// construction, per-'W' resolution, and the month-wrap logic (a 'W' can shift
+    /// a candidate to an earlier day than the month it belongs to).
+    /// </summary>
+    [Test]
+    public void GetNextValidTimeAfter_MatchesBruteForce_LastDayAndWeekday()
+    {
+        var random = new Random(20240815);
+
+        for (int iteration = 0; iteration < 2000; iteration++)
+        {
+            var parts = new List<string>();
+            var numericDays = new List<int>();
+            var lastDaySpecs = new List<(int offset, bool weekday, int weekdayOffset)>();
+            var nearestWeekdayDays = new List<int>();
+
+            // Days span the full 1-31 range so short-month over-run (a day 29-31
+            // combined with 'L'/'W') is exercised too.
+            // Each 'nW' token shifts its own day, so they can appear anywhere in
+            // the month, in any number, mixed freely with plain numeric days.
+            int nearestWeekdayCount = random.Next(0, 3);
+            for (int i = 0; i < nearestWeekdayCount; i++)
+            {
+                int d = random.Next(1, 32);
+                nearestWeekdayDays.Add(d);
+                parts.Add(d + "W");
+            }
+
+            int numericCount = random.Next(0, 4);
+            for (int i = 0; i < numericCount; i++)
+            {
+                int d = random.Next(1, 32);
+                numericDays.Add(d);
+                parts.Add(d.ToString());
+            }
+
+            int lastDayCount = random.Next(0, 3);
+            for (int i = 0; i < lastDayCount; i++)
+            {
+                int offset = random.Next(0, 6);
+                bool weekday = random.Next(0, 2) == 0;
+                // trailing weekday offset ('LW-m' / 'L-nW-m') only applies with 'W'
+                int weekdayOffset = weekday && random.Next(0, 2) == 0 ? random.Next(1, 6) : 0;
+                lastDaySpecs.Add((offset, weekday, weekdayOffset));
+                string token = offset == 0 ? "L" : "L-" + offset;
+                if (weekday)
+                {
+                    token += "W";
+                    if (weekdayOffset > 0)
+                    {
+                        token += "-" + weekdayOffset;
+                    }
+                }
+
+                parts.Add(token);
+            }
+
+            if (parts.Count == 0)
+            {
+                continue;
+            }
+
+            string expr = $"0 0 12 {string.Join(",", parts)} * ?";
+            var cron = new CronExpression(expr) { TimeZone = TimeZoneInfo.Utc };
+
+            DateTimeOffset start = new DateTimeOffset(2023, 1, 1, 0, 0, 0, TimeSpan.Zero)
+                .AddDays(random.Next(0, 3 * 365));
+
+            DateTimeOffset? actual = cron.GetNextValidTimeAfter(start);
+
+            DateTimeOffset? expected = null;
+            var noonOnStartDay = new DateTimeOffset(start.Year, start.Month, start.Day, 12, 0, 0, TimeSpan.Zero);
+            for (int i = 0; i <= 400; i++)
+            {
+                DateTimeOffset candidate = noonOnStartDay.AddDays(i);
+                if (candidate > start && IsMatchingDay(candidate.Year, candidate.Month, candidate.Day, numericDays, nearestWeekdayDays, lastDaySpecs))
+                {
+                    expected = candidate;
+                    break;
+                }
+            }
+
+            expected.Should().NotBeNull("expression {0} fires within a year", expr);
+            actual.Should().Be(expected, "expression {0}, start {1:O}", expr, start);
+        }
+    }
+
+    private static bool IsMatchingDay(int year, int month, int day, List<int> numericDays, List<int> nearestWeekdayDays, List<(int offset, bool weekday, int weekdayOffset)> lastDaySpecs)
+    {
+        int lastDay = DateTime.DaysInMonth(year, month);
+
+        if (numericDays.Contains(day) && day <= lastDay)
+        {
+            return true;
+        }
+
+        foreach (int wDay in nearestWeekdayDays)
+        {
+            if (ReferenceNearestWeekday(year, month, Math.Min(wDay, lastDay)) == day)
+            {
+                return true;
+            }
+        }
+
+        foreach ((int offset, bool weekday, int weekdayOffset) in lastDaySpecs)
+        {
+            int baseDay = lastDay - offset;
+            if (baseDay < 1)
+            {
+                continue;
+            }
+
+            int resolved = weekday ? ReferenceNearestWeekday(year, month, baseDay) : baseDay;
+            if (weekday && weekdayOffset > 0)
+            {
+                resolved -= weekdayOffset;
+                if (resolved < 1)
+                {
+                    resolved = 1; // 'LW-m' falls back to the 1st when it underflows the month
+                }
+            }
+
+            if (resolved == day)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // Independent nearest-weekday reference: Saturday shifts back one (or forward
+    // two on the 1st), Sunday forward one (or back two on the last day).
+    private static int ReferenceNearestWeekday(int year, int month, int day)
+    {
+        int lastDay = DateTime.DaysInMonth(year, month);
+        return new DateTime(year, month, day).DayOfWeek switch
+        {
+            DayOfWeek.Saturday => day == 1 ? 3 : day - 1,
+            DayOfWeek.Sunday => day == lastDay ? day - 2 : day + 1,
+            _ => day
+        };
+    }
+
     private static HashSet<int> RandomSubset(Random random, int min, int max, int maxCount)
     {
         int count = random.Next(1, maxCount + 1);
