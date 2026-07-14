@@ -98,6 +98,8 @@
   * Fix for deserializing CronExpression using Json Serializer throwing error calling `GetNextValidTimeAfter`.  (#1996)
     `IDeserializationCallback` interface was removed from class `CronExpression` and the deserialization logic
     added to the constructor `CronExpression(SerializationInfo info, StreamingContext context)`.
+  * Support multiple `L` instances in the day-of-month field (e.g. `L-1,L-2`), lifting the previous one-instance limitation
+  * Fix `L-nW` (nearest weekday to an interior last-day offset) resolving a Sunday backwards to Friday instead of forwards to Monday
 
 
 ## Release 3.14.0, Mar 8 2025

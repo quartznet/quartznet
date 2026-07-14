@@ -237,18 +237,19 @@ public sealed class CronExpression : ISerializable
     [NonSerialized] private int nthdayOfWeek;
 
     /// <summary>
-    /// Last day of month.
+    /// Nearest-weekday days ('nW', e.g. "15W"). Each entry resolves, per month, to
+    /// the weekday nearest that day; tracked separately from the numeric day bits
+    /// so each 'W' shifts its own day, not the smallest day in the field.
     /// </summary>
-    [NonSerialized] private bool lastDayOfMonth;
+    [NonSerialized] private List<int>? nearestWeekdays;
 
     /// <summary>
-    /// Nearest weekday.
+    /// Last-day-of-month modifiers ('L', 'LW', 'L-n', 'L-nW', 'LW-n'). Each entry
+    /// resolves, per month, to a concrete day that is OR'd into the day-of-month
+    /// candidate mask. <see langword="null" /> until an 'L' modifier is parsed, so
+    /// the common case stays allocation-free and on the bitmask fast path.
     /// </summary>
-    [NonSerialized] private bool nearestWeekday;
-
-    [NonSerialized] private int lastDayOffset;
-
-    [NonSerialized] private int lastWeekdayOffset;
+    [NonSerialized] private List<LastDaySpec>? lastDaySpecs;
 
     /// <summary>
     /// Calendar day of the week.
@@ -260,12 +261,11 @@ public sealed class CronExpression : ISerializable
     /// </summary>
     [NonSerialized] private bool calendarDayOfMonth;
 
-    private static readonly Regex regex = new("^L(-\\d{1,2})?(W(-\\d{1,2})?)?$", RegexOptions.Compiled | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(5)); //e.g. LW L-0W L-4 L-12W LW-4 LW-12
+    private static readonly Regex regex = new("^L(-\\d+)?(W(-\\d+)?)?$", RegexOptions.Compiled | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(5)); //e.g. LW L-0W L-4 L-12W LW-4 (out-of-range offsets are rejected in the 'L' parse)
 
     // Field ranges for H (hash) token resolution: [min, max] indexed by field type (Second=0 through DayOfWeek=5)
     private static readonly int[] HashFieldMins = { 0, 0, 0, 1, 1, 1 };
     private static readonly int[] HashFieldMaxes = { 59, 59, 23, 31, 12, 7 };
-    private static readonly Regex offsetRegex = new("LW-(?<offset>[0-9]+)", RegexOptions.Compiled | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(5));
 
     static CronExpression()
     {
@@ -809,15 +809,6 @@ public sealed class CronExpression : ISerializable
                     break;
                 }
 
-                // throw an exception if L is used with other days of the month
-                if (exprOn == CronExpressionConstants.DayOfMonth)
-                {
-                    if (expr.IndexOf('L') != -1 && expr.Length > 1 && expr.IndexOf(',') >= 0 && expr.Slice(expr.IndexOf('L') + 1).IndexOf('L') != -1)
-                    {
-                        Throw.FormatException("Support for specifying 'L' with other days of the month is limited to one instance of L");
-                    }
-                }
-
                 // throw an exception if L is used with other days of the week
                 if (exprOn == CronExpressionConstants.DayOfWeek && expr.IndexOf('L') != -1 && expr.Length > 1 && expr.IndexOf(',') >= 0)
                 {
@@ -874,6 +865,8 @@ public sealed class CronExpression : ISerializable
         months.Clear();
         daysOfWeek.Clear();
         years.Clear();
+        lastDaySpecs = null;
+        nearestWeekdays = null;
     }
 
     private void StoreExpressionQuestionMark(int type, ReadOnlySpan<char> s, int i)
@@ -889,7 +882,7 @@ public sealed class CronExpression : ISerializable
             Throw.FormatException("'?' can only be specified for Day-of-Month or Day-of-Week.");
         }
 
-        if (type == CronExpressionConstants.DayOfWeek && !lastDayOfMonth)
+        if (type == CronExpressionConstants.DayOfWeek && lastDaySpecs is null)
         {
             var val = daysOfMonth.LastOrDefault();
             if (val == CronExpressionConstants.NoSpec)
@@ -955,39 +948,38 @@ public sealed class CronExpression : ISerializable
         {
             case CronExpressionConstants.DayOfMonth:
             {
-                lastDayOfMonth = true;
+                var offset = 0;
+                var weekday = false;
+                var weekdayOffset = 0;
                 if (s.Length > i)
                 {
                     var c = s[i];
                     if (c == '-')
                     {
-                        (lastDayOffset, i) = GetValue(0, s, i + 1);
-                        if (lastDayOffset > 30)
+                        (offset, i) = GetValue(0, s, i + 1);
+                        if (offset > 30)
                         {
                             Throw.FormatException("Offset from last day must be <= 30");
                         }
                     }
 
-                    if (s.Length > i)
+                    if (s.Length > i && s[i] == 'W')
                     {
-                        c = s[i];
-                        if (c == 'W')
+                        weekday = true;
+                        i++;
+                        // optional trailing weekday offset, e.g. 'LW-2' / 'L-1W-2'
+                        if (s.Length > i && s[i] == '-')
                         {
-                            nearestWeekday = true;
-                        }
-
-                        var match = offsetRegex.Match(s.ToString());
-                        if (match.Success)
-                        {
-                            var offSetGroup = match.Groups["offset"];
-                            if (offSetGroup.Success)
+                            (weekdayOffset, i) = GetValue(0, s, i + 1);
+                            if (weekdayOffset > 30)
                             {
-                                lastWeekdayOffset = int.Parse(offSetGroup.Value);
+                                Throw.FormatException("Offset from last weekday must be <= 30");
                             }
                         }
                     }
                 }
 
+                (lastDaySpecs ??= []).Add(new LastDaySpec(offset, weekday, weekdayOffset));
                 break;
             }
 
@@ -1149,7 +1141,7 @@ public sealed class CronExpression : ISerializable
 
         switch (s[i])
         {
-            case >= 'A' and <= 'Z' when !s.SequenceEqual("L".AsSpan()) && !regex.IsMatch(s.ToString()):
+            case >= 'A' and <= 'Z' when !regex.IsMatch(s.ToString()):
                 StoreExpressionGeneralValue(type, s, i);
                 break;
 
@@ -1374,22 +1366,23 @@ public sealed class CronExpression : ISerializable
 
     private void HandleWOption(int val, int type, int i)
     {
-        if (type == CronExpressionConstants.DayOfMonth)
-        {
-            nearestWeekday = true;
-        }
-        else
+        if (type != CronExpressionConstants.DayOfMonth)
         {
             Throw.FormatException($"'W' option is not valid here. (pos={i})");
         }
 
+        if (val < 1)
+        {
+            Throw.FormatException("The 'W' option only makes sense with a day-of-month value of 1 or greater");
+        }
         if (val > 31)
         {
             Throw.FormatException("The 'W' option does not make sense with values larger than 31 (max number of days in a month)");
         }
 
-        var data = GetSet(type);
-        data.Add(val);
+        // Track the specific 'nW' day rather than adding it to the numeric day
+        // set, so its weekday shift is applied to this day alone.
+        (nearestWeekdays ??= []).Add(val);
     }
 
     private void HandleLOption(int val, int type, int pos)
@@ -1432,9 +1425,9 @@ public sealed class CronExpression : ISerializable
             months,
             daysOfWeek,
             lastDayOfWeek,
-            nearestWeekday,
+            nearestWeekdays is not null || (lastDaySpecs is not null && lastDaySpecs.Exists(spec => spec.NearestWeekday)),
             nthdayOfWeek,
-            lastDayOfMonth,
+            lastDaySpecs is not null,
             calendarDayOfWeek,
             calendarDayOfMonth,
             years
@@ -1789,35 +1782,38 @@ public sealed class CronExpression : ISerializable
         return new NextFireTimeCursor(false, d);
     }
 
-    private (uint dayMask, bool dayHasNegativeOffset) CalculateDaysOfMonth(DateTimeOffset currentDate)
+    private uint CalculateDaysOfMonth(DateTimeOffset currentDate)
     {
         // Build the candidate days as a bitmask (days 1-31) instead of allocating
-        // a SortedSet per call. 'L'/'LW'/'L-n' add no concrete days to the field,
-        // so the field bits start empty for those; '15W' starts with its day bit.
+        // a SortedSet per call. 'L'/'LW'/'L-n'/'nW' add no concrete days to the
+        // field, so the field bits start empty for those.
         var dayMask = daysOfMonth.GetDayBits();
-        var dayHasNegativeOffset = false;
 
-        if (lastDayOfMonth)
+        int endDayOfMonth = GetLastDayOfMonth(currentDate.Month, currentDate.Year);
+
+        // Resolve each 'nW' to the weekday nearest its own day (not the smallest
+        // day in the field).
+        if (nearestWeekdays is not null)
         {
-            int lastDayOfMonthValue = GetLastDayOfMonth(currentDate.Month, currentDate.Year);
-            int lastDayOfMonthWithOffset = lastDayOfMonthValue - lastDayOffset;
-
-            if (nearestWeekday)
+            foreach (var day in nearestWeekdays)
             {
-                int calculatedLastDay = CalculateNearestWeekdayForLastDay(currentDate, lastDayOfMonthWithOffset);
-                dayMask = SetDayBit(dayMask, calculatedLastDay);
-            }
-            else
-            {
-                dayMask = SetDayBit(dayMask, lastDayOfMonthWithOffset);
+                dayMask = SetDayBit(dayMask, ResolveNearestWeekday(currentDate, day, endDayOfMonth));
             }
         }
-        else if (nearestWeekday)
+
+        if (lastDaySpecs is not null)
         {
-            (dayMask, dayHasNegativeOffset) = CalculateNearestWeekdayForDaysOfMonth(currentDate, dayMask);
+            foreach (var spec in lastDaySpecs)
+            {
+                int lastDayWithOffset = endDayOfMonth - spec.Offset;
+                int candidate = spec.NearestWeekday
+                    ? CalculateNearestWeekdayForLastDay(currentDate, lastDayWithOffset, spec.WeekdayOffset, endDayOfMonth)
+                    : lastDayWithOffset;
+                dayMask = SetDayBit(dayMask, candidate);
+            }
         }
 
-        return (dayMask, dayHasNegativeOffset);
+        return dayMask;
     }
 
     // Sets the bit for a day, dropping days outside 1-31 (e.g. a large negative
@@ -1828,33 +1824,12 @@ public sealed class CronExpression : ISerializable
         return day is >= 1 and <= 31 ? dayMask | (1u << day) : dayMask;
     }
 
-    // The smallest day in the mask, or 0 when empty (mirrors SortedSet.Min).
-    private static int MaskMin(uint dayMask)
-    {
-        return dayMask == 0 ? 0 : BitUtil.TrailingZeroCount(dayMask);
-    }
-
     // Bitmask equivalent of the day-of-month SortedSet lookup: the smallest
-    // candidate day >= start.Day, with the W-modifier "earlier weekday" case.
-    private static bool TryGetNextDay(uint dayMask, DateTimeOffset start, bool allowValueBeforeStartDay, out int minimumDay)
+    // candidate day >= startDay. A day already passed (e.g. a 'W' that shifted to
+    // an earlier weekday) is simply not >= startDay, so the caller wraps to the
+    // next month, exactly like the numeric path.
+    private static bool TryGetNextDay(uint dayMask, int startDay, out int minimumDay)
     {
-        minimumDay = MaskMin(dayMask);
-        var startDay = start.Day;
-
-        // current day itself is a candidate
-        if ((dayMask & (1u << startDay)) != 0)
-        {
-            minimumDay = startDay;
-            return true;
-        }
-
-        // W modifier may match a weekday earlier than the requested day
-        if (allowValueBeforeStartDay && minimumDay < startDay)
-        {
-            return true;
-        }
-
-        // smallest candidate at or after startDay
         uint atOrAbove = dayMask & (~0u << startDay);
         if (atOrAbove != 0)
         {
@@ -1862,68 +1837,59 @@ public sealed class CronExpression : ISerializable
             return true;
         }
 
+        minimumDay = 0;
         return false;
     }
 
     /// <summary>
-    /// Calculates the nearest weekday for the last day of the month.
+    /// Calculates the nearest weekday for the last day of the month. Applies the
+    /// standard bidirectional nearest-weekday shift, then subtracts the optional
+    /// trailing weekday offset ('LW-n'), falling back to the 1st when it underflows
+    /// the month.
     /// </summary>
     /// <param name="currentDate">The current date.</param>
     /// <param name="lastDayOfMonthWithOffset">The last day of the month with the offset applied.</param>
+    /// <param name="weekdayOffset">Optional trailing offset applied after the weekday shift ('LW-n').</param>
+    /// <param name="endDayOfMonth">The last day of the current month.</param>
     /// <returns>The calculated last day of the month, adjusted to the nearest weekday.</returns>
-    private int CalculateNearestWeekdayForLastDay(DateTimeOffset currentDate, int lastDayOfMonthWithOffset)
+    private static int CalculateNearestWeekdayForLastDay(DateTimeOffset currentDate, int lastDayOfMonthWithOffset, int weekdayOffset, int endDayOfMonth)
     {
-        // Day-of-week doesn't depend on time or offset, so build a plain DateTime
-        // (cheaper than a full DateTimeOffset) just to read it.
-        var checkDayOfWeek = new DateTime(currentDate.Year, currentDate.Month, lastDayOfMonthWithOffset).DayOfWeek;
-        var calculatedDay = lastDayOfMonthWithOffset;
-
-        switch (checkDayOfWeek)
+        // A non-positive base day (e.g. 'L-30W' in a short month) never matches;
+        // return it unchanged so SetDayBit drops it.
+        if (lastDayOfMonthWithOffset < 1)
         {
-            case DayOfWeek.Saturday:
-                calculatedDay -= 1;
-                break;
-            case DayOfWeek.Sunday:
-                calculatedDay -= 2;
-                break;
+            return lastDayOfMonthWithOffset;
         }
 
-        var calculatedLastDayWithOffset = calculatedDay - lastWeekdayOffset;
+        // Day-of-week doesn't depend on time or offset, so a plain DateTime suffices.
+        var dayOfWeek = new DateTime(currentDate.Year, currentDate.Month, lastDayOfMonthWithOffset).DayOfWeek;
+        var calculatedDay = AdjustDayToNearestWeekday(lastDayOfMonthWithOffset, dayOfWeek, endDayOfMonth) - weekdayOffset;
 
-        // If the day has crossed to the prior month, reset to 1st.
-        if (calculatedLastDayWithOffset <= 0)
+        // If the trailing offset crossed to the prior month, fall back to the 1st.
+        if (calculatedDay < 1)
         {
-            calculatedLastDayWithOffset = 1;
+            calculatedDay = 1;
         }
 
-        return calculatedLastDayWithOffset;
+        return calculatedDay;
     }
 
     /// <summary>
-    /// Calculates the nearest weekday for the specified days of the month.
+    /// Resolves a single 'nW' day to the weekday nearest it, clamping a day past
+    /// the end of the month to the last day first.
     /// </summary>
     /// <param name="currentDate">The current date.</param>
-    /// <param name="dayMask">The candidate days of the month as a bitmask.</param>
-    /// <returns>A tuple containing the updated day bitmask and a flag indicating if any day has a negative offset.</returns>
-    private static (uint dayMask, bool dayHasNegativeOffset) CalculateNearestWeekdayForDaysOfMonth(DateTimeOffset currentDate, uint dayMask)
+    /// <param name="day">The day the 'W' was attached to.</param>
+    /// <param name="endDayOfMonth">The last day of the current month.</param>
+    /// <returns>The weekday nearest <paramref name="day" />, clamped into the month.</returns>
+    private static int ResolveNearestWeekday(DateTimeOffset currentDate, int day, int endDayOfMonth)
     {
-        int endDayOfMonth = GetLastDayOfMonth(currentDate.Month, currentDate.Year);
-        int setMin = MaskMin(dayMask);
-        int minDay = (setMin > endDayOfMonth) ? endDayOfMonth : setMin;
+        int baseDay = day > endDayOfMonth ? endDayOfMonth : day;
 
         // Day-of-week doesn't depend on time or offset, so a plain DateTime suffices.
-        DayOfWeek dayOfWeek = new DateTime(currentDate.Year, currentDate.Month, minDay).DayOfWeek;
+        DayOfWeek dayOfWeek = new DateTime(currentDate.Year, currentDate.Month, baseDay).DayOfWeek;
 
-        // Evict the original date if it is not a weekday
-        if (dayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
-        {
-            dayMask &= ~(1u << minDay);
-        }
-
-        var (adjustedDay, dayHasNegativeOffset) = AdjustDayToNearestWeekday(minDay, dayOfWeek, endDayOfMonth);
-        dayMask = SetDayBit(dayMask, adjustedDay);
-
-        return (dayMask, dayHasNegativeOffset);
+        return AdjustDayToNearestWeekday(baseDay, dayOfWeek, endDayOfMonth);
     }
 
     /// <summary>
@@ -1932,31 +1898,29 @@ public sealed class CronExpression : ISerializable
     /// <param name="day">The day to adjust.</param>
     /// <param name="dayOfWeek">The day of the week.</param>
     /// <param name="endDayOfMonth">The end day of the month.</param>
-    /// <returns>The adjusted day and a flag to indicate adjust day has a negative offset</returns>
-    private static (int day, bool dayHasNegativeOffset) AdjustDayToNearestWeekday(int day, DayOfWeek dayOfWeek, int endDayOfMonth)
+    /// <returns>The adjusted day, staying within the current month.</returns>
+    private static int AdjustDayToNearestWeekday(int day, DayOfWeek dayOfWeek, int endDayOfMonth)
     {
-        var dayHasNegativeOffset = false;
-
-        // evict original date since it has a weekDayModifier
-        switch (dayOfWeek)
+        return dayOfWeek switch
         {
-            case DayOfWeek.Saturday when day == 1:
-                day += 2;
-                break;
-            case DayOfWeek.Saturday:
-                day -= 1;
-                dayHasNegativeOffset = true;
-                break;
-            case DayOfWeek.Sunday when day == endDayOfMonth:
-                day -= 2;
-                dayHasNegativeOffset = true;
-                break;
-            case DayOfWeek.Sunday:
-                day += 1;
-                break;
-        }
+            DayOfWeek.Saturday when day == 1 => day + 2,
+            DayOfWeek.Saturday => day - 1,
+            DayOfWeek.Sunday when day == endDayOfMonth => day - 2,
+            DayOfWeek.Sunday => day + 1,
+            _ => day
+        };
+    }
 
-        return (day, dayHasNegativeOffset);
+    /// <summary>
+    /// A single 'L'-family day-of-month modifier: an offset from the last day of
+    /// the month, whether to shift to the nearest weekday, and an optional
+    /// post-shift weekday offset ('LW-n').
+    /// </summary>
+    private readonly struct LastDaySpec(int offset, bool nearestWeekday, int weekdayOffset)
+    {
+        public readonly int Offset = offset;
+        public readonly bool NearestWeekday = nearestWeekday;
+        public readonly int WeekdayOffset = weekdayOffset;
     }
 
     private NextFireTimeCursor ProgressNextFireTimeDayOfMonth(DateTimeOffset d)
@@ -1967,11 +1931,10 @@ public sealed class CronExpression : ISerializable
         var tmon = month;
 
         // get day by day of month rule
-        if (!lastDayOfMonth && !nearestWeekday)
+        if (lastDaySpecs is null && nearestWeekdays is null)
         {
             // Common case: no 'L'/'W' modifier. Query the bitmask field directly,
-            // which avoids the per-call SortedSet allocation in CalculateDaysOfMonth.
-            // Equivalent to the calculated path with allowValueBeforeStartDay == false.
+            // which avoids the per-call work in CalculateDaysOfMonth.
             if (daysOfMonth.TryGetMinValueStartingFrom(day, out var min))
             {
                 t = day;
@@ -1993,33 +1956,21 @@ public sealed class CronExpression : ISerializable
         }
         else
         {
-            // 'L' / 'W' modifiers: build the per-month candidate days as a bitmask
-            // (no per-call allocation).
-            var (dayMask, setIncludesDayBeforeStartDay) = CalculateDaysOfMonth(d);
-            if (TryGetNextDay(dayMask, d, setIncludesDayBeforeStartDay, out var min))
+            // 'L' / 'W' modifiers: build the per-month candidate day bitmask and
+            // pick the smallest match >= the current day that fits the month.
+            var dayMask = CalculateDaysOfMonth(d);
+            if (TryGetNextDay(dayMask, day, out var min) && min <= GetLastDayOfMonth(month, d.Year))
             {
                 t = day;
                 day = min;
-
-                // make sure we don't over-run a short month, such as february
-                var lastDay = GetLastDayOfMonth(month, d.Year);
-                if (day > lastDay)
-                {
-                    day = MaskMin(dayMask);
-                    month++;
-                }
             }
             else
             {
-                if (lastDayOfMonth)
-                {
-                    day = MaskMin(dayMask); //for lastDayOfMonth use calculated fields
-                }
-                else
-                {
-                    day = daysOfMonth.Min; //if not, then initial set of days uncalculated (to avoid issue with stale weekday in wrong month value)
-                }
-
+                // No usable candidate at/after the current day this month — advance
+                // and re-evaluate from the first day of the next month. A 'W' can
+                // shift a candidate to an earlier day than the current one, so the
+                // day must not be carried forward.
+                day = 1;
                 month++;
             }
         }
