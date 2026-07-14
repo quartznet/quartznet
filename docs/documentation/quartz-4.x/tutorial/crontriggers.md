@@ -116,6 +116,9 @@ extension method (for the CronTrigger-specific properties).
 
 You can also use `CronScheduleBuilder`'s static methods to create schedules.
 
+To compose the cron expression string itself programmatically, see
+[Building cron expressions programmatically](crontrigger.md#building-cron-expressions-programmatically).
+
 **Build a trigger that will fire every other minute, between 8am and 5pm, every day:**
 
 ```csharp

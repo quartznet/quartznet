@@ -216,10 +216,15 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>, IHashKe
     /// <seealso cref="CronExpression" />
     public static CronScheduleBuilder DailyAtHourAndMinute(int hour, int minute)
     {
+        // DateBuilder validation first preserves this method's historical plain-ArgumentException contract
         DateBuilder.ValidateHour(hour);
         DateBuilder.ValidateMinute(minute);
 
-        string cronExpression = $"0 {minute} {hour} ? * *";
+        string cronExpression = CronExpressionBuilder.Create()
+            .WithSecond(0)
+            .WithMinute(minute)
+            .WithHour(hour)
+            .ToString();
 
         return CronScheduleNoParseException(cronExpression);
     }
@@ -235,6 +240,8 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>, IHashKe
     /// <seealso cref="CronExpression" />
     public static CronScheduleBuilder AtHourAndMinuteOnGivenDaysOfWeek(int hour, int minute, params DayOfWeek[] daysOfWeek)
     {
+        // these guards run before the builder's own validation to preserve this
+        // method's historical plain-ArgumentException contract and messages
         if (daysOfWeek is null || daysOfWeek.Length == 0)
         {
             Throw.ArgumentException("You must specify at least one day of week.");
@@ -243,12 +250,12 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>, IHashKe
         DateBuilder.ValidateHour(hour);
         DateBuilder.ValidateMinute(minute);
 
-        string cronExpression = $"0 {minute} {hour} ? * {(int) daysOfWeek[0] + 1}";
-
-        for (int i = 1; i < daysOfWeek.Length; i++)
-        {
-            cronExpression = cronExpression + "," + ((int) daysOfWeek[i] + 1);
-        }
+        string cronExpression = CronExpressionBuilder.Create()
+            .WithSecond(0)
+            .WithMinute(minute)
+            .WithHour(hour)
+            .OnDaysOfWeek(daysOfWeek)
+            .ToString();
 
         return CronScheduleNoParseException(cronExpression);
     }
@@ -267,10 +274,22 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>, IHashKe
     /// <seealso cref="CronExpression" />
     public static CronScheduleBuilder WeeklyOnDayAndHourAndMinute(DayOfWeek dayOfWeek, int hour, int minute)
     {
+        // validate here so an invalid enum value reports this method's own parameter name
+        if (dayOfWeek < DayOfWeek.Sunday || dayOfWeek > DayOfWeek.Saturday)
+        {
+            throw new ArgumentOutOfRangeException(nameof(dayOfWeek), $"Invalid day-of-week value: {dayOfWeek}.");
+        }
+
+        // DateBuilder validation first preserves this method's historical plain-ArgumentException contract
         DateBuilder.ValidateHour(hour);
         DateBuilder.ValidateMinute(minute);
 
-        string cronExpression = $"0 {minute} {hour} ? * {(int) dayOfWeek + 1}";
+        string cronExpression = CronExpressionBuilder.Create()
+            .WithSecond(0)
+            .WithMinute(minute)
+            .WithHour(hour)
+            .OnDaysOfWeek(dayOfWeek)
+            .ToString();
 
         return CronScheduleNoParseException(cronExpression);
     }
@@ -289,11 +308,17 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>, IHashKe
     /// <seealso cref="CronExpression" />
     public static CronScheduleBuilder MonthlyOnDayAndHourAndMinute(int dayOfMonth, int hour, int minute)
     {
+        // DateBuilder validation first preserves this method's historical plain-ArgumentException contract
         DateBuilder.ValidateDayOfMonth(dayOfMonth);
         DateBuilder.ValidateHour(hour);
         DateBuilder.ValidateMinute(minute);
 
-        string cronExpression = $"0 {minute} {hour} {dayOfMonth} * ?";
+        string cronExpression = CronExpressionBuilder.Create()
+            .WithSecond(0)
+            .WithMinute(minute)
+            .WithHour(hour)
+            .WithDayOfMonth(dayOfMonth)
+            .ToString();
 
         return CronScheduleNoParseException(cronExpression);
     }
