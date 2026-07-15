@@ -122,6 +122,95 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
         Assert.IsTrue(cronExpression.IsSatisfiedBy(cal));
     }
 
+    // October 2010: 1st is a Friday, 29th is a Friday, 30th a Saturday, 31st a Sunday
+    // (so the last weekday of the month is the 29th).
+    [TestCase("0 15 10 1,L * ? 2010", new[] { 1, 31 })]
+    [TestCase("0 15 10 15,L * ? 2010", new[] { 15, 31 })]
+    [TestCase("0 15 10 15,31 * ? 2010", new[] { 15, 31 })]
+    [TestCase("0 15 10 15,L-2 * ? 2010", new[] { 15, 31 - 2 })]
+    [TestCase("0 15 10 31,L-2 * ? 2010", new[] { 29, 31 }, "explicit day + last-2 both fire")]
+    [TestCase("0 15 10 6,15,L * ? 2010", new[] { 6, 15, 31 })]
+    [TestCase("0 15 10 1,3,6,15,L * ? 2010", new[] { 1, 3, 6, 15, 31 })]
+    [TestCase("0 15 10 6,15,LW * ? 2010", new[] { 6, 15, 29 })] // 31 Oct 2010 is a Sunday, last weekday is 29th
+    [TestCase("0 15 10 15,LW-2 * ? 2010", new[] { 15, 29 - 2 })] // last weekday (29th) minus 2
+    [TestCase("0 15 10 2W,16 * ? 2010", new[] { 1, 16 })] // 2nd is a Saturday, nearest weekday is the 1st
+    [TestCase("0 15 10 16W,2 * ? 2010", new[] { 2, 15 })] // each W shifts its own day: 16W (Sat)->Fri 15; plain 2 fires raw
+    [TestCase("0 15 10 2W,16W * ? 2010", new[] { 1, 15 }, "two nearest-weekday days")] // 2W->1, 16W->15
+    [TestCase("0 15 10 L-1W,L-1 * ? 2010", new[] { 29, 30 })] // last-1 (30th, Sat) and its nearest weekday (29th, Fri)
+    [TestCase("0 15 10 L-1,L-2 * ? 2010", new[] { 29, 30 }, "multiple L offsets")]
+    [TestCase("0 15 10 1,5,29,L * ? 2010", new[] { 1, 5, 29, 31 }, "QUARTZ-640: previously rejected")]
+    public void TestLastDayOfMonthWithOtherDays(string cronExpression, int[] expectedDays, string scenario = "")
+    {
+        var expr = new CronExpression(cronExpression); // 10:15am on the given days of October 2010
+
+        foreach (var expectedDay in expectedDays)
+        {
+            var date = new DateTime(2010, 10, expectedDay, 10, 15, 0).ToUniversalTime();
+            expr.IsSatisfiedBy(date).Should().BeTrue($"day {expectedDay} should fire ({scenario})");
+        }
+    }
+
+    [Test]
+    public void TestMultipleLastDayInstancesAreSupported()
+    {
+        // Previously all 'L' with other days threw; multiple 'L' offsets now parse
+        // and each contributes an independent candidate day.
+        var expr = new CronExpression("0 15 10 L,L-1,L-2 * ? 2010");
+        foreach (var day in new[] { 29, 30, 31 }) // last three days of October 2010
+        {
+            var date = new DateTime(2010, 10, day, 10, 15, 0).ToUniversalTime();
+            expr.IsSatisfiedBy(date).Should().BeTrue($"day {day} should fire");
+        }
+
+        // A day that is none of L, L-1, L-2 must not fire.
+        expr.IsSatisfiedBy(new DateTime(2010, 10, 28, 10, 15, 0).ToUniversalTime()).Should().BeFalse();
+    }
+
+    [Test]
+    public void TestLastDayWithOtherDaysGetNextValidTimeAfter()
+    {
+        // GetNextValidTimeAfter must never return a time before the query, even
+        // when a 'W' modifier shifts to an earlier weekday that has already passed.
+        var expr = new CronExpression("0 15 10 2W,16 * ? 2010") { TimeZone = TimeZoneInfo.Utc };
+
+        // 2nd is a Saturday -> nearest weekday is the 1st. Querying after the 1st
+        // (but before the 16th) must jump forward to the 16th, not back to the 1st.
+        var next = expr.GetNextValidTimeAfter(new DateTimeOffset(2010, 10, 5, 0, 0, 0, TimeSpan.Zero));
+        next.Should().Be(new DateTimeOffset(2010, 10, 16, 10, 15, 0, TimeSpan.Zero));
+
+        // Before the 1st -> the 1st fires.
+        next = expr.GetNextValidTimeAfter(new DateTimeOffset(2010, 9, 30, 0, 0, 0, TimeSpan.Zero));
+        next.Should().Be(new DateTimeOffset(2010, 10, 1, 10, 15, 0, TimeSpan.Zero));
+    }
+
+    [Test]
+    public void TestSerializationRoundTripWithLastDayAndWeekday()
+    {
+        var original = new CronExpression("0 15 10 1,L-1,LW,2W * ? 2010");
+
+        var data = serializer.Serialize(original);
+        var deserialized = serializer.DeSerialize<CronExpression>(data);
+
+        // The parsed state (lastDaySpecs, nearestWeekdays) is [NonSerialized] and
+        // rebuilt from the expression string, so firing behaviour must survive the
+        // round-trip through each serializer.
+        foreach (var day in new[] { 1, 29, 30 }) // plain 1 / 2W->1; LW->29; L-1->30
+        {
+            var date = new DateTime(2010, 10, day, 10, 15, 0).ToUniversalTime();
+            deserialized.IsSatisfiedBy(date).Should().BeTrue($"day {day} should fire after round-trip");
+        }
+
+        deserialized.IsSatisfiedBy(new DateTime(2010, 10, 3, 10, 15, 0).ToUniversalTime()).Should().BeFalse();
+    }
+
+    [Test]
+    public void TestZeroNearestWeekdayIsRejectedAtParse()
+    {
+        // "0W" must fail at construction, not crash later in GetNextValidTimeAfter.
+        Action act = () => new CronExpression("0 15 10 0W * ?");
+        act.Should().Throw<FormatException>();
+    }
+
     [Test]
     public void CronExpression_Throw_Error_Contructed_With_Null()
     {
@@ -433,18 +522,9 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     [Test]
     public void TestQuartz640()
     {
-        try
-        {
-            new CronExpression("0 43 9 1,5,29,L * ?");
-            Assert.Fail("Expected FormatException did not fire for L combined with other days of the month");
-        }
-        catch (FormatException fe)
-        {
-            Assert.IsTrue(
-                fe.Message.StartsWith("Support for specifying 'L' and 'LW' with other days of the month is not implemented"),
-                "Incorrect FormatException thrown");
-        }
-
+        // 'L' combined with other days of the month is now supported (see
+        // TestLastDayOfMonthWithOtherDays); only the day-of-week combination
+        // remains unsupported.
         try
         {
             new CronExpression("0 43 9 ? * SAT,SUN,L");
