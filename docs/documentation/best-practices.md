@@ -173,7 +173,7 @@ As an example of possible issues, scheduling in the United States within TimeZon
 
 Again, specifics of time and amount of adjustment varies by locale.
 
-Other trigger types that are based on sliding along a calendar (rather than exact amounts of time), such as CalenderIntervalTrigger, will be similarly affected - but rather than missing a firing, or firing twice, may end up having it's fire time shifted by an hour.
+Other trigger types that are based on sliding along a calendar (rather than exact amounts of time), such as CalendarIntervalTrigger, will be similarly affected - but rather than missing a firing, or firing twice, may end up having it's fire time shifted by an hour.
 
 ## Jobs
 
