@@ -51,16 +51,18 @@
     "picomatch@^4": "^4.0.4",
     "lodash": "^4.18.0",
     "smol-toml": "^1.6.1",
-    "shell-quote": "^1.8.4",
+    "shell-quote": "^1.9.0",
     "esbuild": "^0.28.1",
     "qs": "^6.15.2",
     "uuid": "^11.1.1",
     "ws": "^8.20.1",
-    "webpack-dev-server": "^5.2.4",
+    "webpack-dev-server": "^5.2.6",
     "launch-editor": "^2.14.1",
     "markdown-it": "^14.2.0",
     "undici": "^7.28.0",
     "http-proxy-middleware": "^3.0.6",
-    "js-yaml": "^4.2.0"
+    "js-yaml": "^4.3.0",
+    "websocket-driver": "^0.7.5",
+    "body-parser": "^1.20.6"
   }
 }
