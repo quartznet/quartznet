@@ -1005,7 +1005,7 @@ public class RAMJobStore : IJobStore
 
         if (numRefs > 0)
         {
-            Throw.JobPersistenceException("Calender cannot be removed if it referenced by a Trigger!");
+            Throw.JobPersistenceException("Calendar cannot be removed if it is referenced by a Trigger!");
         }
 
         return calendarsByName.TryRemove(name, out _);

@@ -2121,7 +2121,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         {
             if (await Delegate.CalendarIsReferenced(conn, calName, cancellationToken).ConfigureAwait(false))
             {
-                Throw.JobPersistenceException("Calender cannot be removed if it referenced by a trigger!");
+                Throw.JobPersistenceException("Calendar cannot be removed if it is referenced by a trigger!");
             }
 
             if (!Clustered)
