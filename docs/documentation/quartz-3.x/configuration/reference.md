@@ -603,6 +603,7 @@ quartz.dataSource.myDS.connectionString = Server=localhost;Database=quartznet;Us
 
 Execution limits control how many threads each execution group may consume concurrently on a given scheduler node.
 See the [Execution Groups tutorial](../tutorial/execution-groups.md) for full details.
+See the [Node Affinity tutorial](../tutorial/node-affinity.md) for pinning a trigger to a specific cluster node.
 
 | Property Name | Required | Type | Default Value |
 |---|---|---|---|

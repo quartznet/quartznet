@@ -1763,7 +1763,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
 
             if (!update.HasDescription && !update.HasPriority && !update.HasJobDataMap
-                && !update.HasCalendarName && !update.HasMisfireInstruction)
+                && !update.HasCalendarName && !update.HasMisfireInstruction && !update.HasPreferredNode)
             {
                 return true;
             }
@@ -1808,6 +1808,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             if (update.HasMisfireInstruction)
             {
                 existing.MisfireInstruction = update.MisfireInstruction;
+            }
+
+            if (update.HasPreferredNode)
+            {
+                // Setting the property records an explicit pin and marks it dirty, so the
+                // subsequent store writes the preferred node columns.
+                existing.PreferredNode = update.PreferredNode;
             }
 
             string state = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);
@@ -3179,14 +3186,24 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             currentLoopCount++;
             try
             {
+                // The liveness cutoff determines when a preferred node is considered dead, releasing
+                // its pinned triggers to other nodes. SQL check: a node is live if
+                // (now - lastCheckin) <= checkinInterval + misfireThreshold. This is equivalent to
+                // CalcFailedIfAfter for healthy acquiring nodes; the formulas only diverge when the
+                // acquiring node itself is unhealthy (its own checkins are late), in which case
+                // CalcFailedIfAfter becomes MORE lenient while this stays fixed. Being more
+                // aggressive in that edge case is the safer direction — it prevents triggers pinned
+                // to a dead node from being stuck when the surviving nodes are under load.
+                long liveNodeCutoff = (timeProvider.GetUtcNow() - ClusterCheckinMisfireThreshold).UtcTicks;
+
                 List<TriggerAcquireResult> results;
                 if (executionLimits is not null)
                 {
-                    results = await Delegate.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, maxCount, executionLimits, cancellationToken).ConfigureAwait(false);
+                    results = await Delegate.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, maxCount, executionLimits, liveNodeCutoff, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
-                    results = await Delegate.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, maxCount, cancellationToken).ConfigureAwait(false);
+                    results = await Delegate.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, maxCount, liveNodeCutoff, cancellationToken).ConfigureAwait(false);
                 }
 
                 // No trigger is ready to fire yet.
@@ -3506,6 +3523,40 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         catch (Exception e)
         {
             Throw.JobPersistenceException("Couldn't update fired trigger: " + e.Message, e);
+        }
+
+        // Auto-pin: when the preferred node is the "*" sentinel, claim the trigger by assigning this
+        // node's instance id and flagging it as auto-claimed. When it is some OTHER node's id and
+        // already auto-claimed, that node was stale or dead at acquisition time (the acquisition SQL
+        // only releases another node's pin via the liveness fallback), so steal the pin — sticky
+        // failover converges to a live node.
+        // The write is a compare-and-swap against the values observed at acquire time, so a
+        // concurrent change (an UpdateTriggerDetails re-pin or clear between acquisition and firing,
+        // or ClusterRecover's reset to "*") wins over the claim instead of being clobbered by it.
+        // Explicit pins (AUTO = false) are never re-pinned here.
+        if (trigger is AbstractTrigger pinTrigger)
+        {
+            string? rawPreferredNode = pinTrigger.PreferredNode;
+            bool rawPreferredNodeAuto = pinTrigger.IsPreferredNodeAuto;
+            bool claimUnpinned = rawPreferredNode == StdAdoConstants.AutoPinSentinel;
+            bool stealFromStaleNode = rawPreferredNode is not null
+                && rawPreferredNodeAuto
+                && rawPreferredNode != InstanceId;
+
+            if (claimUnpinned || stealFromStaleNode)
+            {
+                int claimed = await Delegate.UpdateTriggerPreferredNodeConditional(
+                    conn, trigger.Key, InstanceId, preferredNodeAuto: true,
+                    rawPreferredNode!, rawPreferredNodeAuto, cancellationToken).ConfigureAwait(false);
+                if (claimed > 0)
+                {
+                    // Mirror the persisted value; not dirty — the row already holds it
+                    pinTrigger.SetPreferredNodeRaw(InstanceId, auto: true, markDirty: false);
+                }
+                // else the pin changed concurrently: leave the concurrent value in place. The
+                // in-memory value is stale but not dirty, so the store below will not write it
+                // back; the next acquisition reloads the current value.
+            }
         }
 
         // Read saved original fire time from trigger (populated by SelectTrigger from DB column)
@@ -4222,6 +4273,20 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                         }
                         else
                         {
+                            // Sticky failover: release only AUTO-CLAIMED pins from the dead node
+                            // (explicit pins are left untouched so the original node reclaims them
+                            // when it returns). Resetting to the "*" sentinel rather than to another
+                            // node lets any eligible node claim the trigger on its next fire, which
+                            // correctly respects execution group limits. This must happen before the
+                            // state row is deleted, and relies on the already-confirmed dead-node
+                            // detection from FindFailedInstances.
+                            int repinned = await Delegate.RepinTriggersFromDeadNode(
+                                conn, rec.SchedulerInstanceId, StdAdoConstants.AutoPinSentinel, cancellationToken).ConfigureAwait(false);
+                            if (repinned > 0)
+                            {
+                                Logger.LogInformation("ClusterManager: Released {Count} auto-pinned trigger(s) from dead node '{InstanceId}' for re-acquisition.", repinned, rec.SchedulerInstanceId);
+                            }
+
                             await Delegate.DeleteSchedulerState(conn, rec.SchedulerInstanceId, cancellationToken).ConfigureAwait(false);
                         }
                     }

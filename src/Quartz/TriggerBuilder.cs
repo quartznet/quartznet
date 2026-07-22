@@ -74,6 +74,8 @@ public sealed class TriggerBuilder
     private JobKey? jobKey;
     private readonly JobDataMap jobDataMap = new JobDataMap();
     private string? executionGroup;
+    private string? preferredNode;
+    private bool preferredNodeAuto;
 
     private IScheduleBuilder? scheduleBuilder;
 
@@ -145,6 +147,19 @@ public sealed class TriggerBuilder
         }
 
         trig.ExecutionGroup = executionGroup;
+
+        // Assign unconditionally: a builder-built trigger fully defines the pin, so a definition
+        // without WithPreferredNode clears a previously stored value when it replaces an existing
+        // trigger (consistent with how ExecutionGroup is persisted). The raw setter carries the
+        // auto-claim flag so GetTriggerBuilder() round-trips an auto-pin faithfully.
+        if (trig is Impl.Triggers.AbstractTrigger abstractTrigger)
+        {
+            abstractTrigger.SetPreferredNodeRaw(preferredNode, preferredNodeAuto);
+        }
+        else
+        {
+            trig.PreferredNode = preferredNode;
+        }
 
         return trig;
     }
@@ -243,6 +258,38 @@ public sealed class TriggerBuilder
             }
             this.executionGroup = executionGroup;
         }
+        return this;
+    }
+
+    /// <summary>
+    /// Set the preferred node for the Trigger. When set, only the specified cluster node
+    /// executes this trigger, with automatic failover to other nodes while the preferred
+    /// node is down.
+    /// </summary>
+    /// <param name="preferredNode">
+    /// The scheduler instance id of the target node (matching <c>quartz.scheduler.instanceId</c>),
+    /// <c>"*"</c> for automatic first-fire pinning, or <see langword="null"/> to clear.
+    /// The value must match the instance id exactly — pin comparisons happen in SQL using the
+    /// database's string collation, so a value differing only in case is a different (and on
+    /// case-sensitive databases, never-matching) node.
+    /// </param>
+    /// <returns>the updated TriggerBuilder</returns>
+    public TriggerBuilder WithPreferredNode(string? preferredNode)
+    {
+        // An explicitly supplied pin is never an auto-claim; "*" requests auto-pin but is
+        // still unclaimed until a node fires the trigger.
+        return WithPreferredNodeRaw(preferredNode, auto: false);
+    }
+
+    /// <summary>
+    /// Sets the preferred node together with its auto-claim flag. Used by
+    /// <c>AbstractTrigger.GetTriggerBuilder()</c> so rebuilding an auto-pinned trigger keeps it
+    /// auto-pinned instead of hardening it into an explicit pin.
+    /// </summary>
+    internal TriggerBuilder WithPreferredNodeRaw(string? preferredNode, bool auto)
+    {
+        this.preferredNode = string.IsNullOrWhiteSpace(preferredNode) ? null : preferredNode!.Trim();
+        preferredNodeAuto = this.preferredNode is not null && auto;
         return this;
     }
 

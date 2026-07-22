@@ -148,3 +148,91 @@ GO
 -- Firebird
 -- ALTER TABLE QRTZ_TRIGGERS ADD EXECUTION_GROUP VARCHAR(200);
 -- ALTER TABLE QRTZ_FIRED_TRIGGERS ADD EXECUTION_GROUP VARCHAR(200);
+
+--
+-- Adds the PREFERRED_NODE and PREFERRED_NODE_AUTO columns to the QRTZ_TRIGGERS table.
+-- These support preferred node (node affinity / trigger pinning in clusters):
+-- PREFERRED_NODE holds the target node's instance id verbatim, or the "*" sentinel
+-- requesting auto-pin; PREFERRED_NODE_AUTO records whether that pin was claimed
+-- automatically by the node that first fired the trigger (auto-claimed pins are released
+-- back to "*" when their node dies, explicit pins are preserved).
+--
+-- These columns are REQUIRED for 4.x. Apply the appropriate ALTER TABLE for your database.
+--
+-- NOTE: These columns were added as optional in Quartz.NET 3.19. If you are already
+-- running 3.19 or later with node affinity, they may already exist. The 3.x and 4.x
+-- representations are identical, so no data migration is needed.
+--
+
+-- SQL Server
+IF COL_LENGTH('QRTZ_TRIGGERS','PREFERRED_NODE') IS NULL
+BEGIN
+  ALTER TABLE [dbo].[QRTZ_TRIGGERS] ADD [PREFERRED_NODE] nvarchar(200) NULL;
+END
+GO
+
+IF COL_LENGTH('QRTZ_TRIGGERS','PREFERRED_NODE_AUTO') IS NULL
+BEGIN
+  ALTER TABLE [dbo].[QRTZ_TRIGGERS] ADD [PREFERRED_NODE_AUTO] bit NOT NULL DEFAULT 0;
+END
+GO
+
+-- PostgreSQL (check existence before adding)
+-- DO $$
+-- BEGIN
+--   IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+--                  WHERE table_name = 'qrtz_triggers' AND column_name = 'preferred_node') THEN
+--     ALTER TABLE qrtz_triggers ADD COLUMN preferred_node VARCHAR(200);
+--   END IF;
+--   IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+--                  WHERE table_name = 'qrtz_triggers' AND column_name = 'preferred_node_auto') THEN
+--     ALTER TABLE qrtz_triggers ADD COLUMN preferred_node_auto BOOL NOT NULL DEFAULT FALSE;
+--   END IF;
+-- END $$;
+
+-- MySQL (check existence before adding)
+-- SET @dbname = DATABASE();
+-- SET @preparedStatement = (SELECT IF(
+--   (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+--    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'QRTZ_TRIGGERS' AND COLUMN_NAME = 'PREFERRED_NODE') > 0,
+--   'SELECT 1',
+--   'ALTER TABLE QRTZ_TRIGGERS ADD COLUMN PREFERRED_NODE VARCHAR(200) NULL'
+-- ));
+-- PREPARE alterIfNotExists FROM @preparedStatement;
+-- EXECUTE alterIfNotExists;
+-- DEALLOCATE PREPARE alterIfNotExists;
+--
+-- SET @preparedStatement = (SELECT IF(
+--   (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS
+--    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'QRTZ_TRIGGERS' AND COLUMN_NAME = 'PREFERRED_NODE_AUTO') > 0,
+--   'SELECT 1',
+--   'ALTER TABLE QRTZ_TRIGGERS ADD COLUMN PREFERRED_NODE_AUTO BOOLEAN NOT NULL DEFAULT FALSE'
+-- ));
+-- PREPARE alterIfNotExists FROM @preparedStatement;
+-- EXECUTE alterIfNotExists;
+-- DEALLOCATE PREPARE alterIfNotExists;
+
+-- SQLite
+-- ALTER TABLE QRTZ_TRIGGERS ADD COLUMN PREFERRED_NODE NVARCHAR(200);
+-- ALTER TABLE QRTZ_TRIGGERS ADD COLUMN PREFERRED_NODE_AUTO BIT NOT NULL DEFAULT 0;
+
+-- Oracle (check existence before adding)
+-- DECLARE
+--   column_exists NUMBER;
+-- BEGIN
+--   SELECT COUNT(*) INTO column_exists FROM user_tab_columns
+--   WHERE table_name = 'QRTZ_TRIGGERS' AND column_name = 'PREFERRED_NODE';
+--   IF column_exists = 0 THEN
+--     EXECUTE IMMEDIATE 'ALTER TABLE QRTZ_TRIGGERS ADD (PREFERRED_NODE VARCHAR2(200))';
+--   END IF;
+--   SELECT COUNT(*) INTO column_exists FROM user_tab_columns
+--   WHERE table_name = 'QRTZ_TRIGGERS' AND column_name = 'PREFERRED_NODE_AUTO';
+--   IF column_exists = 0 THEN
+--     EXECUTE IMMEDIATE 'ALTER TABLE QRTZ_TRIGGERS ADD (PREFERRED_NODE_AUTO VARCHAR2(1) DEFAULT ''0'' NOT NULL)';
+--   END IF;
+-- END;
+-- /
+
+-- Firebird
+-- ALTER TABLE QRTZ_TRIGGERS ADD PREFERRED_NODE VARCHAR(200);
+-- ALTER TABLE QRTZ_TRIGGERS ADD PREFERRED_NODE_AUTO SMALLINT DEFAULT 0 NOT NULL;

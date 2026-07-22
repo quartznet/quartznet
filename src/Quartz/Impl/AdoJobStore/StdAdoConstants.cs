@@ -113,8 +113,8 @@ public class StdAdoConstants : AdoConstants
         Invariant($"INSERT INTO {TablePrefixSubst}{TableSimpleTriggers} ({ColumnSchedulerName}, {ColumnTriggerName}, {ColumnTriggerGroup}, {ColumnRepeatCount}, {ColumnRepeatInterval}, {ColumnTimesTriggered})  VALUES(@schedulerName, @triggerName, @triggerGroup, @triggerRepeatCount, @triggerRepeatInterval, @triggerTimesTriggered)");
 
     public static readonly string SqlInsertTrigger =
-        Invariant($@"INSERT INTO {TablePrefixSubst}{TableTriggers} ({ColumnSchedulerName}, {ColumnTriggerName}, {ColumnTriggerGroup}, {ColumnJobName}, {ColumnJobGroup}, {ColumnDescription}, {ColumnNextFireTime}, {ColumnPreviousFireTime}, {ColumnTriggerState}, {ColumnTriggerType}, {ColumnStartTime}, {ColumnEndTime}, {ColumnCalendarName}, {ColumnMifireInstruction}, {ColumnJobDataMap}, {ColumnPriority}, {ColumnExecutionGroup})
-                        VALUES(@schedulerName, @triggerName, @triggerGroup, @triggerJobName, @triggerJobGroup, @triggerDescription, @triggerNextFireTime, @triggerPreviousFireTime, @triggerState, @triggerType, @triggerStartTime, @triggerEndTime, @triggerCalendarName, @triggerMisfireInstruction, @triggerJobJobDataMap, @triggerPriority, @triggerExecutionGroup)");
+        Invariant($@"INSERT INTO {TablePrefixSubst}{TableTriggers} ({ColumnSchedulerName}, {ColumnTriggerName}, {ColumnTriggerGroup}, {ColumnJobName}, {ColumnJobGroup}, {ColumnDescription}, {ColumnNextFireTime}, {ColumnPreviousFireTime}, {ColumnTriggerState}, {ColumnTriggerType}, {ColumnStartTime}, {ColumnEndTime}, {ColumnCalendarName}, {ColumnMifireInstruction}, {ColumnJobDataMap}, {ColumnPriority}, {ColumnExecutionGroup}, {ColumnPreferredNode}, {ColumnPreferredNodeAuto})
+                        VALUES(@schedulerName, @triggerName, @triggerGroup, @triggerJobName, @triggerJobGroup, @triggerDescription, @triggerNextFireTime, @triggerPreviousFireTime, @triggerState, @triggerType, @triggerStartTime, @triggerEndTime, @triggerCalendarName, @triggerMisfireInstruction, @triggerJobJobDataMap, @triggerPriority, @triggerExecutionGroup, @triggerPreferredNode, @triggerPreferredNodeAuto)");
 
     // SELECT
 
@@ -196,16 +196,48 @@ public class StdAdoConstants : AdoConstants
     public static readonly string SqlSelectHasMisfiredTriggersInState =
         Invariant($"SELECT {ColumnTriggerName}, {ColumnTriggerGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnMifireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND {ColumnNextFireTime} < @nextFireTime AND {ColumnTriggerState} = @state1 ORDER BY {ColumnNextFireTime} ASC, {ColumnPriority} DESC");
 
+    /// <summary>
+    /// Sentinel stored in PREFERRED_NODE to request auto-pin that has not yet been claimed by
+    /// any node. Distinct from a node name, and never itself flagged as auto-claimed.
+    /// </summary>
+    public const string AutoPinSentinel = "*";
+
+    // Preferred node (node affinity) acquisition filter.
+    //
+    // @instanceId matches pins to this node (explicit or auto-claimed — both store the bare name).
+    // @autoPinSentinel matches the "*" sentinel (auto-pin requested but unclaimed).
+    // The final disjunct releases a trigger whose owning node is no longer checking in, using a
+    // checkin-time-aware subquery against SCHEDULER_STATE. LAST_CHECKIN_TIME is stored in ticks and
+    // CHECKIN_INTERVAL in milliseconds (10000 ticks per ms); @liveNodeCutoff is
+    // (now - ClusterCheckinMisfireThreshold).UtcTicks. The arithmetic assumes the default
+    // GetDbDateTimeValue/GetDbTimeSpanValue storage formats, so a delegate overriding those must
+    // also override GetSelectNextTriggerToAcquireSql.
+    //
+    // The IS NULL test comes first so the overwhelmingly common unpinned row short-circuits before
+    // the correlated subquery is considered. The node name is stored verbatim (the auto-claim flag
+    // lives in its own column), so no REPLACE() is needed and the comparison stays index-friendly.
+    //
+    // The subquery correlates on t.SCHED_NAME instead of reusing @schedulerName: each named
+    // parameter must be referenced exactly once in the statement, because providers with
+    // bindByName=false adapt named parameters positionally and a reused name would produce more
+    // placeholders than bound parameters.
+    private static readonly string PreferredNodeWhereClause =
+        Invariant($@"AND (t.{ColumnPreferredNode} IS NULL OR t.{ColumnPreferredNode} = @instanceId OR t.{ColumnPreferredNode} = @autoPinSentinel
+                     OR t.{ColumnPreferredNode} NOT IN (SELECT ss.{ColumnInstanceName} FROM {TablePrefixSubst}{TableSchedulerState} ss WHERE ss.{ColumnSchedulerName} = t.{ColumnSchedulerName} AND ss.{ColumnLastCheckinTime} + ss.{ColumnCheckinInterval} * 10000 >= @liveNodeCutoff))");
+
+    // PREFERRED_NODE is filtered entirely in PreferredNodeWhereClause and is not projected —
+    // acquisition never reads it from the result (the trigger is reloaded via RetrieveTrigger).
     public static readonly string SqlSelectNextTriggerToAcquire =
         Invariant($@"SELECT
                 t.{ColumnTriggerName}, t.{ColumnTriggerGroup}, jd.{ColumnJobClass}, t.{ColumnExecutionGroup}
               FROM
                 {TablePrefixSubst}{TableTriggers} t
               JOIN
-                {TablePrefixSubst}{TableJobDetails} jd ON (jd.{ColumnSchedulerName} = t.{ColumnSchedulerName} AND  jd.{ColumnJobGroup} = t.{ColumnJobGroup} AND jd.{ColumnJobName} = t.{ColumnJobName}) 
+                {TablePrefixSubst}{TableJobDetails} jd ON (jd.{ColumnSchedulerName} = t.{ColumnSchedulerName} AND  jd.{ColumnJobGroup} = t.{ColumnJobGroup} AND jd.{ColumnJobName} = t.{ColumnJobName})
               WHERE
                 t.{ColumnSchedulerName} = @schedulerName AND {ColumnTriggerState} = @state AND {ColumnNextFireTime} <= @noLaterThan AND ({ColumnMifireInstruction} = -1 OR ({ColumnMifireInstruction} <> -1 AND {ColumnNextFireTime} >= @noEarlierThan))
-              ORDER BY 
+                {PreferredNodeWhereClause}
+              ORDER BY
                 {ColumnNextFireTime} ASC, {ColumnPriority} DESC");
 
     public static readonly string SqlSelectNumCalendars =
@@ -261,7 +293,9 @@ public class StdAdoConstants : AdoConstants
                 {ColumnRepeatInterval},
                 {ColumnTimesTriggered},
                 t.{ColumnMisfireOriginalFireTime},
-                t.{ColumnExecutionGroup}
+                t.{ColumnExecutionGroup},
+                t.{ColumnPreferredNode},
+                t.{ColumnPreferredNodeAuto}
             FROM
                 {TablePrefixSubst}{TableTriggers} t
             LEFT JOIN
@@ -339,9 +373,22 @@ public class StdAdoConstants : AdoConstants
     public static readonly string SqlUpdateSimpleTrigger =
         Invariant($"UPDATE {TablePrefixSubst}{TableSimpleTriggers} SET {ColumnRepeatCount} = @triggerRepeatCount, {ColumnRepeatInterval} = @triggerRepeatInterval, {ColumnTimesTriggered} = @triggerTimesTriggered WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
 
+    // The preferred node columns are only written when the pin was actually changed on the trigger
+    // instance, so each UPDATE comes in two flavours. Writing the pin back unconditionally would
+    // clobber concurrent changes (ClusterRecover's failover reset, an UpdateTriggerDetails re-pin)
+    // with the value that happened to be loaded at acquire time. Folding the columns into the main
+    // UPDATE — rather than issuing a second statement — keeps it to one round-trip either way.
+    private const string PreferredNodeSetClause =
+        $", {ColumnPreferredNode} = @triggerPreferredNode, {ColumnPreferredNodeAuto} = @triggerPreferredNodeAuto";
+
     public static readonly string SqlUpdateTrigger =
         Invariant($@"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnJobName} = @triggerJobName, {ColumnJobGroup} = @triggerJobGroup, {ColumnDescription} = @triggerDescription, {ColumnNextFireTime} = @triggerNextFireTime, {ColumnPreviousFireTime} = @triggerPreviousFireTime,
                         {ColumnTriggerState} = @triggerState, {ColumnTriggerType} = @triggerType, {ColumnStartTime} = @triggerStartTime, {ColumnEndTime} = @triggerEndTime, {ColumnCalendarName} = @triggerCalendarName, {ColumnMifireInstruction} = @triggerMisfireInstruction, {ColumnPriority} = @triggerPriority, {ColumnJobDataMap} = @triggerJobJobDataMap, {ColumnExecutionGroup} = @triggerExecutionGroup
+                        WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
+
+    public static readonly string SqlUpdateTriggerWithPreferredNode =
+        Invariant($@"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnJobName} = @triggerJobName, {ColumnJobGroup} = @triggerJobGroup, {ColumnDescription} = @triggerDescription, {ColumnNextFireTime} = @triggerNextFireTime, {ColumnPreviousFireTime} = @triggerPreviousFireTime,
+                        {ColumnTriggerState} = @triggerState, {ColumnTriggerType} = @triggerType, {ColumnStartTime} = @triggerStartTime, {ColumnEndTime} = @triggerEndTime, {ColumnCalendarName} = @triggerCalendarName, {ColumnMifireInstruction} = @triggerMisfireInstruction, {ColumnPriority} = @triggerPriority, {ColumnJobDataMap} = @triggerJobJobDataMap, {ColumnExecutionGroup} = @triggerExecutionGroup{PreferredNodeSetClause}
                         WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
 
     public static readonly string SqlUpdateFiredTrigger = Invariant($"UPDATE {TablePrefixSubst}{TableFiredTriggers} SET {ColumnInstanceName} = @instanceName, {ColumnFiredTime} = @firedTime, {ColumnScheduledTime} = @scheduledTime, {ColumnEntryState} = @entryState, {ColumnJobName} = @jobName, {ColumnJobGroup} = @jobGroup, {ColumnIsNonConcurrent} = @isNonConcurrent, {ColumnRequestsRecovery} = @requestsRecover WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnEntryId} = @entryId");
@@ -356,6 +403,21 @@ public class StdAdoConstants : AdoConstants
         Invariant($@"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnJobName} = @triggerJobName, {ColumnJobGroup} = @triggerJobGroup, {ColumnDescription} = @triggerDescription, {ColumnNextFireTime} = @triggerNextFireTime, {ColumnPreviousFireTime} = @triggerPreviousFireTime,
                         {ColumnTriggerState} = @triggerState, {ColumnTriggerType} = @triggerType, {ColumnStartTime} = @triggerStartTime, {ColumnEndTime} = @triggerEndTime, {ColumnCalendarName} = @triggerCalendarName, {ColumnMifireInstruction} = @triggerMisfireInstruction, {ColumnPriority} = @triggerPriority, {ColumnExecutionGroup} = @triggerExecutionGroup
                     WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
+
+    public static readonly string SqlUpdateTriggerSkipDataWithPreferredNode =
+        Invariant($@"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnJobName} = @triggerJobName, {ColumnJobGroup} = @triggerJobGroup, {ColumnDescription} = @triggerDescription, {ColumnNextFireTime} = @triggerNextFireTime, {ColumnPreviousFireTime} = @triggerPreviousFireTime,
+                        {ColumnTriggerState} = @triggerState, {ColumnTriggerType} = @triggerType, {ColumnStartTime} = @triggerStartTime, {ColumnEndTime} = @triggerEndTime, {ColumnCalendarName} = @triggerCalendarName, {ColumnMifireInstruction} = @triggerMisfireInstruction, {ColumnPriority} = @triggerPriority, {ColumnExecutionGroup} = @triggerExecutionGroup{PreferredNodeSetClause}
+                    WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
+
+    // Compare-and-swap for the auto-pin claim/steal: only writes when the columns still hold the
+    // values observed at acquisition time, so a concurrent re-pin or clear wins over the claim.
+    public static readonly string SqlUpdateTriggerPreferredNodeConditional =
+        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnPreferredNode} = @triggerPreferredNode, {ColumnPreferredNodeAuto} = @triggerPreferredNodeAuto WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup AND {ColumnPreferredNode} = @expectedPreferredNode AND {ColumnPreferredNodeAuto} = @expectedPreferredNodeAuto");
+
+    // Failover reset: only auto-claimed pins belonging to the dead node are released back to the
+    // "*" sentinel. Explicit pins are left alone so the original node reclaims them.
+    public static readonly string SqlRepinTriggersFromDeadNode =
+        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnPreferredNode} = @newPreferredNode, {ColumnPreferredNodeAuto} = @newPreferredNodeAuto WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnPreferredNode} = @oldPreferredNode AND {ColumnPreferredNodeAuto} = @oldPreferredNodeAuto");
 
     public static readonly string SqlUpdateTriggerState =
         Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnTriggerState} = @state WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");

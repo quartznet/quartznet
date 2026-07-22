@@ -1013,6 +1013,8 @@ public interface IDriverDelegate
     /// <param name="noLaterThan">highest value of <see cref="ITrigger.GetNextFireTimeUtc" /> of the triggers (exclusive)</param>
     /// <param name="noEarlierThan">lowest value of <see cref="ITrigger.GetNextFireTimeUtc" /> of the triggers (inclusive)</param>
     /// <param name="maxCount">maximum number of trigger keys allow to acquired in the returning list.</param>
+    /// <param name="liveNodeCutoff">Tick value below which a node's last check-in is considered
+    /// stale, releasing its pinned triggers to other nodes (preferred node / node affinity).</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>A (never null, possibly empty) list of the identifiers (Key objects) of the next triggers to be fired.</returns>
     ValueTask<List<TriggerAcquireResult>> SelectTriggerToAcquire(
@@ -1020,6 +1022,7 @@ public interface IDriverDelegate
         DateTimeOffset noLaterThan,
         DateTimeOffset noEarlierThan,
         int maxCount,
+        long liveNodeCutoff,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -1142,6 +1145,8 @@ public interface IDriverDelegate
     /// <param name="maxCount">Maximum number of triggers to return.</param>
     /// <param name="executionLimits">Execution group available slots. Implementations must create
     /// their own working copy before mutating — the caller may reuse this instance across retries.</param>
+    /// <param name="liveNodeCutoff">Tick value below which a node's last check-in is considered
+    /// stale, releasing its pinned triggers to other nodes (preferred node / node affinity).</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask<List<TriggerAcquireResult>> SelectTriggerToAcquire(
         ConnectionAndTransactionHolder conn,
@@ -1149,6 +1154,34 @@ public interface IDriverDelegate
         DateTimeOffset noEarlierThan,
         int maxCount,
         Dictionary<string, int?> executionLimits,
+        long liveNodeCutoff,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates the preferred node columns for a trigger only when they still hold the expected
+    /// values (compare-and-swap). Used by the auto-pin claim/steal in TriggerFired so a concurrent
+    /// re-pin or clear (e.g. via UpdateTriggerDetails between acquisition and firing) wins over the
+    /// claim instead of being clobbered by it.
+    /// </summary>
+    /// <returns>Number of rows updated: 1 when the claim succeeded, 0 when the value changed concurrently.</returns>
+    ValueTask<int> UpdateTriggerPreferredNodeConditional(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        string preferredNode,
+        bool preferredNodeAuto,
+        string expectedPreferredNode,
+        bool expectedPreferredNodeAuto,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Releases all auto-claimed pins belonging to a dead node back to the given value
+    /// (batch UPDATE). Explicit pins are left untouched. Used during ClusterRecover to implement
+    /// sticky failover.
+    /// </summary>
+    ValueTask<int> RepinTriggersFromDeadNode(
+        ConnectionAndTransactionHolder conn,
+        string oldPreferredNode,
+        string newPreferredNode,
         CancellationToken cancellationToken = default);
 }
 

@@ -28,6 +28,17 @@ public interface IMutableTrigger : ITrigger
     new string? ExecutionGroup { get; set; }
 
     /// <summary>
+    /// Get or set the preferred node for this trigger. When set to a specific scheduler instance
+    /// id, only that node acquires the trigger in a cluster, with automatic failover while that
+    /// node is down. When set to <c>"*"</c>, the first node to fire the trigger claims it.
+    /// </summary>
+    /// <remarks>
+    /// A <see langword="null"/> value means the trigger has no node preference (the default,
+    /// backward-compatible behavior). Assigning always records an <em>explicit</em> pin.
+    /// </remarks>
+    new string? PreferredNode { get; set; }
+
+    /// <summary>
     /// Associate the <see cref="ICalendar" /> with the given name with this Trigger.
     /// </summary>
     new string? CalendarName { set; get; }
