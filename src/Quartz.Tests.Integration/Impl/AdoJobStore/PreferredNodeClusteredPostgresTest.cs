@@ -52,11 +52,14 @@ public sealed class PreferredNodeClusteredPostgresTest : ClusteredPostgresTestBa
             Assert.That(RecordingJob.Executions, Does.Contain("autopin-node"),
                 "The job should have executed on the autopin-node scheduler");
 
-            // Poll until the auto-pin write is observable (public getter strips "auto:" prefix)
+            // Poll until the auto-pin claim is observable (node name stored verbatim,
+            // with the auto-claim recorded in its own column)
             await WaitForCondition(async () =>
             {
                 ITrigger t = await scheduler.GetTrigger(trigger.Key).ConfigureAwait(false);
-                return t != null && ((AbstractTrigger) t).PreferredNode == "autopin-node";
+                return t != null
+                    && ((AbstractTrigger) t).PreferredNode == "autopin-node"
+                    && ((AbstractTrigger) t).IsPreferredNodeAuto;
             }, 10_000, "auto-pin to resolve to the firing node's instance id").ConfigureAwait(false);
         }
         finally
@@ -176,13 +179,16 @@ public sealed class PreferredNodeClusteredPostgresTest : ClusteredPostgresTestBa
             }, 10_000, "auto-pin to settle on nodeB").ConfigureAwait(false);
 
             // Regression for the auto-pin write-back race: a fire that acquired the trigger
-            // with the stale "auto:nodeA" value before ClusterRecover reset it to "*" must not
-            // write the dead node back. The pin must stay on nodeB across subsequent fires.
+            // while it was still auto-claimed by the dead nodeA (before ClusterRecover reset it
+            // to "*") must not write the dead node back. The pin must stay on nodeB across
+            // subsequent fires.
             RecordingJob.Reset();
             await WaitForExecutionCount(2, 10_000).ConfigureAwait(false);
             ITrigger settled = await nodeB.GetTrigger(failoverKey).ConfigureAwait(false);
             Assert.That(((AbstractTrigger) settled).PreferredNode, Is.EqualTo("nodeB"),
                 "Pin must remain on the surviving node and never revert to the dead node");
+            Assert.That(((AbstractTrigger) settled).IsPreferredNodeAuto, Is.True,
+                "The stolen pin must remain auto-claimed so it can fail over again");
         }
         finally
         {

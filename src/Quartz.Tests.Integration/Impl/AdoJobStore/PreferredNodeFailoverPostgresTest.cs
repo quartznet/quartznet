@@ -116,9 +116,11 @@ public sealed class PreferredNodeFailoverPostgresTest : ClusteredPostgresTestBas
 
             ITrigger pinnedTrigger = await nodeA.GetTrigger(trigger.Key).ConfigureAwait(false);
             Assert.That(pinnedTrigger, Is.Not.Null);
-            // Public getter normalizes (strips "auto:" prefix)
+            // The node name is stored verbatim; the auto-claim is recorded out-of-band
             Assert.That(((AbstractTrigger) pinnedTrigger).PreferredNode, Is.EqualTo("nodeA"),
                 "Auto-pin should resolve to 'nodeA' after first fire");
+            Assert.That(((AbstractTrigger) pinnedTrigger).IsPreferredNodeAuto, Is.True,
+                "A pin claimed by auto-pin should be flagged as auto-claimed");
 
             await nodeA.Shutdown(false).ConfigureAwait(false);
         }
@@ -153,9 +155,9 @@ public sealed class PreferredNodeFailoverPostgresTest : ClusteredPostgresTestBas
                 return t != null && ((AbstractTrigger) t).PreferredNode == "nodeB";
             }, 10_000, "auto-pin to settle on nodeB").ConfigureAwait(false);
 
-            // Regression for the auto-pin write-back race: a fire that acquired the trigger
-            // with the stale "auto:nodeA" value before ClusterRecover reset it must not write
-            // the dead node back. The pin must remain on nodeB across subsequent fires.
+            // Regression for the auto-pin write-back race: a fire that acquired the trigger while
+            // it was still auto-claimed by the dead nodeA (before ClusterRecover reset it) must not
+            // write the dead node back. The pin must remain on nodeB across subsequent fires.
             RecordingJob.Reset();
             await WaitForExecutionCount(2, 10_000).ConfigureAwait(false);
             Assert.That(RecordingJob.Executions, Has.All.EqualTo("nodeB"));

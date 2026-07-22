@@ -81,7 +81,9 @@ internal sealed class TriggerConverter : JsonConverter<ITrigger>
             if (trigger is Quartz.Spi.INextVersionTrigger nvt)
             {
                 nvt.ExecutionGroup = rootElement.GetPropertyOrNull(options.GetPropertyName("ExecutionGroup"))?.GetString();
-                nvt.SetPreferredNodeRaw(rootElement.GetPropertyOrNull(options.GetPropertyName("PreferredNode"))?.GetString());
+                nvt.SetPreferredNodeRaw(
+                    rootElement.GetPropertyOrNull(options.GetPropertyName("PreferredNode"))?.GetString(),
+                    rootElement.GetPropertyOrNull(options.GetPropertyName("PreferredNodeAuto"))?.GetBoolean() ?? false);
             }
 
             triggerSerializer.DeserializeFields(trigger, rootElement, options);
@@ -119,9 +121,10 @@ internal sealed class TriggerConverter : JsonConverter<ITrigger>
             if (value is Quartz.Spi.INextVersionTrigger nvt)
             {
                 writer.WriteString(options.GetPropertyName("ExecutionGroup"), nvt.ExecutionGroup);
-                // Serialize the raw internal value (may include "auto:" prefix) so that
-                // auto-pin state survives round-trips through JSON serialization.
                 writer.WriteString(options.GetPropertyName("PreferredNode"), nvt.PreferredNode);
+                // The auto-claim flag is written alongside the node name so auto-pin state
+                // survives round-trips through JSON serialization.
+                writer.WriteBoolean(options.GetPropertyName("PreferredNodeAuto"), nvt.IsPreferredNodeAuto);
             }
 
             triggerSerializer.SerializeFields(writer, value, options);

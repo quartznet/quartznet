@@ -1242,17 +1242,19 @@ internal interface INextVersionDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Updates the PREFERRED_NODE column for a trigger (used during auto-pin on first fire).
+    /// Updates the PREFERRED_NODE and PREFERRED_NODE_AUTO columns for a trigger
+    /// (used during auto-pin on first fire).
     /// </summary>
     Task UpdateTriggerPreferredNode(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         string? preferredNode,
+        bool preferredNodeAuto,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Updates the PREFERRED_NODE column for a trigger only when it still holds the expected
-    /// value (compare-and-swap). Used by the auto-pin claim/steal in TriggerFired so a
+    /// Updates the preferred node columns for a trigger only when they still hold the expected
+    /// values (compare-and-swap). Used by the auto-pin claim/steal in TriggerFired so a
     /// concurrent re-pin or clear (e.g. via UpdateTriggerDetails between acquisition and
     /// firing) wins over the claim instead of being clobbered by it.
     /// </summary>
@@ -1261,12 +1263,15 @@ internal interface INextVersionDelegate
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         string preferredNode,
+        bool preferredNodeAuto,
         string expectedPreferredNode,
+        bool expectedPreferredNodeAuto,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Re-pins all triggers with a given preferred node to a new node (batch UPDATE).
-    /// Used during ClusterRecover to implement sticky failover.
+    /// Releases all auto-claimed pins belonging to a dead node back to the given value
+    /// (batch UPDATE). Explicit pins are left untouched. Used during ClusterRecover to
+    /// implement sticky failover.
     /// </summary>
     Task<int> RepinTriggersFromDeadNode(
         ConnectionAndTransactionHolder conn,

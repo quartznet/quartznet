@@ -130,9 +130,11 @@ public sealed class PreferredNodeClusterTest
             }
 
             Assert.That(retrieved, Is.Not.Null, "RepeatForever trigger should still exist");
-            // Public getter normalizes (strips "auto:" prefix), so we see the plain node name
+            // The node name is stored verbatim; the auto-claim is recorded out-of-band
             Assert.That(((AbstractTrigger) retrieved).PreferredNode, Is.Not.Null.And.Not.EqualTo("*"),
                 "Auto-pin should have resolved to a specific node after first fire");
+            Assert.That(((AbstractTrigger) retrieved).IsPreferredNodeAuto, Is.True,
+                "A pin claimed by auto-pin should be flagged as auto-claimed");
         }
         finally
         {
@@ -254,8 +256,10 @@ public sealed class PreferredNodeClusterTest
     [Test]
     public async Task PreferredNode_ColumnMissing_GracefullyDegrades()
     {
-        // The PREFERRED_NODE column is optional — on an old schema the feature must be
+        // The preferred node columns are optional — on an old schema the feature must be
         // silently disabled: scheduling succeeds, the trigger fires, the pin reads null.
+        // Both columns are dropped, matching a database that never ran the migration.
+        ExecuteNonQuery("ALTER TABLE QRTZ_TRIGGERS DROP COLUMN PREFERRED_NODE_AUTO");
         ExecuteNonQuery("ALTER TABLE QRTZ_TRIGGERS DROP COLUMN PREFERRED_NODE");
 
         CountingJob.Reset();
@@ -367,8 +371,9 @@ public sealed class PreferredNodeClusterTest
             await scheduler.ScheduleJob(trigger).ConfigureAwait(false);
 
             // Simulate a stale auto-pin left behind by a dead node that ClusterRecover
-            // never repaired (its scheduler state row is long gone).
-            ExecuteNonQuery("UPDATE QRTZ_TRIGGERS SET PREFERRED_NODE = 'auto:ghost' WHERE TRIGGER_NAME = 'stealTrigger'");
+            // never repaired (its scheduler state row is long gone): the node name is stored
+            // verbatim with the auto-claim flag set.
+            ExecuteNonQuery("UPDATE QRTZ_TRIGGERS SET PREFERRED_NODE = 'ghost', PREFERRED_NODE_AUTO = 1 WHERE TRIGGER_NAME = 'stealTrigger'");
 
             await scheduler.Start().ConfigureAwait(false);
 
@@ -376,11 +381,13 @@ public sealed class PreferredNodeClusterTest
                 () => Task.FromResult(CountingJob.ExecutionCount >= 1),
                 10_000, "trigger auto-pinned to a stale node to fire").ConfigureAwait(false);
 
-            // Public getter strips the "auto:" prefix — the steal shows up as "nodeA"
+            // Only auto-claimed pins are stolen, and the steal stays auto-claimed
             await WaitForCondition(async () =>
             {
                 ITrigger t = await scheduler.GetTrigger(trigger.Key).ConfigureAwait(false);
-                return t != null && ((AbstractTrigger) t).PreferredNode == "nodeA";
+                return t != null
+                    && ((AbstractTrigger) t).PreferredNode == "nodeA"
+                    && ((AbstractTrigger) t).IsPreferredNodeAuto;
             }, 10_000, "stale auto-pin to be stolen by the firing node").ConfigureAwait(false);
         }
         finally

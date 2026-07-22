@@ -475,6 +475,8 @@ public class SmokeTestPerformer
         Assert.That(retrievedTrigger, Is.Not.Null, "Trigger with preferred node should be retrievable");
         string retrievedNode = ((AbstractTrigger) retrievedTrigger).PreferredNode;
         Assert.That(retrievedNode, Is.EqualTo("specific-node"), "Preferred node should round-trip through job store");
+        Assert.That(((AbstractTrigger) retrievedTrigger).IsPreferredNodeAuto, Is.False,
+            "An explicitly configured pin must not be flagged as auto-claimed");
 
         // Schedule a trigger with auto-pin sentinel
         ITrigger autoPinTrigger = TriggerBuilder.Create()
@@ -489,6 +491,8 @@ public class SmokeTestPerformer
         ITrigger retrievedAutoPin = await scheduler.GetTrigger(autoPinTrigger.Key);
         Assert.That(retrievedAutoPin, Is.Not.Null);
         Assert.That(((AbstractTrigger) retrievedAutoPin).PreferredNode, Is.EqualTo("*"), "Auto-pin sentinel should round-trip");
+        Assert.That(((AbstractTrigger) retrievedAutoPin).IsPreferredNodeAuto, Is.False,
+            "The auto-pin sentinel is a request, not yet an auto-claim");
 
         // Schedule a trigger without a preferred node
         ITrigger noNodeTrigger = TriggerBuilder.Create()
