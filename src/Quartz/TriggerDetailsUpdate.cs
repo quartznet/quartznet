@@ -91,7 +91,7 @@ public sealed class TriggerDetailsUpdate
     public TriggerDetailsUpdate WithPreferredNode(string? preferredNode)
     {
         HasPreferredNode = true;
-        PreferredNode = Quartz.Impl.Triggers.PreferredNodeValidation.NormalizeUserValue(preferredNode, nameof(preferredNode));
+        PreferredNode = string.IsNullOrWhiteSpace(preferredNode) ? null : preferredNode!.Trim();
         return this;
     }
 }

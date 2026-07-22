@@ -404,14 +404,21 @@ public class StdAdoConstants : AdoConstants
               ORDER BY
                 {ColumnNextFireTime} ASC, {ColumnPriority} DESC");
 
-    // Preferred node support (optional column, probed at startup)
-    // Auto-pinned triggers are stored with this prefix to distinguish them from explicit pins.
-    // ClusterRecover only re-pins "auto:" prefixed values; explicit pins are preserved through failover.
-    // Single source of truth lives in the core trigger layer (validation rejects it in user input).
-    public const string AutoPinPrefix = Quartz.Impl.Triggers.PreferredNodeValidation.AutoPinPrefix;
+    // Preferred node support (optional columns, probed at startup).
+    // PREFERRED_NODE stores the node name verbatim; PREFERRED_NODE_AUTO records whether that pin
+    // was claimed automatically. ClusterRecover only re-pins auto-claimed rows; explicit pins are
+    // preserved through failover.
+    //
+    // Both columns are added by the same migration script, so they are probed together as a single
+    // capability (one SELECT covering both).
+    /// <summary>
+    /// Sentinel stored in PREFERRED_NODE to request auto-pin that has not yet been claimed by
+    /// any node. Distinct from a node name, and never itself flagged as auto-claimed.
+    /// </summary>
+    public const string AutoPinSentinel = "*";
 
     public static readonly string SqlProbePreferredNodeColumn =
-        Invariant($"SELECT {ColumnPreferredNode} FROM {TablePrefixSubst}{TableTriggers} WHERE 1 = 0");
+        Invariant($"SELECT {ColumnPreferredNode}, {ColumnPreferredNodeAuto} FROM {TablePrefixSubst}{TableTriggers} WHERE 1 = 0");
 
     // Canary query against a column that always exists — a failure means the triggers table
     // is unreachable (transient/connectivity), which callers must distinguish from a genuinely
@@ -420,18 +427,21 @@ public class StdAdoConstants : AdoConstants
         Invariant($"SELECT {ColumnTriggerName} FROM {TablePrefixSubst}{TableTriggers} WHERE 1 = 0");
 
     public static readonly string SqlSelectTriggerPreferredNode =
-        Invariant($"SELECT {ColumnPreferredNode} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
+        Invariant($"SELECT {ColumnPreferredNode}, {ColumnPreferredNodeAuto} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
 
     public static readonly string SqlUpdateTriggerPreferredNode =
-        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnPreferredNode} = @triggerPreferredNode WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
+        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnPreferredNode} = @triggerPreferredNode, {ColumnPreferredNodeAuto} = @triggerPreferredNodeAuto WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
 
     // Compare-and-swap variant for the auto-pin claim/steal: only writes when the column still
     // holds the value observed at acquisition time, so concurrent re-pins win over the claim.
+    // The expected value is compared with IS NULL-safe semantics because an unpinned row holds NULL.
     public static readonly string SqlUpdateTriggerPreferredNodeConditional =
-        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnPreferredNode} = @triggerPreferredNode WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup AND {ColumnPreferredNode} = @expectedPreferredNode");
+        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnPreferredNode} = @triggerPreferredNode, {ColumnPreferredNodeAuto} = @triggerPreferredNodeAuto WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup AND {ColumnPreferredNode} = @expectedPreferredNode AND {ColumnPreferredNodeAuto} = @expectedPreferredNodeAuto");
 
+    // Failover reset: only auto-claimed pins belonging to the dead node are released back to the
+    // "*" sentinel. Explicit pins (AUTO = false) are left alone so the original node reclaims them.
     public static readonly string SqlRepinTriggersFromDeadNode =
-        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnPreferredNode} = @newPreferredNode WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnPreferredNode} = @oldPreferredNode");
+        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnPreferredNode} = @newPreferredNode, {ColumnPreferredNodeAuto} = @newPreferredNodeAuto WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnPreferredNode} = @oldPreferredNode AND {ColumnPreferredNodeAuto} = @oldPreferredNodeAuto");
 
     // The preferred node WHERE clause uses a checkin-time-aware subquery against SCHEDULER_STATE
     // to determine which nodes are alive. LAST_CHECKIN_TIME is stored in ticks, CHECKIN_INTERVAL
@@ -439,19 +449,22 @@ public class StdAdoConstants : AdoConstants
     // The arithmetic assumes the default GetDbDateTimeValue/GetDbTimeSpanValue storage formats;
     // delegates that override those must also override the preferred-node acquisition SQL methods.
     //
-    // @instanceId matches explicit pins to this node.
-    // @autoInstanceId matches auto-pins (prefixed with "auto:") to this node.
-    // @autoPinSentinel matches the "*" sentinel (unclaimed auto-pin).
-    // REPLACE strips the "auto:" prefix before comparing against live INSTANCE_NAMEs,
-    // so both "nodeA" and "auto:nodeA" are evaluated against the same liveness check.
+    // @instanceId matches pins to this node (explicit or auto-claimed — both store the bare name).
+    // @autoPinSentinel matches the "*" sentinel (auto-pin requested but unclaimed).
+    // The final disjunct releases a trigger whose owning node is no longer checking in.
+    //
+    // The IS NULL test comes first so the overwhelmingly common unpinned row short-circuits before
+    // the correlated subquery is considered. Because the node name is stored verbatim (the
+    // auto-claim flag lives in its own column) no REPLACE() is needed here, which keeps the
+    // comparison index-friendly.
     //
     // The subquery correlates on t.SCHED_NAME instead of reusing @schedulerName: each named
     // parameter must be referenced exactly once in the statement, because providers with
     // bindByName=false adapt named parameters positionally and a reused name would produce
     // more placeholders than bound parameters.
     private static readonly string PreferredNodeWhereClause =
-        Invariant($@"AND (t.{ColumnPreferredNode} IS NULL OR t.{ColumnPreferredNode} = @instanceId OR t.{ColumnPreferredNode} = @autoInstanceId OR t.{ColumnPreferredNode} = @autoPinSentinel
-                     OR REPLACE(t.{ColumnPreferredNode}, '{AutoPinPrefix}', '') NOT IN (SELECT ss.{ColumnInstanceName} FROM {TablePrefixSubst}{TableSchedulerState} ss WHERE ss.{ColumnSchedulerName} = t.{ColumnSchedulerName} AND ss.{ColumnLastCheckinTime} + ss.{ColumnCheckinInterval} * 10000 >= @liveNodeCutoff))");
+        Invariant($@"AND (t.{ColumnPreferredNode} IS NULL OR t.{ColumnPreferredNode} = @instanceId OR t.{ColumnPreferredNode} = @autoPinSentinel
+                     OR t.{ColumnPreferredNode} NOT IN (SELECT ss.{ColumnInstanceName} FROM {TablePrefixSubst}{TableSchedulerState} ss WHERE ss.{ColumnSchedulerName} = t.{ColumnSchedulerName} AND ss.{ColumnLastCheckinTime} + ss.{ColumnCheckinInterval} * 10000 >= @liveNodeCutoff))");
 
     // PREFERRED_NODE is filtered entirely in PreferredNodeWhereClause and is not projected —
     // acquisition never reads it from the result (the trigger is reloaded via RetrieveTrigger).

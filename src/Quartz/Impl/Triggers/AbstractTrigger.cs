@@ -72,6 +72,12 @@ public abstract class AbstractTrigger : IOperableTrigger, INextVersionTrigger, I
     [OptionalField]
     private string? preferredNode;
 
+    // True when preferredNode holds a pin this trigger claimed automatically (auto-pin) rather
+    // than one the user set explicitly. Kept out-of-band from preferredNode so the node name is
+    // stored verbatim; see PREFERRED_NODE_AUTO in the triggers table.
+    [OptionalField]
+    private bool preferredNodeAuto;
+
     // Tracks whether preferredNode was changed on this instance (vs. loaded from the DB);
     // the ADO.NET job store only persists PREFERRED_NODE on update when set. Serialized
     // (optionally, for old-payload compatibility) so an explicit pin change survives
@@ -246,15 +252,16 @@ public abstract class AbstractTrigger : IOperableTrigger, INextVersionTrigger, I
 
     public TriggerBuilder GetTriggerBuilder()
     {
-        // PreferredNode getter already normalizes (strips "auto:" prefix),
-        // so the builder receives a plain node name for auto-pinned triggers.
+        // The pin round-trips losslessly, auto-claim flag included: rebuilding an auto-pinned
+        // trigger keeps it auto-pinned (so it still resets to "*" if that node dies) instead of
+        // silently hardening into an explicit pin.
         return TriggerBuilder.Create()
             .ForJob(JobKey)
             .ModifiedByCalendar(CalendarName)
             .UsingJobData(JobDataMap)
             .WithDescription(Description)
             .WithExecutionGroup(ExecutionGroup)
-            .WithPreferredNode(PreferredNode)
+            .WithPreferredNodeRaw(preferredNode, preferredNodeAuto)
             .EndAt(EndTimeUtc)
             .WithIdentity(Key)
             .WithPriority(Priority)
@@ -323,47 +330,39 @@ public abstract class AbstractTrigger : IOperableTrigger, INextVersionTrigger, I
     /// </remarks>
     public string? PreferredNode
     {
-        // Public getter normalizes: strips internal "auto:" prefix so callers
-        // see "nodeA" instead of "auto:nodeA". Internal code that needs the raw
-        // value (persistence, acquisition) accesses via INextVersionTrigger cast.
-        get => preferredNode != null
-            && preferredNode.StartsWith(PreferredNodeValidation.AutoPinPrefix, StringComparison.OrdinalIgnoreCase)
-            ? preferredNode.Substring(PreferredNodeValidation.AutoPinPrefix.Length)
-            : preferredNode;
+        get => preferredNode;
         set
         {
-            preferredNode = PreferredNodeValidation.NormalizeUserValue(value, nameof(value));
+            preferredNode = string.IsNullOrWhiteSpace(value) ? null : value!.Trim();
+
+            // An explicit assignment is never an auto-claim: setting "*" requests auto-pin
+            // (still unclaimed), and setting a node name is an explicit pin.
+            preferredNodeAuto = false;
             preferredNodeDirty = true;
         }
     }
 
-    // Explicit interface implementation returns the raw backing field (including
-    // "auto:" prefix) for internal use by persistence and acquisition code.
+    /// <summary>
+    /// Whether <see cref="PreferredNode"/> holds a pin this trigger claimed automatically
+    /// (auto-pin), as opposed to one that was set explicitly. Only meaningful when
+    /// <see cref="PreferredNode"/> is a node name.
+    /// </summary>
+    public bool IsPreferredNodeAuto => preferredNodeAuto;
+
     string? Spi.INextVersionTrigger.PreferredNode
     {
         get => preferredNode;
-        set => PreferredNode = value; // delegate to validated public setter
+        set => PreferredNode = value;
     }
 
+    /// <inheritdoc cref="Spi.INextVersionTrigger.IsPreferredNodeAuto"/>
+    bool Spi.INextVersionTrigger.IsPreferredNodeAuto => preferredNodeAuto;
+
     /// <inheritdoc cref="Spi.INextVersionTrigger.SetPreferredNodeRaw"/>
-    void Spi.INextVersionTrigger.SetPreferredNodeRaw(string? value, bool markDirty)
+    void Spi.INextVersionTrigger.SetPreferredNodeRaw(string? value, bool auto, bool markDirty)
     {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            preferredNode = null;
-        }
-        else
-        {
-            string trimmed = value!.Trim();
-            // Normalize any-case auto-pin prefix to lowercase "auto:" so the SQL
-            // REPLACE('auto:', '') matches on case-sensitive databases (PostgreSQL, etc.).
-            if (trimmed.StartsWith(PreferredNodeValidation.AutoPinPrefix, StringComparison.OrdinalIgnoreCase)
-                && !trimmed.StartsWith(PreferredNodeValidation.AutoPinPrefix, StringComparison.Ordinal))
-            {
-                trimmed = PreferredNodeValidation.AutoPinPrefix + trimmed.Substring(PreferredNodeValidation.AutoPinPrefix.Length);
-            }
-            preferredNode = trimmed;
-        }
+        preferredNode = string.IsNullOrWhiteSpace(value) ? null : value!.Trim();
+        preferredNodeAuto = preferredNode != null && auto;
 
         // markDirty: false means "synchronize from the trigger's own database row" — the
         // in-memory value now mirrors persistent state, so any earlier dirtiness (e.g. a

@@ -166,75 +166,97 @@ public sealed class NodeAffinityTest
 
     [Test]
     [TestCase("auto:nodeA")]
-    [TestCase("AUTO:nodeA")]
-    [TestCase("Auto:nodeA")]
     [TestCase("prod-auto:region1")]
-    public void WithPreferredNode_AutoPrefix_Throws(string value)
+    public void WithPreferredNode_AllowsAnyNodeName(string value)
     {
-        Assert.That(
-            () => TriggerBuilder.Create().WithPreferredNode(value),
-            Throws.ArgumentException);
+        // No substring is reserved: the auto-claim flag lives in its own column, so node
+        // names are stored verbatim and can never collide with an internal marker.
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity("t1", "g1")
+            .ForJob("j1")
+            .WithPreferredNode(value)
+            .Build();
 
-        Assert.That(
-            () => new TriggerDetailsUpdate().WithPreferredNode(value),
-            Throws.ArgumentException);
+        Assert.That(((AbstractTrigger) trigger).PreferredNode, Is.EqualTo(value));
+        Assert.That(((AbstractTrigger) trigger).IsPreferredNodeAuto, Is.False);
+
+        Assert.That(new TriggerDetailsUpdate().WithPreferredNode(value).PreferredNode, Is.EqualTo(value));
     }
 
     [Test]
-    public void GetTriggerBuilder_AutoPinnedTrigger_ProducesExplicitPin()
+    public void GetTriggerBuilder_AutoPinnedTrigger_RoundTripsAutoPin()
     {
         SimpleTriggerImpl trigger = new SimpleTriggerImpl("t1", "g1");
         trigger.JobName = "j1";
-        // Use internal raw setter (simulates what TriggerFired/DB read does)
-        ((Quartz.Spi.INextVersionTrigger) trigger).SetPreferredNodeRaw("auto:nodeA");
+        // Simulates what the auto-pin claim in TriggerFired (and the DB read) does
+        ((Quartz.Spi.INextVersionTrigger) trigger).SetPreferredNodeRaw("nodeA", auto: true);
 
         ITrigger rebuilt = trigger.GetTriggerBuilder().Build();
 
-        // Auto-pinned triggers strip "auto:" prefix and produce plain node name
-        // as an explicit pin, preserving node affinity through clone/reschedule.
+        // Rebuilding preserves the auto-claim, so the trigger still resets to the "*"
+        // sentinel if nodeA dies rather than hardening into an explicit pin.
         AbstractTrigger at = (AbstractTrigger) rebuilt;
         Assert.That(at.PreferredNode, Is.EqualTo("nodeA"));
+        Assert.That(at.IsPreferredNodeAuto, Is.True);
     }
 
     [Test]
-    [TestCase("auto:nodeA")]
-    [TestCase("AUTO:nodeA")]
-    [TestCase("Auto:nodeA")]
-    public void PreferredNode_Setter_RejectsAutoPrefix(string value)
+    public void GetTriggerBuilder_ExplicitPin_StaysExplicit()
     {
         SimpleTriggerImpl trigger = new SimpleTriggerImpl("t1", "g1");
+        trigger.JobName = "j1";
+        trigger.PreferredNode = "nodeA";
 
-        Assert.That(
-            () => trigger.PreferredNode = value,
-            Throws.ArgumentException);
+        AbstractTrigger rebuilt = (AbstractTrigger) trigger.GetTriggerBuilder().Build();
+
+        Assert.That(rebuilt.PreferredNode, Is.EqualTo("nodeA"));
+        Assert.That(rebuilt.IsPreferredNodeAuto, Is.False);
     }
 
     [Test]
-    public void SetPreferredNodeRaw_AcceptsAutoPrefix()
+    public void PreferredNode_PublicSetter_ClearsAutoClaim()
     {
         SimpleTriggerImpl trigger = new SimpleTriggerImpl("t1", "g1");
         Quartz.Spi.INextVersionTrigger nvt = (Quartz.Spi.INextVersionTrigger) trigger;
-        nvt.SetPreferredNodeRaw("auto:nodeA");
+        nvt.SetPreferredNodeRaw("nodeA", auto: true);
+        Assert.That(trigger.IsPreferredNodeAuto, Is.True);
 
-        // Public getter normalizes (strips "auto:" prefix)
-        Assert.That(trigger.PreferredNode, Is.EqualTo("nodeA"));
-        // Internal interface getter returns raw value
-        Assert.That(nvt.PreferredNode, Is.EqualTo("auto:nodeA"));
+        // An explicit assignment is always an explicit pin
+        trigger.PreferredNode = "nodeB";
+
+        Assert.That(trigger.PreferredNode, Is.EqualTo("nodeB"));
+        Assert.That(trigger.IsPreferredNodeAuto, Is.False);
     }
 
     [Test]
-    public void PreferredNode_PublicGetter_NormalizesAutoPrefix()
+    public void SetPreferredNodeRaw_StoresNodeNameVerbatim()
     {
         SimpleTriggerImpl trigger = new SimpleTriggerImpl("t1", "g1");
-        ((Quartz.Spi.INextVersionTrigger) trigger).SetPreferredNodeRaw("auto:nodeA");
+        Quartz.Spi.INextVersionTrigger nvt = (Quartz.Spi.INextVersionTrigger) trigger;
+        nvt.SetPreferredNodeRaw("nodeA", auto: true);
 
-        // Public getter returns plain node name — safe for copy/assign
+        // Public and internal getters agree — there is no prefix to strip
         Assert.That(trigger.PreferredNode, Is.EqualTo("nodeA"));
+        Assert.That(nvt.PreferredNode, Is.EqualTo("nodeA"));
+        Assert.That(nvt.IsPreferredNodeAuto, Is.True);
 
-        // Assignment to another trigger works (no ArgumentException)
+        // Copy/assign to another trigger works and records an explicit pin
         SimpleTriggerImpl other = new SimpleTriggerImpl("t2", "g2");
         other.PreferredNode = trigger.PreferredNode;
         Assert.That(other.PreferredNode, Is.EqualTo("nodeA"));
+        Assert.That(other.IsPreferredNodeAuto, Is.False);
+    }
+
+    [Test]
+    public void SetPreferredNodeRaw_BlankValue_ClearsAutoClaim()
+    {
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl("t1", "g1");
+        Quartz.Spi.INextVersionTrigger nvt = (Quartz.Spi.INextVersionTrigger) trigger;
+
+        nvt.SetPreferredNodeRaw(null, auto: true);
+
+        Assert.That(trigger.PreferredNode, Is.Null);
+        Assert.That(trigger.IsPreferredNodeAuto, Is.False);
     }
 
     [Test]

@@ -372,8 +372,8 @@ public partial class StdAdoDelegate
         if (HasPreferredNodeColumn)
         {
             insertSql = insertSql
-                .Replace($"{lastColumn})", $"{lastColumn}, {ColumnPreferredNode})")
-                .Replace($"{lastParam})", $"{lastParam}, @triggerPreferredNode)");
+                .Replace($"{lastColumn})", $"{lastColumn}, {ColumnPreferredNode}, {ColumnPreferredNodeAuto})")
+                .Replace($"{lastParam})", $"{lastParam}, @triggerPreferredNode, @triggerPreferredNodeAuto)");
         }
 
         return insertSql;
@@ -428,8 +428,10 @@ public partial class StdAdoDelegate
         }
         if (HasPreferredNodeColumn)
         {
-            string? prefNode = (trigger as INextVersionTrigger)?.PreferredNode;
+            var nvtPrefNode = trigger as INextVersionTrigger;
+            string? prefNode = nvtPrefNode?.PreferredNode;
             AddCommandParameter(cmd, "triggerPreferredNode", (object?) prefNode ?? DBNull.Value);
+            AddCommandParameter(cmd, "triggerPreferredNodeAuto", GetDbBooleanValue(prefNode != null && nvtPrefNode!.IsPreferredNodeAuto));
         }
 
         int insertResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
@@ -635,7 +637,7 @@ public partial class StdAdoDelegate
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<string?> ReadTriggerPreferredNode(
+    private async Task<(string? PreferredNode, bool Auto)> ReadTriggerPreferredNode(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
@@ -644,23 +646,26 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "schedulerName", schedName);
         AddCommandParameter(cmd, "triggerName", triggerKey.Name);
         AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
-        var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-        return result == null || result == DBNull.Value ? null : (string) result;
+        using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        if (!await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return (null, false);
+        }
+
+        int nodeOrdinal = rs.GetOrdinal(ColumnPreferredNode);
+        string? preferredNode = rs.IsDBNull(nodeOrdinal) ? null : rs.GetString(nodeOrdinal);
+        int autoOrdinal = rs.GetOrdinal(ColumnPreferredNodeAuto);
+        bool auto = !rs.IsDBNull(autoOrdinal) && GetBooleanFromDbValue(rs.GetValue(autoOrdinal));
+        return (preferredNode, auto);
     }
 
-    private async Task UpdateTriggerPreferredNode(
+    private Task UpdateTriggerPreferredNode(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
         CancellationToken cancellationToken = default)
     {
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerPreferredNode));
-        // Parameters are added in SQL token order for providers with positional binding
-        string? prefNode = (trigger as INextVersionTrigger)?.PreferredNode;
-        AddCommandParameter(cmd, "triggerPreferredNode", (object?) prefNode ?? DBNull.Value);
-        AddCommandParameter(cmd, "schedulerName", schedName);
-        AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-        AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
-        await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        var nvt = trigger as INextVersionTrigger;
+        return UpdateTriggerPreferredNode(conn, trigger.Key, nvt?.PreferredNode, nvt?.IsPreferredNodeAuto ?? false, cancellationToken);
     }
 
     /// <inheritdoc />
@@ -668,11 +673,13 @@ public partial class StdAdoDelegate
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         string? preferredNode,
+        bool preferredNodeAuto,
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerPreferredNode));
         // Parameters are added in SQL token order for providers with positional binding
         AddCommandParameter(cmd, "triggerPreferredNode", (object?) preferredNode ?? DBNull.Value);
+        AddCommandParameter(cmd, "triggerPreferredNodeAuto", GetDbBooleanValue(preferredNode != null && preferredNodeAuto));
         AddCommandParameter(cmd, "schedulerName", schedName);
         AddCommandParameter(cmd, "triggerName", triggerKey.Name);
         AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
@@ -684,16 +691,20 @@ public partial class StdAdoDelegate
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         string preferredNode,
+        bool preferredNodeAuto,
         string expectedPreferredNode,
+        bool expectedPreferredNodeAuto,
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerPreferredNodeConditional));
         // Parameters are added in SQL token order for providers with positional binding
         AddCommandParameter(cmd, "triggerPreferredNode", preferredNode);
+        AddCommandParameter(cmd, "triggerPreferredNodeAuto", GetDbBooleanValue(preferredNodeAuto));
         AddCommandParameter(cmd, "schedulerName", schedName);
         AddCommandParameter(cmd, "triggerName", triggerKey.Name);
         AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
         AddCommandParameter(cmd, "expectedPreferredNode", expectedPreferredNode);
+        AddCommandParameter(cmd, "expectedPreferredNodeAuto", GetDbBooleanValue(expectedPreferredNodeAuto));
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -705,10 +716,13 @@ public partial class StdAdoDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlRepinTriggersFromDeadNode));
-        // Parameters are added in SQL token order for providers with positional binding
+        // Parameters are added in SQL token order for providers with positional binding.
+        // Only auto-claimed pins are released; the reset value ("*") is not itself auto-claimed.
         AddCommandParameter(cmd, "newPreferredNode", newPreferredNode);
+        AddCommandParameter(cmd, "newPreferredNodeAuto", GetDbBooleanValue(false));
         AddCommandParameter(cmd, "schedulerName", schedName);
         AddCommandParameter(cmd, "oldPreferredNode", oldPreferredNode);
+        AddCommandParameter(cmd, "oldPreferredNodeAuto", GetDbBooleanValue(true));
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -764,8 +778,7 @@ public partial class StdAdoDelegate
         if (hasPrefNode)
         {
             AddCommandParameter(cmd, "instanceId", instanceId!);
-            AddCommandParameter(cmd, "autoInstanceId", StdAdoConstants.AutoPinPrefix + instanceId);
-            AddCommandParameter(cmd, "autoPinSentinel", "*");
+            AddCommandParameter(cmd, "autoPinSentinel", StdAdoConstants.AutoPinSentinel);
             AddCommandParameter(cmd, "liveNodeCutoff", liveNodeCutoff);
         }
 
@@ -1221,7 +1234,8 @@ public partial class StdAdoDelegate
             if (HasPreferredNodeColumn)
             {
                 // Populating from the trigger's own row — not a change, must not mark dirty
-                nvTrigger.SetPreferredNodeRaw(await ReadTriggerPreferredNode(conn, triggerKey, cancellationToken).ConfigureAwait(false), markDirty: false);
+                var (preferredNode, preferredNodeAuto) = await ReadTriggerPreferredNode(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+                nvTrigger.SetPreferredNodeRaw(preferredNode, preferredNodeAuto, markDirty: false);
             }
         }
 

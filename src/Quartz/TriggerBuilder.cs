@@ -76,6 +76,7 @@ public class TriggerBuilder
     private readonly JobDataMap jobDataMap = new JobDataMap();
     private string? executionGroup;
     private string? preferredNode;
+    private bool preferredNodeAuto;
 
     private IScheduleBuilder? scheduleBuilder;
 
@@ -153,7 +154,7 @@ public class TriggerBuilder
             // Assign unconditionally: a builder-built trigger fully defines the pin, so a
             // definition without WithPreferredNode clears a previously stored value when it
             // replaces an existing trigger (consistent with how ExecutionGroup is persisted).
-            nvt.PreferredNode = preferredNode;
+            nvt.SetPreferredNodeRaw(preferredNode, preferredNodeAuto);
         }
 
         return trig;
@@ -272,7 +273,20 @@ public class TriggerBuilder
     /// <returns>the updated TriggerBuilder</returns>
     public TriggerBuilder WithPreferredNode(string? preferredNode)
     {
-        this.preferredNode = Quartz.Impl.Triggers.PreferredNodeValidation.NormalizeUserValue(preferredNode, nameof(preferredNode));
+        // An explicitly supplied pin is never an auto-claim; "*" requests auto-pin but is
+        // still unclaimed until a node fires the trigger.
+        return WithPreferredNodeRaw(preferredNode, auto: false);
+    }
+
+    /// <summary>
+    /// Sets the preferred node together with its auto-claim flag. Used by
+    /// <c>AbstractTrigger.GetTriggerBuilder()</c> so rebuilding an auto-pinned trigger keeps
+    /// it auto-pinned instead of hardening it into an explicit pin.
+    /// </summary>
+    internal TriggerBuilder WithPreferredNodeRaw(string? preferredNode, bool auto)
+    {
+        this.preferredNode = string.IsNullOrWhiteSpace(preferredNode) ? null : preferredNode!.Trim();
+        preferredNodeAuto = this.preferredNode != null && auto;
         return this;
     }
 

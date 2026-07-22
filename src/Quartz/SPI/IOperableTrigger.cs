@@ -145,19 +145,33 @@ internal interface INextVersionTrigger
     string? PreferredNode { get; set; }
 
     /// <summary>
-    /// Sets the preferred node without validation. Used internally by Quartz for
-    /// auto-pin writes (<c>"auto:nodeA"</c>) and database reads that may contain
-    /// the <c>"auto:"</c> prefix. External code should use the validated
-    /// <see cref="PreferredNode"/> setter or <c>TriggerBuilder.WithPreferredNode()</c>.
+    /// Whether <see cref="PreferredNode"/> holds a pin the trigger claimed automatically
+    /// (auto-pin) rather than one set explicitly. Persisted out-of-band in the
+    /// <c>PREFERRED_NODE_AUTO</c> column so the node name itself is stored verbatim.
     /// </summary>
-    /// <param name="value">The raw preferred node value.</param>
+    /// <remarks>
+    /// <para>This will be promoted to <see cref="ITrigger"/> in 4.x.</para>
+    /// </remarks>
+    bool IsPreferredNodeAuto { get; }
+
+    /// <summary>
+    /// Sets the preferred node and its auto-claim flag together. Used internally by Quartz
+    /// for auto-pin claims and for populating a trigger from its database row. External code
+    /// should use the <see cref="PreferredNode"/> setter or
+    /// <c>TriggerBuilder.WithPreferredNode()</c>, which always record an explicit pin.
+    /// </summary>
+    /// <param name="value">The preferred node value (node name, <c>"*"</c>, or <see langword="null"/>).</param>
+    /// <param name="auto">
+    /// Whether <paramref name="value"/> is an automatically claimed pin. Ignored when
+    /// <paramref name="value"/> is blank.
+    /// </param>
     /// <param name="markDirty">
     /// Whether the write marks the value as changed (see <see cref="PreferredNodeDirty"/>).
     /// Pass <see langword="false"/> only when populating the trigger from its own
     /// database row, where the in-memory value mirrors persistent state — this also
     /// clears any earlier dirtiness (e.g. set by blob deserialization).
     /// </param>
-    void SetPreferredNodeRaw(string? value, bool markDirty = true);
+    void SetPreferredNodeRaw(string? value, bool auto, bool markDirty = true);
 
     /// <summary>
     /// Indicates whether the preferred node was changed on this trigger instance
