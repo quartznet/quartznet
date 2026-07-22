@@ -357,6 +357,10 @@ public partial class StdAdoDelegate
         string? execGroup = trigger.ExecutionGroup;
         AddCommandParameter(cmd, "triggerExecutionGroup", (object?) execGroup ?? DBNull.Value);
 
+        string? preferredNode = trigger.PreferredNode;
+        AddCommandParameter(cmd, "triggerPreferredNode", (object?) preferredNode ?? DBNull.Value);
+        AddCommandParameter(cmd, "triggerPreferredNodeAuto", GetDbBooleanValue(preferredNode is not null && trigger.IsPreferredNodeAuto));
+
         int insertResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
         if (tDel is null)
@@ -405,7 +409,18 @@ public partial class StdAdoDelegate
         var updateJobData = trigger.JobDataMap.Dirty;
         var jobData = updateJobData ? SerializeJobData(trigger.JobDataMap) : null;
 
-        string sqlUpdate = updateJobData ? SqlUpdateTrigger : SqlUpdateTriggerSkipData;
+        // Only write the preferred node columns when the pin was actually changed on this instance.
+        // A trigger on the fire path carries the value loaded at acquire time; writing it back
+        // would clobber a concurrent re-pin (ClusterRecover's failover reset, UpdateTriggerDetails).
+        bool writePreferredNode = (trigger as AbstractTrigger)?.PreferredNodeDirty == true;
+
+        string sqlUpdate = (updateJobData, writePreferredNode) switch
+        {
+            (true, true) => SqlUpdateTriggerWithPreferredNode,
+            (true, false) => SqlUpdateTrigger,
+            (false, true) => SqlUpdateTriggerSkipDataWithPreferredNode,
+            (false, false) => SqlUpdateTriggerSkipData,
+        };
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(sqlUpdate));
 
         AddCommandParameter(cmd, "schedulerName", schedName);
@@ -441,6 +456,14 @@ public partial class StdAdoDelegate
 
         string? execGroup = trigger.ExecutionGroup;
         AddCommandParameter(cmd, "triggerExecutionGroup", (object?) execGroup ?? DBNull.Value);
+
+        // Parameters are added in SQL token order for providers with positional binding
+        if (writePreferredNode)
+        {
+            string? preferredNode = trigger.PreferredNode;
+            AddCommandParameter(cmd, "triggerPreferredNode", (object?) preferredNode ?? DBNull.Value);
+            AddCommandParameter(cmd, "triggerPreferredNodeAuto", GetDbBooleanValue(preferredNode is not null && trigger.IsPreferredNodeAuto));
+        }
 
         AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
         AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
@@ -718,6 +741,8 @@ public partial class StdAdoDelegate
         DateTimeOffset? endTimeUtc;
         DateTimeOffset? misfireOrigFireTime;
         string? executionGroup;
+        string? preferredNode;
+        bool preferredNodeAuto;
 
         ITriggerPersistenceDelegate? tDel = null;
         TriggerPropertyBundle? triggerProps = null;
@@ -761,6 +786,11 @@ public partial class StdAdoDelegate
 
                 int execGroupOrdinal = rs.GetOrdinal(ColumnExecutionGroup);
                 executionGroup = rs.IsDBNull(execGroupOrdinal) ? null : rs.GetString(execGroupOrdinal);
+
+                int preferredNodeOrdinal = rs.GetOrdinal(ColumnPreferredNode);
+                preferredNode = rs.IsDBNull(preferredNodeOrdinal) ? null : rs.GetString(preferredNodeOrdinal);
+                int preferredNodeAutoOrdinal = rs.GetOrdinal(ColumnPreferredNodeAuto);
+                preferredNodeAuto = !rs.IsDBNull(preferredNodeAutoOrdinal) && GetBooleanFromDbValue(rs.GetValue(preferredNodeAutoOrdinal));
             }
         }
 
@@ -854,6 +884,10 @@ public partial class StdAdoDelegate
         if (trigger is not null)
         {
             trigger.ExecutionGroup = executionGroup;
+
+            // Populating from the trigger's own row — not a change, so it must not mark the pin
+            // dirty (that would make the next store write it back and clobber concurrent re-pins).
+            (trigger as AbstractTrigger)?.SetPreferredNodeRaw(preferredNode, preferredNodeAuto, markDirty: false);
         }
 
         return trigger;
@@ -1148,6 +1182,7 @@ public partial class StdAdoDelegate
         DateTimeOffset noLaterThan,
         DateTimeOffset noEarlierThan,
         int maxCount,
+        long liveNodeCutoff,
         CancellationToken cancellationToken = default)
     {
         if (maxCount < 1)
@@ -1162,6 +1197,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "state", StateWaiting);
         AddCommandParameter(cmd, "noLaterThan", GetDbDateTimeValue(noLaterThan));
         AddCommandParameter(cmd, "noEarlierThan", GetDbDateTimeValue(noEarlierThan));
+        AddPreferredNodeParameters(cmd, liveNodeCutoff);
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         // signal cancel, otherwise ADO.NET might have trouble handling partial reads from open reader
@@ -1205,6 +1241,62 @@ public partial class StdAdoDelegate
         return SqlSelectNextTriggerToAcquire;
     }
 
+    /// <summary>
+    /// Binds the preferred node (node affinity) parameters of the acquisition SQL. Parameters are
+    /// added in SQL token order for providers with positional binding.
+    /// </summary>
+    /// <param name="cmd">The acquisition command.</param>
+    /// <param name="liveNodeCutoff">
+    /// Tick value below which a node's last check-in is considered stale, releasing its pinned
+    /// triggers to other nodes.
+    /// </param>
+    protected void AddPreferredNodeParameters(DbCommand cmd, long liveNodeCutoff)
+    {
+        AddCommandParameter(cmd, "instanceId", instanceId);
+        AddCommandParameter(cmd, "autoPinSentinel", AutoPinSentinel);
+        AddCommandParameter(cmd, "liveNodeCutoff", liveNodeCutoff);
+    }
+
+    /// <inheritdoc />
+    public virtual async ValueTask<int> UpdateTriggerPreferredNodeConditional(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        string preferredNode,
+        bool preferredNodeAuto,
+        string expectedPreferredNode,
+        bool expectedPreferredNodeAuto,
+        CancellationToken cancellationToken = default)
+    {
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerPreferredNodeConditional));
+        // Parameters are added in SQL token order for providers with positional binding
+        AddCommandParameter(cmd, "triggerPreferredNode", preferredNode);
+        AddCommandParameter(cmd, "triggerPreferredNodeAuto", GetDbBooleanValue(preferredNodeAuto));
+        AddCommandParameter(cmd, "schedulerName", schedName);
+        AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+        AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+        AddCommandParameter(cmd, "expectedPreferredNode", expectedPreferredNode);
+        AddCommandParameter(cmd, "expectedPreferredNodeAuto", GetDbBooleanValue(expectedPreferredNodeAuto));
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public virtual async ValueTask<int> RepinTriggersFromDeadNode(
+        ConnectionAndTransactionHolder conn,
+        string oldPreferredNode,
+        string newPreferredNode,
+        CancellationToken cancellationToken = default)
+    {
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlRepinTriggersFromDeadNode));
+        // Parameters are added in SQL token order for providers with positional binding.
+        // Only auto-claimed pins are released; the reset value ("*") is not itself auto-claimed.
+        AddCommandParameter(cmd, "newPreferredNode", newPreferredNode);
+        AddCommandParameter(cmd, "newPreferredNodeAuto", GetDbBooleanValue(false));
+        AddCommandParameter(cmd, "schedulerName", schedName);
+        AddCommandParameter(cmd, "oldPreferredNode", oldPreferredNode);
+        AddCommandParameter(cmd, "oldPreferredNodeAuto", GetDbBooleanValue(true));
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     protected virtual string GetCountMisfiredTriggersInStateSql()
     {
         return SqlCountMisfiredTriggersInStates;
@@ -1217,6 +1309,7 @@ public partial class StdAdoDelegate
         DateTimeOffset noEarlierThan,
         int maxCount,
         Dictionary<string, int?> executionLimits,
+        long liveNodeCutoff,
         CancellationToken cancellationToken = default)
     {
         if (maxCount < 1)
@@ -1233,6 +1326,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "state", StateWaiting);
         AddCommandParameter(cmd, "noLaterThan", GetDbDateTimeValue(noLaterThan));
         AddCommandParameter(cmd, "noEarlierThan", GetDbDateTimeValue(noEarlierThan));
+        AddPreferredNodeParameters(cmd, liveNodeCutoff);
 
         // Create a working copy to decrement during iteration
         Dictionary<string, int?> limitsWorkingCopy = new(executionLimits, StringComparer.Ordinal);

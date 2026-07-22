@@ -28,6 +28,9 @@ public sealed class TriggerDetailsUpdate
     internal bool HasMisfireInstruction { get; private set; }
     internal int MisfireInstruction { get; private set; }
 
+    internal bool HasPreferredNode { get; private set; }
+    internal string? PreferredNode { get; private set; }
+
     /// <summary>
     /// Set the trigger's description.
     /// </summary>
@@ -75,6 +78,18 @@ public sealed class TriggerDetailsUpdate
     {
         HasMisfireInstruction = true;
         MisfireInstruction = misfireInstruction;
+        return this;
+    }
+
+    /// <summary>
+    /// Set the trigger's preferred node for cluster node affinity.
+    /// Pass <c>"*"</c> for auto-pin on first fire, a specific instance id to pin to that node,
+    /// or <see langword="null"/> to clear the preference.
+    /// </summary>
+    public TriggerDetailsUpdate WithPreferredNode(string? preferredNode)
+    {
+        HasPreferredNode = true;
+        PreferredNode = string.IsNullOrWhiteSpace(preferredNode) ? null : preferredNode!.Trim();
         return this;
     }
 }

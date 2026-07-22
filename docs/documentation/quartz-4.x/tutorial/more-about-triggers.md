@@ -74,6 +74,9 @@ TriggerBuilder.Create()
 
 See the [Execution Groups tutorial](execution-groups.md) for full details on configuration and usage.
 
+To control *which cluster node* runs a trigger, rather than how many threads it may use, see the
+[Node Affinity tutorial](node-affinity.md).
+
 ## Calendars
 
 Quartz.NET Calendar objects implementing `ICalendar` interface can be associated with triggers at the time the trigger is stored in the scheduler.

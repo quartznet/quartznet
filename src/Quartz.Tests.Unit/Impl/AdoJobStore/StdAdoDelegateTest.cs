@@ -169,6 +169,10 @@ public class StdAdoDelegateTest
             .WithReturnType<DbParameter>()
             .Returns(new SqlParameter());
 
+        // Preferred node auto-claim column reads as absent (distinct ordinal, no collision)
+        A.CallTo(() => dataReader.GetOrdinal(AdoConstants.ColumnPreferredNodeAuto)).Returns(20);
+        A.CallTo(() => dataReader.IsDBNull(20)).Returns(true);
+
         var persistenceDelegate = A.Fake<ITriggerPersistenceDelegate>();
         var exception = new InvalidOperationException();
         A.CallTo(() => persistenceDelegate.LoadExtendedTriggerProperties(A<ConnectionAndTransactionHolder>.Ignored, A<TriggerKey>.Ignored, CancellationToken.None)).Throws(exception);
@@ -342,6 +346,10 @@ public class StdAdoDelegateTest
             .WithReturnType<DbParameter>()
             .Returns(new SqlParameter());
 
+        // Preferred node auto-claim column reads as absent (distinct ordinal, no collision)
+        A.CallTo(() => dataReader.GetOrdinal(AdoConstants.ColumnPreferredNodeAuto)).Returns(20);
+        A.CallTo(() => dataReader.IsDBNull(20)).Returns(true);
+
         var persistenceDelegate = A.Fake<ITriggerPersistenceDelegate>();
         var exception = new InvalidOperationException();
         A.CallTo(() => persistenceDelegate.LoadExtendedTriggerProperties(A<ConnectionAndTransactionHolder>.Ignored, A<TriggerKey>.Ignored, CancellationToken.None)).Throws(exception);
@@ -418,6 +426,9 @@ public class StdAdoDelegateTest
         A.CallTo(() => dataReader[AdoConstants.ColumnMisfireOriginalFireTime]).Returns(DBNull.Value);
         // Return true for IsDBNull on job data map column so that the map is read as null
         A.CallTo(() => dataReader.IsDBNull(11)).Returns(true);
+        // Preferred node auto-claim column reads as absent (distinct ordinal, no collision)
+        A.CallTo(() => dataReader.GetOrdinal(AdoConstants.ColumnPreferredNodeAuto)).Returns(20);
+        A.CallTo(() => dataReader.IsDBNull(20)).Returns(true);
 
         // Create a blob trigger with no fire times set (simulating a freshly deserialized custom trigger)
         var blobTrigger = new SimpleTriggerImpl
@@ -494,6 +505,9 @@ public class StdAdoDelegateTest
         A.CallTo(() => dataReader[AdoConstants.ColumnEndTime]).Returns(DBNull.Value);
         A.CallTo(() => dataReader[AdoConstants.ColumnMisfireOriginalFireTime]).Returns(misfireOrigFireTime.UtcTicks);
         A.CallTo(() => dataReader.IsDBNull(11)).Returns(true);
+        // Preferred node auto-claim column reads as absent (distinct ordinal, no collision)
+        A.CallTo(() => dataReader.GetOrdinal(AdoConstants.ColumnPreferredNodeAuto)).Returns(20);
+        A.CallTo(() => dataReader.IsDBNull(20)).Returns(true);
 
         var blobTrigger = new SimpleTriggerImpl
         {
