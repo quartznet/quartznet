@@ -330,6 +330,55 @@ public partial class StdAdoDelegate
         return Convert.ToInt32(result) > 0;
     }
 
+    // Cached INSERT template with the probed optional columns injected, along with the flag values
+    // it was built for. Optional-column probing normally completes before the first insert, but a
+    // probe deferred by a transient DB failure can flip HasExecutionGroupColumn/HasPreferredNodeColumn
+    // from false to true AFTER an early insert already ran — so the cache is keyed on those flags and
+    // rebuilt when they change, never serving a template that omits a now-present column. (Trigger
+    // inserts run under the TRIGGER_ACCESS lock, so these fields are not accessed concurrently.)
+    private string? cachedInsertTriggerSql;
+    private bool cachedInsertHadExecutionGroup;
+    private bool cachedInsertHadPreferredNode;
+
+    private string GetInsertTriggerSql()
+    {
+        if (cachedInsertTriggerSql is null
+            || cachedInsertHadExecutionGroup != HasExecutionGroupColumn
+            || cachedInsertHadPreferredNode != HasPreferredNodeColumn)
+        {
+            cachedInsertHadExecutionGroup = HasExecutionGroupColumn;
+            cachedInsertHadPreferredNode = HasPreferredNodeColumn;
+            cachedInsertTriggerSql = BuildInsertTriggerSql();
+        }
+
+        return cachedInsertTriggerSql;
+    }
+
+    // Injects the optional EXECUTION_GROUP / PREFERRED_NODE columns into the base INSERT. Each
+    // replace targets the *current* last column so they chain correctly.
+    private string BuildInsertTriggerSql()
+    {
+        string insertSql = SqlInsertTrigger;
+        string lastColumn = ColumnPriority;
+        string lastParam = "@triggerPriority";
+        if (HasExecutionGroupColumn)
+        {
+            insertSql = insertSql
+                .Replace($"{lastColumn})", $"{lastColumn}, {ColumnExecutionGroup})")
+                .Replace($"{lastParam})", $"{lastParam}, @triggerExecutionGroup)");
+            lastColumn = ColumnExecutionGroup;
+            lastParam = "@triggerExecutionGroup";
+        }
+        if (HasPreferredNodeColumn)
+        {
+            insertSql = insertSql
+                .Replace($"{lastColumn})", $"{lastColumn}, {ColumnPreferredNode})")
+                .Replace($"{lastParam})", $"{lastParam}, @triggerPreferredNode)");
+        }
+
+        return insertSql;
+    }
+
     /// <inheritdoc />
     public virtual async Task<int> InsertTrigger(
         ConnectionAndTransactionHolder conn,
@@ -340,14 +389,10 @@ public partial class StdAdoDelegate
     {
         var jobData = SerializeJobData(trigger.JobDataMap);
 
-        string insertSql = SqlInsertTrigger;
-        if (HasExecutionGroupColumn)
-        {
-            // Append EXECUTION_GROUP column and parameter to the INSERT
-            insertSql = insertSql
-                .Replace($"{ColumnPriority})", $"{ColumnPriority}, {ColumnExecutionGroup})")
-                .Replace("@triggerPriority)", "@triggerPriority, @triggerExecutionGroup)");
-        }
+        // Reuse the cached column-injected INSERT template (rebuilt only if the probed optional-column
+        // flags changed since it was built); ReplaceTablePrefix still runs per call, as for every
+        // other statement.
+        string insertSql = GetInsertTriggerSql();
 
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(insertSql));
         AddCommandParameter(cmd, "schedulerName", schedName);
@@ -380,6 +425,11 @@ public partial class StdAdoDelegate
         {
             string? execGroup = (trigger as INextVersionTrigger)?.ExecutionGroup;
             AddCommandParameter(cmd, "triggerExecutionGroup", (object?) execGroup ?? DBNull.Value);
+        }
+        if (HasPreferredNodeColumn)
+        {
+            string? prefNode = (trigger as INextVersionTrigger)?.PreferredNode;
+            AddCommandParameter(cmd, "triggerPreferredNode", (object?) prefNode ?? DBNull.Value);
         }
 
         int insertResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
@@ -473,10 +523,18 @@ public partial class StdAdoDelegate
 
         var updateResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
-        // Update execution group in a separate statement (column is optional)
+        // Update execution group and preferred node in separate statements (columns are optional)
         if (HasExecutionGroupColumn)
         {
             await UpdateTriggerExecutionGroup(conn, trigger, cancellationToken).ConfigureAwait(false);
+        }
+        // Only write PREFERRED_NODE when it was actually changed on this instance (user
+        // setter, builder, deserialization, or auto-pin claim). Triggers on the fire path
+        // carry the value loaded at acquire time — blindly writing it back would clobber
+        // concurrent updates (ClusterRecover's failover reset, UpdateTriggerDetails re-pins).
+        if (HasPreferredNodeColumn && trigger is INextVersionTrigger { PreferredNodeDirty: true })
+        {
+            await UpdateTriggerPreferredNode(conn, trigger, cancellationToken).ConfigureAwait(false);
         }
 
         if (type == existingType)
@@ -541,6 +599,241 @@ public partial class StdAdoDelegate
         string? execGroup = (trigger as INextVersionTrigger)?.ExecutionGroup;
         AddCommandParameter(cmd, "triggerExecutionGroup", (object?) execGroup ?? DBNull.Value);
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public bool HasPreferredNodeColumn { get; private set; }
+
+    /// <inheritdoc />
+    public virtual async Task<bool> SupportsPreferredNodeColumn(
+        ConnectionAndTransactionHolder conn,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlProbePreferredNodeColumn));
+            await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            HasPreferredNodeColumn = true;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.DebugException("Probe for PREFERRED_NODE column failed", ex);
+            HasPreferredNodeColumn = false;
+            return false;
+        }
+    }
+
+    /// <inheritdoc />
+    public virtual async Task VerifyTriggersTableReachable(
+        ConnectionAndTransactionHolder conn,
+        CancellationToken cancellationToken = default)
+    {
+        // Intentionally not wrapped in try/catch — a failure signals connectivity/transient
+        // trouble, which must propagate so column probing is not latched as "column missing".
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlProbeTriggersTableReachable));
+        await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<string?> ReadTriggerPreferredNode(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default)
+    {
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerPreferredNode));
+        AddCommandParameter(cmd, "schedulerName", schedName);
+        AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+        AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+        var result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+        return result == null || result == DBNull.Value ? null : (string) result;
+    }
+
+    private async Task UpdateTriggerPreferredNode(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger trigger,
+        CancellationToken cancellationToken = default)
+    {
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerPreferredNode));
+        // Parameters are added in SQL token order for providers with positional binding
+        string? prefNode = (trigger as INextVersionTrigger)?.PreferredNode;
+        AddCommandParameter(cmd, "triggerPreferredNode", (object?) prefNode ?? DBNull.Value);
+        AddCommandParameter(cmd, "schedulerName", schedName);
+        AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
+        AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
+        await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public virtual async Task UpdateTriggerPreferredNode(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        string? preferredNode,
+        CancellationToken cancellationToken = default)
+    {
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerPreferredNode));
+        // Parameters are added in SQL token order for providers with positional binding
+        AddCommandParameter(cmd, "triggerPreferredNode", (object?) preferredNode ?? DBNull.Value);
+        AddCommandParameter(cmd, "schedulerName", schedName);
+        AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+        AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+        await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public virtual async Task<int> UpdateTriggerPreferredNodeConditional(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        string preferredNode,
+        string expectedPreferredNode,
+        CancellationToken cancellationToken = default)
+    {
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerPreferredNodeConditional));
+        // Parameters are added in SQL token order for providers with positional binding
+        AddCommandParameter(cmd, "triggerPreferredNode", preferredNode);
+        AddCommandParameter(cmd, "schedulerName", schedName);
+        AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+        AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+        AddCommandParameter(cmd, "expectedPreferredNode", expectedPreferredNode);
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public virtual async Task<int> RepinTriggersFromDeadNode(
+        ConnectionAndTransactionHolder conn,
+        string oldPreferredNode,
+        string newPreferredNode,
+        CancellationToken cancellationToken = default)
+    {
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlRepinTriggersFromDeadNode));
+        // Parameters are added in SQL token order for providers with positional binding
+        AddCommandParameter(cmd, "newPreferredNode", newPreferredNode);
+        AddCommandParameter(cmd, "schedulerName", schedName);
+        AddCommandParameter(cmd, "oldPreferredNode", oldPreferredNode);
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public virtual async Task<List<TriggerAcquireResult>> SelectTriggerToAcquire(
+        ConnectionAndTransactionHolder conn,
+        DateTimeOffset noLaterThan,
+        DateTimeOffset noEarlierThan,
+        int maxCount,
+        Dictionary<string, int?>? executionLimits,
+        string? instanceId,
+        long liveNodeCutoff,
+        CancellationToken cancellationToken = default)
+    {
+        if (maxCount < 1)
+        {
+            maxCount = 1;
+        }
+
+        bool hasExecGroup = HasExecutionGroupColumn;
+        bool hasPrefNode = HasPreferredNodeColumn && instanceId != null;
+
+        // When execution limits are active, over-fetch from SQL to reduce the chance that
+        // all top-N rows belong to saturated groups and eligible triggers are never seen.
+        int sqlMaxCount = executionLimits != null ? maxCount * 4 : maxCount;
+
+        string sql;
+        if (hasPrefNode && hasExecGroup)
+        {
+            sql = GetSelectNextTriggerToAcquireWithPreferredNodeSql(sqlMaxCount);
+        }
+        else if (hasPrefNode)
+        {
+            sql = GetSelectNextTriggerToAcquireWithPreferredNodeOnlySql(sqlMaxCount);
+        }
+        else if (hasExecGroup)
+        {
+            sql = GetSelectNextTriggerToAcquireWithExecutionGroupSql(sqlMaxCount);
+        }
+        else
+        {
+            sql = GetSelectNextTriggerToAcquireSql(maxCount);
+        }
+
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(sql));
+        List<TriggerAcquireResult> nextTriggers = new();
+
+        AddCommandParameter(cmd, "schedulerName", schedName);
+        AddCommandParameter(cmd, "state", StateWaiting);
+        AddCommandParameter(cmd, "noLaterThan", GetDbDateTimeValue(noLaterThan));
+        AddCommandParameter(cmd, "noEarlierThan", GetDbDateTimeValue(noEarlierThan));
+
+        if (hasPrefNode)
+        {
+            AddCommandParameter(cmd, "instanceId", instanceId!);
+            AddCommandParameter(cmd, "autoInstanceId", StdAdoConstants.AutoPinPrefix + instanceId);
+            AddCommandParameter(cmd, "autoPinSentinel", "*");
+            AddCommandParameter(cmd, "liveNodeCutoff", liveNodeCutoff);
+        }
+
+        // Create a working copy to decrement during iteration
+        Dictionary<string, int?>? limitsWorkingCopy = executionLimits != null
+            ? new Dictionary<string, int?>(executionLimits, StringComparer.Ordinal)
+            : null;
+
+        using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+
+        // Only EXECUTION_GROUP is projected as an optional column; PREFERRED_NODE is filtered
+        // in the WHERE clause and never read back here.
+        int execGroupOrdinal = -1;
+        bool hasFirstRow = await rs.ReadAsync(cancellationToken).ConfigureAwait(false);
+        if (hasFirstRow && hasExecGroup)
+        {
+            execGroupOrdinal = rs.GetOrdinal(ColumnExecutionGroup);
+        }
+
+        var shouldStop = false;
+        for (bool hasRow = hasFirstRow; hasRow; hasRow = await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            if (shouldStop)
+            {
+                cmd.Cancel();
+                break;
+            }
+
+            if (nextTriggers.Count < maxCount)
+            {
+                string? executionGroup = null;
+                if (execGroupOrdinal >= 0)
+                {
+                    executionGroup = rs.IsDBNull(execGroupOrdinal) ? null : rs.GetString(execGroupOrdinal);
+                }
+
+                // Check execution limits
+                if (limitsWorkingCopy != null && !ExecutionLimits.CheckExecutionLimits(executionGroup, limitsWorkingCopy))
+                {
+                    continue; // skip this trigger, its group is at limit
+                }
+
+                var result = new TriggerAcquireResult(
+                    (string) rs[ColumnTriggerName],
+                    (string) rs[ColumnTriggerGroup],
+                    (string) rs[ColumnJobClass],
+                    executionGroup);
+                nextTriggers.Add(result);
+            }
+            else
+            {
+                shouldStop = true;
+            }
+        }
+
+        return nextTriggers;
+    }
+
+    protected virtual string GetSelectNextTriggerToAcquireWithPreferredNodeSql(int maxCount)
+    {
+        // by default we don't support limits, this is db specific
+        return SqlSelectNextTriggerToAcquireWithPreferredNode;
+    }
+
+    protected virtual string GetSelectNextTriggerToAcquireWithPreferredNodeOnlySql(int maxCount)
+    {
+        // by default we don't support limits, this is db specific
+        return SqlSelectNextTriggerToAcquireWithPreferredNodeOnly;
     }
 
     /// <inheritdoc />
@@ -914,10 +1207,22 @@ public partial class StdAdoDelegate
             SetTriggerStateProperties(trigger, triggerProps);
         }
 
-        // Read execution group if column is available
-        if (trigger is INextVersionTrigger nvTrigger && HasExecutionGroupColumn)
+        // Read execution group and preferred node from SQL when columns exist. When a column
+        // is absent, leave any blob-deserialized value intact: the guarded write/acquisition
+        // paths ignore it, and scrubbing it here would permanently erase it from the blob on
+        // the next re-serialization (fire path rewrites the blob).
+        if (trigger is INextVersionTrigger nvTrigger)
         {
-            nvTrigger.ExecutionGroup = await ReadTriggerExecutionGroup(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+            if (HasExecutionGroupColumn)
+            {
+                nvTrigger.ExecutionGroup = await ReadTriggerExecutionGroup(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+            }
+
+            if (HasPreferredNodeColumn)
+            {
+                // Populating from the trigger's own row — not a change, must not mark dirty
+                nvTrigger.SetPreferredNodeRaw(await ReadTriggerPreferredNode(conn, triggerKey, cancellationToken).ConfigureAwait(false), markDirty: false);
+            }
         }
 
         return trigger;

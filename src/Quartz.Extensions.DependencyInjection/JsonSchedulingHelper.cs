@@ -168,6 +168,7 @@ internal static class JsonSchedulingHelper
             string? description = triggerSection[nameof(JsonTriggerDefinition.Description)];
             string? calendarName = NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.CalendarName)]);
             string? executionGroup = NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.ExecutionGroup)]);
+            string? preferredNode = NormalizeEmpty(triggerSection[nameof(JsonTriggerDefinition.PreferredNode)]);
             string? priorityStr = triggerSection[nameof(JsonTriggerDefinition.Priority)];
             string? startTimeStr = triggerSection[nameof(JsonTriggerDefinition.StartTime)];
             string? startTimeFutureStr = triggerSection[nameof(JsonTriggerDefinition.StartTimeSecondsInFuture)];
@@ -236,6 +237,7 @@ internal static class JsonSchedulingHelper
                 .WithPriority(priority)
                 .ModifiedByCalendar(calendarName)
                 .WithExecutionGroup(executionGroup)
+                .WithPreferredNode(preferredNode)
                 .WithSchedule(schedule)
                 .Build();
 

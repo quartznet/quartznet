@@ -1217,6 +1217,78 @@ internal interface INextVersionDelegate
         int maxCount,
         Dictionary<string, int?> executionLimits,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Whether the PREFERRED_NODE column is available, set after probing.
+    /// </summary>
+    bool HasPreferredNodeColumn { get; }
+
+    /// <summary>
+    /// Probes whether the PREFERRED_NODE column exists in the triggers table.
+    /// Sets <see cref="HasPreferredNodeColumn"/>.
+    /// </summary>
+    Task<bool> SupportsPreferredNodeColumn(
+        ConnectionAndTransactionHolder conn,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Verifies the triggers table is reachable by querying a column that always exists.
+    /// Unlike the <c>Supports*Column</c> probes, this does NOT swallow exceptions — a failure
+    /// means the table/connection is unavailable (transient), which the caller must distinguish
+    /// from a genuinely missing optional column so it does not permanently disable the feature.
+    /// </summary>
+    Task VerifyTriggersTableReachable(
+        ConnectionAndTransactionHolder conn,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates the PREFERRED_NODE column for a trigger (used during auto-pin on first fire).
+    /// </summary>
+    Task UpdateTriggerPreferredNode(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        string? preferredNode,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates the PREFERRED_NODE column for a trigger only when it still holds the expected
+    /// value (compare-and-swap). Used by the auto-pin claim/steal in TriggerFired so a
+    /// concurrent re-pin or clear (e.g. via UpdateTriggerDetails between acquisition and
+    /// firing) wins over the claim instead of being clobbered by it.
+    /// </summary>
+    /// <returns>Number of rows updated: 1 when the claim succeeded, 0 when the value changed concurrently.</returns>
+    Task<int> UpdateTriggerPreferredNodeConditional(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        string preferredNode,
+        string expectedPreferredNode,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Re-pins all triggers with a given preferred node to a new node (batch UPDATE).
+    /// Used during ClusterRecover to implement sticky failover.
+    /// </summary>
+    Task<int> RepinTriggersFromDeadNode(
+        ConnectionAndTransactionHolder conn,
+        string oldPreferredNode,
+        string newPreferredNode,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Selects the next triggers to acquire, with optional execution group and preferred node support.
+    /// When instanceId is non-null, the query filters triggers at the SQL level so only triggers
+    /// this node can acquire are returned (no affinity, auto-pin, pinned to this node, or pinned
+    /// to a node whose checkin has expired based on liveNodeCutoff).
+    /// </summary>
+    Task<List<TriggerAcquireResult>> SelectTriggerToAcquire(
+        ConnectionAndTransactionHolder conn,
+        DateTimeOffset noLaterThan,
+        DateTimeOffset noEarlierThan,
+        int maxCount,
+        Dictionary<string, int?>? executionLimits,
+        string? instanceId,
+        long liveNodeCutoff,
+        CancellationToken cancellationToken = default);
 }
 
 public class TriggerAcquireResult

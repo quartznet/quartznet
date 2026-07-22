@@ -1,3 +1,5 @@
+using System;
+
 namespace Quartz;
 
 /// <summary>
@@ -27,6 +29,9 @@ public sealed class TriggerDetailsUpdate
 
     internal bool HasMisfireInstruction { get; private set; }
     internal int MisfireInstruction { get; private set; }
+
+    internal bool HasPreferredNode { get; private set; }
+    internal string? PreferredNode { get; private set; }
 
     /// <summary>
     /// Set the trigger's description.
@@ -75,6 +80,18 @@ public sealed class TriggerDetailsUpdate
     {
         HasMisfireInstruction = true;
         MisfireInstruction = misfireInstruction;
+        return this;
+    }
+
+    /// <summary>
+    /// Set the trigger's preferred node for cluster node affinity.
+    /// Pass <c>"*"</c> for auto-pin on first fire, a specific instance name to pin
+    /// to that node, or <c>null</c> to clear the preference.
+    /// </summary>
+    public TriggerDetailsUpdate WithPreferredNode(string? preferredNode)
+    {
+        HasPreferredNode = true;
+        PreferredNode = Quartz.Impl.Triggers.PreferredNodeValidation.NormalizeUserValue(preferredNode, nameof(preferredNode));
         return this;
     }
 }

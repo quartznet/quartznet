@@ -129,4 +129,43 @@ internal interface INextVersionTrigger
     /// <para>This will be promoted to <see cref="ITrigger"/> in 4.x.</para>
     /// </remarks>
     string? ExecutionGroup { get; set; }
+
+    /// <summary>
+    /// Gets or sets the preferred node for this trigger. When set to a specific
+    /// scheduler instance id (matching <c>quartz.scheduler.instanceId</c>),
+    /// only that node will acquire the trigger in a cluster (with automatic
+    /// failover if the node is down). When set to <c>"*"</c>, the first node
+    /// to fire the trigger pins it automatically.
+    /// </summary>
+    /// <remarks>
+    /// <para>A <see langword="null"/> value means the trigger has no node preference
+    /// (the default, backward-compatible behavior).</para>
+    /// <para>This will be promoted to <see cref="ITrigger"/> in 4.x.</para>
+    /// </remarks>
+    string? PreferredNode { get; set; }
+
+    /// <summary>
+    /// Sets the preferred node without validation. Used internally by Quartz for
+    /// auto-pin writes (<c>"auto:nodeA"</c>) and database reads that may contain
+    /// the <c>"auto:"</c> prefix. External code should use the validated
+    /// <see cref="PreferredNode"/> setter or <c>TriggerBuilder.WithPreferredNode()</c>.
+    /// </summary>
+    /// <param name="value">The raw preferred node value.</param>
+    /// <param name="markDirty">
+    /// Whether the write marks the value as changed (see <see cref="PreferredNodeDirty"/>).
+    /// Pass <see langword="false"/> only when populating the trigger from its own
+    /// database row, where the in-memory value mirrors persistent state — this also
+    /// clears any earlier dirtiness (e.g. set by blob deserialization).
+    /// </param>
+    void SetPreferredNodeRaw(string? value, bool markDirty = true);
+
+    /// <summary>
+    /// Indicates whether the preferred node was changed on this trigger instance
+    /// (by user code, a builder, deserialization, or an auto-pin claim) as opposed
+    /// to merely being loaded from the database. The ADO.NET job store only persists
+    /// <c>PREFERRED_NODE</c> on update when this is set — writing back an unchanged
+    /// value loaded at acquire time would clobber concurrent updates (ClusterRecover's
+    /// failover reset, <c>UpdateTriggerDetails</c> re-pins).
+    /// </summary>
+    bool PreferredNodeDirty { get; }
 }

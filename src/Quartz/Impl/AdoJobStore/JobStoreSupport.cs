@@ -55,6 +55,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     protected Type delegateType;
     protected readonly Dictionary<string, ICalendar?> calendarCache = new Dictionary<string, ICalendar?>();
     private IDriverDelegate driverDelegate = null!;
+    private INextVersionDelegate? nextVersionDelegate;
     private TimeSpan misfireThreshold = TimeSpan.FromMinutes(1); // one minute
     private TimeSpan? misfirehandlerFrequence;
 
@@ -619,15 +620,30 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                 throw new SchedulerException(error, ex);
             }
         }
+
+        // Cache the cast for hot-path use (avoids repeated pattern matching in AcquireNextTrigger/TriggerFired)
+        if (Delegate is INextVersionDelegate nvd)
+        {
+            nextVersionDelegate = nvd;
+        }
+
+        initializeInvoked = true;
+
+        // Probe for optional columns early so triggers scheduled before Start() are persisted
+        // correctly. EnsureOptionalColumnsProbed already swallows and defers connectivity/transient
+        // failures (so scheduler construction still succeeds while the database is starting, and the
+        // absence is never latched as "column missing"); the probe is retried on the first database
+        // operation and at Start(). It surfaces only a genuine SchedulerConfigException (e.g. a
+        // reserved instance id), which should fail construction fast. Routed through the shared gate
+        // so it cannot race a concurrent lazy retry.
+        await EnsureOptionalColumnsProbed(cancellationToken).ConfigureAwait(false);
     }
 
     /// <seealso cref="IJobStore.SchedulerStarted(CancellationToken)" />
     public virtual async Task SchedulerStarted(
         CancellationToken cancellationToken = default)
     {
-        // Probe for optional MISFIRE_ORIG_FIRE_TIME column (added in schema migration).
-        // When present, enables correct ScheduledFireTimeUtc for misfired triggers.
-        await ProbeForMisfireOriginalFireTimeColumn(cancellationToken).ConfigureAwait(false);
+        await EnsureOptionalColumnsProbed(cancellationToken).ConfigureAwait(false);
 
         if (Clustered)
         {
@@ -652,37 +668,279 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         schedulerRunning = true;
     }
 
-    private async Task ProbeForMisfireOriginalFireTimeColumn(CancellationToken cancellationToken)
+    // Set once ProbeForOptionalColumns has run to completion; until then the probe is
+    // retried lazily (first database operation, SchedulerStarted) so a transient
+    // connectivity failure at initialization is not latched as "column missing".
+    private volatile bool optionalColumnsProbed;
+
+    // Set by Initialize; the lazy probe must not run before the job store is configured
+    private volatile bool initializeInvoked;
+
+    // Serializes concurrent lazy probe attempts so two early operations do not both probe
+    private readonly SemaphoreSlim optionalColumnProbeLock = new(1, 1);
+
+    private protected async Task EnsureOptionalColumnsProbed(CancellationToken cancellationToken)
     {
-        if (Delegate is not INextVersionDelegate misfireDelegate)
+        if (optionalColumnsProbed || !initializeInvoked)
         {
             return;
         }
 
+        await optionalColumnProbeLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (optionalColumnsProbed)
+            {
+                return;
+            }
+
+            try
+            {
+                await ProbeForOptionalColumns(cancellationToken).ConfigureAwait(false);
+            }
+            catch (SchedulerConfigException)
+            {
+                // Genuine misconfiguration (e.g. reserved instance id) — fail fast.
+                throw;
+            }
+            catch (OperationCanceledException oce) when (oce.CancellationToken == cancellationToken)
+            {
+                // Cooperative cancellation from the caller's own token must surface as cancellation.
+                // Provider-originated cancellations (e.g. an ADO.NET command timeout surfaced as
+                // TaskCanceledException with a different/None token) are NOT caller cancellation —
+                // they fall through to the transient-failure handler below and defer the probe.
+                throw;
+            }
+            catch (Exception ex)
+            {
+                // Connectivity/transient failure while probing: do NOT latch and do NOT propagate.
+                // Callers (Initialize, SchedulerStarted, per-operation) must not abort or surface a
+                // raw provider exception for this — the probe is retried on the next call, and any
+                // operation running against an actually-down database fails and retries on its own.
+                Log.DebugException("Optional-column probing deferred due to a database access failure; it will be retried on the next operation.", ex);
+            }
+        }
+        finally
+        {
+            optionalColumnProbeLock.Release();
+        }
+    }
+
+    private async Task ProbeForOptionalColumns(CancellationToken cancellationToken)
+    {
+        if (Delegate is not INextVersionDelegate misfireDelegate)
+        {
+            optionalColumnsProbed = true;
+            return;
+        }
+
+        // nextVersionDelegate is already cached in Initialize (which runs, and sets
+        // initializeInvoked, before this probe is ever reachable) — no need to re-assign it here.
+
+        // Canary: confirm the triggers table is reachable using a column that always exists.
+        // If this throws, the failure is connectivity/transient (NOT a missing optional column),
+        // so it propagates WITHOUT latching optionalColumnsProbed — the probe is retried later.
+        // Without this, a transient error would be swallowed by the Supports*Column probes below
+        // (which cannot tell "column missing" from "connection failed") and the feature would be
+        // permanently, silently disabled for the process lifetime.
+        await ProbeColumn(
+            conn => misfireDelegate.VerifyTriggersTableReachable(conn, cancellationToken),
+            rethrowOnFailure: true,
+            cancellationToken).ConfigureAwait(false);
+
+        // Each probe runs on its own connection because on PostgreSQL a failed probe
+        // (missing column) aborts the transaction, causing subsequent probes on the
+        // same connection to fail even if the column exists.
+        await ProbeColumn(
+            conn => misfireDelegate.SupportsMisfireOriginalFireTimeColumn(conn, cancellationToken),
+            rethrowOnFailure: false,
+            cancellationToken).ConfigureAwait(false);
+
+        await ProbeColumn(
+            conn => misfireDelegate.SupportsExecutionGroupColumn(conn, cancellationToken),
+            rethrowOnFailure: false,
+            cancellationToken).ConfigureAwait(false);
+
+        await ProbeColumn(
+            conn => misfireDelegate.SupportsPreferredNodeColumn(conn, cancellationToken),
+            rethrowOnFailure: false,
+            cancellationToken).ConfigureAwait(false);
+
+        // Re-run the canary ONLY if at least one optional column probed as absent. A missing
+        // column makes its probe fail and default Has*Column to false — indistinguishable, on that
+        // single probe, from a transient connectivity failure. If connectivity dropped mid-probe
+        // this trailing canary throws too, deferring the whole probe (no latch) so it retries later
+        // rather than latching a column that actually exists as "missing". When every column is
+        // present there is nothing that could have been mis-latched, so a healthy fully-migrated
+        // schema skips this extra round-trip.
+        bool anyOptionalColumnAbsent = !misfireDelegate.HasMisfireOriginalFireTimeColumn
+            || !misfireDelegate.HasExecutionGroupColumn
+            || !misfireDelegate.HasPreferredNodeColumn;
+        if (anyOptionalColumnAbsent)
+        {
+            await ProbeColumn(
+                conn => misfireDelegate.VerifyTriggersTableReachable(conn, cancellationToken),
+                rethrowOnFailure: true,
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        if (!misfireDelegate.HasMisfireOriginalFireTimeColumn)
+        {
+            Log.Warn("Column MISFIRE_ORIG_FIRE_TIME not found in triggers table. " +
+                "ScheduledFireTimeUtc will not be corrected for misfired triggers with AdoJobStore. " +
+                "Run the schema migration to add this column.");
+        }
+
+        if (!misfireDelegate.HasExecutionGroupColumn)
+        {
+            Log.Debug("Column EXECUTION_GROUP not found in triggers table. " +
+                "Execution group persistence is not available. " +
+                "Run the schema migration to add this column for full support.");
+        }
+
+        if (!misfireDelegate.HasPreferredNodeColumn)
+        {
+            Log.Warn("Column PREFERRED_NODE not found in triggers table. " +
+                "Preferred node (node affinity) is not available. " +
+                "Run the schema migration to add this column for full support.");
+        }
+        else if (InstanceId != null)
+        {
+            if (InstanceId.IndexOf(StdAdoConstants.AutoPinPrefix, StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                throw new SchedulerConfigException(
+                    $"Scheduler instance id '{InstanceId}' contains the reserved 'auto:' substring. " +
+                    "Rename the instance id to use preferred node (node affinity) support.");
+            }
+
+            // Warn about auto-generated instance IDs that change on every restart,
+            // which break preferred node affinity (stored pin references a stale ID).
+            if (LooksLikeAutoGeneratedInstanceId(InstanceId))
+            {
+                Log.Warn("Scheduler instance id appears to be auto-generated ('" + InstanceId + "'). " +
+                    "Preferred node (node affinity) requires a stable instance id. " +
+                    "Set quartz.scheduler.instanceId to a fixed value.");
+            }
+        }
+
+        if (misfireDelegate.HasPreferredNodeColumn)
+        {
+            suppressPreferredNodeAcquisition = DetectBypassedCustomAcquisitionOverride();
+        }
+
+        optionalColumnsProbed = true;
+    }
+
+    // SimpleInstanceIdGenerator (the default when quartz.scheduler.instanceId=AUTO) produces
+    // "<hostName><ticks>", where ticks is DateTime.UtcNow.Ticks — an ~18-digit number that
+    // changes on every start. Detect that trailing digit run rather than matching the machine
+    // name as a substring, which false-positives on deliberately stable ids that merely embed
+    // the host name (e.g. "PROD01-scheduler" on host "PROD01").
+    private static bool LooksLikeAutoGeneratedInstanceId(string instanceId)
+    {
+        int trailingDigits = 0;
+        for (int i = instanceId.Length - 1; i >= 0 && char.IsDigit(instanceId[i]); i--)
+        {
+            trailingDigits++;
+        }
+
+        // A Ticks value is 18 digits for any date this millennium; require a generous run so a
+        // hand-chosen id ending in a few digits (e.g. "node-1", "server-2024") is not flagged.
+        return trailingDigits >= 15;
+    }
+
+    // When true, a custom delegate overrides the legacy acquisition SQL but not the
+    // preferred-node-aware overload; acquisition stays on the legacy path so the override
+    // keeps running, at the cost of not applying SQL-level preferred-node filtering.
+    private volatile bool suppressPreferredNodeAcquisition;
+
+    /// <summary>
+    /// When the PREFERRED_NODE column exists, acquisition would route through the preferred-node
+    /// overload of <c>SelectTriggerToAcquire</c>. A custom delegate that overrides only the legacy
+    /// overload would then be bypassed — which could silently defeat custom acquisition filtering
+    /// (e.g. tenant isolation). Detect that case so the caller can keep such delegates on the
+    /// legacy path (their override wins over the new feature), and warn that preferred-node
+    /// filtering is not applied for them.
+    /// </summary>
+    private bool DetectBypassedCustomAcquisitionOverride()
+    {
+        try
+        {
+            Type delegateType = Delegate.GetType();
+            if (delegateType.Assembly == typeof(StdAdoDelegate).Assembly)
+            {
+                return false;
+            }
+
+            // A custom delegate can customize acquisition two ways: by overriding a public
+            // SelectTriggerToAcquire overload, or — the conventional vendor pattern used by every
+            // built-in delegate — by overriding the protected GetSelectNextTriggerToAcquire*Sql
+            // builders (row-limit syntax, extra WHERE filters). If it customizes the legacy /
+            // execution-group path but NOT the preferred-node path, the preferred-node overload
+            // would route around its customization once the PREFERRED_NODE column exists.
+            Type[] legacyArgs = [typeof(ConnectionAndTransactionHolder), typeof(DateTimeOffset), typeof(DateTimeOffset), typeof(int), typeof(CancellationToken)];
+            Type[] executionLimitsArgs = [typeof(ConnectionAndTransactionHolder), typeof(DateTimeOffset), typeof(DateTimeOffset), typeof(int), typeof(Dictionary<string, int?>), typeof(CancellationToken)];
+            Type[] preferredNodeArgs = [typeof(ConnectionAndTransactionHolder), typeof(DateTimeOffset), typeof(DateTimeOffset), typeof(int), typeof(Dictionary<string, int?>), typeof(string), typeof(long), typeof(CancellationToken)];
+            Type[] sqlBuilderArgs = [typeof(int)];
+
+            // Protected SQL-builder method names on StdAdoDelegate (not accessible via nameof from
+            // here, so referenced as literals); kept in sync with StdAdoDelegate.Triggers.cs.
+            bool customLegacyAcquisition =
+                IsMethodOverridden(delegateType, nameof(IDriverDelegate.SelectTriggerToAcquire), legacyArgs, nonPublic: false)
+                || IsMethodOverridden(delegateType, nameof(IDriverDelegate.SelectTriggerToAcquire), executionLimitsArgs, nonPublic: false)
+                || IsMethodOverridden(delegateType, "GetSelectNextTriggerToAcquireSql", sqlBuilderArgs, nonPublic: true)
+                || IsMethodOverridden(delegateType, "GetSelectNextTriggerToAcquireWithExecutionGroupSql", sqlBuilderArgs, nonPublic: true);
+
+            bool customPreferredNodeAcquisition =
+                IsMethodOverridden(delegateType, nameof(IDriverDelegate.SelectTriggerToAcquire), preferredNodeArgs, nonPublic: false)
+                || IsMethodOverridden(delegateType, "GetSelectNextTriggerToAcquireWithPreferredNodeSql", sqlBuilderArgs, nonPublic: true)
+                || IsMethodOverridden(delegateType, "GetSelectNextTriggerToAcquireWithPreferredNodeOnlySql", sqlBuilderArgs, nonPublic: true);
+
+            if (customLegacyAcquisition && !customPreferredNodeAcquisition)
+            {
+                Log.Warn($"Delegate type '{delegateType.FullName}' customizes trigger acquisition but not the preferred-node acquisition path. Keeping acquisition on the overridable path so the custom SQL still applies; SQL-level preferred node (node affinity) filtering is disabled for this delegate. Override the preferred-node acquisition method(s) to combine custom acquisition with node affinity.");
+                return true;
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.DebugException("Could not inspect delegate for custom trigger-acquisition overrides.", ex);
+        }
+
+        return false;
+    }
+
+    private static bool IsMethodOverridden(Type delegateType, string name, Type[] parameterTypes, bool nonPublic)
+    {
+        System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance
+            | (nonPublic ? System.Reflection.BindingFlags.NonPublic : System.Reflection.BindingFlags.Public);
+        System.Reflection.MethodInfo? method = delegateType.GetMethod(name, flags, binder: null, parameterTypes, modifiers: null);
+        return method is not null
+            && method.DeclaringType is not null
+            && method.DeclaringType.Assembly != typeof(StdAdoDelegate).Assembly;
+    }
+
+    // Runs a single optional-column probe on its own connection. When rethrowOnFailure is true
+    // (the connectivity canary) a failure propagates so the whole probe can defer without latching;
+    // when false (an optional-column probe) a failure is absorbed and the column defaults to absent.
+    private async Task ProbeColumn(
+        Func<ConnectionAndTransactionHolder, Task> probe,
+        bool rethrowOnFailure,
+        CancellationToken cancellationToken)
+    {
         ConnectionAndTransactionHolder conn = GetNonManagedTXConnection();
         try
         {
-            await misfireDelegate.SupportsMisfireOriginalFireTimeColumn(conn, cancellationToken).ConfigureAwait(false);
-            await misfireDelegate.SupportsExecutionGroupColumn(conn, cancellationToken).ConfigureAwait(false);
+            await probe(conn).ConfigureAwait(false);
             CommitConnection(conn, false);
-
-            if (!misfireDelegate.HasMisfireOriginalFireTimeColumn)
-            {
-                Log.Warn("Column MISFIRE_ORIG_FIRE_TIME not found in triggers table. " +
-                    "ScheduledFireTimeUtc will not be corrected for misfired triggers with AdoJobStore. " +
-                    "Run the schema migration to add this column.");
-            }
-
-            if (!misfireDelegate.HasExecutionGroupColumn)
-            {
-                Log.Debug("Column EXECUTION_GROUP not found in triggers table. " +
-                    "Execution group persistence is not available. " +
-                    "Run the schema migration to add this column for full support.");
-            }
         }
         catch (Exception e)
         {
             RollbackConnection(conn, e);
+            if (rethrowOnFailure)
+            {
+                throw;
+            }
         }
         finally
         {
@@ -1906,7 +2164,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
             }
 
             if (!update.HasDescription && !update.HasPriority && !update.HasJobDataMap
-                && !update.HasCalendarName && !update.HasMisfireInstruction)
+                && !update.HasCalendarName && !update.HasMisfireInstruction && !update.HasPreferredNode)
             {
                 return true;
             }
@@ -1953,6 +2211,21 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
             if (update.HasMisfireInstruction)
             {
                 existing.MisfireInstruction = update.MisfireInstruction;
+            }
+
+            if (update.HasPreferredNode && existing is INextVersionTrigger nvtUpdate)
+            {
+                if (nextVersionDelegate is not { HasPreferredNodeColumn: true })
+                {
+                    // Degrade gracefully (consistent with EXECUTION_GROUP and RAMJobStore): apply
+                    // the other requested changes rather than throwing and losing them. The pin
+                    // change cannot be persisted without the column, so warn and skip only it.
+                    Log.Warn($"Preferred node change for trigger '{triggerKey}' was not persisted because the PREFERRED_NODE column does not exist in the triggers table. Run the schema migration to enable node affinity. Other requested changes were still applied.");
+                }
+                else
+                {
+                    nvtUpdate.PreferredNode = update.PreferredNode;
+                }
             }
 
             string state = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);
@@ -3464,9 +3737,37 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
             try
             {
                 IReadOnlyCollection<TriggerAcquireResult> results;
-                if (executionLimits != null && Delegate is INextVersionDelegate nvd)
+                // Only take the preferred-node acquisition path once a full probe pass has
+                // completed (optionalColumnsProbed): a pass deferred by a transient failure can
+                // latch HasPreferredNodeColumn mid-way while suppressPreferredNodeAcquisition is
+                // still unevaluated, so acting before completion could bypass a custom delegate's
+                // override. Also skipped when that override was detected (suppress flag).
+                bool hasPreferredNode = optionalColumnsProbed
+                    && nextVersionDelegate is { HasPreferredNodeColumn: true }
+                    && !suppressPreferredNodeAcquisition;
+                string? prefNodeInstanceId = hasPreferredNode ? InstanceId : null;
+
+                // The liveness cutoff determines when a preferred node is considered dead.
+                // SQL check: node is live if (now - lastCheckin) <= checkinInterval + misfireThreshold.
+                // This is equivalent to CalcFailedIfAfter for healthy acquiring nodes. The formulas
+                // only diverge when the acquiring node itself is unhealthy (its own checkins are late),
+                // in which case CalcFailedIfAfter becomes MORE lenient while the SQL stays fixed.
+                // Being more aggressive in that edge case is the safer direction — it prevents triggers
+                // pinned to a dead node from being stuck when the surviving nodes are under load.
+                long liveNodeCutoff = hasPreferredNode
+                    ? (SystemTime.UtcNow() - ClusterCheckinMisfireThreshold).UtcTicks
+                    : 0;
+
+                if (hasPreferredNode && nextVersionDelegate != null)
                 {
-                    results = await nvd.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, maxCount, executionLimits, cancellationToken).ConfigureAwait(false);
+                    // Preferred node requires the 7-arg overload with liveness parameters
+                    results = await nextVersionDelegate.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, maxCount, executionLimits, prefNodeInstanceId, liveNodeCutoff, cancellationToken).ConfigureAwait(false);
+                }
+                else if (executionLimits != null && nextVersionDelegate != null)
+                {
+                    // Execution limits only — use the 5-arg overload so custom delegate
+                    // subclasses that override this virtual method are not bypassed.
+                    results = await nextVersionDelegate.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, maxCount, executionLimits, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
@@ -3813,6 +4114,44 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         catch (Exception e)
         {
             throw new JobPersistenceException("Couldn't update fired trigger: " + e.Message, e);
+        }
+
+        // Auto-pin: when preferred node is the "*" sentinel, claim the trigger by assigning
+        // this node's instance id with the "auto:" prefix (distinguishes auto-pins from
+        // explicit pins). When it is "auto:" + some OTHER node's id, that node was stale or
+        // dead at acquisition time (the acquisition SQL only releases another node's auto-pin
+        // via the liveness fallback), so steal the pin — sticky failover converges to a live
+        // node. The write is a compare-and-swap against the value observed at acquire time,
+        // so a concurrent change (an UpdateTriggerDetails re-pin or clear between acquisition
+        // and firing, or ClusterRecover's reset to "*") wins over the claim instead of being
+        // clobbered by it. Explicit pins (no prefix) are never re-pinned here.
+        // Skipped when acquisition was kept on the legacy (unfiltered) path for a custom
+        // delegate: the acquisition SQL did not apply the liveness filter this steal relies on,
+        // so claiming here would re-steal on every fire and never stabilize on one node.
+        if (optionalColumnsProbed
+            && nextVersionDelegate is { HasPreferredNodeColumn: true }
+            && !suppressPreferredNodeAcquisition
+            && trigger is INextVersionTrigger nvtPrefNode)
+        {
+            string? rawPreferredNode = nvtPrefNode.PreferredNode;
+            string autoPinSelf = StdAdoConstants.AutoPinPrefix + InstanceId;
+            bool claimUnpinned = rawPreferredNode == "*";
+            bool stealFromStaleNode = rawPreferredNode != null
+                && rawPreferredNode.StartsWith(StdAdoConstants.AutoPinPrefix, StringComparison.Ordinal)
+                && rawPreferredNode != autoPinSelf;
+            if (claimUnpinned || stealFromStaleNode)
+            {
+                int claimed = await nextVersionDelegate.UpdateTriggerPreferredNodeConditional(
+                    conn, trigger.Key, autoPinSelf, rawPreferredNode!, cancellationToken).ConfigureAwait(false);
+                if (claimed > 0)
+                {
+                    // Mirror the persisted value; not dirty — the row already holds it
+                    nvtPrefNode.SetPreferredNodeRaw(autoPinSelf, markDirty: false);
+                }
+                // else the pin changed concurrently: leave the concurrent value in place. The
+                // in-memory value is stale but not dirty, so the StoreTrigger → UpdateTrigger
+                // below will not write it back; the next acquisition reloads the current value.
+            }
         }
 
         // Read saved original fire time from trigger (populated by SelectTrigger when column exists)
@@ -4543,6 +4882,30 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
                         }
                         else
                         {
+                            // Sticky failover: re-pin only AUTO-PINNED triggers from the dead node.
+                            // Only triggers with the "auto:" prefix are re-pinned; explicit pins
+                            // are left untouched so the original node reclaims them when it returns.
+                            // Uses a single batch UPDATE for efficiency. This must happen before
+                            // deleting the state row, and uses the already-confirmed dead-node
+                            // detection from FindFailedInstances. Skipped when preferred-node
+                            // acquisition is suppressed (custom delegate) — the auto-pin lifecycle
+                            // is inert there, so re-pinning would be pointless churn.
+                            if (optionalColumnsProbed
+                                && nextVersionDelegate is { HasPreferredNodeColumn: true }
+                                && !suppressPreferredNodeAcquisition)
+                            {
+                                // Reset auto-pinned triggers back to the "*" sentinel so any
+                                // eligible node can claim them on the next fire. This avoids
+                                // pinning to a node that might not be able to run them (e.g.,
+                                // due to execution group limits).
+                                string oldAutoPin = StdAdoConstants.AutoPinPrefix + rec.SchedulerInstanceId;
+                                int repinned = await nextVersionDelegate.RepinTriggersFromDeadNode(conn, oldAutoPin, "*", cancellationToken).ConfigureAwait(false);
+                                if (repinned > 0)
+                                {
+                                    Log.Info($"ClusterManager: Reset {repinned} auto-pinned trigger(s) from dead node '{rec.SchedulerInstanceId}' to auto-pin sentinel for re-acquisition.");
+                                }
+                            }
+
                             await Delegate.DeleteSchedulerState(conn, rec.SchedulerInstanceId, cancellationToken).ConfigureAwait(false);
                         }
                     }
@@ -4917,6 +5280,14 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
             {
                 return await ExecuteInNonManagedTXLock(lockName, txCallback, txValidator: null, requestorId, cancellationToken).ConfigureAwait(false);
             }
+            catch (SchedulerConfigException)
+            {
+                // A configuration error (e.g. a reserved 'auto:' instance id surfaced by a probe
+                // that was deferred past Initialize because the database was down) is fatal, not
+                // transient — retrying it would loop forever and never fire a trigger. Propagate it
+                // so it surfaces to the caller instead of being swallowed by the catch-all below.
+                throw;
+            }
             catch (JobPersistenceException jpe)
             {
                 if (retry%RetryableActionErrorLogThreshold == 0)
@@ -4983,6 +5354,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         Guid? requestorId,
         CancellationToken cancellationToken)
     {
+        // Retry deferred optional-column probing (no-op once completed) so operations
+        // before Start() see correct column availability even when the database was
+        // unreachable during Initialize.
+        await EnsureOptionalColumnsProbed(cancellationToken).ConfigureAwait(false);
+
         if (requestorId is null)
         {
             requestorId = Core.Context.CallerId.Value;

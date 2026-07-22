@@ -52,6 +52,20 @@ public class SqlServerDelegate : StdAdoDelegate
         return sql;
     }
 
+    protected override string GetSelectNextTriggerToAcquireWithPreferredNodeSql(int maxCount)
+    {
+        string sql = SqlSelectNextTriggerToAcquireWithPreferredNode;
+        sql = "SELECT TOP " + maxCount + " " + sql.Substring(6);
+        return sql;
+    }
+
+    protected override string GetSelectNextTriggerToAcquireWithPreferredNodeOnlySql(int maxCount)
+    {
+        string sql = SqlSelectNextTriggerToAcquireWithPreferredNodeOnly;
+        sql = "SELECT TOP " + maxCount + " " + sql.Substring(6);
+        return sql;
+    }
+
     protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
     {
         if (count != -1)

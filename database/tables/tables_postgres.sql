@@ -58,6 +58,7 @@ CREATE TABLE qrtz_triggers
     misfire_instr SMALLINT NULL,
     misfire_orig_fire_time BIGINT NULL,
     execution_group VARCHAR(200) NULL,
+    preferred_node VARCHAR(250) NULL,
     job_data BYTEA NULL,
     PRIMARY KEY (sched_name, trigger_name, trigger_group),
     FOREIGN KEY (sched_name, job_name, job_group)

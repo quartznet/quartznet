@@ -79,6 +79,7 @@ public class AdoConstants
     public const string ColumnPriority = "PRIORITY";
     public const string ColumnMisfireOriginalFireTime = "MISFIRE_ORIG_FIRE_TIME";
     public const string ColumnExecutionGroup = "EXECUTION_GROUP";
+    public const string ColumnPreferredNode = "PREFERRED_NODE";
     public const string AliasColumnNextFireTime = "ALIAS_NXT_FR_TM";
 
     // TableSimpleTriggers columns names

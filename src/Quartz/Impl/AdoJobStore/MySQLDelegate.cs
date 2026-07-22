@@ -44,6 +44,20 @@ public class MySQLDelegate : StdAdoDelegate
             + " LIMIT " + maxCount;
     }
 
+    protected override string GetSelectNextTriggerToAcquireWithPreferredNodeSql(int maxCount)
+    {
+        return SqlSelectNextTriggerToAcquireWithPreferredNode
+            .Replace("{0}TRIGGERS t", "{0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST)")
+            + " LIMIT " + maxCount;
+    }
+
+    protected override string GetSelectNextTriggerToAcquireWithPreferredNodeOnlySql(int maxCount)
+    {
+        return SqlSelectNextTriggerToAcquireWithPreferredNodeOnly
+            .Replace("{0}TRIGGERS t", "{0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST)")
+            + " LIMIT " + maxCount;
+    }
+
     protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
     {
         if (count != -1)
