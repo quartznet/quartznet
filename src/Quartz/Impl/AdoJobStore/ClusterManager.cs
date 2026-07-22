@@ -102,18 +102,11 @@ internal sealed class ClusterManager
         {
             token.ThrowIfCancellationRequested();
 
-            TimeSpan timeToSleep = jobStoreSupport.ClusterCheckinInterval;
-            TimeSpan transpiredTime = SystemTime.UtcNow() - jobStoreSupport.LastCheckin;
-            timeToSleep = timeToSleep - transpiredTime;
-            if (timeToSleep <= TimeSpan.Zero)
-            {
-                timeToSleep = TimeSpan.FromMilliseconds(100);
-            }
-
-            if (numFails > 0)
-            {
-                timeToSleep = jobStoreSupport.DbRetryInterval > timeToSleep ? jobStoreSupport.DbRetryInterval : timeToSleep;
-            }
+            TimeSpan timeToSleep = ComputeTimeToSleep(
+                jobStoreSupport.ClusterCheckinInterval,
+                SystemTime.UtcNow() - jobStoreSupport.LastCheckin,
+                jobStoreSupport.DbRetryInterval,
+                numFails);
 
             await Task.Delay(timeToSleep, token).ConfigureAwait(false);
 
@@ -125,5 +118,39 @@ internal sealed class ClusterManager
             }
         }
         // ReSharper disable once FunctionNeverReturns
+    }
+
+    /// <summary>
+    /// Determines how long to sleep before the next cluster check-in.
+    /// </summary>
+    /// <param name="clusterCheckinInterval">The configured check-in interval.</param>
+    /// <param name="transpiredTime">Wall clock time elapsed since the last successful check-in.</param>
+    /// <param name="dbRetryInterval">The configured retry interval used when the last check-ins have failed.</param>
+    /// <param name="numFails">Number of consecutive failed check-ins.</param>
+    internal static TimeSpan ComputeTimeToSleep(
+        TimeSpan clusterCheckinInterval,
+        TimeSpan transpiredTime,
+        TimeSpan dbRetryInterval,
+        int numFails)
+    {
+        TimeSpan timeToSleep = clusterCheckinInterval - transpiredTime;
+        if (timeToSleep <= TimeSpan.Zero)
+        {
+            timeToSleep = TimeSpan.FromMilliseconds(100);
+        }
+        else if (timeToSleep > clusterCheckinInterval)
+        {
+            // Backward clock jump: 'transpiredTime' went negative. Clamp so check-in resumes
+            // within one interval instead of stalling for the length of the jump, which would
+            // make peer nodes consider this instance failed.
+            timeToSleep = clusterCheckinInterval;
+        }
+
+        if (numFails > 0 && dbRetryInterval > timeToSleep)
+        {
+            timeToSleep = dbRetryInterval;
+        }
+
+        return timeToSleep;
     }
 }

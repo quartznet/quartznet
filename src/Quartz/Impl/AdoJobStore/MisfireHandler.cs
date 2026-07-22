@@ -57,23 +57,59 @@ internal sealed class MisfireHandler
 
             token.ThrowIfCancellationRequested();
 
-            TimeSpan timeToSleep = TimeSpan.FromMilliseconds(50); // At least a short pause to help balance threads
-            if (!recoverMisfiredJobsResult.HasMoreMisfiredTriggers)
-            {
-                timeToSleep = jobStoreSupport.MisfireHandlerFrequency - (SystemTime.UtcNow() - sTime);
-                if (timeToSleep <= TimeSpan.Zero)
-                {
-                    timeToSleep = TimeSpan.FromMilliseconds(50);
-                }
-
-                if (numFails > 0)
-                {
-                    timeToSleep = jobStoreSupport.DbRetryInterval > timeToSleep ? jobStoreSupport.DbRetryInterval : timeToSleep;
-                }
-            }
+            TimeSpan timeToSleep = ComputeTimeToSleep(
+                recoverMisfiredJobsResult.HasMoreMisfiredTriggers,
+                jobStoreSupport.MisfireHandlerFrequency,
+                SystemTime.UtcNow() - sTime,
+                jobStoreSupport.DbRetryInterval,
+                numFails);
 
             await Task.Delay(timeToSleep, token).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// Determines how long to sleep before the next misfire scan.
+    /// </summary>
+    /// <param name="hasMoreMisfiredTriggers">Whether the last scan left misfired triggers unprocessed.</param>
+    /// <param name="misfireHandlerFrequency">The configured scan frequency.</param>
+    /// <param name="elapsed">Wall clock time consumed by the last scan.</param>
+    /// <param name="dbRetryInterval">The configured retry interval used when the last scans have failed.</param>
+    /// <param name="numFails">Number of consecutive failed scans.</param>
+    internal static TimeSpan ComputeTimeToSleep(
+        bool hasMoreMisfiredTriggers,
+        TimeSpan misfireHandlerFrequency,
+        TimeSpan elapsed,
+        TimeSpan dbRetryInterval,
+        int numFails)
+    {
+        // At least a short pause to help balance threads
+        TimeSpan minimumSleep = TimeSpan.FromMilliseconds(50);
+
+        if (hasMoreMisfiredTriggers)
+        {
+            return minimumSleep;
+        }
+
+        TimeSpan timeToSleep = misfireHandlerFrequency - elapsed;
+        if (timeToSleep <= TimeSpan.Zero)
+        {
+            timeToSleep = minimumSleep;
+        }
+        else if (timeToSleep > misfireHandlerFrequency)
+        {
+            // A negative 'elapsed' means the system clock jumped backward (NTP correction,
+            // manual change, VM migration). Never sleep longer than one full cycle, otherwise
+            // misfire handling stops for the entire duration of the jump.
+            timeToSleep = misfireHandlerFrequency;
+        }
+
+        if (numFails > 0 && dbRetryInterval > timeToSleep)
+        {
+            timeToSleep = dbRetryInterval;
+        }
+
+        return timeToSleep;
     }
 
     public async Task Shutdown()
