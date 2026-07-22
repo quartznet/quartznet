@@ -72,6 +72,59 @@ public class ClusterManagerTest
         completedTask.Should().Be(shutdownTask, "Shutdown should complete");
     }
 
+    [Test]
+    public void ComputeTimeToSleep_ShouldSubtractTranspiredTime()
+    {
+        TimeSpan timeToSleep = ClusterManager.ComputeTimeToSleep(
+            clusterCheckinInterval: TimeSpan.FromMilliseconds(7500),
+            transpiredTime: TimeSpan.FromSeconds(2),
+            dbRetryInterval: TimeSpan.FromSeconds(15),
+            numFails: 0);
+
+        timeToSleep.Should().Be(TimeSpan.FromMilliseconds(5500));
+    }
+
+    [Test]
+    public void ComputeTimeToSleep_ShouldUseShortPause_WhenCheckinIsOverdue()
+    {
+        TimeSpan timeToSleep = ClusterManager.ComputeTimeToSleep(
+            clusterCheckinInterval: TimeSpan.FromMilliseconds(7500),
+            transpiredTime: TimeSpan.FromSeconds(20),
+            dbRetryInterval: TimeSpan.FromSeconds(15),
+            numFails: 0);
+
+        timeToSleep.Should().Be(TimeSpan.FromMilliseconds(100));
+    }
+
+    /// <summary>
+    /// A backward system clock jump makes the transpired time negative, which used to inflate
+    /// the sleep by the length of the jump and stall check-ins long enough for peer nodes to
+    /// consider this instance failed. See GitHub issue #1508.
+    /// </summary>
+    [Test]
+    public void ComputeTimeToSleep_ShouldClampToCheckinInterval_WhenClockJumpsBackward()
+    {
+        TimeSpan timeToSleep = ClusterManager.ComputeTimeToSleep(
+            clusterCheckinInterval: TimeSpan.FromMilliseconds(7500),
+            transpiredTime: TimeSpan.FromDays(-1),
+            dbRetryInterval: TimeSpan.FromSeconds(15),
+            numFails: 0);
+
+        timeToSleep.Should().Be(TimeSpan.FromMilliseconds(7500));
+    }
+
+    [Test]
+    public void ComputeTimeToSleep_ShouldPreferDbRetryInterval_WhenCheckinsHaveFailed()
+    {
+        TimeSpan timeToSleep = ClusterManager.ComputeTimeToSleep(
+            clusterCheckinInterval: TimeSpan.FromMilliseconds(7500),
+            transpiredTime: TimeSpan.FromDays(-1),
+            dbRetryInterval: TimeSpan.FromSeconds(15),
+            numFails: 1);
+
+        timeToSleep.Should().Be(TimeSpan.FromSeconds(15));
+    }
+
     private class TestJobStoreSupport : JobStoreSupport
     {
         public TestJobStoreSupport()

@@ -259,6 +259,36 @@ if you keep these two rules in mind:
 * SimpleTrigger ALWAYS fires exactly every N seconds,  with no relation to the time of day.
 * CronTrigger ALWAYS fires at a given time of day and then computes its  next time to fire. If that time does not occur on a given day, the  trigger will be skipped. If the time occurs twice in a given day, it only fires once, because after firing on that time the first time, it computes the next time of day to fire on.
 
+## System clock changes (NTP corrections, manual adjustments)
+
+Daylight saving transitions are not the only way the wall clock can move. An
+NTP correction, a manual clock change, or a virtual machine being suspended
+and resumed can all shift the system clock by an arbitrary amount, in either
+direction.
+
+Quartz always schedules against the wall clock, so moving the clock *backward*
+by an hour means a trigger whose next fire time was already computed will not
+fire until the clock has caught up again - the hour has to be lived through a
+second time. This is expected: the trigger's next fire time is a point on the
+calendar, not an offset from "now".
+
+What is *not* expected is the scheduler failing to notice once the clock is
+restored. Quartz therefore never waits on a single unbounded sleep derived
+from the wall clock; it re-evaluates the current time at bounded intervals, so
+after any clock change it resumes on its own:
+
+* the firing loop recovers within one `quartz.scheduler.idleWaitTime`
+  (30 seconds by default);
+* with AdoJobStore, misfire handling recovers within one
+  `quartz.jobStore.misfireHandlerFrequency`, and cluster check-in within one
+  `quartz.jobStore.clusterCheckinInterval`.
+
+Recovery is bounded, not instantaneous - allow up to one of those intervals
+before triggers resume after the clock has been corrected. If you are
+deliberately testing clock changes, prefer faking the clock (see
+`TimeProvider`) over changing the machine clock, so that only the wall clock
+moves and monotonic timers are unaffected.
+
 # Questions About AdoJobStore
 
 ## How do I improve the performance of AdoJobStore?
