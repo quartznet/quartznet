@@ -74,6 +74,76 @@ public class MisfireHandlerTest
     }
 
     [Test]
+    public void ComputeTimeToSleep_ShouldSubtractElapsedScanTime()
+    {
+        TimeSpan timeToSleep = MisfireHandler.ComputeTimeToSleep(
+            hasMoreMisfiredTriggers: false,
+            misfireHandlerFrequency: TimeSpan.FromSeconds(60),
+            elapsed: TimeSpan.FromSeconds(5),
+            dbRetryInterval: TimeSpan.FromSeconds(15),
+            numFails: 0);
+
+        timeToSleep.Should().Be(TimeSpan.FromSeconds(55));
+    }
+
+    [Test]
+    public void ComputeTimeToSleep_ShouldUseShortPause_WhenScanOverranTheFrequency()
+    {
+        TimeSpan timeToSleep = MisfireHandler.ComputeTimeToSleep(
+            hasMoreMisfiredTriggers: false,
+            misfireHandlerFrequency: TimeSpan.FromSeconds(60),
+            elapsed: TimeSpan.FromSeconds(90),
+            dbRetryInterval: TimeSpan.FromSeconds(15),
+            numFails: 0);
+
+        timeToSleep.Should().Be(TimeSpan.FromMilliseconds(50));
+    }
+
+    [Test]
+    public void ComputeTimeToSleep_ShouldUseShortPause_WhenMoreMisfiredTriggersRemain()
+    {
+        TimeSpan timeToSleep = MisfireHandler.ComputeTimeToSleep(
+            hasMoreMisfiredTriggers: true,
+            misfireHandlerFrequency: TimeSpan.FromSeconds(60),
+            elapsed: TimeSpan.FromHours(-1),
+            dbRetryInterval: TimeSpan.FromSeconds(15),
+            numFails: 1);
+
+        timeToSleep.Should().Be(TimeSpan.FromMilliseconds(50));
+    }
+
+    /// <summary>
+    /// A backward system clock jump makes the elapsed time negative, which used to inflate the
+    /// sleep by the length of the jump and stop misfire handling for that whole period, long
+    /// after the clock had been restored. See GitHub issue #1508.
+    /// </summary>
+    [Test]
+    public void ComputeTimeToSleep_ShouldClampToFrequency_WhenClockJumpsBackward()
+    {
+        TimeSpan timeToSleep = MisfireHandler.ComputeTimeToSleep(
+            hasMoreMisfiredTriggers: false,
+            misfireHandlerFrequency: TimeSpan.FromSeconds(60),
+            elapsed: TimeSpan.FromHours(-1),
+            dbRetryInterval: TimeSpan.FromSeconds(15),
+            numFails: 0);
+
+        timeToSleep.Should().Be(TimeSpan.FromSeconds(60));
+    }
+
+    [Test]
+    public void ComputeTimeToSleep_ShouldPreferDbRetryInterval_WhenScansHaveFailed()
+    {
+        TimeSpan timeToSleep = MisfireHandler.ComputeTimeToSleep(
+            hasMoreMisfiredTriggers: false,
+            misfireHandlerFrequency: TimeSpan.FromSeconds(60),
+            elapsed: TimeSpan.FromSeconds(90),
+            dbRetryInterval: TimeSpan.FromSeconds(15),
+            numFails: 1);
+
+        timeToSleep.Should().Be(TimeSpan.FromSeconds(15));
+    }
+
+    [Test]
     public async Task QueuedTaskScheduler_ShouldNotDeadlock_WhenDisposedBeforeTaskStarts()
     {
         // This test reproduces the exact scenario from the bug report.
