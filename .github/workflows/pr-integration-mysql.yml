@@ -9,7 +9,7 @@
 #
 #     - To trigger manual generation invoke:
 #
-#         nuke --generate-configuration GitHubActions_pr-integration-mysql --host GitHubActions
+#         fallout --generate-configuration GitHubActions_pr-integration-mysql --host GitHubActions
 #
 # </auto-generated>
 # ------------------------------------------------------------------------------
@@ -41,12 +41,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: |
-            10.0
       - uses: actions/checkout@v6
-      - name: 'Run: Compile, IntegrationTest (mysql)'
-        run: ./build.cmd Compile IntegrationTest --database mysql
+      - name: 'Setup: .NET SDK'
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: 'Restore: dotnet tools'
+        run: dotnet tool restore
+      - name: 'Run: Compile, IntegrationTest'
+        run: dotnet fallout Compile IntegrationTest
         env:
-          QUARTZ_TEST_DATABASE: mysql
+          Database: mysql

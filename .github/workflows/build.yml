@@ -5,11 +5,11 @@
 #
 #     - To turn off auto-generation set:
 #
-#         [CustomGitHubActions (AutoGenerate = false)]
+#         [GitHubActions (AutoGenerate = false)]
 #
 #     - To trigger manual generation invoke:
 #
-#         nuke --generate-configuration GitHubActions_build --host GitHubActions
+#         fallout --generate-configuration GitHubActions_build --host GitHubActions
 #
 # </auto-generated>
 # ------------------------------------------------------------------------------
@@ -39,13 +39,15 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: |
-            10.0
       - uses: actions/checkout@v6
+      - name: 'Setup: .NET SDK'
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: 'Restore: dotnet tools'
+        run: dotnet tool restore
       - name: 'Run: Compile, UnitTest, IntegrationTest, Pack, Publish'
-        run: ./build.cmd Compile UnitTest IntegrationTest Pack Publish
+        run: dotnet fallout Compile UnitTest IntegrationTest Pack Publish
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
           FEEDZ_API_KEY: ${{ secrets.FEEDZ_API_KEY }}
@@ -60,13 +62,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: |
-            10.0
       - uses: actions/checkout@v6
+      - name: 'Setup: .NET SDK'
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: 'Restore: dotnet tools'
+        run: dotnet tool restore
       - name: 'Run: Compile, UnitTest, IntegrationTest, Pack, Publish'
-        run: ./build.cmd Compile UnitTest IntegrationTest Pack Publish
+        run: dotnet fallout Compile UnitTest IntegrationTest Pack Publish
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
           FEEDZ_API_KEY: ${{ secrets.FEEDZ_API_KEY }}
@@ -81,13 +85,15 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: |
-            10.0
       - uses: actions/checkout@v6
+      - name: 'Setup: .NET SDK'
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: 'Restore: dotnet tools'
+        run: dotnet tool restore
       - name: 'Run: Compile, UnitTest, IntegrationTest, Pack, Publish'
-        run: ./build.cmd Compile UnitTest IntegrationTest Pack Publish
+        run: dotnet fallout Compile UnitTest IntegrationTest Pack Publish
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
           FEEDZ_API_KEY: ${{ secrets.FEEDZ_API_KEY }}
