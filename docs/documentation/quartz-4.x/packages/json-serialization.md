@@ -68,14 +68,32 @@ for a ready-made hybrid serializer. Either let the system migrate gradually as i
 or write a small program that loads and writes back every serialized asset in the
 database.
 
-If you must read legacy binary data on Quartz 4, the Quartz types still keep their
-`[Serializable]` / `ISerializable` support, so you can plug in your own `IObjectSerializer`
-that decodes the old binary payloads and let the hybrid serializer below write everything
-back as JSON.
+If you must read legacy binary data after upgrading to Quartz 4 on .NET 9 or later, you
+can re-enable `BinaryFormatter` with Microsoft's unsupported
+[compatibility package](https://learn.microsoft.com/en-us/dotnet/standard/serialization/binaryformatter-migration-guide/compatibility-package).
+Because the package does not change `BinaryFormatter`'s type identity, only your
+**application project** needs it - Quartz itself does not reference it:
+
+```xml
+<PropertyGroup>
+  <EnableUnsafeBinaryFormatterSerialization>true</EnableUnsafeBinaryFormatterSerialization>
+</PropertyGroup>
+<ItemGroup>
+  <!-- match the package version to your application's target framework, e.g. 9.0.x on net9.0 -->
+  <PackageReference Include="System.Runtime.Serialization.Formatters" Version="10.0.0" />
+</ItemGroup>
+```
+
+The package restores a working - but still unsafe - `BinaryFormatter`, so read the Microsoft
+guidance before relying on it and remove it once the migration is complete. The Quartz types
+keep their `[Serializable]` / `ISerializable` support, so the hybrid serializer below can read
+the old binary payloads and write everything back as JSON.
 
 **Example hybrid serializer**
 
 ```csharp
+using System.Runtime.Serialization.Formatters.Binary;
+
 using Newtonsoft.Json;
 
 using Quartz.Simpl;
@@ -85,19 +103,10 @@ namespace Quartz;
 
 public sealed class MigratorSerializer : IObjectSerializer
 {
-    // Quartz 4 no longer provides a binary serializer, so supply your own reader for
-    // the legacy format (for example one backed by BinaryFormatter on a runtime that
-    // still supports it, or a hand-written System.Formats.Nrbf reader).
-    private readonly IObjectSerializer legacyBinarySerializer;
-    private readonly NewtonsoftJsonObjectSerializer jsonSerializer;
+    // you might need custom configuration, see sections about customizing in documentation
+    private readonly NewtonsoftJsonObjectSerializer jsonSerializer = new();
 
-    public MigratorSerializer(IObjectSerializer legacyBinarySerializer)
-    {
-        this.legacyBinarySerializer = legacyBinarySerializer;
-        // you might need custom configuration, see sections about customizing
-        // in documentation
-        jsonSerializer = new NewtonsoftJsonObjectSerializer();
-    }
+    public void Initialize() => jsonSerializer.Initialize();
 
     public T DeSerialize<T>(byte[] data) where T : class
     {
@@ -108,27 +117,23 @@ public sealed class MigratorSerializer : IObjectSerializer
         }
         catch (JsonReaderException)
         {
-            // Presumably, the data was not JSON, we instead use the binary serializer
-            var binaryData = legacyBinarySerializer.DeSerialize<T>(data);
+            // The data was not JSON, so fall back to the legacy binary format. This branch needs
+            // the System.Runtime.Serialization.Formatters compatibility package and
+            // EnableUnsafeBinaryFormatterSerialization to be set in the application project.
+            using var stream = new MemoryStream(data);
+#pragma warning disable SYSLIB0011
+            var binaryData = (T) new BinaryFormatter().Deserialize(stream);
+#pragma warning restore SYSLIB0011
             if (binaryData is JobDataMap jobDataMap)
             {
                 // make sure we mark the map as dirty so it will be serialized as JSON next time
                 jobDataMap[SchedulerConstants.ForceJobDataMapDirty] = "true";
             }
-            return binaryData!;
+            return binaryData;
         }
     }
 
-    public void Initialize()
-    {
-        legacyBinarySerializer.Initialize();
-        jsonSerializer.Initialize();
-    }
-
-    public byte[] Serialize<T>(T obj) where T : class
-    {
-        return jsonSerializer.Serialize(obj);
-    }
+    public byte[] Serialize<T>(T obj) where T : class => jsonSerializer.Serialize(obj);
 }
 ```
 
