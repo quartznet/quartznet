@@ -13,7 +13,6 @@
     <FalloutExcludeLogs>true</FalloutExcludeLogs>
     <IsPackable>false</IsPackable>
     <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
-    <EnableUnsafeBinaryFormatterSerialization>true</EnableUnsafeBinaryFormatterSerialization>
     <SonarQubeExclude>true</SonarQubeExclude>
   </PropertyGroup>
 

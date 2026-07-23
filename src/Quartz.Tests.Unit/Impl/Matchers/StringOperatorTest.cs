@@ -1,8 +1,5 @@
 // ReSharper disable SuspiciousTypeConversion.Global
 
-using System.Runtime.Serialization.Formatters;
-using System.Runtime.Serialization.Formatters.Binary;
-
 using Quartz.Impl.Matchers;
 
 namespace Quartz.Tests.Unit.Impl.Matchers;
@@ -10,22 +7,6 @@ namespace Quartz.Tests.Unit.Impl.Matchers;
 [TestFixture]
 public class StringOperatorTest
 {
-    [Test]
-    public void Anything_CanBeDeserialized()
-    {
-        var op = Deserialize<StringOperator>("StringOperator_Anything");
-
-        Assert.That(op, Is.Not.Null);
-        Anything_Evaluate(op);
-    }
-
-    [Test]
-    public void Anything_CanBeSerializedAndDeserialized()
-    {
-        var op = SerializeAndDeserialize(StringOperator.Anything);
-        Anything_Evaluate(op);
-    }
-
     [Test]
     public void Anything_ShouldBeSingleton()
     {
@@ -66,7 +47,6 @@ public class StringOperatorTest
         Assert.Multiple(() =>
         {
             Assert.That(op.Equals((object)op), Is.True);
-            Assert.That(op, Is.EqualTo(SerializeAndDeserialize(op)));
             Assert.That(op, Is.Not.EqualTo(StringOperator.Equality));
             Assert.That(op, Is.Not.EqualTo(null));
             Assert.That(op.Equals("xxx"), Is.False);
@@ -81,26 +61,9 @@ public class StringOperatorTest
         Assert.Multiple(() =>
         {
             Assert.That(op.Equals(op), Is.True);
-            Assert.That(op, Is.EqualTo(SerializeAndDeserialize(op)));
             Assert.That(op, Is.Not.EqualTo(StringOperator.Equality));
             Assert.That(op, Is.Not.EqualTo(null));
         });
-    }
-
-    [Test]
-    public void Contains_CanBeDeserialized()
-    {
-        var op = Deserialize<StringOperator>("StringOperator_Contains");
-
-        Assert.That(op, Is.Not.Null);
-        Contains_Evaluate(op);
-    }
-
-    [Test]
-    public void Contains_CanBeSerializedAndDeserialized()
-    {
-        var op = SerializeAndDeserialize(StringOperator.Contains);
-        Contains_Evaluate(op);
     }
 
     [Test]
@@ -159,7 +122,6 @@ public class StringOperatorTest
         Assert.Multiple(() =>
         {
             Assert.That(op.Equals((object)op), Is.True);
-            Assert.That(op, Is.EqualTo(SerializeAndDeserialize(op)));
             Assert.That(op, Is.Not.EqualTo(StringOperator.Anything));
             Assert.That(op, Is.Not.EqualTo(null));
             Assert.That(op.Equals("xxx"), Is.False);
@@ -174,7 +136,6 @@ public class StringOperatorTest
         Assert.Multiple(() =>
         {
             Assert.That(op.Equals(op), Is.True);
-            Assert.That(op, Is.EqualTo(SerializeAndDeserialize(op)));
             Assert.That(op, Is.Not.EqualTo(StringOperator.Anything));
             Assert.That(op.Equals(null), Is.False);
         });
@@ -188,7 +149,6 @@ public class StringOperatorTest
         Assert.Multiple(() =>
         {
             Assert.That(op.Equals((object)op), Is.True);
-            Assert.That(op, Is.EqualTo(SerializeAndDeserialize(op)));
             Assert.That(op, Is.Not.EqualTo(StringOperator.Anything));
             Assert.That(op, Is.Not.EqualTo(null));
             Assert.That(op.Equals("xxx"), Is.False);
@@ -203,26 +163,9 @@ public class StringOperatorTest
         Assert.Multiple(() =>
         {
             Assert.That(op.Equals(op), Is.True);
-            Assert.That(op, Is.EqualTo(SerializeAndDeserialize(op)));
             Assert.That(op, Is.Not.EqualTo(StringOperator.Anything));
             Assert.That(op.Equals(null), Is.False);
         });
-    }
-
-    [Test]
-    public void EndsWith_CanBeDeserialized()
-    {
-        var op = Deserialize<StringOperator>("StringOperator_EndsWith");
-
-        Assert.That(op, Is.Not.Null);
-        EndsWith_Evaluate(op);
-    }
-
-    [Test]
-    public void EndsWith_CanBeSerializedAndDeserialized()
-    {
-        var op = SerializeAndDeserialize(StringOperator.EndsWith);
-        EndsWith_Evaluate(op);
     }
 
     [Test]
@@ -296,7 +239,6 @@ public class StringOperatorTest
         Assert.Multiple(() =>
         {
             Assert.That(op.Equals((object)op), Is.True);
-            Assert.That(op, Is.EqualTo(SerializeAndDeserialize(op)));
             Assert.That(op, Is.Not.EqualTo(StringOperator.Anything));
             Assert.That(op, Is.Not.EqualTo(null));
             Assert.That(op.Equals("xxx"), Is.False);
@@ -311,26 +253,9 @@ public class StringOperatorTest
         Assert.Multiple(() =>
         {
             Assert.That(op.Equals(op), Is.True);
-            Assert.That(op.Equals(SerializeAndDeserialize(op)), Is.True);
             Assert.That(op.Equals(StringOperator.Anything), Is.False);
             Assert.That(op.Equals(null), Is.False);
         });
-    }
-
-    [Test]
-    public void Equality_CanBeDeserialized()
-    {
-        var op = Deserialize<StringOperator>("StringOperator_Equality");
-
-        Assert.That(op, Is.Not.Null);
-        Equality_Evaluate(op);
-    }
-
-    [Test]
-    public void Equality_CanBeSerializedAndDeserialized()
-    {
-        var op = SerializeAndDeserialize(StringOperator.Equality);
-        Equality_Evaluate(op);
     }
 
     [Test]
@@ -374,7 +299,6 @@ public class StringOperatorTest
         Assert.Multiple(() =>
         {
             Assert.That(op.Equals((object)op), Is.True);
-            Assert.That(op.Equals((object)SerializeAndDeserialize(op)), Is.True);
             Assert.That(op.Equals((object)StringOperator.Anything), Is.False);
             Assert.That(op.Equals((object)null), Is.False);
             Assert.That(op.Equals("xxx"), Is.False);
@@ -389,26 +313,9 @@ public class StringOperatorTest
         Assert.Multiple(() =>
         {
             Assert.That(op.Equals(op), Is.True);
-            Assert.That(op, Is.EqualTo(SerializeAndDeserialize(op)));
             Assert.That(op, Is.Not.EqualTo(StringOperator.Anything));
             Assert.That(op.Equals(null), Is.False);
         });
-    }
-
-    [Test]
-    public void StartsWith_CanBeDeserialized()
-    {
-        var op = Deserialize<StringOperator>("StringOperator_StartsWith");
-
-        Assert.That(op, Is.Not.Null);
-        StartsWith_Evaluate(op);
-    }
-
-    [Test]
-    public void StartsWith_CanBeSerializedAndDeserialized()
-    {
-        var op = SerializeAndDeserialize(StringOperator.StartsWith);
-        StartsWith_Evaluate(op);
     }
 
     [Test]
@@ -482,7 +389,6 @@ public class StringOperatorTest
         Assert.Multiple(() =>
         {
             Assert.That(op.Equals((object)op), Is.True);
-            Assert.That(op.Equals((object)SerializeAndDeserialize(op)), Is.True);
             Assert.That(op.Equals((object)StringOperator.Anything), Is.False);
             Assert.That(op.Equals((object)null), Is.False);
             Assert.That(op.Equals("xxx"), Is.False);
@@ -497,37 +403,16 @@ public class StringOperatorTest
         {
 
             Assert.That(op.Equals(op), Is.True);
-            Assert.That(op, Is.EqualTo(SerializeAndDeserialize(op)));
             Assert.That(op, Is.Not.EqualTo(StringOperator.Anything));
             Assert.That(op.Equals(null), Is.False);
         });
     }
 
-    [Serializable]
     private class NothingOperator : StringOperator
     {
         public override bool Evaluate(string value, string compareTo)
         {
             return false;
         }
-    }
-
-    private static T SerializeAndDeserialize<T>(T stringOperator)
-    {
-        var formatter = new BinaryFormatter();
-        using var ms = new MemoryStream();
-        formatter.Serialize(ms, stringOperator);
-        ms.Position = 0;
-        return (T) formatter.Deserialize(ms);
-    }
-
-    private static T Deserialize<T>(string name)
-    {
-#pragma warning disable SYSLIB0050
-        using var fs = File.OpenRead(Path.Combine("Serialized", name + ".ser"));
-        BinaryFormatter binaryFormatter = new BinaryFormatter();
-        binaryFormatter.AssemblyFormat = FormatterAssemblyStyle.Simple;
-        return (T) binaryFormatter.Deserialize(fs);
-#pragma warning restore SYSLIB0050
     }
 }

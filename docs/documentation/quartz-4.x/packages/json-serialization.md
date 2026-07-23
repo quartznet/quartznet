@@ -58,52 +58,82 @@ ISchedulerFactory schedulerFactory = config.Build();
 
 ### Migrating from binary serialization
 
-There's now official solution for migration as there can be quirks in every setup, but there's a recipe that can work for you.
+Quartz 4 no longer ships the `BinaryObjectSerializer`: the underlying `BinaryFormatter`
+has been removed from modern .NET and throws on .NET 9 and later. If you still have
+binary-serialized data in your database you need to migrate it to JSON.
 
-* Configure custom serializer like `MigratorSerializer` below that can read binary serialization format and writes JSON format
-* Either let system gradually migrate as it's running or create a program which loads and writes back to DB all relevant serialized assets
+The recommended path is to perform the migration **while you are still on Quartz 3.x**,
+which still includes `BinaryObjectSerializer` - see the Quartz 3.x version of this page
+for a ready-made hybrid serializer. Either let the system migrate gradually as it runs,
+or write a small program that loads and writes back every serialized asset in the
+database.
+
+If you must read legacy binary data after upgrading to Quartz 4 on .NET 9 or later, you
+can re-enable `BinaryFormatter` with Microsoft's unsupported
+[compatibility package](https://learn.microsoft.com/en-us/dotnet/standard/serialization/binaryformatter-migration-guide/compatibility-package).
+Because the package does not change `BinaryFormatter`'s type identity, only your
+**application project** needs it - Quartz itself does not reference it:
+
+```xml
+<PropertyGroup>
+  <EnableUnsafeBinaryFormatterSerialization>true</EnableUnsafeBinaryFormatterSerialization>
+</PropertyGroup>
+<ItemGroup>
+  <!-- match the package version to your application's target framework, e.g. 9.0.x on net9.0 -->
+  <PackageReference Include="System.Runtime.Serialization.Formatters" Version="10.0.0" />
+</ItemGroup>
+```
+
+The package restores a working - but still unsafe - `BinaryFormatter`, so read the Microsoft
+guidance before relying on it and remove it once the migration is complete. The Quartz types
+keep their `[Serializable]` / `ISerializable` support, so the hybrid serializer below can read
+the old binary payloads and write everything back as JSON.
 
 **Example hybrid serializer**
 
 ```csharp
-public class MigratorSerializer : IObjectSerializer
-{
-    private BinaryObjectSerializer binarySerializer;
-    private JsonObjectSerializer jsonSerializer;
+using System.Runtime.Serialization.Formatters.Binary;
 
-    public MigratorSerializer()
-    {
-        this.binarySerializer = new BinaryObjectSerializer();
-        // you might need custom configuration, see sections about customizing
-        // in documentation
-        this.jsonSerializer = new JsonObjectSerializer();
-    }
+using Newtonsoft.Json;
+
+using Quartz.Simpl;
+using Quartz.Spi;
+
+namespace Quartz;
+
+public sealed class MigratorSerializer : IObjectSerializer
+{
+    // you might need custom configuration, see sections about customizing in documentation
+    private readonly NewtonsoftJsonObjectSerializer jsonSerializer = new();
+
+    public void Initialize() => jsonSerializer.Initialize();
 
     public T DeSerialize<T>(byte[] data) where T : class
     {
         try
         {
             // Attempt to deserialize data as JSON
-            var result = this.jsonSerializer.DeSerialize<T>(data);
-            return result;
+            return jsonSerializer.DeSerialize<T>(data)!;
         }
         catch (JsonReaderException)
         {
-            // Presumably, the data was not JSON, we instead use the binary serializer
-            return this.binarySerializer.DeSerialize<T>(data);
+            // The data was not JSON, so fall back to the legacy binary format. This branch needs
+            // the System.Runtime.Serialization.Formatters compatibility package and
+            // EnableUnsafeBinaryFormatterSerialization to be set in the application project.
+            using var stream = new MemoryStream(data);
+#pragma warning disable SYSLIB0011
+            var binaryData = (T) new BinaryFormatter().Deserialize(stream);
+#pragma warning restore SYSLIB0011
+            if (binaryData is JobDataMap jobDataMap)
+            {
+                // make sure we mark the map as dirty so it will be serialized as JSON next time
+                jobDataMap[SchedulerConstants.ForceJobDataMapDirty] = "true";
+            }
+            return binaryData;
         }
     }
 
-    public void Initialize()
-    {
-        this.binarySerializer.Initialize();
-        this.jsonSerializer.Initialize();
-    }
-
-    public byte[] Serialize<T>(T obj) where T : class
-    {
-        return this.jsonSerializer.Serialize<T>(obj);
-    }
+    public byte[] Serialize<T>(T obj) where T : class => jsonSerializer.Serialize(obj);
 }
 ```
 
@@ -112,7 +142,7 @@ public class MigratorSerializer : IObjectSerializer
 If you need to customize JSON.NET settings, you need to inherit custom implementation and override `CreateSerializerSettings`.
 
 ```csharp
-class CustomJsonSerializer : JsonObjectSerializer
+class CustomJsonSerializer : NewtonsoftJsonObjectSerializer
 {
     protected override JsonSerializerSettings CreateSerializerSettings()
     {
@@ -196,5 +226,5 @@ config.UsePersistentStore(store =>
 });
 
 // or just globally which is what above code calls
-JsonObjectSerializer.AddCalendarSerializer<CustomCalendar>(new CustomCalendarSerializer());
+NewtonsoftJsonObjectSerializer.AddCalendarSerializer<CustomCalendar>(new CustomCalendarSerializer());
 ```

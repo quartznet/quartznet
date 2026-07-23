@@ -20,8 +20,6 @@
 #endregion
 
 using System.Collections;
-using System.Runtime.Serialization.Formatters;
-using System.Runtime.Serialization.Formatters.Binary;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Utils;
@@ -33,129 +31,6 @@ namespace Quartz.Tests.Unit.Utils;
 /// <author>Marko Lahma (.NET)</author>
 public class DirtyFlagMapTest
 {
-    [Test]
-    public void EmptyAndDirty_V1_CanBeDeserialized()
-    {
-        var map = Deserialize<DirtyFlagMap<string, int>>("DirtyFlagMap_EmptyAndDirty_V1");
-
-        Assert.That(map, Is.Not.Null);
-        Assert.That(map, Is.Empty);
-        Assert.That(map.Dirty, Is.True);
-    }
-
-    [Test]
-    public void EmptyAndNotDirty_V1_CanBeDeserialized()
-    {
-        var map = Deserialize<DirtyFlagMap<string, int>>("DirtyFlagMap_EmptyAndNotDirty_V1");
-
-        Assert.That(map, Is.Not.Null);
-        Assert.That(map, Is.Empty);
-        Assert.That(map.Dirty, Is.False);
-    }
-
-    [Test]
-    public void NotEmptyAndDirty_V1_CanBeDeserialized()
-    {
-        var map = Deserialize<DirtyFlagMap<string, int>>("DirtyFlagMap_NotEmptyAndDirty_V1");
-        Assert.Multiple(() =>
-        {
-            Assert.That(map, Is.Not.Null);
-            Assert.That(map, Has.Count.EqualTo(2));
-            Assert.That(map.ContainsKey("A"), Is.True);
-            Assert.That(map["A"], Is.EqualTo(2));
-            Assert.That(map.ContainsKey("B"), Is.True);
-            Assert.That(map["B"], Is.EqualTo(7));
-            Assert.That(map.Dirty, Is.True);
-        });
-    }
-
-    [Test]
-    public void NotEmptyAndNotDirty_V1_CanBeDeserialized()
-    {
-        var map = Deserialize<DirtyFlagMap<string, int>>("DirtyFlagMap_NotEmptyAndNotDirty_V1");
-        Assert.Multiple(() =>
-        {
-            Assert.That(map, Is.Not.Null);
-            Assert.That(map, Has.Count.EqualTo(2));
-            Assert.That(map.ContainsKey("C"), Is.True);
-            Assert.That(map["C"], Is.EqualTo(3));
-            Assert.That(map.ContainsKey("F"), Is.True);
-            Assert.That(map["F"], Is.EqualTo(1));
-            Assert.That(map.Dirty, Is.False);
-        });
-    }
-
-    [Test]
-    public void EmptyAndDirty_CanBeSerializedAndDeserialized()
-    {
-        var map = new DirtyFlagMap<string, int>();
-        map.Add("C", 3);
-        map.Clear();
-
-        var deserialized = SerializeAndDeserialize(map);
-        Assert.Multiple(() =>
-        {
-            Assert.That(deserialized, Is.Not.Null);
-            Assert.That(deserialized, Is.Empty);
-            Assert.That(deserialized.Dirty, Is.True);
-        });
-    }
-
-    [Test]
-    public void EmptyAndNotDirty_CanBeSerializedAndDeserialized()
-    {
-        var map = new DirtyFlagMap<string, int>();
-
-        var deserialized = SerializeAndDeserialize(map);
-        Assert.Multiple(() =>
-        {
-            Assert.That(deserialized, Is.Not.Null);
-            Assert.That(deserialized, Is.Empty);
-            Assert.That(deserialized.Dirty, Is.False);
-        });
-    }
-
-    [Test]
-    public void NotEmptyAndDirty_CanBeSerializedAndDeserialized()
-    {
-        var map = new DirtyFlagMap<string, int>();
-        map.Add("A", 2);
-        map.Add("B", 7);
-
-        var deserialized = SerializeAndDeserialize(map);
-        Assert.Multiple(() =>
-        {
-            Assert.That(deserialized, Is.Not.Null);
-            Assert.That(deserialized, Has.Count.EqualTo(2));
-            Assert.That(map.ContainsKey("A"), Is.True);
-            Assert.That(map["A"], Is.EqualTo(2));
-            Assert.That(map.ContainsKey("B"), Is.True);
-            Assert.That(map["B"], Is.EqualTo(7));
-            Assert.That(map.Dirty, Is.True);
-        });
-    }
-
-    [Test]
-    public void NotEmptyAndNotDirty_CanBeSerializedAndDeserialized()
-    {
-        var map = new DirtyFlagMap<string, int>();
-        map.Add("C", 3);
-        map.Add("F", 1);
-        map.ClearDirtyFlag();
-
-        var deserialized = SerializeAndDeserialize(map);
-        Assert.Multiple(() =>
-        {
-            Assert.That(map, Is.Not.Null);
-            Assert.That(map, Has.Count.EqualTo(2));
-            Assert.That(map.ContainsKey("C"), Is.True);
-            Assert.That(map["C"], Is.EqualTo(3));
-            Assert.That(map.ContainsKey("F"), Is.True);
-            Assert.That(map["F"], Is.EqualTo(1));
-            Assert.That(map.Dirty, Is.False);
-        });
-    }
-
     [Test]
     public void TryGetValue_KeyIsNull()
     {
@@ -2017,28 +1892,4 @@ public class DirtyFlagMapTest
     //    Assert.IsTrue(dirtyFlagMap.Dirty);
     //    Assert.AreEqual(0, dirtyFlagMap.Count);
     //}
-
-    private static T SerializeAndDeserialize<T>(T value)
-    {
-        var formatter = new BinaryFormatter();
-
-        using (var ms = new MemoryStream())
-        {
-            formatter.Serialize(ms, value);
-
-            ms.Position = 0;
-
-            return (T) formatter.Deserialize(ms);
-        }
-    }
-
-    private static T Deserialize<T>(string name)
-    {
-#pragma warning disable SYSLIB0050
-        using var fs = File.OpenRead(Path.Combine("Serialized", name + ".ser"));
-        BinaryFormatter binaryFormatter = new BinaryFormatter();
-        binaryFormatter.AssemblyFormat = FormatterAssemblyStyle.Simple;
-        return (T) binaryFormatter.Deserialize(fs);
-#pragma warning restore SYSLIB0050
-    }
 }

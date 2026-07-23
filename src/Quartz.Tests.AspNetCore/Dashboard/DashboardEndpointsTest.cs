@@ -370,6 +370,10 @@ public class DashboardEndpointsTest
             options => options.DashboardPath = "/my-api/quartz",
             builder => builder.Environment.WebRootFileProvider = new TestFileProvider(new Dictionary<string, byte[]>
             {
+                // On .NET 10+ the framework script is a static web asset exposed through the web root
+                // rather than an embedded manifest, so a host serves it from the WebRootFileProvider
+                // (see the RequiresAspNetWebAssets note in the dashboard docs).
+                ["_framework/blazor.web.js"] = "// blazor.web.js"u8.ToArray(),
                 ["_content/Quartz.Dashboard/css/quartz-dashboard.css"] = "body { }"u8.ToArray(),
             }));
 
@@ -379,8 +383,8 @@ public class DashboardEndpointsTest
         {
             using System.Net.Http.HttpClient client = app.GetTestClient();
 
-            // the framework script is mirrored under the dashboard path; on .NET 8/9 it is served
-            // from the embedded manifest of Microsoft.AspNetCore.Components.Endpoints
+            // the framework script is mirrored under the dashboard path and served from the web root
+            // (a static web asset on .NET 10+, the embedded manifest on .NET 8/9)
             using HttpResponseMessage scriptResponse = await client.GetAsync("/my-api/quartz/_framework/blazor.web.js");
             scriptResponse.StatusCode.Should().Be(HttpStatusCode.OK);
             scriptResponse.Content.Headers.ContentType!.MediaType.Should().Be("text/javascript");
@@ -403,7 +407,13 @@ public class DashboardEndpointsTest
     [Test]
     public async Task CustomDashboardPathScriptShouldSupportHeadAndConditionalRequests()
     {
-        await using WebApplication app = CreateApp(options => options.DashboardPath = "/my-api/quartz");
+        await using WebApplication app = CreateApp(
+            options => options.DashboardPath = "/my-api/quartz",
+            builder => builder.Environment.WebRootFileProvider = new TestFileProvider(new Dictionary<string, byte[]>
+            {
+                // the framework script is a static web asset served from the web root on .NET 10+
+                ["_framework/blazor.web.js"] = "// blazor.web.js"u8.ToArray(),
+            }));
         app.MapQuartzDashboard();
         await app.StartAsync();
         try
@@ -521,6 +531,8 @@ public class DashboardEndpointsTest
                 });
                 builder.Environment.WebRootFileProvider = new TestFileProvider(new Dictionary<string, byte[]>
                 {
+                    // served from the web root as static web assets on .NET 10+
+                    ["_framework/blazor.web.js"] = "// blazor.web.js"u8.ToArray(),
                     ["_content/Quartz.Dashboard/css/quartz-dashboard.css"] = "body { }"u8.ToArray(),
                 });
             });
