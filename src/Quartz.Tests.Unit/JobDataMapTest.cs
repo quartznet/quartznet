@@ -23,8 +23,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
-using FluentAssertions;
-using NUnit.Framework;
+
 using Quartz.Simpl;
 
 namespace Quartz.Tests.Unit;

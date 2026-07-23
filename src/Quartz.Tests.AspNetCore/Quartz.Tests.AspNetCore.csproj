@@ -7,15 +7,17 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Using Include="AwesomeAssertions" />
     <Using Include="NUnit.Framework" />
   </ItemGroup>
-
+  
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="FluentAssertions" Version="[7.2.0]" />
+    <PackageReference Include="AwesomeAssertions" Version="9.5.0" />
+    <PackageReference Include="AwesomeAssertions.Analyzers" Version="9.0.8" />
     <PackageReference Include="GitHubActionsTestLogger" Version="2.4.1" PrivateAssets="all" />
     <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="8.0.8" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.3.0" />

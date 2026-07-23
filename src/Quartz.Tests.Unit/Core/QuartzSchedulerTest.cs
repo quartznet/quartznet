@@ -28,8 +28,6 @@ using System.Threading.Tasks;
 
 using FakeItEasy;
 
-using NUnit.Framework;
-
 using Quartz.Core;
 using Quartz.Impl;
 using Quartz.Impl.Triggers;

@@ -3,8 +3,6 @@ using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
 
-using NUnit.Framework;
-
 namespace Quartz.Tests.Integration;
 
 [SetUpFixture]

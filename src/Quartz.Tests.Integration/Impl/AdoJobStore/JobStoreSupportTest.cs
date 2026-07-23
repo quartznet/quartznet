@@ -5,8 +5,6 @@ using System.Threading.Tasks;
 
 using Npgsql;
 
-using NUnit.Framework;
-
 using Quartz.Impl.AdoJobStore;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;

@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Data.Common;
 
-using NUnit.Framework;
-
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;

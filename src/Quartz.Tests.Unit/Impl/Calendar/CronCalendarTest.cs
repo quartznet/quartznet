@@ -21,8 +21,6 @@
 
 using System;
 
-using NUnit.Framework;
-
 using Quartz.Impl.Calendar;
 using Quartz.Simpl;
 

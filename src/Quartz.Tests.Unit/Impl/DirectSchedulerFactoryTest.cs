@@ -23,8 +23,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-using NUnit.Framework;
-
 using Quartz.Impl;
 using Quartz.Simpl;
 using Quartz.Spi;

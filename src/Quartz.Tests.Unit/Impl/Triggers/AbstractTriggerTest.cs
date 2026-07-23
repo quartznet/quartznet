@@ -4,8 +4,6 @@ using System.Runtime.Serialization.Formatters;
 using System.Runtime.Serialization.Formatters.Binary;
 using Newtonsoft.Json;
 
-using NUnit.Framework;
-
 using Quartz.Impl.Triggers;
 
 namespace Quartz.Tests.Unit.Impl.Triggers;

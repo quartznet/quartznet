@@ -3,12 +3,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-using FluentAssertions;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-
-using NUnit.Framework;
 
 using Quartz.Listener;
 using Quartz.Logging;

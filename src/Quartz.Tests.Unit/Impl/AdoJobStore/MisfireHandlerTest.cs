@@ -26,10 +26,6 @@ using System.Threading.Tasks;
 
 using FakeItEasy;
 
-using FluentAssertions;
-
-using NUnit.Framework;
-
 using Quartz.Impl.AdoJobStore;
 using Quartz.Util;
 

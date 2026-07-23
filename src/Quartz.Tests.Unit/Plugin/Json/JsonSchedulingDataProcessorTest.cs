@@ -1,14 +1,9 @@
 using System;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 
 using FakeItEasy;
-using FluentAssertions;
 
-using NUnit.Framework;
-
-using Quartz.Impl.Triggers;
 using Quartz.Plugin.Json;
 using Quartz.Simpl;
 

@@ -3,8 +3,6 @@ using System.Data;
 using System.Data.Common;
 using System.Threading.Tasks;
 
-using NUnit.Framework;
-
 using Quartz.Impl;
 using Quartz.Logging;
 using Quartz.Tests.Integration.Utils;

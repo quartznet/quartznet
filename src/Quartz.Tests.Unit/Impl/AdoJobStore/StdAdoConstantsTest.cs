@@ -1,10 +1,6 @@
 using System.Globalization;
 using System.Threading;
 
-using FluentAssertions;
-
-using NUnit.Framework;
-
 using Quartz.Impl.AdoJobStore;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;

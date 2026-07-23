@@ -2,8 +2,6 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-using NUnit.Framework;
-
 using Quartz.Impl;
 using Quartz.Logging;
 

@@ -5,8 +5,6 @@ using System.Threading.Tasks;
 
 using Microsoft.Extensions.Options;
 
-using NUnit.Framework;
-
 using Quartz.Impl.Matchers;
 using Quartz.Spi;
 

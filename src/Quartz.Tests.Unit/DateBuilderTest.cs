@@ -1,7 +1,5 @@
 using System;
 
-using NUnit.Framework;
-
 namespace Quartz.Tests.Unit;
 
 public class DateBuilderTest

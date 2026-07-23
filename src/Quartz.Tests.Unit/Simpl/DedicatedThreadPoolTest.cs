@@ -3,8 +3,6 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 
-using NUnit.Framework;
-
 using Quartz.Simpl;
 using Quartz.Util;
 

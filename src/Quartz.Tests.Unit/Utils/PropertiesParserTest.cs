@@ -19,8 +19,6 @@
 
 using System.Collections.Specialized;
 
-using NUnit.Framework;
-
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Utils;

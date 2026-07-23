@@ -1,6 +1,5 @@
 using System;
 
-using Quartz.Impl.Recurrence;
 using Quartz.Util;
 
 using RRule = Quartz.Impl.Recurrence.RecurrenceRule;

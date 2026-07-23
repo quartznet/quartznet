@@ -1,5 +1,4 @@
-﻿using NUnit.Framework;
-using Quartz.Impl;
+﻿using Quartz.Impl;
 using Quartz.Listener;
 using System;
 using System.Collections.Generic;

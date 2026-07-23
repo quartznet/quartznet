@@ -1,8 +1,6 @@
 using System.Threading.Tasks;
 
-using NUnit.Framework;
-
- namespace Quartz.Tests.Integration;
+namespace Quartz.Tests.Integration;
 
  [NonParallelizable]
  public class RAMSchedulerTest : AbstractSchedulerTest

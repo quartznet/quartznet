@@ -1,10 +1,6 @@
 using System;
 using System.Linq;
 
-using FluentAssertions;
-
-using NUnit.Framework;
-
 using Quartz.Impl.Triggers;
 using Quartz.Simpl;
 using Quartz.Spi;

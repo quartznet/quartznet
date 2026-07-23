@@ -1,5 +1,3 @@
-using NUnit.Framework;
-
 using Quartz.Core;
 using Quartz.Impl.Matchers;
 using Quartz.Listener;

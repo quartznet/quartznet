@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 
-using NUnit.Framework;
-
 using Quartz.Impl.Calendar;
 using Quartz.Tests.Unit.Utils;
 using Quartz.Util;

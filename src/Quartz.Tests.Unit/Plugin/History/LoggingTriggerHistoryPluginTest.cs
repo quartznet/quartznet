@@ -22,8 +22,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-using NUnit.Framework;
-
 using Quartz.Impl;
 using Quartz.Job;
 using Quartz.Plugin.History;
