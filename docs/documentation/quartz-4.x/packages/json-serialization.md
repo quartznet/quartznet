@@ -58,25 +58,45 @@ ISchedulerFactory schedulerFactory = config.Build();
 
 ### Migrating from binary serialization
 
-There's now official solution for migration as there can be quirks in every setup, but there's a recipe that can work for you.
+Quartz 4 no longer ships the `BinaryObjectSerializer`: the underlying `BinaryFormatter`
+has been removed from modern .NET and throws on .NET 9 and later. If you still have
+binary-serialized data in your database you need to migrate it to JSON.
 
-* Configure custom serializer like `MigratorSerializer` below that can read binary serialization format and writes JSON format
-* Either let system gradually migrate as it's running or create a program which loads and writes back to DB all relevant serialized assets
+The recommended path is to perform the migration **while you are still on Quartz 3.x**,
+which still includes `BinaryObjectSerializer` - see the Quartz 3.x version of this page
+for a ready-made hybrid serializer. Either let the system migrate gradually as it runs,
+or write a small program that loads and writes back every serialized asset in the
+database.
+
+If you must read legacy binary data on Quartz 4, the Quartz types still keep their
+`[Serializable]` / `ISerializable` support, so you can plug in your own `IObjectSerializer`
+that decodes the old binary payloads and let the hybrid serializer below write everything
+back as JSON.
 
 **Example hybrid serializer**
 
 ```csharp
-public class MigratorSerializer : IObjectSerializer
-{
-    private BinaryObjectSerializer binarySerializer;
-    private JsonObjectSerializer jsonSerializer;
+using Newtonsoft.Json;
 
-    public MigratorSerializer()
+using Quartz.Simpl;
+using Quartz.Spi;
+
+namespace Quartz;
+
+public sealed class MigratorSerializer : IObjectSerializer
+{
+    // Quartz 4 no longer provides a binary serializer, so supply your own reader for
+    // the legacy format (for example one backed by BinaryFormatter on a runtime that
+    // still supports it, or a hand-written System.Formats.Nrbf reader).
+    private readonly IObjectSerializer legacyBinarySerializer;
+    private readonly NewtonsoftJsonObjectSerializer jsonSerializer;
+
+    public MigratorSerializer(IObjectSerializer legacyBinarySerializer)
     {
-        this.binarySerializer = new BinaryObjectSerializer();
+        this.legacyBinarySerializer = legacyBinarySerializer;
         // you might need custom configuration, see sections about customizing
         // in documentation
-        this.jsonSerializer = new JsonObjectSerializer();
+        jsonSerializer = new NewtonsoftJsonObjectSerializer();
     }
 
     public T DeSerialize<T>(byte[] data) where T : class
@@ -84,25 +104,30 @@ public class MigratorSerializer : IObjectSerializer
         try
         {
             // Attempt to deserialize data as JSON
-            var result = this.jsonSerializer.DeSerialize<T>(data);
-            return result;
+            return jsonSerializer.DeSerialize<T>(data)!;
         }
         catch (JsonReaderException)
         {
             // Presumably, the data was not JSON, we instead use the binary serializer
-            return this.binarySerializer.DeSerialize<T>(data);
+            var binaryData = legacyBinarySerializer.DeSerialize<T>(data);
+            if (binaryData is JobDataMap jobDataMap)
+            {
+                // make sure we mark the map as dirty so it will be serialized as JSON next time
+                jobDataMap[SchedulerConstants.ForceJobDataMapDirty] = "true";
+            }
+            return binaryData!;
         }
     }
 
     public void Initialize()
     {
-        this.binarySerializer.Initialize();
-        this.jsonSerializer.Initialize();
+        legacyBinarySerializer.Initialize();
+        jsonSerializer.Initialize();
     }
 
     public byte[] Serialize<T>(T obj) where T : class
     {
-        return this.jsonSerializer.Serialize<T>(obj);
+        return jsonSerializer.Serialize(obj);
     }
 }
 ```
@@ -112,7 +137,7 @@ public class MigratorSerializer : IObjectSerializer
 If you need to customize JSON.NET settings, you need to inherit custom implementation and override `CreateSerializerSettings`.
 
 ```csharp
-class CustomJsonSerializer : JsonObjectSerializer
+class CustomJsonSerializer : NewtonsoftJsonObjectSerializer
 {
     protected override JsonSerializerSettings CreateSerializerSettings()
     {
@@ -196,5 +221,5 @@ config.UsePersistentStore(store =>
 });
 
 // or just globally which is what above code calls
-JsonObjectSerializer.AddCalendarSerializer<CustomCalendar>(new CustomCalendarSerializer());
+NewtonsoftJsonObjectSerializer.AddCalendarSerializer<CustomCalendar>(new CustomCalendarSerializer());
 ```
