@@ -1,7 +1,5 @@
 ﻿using System.Threading.Tasks;
 
-using NUnit.Framework;
-
 using Quartz.Impl;
 using Quartz.Impl.Matchers;
 using Quartz.Job;

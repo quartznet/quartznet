@@ -25,8 +25,6 @@ using System.Threading.Tasks;
 
 using Microsoft.Extensions.Logging;
 
-using NUnit.Framework;
-
 using Quartz.Impl;
 using Quartz.Job;
 using Quartz.Logging;

@@ -1,8 +1,6 @@
 using System.Collections.Specialized;
 using System.Threading.Tasks;
 
-using NUnit.Framework;
-
 using Quartz.Impl;
 
 namespace Quartz.Tests.Integration.Impl;

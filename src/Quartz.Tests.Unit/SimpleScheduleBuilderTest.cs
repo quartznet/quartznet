@@ -1,6 +1,3 @@
-using FluentAssertions;
-
-using NUnit.Framework;
 
 namespace Quartz.Tests.Unit;
 

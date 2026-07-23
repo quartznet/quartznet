@@ -6,10 +6,7 @@ using System.Threading.Tasks;
 
 using Microsoft.Data.Sqlite;
 
-using NUnit.Framework;
-
 using Quartz.Impl;
-using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.Triggers;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;

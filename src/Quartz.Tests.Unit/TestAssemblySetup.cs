@@ -2,8 +2,6 @@
 using System.IO;
 using System.Reflection;
 
-using NUnit.Framework;
-
 namespace Quartz.Tests.Unit;
 
 [SetUpFixture]

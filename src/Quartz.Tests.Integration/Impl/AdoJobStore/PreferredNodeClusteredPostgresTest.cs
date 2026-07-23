@@ -2,8 +2,6 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 
-using NUnit.Framework;
-
 using Quartz.Impl.Triggers;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;

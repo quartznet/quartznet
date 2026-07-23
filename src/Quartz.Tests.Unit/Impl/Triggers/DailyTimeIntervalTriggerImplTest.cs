@@ -23,8 +23,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-using NUnit.Framework;
-
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
 using Quartz.Job;

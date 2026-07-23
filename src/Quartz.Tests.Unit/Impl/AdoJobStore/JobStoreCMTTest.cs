@@ -2,8 +2,6 @@
 
 using FakeItEasy;
 
-using NUnit.Framework;
-
 using Quartz.Impl.AdoJobStore;
 using Quartz.Util;
 

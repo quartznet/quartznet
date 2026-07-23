@@ -5,8 +5,6 @@ using System.Threading.Tasks;
 
 using FakeItEasy;
 
-using NUnit.Framework;
-
 using Quartz.Plugin.Xml;
 using Quartz.Util;
 

@@ -1,9 +1,5 @@
 ﻿using System;
 
-using FluentAssertions;
-
-using NUnit.Framework;
-
 using Quartz.Impl.Calendar;
 
 namespace Quartz.Tests.Unit.Impl.Calendar;

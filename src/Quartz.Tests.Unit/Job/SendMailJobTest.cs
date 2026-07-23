@@ -22,10 +22,6 @@
 using System;
 using System.Net.Mail;
 
-using FluentAssertions;
-
-using NUnit.Framework;
-
 using Quartz.Job;
 
 namespace Quartz.Tests.Unit.Job;

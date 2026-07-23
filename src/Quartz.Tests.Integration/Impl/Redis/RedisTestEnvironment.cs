@@ -1,7 +1,5 @@
 using System.Threading.Tasks;
 
-using NUnit.Framework;
-
 using Testcontainers.Redis;
 
 namespace Quartz.Tests.Integration.Impl.Redis;

@@ -19,8 +19,6 @@
 
 using System;
 
-using NUnit.Framework;
-
 using TimeZoneConverter;
 
 namespace Quartz.Tests.Unit;

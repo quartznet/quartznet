@@ -1,11 +1,8 @@
 using System.Collections.Generic;
 using System.Collections.Specialized;
 
-using FluentAssertions;
 
 using Microsoft.Extensions.Configuration;
-
-using NUnit.Framework;
 
 namespace Quartz.Tests.Unit.Extensions.DependencyInjection;
 

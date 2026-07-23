@@ -1,7 +1,6 @@
 using System.Collections.Specialized;
 using System.Text.Json;
 
-using FluentAssertions;
 
 using Microsoft.Extensions.Options;
 

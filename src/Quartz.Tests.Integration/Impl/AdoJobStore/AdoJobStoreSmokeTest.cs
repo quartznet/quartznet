@@ -10,8 +10,6 @@ using System.Threading.Tasks;
 
 using Microsoft.Data.Sqlite;
 
-using NUnit.Framework;
-
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Matchers;

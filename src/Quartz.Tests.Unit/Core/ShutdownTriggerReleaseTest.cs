@@ -5,8 +5,6 @@ using System.Collections.Specialized;
 using System.Threading;
 using System.Threading.Tasks;
 
-using NUnit.Framework;
-
 using Quartz.Impl;
 using Quartz.Listener;
 using Quartz.Simpl;

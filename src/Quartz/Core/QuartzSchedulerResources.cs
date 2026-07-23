@@ -20,7 +20,6 @@
 using System;
 using System.Collections.Generic;
 
-using Quartz.Impl;
 using Quartz.Spi;
 
 namespace Quartz.Core;

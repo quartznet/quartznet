@@ -8,11 +8,6 @@ using System.Threading.Tasks;
 
 using FakeItEasy;
 
-using FluentAssertions;
-
-using NUnit.Framework;
-
-using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.Calendar;
 using Quartz.Spi;

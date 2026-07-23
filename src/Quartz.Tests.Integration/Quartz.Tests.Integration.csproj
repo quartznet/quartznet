@@ -11,6 +11,12 @@
     <Compile Include="..\Quartz.Tests.Unit\TestConstants.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Using Include="AwesomeAssertions" />
+    <Using Include="NUnit.Framework" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="AwesomeAssertions" Version="9.5.0" />
+    <PackageReference Include="AwesomeAssertions.Analyzers" Version="9.0.8" />
     <PackageReference Include="FakeItEasy" Version="9.0.1" />
     <PackageReference Include="GitHubActionsTestLogger" Version="2.4.1" PrivateAssets="all" />
     <PackageReference Include="FirebirdSql.Data.FirebirdClient" Version="10.3.4" />
@@ -23,11 +29,11 @@
     <PackageReference Include="System.Data.SQLite.Core" Version="1.0.119" />
     <PackageReference Include="NUnit3TestAdapter" Version="6.2.0" />
     <PackageReference Include="System.Runtime.Serialization.Formatters" Version="10.0.0" Condition=" '$(TargetFramework)' == 'net10.0' " />
-    <PackageReference Include="Testcontainers.FirebirdSql" Version="4.11.0" />
-    <PackageReference Include="Testcontainers.MsSql" Version="4.11.0" />
+    <PackageReference Include="Testcontainers.FirebirdSql" Version="4.13.0" />
+    <PackageReference Include="Testcontainers.MsSql" Version="4.13.0" />
     <PackageReference Include="Testcontainers.MySql" Version="4.11.0" />
     <PackageReference Include="Testcontainers.Oracle" Version="4.11.0" />
-    <PackageReference Include="Testcontainers.PostgreSql" Version="4.11.0" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="4.13.0" />
     <PackageReference Include="Testcontainers.Redis" Version="4.11.0" />
   </ItemGroup>
   <PropertyGroup Condition=" '$(TargetFramework)' == 'net10.0' ">

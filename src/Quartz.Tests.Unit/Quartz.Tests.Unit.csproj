@@ -22,8 +22,13 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
+    <Using Include="AwesomeAssertions" />
+    <Using Include="NUnit.Framework" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="AwesomeAssertions" Version="9.5.0" />
+    <PackageReference Include="AwesomeAssertions.Analyzers" Version="9.0.8" />
     <PackageReference Include="FakeItEasy" Version="9.0.1" />
-    <PackageReference Include="FluentAssertions" Version="[7.2.0]" />
     <PackageReference Include="GitHubActionsTestLogger" Version="2.4.1" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="6.0.1" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
@@ -33,6 +38,7 @@
     <PackageReference Include="Npgsql.DependencyInjection" Version="8.0.7" />
     <PackageReference Include="NUnit" Version="4.5.1" />
     <PackageReference Include="NUnit3TestAdapter" Version="6.2.0" />
+    <PackageReference Include="PolySharp" Version="1.16.0" PrivateAssets="all" />
     <PackageReference Include="System.Runtime.Serialization.Formatters" Version="10.0.0" Condition=" '$(TargetFramework)' == 'net10.0' " />
     <PackageReference Include="Verify.NUnit" Version="31.13.5" />
   </ItemGroup>

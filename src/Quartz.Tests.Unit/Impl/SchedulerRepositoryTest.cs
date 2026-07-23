@@ -1,7 +1,5 @@
 using FakeItEasy;
 
-using NUnit.Framework;
-
 using Quartz.Impl;
 using Quartz.Spi;
 

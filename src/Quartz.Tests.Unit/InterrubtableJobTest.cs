@@ -22,8 +22,6 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-using NUnit.Framework;
-
 using Quartz.Impl;
 
 namespace Quartz.Tests.Unit;
