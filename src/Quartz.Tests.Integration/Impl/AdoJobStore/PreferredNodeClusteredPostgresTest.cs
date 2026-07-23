@@ -1,7 +1,3 @@
-using System.Linq;
-
-using NUnit.Framework;
-
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 
 /// <summary>

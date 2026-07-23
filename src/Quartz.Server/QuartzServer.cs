@@ -1,8 +1,6 @@
 using Microsoft.Extensions.Logging;
-
-using Quartz.Impl;
 using Quartz.Diagnostics;
-
+using Quartz.Impl;
 using Topshelf;
 
 namespace Quartz.Server;

@@ -22,12 +22,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Using Include="AwesomeAssertions" />
+    <Using Include="NUnit.Framework" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AwesomeAssertions" />
+    <PackageReference Include="AwesomeAssertions.Analyzers" />
     <PackageReference Include="FakeItEasy" />
-    <PackageReference Include="FluentAssertions" />
-    <PackageReference Include="FluentAssertions.Analyzers">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
     <PackageReference Include="Microsoft.Data.SqlClient" />
     <PackageReference Include="Microsoft.Extensions.Http" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />

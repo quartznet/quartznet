@@ -1840,7 +1840,7 @@ public class DirtyFlagMapTest
             { "Two", "Second Value" }
         };
 
-        IEnumerable<string> keys = ((IReadOnlyDictionary<string, string>) dirtyFlagMap).Keys;
+        var keys = ((IReadOnlyDictionary<string, string>) dirtyFlagMap).Keys;
 
         Assert.Multiple(() =>
         {

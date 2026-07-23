@@ -23,16 +23,13 @@ using System.Collections;
 using System.Data;
 using System.Data.Common;
 using System.Globalization;
-
 using Microsoft.Extensions.Logging;
-
+using Quartz.Diagnostics;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
-using Quartz.Diagnostics;
 using Quartz.Spi;
 using Quartz.Util;
-
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace Quartz.Impl.AdoJobStore;

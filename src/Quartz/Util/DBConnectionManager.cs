@@ -19,11 +19,9 @@
 
 using System.Collections.Concurrent;
 using System.Data.Common;
-
 using Microsoft.Extensions.Logging;
-
-using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Diagnostics;
+using Quartz.Impl.AdoJobStore.Common;
 
 namespace Quartz.Util;
 

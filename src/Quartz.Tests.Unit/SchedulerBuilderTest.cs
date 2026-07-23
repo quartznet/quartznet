@@ -1,10 +1,9 @@
 ﻿using System.Data.Common;
-
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
-using Quartz.Plugin.TimeZoneConverter;
 using Quartz.Plugin.Json;
+using Quartz.Plugin.TimeZoneConverter;
 using Quartz.Plugin.Xml;
 using Quartz.Simpl;
 using Quartz.Util;

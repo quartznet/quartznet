@@ -23,7 +23,6 @@ using System.Data.Common;
 
 using FakeItEasy;
 
-using FluentAssertions;
 
 using Quartz.Impl.AdoJobStore;
 using Quartz.Util;
@@ -43,7 +42,7 @@ public class MisfireHandlerTest
         // This simulates the race condition where shutdown happens before the task scheduler
         // has a chance to schedule the Run() task
         misfireHandler.Initialize();
-        
+
         // Create a timeout task to detect deadlock
         var shutdownTask = misfireHandler.Shutdown();
         var timeoutTask = Task.Delay(TimeSpan.FromSeconds(5));

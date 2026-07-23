@@ -1,7 +1,5 @@
+using AwesomeAssertions.Execution;
 using FakeItEasy;
-
-using FluentAssertions;
-using FluentAssertions.Execution;
 
 using Quartz.Impl.Calendar;
 using Quartz.Tests.AspNetCore.Support;

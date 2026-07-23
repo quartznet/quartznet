@@ -21,8 +21,8 @@
 
 using System.Collections;
 using System.Globalization;
-using FluentAssertions;
-using FluentAssertions.Execution;
+
+using AwesomeAssertions.Execution;
 
 using Quartz.Simpl;
 

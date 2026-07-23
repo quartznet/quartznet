@@ -1,7 +1,5 @@
 using System.Data.Common;
 
-using FluentAssertions;
-
 using Microsoft.Data.SqlClient;
 
 using Npgsql;

@@ -21,10 +21,6 @@
 
 using System.Diagnostics;
 
-using FluentAssertions;
-
-using NUnit.Framework;
-
 using Quartz.Diagnostics;
 
 namespace Quartz.Tests.Unit.Diagnostics;

@@ -1,8 +1,5 @@
-using FluentAssertions;
 
 using Microsoft.Extensions.Logging.Abstractions;
-
-using NUnit.Framework;
 
 using Quartz.Plugin.Json;
 using Quartz.Simpl;

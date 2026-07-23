@@ -1,5 +1,4 @@
-﻿using FluentAssertions;
-
+﻿
 using Quartz.Impl.Calendar;
 using Quartz.Util;
 

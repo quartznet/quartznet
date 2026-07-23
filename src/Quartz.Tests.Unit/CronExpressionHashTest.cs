@@ -1,9 +1,4 @@
-using System;
 using System.Globalization;
-
-using FluentAssertions;
-
-using NUnit.Framework;
 
 using Quartz.Spi;
 
@@ -602,7 +597,7 @@ public class CronExpressionHashTest
         foreach (string key in keys)
         {
             int seed = CronExpression.HashStringToSeed(key);
-            seed.Should().BeGreaterOrEqualTo(0);
+            seed.Should().BeGreaterThanOrEqualTo(0);
         }
     }
 }

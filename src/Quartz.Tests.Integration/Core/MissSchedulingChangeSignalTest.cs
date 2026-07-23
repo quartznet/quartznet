@@ -1,9 +1,7 @@
 ﻿using System.Collections.Specialized;
-
 using Microsoft.Extensions.Logging;
-
-using Quartz.Impl;
 using Quartz.Diagnostics;
+using Quartz.Impl;
 using Quartz.Simpl;
 using Quartz.Spi;
 

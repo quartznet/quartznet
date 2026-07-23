@@ -1,5 +1,4 @@
-using FluentAssertions;
-using FluentAssertions.Execution;
+using AwesomeAssertions.Execution;
 
 namespace Quartz.Tests.Unit;
 

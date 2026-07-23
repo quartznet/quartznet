@@ -1,10 +1,8 @@
 using System.Data;
 using System.Data.Common;
-
 using Microsoft.Extensions.Logging;
-
-using Quartz.Impl;
 using Quartz.Diagnostics;
+using Quartz.Impl;
 using Quartz.Tests.Integration.Utils;
 using Quartz.Util;
 

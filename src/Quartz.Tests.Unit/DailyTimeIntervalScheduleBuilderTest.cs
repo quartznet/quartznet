@@ -21,8 +21,7 @@
 
 using System.Collections.Specialized;
 
-using FluentAssertions;
-using FluentAssertions.Execution;
+using AwesomeAssertions.Execution;
 
 using Quartz.Impl;
 using Quartz.Impl.Triggers;

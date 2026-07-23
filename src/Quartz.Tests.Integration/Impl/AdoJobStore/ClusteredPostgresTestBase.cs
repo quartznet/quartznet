@@ -4,8 +4,6 @@ using System.Text;
 
 using Npgsql;
 
-using NUnit.Framework;
-
 using Quartz.Impl;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;

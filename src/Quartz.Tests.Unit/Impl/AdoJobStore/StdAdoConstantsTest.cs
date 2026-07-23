@@ -1,6 +1,5 @@
 using System.Globalization;
 
-using FluentAssertions;
 
 using Quartz.Impl.AdoJobStore;
 

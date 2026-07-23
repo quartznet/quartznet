@@ -1,11 +1,5 @@
 using System.Collections.Specialized;
 
-using FakeItEasy;
-
-using FluentAssertions;
-
-using NUnit.Framework;
-
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
@@ -21,12 +15,12 @@ public class UpdateTriggerDetailsTest
     private IJobDetail jobDetail;
 
     [SetUp]
-    public void SetUp()
+    public async Task SetUp()
     {
         jobStore = new RAMJobStore();
         TestSignaler signaler = new TestSignaler();
-        jobStore.Initialize(null!, signaler);
-        jobStore.SchedulerStarted();
+        await jobStore.Initialize(null!, signaler);
+        await jobStore.SchedulerStarted();
 
         jobDetail = JobBuilder.Create()
             .OfType<NoOpJob>()
@@ -34,7 +28,7 @@ public class UpdateTriggerDetailsTest
             .StoreDurably(true)
             .Build();
 
-        jobStore.StoreJob(jobDetail, false);
+        await jobStore.StoreJob(jobDetail, false);
     }
 
     [Test]
