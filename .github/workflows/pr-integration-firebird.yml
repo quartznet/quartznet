@@ -9,7 +9,7 @@
 #
 #     - To trigger manual generation invoke:
 #
-#         nuke --generate-configuration GitHubActions_pr-integration-firebird --host GitHubActions
+#         fallout --generate-configuration GitHubActions_pr-integration-firebird --host GitHubActions
 #
 # </auto-generated>
 # ------------------------------------------------------------------------------
@@ -41,12 +41,14 @@ jobs:
     name: ubuntu-latest
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: |
-            10.0
       - uses: actions/checkout@v6
-      - name: 'Run: Compile, IntegrationTest (firebird)'
-        run: ./build.cmd Compile IntegrationTest --database firebird
+      - name: 'Setup: .NET SDK'
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: 'Restore: dotnet tools'
+        run: dotnet tool restore
+      - name: 'Run: Compile, IntegrationTest'
+        run: dotnet fallout Compile IntegrationTest
         env:
-          QUARTZ_TEST_DATABASE: firebird
+          Database: firebird

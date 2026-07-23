@@ -5,11 +5,11 @@
 #
 #     - To turn off auto-generation set:
 #
-#         [CustomGitHubActions (AutoGenerate = false)]
+#         [GitHubActions (AutoGenerate = false)]
 #
 #     - To trigger manual generation invoke:
 #
-#         nuke --generate-configuration GitHubActions_pr-tests-unit --host GitHubActions
+#         fallout --generate-configuration GitHubActions_pr-tests-unit --host GitHubActions
 #
 # </auto-generated>
 # ------------------------------------------------------------------------------
@@ -40,32 +40,38 @@ jobs:
     name: windows-latest
     runs-on: windows-latest
     steps:
-      - uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: |
-            10.0
       - uses: actions/checkout@v6
+      - name: 'Setup: .NET SDK'
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: 'Restore: dotnet tools'
+        run: dotnet tool restore
       - name: 'Run: Compile, UnitTest'
-        run: ./build.cmd Compile UnitTest
+        run: dotnet fallout Compile UnitTest
   ubuntu-latest:
     name: ubuntu-latest
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: |
-            10.0
       - uses: actions/checkout@v6
+      - name: 'Setup: .NET SDK'
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: 'Restore: dotnet tools'
+        run: dotnet tool restore
       - name: 'Run: Compile, UnitTest'
-        run: ./build.cmd Compile UnitTest
+        run: dotnet fallout Compile UnitTest
   macos-latest:
     name: macos-latest
     runs-on: macos-latest
     steps:
-      - uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: |
-            10.0
       - uses: actions/checkout@v6
+      - name: 'Setup: .NET SDK'
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: 'Restore: dotnet tools'
+        run: dotnet tool restore
       - name: 'Run: Compile, UnitTest'
-        run: ./build.cmd Compile UnitTest
+        run: dotnet fallout Compile UnitTest

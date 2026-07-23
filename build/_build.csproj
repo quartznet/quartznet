@@ -5,26 +5,25 @@
     <TargetFramework>net10.0</TargetFramework>
     <RootNamespace></RootNamespace>
     <NoWarn>CS0649;CS0169</NoWarn>
-    <NukeRootDirectory>..</NukeRootDirectory>
-    <NukeScriptDirectory>..</NukeScriptDirectory>
-    <NukeTelemetryVersion>1</NukeTelemetryVersion>
-    <NukeExcludeConfig>true</NukeExcludeConfig>
-    <NukeExcludeDirectoryBuild>true</NukeExcludeDirectoryBuild>
-    <NukeExcludeLogs>true</NukeExcludeLogs>
+    <FalloutRootDirectory>..</FalloutRootDirectory>
+    <FalloutScriptDirectory>..</FalloutScriptDirectory>
+    <FalloutTelemetryVersion>1</FalloutTelemetryVersion>
+    <FalloutExcludeConfig>true</FalloutExcludeConfig>
+    <FalloutExcludeDirectoryBuild>true</FalloutExcludeDirectoryBuild>
+    <FalloutExcludeLogs>true</FalloutExcludeLogs>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Nuke.Common" Version="10.1.0" />
-    <PackageDownload Include="GitVersion.Tool" Version="[5.7.0]" />
+    <PackageReference Include="Fallout.Common" Version="11.0.18" />
   </ItemGroup>
 
   <!--
-    Override vulnerable transitive dependencies pulled in by Nuke.Common.
-    Remove these when Nuke.Common ships a release that bumps them itself.
+    Override a vulnerable transitive dependency pulled in by Fallout.Common (GHSA-23rf-6693-g89p,
+    GHSA-8q5v-6pqq-x66h, GHSA-cvvh-rhrc-wg4q, GHSA-g8r8-53c2-pm3f, GHSA-mmjf-rqrv-855v).
+    Remove this when Fallout ships a release that bumps it itself.
   -->
   <ItemGroup>
-    <PackageReference Include="NuGet.Packaging" Version="7.6.0" />
     <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.10" />
   </ItemGroup>
 
