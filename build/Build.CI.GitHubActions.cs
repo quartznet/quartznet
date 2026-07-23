@@ -36,16 +36,30 @@ using Quartz.Build;
     GitHubActionsImage.UbuntuLatest,
     GitHubActionsImage.MacOsLatest,
     OnPushBranches = ["main", "3.x"],
-    OnPushTags = ["v*.*.*"],
     OnPushIncludePaths = ["**/*"],
     OnPushExcludePaths = ["docs/**/*", "package.json", "package-lock.json", "readme.md"],
     PublishArtifacts = true,
     PublishCondition = "${{ runner.os == 'Windows' }}",
     InvokedTargets = [nameof(ICompile.Compile), nameof(UnitTest), nameof(IntegrationTest), nameof(IPack.Pack), nameof(Publish)],
-    ImportSecrets = ["NUGET_API_KEY", "FEEDZ_API_KEY"],
+    ImportSecrets = ["FEEDZ_API_KEY"],
     CacheKeyFiles = [],
     TimeoutMinutes = 10,
     ReadPermissions = [GitHubActionsPermissions.Contents]
+)]
+// Releases live in their own workflow file because a nuget.org trusted publishing policy is scoped by
+// workflow file name and offers no branch or tag filter — keeping this separate from 'build' is what
+// stops every ordinary CI run from being able to mint a nuget.org API key.
+[GitHubActions(
+    "publish",
+    GitHubActionsImage.WindowsLatest,
+    OnPushTags = ["v*.*.*"],
+    PublishArtifacts = true,
+    InvokedTargets = [nameof(ICompile.Compile), nameof(UnitTest), nameof(IPack.Pack), nameof(Publish)],
+    CacheKeyFiles = [],
+    TimeoutMinutes = 20,
+    EnvironmentName = "nuget",
+    ReadPermissions = [GitHubActionsPermissions.Contents],
+    WritePermissions = [GitHubActionsPermissions.IdToken]
 )]
 public partial class Build;
 
