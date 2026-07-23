@@ -447,7 +447,6 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
         /// <param name="provider">Valid provider name to configure driver details.</param>
         /// <param name="configurer">Callback to refine configuration.</param>
         /// <param name="dataSourceName">Data source name to use.</param>
-        /// <returns></returns>
         public void UseGenericDatabase(
             string provider,
             string dataSourceName,

@@ -1,6 +1,3 @@
-using NUnit.Framework;
-
-using Quartz.Impl;
 using Quartz.Impl.Triggers;
 using Quartz.Simpl;
 using Quartz.Spi;

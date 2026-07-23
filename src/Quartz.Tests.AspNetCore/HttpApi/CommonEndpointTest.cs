@@ -3,7 +3,6 @@ using System.Text;
 
 using FakeItEasy;
 
-using FluentAssertions;
 
 using Quartz.HttpClient;
 using Quartz.Tests.AspNetCore.Support;

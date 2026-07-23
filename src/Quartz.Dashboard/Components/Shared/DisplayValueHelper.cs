@@ -21,8 +21,6 @@ using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
 
-using Quartz;
-
 namespace Quartz.Dashboard.Components.Shared;
 
 internal static class DisplayValueHelper

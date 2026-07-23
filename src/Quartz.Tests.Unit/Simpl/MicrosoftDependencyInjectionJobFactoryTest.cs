@@ -1,5 +1,4 @@
-using FluentAssertions;
-using FluentAssertions.Execution;
+using AwesomeAssertions.Execution;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;

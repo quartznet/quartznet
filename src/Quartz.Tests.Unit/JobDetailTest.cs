@@ -19,8 +19,7 @@
 
 #endregion
 
-using FluentAssertions;
-using FluentAssertions.Execution;
+using AwesomeAssertions.Execution;
 
 using Quartz.Impl;
 using Quartz.Job;
@@ -45,7 +44,7 @@ public class JobDetailTest
             Assert.That(jd3, Is.Not.EqualTo(jd2));
             Assert.That(jd1, Is.Not.Null);
         });
-        
+
     }
 
     [Test]
@@ -83,7 +82,7 @@ public class JobDetailTest
             Assert.That(loadedType, Is.Not.Null);
             Assert.That(loadedType, Is.EqualTo(type));
         });
-        
+
     }
 
     [Test]

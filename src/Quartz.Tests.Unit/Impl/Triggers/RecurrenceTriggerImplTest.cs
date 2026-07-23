@@ -1,6 +1,3 @@
-
-using NUnit.Framework;
-
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;

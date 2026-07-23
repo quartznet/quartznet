@@ -1,9 +1,8 @@
 using System.Text.Json;
 
-using FakeItEasy;
+using AwesomeAssertions.Execution;
 
-using FluentAssertions;
-using FluentAssertions.Execution;
+using FakeItEasy;
 
 using Microsoft.Extensions.DependencyInjection;
 

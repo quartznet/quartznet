@@ -22,7 +22,6 @@
 using System.Collections.Specialized;
 
 using Quartz.Impl;
-using Quartz.Impl.AdoJobStore;
 using Quartz.Job;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;

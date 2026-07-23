@@ -1,7 +1,5 @@
 using System.Collections.Specialized;
 
-using NUnit.Framework;
-
 using Quartz.Impl;
 
 namespace Quartz.Tests.Unit.Core;

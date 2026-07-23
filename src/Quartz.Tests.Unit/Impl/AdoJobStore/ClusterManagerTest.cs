@@ -23,7 +23,6 @@ using System.Data.Common;
 
 using FakeItEasy;
 
-using FluentAssertions;
 
 using Quartz.Impl.AdoJobStore;
 
@@ -42,7 +41,7 @@ public class ClusterManagerTest
         // This simulates the race condition where shutdown happens before the task scheduler
         // has a chance to schedule the Run() task
         await clusterManager.Initialize();
-        
+
         // Create a timeout task to detect deadlock
         var shutdownTask = clusterManager.Shutdown();
         var timeoutTask = Task.Delay(TimeSpan.FromSeconds(5));

@@ -1,7 +1,6 @@
-using FakeItEasy;
+using AwesomeAssertions.Execution;
 
-using FluentAssertions;
-using FluentAssertions.Execution;
+using FakeItEasy;
 
 using Quartz.HttpClient;
 using Quartz.Impl.Matchers;

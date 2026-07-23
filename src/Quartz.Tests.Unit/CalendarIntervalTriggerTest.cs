@@ -1,5 +1,4 @@
-using FluentAssertions;
-using FluentAssertions.Execution;
+using AwesomeAssertions.Execution;
 
 using Quartz.Impl.Triggers;
 using Quartz.Simpl;

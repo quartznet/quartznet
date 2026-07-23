@@ -23,12 +23,10 @@
 
 using System.Globalization;
 using System.Text;
-
 using Microsoft.Extensions.Logging;
-
+using Quartz.Diagnostics;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
-using Quartz.Diagnostics;
 using Quartz.Simpl;
 using Quartz.Spi;
 

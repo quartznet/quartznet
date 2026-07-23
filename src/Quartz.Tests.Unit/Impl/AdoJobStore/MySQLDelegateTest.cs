@@ -1,4 +1,3 @@
-using FluentAssertions;
 
 using Quartz.Impl.AdoJobStore;
 

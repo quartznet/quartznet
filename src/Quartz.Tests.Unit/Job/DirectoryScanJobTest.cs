@@ -1,7 +1,5 @@
-using FluentAssertions;
 
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using Quartz.Job;
@@ -18,9 +16,9 @@ public class DirectoryScanJobTest
         // Arrange
         string testDirectory = Path.Combine(Path.GetTempPath(), $"QuartzTest_{Guid.NewGuid()}");
         Directory.CreateDirectory(testDirectory);
-        
+
         Exception exception = null;
-        
+
         try
         {
             var serviceCollection = new ServiceCollection();
@@ -54,9 +52,9 @@ public class DirectoryScanJobTest
             {
                 exception = ex;
             }
-            
+
             await scheduler.Shutdown();
-            
+
             // Assert - the main test is that no exception was thrown (listener was found via DI)
             exception.Should().BeNull("DirectoryScanJob should be able to resolve listener from DI without throwing");
         }
@@ -75,7 +73,7 @@ public class DirectoryScanJobTest
         // Arrange
         string testDirectory = Path.Combine(Path.GetTempPath(), $"QuartzTest_{Guid.NewGuid()}");
         Directory.CreateDirectory(testDirectory);
-        
+
         try
         {
             var scheduler = await SchedulerBuilder.Create()
@@ -107,9 +105,9 @@ public class DirectoryScanJobTest
             {
                 exception = ex;
             }
-            
+
             await scheduler.Shutdown();
-            
+
             // Assert - the main test is that no exception was thrown (listener was found in SchedulerContext)
             exception.Should().BeNull("DirectoryScanJob should be able to resolve listener from SchedulerContext without throwing");
         }

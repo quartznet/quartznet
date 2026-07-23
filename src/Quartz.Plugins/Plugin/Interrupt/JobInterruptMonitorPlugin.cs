@@ -1,9 +1,7 @@
 using System.Collections.Concurrent;
-
 using Microsoft.Extensions.Logging;
-
-using Quartz.Listener;
 using Quartz.Diagnostics;
+using Quartz.Listener;
 using Quartz.Spi;
 using Quartz.Util;
 

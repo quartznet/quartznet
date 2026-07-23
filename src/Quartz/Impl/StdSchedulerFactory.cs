@@ -21,14 +21,12 @@
 
 using System.Collections.Specialized;
 using System.Reflection;
-
 using Microsoft.Extensions.Logging;
-
 using Quartz.Core;
+using Quartz.Diagnostics;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Matchers;
-using Quartz.Diagnostics;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;

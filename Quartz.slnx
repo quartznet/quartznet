@@ -12,8 +12,6 @@
     <File Path="changelog.md" />
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
-    <File Path="docker-compose.yml" />
-    <File Path="Dockerfile" />
     <File Path="package.json" />
     <File Path="qodana.yaml" />
     <File Path="README.md" />

@@ -20,9 +20,8 @@
 #endregion
 
 using Microsoft.Extensions.Logging;
-
-using Quartz.Impl.Triggers;
 using Quartz.Diagnostics;
+using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Simpl;
 using Quartz.Spi;

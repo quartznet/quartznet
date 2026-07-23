@@ -21,7 +21,6 @@
 
 using System.Collections.Specialized;
 
-using FluentAssertions;
 
 using Quartz.Impl;
 

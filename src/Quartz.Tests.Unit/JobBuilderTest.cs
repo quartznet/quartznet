@@ -1,4 +1,3 @@
-using FluentAssertions;
 
 namespace Quartz.Tests.Unit;
 

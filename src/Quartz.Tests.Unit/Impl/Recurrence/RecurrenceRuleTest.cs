@@ -1,6 +1,3 @@
-
-using NUnit.Framework;
-
 using Quartz.Impl.Recurrence;
 using Quartz.Util;
 

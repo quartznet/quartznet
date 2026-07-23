@@ -20,14 +20,11 @@
 #endregion
 
 using System.Diagnostics;
-
 using Microsoft.Extensions.Logging;
-
+using Quartz.Diagnostics;
 using Quartz.Impl;
 using Quartz.Listener;
-using Quartz.Diagnostics;
 using Quartz.Spi;
-
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace Quartz.Core;

@@ -19,7 +19,6 @@
 
 #endregion
 
-using FluentAssertions;
 
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;

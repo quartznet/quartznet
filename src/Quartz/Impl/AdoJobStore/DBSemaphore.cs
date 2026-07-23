@@ -20,12 +20,9 @@
 #endregion
 
 using System.Collections.Concurrent;
-
 using Microsoft.Extensions.Logging;
-
-using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Diagnostics;
-
+using Quartz.Impl.AdoJobStore.Common;
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace Quartz.Impl.AdoJobStore;

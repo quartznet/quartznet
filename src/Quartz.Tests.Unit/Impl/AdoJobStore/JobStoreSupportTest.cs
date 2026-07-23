@@ -3,7 +3,6 @@ using System.Reflection;
 
 using FakeItEasy;
 
-using FluentAssertions;
 
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.Calendar;
