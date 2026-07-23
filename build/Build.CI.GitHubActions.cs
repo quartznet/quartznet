@@ -4,6 +4,8 @@ using System.Linq;
 using Fallout.Common.CI.GitHubActions;
 using Fallout.Components;
 
+using Quartz.Build;
+
 [GitHubActions(
     "pr-tests-unit",
     GitHubActionsImage.WindowsLatest,
@@ -46,34 +48,37 @@ using Fallout.Components;
 )]
 public partial class Build;
 
-/// <summary>
-/// Preset for the per-database integration workflows. The database under test is handed to the build
-/// as an <c>env:</c> entry on the generated run step, which Fallout resolves into the <c>Database</c>
-/// parameter — the same mechanism <see cref="GitHubActionsAttribute.ImportSecrets"/> uses, so no
-/// custom step needs to be written.
-/// </summary>
-internal sealed class DatabaseIntegrationGitHubActionsAttribute : GitHubActionsAttribute
+namespace Quartz.Build
 {
-    readonly string database;
-
-    public DatabaseIntegrationGitHubActionsAttribute(string name, string database)
-        : base(name, GitHubActionsImage.UbuntuLatest)
+    /// <summary>
+    /// Preset for the per-database integration workflows. The database under test is handed to the build
+    /// as an <c>env:</c> entry on the generated run step, which Fallout resolves into the <c>Database</c>
+    /// parameter — the same mechanism <see cref="GitHubActionsAttribute.ImportSecrets"/> uses, so no
+    /// custom step needs to be written.
+    /// </summary>
+    internal sealed class DatabaseIntegrationGitHubActionsAttribute : GitHubActionsAttribute
     {
-        this.database = database;
+        readonly string database;
 
-        OnPullRequestBranches = ["main", "3.x"];
-        OnPullRequestIncludePaths = ["**/*"];
-        OnPullRequestExcludePaths = ["docs/**/*", "package.json", "package-lock.json", "readme.md"];
-        PublishArtifacts = false;
-        InvokedTargets = [nameof(ICompile.Compile), "IntegrationTest"];
-        CacheKeyFiles = [];
-        TimeoutMinutes = 10;
-        ConcurrencyCancelInProgress = true;
-        ReadPermissions = [GitHubActionsPermissions.Contents];
-    }
+        public DatabaseIntegrationGitHubActionsAttribute(string name, string database)
+            : base(name, GitHubActionsImage.UbuntuLatest)
+        {
+            this.database = database;
 
-    protected override IEnumerable<(string Key, string Value)> GetImports()
-    {
-        return base.GetImports().Concat([("Database", database)]);
+            OnPullRequestBranches = ["main", "3.x"];
+            OnPullRequestIncludePaths = ["**/*"];
+            OnPullRequestExcludePaths = ["docs/**/*", "package.json", "package-lock.json", "readme.md"];
+            PublishArtifacts = false;
+            InvokedTargets = [nameof(ICompile.Compile), "IntegrationTest"];
+            CacheKeyFiles = [];
+            TimeoutMinutes = 10;
+            ConcurrencyCancelInProgress = true;
+            ReadPermissions = [GitHubActionsPermissions.Contents];
+        }
+
+        protected override IEnumerable<(string Key, string Value)> GetImports()
+        {
+            return base.GetImports().Concat([("Database", database)]);
+        }
     }
 }
