@@ -11,7 +11,8 @@ Please start a discussion on the [core repo issue tracker](https://github.com/qu
 
 ## Building
 
-Run `build.cmd` or `build.sh` from the command line. 
+Run `build.cmd` or `build.sh` from the command line. The scripts restore the [Fallout](https://fallout.build/) CLI from
+`.config/dotnet-tools.json` and hand the arguments to it, so no global tool install is needed.
 
 ## Testing
 

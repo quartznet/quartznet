@@ -5,30 +5,24 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 
-using Nuke.Common;
-using Nuke.Common.CI;
-using Nuke.Common.CI.GitHubActions;
-using Nuke.Common.Git;
-using Nuke.Common.IO;
-using Nuke.Common.ProjectModel;
-using Nuke.Common.Tooling;
-using Nuke.Common.Tools.DotNet;
-using Nuke.Common.Utilities.Collections;
-using Nuke.Components;
+using Fallout.Common;
+using Fallout.Common.CI;
+using Fallout.Common.CI.GitHubActions;
+using Fallout.Common.Git;
+using Fallout.Common.IO;
+using Fallout.Common.Tooling;
+using Fallout.Common.Tools.DotNet;
+using Fallout.Common.Utilities.Collections;
+using Fallout.Components;
+using Fallout.Solutions;
 
 using Serilog;
 
-using static Nuke.Common.Tools.DotNet.DotNetTasks;
+using static Fallout.Common.Tools.DotNet.DotNetTasks;
 
 [ShutdownDotNetAfterServerBuild]
-partial class Build : NukeBuild, ICompile, IPack
+partial class Build : FalloutBuild, ICompile, IPack
 {
-    /// Support plugins are available for:
-    ///   - JetBrains ReSharper        https://nuke.build/resharper
-    ///   - JetBrains Rider            https://nuke.build/rider
-    ///   - Microsoft VisualStudio     https://nuke.build/visualstudio
-    ///   - Microsoft VSCode           https://nuke.build/vscode
-
     public static int Main() => Execute<Build>(x => ((ICompile) x).Compile);
 
     [Parameter("Database to test against (postgres, sqlserver, mysql, oracle, firebird, sqlite, basic, all)")]
@@ -39,7 +33,9 @@ partial class Build : NukeBuild, ICompile, IPack
     AbsolutePath SourceDirectory => RootDirectory / "src";
     AbsolutePath ArtifactsDirectory => RootDirectory / "artifacts";
 
-    string TagVersion => GitRepository.Tags.SingleOrDefault(x => x.StartsWith('v'))?[1..];
+    // Null when the repository can't be resolved, e.g. in a git worktree, where the local build
+    // simply has no tag to version from. CI always checks out a plain clone.
+    string TagVersion => GitRepository?.Tags.SingleOrDefault(x => x.StartsWith('v'))?[1..];
 
     bool IsTaggedBuild => !string.IsNullOrWhiteSpace(TagVersion);
 
@@ -83,7 +79,7 @@ partial class Build : NukeBuild, ICompile, IPack
         .Executes(() =>
         {
             // also check that publish with trimming doesn't produce errors
-            var solution = ((IHazSolution) this).Solution;
+            var solution = ((IHasSolution) this).Solution;
             var configuration = ((ICompile) this).Configuration;
 
             DotNetPublish(s => s
@@ -102,7 +98,7 @@ partial class Build : NukeBuild, ICompile, IPack
         .Before<IPack>()
         .Executes(() =>
         {
-            var solution = ((IHazSolution) this).Solution;
+            var solution = ((IHasSolution) this).Solution;
             var configuration = ((ICompile) this).Configuration;
             var framework = "";
             if (!IsRunningOnWindows)
@@ -150,7 +146,7 @@ partial class Build : NukeBuild, ICompile, IPack
 
             var filter = GetTestFilter(database);
 
-            var solution = ((IHazSolution) this).Solution;
+            var solution = ((IHasSolution) this).Solution;
             var configuration = ((ICompile) this).Configuration;
             var integrationTestProjects = new[] { "Quartz.Tests.Integration" };
             DotNetTest(s =>
@@ -183,7 +179,7 @@ partial class Build : NukeBuild, ICompile, IPack
         .Produces(((IPack) this).PackagesDirectory / "*.zip")
         .Executes(() =>
         {
-            var solution = ((IHazSolution) this).Solution;
+            var solution = ((IHasSolution) this).Solution;
             var zipTempDirectory = RootDirectory / "temp" / "package";
             zipTempDirectory.CreateOrCleanDirectory();
 
@@ -196,6 +192,9 @@ partial class Build : NukeBuild, ICompile, IPack
             (RootDirectory / "build").Copy(zipTempDirectory / "build", excludeDirectory: dir => dir.Name is "obj" or "bin");
 
             (RootDirectory / "database").Copy(zipTempDirectory / "database");
+
+            // The bootstrap scripts resolve the Fallout CLI through the local tool manifest.
+            (RootDirectory / ".config").Copy(zipTempDirectory / ".config");
 
             var binaries = solution.Projects
                 .Where(x => x.GetProperty("IsPackable") != "false" || x.Name.Contains("Example") || x.Name == "Quartz.Server");

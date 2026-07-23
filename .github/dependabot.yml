@@ -13,6 +13,10 @@ updates:
     # Dependencies are matched against groups in the order they are declared here,
     # and each dependency ends up in the first group it matches.
     groups:
+      # The Fallout build orchestrator.
+      build-tooling:
+        patterns:
+          - "Fallout.*"
       # Test frameworks, assertion libraries, mocks, containers and benchmarking.
       testing:
         patterns:

@@ -2,7 +2,7 @@
 
 ## Build & Test
 
-Build the solution (uses [NUKE](https://nuke.build/) build system):
+Build the solution (uses the [Fallout](https://fallout.build/) build system):
 
 ```shell
 # Windows

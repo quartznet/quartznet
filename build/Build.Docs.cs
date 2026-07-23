@@ -3,14 +3,14 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-using Nuke.Common;
-using Nuke.Common.IO;
-using Nuke.Common.Tooling;
-using Nuke.Common.Tools.Npm;
+using Fallout.Common;
+using Fallout.Common.IO;
+using Fallout.Common.Tooling;
+using Fallout.Common.Tools.Npm;
 
 using Serilog;
 
-using static Nuke.Common.Tools.Npm.NpmTasks;
+using static Fallout.Common.Tools.Npm.NpmTasks;
 
 public partial class Build
 {
