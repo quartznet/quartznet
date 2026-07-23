@@ -14,14 +14,14 @@
     <PackageVersion Include="FirebirdSql.Data.FirebirdClient" Version="10.3.4" />
     <PackageVersion Include="log4net" Version="3.3.1" />
     <PackageVersion Include="MELT" Version="1.1.0" />
-    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.26" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.29" />
     <PackageVersion Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.15" />
     <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="5.6.0" />
     <PackageVersion Include="Microsoft.Data.SQLite" Version="10.0.7" />
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="6.0.1" />
     <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="9.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="8.0.1" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="8.0.1" />
     <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="8.10.0" />
@@ -51,7 +51,7 @@
     <PackageVersion Include="Spectre.Console" Version="0.49.1" />
     <PackageVersion Include="Swashbuckle.AspNetCore" Version="6.5.0" />
     <PackageVersion Include="System.Data.SQLite.Core" Version="1.0.119" />
-    <PackageVersion Include="System.Diagnostics.DiagnosticSource" Version="10.0.7" />
+    <PackageVersion Include="System.Diagnostics.DiagnosticSource" Version="10.0.10" />
     <PackageVersion Include="System.Text.Json" Version="8.0.5" />
     <PackageVersion Include="Testcontainers.FirebirdSql" Version="4.13.0" />
     <PackageVersion Include="Testcontainers.MsSql" Version="4.13.0" />
