@@ -4,9 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <IsPackable>false</IsPackable>
     <Nullable>disable</Nullable>
-    <NoWarn>SYSLIB0011;CAC001</NoWarn>
-    <NoWarn>SYSLIB0011</NoWarn>
-    <EnableUnsafeBinaryFormatterSerialization>true</EnableUnsafeBinaryFormatterSerialization>
+    <NoWarn>CAC001</NoWarn>
     <SonarQubeExclude>true</SonarQubeExclude>
     <AnalysisLevel>none</AnalysisLevel>
   </PropertyGroup>

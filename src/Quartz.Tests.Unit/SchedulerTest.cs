@@ -377,44 +377,6 @@ public class SchedulerTest
     }
 
     [Test]
-    public void SerializationExceptionTest()
-    {
-        SchedulerException before;
-        SchedulerException after;
-
-        try
-        {
-            try
-            {
-                throw new Exception("INNER");
-            }
-            catch (Exception ex)
-            {
-                throw new SchedulerException("OUTER", ex);
-            }
-        }
-        catch (SchedulerException ex)
-        {
-            before = ex;
-        }
-
-        using (var stream = new MemoryStream())
-        {
-            var formatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
-            formatter.Serialize(stream, before);
-            stream.Seek(0, SeekOrigin.Begin);
-            after = (SchedulerException) formatter.Deserialize(stream);
-        }
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(before.InnerException, Is.Not.Null);
-            Assert.That(after.InnerException, Is.Not.Null);
-            Assert.That(after.ToString(), Is.EqualTo(before.ToString()));
-        });
-    }
-
-    [Test]
     public async Task ReschedulingTriggerShouldKeepOriginalNextFireTime()
     {
         NameValueCollection properties = new NameValueCollection
