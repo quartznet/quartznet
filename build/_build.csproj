@@ -12,6 +12,7 @@
     <FalloutExcludeDirectoryBuild>true</FalloutExcludeDirectoryBuild>
     <FalloutExcludeLogs>true</FalloutExcludeLogs>
     <IsPackable>false</IsPackable>
+    <SonarQubeExclude>true</SonarQubeExclude>
   </PropertyGroup>
 
   <ItemGroup>
