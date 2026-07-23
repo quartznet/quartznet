@@ -26,7 +26,7 @@
     Remove these when Nuke ships a release that bumps them itself.
   -->
   <ItemGroup>
-    <PackageReference Include="NuGet.Packaging" Version="7.3.1" />
+    <PackageReference Include="NuGet.Packaging" Version="7.6.0" />
     <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.10" />
   </ItemGroup>
 
