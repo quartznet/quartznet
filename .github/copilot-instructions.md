@@ -7,7 +7,7 @@
 - **Run all unit tests:** `dotnet test src/Quartz.Tests.Unit/Quartz.Tests.Unit.csproj`
 - **Run a single test:** `dotnet test src/Quartz.Tests.Unit/Quartz.Tests.Unit.csproj --filter "FullyQualifiedName~YourTestName"`
 - **Target framework for tests:** Use `-f net10.0` (or `net472` for .NET Framework). On non-Windows, only `net10.0` is used.
-- **Build system:** [Nuke](https://nuke.build/) — targets defined in `build/Build.cs`. Key targets: `Clean`, `Restore`, `Compile`, `UnitTest`, `IntegrationTest`, `Pack`.
+- **Build system:** [Fallout](https://fallout.build/) — targets defined in `build/Build.cs`. Key targets: `Clean`, `Restore`, `Compile`, `UnitTest`, `IntegrationTest`, `Pack`.
 - **Warnings are errors** — `TreatWarningsAsErrors` is enabled globally via `src/Directory.Build.props`.
 
 ## Architecture
