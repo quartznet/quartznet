@@ -60,7 +60,7 @@
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.13.0" />
     <PackageVersion Include="Testcontainers.Redis" Version="4.13.0" />
     <PackageVersion Include="StackExchange.Redis" Version="2.8.16" />
-    <PackageVersion Include="TimeZoneConverter" Version="7.0.0" />
+    <PackageVersion Include="TimeZoneConverter" Version="7.2.0" />
     <PackageVersion Include="Topshelf" Version="4.3.0" />
     <PackageVersion Include="Verify.NUnit" Version="28.10.1" />
   </ItemGroup>
