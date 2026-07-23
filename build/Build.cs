@@ -40,15 +40,41 @@ partial class Build : FalloutBuild
 
     bool IsTaggedBuild => !string.IsNullOrWhiteSpace(TagVersion);
 
+    string VersionPrefix;
     string VersionSuffix;
+
+    string FullVersion => string.IsNullOrWhiteSpace(VersionSuffix) ? VersionPrefix : $"{VersionPrefix}-{VersionSuffix}";
+
+    AbsolutePath VersionPropsFile => SourceDirectory / "Directory.Build.props";
+
+    string PropsVersionPrefix =>
+        Regex.Match(VersionPropsFile.ReadAllText(), "<VersionPrefix>(.+)</VersionPrefix>").Groups[1].Value;
 
     static bool IsRunningOnWindows => RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
     protected override void OnBuildInitialized()
     {
-        VersionSuffix = !IsTaggedBuild
-            ? $"preview-{DateTime.UtcNow:yyyyMMdd-HHmm}"
-            : "";
+        // The tag rules. <VersionPrefix> in src/Directory.Build.props is only the placeholder that
+        // untagged preview builds carry — a stale value there cannot affect a release.
+        if (IsTaggedBuild)
+        {
+            var separator = TagVersion.IndexOf('-');
+            VersionPrefix = separator < 0 ? TagVersion : TagVersion[..separator];
+            VersionSuffix = separator < 0 ? null : TagVersion[(separator + 1)..];
+
+            if (VersionPrefix != PropsVersionPrefix)
+            {
+                // Not fatal — the tag wins by design. Surfaced (as a ::warning:: annotation on CI, via
+                // Fallout's Serilog sink) so the props file gets caught up after the release.
+                Log.Warning("Releasing {FullVersion:l} from tag v{TagVersion:l}, but {File:l} still says {PropsVersion:l} — bump it after the release",
+                    FullVersion, TagVersion, VersionPropsFile.Name, PropsVersionPrefix);
+            }
+        }
+        else
+        {
+            VersionPrefix = PropsVersionPrefix;
+            VersionSuffix = $"preview-{DateTime.UtcNow:yyyyMMdd-HHmm}";
+        }
 
         if (IsLocalBuild)
         {
@@ -57,7 +83,7 @@ partial class Build : FalloutBuild
 
         Log.Information("BUILD SETUP");
         Log.Information("Configuration:\t{Configuration}", Configuration);
-        Log.Information("Version suffix:\t{VersionSuffix}", VersionSuffix);
+        Log.Information("Version:\t{FullVersion}", FullVersion);
         Log.Information("Tagged build:\t{IsTaggedBuild}", IsTaggedBuild);
     }
 
@@ -196,9 +222,9 @@ partial class Build : FalloutBuild
             {
                 DotNetPack(s => s
                     .SetProject(Solution.GetProject(project))
-                    .SetAssemblyVersion(TagVersion)
-                    .SetFileVersion(TagVersion)
-                    .SetInformationalVersion(TagVersion)
+                    .SetAssemblyVersion(VersionPrefix)
+                    .SetFileVersion(VersionPrefix)
+                    .SetVersionPrefix(VersionPrefix)
                     .SetVersionSuffix(VersionSuffix)
                     .SetConfiguration(Configuration)
                     .SetOutputDirectory(ArtifactsDirectory)
@@ -256,15 +282,7 @@ partial class Build : FalloutBuild
                 (RootDirectory / file).CopyToDirectory(zipTempDirectory);
             }
 
-            var props = File.ReadAllText(SourceDirectory / "Directory.Build.props");
-            var baseVersion = Regex.Match(props, "<VersionPrefix>(.+)</VersionPrefix>").Groups[1].Captures[0].Value;
-
-            if (!string.IsNullOrWhiteSpace(VersionSuffix))
-            {
-                baseVersion += "-";
-            }
-
-            ZipFile.CreateFromDirectory(zipTempDirectory, ArtifactsDirectory / $"Quartz.NET-{baseVersion}{VersionSuffix}.zip");
+            ZipFile.CreateFromDirectory(zipTempDirectory, ArtifactsDirectory / $"Quartz.NET-{FullVersion}.zip");
         });
 
     Target ApiDoc => _ => _
