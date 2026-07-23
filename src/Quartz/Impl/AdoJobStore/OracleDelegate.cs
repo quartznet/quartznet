@@ -44,6 +44,15 @@ public class OracleDelegate : StdAdoDelegate
         return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
     }
 
+    protected override string GetSelectMisfiredTriggersToRecoverSql(int count)
+    {
+        if (count != -1)
+        {
+            return "SELECT * FROM (" + SqlSelectMisfiredTriggersToRecover + ") WHERE rownum <= " + count;
+        }
+        return base.GetSelectMisfiredTriggersToRecoverSql(count);
+    }
+
     /// <summary>
     /// Gets the db presentation for boolean value. For Oracle we use true/false of "1"/"0".
     /// </summary>

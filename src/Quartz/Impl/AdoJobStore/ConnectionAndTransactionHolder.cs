@@ -60,6 +60,26 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
         cmd.Transaction = transaction;
     }
 
+    /// <summary>
+    /// Whether the underlying provider can execute several statements as one <see cref="DbBatch" />,
+    /// i.e. in a single round-trip. Defaults to <see langword="false" /> on <see cref="DbConnection" />,
+    /// so providers without batching support simply report no support and callers fall back to issuing
+    /// the statements one at a time.
+    /// </summary>
+    public bool CanCreateBatch => connection.CanCreateBatch;
+
+    /// <summary>
+    /// Creates a <see cref="DbBatch" /> enlisted in this unit of work. Only valid when
+    /// <see cref="CanCreateBatch" /> is <see langword="true" />.
+    /// </summary>
+    public DbBatch CreateBatch()
+    {
+        DbBatch batch = connection.CreateBatch();
+        batch.Connection = connection;
+        batch.Transaction = transaction;
+        return batch;
+    }
+
     public async ValueTask Commit(bool openNewTransaction)
     {
         if (transaction is not null)

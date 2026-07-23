@@ -45,4 +45,13 @@ public class PostgreSQLDelegate : StdAdoDelegate
         }
         return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
     }
+
+    protected override string GetSelectMisfiredTriggersToRecoverSql(int count)
+    {
+        if (count != -1)
+        {
+            return SqlSelectMisfiredTriggersToRecover + " LIMIT " + count;
+        }
+        return base.GetSelectMisfiredTriggersToRecoverSql(count);
+    }
 }

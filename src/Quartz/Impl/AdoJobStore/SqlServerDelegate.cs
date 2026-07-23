@@ -58,6 +58,16 @@ public class SqlServerDelegate : StdAdoDelegate
         return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
     }
 
+    protected override string GetSelectMisfiredTriggersToRecoverSql(int count)
+    {
+        if (count != -1)
+        {
+            // add limit clause to correct place
+            return "SELECT TOP " + count + " " + SqlSelectMisfiredTriggersToRecover.Substring(6);
+        }
+        return base.GetSelectMisfiredTriggersToRecoverSql(count);
+    }
+
     public override void AddCommandParameter(
         DbCommand cmd,
         string paramName,

@@ -24,61 +24,114 @@ public class JobStoreSupportTest
         jobStoreSupport.DirectSignaler = A.Fake<ISchedulerSignaler>();
     }
 
+    /// <summary>
+    /// Arranges the batch read so that <paramref name="triggers" /> come back as one misfire batch.
+    /// </summary>
+    private void GivenMisfiredTriggers(bool hasMore = false, params IOperableTrigger[] triggers)
+    {
+        A.CallTo(() => driverDelegate.SelectMisfiredTriggersToRecover(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<string>.Ignored,
+                A<DateTimeOffset>.Ignored,
+                A<int>.Ignored,
+                A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<MisfiredTriggerBatch>(new MisfiredTriggerBatch(triggers.ToList(), hasMore)));
+    }
+
+    private static IOperableTrigger CreateMisfiredTrigger(string name, int minutesLate = 10)
+    {
+        IOperableTrigger trigger = CreateTestTrigger(name);
+        trigger.SetNextFireTimeUtc(DateTimeOffset.UtcNow - TimeSpan.FromMinutes(minutesLate));
+        return trigger;
+    }
+
     [Test]
     public async Task TestRecoverMisfiredJobs_ShouldCheckForMisfiredTriggersInStateWaiting()
     {
+        GivenMisfiredTriggers();
+
         await jobStoreSupport.RecoverMisfiredJobs(null, false);
 
-        A.CallTo(() => driverDelegate.HasMisfiredTriggersInState(
+        A.CallTo(() => driverDelegate.SelectMisfiredTriggersToRecover(
             A<ConnectionAndTransactionHolder>.Ignored,
             A<string>.That.IsEqualTo(AdoConstants.StateWaiting),
             A<DateTimeOffset>.Ignored,
             A<int>.Ignored,
-            A<IList<TriggerKey>>.Ignored,
             CancellationToken.None)).MustHaveHappened();
     }
 
     [Test]
-    public async Task RecoverMisfiredJobs_ShouldUseOptimizedPath()
+    public async Task RecoverMisfiredJobs_ShouldReadWholeBatchInOneCall()
     {
-        var triggerKey = new TriggerKey("misfired1", "g1");
-        IOperableTrigger trigger = CreateTestTrigger("misfired1");
-        trigger.SetNextFireTimeUtc(DateTimeOffset.UtcNow - TimeSpan.FromMinutes(10));
+        GivenMisfiredTriggers(false, CreateMisfiredTrigger("misfired1"), CreateMisfiredTrigger("misfired2"));
 
-        A.CallTo(() => driverDelegate.HasMisfiredTriggersInState(
+        await jobStoreSupport.RecoverMisfiredJobs(null, false);
+
+        // Assert: the batch read replaces the per-trigger reads entirely
+        A.CallTo(() => driverDelegate.SelectMisfiredTriggersToRecover(
             A<ConnectionAndTransactionHolder>.Ignored,
             A<string>.Ignored,
             A<DateTimeOffset>.Ignored,
             A<int>.Ignored,
-            A<ICollection<TriggerKey>>.Ignored,
-            A<CancellationToken>.Ignored))
-            .Invokes((ConnectionAndTransactionHolder _, string _, DateTimeOffset _, int _, ICollection<TriggerKey> list, CancellationToken _) =>
-            {
-                list.Add(triggerKey);
-            })
-            .Returns(new ValueTask<bool>(false));
+            A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
 
         A.CallTo(() => driverDelegate.SelectTrigger(
             A<ConnectionAndTransactionHolder>.Ignored,
-            triggerKey,
-            A<CancellationToken>.Ignored))
-            .Returns(new ValueTask<IOperableTrigger>(trigger));
-
-        await jobStoreSupport.RecoverMisfiredJobs(null, false);
-
-        // Assert: optimized delegate method called
-        A.CallTo(() => driverDelegate.UpdateMisfiredTrigger(
-            A<ConnectionAndTransactionHolder>.Ignored,
-            A<IOperableTrigger>.Ignored,
-            A<string>.Ignored,
-            A<DateTimeOffset?>.Ignored,
-            A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+            A<TriggerKey>.Ignored,
+            A<CancellationToken>.Ignored)).MustNotHaveHappened();
 
         // Assert: StoreTrigger path NOT taken (no TriggerExists check)
         A.CallTo(() => driverDelegate.TriggerExists(
             A<ConnectionAndTransactionHolder>.Ignored,
             A<TriggerKey>.Ignored,
             A<CancellationToken>.Ignored)).MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task RecoverMisfiredJobs_ShouldWriteWholeBatchInOneCall()
+    {
+        GivenMisfiredTriggers(false, CreateMisfiredTrigger("misfired1"), CreateMisfiredTrigger("misfired2"));
+
+        List<MisfiredTriggerUpdate> captured = null;
+        A.CallTo(() => driverDelegate.UpdateMisfiredTriggers(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<IReadOnlyList<MisfiredTriggerUpdate>>.Ignored,
+                A<CancellationToken>.Ignored))
+            .Invokes((ConnectionAndTransactionHolder _, IReadOnlyList<MisfiredTriggerUpdate> updates, CancellationToken _) =>
+            {
+                captured = updates.ToList();
+            });
+
+        await jobStoreSupport.RecoverMisfiredJobs(null, false);
+
+        A.CallTo(() => driverDelegate.UpdateMisfiredTriggers(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            A<IReadOnlyList<MisfiredTriggerUpdate>>.Ignored,
+            A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
+
+        captured.Should().NotBeNull();
+        captured.Should().HaveCount(2);
+        captured.Select(x => x.Trigger.Key.Name).Should().BeEquivalentTo(["misfired1", "misfired2"]);
+        captured.Should().OnlyContain(x => x.NewState == AdoConstants.StateWaiting);
+
+        // Assert: the single-trigger write path is not used for batch recovery
+        A.CallTo(() => driverDelegate.UpdateMisfiredTrigger(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            A<IOperableTrigger>.Ignored,
+            A<string>.Ignored,
+            A<DateTimeOffset?>.Ignored,
+            A<CancellationToken>.Ignored)).MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task RecoverMisfiredJobs_ShouldPropagateHasMoreToResult()
+    {
+        GivenMisfiredTriggers(true, CreateMisfiredTrigger("misfired1"));
+
+        RecoverMisfiredJobsResult result = await jobStoreSupport.RecoverMisfiredJobs(null, false);
+
+        result.HasMoreMisfiredTriggers.Should().BeTrue();
+        result.ProcessedMisfiredTriggerCount.Should().Be(1);
     }
 
     [Test]
@@ -90,42 +143,13 @@ public class JobStoreSupportTest
 
         string calendarName = "shared-cal";
 
-        var key1 = new TriggerKey("misfired1", "g1");
-        var key2 = new TriggerKey("misfired2", "g1");
-
-        IOperableTrigger trigger1 = CreateTestTrigger("misfired1");
-        trigger1.SetNextFireTimeUtc(DateTimeOffset.UtcNow - TimeSpan.FromMinutes(10));
+        IOperableTrigger trigger1 = CreateMisfiredTrigger("misfired1");
         trigger1.CalendarName = calendarName;
 
-        IOperableTrigger trigger2 = CreateTestTrigger("misfired2");
-        trigger2.SetNextFireTimeUtc(DateTimeOffset.UtcNow - TimeSpan.FromMinutes(5));
+        IOperableTrigger trigger2 = CreateMisfiredTrigger("misfired2", minutesLate: 5);
         trigger2.CalendarName = calendarName;
 
-        A.CallTo(() => driverDelegate.HasMisfiredTriggersInState(
-            A<ConnectionAndTransactionHolder>.Ignored,
-            A<string>.Ignored,
-            A<DateTimeOffset>.Ignored,
-            A<int>.Ignored,
-            A<ICollection<TriggerKey>>.Ignored,
-            A<CancellationToken>.Ignored))
-            .Invokes((ConnectionAndTransactionHolder _, string _, DateTimeOffset _, int _, ICollection<TriggerKey> list, CancellationToken _) =>
-            {
-                list.Add(key1);
-                list.Add(key2);
-            })
-            .Returns(new ValueTask<bool>(false));
-
-        A.CallTo(() => driverDelegate.SelectTrigger(
-            A<ConnectionAndTransactionHolder>.Ignored,
-            key1,
-            A<CancellationToken>.Ignored))
-            .Returns(new ValueTask<IOperableTrigger>(trigger1));
-
-        A.CallTo(() => driverDelegate.SelectTrigger(
-            A<ConnectionAndTransactionHolder>.Ignored,
-            key2,
-            A<CancellationToken>.Ignored))
-            .Returns(new ValueTask<IOperableTrigger>(trigger2));
+        GivenMisfiredTriggers(false, trigger1, trigger2);
 
         A.CallTo(() => driverDelegate.SelectCalendar(
             A<ConnectionAndTransactionHolder>.Ignored,
@@ -140,14 +164,6 @@ public class JobStoreSupportTest
             A<ConnectionAndTransactionHolder>.Ignored,
             calendarName,
             A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
-
-        // Assert: both triggers updated via optimized path
-        A.CallTo(() => driverDelegate.UpdateMisfiredTrigger(
-            A<ConnectionAndTransactionHolder>.Ignored,
-            A<IOperableTrigger>.Ignored,
-            A<string>.Ignored,
-            A<DateTimeOffset?>.Ignored,
-            A<CancellationToken>.Ignored)).MustHaveHappenedTwiceExactly();
     }
 
     [Test]

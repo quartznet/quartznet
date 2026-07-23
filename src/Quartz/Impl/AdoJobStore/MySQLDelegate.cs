@@ -47,6 +47,22 @@ public class MySQLDelegate : StdAdoDelegate
         return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
     }
 
+    /// <summary>
+    /// MySQL version with LIMIT support and a FORCE INDEX hint pointing at IDX_*_T_NFT_ST_MISFIRE.
+    /// The hint attaches to the aliased TRIGGERS table, since this statement joins the type tables onto
+    /// it rather than selecting from TRIGGERS alone.
+    /// </summary>
+    protected override string GetSelectMisfiredTriggersToRecoverSql(int count)
+    {
+        if (count != -1)
+        {
+            return SqlSelectMisfiredTriggersToRecover
+                .Replace("{0}TRIGGERS t", "{0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST_MISFIRE)")
+                + " LIMIT " + count;
+        }
+        return base.GetSelectMisfiredTriggersToRecoverSql(count);
+    }
+
     protected override string GetCountMisfiredTriggersInStateSql()
     {
         return SqlCountMisfiredTriggersInStates
