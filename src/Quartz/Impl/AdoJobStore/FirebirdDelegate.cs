@@ -23,4 +23,13 @@ public class FirebirdDelegate : StdAdoDelegate
         }
         return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
     }
+
+    protected override string GetSelectMisfiredTriggersToRecoverSql(int count)
+    {
+        if (count != -1)
+        {
+            return SqlSelectMisfiredTriggersToRecover + " ROWS " + count;
+        }
+        return base.GetSelectMisfiredTriggersToRecoverSql(count);
+    }
 }

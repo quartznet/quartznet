@@ -121,6 +121,23 @@ public class StdAdoConstants : AdoConstants
     public static readonly string SqlSelectBlobTrigger =
         Invariant($"SELECT {ColumnBlob} FROM {TablePrefixSubst}{TableBlobTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
 
+    /// <summary>
+    /// Prefix of the batch blob-trigger lookup; the caller appends a key-set predicate built by
+    /// <c>AdoUtil.BuildTriggerKeyPredicate</c>. The key columns follow the blob so the reader
+    /// can stay in sequential-access mode.
+    /// </summary>
+    public static readonly string SqlSelectBlobTriggersByKeysPrefix =
+        Invariant($"SELECT {ColumnBlob}, {ColumnTriggerName}, {ColumnTriggerGroup} FROM {TablePrefixSubst}{TableBlobTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND ");
+
+    /// <summary>
+    /// Prefix of the batch simple-properties trigger lookup; the caller appends a key-set predicate built
+    /// by <c>AdoUtil.BuildTriggerKeyPredicate</c>. All simple-properties trigger types
+    /// (calendar-interval, daily-time-interval, recurrence, and any custom ones) share this one table, so a
+    /// single query covers them all — the per-row discriminator comes from TRIGGERS.TRIGGER_TYPE.
+    /// </summary>
+    public static readonly string SqlSelectSimpropTriggersByKeysPrefix =
+        Invariant($"SELECT * FROM {TablePrefixSubst}SIMPROP_TRIGGERS WHERE {ColumnSchedulerName} = @schedulerName AND ");
+
     public static readonly string SqlSelectCalendar =
         Invariant($"SELECT {ColumnCalendar} FROM {TablePrefixSubst}{TableCalendars} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnCalendarName} = @calendarName");
 
@@ -273,8 +290,15 @@ public class StdAdoConstants : AdoConstants
     public static readonly string SqlSelectSimpleTrigger =
         Invariant($"SELECT * FROM {TablePrefixSubst}{TableSimpleTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
 
-    public static readonly string SqlSelectTrigger =
-        Invariant($@"SELECT 
+    /// <summary>
+    /// Column list shared by <see cref="SqlSelectTrigger" /> and <see cref="SqlSelectMisfiredTriggersToRecover" />,
+    /// so the single-trigger and batch read paths cannot drift apart.
+    /// </summary>
+    /// <remarks>
+    /// Ordinals matter here: <c>ReadMapFromReader(rs, 11)</c> reads JOB_DATA positionally. Append new
+    /// columns to the end of this list, never insert into the middle.
+    /// </remarks>
+    private const string TriggerSelectColumns = $@"
                 {ColumnJobName},
                 {ColumnJobGroup},
                 {ColumnDescription},
@@ -295,15 +319,42 @@ public class StdAdoConstants : AdoConstants
                 t.{ColumnMisfireOriginalFireTime},
                 t.{ColumnExecutionGroup},
                 t.{ColumnPreferredNode},
-                t.{ColumnPreferredNodeAuto}
+                t.{ColumnPreferredNodeAuto}";
+
+    /// <summary>
+    /// FROM clause that left-joins the SIMPLE and CRON type tables onto TRIGGERS, letting the two most
+    /// common trigger types be materialized from a single row without a follow-up query.
+    /// </summary>
+    private const string TriggerSelectFastPathFrom = $@"
             FROM
                 {TablePrefixSubst}{TableTriggers} t
             LEFT JOIN
                 {TablePrefixSubst}{TableSimpleTriggers} st ON (st.{ColumnSchedulerName} = t.{ColumnSchedulerName} AND st.{ColumnTriggerGroup} = t.{ColumnTriggerGroup} AND st.{ColumnTriggerName} = t.{ColumnTriggerName})
             LEFT JOIN
-                {TablePrefixSubst}{TableCronTriggers} ct ON (ct.{ColumnSchedulerName} = t.{ColumnSchedulerName} AND ct.{ColumnTriggerGroup} = t.{ColumnTriggerGroup} AND ct.{ColumnTriggerName} = t.{ColumnTriggerName})
+                {TablePrefixSubst}{TableCronTriggers} ct ON (ct.{ColumnSchedulerName} = t.{ColumnSchedulerName} AND ct.{ColumnTriggerGroup} = t.{ColumnTriggerGroup} AND ct.{ColumnTriggerName} = t.{ColumnTriggerName})";
+
+    public static readonly string SqlSelectTrigger =
+        Invariant($@"SELECT {TriggerSelectColumns}{TriggerSelectFastPathFrom}
             WHERE
                 t.{ColumnSchedulerName} = @schedulerName AND t.{ColumnTriggerName} = @triggerName AND t.{ColumnTriggerGroup} = @triggerGroup");
+
+    /// <summary>
+    /// Selects the misfired triggers to recover as fully populated rows, so a whole misfire recovery
+    /// batch costs one round-trip instead of one per trigger. Same predicate and ordering as
+    /// <see cref="SqlSelectHasMisfiredTriggersInState" />, same columns as <see cref="SqlSelectTrigger" />
+    /// with the key columns appended (they are ambiguous across the joined tables, hence the alias).
+    /// </summary>
+    /// <remarks>
+    /// Must start with the <c>SELECT</c> keyword — <see cref="SqlServerDelegate" /> splices its
+    /// <c>TOP n</c> in at that offset.
+    /// </remarks>
+    public static readonly string SqlSelectMisfiredTriggersToRecover =
+        Invariant($@"SELECT {TriggerSelectColumns},
+                t.{ColumnTriggerName},
+                t.{ColumnTriggerGroup}{TriggerSelectFastPathFrom}
+            WHERE
+                t.{ColumnSchedulerName} = @schedulerName AND t.{ColumnMifireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND t.{ColumnNextFireTime} < @nextFireTime AND t.{ColumnTriggerState} = @state1
+            ORDER BY t.{ColumnNextFireTime} ASC, t.{ColumnPriority} DESC");
 
     public static readonly string SqlSelectTriggerData =
         Invariant($"SELECT {ColumnJobDataMap} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");

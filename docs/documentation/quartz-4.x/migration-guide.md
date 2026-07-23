@@ -210,6 +210,29 @@ The cron expression parser now supports additional syntax:
 * **H (hash) token in cron expressions** — deterministic load distribution across triggers using the trigger identity as seed
 * **HTTP API** — optional REST API for managing the scheduler remotely (see [HTTP API](packages/http-api.md))
 
+## Batched Misfire Recovery
+
+Misfire recovery now handles a whole batch of misfired triggers with a handful of statements instead of a
+few per trigger. Nothing needs configuring — the read side is a single set-based query, and the write side
+uses ADO.NET batching automatically on providers that support it (`DbConnection.CanCreateBatch`), falling
+back to individual statements on those that do not.
+
+This matters if you implement `IDriverDelegate` yourself, which now has two more members:
+
+| Member | Purpose |
+|--------|---------|
+| `SelectMisfiredTriggersToRecover` | Reads a whole misfire batch as populated triggers in one round-trip |
+| `UpdateMisfiredTriggers` | Applies a batch of misfire updates, batching the statements where supported |
+
+If you subclass `StdAdoDelegate` you get both for free. A driver delegate for a database with its own
+row-limiting syntax should also override `GetSelectMisfiredTriggersToRecoverSql`, alongside the existing
+`GetSelectNextMisfiredTriggersInStateToAcquireSql`.
+
+One behavioral note: `ITriggerListener.TriggerMisfired` is now raised for every trigger in a batch before
+any of that batch's database updates are written, where previously the notification and the update were
+interleaved per trigger. Everything still happens inside the same transaction and under the same lock, so
+what other nodes observe is unchanged.
+
 ## Other Breaking Changes
 
 | Change | Details |

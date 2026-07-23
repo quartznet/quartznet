@@ -802,13 +802,15 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         // triggers right away.
         int maxMisfiresToHandleAtATime = recovering ? -1 : MaxMisfiresToHandleAtATime;
 
-        List<TriggerKey> misfiredTriggers = new List<TriggerKey>();
         DateTimeOffset earliestNewTime = DateTimeOffset.MaxValue;
 
-        // We must still look for the MISFIRED state in case triggers were left
-        // in this state when upgrading to this version that does not support it.
-        bool hasMoreMisfiredTriggers =
-            await Delegate.HasMisfiredTriggersInState(conn, StateWaiting, MisfireTime, maxMisfiresToHandleAtATime, misfiredTriggers, cancellationToken).ConfigureAwait(false);
+        // Read the whole batch as fully populated triggers in one round-trip, rather than reading keys
+        // and then reading each trigger back individually.
+        MisfiredTriggerBatch batch =
+            await Delegate.SelectMisfiredTriggersToRecover(conn, StateWaiting, MisfireTime, maxMisfiresToHandleAtATime, cancellationToken).ConfigureAwait(false);
+
+        List<IOperableTrigger> misfiredTriggers = batch.Triggers;
+        bool hasMoreMisfiredTriggers = batch.HasMore;
 
         if (hasMoreMisfiredTriggers)
         {
@@ -832,42 +834,107 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         // when multiple triggers reference the same calendar.
         Dictionary<string, ICalendar?> batchCalendarCache = new();
 
-        foreach (TriggerKey triggerKey in misfiredTriggers)
+        List<MisfiredTriggerUpdate> updates = new(misfiredTriggers.Count);
+        List<IOperableTrigger>? finalized = null;
+
+        foreach (IOperableTrigger trig in misfiredTriggers)
         {
-            IOperableTrigger? trig;
             try
             {
-                trig = await RetrieveTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+                updates.Add(await PrepareMisfiredTriggerUpdate(conn, trig, StateWaiting, batchCalendarCache, cancellationToken).ConfigureAwait(false));
             }
             catch (Exception e)
             {
-                Logger.LogError(e, "Error retrieving the misfired trigger: '{TriggerKey}'", triggerKey);
-                continue;
-            }
-
-            if (trig is null)
-            {
-                continue;
-            }
-
-            try
-            {
-                await DoUpdateOfMisfiredTriggerOptimized(conn, trig, StateWaiting, batchCalendarCache, cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception e)
-            {
-                Logger.LogError(e, "Error updating misfired trigger: '{TriggerKey}'", trig.Key);
+                Logger.LogError(e, "Error preparing misfire update for trigger: '{TriggerKey}'", trig.Key);
                 continue;
             }
 
             DateTimeOffset? nextTime = trig.GetNextFireTimeUtc();
-            if (nextTime.HasValue && nextTime.Value < earliestNewTime)
+            if (nextTime.HasValue)
             {
-                earliestNewTime = nextTime.Value;
+                if (nextTime.Value < earliestNewTime)
+                {
+                    earliestNewTime = nextTime.Value;
+                }
+            }
+            else
+            {
+                (finalized ??= []).Add(trig);
+            }
+        }
+
+        try
+        {
+            await Delegate.UpdateMisfiredTriggers(conn, updates, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception e)
+        {
+            Logger.LogError(e, "Error updating {Count} misfired trigger(s)", updates.Count);
+            return new RecoverMisfiredJobsResult(hasMoreMisfiredTriggers, misfiredTriggers.Count, earliestNewTime);
+        }
+
+        if (finalized is not null)
+        {
+            foreach (IOperableTrigger trig in finalized)
+            {
+                await schedSignaler.NotifySchedulerListenersFinalized(trig, cancellationToken).ConfigureAwait(false);
             }
         }
 
         return new RecoverMisfiredJobsResult(hasMoreMisfiredTriggers, misfiredTriggers.Count, earliestNewTime);
+    }
+
+    /// <summary>
+    /// Runs the in-memory half of misfire handling for one trigger — notify the listeners, apply the
+    /// trigger's misfire policy, and work out the state and misfire-original-fire-time to persist — and
+    /// returns the resulting update for the caller to apply as part of a batch.
+    /// </summary>
+    /// <remarks>
+    /// Shares its logic with <see cref="DoUpdateOfMisfiredTriggerOptimized" />, which is the same thing
+    /// for a single trigger that is written immediately.
+    /// </remarks>
+    private async ValueTask<MisfiredTriggerUpdate> PrepareMisfiredTriggerUpdate(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger trig,
+        string newStateIfNotComplete,
+        Dictionary<string, ICalendar?>? calendarCache,
+        CancellationToken cancellationToken)
+    {
+        // Calendar lookup with batch-local cache (when available).
+        ICalendar? cal = null;
+        if (trig.CalendarName is not null)
+        {
+            if (calendarCache is null || !calendarCache.TryGetValue(trig.CalendarName, out cal))
+            {
+                cal = await RetrieveCalendar(conn, trig.CalendarName, cancellationToken).ConfigureAwait(false);
+                if (calendarCache is not null)
+                {
+                    calendarCache[trig.CalendarName] = cal;
+                }
+            }
+        }
+
+        await schedSignaler.NotifyTriggerListenersMisfired(trig, cancellationToken).ConfigureAwait(false);
+
+        DateTimeOffset? originalFireTime = trig.GetNextFireTimeUtc();
+        DateTimeOffset now = timeProvider.GetUtcNow();
+
+        trig.UpdateAfterMisfire(cal);
+
+        // Determine new state.
+        DateTimeOffset? newFireTime = trig.GetNextFireTimeUtc();
+        string newState = newFireTime.HasValue ? newStateIfNotComplete : StateComplete;
+
+        // Compute misfire-original-fire-time for "fire now" policies (folded into the single UPDATE).
+        DateTimeOffset? misfireOrigFireTime = null;
+        if (originalFireTime.HasValue && newFireTime.HasValue
+            && originalFireTime.Value != newFireTime.Value
+            && Math.Abs((newFireTime.Value - now).TotalMilliseconds) < AbstractTrigger.FireNowMisfireDetectionThresholdMs)
+        {
+            misfireOrigFireTime = originalFireTime;
+        }
+
+        return new MisfiredTriggerUpdate(trig, newState, misfireOrigFireTime);
     }
 
     /// <summary>
@@ -979,7 +1046,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 return false;
             }
 
-            await DoUpdateOfMisfiredTriggerOptimized(conn, trig, newStateIfNotComplete, calendarCache: null, cancellationToken).ConfigureAwait(false);
+            await DoUpdateOfMisfiredTriggerOptimized(conn, trig, newStateIfNotComplete, cancellationToken).ConfigureAwait(false);
 
             return true;
         }
@@ -1041,45 +1108,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trig,
         string newStateIfNotComplete,
-        Dictionary<string, ICalendar?>? calendarCache,
         CancellationToken cancellationToken)
     {
-        // Calendar lookup with batch-local cache (when available).
-        ICalendar? cal = null;
-        if (trig.CalendarName is not null)
-        {
-            if (calendarCache is null || !calendarCache.TryGetValue(trig.CalendarName, out cal))
-            {
-                cal = await RetrieveCalendar(conn, trig.CalendarName, cancellationToken).ConfigureAwait(false);
-                if (calendarCache is not null)
-                {
-                    calendarCache[trig.CalendarName] = cal;
-                }
-            }
-        }
-
-        await schedSignaler.NotifyTriggerListenersMisfired(trig, cancellationToken).ConfigureAwait(false);
-
-        DateTimeOffset? originalFireTime = trig.GetNextFireTimeUtc();
-        DateTimeOffset now = timeProvider.GetUtcNow();
-
-        trig.UpdateAfterMisfire(cal);
-
-        // Determine new state.
-        string newState = trig.GetNextFireTimeUtc().HasValue ? newStateIfNotComplete : StateComplete;
-
-        // Compute misfire-original-fire-time for "fire now" policies (folded into the single UPDATE).
-        DateTimeOffset? misfireOrigFireTime = null;
-        DateTimeOffset? newFireTime = trig.GetNextFireTimeUtc();
-        if (originalFireTime.HasValue && newFireTime.HasValue
-            && originalFireTime.Value != newFireTime.Value
-            && Math.Abs((newFireTime.Value - now).TotalMilliseconds) < AbstractTrigger.FireNowMisfireDetectionThresholdMs)
-        {
-            misfireOrigFireTime = originalFireTime;
-        }
+        MisfiredTriggerUpdate update = await PrepareMisfiredTriggerUpdate(conn, trig, newStateIfNotComplete, calendarCache: null, cancellationToken).ConfigureAwait(false);
 
         // Single targeted UPDATE (1-2 DB round-trips) instead of StoreTrigger's 7-12.
-        await Delegate.UpdateMisfiredTrigger(conn, trig, newState, misfireOrigFireTime, cancellationToken).ConfigureAwait(false);
+        await Delegate.UpdateMisfiredTrigger(conn, trig, update.NewState, update.MisfireOriginalFireTime, cancellationToken).ConfigureAwait(false);
 
         if (!trig.GetNextFireTimeUtc().HasValue)
         {

@@ -130,6 +130,12 @@ public partial class StdAdoDelegate
         return SqlSelectHasMisfiredTriggersInState;
     }
 
+    protected virtual string GetSelectMisfiredTriggersToRecoverSql(int count)
+    {
+        // by default we don't support limits, this is db specific
+        return SqlSelectMisfiredTriggersToRecover;
+    }
+
     /// <inheritdoc />
     public virtual async ValueTask<int> CountMisfiredTriggersInState(
         ConnectionAndTransactionHolder conn,
@@ -719,33 +725,157 @@ public partial class StdAdoDelegate
         await DeleteBlobTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
     }
 
+    /// <summary>
+    /// Everything read from one row of the trigger select. That select left-joins the SIMPLE and CRON
+    /// type tables, so for those two types <see cref="Props" /> comes back populated from the same row
+    /// and no follow-up query is needed.
+    /// </summary>
+    private sealed class TriggerRow
+    {
+        public string JobName = null!;
+        public string JobGroup = null!;
+        public string? Description;
+        public string TriggerType = null!;
+        public string? CalendarName;
+        public int MisfireInstruction;
+        public int Priority;
+        public IDictionary? JobDataMap;
+        public DateTimeOffset? NextFireTimeUtc;
+        public DateTimeOffset? PreviousFireTimeUtc;
+        public DateTimeOffset StartTimeUtc;
+        public DateTimeOffset? EndTimeUtc;
+        public DateTimeOffset? MisfireOriginalFireTime;
+        public string? ExecutionGroup;
+        public string? PreferredNode;
+        public bool PreferredNodeAuto;
+
+        /// <summary>Populated from the joined row for SIMPLE and CRON triggers, <c>null</c> otherwise.</summary>
+        public TriggerPropertyBundle? Props;
+    }
+
+    /// <summary>
+    /// Reads the current row of a trigger select. Shared by the single-trigger and batch read paths so
+    /// the two cannot drift apart.
+    /// </summary>
+    private async ValueTask<TriggerRow> ReadTriggerRow(DbDataReader rs)
+    {
+        var row = new TriggerRow
+        {
+            JobName = rs.GetString(ColumnJobName)!,
+            JobGroup = rs.GetString(ColumnJobGroup)!,
+            Description = rs.GetString(ColumnDescription),
+            TriggerType = rs.GetString(ColumnTriggerType)!,
+            CalendarName = rs.GetString(ColumnCalendarName),
+            MisfireInstruction = rs.GetInt32(ColumnMifireInstruction),
+            Priority = rs.GetInt32(ColumnPriority)
+        };
+
+        row.JobDataMap = await ReadMapFromReader(rs, 11).ConfigureAwait(false);
+
+        row.NextFireTimeUtc = GetDateTimeFromDbValue(rs[ColumnNextFireTime]);
+        row.PreviousFireTimeUtc = GetDateTimeFromDbValue(rs[ColumnPreviousFireTime]);
+        row.StartTimeUtc = GetDateTimeFromDbValue(rs[ColumnStartTime]) ?? DateTimeOffset.MinValue;
+        row.EndTimeUtc = GetDateTimeFromDbValue(rs[ColumnEndTime]);
+
+        // check if we access fast path
+        if (row.TriggerType is TriggerTypeCron or TriggerTypeSimple)
+        {
+            row.Props = FindTriggerPersistenceDelegate(row.TriggerType)!.ReadTriggerPropertyBundle(rs);
+        }
+
+        row.MisfireOriginalFireTime = GetDateTimeFromDbValue(rs[ColumnMisfireOriginalFireTime]);
+
+        int execGroupOrdinal = rs.GetOrdinal(ColumnExecutionGroup);
+        row.ExecutionGroup = rs.IsDBNull(execGroupOrdinal) ? null : rs.GetString(execGroupOrdinal);
+
+        int preferredNodeOrdinal = rs.GetOrdinal(ColumnPreferredNode);
+        row.PreferredNode = rs.IsDBNull(preferredNodeOrdinal) ? null : rs.GetString(preferredNodeOrdinal);
+        int preferredNodeAutoOrdinal = rs.GetOrdinal(ColumnPreferredNodeAuto);
+        row.PreferredNodeAuto = !rs.IsDBNull(preferredNodeAutoOrdinal) && GetBooleanFromDbValue(rs.GetValue(preferredNodeAutoOrdinal));
+
+        return row;
+    }
+
+    /// <summary>
+    /// Applies the fire-time state carried on the TRIGGERS row. Applies to blob-deserialized triggers
+    /// just as much as to built ones.
+    /// </summary>
+    private static void ApplyTriggerFireState(IOperableTrigger trigger, TriggerRow row)
+    {
+        trigger.MisfireInstruction = row.MisfireInstruction;
+        trigger.SetNextFireTimeUtc(row.NextFireTimeUtc);
+        trigger.SetPreviousFireTimeUtc(row.PreviousFireTimeUtc);
+
+        if (row.MisfireOriginalFireTime.HasValue && trigger is AbstractTrigger at)
+        {
+            at.MisfiredFromFireTimeUtc = row.MisfireOriginalFireTime;
+        }
+    }
+
+    /// <summary>
+    /// Applies the routing state carried on the TRIGGERS row. Applied last, so that it cannot be
+    /// overwritten by a persistence delegate's state properties.
+    /// </summary>
+    private static void ApplyTriggerRoutingState(IOperableTrigger trigger, TriggerRow row)
+    {
+        trigger.ExecutionGroup = row.ExecutionGroup;
+
+        // Populating from the trigger's own row — not a change, so it must not mark the pin
+        // dirty (that would make the next store write it back and clobber concurrent re-pins).
+        (trigger as AbstractTrigger)?.SetPreferredNodeRaw(row.PreferredNode, row.PreferredNodeAuto, markDirty: false);
+    }
+
+    /// <summary>
+    /// Applies the TRIGGERS row state onto a trigger deserialized from BLOB_TRIGGERS. The schedule
+    /// itself came out of the blob, so there are no extended properties to apply in between.
+    /// </summary>
+    private static void ApplyBlobTriggerRowState(IOperableTrigger trigger, TriggerRow row)
+    {
+        ApplyTriggerFireState(trigger, row);
+        ApplyTriggerRoutingState(trigger, row);
+    }
+
+    /// <summary>
+    /// Builds a non-blob trigger from its TRIGGERS row and its type-specific extended properties.
+    /// </summary>
+    private static IOperableTrigger BuildTrigger(TriggerKey triggerKey, TriggerRow row, TriggerPropertyBundle triggerProps)
+    {
+        TriggerBuilder tb = TriggerBuilder.Create()
+            .WithDescription(row.Description)
+            .WithPriority(row.Priority)
+            .StartAt(row.StartTimeUtc)
+            .EndAt(row.EndTimeUtc)
+            .WithIdentity(triggerKey)
+            .ModifiedByCalendar(row.CalendarName)
+            .WithSchedule(triggerProps.ScheduleBuilder)
+            .ForJob(new JobKey(row.JobName, row.JobGroup));
+
+        if (row.JobDataMap is not null)
+        {
+            bool clearDirtyFlag = !row.JobDataMap.Contains(SchedulerConstants.ForceJobDataMapDirty);
+            tb.UsingJobData(new JobDataMap(row.JobDataMap));
+            if (clearDirtyFlag)
+            {
+                tb.ClearDirty();
+            }
+        }
+
+        var trigger = (IOperableTrigger) tb.Build();
+
+        ApplyTriggerFireState(trigger, row);
+        SetTriggerStateProperties(trigger, triggerProps);
+        ApplyTriggerRoutingState(trigger, row);
+
+        return trigger;
+    }
+
     /// <inheritdoc />
     public virtual async ValueTask<IOperableTrigger?> SelectTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
-        string jobName;
-        string jobGroup;
-        string? description;
-        string triggerType;
-        string? calendarName;
-        int misFireInstr;
-        int priority;
-
-        IDictionary? map;
-
-        DateTimeOffset? nextFireTimeUtc;
-        DateTimeOffset? previousFireTimeUtc;
-        DateTimeOffset startTimeUtc;
-        DateTimeOffset? endTimeUtc;
-        DateTimeOffset? misfireOrigFireTime;
-        string? executionGroup;
-        string? preferredNode;
-        bool preferredNodeAuto;
-
-        ITriggerPersistenceDelegate? tDel = null;
-        TriggerPropertyBundle? triggerProps = null;
+        TriggerRow row;
 
         using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTrigger)))
         {
@@ -753,144 +883,67 @@ public partial class StdAdoDelegate
             AddCommandParameter(cmd, "triggerName", triggerKey.Name);
             AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
-            using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+            using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            if (!await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
-                if (!await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
-                {
-                    return null;
-                }
-
-                jobName = rs.GetString(ColumnJobName)!;
-                jobGroup = rs.GetString(ColumnJobGroup)!;
-                description = rs.GetString(ColumnDescription);
-                triggerType = rs.GetString(ColumnTriggerType)!;
-                calendarName = rs.GetString(ColumnCalendarName);
-                misFireInstr = rs.GetInt32(ColumnMifireInstruction);
-                priority = rs.GetInt32(ColumnPriority);
-
-                map = await ReadMapFromReader(rs, 11).ConfigureAwait(false);
-
-                nextFireTimeUtc = GetDateTimeFromDbValue(rs[ColumnNextFireTime]);
-                previousFireTimeUtc = GetDateTimeFromDbValue(rs[ColumnPreviousFireTime]);
-                startTimeUtc = GetDateTimeFromDbValue(rs[ColumnStartTime]) ?? DateTimeOffset.MinValue;
-                endTimeUtc = GetDateTimeFromDbValue(rs[ColumnEndTime]);
-
-                // check if we access fast path
-                if (triggerType is TriggerTypeCron or TriggerTypeSimple)
-                {
-                    tDel = FindTriggerPersistenceDelegate(triggerType);
-                    triggerProps = tDel!.ReadTriggerPropertyBundle(rs);
-                }
-
-                misfireOrigFireTime = GetDateTimeFromDbValue(rs[ColumnMisfireOriginalFireTime]);
-
-                int execGroupOrdinal = rs.GetOrdinal(ColumnExecutionGroup);
-                executionGroup = rs.IsDBNull(execGroupOrdinal) ? null : rs.GetString(execGroupOrdinal);
-
-                int preferredNodeOrdinal = rs.GetOrdinal(ColumnPreferredNode);
-                preferredNode = rs.IsDBNull(preferredNodeOrdinal) ? null : rs.GetString(preferredNodeOrdinal);
-                int preferredNodeAutoOrdinal = rs.GetOrdinal(ColumnPreferredNodeAuto);
-                preferredNodeAuto = !rs.IsDBNull(preferredNodeAutoOrdinal) && GetBooleanFromDbValue(rs.GetValue(preferredNodeAutoOrdinal));
+                return null;
             }
+
+            row = await ReadTriggerRow(rs).ConfigureAwait(false);
         }
 
-        IOperableTrigger? trigger = null;
-        if (triggerType == TriggerTypeBlob)
+        if (row.TriggerType == TriggerTypeBlob)
         {
-            using var cmd2 = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectBlobTrigger));
-            AddCommandParameter(cmd2, "schedulerName", schedName);
-            AddCommandParameter(cmd2, "triggerName", triggerKey.Name);
-            AddCommandParameter(cmd2, "triggerGroup", triggerKey.Group);
-            using var rs2 = await cmd2.ExecuteReaderAsync(System.Data.CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
-            if (await rs2.ReadAsync(cancellationToken).ConfigureAwait(false))
-            {
-                trigger = await GetObjectFromBlob<IOperableTrigger>(rs2, 0, cancellationToken).ConfigureAwait(false);
-            }
+            IOperableTrigger? blobTrigger = null;
 
-            if (trigger is not null)
+            using (var cmd2 = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectBlobTrigger)))
             {
-                trigger.MisfireInstruction = misFireInstr;
-                trigger.SetNextFireTimeUtc(nextFireTimeUtc);
-                trigger.SetPreviousFireTimeUtc(previousFireTimeUtc);
-
-                if (misfireOrigFireTime.HasValue && trigger is AbstractTrigger at)
+                AddCommandParameter(cmd2, "schedulerName", schedName);
+                AddCommandParameter(cmd2, "triggerName", triggerKey.Name);
+                AddCommandParameter(cmd2, "triggerGroup", triggerKey.Group);
+                using var rs2 = await cmd2.ExecuteReaderAsync(System.Data.CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
+                if (await rs2.ReadAsync(cancellationToken).ConfigureAwait(false))
                 {
-                    at.MisfiredFromFireTimeUtc = misfireOrigFireTime;
+                    blobTrigger = await GetObjectFromBlob<IOperableTrigger>(rs2, 0, cancellationToken).ConfigureAwait(false);
                 }
             }
+
+            if (blobTrigger is not null)
+            {
+                ApplyBlobTriggerRowState(blobTrigger, row);
+            }
+
+            return blobTrigger;
         }
-        else
+
+        TriggerPropertyBundle? triggerProps = row.Props;
+        if (triggerProps is null)
         {
-            if (triggerProps is null)
+            // fast path didn't succeed
+            var tDel = FindTriggerPersistenceDelegate(row.TriggerType);
+
+            if (tDel is null)
             {
-                // fast path didn't succeed
-                tDel ??= FindTriggerPersistenceDelegate(triggerType);
-
-                if (tDel is null)
-                {
-                    Throw.JobPersistenceException("No TriggerPersistenceDelegate for trigger discriminator type: " + triggerType);
-                }
-
-                try
-                {
-                    triggerProps = await tDel.LoadExtendedTriggerProperties(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-                }
-                catch (InvalidOperationException)
-                {
-                    if (await IsTriggerStillPresent(conn, triggerKey, cancellationToken).ConfigureAwait(false))
-                    {
-                        throw;
-                    }
-
-                    // QTZ-386 Trigger has been deleted
-                    return null;
-                }
+                Throw.JobPersistenceException("No TriggerPersistenceDelegate for trigger discriminator type: " + row.TriggerType);
             }
 
-            TriggerBuilder tb = TriggerBuilder.Create()
-                .WithDescription(description)
-                .WithPriority(priority)
-                .StartAt(startTimeUtc)
-                .EndAt(endTimeUtc)
-                .WithIdentity(triggerKey)
-                .ModifiedByCalendar(calendarName)
-                .WithSchedule(triggerProps.ScheduleBuilder)
-                .ForJob(new JobKey(jobName, jobGroup));
-
-            if (map is not null)
+            try
             {
-                bool clearDirtyFlag = !map.Contains(SchedulerConstants.ForceJobDataMapDirty);
-                tb.UsingJobData(new JobDataMap(map));
-                if (clearDirtyFlag)
+                triggerProps = await tDel.LoadExtendedTriggerProperties(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+            }
+            catch (InvalidOperationException)
+            {
+                if (await IsTriggerStillPresent(conn, triggerKey, cancellationToken).ConfigureAwait(false))
                 {
-                    tb.ClearDirty();
+                    throw;
                 }
+
+                // QTZ-386 Trigger has been deleted
+                return null;
             }
-
-            trigger = (IOperableTrigger) tb.Build();
-
-            trigger.MisfireInstruction = misFireInstr;
-            trigger.SetNextFireTimeUtc(nextFireTimeUtc);
-            trigger.SetPreviousFireTimeUtc(previousFireTimeUtc);
-
-            if (misfireOrigFireTime.HasValue && trigger is AbstractTrigger at)
-            {
-                at.MisfiredFromFireTimeUtc = misfireOrigFireTime;
-            }
-
-            SetTriggerStateProperties(trigger, triggerProps);
         }
 
-        if (trigger is not null)
-        {
-            trigger.ExecutionGroup = executionGroup;
-
-            // Populating from the trigger's own row — not a change, so it must not mark the pin
-            // dirty (that would make the next store write it back and clobber concurrent re-pins).
-            (trigger as AbstractTrigger)?.SetPreferredNodeRaw(preferredNode, preferredNodeAuto, markDirty: false);
-        }
-
-        return trigger;
+        return BuildTrigger(triggerKey, row, triggerProps);
     }
 
     private async ValueTask<bool> IsTriggerStillPresent(
@@ -1773,52 +1826,415 @@ public partial class StdAdoDelegate
         DateTimeOffset? misfireOriginalFireTime,
         CancellationToken cancellationToken = default)
     {
+        List<SqlStatement> statements = [];
+        List<IOperableTrigger> blobTriggers = [];
+        BuildMisfireUpdateStatements(new MisfiredTriggerUpdate(trigger, newState, misfireOriginalFireTime), statements, blobTriggers);
+
+        await ExecuteStatementsIndividually(conn, statements, 0, statements.Count, cancellationToken).ConfigureAwait(false);
+
+        foreach (var blobTrigger in blobTriggers)
+        {
+            await UpdateBlobTrigger(conn, blobTrigger, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    //---------------------------------------------------------------------------
+    // batched misfire recovery
+    //---------------------------------------------------------------------------
+
+    /// <inheritdoc />
+    public virtual async ValueTask<MisfiredTriggerBatch> SelectMisfiredTriggersToRecover(
+        ConnectionAndTransactionHolder conn,
+        string state,
+        DateTimeOffset ts,
+        int count,
+        CancellationToken cancellationToken = default)
+    {
+        // Always read one past the limit so we can tell the caller whether the limit truncated the
+        // result, the same way HasMisfiredTriggersInState does.
+        var sql = ReplaceTablePrefix(GetSelectMisfiredTriggersToRecoverSql(count != -1 ? count + 1 : count));
+
+        List<TriggerKey> keys = [];
+        List<TriggerRow> rows = [];
+        bool hasMore = false;
+
+        using (var cmd = PrepareCommand(conn, sql))
+        {
+            AddCommandParameter(cmd, "schedulerName", schedName);
+            AddCommandParameter(cmd, "nextFireTime", GetDbDateTimeValue(ts));
+            AddCommandParameter(cmd, "state1", state);
+
+            using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                if (count != -1 && keys.Count == count)
+                {
+                    hasMore = true;
+                    break;
+                }
+
+                keys.Add(new TriggerKey(rs.GetString(ColumnTriggerName)!, rs.GetString(ColumnTriggerGroup)!));
+                rows.Add(await ReadTriggerRow(rs).ConfigureAwait(false));
+            }
+        }
+
+        // Slots stay index-aligned with keys/rows while the follow-up queries fill them in; a slot left
+        // null means the type-specific row was missing, and the trigger is dropped from the result.
+        var built = new IOperableTrigger?[rows.Count];
+        List<TriggerKey>? blobKeys = null;
+        List<TriggerKey>? simpropKeys = null;
+
+        for (var i = 0; i < rows.Count; i++)
+        {
+            var row = rows[i];
+
+            // SIMPLE and CRON triggers came back complete from the joined row.
+            if (row.Props is not null)
+            {
+                built[i] = BuildTrigger(keys[i], row, row.Props);
+                continue;
+            }
+
+            if (row.TriggerType == TriggerTypeBlob)
+            {
+                (blobKeys ??= []).Add(keys[i]);
+                continue;
+            }
+
+            var tDel = FindTriggerPersistenceDelegate(row.TriggerType);
+            if (tDel is null)
+            {
+                Throw.JobPersistenceException("No TriggerPersistenceDelegate for trigger discriminator type: " + row.TriggerType);
+            }
+
+            if (tDel is SimplePropertiesTriggerPersistenceDelegateSupport)
+            {
+                (simpropKeys ??= []).Add(keys[i]);
+                continue;
+            }
+
+            // A custom persistence delegate storing into its own table. There is no batch read for
+            // those, so fall back to reading it on its own rather than dropping the trigger.
+            try
+            {
+                var props = await tDel.LoadExtendedTriggerProperties(conn, keys[i], cancellationToken).ConfigureAwait(false);
+                built[i] = BuildTrigger(keys[i], row, props);
+            }
+            catch (InvalidOperationException)
+            {
+                // No row for this trigger (QTZ-386, deleted concurrently). Leave the slot empty so this
+                // one trigger is skipped, rather than failing the whole batch over it.
+            }
+        }
+
+        if (blobKeys is not null)
+        {
+            await SelectBlobTriggersForBatch(conn, keys, rows, built, blobKeys, cancellationToken).ConfigureAwait(false);
+        }
+
+        if (simpropKeys is not null)
+        {
+            await SelectSimpropTriggersForBatch(conn, keys, rows, built, simpropKeys, cancellationToken).ConfigureAwait(false);
+        }
+
+        List<IOperableTrigger> triggers = new(rows.Count);
+        for (var i = 0; i < built.Length; i++)
+        {
+            if (built[i] is not null)
+            {
+                triggers.Add(built[i]!);
+            }
+            else
+            {
+                logger.LogWarning("Misfired trigger '{TriggerKey}' has no {TriggerType} row and is skipped", keys[i], rows[i].TriggerType);
+            }
+        }
+
+        return new MisfiredTriggerBatch(triggers, hasMore);
+    }
+
+    /// <summary>
+    /// Prepares a statement matching a chunk of trigger keys, by appending the parameterized key-set
+    /// predicate to <paramref name="sqlPrefix" />.
+    /// </summary>
+    private DbCommand PrepareTriggerKeySetCommand(
+        ConnectionAndTransactionHolder conn,
+        string sqlPrefix,
+        List<TriggerKey> keys,
+        int offset,
+        int length)
+    {
+        var paddedCount = AdoUtil.RoundUpTriggerKeyCount(length);
+        var cmd = PrepareCommand(conn, ReplaceTablePrefix(sqlPrefix + AdoUtil.BuildTriggerKeyPredicate(paddedCount)));
+        AddCommandParameter(cmd, "schedulerName", schedName);
+
+        for (var i = 0; i < paddedCount; i++)
+        {
+            // Pad up to the bucket size by repeating the chunk's last key. The predicate is a
+            // disjunction, so a repeated term cannot change which rows match.
+            var key = keys[offset + Math.Min(i, length - 1)];
+            AddCommandParameter(cmd, AdoUtil.TriggerKeyNameParameter(i), key.Name);
+            AddCommandParameter(cmd, AdoUtil.TriggerKeyGroupParameter(i), key.Group);
+        }
+
+        return cmd;
+    }
+
+    private async ValueTask SelectBlobTriggersForBatch(
+        ConnectionAndTransactionHolder conn,
+        List<TriggerKey> keys,
+        List<TriggerRow> rows,
+        IOperableTrigger?[] built,
+        List<TriggerKey> blobKeys,
+        CancellationToken cancellationToken)
+    {
+        var slotByKey = BuildSlotLookup(keys);
+
+        for (var offset = 0; offset < blobKeys.Count; offset += AdoUtil.MaxTriggerKeysPerPredicate)
+        {
+            var length = Math.Min(AdoUtil.MaxTriggerKeysPerPredicate, blobKeys.Count - offset);
+
+            using var cmd = PrepareTriggerKeySetCommand(conn, SqlSelectBlobTriggersByKeysPrefix, blobKeys, offset, length);
+            using var rs = await cmd.ExecuteReaderAsync(System.Data.CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
+            while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                // Sequential access: the blob is selected first, the key columns after it.
+                var trigger = await GetObjectFromBlob<IOperableTrigger>(rs, 0, cancellationToken).ConfigureAwait(false);
+                var key = new TriggerKey(rs.GetString(1), rs.GetString(2));
+
+                if (trigger is not null && slotByKey.TryGetValue(key, out var slot))
+                {
+                    ApplyBlobTriggerRowState(trigger, rows[slot]);
+                    built[slot] = trigger;
+                }
+            }
+        }
+    }
+
+    private async ValueTask SelectSimpropTriggersForBatch(
+        ConnectionAndTransactionHolder conn,
+        List<TriggerKey> keys,
+        List<TriggerRow> rows,
+        IOperableTrigger?[] built,
+        List<TriggerKey> simpropKeys,
+        CancellationToken cancellationToken)
+    {
+        var slotByKey = BuildSlotLookup(keys);
+
+        for (var offset = 0; offset < simpropKeys.Count; offset += AdoUtil.MaxTriggerKeysPerPredicate)
+        {
+            var length = Math.Min(AdoUtil.MaxTriggerKeysPerPredicate, simpropKeys.Count - offset);
+
+            using var cmd = PrepareTriggerKeySetCommand(conn, SqlSelectSimpropTriggersByKeysPrefix, simpropKeys, offset, length);
+            using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                var key = new TriggerKey(rs.GetString(ColumnTriggerName)!, rs.GetString(ColumnTriggerGroup)!);
+                if (!slotByKey.TryGetValue(key, out var slot))
+                {
+                    continue;
+                }
+
+                // All simple-properties types share this table, so the delegate to read the row with is
+                // the one matching that trigger's own discriminator.
+                var tDel = FindTriggerPersistenceDelegate(rows[slot].TriggerType)!;
+                built[slot] = BuildTrigger(key, rows[slot], tDel.ReadTriggerPropertyBundle(rs));
+            }
+        }
+    }
+
+    private static Dictionary<TriggerKey, int> BuildSlotLookup(List<TriggerKey> keys)
+    {
+        var slotByKey = new Dictionary<TriggerKey, int>(keys.Count);
+        for (var i = 0; i < keys.Count; i++)
+        {
+            slotByKey[keys[i]] = i;
+        }
+
+        return slotByKey;
+    }
+
+    /// <summary>
+    /// A statement and its parameters, kept as data so that the same definition can be issued either as a
+    /// standalone command or as one command inside a <see cref="DbBatch" />.
+    /// </summary>
+    private readonly record struct SqlStatement(string Sql, List<SqlStatementParameter> Parameters);
+
+    private readonly record struct SqlStatementParameter(string Name, object? Value, Enum? DataType = null);
+
+    /// <summary>
+    /// Builds the statements one misfire update needs. Single source of truth for
+    /// <see cref="UpdateMisfiredTrigger" /> and <see cref="UpdateMisfiredTriggers" />.
+    /// </summary>
+    /// <param name="update">The pending update.</param>
+    /// <param name="into">Statements to execute, appended to.</param>
+    /// <param name="blobTriggers">
+    /// Blob-stored triggers needing re-serialization, appended to. Those are written through the
+    /// <see cref="UpdateBlobTrigger" /> virtual rather than inlined as a statement here, so that
+    /// subclasses overriding it keep control of how blobs are persisted.
+    /// </param>
+    private void BuildMisfireUpdateStatements(
+        in MisfiredTriggerUpdate update,
+        List<SqlStatement> into,
+        List<IOperableTrigger> blobTriggers)
+    {
+        var trigger = update.Trigger;
+
         // Narrow UPDATE: only columns that change during misfire recovery.
         // Only include MISFIRE_ORIG_FIRE_TIME when we have a value to write;
         // null means "leave unchanged" (matches DoUpdateOfMisfiredTrigger which
         // only calls UpdateMisfireOriginalFireTime on fire-now detection).
-        bool writeMisfireOrigFireTime = misfireOriginalFireTime.HasValue;
-        string sql = writeMisfireOrigFireTime
-            ? SqlUpdateTriggerMisfireWithOrigFireTime
-            : SqlUpdateTriggerMisfire;
+        bool writeMisfireOrigFireTime = update.MisfireOriginalFireTime.HasValue;
 
-        using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(sql)))
+        List<SqlStatementParameter> parameters =
+        [
+            new("schedulerName", schedName),
+            new("triggerNextFireTime", GetDbDateTimeValue(trigger.GetNextFireTimeUtc())),
+            new("triggerPreviousFireTime", GetDbDateTimeValue(trigger.GetPreviousFireTimeUtc())),
+            new("triggerState", update.NewState),
+            new("triggerStartTime", GetDbDateTimeValue(trigger.StartTimeUtc))
+        ];
+
+        if (writeMisfireOrigFireTime)
         {
-            AddCommandParameter(cmd, "schedulerName", schedName);
-            AddCommandParameter(cmd, "triggerNextFireTime", GetDbDateTimeValue(trigger.GetNextFireTimeUtc()));
-            AddCommandParameter(cmd, "triggerPreviousFireTime", GetDbDateTimeValue(trigger.GetPreviousFireTimeUtc()));
-            AddCommandParameter(cmd, "triggerState", newState);
-            AddCommandParameter(cmd, "triggerStartTime", GetDbDateTimeValue(trigger.StartTimeUtc));
-            if (writeMisfireOrigFireTime)
-            {
-                AddCommandParameter(cmd, "triggerMisfireOrigFireTime", GetDbDateTimeValue(misfireOriginalFireTime));
-            }
-            AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-            AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
-
-            await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            parameters.Add(new SqlStatementParameter("triggerMisfireOrigFireTime", GetDbDateTimeValue(update.MisfireOriginalFireTime)));
         }
+
+        parameters.Add(new SqlStatementParameter("triggerName", trigger.Key.Name));
+        parameters.Add(new SqlStatementParameter("triggerGroup", trigger.Key.Group));
+
+        into.Add(new SqlStatement(
+            ReplaceTablePrefix(writeMisfireOrigFireTime ? SqlUpdateTriggerMisfireWithOrigFireTime : SqlUpdateTriggerMisfire),
+            parameters));
 
         // Update type-specific table: SimpleTrigger may have modified RepeatCount/TimesTriggered
         // via RescheduleNowWith* policies; blob triggers need re-serialization to persist all
         // in-memory changes. Other built-in types (Cron, CalendarInterval, DailyTimeInterval)
         // do not change extended properties during misfire.
-        if (trigger is ISimpleTrigger simpleTrigger && FindTriggerPersistenceDelegate(trigger) is not null)
+        var persistenceDelegate = FindTriggerPersistenceDelegate(trigger);
+        if (trigger is ISimpleTrigger simpleTrigger && persistenceDelegate is not null)
         {
-            using var cmd2 = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateSimpleTrigger));
-            AddCommandParameter(cmd2, "schedulerName", schedName);
-            AddCommandParameter(cmd2, "triggerRepeatCount", simpleTrigger.RepeatCount);
-            AddCommandParameter(cmd2, "triggerRepeatInterval", GetDbTimeSpanValue(simpleTrigger.RepeatInterval));
-            AddCommandParameter(cmd2, "triggerTimesTriggered", simpleTrigger.TimesTriggered);
-            AddCommandParameter(cmd2, "triggerName", trigger.Key.Name);
-            AddCommandParameter(cmd2, "triggerGroup", trigger.Key.Group);
-
-            await cmd2.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            into.Add(new SqlStatement(ReplaceTablePrefix(SqlUpdateSimpleTrigger),
+            [
+                new SqlStatementParameter("schedulerName", schedName),
+                new SqlStatementParameter("triggerRepeatCount", simpleTrigger.RepeatCount),
+                new SqlStatementParameter("triggerRepeatInterval", GetDbTimeSpanValue(simpleTrigger.RepeatInterval)),
+                new SqlStatementParameter("triggerTimesTriggered", simpleTrigger.TimesTriggered),
+                new SqlStatementParameter("triggerName", trigger.Key.Name),
+                new SqlStatementParameter("triggerGroup", trigger.Key.Group)
+            ]));
         }
-        else if (FindTriggerPersistenceDelegate(trigger) is null)
+        else if (persistenceDelegate is null)
         {
             // Blob-stored trigger: re-serialize to persist all in-memory misfire changes.
-            await UpdateBlobTrigger(conn, trigger, cancellationToken).ConfigureAwait(false);
+            blobTriggers.Add(trigger);
+        }
+    }
+
+    /// <inheritdoc />
+    public virtual async ValueTask UpdateMisfiredTriggers(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyList<MisfiredTriggerUpdate> updates,
+        CancellationToken cancellationToken = default)
+    {
+        if (updates.Count == 0)
+        {
+            return;
+        }
+
+        List<SqlStatement> statements = [];
+        List<IOperableTrigger> blobTriggers = [];
+        foreach (var update in updates)
+        {
+            BuildMisfireUpdateStatements(update, statements, blobTriggers);
+        }
+
+        // Providers that cannot batch report CanCreateBatch = false (the DbConnection default), and get
+        // exactly the behaviour they had before batching existed.
+        if (!conn.CanCreateBatch)
+        {
+            await ExecuteStatementsIndividually(conn, statements, 0, statements.Count, cancellationToken).ConfigureAwait(false);
+        }
+        else
+        {
+            // Recovery runs unbounded (maxMisfiresToHandleAtATime is -1), so cap how much goes into one
+            // batch rather than handing the provider an arbitrarily large one.
+            for (var offset = 0; offset < statements.Count; offset += MaxStatementsPerBatch)
+            {
+                var length = Math.Min(MaxStatementsPerBatch, statements.Count - offset);
+                await ExecuteStatementBatch(conn, statements, offset, length, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        foreach (var blobTrigger in blobTriggers)
+        {
+            await UpdateBlobTrigger(conn, blobTrigger, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Statements put into a single <see cref="DbBatch" />. Keeps one batch's size — and the amount
+    /// re-run individually if it fails — bounded.
+    /// </summary>
+    private const int MaxStatementsPerBatch = 100;
+
+    private async ValueTask ExecuteStatementBatch(
+        ConnectionAndTransactionHolder conn,
+        List<SqlStatement> statements,
+        int offset,
+        int length,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var batch = conn.CreateBatch();
+
+            // Providers are not required to implement DbBatchCommand.CreateParameter, so keep one
+            // throwaway command around to mint parameter instances for those that do not.
+            using var parameterFactory = DbProvider.CreateCommand();
+
+            for (var i = offset; i < offset + length; i++)
+            {
+                var statement = statements[i];
+                var batchCommand = batch.CreateBatchCommand();
+                batchCommand.CommandText = statement.Sql;
+                foreach (var parameter in statement.Parameters)
+                {
+                    adoUtil.AddCommandParameter(batchCommand, parameterFactory, parameter.Name, parameter.Value, parameter.DataType);
+                }
+
+                batch.BatchCommands.Add(batchCommand);
+            }
+
+            await batch.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            // A batch fails as a unit, which would let one bad trigger block the whole recovery pass.
+            // Retry statement by statement so the others still get through, and so the exception that
+            // surfaces names the statement that actually failed.
+            logger.LogWarning(e, "Batched misfire update failed, retrying {StatementCount} statement(s) individually", length);
+            await ExecuteStatementsIndividually(conn, statements, offset, length, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async ValueTask ExecuteStatementsIndividually(
+        ConnectionAndTransactionHolder conn,
+        List<SqlStatement> statements,
+        int offset,
+        int length,
+        CancellationToken cancellationToken)
+    {
+        for (var i = offset; i < offset + length; i++)
+        {
+            var statement = statements[i];
+            using var cmd = PrepareCommand(conn, statement.Sql);
+            foreach (var parameter in statement.Parameters)
+            {
+                AddCommandParameter(cmd, parameter.Name, parameter.Value, parameter.DataType);
+            }
+
+            await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 }

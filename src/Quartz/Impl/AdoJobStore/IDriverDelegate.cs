@@ -1137,6 +1137,36 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Selects the misfired triggers to recover as fully populated triggers, rather than as keys that the
+    /// caller then has to read back one at a time. Same predicate, ordering and limit semantics as
+    /// <see cref="HasMisfiredTriggersInState(ConnectionAndTransactionHolder,string,DateTimeOffset,int,ICollection{TriggerKey},CancellationToken)" />.
+    /// </summary>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="state">The trigger state to scan (WAITING).</param>
+    /// <param name="ts">Triggers whose next fire time is before this are misfired.</param>
+    /// <param name="count">Maximum number of triggers to return, or -1 for all of them.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<MisfiredTriggerBatch> SelectMisfiredTriggersToRecover(
+        ConnectionAndTransactionHolder conn,
+        string state,
+        DateTimeOffset ts,
+        int count,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Applies a whole batch of misfire updates. Semantically identical to calling
+    /// <see cref="UpdateMisfiredTrigger" /> once per entry, but collapses the statements into a single
+    /// round-trip on providers that support batching.
+    /// </summary>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="updates">The triggers, after <c>UpdateAfterMisfire</c> has been applied in-memory.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask UpdateMisfiredTriggers(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyList<MisfiredTriggerUpdate> updates,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Selects the next triggers to acquire, filtering by execution group constraints.
     /// </summary>
     /// <param name="conn">The DB connection.</param>
