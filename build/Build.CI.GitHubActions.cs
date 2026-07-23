@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -53,6 +54,7 @@ namespace Quartz.Build
     /// parameter — the same mechanism <see cref="GitHubActionsAttribute.ImportSecrets"/> uses, so no
     /// custom step needs to be written.
     /// </summary>
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
     internal sealed class DatabaseIntegrationGitHubActionsAttribute : GitHubActionsAttribute
     {
         readonly string database;
