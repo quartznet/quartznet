@@ -149,6 +149,9 @@ public class CronExpressionBuilderTest
         Invoking(x => x.OnDayOfWeekIncrements(DayOfWeek.Monday, 0)).Should().Throw<ArgumentOutOfRangeException>();
         Invoking(x => x.OnDayOfWeekIncrements(DayOfWeek.Monday, 8)).Should().Throw<ArgumentOutOfRangeException>();
         Invoking(x => x.WithYearIncrements(2030, 0)).Should().Throw<ArgumentOutOfRangeException>();
+        // An unbounded year increment would overflow the "i += incr" loop in CronExpression.AddToSet
+        // and silently produce a wrong schedule; the builder must reject it up front like every other field.
+        Invoking(x => x.WithYearIncrements(2030, int.MaxValue)).Should().Throw<ArgumentOutOfRangeException>();
     }
 
     [Test]
