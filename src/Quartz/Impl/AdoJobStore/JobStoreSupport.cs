@@ -633,9 +633,8 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
         // correctly. EnsureOptionalColumnsProbed already swallows and defers connectivity/transient
         // failures (so scheduler construction still succeeds while the database is starting, and the
         // absence is never latched as "column missing"); the probe is retried on the first database
-        // operation and at Start(). It surfaces only a genuine SchedulerConfigException (e.g. a
-        // reserved instance id), which should fail construction fast. Routed through the shared gate
-        // so it cannot race a concurrent lazy retry.
+        // operation and at Start(). It surfaces only a genuine SchedulerConfigException, which should
+        // fail construction fast. Routed through the shared gate so it cannot race a concurrent lazy retry.
         await EnsureOptionalColumnsProbed(cancellationToken).ConfigureAwait(false);
     }
 
@@ -850,12 +849,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
     private volatile bool suppressPreferredNodeAcquisition;
 
     /// <summary>
-    /// When the PREFERRED_NODE column exists, acquisition would route through the preferred-node
-    /// overload of <c>SelectTriggerToAcquire</c>. A custom delegate that overrides only the legacy
-    /// overload would then be bypassed — which could silently defeat custom acquisition filtering
-    /// (e.g. tenant isolation). Detect that case so the caller can keep such delegates on the
-    /// legacy path (their override wins over the new feature), and warn that preferred-node
-    /// filtering is not applied for them.
+    /// Returns whether SQL-level preferred-node (node affinity) acquisition must be suppressed for a
+    /// custom delegate, keeping it on the legacy acquisition path. Two cases trigger suppression:
+    /// (1) the delegate overrides only the legacy <c>SelectTriggerToAcquire</c> overload, so routing
+    /// through the preferred-node overload would bypass its customization (e.g. tenant isolation);
+    /// (2) the delegate overrides the date/time or time-span storage format, which the preferred-node
+    /// liveness SQL cannot account for. In both cases the caller keeps the delegate on the legacy
+    /// path and a warning explains that node-affinity filtering is not applied for it.
     /// </summary>
     private bool DetectBypassedCustomAcquisitionOverride()
     {
@@ -865,6 +865,22 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore, INextVersionJob
             if (delegateType.Assembly == typeof(StdAdoDelegate).Assembly)
             {
                 return false;
+            }
+
+            // The preferred-node liveness filter (PreferredNodeWhereClause) does its SCHEDULER_STATE
+            // freshness arithmetic in SQL against the raw stored LAST_CHECKIN_TIME / CHECKIN_INTERVAL,
+            // assuming the default tick / millisecond storage format. A delegate that overrides how
+            // those values are written may store a different format, which would make that comparison
+            // meaningless (a wrong liveness verdict could strand a pinned trigger or let a live node be
+            // treated as dead). Keep such delegates on the legacy acquisition path (no SQL-level node
+            // affinity) rather than risk it.
+            Type[] dbDateTimeArgs = [typeof(DateTimeOffset?)];
+            Type[] dbTimeSpanArgs = [typeof(TimeSpan?)];
+            if (IsMethodOverridden(delegateType, nameof(StdAdoDelegate.GetDbDateTimeValue), dbDateTimeArgs, nonPublic: false)
+                || IsMethodOverridden(delegateType, nameof(StdAdoDelegate.GetDbTimeSpanValue), dbTimeSpanArgs, nonPublic: false))
+            {
+                Log.Warn($"Delegate type '{delegateType.FullName}' overrides the database date/time or time-span storage format. The preferred-node (node affinity) liveness check compares raw checkin values in SQL assuming the default tick storage, so SQL-level node affinity is disabled for this delegate. Keep the default storage format, or override the preferred-node acquisition SQL to match your format, to combine a custom storage format with node affinity.");
+                return true;
             }
 
             // A custom delegate can customize acquisition two ways: by overriding a public

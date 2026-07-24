@@ -489,7 +489,7 @@ public sealed class CronExpressionBuilder
     /// Set the year field to a list of values, e.g. "2030,2032". The values are
     /// emitted in the given order.
     /// </summary>
-    /// <param name="years">the years to fire on</param>
+    /// <param name="years">the years to fire on (each 1970 to circa 100 years from now)</param>
     /// <returns>the updated CronExpressionBuilder</returns>
     public CronExpressionBuilder WithYears(params int[] years)
     {
@@ -525,11 +525,10 @@ public sealed class CronExpressionBuilder
     public CronExpressionBuilder WithYearIncrements(int start, int increment)
     {
         ValidateYear(start, nameof(start));
-        if (increment < 1)
-        {
-            throw new ArgumentOutOfRangeException(nameof(increment), "Invalid increment (must be >= 1).");
-        }
-
+        // Cap to the year span, as every other field caps to its own range. Without an upper
+        // bound an increment near int.MaxValue overflows the unchecked "i += incr" loop in
+        // CronExpression.AddToSet, silently producing a wrong (near-empty) year set.
+        ValidateIncrement(increment, MaxYear - TriggerConstants.EarliestYear);
         return SetYear($"{start}/{increment}");
     }
 

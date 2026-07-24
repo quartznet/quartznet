@@ -5,12 +5,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build & Test Commands
 
 - **Build:** `dotnet build Quartz.slnx` (solution uses modern `.slnx` format)
-- **Full build (Nuke):** `build.cmd` (Windows) or `build.sh` (Linux/macOS)
+- **Full build (Fallout):** `build.cmd` (Windows) or `build.sh` (Linux/macOS) — thin shims that restore the pinned Fallout CLI (`.config/dotnet-tools.json`) and forward to `dotnet fallout <targets>`
 - **Run all unit tests:** `dotnet test src/Quartz.Tests.Unit/Quartz.Tests.Unit.csproj`
 - **Run single test:** `dotnet test src/Quartz.Tests.Unit/Quartz.Tests.Unit.csproj --filter "FullyQualifiedName~TestName"`
 - **Target framework:** Use `-f net10.0` (or `net472` for .NET Framework; non-Windows only supports `net10.0`)
 - **Integration tests:** `dotnet test src/Quartz.Tests.Integration/Quartz.Tests.Integration.csproj -f net10.0` (requires Docker for Testcontainers)
-- **Nuke targets:** `Clean`, `Restore`, `Compile`, `UnitTest`, `IntegrationTest`, `Pack` (defined in `build/Build.cs`)
+- **Fallout targets:** `Clean`, `Restore`, `Compile`, `UnitTest`, `IntegrationTest`, `Pack`, `Publish` (defined in `build/Build.cs`)
 - **Warnings are errors** globally via `src/Directory.Build.props`
 
 ## Documentation
