@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -11,6 +11,8 @@
     <Content Include="quartz.config" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="quartz_jobs.xml" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="log4net.config" CopyToOutputDirectory="PreserveNewest" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" />
   </ItemGroup>
 
   <ItemGroup>

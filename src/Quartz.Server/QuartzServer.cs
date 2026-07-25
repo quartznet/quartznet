@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
 using Quartz.Impl;
@@ -61,7 +62,11 @@ public class QuartzServer : ServiceControl, IQuartzServer
     /// <returns></returns>
     protected virtual ISchedulerFactory CreateSchedulerFactory()
     {
-        return new StdSchedulerFactory();
+        // The server is configured like any other application: from IConfiguration, through the
+        // container, rather than from a properties file of its own.
+        var services = new ServiceCollection();
+        services.AddQuartz(Configuration.Quartz);
+        return services.BuildServiceProvider().GetRequiredService<ISchedulerFactory>();
     }
 
     /// <summary>

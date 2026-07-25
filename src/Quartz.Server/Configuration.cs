@@ -1,89 +1,53 @@
-using System.Collections.Specialized;
-using System.Configuration;
-using Microsoft.Extensions.Logging;
-
-using Quartz.Diagnostics;
+using Microsoft.Extensions.Configuration;
 
 namespace Quartz.Server;
 
 /// <summary>
 /// Configuration for the Quartz server.
 /// </summary>
-public class Configuration
+/// <remarks>
+/// Read from <c>appsettings.json</c> and environment variables rather than from a Full Framework
+/// <c>.config</c> file, which modern .NET does not have.
+/// </remarks>
+public static class Configuration
 {
-    private static readonly ILogger<Configuration> logger = LogProvider.CreateLogger<Configuration>();
+    private const string SectionName = "QuartzServer";
 
-    private const string PrefixServerConfiguration = "quartz.server";
-    private const string KeyServiceName = PrefixServerConfiguration + ".serviceName";
-    private const string KeyServiceDisplayName = PrefixServerConfiguration + ".serviceDisplayName";
-    private const string KeyServiceDescription = PrefixServerConfiguration + ".serviceDescription";
-    private const string KeyServerImplementationType = PrefixServerConfiguration + ".type";
-
-    private const string DefaultServiceName = "QuartzServer";
-    private const string DefaultServiceDisplayName = "Quartz Server";
-    private const string DefaultServiceDescription = "Quartz Job Scheduling Server";
-    private static readonly string DefaultServerImplementationType = typeof(QuartzServer).AssemblyQualifiedName!;
-
-    private static readonly NameValueCollection? configuration;
+    private static readonly IConfiguration configuration = new ConfigurationBuilder()
+        .SetBasePath(AppContext.BaseDirectory)
+        .AddJsonFile("appsettings.json", optional: true)
+        .AddEnvironmentVariables()
+        .Build();
 
     /// <summary>
-    /// Initializes the <see cref="Configuration"/> class.
+    /// The name the service is registered under.
     /// </summary>
-    static Configuration()
+    public static string ServiceName => Get(nameof(ServiceName), "QuartzServer");
+
+    /// <summary>
+    /// The name shown for the service.
+    /// </summary>
+    public static string ServiceDisplayName => Get(nameof(ServiceDisplayName), "Quartz Server");
+
+    /// <summary>
+    /// The description shown for the service.
+    /// </summary>
+    public static string ServiceDescription => Get(nameof(ServiceDescription), "Quartz Job Scheduling Server");
+
+    /// <summary>
+    /// The server implementation to run.
+    /// </summary>
+    public static string ServerImplementationType =>
+        Get(nameof(ServerImplementationType), typeof(QuartzServer).AssemblyQualifiedName!);
+
+    /// <summary>
+    /// The Quartz configuration section the scheduler is built from.
+    /// </summary>
+    public static IConfiguration Quartz => configuration.GetSection("Quartz");
+
+    private static string Get(string key, string defaultValue)
     {
-        try
-        {
-            configuration = (NameValueCollection) ConfigurationManager.GetSection("quartz");
-        }
-        catch (Exception e)
-        {
-            logger.LogWarning(e, "could not read configuration using ConfigurationManager.GetSection: {ErrorMessage}", e.Message);
-        }
-    }
-
-    /// <summary>
-    /// Gets the name of the service.
-    /// </summary>
-    /// <value>The name of the service.</value>
-    public static string ServiceName => GetConfigurationOrDefault(KeyServiceName, DefaultServiceName);
-
-    /// <summary>
-    /// Gets the display name of the service.
-    /// </summary>
-    /// <value>The display name of the service.</value>
-    public static string ServiceDisplayName => GetConfigurationOrDefault(KeyServiceDisplayName, DefaultServiceDisplayName);
-
-    /// <summary>
-    /// Gets the service description.
-    /// </summary>
-    /// <value>The service description.</value>
-    public static string ServiceDescription => GetConfigurationOrDefault(KeyServiceDescription, DefaultServiceDescription);
-
-    /// <summary>
-    /// Gets the type name of the server implementation.
-    /// </summary>
-    /// <value>The type of the server implementation.</value>
-    public static string ServerImplementationType => GetConfigurationOrDefault(KeyServerImplementationType, DefaultServerImplementationType);
-
-    /// <summary>
-    /// Returns configuration value with given key. If configuration
-    /// for the does not exists, return the default value.
-    /// </summary>
-    /// <param name="configurationKey">Key to read configuration with.</param>
-    /// <param name="defaultValue">Default value to return if configuration is not found</param>
-    /// <returns>The configuration value.</returns>
-    private static string GetConfigurationOrDefault(string configurationKey, string defaultValue)
-    {
-        string? retValue = null;
-        if (configuration is not null)
-        {
-            retValue = configuration[configurationKey];
-        }
-
-        if (retValue is null || retValue.Trim().Length == 0)
-        {
-            retValue = defaultValue;
-        }
-        return retValue;
+        var value = configuration.GetSection(SectionName)[key];
+        return string.IsNullOrWhiteSpace(value) ? defaultValue : value;
     }
 }
