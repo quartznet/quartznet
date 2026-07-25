@@ -140,13 +140,15 @@ public class ClusterManagerTest
         IOptions<AdoJobStoreOptions> storeOptions,
         IObjectSerializer objectSerializer,
         IDbConnectionManager connectionManager,
-        IDbProvider dbProvider)
-            : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions, storeOptions, objectSerializer, connectionManager, dbProvider)
+        IDbProvider dbProvider,
+        IDriverDelegate driverDelegate,
+        ISemaphore lockHandler)
+            : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions, storeOptions, objectSerializer, connectionManager, dbProvider, driverDelegate, lockHandler)
         {
         }
 
         public TestJobStoreSupport()
-        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider())
+        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
         {
             InstanceName = "TestInstance";
             InstanceId = "TestInstanceId";

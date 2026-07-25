@@ -418,7 +418,7 @@ Please add configuration to your application config file to correctly initialize
 
         // Callers of this entry point look schedulers up through the process-wide repository and
         // connection manager, so the container must share those rather than owning private ones.
-        services.AddSingleton(SchedulerRepository.Instance);
+        services.AddSingleton<ISchedulerRepository>(SchedulerRepository.Instance);
         services.AddSingleton(DBConnectionManager.Instance);
 
         // Plugins, execution limits and scheduler content are read from QuartzOptions, so the property

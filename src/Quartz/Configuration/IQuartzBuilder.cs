@@ -99,6 +99,11 @@ public interface IQuartzBuilder
         where T : class, ISchedulerPlugin;
 
     /// <summary>
+    /// Adds a plugin the caller builds and configures.
+    /// </summary>
+    IQuartzBuilder AddPlugin(Func<IServiceProvider, ISchedulerPlugin> factory);
+
+    /// <summary>
     /// Adds a plugin with configuration of its own.
     /// </summary>
     IQuartzBuilder AddPlugin<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T, TOptions>(

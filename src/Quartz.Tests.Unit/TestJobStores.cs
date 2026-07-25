@@ -33,6 +33,10 @@ public static class TestJobStores
     /// </summary>
     public static IDbProvider DbProvider() => new StubDbProvider();
 
+    public static IDriverDelegate DriverDelegate() => new StdAdoDelegate();
+
+    public static ISemaphore LockHandler() => new SimpleSemaphore();
+
     public static IObjectSerializer Serializer()
     {
         var serializer = new SystemTextJsonObjectSerializer();
@@ -83,7 +87,9 @@ public static class TestJobStores
             StoreOptions(),
             Serializer(),
             ConnectionManager(),
-            DbProvider());
+            DbProvider(),
+            DriverDelegate(),
+            LockHandler());
     }
 
     public static JobStoreCMT Cmt(
@@ -99,7 +105,9 @@ public static class TestJobStores
             StoreOptions(),
             Serializer(),
             ConnectionManager(),
-            DbProvider());
+            DbProvider(),
+            DriverDelegate(),
+            LockHandler());
     }
 }
 

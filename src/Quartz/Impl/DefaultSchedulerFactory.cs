@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 
 using Quartz.Configuration;
 using Quartz.Core;
+using Quartz.Impl.AdoJobStore;
 using Quartz.Spi;
 
 namespace Quartz.Impl;
@@ -127,6 +128,14 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
         if (options.GenerateInstanceId)
         {
             resources.InstanceId = await GenerateInstanceId(resources, cancellationToken).ConfigureAwait(false);
+
+            // The job store was constructed before the id existed, and its rows are keyed by it, so it
+            // has to be told the generated value rather than keeping the placeholder.
+            if (resources.JobStore is JobStoreSupport persistentStore)
+            {
+                persistentStore.InstanceId = resources.InstanceId;
+                persistentStore.InstanceName = resources.Name;
+            }
         }
 
         var threadPool = resources.ThreadPool;

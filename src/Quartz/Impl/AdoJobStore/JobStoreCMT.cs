@@ -56,8 +56,10 @@ public class JobStoreCMT : JobStoreSupport
         IOptions<AdoJobStoreOptions> storeOptions,
         IObjectSerializer objectSerializer,
         IDbConnectionManager connectionManager,
-        IDbProvider dbProvider)
-        : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions, storeOptions, objectSerializer, connectionManager, dbProvider)
+        IDbProvider dbProvider,
+        IDriverDelegate driverDelegate,
+        ISemaphore lockHandler)
+        : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions, storeOptions, objectSerializer, connectionManager, dbProvider, driverDelegate, lockHandler)
     {
     }
 

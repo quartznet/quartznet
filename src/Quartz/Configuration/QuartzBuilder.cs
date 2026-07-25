@@ -107,8 +107,10 @@ internal sealed class QuartzBuilder : IQuartzBuilder
         var store = new PersistentStoreBuilder(Services, schedulerKey);
         configure(store);
 
-        // Registered after the callback so an explicitly chosen serializer wins over this fallback.
+        // Registered after the callback so explicit choices win over these fallbacks.
         store.UseSerializer<SystemTextJsonObjectSerializer>();
+        store.UseDriverDelegate<StdAdoDelegate>();
+        store.UseLockHandler<SimpleSemaphore>();
         return this;
     }
 
@@ -146,6 +148,29 @@ internal sealed class QuartzBuilder : IQuartzBuilder
         return this;
     }
 
+    /// <summary>
+    /// Adds a plugin the caller builds and configures, under this scheduler's key.
+    /// </summary>
+    /// <remarks>
+    /// Plugin packages use this rather than registering against <see cref="Services"/> directly, which
+    /// would register unkeyed and leave a named scheduler without the plugin.
+    /// </remarks>
+    public IQuartzBuilder AddPlugin(Func<IServiceProvider, ISchedulerPlugin> factory)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+
+        if (schedulerKey is null)
+        {
+            Services.AddSingleton(factory);
+        }
+        else
+        {
+            Services.AddKeyedSingleton<ISchedulerPlugin>(schedulerKey, (provider, _) => factory(provider));
+        }
+
+        return this;
+    }
+
     public IQuartzBuilder AddPlugin<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T, TOptions>(
         Action<TOptions>? configure = null)
         where T : class, ISchedulerPlugin
@@ -162,8 +187,9 @@ internal sealed class QuartzBuilder : IQuartzBuilder
     public IQuartzBuilder AddSchedulerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
         where T : class, ISchedulerListener
     {
+        // Only a configuration is registered. Registering the listener as a service too would make the
+        // default scheduler attach it twice, once from each source.
         Services.AddSingleton(new SchedulerListenerConfiguration(typeof(T), SchedulerName));
-        AddEnumerable<ISchedulerListener, T>();
         return this;
     }
 
@@ -185,7 +211,6 @@ internal sealed class QuartzBuilder : IQuartzBuilder
         params IMatcher<JobKey>[] matchers) where T : class, IJobListener
     {
         Services.AddSingleton(new JobListenerConfiguration(typeof(T), matchers, SchedulerName));
-        AddEnumerable<IJobListener, T>();
         return this;
     }
 
@@ -207,7 +232,6 @@ internal sealed class QuartzBuilder : IQuartzBuilder
         params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener
     {
         Services.AddSingleton(new TriggerListenerConfiguration(typeof(T), matchers, SchedulerName));
-        AddEnumerable<ITriggerListener, T>();
         return this;
     }
 

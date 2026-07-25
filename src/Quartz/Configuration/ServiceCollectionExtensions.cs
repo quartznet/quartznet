@@ -81,10 +81,10 @@ public static class ServiceCollectionExtensions
             return services;
         }
 
-        var properties = QuartzConfigurationHelper.ToNameValueCollection(configuration);
-        AddQuartzScheduler(services, schedulerName: null, properties, configure);
+        // Bound before the callback runs, so configuration is the starting point and code overrides it.
         services.BindQuartzOptions(configuration);
         JsonSchedulingHelper.ConfigureOptionsFromConfiguration(services, configuration, Options.DefaultName);
+        AddQuartzScheduler(services, schedulerName: null, FlatKeysOnly(configuration), configure);
         return services;
     }
 
@@ -135,9 +135,9 @@ public static class ServiceCollectionExtensions
         var own = configuration.GetSection("Schedulers").GetSection(name);
         var effective = own.Exists() ? own : configuration;
 
-        AddQuartzScheduler(services, name, QuartzConfigurationHelper.ToNameValueCollection(effective), configure);
         services.BindQuartzOptions(effective, name);
         JsonSchedulingHelper.ConfigureOptionsFromConfiguration(services, effective, name);
+        AddQuartzScheduler(services, name, FlatKeysOnly(effective), configure);
         return services;
     }
 
@@ -148,6 +148,28 @@ public static class ServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
         return builder.UseTypeLoader<SimpleTypeLoadHelper>();
+    }
+
+    /// <summary>
+    /// Returns only the flat <c>quartz.*</c> keys from a section.
+    /// </summary>
+    /// <remarks>
+    /// Hierarchical sections bind onto the typed options directly. Flattening them into legacy keys as
+    /// well would send the same value through both readers, and the two disagree about form — a
+    /// duration is <c>00:00:30</c> to the binder and a count of milliseconds to the legacy reader.
+    /// </remarks>
+    private static NameValueCollection FlatKeysOnly(IConfiguration configuration)
+    {
+        var properties = new NameValueCollection();
+        foreach (var child in configuration.GetChildren())
+        {
+            if (child.Value is not null && child.Key.StartsWith("quartz.", StringComparison.OrdinalIgnoreCase))
+            {
+                properties[child.Key] = child.Value;
+            }
+        }
+
+        return properties;
     }
 
     private static bool HasDirectSchedulerConfiguration(IConfiguration configuration)

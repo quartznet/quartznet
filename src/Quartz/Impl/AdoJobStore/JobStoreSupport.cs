@@ -75,7 +75,9 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         IOptions<AdoJobStoreOptions> storeOptions,
         IObjectSerializer objectSerializer,
         IDbConnectionManager connectionManager,
-        IDbProvider dbProvider)
+        IDbProvider dbProvider,
+        IDriverDelegate driverDelegate,
+        ISemaphore lockHandler)
     {
         schedSignaler = schedulerSignaler;
         ObjectSerializer = objectSerializer;
@@ -115,6 +117,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         // The store reaches its database through the connection manager, keyed by data source name, so
         // the provider the container built has to be published there under the name this store uses.
         ConnectionManager.AddConnectionProvider(DataSource, dbProvider);
+
+        // The delegate and lock handler are chosen by configuration and built by the container, rather
+        // than loaded from a type name here.
+        this.driverDelegate = driverDelegate;
+        delegateType = driverDelegate.GetType();
+        LockHandler = lockHandler;
     }
 
     /// <summary>
@@ -462,54 +470,31 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     }
 
     /// <summary>
-    /// Get the driver delegate for DB operations.
+    /// Hands the container-supplied delegate the settings it needs, which are only complete once the
+    /// store has been configured.
+    /// </summary>
+    private void InitializeDelegate()
+    {
+        driverDelegate!.Initialize(new DelegateInitializationArgs
+        {
+            UseProperties = CanUseProperties,
+            TablePrefix = tablePrefix,
+            InstanceName = InstanceName,
+            InstanceId = InstanceId,
+            DbProvider = ConnectionManager.GetDbProvider(DataSource),
+            TypeLoadHelper = typeLoadHelper,
+            ObjectSerializer = ObjectSerializer,
+            InitString = DriverDelegateInitString,
+            TimeProvider = timeProvider,
+        });
+    }
+
+    /// <summary>
+    /// The driver delegate this store speaks to its database through.
     /// </summary>
 #pragma warning disable CA1716
-    protected virtual IDriverDelegate Delegate
+    protected virtual IDriverDelegate Delegate => driverDelegate!;
 #pragma warning restore CA1716
-    {
-        get
-        {
-            lock (this)
-            {
-                if (driverDelegate is null)
-                {
-                    try
-                    {
-                        if (!string.IsNullOrWhiteSpace(DriverDelegateType))
-                        {
-                            delegateType = TypeLoadHelper.LoadType(DriverDelegateType)!;
-                        }
-
-                        IDbProvider dbProvider = ConnectionManager.GetDbProvider(DataSource);
-                        var args = new DelegateInitializationArgs();
-                        args.UseProperties = CanUseProperties;
-                        args.TablePrefix = tablePrefix;
-                        args.InstanceName = InstanceName;
-                        args.InstanceId = InstanceId;
-                        args.DbProvider = dbProvider;
-                        args.TypeLoadHelper = typeLoadHelper;
-                        args.ObjectSerializer = ObjectSerializer;
-                        args.InitString = DriverDelegateInitString;
-
-                        var ctor = delegateType.GetConstructor(Type.EmptyTypes);
-                        if (ctor is null)
-                        {
-                            Throw.InvalidConfigurationException("Configured delegate does not have public constructor that takes no arguments");
-                        }
-
-                        driverDelegate = (IDriverDelegate) ctor.Invoke(null);
-                        driverDelegate.Initialize(args);
-                    }
-                    catch (Exception e)
-                    {
-                        Throw.NoSuchDelegateException("Couldn't instantiate delegate: " + e.Message, e);
-                    }
-                }
-            }
-            return driverDelegate;
-        }
-    }
 
     private IDbProvider DbProvider => ConnectionManager.GetDbProvider(DataSource);
 
@@ -532,6 +517,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
 
         LastCheckin = timeProvider.GetUtcNow();
+        InitializeDelegate();
 
         if (Delegate is SQLiteDelegate && LockHandler is not SQLiteSemaphore)
         {
@@ -4101,6 +4087,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         catch (Exception e)
         {
             LastCheckin = timeProvider.GetUtcNow();
+        InitializeDelegate();
             Throw.JobPersistenceException("Failure identifying failed instances when checking-in: " + e.Message, e);
             return default;
         }

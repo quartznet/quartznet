@@ -1,6 +1,3 @@
-using Quartz.Impl;
-using Quartz.Impl.AdoJobStore;
-using Quartz.Simpl;
 using Quartz.Tests.Integration.Utils;
 
 namespace Quartz.Tests.Integration.TestHelpers;
@@ -9,31 +6,46 @@ public class SchedulerHelper
 {
     public const string TablePrefix = "QRTZ_";
 
-    public static async ValueTask<IScheduler> CreateScheduler(string provider, string name)
+    /// <summary>
+    /// Builds a database-backed scheduler through the container, so the store gets the real scheduler's
+    /// signaler, name and instance id rather than stand-ins.
+    /// </summary>
+    public static ValueTask<IScheduler> CreateScheduler(string provider, string name)
     {
-        DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType, out string dataSourceName);
-
-        var serializer = new NewtonsoftJsonObjectSerializer();
-        serializer.Initialize();
-        var jobStore = new JobStoreTX(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider())
-        {
-            DataSource = dataSourceName,
-            TablePrefix = TablePrefix,
-            InstanceId = "AUTO",
-            DriverDelegateType = driverDelegateType,
-            ObjectSerializer = serializer
-        };
-
         string schedulerName = GetSchedulerName(provider, name);
-        return await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options =>
+
+        return QuartzSchedulerBuilder.Create()
+            .Configure(q =>
             {
-                options.InstanceName = schedulerName;
-                options.GenerateInstanceId = true;
+                q.ConfigureScheduler(options =>
+                {
+                    options.InstanceName = schedulerName;
+                    options.GenerateInstanceId = true;
+                });
+                q.UseDefaultThreadPool();
+                q.UsePersistentStore(store =>
+                {
+                    UseDatabase(store, provider);
+                    store.UseNewtonsoftJsonSerializer();
+                    store.Configure(options => options.TablePrefix = TablePrefix);
+                });
             })
-            .UseThreadPool(new DefaultThreadPool())
-            .UseJobStore(jobStore)
             .BuildScheduler();
+    }
+
+    private static void UseDatabase(IPersistentStoreBuilder store, string provider)
+    {
+        switch (provider)
+        {
+            case TestConstants.DefaultSqlServerProvider:
+                store.UseSqlServer(TestConstants.SqlServerConnectionString);
+                break;
+            case TestConstants.PostgresProvider:
+                store.UsePostgres(TestConstants.PostgresConnectionString);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(provider), "Unknown database type " + provider);
+        }
     }
 
     public static string GetSchedulerName(string provider, string name)

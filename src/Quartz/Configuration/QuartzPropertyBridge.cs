@@ -273,6 +273,9 @@ internal static class QuartzPropertyBridge
             return;
         }
 
+        Register<IDriverDelegate>(services, schedulerName, parser.Type("quartz.jobStore.driverDelegateType"));
+        Register<ISemaphore>(services, schedulerName, parser.Type(StdSchedulerFactory.PropertyJobStoreLockHandlerType));
+
         RegisterConfigured<IJobStore>(services, schedulerName, (provider, key) =>
         {
             var jobStore = (IJobStore) ActivatorUtilities.CreateInstance(SchedulerScopedServiceProvider.For(provider, key), jobStoreType);

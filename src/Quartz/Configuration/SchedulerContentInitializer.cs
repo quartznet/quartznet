@@ -61,18 +61,22 @@ internal sealed class SchedulerContentInitializer
 
     private void AddSchedulerListeners(IScheduler scheduler, string optionsName, IServiceProvider provider)
     {
-        if (optionsName.Length == 0)
-        {
-            foreach (var listener in serviceProvider.GetServices<ISchedulerListener>())
-            {
-                scheduler.ListenerManager.AddSchedulerListener(listener);
-            }
-        }
+        var configurations = Configurations<SchedulerListenerConfiguration>(optionsName, x => x.OptionsName);
 
-        foreach (var configuration in Configurations<SchedulerListenerConfiguration>(optionsName, x => x.OptionsName))
+        foreach (var configuration in configurations)
         {
             scheduler.ListenerManager.AddSchedulerListener(
                 ListenerCreationHelper.CreateSchedulerListener(configuration, provider));
+        }
+
+        // Listeners the application registered directly, which carry no configuration of their own.
+        if (optionsName.Length == 0)
+        {
+            var configured = configurations.Select(x => x.ListenerType).ToHashSet();
+            foreach (var listener in serviceProvider.GetServices<ISchedulerListener>().Where(x => !configured.Contains(x.GetType())))
+            {
+                scheduler.ListenerManager.AddSchedulerListener(listener);
+            }
         }
 
     }
@@ -81,23 +85,19 @@ internal sealed class SchedulerContentInitializer
     {
         var configurations = Configurations<JobListenerConfiguration>(optionsName, x => x.OptionsName);
 
-        var used = new HashSet<object>();
+        foreach (var configuration in configurations)
+        {
+            scheduler.ListenerManager.AddJobListener(
+                ListenerCreationHelper.CreateJobListener(configuration, provider), configuration.Matchers);
+        }
+
+        // Listeners the application registered directly, which carry no configuration of their own.
         if (optionsName.Length == 0)
         {
-            foreach (var listener in serviceProvider.GetServices<IJobListener>())
+            var configured = configurations.Select(x => x.ListenerType).ToHashSet();
+            foreach (var listener in serviceProvider.GetServices<IJobListener>().Where(x => !configured.Contains(x.GetType())))
             {
-                // Pair each listener with its own configuration rather than assuming the type
-                // identifies it uniquely — registering two listeners of the same type used to throw.
-                var configuration = Take(configurations, used, listener.GetType());
-                scheduler.ListenerManager.AddJobListener(listener, configuration?.Matchers ?? []);
-            }
-        }
-        else
-        {
-            foreach (var configuration in configurations)
-            {
-                scheduler.ListenerManager.AddJobListener(
-                    ListenerCreationHelper.CreateJobListener(configuration, provider), configuration.Matchers);
+                scheduler.ListenerManager.AddJobListener(listener, []);
             }
         }
 
@@ -107,21 +107,18 @@ internal sealed class SchedulerContentInitializer
     {
         var configurations = Configurations<TriggerListenerConfiguration>(optionsName, x => x.OptionsName);
 
-        var used = new HashSet<object>();
+        foreach (var configuration in configurations)
+        {
+            scheduler.ListenerManager.AddTriggerListener(
+                ListenerCreationHelper.CreateTriggerListener(configuration, provider), configuration.Matchers);
+        }
+
         if (optionsName.Length == 0)
         {
-            foreach (var listener in serviceProvider.GetServices<ITriggerListener>())
+            var configured = configurations.Select(x => x.ListenerType).ToHashSet();
+            foreach (var listener in serviceProvider.GetServices<ITriggerListener>().Where(x => !configured.Contains(x.GetType())))
             {
-                var configuration = Take(configurations, used, listener.GetType());
-                scheduler.ListenerManager.AddTriggerListener(listener, configuration?.Matchers ?? []);
-            }
-        }
-        else
-        {
-            foreach (var configuration in configurations)
-            {
-                scheduler.ListenerManager.AddTriggerListener(
-                    ListenerCreationHelper.CreateTriggerListener(configuration, provider), configuration.Matchers);
+                scheduler.ListenerManager.AddTriggerListener(listener, []);
             }
         }
 
@@ -137,34 +134,6 @@ internal sealed class SchedulerContentInitializer
         }
 
     }
-
-    /// <summary>
-    /// Returns the next unused configuration registered for a listener type.
-    /// </summary>
-    /// <remarks>
-    /// Listeners are matched to their configuration by type, which is ambiguous when the same listener
-    /// type is registered more than once. Consuming each configuration once at least pairs them up in
-    /// registration order instead of throwing.
-    /// </remarks>
-    private static T? Take<T>(T[] configurations, HashSet<object> used, Type listenerType) where T : class
-    {
-        foreach (var configuration in configurations)
-        {
-            if (ListenerTypeOf(configuration) == listenerType && used.Add(configuration))
-            {
-                return configuration;
-            }
-        }
-
-        return null;
-    }
-
-    private static Type ListenerTypeOf(object configuration) => configuration switch
-    {
-        JobListenerConfiguration job => job.ListenerType,
-        TriggerListenerConfiguration trigger => trigger.ListenerType,
-        _ => typeof(object),
-    };
 
     private T[] Configurations<T>(string optionsName, Func<T, string> nameOf)
     {

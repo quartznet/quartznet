@@ -826,7 +826,7 @@ public class JobStoreSupportTest
     {
 
     public TestJobStoreSupport()
-        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider())
+        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
     {
     }
         protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection()
@@ -912,7 +912,7 @@ public class JobStoreSupportTest
     public sealed class RetryTestJobStoreSupport : JobStoreSupport
     {
         public RetryTestJobStoreSupport()
-            : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider())
+            : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
         {
         }
 
@@ -1104,7 +1104,7 @@ public class JobStoreSupportTest
     public sealed class TransientTriggersFiredTestStore : JobStoreSupport
     {
         public TransientTriggersFiredTestStore()
-        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider())
+        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
         {
             LockHandler = new SimpleSemaphore();
             TransientRetryInterval = TimeSpan.Zero;
@@ -1277,7 +1277,7 @@ public class JobStoreSupportTest
     public sealed class TransientDoCheckinTestStore : JobStoreSupport
     {
         public TransientDoCheckinTestStore()
-        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider())
+        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
         {
             LockHandler = new SimpleSemaphore();
             TransientRetryInterval = TimeSpan.Zero;

@@ -102,14 +102,12 @@ public static class PluginConfigurationExtensions
         this IQuartzBuilder builder,
         Action<TPlugin> configure) where TPlugin : class, ISchedulerPlugin
     {
-        builder.Services.AddSingleton<ISchedulerPlugin>(provider =>
+        return builder.AddPlugin(provider =>
         {
             var plugin = ActivatorUtilities.CreateInstance<TPlugin>(provider);
             configure(plugin);
             return plugin;
         });
-
-        return builder;
     }
 }
 
