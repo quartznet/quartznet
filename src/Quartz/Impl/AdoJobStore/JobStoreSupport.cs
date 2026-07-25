@@ -24,6 +24,7 @@ using System.Data;
 using System.Data.Common;
 using System.Globalization;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Quartz.Diagnostics;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Matchers;
@@ -66,8 +67,18 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <summary>
     /// Initializes a new instance of the <see cref="JobStoreSupport"/> class.
     /// </summary>
-    protected JobStoreSupport()
+    protected JobStoreSupport(
+        ISchedulerSignaler schedulerSignaler,
+        ITypeLoadHelper typeLoadHelper,
+        TimeProvider timeProvider,
+        IOptions<QuartzSchedulerOptions> schedulerOptions)
     {
+        schedSignaler = schedulerSignaler;
+        this.typeLoadHelper = typeLoadHelper;
+        this.timeProvider = timeProvider;
+        InstanceName = schedulerOptions.Value.InstanceName;
+        InstanceId = schedulerOptions.Value.InstanceId;
+
         RetryableActionErrorLogThreshold = 4;
         DoubleCheckLockMisfireHandler = true;
         ClusterCheckinInterval = TimeSpan.FromMilliseconds(7500);
@@ -139,16 +150,6 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// Get or set the instance Id of the Scheduler (must be unique within this server instance).
     /// </summary>
     public string InstanceName { get; set; } = "";
-
-    int IJobStore.ThreadPoolSize
-    {
-        set { }
-    }
-
-    TimeProvider IJobStore.TimeProvider
-    {
-        set => timeProvider = value;
-    }
 
     /// <summary>
     /// Gets or sets the number of retries before an error is logged for recovery operations.
@@ -498,10 +499,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// Called by the QuartzScheduler before the <see cref="IJobStore" /> is
     /// used, in order to give it a chance to Initialize.
     /// </summary>
-    public virtual async ValueTask Initialize(
-        ITypeLoadHelper loadHelper,
-        ISchedulerSignaler signaler,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask Initialize(CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(DataSource))
         {
@@ -509,8 +507,6 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
 
         LastCheckin = timeProvider.GetUtcNow();
-        typeLoadHelper = loadHelper;
-        schedSignaler = signaler;
 
         if (Delegate is SQLiteDelegate && LockHandler is not SQLiteSemaphore)
         {

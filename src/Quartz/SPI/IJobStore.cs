@@ -62,32 +62,15 @@ public interface IJobStore
     bool Clustered { get; }
 
     /// <summary>
-    /// Inform the <see cref="IJobStore" /> of the Scheduler instance's Id,
-    /// prior to initialize being invoked.
+    /// Called before the <see cref="IJobStore" /> is used, to give it a chance to initialize.
     /// </summary>
-    string InstanceId { set; }
-
-    /// <summary>
-    /// Inform the <see cref="IJobStore" /> of the Scheduler instance's name,
-    /// prior to initialize being invoked.
-    /// </summary>
-    string InstanceName { set; }
-
-    /// <summary>
-    /// Tells the JobStore the pool size used to execute jobs.
-    /// </summary>
-    int ThreadPoolSize { set; }
-
-    /// <summary>
-    /// Time provider to use.
-    /// </summary>
-    TimeProvider TimeProvider { set; }
-
-    /// <summary>
-    /// Called by the QuartzScheduler before the <see cref="IJobStore" /> is
-    /// used, in order to give it a chance to Initialize.
-    /// </summary>
-    ValueTask Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler, CancellationToken cancellationToken = default);
+    /// <remarks>
+    /// Everything a job store needs — its scheduler's identity, the type load helper, the signaler,
+    /// the time provider — is supplied through its constructor. What remains here is work that has to
+    /// happen before the scheduler runs and that cannot be done during construction, such as verifying
+    /// a database schema.
+    /// </remarks>
+    ValueTask Initialize(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Called by the QuartzScheduler to inform the <see cref="IJobStore" /> that

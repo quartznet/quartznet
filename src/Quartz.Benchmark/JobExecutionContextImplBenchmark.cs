@@ -1,3 +1,4 @@
+using Quartz.Tests;
 #nullable disable
 
 using BenchmarkDotNet.Attributes;
@@ -96,7 +97,7 @@ public class JobExecutionContextImplBenchmark
             Name = name,
             InstanceId = instanceId,
             ThreadPool = new DefaultThreadPool { MaxConcurrency = threadCount },
-            JobStore = new RAMJobStore(),
+            JobStore = TestJobStores.Ram(),
             MaxBatchSize = threadCount,
             BatchTimeWindow = TimeSpan.Zero
         };

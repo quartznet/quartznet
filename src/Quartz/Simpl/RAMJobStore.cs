@@ -59,16 +59,18 @@ public class RAMJobStore : IJobStore
     private readonly HashSet<JobKey> blockedJobs = [];
     private readonly HashSet<JobKey> resumedJobsInPausedGroups = new HashSet<JobKey>();
     private TimeSpan misfireThreshold = TimeSpan.FromSeconds(5);
-    private ISchedulerSignaler signaler = null!;
-    private TimeProvider timeProvider = TimeProvider.System;
+    private readonly ISchedulerSignaler signaler;
+    private readonly TimeProvider timeProvider;
     private readonly ILogger<RAMJobStore> logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RAMJobStore"/> class.
     /// </summary>
-    public RAMJobStore()
+    public RAMJobStore(ILogger<RAMJobStore> logger, ISchedulerSignaler signaler, TimeProvider timeProvider)
     {
-        logger = LogProvider.CreateLogger<RAMJobStore>();
+        this.logger = logger;
+        this.signaler = signaler;
+        this.timeProvider = timeProvider;
     }
 
     /// <summary>
@@ -110,9 +112,8 @@ public class RAMJobStore : IJobStore
     /// Called by the QuartzScheduler before the <see cref="IJobStore" /> is
     /// used, in order to give it a chance to Initialize.
     /// </summary>
-    public virtual ValueTask Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler, CancellationToken cancellationToken = default)
+    public virtual ValueTask Initialize(CancellationToken cancellationToken = default)
     {
-        this.signaler = signaler;
         logger.LogInformation("RAMJobStore initialized.");
         return default;
     }
@@ -2229,34 +2230,6 @@ public class RAMJobStore : IJobStore
         {
             lockObject.Release();
         }
-    }
-
-    /// <summary>
-    /// Inform the <see cref="IJobStore" /> of the Scheduler instance's Id,
-    /// prior to initialize being invoked.
-    /// </summary>
-    string IJobStore.InstanceId
-    {
-        set { }
-    }
-
-    /// <summary>
-    /// Inform the <see cref="IJobStore" /> of the Scheduler instance's name,
-    /// prior to initialize being invoked.
-    /// </summary>
-    string IJobStore.InstanceName
-    {
-        set { }
-    }
-
-    int IJobStore.ThreadPoolSize
-    {
-        set { }
-    }
-
-    TimeProvider IJobStore.TimeProvider
-    {
-        set => timeProvider = value;
     }
 
     public long EstimatedTimeToReleaseAndAcquireTrigger => 5;

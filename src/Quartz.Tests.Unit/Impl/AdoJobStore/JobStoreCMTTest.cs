@@ -22,6 +22,11 @@ public class JobStoreCMTTest
 
     private class TestJobStoreCMT : JobStoreCMT
     {
+
+    public TestJobStoreCMT()
+        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions())
+    {
+    }
         public void ExecuteGetNonManagedConnection()
         {
             GetNonManagedTXConnection().GetAwaiter().GetResult();

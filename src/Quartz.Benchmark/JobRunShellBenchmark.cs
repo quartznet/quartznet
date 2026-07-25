@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using BenchmarkDotNet.Attributes;
 using Quartz.Core;
 using Quartz.Impl;
@@ -23,7 +24,7 @@ public class JobRunShellBenchmark
         _bundleMayFireAgain = CreateTriggerFiredBundle();
         _bundleMayFireAgain.Trigger.ComputeFirstFireTimeUtc(null);
 
-        _jobRunShell = new JobRunShell(_basicScheduler, _bundleMayFireAgain);
+        _jobRunShell = new JobRunShell(_basicScheduler, _bundleMayFireAgain, NullLogger<JobRunShell>.Instance);
         _jobRunShell.Initialize(_basicQuartzScheduler).GetAwaiter().GetResult();
     }
 
@@ -124,9 +125,6 @@ public class JobRunShellBenchmark
 
         public bool Clustered => throw new NotImplementedException();
 
-        public string InstanceId { set => throw new NotImplementedException(); }
-        public string InstanceName { set => throw new NotImplementedException(); }
-        public int ThreadPoolSize { set => throw new NotImplementedException(); }
         public TimeProvider TimeProvider { get; set; } = TimeProvider.System;
 
         public TimeSpan GetAcquireRetryDelay(int failureCount)
@@ -224,7 +222,7 @@ public class JobRunShellBenchmark
             throw new NotImplementedException();
         }
 
-        public ValueTask Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler, CancellationToken cancellationToken = default)
+        public ValueTask Initialize(CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }

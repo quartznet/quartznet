@@ -1,3 +1,4 @@
+using Quartz.Tests;
 using BenchmarkDotNet.Attributes;
 
 using Quartz.Impl;
@@ -539,7 +540,7 @@ public class SchedulerBenchmark
         int repeatCount,
         int misfireInstruction) where T : IJob
     {
-        RAMJobStore store = new RAMJobStore();
+        RAMJobStore store = TestJobStores.Ram();
 
         var threadPool = new DefaultThreadPool { MaxConcurrency = threadCount };
 

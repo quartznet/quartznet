@@ -30,7 +30,7 @@ public class AdoSchedulerTest : AbstractSchedulerTest
     {
         DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType, out string dataSourceName);
 
-        var jobStore = new JobStoreTX
+        var jobStore = new JobStoreTX(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions())
         {
             DataSource = dataSourceName,
             TablePrefix = "QRTZ_",

@@ -23,4 +23,8 @@
     <GlobalPackageReference Remove="Meziantou.Analyzer" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="..\Quartz.Tests.Unit\TestJobStores.cs" />
+  </ItemGroup>
+
 </Project>

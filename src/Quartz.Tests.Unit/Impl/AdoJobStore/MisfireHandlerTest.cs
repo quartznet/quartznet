@@ -1,3 +1,4 @@
+using Quartz.Tests;
 #region License
 
 /*
@@ -167,6 +168,7 @@ public class MisfireHandlerTest
     private class TestJobStoreSupport : JobStoreSupport
     {
         public TestJobStoreSupport()
+        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions())
         {
             InstanceName = "TestInstance";
             InstanceId = "TestInstanceId";

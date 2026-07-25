@@ -1,3 +1,6 @@
+using Quartz.Spi;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 using Npgsql;
 
 using Quartz.Impl.AdoJobStore;
@@ -10,7 +13,7 @@ public class JobStoreSupportTest
     [Test]
     public void CanDetectTransientException()
     {
-        var jobStoreSupport = new TestJobStoreSupport();
+        var jobStoreSupport = new TestJobStoreSupport(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions());
         var npgsqlException = new NpgsqlException("timeout", new TimeoutException());
         Assert.That(jobStoreSupport.IsTransientPublic(npgsqlException), Is.True);
 
@@ -33,6 +36,15 @@ public class JobStoreSupportTest
 
     private class TestJobStoreSupport : JobStoreSupport
     {
+        public TestJobStoreSupport(
+            ISchedulerSignaler schedulerSignaler,
+            ITypeLoadHelper typeLoadHelper,
+            TimeProvider timeProvider,
+            IOptions<QuartzSchedulerOptions> schedulerOptions)
+            : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions)
+        {
+        }
+
         protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection()
         {
             throw new NotImplementedException();

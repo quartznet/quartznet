@@ -1,3 +1,7 @@
+using Quartz.Tests;
+using Quartz.Spi;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 #region License
 
 /*
@@ -126,7 +130,17 @@ public class ClusterManagerTest
 
     private class TestJobStoreSupport : JobStoreSupport
     {
+        public TestJobStoreSupport(
+            ISchedulerSignaler schedulerSignaler,
+            ITypeLoadHelper typeLoadHelper,
+            TimeProvider timeProvider,
+            IOptions<QuartzSchedulerOptions> schedulerOptions)
+            : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions)
+        {
+        }
+
         public TestJobStoreSupport()
+        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions())
         {
             InstanceName = "TestInstance";
             InstanceId = "TestInstanceId";

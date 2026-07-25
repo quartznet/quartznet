@@ -63,11 +63,12 @@ public class JobRunShell : SchedulerListenerSupport
     /// <param name="scheduler">The <see cref="IScheduler" /> instance that should be made
     /// available within the <see cref="IJobExecutionContext" />.</param>
     /// <param name="bundle"></param>
-    public JobRunShell(IScheduler scheduler, TriggerFiredBundle bundle)
+    /// <param name="logger">Logger for this shell, supplied by the factory that creates it.</param>
+    public JobRunShell(IScheduler scheduler, TriggerFiredBundle bundle, ILogger<JobRunShell> logger)
     {
         this.scheduler = scheduler;
         firedTriggerBundle = bundle;
-        logger = LogProvider.CreateLogger<JobRunShell>();
+        this.logger = logger;
     }
 
     public override ValueTask SchedulerShuttingdown(CancellationToken cancellationToken = default)

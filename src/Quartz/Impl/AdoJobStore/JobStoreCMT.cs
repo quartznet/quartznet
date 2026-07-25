@@ -22,6 +22,7 @@
 using System.Data.Common;
 
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 using Quartz.Spi;
 
@@ -43,6 +44,18 @@ namespace Quartz.Impl.AdoJobStore;
 public class JobStoreCMT : JobStoreSupport
 {
     /// <summary>
+    /// Initializes a new instance of the <see cref="JobStoreCMT"/> class.
+    /// </summary>
+    public JobStoreCMT(
+        ISchedulerSignaler schedulerSignaler,
+        ITypeLoadHelper typeLoadHelper,
+        TimeProvider timeProvider,
+        IOptions<QuartzSchedulerOptions> schedulerOptions)
+        : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions)
+    {
+    }
+
+    /// <summary>
     /// Instructs this job store whether connections should be automatically opened.
     /// </summary>
     public virtual bool OpenConnection { protected get; set; }
@@ -51,10 +64,7 @@ public class JobStoreCMT : JobStoreSupport
     /// Called by the QuartzScheduler before the <see cref="IJobStore"/> is
     /// used, in order to give the it a chance to Initialize.
     /// </summary>
-    public override async ValueTask Initialize(
-        ITypeLoadHelper loadHelper,
-        ISchedulerSignaler signaler,
-        CancellationToken cancellationToken = default)
+    public override async ValueTask Initialize(CancellationToken cancellationToken = default)
     {
         if (LockHandler is null)
         {
@@ -63,7 +73,7 @@ public class JobStoreCMT : JobStoreSupport
             UseDBLocks = true;
         }
 
-        await base.Initialize(loadHelper, signaler, cancellationToken).ConfigureAwait(false);
+        await base.Initialize(cancellationToken).ConfigureAwait(false);
         Logger.LogInformation("JobStoreCMT initialized.");
     }
 

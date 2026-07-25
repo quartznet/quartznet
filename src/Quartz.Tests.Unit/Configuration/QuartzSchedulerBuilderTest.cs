@@ -134,7 +134,7 @@ public class QuartzSchedulerBuilderTest
     public void ApplicationRegistrationsWinOverTheDefaults()
     {
         var services = new ServiceCollection();
-        var custom = new RAMJobStore();
+        var custom = TestJobStores.Ram();
         services.AddSingleton<IJobStore>(custom);
         services.AddQuartzScheduler();
 

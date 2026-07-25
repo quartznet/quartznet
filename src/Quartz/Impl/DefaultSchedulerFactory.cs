@@ -152,14 +152,7 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
                 scheduler.Context[pair.Key] = pair.Value;
             }
 
-            var jobStore = resources.JobStore;
-            jobStore.InstanceName = resources.Name;
-            jobStore.InstanceId = resources.InstanceId;
-            jobStore.ThreadPoolSize = threadPool.PoolSize;
-            jobStore.TimeProvider = resources.TimeProvider;
-            await jobStore
-                .Initialize(serviceProvider.GetRequiredService<ITypeLoadHelper>(), quartzScheduler.SchedulerSignaler, cancellationToken)
-                .ConfigureAwait(false);
+            await resources.JobStore.Initialize(cancellationToken).ConfigureAwait(false);
 
             resources.JobRunShellFactory.Initialize(scheduler);
 

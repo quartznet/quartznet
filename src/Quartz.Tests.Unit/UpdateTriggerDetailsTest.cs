@@ -17,9 +17,9 @@ public class UpdateTriggerDetailsTest
     [SetUp]
     public async Task SetUp()
     {
-        jobStore = new RAMJobStore();
+        jobStore = TestJobStores.Ram();
         TestSignaler signaler = new TestSignaler();
-        await jobStore.Initialize(null!, signaler);
+        await jobStore.Initialize();
         await jobStore.SchedulerStarted();
 
         jobDetail = JobBuilder.Create()

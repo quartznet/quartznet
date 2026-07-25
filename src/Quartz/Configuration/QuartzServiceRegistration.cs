@@ -73,18 +73,21 @@ internal static class QuartzServiceRegistration
         object? key = schedulerName;
 
         services.TryAddKeyed<IJobFactory>(key, static (provider, key) =>
-            ActivatorUtilities.CreateInstance<MicrosoftDependencyInjectionJobFactory>(provider));
+            ActivatorUtilities.CreateInstance<MicrosoftDependencyInjectionJobFactory>(Scoped(provider, key)));
 
         services.TryAddKeyed<IJobRunShellFactory>(key, static (provider, key) =>
-            ActivatorUtilities.CreateInstance<StdJobRunShellFactory>(provider));
+            ActivatorUtilities.CreateInstance<StdJobRunShellFactory>(Scoped(provider, key)));
 
         services.TryAddKeyed<IInstanceIdGenerator>(key, static (provider, key) =>
-            ActivatorUtilities.CreateInstance<SimpleInstanceIdGenerator>(provider));
+            ActivatorUtilities.CreateInstance<SimpleInstanceIdGenerator>(Scoped(provider, key)));
+
+        services.TryAddKeyed<ISchedulerSignaler>(key, static (provider, key) =>
+            new LazySchedulerSignaler(provider, new SchedulerKey(key)));
 
         services.TryAddKeyed<IThreadPool>(key, static (provider, key) =>
         {
             var options = provider.GetSchedulerOptions<ThreadPoolOptions>(key);
-            var threadPool = ActivatorUtilities.CreateInstance<DefaultThreadPool>(provider);
+            var threadPool = ActivatorUtilities.CreateInstance<DefaultThreadPool>(Scoped(provider, key));
             threadPool.MaxConcurrency = options.MaxConcurrency;
             return threadPool;
         });
@@ -92,7 +95,7 @@ internal static class QuartzServiceRegistration
         services.TryAddKeyed<IJobStore>(key, static (provider, key) =>
         {
             var options = provider.GetSchedulerOptions<InMemoryJobStoreOptions>(key);
-            var jobStore = ActivatorUtilities.CreateInstance<RAMJobStore>(provider);
+            var jobStore = ActivatorUtilities.CreateInstance<RAMJobStore>(Scoped(provider, key));
             jobStore.MisfireThreshold = options.MisfireThreshold;
             return jobStore;
         });
@@ -134,16 +137,16 @@ internal static class QuartzServiceRegistration
         // the unnamed scheduler's content.
         services.TryAddKeyed<ContainerConfigurationProcessor>(key, static (provider, key) =>
             ActivatorUtilities.CreateInstance<ContainerConfigurationProcessor>(
-                provider, provider.GetSchedulerOptions<QuartzOptions>(key)));
+                Scoped(provider, key), provider.GetSchedulerOptions<QuartzOptions>(key)));
 
         services.TryAddKeyed<SchedulerContentInitializer>(key, static (provider, key) =>
             ActivatorUtilities.CreateInstance<SchedulerContentInitializer>(
-                provider,
+                Scoped(provider, key),
                 provider.GetSchedulerOptions<QuartzOptions>(key),
                 provider.GetScheduler<ContainerConfigurationProcessor>(key)));
 
         services.TryAddKeyed<ISchedulerFactory>(key, static (provider, key) =>
-            ActivatorUtilities.CreateInstance<DefaultSchedulerFactory>(provider, new SchedulerKey(key)));
+            ActivatorUtilities.CreateInstance<DefaultSchedulerFactory>(Scoped(provider, key), new SchedulerKey(key)));
 
         if (schedulerName is not null)
         {
@@ -170,6 +173,14 @@ internal static class QuartzServiceRegistration
         {
             services.TryAddKeyedSingleton(key, (provider, serviceKey) => factory(provider, serviceKey));
         }
+    }
+
+    /// <summary>
+    /// Returns a provider that resolves this scheduler's parts rather than the default scheduler's.
+    /// </summary>
+    private static IServiceProvider Scoped(IServiceProvider provider, object? key)
+    {
+        return SchedulerScopedServiceProvider.For(provider, key);
     }
 
     /// <summary>

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -12,6 +12,7 @@
   <ItemGroup>
     <EmbeddedResource Include="**\TestData\*" />
     <Compile Include="..\Quartz.Tests.Unit\TestConstants.cs" />
+    <Compile Include="..\Quartz.Tests.Unit\TestJobStores.cs" />
   </ItemGroup>
 
   <ItemGroup>

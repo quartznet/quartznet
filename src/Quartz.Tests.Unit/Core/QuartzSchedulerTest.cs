@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 #region License
 
 /*
@@ -249,8 +250,8 @@ public class QuartzSchedulerTest
             Name = name,
             InstanceId = instanceId,
             ThreadPool = threadPool,
-            JobRunShellFactory = new StdJobRunShellFactory(),
-            JobStore = new RAMJobStore(),
+            JobRunShellFactory = new StdJobRunShellFactory(NullLogger<JobRunShell>.Instance),
+            JobStore = TestJobStores.Ram(),
             IdleWaitTime = TimeSpan.FromMilliseconds(10),
             MaxBatchSize = threadCount,
             BatchTimeWindow = TimeSpan.FromMilliseconds(10)

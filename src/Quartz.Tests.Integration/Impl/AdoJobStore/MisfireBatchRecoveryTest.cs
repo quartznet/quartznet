@@ -242,7 +242,7 @@ public class MisfireBatchRecoveryTest
             MisfireThreshold = TimeSpan.FromSeconds(1)
         };
 
-        await jobStore.Initialize(new SimpleTypeLoadHelper(), A.Fake<ISchedulerSignaler>());
+        await jobStore.Initialize();
         await jobStore.SchedulerStarted();
         await jobStore.ClearAllSchedulingData();
 
@@ -265,6 +265,11 @@ public class MisfireBatchRecoveryTest
 
     private sealed class TestJobStoreTX : JobStoreTX
     {
+        public TestJobStoreTX()
+            : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions())
+        {
+        }
+
         public ValueTask<RecoverMisfiredJobsResult> RecoverMisfires()
             => DoRecoverMisfires(Guid.NewGuid(), CancellationToken.None);
     }

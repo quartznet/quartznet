@@ -230,7 +230,7 @@ internal static class QuartzPropertyBridge
         // configured component still has to be configured.
         RegisterConfigured<IThreadPool>(services, schedulerName, (provider, key) =>
         {
-            var threadPool = (IThreadPool) ActivatorUtilities.CreateInstance(provider, threadPoolType);
+            var threadPool = (IThreadPool) ActivatorUtilities.CreateInstance(SchedulerScopedServiceProvider.For(provider, key), threadPoolType);
             if (threadPool is TaskSchedulingThreadPool schedulingThreadPool)
             {
                 schedulingThreadPool.MaxConcurrency = provider.GetSchedulerOptions<ThreadPoolOptions>(key).MaxConcurrency;
@@ -277,7 +277,7 @@ internal static class QuartzPropertyBridge
 
         RegisterConfigured<IJobStore>(services, schedulerName, (provider, key) =>
         {
-            var jobStore = (IJobStore) ActivatorUtilities.CreateInstance(provider, jobStoreType);
+            var jobStore = (IJobStore) ActivatorUtilities.CreateInstance(SchedulerScopedServiceProvider.For(provider, key), jobStoreType);
             if (jobStore is RAMJobStore ramJobStore)
             {
                 ramJobStore.MisfireThreshold = provider.GetSchedulerOptions<InMemoryJobStoreOptions>(key).MisfireThreshold;

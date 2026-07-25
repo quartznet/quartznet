@@ -191,8 +191,8 @@ public sealed class NodeAffinityTest
     {
         // RAMJobStore is single-node by definition, so a pin is carried as metadata and never
         // filters acquisition — a trigger pinned to another node must still fire.
-        var store = new RAMJobStore();
-        await store.Initialize(null!, new SampleSignaler());
+        var store = TestJobStores.Ram();
+        await store.Initialize();
 
         var job = JobBuilder.Create<TestJob>().WithIdentity("j1").Build();
         var trigger = (IOperableTrigger) TriggerBuilder.Create()
