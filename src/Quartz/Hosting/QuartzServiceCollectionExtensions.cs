@@ -43,7 +43,9 @@ public static class QuartzServiceCollectionExtensions
         // because QuartzHostedService requires ISchedulerFactory as a constructor dependency --
         // the DI container would fail at host startup when only named schedulers are used.
         // This means AddQuartz() must be called before AddQuartzHostedService() for the default scheduler.
-        if (services.Any(d => d.ServiceType == typeof(ISchedulerFactory)))
+        // A named scheduler registers its factory under a service key, so the key is what tells the two
+        // apart: only an unkeyed registration is the default scheduler's.
+        if (services.Any(d => d.ServiceType == typeof(ISchedulerFactory) && d.ServiceKey is null))
         {
             services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, T>());
         }

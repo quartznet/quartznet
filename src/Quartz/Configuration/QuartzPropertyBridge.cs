@@ -9,6 +9,7 @@ using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Simpl;
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz.Configuration;
 
@@ -218,7 +219,30 @@ internal static class QuartzPropertyBridge
     {
         services.Configure<ThreadPoolOptions>(name, options => MapThreadPool(options, parser));
 
-        Register<IThreadPool>(services, schedulerName, parser.Type(StdSchedulerFactory.PropertyThreadPoolType));
+        var threadPoolType = parser.Type(StdSchedulerFactory.PropertyThreadPoolType);
+        if (threadPoolType is null)
+        {
+            return;
+        }
+
+        // Registering the type alone would win the TryAdd race against the default registration and so
+        // skip the configuration it applies, leaving a thread pool silently built with defaults. A
+        // configured component still has to be configured.
+        RegisterConfigured<IThreadPool>(services, schedulerName, (provider, key) =>
+        {
+            var threadPool = (IThreadPool) ActivatorUtilities.CreateInstance(provider, threadPoolType);
+            if (threadPool is TaskSchedulingThreadPool schedulingThreadPool)
+            {
+                schedulingThreadPool.MaxConcurrency = provider.GetSchedulerOptions<ThreadPoolOptions>(key).MaxConcurrency;
+            }
+            else
+            {
+                // A third-party pool has no typed options, so its knobs still arrive as strings.
+                ApplyStringProperties(threadPool, provider, key, StdSchedulerFactory.PropertyThreadPoolPrefix);
+            }
+
+            return threadPool;
+        });
     }
 
     private static void MapThreadPool(ThreadPoolOptions options, PropertyReader parser)
@@ -246,7 +270,30 @@ internal static class QuartzPropertyBridge
             services.Configure<InMemoryJobStoreOptions>(name, options => MapInMemoryJobStore(options, parser));
         }
 
-        Register<IJobStore>(services, schedulerName, jobStoreType);
+        if (jobStoreType is null)
+        {
+            return;
+        }
+
+        RegisterConfigured<IJobStore>(services, schedulerName, (provider, key) =>
+        {
+            var jobStore = (IJobStore) ActivatorUtilities.CreateInstance(provider, jobStoreType);
+            if (jobStore is RAMJobStore ramJobStore)
+            {
+                ramJobStore.MisfireThreshold = provider.GetSchedulerOptions<InMemoryJobStoreOptions>(key).MisfireThreshold;
+            }
+            else
+            {
+                // Persistent and third-party stores are still configured by string properties; the ADO
+                // store moves onto its typed options when it moves to constructor injection.
+                ApplyStringProperties(
+                    jobStore, provider, key,
+                    StdSchedulerFactory.PropertyJobStorePrefix,
+                    StdSchedulerFactory.PropertyJobStoreLockHandlerPrefix);
+            }
+
+            return jobStore;
+        });
     }
 
     private static void MapInMemoryJobStore(InMemoryJobStoreOptions options, PropertyReader parser)
@@ -348,6 +395,57 @@ internal static class QuartzPropertyBridge
         else
         {
             services.TryAddKeyedSingleton(typeof(TService), schedulerName, implementationType);
+        }
+    }
+
+    /// <summary>
+    /// Registers a component that needs configuring after construction, keyed for a named scheduler and
+    /// unkeyed for the default one.
+    /// </summary>
+    private static void RegisterConfigured<TService>(
+        IServiceCollection services,
+        string? schedulerName,
+        Func<IServiceProvider, object?, TService> factory) where TService : class
+    {
+        if (schedulerName is null)
+        {
+            services.TryAddSingleton(provider => factory(provider, null));
+        }
+        else
+        {
+            services.TryAddKeyedSingleton(schedulerName, (provider, key) => factory(provider, key));
+        }
+    }
+
+    /// <summary>
+    /// Applies the leftover <c>&lt;prefix&gt;.*</c> string properties to a component that has no typed
+    /// options of its own, which is how third-party implementations stay configurable.
+    /// </summary>
+    private static void ApplyStringProperties(
+        object target,
+        IServiceProvider provider,
+        object? key,
+        string prefix,
+        params string[] excludedPrefixes)
+    {
+        var properties = new PropertyReader(provider.GetSchedulerProperties(key as string ?? Options.DefaultName))
+            .Group(prefix);
+
+        properties.Remove(StdSchedulerFactory.PropertyPluginType);
+        foreach (var excluded in excludedPrefixes)
+        {
+            foreach (var name in properties.AllKeys.ToArray())
+            {
+                if (name is not null && $"{prefix}.{name}".StartsWith(excluded, StringComparison.Ordinal))
+                {
+                    properties.Remove(name);
+                }
+            }
+        }
+
+        if (properties.Count > 0)
+        {
+            ObjectUtils.SetObjectProperties(target, properties);
         }
     }
 

@@ -29,12 +29,16 @@ internal sealed class SchedulerContentInitializer
     internal const string ServiceProviderContextKey = "Quartz.ServiceProvider";
 
     private readonly IServiceProvider serviceProvider;
-    private readonly IOptions<QuartzOptions> options;
+    private readonly QuartzOptions options;
     private readonly ContainerConfigurationProcessor processor;
 
+    /// <remarks>
+    /// Takes the resolved options so a named scheduler gets its own, rather than every scheduler
+    /// sharing the unnamed instance.
+    /// </remarks>
     public SchedulerContentInitializer(
         IServiceProvider serviceProvider,
-        IOptions<QuartzOptions> options,
+        QuartzOptions options,
         ContainerConfigurationProcessor processor)
     {
         this.serviceProvider = serviceProvider;
@@ -48,7 +52,7 @@ internal sealed class SchedulerContentInitializer
         scheduler.Context[ServiceProviderContextKey] = serviceProvider;
 
         // Deferred configuration may have registered singletons that are not in the built container.
-        var provider = options.Value._deferredSingletons.WrapServiceProvider(serviceProvider);
+        var provider = options._deferredSingletons.WrapServiceProvider(serviceProvider);
 
         AddSchedulerListeners(scheduler, optionsName, provider);
         AddJobListeners(scheduler, optionsName, provider);
@@ -74,7 +78,7 @@ internal sealed class SchedulerContentInitializer
                 ListenerCreationHelper.CreateSchedulerListener(configuration, provider));
         }
 
-        foreach (var configuration in options.Value._deferredSchedulerListeners.Where(x => x.OptionsName == optionsName))
+        foreach (var configuration in options._deferredSchedulerListeners.Where(x => x.OptionsName == optionsName))
         {
             scheduler.ListenerManager.AddSchedulerListener(
                 ListenerCreationHelper.CreateSchedulerListener(configuration, provider));
@@ -102,7 +106,7 @@ internal sealed class SchedulerContentInitializer
             }
         }
 
-        foreach (var configuration in options.Value._deferredJobListeners.Where(x => x.OptionsName == optionsName))
+        foreach (var configuration in options._deferredJobListeners.Where(x => x.OptionsName == optionsName))
         {
             scheduler.ListenerManager.AddJobListener(
                 ListenerCreationHelper.CreateJobListener(configuration, provider), configuration.Matchers ?? []);
@@ -130,7 +134,7 @@ internal sealed class SchedulerContentInitializer
             }
         }
 
-        foreach (var configuration in options.Value._deferredTriggerListeners.Where(x => x.OptionsName == optionsName))
+        foreach (var configuration in options._deferredTriggerListeners.Where(x => x.OptionsName == optionsName))
         {
             scheduler.ListenerManager.AddTriggerListener(
                 ListenerCreationHelper.CreateTriggerListener(configuration, provider), configuration.Matchers ?? []);
@@ -146,7 +150,7 @@ internal sealed class SchedulerContentInitializer
                 .ConfigureAwait(false);
         }
 
-        foreach (var configuration in options.Value._deferredCalendars.Where(x => x.OptionsName == optionsName))
+        foreach (var configuration in options._deferredCalendars.Where(x => x.OptionsName == optionsName))
         {
             await scheduler.AddCalendar(
                 configuration.Name, configuration.Calendar, configuration.Replace, configuration.UpdateTriggers, cancellationToken)

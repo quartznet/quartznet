@@ -11,22 +11,26 @@ namespace Quartz.Configuration;
 /// </summary>
 internal sealed class ContainerConfigurationProcessor : XMLSchedulingDataProcessor
 {
-    private readonly IOptions<QuartzOptions> options;
+    private readonly QuartzOptions options;
 
+    /// <remarks>
+    /// Takes the resolved options rather than <see cref="IOptions{TOptions}"/> so that a named
+    /// scheduler is handed its own options instance, instead of every scheduler sharing the unnamed one.
+    /// </remarks>
     public ContainerConfigurationProcessor(
         ILogger<XMLSchedulingDataProcessor> logger,
         ITypeLoadHelper typeLoadHelper,
         TimeProvider timeProvider,
-        IOptions<QuartzOptions> options)
+        QuartzOptions options)
         : base(logger, typeLoadHelper, timeProvider)
     {
         this.options = options;
     }
 
-    public override bool OverWriteExistingData => options.Value.Scheduling.OverWriteExistingData;
-    public override bool IgnoreDuplicates => options.Value.Scheduling.IgnoreDuplicates;
-    public override bool ScheduleTriggerRelativeToReplacedTrigger => options.Value.Scheduling.ScheduleTriggerRelativeToReplacedTrigger;
+    public override bool OverWriteExistingData => options.Scheduling.OverWriteExistingData;
+    public override bool IgnoreDuplicates => options.Scheduling.IgnoreDuplicates;
+    public override bool ScheduleTriggerRelativeToReplacedTrigger => options.Scheduling.ScheduleTriggerRelativeToReplacedTrigger;
 
-    protected override IReadOnlyList<IJobDetail> LoadedJobs => options.Value.JobDetails;
-    protected override IReadOnlyList<ITrigger> LoadedTriggers => options.Value.Triggers;
+    protected override IReadOnlyList<IJobDetail> LoadedJobs => options.JobDetails;
+    protected override IReadOnlyList<ITrigger> LoadedTriggers => options.Triggers;
 }

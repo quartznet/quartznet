@@ -146,11 +146,9 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
             }
 
             // Listeners, calendars, jobs and triggers can only be applied once a scheduler exists.
-            var content = serviceProvider.GetService<SchedulerContentInitializer>();
-            if (content is not null)
-            {
-                await content.Initialize(scheduler, schedulerKey.OptionsName, cancellationToken).ConfigureAwait(false);
-            }
+            await serviceProvider.GetScheduler<SchedulerContentInitializer>(Key)
+                .Initialize(scheduler, schedulerKey.OptionsName, cancellationToken)
+                .ConfigureAwait(false);
 
             logger.LogInformation(
                 "Quartz Scheduler {Version} - '{SchedulerName}' with instanceId '{SchedulerInstanceId}' initialized",

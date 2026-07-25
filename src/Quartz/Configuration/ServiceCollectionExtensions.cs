@@ -228,22 +228,6 @@ public static class ServiceCollectionExtensions
         // from the named options key / registry entry via SetProperty() or Properties[]
         schedulerBuilder.Properties[StdSchedulerFactory.PropertySchedulerInstanceName] = name;
 
-        // Shared singletons -- safe to register multiple times via TryAdd
-        services.TryAddSingleton<IDbConnectionManager, DBConnectionManager>();
-        services.TryAddSingleton<ISchedulerRepository, SchedulerRepository>();
-
-        if (string.IsNullOrWhiteSpace(properties[StdSchedulerFactory.PropertySchedulerTypeLoadHelperType]))
-        {
-            services.TryAddSingleton<ITypeLoadHelper, SimpleTypeLoadHelper>();
-        }
-
-        services.TryAddSingleton(TimeProvider.System);
-        if (string.IsNullOrWhiteSpace(properties[StdSchedulerFactory.PropertySchedulerJobFactoryType]))
-        {
-            properties[StdSchedulerFactory.PropertySchedulerJobFactoryType] = typeof(MicrosoftDependencyInjectionJobFactory).AssemblyQualifiedNameWithoutVersion();
-            services.TryAddSingleton<IJobFactory, MicrosoftDependencyInjectionJobFactory>();
-        }
-
         // Configure named options for this scheduler
         services.Configure<QuartzOptions>(name, options =>
         {
@@ -256,6 +240,11 @@ public static class ServiceCollectionExtensions
                 options[key] = schedulerBuilder.Properties[key];
             }
         });
+
+        // This scheduler's parts are registered under its name as the service key, so it owns its job
+        // store, thread pool and the rest rather than sharing the default scheduler's.
+        QuartzPropertyBridge.Apply(services, schedulerBuilder.Properties, name);
+        QuartzPropertyBridge.ApplyFromQuartzOptions(services, name);
 
         // Register this scheduler name in the registry
         ServiceDescriptor? existing = services.FirstOrDefault(d => d.ServiceType == typeof(SchedulerNameRegistry));
