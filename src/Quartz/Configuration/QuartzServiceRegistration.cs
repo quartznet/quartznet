@@ -50,7 +50,10 @@ internal static class QuartzServiceRegistration
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<ITypeLoadHelper, SimpleTypeLoadHelper>();
         services.TryAddSingleton<ISchedulerRepository, SchedulerRepository>();
-        services.TryAddSingleton<IDbConnectionManager, DBConnectionManager>();
+        // The process-wide connection manager, so a provider registered with DBConnectionManager.Instance
+        // is visible to schedulers built through the container and vice versa. Two of these would mean
+        // a data source registered in one place is invisible in the other.
+        services.TryAddSingleton<IDbConnectionManager>(DBConnectionManager.Instance);
 
         return services;
     }
