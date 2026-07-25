@@ -54,30 +54,8 @@ public class JobDataMapStorageTest : IntegrationTest
         }
     }
 
-    private async ValueTask<IScheduler> CreateScheduler(string name)
+    private ValueTask<IScheduler> CreateScheduler(string name)
     {
-        DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType, out string dataSourceName);
-
-        var serializer = new NewtonsoftJsonObjectSerializer();
-        serializer.Initialize();
-        var jobStore = new JobStoreTX(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
-        {
-            DataSource = dataSourceName,
-            TablePrefix = "QRTZ_",
-            InstanceId = "AUTO",
-            DriverDelegateType = driverDelegateType,
-            ObjectSerializer = serializer
-        };
-
-        string schedulerName = SchedulerHelper.GetSchedulerName(provider, name);
-        return await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options =>
-            {
-                options.InstanceName = schedulerName;
-                options.GenerateInstanceId = true;
-            })
-            .UseThreadPool(new DefaultThreadPool())
-            .UseJobStore(jobStore)
-            .BuildScheduler();
+        return SchedulerHelper.CreateScheduler(provider, name);
     }
 }

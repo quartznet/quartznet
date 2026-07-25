@@ -1,3 +1,5 @@
+#nullable enable
+
 using Quartz.Tests.Integration.Utils;
 
 namespace Quartz.Tests.Integration.TestHelpers;
@@ -12,22 +14,35 @@ public class SchedulerHelper
     /// </summary>
     public static ValueTask<IScheduler> CreateScheduler(string provider, string name)
     {
-        string schedulerName = GetSchedulerName(provider, name);
+        return CreateScheduler(provider, options =>
+        {
+            options.InstanceName = GetSchedulerName(provider, name);
+            options.GenerateInstanceId = true;
+        });
+    }
 
+    /// <summary>
+    /// Builds a database-backed scheduler with explicit scheduler options.
+    /// </summary>
+    public static ValueTask<IScheduler> CreateScheduler(
+        string provider,
+        Action<QuartzSchedulerOptions> configureScheduler,
+        Action<AdoJobStoreOptions>? configureStore = null)
+    {
         return QuartzSchedulerBuilder.Create()
             .Configure(q =>
             {
-                q.ConfigureScheduler(options =>
-                {
-                    options.InstanceName = schedulerName;
-                    options.GenerateInstanceId = true;
-                });
+                q.ConfigureScheduler(configureScheduler);
                 q.UseDefaultThreadPool();
                 q.UsePersistentStore(store =>
                 {
                     UseDatabase(store, provider);
                     store.UseNewtonsoftJsonSerializer();
-                    store.Configure(options => options.TablePrefix = TablePrefix);
+                    store.Configure(options =>
+                    {
+                        options.TablePrefix = TablePrefix;
+                        configureStore?.Invoke(options);
+                    });
                 });
             })
             .BuildScheduler();

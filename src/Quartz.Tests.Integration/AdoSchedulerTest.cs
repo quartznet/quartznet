@@ -1,3 +1,4 @@
+using Quartz.Tests.Integration.TestHelpers;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Simpl;
@@ -28,26 +29,12 @@ public class AdoSchedulerTest : AbstractSchedulerTest
 
     protected override async ValueTask<IScheduler> CreateScheduler(string name, int threadPoolSize)
     {
-        DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType, out string dataSourceName);
-
-        var jobStore = new JobStoreTX(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
-        {
-            DataSource = dataSourceName,
-            TablePrefix = "QRTZ_",
-            InstanceId = "AUTO",
-            DriverDelegateType = driverDelegateType,
-            ObjectSerializer = serializer
-        };
-
-        var schedulerName = CreateSchedulerName(name);
-        return await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options =>
+        return await SchedulerHelper.CreateScheduler(
+            provider,
+            options =>
             {
-                options.InstanceName = schedulerName;
+                options.InstanceName = CreateSchedulerName(name);
                 options.GenerateInstanceId = true;
-            })
-            .UseThreadPool(new DefaultThreadPool())
-            .UseJobStore(jobStore)
-            .BuildScheduler();
+            });
     }
 }
