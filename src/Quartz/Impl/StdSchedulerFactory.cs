@@ -243,12 +243,20 @@ public class StdSchedulerFactory : ISchedulerFactory, IDisposable
     }
 
     /// <summary>
-    /// Initializes the factory with defaults, overridden by any <c>quartz.*</c> environment variables.
+    /// Initializes the factory from the <c>quartz.config</c> file, overridden by any <c>quartz.*</c>
+    /// environment variables.
     /// </summary>
     /// <remarks>
-    /// Scheduler configuration is no longer discovered from a <c>quartz.config</c> file. Supply it
-    /// through <see cref="IConfiguration"/> and <c>AddQuartz</c>, or in code through
-    /// <see cref="QuartzSchedulerBuilder"/>.
+    /// <para>
+    /// This is the entry point for applications that have not moved to <c>AddQuartz</c>, so it still
+    /// finds the file where it has always looked: <c>~/quartz.config</c>, or whatever the
+    /// <c>quartz.config</c> environment variable names. New applications should prefer
+    /// <see cref="IConfiguration"/> with <c>AddQuartz</c>, or <see cref="QuartzSchedulerBuilder"/>.
+    /// </para>
+    /// <para>
+    /// Unlike 3.x this does not fail when no file is found. A scheduler can now be configured entirely
+    /// through the container, so the absence of a file is not by itself a misconfiguration.
+    /// </para>
     /// </remarks>
     public virtual void Initialize()
     {
@@ -259,17 +267,12 @@ public class StdSchedulerFactory : ISchedulerFactory, IDisposable
         }
 
         logger = LogProvider.CreateLogger<StdSchedulerFactory>();
-        Initialize(OverrideWithSysProps(new NameValueCollection()));
+        Initialize(OverrideWithSysProps(InitializeProperties(logger, throwOnProblem: false) ?? []));
     }
 
     /// <summary>
     /// Reads the <c>quartz.config</c> file, if present.
     /// </summary>
-    /// <remarks>
-    /// Scheduler configuration no longer comes from this file. It survives only so that custom ADO.NET
-    /// provider metadata, declared with <c>quartz.dbprovider.*</c> keys, can still be defined in one —
-    /// there is no typed equivalent for that yet.
-    /// </remarks>
     internal static NameValueCollection? InitializeProperties(ILogger<StdSchedulerFactory> logger, bool throwOnProblem)
     {
         NameValueCollection? props = null;

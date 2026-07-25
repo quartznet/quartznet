@@ -143,7 +143,7 @@ internal sealed class SchedulerScopedServiceProvider
         return new Scope(inner.GetRequiredService<IServiceScopeFactory>().CreateScope(), key);
     }
 
-    private sealed class Scope : IServiceScope
+    private sealed class Scope : IServiceScope, IAsyncDisposable
     {
         private readonly IServiceScope scope;
 
@@ -156,6 +156,24 @@ internal sealed class SchedulerScopedServiceProvider
         public IServiceProvider ServiceProvider { get; }
 
         public void Dispose() => scope.Dispose();
+
+        /// <summary>
+        /// Disposes the wrapped scope asynchronously where it supports it.
+        /// </summary>
+        /// <remarks>
+        /// Jobs are torn down through <see cref="IAsyncDisposable"/>. Without it here, a scoped service
+        /// that is only async-disposable throws when the container disposes the scope synchronously.
+        /// </remarks>
+        public ValueTask DisposeAsync()
+        {
+            if (scope is IAsyncDisposable asyncDisposable)
+            {
+                return asyncDisposable.DisposeAsync();
+            }
+
+            scope.Dispose();
+            return default;
+        }
     }
 
     public object? GetKeyedService(Type serviceType, object? serviceKey)

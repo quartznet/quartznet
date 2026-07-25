@@ -350,11 +350,14 @@ Two differences are worth knowing:
 A listener named by properties has no matchers to carry, so it listens to everything. The code-first
 methods take matchers, which is the reason to prefer them.
 
-The keys that select an implementation have a hierarchical spelling too — `JobStore:Type`,
-`JobStore:DriverDelegateType`, `JobStore:LockHandler:Type`, `ThreadPool:Type`,
-`Scheduler:JobFactory:Type`, `Scheduler:TypeLoadHelper:Type` and the `Scheduler:InstanceIdGenerator`
-section — so a configuration file need not mix the two forms. They are the only members of those
-sections without an option of their own, because naming a type is a registration rather than a value.
+Every key has both spellings. `quartz.jobStore.tablePrefix` and `JobStore:TablePrefix` are the same
+setting said two ways, and so are the ones that select an implementation rather than set a value —
+`JobStore:Type`, `JobStore:DriverDelegateType`, `JobStore:LockHandler:Type`, `ThreadPool:Type` and the
+rest. A configuration file never has to mix the two forms, and a component with no options type of its
+own is still configurable, because its settings are read as flat keys whichever way they were written.
+
+Durations may be written either way too: `00:00:30` or a bare `30000`, which is read as milliseconds
+for the sake of configuration files carried forward from 3.x.
 
 Where the same setting is said twice, code wins. A `UsePersistentStore` in code beats a leftover
 `quartz.jobStore.type` in a configuration file, and a value set through `ConfigureScheduler` beats the

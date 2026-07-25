@@ -102,7 +102,10 @@ internal static class QuartzPropertyBridge
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(properties);
 
-        var parser = new PropertyReader(properties);
+        // The type load helper is resolved first and then used to load every other configured type, so
+        // an application that keeps its job types in an assembly only its own helper can find gets that
+        // helper consulted rather than the built-in one failing on the very next key.
+        var parser = new PropertyReader(properties, ConfiguredTypeLoadHelper(services, properties));
 
         // The serializer goes in before the job store, because the store's persistent branch registers
         // the built-in serializer as a fallback and registration is first-wins.
@@ -180,6 +183,31 @@ internal static class QuartzPropertyBridge
         }
     }
 
+    /// <summary>
+    /// Builds the type load helper the configuration names, if it names one.
+    /// </summary>
+    /// <remarks>
+    /// This runs while the service collection is still open, so the helper cannot be resolved from a
+    /// container that does not exist yet — it is constructed directly. A helper that needs services of
+    /// its own is therefore not supported here, which is the same limit the properties format always had.
+    /// </remarks>
+    private static ITypeLoadHelper? ConfiguredTypeLoadHelper(IServiceCollection services, NameValueCollection properties)
+    {
+        var configured = new PropertyReader(properties).Type(StdSchedulerFactory.PropertySchedulerTypeLoadHelperType);
+        if (configured is null)
+        {
+            return null;
+        }
+
+        var helper = (ITypeLoadHelper) Activator.CreateInstance(configured)!;
+
+        // Container-wide rather than per-scheduler, and replaced rather than tried, because the built-in
+        // default may already have been registered by an earlier scheduler in the same container — and a
+        // helper named explicitly must not lose to it.
+        services.Replace(ServiceDescriptor.Singleton(helper));
+        return helper;
+    }
+
     private static void RegisterSchedulerParts(
         IServiceCollection services,
         PropertyReader parser,
@@ -203,9 +231,13 @@ internal static class QuartzPropertyBridge
             });
         }
 
-        Register<ITypeLoadHelper>(services, schedulerName: null, parser.Type(StdSchedulerFactory.PropertySchedulerTypeLoadHelperType));
         Register<IJobFactory>(services, schedulerName, parser.Type(StdSchedulerFactory.PropertySchedulerJobFactoryType));
-        Register<TimeProvider>(services, schedulerName: null, parser.Type(StdSchedulerFactory.PropertyTimeProviderType));
+
+        // Container-wide and replaced rather than tried, for the same reason as the type load helper.
+        if (parser.Type(StdSchedulerFactory.PropertyTimeProviderType) is { } timeProviderType)
+        {
+            services.Replace(ServiceDescriptor.Singleton(typeof(TimeProvider), timeProviderType));
+        }
     }
 
     private static void MapScheduler(QuartzSchedulerOptions options, PropertyReader parser, string? schedulerName)
@@ -317,7 +349,20 @@ internal static class QuartzPropertyBridge
         // selection into code can still be naming its driver delegate in a configuration file, and
         // returning early on a missing quartz.jobStore.type would drop it.
         Register<IDriverDelegate>(services, schedulerName, parser.Type("quartz.jobStore.driverDelegateType"));
-        Register<ISemaphore>(services, schedulerName, parser.Type(StdSchedulerFactory.PropertyJobStoreLockHandlerType));
+
+        if (parser.Type(StdSchedulerFactory.PropertyJobStoreLockHandlerType) is { } lockHandlerType)
+        {
+            // A lock handler has no typed options, so its settings — a Redis semaphore's key prefix and
+            // lock TTL, say — arrive as strings under its own prefix and are applied after construction.
+            RegisterConfigured<ISemaphore>(services, schedulerName, (provider, key) =>
+            {
+                var lockHandler = (ISemaphore) ActivatorUtilities.CreateInstance(
+                    SchedulerScopedServiceProvider.For(provider, key), lockHandlerType);
+
+                ApplyStringProperties(lockHandler, provider, key, StdSchedulerFactory.PropertyJobStoreLockHandlerPrefix);
+                return lockHandler;
+            });
+        }
 
         var jobStoreType = parser.Type(StdSchedulerFactory.PropertyJobStoreType);
         if (jobStoreType is null)
@@ -459,26 +504,21 @@ internal static class QuartzPropertyBridge
             Throw.SchedulerException($"Object serializer type '{configured}' could not be loaded.");
         }
 
-        RegisterSerializer(services, schedulerName, provider =>
+        RegisterConfigured<IObjectSerializer>(services, schedulerName, (provider, key) =>
         {
-            var serializer = (IObjectSerializer) ActivatorUtilities.CreateInstance(provider, serializerType!);
+            var serializer = (IObjectSerializer) ActivatorUtilities.CreateInstance(
+                SchedulerScopedServiceProvider.For(provider, key), serializerType!);
+
+            // The serializer's own settings, such as whether to register the optimized trigger
+            // converters, are applied before Initialize builds the converter set from them.
+            ApplyStringProperties(serializer, provider, key, SerializerPrefix);
             serializer.Initialize();
             return serializer;
         });
     }
 
-    /// <summary>
-    /// Registers a serializer under this scheduler's key, so a named scheduler gets the serializer its
-    /// own configuration named rather than whichever one happened to be registered first.
-    /// </summary>
-    private static void RegisterSerializer(
-        IServiceCollection services,
-        string? schedulerName,
-        Func<IServiceProvider, IObjectSerializer> factory)
-    {
-        RegisterConfigured<IObjectSerializer>(services, schedulerName,
-            (provider, key) => factory(SchedulerScopedServiceProvider.For(provider, key)));
-    }
+    private const string SerializerPrefix = "quartz.serializer";
+
 
     /// <summary>
     /// Registers a configured implementation type, keyed for a named scheduler and unkeyed for the
@@ -573,10 +613,13 @@ internal static class QuartzPropertyBridge
     {
         private readonly NameValueCollection properties;
 
-        public PropertyReader(NameValueCollection properties)
+        public PropertyReader(NameValueCollection properties, ITypeLoadHelper? loader = null)
         {
             this.properties = properties;
+            this.loader = loader ?? typeLoadHelper;
         }
+
+        private readonly ITypeLoadHelper loader;
 
         public string? String(string key)
         {
@@ -609,14 +652,34 @@ internal static class QuartzPropertyBridge
         }
 
         /// <summary>
-        /// Reads a legacy duration, which is a bare integer count of milliseconds.
+        /// Reads a duration in either spelling.
         /// </summary>
+        /// <remarks>
+        /// The legacy format writes a bare integer count of milliseconds; the typed options are
+        /// <see cref="TimeSpan"/> and are written <c>00:00:30</c>. Both reach this reader, because the
+        /// same setting can be said either way, and the two are told apart by shape: a bare integer is
+        /// milliseconds, which is also what stops <c>30000</c> being read as thirty thousand days.
+        /// </remarks>
         public void Milliseconds(string key, Action<TimeSpan> apply)
         {
-            if (String(key) is { } value)
+            if (String(key) is not { } value)
             {
-                apply(TimeSpan.FromMilliseconds(long.Parse(value, CultureInfo.InvariantCulture)));
+                return;
             }
+
+            if (long.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var milliseconds))
+            {
+                apply(TimeSpan.FromMilliseconds(milliseconds));
+                return;
+            }
+
+            if (!TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out var timeSpan))
+            {
+                Throw.SchedulerConfigException(
+                    $"Value '{value}' of '{key}' is neither a count of milliseconds nor a time span.");
+            }
+
+            apply(timeSpan);
         }
 
         public Type? Type(string key)
@@ -627,7 +690,7 @@ internal static class QuartzPropertyBridge
                 return null;
             }
 
-            var type = typeLoadHelper.LoadType(value);
+            var type = loader.LoadType(value);
             if (type is null)
             {
                 Throw.SchedulerConfigException($"Unable to load type '{value}' configured by '{key}'.");

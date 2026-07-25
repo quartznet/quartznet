@@ -114,8 +114,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         SelectWithLockSQL = options.SelectWithLockSql;
         DriverDelegateInitString = options.DriverDelegateInitString;
 
-        // The store reaches its database through the connection manager, keyed by data source name, so
-        // the provider the container built has to be published there under the name this store uses.
+        // The store uses the provider it was given. It is also published to the connection manager under
+        // the data source name, because code outside the container still resolves providers by name --
+        // but the store never reads it back, so two schedulers whose data sources happen to share a name
+        // cannot end up talking to each other's database.
+        DbProvider = dbProvider;
         ConnectionManager.AddConnectionProvider(DataSource, dbProvider);
 
         // The delegate and lock handler are chosen by configuration and built by the container, rather
@@ -395,7 +398,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
     public virtual TimeSpan GetAcquireRetryDelay(int failureCount) => DbRetryInterval;
 
-    protected DbMetadata DbMetadata => ConnectionManager.GetDbMetadata(DataSource);
+    protected DbMetadata DbMetadata => DbProvider.Metadata;
 
     protected abstract ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection();
 
@@ -409,7 +412,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         DbTransaction tx;
         try
         {
-            conn = ConnectionManager.GetConnection(DataSource);
+            conn = DbProvider.CreateConnection();
             await conn.OpenAsync().ConfigureAwait(false);
         }
         catch (Exception e)
@@ -486,7 +489,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             TablePrefix = tablePrefix,
             InstanceName = InstanceName,
             InstanceId = InstanceId,
-            DbProvider = ConnectionManager.GetDbProvider(DataSource),
+            DbProvider = DbProvider,
             TypeLoadHelper = typeLoadHelper,
             ObjectSerializer = ObjectSerializer,
             InitString = DriverDelegateInitString,
@@ -501,7 +504,10 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     protected virtual IDriverDelegate Delegate => driverDelegate!;
 #pragma warning restore CA1716
 
-    private IDbProvider DbProvider => ConnectionManager.GetDbProvider(DataSource);
+    /// <summary>
+    /// The database provider this store was built with.
+    /// </summary>
+    protected internal IDbProvider DbProvider { get; }
 
     protected internal virtual ISemaphore LockHandler { get; set; } = null!;
 
@@ -743,7 +749,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
         try
         {
-            ConnectionManager.Shutdown(DataSource);
+            DbProvider.Shutdown();
         }
         catch (Exception sqle)
         {

@@ -432,6 +432,128 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         }
     }
 
+    [Test]
+    public void AHierarchicalDurationInMillisecondsIsNotReadAsDays()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(Section(new Dictionary<string, string?>
+        {
+            // The spelling a 3.x appsettings.json used, once the flat keys grew a hierarchical form.
+            ["Scheduler:IdleWaitTime"] = "30000",
+        }));
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value.IdleWaitTime
+            .Should().Be(TimeSpan.FromSeconds(30),
+                "TimeSpan reads a bare integer as days, which would leave the scheduler idle for eighty years");
+    }
+
+    [Test]
+    public void ABothWaysDurationIsStillReadAsATimeSpan()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(Section(new Dictionary<string, string?>
+        {
+            ["Scheduler:IdleWaitTime"] = "00:00:45",
+        }));
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value.IdleWaitTime
+            .Should().Be(TimeSpan.FromSeconds(45));
+    }
+
+    [Test]
+    public void HierarchicalClusteringStillImpliesDatabaseLocks()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(
+            Section(new Dictionary<string, string?>
+            {
+                ["JobStore:Clustered"] = "true",
+                ["JobStore:DataSource"] = "test",
+            }),
+            UseStubbedPersistentStore);
+
+        using var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value;
+
+        options.Clustered.Should().BeTrue();
+        options.UseDbLocks.Should().BeTrue(
+            "clustering has never worked without database locking, so saying one must not fail validation for the other");
+    }
+
+    [Test]
+    public void AKnobInATypedSectionWithNoTypedOptionIsStillReadable()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(Section(new Dictionary<string, string?>
+        {
+            ["JobStore:Marker"] = "configured",
+            ["ThreadPool:Marker"] = "configured",
+        }));
+
+        using var provider = services.BuildServiceProvider();
+        var properties = provider.GetRequiredService<IOptions<QuartzOptions>>().Value;
+
+        properties["quartz.jobStore.marker"].Should().Be("configured",
+            "a third-party store has no options type, so its settings are only ever read as flat keys");
+        properties["quartz.threadPool.marker"].Should().Be("configured");
+    }
+
+    [Test]
+    public void ALockHandlerKeepsTheSettingsBesideItsTypeKey()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(
+            new NameValueCollection
+            {
+                ["quartz.jobStore.lockHandler.type"] = typeof(MarkedSemaphore).AssemblyQualifiedName,
+                ["quartz.jobStore.lockHandler.marker"] = "configured",
+            },
+            UseStubbedPersistentStore);
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<ISemaphore>().Should().BeOfType<MarkedSemaphore>()
+            .Which.Marker.Should().Be("configured");
+    }
+
+    [Test]
+    public void TwoPluginEntriesOfOneTypeStayTwoPlugins()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(new NameValueCollection
+        {
+            ["quartz.plugin.dev.type"] = typeof(RecordingPlugin).AssemblyQualifiedName,
+            ["quartz.plugin.dev.someSetting"] = "dev",
+            ["quartz.plugin.tenantA.type"] = typeof(RecordingPlugin).AssemblyQualifiedName,
+            ["quartz.plugin.tenantA.someSetting"] = "tenantA",
+        });
+
+        using var provider = services.BuildServiceProvider();
+        var properties = provider.GetRequiredService<IOptions<QuartzOptions>>().Value.ToNameValueCollection();
+
+        var plugins = Quartz.Configuration.SchedulerPluginFactory.Create(provider, [], properties, "");
+
+        plugins.Select(x => ((RecordingPlugin) x.Plugin).SomeSetting)
+            .Should().BeEquivalentTo(["dev", "tenantA"],
+                "one plugin per configured name is what the properties format has always meant");
+    }
+
+    private sealed class MarkedSemaphore : ISemaphore
+    {
+        public string Marker { get; set; } = "";
+
+        public bool RequiresConnection => false;
+
+        public ValueTask<bool> ObtainLock(Guid requestorId, ConnectionAndTransactionHolder? conn, string lockName, CancellationToken cancellationToken = default)
+            => new(true);
+
+        public ValueTask ReleaseLock(Guid requestorId, string lockName, CancellationToken cancellationToken = default) => default;
+    }
+
     private sealed class RecordingPlugin : ISchedulerPlugin
     {
         public string SomeSetting { get; set; } = "";

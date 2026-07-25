@@ -96,7 +96,7 @@ public class JobStoreCMT : JobStoreSupport
 
         try
         {
-            ConnectionManager.Shutdown(DataSource);
+            DbProvider.Shutdown();
         }
         catch (Exception ex)
         {
@@ -113,7 +113,7 @@ public class JobStoreCMT : JobStoreSupport
         DbConnection conn;
         try
         {
-            conn = ConnectionManager.GetConnection(DataSource);
+            conn = DbProvider.CreateConnection();
             if (OpenConnection)
             {
                 await conn.OpenAsync().ConfigureAwait(false);

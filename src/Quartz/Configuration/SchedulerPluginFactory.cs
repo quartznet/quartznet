@@ -45,19 +45,23 @@ internal static class SchedulerPluginFactory
         string schedulerName)
     {
         var plugins = new List<(string Name, ISchedulerPlugin Plugin)>();
-        var alreadyRegistered = new HashSet<Type>();
 
         // Names chosen where the plugin was added, so a plugin configured in code is known by the same
-        // name as the same plugin configured by properties.
-        var chosenNames = provider.GetServices<SchedulerPluginName>()
-            .Where(x => string.Equals(x.SchedulerName, schedulerName, StringComparison.Ordinal))
-            .ToDictionary(x => x.PluginType, x => x.Name);
+        // name as the same plugin configured by properties. The same type can be added more than once,
+        // so the last name registered for it stands rather than the lookup throwing.
+        var chosenNames = new Dictionary<Type, string>();
+        foreach (var chosen in provider.GetServices<SchedulerPluginName>())
+        {
+            if (string.Equals(chosen.SchedulerName, schedulerName, StringComparison.Ordinal))
+            {
+                chosenNames[chosen.PluginType] = chosen.Name;
+            }
+        }
 
         foreach (var plugin in registered)
         {
             var type = plugin.GetType();
-            plugins.Add((chosenNames.TryGetValue(type, out var chosen) ? chosen : type.Name, plugin));
-            alreadyRegistered.Add(type);
+            plugins.Add((chosenNames.TryGetValue(type, out var name) ? name : type.Name, plugin));
         }
 
         var loader = provider.GetService<ITypeLoadHelper>() ?? typeLoadHelper;
@@ -88,10 +92,14 @@ internal static class SchedulerPluginFactory
                 continue;
             }
 
-            // A plugin registered in code is configured in code; do not build a second copy of it.
-            if (!alreadyRegistered.Add(type))
+            // A plugin already added in code under this name is configured in code; apply the leftover
+            // settings to it rather than building a second copy. Matching on the name rather than the
+            // type is what lets two entries of the same type — one XML plugin per tenant, say — each
+            // have their own instance and their own files, as the properties format has always allowed.
+            var existing = plugins.FindIndex(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (existing >= 0)
             {
-                ApplyProperties(plugins.Find(x => x.Plugin.GetType() == type).Plugin, type, prefix, properties);
+                ApplyProperties(plugins[existing].Plugin, type, prefix, properties);
                 continue;
             }
 

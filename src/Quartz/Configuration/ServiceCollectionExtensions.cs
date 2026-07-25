@@ -151,67 +151,27 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// The sections that bind onto typed options, and so must not also be flattened into legacy keys.
-    /// </summary>
-    private static readonly HashSet<string> typedSections = new(StringComparer.OrdinalIgnoreCase)
-    {
-        QuartzTypedOptions.SchedulerSection,
-        QuartzTypedOptions.ThreadPoolSection,
-        QuartzTypedOptions.JobStoreSection,
-        QuartzTypedOptions.DataSourceSection,
-    };
-
-    /// <summary>
-    /// Returns the properties a section contributes to the legacy string format.
+    /// Returns everything a configuration section says, in the legacy flat form.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Sections with typed options of their own are excluded, because they are bound directly and
-    /// flattening them as well would send the same value through both readers — and the two disagree
-    /// about form, a duration being <c>00:00:30</c> to the binder and a count of milliseconds to the
-    /// legacy reader.
+    /// Every section is flattened, including the ones that also bind onto typed options. Sending the
+    /// same value through both readers is deliberate: the typed binder covers the settings that have an
+    /// option of their own, and the legacy adapter covers the rest — the type names that select an
+    /// implementation, and the knobs of components that have no options type at all. Splitting the
+    /// sections between the two readers instead leaves anything that falls between them read by nobody,
+    /// which is how a documented <c>JobStore:Type</c> came to be accepted and then ignored.
     /// </para>
     /// <para>
-    /// Everything else is flattened. Plugins, serializers, listeners and execution limits have no typed
-    /// options yet, so the legacy keys are the only thing that reads them; dropping those sections would
-    /// mean a documented, valid <c>Quartz:Plugin:*</c> configuration was accepted and then ignored.
+    /// The two readers do disagree about the shape of a duration — <c>00:00:30</c> to the binder, a count
+    /// of milliseconds to the legacy format. That is settled in the adapter, which accepts both
+    /// spellings, and by ordering: the adapter is applied after the binder, so its reading stands.
     /// </para>
     /// </remarks>
-    /// <summary>
-    /// The paths inside a typed section that select an implementation, or configure the thing selected,
-    /// rather than setting a value on the options type.
-    /// </summary>
-    /// <remarks>
-    /// These have no property to bind to, so excluding their section from flattening would leave nobody
-    /// reading them at all. Turning a type name into a registration is the legacy adapter's job, and
-    /// these are the keys that ask for it.
-    /// </remarks>
-    private static readonly (string Path, string LegacyPath)[] implementationPaths =
-    [
-        ("Scheduler:InstanceId", "scheduler.instanceId"),
-        ("Scheduler:InstanceIdGenerator", "scheduler.instanceIdGenerator"),
-        ("Scheduler:JobFactory:Type", "scheduler.jobFactory.type"),
-        ("Scheduler:TypeLoadHelper:Type", "scheduler.typeLoadHelper.type"),
-        ("ThreadPool:Type", "threadPool.type"),
-        ("JobStore:Type", "jobStore.type"),
-        ("JobStore:DriverDelegateType", "jobStore.driverDelegateType"),
-        ("JobStore:LockHandler", "jobStore.lockHandler"),
-    ];
-
     private static NameValueCollection LegacyProperties(IConfiguration configuration)
     {
         var properties = new NameValueCollection();
-        QuartzConfigurationHelper.PopulateProperties(configuration, properties, typedSections);
-
-        foreach (var (path, legacyPath) in implementationPaths)
-        {
-            var section = configuration.GetSection(path);
-            if (section.Exists())
-            {
-                QuartzConfigurationHelper.FlattenInto(section, legacyPath, properties);
-            }
-        }
-
+        QuartzConfigurationHelper.PopulateProperties(configuration, properties);
         return properties;
     }
 
