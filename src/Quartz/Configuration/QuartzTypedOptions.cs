@@ -1,0 +1,101 @@
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
+
+namespace Quartz.Configuration;
+
+/// <summary>
+/// Registers and binds the strongly typed Quartz options.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Hierarchical configuration binds straight onto the options types — <c>Quartz:Scheduler:InstanceName</c>
+/// becomes <see cref="QuartzSchedulerOptions.InstanceName"/> with no string-key translation in between.
+/// The flat <c>quartz.*</c> keys are handled separately by the legacy adapter, which reshapes them into
+/// this same hierarchy before binding.
+/// </para>
+/// <para>
+/// Options that belong to a specific scheduler are registered as named options keyed by scheduler name,
+/// so several schedulers can coexist in one container. The unnamed scheduler uses
+/// <see cref="Options.DefaultName"/>.
+/// </para>
+/// </remarks>
+internal static class QuartzTypedOptions
+{
+    internal const string SchedulerSection = "Scheduler";
+    internal const string ThreadPoolSection = "ThreadPool";
+    internal const string JobStoreSection = "JobStore";
+    internal const string DataSourceSection = "DataSource";
+
+    /// <summary>
+    /// Registers the validators for every Quartz options type. Safe to call repeatedly.
+    /// </summary>
+    public static IServiceCollection AddQuartzOptionsValidation(this IServiceCollection services)
+    {
+        services.AddOptions();
+
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<QuartzSchedulerOptions>, QuartzSchedulerOptionsValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<ThreadPoolOptions>, ThreadPoolOptionsValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<InMemoryJobStoreOptions>, InMemoryJobStoreOptionsValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<AdoJobStoreOptions>, AdoJobStoreOptionsValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<DataSourceOptions>, DataSourceOptionsValidator>());
+
+        return services;
+    }
+
+    /// <summary>
+    /// Binds a hierarchical Quartz configuration section onto the strongly typed options.
+    /// </summary>
+    /// <param name="services">The service collection to configure.</param>
+    /// <param name="quartzSection">
+    /// The Quartz configuration section, typically <c>configuration.GetSection("Quartz")</c>.
+    /// </param>
+    /// <param name="schedulerName">
+    /// The scheduler these options belong to, or <see langword="null"/> for the default scheduler.
+    /// </param>
+    /// <param name="persistent">
+    /// Whether the job store section describes a persistent store. In-memory and ADO.NET stores share
+    /// the <c>JobStore</c> section but bind to different options types.
+    /// </param>
+    public static IServiceCollection BindQuartzOptions(
+        this IServiceCollection services,
+        IConfiguration quartzSection,
+        string? schedulerName = null,
+        bool persistent = false)
+    {
+        ArgumentNullException.ThrowIfNull(quartzSection);
+
+        services.AddQuartzOptionsValidation();
+
+        var name = schedulerName ?? Options.DefaultName;
+
+        services.Configure<QuartzSchedulerOptions>(name, quartzSection.GetSection(SchedulerSection));
+        services.Configure<ThreadPoolOptions>(name, quartzSection.GetSection(ThreadPoolSection));
+
+        var jobStoreSection = quartzSection.GetSection(JobStoreSection);
+        if (persistent)
+        {
+            services.Configure<AdoJobStoreOptions>(name, jobStoreSection);
+        }
+        else
+        {
+            services.Configure<InMemoryJobStoreOptions>(name, jobStoreSection);
+        }
+
+        // Data sources are named after themselves rather than after the scheduler, matching the way
+        // the connection manager keys providers.
+        foreach (var dataSource in quartzSection.GetSection(DataSourceSection).GetChildren())
+        {
+            services.Configure<DataSourceOptions>(dataSource.Key, dataSource);
+        }
+
+        // A named scheduler's instance name is always the name it was registered under.
+        if (!string.IsNullOrEmpty(schedulerName))
+        {
+            services.Configure<QuartzSchedulerOptions>(schedulerName, options => options.InstanceName = schedulerName);
+        }
+
+        return services;
+    }
+}
