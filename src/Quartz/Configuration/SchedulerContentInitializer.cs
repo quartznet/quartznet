@@ -89,11 +89,14 @@ internal sealed class SchedulerContentInitializer
     {
         var configurations = Configurations<JobListenerConfiguration>(optionsName, x => x.OptionsName);
 
+        var used = new HashSet<object>();
         if (optionsName.Length == 0)
         {
             foreach (var listener in serviceProvider.GetServices<IJobListener>())
             {
-                var configuration = configurations.SingleOrDefault(x => x.ListenerType == listener.GetType());
+                // Pair each listener with its own configuration rather than assuming the type
+                // identifies it uniquely — registering two listeners of the same type used to throw.
+                var configuration = Take(configurations, used, listener.GetType());
                 scheduler.ListenerManager.AddJobListener(listener, configuration?.Matchers ?? []);
             }
         }
@@ -117,11 +120,12 @@ internal sealed class SchedulerContentInitializer
     {
         var configurations = Configurations<TriggerListenerConfiguration>(optionsName, x => x.OptionsName);
 
+        var used = new HashSet<object>();
         if (optionsName.Length == 0)
         {
             foreach (var listener in serviceProvider.GetServices<ITriggerListener>())
             {
-                var configuration = configurations.SingleOrDefault(x => x.ListenerType == listener.GetType());
+                var configuration = Take(configurations, used, listener.GetType());
                 scheduler.ListenerManager.AddTriggerListener(listener, configuration?.Matchers ?? []);
             }
         }
@@ -157,6 +161,34 @@ internal sealed class SchedulerContentInitializer
                 .ConfigureAwait(false);
         }
     }
+
+    /// <summary>
+    /// Returns the next unused configuration registered for a listener type.
+    /// </summary>
+    /// <remarks>
+    /// Listeners are matched to their configuration by type, which is ambiguous when the same listener
+    /// type is registered more than once. Consuming each configuration once at least pairs them up in
+    /// registration order instead of throwing.
+    /// </remarks>
+    private static T? Take<T>(T[] configurations, HashSet<object> used, Type listenerType) where T : class
+    {
+        foreach (var configuration in configurations)
+        {
+            if (ListenerTypeOf(configuration) == listenerType && used.Add(configuration))
+            {
+                return configuration;
+            }
+        }
+
+        return null;
+    }
+
+    private static Type ListenerTypeOf(object configuration) => configuration switch
+    {
+        JobListenerConfiguration job => job.ListenerType,
+        TriggerListenerConfiguration trigger => trigger.ListenerType,
+        _ => typeof(object),
+    };
 
     private T[] Configurations<T>(string optionsName, Func<T, string> nameOf)
     {
