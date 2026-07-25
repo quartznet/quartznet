@@ -134,13 +134,14 @@ public class ClusterManagerTest
             ISchedulerSignaler schedulerSignaler,
             ITypeLoadHelper typeLoadHelper,
             TimeProvider timeProvider,
-            IOptions<QuartzSchedulerOptions> schedulerOptions)
-            : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions)
+            IOptions<QuartzSchedulerOptions> schedulerOptions,
+        IOptions<AdoJobStoreOptions> storeOptions)
+            : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions, storeOptions)
         {
         }
 
         public TestJobStoreSupport()
-        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions())
+        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions())
         {
             InstanceName = "TestInstance";
             InstanceId = "TestInstanceId";

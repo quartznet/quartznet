@@ -60,7 +60,7 @@ public class JobDataMapStorageTest : IntegrationTest
 
         var serializer = new NewtonsoftJsonObjectSerializer();
         serializer.Initialize();
-        var jobStore = new JobStoreTX(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions())
+        var jobStore = new JobStoreTX(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions())
         {
             DataSource = dataSourceName,
             TablePrefix = "QRTZ_",

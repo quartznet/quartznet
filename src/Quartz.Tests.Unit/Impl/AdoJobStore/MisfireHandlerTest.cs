@@ -168,7 +168,7 @@ public class MisfireHandlerTest
     private class TestJobStoreSupport : JobStoreSupport
     {
         public TestJobStoreSupport()
-        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions())
+        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions())
         {
             InstanceName = "TestInstance";
             InstanceId = "TestInstanceId";

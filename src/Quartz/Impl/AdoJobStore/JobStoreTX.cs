@@ -40,8 +40,9 @@ public class JobStoreTX : JobStoreSupport
         ISchedulerSignaler schedulerSignaler,
         ITypeLoadHelper typeLoadHelper,
         TimeProvider timeProvider,
-        IOptions<QuartzSchedulerOptions> schedulerOptions)
-        : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions)
+        IOptions<QuartzSchedulerOptions> schedulerOptions,
+        IOptions<AdoJobStoreOptions> storeOptions)
+        : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions, storeOptions)
     {
     }
 

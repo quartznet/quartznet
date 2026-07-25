@@ -25,7 +25,7 @@ public class RecoverJobsTest
     public async Task TestRecoveringRepeatJobWhichIsFiredAndMisfiredAtTheSameTime()
     {
         DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out _, out string dataSourceName);
-        var jobStore = new JobStoreTX(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions())
+        var jobStore = new JobStoreTX(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions())
         {
             DataSource = dataSourceName,
             InstanceId = "SINGLE_NODE_TEST",
@@ -129,7 +129,7 @@ public class RecoverJobsTest
     public async Task TestRecoveryTriggersShouldNotExecuteAfterTriggerIsRemoved()
     {
         DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out _, out string dataSourceName);
-        var jobStore = new JobStoreTX(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions())
+        var jobStore = new JobStoreTX(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions())
         {
             DataSource = dataSourceName,
             InstanceId = "SINGLE_NODE_TEST",

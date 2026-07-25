@@ -24,7 +24,7 @@ public class JobStoreCMTTest
     {
 
     public TestJobStoreCMT()
-        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions())
+        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions())
     {
     }
         public void ExecuteGetNonManagedConnection()

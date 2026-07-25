@@ -71,7 +71,8 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         ISchedulerSignaler schedulerSignaler,
         ITypeLoadHelper typeLoadHelper,
         TimeProvider timeProvider,
-        IOptions<QuartzSchedulerOptions> schedulerOptions)
+        IOptions<QuartzSchedulerOptions> schedulerOptions,
+        IOptions<AdoJobStoreOptions> storeOptions)
     {
         schedSignaler = schedulerSignaler;
         this.typeLoadHelper = typeLoadHelper;
@@ -79,17 +80,33 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         InstanceName = schedulerOptions.Value.InstanceName;
         InstanceId = schedulerOptions.Value.InstanceId;
 
-        RetryableActionErrorLogThreshold = 4;
-        DoubleCheckLockMisfireHandler = true;
-        ClusterCheckinInterval = TimeSpan.FromMilliseconds(7500);
-        ClusterCheckinMisfireThreshold = TimeSpan.FromMilliseconds(7500);
-        MaxMisfiresToHandleAtATime = 20;
-        DbRetryInterval = TimeSpan.FromSeconds(15);
-        MaxTransientRetries = 3;
-        TransientRetryInterval = TimeSpan.FromSeconds(1);
         Logger = LogProvider.CreateLogger<JobStoreSupport>();
         delegateType = typeof(StdAdoDelegate);
         ConnectionManager = DBConnectionManager.Instance;
+
+        var options = storeOptions.Value;
+        DataSource = options.DataSource;
+        tablePrefix = options.TablePrefix;
+        useProperties = options.UseProperties;
+        MisfireThreshold = options.MisfireThreshold;
+        misfirehandlerFrequence = options.MisfireHandlerFrequency;
+        MaxMisfiresToHandleAtATime = options.MaxMisfiresToHandleAtATime;
+        Clustered = options.Clustered;
+        ClusterCheckinInterval = options.ClusterCheckinInterval;
+        ClusterCheckinMisfireThreshold = options.ClusterCheckinMisfireThreshold;
+        DbRetryInterval = options.DbRetryInterval;
+        MaxTransientRetries = options.MaxTransientRetries;
+        TransientRetryInterval = options.TransientRetryInterval;
+        RetryableActionErrorLogThreshold = options.RetryableActionErrorLogThreshold;
+        UseDBLocks = options.UseDbLocks;
+        LockOnInsert = options.LockOnInsert;
+        AcquireTriggersWithinLock = options.AcquireTriggersWithinLock;
+        TxIsolationLevelSerializable = options.TxIsolationLevelSerializable;
+        DoubleCheckLockMisfireHandler = options.DoubleCheckLockMisfireHandler;
+        MakeThreadsDaemons = options.MakeThreadsDaemons;
+        PerformSchemaValidation = options.PerformSchemaValidation;
+        SelectWithLockSQL = options.SelectWithLockSql;
+        DriverDelegateInitString = options.DriverDelegateInitString;
     }
 
     /// <summary>

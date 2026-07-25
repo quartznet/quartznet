@@ -22,6 +22,11 @@ public static class TestJobStores
 {
     public static ILogger<T> Logger<T>() => NullLogger<T>.Instance;
 
+    public static IOptions<AdoJobStoreOptions> StoreOptions(string dataSource = "test")
+    {
+        return Options.Create(new AdoJobStoreOptions { DataSource = dataSource });
+    }
+
     public static IOptions<QuartzSchedulerOptions> SchedulerOptions(
         string instanceName = "TestScheduler",
         string instanceId = "TestInstance")
@@ -56,7 +61,8 @@ public static class TestJobStores
             signaler ?? new NoOpSchedulerSignaler(),
             typeLoadHelper ?? new SimpleTypeLoadHelper(),
             timeProvider ?? TimeProvider.System,
-            SchedulerOptions(instanceName, instanceId));
+            SchedulerOptions(instanceName, instanceId),
+            StoreOptions());
     }
 
     public static JobStoreCMT Cmt(
@@ -68,7 +74,8 @@ public static class TestJobStores
             signaler ?? new NoOpSchedulerSignaler(),
             typeLoadHelper ?? new SimpleTypeLoadHelper(),
             timeProvider ?? TimeProvider.System,
-            SchedulerOptions());
+            SchedulerOptions(),
+            StoreOptions());
     }
 }
 

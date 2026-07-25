@@ -282,10 +282,10 @@ internal static class QuartzPropertyBridge
             {
                 ramJobStore.MisfireThreshold = provider.GetSchedulerOptions<InMemoryJobStoreOptions>(key).MisfireThreshold;
             }
-            else
+            else if (jobStore is not JobStoreSupport)
             {
-                // Persistent and third-party stores are still configured by string properties; the ADO
-                // store moves onto its typed options when it moves to constructor injection.
+                // A third-party store has no typed options, so its knobs still arrive as strings. The
+                // ADO store reads AdoJobStoreOptions in its constructor and needs none of this.
                 ApplyStringProperties(
                     jobStore, provider, key,
                     StdSchedulerFactory.PropertyJobStorePrefix,

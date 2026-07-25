@@ -13,7 +13,7 @@ public class JobStoreSupportTest
     [Test]
     public void CanDetectTransientException()
     {
-        var jobStoreSupport = new TestJobStoreSupport(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions());
+        var jobStoreSupport = new TestJobStoreSupport(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions());
         var npgsqlException = new NpgsqlException("timeout", new TimeoutException());
         Assert.That(jobStoreSupport.IsTransientPublic(npgsqlException), Is.True);
 
@@ -40,8 +40,9 @@ public class JobStoreSupportTest
             ISchedulerSignaler schedulerSignaler,
             ITypeLoadHelper typeLoadHelper,
             TimeProvider timeProvider,
-            IOptions<QuartzSchedulerOptions> schedulerOptions)
-            : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions)
+            IOptions<QuartzSchedulerOptions> schedulerOptions,
+        IOptions<AdoJobStoreOptions> storeOptions)
+            : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions, storeOptions)
         {
         }
 
