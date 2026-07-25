@@ -3,7 +3,7 @@
 title: Hosted Services Integration
 ---
 
-[Quartz.Extensions.Hosting](https://www.nuget.org/packages/Quartz.Extensions.Hosting)
+[Quartz](https://www.nuget.org/packages/Quartz)
 provides integration with [hosted services](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services).
 
 ## Using
@@ -12,7 +12,7 @@ You can add Quartz configuration by invoking an extension method `AddQuartzHoste
 This will add a hosted Quartz server into process that will be started and stopped based on applications lifetime.
 
 ::: tip
-See [Quartz.Extensions.DependencyInjection documentation](microsoft-di-integration) to learn more about configuring Quartz scheduler, jobs and triggers.
+See [Quartz documentation](microsoft-di-integration) to learn more about configuring Quartz scheduler, jobs and triggers.
 
 Need multiple independent schedulers in one application? See [Multiple Schedulers](multiple-schedulers.md).
 :::
@@ -37,13 +37,13 @@ public class Program
             .UseSerilog()
             .ConfigureServices((hostContext, services) =>
             {
-                // see Quartz.Extensions.DependencyInjection documentation about how to configure different configuration aspects
+                // see Quartz documentation about how to configure different configuration aspects
                 services.AddQuartz(q =>
                 {
                     // your configuration here
                 });
 
-                // Quartz.Extensions.Hosting hosting
+                // Quartz hosting
                 services.AddQuartzHostedService(options =>
                 {
                     // when shutting down we want jobs to complete gracefully

@@ -36,33 +36,32 @@ and return a handle to its public interface.
 
 You can find complete documentation in the "Configuration Reference" section of the Quartz documentation.
 
-## DirectSchedulerFactory
+## Building a scheduler without a container
 
-`DirectSchedulerFactory` is another `ISchedulerFactory` implementation. It is useful to those wishing to create their Scheduler
-instance in a more programmatic way. Its use is generally discouraged for the following reasons:
+An application with no host — a console application, or a test — builds a scheduler with
+`QuartzSchedulerBuilder`. It takes the same configuration API as `AddQuartz`, creating a container of
+its own and building from it, so what works in one works in the other:
 
-* It requires the user to have a greater understanding of what they're doing, and
-* it does not allow for declarative configuration - or in other words, you end up hard-coding all of the scheduler's settings.
+```csharp
+IScheduler scheduler = await QuartzSchedulerBuilder.Create()
+    .Configure(q =>
+    {
+        q.ConfigureScheduler(options => options.InstanceName = "reporting");
+        q.UseDefaultThreadPool(maxConcurrency: 10);
+        q.UseInMemoryStore();
+    })
+    .BuildScheduler();
+```
 
 ## Logging
 
-::: tip
-As of Quartz.NET 3.1, you can configure [Microsoft.Extensions.Logging.Abstractions](https://www.nuget.org/packages/Microsoft.Extensions.Logging.Abstractions/) to be used instead of LibLog.
-:::
+Quartz logs through `Microsoft.Extensions.Logging`. Under a host it uses whatever logging the
+application has configured, with no extra setup. Quartz does not log much: some information while
+starting, and then only serious problems while jobs run.
 
-### LibLog
+### Microsoft.Extensions.Logging
 
-Quartz.NET uses [LibLog](https://github.com/damianh/LibLog) library for all of its logging needs.
-Quartz does not produce much logging information - generally just some information during initialization, and
-then only messages about serious problems while Jobs are executing. In order to "tune" the logging settings
-(such as the amount of output, and where the output goes), you need to actually configure your logging framework of choice as LibLog mostly delegates the work to
-more full-fledged logging framework like log4net, SeriLog etc.
-
-Please see [LibLog Wiki](https://github.com/damianh/LibLog/wiki) for more information.
-
-### Microsoft.Extensions.Logging.Abstractions
-
-You can configure Microsoft.Extensions.Logging.Abstractions either manually or using services found in [Quartz.Extensions.DependencyInjection](https://www.nuget.org/packages/Quartz.Extensions.DependencyInjection).
+You can configure Microsoft.Extensions.Logging.Abstractions either manually or using services found in [Quartz](https://www.nuget.org/packages/Quartz).
 
 #### Manual configuration
 

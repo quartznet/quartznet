@@ -10,7 +10,7 @@ Add package references:
 
 ```shell
 Install-Package Quartz.AspNetCore
-Install-Package Quartz.Extensions.Hosting
+Install-Package Quartz
 ```
 
 ## Basic setup

@@ -9,7 +9,7 @@ You should also strongly consider setting useProperties to true to restrict key-
 :::
 
 ::: tip
-You might want to consider using [System.Text.Json](../packages/system-text-json) for JSON serialization.
+System.Text.Json serialization is built into the `Quartz` package; see [Serialization](../configuration/reference#serialization).
 :::
 
 ## JSON.NET
