@@ -36,8 +36,7 @@ public class RunningLargeNumberOfJobsExample : IExample
     public virtual async Task Run()
     {
         // First we must get a reference to a scheduler
-        StdSchedulerFactory sf = new StdSchedulerFactory();
-        IScheduler sched = await sf.GetScheduler();
+        IScheduler sched = await ExampleScheduler.Create();
 
         Console.WriteLine("------- Initialization Complete -----------");
 
