@@ -1,3 +1,7 @@
+using Quartz.Impl.AdoJobStore;
+using Quartz.Simpl;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Collections.Specialized;
 using System.Data.SQLite;
 using System.Diagnostics;
@@ -204,6 +208,14 @@ public class AdoJobStoreSmokeTest
             }
 
             store.UseGenericDatabase(dbProvider, GetConnectionString(connectionStringId));
+
+            // Some databases need their own dialect delegate, which the test supplies by name.
+            var driverDelegateType = extraProperties?["quartz.jobStore.driverDelegateType"];
+            if (!string.IsNullOrWhiteSpace(driverDelegateType))
+            {
+                var type = new SimpleTypeLoadHelper().LoadType(driverDelegateType)!;
+                store.Services.Replace(ServiceDescriptor.Singleton(typeof(IDriverDelegate), type));
+            }
 
             if (serializerType == "stj")
             {

@@ -40,7 +40,7 @@ public class RecoverJobsTest
     [Test]
     public async Task TestRecoveringRepeatJobWhichIsFiredAndMisfiredAtTheSameTime()
     {
-        string dataSourceName = DatabaseHelper.GetDataSourceName(provider);
+        DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out _, out string dataSourceName);
         var scheduler = await CreateRecoveryScheduler(dataSourceName);
 
         // run forever up to the first fail over situation
@@ -130,7 +130,7 @@ public class RecoverJobsTest
     [Test]
     public async Task TestRecoveryTriggersShouldNotExecuteAfterTriggerIsRemoved()
     {
-        string dataSourceName = DatabaseHelper.GetDataSourceName(provider);
+        DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out _, out string dataSourceName);
         var scheduler = await CreateRecoveryScheduler(dataSourceName);
 
         // Make job run forever to simulate a job that's executing when scheduler shuts down
