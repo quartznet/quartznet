@@ -1,3 +1,5 @@
+using System.Collections.Specialized;
+
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -118,11 +120,8 @@ internal static class QuartzServiceRegistration
                 SchedulerRepository = provider.GetRequiredService<ISchedulerRepository>(),
             };
 
-            foreach (var plugin in provider.GetSchedulerServices<ISchedulerPlugin>(key))
-            {
-                resources.AddSchedulerPlugin(plugin);
-            }
-
+            // Plugins are added by the scheduler factory rather than here, because those named by
+            // configuration are only knowable once the container exists.
             return resources;
         });
 
@@ -186,6 +185,26 @@ internal static class QuartzServiceRegistration
     {
         var name = key as string ?? Options.DefaultName;
         return provider.GetRequiredService<IOptionsMonitor<T>>().Get(name);
+    }
+
+    /// <summary>
+    /// Returns the flat property bag a scheduler was configured with, or an empty one when the scheduler
+    /// was configured entirely in code.
+    /// </summary>
+    internal static NameValueCollection GetSchedulerProperties(this IServiceProvider provider, string optionsName)
+    {
+        var options = provider.GetService<IOptionsMonitor<QuartzOptions>>();
+        return options is null ? [] : options.Get(optionsName).ToNameValueCollection();
+    }
+
+    /// <summary>
+    /// Returns a provider that can also resolve singletons captured during deferred configuration, which
+    /// never reached the built container.
+    /// </summary>
+    internal static IServiceProvider GetDeferredAwareProvider(this IServiceProvider provider)
+    {
+        var options = provider.GetService<IOptions<QuartzOptions>>();
+        return options is null ? provider : options.Value._deferredSingletons.WrapServiceProvider(provider);
     }
 }
 

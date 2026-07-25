@@ -156,7 +156,7 @@ internal sealed class NamedSchedulerFactory : StdSchedulerFactory
             // companion services) are used, then fall back to plain ActivatorUtilities construction
             // with the deferred registrations available as constructor dependencies. Consult both the
             // service type and the configured concrete type so registrations are found regardless of
-            // which one they were keyed with (this matches ServiceCollectionSchedulerFactory).
+            // which one they were keyed with.
             if (quartzOptions._deferredSingletons.Resolve(typeof(T), serviceProvider) is T deferred)
             {
                 return deferred;

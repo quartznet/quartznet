@@ -147,23 +147,6 @@ public static class ServiceCollectionExtensions
             configure(target);
         }
 
-        services.TryAddSingleton<IDbConnectionManager, DBConnectionManager>();
-        services.TryAddSingleton<ISchedulerRepository, SchedulerRepository>();
-
-        // try to add services if not present with defaults, without overriding other configuration
-        if (string.IsNullOrWhiteSpace(properties[StdSchedulerFactory.PropertySchedulerTypeLoadHelperType]))
-        {
-            services.TryAddSingleton<ITypeLoadHelper, SimpleTypeLoadHelper>();
-        }
-
-        services.TryAddSingleton(TimeProvider.System);
-        if (string.IsNullOrWhiteSpace(properties[StdSchedulerFactory.PropertySchedulerJobFactoryType]))
-        {
-            // there's no explicit job factory defined, use MS version
-            properties[StdSchedulerFactory.PropertySchedulerJobFactoryType] = typeof(MicrosoftDependencyInjectionJobFactory).AssemblyQualifiedNameWithoutVersion();
-            services.TryAddSingleton<IJobFactory, MicrosoftDependencyInjectionJobFactory>();
-        }
-
         services.Configure<QuartzOptions>(options =>
         {
             foreach (var key in schedulerBuilder.Properties.AllKeys)
@@ -176,8 +159,16 @@ public static class ServiceCollectionExtensions
             }
         });
 
+        // The properties the builder collected select and configure the scheduler's parts, which the
+        // container then constructs. Nothing is instantiated reflectively from a type name any more.
+        QuartzPropertyBridge.Apply(services, schedulerBuilder.Properties);
+
+        // Deferred configuration contributes properties only after the container exists, so read the
+        // final property bag again when the typed options are resolved.
+        QuartzPropertyBridge.ApplyFromQuartzOptions(services);
+
         services.TryAddSingleton<ContainerConfigurationProcessor>();
-        services.TryAddSingleton<ISchedulerFactory, ServiceCollectionSchedulerFactory>();
+        services.TryAddSingleton<SchedulerContentInitializer>();
 
         // Note: TryAddEnumerable() is used here to ensure the initializers are registered only once.
         services.TryAddEnumerable([

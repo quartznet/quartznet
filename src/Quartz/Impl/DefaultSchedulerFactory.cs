@@ -50,9 +50,17 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
         return new ValueTask<IReadOnlyList<IScheduler>>(schedulerRepository.LookupAll());
     }
 
-    public ValueTask<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default)
+    public async ValueTask<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default)
     {
-        return new ValueTask<IScheduler?>(schedulerRepository.Lookup(schedName));
+        // Asking for this factory's scheduler by name has to be able to create it. Looking straight in
+        // the repository would only ever find a scheduler somebody else had already asked for.
+        var options = serviceProvider.GetSchedulerOptions<QuartzSchedulerOptions>(Key);
+        if (string.Equals(schedName, options.InstanceName, StringComparison.Ordinal))
+        {
+            return await GetScheduler(cancellationToken).ConfigureAwait(false);
+        }
+
+        return schedulerRepository.Lookup(schedName);
     }
 
     public async ValueTask<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
@@ -88,6 +96,16 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
         var options = serviceProvider.GetSchedulerOptions<QuartzSchedulerOptions>(Key);
         var resources = serviceProvider.GetScheduler<QuartzSchedulerResources>(Key);
 
+        var plugins = SchedulerPluginFactory.Create(
+            serviceProvider.GetDeferredAwareProvider(),
+            serviceProvider.GetSchedulerServices<ISchedulerPlugin>(Key),
+            serviceProvider.GetSchedulerProperties(schedulerKey.OptionsName));
+
+        foreach (var (_, plugin) in plugins)
+        {
+            resources.AddSchedulerPlugin(plugin);
+        }
+
         if (options.GenerateInstanceId)
         {
             resources.InstanceId = await GenerateInstanceId(resources, cancellationToken).ConfigureAwait(false);
@@ -122,7 +140,17 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
 
             resources.JobRunShellFactory.Initialize(scheduler);
 
-            await InitializePlugins(resources, scheduler, cancellationToken).ConfigureAwait(false);
+            foreach (var (name, plugin) in plugins)
+            {
+                await plugin.Initialize(name, scheduler, cancellationToken).ConfigureAwait(false);
+            }
+
+            // Listeners, calendars, jobs and triggers can only be applied once a scheduler exists.
+            var content = serviceProvider.GetService<SchedulerContentInitializer>();
+            if (content is not null)
+            {
+                await content.Initialize(scheduler, schedulerKey.OptionsName, cancellationToken).ConfigureAwait(false);
+            }
 
             logger.LogInformation(
                 "Quartz Scheduler {Version} - '{SchedulerName}' with instanceId '{SchedulerInstanceId}' initialized",
@@ -140,17 +168,6 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
         {
             await ShutdownAfterFailure(quartzScheduler, threadPool).ConfigureAwait(false);
             throw;
-        }
-    }
-
-    private static async ValueTask InitializePlugins(
-        QuartzSchedulerResources resources,
-        IScheduler scheduler,
-        CancellationToken cancellationToken)
-    {
-        foreach (var plugin in resources.SchedulerPlugins)
-        {
-            await plugin.Initialize(plugin.GetType().Name, scheduler, cancellationToken).ConfigureAwait(false);
         }
     }
 
