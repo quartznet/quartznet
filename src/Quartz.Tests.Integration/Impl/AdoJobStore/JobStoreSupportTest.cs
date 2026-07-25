@@ -1,3 +1,5 @@
+using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Util;
 using Quartz.Spi;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
@@ -13,7 +15,7 @@ public class JobStoreSupportTest
     [Test]
     public void CanDetectTransientException()
     {
-        var jobStoreSupport = new TestJobStoreSupport(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions());
+        var jobStoreSupport = new TestJobStoreSupport(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider());
         var npgsqlException = new NpgsqlException("timeout", new TimeoutException());
         Assert.That(jobStoreSupport.IsTransientPublic(npgsqlException), Is.True);
 
@@ -41,8 +43,11 @@ public class JobStoreSupportTest
             ITypeLoadHelper typeLoadHelper,
             TimeProvider timeProvider,
             IOptions<QuartzSchedulerOptions> schedulerOptions,
-        IOptions<AdoJobStoreOptions> storeOptions)
-            : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions, storeOptions)
+        IOptions<AdoJobStoreOptions> storeOptions,
+        IObjectSerializer objectSerializer,
+        IDbConnectionManager connectionManager,
+        IDbProvider dbProvider)
+            : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions, storeOptions, objectSerializer, connectionManager, dbProvider)
         {
         }
 

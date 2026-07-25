@@ -1,3 +1,5 @@
+using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Util;
 using Quartz.Tests;
 using Quartz.Spi;
 using Microsoft.Extensions.Options;
@@ -135,13 +137,16 @@ public class ClusterManagerTest
             ITypeLoadHelper typeLoadHelper,
             TimeProvider timeProvider,
             IOptions<QuartzSchedulerOptions> schedulerOptions,
-        IOptions<AdoJobStoreOptions> storeOptions)
-            : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions, storeOptions)
+        IOptions<AdoJobStoreOptions> storeOptions,
+        IObjectSerializer objectSerializer,
+        IDbConnectionManager connectionManager,
+        IDbProvider dbProvider)
+            : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions, storeOptions, objectSerializer, connectionManager, dbProvider)
         {
         }
 
         public TestJobStoreSupport()
-        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions())
+        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider())
         {
             InstanceName = "TestInstance";
             InstanceId = "TestInstanceId";

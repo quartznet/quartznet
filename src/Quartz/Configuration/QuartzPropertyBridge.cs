@@ -42,10 +42,10 @@ internal static class QuartzPropertyBridge
     /// then registers the scheduler's remaining parts with their defaults.
     /// </summary>
     /// <remarks>
-    /// Ordering matters and is owned here rather than left to callers. Types named by a
-    /// <c>&lt;prefix&gt;.type</c> key are registered first so they beat the built-in defaults, which are
-    /// added afterwards with <c>TryAdd</c>. Anything the application registered before calling in still
-    /// wins over both — code beats strings.
+    /// Ordering matters. This registers only what configuration explicitly asked for; the built-in
+    /// defaults are added afterwards, by <c>AddQuartzScheduler</c>, so that anything chosen explicitly —
+    /// here or in the caller's configuration callback — beats them. Anything the application registered
+    /// before calling in wins over both: code beats strings.
     /// </remarks>
     /// <param name="services">The service collection being configured.</param>
     /// <param name="properties">The flat <c>quartz.*</c> properties.</param>
@@ -65,8 +65,6 @@ internal static class QuartzPropertyBridge
         ApplyJobStoreOptions(services, parser, name, schedulerName);
         ApplyDataSourceOptions(services, parser);
         ApplySerializer(services, parser);
-
-        services.AddQuartzScheduler(schedulerName);
     }
 
     /// <summary>
@@ -372,7 +370,12 @@ internal static class QuartzPropertyBridge
             Throw.SchedulerException($"Object serializer type '{configured}' could not be loaded.");
         }
 
-        services.TryAddSingleton(typeof(IObjectSerializer), serializerType!);
+        services.TryAddSingleton<IObjectSerializer>(provider =>
+        {
+            var serializer = (IObjectSerializer) ActivatorUtilities.CreateInstance(provider, serializerType!);
+            serializer.Initialize();
+            return serializer;
+        });
     }
 
     /// <summary>

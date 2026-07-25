@@ -1,10 +1,14 @@
 #nullable enable
 
+using System.Data.Common;
+
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 using Quartz.Impl.AdoJobStore;
+using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Util;
 using Quartz.Simpl;
 using Quartz.Spi;
 
@@ -21,6 +25,20 @@ namespace Quartz.Tests;
 public static class TestJobStores
 {
     public static ILogger<T> Logger<T>() => NullLogger<T>.Instance;
+
+    public static IDbConnectionManager ConnectionManager() => new DBConnectionManager(Logger<DBConnectionManager>());
+
+    /// <summary>
+    /// A database provider that never connects, for tests that only exercise the store's logic.
+    /// </summary>
+    public static IDbProvider DbProvider() => new StubDbProvider();
+
+    public static IObjectSerializer Serializer()
+    {
+        var serializer = new SystemTextJsonObjectSerializer();
+        serializer.Initialize();
+        return serializer;
+    }
 
     public static IOptions<AdoJobStoreOptions> StoreOptions(string dataSource = "test")
     {
@@ -62,7 +80,10 @@ public static class TestJobStores
             typeLoadHelper ?? new SimpleTypeLoadHelper(),
             timeProvider ?? TimeProvider.System,
             SchedulerOptions(instanceName, instanceId),
-            StoreOptions());
+            StoreOptions(),
+            Serializer(),
+            ConnectionManager(),
+            DbProvider());
     }
 
     public static JobStoreCMT Cmt(
@@ -75,7 +96,33 @@ public static class TestJobStores
             typeLoadHelper ?? new SimpleTypeLoadHelper(),
             timeProvider ?? TimeProvider.System,
             SchedulerOptions(),
-            StoreOptions());
+            StoreOptions(),
+            Serializer(),
+            ConnectionManager(),
+            DbProvider());
+    }
+}
+
+/// <summary>
+/// A database provider that never opens a connection, so a job store can be constructed in a test
+/// without a real driver assembly on hand.
+/// </summary>
+public sealed class StubDbProvider : IDbProvider
+{
+    public string ConnectionString { get; set; } = "";
+
+    public DbMetadata Metadata { get; } = new();
+
+    public void Initialize()
+    {
+    }
+
+    public DbCommand CreateCommand() => throw new NotSupportedException("StubDbProvider does not connect.");
+
+    public DbConnection CreateConnection() => throw new NotSupportedException("StubDbProvider does not connect.");
+
+    public void Shutdown()
+    {
     }
 }
 

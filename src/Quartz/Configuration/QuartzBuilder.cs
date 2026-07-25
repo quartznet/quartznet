@@ -55,22 +55,38 @@ internal sealed class QuartzBuilder : IQuartzBuilder
     public IQuartzBuilder UseThreadPool<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         Action<ThreadPoolOptions>? configure = null) where T : class, IThreadPool
     {
-        Register<IThreadPool, T>();
         if (configure is not null)
         {
             Services.Configure(OptionsName, configure);
         }
+
+        RegisterConfigured<IThreadPool>((provider, key) =>
+        {
+            var threadPool = ActivatorUtilities.CreateInstance<T>(SchedulerScopedServiceProvider.For(provider, key));
+            if (threadPool is TaskSchedulingThreadPool schedulingThreadPool)
+            {
+                schedulingThreadPool.MaxConcurrency = provider.GetSchedulerOptions<ThreadPoolOptions>(key).MaxConcurrency;
+            }
+
+            return threadPool;
+        });
 
         return this;
     }
 
     public IQuartzBuilder UseInMemoryStore(Action<InMemoryJobStoreOptions>? configure = null)
     {
-        Register<IJobStore, RAMJobStore>();
         if (configure is not null)
         {
             Services.Configure(OptionsName, configure);
         }
+
+        RegisterConfigured<IJobStore>((provider, key) =>
+        {
+            var jobStore = ActivatorUtilities.CreateInstance<RAMJobStore>(SchedulerScopedServiceProvider.For(provider, key));
+            jobStore.MisfireThreshold = provider.GetSchedulerOptions<InMemoryJobStoreOptions>(key).MisfireThreshold;
+            return jobStore;
+        });
 
         return this;
     }
@@ -85,8 +101,14 @@ internal sealed class QuartzBuilder : IQuartzBuilder
     {
         ArgumentNullException.ThrowIfNull(configure);
 
-        Register<IJobStore, T>();
-        configure(new PersistentStoreBuilder(Services, schedulerKey));
+        RegisterConfigured<IJobStore>((provider, key) =>
+            ActivatorUtilities.CreateInstance<T>(SchedulerScopedServiceProvider.For(provider, key)));
+
+        var store = new PersistentStoreBuilder(Services, schedulerKey);
+        configure(store);
+
+        // Registered after the callback so an explicitly chosen serializer wins over this fallback.
+        store.UseSerializer<SystemTextJsonObjectSerializer>();
         return this;
     }
 
@@ -216,17 +238,32 @@ internal sealed class QuartzBuilder : IQuartzBuilder
     /// <summary>
     /// Registers a per-scheduler service, keyed for a named scheduler and unkeyed for the default one.
     /// </summary>
+    /// <remarks>
+    /// Construction goes through <see cref="SchedulerScopedServiceProvider"/> so the component is given
+    /// its own scheduler's collaborators. Registering the implementation type directly would resolve
+    /// them unkeyed, which for a named scheduler means the wrong ones or none at all.
+    /// </remarks>
     private void Register<TService, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] TImplementation>()
         where TService : class
         where TImplementation : class, TService
     {
+        RegisterConfigured<TService>((provider, key) =>
+            ActivatorUtilities.CreateInstance<TImplementation>(SchedulerScopedServiceProvider.For(provider, key)));
+    }
+
+    /// <summary>
+    /// Registers a per-scheduler service built by a factory that knows which scheduler it belongs to.
+    /// </summary>
+    private void RegisterConfigured<TService>(Func<IServiceProvider, object?, TService> factory)
+        where TService : class
+    {
         if (schedulerKey is null)
         {
-            Services.TryAddSingleton<TService, TImplementation>();
+            Services.TryAddSingleton(provider => factory(provider, null));
         }
         else
         {
-            Services.TryAddKeyedSingleton<TService, TImplementation>(schedulerKey);
+            Services.TryAddKeyedSingleton(schedulerKey, (provider, key) => factory(provider, key));
         }
     }
 

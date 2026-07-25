@@ -20,8 +20,9 @@ public static class JsonConfigurationExtensions
 
         var options = new NewtonsoftJsonSerializerOptions();
         configure?.Invoke(options);
-        builder.Services.AddSingleton<IObjectSerializer>(
-            new NewtonsoftJsonObjectSerializer { RegisterTriggerConverters = options.RegisterTriggerConverters });
+        var serializer = new NewtonsoftJsonObjectSerializer { RegisterTriggerConverters = options.RegisterTriggerConverters };
+        serializer.Initialize();
+        builder.Services.AddSingleton<IObjectSerializer>(serializer);
         return builder;
     }
 }

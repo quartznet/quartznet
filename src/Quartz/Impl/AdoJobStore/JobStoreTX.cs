@@ -20,6 +20,8 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
+using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Util;
 using Quartz.Spi;
 
 namespace Quartz.Impl.AdoJobStore;
@@ -41,8 +43,11 @@ public class JobStoreTX : JobStoreSupport
         ITypeLoadHelper typeLoadHelper,
         TimeProvider timeProvider,
         IOptions<QuartzSchedulerOptions> schedulerOptions,
-        IOptions<AdoJobStoreOptions> storeOptions)
-        : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions, storeOptions)
+        IOptions<AdoJobStoreOptions> storeOptions,
+        IObjectSerializer objectSerializer,
+        IDbConnectionManager connectionManager,
+        IDbProvider dbProvider)
+        : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions, storeOptions, objectSerializer, connectionManager, dbProvider)
     {
     }
 

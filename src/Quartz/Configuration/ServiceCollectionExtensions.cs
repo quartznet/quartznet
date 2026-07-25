@@ -198,6 +198,10 @@ public static class ServiceCollectionExtensions
 
         configure?.Invoke(new QuartzBuilder(services, schedulerName));
 
+        // Defaults go in last, so an explicitly configured job store, thread pool or serializer is not
+        // beaten to the registration by the fallback it was meant to replace.
+        services.AddQuartzScheduler(schedulerName);
+
         if (schedulerName is not null)
         {
             var registry = services

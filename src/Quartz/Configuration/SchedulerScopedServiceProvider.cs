@@ -2,6 +2,8 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Core;
 using Quartz.Impl;
+using Quartz.Impl.AdoJobStore;
+using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Spi;
 
 namespace Quartz.Configuration;
@@ -32,6 +34,9 @@ internal sealed class SchedulerScopedServiceProvider : IServiceProvider, IKeyedS
     [
         typeof(ISchedulerSignaler),
         typeof(IJobStore),
+        typeof(IDbProvider),
+        typeof(IDriverDelegate),
+        typeof(ISemaphore),
         typeof(IThreadPool),
         typeof(IJobFactory),
         typeof(IJobRunShellFactory),

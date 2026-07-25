@@ -72,9 +72,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         ITypeLoadHelper typeLoadHelper,
         TimeProvider timeProvider,
         IOptions<QuartzSchedulerOptions> schedulerOptions,
-        IOptions<AdoJobStoreOptions> storeOptions)
+        IOptions<AdoJobStoreOptions> storeOptions,
+        IObjectSerializer objectSerializer,
+        IDbConnectionManager connectionManager,
+        IDbProvider dbProvider)
     {
         schedSignaler = schedulerSignaler;
+        ObjectSerializer = objectSerializer;
         this.typeLoadHelper = typeLoadHelper;
         this.timeProvider = timeProvider;
         InstanceName = schedulerOptions.Value.InstanceName;
@@ -82,7 +86,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
         Logger = LogProvider.CreateLogger<JobStoreSupport>();
         delegateType = typeof(StdAdoDelegate);
-        ConnectionManager = DBConnectionManager.Instance;
+        ConnectionManager = connectionManager;
 
         var options = storeOptions.Value;
         DataSource = options.DataSource;
@@ -107,6 +111,10 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         PerformSchemaValidation = options.PerformSchemaValidation;
         SelectWithLockSQL = options.SelectWithLockSql;
         DriverDelegateInitString = options.DriverDelegateInitString;
+
+        // The store reaches its database through the connection manager, keyed by data source name, so
+        // the provider the container built has to be published there under the name this store uses.
+        ConnectionManager.AddConnectionProvider(DataSource, dbProvider);
     }
 
     /// <summary>

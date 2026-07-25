@@ -436,6 +436,9 @@ Please add configuration to your application config file to correctly initialize
 
         QuartzPropertyBridge.Apply(services, cfg!.UnderlyingProperties);
 
+        // Defaults last, so anything the properties selected explicitly is not beaten by its fallback.
+        services.AddQuartzScheduler();
+
         provider = services.BuildServiceProvider();
         inner = provider.GetRequiredService<ISchedulerFactory>();
         return inner;

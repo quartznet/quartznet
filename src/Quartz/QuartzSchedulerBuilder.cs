@@ -36,7 +36,6 @@ public sealed class QuartzSchedulerBuilder
 
     private QuartzSchedulerBuilder()
     {
-        services.AddQuartzScheduler();
     }
 
     /// <summary>
@@ -133,6 +132,9 @@ public sealed class QuartzSchedulerBuilder
     /// </summary>
     public ISchedulerFactory Build()
     {
+        // Defaults last, so anything configured above replaces rather than loses to them.
+        services.AddQuartzScheduler();
+
         var provider = services.BuildServiceProvider(new ServiceProviderOptions
         {
             ValidateOnBuild = true,

@@ -17,6 +17,7 @@ public class QuartzPropertyBridgeTest
     {
         var services = new ServiceCollection();
         QuartzPropertyBridge.Apply(services, properties, schedulerName);
+        services.AddQuartzScheduler(schedulerName);
         return services.BuildServiceProvider();
     }
 
@@ -244,6 +245,7 @@ public class QuartzPropertyBridgeTest
         {
             ["quartz.threadPool.maxConcurrency"] = "6",
         }, "reporting");
+        services.AddQuartzScheduler("reporting");
 
         using var provider = services.BuildServiceProvider();
 
@@ -259,6 +261,7 @@ public class QuartzPropertyBridgeTest
         {
             ["quartz.scheduler.instanceName"] = "something-else",
         }, "reporting");
+        services.AddQuartzScheduler("reporting");
 
         using var provider = services.BuildServiceProvider();
 

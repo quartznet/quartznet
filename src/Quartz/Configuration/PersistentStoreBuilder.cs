@@ -101,7 +101,15 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
     public IPersistentStoreBuilder UseSerializer<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
         where T : class, IObjectSerializer
     {
-        Services.TryAddSingleton<IObjectSerializer, T>();
+        // A serializer is unusable until Initialize builds its converter set, so register it already
+        // initialized rather than relying on somebody remembering to call it.
+        Services.TryAddSingleton<IObjectSerializer>(provider =>
+        {
+            var serializer = ActivatorUtilities.CreateInstance<T>(provider);
+            serializer.Initialize();
+            return serializer;
+        });
+
         return this;
     }
 
