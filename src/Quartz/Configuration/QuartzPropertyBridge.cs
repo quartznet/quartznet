@@ -1,5 +1,9 @@
 using System.Collections.Specialized;
+using System.Data.Common;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+
+using Microsoft.Extensions.Configuration;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -7,6 +11,7 @@ using Microsoft.Extensions.Options;
 
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
+using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
@@ -276,6 +281,39 @@ internal static class QuartzPropertyBridge
         Register<IDriverDelegate>(services, schedulerName, parser.Type("quartz.jobStore.driverDelegateType"));
         Register<ISemaphore>(services, schedulerName, parser.Type(StdSchedulerFactory.PropertyJobStoreLockHandlerType));
 
+        if (persistent)
+        {
+            // A persistent store needs the same companions the code-first path registers; configuring it
+            // by properties must not leave it half-built.
+            var dataSourceName = parser.String("quartz.jobStore.dataSource") ?? "quartz";
+            RegisterConfigured<IDbProvider>(services, schedulerName, (provider, _) =>
+            {
+                var dataSource = provider.GetRequiredService<IOptionsMonitor<DataSourceOptions>>().Get(dataSourceName);
+                var connectionString = dataSource.ConnectionString;
+
+                if (string.IsNullOrWhiteSpace(connectionString) && !string.IsNullOrWhiteSpace(dataSource.ConnectionStringName))
+                {
+                    connectionString = provider.GetService<IConfiguration>()?.GetConnectionString(dataSource.ConnectionStringName);
+                }
+
+                if (string.IsNullOrWhiteSpace(connectionString))
+                {
+                    Throw.SchedulerConfigException($"No connection string configured for data source '{dataSourceName}'.");
+                }
+
+                return new DbProvider(dataSource.Provider, connectionString!);
+            });
+
+            RegisterDefault<IDriverDelegate, StdAdoDelegate>(services, schedulerName);
+            RegisterDefault<ISemaphore, SimpleSemaphore>(services, schedulerName);
+            services.TryAddSingleton<IObjectSerializer>(provider =>
+            {
+                var serializer = ActivatorUtilities.CreateInstance<SystemTextJsonObjectSerializer>(provider);
+                serializer.Initialize();
+                return serializer;
+            });
+        }
+
         RegisterConfigured<IJobStore>(services, schedulerName, (provider, key) =>
         {
             var jobStore = (IJobStore) ActivatorUtilities.CreateInstance(SchedulerScopedServiceProvider.For(provider, key), jobStoreType);
@@ -401,6 +439,25 @@ internal static class QuartzPropertyBridge
         else
         {
             services.TryAddKeyedSingleton(typeof(TService), schedulerName, implementationType);
+        }
+    }
+
+    /// <summary>
+    /// Registers a fallback implementation, which an explicit choice made earlier still beats.
+    /// </summary>
+    private static void RegisterDefault<TService, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] TImplementation>(
+        IServiceCollection services,
+        string? schedulerName)
+        where TService : class
+        where TImplementation : class, TService
+    {
+        if (schedulerName is null)
+        {
+            services.TryAddSingleton<TService, TImplementation>();
+        }
+        else
+        {
+            services.TryAddKeyedSingleton<TService, TImplementation>(schedulerName);
         }
     }
 
