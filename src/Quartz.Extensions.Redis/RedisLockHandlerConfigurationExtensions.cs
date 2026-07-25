@@ -24,7 +24,7 @@ public static class RedisLockHandlerConfigurationExtensions
         var options = new RedisLockHandlerOptions();
         configure?.Invoke(options);
 
-        builder.Services.AddSingleton<ISemaphore>(provider =>
+        builder.UseLockHandler(provider =>
         {
             var semaphore = ActivatorUtilities.CreateInstance<RedisSemaphore>(provider);
             if (options.RedisConfiguration is not null)

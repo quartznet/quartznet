@@ -77,7 +77,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         IDbConnectionManager connectionManager,
         IDbProvider dbProvider,
         IDriverDelegate driverDelegate,
-        ISemaphore lockHandler)
+        ISemaphore? lockHandler = null)
     {
         schedSignaler = schedulerSignaler;
         ObjectSerializer = objectSerializer;
@@ -122,7 +122,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         // than loaded from a type name here.
         this.driverDelegate = driverDelegate;
         delegateType = driverDelegate.GetType();
-        LockHandler = lockHandler;
+
+        // A lock handler is only injected when one was chosen explicitly. Left null, Initialize picks
+        // between database row locks and an in-process monitor once the delegate and clustering settings
+        // are known — a decision that cannot be made at registration time, because it depends on which
+        // database this store turns out to be talking to.
+        LockHandler = lockHandler!;
     }
 
     /// <summary>
@@ -4087,7 +4092,6 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         catch (Exception e)
         {
             LastCheckin = timeProvider.GetUtcNow();
-        InitializeDelegate();
             Throw.JobPersistenceException("Failure identifying failed instances when checking-in: " + e.Message, e);
             return default;
         }

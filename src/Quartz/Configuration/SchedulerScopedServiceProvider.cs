@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 using Quartz.Core;
 using Quartz.Impl;
@@ -25,7 +26,8 @@ namespace Quartz.Configuration;
 /// resolved normally.
 /// </para>
 /// </remarks>
-internal sealed class SchedulerScopedServiceProvider : IServiceProvider, IKeyedServiceProvider
+internal sealed class SchedulerScopedServiceProvider
+    : IServiceProvider, IKeyedServiceProvider, IServiceProviderIsService, IServiceProviderIsKeyedService
 {
     /// <summary>
     /// The services registered once per scheduler rather than once per container.
@@ -37,6 +39,7 @@ internal sealed class SchedulerScopedServiceProvider : IServiceProvider, IKeyedS
         typeof(IDbProvider),
         typeof(IDriverDelegate),
         typeof(ISemaphore),
+        typeof(IObjectSerializer),
         typeof(IThreadPool),
         typeof(IJobFactory),
         typeof(IJobRunShellFactory),
@@ -47,6 +50,35 @@ internal sealed class SchedulerScopedServiceProvider : IServiceProvider, IKeyedS
         typeof(ContainerConfigurationProcessor),
         typeof(SchedulerContentInitializer),
     ];
+
+    /// <summary>
+    /// The options a scheduler's components ask for as <see cref="IOptions{TOptions}"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A scheduler's options are <em>named</em> options, but <see cref="IOptions{TOptions}"/> always
+    /// resolves the unnamed instance. A named scheduler's job store would therefore be configured from
+    /// the default scheduler's settings, which is the same cross-wiring this class exists to prevent —
+    /// so the request is answered from the monitor, under this scheduler's name.
+    /// </para>
+    /// <para>
+    /// The map is explicit rather than generic because closing <c>OptionsWrapper&lt;&gt;</c> over a
+    /// runtime type is not something a trimmer can follow.
+    /// </para>
+    /// </remarks>
+    private static readonly Dictionary<Type, Func<IServiceProvider, string, object>> namedOptions = new()
+    {
+        [typeof(IOptions<QuartzSchedulerOptions>)] = static (p, name) => Named<QuartzSchedulerOptions>(p, name),
+        [typeof(IOptions<ThreadPoolOptions>)] = static (p, name) => Named<ThreadPoolOptions>(p, name),
+        [typeof(IOptions<InMemoryJobStoreOptions>)] = static (p, name) => Named<InMemoryJobStoreOptions>(p, name),
+        [typeof(IOptions<AdoJobStoreOptions>)] = static (p, name) => Named<AdoJobStoreOptions>(p, name),
+        [typeof(IOptions<QuartzOptions>)] = static (p, name) => Named<QuartzOptions>(p, name),
+    };
+
+    private static OptionsWrapper<T> Named<T>(IServiceProvider provider, string name) where T : class
+    {
+        return new OptionsWrapper<T>(provider.GetRequiredService<IOptionsMonitor<T>>().Get(name));
+    }
 
     private readonly IServiceProvider inner;
     private readonly object? key;
@@ -68,9 +100,28 @@ internal sealed class SchedulerScopedServiceProvider : IServiceProvider, IKeyedS
 
     public object? GetService(Type serviceType)
     {
-        return schedulerScoped.Contains(serviceType)
-            ? inner.GetKeyedService(serviceType, key)
-            : inner.GetService(serviceType);
+        if (schedulerScoped.Contains(serviceType))
+        {
+            return inner.GetKeyedService(serviceType, key);
+        }
+
+        if (namedOptions.TryGetValue(serviceType, out var options))
+        {
+            return options(inner, key as string ?? Options.DefaultName);
+        }
+
+        // A component handed "the container" so it can resolve things later must keep resolving this
+        // scheduler's parts, not the default scheduler's — plugins built from a type name are the case
+        // that makes the difference visible. The same goes for the "is this registered?" services, which
+        // ActivatorUtilities consults while choosing a constructor.
+        if (serviceType == typeof(IServiceProvider)
+            || serviceType == typeof(IServiceProviderIsService)
+            || serviceType == typeof(IServiceProviderIsKeyedService))
+        {
+            return this;
+        }
+
+        return inner.GetService(serviceType);
     }
 
     public object? GetKeyedService(Type serviceType, object? serviceKey)
@@ -81,5 +132,37 @@ internal sealed class SchedulerScopedServiceProvider : IServiceProvider, IKeyedS
     public object GetRequiredKeyedService(Type serviceType, object? serviceKey)
     {
         return inner.GetRequiredKeyedService(serviceType, serviceKey);
+    }
+
+    /// <summary>
+    /// Answers what this scheduler can be given, not what the container holds unkeyed.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="ActivatorUtilities"/> asks this before choosing a constructor, and treats a service it
+    /// is told does not exist as a parameter it cannot supply. Answering from the container directly
+    /// would report every one of a named scheduler's own parts as missing, so a component with more than
+    /// one constructor gets the wrong one chosen — or is rejected outright.
+    /// </remarks>
+    public bool IsService(Type serviceType)
+    {
+        if (schedulerScoped.Contains(serviceType))
+        {
+            return IsKeyedService(serviceType, key);
+        }
+
+        if (namedOptions.ContainsKey(serviceType)
+            || serviceType == typeof(IServiceProvider)
+            || serviceType == typeof(IServiceProviderIsService)
+            || serviceType == typeof(IServiceProviderIsKeyedService))
+        {
+            return true;
+        }
+
+        return inner.GetService<IServiceProviderIsService>()?.IsService(serviceType) ?? false;
+    }
+
+    public bool IsKeyedService(Type serviceType, object? serviceKey)
+    {
+        return inner.GetService<IServiceProviderIsKeyedService>()?.IsKeyedService(serviceType, serviceKey) ?? false;
     }
 }

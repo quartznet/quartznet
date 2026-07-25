@@ -21,6 +21,7 @@
 
 using System.Data.Common;
 
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
 using Quartz.Impl.AdoJobStore.Common;
@@ -43,6 +44,11 @@ public class StdRowLockSemaphore : DBSemaphore
     /// <summary>
     /// Initializes a new instance of the <see cref="StdRowLockSemaphore"/> class.
     /// </summary>
+    /// <remarks>
+    /// This is the constructor the container uses. The other one takes strings, which no container can
+    /// supply, and marking this one says so rather than leaving the choice ambiguous.
+    /// </remarks>
+    [ActivatorUtilitiesConstructor]
     public StdRowLockSemaphore(IDbProvider dbProvider)
         : base(DefaultTablePrefix, null, SelectForLock, InsertLock, dbProvider)
     {

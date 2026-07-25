@@ -74,7 +74,7 @@ namespace Quartz.Impl;
 /// <author>Anthony Eden</author>
 /// <author>Mohammad Rezaei</author>
 /// <author>Marko Lahma (.NET)</author>
-public class StdSchedulerFactory : ISchedulerFactory
+public class StdSchedulerFactory : ISchedulerFactory, IDisposable
 {
     private const string ConfigurationKeyPrefix = "quartz.";
     private const string ConfigurationKeyPrefixServer = "quartz.server";
@@ -171,8 +171,12 @@ public class StdSchedulerFactory : ISchedulerFactory
     public const string AutoGenerateInstanceId = "AUTO";
     public const string SystemPropertyAsInstanceId = "SYS_PROP";
 
-    private readonly SemaphoreSlim semaphore = new(1, 1);
-
+    /// <summary>
+    /// Guards building the private container, which two threads calling <c>GetScheduler</c> at once
+    /// would otherwise both do — producing two schedulers, one of which loses the race to bind itself
+    /// into the repository and is left running with nobody holding a reference to shut it down.
+    /// </summary>
+    private readonly Lock containerLock = new();
 
     private PropertiesParser cfg = null!;
 
@@ -408,11 +412,18 @@ Please add configuration to your application config file to correctly initialize
             return inner;
         }
 
+        lock (containerLock)
+        {
+            return inner ??= BuildInner();
+        }
+    }
+
+    private ISchedulerFactory BuildInner()
+    {
         if (cfg is null)
         {
             Initialize();
         }
-
 
         var services = new ServiceCollection();
 
@@ -440,8 +451,7 @@ Please add configuration to your application config file to correctly initialize
         services.AddQuartzScheduler();
 
         provider = services.BuildServiceProvider();
-        inner = provider.GetRequiredService<ISchedulerFactory>();
-        return inner;
+        return provider.GetRequiredService<ISchedulerFactory>();
     }
 
     /// <summary>
@@ -466,5 +476,26 @@ Please add configuration to your application config file to correctly initialize
     protected virtual Type? LoadType(string? typeName)
     {
         return string.IsNullOrWhiteSpace(typeName) ? null : new SimpleTypeLoadHelper().LoadType(typeName);
+    }
+
+    /// <summary>
+    /// Disposes the container this factory built, and with it the scheduler's container-owned parts.
+    /// </summary>
+    /// <remarks>
+    /// Shut the scheduler down first. Disposing the factory releases what the container holds; it does
+    /// not stop a running scheduler.
+    /// </remarks>
+    public void Dispose()
+    {
+        ServiceProvider? owned;
+        lock (containerLock)
+        {
+            owned = provider;
+            provider = null;
+            inner = null;
+        }
+
+        owned?.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

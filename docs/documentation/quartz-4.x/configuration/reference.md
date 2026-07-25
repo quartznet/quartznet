@@ -148,6 +148,20 @@ store.UseSqlServer(connectionString);
 store.UseSqlServer(db => db.ConnectionStringName = "Scheduler");
 ```
 
+To connect through a `DbDataSource` registered in the container rather than a connection string of
+Quartz's own, add `store.UseDataSourceConnectionProvider()`.
+
+### Locking
+
+Leave the lock handler unset and the store chooses one for itself once it knows which database it is
+talking to: database row locks when clustered or when `UseDbLocks` is on, and an in-process monitor
+otherwise. `UseLockHandler<T>()` overrides that choice, and `UseLockHandler(factory)` does the same for a
+handler that needs building — as `UseRedisLockHandler()` does.
+
+Both this and `UseSerializer` register against the scheduler that owns the store. Registering
+`ISemaphore` or `IObjectSerializer` directly against `Services` registers it for the container, which a
+named scheduler will not see.
+
 ### Data source
 
 `DataSourceOptions`, bound from `Quartz:DataSource`.
@@ -324,6 +338,15 @@ Two differences are worth knowing:
 | `quartz.jobStore.lockHandler.type` | `UseLockHandler<T>()` |
 | `quartz.scheduler.jobFactory.type` | `UseJobFactory<T>()` |
 | `quartz.scheduler.typeLoadHelper.type` | `UseTypeLoader<T>()` |
+| `quartz.jobListener.NAME.type` | `AddJobListener<T>(matchers)` |
+| `quartz.triggerListener.NAME.type` | `AddTriggerListener<T>(matchers)` |
+
+A listener named by properties has no matchers to carry, so it listens to everything. The code-first
+methods take matchers, which is the reason to prefer them.
+
+Where the same setting is said twice, code wins. A `UsePersistentStore` in code beats a leftover
+`quartz.jobStore.type` in a configuration file, and a value set through `ConfigureScheduler` beats the
+same value in `appsettings.json`.
 
 Removed in 4.x, with no replacement: `quartz.scheduler.proxy*` and `quartz.scheduler.exporter*`
 (remoting, which .NET no longer supports), `quartz.threadExecutor*`, and `quartz.checkConfiguration`

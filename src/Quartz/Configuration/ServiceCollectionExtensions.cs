@@ -84,7 +84,7 @@ public static class ServiceCollectionExtensions
         // Bound before the callback runs, so configuration is the starting point and code overrides it.
         services.BindQuartzOptions(configuration);
         JsonSchedulingHelper.ConfigureOptionsFromConfiguration(services, configuration, Options.DefaultName);
-        AddQuartzScheduler(services, schedulerName: null, FlatKeysOnly(configuration), configure);
+        AddQuartzScheduler(services, schedulerName: null, LegacyProperties(configuration), configure);
         return services;
     }
 
@@ -137,7 +137,7 @@ public static class ServiceCollectionExtensions
 
         services.BindQuartzOptions(effective, name);
         JsonSchedulingHelper.ConfigureOptionsFromConfiguration(services, effective, name);
-        AddQuartzScheduler(services, name, FlatKeysOnly(effective), configure);
+        AddQuartzScheduler(services, name, LegacyProperties(effective), configure);
         return services;
     }
 
@@ -151,24 +151,36 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Returns only the flat <c>quartz.*</c> keys from a section.
+    /// The sections that bind onto typed options, and so must not also be flattened into legacy keys.
+    /// </summary>
+    private static readonly HashSet<string> typedSections = new(StringComparer.OrdinalIgnoreCase)
+    {
+        QuartzTypedOptions.SchedulerSection,
+        QuartzTypedOptions.ThreadPoolSection,
+        QuartzTypedOptions.JobStoreSection,
+        QuartzTypedOptions.DataSourceSection,
+    };
+
+    /// <summary>
+    /// Returns the properties a section contributes to the legacy string format.
     /// </summary>
     /// <remarks>
-    /// Hierarchical sections bind onto the typed options directly. Flattening them into legacy keys as
-    /// well would send the same value through both readers, and the two disagree about form — a
-    /// duration is <c>00:00:30</c> to the binder and a count of milliseconds to the legacy reader.
+    /// <para>
+    /// Sections with typed options of their own are excluded, because they are bound directly and
+    /// flattening them as well would send the same value through both readers — and the two disagree
+    /// about form, a duration being <c>00:00:30</c> to the binder and a count of milliseconds to the
+    /// legacy reader.
+    /// </para>
+    /// <para>
+    /// Everything else is flattened. Plugins, serializers, listeners and execution limits have no typed
+    /// options yet, so the legacy keys are the only thing that reads them; dropping those sections would
+    /// mean a documented, valid <c>Quartz:Plugin:*</c> configuration was accepted and then ignored.
+    /// </para>
     /// </remarks>
-    private static NameValueCollection FlatKeysOnly(IConfiguration configuration)
+    private static NameValueCollection LegacyProperties(IConfiguration configuration)
     {
         var properties = new NameValueCollection();
-        foreach (var child in configuration.GetChildren())
-        {
-            if (child.Value is not null && child.Key.StartsWith("quartz.", StringComparison.OrdinalIgnoreCase))
-            {
-                properties[child.Key] = child.Value;
-            }
-        }
-
+        QuartzConfigurationHelper.PopulateProperties(configuration, properties, typedSections);
         return properties;
     }
 
@@ -213,12 +225,17 @@ public static class ServiceCollectionExtensions
             }
         });
 
-        // Legacy flat keys become typed options and registrations first, so that anything the caller
-        // configures below wins: code beats strings.
-        QuartzPropertyBridge.Apply(services, properties, schedulerName);
+        // Legacy flat keys become typed options first, so a value set in the callback below is applied
+        // last and therefore wins.
+        QuartzPropertyBridge.ApplyOptions(services, properties, schedulerName);
         QuartzPropertyBridge.ApplyFromQuartzOptions(services, schedulerName);
 
         configure?.Invoke(new QuartzBuilder(services, schedulerName));
+
+        // The implementations named by legacy keys go in after the callback, because registration is
+        // first-wins: a job store chosen by UsePersistentStore has to beat a leftover
+        // quartz.jobStore.type from an old configuration file. Code beats strings in both directions.
+        QuartzPropertyBridge.ApplyRegistrations(services, properties, schedulerName);
 
         // Defaults go in last, so an explicitly configured job store, thread pool or serializer is not
         // beaten to the registration by the fallback it was meant to replace.
@@ -489,15 +506,4 @@ public static class ServiceCollectionExtensions
         return configurator;
     }
 
-    /// <summary>
-    /// Registers an <see cref="IDbProvider"/> that fetches connections from a <see cref="DbDataSource"/> within the container.
-    /// Should be used with `UseDataSourceConnectionProvider` within a ADO.NET persistence store. />
-    /// </summary>
-    /// <param name="configurator"></param>
-    /// <returns></returns>
-    public static IQuartzBuilder AddDataSourceProvider(this IQuartzBuilder configurator)
-    {
-        configurator.Services.AddSingleton<IDbProvider, DataSourceDbProvider>();
-        return configurator;
-    }
 }

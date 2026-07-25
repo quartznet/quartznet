@@ -32,7 +32,13 @@ public static class PluginConfigurationExtensions
 
         return builder.AddConfiguredPlugin<XMLSchedulingDataProcessorPlugin>(plugin =>
         {
-            plugin.FileNames = string.Join(",", options.Files);
+            // Left unset, the plugin keeps its own default file name rather than being handed an empty
+            // one, which it would try to open as a path.
+            if (options.Files.Length > 0)
+            {
+                plugin.FileNames = string.Join(",", options.Files);
+            }
+
             plugin.FailOnFileNotFound = options.FailOnFileNotFound;
             plugin.FailOnSchedulingError = options.FailOnSchedulingError;
             plugin.ScanInterval = options.ScanInterval;
@@ -54,7 +60,11 @@ public static class PluginConfigurationExtensions
 
         return builder.AddConfiguredPlugin<JsonSchedulingDataProcessorPlugin>(plugin =>
         {
-            plugin.FileNames = string.Join(",", options.Files);
+            if (options.Files.Length > 0)
+            {
+                plugin.FileNames = string.Join(",", options.Files);
+            }
+
             plugin.FailOnFileNotFound = options.FailOnFileNotFound;
             plugin.FailOnSchedulingError = options.FailOnSchedulingError;
             plugin.ScanInterval = options.ScanInterval;

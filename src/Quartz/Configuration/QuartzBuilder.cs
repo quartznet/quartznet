@@ -107,10 +107,12 @@ internal sealed class QuartzBuilder : IQuartzBuilder
         var store = new PersistentStoreBuilder(Services, schedulerKey);
         configure(store);
 
-        // Registered after the callback so explicit choices win over these fallbacks.
+        // Registered after the callback so explicit choices win over these fallbacks. There is
+        // deliberately no lock handler fallback: left unregistered, the store picks between database row
+        // locks and an in-process monitor itself, once it knows whether it is clustered and which
+        // database it is talking to.
         store.UseSerializer<SystemTextJsonObjectSerializer>();
         store.UseDriverDelegate<StdAdoDelegate>();
-        store.UseLockHandler<SimpleSemaphore>();
         return this;
     }
 
@@ -165,7 +167,9 @@ internal sealed class QuartzBuilder : IQuartzBuilder
         }
         else
         {
-            Services.AddKeyedSingleton<ISchedulerPlugin>(schedulerKey, (provider, _) => factory(provider));
+            Services.AddKeyedSingleton<ISchedulerPlugin>(
+                schedulerKey,
+                (provider, key) => factory(SchedulerScopedServiceProvider.For(provider, key)));
         }
 
         return this;
@@ -304,7 +308,11 @@ internal sealed class QuartzBuilder : IQuartzBuilder
         }
         else
         {
-            Services.TryAddEnumerable(ServiceDescriptor.KeyedSingleton<TService, TImplementation>(schedulerKey));
+            // Built through the scoped provider, so a plugin that depends on the scheduler it extends
+            // gets that scheduler's parts rather than the default scheduler's.
+            Services.TryAddEnumerable(ServiceDescriptor.KeyedSingleton<TService, TImplementation>(
+                schedulerKey,
+                static (provider, key) => ActivatorUtilities.CreateInstance<TImplementation>(SchedulerScopedServiceProvider.For(provider, key))));
         }
     }
 }

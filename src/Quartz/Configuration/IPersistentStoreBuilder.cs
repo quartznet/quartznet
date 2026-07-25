@@ -79,8 +79,31 @@ public interface IPersistentStoreBuilder
         where T : class, IObjectSerializer;
 
     /// <summary>
+    /// Uses a serializer the caller builds, for cases where it needs configuring first.
+    /// </summary>
+    /// <remarks>
+    /// The serializer belongs to this store rather than to the container, so use this rather than
+    /// registering <see cref="IObjectSerializer"/> against <see cref="Services"/>: a named scheduler
+    /// resolves its serializer under its own key and would never see an unkeyed registration.
+    /// </remarks>
+    IPersistentStoreBuilder UseSerializer(Func<IServiceProvider, IObjectSerializer> factory);
+
+    /// <summary>
     /// Uses a specific lock handler, which decides how competing schedulers serialize their work.
     /// </summary>
+    /// <remarks>
+    /// Left unset, the store chooses for itself once it knows which database it is talking to: database
+    /// row locks when clustered, and an in-process monitor otherwise.
+    /// </remarks>
     IPersistentStoreBuilder UseLockHandler<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
         where T : class, ISemaphore;
+
+    /// <summary>
+    /// Uses a lock handler the caller builds, for cases where it needs configuring first.
+    /// </summary>
+    /// <remarks>
+    /// As with <see cref="UseSerializer(Func{IServiceProvider, IObjectSerializer})"/>, this registers
+    /// under the scheduler's own key, which registering against <see cref="Services"/> would not.
+    /// </remarks>
+    IPersistentStoreBuilder UseLockHandler(Func<IServiceProvider, ISemaphore> factory);
 }

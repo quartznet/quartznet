@@ -43,14 +43,12 @@ internal static class QuartzPropertyBridge
     private static readonly SimpleTypeLoadHelper typeLoadHelper = new();
 
     /// <summary>
-    /// Applies a flat property collection to the service collection as typed options and registrations,
-    /// then registers the scheduler's remaining parts with their defaults.
+    /// Applies a flat property collection as both typed options and service registrations.
     /// </summary>
     /// <remarks>
-    /// Ordering matters. This registers only what configuration explicitly asked for; the built-in
-    /// defaults are added afterwards, by <c>AddQuartzScheduler</c>, so that anything chosen explicitly —
-    /// here or in the caller's configuration callback — beats them. Anything the application registered
-    /// before calling in wins over both: code beats strings.
+    /// Only for callers with no configuration callback of their own. Anything that lets the application
+    /// configure a scheduler in code calls <see cref="ApplyOptions"/> before that callback and
+    /// <see cref="ApplyRegistrations"/> after it, so that code beats strings.
     /// </remarks>
     /// <param name="services">The service collection being configured.</param>
     /// <param name="properties">The flat <c>quartz.*</c> properties.</param>
@@ -59,17 +57,57 @@ internal static class QuartzPropertyBridge
     /// </param>
     public static void Apply(IServiceCollection services, NameValueCollection properties, string? schedulerName = null)
     {
+        ApplyOptions(services, properties, schedulerName);
+        ApplyRegistrations(services, properties, schedulerName);
+    }
+
+    /// <summary>
+    /// Maps the configuration-valued properties onto the typed options.
+    /// </summary>
+    /// <remarks>
+    /// Applied before the caller's configuration callback, so a value set in code is applied last and
+    /// therefore wins.
+    /// </remarks>
+    public static void ApplyOptions(IServiceCollection services, NameValueCollection properties, string? schedulerName = null)
+    {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(properties);
 
         var parser = new PropertyReader(properties);
         var name = schedulerName ?? Microsoft.Extensions.Options.Options.DefaultName;
 
-        ApplySchedulerOptions(services, parser, name, schedulerName);
-        ApplyThreadPoolOptions(services, parser, name, schedulerName);
-        ApplyJobStoreOptions(services, parser, name, schedulerName);
+        services.Configure<QuartzSchedulerOptions>(name, options => MapScheduler(options, parser, schedulerName));
+        services.Configure<ThreadPoolOptions>(name, options => MapThreadPool(options, parser));
+
+        // Both store option types are configured because which one is in play depends on the job store
+        // that ends up registered, which is not decided yet. The one that turns out to be unused is
+        // never resolved, so filling it in costs nothing.
+        services.Configure<InMemoryJobStoreOptions>(name, options => MapInMemoryJobStore(options, parser));
+        services.Configure<AdoJobStoreOptions>(name, options => MapAdoJobStore(options, parser));
+
         ApplyDataSourceOptions(services, parser);
-        ApplySerializer(services, parser);
+    }
+
+    /// <summary>
+    /// Registers the implementations the properties select.
+    /// </summary>
+    /// <remarks>
+    /// Ordering matters. Applied after the caller's configuration callback and before the built-in
+    /// defaults, so that an implementation chosen in code beats one named by a string, and both beat the
+    /// fallback they were meant to replace. Every registration here is a <c>TryAdd</c>, so anything the
+    /// application registered earlier still wins.
+    /// </remarks>
+    public static void ApplyRegistrations(IServiceCollection services, NameValueCollection properties, string? schedulerName = null)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(properties);
+
+        var parser = new PropertyReader(properties);
+
+        RegisterSchedulerParts(services, parser, schedulerName);
+        RegisterThreadPool(services, parser, schedulerName);
+        RegisterJobStore(services, parser, schedulerName);
+        ApplySerializer(services, parser, schedulerName);
     }
 
     /// <summary>
@@ -140,14 +178,11 @@ internal static class QuartzPropertyBridge
         }
     }
 
-    private static void ApplySchedulerOptions(
+    private static void RegisterSchedulerParts(
         IServiceCollection services,
         PropertyReader parser,
-        string name,
         string? schedulerName)
     {
-        services.Configure<QuartzSchedulerOptions>(name, options => MapScheduler(options, parser, schedulerName));
-
         Register<IInstanceIdGenerator>(
             services,
             schedulerName,
@@ -214,14 +249,11 @@ internal static class QuartzPropertyBridge
             : null;
     }
 
-    private static void ApplyThreadPoolOptions(
+    private static void RegisterThreadPool(
         IServiceCollection services,
         PropertyReader parser,
-        string name,
         string? schedulerName)
     {
-        services.Configure<ThreadPoolOptions>(name, options => MapThreadPool(options, parser));
-
         var threadPoolType = parser.Type(StdSchedulerFactory.PropertyThreadPoolType);
         if (threadPoolType is null)
         {
@@ -255,28 +287,18 @@ internal static class QuartzPropertyBridge
         parser.Int("quartz.threadPool.maxConcurrency", value => options.MaxConcurrency = value);
     }
 
-    private static void ApplyJobStoreOptions(
+    private static void RegisterJobStore(
         IServiceCollection services,
         PropertyReader parser,
-        string name,
         string? schedulerName)
     {
         var jobStoreType = parser.Type(StdSchedulerFactory.PropertyJobStoreType);
-        var persistent = jobStoreType is not null && typeof(JobStoreSupport).IsAssignableFrom(jobStoreType);
-
-        if (persistent)
-        {
-            services.Configure<AdoJobStoreOptions>(name, options => MapAdoJobStore(options, parser));
-        }
-        else
-        {
-            services.Configure<InMemoryJobStoreOptions>(name, options => MapInMemoryJobStore(options, parser));
-        }
-
         if (jobStoreType is null)
         {
             return;
         }
+
+        var persistent = typeof(JobStoreSupport).IsAssignableFrom(jobStoreType);
 
         Register<IDriverDelegate>(services, schedulerName, parser.Type("quartz.jobStore.driverDelegateType"));
         Register<ISemaphore>(services, schedulerName, parser.Type(StdSchedulerFactory.PropertyJobStoreLockHandlerType));
@@ -304,9 +326,12 @@ internal static class QuartzPropertyBridge
                 return new DbProvider(dataSource.Provider, connectionString!);
             });
 
+            // No lock handler default: left unregistered, the store chooses between database row locks
+            // and an in-process monitor itself, once it knows how it is clustered and which database it
+            // is talking to. Registering SimpleSemaphore here would make that choice unreachable and
+            // silently drop a clustered scheduler back to process-local locking.
             RegisterDefault<IDriverDelegate, StdAdoDelegate>(services, schedulerName);
-            RegisterDefault<ISemaphore, SimpleSemaphore>(services, schedulerName);
-            services.TryAddSingleton<IObjectSerializer>(provider =>
+            RegisterSerializer(services, schedulerName, provider =>
             {
                 var serializer = ActivatorUtilities.CreateInstance<SystemTextJsonObjectSerializer>(provider);
                 serializer.Initialize();
@@ -384,7 +409,7 @@ internal static class QuartzPropertyBridge
         }
     }
 
-    private static void ApplySerializer(IServiceCollection services, PropertyReader parser)
+    private static void ApplySerializer(IServiceCollection services, PropertyReader parser, string? schedulerName)
     {
         var configured = parser.String("quartz.serializer.type");
         if (configured is null)
@@ -411,7 +436,7 @@ internal static class QuartzPropertyBridge
             Throw.SchedulerException($"Object serializer type '{configured}' could not be loaded.");
         }
 
-        services.TryAddSingleton<IObjectSerializer>(provider =>
+        RegisterSerializer(services, schedulerName, provider =>
         {
             var serializer = (IObjectSerializer) ActivatorUtilities.CreateInstance(provider, serializerType!);
             serializer.Initialize();
@@ -420,10 +445,28 @@ internal static class QuartzPropertyBridge
     }
 
     /// <summary>
+    /// Registers a serializer under this scheduler's key, so a named scheduler gets the serializer its
+    /// own configuration named rather than whichever one happened to be registered first.
+    /// </summary>
+    private static void RegisterSerializer(
+        IServiceCollection services,
+        string? schedulerName,
+        Func<IServiceProvider, IObjectSerializer> factory)
+    {
+        RegisterConfigured<IObjectSerializer>(services, schedulerName,
+            (provider, key) => factory(SchedulerScopedServiceProvider.For(provider, key)));
+    }
+
+    /// <summary>
     /// Registers a configured implementation type, keyed for a named scheduler and unkeyed for the
     /// default one. A <see langword="null"/> type means the key was not set, so the built-in default
     /// registration stands.
     /// </summary>
+    /// <remarks>
+    /// Construction goes through <see cref="SchedulerScopedServiceProvider"/> rather than being left to
+    /// the container, which would resolve the implementation's own dependencies unkeyed and hand a named
+    /// scheduler's component the default scheduler's collaborators — or none at all.
+    /// </remarks>
     private static void Register<TService>(IServiceCollection services, string? schedulerName, Type? implementationType)
         where TService : class
     {
@@ -432,14 +475,8 @@ internal static class QuartzPropertyBridge
             return;
         }
 
-        if (schedulerName is null)
-        {
-            services.TryAddSingleton(typeof(TService), implementationType);
-        }
-        else
-        {
-            services.TryAddKeyedSingleton(typeof(TService), schedulerName, implementationType);
-        }
+        RegisterConfigured<TService>(services, schedulerName, (provider, key) =>
+            (TService) ActivatorUtilities.CreateInstance(SchedulerScopedServiceProvider.For(provider, key), implementationType));
     }
 
     /// <summary>
@@ -451,14 +488,8 @@ internal static class QuartzPropertyBridge
         where TService : class
         where TImplementation : class, TService
     {
-        if (schedulerName is null)
-        {
-            services.TryAddSingleton<TService, TImplementation>();
-        }
-        else
-        {
-            services.TryAddKeyedSingleton<TService, TImplementation>(schedulerName);
-        }
+        RegisterConfigured<TService>(services, schedulerName, (provider, key) =>
+            ActivatorUtilities.CreateInstance<TImplementation>(SchedulerScopedServiceProvider.For(provider, key)));
     }
 
     /// <summary>

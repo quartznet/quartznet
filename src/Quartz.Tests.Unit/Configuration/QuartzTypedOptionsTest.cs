@@ -16,10 +16,10 @@ public class QuartzTypedOptionsTest
             .GetSection("Quartz");
     }
 
-    private static ServiceProvider Build(Dictionary<string, string> values, string schedulerName = null, bool persistent = false)
+    private static ServiceProvider Build(Dictionary<string, string> values, string schedulerName = null)
     {
         var services = new ServiceCollection();
-        services.BindQuartzOptions(Section(values), schedulerName, persistent);
+        services.BindQuartzOptions(Section(values), schedulerName);
         return services.BuildServiceProvider();
     }
 
@@ -90,7 +90,7 @@ public class QuartzTypedOptionsTest
     }
 
     [Test]
-    public void JobStoreSection_BindsToAdoOptionsWhenPersistent()
+    public void JobStoreSection_BindsToAdoOptions()
     {
         using var provider = Build(new Dictionary<string, string>
         {
@@ -100,7 +100,7 @@ public class QuartzTypedOptionsTest
             ["JobStore:Clustered"] = "true",
             ["JobStore:UseDbLocks"] = "true",
             ["JobStore:ClusterCheckinInterval"] = "00:00:10",
-        }, persistent: true);
+        });
 
         var options = provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value;
 
@@ -170,7 +170,7 @@ public class QuartzTypedOptionsTest
         {
             ["JobStore:DataSource"] = "default",
             ["JobStore:Clustered"] = "true",
-        }, persistent: true);
+        });
 
         var act = () => provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value;
 
@@ -181,7 +181,7 @@ public class QuartzTypedOptionsTest
     [Test]
     public void PersistentStoreWithoutDataSource_FailsValidation()
     {
-        using var provider = Build([], persistent: true);
+        using var provider = Build([]);
 
         var act = () => provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value;
 

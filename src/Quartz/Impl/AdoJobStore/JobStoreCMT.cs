@@ -58,7 +58,7 @@ public class JobStoreCMT : JobStoreSupport
         IDbConnectionManager connectionManager,
         IDbProvider dbProvider,
         IDriverDelegate driverDelegate,
-        ISemaphore lockHandler)
+        ISemaphore? lockHandler = null)
         : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions, storeOptions, objectSerializer, connectionManager, dbProvider, driverDelegate, lockHandler)
     {
     }

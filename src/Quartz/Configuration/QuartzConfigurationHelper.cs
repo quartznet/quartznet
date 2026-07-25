@@ -41,7 +41,19 @@ public static class QuartzConfigurationHelper
         return properties;
     }
 
-    internal static void PopulateProperties(IConfiguration configuration, NameValueCollection properties)
+    /// <summary>
+    /// Flattens a configuration section into the collection, in place.
+    /// </summary>
+    /// <param name="configuration">The section to flatten.</param>
+    /// <param name="properties">The collection to add the flattened keys to.</param>
+    /// <param name="excludedSections">
+    /// Section names to leave out, over and above the reserved ones. Used for sections that bind onto
+    /// typed options and would otherwise be read twice, in two different formats.
+    /// </param>
+    internal static void PopulateProperties(
+        IConfiguration configuration,
+        NameValueCollection properties,
+        IReadOnlySet<string>? excludedSections = null)
     {
         foreach (var child in configuration.GetChildren())
         {
@@ -55,6 +67,10 @@ public static class QuartzConfigurationHelper
             else if (reservedSectionNames.Contains(child.Key))
             {
                 // Skip — handled by JsonSchedulingHelper
+            }
+            else if (excludedSections is not null && excludedSections.Contains(child.Key))
+            {
+                // Skip — bound onto typed options instead.
             }
             else
             {

@@ -54,15 +54,10 @@ internal static class QuartzTypedOptions
     /// <param name="schedulerName">
     /// The scheduler these options belong to, or <see langword="null"/> for the default scheduler.
     /// </param>
-    /// <param name="persistent">
-    /// Whether the job store section describes a persistent store. In-memory and ADO.NET stores share
-    /// the <c>JobStore</c> section but bind to different options types.
-    /// </param>
     public static IServiceCollection BindQuartzOptions(
         this IServiceCollection services,
         IConfiguration quartzSection,
-        string? schedulerName = null,
-        bool persistent = false)
+        string? schedulerName = null)
     {
         ArgumentNullException.ThrowIfNull(quartzSection);
 
@@ -73,15 +68,12 @@ internal static class QuartzTypedOptions
         services.Configure<QuartzSchedulerOptions>(name, quartzSection.GetSection(SchedulerSection));
         services.Configure<ThreadPoolOptions>(name, quartzSection.GetSection(ThreadPoolSection));
 
+        // In-memory and ADO.NET stores share the JobStore section but bind to different options types,
+        // and which store a scheduler ends up with is not known while configuration is still being
+        // registered. Both are bound; the one belonging to the store that is not used is never resolved.
         var jobStoreSection = quartzSection.GetSection(JobStoreSection);
-        if (persistent)
-        {
-            services.Configure<AdoJobStoreOptions>(name, jobStoreSection);
-        }
-        else
-        {
-            services.Configure<InMemoryJobStoreOptions>(name, jobStoreSection);
-        }
+        services.Configure<InMemoryJobStoreOptions>(name, jobStoreSection);
+        services.Configure<AdoJobStoreOptions>(name, jobStoreSection);
 
         // Data sources are named after themselves rather than after the scheduler, matching the way
         // the connection manager keys providers.

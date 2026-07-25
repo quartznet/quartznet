@@ -103,13 +103,18 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
     {
         // A serializer is unusable until Initialize builds its converter set, so register it already
         // initialized rather than relying on somebody remembering to call it.
-        Services.TryAddSingleton<IObjectSerializer>(provider =>
+        return UseSerializer(provider =>
         {
             var serializer = ActivatorUtilities.CreateInstance<T>(provider);
             serializer.Initialize();
             return serializer;
         });
+    }
 
+    public IPersistentStoreBuilder UseSerializer(Func<IServiceProvider, IObjectSerializer> factory)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+        RegisterScoped(factory);
         return this;
     }
 
@@ -117,6 +122,13 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
         where T : class, ISemaphore
     {
         Register<ISemaphore, T>();
+        return this;
+    }
+
+    public IPersistentStoreBuilder UseLockHandler(Func<IServiceProvider, ISemaphore> factory)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+        RegisterScoped(factory);
         return this;
     }
 
@@ -161,17 +173,38 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
         }
     }
 
+    /// <summary>
+    /// Registers a per-scheduler service, keyed for a named scheduler and unkeyed for the default one.
+    /// </summary>
+    /// <remarks>
+    /// Construction goes through <see cref="SchedulerScopedServiceProvider"/>, so a component is handed
+    /// its own scheduler's collaborators. Registering the implementation type directly would let the
+    /// container activate it with unkeyed dependencies, which for a named scheduler means the default
+    /// scheduler's parts or a resolution failure — a lock handler that takes an <see cref="IDbProvider"/>
+    /// is the case that shows it.
+    /// </remarks>
     private void Register<TService, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] TImplementation>()
         where TService : class
         where TImplementation : class, TService
     {
+        RegisterScoped<TService>(provider => ActivatorUtilities.CreateInstance<TImplementation>(provider));
+    }
+
+    /// <summary>
+    /// Registers a per-scheduler service built by a factory, which is given a provider resolving this
+    /// scheduler's parts.
+    /// </summary>
+    private void RegisterScoped<TService>(Func<IServiceProvider, TService> factory) where TService : class
+    {
         if (schedulerKey is null)
         {
-            Services.TryAddSingleton<TService, TImplementation>();
+            Services.TryAddSingleton(factory);
         }
         else
         {
-            Services.TryAddKeyedSingleton<TService, TImplementation>(schedulerKey);
+            Services.TryAddKeyedSingleton<TService>(
+                schedulerKey,
+                (provider, key) => factory(SchedulerScopedServiceProvider.For(provider, key)));
         }
     }
 }

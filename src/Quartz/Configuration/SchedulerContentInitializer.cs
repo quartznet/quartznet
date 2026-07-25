@@ -1,6 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
+using Quartz.Impl;
+using Quartz.Impl.Matchers;
 using Quartz.Spi;
 
 namespace Quartz.Configuration;
@@ -101,6 +103,13 @@ internal sealed class SchedulerContentInitializer
             }
         }
 
+        // Listeners named by quartz.jobListener.* properties, which carry no matchers and so listen to
+        // everything, as that format has always meant.
+        foreach (var listener in PropertyListenerFactory.Create<IJobListener>(
+                     serviceProvider, options.ToNameValueCollection(), StdSchedulerFactory.PropertyJobListenerPrefix))
+        {
+            scheduler.ListenerManager.AddJobListener(listener, EverythingMatcher<JobKey>.AllJobs());
+        }
     }
 
     private void AddTriggerListeners(IScheduler scheduler, string optionsName, IServiceProvider provider)
@@ -122,6 +131,11 @@ internal sealed class SchedulerContentInitializer
             }
         }
 
+        foreach (var listener in PropertyListenerFactory.Create<ITriggerListener>(
+                     serviceProvider, options.ToNameValueCollection(), StdSchedulerFactory.PropertyTriggerListenerPrefix))
+        {
+            scheduler.ListenerManager.AddTriggerListener(listener, EverythingMatcher<TriggerKey>.AllTriggers());
+        }
     }
 
     private async ValueTask AddCalendars(IScheduler scheduler, string optionsName, CancellationToken cancellationToken)
