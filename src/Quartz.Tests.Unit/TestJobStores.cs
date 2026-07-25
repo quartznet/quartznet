@@ -26,7 +26,10 @@ public static class TestJobStores
 {
     public static ILogger<T> Logger<T>() => NullLogger<T>.Instance;
 
-    public static IDbConnectionManager ConnectionManager() => new DBConnectionManager(Logger<DBConnectionManager>());
+    /// <summary>
+    /// The process-wide connection manager, so a provider a test registers is visible to the store.
+    /// </summary>
+    public static IDbConnectionManager ConnectionManager() => DBConnectionManager.Instance;
 
     /// <summary>
     /// A database provider that never connects, for tests that only exercise the store's logic.
@@ -44,9 +47,14 @@ public static class TestJobStores
         return serializer;
     }
 
-    public static IOptions<AdoJobStoreOptions> StoreOptions(string dataSource = "test")
+    public static IOptions<AdoJobStoreOptions> StoreOptions(
+        string dataSource = "test",
+        string tablePrefix = AdoJobStoreOptions.DefaultTablePrefix,
+        Action<AdoJobStoreOptions>? configure = null)
     {
-        return Options.Create(new AdoJobStoreOptions { DataSource = dataSource });
+        var options = new AdoJobStoreOptions { DataSource = dataSource, TablePrefix = tablePrefix };
+        configure?.Invoke(options);
+        return Options.Create(options);
     }
 
     public static IOptions<QuartzSchedulerOptions> SchedulerOptions(

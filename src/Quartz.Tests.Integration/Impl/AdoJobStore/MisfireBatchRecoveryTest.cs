@@ -229,17 +229,10 @@ public class MisfireBatchRecoveryTest
         var serializer = new NewtonsoftJsonObjectSerializer();
         serializer.Initialize();
 
-        var jobStore = new TestJobStoreTX
+        var jobStore = new TestJobStoreTX(serializer, new CountingSQLiteDelegate(), maxMisfiresToHandleAtATime)
         {
-            DataSource = DataSourceName,
-            TablePrefix = TablePrefix,
             InstanceId = "AUTO",
             InstanceName = SchedulerName,
-            DriverDelegateType = typeof(CountingSQLiteDelegate).AssemblyQualifiedName,
-            ObjectSerializer = serializer,
-            MaxMisfiresToHandleAtATime = maxMisfiresToHandleAtATime,
-            // Anything overdue by more than a moment counts as misfired.
-            MisfireThreshold = TimeSpan.FromSeconds(1)
         };
 
         await jobStore.Initialize();
@@ -265,8 +258,23 @@ public class MisfireBatchRecoveryTest
 
     private sealed class TestJobStoreTX : JobStoreTX
     {
-        public TestJobStoreTX()
-            : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
+        public TestJobStoreTX(IObjectSerializer serializer, IDriverDelegate driverDelegate, int maxMisfiresToHandleAtATime)
+            : base(
+                TestJobStores.Signaler(),
+                TestJobStores.TypeLoader(),
+                TimeProvider.System,
+                TestJobStores.SchedulerOptions(),
+                TestJobStores.StoreOptions(DataSourceName, MisfireBatchRecoveryTest.TablePrefix, options =>
+                {
+                    options.MaxMisfiresToHandleAtATime = maxMisfiresToHandleAtATime;
+                    // Anything overdue by more than a moment counts as misfired.
+                    options.MisfireThreshold = TimeSpan.FromSeconds(1);
+                }),
+                serializer,
+                TestJobStores.ConnectionManager(),
+                DBConnectionManager.Instance.GetDbProvider(DataSourceName),
+                driverDelegate,
+                TestJobStores.LockHandler())
         {
         }
 
