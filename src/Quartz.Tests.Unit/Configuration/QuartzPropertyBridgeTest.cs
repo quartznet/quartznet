@@ -41,15 +41,12 @@ public class QuartzPropertyBridgeTest
 
         var options = Options<QuartzSchedulerOptions>(provider);
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(options.InstanceName, Is.EqualTo("legacy"));
-            Assert.That(options.InstanceId, Is.EqualTo("node-7"));
-            Assert.That(options.ThreadName, Is.EqualTo("custom-thread"));
-            Assert.That(options.MaxBatchSize, Is.EqualTo(12));
-            Assert.That(options.InterruptJobsOnShutdown, Is.True);
-            Assert.That(options.MakeSchedulerThreadDaemon, Is.True);
-        });
+        options.InstanceName.Should().Be("legacy");
+        options.InstanceId.Should().Be("node-7");
+        options.ThreadName.Should().Be("custom-thread");
+        options.MaxBatchSize.Should().Be(12);
+        options.InterruptJobsOnShutdown.Should().BeTrue();
+        options.MakeSchedulerThreadDaemon.Should().BeTrue();
     }
 
     [Test]
@@ -63,11 +60,8 @@ public class QuartzPropertyBridgeTest
 
         var options = Options<QuartzSchedulerOptions>(provider);
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(options.IdleWaitTime, Is.EqualTo(TimeSpan.FromSeconds(45)));
-            Assert.That(options.BatchTriggerAcquisitionFireAheadTimeWindow, Is.EqualTo(TimeSpan.FromMilliseconds(2500)));
-        });
+        options.IdleWaitTime.Should().Be(TimeSpan.FromSeconds(45));
+        options.BatchTriggerAcquisitionFireAheadTimeWindow.Should().Be(TimeSpan.FromMilliseconds(2500));
     }
 
     [Test]
@@ -97,15 +91,10 @@ public class QuartzPropertyBridgeTest
         var fromFlat = Options<QuartzSchedulerOptions>(flat);
         var fromHierarchical = Options<QuartzSchedulerOptions>(hierarchical);
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(fromFlat.InstanceName, Is.EqualTo(fromHierarchical.InstanceName));
-            Assert.That(fromFlat.IdleWaitTime, Is.EqualTo(fromHierarchical.IdleWaitTime));
-            Assert.That(fromFlat.MaxBatchSize, Is.EqualTo(fromHierarchical.MaxBatchSize));
-            Assert.That(
-                Options<ThreadPoolOptions>(flat).MaxConcurrency,
-                Is.EqualTo(Options<ThreadPoolOptions>(hierarchical).MaxConcurrency));
-        });
+        fromFlat.InstanceName.Should().Be(fromHierarchical.InstanceName);
+        fromFlat.IdleWaitTime.Should().Be(fromHierarchical.IdleWaitTime);
+        fromFlat.MaxBatchSize.Should().Be(fromHierarchical.MaxBatchSize);
+        Options<ThreadPoolOptions>(flat).MaxConcurrency.Should().Be(Options<ThreadPoolOptions>(hierarchical).MaxConcurrency);
     }
 
     [Test]
@@ -116,7 +105,7 @@ public class QuartzPropertyBridgeTest
             ["quartz.threadPool.threadCount"] = "8",
         });
 
-        Assert.That(Options<ThreadPoolOptions>(provider).MaxConcurrency, Is.EqualTo(8));
+        Options<ThreadPoolOptions>(provider).MaxConcurrency.Should().Be(8);
     }
 
     [Test]
@@ -130,11 +119,8 @@ public class QuartzPropertyBridgeTest
 
         var options = Options<QuartzSchedulerOptions>(provider);
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(options.Context["environment"], Is.EqualTo("staging"));
-            Assert.That(options.Context["region"], Is.EqualTo("eu-north"));
-        });
+        options.Context["environment"].Should().Be("staging");
+        options.Context["region"].Should().Be("eu-north");
     }
 
     [Test]
@@ -145,7 +131,7 @@ public class QuartzPropertyBridgeTest
             ["quartz.scheduler.instanceId"] = "AUTO",
         });
 
-        Assert.That(Options<QuartzSchedulerOptions>(provider).GenerateInstanceId, Is.True);
+        Options<QuartzSchedulerOptions>(provider).GenerateInstanceId.Should().BeTrue();
     }
 
     [Test]
@@ -156,12 +142,8 @@ public class QuartzPropertyBridgeTest
             ["quartz.scheduler.instanceId"] = "SYS_PROP",
         });
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(Options<QuartzSchedulerOptions>(provider).GenerateInstanceId, Is.True);
-            Assert.That(provider.GetRequiredService<IInstanceIdGenerator>(),
-                Is.InstanceOf<SystemPropertyInstanceIdGenerator>());
-        });
+        Options<QuartzSchedulerOptions>(provider).GenerateInstanceId.Should().BeTrue();
+        provider.GetRequiredService<IInstanceIdGenerator>().Should().BeOfType<SystemPropertyInstanceIdGenerator>();
     }
 
     [Test]
@@ -180,16 +162,13 @@ public class QuartzPropertyBridgeTest
 
         var options = Options<AdoJobStoreOptions>(provider);
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(options.DataSource, Is.EqualTo("primary"));
-            Assert.That(options.TablePrefix, Is.EqualTo("QRTZ2_"));
-            Assert.That(options.UseProperties, Is.True);
-            Assert.That(options.Clustered, Is.True);
-            Assert.That(options.UseDbLocks, Is.True, "clustering has always implied database locking");
-            Assert.That(options.ClusterCheckinInterval, Is.EqualTo(TimeSpan.FromSeconds(10)));
-            Assert.That(options.MisfireThreshold, Is.EqualTo(TimeSpan.FromSeconds(90)));
-        });
+        options.DataSource.Should().Be("primary");
+        options.TablePrefix.Should().Be("QRTZ2_");
+        options.UseProperties.Should().BeTrue();
+        options.Clustered.Should().BeTrue();
+        options.UseDbLocks.Should().BeTrue("clustering has always implied database locking");
+        options.ClusterCheckinInterval.Should().Be(TimeSpan.FromSeconds(10));
+        options.MisfireThreshold.Should().Be(TimeSpan.FromSeconds(90));
     }
 
     [Test]
@@ -200,7 +179,7 @@ public class QuartzPropertyBridgeTest
             ["quartz.jobStore.misfireThreshold"] = "30000",
         });
 
-        Assert.That(Options<InMemoryJobStoreOptions>(provider).MisfireThreshold, Is.EqualTo(TimeSpan.FromSeconds(30)));
+        Options<InMemoryJobStoreOptions>(provider).MisfireThreshold.Should().Be(TimeSpan.FromSeconds(30));
     }
 
     [Test]
@@ -216,13 +195,10 @@ public class QuartzPropertyBridgeTest
 
         var monitor = provider.GetRequiredService<IOptionsMonitor<DataSourceOptions>>();
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(monitor.Get("primary").Provider, Is.EqualTo("SqlServer"));
-            Assert.That(monitor.Get("primary").ConnectionString, Is.EqualTo("Server=a"));
-            Assert.That(monitor.Get("reporting").Provider, Is.EqualTo("Npgsql"));
-            Assert.That(monitor.Get("reporting").ConnectionStringName, Is.EqualTo("reportingDb"));
-        });
+        monitor.Get("primary").Provider.Should().Be("SqlServer");
+        monitor.Get("primary").ConnectionString.Should().Be("Server=a");
+        monitor.Get("reporting").Provider.Should().Be("Npgsql");
+        monitor.Get("reporting").ConnectionStringName.Should().Be("reportingDb");
     }
 
     [Test]
@@ -233,19 +209,19 @@ public class QuartzPropertyBridgeTest
             ["quartz.serializer.type"] = "stj",
         });
 
-        Assert.That(provider.GetRequiredService<IObjectSerializer>(),
-            Is.InstanceOf<SystemTextJsonObjectSerializer>());
+        provider.GetRequiredService<IObjectSerializer>().Should().BeOfType<SystemTextJsonObjectSerializer>();
     }
 
     [Test]
     public void BinarySerializerIsRejectedWithAnActionableMessage()
     {
-        var exception = Assert.Throws<SchedulerException>(() => Bridge(new NameValueCollection
+        var act = () => Bridge(new NameValueCollection
         {
             ["quartz.serializer.type"] = "binary",
-        }));
+        });
 
-        Assert.That(exception!.Message, Does.Contain("Binary serialization is not supported"));
+        act.Should().Throw<SchedulerException>()
+            .WithMessage("*Binary serialization is not supported*");
     }
 
     [Test]
@@ -256,7 +232,7 @@ public class QuartzPropertyBridgeTest
             ["quartz.threadPool.type"] = typeof(DedicatedThreadPool).AssemblyQualifiedName,
         });
 
-        Assert.That(provider.GetRequiredService<IThreadPool>(), Is.InstanceOf<DedicatedThreadPool>());
+        provider.GetRequiredService<IThreadPool>().Should().BeOfType<DedicatedThreadPool>();
     }
 
     [Test]
@@ -271,13 +247,8 @@ public class QuartzPropertyBridgeTest
 
         using var provider = services.BuildServiceProvider();
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(Options<ThreadPoolOptions>(provider, "reporting").MaxConcurrency, Is.EqualTo(6));
-            Assert.That(Options<ThreadPoolOptions>(provider).MaxConcurrency,
-                Is.EqualTo(ThreadPoolOptions.DefaultMaxConcurrency),
-                "the default scheduler must not inherit a named scheduler's properties");
-        });
+        Options<ThreadPoolOptions>(provider, "reporting").MaxConcurrency.Should().Be(6);
+        Options<ThreadPoolOptions>(provider).MaxConcurrency.Should().Be(ThreadPoolOptions.DefaultMaxConcurrency, "the default scheduler must not inherit a named scheduler's properties");
     }
 
     [Test]
@@ -291,6 +262,6 @@ public class QuartzPropertyBridgeTest
 
         using var provider = services.BuildServiceProvider();
 
-        Assert.That(Options<QuartzSchedulerOptions>(provider, "reporting").InstanceName, Is.EqualTo("reporting"));
+        Options<QuartzSchedulerOptions>(provider, "reporting").InstanceName.Should().Be("reporting");
     }
 }

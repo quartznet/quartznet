@@ -37,14 +37,11 @@ public class QuartzTypedOptionsTest
 
         var options = provider.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value;
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(options.InstanceName, Is.EqualTo("core"));
-            Assert.That(options.InstanceId, Is.EqualTo("node-1"));
-            Assert.That(options.IdleWaitTime, Is.EqualTo(TimeSpan.FromSeconds(45)));
-            Assert.That(options.MaxBatchSize, Is.EqualTo(7));
-            Assert.That(options.InterruptJobsOnShutdown, Is.True);
-        });
+        options.InstanceName.Should().Be("core");
+        options.InstanceId.Should().Be("node-1");
+        options.IdleWaitTime.Should().Be(TimeSpan.FromSeconds(45));
+        options.MaxBatchSize.Should().Be(7);
+        options.InterruptJobsOnShutdown.Should().BeTrue();
     }
 
     [Test]
@@ -58,13 +55,10 @@ public class QuartzTypedOptionsTest
         var scheduler = provider.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value;
         var threadPool = provider.GetRequiredService<IOptions<ThreadPoolOptions>>().Value;
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(scheduler.InstanceId, Is.EqualTo(QuartzSchedulerOptions.DefaultInstanceId));
-            Assert.That(scheduler.IdleWaitTime, Is.EqualTo(TimeSpan.FromSeconds(30)));
-            Assert.That(scheduler.MaxBatchSize, Is.EqualTo(1));
-            Assert.That(threadPool.MaxConcurrency, Is.EqualTo(ThreadPoolOptions.DefaultMaxConcurrency));
-        });
+        scheduler.InstanceId.Should().Be(QuartzSchedulerOptions.DefaultInstanceId);
+        scheduler.IdleWaitTime.Should().Be(TimeSpan.FromSeconds(30));
+        scheduler.MaxBatchSize.Should().Be(1);
+        threadPool.MaxConcurrency.Should().Be(ThreadPoolOptions.DefaultMaxConcurrency);
     }
 
     [Test]
@@ -78,11 +72,8 @@ public class QuartzTypedOptionsTest
 
         var options = provider.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value;
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(options.Context["environment"], Is.EqualTo("staging"));
-            Assert.That(options.Context["region"], Is.EqualTo("eu-north"));
-        });
+        options.Context["environment"].Should().Be("staging");
+        options.Context["region"].Should().Be("eu-north");
     }
 
     [Test]
@@ -95,7 +86,7 @@ public class QuartzTypedOptionsTest
 
         var options = provider.GetRequiredService<IOptions<InMemoryJobStoreOptions>>().Value;
 
-        Assert.That(options.MisfireThreshold, Is.EqualTo(TimeSpan.FromSeconds(30)));
+        options.MisfireThreshold.Should().Be(TimeSpan.FromSeconds(30));
     }
 
     [Test]
@@ -113,15 +104,12 @@ public class QuartzTypedOptionsTest
 
         var options = provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value;
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(options.DataSource, Is.EqualTo("default"));
-            Assert.That(options.TablePrefix, Is.EqualTo("MY_"));
-            Assert.That(options.UseProperties, Is.True);
-            Assert.That(options.Clustered, Is.True);
-            Assert.That(options.ClusterCheckinInterval, Is.EqualTo(TimeSpan.FromSeconds(10)));
-            Assert.That(options.PerformSchemaValidation, Is.True, "unset booleans keep their default");
-        });
+        options.DataSource.Should().Be("default");
+        options.TablePrefix.Should().Be("MY_");
+        options.UseProperties.Should().BeTrue();
+        options.Clustered.Should().BeTrue();
+        options.ClusterCheckinInterval.Should().Be(TimeSpan.FromSeconds(10));
+        options.PerformSchemaValidation.Should().BeTrue("unset booleans keep their default");
     }
 
     [Test]
@@ -137,13 +125,10 @@ public class QuartzTypedOptionsTest
 
         var monitor = provider.GetRequiredService<IOptionsMonitor<DataSourceOptions>>();
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(monitor.Get("primary").Provider, Is.EqualTo("SqlServer"));
-            Assert.That(monitor.Get("primary").ConnectionString, Is.EqualTo("Server=a"));
-            Assert.That(monitor.Get("reporting").Provider, Is.EqualTo("Npgsql"));
-            Assert.That(monitor.Get("reporting").ConnectionStringName, Is.EqualTo("reportingDb"));
-        });
+        monitor.Get("primary").Provider.Should().Be("SqlServer");
+        monitor.Get("primary").ConnectionString.Should().Be("Server=a");
+        monitor.Get("reporting").Provider.Should().Be("Npgsql");
+        monitor.Get("reporting").ConnectionStringName.Should().Be("reportingDb");
     }
 
     [Test]
@@ -159,13 +144,9 @@ public class QuartzTypedOptionsTest
         var scheduler = provider.GetRequiredService<IOptionsMonitor<QuartzSchedulerOptions>>();
         var threadPool = provider.GetRequiredService<IOptionsMonitor<ThreadPoolOptions>>();
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(scheduler.Get("reporting").InstanceName, Is.EqualTo("reporting"));
-            Assert.That(threadPool.Get("reporting").MaxConcurrency, Is.EqualTo(3));
-            Assert.That(threadPool.Get(Options.DefaultName).MaxConcurrency, Is.EqualTo(ThreadPoolOptions.DefaultMaxConcurrency),
-                "the default scheduler must not pick up a named scheduler's configuration");
-        });
+        scheduler.Get("reporting").InstanceName.Should().Be("reporting");
+        threadPool.Get("reporting").MaxConcurrency.Should().Be(3);
+        threadPool.Get(Options.DefaultName).MaxConcurrency.Should().Be(ThreadPoolOptions.DefaultMaxConcurrency, "the default scheduler must not pick up a named scheduler's configuration");
     }
 
     [Test]
@@ -176,10 +157,10 @@ public class QuartzTypedOptionsTest
             ["Scheduler:IdleWaitTime"] = "00:00:00.500",
         });
 
-        var exception = Assert.Throws<OptionsValidationException>(
-            () => _ = provider.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value);
+        var act = () => provider.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value;
 
-        Assert.That(exception!.Message, Does.Contain(nameof(QuartzSchedulerOptions.IdleWaitTime)));
+        act.Should().Throw<OptionsValidationException>()
+            .WithMessage($"*{nameof(QuartzSchedulerOptions.IdleWaitTime)}*");
     }
 
     [Test]
@@ -191,10 +172,10 @@ public class QuartzTypedOptionsTest
             ["JobStore:Clustered"] = "true",
         }, persistent: true);
 
-        var exception = Assert.Throws<OptionsValidationException>(
-            () => _ = provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value);
+        var act = () => provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value;
 
-        Assert.That(exception!.Message, Does.Contain(nameof(AdoJobStoreOptions.UseDbLocks)));
+        act.Should().Throw<OptionsValidationException>()
+            .WithMessage($"*{nameof(AdoJobStoreOptions.UseDbLocks)}*");
     }
 
     [Test]
@@ -202,9 +183,9 @@ public class QuartzTypedOptionsTest
     {
         using var provider = Build([], persistent: true);
 
-        var exception = Assert.Throws<OptionsValidationException>(
-            () => _ = provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value);
+        var act = () => provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value;
 
-        Assert.That(exception!.Message, Does.Contain(nameof(AdoJobStoreOptions.DataSource)));
+        act.Should().Throw<OptionsValidationException>()
+            .WithMessage($"*{nameof(AdoJobStoreOptions.DataSource)}*");
     }
 }

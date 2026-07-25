@@ -23,11 +23,8 @@ public class NamedSchedulerContainerTest
 
         using var provider = services.BuildServiceProvider();
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(provider.GetRequiredKeyedService<IThreadPool>("reporting").PoolSize, Is.EqualTo(3));
-            Assert.That(provider.GetRequiredKeyedService<IThreadPool>("ingest").PoolSize, Is.EqualTo(9));
-        });
+        provider.GetRequiredKeyedService<IThreadPool>("reporting").PoolSize.Should().Be(3);
+        provider.GetRequiredKeyedService<IThreadPool>("ingest").PoolSize.Should().Be(9);
     }
 
     [Test]
@@ -42,11 +39,8 @@ public class NamedSchedulerContainerTest
         var reporting = provider.GetRequiredKeyedService<IJobStore>("reporting");
         var ingest = provider.GetRequiredKeyedService<IJobStore>("ingest");
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(reporting, Is.InstanceOf<RAMJobStore>());
-            Assert.That(ingest, Is.Not.SameAs(reporting), "sharing a job store would mean sharing trigger state");
-        });
+        reporting.Should().BeOfType<RAMJobStore>();
+        ingest.Should().NotBeSameAs(reporting, "sharing a job store would mean sharing trigger state");
     }
 
     [Test]
@@ -57,8 +51,7 @@ public class NamedSchedulerContainerTest
 
         using var provider = services.BuildServiceProvider();
 
-        Assert.That(provider.GetRequiredKeyedService<QuartzSchedulerResources>("reporting").Name,
-            Is.EqualTo("reporting"));
+        provider.GetRequiredKeyedService<QuartzSchedulerResources>("reporting").Name.Should().Be("reporting");
     }
 
     [Test]
@@ -79,12 +72,9 @@ public class NamedSchedulerContainerTest
 
         try
         {
-            Assert.Multiple(() =>
-            {
-                Assert.That(defaultScheduler.SchedulerName, Is.EqualTo("the-default"));
-                Assert.That(reportingScheduler.SchedulerName, Is.EqualTo("reporting"));
-                Assert.That(reportingScheduler, Is.Not.SameAs(defaultScheduler));
-            });
+            defaultScheduler.SchedulerName.Should().Be("the-default");
+            reportingScheduler.SchedulerName.Should().Be("reporting");
+            reportingScheduler.Should().NotBeSameAs(defaultScheduler);
         }
         finally
         {
@@ -112,12 +102,9 @@ public class NamedSchedulerContainerTest
 
         try
         {
-            Assert.Multiple(async () =>
-            {
-                Assert.That(await reporting.CheckExists(new JobKey("reporting-job")), Is.True);
-                Assert.That(await ingest.CheckExists(new JobKey("reporting-job")), Is.False,
-                    "a named scheduler's jobs must not leak into another scheduler");
-            });
+            (await reporting.CheckExists(new JobKey("reporting-job"))).Should().BeTrue();
+            (await ingest.CheckExists(new JobKey("reporting-job"))).Should()
+                .BeFalse("a named scheduler's jobs must not leak into another scheduler");
         }
         finally
         {

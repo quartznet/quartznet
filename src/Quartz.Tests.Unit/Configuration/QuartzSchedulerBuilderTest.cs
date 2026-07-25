@@ -32,11 +32,8 @@ public class QuartzSchedulerBuilderTest
 
         try
         {
-            Assert.Multiple(() =>
-            {
-                Assert.That(scheduler.SchedulerName, Is.EqualTo("standalone-builds"));
-                Assert.That(scheduler.IsStarted, Is.False);
-            });
+            scheduler.SchedulerName.Should().Be("standalone-builds");
+            scheduler.IsStarted.Should().BeFalse();
 
             await scheduler.Start();
 
@@ -45,7 +42,7 @@ public class QuartzSchedulerBuilderTest
             await scheduler.ScheduleJob(job, trigger);
 
             var completed = await Task.WhenAny(fired.Task, Task.Delay(TimeSpan.FromSeconds(20)));
-            Assert.That(completed, Is.SameAs(fired.Task), "the scheduled job should have fired");
+            completed.Should().BeSameAs(fired.Task, "the scheduled job should have fired");
         }
         finally
         {
@@ -58,10 +55,12 @@ public class QuartzSchedulerBuilderTest
     {
         // Build() validates on build, so a missing or mis-scoped registration fails here rather than
         // at first use.
-        Assert.DoesNotThrow(() => QuartzSchedulerBuilder.Create()
+        var act = () => QuartzSchedulerBuilder.Create()
             .ConfigureScheduler(options => options.InstanceName = "validated")
             .UseInMemoryStore()
-            .Build());
+            .Build();
+
+        act.Should().NotThrow();
     }
 
     [Test]
@@ -81,13 +80,10 @@ public class QuartzSchedulerBuilderTest
         var threadPool = provider.GetRequiredService<IThreadPool>();
         var resources = provider.GetRequiredService<QuartzSchedulerResources>();
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(threadPool.PoolSize, Is.EqualTo(17));
-            Assert.That(resources.Name, Is.EqualTo("configured"));
-            Assert.That(resources.MaxBatchSize, Is.EqualTo(9));
-            Assert.That(resources.ThreadName, Is.EqualTo("configured_QuartzSchedulerThread"));
-        });
+        threadPool.PoolSize.Should().Be(17);
+        resources.Name.Should().Be("configured");
+        resources.MaxBatchSize.Should().Be(9);
+        resources.ThreadName.Should().Be("configured_QuartzSchedulerThread");
     }
 
     [Test]
@@ -108,15 +104,12 @@ public class QuartzSchedulerBuilderTest
         var reportingPool = provider.GetRequiredKeyedService<IThreadPool>("reporting");
         var ingestPool = provider.GetRequiredKeyedService<IThreadPool>("ingest");
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(defaultPool.PoolSize, Is.EqualTo(1));
-            Assert.That(reportingPool.PoolSize, Is.EqualTo(5));
-            Assert.That(ingestPool.PoolSize, Is.EqualTo(11));
+        defaultPool.PoolSize.Should().Be(1);
+        reportingPool.PoolSize.Should().Be(5);
+        ingestPool.PoolSize.Should().Be(11);
 
-            Assert.That(reportingPool, Is.Not.SameAs(defaultPool));
-            Assert.That(ingestPool, Is.Not.SameAs(reportingPool));
-        });
+        reportingPool.Should().NotBeSameAs(defaultPool);
+        ingestPool.Should().NotBeSameAs(reportingPool);
     }
 
     [Test]
@@ -132,15 +125,9 @@ public class QuartzSchedulerBuilderTest
         var reportingStore = provider.GetRequiredKeyedService<IJobStore>("reporting");
         var reportingResources = provider.GetRequiredKeyedService<QuartzSchedulerResources>("reporting");
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(reportingStore, Is.Not.SameAs(defaultStore),
-                "each scheduler must own its job store, otherwise they share trigger state");
-            Assert.That(reportingResources.Name, Is.EqualTo("reporting"),
-                "the service key doubles as the scheduler's instance name");
-            Assert.That(reportingResources.JobStore, Is.SameAs(reportingStore),
-                "resources must be assembled from the same scheduler's keyed parts");
-        });
+        reportingStore.Should().NotBeSameAs(defaultStore, "each scheduler must own its job store, otherwise they share trigger state");
+        reportingResources.Name.Should().Be("reporting", "the service key doubles as the scheduler's instance name");
+        reportingResources.JobStore.Should().BeSameAs(reportingStore, "resources must be assembled from the same scheduler's keyed parts");
     }
 
     [Test]
@@ -153,7 +140,6 @@ public class QuartzSchedulerBuilderTest
 
         using var provider = services.BuildServiceProvider();
 
-        Assert.That(provider.GetRequiredService<IJobStore>(), Is.SameAs(custom),
-            "TryAdd registrations must not displace what the application registered");
+        provider.GetRequiredService<IJobStore>().Should().BeSameAs(custom, "TryAdd registrations must not displace what the application registered");
     }
 }
