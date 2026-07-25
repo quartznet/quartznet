@@ -45,6 +45,7 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
 
         // The data source is named after the scheduler that owns it, so the name never has to be
         // invented by the caller or kept in step by hand.
+        dataSourceConfigured = true;
         Services.Configure(DataSourceName, configure);
         Configure(options => options.DataSource = DataSourceName);
 
@@ -73,7 +74,27 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
     /// <summary>
     /// The name this scheduler's data source is registered under.
     /// </summary>
-    internal string DataSourceName => schedulerKey ?? "quartz";
+    internal string DataSourceName => dataSourceName ?? schedulerKey ?? DefaultDataSourceName;
+
+    internal const string DefaultDataSourceName = "quartz";
+
+    private string? dataSourceName;
+    private bool dataSourceConfigured;
+
+    public IPersistentStoreBuilder UseDataSourceName(string name)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        if (dataSourceConfigured)
+        {
+            Throw.SchedulerConfigException(
+                "The data source has already been configured. Name it before choosing the database, "
+                + "because the name is what the connection provider is registered under.");
+        }
+
+        dataSourceName = name;
+        return this;
+    }
 
     public IPersistentStoreBuilder UseDriverDelegate<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
         where T : class, IDriverDelegate
@@ -93,8 +114,18 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
             // Clustering has never worked without database locking, so enabling one enables the other
             // rather than failing validation later for a configuration nobody meant to write.
             options.UseDbLocks = true;
-            options.ClusterCheckinInterval = clustering.CheckinInterval;
-            options.ClusterCheckinMisfireThreshold = clustering.CheckinMisfireThreshold;
+
+            // Only what the caller actually asked for. Writing these unconditionally would mean
+            // UseClustering() with no arguments silently reset intervals that came from configuration.
+            if (clustering.CheckinInterval is { } checkinInterval)
+            {
+                options.ClusterCheckinInterval = checkinInterval;
+            }
+
+            if (clustering.CheckinMisfireThreshold is { } checkinMisfireThreshold)
+            {
+                options.ClusterCheckinMisfireThreshold = checkinMisfireThreshold;
+            }
         });
     }
 

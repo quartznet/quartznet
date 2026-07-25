@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -27,7 +29,7 @@ namespace Quartz.Configuration;
 /// </para>
 /// </remarks>
 internal sealed class SchedulerScopedServiceProvider
-    : IServiceProvider, IKeyedServiceProvider, IServiceProviderIsService, IServiceProviderIsKeyedService
+    : IServiceProvider, IKeyedServiceProvider, IServiceProviderIsService, IServiceProviderIsKeyedService, IServiceScopeFactory
 {
     /// <summary>
     /// The services registered once per scheduler rather than once per container.
@@ -75,7 +77,9 @@ internal sealed class SchedulerScopedServiceProvider
         [typeof(IOptions<QuartzOptions>)] = static (p, name) => Named<QuartzOptions>(p, name),
     };
 
-    private static OptionsWrapper<T> Named<T>(IServiceProvider provider, string name) where T : class
+    private static OptionsWrapper<T> Named<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] T>(
+        IServiceProvider provider,
+        string name) where T : class
     {
         return new OptionsWrapper<T>(provider.GetRequiredService<IOptionsMonitor<T>>().Get(name));
     }
@@ -113,15 +117,45 @@ internal sealed class SchedulerScopedServiceProvider
         // A component handed "the container" so it can resolve things later must keep resolving this
         // scheduler's parts, not the default scheduler's — plugins built from a type name are the case
         // that makes the difference visible. The same goes for the "is this registered?" services, which
-        // ActivatorUtilities consults while choosing a constructor.
+        // ActivatorUtilities consults while choosing a constructor, and for the scope factory: a job
+        // scope that resolved from the raw container would build jobs with the wrong scheduler's parts.
         if (serviceType == typeof(IServiceProvider)
             || serviceType == typeof(IServiceProviderIsService)
-            || serviceType == typeof(IServiceProviderIsKeyedService))
+            || serviceType == typeof(IServiceProviderIsKeyedService)
+            || serviceType == typeof(IServiceScopeFactory))
         {
             return this;
         }
 
         return inner.GetService(serviceType);
+    }
+
+    /// <summary>
+    /// Creates a scope whose provider still resolves this scheduler's parts.
+    /// </summary>
+    /// <remarks>
+    /// Jobs are built inside a scope. Without this the scope comes straight from the container, so a job
+    /// that takes an <see cref="ISchedulerFactory"/> is handed the default scheduler's — or, when only
+    /// named schedulers exist, cannot be constructed at all.
+    /// </remarks>
+    public IServiceScope CreateScope()
+    {
+        return new Scope(inner.GetRequiredService<IServiceScopeFactory>().CreateScope(), key);
+    }
+
+    private sealed class Scope : IServiceScope
+    {
+        private readonly IServiceScope scope;
+
+        public Scope(IServiceScope scope, object? key)
+        {
+            this.scope = scope;
+            ServiceProvider = For(scope.ServiceProvider, key);
+        }
+
+        public IServiceProvider ServiceProvider { get; }
+
+        public void Dispose() => scope.Dispose();
     }
 
     public object? GetKeyedService(Type serviceType, object? serviceKey)
@@ -153,7 +187,8 @@ internal sealed class SchedulerScopedServiceProvider
         if (namedOptions.ContainsKey(serviceType)
             || serviceType == typeof(IServiceProvider)
             || serviceType == typeof(IServiceProviderIsService)
-            || serviceType == typeof(IServiceProviderIsKeyedService))
+            || serviceType == typeof(IServiceProviderIsKeyedService)
+            || serviceType == typeof(IServiceScopeFactory))
         {
             return true;
         }

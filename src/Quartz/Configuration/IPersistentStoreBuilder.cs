@@ -43,6 +43,23 @@ public interface IPersistentStoreBuilder
     IPersistentStoreBuilder Configure(Action<AdoJobStoreOptions> configure);
 
     /// <summary>
+    /// Names this store's data source, which is how its connection provider is registered.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The name defaults to the scheduler's name, or <c>quartz</c> for the default scheduler. Connection
+    /// providers are held per process, so two default schedulers in one process — two standalone
+    /// <see cref="QuartzSchedulerBuilder"/>s, say — would otherwise share the one name and the second
+    /// would replace the first's connection provider. Name them and they stay apart.
+    /// </para>
+    /// <para>
+    /// Call this before choosing the database, since the name is fixed when the data source is
+    /// configured.
+    /// </para>
+    /// </remarks>
+    IPersistentStoreBuilder UseDataSourceName(string name);
+
+    /// <summary>
     /// Configures the database connection.
     /// </summary>
     /// <remarks>

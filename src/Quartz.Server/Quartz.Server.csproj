@@ -8,7 +8,7 @@
 
   <ItemGroup>
     <None Include="App.config" />
-    <Content Include="quartz.config" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="quartz_jobs.xml" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="log4net.config" CopyToOutputDirectory="PreserveNewest" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" />

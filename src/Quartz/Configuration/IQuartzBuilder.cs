@@ -104,6 +104,18 @@ public interface IQuartzBuilder
     IQuartzBuilder AddPlugin(Func<IServiceProvider, ISchedulerPlugin> factory);
 
     /// <summary>
+    /// Adds a plugin under a specific name, which the caller builds and configures.
+    /// </summary>
+    /// <remarks>
+    /// The name is how the scheduler refers to the plugin, and some plugins derive persisted job and
+    /// trigger keys from it — so it is part of the deployment's identity, not a label. Plugins shipped
+    /// with Quartz use their conventional short name (<c>xml</c>, <c>json</c>) for that reason.
+    /// </remarks>
+    IQuartzBuilder AddPlugin<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        string name,
+        Func<IServiceProvider, T> factory) where T : class, ISchedulerPlugin;
+
+    /// <summary>
     /// Adds a plugin with configuration of its own.
     /// </summary>
     IQuartzBuilder AddPlugin<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T, TOptions>(

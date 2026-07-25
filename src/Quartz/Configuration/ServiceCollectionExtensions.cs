@@ -177,10 +177,41 @@ public static class ServiceCollectionExtensions
     /// mean a documented, valid <c>Quartz:Plugin:*</c> configuration was accepted and then ignored.
     /// </para>
     /// </remarks>
+    /// <summary>
+    /// The paths inside a typed section that select an implementation, or configure the thing selected,
+    /// rather than setting a value on the options type.
+    /// </summary>
+    /// <remarks>
+    /// These have no property to bind to, so excluding their section from flattening would leave nobody
+    /// reading them at all. Turning a type name into a registration is the legacy adapter's job, and
+    /// these are the keys that ask for it.
+    /// </remarks>
+    private static readonly (string Path, string LegacyPath)[] implementationPaths =
+    [
+        ("Scheduler:InstanceId", "scheduler.instanceId"),
+        ("Scheduler:InstanceIdGenerator", "scheduler.instanceIdGenerator"),
+        ("Scheduler:JobFactory:Type", "scheduler.jobFactory.type"),
+        ("Scheduler:TypeLoadHelper:Type", "scheduler.typeLoadHelper.type"),
+        ("ThreadPool:Type", "threadPool.type"),
+        ("JobStore:Type", "jobStore.type"),
+        ("JobStore:DriverDelegateType", "jobStore.driverDelegateType"),
+        ("JobStore:LockHandler", "jobStore.lockHandler"),
+    ];
+
     private static NameValueCollection LegacyProperties(IConfiguration configuration)
     {
         var properties = new NameValueCollection();
         QuartzConfigurationHelper.PopulateProperties(configuration, properties, typedSections);
+
+        foreach (var (path, legacyPath) in implementationPaths)
+        {
+            var section = configuration.GetSection(path);
+            if (section.Exists())
+            {
+                QuartzConfigurationHelper.FlattenInto(section, legacyPath, properties);
+            }
+        }
+
         return properties;
     }
 

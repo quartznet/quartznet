@@ -284,6 +284,171 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         }
     }
 
+    [Test]
+    public void AHierarchicalJobStoreTypeStillSelectsTheStore()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(Section(new Dictionary<string, string?>
+        {
+            ["JobStore:Type"] = typeof(JobStoreTX).AssemblyQualifiedName,
+            ["JobStore:DataSource"] = "test",
+            ["JobStore:TablePrefix"] = "QRTZ2_",
+        }), q => RegisterStubProvider(q.Services, q.SchedulerName));
+
+        using var provider = services.BuildServiceProvider();
+        var store = provider.GetRequiredService<IJobStore>();
+
+        store.Should().BeOfType<JobStoreTX>(
+            "Type has no property on the options type to bind to, so excluding the section from "
+            + "flattening would leave nobody reading it and fall back to RAMJobStore");
+        ((JobStoreSupport) store).TablePrefix.Should().Be("QRTZ2_");
+    }
+
+    [Test]
+    public void AHierarchicalAutoInstanceIdIsTranslatedNotStored()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(Section(new Dictionary<string, string?>
+        {
+            ["Scheduler:InstanceId"] = "AUTO",
+        }));
+
+        using var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value;
+
+        options.GenerateInstanceId.Should().BeTrue(
+            "storing the sentinel literally makes every clustered node claim the same instance id");
+    }
+
+    [Test]
+    public void AConfiguredSerializerBeatsTheBuiltInFallback()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(
+            new NameValueCollection { ["quartz.serializer.type"] = typeof(CountingObjectSerializer).AssemblyQualifiedName },
+            UseStubbedPersistentStore);
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IObjectSerializer>().Should().BeOfType<CountingObjectSerializer>(
+            "reading a database written by one serializer with another fails at the first trigger fire");
+    }
+
+    [Test]
+    public void ADriverDelegateKeyAppliesWhenTheStoreIsChosenInCode()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(
+            new NameValueCollection { ["quartz.jobStore.driverDelegateType"] = typeof(SqlServerDelegate).AssemblyQualifiedName },
+            UseStubbedPersistentStore);
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IDriverDelegate>().Should().BeOfType<SqlServerDelegate>(
+            "moving store selection into code must not silently drop the delegate named in configuration");
+    }
+
+    [Test]
+    public void UseClusteringKeepsIntervalsThatCameFromConfiguration()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(
+            new NameValueCollection { ["quartz.jobStore.clusterCheckinInterval"] = "20000" },
+            q => q.UsePersistentStore(store =>
+            {
+                store.Configure(options => options.DataSource = "test");
+                store.UseClustering();
+                RegisterStubProvider(store.Services, q.SchedulerName);
+            }));
+
+        using var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value;
+
+        options.Clustered.Should().BeTrue();
+        options.ClusterCheckinInterval.Should().Be(TimeSpan.FromSeconds(20),
+            "UseClustering() with no arguments states no interval, so it must not overwrite one");
+    }
+
+    [Test]
+    public void TheLegacyThreadPoolNameIsStillUnderstood()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(new NameValueCollection
+        {
+            ["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz",
+        });
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IThreadPool>().Should().BeOfType<DefaultThreadPool>(
+            "the type was renamed, and failing to start is a worse answer than using its replacement");
+    }
+
+    [Test]
+    public void JobStoreKeysWithoutATypedOptionAreStillMapped()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(new NameValueCollection
+        {
+            ["quartz.jobStore.dataSource"] = "test",
+            ["quartz.jobStore.misfireHandlerFrequency"] = "5000",
+            ["quartz.jobStore.maxTransientRetries"] = "10",
+            ["quartz.jobStore.makeThreadsDaemons"] = "true",
+        });
+
+        using var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptionsMonitor<AdoJobStoreOptions>>().Get(Options.DefaultName);
+
+        options.MisfireHandlerFrequency.Should().Be(TimeSpan.FromSeconds(5));
+        options.MaxTransientRetries.Should().Be(10);
+        options.MakeThreadsDaemons.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task PluginSettingsInConfigurationFindAPluginAddedInCode()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(
+            new NameValueCollection
+            {
+                ["quartz.scheduler.instanceName"] = "plugin-settings",
+                ["quartz.plugin.recorder.someSetting"] = "configured",
+            },
+            q => q.AddPlugin("recorder", _ => new RecordingPlugin()));
+
+        using var provider = services.BuildServiceProvider();
+        var scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        try
+        {
+            var plugin = provider.GetServices<ISchedulerPlugin>().OfType<RecordingPlugin>().Single();
+
+            plugin.SomeSetting.Should().Be("configured");
+            plugin.Name.Should().Be("recorder",
+                "some plugins derive persisted job keys from their name, so it has to be the name it was added under");
+        }
+        finally
+        {
+            await scheduler.Shutdown();
+        }
+    }
+
+    private sealed class RecordingPlugin : ISchedulerPlugin
+    {
+        public string SomeSetting { get; set; } = "";
+
+        public string Name { get; private set; } = "";
+
+        public ValueTask Initialize(string pluginName, IScheduler scheduler, CancellationToken cancellationToken = default)
+        {
+            Name = pluginName;
+            return default;
+        }
+
+        public ValueTask Start(CancellationToken cancellationToken = default) => default;
+
+        public ValueTask Shutdown(CancellationToken cancellationToken = default) => default;
+    }
+
     private sealed class RecordingJobListener : IJobListener
     {
         public string Name { get; set; } = "";

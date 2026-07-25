@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Impl;
 using Quartz.Simpl;
+using Quartz.Spi;
 using Quartz.Util;
 
 namespace Quartz.Configuration;
@@ -45,6 +46,7 @@ internal static class PropertyListenerFactory
     {
         var listeners = new List<TListener>();
         var start = prefix + ".";
+        var loader = provider.GetService<ITypeLoadHelper>() ?? typeLoadHelper;
 
         foreach (var name in Names(properties, start))
         {
@@ -55,7 +57,7 @@ internal static class PropertyListenerFactory
                 Throw.SchedulerException($"Listener type not specified for listener '{name}'");
             }
 
-            var type = typeLoadHelper.LoadType(typeName);
+            var type = loader.LoadType(typeName);
             if (type is null)
             {
                 Throw.SchedulerException($"Listener of type '{typeName}' could not be loaded.");

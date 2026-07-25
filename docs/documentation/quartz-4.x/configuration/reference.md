@@ -151,6 +151,12 @@ store.UseSqlServer(db => db.ConnectionStringName = "Scheduler");
 To connect through a `DbDataSource` registered in the container rather than a connection string of
 Quartz's own, add `store.UseDataSourceConnectionProvider()`.
 
+A store's data source is named after the scheduler that owns it, or `quartz` for the default scheduler.
+Connection providers are held per process, so if you run two default schedulers in one process — two
+standalone `QuartzSchedulerBuilder`s against different databases — name them apart with
+`store.UseDataSourceName("reporting-db")` before choosing the database. Otherwise the second replaces
+the first's connection provider and both end up talking to the same database.
+
 ### Locking
 
 Leave the lock handler unset and the store chooses one for itself once it knows which database it is
@@ -344,9 +350,16 @@ Two differences are worth knowing:
 A listener named by properties has no matchers to carry, so it listens to everything. The code-first
 methods take matchers, which is the reason to prefer them.
 
+The keys that select an implementation have a hierarchical spelling too — `JobStore:Type`,
+`JobStore:DriverDelegateType`, `JobStore:LockHandler:Type`, `ThreadPool:Type`,
+`Scheduler:JobFactory:Type`, `Scheduler:TypeLoadHelper:Type` and the `Scheduler:InstanceIdGenerator`
+section — so a configuration file need not mix the two forms. They are the only members of those
+sections without an option of their own, because naming a type is a registration rather than a value.
+
 Where the same setting is said twice, code wins. A `UsePersistentStore` in code beats a leftover
 `quartz.jobStore.type` in a configuration file, and a value set through `ConfigureScheduler` beats the
-same value in `appsettings.json`.
+same value in `appsettings.json`. Built-in fallbacks — the driver delegate and the serializer — are
+registered after everything explicit, so they only apply when nothing else claimed the slot.
 
 Removed in 4.x, with no replacement: `quartz.scheduler.proxy*` and `quartz.scheduler.exporter*`
 (remoting, which .NET no longer supports), `quartz.threadExecutor*`, and `quartz.checkConfiguration`

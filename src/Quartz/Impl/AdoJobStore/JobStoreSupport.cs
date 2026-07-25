@@ -595,6 +595,15 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         else
         {
+            // A lock handler built by the container knows nothing about the store it locks for, so it
+            // has to be told which tables to look in and whose rows they are. Without this it queries
+            // QRTZ_LOCKS with a null scheduler name, whatever the store is actually configured with.
+            if (LockHandler is ITablePrefixAware tablePrefixAware)
+            {
+                tablePrefixAware.TablePrefix = TablePrefix;
+                tablePrefixAware.SchedName = InstanceName;
+            }
+
             // be ready to give a friendly warning if SQL Server is used and sub-optimal locking
             if (LockHandler is UpdateLockRowSemaphore && Delegate is SqlServerDelegate)
             {

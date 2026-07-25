@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Plugin.History;
@@ -30,7 +32,7 @@ public static class PluginConfigurationExtensions
         var options = new XmlSchedulingOptions();
         configure(options);
 
-        return builder.AddConfiguredPlugin<XMLSchedulingDataProcessorPlugin>(plugin =>
+        return builder.AddConfiguredPlugin<XMLSchedulingDataProcessorPlugin>("xml", plugin =>
         {
             // Left unset, the plugin keeps its own default file name rather than being handed an empty
             // one, which it would try to open as a path.
@@ -58,7 +60,7 @@ public static class PluginConfigurationExtensions
         var options = new JsonSchedulingOptions();
         configure(options);
 
-        return builder.AddConfiguredPlugin<JsonSchedulingDataProcessorPlugin>(plugin =>
+        return builder.AddConfiguredPlugin<JsonSchedulingDataProcessorPlugin>("json", plugin =>
         {
             if (options.Files.Length > 0)
             {
@@ -84,7 +86,7 @@ public static class PluginConfigurationExtensions
         configure?.Invoke(options);
 
         return builder.AddConfiguredPlugin<JobInterruptMonitorPlugin>(
-            plugin => plugin.DefaultMaxRunTime = options.DefaultMaxRunTime);
+            "jobAutoInterrupt", plugin => plugin.DefaultMaxRunTime = options.DefaultMaxRunTime);
     }
 
     /// <summary>
@@ -108,11 +110,13 @@ public static class PluginConfigurationExtensions
     /// <summary>
     /// Registers a plugin that the container constructs and the caller then configures.
     /// </summary>
-    private static IQuartzBuilder AddConfiguredPlugin<TPlugin>(
+    private static IQuartzBuilder AddConfiguredPlugin<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] TPlugin>(
         this IQuartzBuilder builder,
+        string name,
         Action<TPlugin> configure) where TPlugin : class, ISchedulerPlugin
     {
-        return builder.AddPlugin(provider =>
+        return builder.AddPlugin(name, provider =>
         {
             var plugin = ActivatorUtilities.CreateInstance<TPlugin>(provider);
             configure(plugin);

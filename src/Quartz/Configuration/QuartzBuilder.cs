@@ -107,12 +107,11 @@ internal sealed class QuartzBuilder : IQuartzBuilder
         var store = new PersistentStoreBuilder(Services, schedulerKey);
         configure(store);
 
-        // Registered after the callback so explicit choices win over these fallbacks. There is
-        // deliberately no lock handler fallback: left unregistered, the store picks between database row
-        // locks and an in-process monitor itself, once it knows whether it is clustered and which
-        // database it is talking to.
-        store.UseSerializer<SystemTextJsonObjectSerializer>();
-        store.UseDriverDelegate<StdAdoDelegate>();
+        // The serializer, driver delegate and lock handler fallbacks are not registered here. A
+        // serializer named in a configuration file is applied after this callback, so a fallback
+        // registered inside it would win the first-wins race and silently replace the caller's choice.
+        // They go in with the rest of the defaults instead, after everything explicit — and the lock
+        // handler has no fallback at all, so the store can choose one once it knows its database.
         return this;
     }
 
@@ -157,6 +156,17 @@ internal sealed class QuartzBuilder : IQuartzBuilder
     /// Plugin packages use this rather than registering against <see cref="Services"/> directly, which
     /// would register unkeyed and leave a named scheduler without the plugin.
     /// </remarks>
+    public IQuartzBuilder AddPlugin<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        string name,
+        Func<IServiceProvider, T> factory) where T : class, ISchedulerPlugin
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentNullException.ThrowIfNull(factory);
+
+        Services.AddSingleton(new SchedulerPluginName(SchedulerName, typeof(T), name));
+        return AddPlugin(provider => factory(provider));
+    }
+
     public IQuartzBuilder AddPlugin(Func<IServiceProvider, ISchedulerPlugin> factory)
     {
         ArgumentNullException.ThrowIfNull(factory);
@@ -321,3 +331,13 @@ internal sealed class QuartzBuilder : IQuartzBuilder
 /// Execution group limits configured for a scheduler.
 /// </summary>
 internal sealed record SchedulerExecutionLimits(string SchedulerName, ExecutionLimits Limits);
+
+/// <summary>
+/// The name a plugin registered in code should be known by.
+/// </summary>
+/// <remarks>
+/// Without this a plugin built in code would be named after its type, while the same plugin named by a
+/// <c>quartz.plugin.&lt;name&gt;.*</c> key keeps the short name — and plugins that derive persisted job
+/// keys from their name would write a different set of rows depending on how they were configured.
+/// </remarks>
+internal sealed record SchedulerPluginName(string SchedulerName, Type PluginType, string Name);

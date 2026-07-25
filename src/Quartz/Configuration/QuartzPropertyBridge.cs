@@ -104,10 +104,12 @@ internal static class QuartzPropertyBridge
 
         var parser = new PropertyReader(properties);
 
+        // The serializer goes in before the job store, because the store's persistent branch registers
+        // the built-in serializer as a fallback and registration is first-wins.
+        ApplySerializer(services, parser, schedulerName);
         RegisterSchedulerParts(services, parser, schedulerName);
         RegisterThreadPool(services, parser, schedulerName);
         RegisterJobStore(services, parser, schedulerName);
-        ApplySerializer(services, parser, schedulerName);
     }
 
     /// <summary>
@@ -183,11 +185,23 @@ internal static class QuartzPropertyBridge
         PropertyReader parser,
         string? schedulerName)
     {
-        Register<IInstanceIdGenerator>(
-            services,
-            schedulerName,
-            parser.Type(StdSchedulerFactory.PropertySchedulerInstanceIdGeneratorType)
-            ?? SystemPropertyGeneratorIfRequested(parser));
+        var instanceIdGeneratorType = parser.Type(StdSchedulerFactory.PropertySchedulerInstanceIdGeneratorType)
+            ?? SystemPropertyGeneratorIfRequested(parser);
+
+        if (instanceIdGeneratorType is not null)
+        {
+            // A generator has no typed options, so its settings — the system property to read, the
+            // prefix and suffix that keep one datacentre's ids from colliding with another's — arrive as
+            // strings and have to be applied after construction.
+            RegisterConfigured<IInstanceIdGenerator>(services, schedulerName, (provider, key) =>
+            {
+                var generator = (IInstanceIdGenerator) ActivatorUtilities.CreateInstance(
+                    SchedulerScopedServiceProvider.For(provider, key), instanceIdGeneratorType);
+
+                ApplyStringProperties(generator, provider, key, StdSchedulerFactory.PropertySchedulerInstanceIdGeneratorPrefix);
+                return generator;
+            });
+        }
 
         Register<ITypeLoadHelper>(services, schedulerName: null, parser.Type(StdSchedulerFactory.PropertySchedulerTypeLoadHelperType));
         Register<IJobFactory>(services, schedulerName, parser.Type(StdSchedulerFactory.PropertySchedulerJobFactoryType));
@@ -254,7 +268,14 @@ internal static class QuartzPropertyBridge
         PropertyReader parser,
         string? schedulerName)
     {
-        var threadPoolType = parser.Type(StdSchedulerFactory.PropertyThreadPoolType);
+        // SimpleThreadPool was renamed to DefaultThreadPool, and the old name is still in plenty of
+        // config files. Treating it as a synonym is what main did; loading it would just fail.
+        var configured = parser.String(StdSchedulerFactory.PropertyThreadPoolType);
+        var threadPoolType = configured is not null
+            && configured.StartsWith("Quartz.Simpl.SimpleThreadPool", StringComparison.OrdinalIgnoreCase)
+                ? typeof(DefaultThreadPool)
+                : parser.Type(StdSchedulerFactory.PropertyThreadPoolType);
+
         if (threadPoolType is null)
         {
             return;
@@ -292,6 +313,12 @@ internal static class QuartzPropertyBridge
         PropertyReader parser,
         string? schedulerName)
     {
+        // The delegate and lock handler stand on their own: an application that has moved store
+        // selection into code can still be naming its driver delegate in a configuration file, and
+        // returning early on a missing quartz.jobStore.type would drop it.
+        Register<IDriverDelegate>(services, schedulerName, parser.Type("quartz.jobStore.driverDelegateType"));
+        Register<ISemaphore>(services, schedulerName, parser.Type(StdSchedulerFactory.PropertyJobStoreLockHandlerType));
+
         var jobStoreType = parser.Type(StdSchedulerFactory.PropertyJobStoreType);
         if (jobStoreType is null)
         {
@@ -299,9 +326,6 @@ internal static class QuartzPropertyBridge
         }
 
         var persistent = typeof(JobStoreSupport).IsAssignableFrom(jobStoreType);
-
-        Register<IDriverDelegate>(services, schedulerName, parser.Type("quartz.jobStore.driverDelegateType"));
-        Register<ISemaphore>(services, schedulerName, parser.Type(StdSchedulerFactory.PropertyJobStoreLockHandlerType));
 
         if (persistent)
         {
@@ -326,17 +350,11 @@ internal static class QuartzPropertyBridge
                 return new DbProvider(dataSource.Provider, connectionString!);
             });
 
-            // No lock handler default: left unregistered, the store chooses between database row locks
-            // and an in-process monitor itself, once it knows how it is clustered and which database it
-            // is talking to. Registering SimpleSemaphore here would make that choice unreachable and
-            // silently drop a clustered scheduler back to process-local locking.
-            RegisterDefault<IDriverDelegate, StdAdoDelegate>(services, schedulerName);
-            RegisterSerializer(services, schedulerName, provider =>
-            {
-                var serializer = ActivatorUtilities.CreateInstance<SystemTextJsonObjectSerializer>(provider);
-                serializer.Initialize();
-                return serializer;
-            });
+            // The driver delegate and serializer fallbacks are registered with the rest of the defaults,
+            // after everything explicit, so a configured one is never beaten to the registration by the
+            // fallback it was meant to replace. There is deliberately no lock handler fallback either:
+            // left unregistered, the store chooses between database row locks and an in-process monitor
+            // itself, once it knows how it is clustered and which database it is talking to.
         }
 
         RegisterConfigured<IJobStore>(services, schedulerName, (provider, key) =>
@@ -371,7 +389,12 @@ internal static class QuartzPropertyBridge
         parser.String("quartz.jobStore.tablePrefix", value => options.TablePrefix = value);
         parser.Bool("quartz.jobStore.useProperties", value => options.UseProperties = value);
         parser.Milliseconds("quartz.jobStore.misfireThreshold", value => options.MisfireThreshold = value);
+        parser.Milliseconds("quartz.jobStore.misfireHandlerFrequency", value => options.MisfireHandlerFrequency = value);
         parser.Int("quartz.jobStore.maxMisfiresToHandleAtATime", value => options.MaxMisfiresToHandleAtATime = value);
+        parser.Int("quartz.jobStore.maxTransientRetries", value => options.MaxTransientRetries = value);
+        parser.Milliseconds("quartz.jobStore.transientRetryInterval", value => options.TransientRetryInterval = value);
+        parser.Int("quartz.jobStore.retryableActionErrorLogThreshold", value => options.RetryableActionErrorLogThreshold = value);
+        parser.Bool("quartz.jobStore.makeThreadsDaemons", value => options.MakeThreadsDaemons = value);
         parser.Bool("quartz.jobStore.clustered", value =>
         {
             options.Clustered = value;

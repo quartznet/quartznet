@@ -37,30 +37,51 @@ internal static class SchedulerPluginFactory
     /// <param name="provider">The container, used to resolve or construct each plugin.</param>
     /// <param name="registered">Plugins already registered as services.</param>
     /// <param name="properties">The flat properties that may name further plugins.</param>
+    /// <param name="schedulerName">The options name of the scheduler these plugins belong to.</param>
     public static List<(string Name, ISchedulerPlugin Plugin)> Create(
         IServiceProvider provider,
         IEnumerable<ISchedulerPlugin> registered,
-        NameValueCollection properties)
+        NameValueCollection properties,
+        string schedulerName)
     {
-        var plugins = new List<(string, ISchedulerPlugin)>();
+        var plugins = new List<(string Name, ISchedulerPlugin Plugin)>();
         var alreadyRegistered = new HashSet<Type>();
+
+        // Names chosen where the plugin was added, so a plugin configured in code is known by the same
+        // name as the same plugin configured by properties.
+        var chosenNames = provider.GetServices<SchedulerPluginName>()
+            .Where(x => string.Equals(x.SchedulerName, schedulerName, StringComparison.Ordinal))
+            .ToDictionary(x => x.PluginType, x => x.Name);
 
         foreach (var plugin in registered)
         {
-            plugins.Add((plugin.GetType().Name, plugin));
-            alreadyRegistered.Add(plugin.GetType());
+            var type = plugin.GetType();
+            plugins.Add((chosenNames.TryGetValue(type, out var chosen) ? chosen : type.Name, plugin));
+            alreadyRegistered.Add(type);
         }
+
+        var loader = provider.GetService<ITypeLoadHelper>() ?? typeLoadHelper;
 
         foreach (var name in PluginNames(properties))
         {
             var prefix = $"{StdSchedulerFactory.PropertyPluginPrefix}.{name}";
             var typeName = properties[$"{prefix}.{StdSchedulerFactory.PropertyPluginType}"];
+
             if (string.IsNullOrWhiteSpace(typeName))
             {
-                Throw.SchedulerException($"SchedulerPlugin type not specified for plugin '{name}'");
+                // No type key. The plugin itself was added in code, and these are settings for it — so
+                // find it by the name it was added under rather than refusing to start.
+                var index = plugins.FindIndex(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
+                if (index < 0)
+                {
+                    Throw.SchedulerException($"SchedulerPlugin type not specified for plugin '{name}'");
+                }
+
+                ApplyProperties(plugins[index].Plugin, plugins[index].Plugin.GetType(), prefix, properties);
+                continue;
             }
 
-            var type = typeLoadHelper.LoadType(typeName);
+            var type = loader.LoadType(typeName);
             if (type is null)
             {
                 Throw.SchedulerException($"SchedulerPlugin of type '{typeName}' could not be loaded.");
@@ -70,7 +91,7 @@ internal static class SchedulerPluginFactory
             // A plugin registered in code is configured in code; do not build a second copy of it.
             if (!alreadyRegistered.Add(type))
             {
-                ApplyProperties(plugins.Find(x => x.Item2.GetType() == type).Item2, type, prefix, properties);
+                ApplyProperties(plugins.Find(x => x.Plugin.GetType() == type).Plugin, type, prefix, properties);
                 continue;
             }
 

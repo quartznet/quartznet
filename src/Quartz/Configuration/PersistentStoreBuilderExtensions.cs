@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 using Quartz.Impl.AdoJobStore;
 
 namespace Quartz;
@@ -96,7 +98,8 @@ public static class PersistentStoreBuilderExtensions
         string connectionString)
         => builder.UseDatabase<StdAdoDelegate>(provider, connectionString);
 
-    private static IPersistentStoreBuilder UseDatabase<TDelegate>(
+    private static IPersistentStoreBuilder UseDatabase<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] TDelegate>(
         this IPersistentStoreBuilder builder,
         string provider,
         string connectionString) where TDelegate : class, IDriverDelegate
@@ -105,7 +108,8 @@ public static class PersistentStoreBuilderExtensions
         return builder.UseDatabase<TDelegate>(provider, options => options.ConnectionString = connectionString);
     }
 
-    private static IPersistentStoreBuilder UseDatabase<TDelegate>(
+    private static IPersistentStoreBuilder UseDatabase<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] TDelegate>(
         this IPersistentStoreBuilder builder,
         string provider,
         Action<DataSourceOptions> configure) where TDelegate : class, IDriverDelegate

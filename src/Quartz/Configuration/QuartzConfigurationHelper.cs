@@ -79,6 +79,15 @@ public static class QuartzConfigurationHelper
         }
     }
 
+    /// <summary>
+    /// Flattens one section under an explicit legacy path, for keys inside a section that is otherwise
+    /// bound onto typed options.
+    /// </summary>
+    internal static void FlattenInto(IConfigurationSection section, string legacyPath, NameValueCollection properties)
+    {
+        FlattenSection(section, legacyPath, properties);
+    }
+
     private static void FlattenSection(IConfigurationSection section, string currentPath, NameValueCollection properties)
     {
         if (section.Value is not null)

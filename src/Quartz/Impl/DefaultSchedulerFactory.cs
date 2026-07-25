@@ -118,7 +118,8 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
         var plugins = SchedulerPluginFactory.Create(
             serviceProvider,
             serviceProvider.GetSchedulerServices<ISchedulerPlugin>(Key),
-            properties);
+            properties,
+            schedulerKey.OptionsName);
 
         foreach (var (_, plugin) in plugins)
         {

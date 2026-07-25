@@ -1,4 +1,5 @@
 using System.Collections.Specialized;
+using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -6,6 +7,7 @@ using Microsoft.Extensions.Options;
 
 using Quartz.Core;
 using Quartz.Impl;
+using Quartz.Impl.AdoJobStore;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
@@ -101,6 +103,21 @@ internal static class QuartzServiceRegistration
             var jobStore = ActivatorUtilities.CreateInstance<RAMJobStore>(Scoped(provider, key));
             jobStore.MisfireThreshold = options.MisfireThreshold;
             return jobStore;
+        });
+
+        // The database store's companions. Registered here with the rest of the defaults rather than
+        // alongside the store itself, because registration is first-wins and these have to lose to
+        // anything the application chose — including a serializer named in a configuration file, which
+        // is applied after the configuration callback has run.
+        services.TryAddKeyed<IDriverDelegate>(key, static (provider, key) =>
+            ActivatorUtilities.CreateInstance<StdAdoDelegate>(Scoped(provider, key)));
+
+        services.TryAddKeyed<IObjectSerializer>(key, static (provider, key) =>
+        {
+            // A serializer is unusable until Initialize builds its converter set.
+            var serializer = ActivatorUtilities.CreateInstance<SystemTextJsonObjectSerializer>(Scoped(provider, key));
+            serializer.Initialize();
+            return serializer;
         });
 
         services.TryAddKeyed<QuartzSchedulerResources>(key, static (provider, key) =>
@@ -208,7 +225,9 @@ internal static class QuartzServiceRegistration
     /// Resolves the options belonging to a scheduler. The service key and the options name are the same
     /// string, so a scheduler's registrations and its configuration always agree.
     /// </summary>
-    internal static T GetSchedulerOptions<T>(this IServiceProvider provider, object? key) where T : class
+    internal static T GetSchedulerOptions<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] T>(
+        this IServiceProvider provider,
+        object? key) where T : class
     {
         var name = key as string ?? Options.DefaultName;
         return provider.GetRequiredService<IOptionsMonitor<T>>().Get(name);
