@@ -165,7 +165,7 @@ public class StdSchedulerFactoryTest
         };
 
         var factory = new StdSchedulerFactory(properties);
-        Assert.ThrowsAsync<SchedulerException>(async () => await factory.GetScheduler());
+        Assert.ThrowsAsync<SchedulerConfigException>(async () => await factory.GetScheduler());
     }
 
     [Test]
@@ -179,7 +179,7 @@ public class StdSchedulerFactoryTest
         };
 
         var factory = new StdSchedulerFactory(properties);
-        Assert.ThrowsAsync<SchedulerException>(async () => await factory.GetScheduler());
+        Assert.ThrowsAsync<SchedulerConfigException>(async () => await factory.GetScheduler());
     }
 
     [Test]
@@ -193,7 +193,7 @@ public class StdSchedulerFactoryTest
         };
 
         var factory = new StdSchedulerFactory(properties);
-        Assert.ThrowsAsync<SchedulerException>(async () => await factory.GetScheduler());
+        Assert.ThrowsAsync<SchedulerConfigException>(async () => await factory.GetScheduler());
     }
 
     private class TestStdSchedulerFactory : StdSchedulerFactory

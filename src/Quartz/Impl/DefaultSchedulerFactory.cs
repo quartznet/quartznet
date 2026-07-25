@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 using Quartz.Configuration;
 using Quartz.Core;
@@ -65,6 +66,22 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
 
     public async ValueTask<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
     {
+        // Options validation is how configuration is checked, but OptionsValidationException is an
+        // implementation detail. Callers have always been told about bad configuration through
+        // SchedulerException, so keep that contract. This wraps the options lookup as well as
+        // construction, because resolving options is what triggers validation.
+        try
+        {
+            return await GetOrCreate(cancellationToken).ConfigureAwait(false);
+        }
+        catch (OptionsValidationException e)
+        {
+            throw new SchedulerConfigException(string.Join(" ", e.Failures), e);
+        }
+    }
+
+    private async ValueTask<IScheduler> GetOrCreate(CancellationToken cancellationToken)
+    {
         var options = serviceProvider.GetSchedulerOptions<QuartzSchedulerOptions>(Key);
 
         await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -95,11 +112,12 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
     {
         var options = serviceProvider.GetSchedulerOptions<QuartzSchedulerOptions>(Key);
         var resources = serviceProvider.GetScheduler<QuartzSchedulerResources>(Key);
+        var properties = serviceProvider.GetSchedulerProperties(schedulerKey.OptionsName);
 
         var plugins = SchedulerPluginFactory.Create(
             serviceProvider.GetDeferredAwareProvider(),
             serviceProvider.GetSchedulerServices<ISchedulerPlugin>(Key),
-            serviceProvider.GetSchedulerProperties(schedulerKey.OptionsName));
+            properties);
 
         foreach (var (_, plugin) in plugins)
         {
@@ -121,6 +139,11 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
         {
             quartzScheduler = serviceProvider.GetScheduler<QuartzScheduler>(Key);
             quartzScheduler.JobFactory = serviceProvider.GetScheduler<IJobFactory>(Key);
+
+            if (ExecutionLimitsParser.Parse(properties) is { } executionLimits)
+            {
+                quartzScheduler.SetExecutionLimits(executionLimits);
+            }
 
             var scheduler = new StdScheduler(quartzScheduler);
 

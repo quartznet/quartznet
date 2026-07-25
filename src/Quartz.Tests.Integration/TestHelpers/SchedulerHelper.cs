@@ -25,8 +25,15 @@ public class SchedulerHelper
         };
 
         string schedulerName = GetSchedulerName(provider, name);
-        await DirectSchedulerFactory.Instance.CreateScheduler(schedulerName, "AUTO", new DefaultThreadPool(), jobStore);
-        return SchedulerRepository.Instance.Lookup(schedulerName);
+        return await QuartzSchedulerBuilder.Create()
+            .ConfigureScheduler(options =>
+            {
+                options.InstanceName = schedulerName;
+                options.GenerateInstanceId = true;
+            })
+            .UseThreadPool(new DefaultThreadPool())
+            .UseJobStore(jobStore)
+            .BuildScheduler();
     }
 
     public static string GetSchedulerName(string provider, string name)

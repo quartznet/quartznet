@@ -1,4 +1,4 @@
-﻿using Quartz.Impl;
+using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Job;
 using Quartz.Simpl;
@@ -70,7 +70,14 @@ public class JobDataMapStorageTest : IntegrationTest
         };
 
         string schedulerName = SchedulerHelper.GetSchedulerName(provider, name);
-        await DirectSchedulerFactory.Instance.CreateScheduler(schedulerName, "AUTO", new DefaultThreadPool(), jobStore);
-        return SchedulerRepository.Instance.Lookup(schedulerName);
+        return await QuartzSchedulerBuilder.Create()
+            .ConfigureScheduler(options =>
+            {
+                options.InstanceName = schedulerName;
+                options.GenerateInstanceId = true;
+            })
+            .UseThreadPool(new DefaultThreadPool())
+            .UseJobStore(jobStore)
+            .BuildScheduler();
     }
 }

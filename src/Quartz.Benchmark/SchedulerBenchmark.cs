@@ -543,19 +543,21 @@ public class SchedulerBenchmark
 
         var threadPool = new DefaultThreadPool { MaxConcurrency = threadCount };
 
-        DirectSchedulerFactory.Instance.CreateScheduler(
-            name,
-            instanceId,
-            threadPool,
-            store,
-            null,
-            idleWaitTime,
-            maxBatchSize,
-            TimeSpan.Zero).GetAwaiter().GetResult();
+        var scheduler = QuartzSchedulerBuilder.Create()
+            .ConfigureScheduler(options =>
+            {
+                options.InstanceName = name;
+                options.InstanceId = instanceId;
+                options.IdleWaitTime = idleWaitTime;
+                options.MaxBatchSize = maxBatchSize;
+                options.BatchTriggerAcquisitionFireAheadTimeWindow = TimeSpan.Zero;
+            })
+            .UseThreadPool(threadPool)
+            .UseJobStore(store)
+            .BuildScheduler()
+            .ConfigureAwait(false).GetAwaiter().GetResult();
 
-
-        var scheduler = DirectSchedulerFactory.Instance.GetScheduler(name).ConfigureAwait(false).GetAwaiter().GetResult();
-        scheduler!.JobFactory = _jobFactory;
+        scheduler.JobFactory = _jobFactory;
 
         var triggersByJob = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>();
 

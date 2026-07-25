@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Configuration;
+using Quartz.Spi;
 
 namespace Quartz;
 
@@ -80,6 +81,26 @@ public sealed class QuartzSchedulerBuilder
             services.Configure(configure);
         }
 
+        return this;
+    }
+
+    /// <summary>
+    /// Uses a thread pool the caller has already built.
+    /// </summary>
+    public QuartzSchedulerBuilder UseThreadPool(IThreadPool threadPool)
+    {
+        ArgumentNullException.ThrowIfNull(threadPool);
+        services.AddSingleton(threadPool);
+        return this;
+    }
+
+    /// <summary>
+    /// Uses a job store the caller has already built.
+    /// </summary>
+    public QuartzSchedulerBuilder UseJobStore(IJobStore jobStore)
+    {
+        ArgumentNullException.ThrowIfNull(jobStore);
+        services.AddSingleton(jobStore);
         return this;
     }
 

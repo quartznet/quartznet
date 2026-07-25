@@ -33,10 +33,10 @@ public class RecoverJobsTest
             MisfireThreshold = TimeSpan.FromSeconds(1)
         };
 
-        var factory = DirectSchedulerFactory.Instance;
-
-        await factory.CreateScheduler(new DefaultThreadPool(), jobStore);
-        var scheduler = await factory.GetScheduler();
+        var scheduler = await QuartzSchedulerBuilder.Create()
+            .UseThreadPool(new DefaultThreadPool())
+            .UseJobStore(jobStore)
+            .BuildScheduler();
 
         // run forever up to the first fail over situation
         RecoverJobsTestJob.runForever = true;
@@ -89,8 +89,10 @@ public class RecoverJobsTest
         await Task.Delay(TimeSpan.FromSeconds(4));
 
         var isJobRecovered = new ManualResetEventSlim(false);
-        await factory.CreateScheduler(new DefaultThreadPool(), jobStore);
-        IScheduler recovery = await factory.GetScheduler();
+        IScheduler recovery = await QuartzSchedulerBuilder.Create()
+            .UseThreadPool(new DefaultThreadPool())
+            .UseJobStore(jobStore)
+            .BuildScheduler();
         recovery.ListenerManager.AddJobListener(new TestListener(isJobRecovered));
         await recovery.Start();
 
@@ -135,10 +137,10 @@ public class RecoverJobsTest
             MisfireThreshold = TimeSpan.FromSeconds(1)
         };
 
-        var factory = DirectSchedulerFactory.Instance;
-
-        await factory.CreateScheduler(new DefaultThreadPool(), jobStore);
-        var scheduler = await factory.GetScheduler();
+        var scheduler = await QuartzSchedulerBuilder.Create()
+            .UseThreadPool(new DefaultThreadPool())
+            .UseJobStore(jobStore)
+            .BuildScheduler();
 
         // Make job run forever to simulate a job that's executing when scheduler shuts down
         RecoverJobsTestJob.runForever = true;
@@ -192,8 +194,10 @@ public class RecoverJobsTest
         RecoverJobsTestJob.runForever = false;
 
         // Now create a new scheduler instance to unschedule the trigger before starting
-        await factory.CreateScheduler(new DefaultThreadPool(), jobStore);
-        var newScheduler = await factory.GetScheduler();
+        var newScheduler = await QuartzSchedulerBuilder.Create()
+            .UseThreadPool(new DefaultThreadPool())
+            .UseJobStore(jobStore)
+            .BuildScheduler();
 
         // Get the trigger and unschedule it before starting the scheduler
         var triggers = await newScheduler.GetTriggersOfJob(job.Key);
