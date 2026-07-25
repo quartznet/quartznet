@@ -1,150 +1,181 @@
-using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
+using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Plugin.History;
 using Quartz.Plugin.Interrupt;
 using Quartz.Plugin.Json;
 using Quartz.Plugin.Xml;
+using Quartz.Spi;
 
 namespace Quartz;
 
+/// <summary>
+/// Adds the plugins shipped in <c>Quartz.Plugins</c> to a scheduler.
+/// </summary>
+/// <remarks>
+/// Each plugin is registered as an ordinary service, constructed by the container so it gets
+/// constructor injection, and then configured from typed options. No plugin is named by a string.
+/// </remarks>
 public static class PluginConfigurationExtensions
 {
-    public static T UseXmlSchedulingConfiguration<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        this T configurer,
-        Action<XmlSchedulingOptions> configure) where T : IPropertyConfigurationRoot
+    /// <summary>
+    /// Loads jobs and triggers from XML files, optionally rescanning them for changes.
+    /// </summary>
+    public static IQuartzBuilder UseXmlSchedulingConfiguration(
+        this IQuartzBuilder builder,
+        Action<XmlSchedulingOptions> configure)
     {
-        configurer.UsePlugin<XMLSchedulingDataProcessorPlugin>("xml");
-        configure.Invoke(new XmlSchedulingOptions(configurer));
-        return configurer;
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        var options = new XmlSchedulingOptions();
+        configure(options);
+
+        return builder.AddConfiguredPlugin<XMLSchedulingDataProcessorPlugin>(plugin =>
+        {
+            plugin.FileNames = string.Join(",", options.Files);
+            plugin.FailOnFileNotFound = options.FailOnFileNotFound;
+            plugin.FailOnSchedulingError = options.FailOnSchedulingError;
+            plugin.ScanInterval = options.ScanInterval;
+        });
     }
 
     /// <summary>
-    /// Configures <see cref="StructuredLoggingJobHistoryPlugin"/> into use.
+    /// Loads jobs and triggers from JSON files, optionally rescanning them for changes.
     /// </summary>
-    /// <remarks>
-    /// This is a structured logging alternative to <see cref="LoggingJobHistoryPlugin"/>.
-    /// Message templates use named parameters for compatibility with structured logging sinks.
-    /// </remarks>
-    public static T UseStructuredJobLogging<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        this T configurer) where T : IPropertyConfigurationRoot
+    public static IQuartzBuilder UseJsonSchedulingConfiguration(
+        this IQuartzBuilder builder,
+        Action<JsonSchedulingOptions> configure)
     {
-        configurer.UsePlugin<StructuredLoggingJobHistoryPlugin>("structuredJobLogging");
-        return configurer;
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        var options = new JsonSchedulingOptions();
+        configure(options);
+
+        return builder.AddConfiguredPlugin<JsonSchedulingDataProcessorPlugin>(plugin =>
+        {
+            plugin.FileNames = string.Join(",", options.Files);
+            plugin.FailOnFileNotFound = options.FailOnFileNotFound;
+            plugin.FailOnSchedulingError = options.FailOnSchedulingError;
+            plugin.ScanInterval = options.ScanInterval;
+        });
     }
 
     /// <summary>
-    /// Configures <see cref="StructuredLoggingTriggerHistoryPlugin"/> into use.
+    /// Signals cancellation to jobs that have run longer than they are allowed to.
     /// </summary>
-    /// <remarks>
-    /// This is a structured logging alternative to <see cref="LoggingTriggerHistoryPlugin"/>.
-    /// Message templates use named parameters for compatibility with structured logging sinks.
-    /// </remarks>
-    public static T UseStructuredTriggerLogging<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        this T configurer) where T : IPropertyConfigurationRoot
+    public static IQuartzBuilder UseJobAutoInterrupt(
+        this IQuartzBuilder builder,
+        Action<JobAutoInterruptOptions>? configure = null)
     {
-        configurer.UsePlugin<StructuredLoggingTriggerHistoryPlugin>("structuredTriggerLogging");
-        return configurer;
+        ArgumentNullException.ThrowIfNull(builder);
+
+        var options = new JobAutoInterruptOptions();
+        configure?.Invoke(options);
+
+        return builder.AddConfiguredPlugin<JobInterruptMonitorPlugin>(
+            plugin => plugin.DefaultMaxRunTime = options.DefaultMaxRunTime);
     }
 
     /// <summary>
-    /// Configures <see cref="JsonSchedulingDataProcessorPlugin"/> to load jobs and triggers from JSON file(s).
+    /// Logs job execution history using structured message templates.
     /// </summary>
-    public static T UseJsonSchedulingConfiguration<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        this T configurer,
-        Action<JsonSchedulingOptions> configure) where T : IPropertyConfigurationRoot
+    public static IQuartzBuilder UseStructuredJobLogging(this IQuartzBuilder builder)
     {
-        configurer.UsePlugin<JsonSchedulingDataProcessorPlugin>("json");
-        configure.Invoke(new JsonSchedulingOptions(configurer));
-        return configurer;
+        ArgumentNullException.ThrowIfNull(builder);
+        return builder.AddPlugin<StructuredLoggingJobHistoryPlugin>();
     }
 
     /// <summary>
-    /// Configures <see cref="JobInterruptMonitorPlugin "/> into use.
+    /// Logs trigger firing history using structured message templates.
     /// </summary>
-    public static T UseJobAutoInterrupt<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        this T configurer,
-        Action<JobAutoInterruptOptions>? configure = null) where T : IPropertyConfigurationRoot
+    public static IQuartzBuilder UseStructuredTriggerLogging(this IQuartzBuilder builder)
     {
-        configurer.UsePlugin<JobInterruptMonitorPlugin>("jobAutoInterrupt");
-        configure?.Invoke(new JobAutoInterruptOptions(configurer));
-        return configurer;
-    }
-
-}
-
-public class JobAutoInterruptOptions : PropertiesSetter
-{
-    public JobAutoInterruptOptions(IPropertySetter parent) : base(parent, "quartz.plugin.jobAutoInterrupt")
-    {
+        ArgumentNullException.ThrowIfNull(builder);
+        return builder.AddPlugin<StructuredLoggingTriggerHistoryPlugin>();
     }
 
     /// <summary>
-    /// The amount of time the job is allowed to run before job interruption is signaled.
-    /// Defaults to 5 minutes.
+    /// Registers a plugin that the container constructs and the caller then configures.
     /// </summary>
-    /// <remarks>
-    /// Per-job value can be configured via JobDataMap via key <see cref="JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime"/>.
-    /// </remarks>
-    public TimeSpan DefaultMaxRunTime
+    private static IQuartzBuilder AddConfiguredPlugin<TPlugin>(
+        this IQuartzBuilder builder,
+        Action<TPlugin> configure) where TPlugin : class, ISchedulerPlugin
     {
-        set => SetProperty("defaultMaxRunTime", value.TotalMilliseconds.ToString(CultureInfo.InvariantCulture));
-    }
-}
+        builder.Services.AddSingleton<ISchedulerPlugin>(provider =>
+        {
+            var plugin = ActivatorUtilities.CreateInstance<TPlugin>(provider);
+            configure(plugin);
+            return plugin;
+        });
 
-public class XmlSchedulingOptions : PropertiesSetter
-{
-    internal XmlSchedulingOptions(IPropertySetter parent) : base(parent, "quartz.plugin.xml")
-    {
-    }
-
-    public string[] Files
-    {
-        set => SetProperty("fileNames", string.Join(",", value));
-    }
-
-    public bool FailOnFileNotFound
-    {
-        set => SetProperty("failOnFileNotFound", value.ToString().ToLowerInvariant());
-    }
-
-    public bool FailOnSchedulingError
-    {
-        set => SetProperty("failOnSchedulingError", value.ToString().ToLowerInvariant());
-    }
-
-    public TimeSpan ScanInterval
-    {
-        set => SetProperty("scanInterval", ((int) value.TotalSeconds).ToString());
+        return builder;
     }
 }
 
 /// <summary>
-/// Configuration options for <see cref="JsonSchedulingDataProcessorPlugin"/>.
+/// Configuration for the job auto-interrupt plugin.
 /// </summary>
-public sealed class JsonSchedulingOptions : PropertiesSetter
+public sealed class JobAutoInterruptOptions
 {
-    internal JsonSchedulingOptions(IPropertySetter parent) : base(parent, "quartz.plugin.json")
-    {
-    }
+    /// <summary>
+    /// How long a job may run before cancellation is signalled to it.
+    /// </summary>
+    /// <remarks>
+    /// A per-job value can be set through the job data map under
+    /// <see cref="JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime"/>.
+    /// </remarks>
+    public TimeSpan DefaultMaxRunTime { get; set; } = TimeSpan.FromMinutes(5);
+}
 
-    public string[] Files
-    {
-        set => SetProperty("fileNames", string.Join(",", value));
-    }
+/// <summary>
+/// Configuration for loading the schedule from XML files.
+/// </summary>
+public sealed class XmlSchedulingOptions
+{
+    /// <summary>
+    /// The files to load the schedule from.
+    /// </summary>
+    public string[] Files { get; set; } = [];
 
-    public bool FailOnFileNotFound
-    {
-        set => SetProperty("failOnFileNotFound", value.ToString().ToLowerInvariant());
-    }
+    /// <summary>
+    /// Whether a missing file is an error rather than something to ignore.
+    /// </summary>
+    public bool FailOnFileNotFound { get; set; } = true;
 
-    public bool FailOnSchedulingError
-    {
-        set => SetProperty("failOnSchedulingError", value.ToString().ToLowerInvariant());
-    }
+    /// <summary>
+    /// Whether a scheduling error while loading is fatal.
+    /// </summary>
+    public bool FailOnSchedulingError { get; set; }
 
-    public TimeSpan ScanInterval
-    {
-        set => SetProperty("scanInterval", ((int) value.TotalSeconds).ToString());
-    }
+    /// <summary>
+    /// How often the files are rescanned for changes. Zero means they are read once.
+    /// </summary>
+    public TimeSpan ScanInterval { get; set; } = TimeSpan.Zero;
+}
+
+/// <summary>
+/// Configuration for loading the schedule from JSON files.
+/// </summary>
+public sealed class JsonSchedulingOptions
+{
+    /// <summary>
+    /// The files to load the schedule from.
+    /// </summary>
+    public string[] Files { get; set; } = [];
+
+    /// <summary>
+    /// Whether a missing file is an error rather than something to ignore.
+    /// </summary>
+    public bool FailOnFileNotFound { get; set; } = true;
+
+    /// <summary>
+    /// Whether a scheduling error while loading is fatal.
+    /// </summary>
+    public bool FailOnSchedulingError { get; set; }
+
+    /// <summary>
+    /// How often the files are rescanned for changes. Zero means they are read once.
+    /// </summary>
+    public TimeSpan ScanInterval { get; set; } = TimeSpan.Zero;
 }

@@ -178,17 +178,22 @@ public class AdoJobStoreSmokeTest
     {
         string schedulerInstanceId = $"instance_{dbProvider}_{connectionStringId}_{serializerType}_{Guid.NewGuid():N}".Replace('-', '_');
         string schedulerName = $"TestScheduler_{dbProvider}_{connectionStringId}_{serializerType}".Replace('-', '_');
-        SchedulerBuilder config = SchedulerBuilder.Create(schedulerInstanceId, schedulerName);
-        config.UseDefaultThreadPool(x =>
+        QuartzSchedulerBuilder config = QuartzSchedulerBuilder.Create();
+        config.ConfigureScheduler(o =>
         {
-            x.MaxConcurrency = 10;
+            o.InstanceId = schedulerInstanceId;
+            o.InstanceName = schedulerName;
         });
-        config.MisfireThreshold = TimeSpan.FromSeconds(60);
+        config.UseDefaultThreadPool(x => x.MaxConcurrency = 10);
 
-        config.UsePersistentStore(store =>
+        config.Configure(q => q.UsePersistentStore(store =>
         {
-            store.UseProperties = false;
-            store.PerformSchemaValidation = true;
+            store.Configure(o =>
+            {
+                o.UseProperties = false;
+                o.PerformSchemaValidation = true;
+                o.MisfireThreshold = TimeSpan.FromSeconds(60);
+            });
 
             if (clustered)
             {
@@ -198,9 +203,7 @@ public class AdoJobStoreSmokeTest
                 });
             }
 
-            store.UseGenericDatabase(dbProvider, "server-01", db =>
-                db.ConnectionString = GetConnectionString(connectionStringId)
-            );
+            store.UseGenericDatabase(dbProvider, GetConnectionString(connectionStringId));
 
             if (serializerType == "stj")
             {
@@ -224,15 +227,7 @@ public class AdoJobStoreSmokeTest
             {
                 throw new ArgumentException($"Cannot handle serializer type: {serializerType}", nameof(serializerType));
             }
-        });
-
-        if (extraProperties is not null)
-        {
-            foreach (string key in extraProperties.Keys)
-            {
-                config.SetProperty(key, extraProperties[key]);
-            }
-        }
+        }));
 
         // Clear any old errors from the log
         //testLoggerHelper.ClearLogs();

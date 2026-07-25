@@ -147,7 +147,10 @@ internal sealed class DataSourceOptionsValidator : IValidateOptions<DataSourceOp
             (failures ??= []).Add($"{nameof(DataSourceOptions.Provider)} must be specified for {described}.");
         }
 
-        if (string.IsNullOrWhiteSpace(options.ConnectionString) && string.IsNullOrWhiteSpace(options.ConnectionStringName))
+        // A container-registered data source carries its own connection details, so Quartz needs none.
+        if (!options.UseRegisteredDataSource
+            && string.IsNullOrWhiteSpace(options.ConnectionString)
+            && string.IsNullOrWhiteSpace(options.ConnectionStringName))
         {
             (failures ??= []).Add(
                 $"Either {nameof(DataSourceOptions.ConnectionString)} or {nameof(DataSourceOptions.ConnectionStringName)} " +

@@ -221,15 +221,6 @@ internal static class QuartzServiceRegistration
         return options is null ? [] : options.Get(optionsName).ToNameValueCollection();
     }
 
-    /// <summary>
-    /// Returns a provider that can also resolve singletons captured during deferred configuration, which
-    /// never reached the built container.
-    /// </summary>
-    internal static IServiceProvider GetDeferredAwareProvider(this IServiceProvider provider)
-    {
-        var options = provider.GetService<IOptions<QuartzOptions>>();
-        return options is null ? provider : options.Value._deferredSingletons.WrapServiceProvider(provider);
-    }
 }
 
 /// <summary>

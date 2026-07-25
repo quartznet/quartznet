@@ -52,6 +52,12 @@ public interface IPersistentStoreBuilder
     IPersistentStoreBuilder UseDataSource(Action<DataSourceOptions> configure);
 
     /// <summary>
+    /// Connects through a <c>DbDataSource</c> registered in the container, rather than through a
+    /// connection string of Quartz's own.
+    /// </summary>
+    IPersistentStoreBuilder UseDataSourceConnectionProvider();
+
+    /// <summary>
     /// Uses a specific driver delegate, which adapts Quartz's SQL to a particular database.
     /// </summary>
     IPersistentStoreBuilder UseDriverDelegate<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()

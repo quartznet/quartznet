@@ -60,7 +60,7 @@ public class NamedSchedulerContainerTest
         var services = new ServiceCollection();
         services.AddQuartz(q =>
         {
-            q.SchedulerName = "the-default";
+            q.ConfigureScheduler(options => options.InstanceName = "the-default");
             q.UseInMemoryStore();
         });
         services.AddQuartz("reporting", q => q.UseInMemoryStore());

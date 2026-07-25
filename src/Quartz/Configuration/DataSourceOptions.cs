@@ -27,4 +27,10 @@ public sealed class DataSourceOptions
     /// The name of a connection string to resolve from <c>IConfiguration</c>'s connection strings.
     /// </summary>
     public string? ConnectionStringName { get; set; }
+
+    /// <summary>
+    /// Whether connections come from a <c>DbDataSource</c> registered in the container rather than
+    /// from a connection string Quartz holds.
+    /// </summary>
+    public bool UseRegisteredDataSource { get; set; }
 }

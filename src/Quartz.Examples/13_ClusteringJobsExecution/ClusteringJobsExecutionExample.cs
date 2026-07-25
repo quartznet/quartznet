@@ -66,17 +66,26 @@ public class ClusteringJobsExecutionExample : IExample
     public virtual async Task Run(bool inClearJobs, bool inScheduleJobs)
     {
         // First we must get a reference to a scheduler
-        IScheduler sched = await SchedulerBuilder.Create()
-            .WithId("instance_one")
-            .WithName("TestScheduler")
-            .UseDefaultThreadPool(x => x.MaxConcurrency = 5)
-            .WithMisfireThreshold(TimeSpan.FromSeconds(60))
-            .UsePersistentStore(x =>
+        IScheduler sched = await QuartzSchedulerBuilder.Create()
+            .Configure(q =>
             {
-                x.UseProperties = true;
-                x.UseClustering();
-                x.UseSqlServer("sql-server-01", TestConstants.SqlServerConnectionString);
-                x.UseSystemTextJsonSerializer();
+                q.ConfigureScheduler(options =>
+                {
+                    options.InstanceId = "instance_one";
+                    options.InstanceName = "TestScheduler";
+                });
+                q.UseDefaultThreadPool(maxConcurrency: 5);
+                q.UsePersistentStore(store =>
+                {
+                    store.UseSqlServer(TestConstants.SqlServerConnectionString);
+                    store.UseClustering();
+                    store.UseSystemTextJsonSerializer();
+                    store.Configure(options =>
+                    {
+                        options.UseProperties = true;
+                        options.MisfireThreshold = TimeSpan.FromSeconds(60);
+                    });
+                });
             })
             .BuildScheduler();
 

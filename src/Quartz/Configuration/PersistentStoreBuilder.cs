@@ -3,7 +3,14 @@ using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
+using System.Data.Common;
+
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
+
 using Quartz.Impl.AdoJobStore;
+using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Util;
 using Quartz.Spi;
 
 namespace Quartz.Configuration;
@@ -39,7 +46,28 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
         // The data source is named after the scheduler that owns it, so the name never has to be
         // invented by the caller or kept in step by hand.
         Services.Configure(DataSourceName, configure);
-        return Configure(options => options.DataSource = DataSourceName);
+        Configure(options => options.DataSource = DataSourceName);
+
+        var dataSourceName = DataSourceName;
+        RegisterProvider(provider =>
+        {
+            var options = provider.GetRequiredService<IOptionsMonitor<DataSourceOptions>>().Get(dataSourceName);
+            var connectionString = options.ConnectionString;
+
+            if (string.IsNullOrWhiteSpace(connectionString) && !string.IsNullOrWhiteSpace(options.ConnectionStringName))
+            {
+                connectionString = provider.GetService<IConfiguration>()?.GetConnectionString(options.ConnectionStringName);
+                if (string.IsNullOrWhiteSpace(connectionString))
+                {
+                    Throw.SchedulerConfigException(
+                        $"Named connection string '{options.ConnectionStringName}' was not found.");
+                }
+            }
+
+            return new DbProvider(options.Provider, connectionString!);
+        });
+
+        return this;
     }
 
     /// <summary>
@@ -82,6 +110,47 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
     {
         Register<ISemaphore, T>();
         return this;
+    }
+
+    /// <summary>
+    /// Connects through a <c>DbDataSource</c> registered in the container, rather than a
+    /// connection string of Quartz's own.
+    /// </summary>
+    public IPersistentStoreBuilder UseDataSourceConnectionProvider()
+    {
+        Services.Configure<DataSourceOptions>(DataSourceName, options => options.UseRegisteredDataSource = true);
+
+        // Asking for the container's data source explicitly overrides whatever connection provider the
+        // database method implied, whichever order they were called in.
+        var dataSourceName = DataSourceName;
+        IDbProvider Create(IServiceProvider provider)
+        {
+            var options = provider.GetRequiredService<IOptionsMonitor<DataSourceOptions>>().Get(dataSourceName);
+            return new DataSourceDbProvider(options.Provider, provider.GetRequiredService<DbDataSource>());
+        }
+
+        if (schedulerKey is null)
+        {
+            Services.Replace(ServiceDescriptor.Singleton<IDbProvider>(Create));
+        }
+        else
+        {
+            Services.Replace(ServiceDescriptor.KeyedSingleton<IDbProvider>(schedulerKey, (provider, _) => Create(provider)));
+        }
+
+        return this;
+    }
+
+    private void RegisterProvider(Func<IServiceProvider, IDbProvider> factory)
+    {
+        if (schedulerKey is null)
+        {
+            Services.TryAddSingleton(factory);
+        }
+        else
+        {
+            Services.TryAddKeyedSingleton<IDbProvider>(schedulerKey, (provider, _) => factory(provider));
+        }
     }
 
     private void Register<TService, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] TImplementation>()

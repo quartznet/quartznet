@@ -115,7 +115,7 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
         var properties = serviceProvider.GetSchedulerProperties(schedulerKey.OptionsName);
 
         var plugins = SchedulerPluginFactory.Create(
-            serviceProvider.GetDeferredAwareProvider(),
+            serviceProvider,
             serviceProvider.GetSchedulerServices<ISchedulerPlugin>(Key),
             properties);
 

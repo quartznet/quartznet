@@ -35,13 +35,13 @@ var httpScheduler = new Quartz.HttpClient.HttpScheduler("Quartz ASP.NET Core Sam
 */
 
 /* Using SchedulerBuilder. This does not allow configuring HttpClient used by HttpScheduler. For this example to work, authentication needs to be removed from Quartz.Examples.AspNetCore
-var httpScheduler = await SchedulerBuilder.Create()
+var httpScheduler = await QuartzSchedulerBuilder.Create()
     .WithName("Quartz ASP.NET Core Sample Scheduler")
     .ProxyToRemoteScheduler<HttpSchedulerProxyFactory>("http://localhost:5000/quartz-api/")
     .BuildScheduler();*/
 
-/* Using SchedulerBuilder with custom ProxyFactory
-var httpScheduler = await SchedulerBuilder.Create()
+/* Using QuartzSchedulerBuilder with custom ProxyFactory
+var httpScheduler = await QuartzSchedulerBuilder.Create()
     .WithName("Quartz ASP.NET Core Sample Scheduler")
     .ProxyToRemoteScheduler<MyHttpSchedulerProxyFactory>("http://localhost:5000/quartz-api/")
     .BuildScheduler();*/

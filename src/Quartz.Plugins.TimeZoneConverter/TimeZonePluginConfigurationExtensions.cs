@@ -1,13 +1,19 @@
 using Quartz.Plugin.TimeZoneConverter;
-using Quartz.Util;
 
 namespace Quartz;
 
+/// <summary>
+/// Adds the TimeZoneConverter plugin, which resolves time zone identifiers across operating systems.
+/// </summary>
 public static class TimeZonePluginConfigurationExtensions
 {
-    public static T UseTimeZoneConverter<T>(this T schedulerBuilder) where T : IPropertyConfigurationRoot
+    /// <summary>
+    /// Resolves time zone identifiers using TimeZoneConverter, so Windows and IANA identifiers both
+    /// work regardless of the host operating system.
+    /// </summary>
+    public static IQuartzBuilder UseTimeZoneConverter(this IQuartzBuilder builder)
     {
-        schedulerBuilder.SetProperty("quartz.plugin.timeZoneConverter.type", typeof(TimeZoneConverterPlugin).AssemblyQualifiedNameWithoutVersion());
-        return schedulerBuilder;
+        ArgumentNullException.ThrowIfNull(builder);
+        return builder.AddPlugin<TimeZoneConverterPlugin>();
     }
 }

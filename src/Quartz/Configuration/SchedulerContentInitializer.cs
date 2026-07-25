@@ -51,12 +51,9 @@ internal sealed class SchedulerContentInitializer
         // Plugins reach the container through the scheduler context.
         scheduler.Context[ServiceProviderContextKey] = serviceProvider;
 
-        // Deferred configuration may have registered singletons that are not in the built container.
-        var provider = options._deferredSingletons.WrapServiceProvider(serviceProvider);
-
-        AddSchedulerListeners(scheduler, optionsName, provider);
-        AddJobListeners(scheduler, optionsName, provider);
-        AddTriggerListeners(scheduler, optionsName, provider);
+        AddSchedulerListeners(scheduler, optionsName, serviceProvider);
+        AddJobListeners(scheduler, optionsName, serviceProvider);
+        AddTriggerListeners(scheduler, optionsName, serviceProvider);
 
         await AddCalendars(scheduler, optionsName, cancellationToken).ConfigureAwait(false);
         await processor.ScheduleJobs(scheduler, cancellationToken).ConfigureAwait(false);
@@ -78,11 +75,6 @@ internal sealed class SchedulerContentInitializer
                 ListenerCreationHelper.CreateSchedulerListener(configuration, provider));
         }
 
-        foreach (var configuration in options._deferredSchedulerListeners.Where(x => x.OptionsName == optionsName))
-        {
-            scheduler.ListenerManager.AddSchedulerListener(
-                ListenerCreationHelper.CreateSchedulerListener(configuration, provider));
-        }
     }
 
     private void AddJobListeners(IScheduler scheduler, string optionsName, IServiceProvider provider)
@@ -109,11 +101,6 @@ internal sealed class SchedulerContentInitializer
             }
         }
 
-        foreach (var configuration in options._deferredJobListeners.Where(x => x.OptionsName == optionsName))
-        {
-            scheduler.ListenerManager.AddJobListener(
-                ListenerCreationHelper.CreateJobListener(configuration, provider), configuration.Matchers ?? []);
-        }
     }
 
     private void AddTriggerListeners(IScheduler scheduler, string optionsName, IServiceProvider provider)
@@ -138,11 +125,6 @@ internal sealed class SchedulerContentInitializer
             }
         }
 
-        foreach (var configuration in options._deferredTriggerListeners.Where(x => x.OptionsName == optionsName))
-        {
-            scheduler.ListenerManager.AddTriggerListener(
-                ListenerCreationHelper.CreateTriggerListener(configuration, provider), configuration.Matchers ?? []);
-        }
     }
 
     private async ValueTask AddCalendars(IScheduler scheduler, string optionsName, CancellationToken cancellationToken)
@@ -154,12 +136,6 @@ internal sealed class SchedulerContentInitializer
                 .ConfigureAwait(false);
         }
 
-        foreach (var configuration in options._deferredCalendars.Where(x => x.OptionsName == optionsName))
-        {
-            await scheduler.AddCalendar(
-                configuration.Name, configuration.Calendar, configuration.Replace, configuration.UpdateTriggers, cancellationToken)
-                .ConfigureAwait(false);
-        }
     }
 
     /// <summary>

@@ -54,6 +54,17 @@ public sealed class QuartzSchedulerBuilder
     public IServiceCollection Services => services;
 
     /// <summary>
+    /// Configures the scheduler with the same API used under a host, so what works in one works in
+    /// the other.
+    /// </summary>
+    public QuartzSchedulerBuilder Configure(Action<IQuartzBuilder> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+        configure(new QuartzBuilder(services, schedulerKey: null));
+        return this;
+    }
+
+    /// <summary>
     /// Configures the scheduler itself.
     /// </summary>
     public QuartzSchedulerBuilder ConfigureScheduler(Action<QuartzSchedulerOptions> configure)
