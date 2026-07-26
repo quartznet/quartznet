@@ -962,15 +962,15 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         CancellationToken cancellationToken)
     {
         // Calendar lookup with batch-local cache (when available).
-        ICalendar? cal = null;
+        ICalendar? calendar = null;
         if (trig.CalendarName is not null)
         {
-            if (calendarCache is null || !calendarCache.TryGetValue(trig.CalendarName, out cal))
+            if (calendarCache is null || !calendarCache.TryGetValue(trig.CalendarName, out calendar))
             {
-                cal = await RetrieveCalendar(conn, trig.CalendarName, cancellationToken).ConfigureAwait(false);
+                calendar = await RetrieveCalendar(conn, trig.CalendarName, cancellationToken).ConfigureAwait(false);
                 if (calendarCache is not null)
                 {
-                    calendarCache[trig.CalendarName] = cal;
+                    calendarCache[trig.CalendarName] = calendar;
                 }
             }
         }
@@ -980,7 +980,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         DateTimeOffset? originalFireTime = trig.NextFireTimeUtc;
         DateTimeOffset now = timeProvider.GetUtcNow();
 
-        trig.UpdateAfterMisfire(cal);
+        trig.UpdateAfterMisfire(calendar);
 
         // Determine new state.
         DateTimeOffset? newFireTime = trig.NextFireTimeUtc;
@@ -1121,10 +1121,10 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     private async ValueTask DoUpdateOfMisfiredTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trig,
         bool forceState, string newStateIfNotComplete, bool recovering)
     {
-        ICalendar? cal = null;
+        ICalendar? calendar = null;
         if (trig.CalendarName is not null)
         {
-            cal = await RetrieveCalendar(conn, trig.CalendarName).ConfigureAwait(false);
+            calendar = await RetrieveCalendar(conn, trig.CalendarName).ConfigureAwait(false);
         }
 
         await schedSignaler.NotifyTriggerListenersMisfired(trig).ConfigureAwait(false);
@@ -1132,7 +1132,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         var originalFireTime = trig.NextFireTimeUtc;
         var now = timeProvider.GetUtcNow();
 
-        trig.UpdateAfterMisfire(cal);
+        trig.UpdateAfterMisfire(calendar);
 
         if (!trig.NextFireTimeUtc.HasValue)
         {
@@ -2077,7 +2077,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <summary>
     /// Store the given <see cref="ICalendar" />.
     /// </summary>
-    /// <param name="calName">The name of the calendar.</param>
+    /// <param name="calendarName">The name of the calendar.</param>
     /// <param name="calendar">The <see cref="ICalendar" /> to be stored.</param>
     /// <param name="replaceExisting">
     /// If <see langword="true" />, any <see cref="ICalendar" /> existing
@@ -2091,7 +2091,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     ///           exists, and replaceExisting is set to false.
     /// </exception>
     public async ValueTask StoreCalendar(
-        string calName,
+        string calendarName,
         ICalendar calendar,
         bool replaceExisting,
         bool updateTriggers,
@@ -2101,13 +2101,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             OperationName.JobStore.StoreCalendar,
             () => ExecuteInLock(
                 LockOnInsert || updateTriggers ? LockTriggerAccess : null,
-                conn => StoreCalendar(conn, calName, calendar, replaceExisting, updateTriggers, cancellationToken),
+                conn => StoreCalendar(conn, calendarName, calendar, replaceExisting, updateTriggers, cancellationToken),
                 cancellationToken)).ConfigureAwait(false);
     }
 
     protected virtual async ValueTask StoreCalendar(
         ConnectionAndTransactionHolder conn,
-        string calName,
+        string calendarName,
         ICalendar calendar,
         bool replaceExisting,
         bool updateTriggers,
@@ -2115,22 +2115,22 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     {
         try
         {
-            bool existingCal = await CalendarExists(conn, calName, cancellationToken).ConfigureAwait(false);
+            bool existingCal = await CalendarExists(conn, calendarName, cancellationToken).ConfigureAwait(false);
             if (existingCal && !replaceExisting)
             {
-                Throw.ObjectAlreadyExistsException("Calendar with name '" + calName + "' already exists.");
+                Throw.ObjectAlreadyExistsException("Calendar with name '" + calendarName + "' already exists.");
             }
 
             if (existingCal)
             {
-                if (await Delegate.UpdateCalendar(conn, calName, calendar, cancellationToken).ConfigureAwait(false) < 1)
+                if (await Delegate.UpdateCalendar(conn, calendarName, calendar, cancellationToken).ConfigureAwait(false) < 1)
                 {
                     Throw.JobPersistenceException("Couldn't store calendar.  Update failed.");
                 }
 
                 if (updateTriggers)
                 {
-                    var triggers = await Delegate.SelectTriggersForCalendar(conn, calName, cancellationToken).ConfigureAwait(false);
+                    var triggers = await Delegate.SelectTriggersForCalendar(conn, calendarName, cancellationToken).ConfigureAwait(false);
 
                     foreach (IOperableTrigger trigger in triggers)
                     {
@@ -2146,7 +2146,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
             else
             {
-                if (await Delegate.InsertCalendar(conn, calName, calendar, cancellationToken).ConfigureAwait(false) < 1)
+                if (await Delegate.InsertCalendar(conn, calendarName, calendar, cancellationToken).ConfigureAwait(false) < 1)
                 {
                     Throw.JobPersistenceException("Couldn't store calendar.  Insert failed.");
                 }
@@ -2154,7 +2154,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
             if (!Clustered)
             {
-                calendarCache[calName] = calendar; // lazy-cache
+                calendarCache[calendarName] = calendar; // lazy-cache
             }
         }
         catch (IOException e)
@@ -2170,16 +2170,16 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
     protected virtual async ValueTask<bool> CalendarExists(
         ConnectionAndTransactionHolder conn,
-        string calName,
+        string calendarName,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            return await Delegate.CalendarExists(conn, calName, cancellationToken).ConfigureAwait(false);
+            return await Delegate.CalendarExists(conn, calendarName, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception e)
         {
-            Throw.JobPersistenceException("Couldn't determine calendar existence (" + calName + "): " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't determine calendar existence (" + calendarName + "): " + e.Message, e);
             return default;
         }
     }
@@ -2209,22 +2209,22 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
     protected virtual async ValueTask<bool> RemoveCalendar(
         ConnectionAndTransactionHolder conn,
-        string calName,
+        string calendarName,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            if (await Delegate.CalendarIsReferenced(conn, calName, cancellationToken).ConfigureAwait(false))
+            if (await Delegate.CalendarIsReferenced(conn, calendarName, cancellationToken).ConfigureAwait(false))
             {
                 Throw.JobPersistenceException("Calendar cannot be removed if it is referenced by a trigger!");
             }
 
             if (!Clustered)
             {
-                calendarCache.Remove(calName);
+                calendarCache.Remove(calendarName);
             }
 
-            return await Delegate.DeleteCalendar(conn, calName, cancellationToken).ConfigureAwait(false) > 0;
+            return await Delegate.DeleteCalendar(conn, calendarName, cancellationToken).ConfigureAwait(false) > 0;
         }
         catch (Exception e)
         {
@@ -2248,29 +2248,29 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
     protected virtual async ValueTask<ICalendar?> RetrieveCalendar(
         ConnectionAndTransactionHolder conn,
-        string calName,
+        string calendarName,
         CancellationToken cancellationToken = default)
     {
         // all calendars are persistent, but we lazy-cache them during run
         // time as long as we aren't running clustered.
-        ICalendar? cal = null;
+        ICalendar? calendar = null;
         if (!Clustered)
         {
-            calendarCache.TryGetValue(calName, out cal);
+            calendarCache.TryGetValue(calendarName, out calendar);
         }
-        if (cal is not null)
+        if (calendar is not null)
         {
-            return cal;
+            return calendar;
         }
 
         try
         {
-            cal = await Delegate.SelectCalendar(conn, calName, cancellationToken).ConfigureAwait(false);
+            calendar = await Delegate.SelectCalendar(conn, calendarName, cancellationToken).ConfigureAwait(false);
             if (!Clustered)
             {
-                calendarCache[calName] = cal; // lazy-cache...
+                calendarCache[calendarName] = calendar; // lazy-cache...
             }
-            return cal;
+            return calendar;
         }
         catch (IOException e)
         {
@@ -2406,12 +2406,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
     protected async ValueTask<bool> CheckExists(
         ConnectionAndTransactionHolder conn,
-        string calName,
+        string calendarName,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            return await Delegate.CalendarExists(conn, calName, cancellationToken).ConfigureAwait(false);
+            return await Delegate.CalendarExists(conn, calendarName, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -3529,7 +3529,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         CancellationToken cancellationToken = default)
     {
         IJobDetail? job;
-        ICalendar? cal = null;
+        ICalendar? calendar = null;
 
         // Make sure trigger wasn't deleted, paused, or completed...
         try
@@ -3592,8 +3592,8 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
         if (trigger.CalendarName is not null)
         {
-            cal = await RetrieveCalendar(conn, trigger.CalendarName, cancellationToken).ConfigureAwait(false);
-            if (cal is null)
+            calendar = await RetrieveCalendar(conn, trigger.CalendarName, cancellationToken).ConfigureAwait(false);
+            if (calendar is null)
             {
                 return null;
             }
@@ -3653,7 +3653,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         DateTimeOffset? prevFireTime = trigger.PreviousFireTimeUtc;
 
         // call triggered - to update the trigger's next-fire-time state...
-        trigger.Triggered(cal);
+        trigger.Triggered(calendar);
 
         string state2 = StateWaiting;
         bool force = true;
@@ -3687,7 +3687,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         return new TriggerFiredBundle(
             job,
             trigger,
-            cal,
+            calendar,
             jobIsRecovering: trigger.Key.Group == SchedulerConstants.DefaultRecoveryGroup,
             timeProvider.GetUtcNow(),
             scheduledFireTime ?? trigger.PreviousFireTimeUtc,

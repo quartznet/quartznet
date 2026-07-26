@@ -541,12 +541,12 @@ public class RAMJobStoreBenchmark
         {
         }
 
-        public override void UpdateAfterMisfire(ICalendar? cal)
+        public override void UpdateAfterMisfire(ICalendar? calendar)
         {
             base.NextFireTimeUtc = base.NextFireTimeUtc.GetValueOrDefault().AddSeconds(1);
         }
 
-        public override void Triggered(ICalendar? cal)
+        public override void Triggered(ICalendar? calendar)
         {
             base.NextFireTimeUtc = base.NextFireTimeUtc.GetValueOrDefault().AddSeconds(2);
         }

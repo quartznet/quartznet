@@ -1309,7 +1309,7 @@ public class RAMJobStore : IJobStore
     /// <summary>
     /// Gets the trigger wrappers for calendar.
     /// </summary>
-    /// <param name="name">Name of the cal.</param>
+    /// <param name="name">Name of the calendar.</param>
     /// <returns></returns>
     private IEnumerable<TriggerWrapper> GetTriggerWrappersForCalendarNoLock(string name)
     {
@@ -1792,10 +1792,10 @@ public class RAMJobStore : IJobStore
             return false;
         }
 
-        ICalendar? cal = null;
+        ICalendar? calendar = null;
         if (tw.Trigger.CalendarName is not null)
         {
-            calendarsByName.TryGetValue(tw.Trigger.CalendarName, out cal);
+            calendarsByName.TryGetValue(tw.Trigger.CalendarName, out calendar);
         }
 
         await signaler.NotifyTriggerListenersMisfired(tw.Trigger.Clone()).ConfigureAwait(false);
@@ -1804,7 +1804,7 @@ public class RAMJobStore : IJobStore
         var originalFireTime = tnft;
         var now = timeProvider.GetUtcNow();
 
-        tw.Trigger.UpdateAfterMisfire(cal);
+        tw.Trigger.UpdateAfterMisfire(calendar);
 
         // Only save for "fire now" misfire policies (FireOnceNow, FireNow, RescheduleNowWith*).
         // These set nextFireTimeUtc to ~now. "Reschedule next" policies (DoNothing,
@@ -2030,11 +2030,11 @@ public class RAMJobStore : IJobStore
                     continue;
                 }
 
-                ICalendar? cal = null;
+                ICalendar? calendar = null;
                 if (tw.Trigger.CalendarName is not null)
                 {
-                    calendarsByName.TryGetValue(tw.Trigger.CalendarName, out cal);
-                    if (cal is null)
+                    calendarsByName.TryGetValue(tw.Trigger.CalendarName, out calendar);
+                    if (calendar is null)
                     {
                         results.Add(new TriggerFiredResult((TriggerFiredBundle?) null));
                         continue;
@@ -2058,8 +2058,8 @@ public class RAMJobStore : IJobStore
                 // in case trigger was replaced between acquiring and firing
                 timeTriggers.Remove(tw);
                 // call triggered on our copy, and the scheduler's copy
-                tw.Trigger.Triggered(cal);
-                trigger.Triggered(cal);
+                tw.Trigger.Triggered(calendar);
+                trigger.Triggered(calendar);
                 //tw.state = TriggerWrapper.STATE_EXECUTING;
                 tw.state = InternalTriggerState.Waiting;
 
@@ -2067,7 +2067,7 @@ public class RAMJobStore : IJobStore
                 TriggerFiredBundle bndle = new TriggerFiredBundle(
                     jobDetail,
                     trigger,
-                    cal,
+                    calendar,
                     jobIsRecovering: false,
                     timeProvider.GetUtcNow(),
                     scheduledFireTime ?? trigger.PreviousFireTimeUtc,

@@ -136,7 +136,7 @@ public class JobRunShellBenchmark
             throw new NotImplementedException();
         }
 
-        public ValueTask<bool> CalendarExists(string calName, CancellationToken cancellationToken = default)
+        public ValueTask<bool> CalendarExists(string calendarName, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -261,7 +261,7 @@ public class JobRunShellBenchmark
             throw new NotImplementedException();
         }
 
-        public ValueTask<bool> RemoveCalendar(string calName, CancellationToken cancellationToken = default)
+        public ValueTask<bool> RemoveCalendar(string calendarName, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -321,7 +321,7 @@ public class JobRunShellBenchmark
             throw new NotImplementedException();
         }
 
-        public ValueTask<ICalendar?> RetrieveCalendar(string calName, CancellationToken cancellationToken = default)
+        public ValueTask<ICalendar?> RetrieveCalendar(string calendarName, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }

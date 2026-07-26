@@ -300,8 +300,10 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
             // in "signaled" state
             runningTasksCountdown.Signal();
 
-            // Wait for pending tasks to complete
-            runningTasksCountdown.Wait(cancellationToken);
+            // Wait for pending tasks to complete. Deliberately not cancellable: the caller is
+            // QuartzScheduler.Shutdown, and abandoning this wait would skip the job store shutdown,
+            // plugin shutdown and listener notification that follow it, leaving the scheduler wedged.
+            runningTasksCountdown.Wait(CancellationToken.None);
 
             logger.LogDebug("No executing jobs remaining, all threads stopped.");
         }

@@ -462,7 +462,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
             return false;
         }
 
-        lock (globalTriggerListeners)
+        lock (globalTriggerListenerLock)
         {
             if (globalTriggerListeners is null)
             {
@@ -524,8 +524,26 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
     public void AddSchedulerListener(ISchedulerListener schedulerListener)
     {
+        if (schedulerListener is null)
+        {
+            Throw.ArgumentNullException(nameof(schedulerListener));
+        }
+
         lock (schedulerListeners)
         {
+            // A scheduler knows a listener by its name, and the name-based overloads below cannot mean
+            // anything if two listeners answer to one. Job and trigger listeners get this from being
+            // stored name-keyed and replacing on a repeat; do the same rather than quietly keeping
+            // both and letting Remove(name) take whichever was added first.
+            for (var i = 0; i < schedulerListeners.Count; i++)
+            {
+                if (string.Equals(schedulerListeners[i].Name, schedulerListener.Name, StringComparison.Ordinal))
+                {
+                    schedulerListeners[i] = schedulerListener;
+                    return;
+                }
+            }
+
             schedulerListeners.Add(schedulerListener);
         }
     }

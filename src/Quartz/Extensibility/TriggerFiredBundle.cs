@@ -37,7 +37,7 @@ public sealed class TriggerFiredBundle
     /// </summary>
     /// <param name="job">The job.</param>
     /// <param name="trigger">The trigger.</param>
-    /// <param name="cal">The calendar.</param>
+    /// <param name="calendar">The calendar.</param>
     /// <param name="jobIsRecovering">if set to <c>true</c> [job is recovering].</param>
     /// <param name="fireTimeUtc">The fire time.</param>
     /// <param name="scheduledFireTimeUtc">The scheduled fire time.</param>
@@ -46,7 +46,7 @@ public sealed class TriggerFiredBundle
     public TriggerFiredBundle(
         IJobDetail job,
         IOperableTrigger trigger,
-        ICalendar? cal,
+        ICalendar? calendar,
         bool jobIsRecovering,
         DateTimeOffset fireTimeUtc,
         DateTimeOffset? scheduledFireTimeUtc,
@@ -55,7 +55,7 @@ public sealed class TriggerFiredBundle
     {
         JobDetail = job;
         Trigger = trigger;
-        Calendar = cal;
+        Calendar = calendar;
         Recovering = jobIsRecovering;
         FireTimeUtc = fireTimeUtc;
         ScheduledFireTimeUtc = scheduledFireTimeUtc;

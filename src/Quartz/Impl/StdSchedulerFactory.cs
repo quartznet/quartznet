@@ -496,9 +496,9 @@ public class StdSchedulerFactory : ISchedulerFactory, IDisposable
     /// <summary>
     /// Returns a handle to the scheduler with the given name, if it exists.
     /// </summary>
-    public virtual ValueTask<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default)
+    public virtual ValueTask<IScheduler?> GetScheduler(string schedulerName, CancellationToken cancellationToken = default)
     {
-        return Inner().GetScheduler(schedName, cancellationToken);
+        return Inner().GetScheduler(schedulerName, cancellationToken);
     }
 
     /// <summary>

@@ -142,7 +142,7 @@ public class JobStoreSupportTest
         // not the existing RetrieveCalendar lazy-cache (which is active when Clustered=false).
         jobStoreSupport.Clustered = true;
 
-        string calendarName = "shared-cal";
+        string calendarName = "shared-calendar";
 
         IOperableTrigger trigger1 = CreateMisfiredTrigger("misfired1");
         trigger1.CalendarName = calendarName;
@@ -348,7 +348,7 @@ public class JobStoreSupportTest
     {
         // Arrange
         var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
-        var calName = "testCal";
+        var calendarName = "testCal";
         ICalendar calendar = new BaseCalendar();
         var triggerKey = new TriggerKey("t1", "g1");
         var jobKey = new JobKey("j1", "jg1");
@@ -364,11 +364,11 @@ public class JobStoreSupportTest
             .WithIdentity(jobKey)
             .Build();
 
-        A.CallTo(() => driverDelegate.CalendarExists(conn, calName, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.CalendarExists(conn, calendarName, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(true));
-        A.CallTo(() => driverDelegate.UpdateCalendar(conn, calName, calendar, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.UpdateCalendar(conn, calendarName, calendar, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<int>(1));
-        A.CallTo(() => driverDelegate.SelectTriggersForCalendar(conn, calName, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.SelectTriggersForCalendar(conn, calendarName, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<List<IOperableTrigger>>(new List<IOperableTrigger> { trigger }));
         A.CallTo(() => driverDelegate.SelectTriggerState(conn, triggerKey, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<string>(originalState));
@@ -378,7 +378,7 @@ public class JobStoreSupportTest
             .Returns(new ValueTask<IJobDetail>(job));
 
         // Act
-        await jobStoreSupport.CallStoreCalendar(conn, calName, calendar, replaceExisting: true, updateTriggers: true);
+        await jobStoreSupport.CallStoreCalendar(conn, calendarName, calendar, replaceExisting: true, updateTriggers: true);
 
         // Assert: UpdateTrigger should be called with the original state preserved
         A.CallTo(() => driverDelegate.UpdateTrigger(conn, trigger, originalState, job, A<CancellationToken>.Ignored))
@@ -390,7 +390,7 @@ public class JobStoreSupportTest
     {
         // Arrange
         var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
-        var calName = "testCal";
+        var calendarName = "testCal";
         ICalendar calendar = new BaseCalendar();
         var triggerKey = new TriggerKey("t1", "g1");
         var jobKey = new JobKey("j1", "jg1");
@@ -402,17 +402,17 @@ public class JobStoreSupportTest
             .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
             .Build();
 
-        A.CallTo(() => driverDelegate.CalendarExists(conn, calName, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.CalendarExists(conn, calendarName, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(true));
-        A.CallTo(() => driverDelegate.UpdateCalendar(conn, calName, calendar, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.UpdateCalendar(conn, calendarName, calendar, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<int>(1));
-        A.CallTo(() => driverDelegate.SelectTriggersForCalendar(conn, calName, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.SelectTriggersForCalendar(conn, calendarName, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<List<IOperableTrigger>>(new List<IOperableTrigger> { trigger }));
         A.CallTo(() => driverDelegate.SelectTriggerState(conn, triggerKey, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<string>(AdoConstants.StateDeleted));
 
         // Act
-        await jobStoreSupport.CallStoreCalendar(conn, calName, calendar, replaceExisting: true, updateTriggers: true);
+        await jobStoreSupport.CallStoreCalendar(conn, calendarName, calendar, replaceExisting: true, updateTriggers: true);
 
         // Assert: trigger in DELETED state should be skipped entirely
         A.CallTo(() => driverDelegate.UpdateTrigger(
@@ -432,7 +432,7 @@ public class JobStoreSupportTest
     {
         // Arrange: two triggers on same calendar, one paused and one waiting
         var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
-        var calName = "testCal";
+        var calendarName = "testCal";
         ICalendar calendar = new BaseCalendar();
         var jobKey = new JobKey("j1", "jg1");
 
@@ -456,11 +456,11 @@ public class JobStoreSupportTest
             .WithIdentity(jobKey)
             .Build();
 
-        A.CallTo(() => driverDelegate.CalendarExists(conn, calName, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.CalendarExists(conn, calendarName, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(true));
-        A.CallTo(() => driverDelegate.UpdateCalendar(conn, calName, calendar, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.UpdateCalendar(conn, calendarName, calendar, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<int>(1));
-        A.CallTo(() => driverDelegate.SelectTriggersForCalendar(conn, calName, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.SelectTriggersForCalendar(conn, calendarName, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<List<IOperableTrigger>>(new List<IOperableTrigger> { pausedTrigger, waitingTrigger }));
 
         A.CallTo(() => driverDelegate.SelectTriggerState(conn, pausedTriggerKey, A<CancellationToken>.Ignored))
@@ -474,7 +474,7 @@ public class JobStoreSupportTest
             .Returns(new ValueTask<IJobDetail>(job));
 
         // Act
-        await jobStoreSupport.CallStoreCalendar(conn, calName, calendar, replaceExisting: true, updateTriggers: true);
+        await jobStoreSupport.CallStoreCalendar(conn, calendarName, calendar, replaceExisting: true, updateTriggers: true);
 
         // Assert: each trigger should be stored with its own original state
         A.CallTo(() => driverDelegate.UpdateTrigger(conn, pausedTrigger, AdoConstants.StatePaused, job, A<CancellationToken>.Ignored))
@@ -891,12 +891,12 @@ public class JobStoreSupportTest
 
         internal ValueTask CallStoreCalendar(
             ConnectionAndTransactionHolder conn,
-            string calName,
+            string calendarName,
             ICalendar calendar,
             bool replaceExisting,
             bool updateTriggers)
         {
-            return StoreCalendar(conn, calName, calendar, replaceExisting, updateTriggers, CancellationToken.None);
+            return StoreCalendar(conn, calendarName, calendar, replaceExisting, updateTriggers, CancellationToken.None);
         }
 
         internal ValueTask<bool> CallIsTriggerGroupPaused(ConnectionAndTransactionHolder conn, string group)

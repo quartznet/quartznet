@@ -98,28 +98,18 @@ public class SimpleJobFactory : IJobFactory
     /// <remarks>
     /// Disposes the job, then any state the factory attached to the scope, preferring
     /// <see cref="IAsyncDisposable" /> over <see cref="IDisposable" /> for each. Anything that is
-    /// neither is left alone.
+    /// neither is left alone. The state is disposed even when disposing the job throws, since
+    /// whatever the factory had to allocate is usually the more expensive thing to leak.
     /// </remarks>
-    public virtual ValueTask ReturnJob(JobScope scope, CancellationToken cancellationToken = default)
+    public virtual async ValueTask ReturnJob(JobScope scope, CancellationToken cancellationToken = default)
     {
-        var disposingJob = Dispose(scope.Job);
-
-        if (scope.State is null)
+        try
         {
-            return disposingJob;
+            await Dispose(scope.Job).ConfigureAwait(false);
         }
-
-        if (disposingJob.IsCompletedSuccessfully)
+        finally
         {
-            return Dispose(scope.State);
-        }
-
-        return AwaitBoth(disposingJob, scope.State);
-
-        static async ValueTask AwaitBoth(ValueTask disposingJob, object state)
-        {
-            await disposingJob.ConfigureAwait(false);
-            await Dispose(state).ConfigureAwait(false);
+            await Dispose(scope.State).ConfigureAwait(false);
         }
     }
 

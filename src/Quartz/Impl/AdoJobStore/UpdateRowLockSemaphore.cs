@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -63,10 +63,10 @@ public class UpdateLockRowSemaphore : DBSemaphore
 
     protected UpdateLockRowSemaphore(
         string tablePrefix,
-        string? schedName,
+        string? schedulerName,
         string defaultSQL,
         string defaultInsertSQL,
-        IDbProvider dbProvider) : base(tablePrefix, schedName, defaultSQL, defaultInsertSQL, dbProvider)
+        IDbProvider dbProvider) : base(tablePrefix, schedulerName, defaultSQL, defaultInsertSQL, dbProvider)
     {
     }
 

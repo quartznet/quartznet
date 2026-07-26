@@ -1,0 +1,29 @@
+﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
+namespace Quartz.AspNetCore.HealthChecks
+{
+    public sealed class QuartzHealthCheckOptions
+    {
+        public QuartzHealthCheckOptions() { }
+        public Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus? FailureStatus { get; set; }
+        public string Name { get; set; }
+        public System.Collections.Generic.IList<string> Tags { get; }
+    }
+}
+namespace Quartz.AspNetCore.HttpApi
+{
+    public class QuartzHttpApiOptions
+    {
+        public QuartzHttpApiOptions() { }
+        public string ApiPath { get; set; }
+        public bool IncludeStackTraceInProblemDetails { get; set; }
+    }
+}
+namespace Quartz.AspNetCore
+{
+    public static class QuartzServiceCollectionExtensions
+    {
+        public static Quartz.IQuartzBuilder AddHttpApi(this Quartz.IQuartzBuilder configurator, System.Action<Quartz.AspNetCore.HttpApi.QuartzHttpApiOptions>? configure = null) { }
+        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzHealthChecks(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Quartz.AspNetCore.HealthChecks.QuartzHealthCheckOptions>? configure = null) { }
+        public static Microsoft.AspNetCore.Builder.IEndpointConventionBuilder MapQuartzApi(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder) { }
+    }
+}

@@ -186,12 +186,12 @@ public sealed class QuartzSchedulerResources
     /// <summary>
     /// Gets the unique identifier.
     /// </summary>
-    /// <param name="schedName">Name of the scheduler.</param>
-    /// <param name="schedInstId">The scheduler instance id.</param>
+    /// <param name="schedulerName">Name of the scheduler.</param>
+    /// <param name="schedulerInstanceId">The scheduler instance id.</param>
     /// <returns></returns>
-    public static string GetUniqueIdentifier(string schedName, string schedInstId)
+    public static string GetUniqueIdentifier(string schedulerName, string schedulerInstanceId)
     {
-        return $"{schedName}_$_{schedInstId}";
+        return $"{schedulerName}_$_{schedulerInstanceId}";
     }
 
     /// <summary>

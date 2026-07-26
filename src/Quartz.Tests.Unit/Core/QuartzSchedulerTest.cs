@@ -57,7 +57,7 @@ public class QuartzSchedulerTest
         NameValueCollection properties = new NameValueCollection();
         properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
         ISchedulerFactory sf = new StdSchedulerFactory(properties);
-        IScheduler sched = await sf.GetScheduler();
+        IScheduler scheduler = await sf.GetScheduler();
 
         DateTime runTime = DateTime.Now.AddMinutes(10);
 
@@ -74,7 +74,7 @@ public class QuartzSchedulerTest
 
         try
         {
-            await sched.ScheduleJob(job, trigger);
+            await scheduler.ScheduleJob(job, trigger);
             Assert.Fail("No error for non-existing calendar");
         }
         catch (SchedulerException ex)
@@ -84,7 +84,7 @@ public class QuartzSchedulerTest
 
         try
         {
-            await sched.ScheduleJob(trigger);
+            await scheduler.ScheduleJob(trigger);
             Assert.Fail("No error for non-existing calendar");
         }
         catch (SchedulerException ex)
@@ -92,7 +92,7 @@ public class QuartzSchedulerTest
             Assert.That(ex.Message, Is.EqualTo(ExpectedError));
         }
 
-        await sched.Shutdown(false);
+        await scheduler.Shutdown(false);
     }
 
     [Test]
@@ -102,11 +102,11 @@ public class QuartzSchedulerTest
         properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
         var sf = new StdSchedulerFactory(properties);
 
-        IScheduler sched = await sf.GetScheduler();
-        await sched.StartDelayed(TimeSpan.FromMilliseconds(100));
-        Assert.That(sched.IsStarted, Is.False);
+        IScheduler scheduler = await sf.GetScheduler();
+        await scheduler.StartDelayed(TimeSpan.FromMilliseconds(100));
+        Assert.That(scheduler.IsStarted, Is.False);
         await Task.Delay(2000);
-        Assert.That(sched.IsStarted, Is.True);
+        Assert.That(scheduler.IsStarted, Is.True);
     }
 
     [Test]

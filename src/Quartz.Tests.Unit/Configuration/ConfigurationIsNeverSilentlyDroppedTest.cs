@@ -560,7 +560,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         var services = new ServiceCollection();
         services.AddQuartz(new NameValueCollection
         {
-            ["quartz.threadPool.type"] = "Quartz.Impl.SimpleThreadPool, Quartz",
+            ["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz",
         });
 
         using var provider = services.BuildServiceProvider();

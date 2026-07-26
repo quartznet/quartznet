@@ -35,8 +35,8 @@ public static class TestData
     static TestData()
     {
         Metadata = new SchedulerMetaData(
-            schedName: SchedulerName,
-            schedInst: SchedulerInstanceId,
+            schedulerName: SchedulerName,
+            schedulerInstanceId: SchedulerInstanceId,
             schedType: typeof(IScheduler),
             isRemote: false,
             started: true,
@@ -195,7 +195,7 @@ public static class TestData
             firedBundle: new TriggerFiredBundle(
                 job: JobDetail,
                 trigger: (IOperableTrigger) CronTrigger,
-                cal: CronCalendar,
+                calendar: CronCalendar,
                 jobIsRecovering: false,
                 fireTimeUtc: DateTimeOffset.Now.AddSeconds(-1),
                 scheduledFireTimeUtc: DateTimeOffset.Now.AddSeconds(-1),
@@ -210,7 +210,7 @@ public static class TestData
             firedBundle: new TriggerFiredBundle(
                 job: JobDetail2,
                 trigger: (IOperableTrigger) SimpleTrigger,
-                cal: null,
+                calendar: null,
                 jobIsRecovering: true,
                 fireTimeUtc: DateTimeOffset.Now.AddSeconds(-5),
                 scheduledFireTimeUtc: null,

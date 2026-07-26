@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -59,11 +59,11 @@ public class StdRowLockSemaphore : DBSemaphore
     /// Initializes a new instance of the <see cref="StdRowLockSemaphore"/> class.
     /// </summary>
     /// <param name="tablePrefix">The table prefix.</param>
-    /// <param name="schedName">the scheduler name</param>
+    /// <param name="schedulerName">the scheduler name</param>
     /// <param name="selectWithLockSQL">The select with lock SQL.</param>
     /// <param name="dbProvider"></param>
-    public StdRowLockSemaphore(string tablePrefix, string schedName, string? selectWithLockSQL, IDbProvider dbProvider)
-        : base(tablePrefix, schedName, selectWithLockSQL ?? SelectForLock, InsertLock, dbProvider)
+    public StdRowLockSemaphore(string tablePrefix, string schedulerName, string? selectWithLockSQL, IDbProvider dbProvider)
+        : base(tablePrefix, schedulerName, selectWithLockSQL ?? SelectForLock, InsertLock, dbProvider)
     {
     }
 

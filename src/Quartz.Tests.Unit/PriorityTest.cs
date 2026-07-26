@@ -59,28 +59,28 @@ public class PriorityTest
         config["quartz.threadPool.type"] = "Quartz.Impl.DefaultThreadPool";
         config["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
 
-        IScheduler sched = await new StdSchedulerFactory(config).GetScheduler();
+        IScheduler scheduler = await new StdSchedulerFactory(config).GetScheduler();
 
         DateTime n = DateTime.UtcNow;
-        DateTime cal = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond, DateTimeKind.Utc);
+        DateTime calendar = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond, DateTimeKind.Utc);
 
-        IMutableTrigger trig1 = new SimpleTriggerImpl("T1", cal);
-        IMutableTrigger trig2 = new SimpleTriggerImpl("T2", cal);
+        IMutableTrigger trig1 = new SimpleTriggerImpl("T1", calendar);
+        IMutableTrigger trig2 = new SimpleTriggerImpl("T2", calendar);
 
         JobDetailImpl jobDetail = new JobDetailImpl("JD", typeof(TestJob));
 
-        await sched.ScheduleJob(jobDetail, trig1);
+        await scheduler.ScheduleJob(jobDetail, trig1);
 
         trig2.JobKey = new JobKey(jobDetail.Key.Name);
-        await sched.ScheduleJob(trig2);
+        await scheduler.ScheduleJob(trig2);
 
-        await sched.Start();
+        await scheduler.Start();
 
         countdownEvent.Wait();
 
         Assert.That(result.ToString(), Is.EqualTo("T1T2"));
 
-        await sched.Shutdown();
+        await scheduler.Shutdown();
     }
 
     [Test]
@@ -91,31 +91,31 @@ public class PriorityTest
         config["quartz.threadPool.type"] = "Quartz.Impl.DefaultThreadPool";
         config["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
 
-        IScheduler sched = await new StdSchedulerFactory(config).GetScheduler();
+        IScheduler scheduler = await new StdSchedulerFactory(config).GetScheduler();
 
         DateTime n = DateTime.UtcNow.AddSeconds(1);
-        DateTime cal = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond, DateTimeKind.Utc);
+        DateTime calendar = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond, DateTimeKind.Utc);
 
-        IOperableTrigger trig1 = new SimpleTriggerImpl("T1", cal);
+        IOperableTrigger trig1 = new SimpleTriggerImpl("T1", calendar);
         trig1.Priority = 5;
 
-        IOperableTrigger trig2 = new SimpleTriggerImpl("T2", cal);
+        IOperableTrigger trig2 = new SimpleTriggerImpl("T2", calendar);
         trig2.Priority = 10;
 
         JobDetailImpl jobDetail = new JobDetailImpl("JD", typeof(TestJob));
 
-        await sched.ScheduleJob(jobDetail, trig1);
+        await scheduler.ScheduleJob(jobDetail, trig1);
 
         trig2.JobKey = new JobKey(jobDetail.Key.Name);
-        await sched.ScheduleJob(trig2);
+        await scheduler.ScheduleJob(trig2);
 
-        await sched.Start();
+        await scheduler.Start();
 
         countdownEvent.Wait();
 
         Assert.That(result.ToString(), Is.EqualTo("T2T1"));
 
-        await sched.Shutdown();
+        await scheduler.Shutdown();
     }
 
     [DisallowConcurrentExecution]

@@ -21,7 +21,7 @@ public class MissSchedulingChangeSignalTest
         properties["quartz.jobStore.type"] = typeof(SlowRAMJobStore).AssemblyQualifiedName;
         properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
         ISchedulerFactory sf = new StdSchedulerFactory(properties);
-        IScheduler sched = await sf.GetScheduler();
+        IScheduler scheduler = await sf.GetScheduler();
         logger.LogInformation("------- Initialization Complete -----------");
 
         logger.LogInformation("------- Scheduling Job  -------------------");
@@ -37,11 +37,11 @@ public class MissSchedulingChangeSignalTest
                 .WithMisfireHandlingInstructionIgnoreMisfires())
             .Build();
 
-        await sched.ScheduleJob(job, trigger);
+        await scheduler.ScheduleJob(job, trigger);
 
         // Start up the scheduler (nothing can actually run until the
         // scheduler has been started)
-        await sched.Start();
+        await scheduler.Start();
 
         logger.LogInformation("------- Scheduler Started -----------------");
 

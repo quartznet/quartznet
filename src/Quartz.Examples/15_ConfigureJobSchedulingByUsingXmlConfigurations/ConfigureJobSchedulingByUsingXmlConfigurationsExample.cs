@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -35,7 +35,7 @@ public class ConfigureJobSchedulingByUsingXmlConfigurationsExample : IExample
         Console.WriteLine("------- Initializing ----------------------");
 
         // First we must get a reference to a scheduler
-        var sched = await QuartzSchedulerBuilder.Create()
+        var scheduler = await QuartzSchedulerBuilder.Create()
             .Configure(q =>
             {
                 q.ConfigureScheduler(options => options.InstanceName = "XmlConfiguredInstance");
@@ -55,7 +55,7 @@ public class ConfigureJobSchedulingByUsingXmlConfigurationsExample : IExample
         // we need to add calendars manually, lets create a silly sample calendar
         var dailyCalendar = new DailyCalendar("00:01", "23:59");
         dailyCalendar.InvertTimeRange = true;
-        await sched.AddCalendar("cal1", dailyCalendar, false, false);
+        await scheduler.AddCalendar("cal1", dailyCalendar, false, false);
 
         Console.WriteLine("------- Initialization Complete -----------");
 
@@ -63,7 +63,7 @@ public class ConfigureJobSchedulingByUsingXmlConfigurationsExample : IExample
 
         // Start up the scheduler (nothing can actually run until the
         // scheduler has been started)
-        await sched.Start();
+        await scheduler.Start();
         Console.WriteLine("------- Started Scheduler -----------------");
 
         // wait long enough so that the scheduler as an opportunity to
@@ -74,7 +74,7 @@ public class ConfigureJobSchedulingByUsingXmlConfigurationsExample : IExample
 
         // shut down the scheduler
         Console.WriteLine("------- Shutting Down ---------------------");
-        await sched.Shutdown(true);
+        await scheduler.Shutdown(true);
         Console.WriteLine("------- Shutdown Complete -----------------");
     }
 }

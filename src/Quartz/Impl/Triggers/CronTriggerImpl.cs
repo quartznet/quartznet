@@ -722,8 +722,8 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// was created.
     /// </para>
     /// </summary>
-    /// <param name="cal"></param>
-    public override void UpdateAfterMisfire(ICalendar? cal)
+    /// <param name="calendar"></param>
+    public override void UpdateAfterMisfire(ICalendar? calendar)
     {
         int instr = MisfireInstruction;
 
@@ -736,8 +736,8 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
         {
             DateTimeOffset? newFireTime = GetFireTimeAfter(TimeProvider.GetUtcNow());
 
-            while (newFireTime.HasValue && cal is not null
-                                        && !cal.IsTimeIncluded(newFireTime.Value))
+            while (newFireTime.HasValue && calendar is not null
+                                        && !calendar.IsTimeIncluded(newFireTime.Value))
             {
                 newFireTime = GetFireTimeAfter(newFireTime);
 
@@ -832,15 +832,15 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// give the <see cref="ITrigger" /> a chance to update itself for its next
     /// triggering (if any).
     /// </summary>
-    /// <param name="cal"></param>
+    /// <param name="calendar"></param>
     /// <seealso cref="JobExecutionException" />
-    public override void Triggered(ICalendar? cal)
+    public override void Triggered(ICalendar? calendar)
     {
         previousFireTimeUtc = nextFireTimeUtc;
         nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 
-        while (nextFireTimeUtc.HasValue && cal is not null
-                                        && !cal.IsTimeIncluded(nextFireTimeUtc.Value))
+        while (nextFireTimeUtc.HasValue && calendar is not null
+                                        && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
         {
             nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
         }
@@ -897,13 +897,13 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// should return a valid answer.
     /// </para>
     /// </summary>
-    /// <param name="cal"></param>
+    /// <param name="calendar"></param>
     /// <returns>
     /// the first time at which the <see cref="ITrigger" /> will be fired
     /// by the scheduler, which is also the same value <see cref="NextFireTimeUtc" />
     /// will return (until after the first firing of the <see cref="ITrigger" />).
     /// </returns>
-    public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? cal)
+    public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? calendar)
     {
         var now = TimeProvider.GetUtcNow();
 
@@ -923,7 +923,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
             nextFireTimeUtc = GetFireTimeAfter(now);
         }
 
-        while (nextFireTimeUtc.HasValue && cal is not null && !cal.IsTimeIncluded(nextFireTimeUtc.Value))
+        while (nextFireTimeUtc.HasValue && calendar is not null && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
         {
             nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
         }

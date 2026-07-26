@@ -42,7 +42,7 @@ internal record CurrentlyExecutingJobDto(
         var triggerFiredBundle = new TriggerFiredBundle(
             job: jobDetail,
             trigger: (IOperableTrigger) Trigger,
-            cal: Calendar,
+            calendar: Calendar,
             jobIsRecovering: Recovering,
             fireTimeUtc: FireTime,
             scheduledFireTimeUtc: ScheduledFireTime,

@@ -95,38 +95,42 @@ public class PropertySettingJobFactory : SimpleJobFactory
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>the newly instantiated Job</returns>
     /// <throws>  SchedulerException if there is a problem instantiating the Job. </throws>
-    public override ValueTask<JobScope> CreateJob(TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default)
+    public override async ValueTask<JobScope> CreateJob(TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default)
     {
-        var creatingScope = CreateJobInstance(bundle, scheduler, cancellationToken);
+        var scope = await CreateJobInstance(bundle, scheduler, cancellationToken).ConfigureAwait(false);
 
-        if (!creatingScope.IsCompletedSuccessfully)
+        try
         {
-            return AwaitScope(this, creatingScope, bundle, scheduler);
+            var jobDataMap = BuildJobDataMap(bundle, scheduler);
+
+            if (jobDataMap.Count > 0)
+            {
+                SetObjectProperties(scope.Job, jobDataMap);
+            }
+
+            return scope;
         }
-
-        return new ValueTask<JobScope>(ApplyProperties(creatingScope.Result, bundle, scheduler));
-
-        static async ValueTask<JobScope> AwaitScope(
-            PropertySettingJobFactory factory,
-            ValueTask<JobScope> creatingScope,
-            TriggerFiredBundle bundle,
-            IScheduler scheduler)
+        catch
         {
-            var scope = await creatingScope.ConfigureAwait(false);
-            return factory.ApplyProperties(scope, bundle, scheduler);
+            // The job exists by now, and whatever the derived factory allocated to produce it is in
+            // the scope's state. ReturnJob is not called when CreateJob throws, so hand it back here
+            // rather than leaking it on every fire of a job whose data map does not match.
+            await ReturnJobAfterFailedCreation(scope, cancellationToken).ConfigureAwait(false);
+            throw;
         }
     }
 
-    private JobScope ApplyProperties(JobScope scope, TriggerFiredBundle bundle, IScheduler scheduler)
+    private async ValueTask ReturnJobAfterFailedCreation(JobScope scope, CancellationToken cancellationToken)
     {
-        var jobDataMap = BuildJobDataMap(bundle, scheduler);
-
-        if (jobDataMap.Count > 0)
+        try
         {
-            SetObjectProperties(scope.Job, jobDataMap);
+            await ReturnJob(scope, cancellationToken).ConfigureAwait(false);
         }
-
-        return scope;
+        catch (Exception e)
+        {
+            // Never let cleanup replace the failure that caused it.
+            logger.LogWarning(e, "Failed to return a job after its creation failed; the original error follows");
+        }
     }
 
     protected virtual JobDataMap BuildJobDataMap(TriggerFiredBundle bundle, IScheduler scheduler)

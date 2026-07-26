@@ -117,7 +117,7 @@ public class StdSchedulerFactoryTest
         try
         {
             var metaData = await scheduler.GetMetaData();
-            var jobStore = (RAMJobStore) ((StdScheduler) scheduler).sched.resources.JobStore;
+            var jobStore = (RAMJobStore) ((StdScheduler) scheduler).scheduler.resources.JobStore;
 
             scheduler.SchedulerName.Should().Be("DefaultQuartzScheduler");
             metaData.ThreadPoolSize.Should().Be(10);

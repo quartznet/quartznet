@@ -245,10 +245,10 @@ public class AdoJobStoreSmokeTest
         //testLoggerHelper.ClearLogs();
 
         // First we must get a reference to a scheduler
-        IScheduler sched = await config.BuildScheduler();
-        createdSchedulers.Add(sched);
+        IScheduler scheduler = await config.BuildScheduler();
+        createdSchedulers.Add(scheduler);
         SmokeTestPerformer performer = new SmokeTestPerformer();
-        await performer.Test(sched, clearJobs, scheduleJobs);
+        await performer.Test(scheduler, clearJobs, scheduleJobs);
 
         //Assert.IsEmpty(testLoggerHelper.LogEntries.Where(le => le.LogLevel == LogLevel.Error), "Found error from logging output");
     }
@@ -269,8 +269,8 @@ public class AdoJobStoreSmokeTest
         properties["quartz.dataSource.default.provider"] = TestConstants.DefaultSqlServerProvider;
 
         ISchedulerFactory sf = new StdSchedulerFactory(properties);
-        IScheduler sched = await sf.GetScheduler();
-        await sched.Clear();
+        IScheduler scheduler = await sf.GetScheduler();
+        await scheduler.Clear();
 
         var jobWithData = JobBuilder.Create<NoOpJob>()
             .WithIdentity(new JobKey("datajob", "jobgroup"))
@@ -281,31 +281,31 @@ public class AdoJobStoreSmokeTest
         triggerWithData.JobDataMap.Add("testkey", "testvalue");
         triggerWithData.EndTimeUtc = DateTime.UtcNow.AddYears(10);
         triggerWithData.StartTimeUtc = DateTime.Now.AddMilliseconds(1000L);
-        await sched.ScheduleJob(jobWithData, triggerWithData);
-        await sched.Shutdown();
+        await scheduler.ScheduleJob(jobWithData, triggerWithData);
+        await scheduler.Shutdown();
 
         // try again with changing the useproperties against same set of data
         properties["quartz.jobStore.useProperties"] = true.ToString();
         sf = new StdSchedulerFactory(properties);
-        sched = await sf.GetScheduler();
+        scheduler = await sf.GetScheduler();
 
-        var triggerWithDataFromDb = await sched.GetTrigger(new TriggerKey("datatrigger", "triggergroup"));
-        var jobWithDataFromDb = await sched.GetJobDetail(new JobKey("datajob", "jobgroup"));
+        var triggerWithDataFromDb = await scheduler.GetTrigger(new TriggerKey("datatrigger", "triggergroup"));
+        var jobWithDataFromDb = await scheduler.GetJobDetail(new JobKey("datajob", "jobgroup"));
         Assert.That(triggerWithDataFromDb.JobDataMap["testkey"], Is.EqualTo("testvalue"));
         Assert.That(jobWithDataFromDb.JobDataMap["testkey"], Is.EqualTo("testvalue"));
 
         // once more
-        await sched.DeleteJob(jobWithData.Key);
-        await sched.ScheduleJob(jobWithData, triggerWithData);
-        await sched.Shutdown();
+        await scheduler.DeleteJob(jobWithData.Key);
+        await scheduler.ScheduleJob(jobWithData, triggerWithData);
+        await scheduler.Shutdown();
 
         properties["quartz.jobStore.useProperties"] = false.ToString();
         sf = new StdSchedulerFactory(properties);
-        sched = await sf.GetScheduler();
-        createdSchedulers.Add(sched);
+        scheduler = await sf.GetScheduler();
+        createdSchedulers.Add(scheduler);
 
-        triggerWithDataFromDb = await sched.GetTrigger(new TriggerKey("datatrigger", "triggergroup"));
-        jobWithDataFromDb = await sched.GetJobDetail(new JobKey("datajob", "jobgroup"));
+        triggerWithDataFromDb = await scheduler.GetTrigger(new TriggerKey("datatrigger", "triggergroup"));
+        jobWithDataFromDb = await scheduler.GetJobDetail(new JobKey("datajob", "jobgroup"));
         Assert.That(triggerWithDataFromDb.JobDataMap["testkey"], Is.EqualTo("testvalue"));
         Assert.That(jobWithDataFromDb.JobDataMap["testkey"], Is.EqualTo("testvalue"));
     }
@@ -336,11 +336,11 @@ public class AdoJobStoreSmokeTest
 
         // First we must get a reference to a scheduler
         ISchedulerFactory sf = new StdSchedulerFactory(properties);
-        IScheduler sched = await sf.GetScheduler();
+        IScheduler scheduler = await sf.GetScheduler();
 
         try
         {
-            await sched.Clear();
+            await scheduler.Clear();
 
             if (scheduleJobs)
             {
@@ -353,15 +353,15 @@ public class AdoJobStoreSmokeTest
                     var jd = JobBuilder.Create<NoOpJob>()
                         .WithIdentity(new JobKey("testJob", "test"))
                         .Build();
-                    await sched.ScheduleJob(jd, trigger);
+                    await scheduler.ScheduleJob(jd, trigger);
                 }
             }
-            await sched.Start();
+            await scheduler.Start();
             await Task.Delay(TimeSpan.FromSeconds(30));
         }
         finally
         {
-            await sched.Shutdown(false);
+            await scheduler.Shutdown(false);
         }
     }
 
@@ -369,36 +369,36 @@ public class AdoJobStoreSmokeTest
     [Category("db-sqlserver")]
     public async Task TestGetTriggerKeysWithLike()
     {
-        var sched = await CreateScheduler(null);
+        var scheduler = await CreateScheduler(null);
 
-        await sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupStartsWith("foo"));
+        await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupStartsWith("foo"));
     }
 
     [Test]
     [Category("db-sqlserver")]
     public async Task TestGetTriggerKeysWithEquals()
     {
-        var sched = await CreateScheduler(null);
+        var scheduler = await CreateScheduler(null);
 
-        await sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("bar"));
+        await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("bar"));
     }
 
     [Test]
     [Category("db-sqlserver")]
     public async Task TestGetJobKeysWithLike()
     {
-        var sched = await CreateScheduler(null);
+        var scheduler = await CreateScheduler(null);
 
-        await sched.GetJobKeys(GroupMatcher<JobKey>.GroupStartsWith("foo"));
+        await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupStartsWith("foo"));
     }
 
     [Test]
     [Category("db-sqlserver")]
     public async Task TestGetJobKeysWithEquals()
     {
-        var sched = await CreateScheduler(null);
+        var scheduler = await CreateScheduler(null);
 
-        await sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("bar"));
+        await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("bar"));
     }
 
     [Test]
@@ -463,9 +463,9 @@ public class AdoJobStoreSmokeTest
 
         // First we must get a reference to a scheduler
         ISchedulerFactory sf = new StdSchedulerFactory(properties);
-        IScheduler sched = await sf.GetScheduler();
-        createdSchedulers.Add(sched);
-        return sched;
+        IScheduler scheduler = await sf.GetScheduler();
+        createdSchedulers.Add(scheduler);
+        return scheduler;
     }
 
     [Test]
@@ -490,11 +490,11 @@ public class AdoJobStoreSmokeTest
 
         // First we must get a reference to a scheduler
         ISchedulerFactory sf = new StdSchedulerFactory(properties);
-        IScheduler sched = await sf.GetScheduler();
+        IScheduler scheduler = await sf.GetScheduler();
 
         try
         {
-            await sched.Clear();
+            await scheduler.Clear();
 
             var lonelyJob = JobBuilder.Create()
                 .OfType<SimpleRecoveryJob>()
@@ -503,10 +503,10 @@ public class AdoJobStoreSmokeTest
                 .RequestRecovery(true)
                 .Build();
 
-            await sched.AddJob(lonelyJob, false);
-            await sched.AddJob(lonelyJob, true);
+            await scheduler.AddJob(lonelyJob, false);
+            await scheduler.AddJob(lonelyJob, true);
 
-            string schedId = sched.SchedulerInstanceId;
+            string schedId = scheduler.SchedulerInstanceId;
 
             var job = JobBuilder.Create()
                 .OfType<SimpleRecoveryJob>()
@@ -517,26 +517,26 @@ public class AdoJobStoreSmokeTest
             {
                 IOperableTrigger trigger = new SimpleTriggerImpl("stressing_simple", SimpleTriggerImpl.RepeatIndefinitely, TimeSpan.FromSeconds(1));
                 trigger.StartTimeUtc = DateTime.Now.AddMilliseconds(i);
-                await sched.ScheduleJob(job, trigger);
+                await scheduler.ScheduleJob(job, trigger);
             }
 
             for (int i = 0; i < 100000; ++i)
             {
                 IOperableTrigger ct = new CronTriggerImpl("stressing_cron", "0/1 * * * * ?");
                 ct.StartTimeUtc = DateTime.Now.AddMilliseconds(i);
-                await sched.ScheduleJob(job, ct);
+                await scheduler.ScheduleJob(job, ct);
             }
 
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
-            await sched.Start();
+            await scheduler.Start();
             await Task.Delay(TimeSpan.FromMinutes(3));
             stopwatch.Stop();
             Console.WriteLine("Took: " + stopwatch.Elapsed);
         }
         finally
         {
-            await sched.Shutdown(false);
+            await scheduler.Shutdown(false);
         }
     }
 

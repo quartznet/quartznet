@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -37,7 +37,7 @@ namespace Quartz.Job;
 ///     job.JobDataMap[Quartz.Jobs.NativeJob.PropertyCommand] = "echo \"hi\" >> foobar.txt";
 ///     Trigger trigger = TriggerUtils.MakeSecondlyTrigger(5);
 ///     trigger.Name = "dumbTrigger";
-///     sched.ScheduleJob(job, trigger);
+///     scheduler.ScheduleJob(job, trigger);
 /// </example>
 /// If PropertyWaitForProcess is true, then the integer exit value of the process
 /// will be saved as the job execution result in the JobExecutionContext.

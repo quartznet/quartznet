@@ -51,6 +51,7 @@
     <ProjectReference Include="..\Quartz.Plugins\Quartz.Plugins.csproj" />
     <ProjectReference Include="..\Quartz.Plugins.TimeZoneConverter\Quartz.Plugins.TimeZoneConverter.csproj" />
     <ProjectReference Include="..\Quartz.Serialization.Newtonsoft\Quartz.Serialization.Newtonsoft.csproj" />
+    <ProjectReference Include="..\Quartz.Extensions.Redis\Quartz.Extensions.Redis.csproj" />
   </ItemGroup>
 
   <ItemGroup>

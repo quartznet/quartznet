@@ -100,15 +100,15 @@ public class RecurrenceTriggerImplTest
         trigger.TimeZone = TimeZoneInfo.Utc;
 
         // Exclude Jan 2 via AnnualCalendar
-        AnnualCalendar cal = new AnnualCalendar();
-        cal.SetDayExcluded(new DateTime(2025, 1, 2), true);
+        AnnualCalendar calendar = new AnnualCalendar();
+        calendar.SetDayExcluded(new DateTime(2025, 1, 2), true);
 
-        trigger.ComputeFirstFireTimeUtc(cal);
+        trigger.ComputeFirstFireTimeUtc(calendar);
         // First fire = Jan 1
         Assert.AreEqual(new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero), trigger.NextFireTimeUtc);
 
         // After triggering, next should skip Jan 2 (excluded) and land on Jan 3
-        trigger.Triggered(cal);
+        trigger.Triggered(calendar);
         Assert.AreEqual(new DateTimeOffset(2025, 1, 3, 9, 0, 0, TimeSpan.Zero), trigger.NextFireTimeUtc);
     }
 

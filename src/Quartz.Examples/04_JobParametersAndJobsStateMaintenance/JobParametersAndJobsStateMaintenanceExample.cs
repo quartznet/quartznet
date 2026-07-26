@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -36,7 +36,7 @@ public class JobParametersAndJobsStateMaintenanceExample : IExample
         Console.WriteLine("------- Initializing -------------------");
 
         // First we must get a reference to a scheduler
-        IScheduler sched = await ExampleScheduler.Create();
+        IScheduler scheduler = await ExampleScheduler.Create();
 
         Console.WriteLine("------- Initialization Complete --------");
 
@@ -61,7 +61,7 @@ public class JobParametersAndJobsStateMaintenanceExample : IExample
         job1.JobDataMap[ColorJob.ExecutionCount] = 1;
 
         // schedule the job to run
-        DateTimeOffset scheduleTime1 = await sched.ScheduleJob(job1, trigger1);
+        DateTimeOffset scheduleTime1 = await scheduler.ScheduleJob(job1, trigger1);
         Console.WriteLine($"{job1.Key} will run at: {scheduleTime1:r} and repeat: {trigger1.RepeatCount} times, every {trigger1.RepeatInterval.TotalSeconds} seconds");
 
         // job2 will also run 5 times, every 10 seconds
@@ -82,14 +82,14 @@ public class JobParametersAndJobsStateMaintenanceExample : IExample
         job2.JobDataMap[ColorJob.ExecutionCount] = 1;
 
         // schedule the job to run
-        DateTimeOffset scheduleTime2 = await sched.ScheduleJob(job2, trigger2);
+        DateTimeOffset scheduleTime2 = await scheduler.ScheduleJob(job2, trigger2);
         Console.WriteLine($"{job2.Key} will run at: {scheduleTime2:r} and repeat: {trigger2.RepeatCount} times, every {trigger2.RepeatInterval.TotalSeconds} seconds");
 
         Console.WriteLine("------- Starting Scheduler ----------------");
 
         // All of the jobs have been added to the scheduler, but none of the jobs
         // will run until the scheduler has been started
-        await sched.Start();
+        await scheduler.Start();
 
         Console.WriteLine("------- Started Scheduler -----------------");
 
@@ -101,11 +101,11 @@ public class JobParametersAndJobsStateMaintenanceExample : IExample
 
         Console.WriteLine("------- Shutting Down ---------------------");
 
-        await sched.Shutdown(true);
+        await scheduler.Shutdown(true);
 
         Console.WriteLine("------- Shutdown Complete -----------------");
 
-        SchedulerMetaData metaData = await sched.GetMetaData();
+        SchedulerMetaData metaData = await scheduler.GetMetaData();
         Console.WriteLine($"Executed {metaData.NumberOfJobsExecuted} jobs.");
     }
 }

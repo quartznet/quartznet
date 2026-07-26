@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -49,7 +49,7 @@ public class RunningJobsByPlugInXmlConfigurationExample : IExample
 
         // First we must get a reference to a scheduler
         StdSchedulerFactory sf = new StdSchedulerFactory(properties);
-        IScheduler sched = await sf.GetScheduler();
+        IScheduler scheduler = await sf.GetScheduler();
 
         Console.WriteLine("------- Initialization Complete -----------");
 
@@ -58,7 +58,7 @@ public class RunningJobsByPlugInXmlConfigurationExample : IExample
         Console.WriteLine("------- Starting Scheduler ----------------");
 
         // start the schedule
-        await sched.Start();
+        await scheduler.Start();
 
         Console.WriteLine("------- Started Scheduler -----------------");
 
@@ -69,10 +69,10 @@ public class RunningJobsByPlugInXmlConfigurationExample : IExample
 
         // shut down the scheduler
         Console.WriteLine("------- Shutting Down ---------------------");
-        await sched.Shutdown(true);
+        await scheduler.Shutdown(true);
         Console.WriteLine("------- Shutdown Complete -----------------");
 
-        SchedulerMetaData metaData = await sched.GetMetaData();
+        SchedulerMetaData metaData = await scheduler.GetMetaData();
         Console.WriteLine("Executed " + metaData.NumberOfJobsExecuted + " jobs.");
     }
 }

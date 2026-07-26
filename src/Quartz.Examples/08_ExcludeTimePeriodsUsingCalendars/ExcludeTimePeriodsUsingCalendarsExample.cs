@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -37,7 +37,7 @@ public class ExcludeTimePeriodsUsingCalendarsExample : IExample
         Console.WriteLine("------- Initializing ----------------------");
 
         // First we must get a reference to a scheduler
-        IScheduler sched = await ExampleScheduler.Create();
+        IScheduler scheduler = await ExampleScheduler.Create();
 
         Console.WriteLine("------- Initialization Complete -----------");
 
@@ -59,7 +59,7 @@ public class ExcludeTimePeriodsUsingCalendarsExample : IExample
         holidays.SetDayExcluded(christmas, true);
 
         // tell the schedule about our holiday calendar
-        await sched.AddCalendar("holidays", holidays, false, false);
+        await scheduler.AddCalendar("holidays", holidays, false, false);
 
         // schedule a job to run hourly, starting on halloween
         // at 10 am
@@ -78,7 +78,7 @@ public class ExcludeTimePeriodsUsingCalendarsExample : IExample
             .Build();
 
         // schedule the job and print the first run date
-        DateTimeOffset firstRunTime = await sched.ScheduleJob(job, trigger);
+        DateTimeOffset firstRunTime = await scheduler.ScheduleJob(job, trigger);
 
         // print out the first execution date.
         // Note:  Since Halloween (Oct 31) is a holiday, then
@@ -88,7 +88,7 @@ public class ExcludeTimePeriodsUsingCalendarsExample : IExample
         // All of the jobs have been added to the scheduler, but none of the jobs
         // will run until the scheduler has been started
         Console.WriteLine("------- Starting Scheduler ----------------");
-        await sched.Start();
+        await scheduler.Start();
 
         // wait 30 seconds:
         // note:  nothing will run
@@ -100,10 +100,10 @@ public class ExcludeTimePeriodsUsingCalendarsExample : IExample
 
         // shut down the scheduler
         Console.WriteLine("------- Shutting Down ---------------------");
-        await sched.Shutdown(true);
+        await scheduler.Shutdown(true);
         Console.WriteLine("------- Shutdown Complete -----------------");
 
-        SchedulerMetaData metaData = await sched.GetMetaData();
+        SchedulerMetaData metaData = await scheduler.GetMetaData();
         Console.WriteLine($"Executed {metaData.NumberOfJobsExecuted} jobs.");
     }
 }

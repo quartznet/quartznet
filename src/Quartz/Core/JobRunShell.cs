@@ -84,13 +84,13 @@ internal class JobRunShell : SchedulerListenerSupport
     /// Job creation via <see cref="IJobFactory.CreateJob"/> is deferred to <see cref="Run"/>
     /// so that AsyncLocal values set during job factory creation flow correctly to <see cref="IJob.Execute"/>.
     /// </remarks>
-    /// <param name="sched">The scheduler.</param>
+    /// <param name="scheduler">The scheduler.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     public virtual ValueTask Initialize(
-        QuartzScheduler sched,
+        QuartzScheduler scheduler,
         CancellationToken cancellationToken = default)
     {
-        qs = sched;
+        qs = scheduler;
         return default;
     }
 
@@ -117,6 +117,13 @@ internal class JobRunShell : SchedulerListenerSupport
         try
         {
             jobScope = await qs!.JobFactory.CreateJob(firedTriggerBundle, scheduler, cancellationToken).ConfigureAwait(false);
+
+            if (jobScope.Job is null)
+            {
+                Throw.SchedulerException(
+                    $"Job factory {qs.JobFactory.GetType().FullName} returned an empty JobScope for job '{jobDetail.Key}'. "
+                    + "A factory must build its result with the JobScope constructor rather than returning default.");
+            }
         }
         catch (SchedulerException se)
         {
@@ -332,8 +339,24 @@ internal class JobRunShell : SchedulerListenerSupport
         finally
         {
             qs!.RemoveInternalSchedulerListener(this);
-            await qs.JobFactory.ReturnJob(jobScope, cancellationToken).ConfigureAwait(false);
-            jec?.Dispose();
+
+            try
+            {
+                await qs.JobFactory.ReturnJob(jobScope, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                // Run is handed to the thread pool and nobody awaits it, so letting this escape would
+                // lose it entirely. Report it and carry on to the context disposal below.
+                await qs.NotifySchedulerListenersError(
+                    $"An error occurred returning job to the job factory. job='{jobDetail.Key}'",
+                    new SchedulerException($"Problem returning job '{jobDetail.Key}' to the job factory: {e.Message}", e),
+                    cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                jec?.Dispose();
+            }
         }
 
         async ValueTask NotifyInstantiationFailed(Exception e)

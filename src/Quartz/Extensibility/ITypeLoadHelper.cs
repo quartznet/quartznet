@@ -28,9 +28,15 @@ namespace Quartz.Extensibility;
 public interface ITypeLoadHelper
 {
     /// <summary>
-    /// Return the type with the given name, or <see langword="null" /> if the name is not one this
-    /// helper can resolve.
+    /// Return the type with the given name.
     /// </summary>
+    /// <remarks>
+    /// An implementation that cannot resolve the name must <b>throw</b> — <see cref="TypeLoadException" />
+    /// is what the built-in helper raises — rather than returning <see langword="null" />. Quartz calls
+    /// this when it already knows a type is required, so a null would only surface later as a failure
+    /// with nothing left to point at. <see langword="null" /> is reserved for a null or empty name.
+    /// </remarks>
     /// <param name="name">The assembly-qualified type name to load.</param>
+    /// <exception cref="TypeLoadException">The name could not be resolved to a type.</exception>
     Type? LoadType(string name);
 }

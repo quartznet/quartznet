@@ -513,7 +513,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// triggering (if any).
     /// </remarks>
     /// <seealso cref="JobExecutionException" />
-    public abstract void Triggered(ICalendar? cal);
+    public abstract void Triggered(ICalendar? calendar);
 
 
     /// <summary>
@@ -536,7 +536,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// by the scheduler, which is also the same value <see cref="GetNextFireTimeUtc" />
     /// will return (until after the first firing of the <see cref="ITrigger" />).
     /// </returns>
-    public abstract DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? cal);
+    public abstract DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? calendar);
 
     /// <summary>
     /// This method should not be used by the Quartz client.
@@ -639,7 +639,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// was created.
     /// </para>
     /// </summary>
-    public abstract void UpdateAfterMisfire(ICalendar? cal);
+    public abstract void UpdateAfterMisfire(ICalendar? calendar);
 
     /// <summary>
     /// This method should not be used by the Quartz client.
@@ -650,9 +650,9 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// given the Calendar's new settings).
     /// </para>
     /// </summary>
-    /// <param name="cal"> </param>
+    /// <param name="calendar"> </param>
     /// <param name="misfireThreshold"></param>
-    public abstract void UpdateWithNewCalendar(ICalendar cal, TimeSpan misfireThreshold);
+    public abstract void UpdateWithNewCalendar(ICalendar calendar, TimeSpan misfireThreshold);
 
     /// <summary>
     /// Validates whether the properties of the <see cref="IJobDetail" /> are

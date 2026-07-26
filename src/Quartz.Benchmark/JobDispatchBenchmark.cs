@@ -33,7 +33,7 @@ public class JobDispatchBenchmark
     [Benchmark]
     public async Task Run()
     {
-        await shell.Initialize(scheduler.sched);
+        await shell.Initialize(scheduler.scheduler);
         await shell.Run();
     }
 }

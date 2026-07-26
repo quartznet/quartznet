@@ -35,10 +35,10 @@ internal class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelegate
 
     protected string SchedName { get; private set; } = null!;
 
-    public void Initialize(string tablePrefix, string schedName, IDbAccessor dbAccessor)
+    public void Initialize(string tablePrefix, string schedulerName, IDbAccessor dbAccessor)
     {
         TablePrefix = tablePrefix;
-        SchedName = schedName;
+        SchedName = schedulerName;
         DbAccessor = dbAccessor;
     }
 

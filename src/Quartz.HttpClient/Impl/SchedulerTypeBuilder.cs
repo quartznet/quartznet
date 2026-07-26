@@ -18,7 +18,7 @@ internal static class SchedulerTypeBuilder
     private const string AssemblyName = "Quartz.SchedulerInstances";
 
     private static readonly ModuleBuilder moduleBuilder = CreateModuleBuilder();
-    private static readonly ConcurrentDictionary<string, Type> createdTypes = new();
+    private static readonly ConcurrentDictionary<Type, Type> createdTypes = new();
 
     private static ModuleBuilder CreateModuleBuilder()
     {
@@ -35,7 +35,10 @@ internal static class SchedulerTypeBuilder
 
     public static Type Create(Type interfaceType)
     {
-        var result = createdTypes.GetOrAdd(interfaceType.FullName ?? "", _ => DoCreate(interfaceType));
+        // Keyed on the Type, not its name: two assemblies can declare the same namespace-qualified
+        // interface, and handing back the other one's proxy fails as an InvalidCastException naming two
+        // types that read identically.
+        var result = createdTypes.GetOrAdd(interfaceType, static t => DoCreate(t));
         return result;
 
         static Type DoCreate(Type interfaceType)

@@ -176,9 +176,9 @@ public sealed class QuartzSchedulerBuilder
             return inner.GetScheduler(cancellationToken);
         }
 
-        public ValueTask<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default)
+        public ValueTask<IScheduler?> GetScheduler(string schedulerName, CancellationToken cancellationToken = default)
         {
-            return inner.GetScheduler(schedName, cancellationToken);
+            return inner.GetScheduler(schedulerName, cancellationToken);
         }
 
         public void Dispose()

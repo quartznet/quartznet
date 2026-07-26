@@ -32,6 +32,13 @@ public class ListenerManagerTest
     }
     private class TestSchedulerListener : SchedulerListenerSupport;
 
+    private sealed class NamedSchedulerListener : SchedulerListenerSupport
+    {
+        public NamedSchedulerListener(string name) => Name = name;
+
+        public override string Name { get; }
+    }
+
     [SetUp]
     public void SetUp()
     {
@@ -1838,20 +1845,34 @@ public class ListenerManagerTest
     [Test]
     public void TestManagementOfSchedulerListeners()
     {
-        var tl1 = new TestSchedulerListener();
-        var tl2 = new TestSchedulerListener();
+        var tl1 = new NamedSchedulerListener("first");
+        var tl2 = new NamedSchedulerListener("second");
 
-        // test adding listener without matcher
         _manager.AddSchedulerListener(tl1);
         _manager.GetSchedulerListeners().Should().ContainSingle("Unexpected size of listener list");
 
-        // test adding listener with matcher
         _manager.AddSchedulerListener(tl2);
         _manager.GetSchedulerListeners().Should().HaveCount(2, "Unexpected size of listener list");
 
-        // test removing a listener
         _manager.RemoveSchedulerListener(tl1);
         _manager.GetSchedulerListeners().Should().ContainSingle("Unexpected size of listener list");
+    }
+
+    [Test]
+    public void AddingASchedulerListenerWithAnExistingNameReplacesIt()
+    {
+        // A scheduler knows a listener by its name, and the name-based Get/Remove overloads cannot
+        // mean anything if two answer to one - so the second wins, as it does for job and trigger
+        // listeners. Note that SchedulerListenerSupport defaults Name to the type name, so two
+        // instances of the same listener class collide by default.
+        var first = new NamedSchedulerListener("shared");
+        var second = new NamedSchedulerListener("shared");
+
+        _manager.AddSchedulerListener(first);
+        _manager.AddSchedulerListener(second);
+
+        _manager.GetSchedulerListeners().Should().ContainSingle().Which.Should().BeSameAs(second);
+        _manager.GetSchedulerListener("shared").Should().BeSameAs(second);
     }
 
     [Test]

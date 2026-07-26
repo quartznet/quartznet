@@ -378,7 +378,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// </li>
     /// </ul>
     /// </remarks>
-    public override void UpdateAfterMisfire(ICalendar? cal)
+    public override void UpdateAfterMisfire(ICalendar? calendar)
     {
         int instr = MisfireInstruction;
         if (instr == Quartz.MisfireInstruction.SmartPolicy)
@@ -409,9 +409,9 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
         {
             DateTimeOffset? newFireTime = GetFireTimeAfter(null);
 
-            if (cal is not null && newFireTime.HasValue)
+            if (calendar is not null && newFireTime.HasValue)
             {
-                while (!cal.IsTimeIncluded(newFireTime.GetValueOrDefault()))
+                while (!calendar.IsTimeIncluded(newFireTime.GetValueOrDefault()))
                 {
                     newFireTime = GetFireTimeAfter(newFireTime);
 
@@ -434,9 +434,9 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
         {
             DateTimeOffset? newFireTime = GetFireTimeAfter(null);
 
-            if (cal is not null && newFireTime.HasValue)
+            if (calendar is not null && newFireTime.HasValue)
             {
-                while (!cal.IsTimeIncluded(newFireTime.GetValueOrDefault()))
+                while (!calendar.IsTimeIncluded(newFireTime.GetValueOrDefault()))
                 {
                     newFireTime = GetFireTimeAfter(newFireTime);
 
@@ -517,15 +517,15 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// triggering (if any).
     /// </summary>
     /// <seealso cref="JobExecutionException" />
-    public override void Triggered(ICalendar? cal)
+    public override void Triggered(ICalendar? calendar)
     {
         timesTriggered++;
         previousFireTimeUtc = nextFireTimeUtc;
         nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 
-        if (cal is not null && nextFireTimeUtc.HasValue)
+        if (calendar is not null && nextFireTimeUtc.HasValue)
         {
-            while (!cal.IsTimeIncluded(nextFireTimeUtc.GetValueOrDefault()))
+            while (!calendar.IsTimeIncluded(nextFireTimeUtc.GetValueOrDefault()))
             {
                 nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 
@@ -599,13 +599,13 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// by the scheduler, which is also the same value <see cref="NextFireTimeUtc" />
     /// will return (until after the first firing of the <see cref="ITrigger" />).
     /// </returns>
-    public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? cal)
+    public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? calendar)
     {
         nextFireTimeUtc = StartTimeUtc;
 
-        if (cal is not null)
+        if (calendar is not null)
         {
-            while (!cal.IsTimeIncluded(nextFireTimeUtc.GetValueOrDefault()))
+            while (!calendar.IsTimeIncluded(nextFireTimeUtc.GetValueOrDefault()))
             {
                 nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 

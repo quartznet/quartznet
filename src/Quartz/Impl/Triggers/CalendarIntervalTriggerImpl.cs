@@ -378,7 +378,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
     ///     <li>The instruction will be interpreted as <see cref="MisfireInstruction.CalendarIntervalTrigger.FireOnceNow" /></li>
     /// </ul>
     /// </remarks>
-    public override void UpdateAfterMisfire(ICalendar? cal)
+    public override void UpdateAfterMisfire(ICalendar? calendar)
     {
         int instr = MisfireInstruction;
 
@@ -395,7 +395,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
         if (instr == Quartz.MisfireInstruction.CalendarIntervalTrigger.DoNothing)
         {
             DateTimeOffset? newFireTime = GetFireTimeAfter(TimeProvider.GetUtcNow());
-            while (newFireTime is not null && cal is not null && !cal.IsTimeIncluded(newFireTime.Value))
+            while (newFireTime is not null && calendar is not null && !calendar.IsTimeIncluded(newFireTime.Value))
             {
                 newFireTime = GetFireTimeAfter(newFireTime);
 

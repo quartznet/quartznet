@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -36,7 +36,7 @@ public class RunningLargeNumberOfJobsExample : IExample
     public virtual async Task Run()
     {
         // First we must get a reference to a scheduler
-        IScheduler sched = await ExampleScheduler.Create();
+        IScheduler scheduler = await ExampleScheduler.Create();
 
         Console.WriteLine("------- Initialization Complete -----------");
 
@@ -61,7 +61,7 @@ public class RunningLargeNumberOfJobsExample : IExample
                 .StartAt(DateBuilder.FutureDate(10000 + count * 100, IntervalUnit.Millisecond)) // space fire times a small bit
                 .Build();
 
-            await sched.ScheduleJob(job, trigger);
+            await scheduler.ScheduleJob(job, trigger);
             if (count % 25 == 0)
             {
                 Console.WriteLine("...scheduled " + count + " jobs");
@@ -71,7 +71,7 @@ public class RunningLargeNumberOfJobsExample : IExample
         Console.WriteLine("------- Starting Scheduler ----------------");
 
         // start the schedule
-        await sched.Start();
+        await scheduler.Start();
 
         Console.WriteLine("------- Started Scheduler -----------------");
 
@@ -82,10 +82,10 @@ public class RunningLargeNumberOfJobsExample : IExample
 
         // shut down the scheduler
         Console.WriteLine("------- Shutting Down ---------------------");
-        await sched.Shutdown(true);
+        await scheduler.Shutdown(true);
         Console.WriteLine("------- Shutdown Complete -----------------");
 
-        SchedulerMetaData metaData = await sched.GetMetaData();
+        SchedulerMetaData metaData = await scheduler.GetMetaData();
         Console.WriteLine("Executed " + metaData.NumberOfJobsExecuted + " jobs.");
     }
 }

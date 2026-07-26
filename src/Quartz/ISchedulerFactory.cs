@@ -46,5 +46,5 @@ public interface ISchedulerFactory
     /// Returns a handle to the Scheduler with the given name. A factory can create the scheduler it is
     /// configured to produce; any other name is returned only if that scheduler already exists.
     /// </summary>
-    ValueTask<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default);
+    ValueTask<IScheduler?> GetScheduler(string schedulerName, CancellationToken cancellationToken = default);
 }

@@ -103,8 +103,8 @@ public class HttpScheduler : IScheduler
     {
         var schedulerDto = await GetSchedulerDetails(cancellationToken).ConfigureAwait(false);
         var metadata = new SchedulerMetaData(
-            schedName: schedulerDto.Name,
-            schedInst: schedulerDto.SchedulerInstanceId,
+            schedulerName: schedulerDto.Name,
+            schedulerInstanceId: schedulerDto.SchedulerInstanceId,
             schedType: GetType(),
             isRemote: true,
             started: schedulerDto.Status == SchedulerStatus.Running,
@@ -498,28 +498,28 @@ public class HttpScheduler : IScheduler
         return httpClient.Post($"{TriggerEndpointUrl(triggerKey)}/reset-from-error-state", jsonSerializerOptions, cancellationToken);
     }
 
-    public ValueTask AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers, CancellationToken cancellationToken = default)
+    public ValueTask AddCalendar(string calendarName, ICalendar calendar, bool replace, bool updateTriggers, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(calName))
+        if (string.IsNullOrWhiteSpace(calendarName))
         {
-            throw new ArgumentException("Calendar name required", nameof(calName));
+            throw new ArgumentException("Calendar name required", nameof(calendarName));
         }
 
         ArgumentNullException.ThrowIfNull(calendar);
 
-        var requestContent = new AddCalendarRequest(calName, calendar, replace, updateTriggers);
+        var requestContent = new AddCalendarRequest(calendarName, calendar, replace, updateTriggers);
         return httpClient.Post(CalendarEndpointUrl(), requestContent, jsonSerializerOptions, cancellationToken);
     }
 
-    public async ValueTask<bool> DeleteCalendar(string calName, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> DeleteCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.DeleteWithResponse<DeleteCalendarResponse>(CalendarEndpointUrl(calName), jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await httpClient.DeleteWithResponse<DeleteCalendarResponse>(CalendarEndpointUrl(calendarName), jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
         return result.CalendarFound;
     }
 
-    public ValueTask<ICalendar?> GetCalendar(string calName, CancellationToken cancellationToken = default)
+    public ValueTask<ICalendar?> GetCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
-        return httpClient.GetWithNullForNotFound<ICalendar>(CalendarEndpointUrl(calName), jsonSerializerOptions, cancellationToken);
+        return httpClient.GetWithNullForNotFound<ICalendar>(CalendarEndpointUrl(calendarName), jsonSerializerOptions, cancellationToken);
     }
 
     public async ValueTask<List<string>> GetCalendarNames(CancellationToken cancellationToken = default)

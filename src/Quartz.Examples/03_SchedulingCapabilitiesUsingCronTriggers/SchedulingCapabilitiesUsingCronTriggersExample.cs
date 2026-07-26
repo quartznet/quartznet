@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -36,13 +36,13 @@ public class SchedulingCapabilitiesUsingCronTriggersExample : IExample
         Console.WriteLine("------- Initializing -------------------");
 
         // First we must get a reference to a scheduler
-        IScheduler sched = await ExampleScheduler.Create();
+        IScheduler scheduler = await ExampleScheduler.Create();
 
         Console.WriteLine("------- Initialization Complete --------");
 
         Console.WriteLine("------- Scheduling Jobs ----------------");
 
-        // jobs can be scheduled before sched.start() has been called
+        // jobs can be scheduled before scheduler.start() has been called
 
         // job 1 will run every 20 seconds
 
@@ -55,7 +55,7 @@ public class SchedulingCapabilitiesUsingCronTriggersExample : IExample
             .WithCronSchedule("0/20 * * * * ?")
             .Build();
 
-        DateTimeOffset ft = await sched.ScheduleJob(job, trigger);
+        DateTimeOffset ft = await scheduler.ScheduleJob(job, trigger);
         Console.WriteLine(job.Key + " has been scheduled to run at: " + ft
                           + " and repeat based on expression: "
                           + trigger.CronExpressionString);
@@ -70,7 +70,7 @@ public class SchedulingCapabilitiesUsingCronTriggersExample : IExample
             .WithCronSchedule("15 0/2 * * * ?")
             .Build();
 
-        ft = await sched.ScheduleJob(job, trigger);
+        ft = await scheduler.ScheduleJob(job, trigger);
         Console.WriteLine(job.Key + " has been scheduled to run at: " + ft
                           + " and repeat based on expression: "
                           + trigger.CronExpressionString);
@@ -85,7 +85,7 @@ public class SchedulingCapabilitiesUsingCronTriggersExample : IExample
             .WithCronSchedule("0 0/2 8-17 * * ?")
             .Build();
 
-        ft = await sched.ScheduleJob(job, trigger);
+        ft = await scheduler.ScheduleJob(job, trigger);
         Console.WriteLine(job.Key + " has been scheduled to run at: " + ft
                           + " and repeat based on expression: "
                           + trigger.CronExpressionString);
@@ -100,7 +100,7 @@ public class SchedulingCapabilitiesUsingCronTriggersExample : IExample
             .WithCronSchedule("0 0/3 17-23 * * ?")
             .Build();
 
-        ft = await sched.ScheduleJob(job, trigger);
+        ft = await scheduler.ScheduleJob(job, trigger);
         Console.WriteLine(job.Key + " has been scheduled to run at: " + ft
                           + " and repeat based on expression: "
                           + trigger.CronExpressionString);
@@ -115,7 +115,7 @@ public class SchedulingCapabilitiesUsingCronTriggersExample : IExample
             .WithCronSchedule("0 0 10am 1,15 * ?")
             .Build();
 
-        ft = await sched.ScheduleJob(job, trigger);
+        ft = await scheduler.ScheduleJob(job, trigger);
         Console.WriteLine(job.Key + " has been scheduled to run at: " + ft
                           + " and repeat based on expression: "
                           + trigger.CronExpressionString);
@@ -130,7 +130,7 @@ public class SchedulingCapabilitiesUsingCronTriggersExample : IExample
             .WithCronSchedule("0,30 * * ? * MON-FRI")
             .Build();
 
-        ft = await sched.ScheduleJob(job, trigger);
+        ft = await scheduler.ScheduleJob(job, trigger);
         Console.WriteLine(job.Key + " has been scheduled to run at: " + ft
                           + " and repeat based on expression: "
                           + trigger.CronExpressionString);
@@ -145,7 +145,7 @@ public class SchedulingCapabilitiesUsingCronTriggersExample : IExample
             .WithCronSchedule("0,30 * * ? * SAT,SUN")
             .Build();
 
-        ft = await sched.ScheduleJob(job, trigger);
+        ft = await scheduler.ScheduleJob(job, trigger);
         Console.WriteLine(job.Key + " has been scheduled to run at: " + ft
                           + " and repeat based on expression: "
                           + trigger.CronExpressionString);
@@ -155,7 +155,7 @@ public class SchedulingCapabilitiesUsingCronTriggersExample : IExample
         // All of the jobs have been added to the scheduler, but none of the
         // jobs
         // will run until the scheduler has been started
-        await sched.Start();
+        await scheduler.Start();
 
         Console.WriteLine("------- Started Scheduler -----------------");
 
@@ -167,11 +167,11 @@ public class SchedulingCapabilitiesUsingCronTriggersExample : IExample
 
         Console.WriteLine("------- Shutting Down ---------------------");
 
-        await sched.Shutdown(true);
+        await scheduler.Shutdown(true);
 
         Console.WriteLine("------- Shutdown Complete -----------------");
 
-        SchedulerMetaData metaData = await sched.GetMetaData();
+        SchedulerMetaData metaData = await scheduler.GetMetaData();
         Console.WriteLine($"Executed {metaData.NumberOfJobsExecuted} jobs.");
     }
 }

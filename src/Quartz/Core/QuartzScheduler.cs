@@ -429,7 +429,7 @@ public sealed class QuartzScheduler
 
             await schedThread.Halt(waitForJobsToComplete).ConfigureAwait(false);
 
-            await NotifySchedulerListenersShuttingdown(cancellationToken).ConfigureAwait(false);
+            await NotifySchedulerListenersShuttingDown(cancellationToken).ConfigureAwait(false);
 
             if (resources.InterruptJobsOnShutdown && !waitForJobsToComplete
                 || resources.InterruptJobsOnShutdownWithWait && waitForJobsToComplete)
@@ -536,17 +536,17 @@ public sealed class QuartzScheduler
         AdjustSimpleTriggerStartTimeIfInPast(trig);
         trig.Validate();
 
-        ICalendar? cal = null;
+        ICalendar? calendar = null;
         if (trigger.CalendarName is not null)
         {
-            cal = await resources.JobStore.RetrieveCalendar(trigger.CalendarName, cancellationToken).ConfigureAwait(false);
-            if (cal is null)
+            calendar = await resources.JobStore.RetrieveCalendar(trigger.CalendarName, cancellationToken).ConfigureAwait(false);
+            if (calendar is null)
             {
                 Throw.SchedulerException($"Calendar not found: {trigger.CalendarName}");
             }
         }
 
-        DateTimeOffset? ft = trig.ComputeFirstFireTimeUtc(cal);
+        DateTimeOffset? ft = trig.ComputeFirstFireTimeUtc(calendar);
 
         if (!ft.HasValue)
         {
@@ -581,17 +581,17 @@ public sealed class QuartzScheduler
         AdjustSimpleTriggerStartTimeIfInPast(trig);
         trig.Validate();
 
-        ICalendar? cal = null;
+        ICalendar? calendar = null;
         if (trigger.CalendarName is not null)
         {
-            cal = await resources.JobStore.RetrieveCalendar(trigger.CalendarName, cancellationToken).ConfigureAwait(false);
-            if (cal is null)
+            calendar = await resources.JobStore.RetrieveCalendar(trigger.CalendarName, cancellationToken).ConfigureAwait(false);
+            if (calendar is null)
             {
                 Throw.SchedulerException($"Calendar not found: {trigger.CalendarName}");
             }
         }
 
-        DateTimeOffset? ft = trig.ComputeFirstFireTimeUtc(cal);
+        DateTimeOffset? ft = trig.ComputeFirstFireTimeUtc(calendar);
 
         if (!ft.HasValue)
         {
@@ -720,18 +720,18 @@ public sealed class QuartzScheduler
                 AdjustSimpleTriggerStartTimeIfInPast(trigger);
                 trigger.Validate();
 
-                ICalendar? cal = null;
+                ICalendar? calendar = null;
                 if (trigger.CalendarName is not null)
                 {
-                    cal = await resources.JobStore.RetrieveCalendar(trigger.CalendarName, cancellationToken).ConfigureAwait(false);
-                    if (cal is null)
+                    calendar = await resources.JobStore.RetrieveCalendar(trigger.CalendarName, cancellationToken).ConfigureAwait(false);
+                    if (calendar is null)
                     {
                         var message = $"Calendar '{trigger.CalendarName}' not found for trigger: {trigger.Key}";
                         Throw.SchedulerException(message);
                     }
                 }
 
-                DateTimeOffset? ft = trigger.ComputeFirstFireTimeUtc(cal);
+                DateTimeOffset? ft = trigger.ComputeFirstFireTimeUtc(calendar);
 
                 if (ft is null)
                 {
@@ -842,10 +842,10 @@ public sealed class QuartzScheduler
         AdjustSimpleTriggerStartTimeIfInPast(trigger);
         trigger.Validate();
 
-        ICalendar? cal = null;
+        ICalendar? calendar = null;
         if (newTrigger.CalendarName is not null)
         {
-            cal = await resources.JobStore.RetrieveCalendar(newTrigger.CalendarName, cancellationToken).ConfigureAwait(false);
+            calendar = await resources.JobStore.RetrieveCalendar(newTrigger.CalendarName, cancellationToken).ConfigureAwait(false);
         }
 
         DateTimeOffset? ft;
@@ -853,11 +853,11 @@ public sealed class QuartzScheduler
         {
             // use a cloned trigger so that we don't lose possible forcefully set next fire time
             var clonedTrigger = (IOperableTrigger) trigger.Clone();
-            ft = clonedTrigger.ComputeFirstFireTimeUtc(cal);
+            ft = clonedTrigger.ComputeFirstFireTimeUtc(calendar);
         }
         else
         {
-            ft = trigger.ComputeFirstFireTimeUtc(cal);
+            ft = trigger.ComputeFirstFireTimeUtc(calendar);
         }
 
         if (!ft.HasValue)
@@ -1015,29 +1015,29 @@ public sealed class QuartzScheduler
     /// Store and schedule the identified <see cref="IOperableTrigger"/>
     /// </summary>
     public async ValueTask TriggerJob(
-        IOperableTrigger trig,
+        IOperableTrigger trigger,
         CancellationToken cancellationToken = default)
     {
         ValidateState();
 
-        trig.ComputeFirstFireTimeUtc(null);
+        trigger.ComputeFirstFireTimeUtc(null);
 
         bool collision = true;
         while (collision)
         {
             try
             {
-                await resources.JobStore.StoreTrigger(trig, false, cancellationToken).ConfigureAwait(false);
+                await resources.JobStore.StoreTrigger(trigger, false, cancellationToken).ConfigureAwait(false);
                 collision = false;
             }
             catch (ObjectAlreadyExistsException)
             {
-                trig.Key = new TriggerKey(NewTriggerId(), SchedulerConstants.DefaultGroup);
+                trigger.Key = new TriggerKey(NewTriggerId(), SchedulerConstants.DefaultGroup);
             }
         }
 
-        NotifySchedulerThread(trig.NextFireTimeUtc);
-        await NotifySchedulerListenersScheduled(trig, cancellationToken).ConfigureAwait(false);
+        NotifySchedulerThread(trigger.NextFireTimeUtc);
+        await NotifySchedulerListenersScheduled(trigger, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -1764,12 +1764,12 @@ public sealed class QuartzScheduler
     /// <summary>
     /// Notifies the scheduler listeners about scheduler error.
     /// </summary>
-    /// <param name="msg">The MSG.</param>
-    /// <param name="se">The se.</param>
+    /// <param name="message">A description of what went wrong.</param>
+    /// <param name="exception">The error itself.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     public async ValueTask NotifySchedulerListenersError(
-        string msg,
-        SchedulerException se,
+        string message,
+        SchedulerException exception,
         CancellationToken cancellationToken = default)
     {
         // build a list of all scheduler listeners that are to be notified...
@@ -1780,12 +1780,12 @@ public sealed class QuartzScheduler
         {
             try
             {
-                await sl.SchedulerError(msg, se, cancellationToken).ConfigureAwait(false);
+                await sl.SchedulerError(message, exception, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)
             {
                 logger.LogError(e, "Error while notifying SchedulerListener of error");
-                logger.LogError(se, "  Original error (for notification) was: {Message}", msg);
+                logger.LogError(exception, "  Original error (for notification) was: {Message}", message);
             }
         }
     }
@@ -2055,7 +2055,7 @@ public sealed class QuartzScheduler
         return NotifySchedulerListeners(l => l.SchedulerShutdown(cancellationToken), "shutdown");
     }
 
-    public ValueTask NotifySchedulerListenersShuttingdown(
+    public ValueTask NotifySchedulerListenersShuttingDown(
         CancellationToken cancellationToken = default)
     {
         return NotifySchedulerListeners(l => l.SchedulerShuttingDown(cancellationToken), "shutting down");

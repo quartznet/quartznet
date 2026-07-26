@@ -36,7 +36,7 @@ internal interface IJobRunShellFactory
     /// that should be made available within the <see cref="JobRunShell" /> and
     /// the <see cref="IJobExecutionContext" />s within it.
     /// </summary>
-    void Initialize(IScheduler sched);
+    void Initialize(IScheduler scheduler);
 
     /// <summary>
     /// Called by the <see cref="QuartzSchedulerThread" />

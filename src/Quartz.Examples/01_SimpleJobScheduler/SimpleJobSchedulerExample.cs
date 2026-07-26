@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -36,7 +36,7 @@ public class SimpleJobSchedulerExample : IExample
         Console.WriteLine("------- Initializing ----------------------");
 
         // First we must get a reference to a scheduler
-        IScheduler sched = await ExampleScheduler.Create();
+        IScheduler scheduler = await ExampleScheduler.Create();
 
         Console.WriteLine("------- Initialization Complete -----------");
 
@@ -58,12 +58,12 @@ public class SimpleJobSchedulerExample : IExample
             .Build();
 
         // Tell quartz to schedule the job using our trigger
-        await sched.ScheduleJob(job, trigger);
+        await scheduler.ScheduleJob(job, trigger);
         Console.WriteLine($"{job.Key} will run at: {runTime:r}");
 
         // Start up the scheduler (nothing can actually run until the
         // scheduler has been started)
-        await sched.Start();
+        await scheduler.Start();
         Console.WriteLine("------- Started Scheduler -----------------");
 
         // wait long enough so that the scheduler as an opportunity to
@@ -75,7 +75,7 @@ public class SimpleJobSchedulerExample : IExample
 
         // shut down the scheduler
         Console.WriteLine("------- Shutting Down ---------------------");
-        await sched.Shutdown(true);
+        await scheduler.Shutdown(true);
         Console.WriteLine("------- Shutdown Complete -----------------");
     }
 }

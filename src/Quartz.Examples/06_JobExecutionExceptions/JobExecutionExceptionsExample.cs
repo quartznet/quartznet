@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -36,7 +36,7 @@ public class JobExecutionExceptionsExample : IExample
         Console.WriteLine("------- Initializing ----------------------");
 
         // First we must get a reference to a scheduler
-        IScheduler sched = await ExampleScheduler.Create();
+        IScheduler scheduler = await ExampleScheduler.Create();
 
         Console.WriteLine("------- Initialization Complete ------------");
 
@@ -61,7 +61,7 @@ public class JobExecutionExceptionsExample : IExample
             .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).RepeatForever())
             .Build();
 
-        DateTimeOffset ft = await sched.ScheduleJob(job, trigger);
+        DateTimeOffset ft = await scheduler.ScheduleJob(job, trigger);
         Console.WriteLine(job.Key + " will run at: " + ft + " and repeat: "
                           + trigger.RepeatCount + " times, every "
                           + trigger.RepeatInterval.TotalSeconds + " seconds");
@@ -78,13 +78,13 @@ public class JobExecutionExceptionsExample : IExample
             .StartAt(startTime)
             .WithSimpleSchedule(x => x.WithIntervalInSeconds(5).RepeatForever())
             .Build();
-        ft = await sched.ScheduleJob(job, trigger);
+        ft = await scheduler.ScheduleJob(job, trigger);
         Console.WriteLine($"{job.Key} will run at: {ft:r} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
 
         Console.WriteLine("------- Starting Scheduler ----------------");
 
         // jobs don't start firing until start() has been called...
-        await sched.Start();
+        await scheduler.Start();
 
         Console.WriteLine("------- Started Scheduler -----------------");
 
@@ -93,11 +93,11 @@ public class JobExecutionExceptionsExample : IExample
 
         Console.WriteLine("------- Shutting Down ---------------------");
 
-        await sched.Shutdown(false);
+        await scheduler.Shutdown(false);
 
         Console.WriteLine("------- Shutdown Complete -----------------");
 
-        SchedulerMetaData metaData = await sched.GetMetaData();
+        SchedulerMetaData metaData = await scheduler.GetMetaData();
         Console.WriteLine($"Executed {metaData.NumberOfJobsExecuted} jobs.");
     }
 }

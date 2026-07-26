@@ -350,9 +350,11 @@ internal static class QuartzPropertyBridge
     {
         // SimpleThreadPool was renamed to DefaultThreadPool, and the old name is still in plenty of
         // config files. Treating it as a synonym is what main did; loading it would just fail.
+        // The spelling here is the pre-4.0 one on purpose: Quartz.Simpl.SimpleThreadPool is what those
+        // files contain, and no type has ever been called Quartz.Impl.SimpleThreadPool.
         var configured = parser.String(StdSchedulerFactory.PropertyThreadPoolType);
         var threadPoolType = configured is not null
-            && configured.StartsWith("Quartz.Impl.SimpleThreadPool", StringComparison.OrdinalIgnoreCase)
+            && configured.StartsWith("Quartz.Simpl.SimpleThreadPool", StringComparison.OrdinalIgnoreCase)
                 ? typeof(DefaultThreadPool)
                 : parser.Type(StdSchedulerFactory.PropertyThreadPoolType);
 

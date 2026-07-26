@@ -59,6 +59,11 @@ public readonly struct JobScope
     /// <summary>
     /// The job to execute.
     /// </summary>
+    /// <remarks>
+    /// Always set when the scope was built with the constructor. <c>default(JobScope)</c> skips that
+    /// constructor and leaves this null despite the annotation, so a factory must never return
+    /// <see langword="default" /> — the scheduler rejects such a scope rather than executing it.
+    /// </remarks>
     public IJob Job { get; }
 
     /// <summary>

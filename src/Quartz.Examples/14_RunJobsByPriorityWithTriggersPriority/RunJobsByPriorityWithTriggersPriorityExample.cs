@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -32,7 +32,7 @@ public class RunJobsByPriorityWithTriggersPriorityExample : IExample
         Console.WriteLine("------- Initializing ----------------------");
 
         // First we must get a reference to a scheduler
-        var sched = await QuartzSchedulerBuilder.Create()
+        var scheduler = await QuartzSchedulerBuilder.Create()
             .ConfigureScheduler(options => options.InstanceName = "PriorityExampleScheduler")
             // Set thread count to 1 to force Triggers scheduled for the same time to
             // to be ordered by priority.
@@ -89,13 +89,13 @@ public class RunJobsByPriorityWithTriggersPriorityExample : IExample
             .Build();
 
         // Tell quartz to schedule the job using our trigger
-        await sched.ScheduleJob(job, trigger1);
-        await sched.ScheduleJob(trigger2);
-        await sched.ScheduleJob(trigger3);
+        await scheduler.ScheduleJob(job, trigger1);
+        await scheduler.ScheduleJob(trigger2);
+        await scheduler.ScheduleJob(trigger3);
 
         // Start up the scheduler (nothing can actually run until the
         // scheduler has been started)
-        await sched.Start();
+        await scheduler.Start();
         Console.WriteLine("------- Started Scheduler -----------------");
 
         // wait long enough so that the scheduler as an opportunity to
@@ -106,7 +106,7 @@ public class RunJobsByPriorityWithTriggersPriorityExample : IExample
 
         // shut down the scheduler
         Console.WriteLine("------- Shutting Down ---------------------");
-        await sched.Shutdown(true);
+        await scheduler.Shutdown(true);
         Console.WriteLine("------- Shutdown Complete -----------------");
     }
 }

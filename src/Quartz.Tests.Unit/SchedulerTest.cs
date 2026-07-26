@@ -108,7 +108,7 @@ public class SchedulerTest
             ["quartz.threadPool.type"] = "Quartz.Impl.DefaultThreadPool, Quartz",
             ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
         };
-        IScheduler sched = await new StdSchedulerFactory(config).GetScheduler();
+        IScheduler scheduler = await new StdSchedulerFactory(config).GetScheduler();
 
         // test basic storage functions of scheduler...
 
@@ -118,19 +118,19 @@ public class SchedulerTest
             .StoreDurably()
             .Build();
 
-        var exists = await sched.CheckExists(new JobKey("j1"));
+        var exists = await scheduler.CheckExists(new JobKey("j1"));
         Assert.That(exists, Is.False, "Unexpected existence of job named 'j1'.");
 
-        await sched.AddJob(job, false);
+        await scheduler.AddJob(job, false);
 
-        exists = await sched.CheckExists(new JobKey("j1"));
+        exists = await scheduler.CheckExists(new JobKey("j1"));
         Assert.That(exists, Is.True, "Expected existence of job named 'j1' but checkExists return false.");
 
-        job = await sched.GetJobDetail(new JobKey("j1"));
+        job = await scheduler.GetJobDetail(new JobKey("j1"));
 
         Assert.That(job, Is.Not.Null, "Stored job not found!");
 
-        await sched.DeleteJob(new JobKey("j1"));
+        await scheduler.DeleteJob(new JobKey("j1"));
 
         ITrigger trigger = TriggerBuilder.Create()
             .WithIdentity("t1")
@@ -139,19 +139,19 @@ public class SchedulerTest
             .WithSimpleSchedule(x => x.RepeatForever().WithIntervalInSeconds(5))
             .Build();
 
-        exists = await sched.CheckExists(new TriggerKey("t1"));
+        exists = await scheduler.CheckExists(new TriggerKey("t1"));
         Assert.That(exists, Is.False, "Unexpected existence of trigger named '11'.");
 
-        await sched.ScheduleJob(job, trigger);
+        await scheduler.ScheduleJob(job, trigger);
 
-        exists = await sched.CheckExists(new TriggerKey("t1"));
+        exists = await scheduler.CheckExists(new TriggerKey("t1"));
         Assert.That(exists, Is.True, "Expected existence of trigger named 't1' but checkExists return false.");
 
-        job = await sched.GetJobDetail(new JobKey("j1"));
+        job = await scheduler.GetJobDetail(new JobKey("j1"));
 
         Assert.That(job, Is.Not.Null, "Stored job not found!");
 
-        trigger = await sched.GetTrigger(new TriggerKey("t1"));
+        trigger = await scheduler.GetTrigger(new TriggerKey("t1"));
 
         Assert.That(trigger, Is.Not.Null, "Stored trigger not found!");
 
@@ -167,7 +167,7 @@ public class SchedulerTest
             .WithSimpleSchedule(x => x.RepeatForever().WithIntervalInSeconds(5))
             .Build();
 
-        await sched.ScheduleJob(job, trigger);
+        await scheduler.ScheduleJob(job, trigger);
 
         job = JobBuilder.Create()
             .OfType<TestJob>()
@@ -181,10 +181,10 @@ public class SchedulerTest
             .WithSimpleSchedule(x => x.RepeatForever().WithIntervalInSeconds(5))
             .Build();
 
-        await sched.ScheduleJob(job, trigger);
+        await scheduler.ScheduleJob(job, trigger);
 
-        var jobGroups = await sched.GetJobGroupNames();
-        var triggerGroups = await sched.GetTriggerGroupNames();
+        var jobGroups = await scheduler.GetJobGroupNames();
+        var triggerGroups = await scheduler.GetTriggerGroupNames();
 
         Assert.Multiple(() =>
         {
@@ -192,8 +192,8 @@ public class SchedulerTest
             Assert.That(triggerGroups, Has.Count.EqualTo(2), "Trigger group list size expected to be = 2 ");
         });
 
-        var jobKeys = await sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(JobKey.DefaultGroup));
-        var triggerKeys = await sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(TriggerKey.DefaultGroup));
+        var jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(JobKey.DefaultGroup));
+        var triggerKeys = await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(TriggerKey.DefaultGroup));
 
         Assert.Multiple(() =>
         {
@@ -201,8 +201,8 @@ public class SchedulerTest
             Assert.That(triggerKeys, Has.Count.EqualTo(1), "Number of triggers expected in default group was 1 ");
         });
 
-        jobKeys = await sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("g1"));
-        triggerKeys = await sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("g1"));
+        jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("g1"));
+        triggerKeys = await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("g1"));
 
         Assert.Multiple(() =>
         {
@@ -210,21 +210,21 @@ public class SchedulerTest
             Assert.That(triggerKeys, Has.Count.EqualTo(2), "Number of triggers expected in 'g1' group was 2 ");
         });
 
-        TriggerState s = await sched.GetTriggerState(new TriggerKey("t2", "g1"));
+        TriggerState s = await scheduler.GetTriggerState(new TriggerKey("t2", "g1"));
         Assert.That(s, Is.EqualTo(TriggerState.Normal), "State of trigger t2 expected to be NORMAL ");
 
-        await sched.PauseTrigger(new TriggerKey("t2", "g1"));
-        s = await sched.GetTriggerState(new TriggerKey("t2", "g1"));
+        await scheduler.PauseTrigger(new TriggerKey("t2", "g1"));
+        s = await scheduler.GetTriggerState(new TriggerKey("t2", "g1"));
         Assert.That(s, Is.EqualTo(TriggerState.Paused), "State of trigger t2 expected to be PAUSED ");
 
-        await sched.ResumeTrigger(new TriggerKey("t2", "g1"));
-        s = await sched.GetTriggerState(new TriggerKey("t2", "g1"));
+        await scheduler.ResumeTrigger(new TriggerKey("t2", "g1"));
+        s = await scheduler.GetTriggerState(new TriggerKey("t2", "g1"));
         Assert.That(s, Is.EqualTo(TriggerState.Normal), "State of trigger t2 expected to be NORMAL ");
 
-        var pausedGroups = await sched.GetPausedTriggerGroups();
+        var pausedGroups = await scheduler.GetPausedTriggerGroups();
         Assert.That(pausedGroups, Is.Empty, "Size of paused trigger groups list expected to be 0 ");
 
-        await sched.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("g1"));
+        await scheduler.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("g1"));
 
         // test that adding a trigger to a paused group causes the new trigger to be paused also...
         job = JobBuilder.Create()
@@ -239,45 +239,45 @@ public class SchedulerTest
             .WithSimpleSchedule(x => x.RepeatForever().WithIntervalInSeconds(5))
             .Build();
 
-        await sched.ScheduleJob(job, trigger);
+        await scheduler.ScheduleJob(job, trigger);
 
-        pausedGroups = await sched.GetPausedTriggerGroups();
+        pausedGroups = await scheduler.GetPausedTriggerGroups();
         Assert.That(pausedGroups, Has.Count.EqualTo(1), "Size of paused trigger groups list expected to be 1 ");
 
-        s = await sched.GetTriggerState(new TriggerKey("t2", "g1"));
+        s = await scheduler.GetTriggerState(new TriggerKey("t2", "g1"));
         Assert.That(s, Is.EqualTo(TriggerState.Paused), "State of trigger t2 expected to be PAUSED ");
 
-        s = await sched.GetTriggerState(new TriggerKey("t4", "g1"));
+        s = await scheduler.GetTriggerState(new TriggerKey("t4", "g1"));
         Assert.That(s, Is.EqualTo(TriggerState.Paused), "State of trigger t4 expected to be PAUSED");
 
-        await sched.ResumeTriggers(GroupMatcher<TriggerKey>.GroupEquals("g1"));
+        await scheduler.ResumeTriggers(GroupMatcher<TriggerKey>.GroupEquals("g1"));
 
-        s = await sched.GetTriggerState(new TriggerKey("t2", "g1"));
+        s = await scheduler.GetTriggerState(new TriggerKey("t2", "g1"));
         Assert.That(s, Is.EqualTo(TriggerState.Normal), "State of trigger t2 expected to be NORMAL ");
 
-        s = await sched.GetTriggerState(new TriggerKey("t4", "g1"));
+        s = await scheduler.GetTriggerState(new TriggerKey("t4", "g1"));
         Assert.That(s, Is.EqualTo(TriggerState.Normal), "State of trigger t2 expected to be NORMAL ");
 
-        pausedGroups = await sched.GetPausedTriggerGroups();
+        pausedGroups = await scheduler.GetPausedTriggerGroups();
         await Assert.MultipleAsync(async () =>
         {
             Assert.That(pausedGroups, Is.Empty, "Size of paused trigger groups list expected to be 0 ");
-            Assert.That(await sched.UnscheduleJob(new TriggerKey("foasldfksajdflk")), Is.False, "Scheduler should have returned 'false' from attempt to unschedule non-existing trigger. ");
-            Assert.That(await sched.UnscheduleJob(new TriggerKey("t3", "g1")), Is.True, "Scheduler should have returned 'true' from attempt to unschedule existing trigger. ");
+            Assert.That(await scheduler.UnscheduleJob(new TriggerKey("foasldfksajdflk")), Is.False, "Scheduler should have returned 'false' from attempt to unschedule non-existing trigger. ");
+            Assert.That(await scheduler.UnscheduleJob(new TriggerKey("t3", "g1")), Is.True, "Scheduler should have returned 'true' from attempt to unschedule existing trigger. ");
         });
 
-        jobKeys = await sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("g1"));
-        triggerKeys = await sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("g1"));
+        jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("g1"));
+        triggerKeys = await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("g1"));
 
         await Assert.MultipleAsync(async () =>
         {
             Assert.That(jobKeys, Has.Count.EqualTo(2), "Number of jobs expected in 'g1' group was 1 "); // job should have been deleted also, because it is non-durable
             Assert.That(triggerKeys, Has.Count.EqualTo(2), "Number of triggers expected in 'g1' group was 1 ");
-            Assert.That(await sched.UnscheduleJob(new TriggerKey("t1")), Is.True, "Scheduler should have returned 'true' from attempt to unschedule existing trigger. ");
+            Assert.That(await scheduler.UnscheduleJob(new TriggerKey("t1")), Is.True, "Scheduler should have returned 'true' from attempt to unschedule existing trigger. ");
         });
 
-        jobKeys = await sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(JobKey.DefaultGroup));
-        triggerKeys = await sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(TriggerKey.DefaultGroup));
+        jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(JobKey.DefaultGroup));
+        triggerKeys = await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(TriggerKey.DefaultGroup));
 
         Assert.Multiple(() =>
         {
@@ -285,7 +285,7 @@ public class SchedulerTest
             Assert.That(triggerKeys, Is.Empty, "Number of triggers expected in default group was 0 ");
         });
 
-        await sched.Shutdown();
+        await scheduler.Shutdown();
     }
 
     [Test]

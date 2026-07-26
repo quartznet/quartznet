@@ -228,9 +228,9 @@ public class RAMJobStoreTest
 
         IOperableTrigger trigger = new SimpleTriggerImpl("trigger1", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group, DateTimeOffset.Now.AddSeconds(100), DateTimeOffset.Now.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
         trigger.ComputeFirstFireTimeUtc(null);
-        ICalendar cal = new MonthlyCalendar();
+        ICalendar calendar = new MonthlyCalendar();
         fJobStore.StoreTrigger(trigger, false);
-        fJobStore.StoreCalendar("cal", cal, false, true);
+        fJobStore.StoreCalendar("cal", calendar, false, true);
 
         fJobStore.RemoveCalendar("cal");
     }

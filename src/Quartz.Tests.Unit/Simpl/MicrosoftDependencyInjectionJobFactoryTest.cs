@@ -67,6 +67,65 @@ public class MicrosoftDependencyInjectionJobFactoryTest
         ScopedDependency.Disposed.Should().BeTrue("returning the job has to close the scope it was built in");
     }
 
+    [Test]
+    public async Task ShouldDisposeTheScopeEvenWhenDisposingTheJobThrows()
+    {
+        ScopedDependency.Disposed = false;
+
+        var serviceCollection = new ServiceCollection();
+        serviceCollection.AddScoped<ScopedDependency>();
+        await using var serviceProvider = serviceCollection.BuildServiceProvider(validateScopes: true);
+
+        // Not registered, so Quartz activates it and owns its disposal.
+        var factory = new MicrosoftDependencyInjectionJobFactory(serviceProvider);
+        var scope = await factory.CreateJob(NewBundleFor<ThrowsOnDisposeJob>(), NewScheduler());
+
+        var act = async () => await factory.ReturnJob(scope);
+
+        await act.Should().ThrowAsync<InvalidOperationException>("the job's failure must not be swallowed");
+        ScopedDependency.Disposed.Should().BeTrue(
+            "the scope has to be closed even when the job throws on the way out, or every such firing leaks it");
+    }
+
+    [Test]
+    public async Task ShouldDisposeTheScopeWhenBuildingTheJobThrows()
+    {
+        ScopedDependency.Disposed = false;
+
+        var serviceCollection = new ServiceCollection();
+        serviceCollection.AddScoped<ScopedDependency>();
+        await using var serviceProvider = serviceCollection.BuildServiceProvider(validateScopes: true);
+
+        var factory = new MicrosoftDependencyInjectionJobFactory(serviceProvider);
+
+        // Depends on a service that is not registered, so activation fails after the scope is open.
+        var act = async () => await factory.CreateJob(NewBundleFor<NeedsMissingDependencyJob>(), NewScheduler());
+
+        await act.Should().ThrowAsync<Exception>();
+        ScopedDependency.Disposed.Should().BeTrue(
+            "ReturnJob is not called when CreateJob throws, so the scope has to be closed on the way out");
+    }
+
+    private sealed class ThrowsOnDisposeJob : IJob, IDisposable
+    {
+        public ThrowsOnDisposeJob(ScopedDependency dependency)
+        {
+        }
+
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+
+        public void Dispose() => throw new InvalidOperationException("disposal failed");
+    }
+
+    private sealed class NeedsMissingDependencyJob : IJob
+    {
+        public NeedsMissingDependencyJob(ScopedDependency dependency, IDisposable notRegistered)
+        {
+        }
+
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+    }
+
     private static TriggerFiredBundle NewBundleFor<T>() where T : IJob
     {
         return TestUtil.CreateMinimalFiredBundleWithTypedJobDetail(

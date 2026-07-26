@@ -74,7 +74,7 @@ public interface IOperableTrigger : IMutableTrigger
     /// was created.
     /// </para>
     /// </summary>
-    void UpdateAfterMisfire(ICalendar? cal);
+    void UpdateAfterMisfire(ICalendar? calendar);
 
     /// <summary>
     /// This method should not be used by the Quartz client.
@@ -85,9 +85,9 @@ public interface IOperableTrigger : IMutableTrigger
     /// given the Calendar's new settings).
     /// </para>
     /// </summary>
-    /// <param name="cal"> </param>
+    /// <param name="calendar"> </param>
     /// <param name="misfireThreshold"></param>
-    void UpdateWithNewCalendar(ICalendar cal, TimeSpan misfireThreshold);
+    void UpdateWithNewCalendar(ICalendar calendar, TimeSpan misfireThreshold);
 
     /// <summary>
     /// Validates whether the properties of the <see cref="IJobDetail" /> are

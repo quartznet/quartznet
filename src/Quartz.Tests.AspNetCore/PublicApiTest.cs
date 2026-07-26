@@ -1,35 +1,23 @@
-﻿using System.Reflection;
+using System.Reflection;
 
 using PublicApiGenerator;
 
-namespace Quartz.Tests.Unit;
+namespace Quartz.Tests.AspNetCore;
 
 /// <summary>
-/// Snapshots the public API surface of the shipped assemblies this project can reference.
+/// Snapshots the public API surface of the shipped assemblies that need ASP.NET Core to reference.
 /// </summary>
 /// <remarks>
-/// <c>Quartz.AspNetCore</c> and <c>Quartz.Dashboard</c> are covered by the test of the same name in
-/// <c>Quartz.Tests.AspNetCore</c>, which is where their dependencies already live. Between the two,
-/// every packable project has a baseline — add one here or there when a new package is added.
-/// </remarks>
-/// <remarks>
-/// This is the only guard the repository has against unintended public API changes — there is no
-/// ApiCompat run and no shipped/unshipped API files. A failure here is not automatically a bug:
-/// read the diff, and when the change is deliberate, accept the new baseline and carry the same
-/// diff into <c>changelog.md</c> and the migration guide. When it is not deliberate, the diff is
-/// the bug report.
+/// The companion test in <c>Quartz.Tests.Unit</c> covers the rest. A failure here is not
+/// automatically a bug: read the diff, and when the change is deliberate, accept the new baseline
+/// and carry the same diff into <c>changelog.md</c> and the migration guide.
 /// </remarks>
 public class PublicApiTest
 {
     private static readonly Assembly[] shippedAssemblies =
     [
-        typeof(global::Quartz.IScheduler).Assembly,
-        typeof(global::Quartz.Job.DirectoryScanJob).Assembly,
-        typeof(global::Quartz.Plugin.History.LoggingJobHistoryPlugin).Assembly,
-        typeof(global::Quartz.Plugin.TimeZoneConverter.TimeZoneConverterPlugin).Assembly,
-        typeof(global::Quartz.Serialization.Newtonsoft.ICalendarSerializer).Assembly,
-        typeof(global::Quartz.HttpClient.HttpScheduler).Assembly,
-        typeof(global::Quartz.RedisLockHandlerConfigurationExtensions).Assembly,
+        typeof(global::Quartz.AspNetCore.QuartzServiceCollectionExtensions).Assembly,
+        typeof(global::Quartz.QuartzDashboardOptions).Assembly,
     ];
 
     private static IEnumerable<TestCaseData> Assemblies()

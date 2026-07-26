@@ -1,0 +1,32 @@
+﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
+namespace Quartz.Impl.Redis
+{
+    public sealed class RedisSemaphore : Quartz.Impl.AdoJobStore.ISemaphore, Quartz.Impl.AdoJobStore.ITablePrefixAware
+    {
+        public RedisSemaphore() { }
+        public string KeyPrefix { get; set; }
+        public int LockRetryIntervalMilliseconds { get; set; }
+        public int LockTtlMilliseconds { get; set; }
+        public string RedisConfiguration { get; set; }
+        public bool RequiresConnection { get; }
+        public string? SchedName { get; set; }
+        public string TablePrefix { get; set; }
+        public System.Threading.Tasks.ValueTask<bool> ObtainLock(System.Guid requestorId, Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder? conn, string lockName, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask ReleaseLock(System.Guid requestorId, string lockName, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+}
+namespace Quartz
+{
+    public static class RedisLockHandlerConfigurationExtensions
+    {
+        public static Quartz.IPersistentStoreBuilder UseRedisLockHandler(this Quartz.IPersistentStoreBuilder builder, System.Action<Quartz.RedisLockHandlerOptions>? configure = null) { }
+    }
+    public sealed class RedisLockHandlerOptions
+    {
+        public RedisLockHandlerOptions() { }
+        public string? KeyPrefix { get; set; }
+        public int? LockRetryIntervalMilliseconds { get; set; }
+        public int? LockTtlMilliseconds { get; set; }
+        public string? RedisConfiguration { get; set; }
+    }
+}

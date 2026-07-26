@@ -29,7 +29,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar;
 [NonParallelizable]
 public class HolidayCalendarTest : SerializationTestSupport<HolidayCalendar, ICalendar>
 {
-    private HolidayCalendar cal;
+    private HolidayCalendar calendar;
 
     public HolidayCalendarTest(Type serializerType) : base(serializerType)
     {
@@ -38,15 +38,15 @@ public class HolidayCalendarTest : SerializationTestSupport<HolidayCalendar, ICa
     [SetUp]
     public void Setup()
     {
-        cal = new HolidayCalendar();
+        calendar = new HolidayCalendar();
     }
 
     [Test]
     public void TestAddAndRemoveExclusion()
     {
-        cal.AddExcludedDate(new DateTime(2007, 10, 20, 12, 40, 22));
-        cal.RemoveExcludedDate(new DateTime(2007, 10, 20, 2, 0, 0));
-        Assert.That(cal.ExcludedDates, Is.Empty);
+        calendar.AddExcludedDate(new DateTime(2007, 10, 20, 12, 40, 22));
+        calendar.RemoveExcludedDate(new DateTime(2007, 10, 20, 2, 0, 0));
+        Assert.That(calendar.ExcludedDates, Is.Empty);
     }
 
     [Test]
@@ -54,9 +54,9 @@ public class HolidayCalendarTest : SerializationTestSupport<HolidayCalendar, ICa
     {
         // use end of day to get by with utc offsets
         DateTime excluded = new DateTime(2007, 12, 31);
-        cal.AddExcludedDate(excluded);
+        calendar.AddExcludedDate(excluded);
 
-        Assert.That(cal.GetNextIncludedTimeUtc(excluded), Is.EqualTo(new DateTimeOffset(2008, 1, 1, 0, 0, 0, cal.TimeZone.BaseUtcOffset)));
+        Assert.That(calendar.GetNextIncludedTimeUtc(excluded), Is.EqualTo(new DateTimeOffset(2008, 1, 1, 0, 0, 0, calendar.TimeZone.BaseUtcOffset)));
     }
 
     /// <summary>

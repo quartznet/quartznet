@@ -42,7 +42,7 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
 
     private string tablePrefix = null!;
 
-    private string? schedName;
+    private string? schedulerName;
 
     private string expandedSQL = null!;
     private string expandedInsertSQL = null!;
@@ -51,19 +51,19 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
     /// Initializes a new instance of the <see cref="DBSemaphore"/> class.
     /// </summary>
     /// <param name="tablePrefix">The table prefix.</param>
-    /// <param name="schedName">the scheduler name</param>
+    /// <param name="schedulerName">the scheduler name</param>
     /// <param name="defaultInsertSQL">The SQL.</param>
     /// <param name="defaultSQL">The default SQL.</param>
     /// <param name="dbProvider">The db provider.</param>
     protected DBSemaphore(
         string tablePrefix,
-        string? schedName,
+        string? schedulerName,
         string defaultSQL,
         string defaultInsertSQL,
         IDbProvider dbProvider)
     {
         logger = LogProvider.CreateLogger<DBSemaphore>();
-        this.schedName = schedName;
+        this.schedulerName = schedulerName;
         this.tablePrefix = tablePrefix;
         SQL = defaultSQL;
         InsertSQL = defaultInsertSQL;
@@ -207,8 +207,8 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
 
     public string? SchedName
     {
-        get => schedName;
-        set => schedName = value;
+        get => schedulerName;
+        set => schedulerName = value;
     }
 
     /// <summary>

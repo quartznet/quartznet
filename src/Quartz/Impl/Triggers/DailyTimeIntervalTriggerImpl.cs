@@ -413,7 +413,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
     ///     <li>The instruction will be interpreted as <see cref="MisfireInstruction.DailyTimeIntervalTrigger.FireOnceNow" /></li>
     /// </ul>
     /// </remarks>
-    public override void UpdateAfterMisfire(ICalendar? cal)
+    public override void UpdateAfterMisfire(ICalendar? calendar)
     {
         int instr = MisfireInstruction;
 
@@ -430,7 +430,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
         if (instr == Quartz.MisfireInstruction.DailyTimeIntervalTrigger.DoNothing)
         {
             DateTimeOffset? newFireTime = GetFireTimeAfter(TimeProvider.GetUtcNow());
-            while (newFireTime is not null && cal is not null && !cal.IsTimeIncluded(newFireTime.Value))
+            while (newFireTime is not null && calendar is not null && !calendar.IsTimeIncluded(newFireTime.Value))
             {
                 newFireTime = GetFireTimeAfter(newFireTime);
 

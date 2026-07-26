@@ -35,8 +35,8 @@ public sealed class SchedulerMetaData
     /// <summary>
     /// Initializes a new instance of the <see cref="SchedulerMetaData"/> class.
     /// </summary>
-    /// <param name="schedName">Name of the scheduler.</param>
-    /// <param name="schedInst">The scheduler instance.</param>
+    /// <param name="schedulerName">Name of the scheduler.</param>
+    /// <param name="schedulerInstanceId">The scheduler instance.</param>
     /// <param name="schedType">The scheduler type.</param>
     /// <param name="isRemote">if set to <c>true</c>, scheduler is a remote scheduler.</param>
     /// <param name="started">if set to <c>true</c>, scheduler is started.</param>
@@ -51,12 +51,12 @@ public sealed class SchedulerMetaData
     /// <param name="tpSize">Size of the thread pool.</param>
     /// <param name="version">The version string.</param>
     public SchedulerMetaData(
-        string schedName, string schedInst, Type schedType, bool isRemote, bool started, bool isInStandbyMode,
+        string schedulerName, string schedulerInstanceId, Type schedType, bool isRemote, bool started, bool isInStandbyMode,
         bool shutdown, DateTimeOffset? startTime, int numberOfJobsExec, Type jsType, bool jsPersistent, bool jsClustered,
         Type tpType, int tpSize, string version)
     {
-        SchedulerName = schedName;
-        SchedulerInstanceId = schedInst;
+        SchedulerName = schedulerName;
+        SchedulerInstanceId = schedulerInstanceId;
         SchedulerType = schedType;
         SchedulerRemote = isRemote;
         Started = started;

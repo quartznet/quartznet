@@ -1,4 +1,4 @@
-using System.Collections.Specialized;
+﻿using System.Collections.Specialized;
 
 using Quartz.Configuration;
 using Quartz.Impl;
@@ -47,7 +47,7 @@ public class QuartzOptions
     /// The scheduler's name, as <c>quartz.scheduler.instanceName</c>.
     /// </summary>
     /// <remarks>
-    /// Up to 4.0 this read and wrote <c>schedName</c>, which is an ADO.NET column key that nothing
+    /// Up to 4.0 this read and wrote <c>schedulerName</c>, which is an ADO.NET column key that nothing
     /// reads — so a name set here was silently discarded.
     /// </remarks>
     public string? SchedulerName

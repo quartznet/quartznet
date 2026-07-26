@@ -141,7 +141,7 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
     }
 
     /// <inheritdoc/>
-    public override void UpdateAfterMisfire(ICalendar? cal)
+    public override void UpdateAfterMisfire(ICalendar? calendar)
     {
         int instr = MisfireInstruction;
 
@@ -158,7 +158,7 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
         if (instr == Quartz.MisfireInstruction.RecurrenceTrigger.DoNothing)
         {
             DateTimeOffset? newFireTime = GetFireTimeAfter(TimeProvider.GetUtcNow());
-            while (newFireTime != null && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
+            while (newFireTime != null && calendar != null && !calendar.IsTimeIncluded(newFireTime.Value))
             {
                 newFireTime = GetFireTimeAfter(newFireTime);
 

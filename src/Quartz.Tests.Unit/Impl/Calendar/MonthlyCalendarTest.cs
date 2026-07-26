@@ -31,7 +31,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar;
 [NonParallelizable]
 public class MonthlyCalendarTest : SerializationTestSupport<MonthlyCalendar, ICalendar>
 {
-    private MonthlyCalendar cal;
+    private MonthlyCalendar calendar;
 
     public MonthlyCalendarTest(Type serializerType) : base(serializerType)
     {
@@ -40,24 +40,24 @@ public class MonthlyCalendarTest : SerializationTestSupport<MonthlyCalendar, ICa
     [SetUp]
     public void Setup()
     {
-        cal = new MonthlyCalendar();
+        calendar = new MonthlyCalendar();
     }
 
     [Test]
     public void TestAddAndRemoveExclusion()
     {
-        cal.SetDayExcluded(15, true);
-        Assert.That(cal.IsDayExcluded(15), Is.True);
-        cal.SetDayExcluded(15, false);
-        Assert.That(cal.IsDayExcluded(15), Is.False);
+        calendar.SetDayExcluded(15, true);
+        Assert.That(calendar.IsDayExcluded(15), Is.True);
+        calendar.SetDayExcluded(15, false);
+        Assert.That(calendar.IsDayExcluded(15), Is.False);
     }
 
     [Test]
     public void TestMonthDayExclusion()
     {
         DateTime excluded = new DateTime(2007, 8, 3);
-        cal.SetDayExcluded(3, true);
-        Assert.That(cal.GetNextIncludedTimeUtc(excluded).DateTime, Is.EqualTo(excluded.AddDays(1)));
+        calendar.SetDayExcluded(3, true);
+        Assert.That(calendar.GetNextIncludedTimeUtc(excluded).DateTime, Is.EqualTo(excluded.AddDays(1)));
     }
 
     [Test]

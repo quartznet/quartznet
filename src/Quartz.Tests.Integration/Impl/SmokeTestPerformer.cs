@@ -36,9 +36,9 @@ public class SmokeTestPerformer
                 ITrigger t = await scheduler.GetTrigger(new TriggerKey("NonExistingTrigger", "NonExistingGroup"));
                 Assert.That(t, Is.Null);
 
-                AnnualCalendar cal = new AnnualCalendar();
-                cal.SetDayExcluded(new DateTime(2018, 7, 4), true);
-                await scheduler.AddCalendar("annualCalendar", cal, false, true);
+                AnnualCalendar calendar = new AnnualCalendar();
+                calendar.SetDayExcluded(new DateTime(2018, 7, 4), true);
+                await scheduler.AddCalendar("annualCalendar", calendar, false, true);
 
                 IOperableTrigger calendarsTrigger = new SimpleTriggerImpl("calendarsTrigger", "test", 20, TimeSpan.FromHours(2));
                 calendarsTrigger.CalendarName = "annualCalendar";
@@ -49,11 +49,11 @@ public class SmokeTestPerformer
                 await scheduler.ScheduleJob(jd, calendarsTrigger);
 
                 // QRTZNET-93
-                await scheduler.AddCalendar("annualCalendar", cal, true, true);
+                await scheduler.AddCalendar("annualCalendar", calendar, true, true);
 
                 var annualCalendar = (AnnualCalendar) await scheduler.GetCalendar("annualCalendar");
-                Assert.That(annualCalendar.Description, Is.EqualTo(cal.Description));
-                Assert.That(annualCalendar.DaysExcluded, Is.EquivalentTo(cal.DaysExcluded));
+                Assert.That(annualCalendar.Description, Is.EqualTo(calendar.Description));
+                Assert.That(annualCalendar.DaysExcluded, Is.EquivalentTo(calendar.DaysExcluded));
 
                 await scheduler.AddCalendar("baseCalendar", new BaseCalendar(), false, true);
                 await scheduler.AddCalendar("cronCalendar", cronCalendar, false, true);

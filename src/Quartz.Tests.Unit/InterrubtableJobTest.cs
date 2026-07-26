@@ -88,8 +88,8 @@ public class InterruptableJobTest
             ["quartz.threadPool.type"] = "Quartz.Impl.DefaultThreadPool",
             ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
         };
-        IScheduler sched = await new StdSchedulerFactory(config).GetScheduler();
-        await sched.Start();
+        IScheduler scheduler = await new StdSchedulerFactory(config).GetScheduler();
+        await scheduler.Start();
 
         // add a job with a trigger that will fire immediately
 
@@ -103,17 +103,17 @@ public class InterruptableJobTest
             .StartNow()
             .Build();
 
-        await sched.ScheduleJob(job, trigger);
+        await scheduler.ScheduleJob(job, trigger);
 
         started.WaitOne(); // make sure the job starts running...
 
-        var executingJobs = await sched.GetCurrentlyExecutingJobs();
+        var executingJobs = await scheduler.GetCurrentlyExecutingJobs();
 
         Assert.That(executingJobs, Has.Count.EqualTo(1), "Number of executing jobs should be 1 ");
 
         IJobExecutionContext jec = executingJobs.First();
 
-        bool interruptResult = await sched.Interrupt(jec.FireInstanceId);
+        bool interruptResult = await scheduler.Interrupt(jec.FireInstanceId);
 
         ended.WaitOne(); // wait for the job to terminate
 
@@ -123,7 +123,7 @@ public class InterruptableJobTest
             Assert.That(TestInterruptableJob.interrupted, Is.True, "Expected interrupted flag to be set on job class ");
         });
 
-        await sched.Clear();
-        await sched.Shutdown();
+        await scheduler.Clear();
+        await scheduler.Shutdown();
     }
 }

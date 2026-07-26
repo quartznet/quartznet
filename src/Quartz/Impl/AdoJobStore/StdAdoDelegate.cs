@@ -47,7 +47,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
     private ILogger<StdAdoDelegate> logger = null!;
     private string tablePrefix = DefaultTablePrefix;
     private string instanceId = null!;
-    private string schedName = null!;
+    private string schedulerName = null!;
     private bool useProperties;
 
     private ITypeLoadHelper typeLoadHelper = null!;
@@ -69,7 +69,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
     {
         logger = LogProvider.CreateLogger<StdAdoDelegate>();
         tablePrefix = args.TablePrefix;
-        schedName = args.InstanceName;
+        schedulerName = args.InstanceName;
         instanceId = args.InstanceId;
         DbProvider = args.DbProvider;
         typeLoadHelper = args.TypeLoadHelper;
@@ -166,31 +166,31 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
         CancellationToken cancellationToken = default)
     {
         DbCommand ps = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteAllSimpleTriggers));
-        AddCommandParameter(ps, "schedulerName", schedName);
+        AddCommandParameter(ps, "schedulerName", schedulerName);
         await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         ps = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteAllSimpropTriggers));
-        AddCommandParameter(ps, "schedulerName", schedName);
+        AddCommandParameter(ps, "schedulerName", schedulerName);
         await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         ps = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteAllCronTriggers));
-        AddCommandParameter(ps, "schedulerName", schedName);
+        AddCommandParameter(ps, "schedulerName", schedulerName);
         await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         ps = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteAllBlobTriggers));
-        AddCommandParameter(ps, "schedulerName", schedName);
+        AddCommandParameter(ps, "schedulerName", schedulerName);
         await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         ps = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteAllTriggers));
-        AddCommandParameter(ps, "schedulerName", schedName);
+        AddCommandParameter(ps, "schedulerName", schedulerName);
         await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         ps = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteAllJobDetails));
-        AddCommandParameter(ps, "schedulerName", schedName);
+        AddCommandParameter(ps, "schedulerName", schedulerName);
         await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         ps = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteAllCalendars));
-        AddCommandParameter(ps, "schedulerName", schedName);
+        AddCommandParameter(ps, "schedulerName", schedulerName);
         await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         ps = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteAllPausedTriggerGrps));
-        AddCommandParameter(ps, "schedulerName", schedName);
+        AddCommandParameter(ps, "schedulerName", schedulerName);
         await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         ps = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteFiredTriggers));
-        AddCommandParameter(ps, "schedulerName", schedName);
+        AddCommandParameter(ps, "schedulerName", schedulerName);
         await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -383,7 +383,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
         }
 
         using var cmd = PrepareCommand(conn, sql);
-        AddCommandParameter(cmd, "schedulerName", schedName);
+        AddCommandParameter(cmd, "schedulerName", schedulerName);
         AddCommandParameter(cmd, "jobGroup", parameter);
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);

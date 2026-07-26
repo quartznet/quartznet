@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -31,7 +31,7 @@ public class RunningAsynchronousJobsExample : IExample
 {
     public virtual async Task Run()
     {
-        IScheduler sched = await ExampleScheduler.Create();
+        IScheduler scheduler = await ExampleScheduler.Create();
 
         Console.WriteLine("------- Initialization Complete -----------");
 
@@ -48,18 +48,18 @@ public class RunningAsynchronousJobsExample : IExample
             .WithSimpleSchedule(x => x.WithIntervalInSeconds(20).RepeatForever())
             .Build();
 
-        await sched.ScheduleJob(job, trigger);
+        await scheduler.ScheduleJob(job, trigger);
 
         Console.WriteLine("------- Starting Scheduler ----------------");
 
         // start the schedule
-        await sched.Start();
+        await scheduler.Start();
 
         Console.WriteLine("------- Started Scheduler -----------------");
 
         await Task.Delay(TimeSpan.FromSeconds(5));
         Console.WriteLine("------- Cancelling job via scheduler.Interrupt() -----------------");
-        await sched.Interrupt(job.Key);
+        await scheduler.Interrupt(job.Key);
 
         Console.WriteLine("------- Waiting five minutes... -----------");
 
@@ -68,7 +68,7 @@ public class RunningAsynchronousJobsExample : IExample
 
         // shut down the scheduler
         Console.WriteLine("------- Shutting Down ---------------------");
-        await sched.Shutdown(true);
+        await scheduler.Shutdown(true);
         Console.WriteLine("------- Shutdown Complete -----------------");
     }
 }

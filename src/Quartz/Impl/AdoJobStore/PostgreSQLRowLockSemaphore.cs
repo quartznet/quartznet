@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -52,11 +52,11 @@ public class PostgreSQLRowLockSemaphore : StdRowLockSemaphore
     /// Initializes a new instance of the <see cref="PostgreSQLRowLockSemaphore"/> class.
     /// </summary>
     /// <param name="tablePrefix">The table prefix.</param>
-    /// <param name="schedName">the scheduler name</param>
+    /// <param name="schedulerName">the scheduler name</param>
     /// <param name="selectWithLockSQL">The select with lock SQL.</param>
     /// <param name="dbProvider">The db provider.</param>
-    public PostgreSQLRowLockSemaphore(string tablePrefix, string schedName, string? selectWithLockSQL, IDbProvider dbProvider)
-        : base(tablePrefix, schedName, selectWithLockSQL, dbProvider)
+    public PostgreSQLRowLockSemaphore(string tablePrefix, string schedulerName, string? selectWithLockSQL, IDbProvider dbProvider)
+        : base(tablePrefix, schedulerName, selectWithLockSQL, dbProvider)
     {
         InsertSQL = PostgreSQLInsertLock;
     }

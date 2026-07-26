@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
@@ -29,7 +29,7 @@ namespace Quartz.Tests.Integration;
 /// <author>Marko Lahma (.NET)</author>
 public abstract class IntegrationTest
 {
-    protected IScheduler sched;
+    protected IScheduler scheduler;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="IntegrationTest"/> class.

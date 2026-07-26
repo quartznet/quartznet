@@ -385,11 +385,11 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
         return builder;
     }
 
-    private static CalendarIntervalScheduleBuilder BuildCalendarIntervalSchedule(JsonFileCalendarIntervalSchedule cal)
+    private static CalendarIntervalScheduleBuilder BuildCalendarIntervalSchedule(JsonFileCalendarIntervalSchedule calendar)
     {
-        var unit = SafeParseEnum<IntervalUnit>(cal.RepeatIntervalUnit, "CalendarInterval.RepeatIntervalUnit");
-        var builder = CalendarIntervalScheduleBuilder.Create().WithInterval(cal.RepeatInterval, unit);
-        if (cal.MisfireInstruction is not null) builder.WithMisfireHandlingInstruction(ParseMisfireInstruction(cal.MisfireInstruction));
+        var unit = SafeParseEnum<IntervalUnit>(calendar.RepeatIntervalUnit, "CalendarInterval.RepeatIntervalUnit");
+        var builder = CalendarIntervalScheduleBuilder.Create().WithInterval(calendar.RepeatInterval, unit);
+        if (calendar.MisfireInstruction is not null) builder.WithMisfireHandlingInstruction(ParseMisfireInstruction(calendar.MisfireInstruction));
         return builder;
     }
 
