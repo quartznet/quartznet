@@ -109,11 +109,12 @@
   * The `quartz.config` file is no longer read (#3174). Neither a file on disk, nor the one named by the `quartz.config`
     environment variable, nor the copy Quartz shipped as an embedded resource. `StdSchedulerFactory` now reads only the
     properties handed to it plus any `quartz.*` environment variables; everything else is configured through the container.
-    `StdSchedulerFactory.PropertiesFile` and the internal `InitializeProperties` are gone. Two defaults the embedded file
-    supplied change for a `new StdSchedulerFactory()` given no properties of its own: the scheduler's name is now
-    `QuartzScheduler` rather than `DefaultQuartzScheduler`, and the in-memory store's misfire threshold is
-    `InMemoryJobStoreOptions`' own default of 5 seconds rather than 60 seconds. Set them explicitly if you depended on the
-    old values — `quartz.threadPool.threadCount` is unaffected, since `ThreadPoolOptions.MaxConcurrency` already defaults to 10.
+    `StdSchedulerFactory.PropertiesFile` and the internal `InitializeProperties` are gone. **No defaults change.** The three
+    settings the embedded file supplied — `quartz.scheduler.instanceName = DefaultQuartzScheduler`,
+    `quartz.threadPool.threadCount = 10` and `quartz.jobStore.misfireThreshold = 60000` — are now seeded by
+    `StdSchedulerFactory.Initialize()`, the one entry point that ever read the file, so a factory given no properties still
+    produces exactly the scheduler it always did. A factory handed an explicit `NameValueCollection` never read the file and
+    is likewise unchanged.
 
   * ADO.NET provider metadata is now configured through the container rather than through a file or a process-wide static
     (#3174). A driver Quartz ships no description for is described in code with the new

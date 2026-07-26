@@ -258,6 +258,11 @@ public class StdSchedulerFactory : ISchedulerFactory, IDisposable
     /// Configuring nothing at all is not a misconfiguration. Every setting has a typed default, so a
     /// scheduler with no configuration is a valid in-memory scheduler.
     /// </para>
+    /// <para>
+    /// This overload keeps the defaults that used to arrive from the embedded <c>quartz.config</c>, so a
+    /// factory given no properties still produces the scheduler it always has. See
+    /// <see cref="EmbeddedDefaults"/>.
+    /// </para>
     /// </remarks>
     public virtual void Initialize()
     {
@@ -268,7 +273,33 @@ public class StdSchedulerFactory : ISchedulerFactory, IDisposable
         }
 
         logger = LogProvider.CreateLogger<StdSchedulerFactory>();
-        Initialize(OverrideWithSysProps([]));
+        Initialize(OverrideWithSysProps(EmbeddedDefaults()));
+    }
+
+    /// <summary>
+    /// The properties the <c>quartz.config</c> that used to ship as an embedded resource supplied.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Only <see cref="Initialize()"/> uses these, because only that path ever read the file: handing the
+    /// factory an explicit <see cref="NameValueCollection"/> always bypassed it, and so a scheduler
+    /// configured that way fell back to the same internal defaults it still falls back to today. Putting
+    /// these values on the typed options instead would therefore change behaviour for every caller rather
+    /// than preserve it for this one.
+    /// </para>
+    /// <para>
+    /// Environment variables are applied on top, and anything handed to
+    /// <see cref="Initialize(NameValueCollection)"/> replaces the lot, so these only ever act as defaults.
+    /// </para>
+    /// </remarks>
+    private static NameValueCollection EmbeddedDefaults()
+    {
+        return new NameValueCollection
+        {
+            [PropertySchedulerInstanceName] = "DefaultQuartzScheduler",
+            ["quartz.threadPool.threadCount"] = "10",
+            ["quartz.jobStore.misfireThreshold"] = "60000",
+        };
     }
 
     /// <summary>

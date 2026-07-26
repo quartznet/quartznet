@@ -79,20 +79,22 @@ Nothing is loaded from disk any more. A `quartz.config` file next to your applic
 embedded resource. `StdSchedulerFactory` reads only the properties you hand it plus any `quartz.*`
 environment variables; everything else configures a scheduler through the container.
 
-Two consequences if you relied on the embedded defaults, which only affect a
-`new StdSchedulerFactory()` given no properties of its own:
+**No defaults change.** The three settings the embedded file supplied are now seeded by
+`StdSchedulerFactory.Initialize()`, which is the only entry point that ever read the file:
 
-| Setting | Was | Now |
-|---|---|---|
-| `quartz.scheduler.instanceName` | `DefaultQuartzScheduler` | `QuartzScheduler` |
-| `quartz.jobStore.misfireThreshold` | 60 seconds | 5 seconds for the in-memory store (`InMemoryJobStoreOptions.MisfireThreshold`); still 60 seconds for the database store |
+| Setting | Value |
+|---|---|
+| `quartz.scheduler.instanceName` | `DefaultQuartzScheduler` |
+| `quartz.threadPool.threadCount` | 10 |
+| `quartz.jobStore.misfireThreshold` | 60000 |
 
-`quartz.threadPool.threadCount` is unaffected — `ThreadPoolOptions.MaxConcurrency` already defaults to
-10. Set `InstanceName` explicitly if your application, cluster or monitoring depends on the old literal:
+Environment variables still override them, and anything you pass to `Initialize(NameValueCollection)`
+replaces them, exactly as the file behaved.
 
-```csharp
-services.AddQuartz(q => q.ConfigureScheduler(options => options.InstanceName = "DefaultQuartzScheduler"));
-```
+Note these were never the defaults for `AddQuartz` or for `new StdSchedulerFactory(properties)`: handing
+the factory properties always bypassed the file, so those paths fell back — and still fall back — to
+`QuartzSchedulerOptions.InstanceName` (`QuartzScheduler`) and
+`InMemoryJobStoreOptions.MisfireThreshold` (5 seconds). Set them explicitly if you want the other values.
 
 The one thing the file was still needed for was describing an ADO.NET driver Quartz ships no metadata
 for. That now has a code-first form, and the `quartz.dbprovider.*` keys themselves still work — they just
