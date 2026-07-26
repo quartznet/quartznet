@@ -63,29 +63,13 @@ public sealed class ZeroSizeThreadPool : IThreadPool
     public int PoolSize => 0;
 
     /// <summary>
-    /// Inform the <see cref="IThreadPool" /> of the Scheduler instance's Id,
-    /// prior to initialize being invoked.
-    /// </summary>
-    public string InstanceId
-    {
-        set { }
-    }
-
-    /// <summary>
-    /// Inform the <see cref="IThreadPool" /> of the Scheduler instance's name,
-    /// prior to initialize being invoked.
-    /// </summary>
-    public string InstanceName
-    {
-        set { }
-    }
-
-    /// <summary>
     /// Called by the QuartzScheduler before the thread pool is
     /// used, in order to give the it a chance to Initialize.
     /// </summary>
-    public void Initialize()
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    public ValueTask Initialize(CancellationToken cancellationToken = default)
     {
+        return default;
     }
 
     /// <summary>
@@ -94,9 +78,11 @@ public sealed class ZeroSizeThreadPool : IThreadPool
     /// shutting down.
     /// </summary>
     /// <param name="waitForJobsToComplete"></param>
-    public void Shutdown(bool waitForJobsToComplete = true)
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    public ValueTask Shutdown(bool waitForJobsToComplete = true, CancellationToken cancellationToken = default)
     {
         logger.LogDebug("Shutdown complete");
+        return default;
     }
 
     /// <summary>
@@ -106,29 +92,32 @@ public sealed class ZeroSizeThreadPool : IThreadPool
     /// <remarks>
     /// The implementation of this interface should not throw exceptions unless
     /// there is a serious problem (i.e. a serious misconfiguration). If there
-    /// are no available threads, rather it should either queue the Runnable, or
-    /// block until a thread is available, depending on the desired strategy.
+    /// are no available threads, rather it should either queue the action, or
+    /// wait until a thread is available, depending on the desired strategy.
     /// </remarks>
-    public bool RunInThread(Func<Task> runnable)
+    /// <param name="action">The work to run.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    public ValueTask<bool> TryRun(Func<Task> action, CancellationToken cancellationToken = default)
     {
         Throw.NotSupportedException("This ThreadPool should not be used on Scheduler instances that are started.");
-        return false;
+        return default;
     }
 
     /// <summary>
     /// Determines the number of threads that are currently available in
     /// the pool.  Useful for determining the number of times
-    /// <see cref="RunInThread"/>  can be called before returning
+    /// <see cref="TryRun"/>  can be called before returning
     /// false.
     /// </summary>
     /// <returns>
     /// the number of currently available threads
     /// </returns>
     /// <remarks>
-    /// The implementation of this method should block until there is at
+    /// The implementation of this method should wait until there is at
     /// least one available thread.
     /// </remarks>
-    public int BlockForAvailableThreads()
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    public ValueTask<int> WaitForAvailableThreads(CancellationToken cancellationToken = default)
     {
         Throw.NotSupportedException("This ThreadPool should not be used on Scheduler instances that are started.");
         return default;

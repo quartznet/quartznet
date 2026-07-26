@@ -181,28 +181,31 @@ public class ObjectUtilsTest
 
 internal sealed class ExplicitImplementor : IThreadPool
 {
-    public bool RunInThread(Func<Task> runnable)
+    public ValueTask<bool> TryRun(Func<Task> action, CancellationToken cancellationToken = default)
     {
         throw new NotImplementedException();
     }
 
-    int IThreadPool.BlockForAvailableThreads()
+    ValueTask<int> IThreadPool.WaitForAvailableThreads(CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }
 
-    void IThreadPool.Initialize()
+    ValueTask IThreadPool.Initialize(CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }
 
-    void IThreadPool.Shutdown(bool waitForJobsToComplete)
+    ValueTask IThreadPool.Shutdown(bool waitForJobsToComplete, CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }
 
     int IThreadPool.PoolSize => throw new NotImplementedException();
 
-    public string InstanceId { get; set; }
+    /// <summary>
+    /// A plain settable property on a type whose interface members are all explicit — the thing
+    /// this fake exists to prove <see cref="ObjectUtils.SetObjectProperties" /> can still reach.
+    /// </summary>
     public string InstanceName { get; set; }
 }

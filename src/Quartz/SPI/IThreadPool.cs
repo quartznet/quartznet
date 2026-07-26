@@ -30,9 +30,9 @@ namespace Quartz.Spi;
 /// <remarks>
 /// <see cref="IThreadPool" /> implementation instances should ideally be made
 /// for the sole use of Quartz.  Most importantly, when the method
-///  <see cref="BlockForAvailableThreads()" /> returns a value of 1 or greater,
+///  <see cref="WaitForAvailableThreads" /> returns a value of 1 or greater,
 /// there must still be at least one available thread in the pool when the
-/// method  <see cref="RunInThread"/> is called a few moments (or
+/// method  <see cref="TryRun"/> is called a few moments (or
 /// many moments) later.  If this assumption does not hold true, it may
 /// result in extra JobStore queries and updates, and if clustering features
 /// are being used, it may result in greater imbalance of load.
@@ -43,29 +43,9 @@ namespace Quartz.Spi;
 public interface IThreadPool
 {
     /// <summary>
-    /// Execute the given <see cref="Task" /> in the next
-    /// available <see cref="Thread" />.
+    /// Get the current number of threads in the <see cref="IThreadPool" />.
     /// </summary>
-    /// <remarks>
-    /// The implementation of this interface should not throw exceptions unless
-    /// there is a serious problem (i.e. a serious misconfiguration). If there
-    /// are no available threads, rather it should either queue the Runnable, or
-    /// block until a thread is available, depending on the desired strategy.
-    /// </remarks>
-    bool RunInThread(Func<Task> runnable);
-
-    /// <summary>
-    /// Determines the number of threads that are currently available in
-    /// the pool.  Useful for determining the number of times
-    /// <see cref="RunInThread"/>  can be called before returning
-    /// false.
-    /// </summary>
-    ///<remarks>
-    /// The implementation of this method should block until there is at
-    /// least one available thread.
-    ///</remarks>
-    /// <returns>the number of currently available threads</returns>
-    int BlockForAvailableThreads();
+    int PoolSize { get; }
 
     /// <summary>
     /// Must be called before the thread pool is
@@ -74,31 +54,45 @@ public interface IThreadPool
     /// <remarks>
     /// Typically called by the <see cref="ISchedulerFactory" />.
     /// </remarks>
-    void Initialize();
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask Initialize(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Determines the number of threads that are currently available in
+    /// the pool.  Useful for determining the number of times
+    /// <see cref="TryRun"/>  can be called before returning
+    /// false.
+    /// </summary>
+    ///<remarks>
+    /// The implementation of this method should wait until there is at
+    /// least one available thread. It is awaited by the scheduler's own loop, so an
+    /// implementation must not block the calling thread while it waits.
+    ///</remarks>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>the number of currently available threads</returns>
+    ValueTask<int> WaitForAvailableThreads(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Execute the given <see cref="Task" /> in the next
+    /// available <see cref="Thread" />.
+    /// </summary>
+    /// <remarks>
+    /// The implementation of this interface should not throw exceptions unless
+    /// there is a serious problem (i.e. a serious misconfiguration). If there
+    /// are no available threads, rather it should either queue the action, or
+    /// wait until a thread is available, depending on the desired strategy.
+    /// </remarks>
+    /// <param name="action">The work to run.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns><see langword="true" /> if the work was scheduled; otherwise, <see langword="false" />.</returns>
+    ValueTask<bool> TryRun(Func<Task> action, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Called by the QuartzScheduler to inform the thread pool
     /// that it should free up all of it's resources because the scheduler is
     /// shutting down.
     /// </summary>
-    void Shutdown(bool waitForJobsToComplete = true);
-
-    /// <summary>
-    /// Get the current number of threads in the <see cref="IThreadPool" />.
-    /// </summary>
-    int PoolSize { get; }
-
-    /// <summary>
-    /// Inform the <see cref="IThreadPool" /> of the Scheduler instance's Id,
-    /// prior to initialize being invoked.
-    /// </summary>
-    // ReSharper disable once UnusedMember.Global
-    string InstanceId { set; }
-
-    /// <summary>
-    /// Inform the <see cref="IThreadPool" /> of the Scheduler instance's name,
-    /// prior to initialize being invoked.
-    /// </summary>
-    // ReSharper disable once UnusedMember.Global
-    string InstanceName { set; }
+    /// <param name="waitForJobsToComplete">Whether to wait for executing jobs to finish first.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask Shutdown(bool waitForJobsToComplete = true, CancellationToken cancellationToken = default);
 }

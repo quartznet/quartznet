@@ -8,67 +8,67 @@ namespace Quartz.Benchmark;
 public class DefaultThreadPoolBenchmark
 {
     [Benchmark(OperationsPerInvoke = 500_000)]
-    public void RunInThread_CompletedTask_MaxConcurrencyIsMaxValue_SingleThreaded()
+    public async Task TryRun_CompletedTask_MaxConcurrencyIsMaxValue_SingleThreaded()
     {
         var threadPool = new DefaultThreadPool
         {
             MaxConcurrency = int.MaxValue
         };
-        threadPool.Initialize();
+        await threadPool.Initialize();
 
         for (var i = 0; i < 500_000; i++)
         {
-            threadPool.RunInThread(() => Task.CompletedTask);
+            await threadPool.TryRun(() => Task.CompletedTask);
         }
 
-        threadPool.Shutdown(true);
+        await threadPool.Shutdown(true);
     }
 
     [Benchmark(OperationsPerInvoke = 1_000_000)]
-    public async Task RunInThread_CompletedTask_MaxConcurrencyIsMaxValue_MultiThreaded()
+    public async Task TryRun_CompletedTask_MaxConcurrencyIsMaxValue_MultiThreaded()
     {
         var threadPool = new DefaultThreadPool
         {
             MaxConcurrency = int.MaxValue
         };
-        threadPool.Initialize();
+        await threadPool.Initialize();
 
-        await Execute(threadPool, 20, 50_000, (tp) => tp.RunInThread(() => Task.CompletedTask));
+        await Execute(threadPool, 20, 50_000, tp => tp.TryRun(() => Task.CompletedTask));
 
-        threadPool.Shutdown(true);
+        await threadPool.Shutdown(true);
     }
 
     [Benchmark(OperationsPerInvoke = 500_000)]
-    public void RunInThread_CompletedTask_MaxConcurrencyIsSixteen_SingleThreaded()
+    public async Task TryRun_CompletedTask_MaxConcurrencyIsSixteen_SingleThreaded()
     {
         var threadPool = new DefaultThreadPool
         {
             MaxConcurrency = 16
         };
-        
-        threadPool.Initialize();
+
+        await threadPool.Initialize();
 
         for (var i = 0; i < 500_000; i++)
         {
-            threadPool.RunInThread(() => Task.CompletedTask);
+            await threadPool.TryRun(() => Task.CompletedTask);
         }
 
-        threadPool.Shutdown(true);
+        await threadPool.Shutdown(true);
     }
 
     [Benchmark(OperationsPerInvoke = 1_000_000)]
-    public async Task RunInThread_CompletedTask_MaxConcurrencyIsSixteen_MultiThreaded()
+    public async Task TryRun_CompletedTask_MaxConcurrencyIsSixteen_MultiThreaded()
     {
         var threadPool = new DefaultThreadPool
         {
             MaxConcurrency = 16
         };
-        
-        threadPool.Initialize();
 
-        await Execute(threadPool, 20, 50_000, (tp) => tp.RunInThread(() => Task.CompletedTask));
+        await threadPool.Initialize();
 
-        threadPool.Shutdown(true);
+        await Execute(threadPool, 20, 50_000, tp => tp.TryRun(() => Task.CompletedTask));
+
+        await threadPool.Shutdown(true);
     }
 
     /// <summary>
@@ -78,16 +78,20 @@ public class DefaultThreadPoolBenchmark
     /// Note that this includes the allocations for initializing the ThreadPool itself.
     /// </remarks>
     [Benchmark]
-    public void RunInThread_OneShot()
+    public async Task TryRun_OneShot()
     {
         var threadPool = new DefaultThreadPool();
         threadPool.MaxConcurrency = int.MaxValue;
-        threadPool.Initialize();
-        threadPool.RunInThread(() => Task.CompletedTask);
-        threadPool.Shutdown(true);
+        await threadPool.Initialize();
+        await threadPool.TryRun(() => Task.CompletedTask);
+        await threadPool.Shutdown(true);
     }
 
-    private static async Task Execute(DefaultThreadPool scheduler, int threadCount, int iterationsPerThread, Action<DefaultThreadPool> action)
+    private static async Task Execute(
+        DefaultThreadPool scheduler,
+        int threadCount,
+        int iterationsPerThread,
+        Func<DefaultThreadPool, ValueTask<bool>> action)
     {
         ManualResetEvent start = new ManualResetEvent(false);
 
@@ -95,13 +99,13 @@ public class DefaultThreadPoolBenchmark
 
         for (var i = 0; i < threadCount; i++)
         {
-            tasks[i] = Task.Run(() =>
+            tasks[i] = Task.Run(async () =>
             {
                 start.WaitOne();
 
                 for (var j = 0; j < iterationsPerThread; j++)
                 {
-                    action(scheduler);
+                    await action(scheduler);
                 }
             });
         }

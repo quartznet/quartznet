@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -308,7 +308,7 @@ internal sealed class QuartzSchedulerThread
                 }
 
                 cancellationTokenSource.Token.ThrowIfCancellationRequested();
-                int availThreadCount = qsRsrcs.ThreadPool.BlockForAvailableThreads();
+                int availThreadCount = await qsRsrcs.ThreadPool.WaitForAvailableThreads(cancellationTokenSource.Token).ConfigureAwait(false);
                 if (halted)
                 {
                     break;
@@ -535,7 +535,7 @@ internal sealed class QuartzSchedulerThread
                                 }
                             };
 
-                            var threadPoolRunResult = qsRsrcs.ThreadPool.RunInThread(jobRunner);
+                            var threadPoolRunResult = await qsRsrcs.ThreadPool.TryRun(jobRunner, cancellationTokenSource.Token).ConfigureAwait(false);
                             if (!threadPoolRunResult)
                             {
                                 // The lambda never ran - decrement the count we pre-incremented

@@ -1,4 +1,4 @@
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -142,9 +142,7 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
         }
 
         var threadPool = resources.ThreadPool;
-        threadPool.InstanceName = resources.Name;
-        threadPool.InstanceId = resources.InstanceId;
-        threadPool.Initialize();
+        await threadPool.Initialize(cancellationToken).ConfigureAwait(false);
 
         QuartzScheduler? quartzScheduler = null;
         try
@@ -242,7 +240,7 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
             }
             else
             {
-                threadPool.Shutdown(waitForJobsToComplete: false);
+                await threadPool.Shutdown(waitForJobsToComplete: false, CancellationToken.None).ConfigureAwait(false);
             }
         }
         catch (Exception e)

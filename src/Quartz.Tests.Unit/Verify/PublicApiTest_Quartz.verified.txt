@@ -3314,28 +3314,24 @@ namespace Quartz.Simpl
         protected const int DefaultMaxConcurrency = 10;
         protected TaskSchedulingThreadPool() { }
         protected TaskSchedulingThreadPool(int maxConcurrency) { }
-        public virtual string InstanceId { get; set; }
-        public virtual string InstanceName { get; set; }
         public int MaxConcurrency { get; set; }
         public virtual int PoolSize { get; }
         public System.Threading.Tasks.TaskScheduler Scheduler { get; set; }
         public int ThreadCount { get; set; }
-        public int BlockForAvailableThreads() { }
         protected abstract System.Threading.Tasks.TaskScheduler GetDefaultScheduler();
-        public virtual void Initialize() { }
-        public bool RunInThread(System.Func<System.Threading.Tasks.Task> runnable) { }
-        public void Shutdown(bool waitForJobsToComplete = true) { }
+        public virtual System.Threading.Tasks.ValueTask Initialize(System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask Shutdown(bool waitForJobsToComplete = true, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask<bool> TryRun(System.Func<System.Threading.Tasks.Task> action, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask<int> WaitForAvailableThreads(System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class ZeroSizeThreadPool : Quartz.Spi.IThreadPool
     {
         public ZeroSizeThreadPool() { }
-        public string InstanceId { set; }
-        public string InstanceName { set; }
         public int PoolSize { get; }
-        public int BlockForAvailableThreads() { }
-        public void Initialize() { }
-        public bool RunInThread(System.Func<System.Threading.Tasks.Task> runnable) { }
-        public void Shutdown(bool waitForJobsToComplete = true) { }
+        public System.Threading.Tasks.ValueTask Initialize(System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask Shutdown(bool waitForJobsToComplete = true, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask<bool> TryRun(System.Func<System.Threading.Tasks.Task> action, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask<int> WaitForAvailableThreads(System.Threading.CancellationToken cancellationToken = default) { }
     }
 }
 namespace Quartz.Spi
@@ -3474,13 +3470,11 @@ namespace Quartz.Spi
     }
     public interface IThreadPool
     {
-        string InstanceId { set; }
-        string InstanceName { set; }
         int PoolSize { get; }
-        int BlockForAvailableThreads();
-        void Initialize();
-        bool RunInThread(System.Func<System.Threading.Tasks.Task> runnable);
-        void Shutdown(bool waitForJobsToComplete = true);
+        System.Threading.Tasks.ValueTask Initialize(System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask Shutdown(bool waitForJobsToComplete = true, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<bool> TryRun(System.Func<System.Threading.Tasks.Task> action, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<int> WaitForAvailableThreads(System.Threading.CancellationToken cancellationToken = default);
     }
     public interface ITypeLoadHelper
     {

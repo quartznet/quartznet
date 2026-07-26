@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -448,7 +448,7 @@ public sealed class QuartzScheduler
                 }
             }
 
-            resources.ThreadPool.Shutdown(waitForJobsToComplete);
+            await resources.ThreadPool.Shutdown(waitForJobsToComplete, cancellationToken).ConfigureAwait(false);
 
             // Scheduler thread may have be waiting for the fire time of an acquired
             // trigger and need time to release the trigger once halted, so make sure

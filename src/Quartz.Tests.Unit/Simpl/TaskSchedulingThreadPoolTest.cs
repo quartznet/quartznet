@@ -1,20 +1,20 @@
-using Quartz.Simpl;
+﻿using Quartz.Simpl;
 
 namespace Quartz.Tests.Unit.Simpl;
 
 public class TaskSchedulingThreadPoolTest
 {
     [Test]
-    public void MaxConcurrencyIsRespected()
+    public async Task MaxConcurrencyIsRespected()
     {
         var threadPool = new CustomTaskSchedulingThreadPool(TaskScheduler.Default, 1);
-        threadPool.Initialize();
+        await threadPool.Initialize();
 
         var logBook = new List<string>();
         var task1Done = new ManualResetEvent(false);
         var task2Done = new ManualResetEvent(false);
 
-        threadPool.RunInThread(async () =>
+        await threadPool.TryRun(async () =>
         {
             lock (logBook)
             {
@@ -31,7 +31,7 @@ public class TaskSchedulingThreadPoolTest
             task1Done.Set();
         });
 
-        threadPool.RunInThread(async () =>
+        await threadPool.TryRun(async () =>
         {
             lock (logBook)
             {

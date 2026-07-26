@@ -88,6 +88,19 @@
     see the job type the user actually wrote. `ReturnJob` is `public virtual` on `SimpleJobFactory`, so job teardown is
     overridable. Both members are async and cancellable, closing the one place in the SPI where an async member took no token.
 
+  * **IThreadPool** is now asynchronous, and two of its members were renamed away from their Java origins:
+    `BlockForAvailableThreads()` → `ValueTask<int> WaitForAvailableThreads(CancellationToken)` and
+    `bool RunInThread(Func<Task>)` → `ValueTask<bool> TryRun(Func<Task>, CancellationToken)`; `Initialize` and `Shutdown`
+    return `ValueTask` like every other lifecycle member in the SPI. This is not only cosmetic — both of the renamed methods
+    blocked the calling thread on `SemaphoreSlim.Wait`, and the caller is `QuartzSchedulerThread`'s own asynchronous loop, so
+    the scheduler was tying up a thread every time it waited for pool capacity. They now use `WaitAsync`. Shutdown still waits
+    synchronously for running jobs; that happens once, off the scheduling loop.
+
+  * **IThreadPool.InstanceId** and **IThreadPool.InstanceName** were removed. They were setter-only properties written by
+    `DefaultSchedulerFactory` and read by nothing — `TaskSchedulingThreadPool` parked them in unused auto-properties and
+    `ZeroSizeThreadPool` discarded them. A thread pool that wants the scheduler's identity should take
+    `IOptions<QuartzSchedulerOptions>` from the container, like everything else in 4.x.
+
   * `PropertySettingJobFactory.InstantiateJob(TriggerFiredBundle, IScheduler)` — the synchronous hook derived factories override —
     was replaced by `protected virtual ValueTask<JobScope> CreateJobInstance(TriggerFiredBundle, IScheduler, CancellationToken)`.
     The old hook was synchronous even after `NewJob` became asynchronous (#3045), so a factory that needed to do real work to
