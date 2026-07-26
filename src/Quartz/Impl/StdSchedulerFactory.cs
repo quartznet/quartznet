@@ -1247,13 +1247,28 @@ Please add configuration to your application config file to correctly initialize
     }
 
     /// <summary> <para>
-    /// Returns a handle to the Scheduler with the given name, if it exists (if
-    /// it has already been instantiated).
+    /// Returns a handle to the Scheduler with the given name, creating it if the name is the one this
+    /// factory is configured to produce, and otherwise returning it only if it has already been
+    /// instantiated.
     /// </para>
     /// </summary>
-    public virtual Task<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default)
+    public virtual async Task<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(GetSchedulerRepository().Lookup(schedName));
+        if (cfg == null)
+        {
+            Initialize();
+        }
+
+        // Asking this factory for its own scheduler by name has to be able to create it; a plain
+        // repository lookup would only ever find a scheduler somebody had already asked for. The
+        // comparison is case-insensitive because that is how SchedulerRepository indexes names, so the
+        // create path and the lookup path agree on what counts as the same scheduler.
+        if (string.Equals(schedName, SchedulerName, StringComparison.OrdinalIgnoreCase))
+        {
+            return await GetScheduler(cancellationToken).ConfigureAwait(false);
+        }
+
+        return GetSchedulerRepository().Lookup(schedName);
     }
 
     /// <summary>

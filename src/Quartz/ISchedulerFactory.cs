@@ -47,7 +47,8 @@ public interface ISchedulerFactory
     Task<IScheduler> GetScheduler(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Returns a handle to the Scheduler with the given name, if it exists.
+    /// Returns a handle to the Scheduler with the given name. A factory can create the scheduler it is
+    /// configured to produce; any other name is returned only if that scheduler already exists.
     /// </summary>
     Task<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default);
 }
