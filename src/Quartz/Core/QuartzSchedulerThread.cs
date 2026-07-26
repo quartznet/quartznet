@@ -57,8 +57,12 @@ internal sealed class QuartzSchedulerThread
 
     private readonly ConcurrentDictionary<string, int> runningExecutionGroupCounts = new(StringComparer.Ordinal);
 
-    private CancellationTokenSource cancellationTokenSource = null!;
-    private Task task = null!;
+    private readonly CancellationTokenSource cancellationTokenSource = new();
+
+    /// <summary>
+    /// The processing loop, or <see langword="null" /> until <see cref="Start" /> has been called.
+    /// </summary>
+    private Task? task;
 
     private const int PausedWaitCheckIntervalMs = 1000;
 
@@ -86,6 +90,14 @@ internal sealed class QuartzSchedulerThread
     internal bool Halted => halted;
 
     /// <summary>
+    /// Gets a value indicating whether the processing loop has been started.
+    /// </summary>
+    /// <value>
+    /// <see langword="true"/> once <see cref="Start"/> has been called; otherwise, <see langword="false"/>.
+    /// </value>
+    internal bool Running => task is not null;
+
+    /// <summary>
     /// Gets the maximum number of milliseconds to subtract from <see cref="QuartzSchedulerResources.IdleWaitTime"/>
     /// to randomize how long the scheduler should wait before checking again when there is no current trigger to
     /// fire.
@@ -110,9 +122,8 @@ internal sealed class QuartzSchedulerThread
         this.qsRsrcs = qsRsrcs;
         idleWaitVariableness = (int) (qsRsrcs.IdleWaitTime.TotalMilliseconds * 0.2);
 
-        // start the underlying thread, but put this object into the 'paused'
-        // state
-        // so processing doesn't start yet...
+        // Construction does not start the loop; QuartzScheduler.Start does. Until then this object is
+        // in the 'paused' state so that processing does not begin even once it is started.
         paused = true;
         halted = false;
     }
@@ -160,7 +171,8 @@ internal sealed class QuartzSchedulerThread
 
         await cancellationTokenSource.CancelAsync().ConfigureAwait(false);
 
-        if (wait)
+        // There is nothing to wait for when the loop was never started.
+        if (wait && task is not null)
         {
             try
             {
@@ -728,9 +740,16 @@ internal sealed class QuartzSchedulerThread
         }
     }
 
+    /// <summary>
+    /// Starts the processing loop. Does nothing if it is already running.
+    /// </summary>
     public void Start()
     {
-        cancellationTokenSource = new CancellationTokenSource();
+        if (task is not null)
+        {
+            return;
+        }
+
         task = Task.Factory.StartNew(
             static state => ((QuartzSchedulerThread) state!).Run(),
             this,
@@ -740,15 +759,27 @@ internal sealed class QuartzSchedulerThread
         ).Unwrap();
     }
 
+    /// <summary>
+    /// Stops the processing loop and releases its resources. Terminal: the loop cannot be started again
+    /// afterwards, which matches the scheduler not being restartable after shutdown.
+    /// </summary>
     public async Task Shutdown()
     {
         cancellationTokenSource.Cancel();
-        try
+
+        // Nothing to wait for when the loop was never started.
+        if (task is not null)
         {
-            await task.ConfigureAwait(false);
+            try
+            {
+                await task.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
         }
-        catch (OperationCanceledException)
-        {
-        }
+
+        // Disposed only here, once the loop has been awaited and can no longer read the token.
+        cancellationTokenSource.Dispose();
     }
 }

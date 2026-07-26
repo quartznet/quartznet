@@ -86,6 +86,14 @@
 
   * `DirectSchedulerFactory.CreateScheduler` must now be `await`ed
 
+  * **QuartzScheduler** no longer starts its scheduler thread from its constructor; the thread is started by
+    `Start()` instead (#3175). Constructing a scheduler — which the container now does — no longer has the
+    side effect of starting a thread, so resolving the service graph, running a `ValidateOnBuild` pass or
+    asserting on registrations no longer spins one up. The thread has always started paused and done no
+    work until `Start()`, so this changes when the thread exists, not when jobs run.
+
+  * The no-op **QuartzScheduler.Initialize()** method was removed. It did nothing and had no callers.
+
 #### Cron Parser
 
   * Add cron parser support for 'L' and 'LW' in expression combinations for daysOfMonth (#1939) (#1288)

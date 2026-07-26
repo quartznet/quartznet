@@ -254,8 +254,9 @@ public sealed class QuartzScheduler
 
         logger = LogProvider.CreateLogger<QuartzScheduler>();
 
+        // The thread is created here but not started: constructing a scheduler must not have the side
+        // effect of starting a thread, since the container constructs it. Start does that instead.
         schedThread = new QuartzSchedulerThread(this, resources);
-        schedThread.Start();
 
         jobMgr = new ExecutingJobsManager();
         var errLogger = new ErrorLogger();
@@ -264,12 +265,6 @@ public sealed class QuartzScheduler
         SchedulerSignaler = new SchedulerSignalerImpl(this, schedThread);
 
         logger.LogInformation("Quartz Scheduler created");
-    }
-
-#pragma warning disable CA1822 // Mark members as static
-    public void Initialize()
-#pragma warning restore CA1822
-    {
     }
 
     /// <summary>
@@ -319,6 +314,8 @@ public sealed class QuartzScheduler
             await resources.JobStore.SchedulerResumed(cancellationToken).ConfigureAwait(false);
         }
 
+        // Idempotent, so restarting after Standby is fine.
+        schedThread.Start();
         schedThread.TogglePause(pause: false);
 
         logger.LogInformation("Scheduler {SchedulerIdentifier} started.", resources.GetUniqueIdentifier());
