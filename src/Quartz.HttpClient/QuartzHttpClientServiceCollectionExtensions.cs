@@ -120,12 +120,10 @@ public static class QuartzHttpClientServiceCollectionExtensions
         // The repository the remote scheduler binds itself into is the container's, registered in exactly
         // one place. Creating one here would give a container that also calls AddQuartz two repositories,
         // and a scheduler registered in one would be invisible in the other.
+        // This also registers the container-wide serializer registry the client reads below. A remote
+        // scheduler's custom trigger and calendar serializers cannot be discovered over HTTP, so register
+        // a custom serializer there to be able to read custom types from the remote scheduler.
         services.AddQuartzSharedServices();
-
-        // A remote scheduler's custom trigger and calendar serializers cannot be discovered over HTTP, so
-        // the client reads the container's registry — register a custom serializer there to be able to
-        // read custom types from the remote scheduler.
-        services.TryAddSingleton<SystemTextJsonSerializerRegistry>();
 
         services.AddSingleton<TScheduler>(serviceProvider =>
         {

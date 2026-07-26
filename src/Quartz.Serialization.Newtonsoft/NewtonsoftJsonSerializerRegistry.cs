@@ -31,8 +31,8 @@ namespace Quartz.Serialization.Newtonsoft;
 /// </remarks>
 public sealed class NewtonsoftJsonSerializerRegistry
 {
-    private readonly Dictionary<string, ITriggerSerializer> triggerSerializers = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, ICalendarSerializer> calendarSerializers = new();
+    private readonly SerializerMap<ITriggerSerializer> triggerSerializers = new(StringComparer.OrdinalIgnoreCase);
+    private readonly SerializerMap<ICalendarSerializer> calendarSerializers = new(StringComparer.Ordinal);
 
     /// <summary>
     /// Creates a registry holding the serializers for the built-in trigger and calendar types.
@@ -61,10 +61,8 @@ public sealed class NewtonsoftJsonSerializerRegistry
     {
         ArgumentNullException.ThrowIfNull(serializer);
 
-        triggerSerializers[serializer.TriggerTypeForJson] = serializer;
-
-        // Support also type name
-        triggerSerializers[typeof(TTrigger).AssemblyQualifiedNameWithoutVersion()] = serializer;
+        // Found by its JSON discriminator, and also by its type name.
+        triggerSerializers.Add(serializer, serializer.TriggerTypeForJson, typeof(TTrigger).AssemblyQualifiedNameWithoutVersion());
         return this;
     }
 
@@ -75,27 +73,19 @@ public sealed class NewtonsoftJsonSerializerRegistry
     {
         ArgumentNullException.ThrowIfNull(serializer);
 
-        calendarSerializers[typeof(TCalendar).AssemblyQualifiedNameWithoutVersion()] = serializer;
+        // One name only, and matched case-sensitively, because ICalendarSerializer here carries no
+        // calendar type name of its own — see the remarks above.
+        calendarSerializers.Add(serializer, typeof(TCalendar).AssemblyQualifiedNameWithoutVersion());
         return this;
     }
 
     internal ITriggerSerializer GetTriggerSerializer(string? typeName)
     {
-        if (string.IsNullOrWhiteSpace(typeName) || !triggerSerializers.TryGetValue(typeName!, out var converter))
-        {
-            throw new ArgumentException($"Don't know how to handle {typeName}", nameof(typeName));
-        }
-
-        return converter;
+        return triggerSerializers.Get(typeName, "Don't know how to handle");
     }
 
     internal ICalendarSerializer GetCalendarSerializer(string typeName)
     {
-        if (!calendarSerializers.TryGetValue(typeName, out var converter))
-        {
-            throw new ArgumentException($"don't know how to handle {typeName}", nameof(typeName));
-        }
-
-        return converter;
+        return calendarSerializers.Get(typeName, "don't know how to handle");
     }
 }
