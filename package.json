@@ -63,6 +63,11 @@
     "http-proxy-middleware": "^3.0.6",
     "js-yaml": "^4.3.0",
     "websocket-driver": "^0.7.5",
-    "body-parser": "^1.20.6"
+    "body-parser": "^1.20.6",
+    "postcss": "^8.5.18",
+    "fast-uri": "^3.1.4",
+    "svgo": "^4.0.2",
+    "linkify-it": "^5.0.2",
+    "immutable": "^5.1.8"
   }
 }
