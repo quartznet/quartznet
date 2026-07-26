@@ -1,4 +1,4 @@
-using Quartz.Collections;
+﻿using Quartz.Collections;
 
 namespace Quartz.Core;
 
@@ -538,13 +538,47 @@ internal sealed class ListenerManagerImpl : IListenerManager
         }
     }
 
-    public IReadOnlyCollection<ISchedulerListener> GetSchedulerListeners()
+    public bool RemoveSchedulerListener(string name)
+    {
+        lock (schedulerListeners)
+        {
+            for (var i = 0; i < schedulerListeners.Count; i++)
+            {
+                if (schedulerListeners[i].Name == name)
+                {
+                    schedulerListeners.RemoveAt(i);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+    }
+
+    public ISchedulerListener[] GetSchedulerListeners()
     {
         lock (schedulerListeners)
         {
             return schedulerListeners.Count > 0
-                ? new List<ISchedulerListener>(schedulerListeners)
-                : EmptyReadOnlyCollection<ISchedulerListener>.Instance;
+                ? schedulerListeners.ToArray()
+                : [];
+        }
+    }
+
+    public ISchedulerListener GetSchedulerListener(string name)
+    {
+        lock (schedulerListeners)
+        {
+            foreach (var listener in schedulerListeners)
+            {
+                if (listener.Name == name)
+                {
+                    return listener;
+                }
+            }
+
+            Throw.KeyNotFoundException();
+            return null!;
         }
     }
 

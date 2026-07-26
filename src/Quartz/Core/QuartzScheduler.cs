@@ -2058,7 +2058,7 @@ public sealed class QuartzScheduler
     public ValueTask NotifySchedulerListenersShuttingdown(
         CancellationToken cancellationToken = default)
     {
-        return NotifySchedulerListeners(l => l.SchedulerShuttingdown(cancellationToken), "shutting down");
+        return NotifySchedulerListeners(l => l.SchedulerShuttingDown(cancellationToken), "shutting down");
     }
 
     public ValueTask NotifySchedulerListenersJobAdded(

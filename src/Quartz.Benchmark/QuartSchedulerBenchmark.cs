@@ -1,4 +1,4 @@
-using Quartz.Tests;
+﻿using Quartz.Tests;
 using BenchmarkDotNet.Attributes;
 using Quartz.Core;
 using Quartz.Impl;
@@ -513,7 +513,7 @@ public class QuartSchedulerBenchmark
             return default;
         }
 
-        public ValueTask SchedulerError(string msg, SchedulerException cause, CancellationToken cancellationToken = default)
+        public ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default)
         {
             return default;
         }
@@ -528,7 +528,7 @@ public class QuartSchedulerBenchmark
             return default;
         }
 
-        public ValueTask SchedulerShuttingdown(CancellationToken cancellationToken = default)
+        public ValueTask SchedulerShuttingDown(CancellationToken cancellationToken = default)
         {
             return default;
         }
@@ -623,12 +623,12 @@ public class QuartSchedulerBenchmark
             return default;
         }
 
-        public ValueTask JobsPaused(string jobGroup, CancellationToken cancellationToken = default)
+        public ValueTask JobsPaused(string? jobGroup, CancellationToken cancellationToken = default)
         {
             return default;
         }
 
-        public ValueTask JobsResumed(string jobGroup, CancellationToken cancellationToken = default)
+        public ValueTask JobsResumed(string? jobGroup, CancellationToken cancellationToken = default)
         {
             return default;
         }

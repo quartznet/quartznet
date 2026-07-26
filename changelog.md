@@ -96,6 +96,22 @@
     the scheduler was tying up a thread every time it waited for pool capacity. They now use `WaitAsync`. Shutdown still waits
     synchronously for running jobs; that happens once, off the scheduling loop.
 
+  * **ISchedulerListener** gained a `Name` property, so all three kinds of listener now have the same shape and a
+    scheduler listener can be addressed the way job and trigger listeners already could.
+    `SchedulerListenerSupport` supplies the type name as a default, so an implementation deriving from it needs no
+    change. `IListenerManager` follows: `GetSchedulerListeners()` returns `ISchedulerListener[]` rather than
+    `IReadOnlyCollection<ISchedulerListener>` — matching the array the job and trigger getters have returned since
+    the allocation work earlier in 4.0 — and there are new `GetSchedulerListener(string)` and
+    `RemoveSchedulerListener(string)` overloads.
+
+  * **ISchedulerListener.SchedulerShuttingdown** is spelled `SchedulerShuttingDown`.
+
+  * `ISchedulerListener.JobsPaused` and `JobsResumed` take a `string?` job group. Their own documentation always said
+    the parameter is null when every group was paused; only the annotation disagreed.
+
+  * `ISchedulerListener.SchedulerError`'s parameters are named `message` and `exception` rather than `msg` and
+    `cause`, matching `ISchedulerSignaler.NotifySchedulerListenersError`, which describes the same event.
+
   * `IObjectSerializer.DeSerialize` is spelled **`Deserialize`**, and `IObjectSerializer.Initialize()` and
     `ITypeLoadHelper.Initialize()` were removed. Both serializers now build their options on first use, so there is
     no half-constructed state to fall into and no `"did you forget to call Initialize()?"` to hit;

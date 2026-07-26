@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 /* 
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  * 
@@ -31,6 +31,12 @@ namespace Quartz.Listener;
 /// <seealso cref="ISchedulerListener" />
 public abstract class SchedulerListenerSupport : ISchedulerListener
 {
+    /// <summary>
+    /// The name the scheduler knows this listener by; the type name unless a derived class says
+    /// otherwise, which is distinct enough as long as one scheduler has one of each listener type.
+    /// </summary>
+    public virtual string Name => GetType().Name;
+
     public virtual ValueTask JobScheduled(
         ITrigger trigger,
         CancellationToken cancellationToken = default)
@@ -96,13 +102,13 @@ public abstract class SchedulerListenerSupport : ISchedulerListener
 
     public virtual ValueTask JobInterrupted(
         JobKey jobKey,
-        CancellationToken cancellationToken = new CancellationToken())
+        CancellationToken cancellationToken = default)
     {
         return default;
     }
 
     public virtual ValueTask JobsPaused(
-        string jobGroup,
+        string? jobGroup,
         CancellationToken cancellationToken = default)
     {
         return default;
@@ -116,7 +122,7 @@ public abstract class SchedulerListenerSupport : ISchedulerListener
     }
 
     public virtual ValueTask JobsResumed(
-        string jobGroup,
+        string? jobGroup,
         CancellationToken cancellationToken = default)
     {
         return default;
@@ -130,8 +136,8 @@ public abstract class SchedulerListenerSupport : ISchedulerListener
     }
 
     public virtual ValueTask SchedulerError(
-        string msg,
-        SchedulerException cause,
+        string message,
+        SchedulerException exception,
         CancellationToken cancellationToken = default)
     {
         return default;
@@ -157,7 +163,7 @@ public abstract class SchedulerListenerSupport : ISchedulerListener
         return default;
     }
 
-    public virtual ValueTask SchedulerShuttingdown(CancellationToken cancellationToken = default)
+    public virtual ValueTask SchedulerShuttingDown(CancellationToken cancellationToken = default)
     {
         return default;
     }

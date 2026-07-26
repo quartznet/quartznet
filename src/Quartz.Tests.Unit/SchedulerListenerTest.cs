@@ -1,4 +1,4 @@
-using System.Collections.Specialized;
+﻿using System.Collections.Specialized;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
 using Quartz.Impl;
@@ -64,6 +64,8 @@ public class SchedulerListenerTest
 
     public class Qtz205ScheListener : ISchedulerListener
     {
+        public string Name => nameof(Qtz205ScheListener);
+
         public int TriggerFinalizedCount { get; private set; }
 
         public ValueTask JobScheduled(ITrigger trigger, CancellationToken cancellationToken)
@@ -138,7 +140,7 @@ public class SchedulerListenerTest
             return default;
         }
 
-        public ValueTask SchedulerError(string msg, SchedulerException cause, CancellationToken cancellationToken)
+        public ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken)
         {
             return default;
         }
@@ -163,7 +165,7 @@ public class SchedulerListenerTest
             return default;
         }
 
-        public ValueTask SchedulerShuttingdown(CancellationToken cancellationToken)
+        public ValueTask SchedulerShuttingDown(CancellationToken cancellationToken)
         {
             return default;
         }

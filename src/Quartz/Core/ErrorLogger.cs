@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
 using Quartz.Listener;
 
@@ -12,12 +12,12 @@ internal sealed class ErrorLogger : SchedulerListenerSupport
     private readonly ILogger<ErrorLogger> logger = LogProvider.CreateLogger<ErrorLogger>();
 
     public override ValueTask SchedulerError(
-        string msg,
-        SchedulerException cause,
+        string message,
+        SchedulerException exception,
         CancellationToken cancellationToken = default)
     {
 #pragma warning disable CA2254
-        logger.LogError(cause, msg);
+        logger.LogError(exception, message);
 #pragma warning restore CA2254
         return default;
     }

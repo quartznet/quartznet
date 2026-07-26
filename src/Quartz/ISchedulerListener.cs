@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -34,6 +34,16 @@ namespace Quartz;
 /// <author>Marko Lahma (.NET)</author>
 public interface ISchedulerListener
 {
+    /// <summary>
+    /// Get the name of the <see cref="ISchedulerListener" />.
+    /// </summary>
+    /// <remarks>
+    /// A scheduler knows a listener by its name, so two scheduler listeners registered with the
+    /// same scheduler must not share one. <see cref="Quartz.Listener.SchedulerListenerSupport" />
+    /// supplies the type name, which is unique often enough to be a reasonable default.
+    /// </remarks>
+    string Name { get; }
+
     /// <summary>
     /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
     /// is scheduled.
@@ -116,13 +126,13 @@ public interface ISchedulerListener
     /// Called by the <see cref="IScheduler"/> when a
     /// group of <see cref="IJobDetail"/>s has been  paused.
     /// <para>
-    /// If all groups were paused, then the <see param="jobName"/> parameter will be
+    /// If all groups were paused, then the <paramref name="jobGroup"/> parameter will be
     /// null. If all jobs were paused, then both parameters will be null.
     /// </para>
     /// </summary>
     /// <param name="jobGroup">The job group.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    ValueTask JobsPaused(string jobGroup, CancellationToken cancellationToken = default);
+    ValueTask JobsPaused(string? jobGroup, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
@@ -136,7 +146,7 @@ public interface ISchedulerListener
     /// </summary>
     /// <param name="jobGroup">The job group.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    ValueTask JobsResumed(string jobGroup, CancellationToken cancellationToken = default);
+    ValueTask JobsResumed(string? jobGroup, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> when a serious error has
@@ -145,8 +155,8 @@ public interface ISchedulerListener
     /// <see cref="ITrigger" /> has fired.
     /// </summary>
     ValueTask SchedulerError(
-        string msg,
-        SchedulerException cause,
+        string message,
+        SchedulerException exception,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -176,7 +186,7 @@ public interface ISchedulerListener
     /// Called by the <see cref="IScheduler" /> to inform the listener
     /// that it has begun the shutdown sequence.
     /// </summary>
-    ValueTask SchedulerShuttingdown(CancellationToken cancellationToken = default);
+    ValueTask SchedulerShuttingDown(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> to inform the listener

@@ -358,13 +358,15 @@ namespace Quartz
         Quartz.IJobListener GetJobListener(string name);
         System.Collections.Generic.IReadOnlyCollection<Quartz.IMatcher<Quartz.JobKey>>? GetJobListenerMatchers(string listenerName);
         Quartz.IJobListener[] GetJobListeners();
-        System.Collections.Generic.IReadOnlyCollection<Quartz.ISchedulerListener> GetSchedulerListeners();
+        Quartz.ISchedulerListener GetSchedulerListener(string name);
+        Quartz.ISchedulerListener[] GetSchedulerListeners();
         Quartz.ITriggerListener GetTriggerListener(string name);
         System.Collections.Generic.IReadOnlyCollection<Quartz.IMatcher<Quartz.TriggerKey>>? GetTriggerListenerMatchers(string listenerName);
         Quartz.ITriggerListener[] GetTriggerListeners();
         bool RemoveJobListener(string name);
         bool RemoveJobListenerMatcher(string listenerName, Quartz.IMatcher<Quartz.JobKey> matcher);
         bool RemoveSchedulerListener(Quartz.ISchedulerListener schedulerListener);
+        bool RemoveSchedulerListener(string name);
         bool RemoveTriggerListener(string name);
         bool RemoveTriggerListenerMatcher(string listenerName, Quartz.IMatcher<Quartz.TriggerKey> matcher);
         bool SetJobListenerMatchers(string listenerName, System.Collections.Generic.IReadOnlyCollection<Quartz.IMatcher<Quartz.JobKey>> matchers);
@@ -524,6 +526,7 @@ namespace Quartz
     }
     public interface ISchedulerListener
     {
+        string Name { get; }
         System.Threading.Tasks.ValueTask JobAdded(Quartz.IJobDetail jobDetail, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask JobDeleted(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask JobInterrupted(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
@@ -531,12 +534,12 @@ namespace Quartz
         System.Threading.Tasks.ValueTask JobResumed(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask JobScheduled(Quartz.ITrigger trigger, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask JobUnscheduled(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask JobsPaused(string jobGroup, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask JobsResumed(string jobGroup, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask SchedulerError(string msg, Quartz.SchedulerException cause, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask JobsPaused(string? jobGroup, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask JobsResumed(string? jobGroup, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask SchedulerError(string message, Quartz.SchedulerException exception, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask SchedulerInStandbyMode(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask SchedulerShutdown(System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask SchedulerShuttingdown(System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask SchedulerShuttingDown(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask SchedulerStarted(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask SchedulerStarting(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask SchedulingDataCleared(System.Threading.CancellationToken cancellationToken = default);
@@ -1154,7 +1157,7 @@ namespace Quartz.Core
         public virtual void Passivate() { }
         public virtual void RequestShutdown() { }
         public virtual System.Threading.Tasks.Task Run(System.Threading.CancellationToken cancellationToken = default) { }
-        public override System.Threading.Tasks.ValueTask SchedulerShuttingdown(System.Threading.CancellationToken cancellationToken = default) { }
+        public override System.Threading.Tasks.ValueTask SchedulerShuttingDown(System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class QuartzScheduler
     {
@@ -3003,6 +3006,7 @@ namespace Quartz.Listener
     {
         public BroadcastSchedulerListener() { }
         public BroadcastSchedulerListener(System.Collections.Generic.IEnumerable<Quartz.ISchedulerListener> listeners) { }
+        public string Name { get; }
         public void AddListener(Quartz.ISchedulerListener listener) { }
         public System.Collections.Generic.IReadOnlyList<Quartz.ISchedulerListener> GetListeners() { }
         public System.Threading.Tasks.ValueTask JobAdded(Quartz.IJobDetail jobDetail, System.Threading.CancellationToken cancellationToken = default) { }
@@ -3012,13 +3016,13 @@ namespace Quartz.Listener
         public System.Threading.Tasks.ValueTask JobResumed(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask JobScheduled(Quartz.ITrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask JobUnscheduled(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask JobsPaused(string jobGroup, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask JobsResumed(string jobGroup, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask JobsPaused(string? jobGroup, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask JobsResumed(string? jobGroup, System.Threading.CancellationToken cancellationToken = default) { }
         public bool RemoveListener(Quartz.ISchedulerListener listener) { }
-        public System.Threading.Tasks.ValueTask SchedulerError(string msg, Quartz.SchedulerException cause, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask SchedulerError(string message, Quartz.SchedulerException exception, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask SchedulerInStandbyMode(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask SchedulerShutdown(System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask SchedulerShuttingdown(System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask SchedulerShuttingDown(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask SchedulerStarted(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask SchedulerStarting(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask SchedulingDataCleared(System.Threading.CancellationToken cancellationToken = default) { }
@@ -3060,6 +3064,7 @@ namespace Quartz.Listener
     public abstract class SchedulerListenerSupport : Quartz.ISchedulerListener
     {
         protected SchedulerListenerSupport() { }
+        public virtual string Name { get; }
         public virtual System.Threading.Tasks.ValueTask JobAdded(Quartz.IJobDetail jobDetail, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask JobDeleted(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask JobInterrupted(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
@@ -3067,12 +3072,12 @@ namespace Quartz.Listener
         public virtual System.Threading.Tasks.ValueTask JobResumed(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask JobScheduled(Quartz.ITrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask JobUnscheduled(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask JobsPaused(string jobGroup, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask JobsResumed(string jobGroup, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask SchedulerError(string msg, Quartz.SchedulerException cause, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask JobsPaused(string? jobGroup, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask JobsResumed(string? jobGroup, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask SchedulerError(string message, Quartz.SchedulerException exception, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask SchedulerInStandbyMode(System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask SchedulerShutdown(System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask SchedulerShuttingdown(System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask SchedulerShuttingDown(System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask SchedulerStarted(System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask SchedulerStarting(System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask SchedulingDataCleared(System.Threading.CancellationToken cancellationToken = default) { }

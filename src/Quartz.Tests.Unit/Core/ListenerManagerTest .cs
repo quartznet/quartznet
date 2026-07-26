@@ -1,4 +1,4 @@
-using Quartz.Core;
+﻿using Quartz.Core;
 using Quartz.Impl.Matchers;
 using Quartz.Listener;
 
@@ -1843,14 +1843,27 @@ public class ListenerManagerTest
 
         // test adding listener without matcher
         _manager.AddSchedulerListener(tl1);
-        Assert.That(_manager.GetSchedulerListeners(), Has.Count.EqualTo(1), "Unexpected size of listener list");
+        _manager.GetSchedulerListeners().Should().ContainSingle("Unexpected size of listener list");
 
         // test adding listener with matcher
         _manager.AddSchedulerListener(tl2);
-        Assert.That(_manager.GetSchedulerListeners(), Has.Count.EqualTo(2), "Unexpected size of listener list");
+        _manager.GetSchedulerListeners().Should().HaveCount(2, "Unexpected size of listener list");
 
         // test removing a listener
         _manager.RemoveSchedulerListener(tl1);
-        Assert.That(_manager.GetSchedulerListeners(), Has.Count.EqualTo(1), "Unexpected size of listener list");
+        _manager.GetSchedulerListeners().Should().ContainSingle("Unexpected size of listener list");
+    }
+
+    [Test]
+    public void TestSchedulerListenersCanBeAddressedByName()
+    {
+        var listener = new TestSchedulerListener();
+        _manager.AddSchedulerListener(listener);
+
+        _manager.GetSchedulerListener(listener.Name).Should().BeSameAs(listener);
+        _manager.RemoveSchedulerListener(listener.Name).Should().BeTrue();
+        _manager.GetSchedulerListeners().Should().BeEmpty();
+        _manager.RemoveSchedulerListener(listener.Name).Should().BeFalse(
+            "removing a listener that is not registered reports that it was not found");
     }
 }

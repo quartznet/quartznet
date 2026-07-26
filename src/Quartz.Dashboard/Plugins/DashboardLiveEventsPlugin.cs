@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
@@ -162,7 +162,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
 
     public ValueTask JobInterrupted(JobKey jobKey, CancellationToken cancellationToken = default) => default;
 
-    public ValueTask JobsPaused(string jobGroup, CancellationToken cancellationToken = default) => default;
+    public ValueTask JobsPaused(string? jobGroup, CancellationToken cancellationToken = default) => default;
 
     public ValueTask JobResumed(JobKey jobKey, CancellationToken cancellationToken = default)
     {
@@ -170,11 +170,11 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
         return BroadcastToScheduler(schedulerName, client => client.JobResumed(payload));
     }
 
-    public ValueTask JobsResumed(string jobGroup, CancellationToken cancellationToken = default) => default;
+    public ValueTask JobsResumed(string? jobGroup, CancellationToken cancellationToken = default) => default;
 
-    public ValueTask SchedulerError(string msg, SchedulerException cause, CancellationToken cancellationToken = default)
+    public ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default)
     {
-        SchedulerErrorDto payload = new(schedulerName, msg, cause.Message);
+        SchedulerErrorDto payload = new(schedulerName, message, exception.Message);
         return BroadcastToScheduler(schedulerName, client => client.SchedulerError(payload));
     }
 
@@ -202,7 +202,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
         return BroadcastToScheduler(schedulerName, client => client.SchedulerStateChanged(payload));
     }
 
-    public ValueTask SchedulerShuttingdown(CancellationToken cancellationToken = default)
+    public ValueTask SchedulerShuttingDown(CancellationToken cancellationToken = default)
     {
         SchedulerStateDto payload = new(schedulerName, "ShuttingDown");
         return BroadcastToScheduler(schedulerName, client => client.SchedulerStateChanged(payload));

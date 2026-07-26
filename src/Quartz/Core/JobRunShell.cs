@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -71,7 +71,7 @@ public class JobRunShell : SchedulerListenerSupport
         this.logger = logger;
     }
 
-    public override ValueTask SchedulerShuttingdown(CancellationToken cancellationToken = default)
+    public override ValueTask SchedulerShuttingDown(CancellationToken cancellationToken = default)
     {
         RequestShutdown();
         return default;

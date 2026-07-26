@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -44,6 +44,9 @@ public sealed class BroadcastSchedulerListener : ISchedulerListener
 {
     private readonly List<ISchedulerListener> listeners;
     private readonly ILogger<BroadcastSchedulerListener> logger;
+
+    /// <inheritdoc />
+    public string Name => nameof(BroadcastSchedulerListener);
 
     public BroadcastSchedulerListener()
     {
@@ -130,7 +133,7 @@ public sealed class BroadcastSchedulerListener : ISchedulerListener
         return IterateListenersInGuard(l => l.JobInterrupted(jobKey, cancellationToken), nameof(JobInterrupted));
     }
 
-    public ValueTask JobsPaused(string jobGroup, CancellationToken cancellationToken = default)
+    public ValueTask JobsPaused(string? jobGroup, CancellationToken cancellationToken = default)
     {
         return IterateListenersInGuard(l => l.JobsPaused(jobGroup, cancellationToken), nameof(JobsPaused));
     }
@@ -140,7 +143,7 @@ public sealed class BroadcastSchedulerListener : ISchedulerListener
         return IterateListenersInGuard(l => l.JobPaused(jobKey, cancellationToken), nameof(JobPaused));
     }
 
-    public ValueTask JobsResumed(string jobGroup, CancellationToken cancellationToken = default)
+    public ValueTask JobsResumed(string? jobGroup, CancellationToken cancellationToken = default)
     {
         return IterateListenersInGuard(l => l.JobsResumed(jobGroup, cancellationToken), nameof(JobsResumed));
     }
@@ -150,9 +153,9 @@ public sealed class BroadcastSchedulerListener : ISchedulerListener
         return IterateListenersInGuard(l => l.JobResumed(jobKey, cancellationToken), nameof(JobResumed));
     }
 
-    public ValueTask SchedulerError(string msg, SchedulerException cause, CancellationToken cancellationToken = default)
+    public ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default)
     {
-        return IterateListenersInGuard(l => l.SchedulerError(msg, cause, cancellationToken), nameof(SchedulerError));
+        return IterateListenersInGuard(l => l.SchedulerError(message, exception, cancellationToken), nameof(SchedulerError));
     }
 
     public ValueTask SchedulerStarted(CancellationToken cancellationToken = default)
@@ -175,9 +178,9 @@ public sealed class BroadcastSchedulerListener : ISchedulerListener
         return IterateListenersInGuard(l => l.SchedulerShutdown(cancellationToken), nameof(SchedulerShutdown));
     }
 
-    public ValueTask SchedulerShuttingdown(CancellationToken cancellationToken = default)
+    public ValueTask SchedulerShuttingDown(CancellationToken cancellationToken = default)
     {
-        return IterateListenersInGuard(l => l.SchedulerShuttingdown(cancellationToken), nameof(SchedulerShuttingdown));
+        return IterateListenersInGuard(l => l.SchedulerShuttingDown(cancellationToken), nameof(SchedulerShuttingDown));
     }
 
     private async ValueTask IterateListenersInGuard(Func<ISchedulerListener, ValueTask> action, string methodName)

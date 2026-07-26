@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -233,8 +233,7 @@ public interface IListenerManager
     /// </summary>
     /// <remarks>
     /// </remarks>
-    /// <returns>true if the identified listener was found in the list, and</returns>
-    /// removed.
+    /// <returns>true if the identified listener was found in the list, and removed.</returns>
     bool RemoveTriggerListener(string name);
 
     /// <summary>
@@ -260,14 +259,26 @@ public interface IListenerManager
     /// Remove the given <see cref="ISchedulerListener" /> from the
     ///<see cref="IScheduler" />.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <returns>true if the identified listener was found in the list, and removed.</returns>
     bool RemoveSchedulerListener(ISchedulerListener schedulerListener);
 
     /// <summary>
-    /// Get a List containing all of the <see cref="ISchedulerListener" />s
-    /// registered with the <see cref="IScheduler" />.
+    /// Remove the <see cref="ISchedulerListener" /> that has the given name from the
+    /// <see cref="IScheduler" />.
     /// </summary>
-    IReadOnlyCollection<ISchedulerListener> GetSchedulerListeners();
+    /// <returns>true if the identified listener was found in the list, and removed.</returns>
+    bool RemoveSchedulerListener(string name);
+
+    /// <summary>
+    /// Gets all of the <see cref="ISchedulerListener" /> instances in the <see cref="IScheduler" />.
+    /// </summary>
+    /// <returns>
+    /// A shallow copy of all <see cref="ISchedulerListener" /> instances that are registered.
+    /// </returns>
+    ISchedulerListener[] GetSchedulerListeners();
+
+    /// <summary>
+    /// Get the <see cref="ISchedulerListener" /> that has the given name.
+    /// </summary>
+    ISchedulerListener GetSchedulerListener(string name);
 }
