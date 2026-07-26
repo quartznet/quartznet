@@ -475,13 +475,12 @@ public static class ServiceCollectionExtensions
         bool updateTriggers,
         Action<IServiceProvider, T> configure) where T : ICalendar, new()
     {
-        var optionsName = configurator.SchedulerName;
-        configurator.Services.AddSingleton(serviceProvider =>
+        SchedulerContentRegistration.Add(configurator, serviceProvider =>
         {
             var calendar = new T();
             configure(serviceProvider, calendar);
 
-            return new CalendarConfiguration(name, calendar, replace, updateTriggers, optionsName);
+            return new CalendarConfiguration(name, calendar, replace, updateTriggers);
         });
         return configurator;
     }
@@ -493,7 +492,7 @@ public static class ServiceCollectionExtensions
         bool replace,
         bool updateTriggers)
     {
-        configurator.Services.AddSingleton(new CalendarConfiguration(name, calendar, replace, updateTriggers, configurator.SchedulerName));
+        SchedulerContentRegistration.Add(configurator, new CalendarConfiguration(name, calendar, replace, updateTriggers));
         return configurator;
     }
 

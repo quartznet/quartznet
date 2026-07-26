@@ -1,9 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 
 using Quartz.Impl;
 using Quartz.Impl.Matchers;
-using Quartz.Spi;
 
 namespace Quartz.Configuration;
 
@@ -18,9 +16,9 @@ namespace Quartz.Configuration;
 /// there is a scheduler to apply it to.
 /// </para>
 /// <para>
-/// Listener registrations are still matched by options name rather than by service key. Moving them to
-/// keyed registrations is a change to the public registration surface, so it is left to the slice that
-/// reworks listeners rather than smuggled in here.
+/// Content is resolved by service key, like every other part of a scheduler. A registration made for one
+/// scheduler is therefore never even seen by another, and a listener arrives together with the matchers
+/// it was registered with instead of being re-joined to them by type.
 /// </para>
 /// </remarks>
 internal sealed class SchedulerContentInitializer
@@ -31,6 +29,7 @@ internal sealed class SchedulerContentInitializer
     internal const string ServiceProviderContextKey = "Quartz.ServiceProvider";
 
     private readonly IServiceProvider serviceProvider;
+    private readonly SchedulerKey schedulerKey;
     private readonly QuartzOptions options;
     private readonly ContainerConfigurationProcessor processor;
 
@@ -40,117 +39,174 @@ internal sealed class SchedulerContentInitializer
     /// </remarks>
     public SchedulerContentInitializer(
         IServiceProvider serviceProvider,
+        SchedulerKey schedulerKey,
         QuartzOptions options,
         ContainerConfigurationProcessor processor)
     {
         this.serviceProvider = serviceProvider;
+        this.schedulerKey = schedulerKey;
         this.options = options;
         this.processor = processor;
     }
 
-    public async ValueTask Initialize(IScheduler scheduler, string optionsName, CancellationToken cancellationToken)
+    private object? Key => schedulerKey.Key;
+
+    public async ValueTask Initialize(IScheduler scheduler, CancellationToken cancellationToken)
     {
         // Plugins reach the container through the scheduler context.
         scheduler.Context[ServiceProviderContextKey] = serviceProvider;
 
-        AddSchedulerListeners(scheduler, optionsName, serviceProvider);
-        AddJobListeners(scheduler, optionsName, serviceProvider);
-        AddTriggerListeners(scheduler, optionsName, serviceProvider);
+        AddSchedulerListeners(scheduler);
+        AddJobListeners(scheduler);
+        AddTriggerListeners(scheduler);
 
-        await AddCalendars(scheduler, optionsName, cancellationToken).ConfigureAwait(false);
+        await AddCalendars(scheduler, cancellationToken).ConfigureAwait(false);
         await processor.ScheduleJobs(scheduler, cancellationToken).ConfigureAwait(false);
     }
 
-    private void AddSchedulerListeners(IScheduler scheduler, string optionsName, IServiceProvider provider)
+    private void AddSchedulerListeners(IScheduler scheduler)
     {
-        var configurations = Configurations<SchedulerListenerConfiguration>(optionsName, x => x.OptionsName);
-
-        foreach (var configuration in configurations)
+        foreach (var registration in Registrations<SchedulerListenerRegistration>())
         {
-            scheduler.ListenerManager.AddSchedulerListener(
-                ListenerCreationHelper.CreateSchedulerListener(configuration, provider));
+            scheduler.ListenerManager.AddSchedulerListener(registration.CreateListener(serviceProvider));
         }
 
-        // Listeners the application registered directly, which carry no configuration of their own.
-        if (optionsName.Length == 0)
+        // Listeners the application registered as plain services, which carry nothing of their own.
+        foreach (var listener in ListenerServices<ISchedulerListener>())
         {
-            var configured = configurations.Select(x => x.ListenerType).ToHashSet();
-            foreach (var listener in serviceProvider.GetServices<ISchedulerListener>().Where(x => !configured.Contains(x.GetType())))
-            {
-                scheduler.ListenerManager.AddSchedulerListener(listener);
-            }
+            scheduler.ListenerManager.AddSchedulerListener(listener);
         }
-
     }
 
-    private void AddJobListeners(IScheduler scheduler, string optionsName, IServiceProvider provider)
+    private void AddJobListeners(IScheduler scheduler)
     {
-        var configurations = Configurations<JobListenerConfiguration>(optionsName, x => x.OptionsName);
+        var listeners = new List<(IJobListener Listener, IMatcher<JobKey>[] Matchers)>();
 
-        foreach (var configuration in configurations)
+        foreach (var registration in Registrations<JobListenerRegistration>())
         {
-            scheduler.ListenerManager.AddJobListener(
-                ListenerCreationHelper.CreateJobListener(configuration, provider), configuration.Matchers);
+            listeners.Add((registration.CreateListener(serviceProvider), registration.Matchers));
         }
 
-        // Listeners the application registered directly, which carry no configuration of their own.
-        if (optionsName.Length == 0)
+        // Listeners the application registered as plain services, which carry no matchers and so listen
+        // to everything.
+        foreach (var listener in ListenerServices<IJobListener>())
         {
-            var configured = configurations.Select(x => x.ListenerType).ToHashSet();
-            foreach (var listener in serviceProvider.GetServices<IJobListener>().Where(x => !configured.Contains(x.GetType())))
-            {
-                scheduler.ListenerManager.AddJobListener(listener, []);
-            }
+            listeners.Add((listener, []));
         }
 
-        // Listeners named by quartz.jobListener.* properties, which carry no matchers and so listen to
-        // everything, as that format has always meant.
+        // Listeners named by quartz.jobListener.* properties, which also carry no matchers, as that
+        // format has always meant.
         foreach (var listener in PropertyListenerFactory.Create<IJobListener>(
                      serviceProvider, options.ToNameValueCollection(), StdSchedulerFactory.PropertyJobListenerPrefix))
         {
-            scheduler.ListenerManager.AddJobListener(listener, EverythingMatcher<JobKey>.AllJobs());
+            listeners.Add((listener, [EverythingMatcher<JobKey>.AllJobs()]));
+        }
+
+        RejectDuplicateNames(scheduler, "job", listeners.Select(static x => (x.Listener.Name, (object) x.Listener)));
+
+        foreach (var (listener, matchers) in listeners)
+        {
+            scheduler.ListenerManager.AddJobListener(listener, matchers);
         }
     }
 
-    private void AddTriggerListeners(IScheduler scheduler, string optionsName, IServiceProvider provider)
+    private void AddTriggerListeners(IScheduler scheduler)
     {
-        var configurations = Configurations<TriggerListenerConfiguration>(optionsName, x => x.OptionsName);
+        var listeners = new List<(ITriggerListener Listener, IMatcher<TriggerKey>[] Matchers)>();
 
-        foreach (var configuration in configurations)
+        foreach (var registration in Registrations<TriggerListenerRegistration>())
         {
-            scheduler.ListenerManager.AddTriggerListener(
-                ListenerCreationHelper.CreateTriggerListener(configuration, provider), configuration.Matchers);
+            listeners.Add((registration.CreateListener(serviceProvider), registration.Matchers));
         }
 
-        if (optionsName.Length == 0)
+        foreach (var listener in ListenerServices<ITriggerListener>())
         {
-            var configured = configurations.Select(x => x.ListenerType).ToHashSet();
-            foreach (var listener in serviceProvider.GetServices<ITriggerListener>().Where(x => !configured.Contains(x.GetType())))
-            {
-                scheduler.ListenerManager.AddTriggerListener(listener, []);
-            }
+            listeners.Add((listener, []));
         }
 
         foreach (var listener in PropertyListenerFactory.Create<ITriggerListener>(
                      serviceProvider, options.ToNameValueCollection(), StdSchedulerFactory.PropertyTriggerListenerPrefix))
         {
-            scheduler.ListenerManager.AddTriggerListener(listener, EverythingMatcher<TriggerKey>.AllTriggers());
+            listeners.Add((listener, [EverythingMatcher<TriggerKey>.AllTriggers()]));
+        }
+
+        RejectDuplicateNames(scheduler, "trigger", listeners.Select(static x => (x.Listener.Name, (object) x.Listener)));
+
+        foreach (var (listener, matchers) in listeners)
+        {
+            scheduler.ListenerManager.AddTriggerListener(listener, matchers);
         }
     }
 
-    private async ValueTask AddCalendars(IScheduler scheduler, string optionsName, CancellationToken cancellationToken)
+    private async ValueTask AddCalendars(IScheduler scheduler, CancellationToken cancellationToken)
     {
-        foreach (var configuration in Configurations<CalendarConfiguration>(optionsName, x => x.OptionsName))
+        foreach (var configuration in Registrations<CalendarConfiguration>())
         {
             await scheduler.AddCalendar(
                 configuration.Name, configuration.Calendar, configuration.Replace, configuration.UpdateTriggers, cancellationToken)
                 .ConfigureAwait(false);
         }
-
     }
 
-    private T[] Configurations<T>(string optionsName, Func<T, string> nameOf)
+    /// <summary>
+    /// The content registered for this scheduler: keyed by its name, or unkeyed for the default one.
+    /// </summary>
+    private T[] Registrations<T>()
     {
-        return serviceProvider.GetServices<T>().Where(x => nameOf(x!) == optionsName).ToArray()!;
+        return serviceProvider.GetSchedulerServices<T>(Key).ToArray();
+    }
+
+    /// <summary>
+    /// Listeners registered as plain services rather than through the builder.
+    /// </summary>
+    /// <remarks>
+    /// An unkeyed registration is container-wide, so a listener registered that way belongs to every
+    /// scheduler in the container rather than only the default one — which is how it used to look, because
+    /// named schedulers skipped this source entirely. A keyed registration belongs to the scheduler whose
+    /// name it is keyed with, for an application that wants one scheduler's listener injected as a service.
+    /// </remarks>
+    private IEnumerable<T> ListenerServices<T>()
+    {
+        var shared = serviceProvider.GetServices<T>();
+        return Key is null ? shared : shared.Concat(serviceProvider.GetKeyedServices<T>(Key));
+    }
+
+    /// <summary>
+    /// Refuses two listeners of the same kind that answer to the same name.
+    /// </summary>
+    /// <remarks>
+    /// A listener manager holds one listener per name and replaces on collision, and a replacement that
+    /// carries no matchers drops the matchers of the listener it replaced. Two registrations that happen
+    /// to produce the same name therefore quietly become one — the very ambiguity that carrying the
+    /// pairing in the registration removes. Say so instead of applying only one of them.
+    /// </remarks>
+    private static void RejectDuplicateNames(
+        IScheduler scheduler,
+        string kind,
+        IEnumerable<(string Name, object Listener)> listeners)
+    {
+        var seen = new Dictionary<string, object>(StringComparer.Ordinal);
+        foreach (var (name, listener) in listeners)
+        {
+            if (string.IsNullOrEmpty(name))
+            {
+                // A nameless listener is rejected by the listener manager itself, which says so better.
+                continue;
+            }
+
+            if (seen.TryGetValue(name, out var existing))
+            {
+                var cause = ReferenceEquals(existing, listener)
+                    ? $"the same {listener.GetType()} is registered twice"
+                    : $"{existing.GetType()} and {listener.GetType()} both answer to it";
+
+                Throw.SchedulerConfigException(
+                    $"Two {kind} listeners configured for scheduler '{scheduler.SchedulerName}' share the name "
+                    + $"'{name}': {cause}. A scheduler knows a listener by its name, so the second would replace the "
+                    + "first and take its matchers with it. Register the listener once, or give them distinct names.");
+            }
+
+            seen[name] = listener;
+        }
     }
 }

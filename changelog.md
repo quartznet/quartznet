@@ -93,6 +93,19 @@
     work until `Start()`, so this changes when the thread exists, not when jobs run.
 
   * The no-op **QuartzScheduler.Initialize()** method was removed. It did nothing and had no callers.
+  * A listener registered as a plain **IJobListener**, **ITriggerListener** or **ISchedulerListener** service now reaches
+    every scheduler in the container instead of only the default one. An unkeyed registration is container-wide, so a named
+    scheduler no longer skips that source; register the listener under the scheduler's name as the service key, or add it
+    through that scheduler's builder, if only one scheduler should have it. (#3176)
+
+  * Two job listeners — or two trigger listeners — configured for the same scheduler that answer to the same **Name** now
+    throw a **SchedulerConfigException** naming both. A scheduler knows a listener by its name, so previously the second
+    quietly replaced the first and dropped the matchers it had been registered with. Give the listeners distinct names. (#3176)
+
+  * A listener that is both configured through **IQuartzBuilder** (`AddJobListener`, `AddTriggerListener`,
+    `AddSchedulerListener`) and registered as a listener service is no longer silently deduplicated by its type; it is two
+    registrations, and for job and trigger listeners it now produces the duplicate-name error above. Register it one way
+    or the other. (#3176)
 
 #### Cron Parser
 

@@ -178,7 +178,7 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
 
             // Listeners, calendars, jobs and triggers can only be applied once a scheduler exists.
             await serviceProvider.GetScheduler<SchedulerContentInitializer>(Key)
-                .Initialize(scheduler, schedulerKey.OptionsName, cancellationToken)
+                .Initialize(scheduler, cancellationToken)
                 .ConfigureAwait(false);
 
             logger.LogInformation(
