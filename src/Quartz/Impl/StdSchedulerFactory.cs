@@ -100,7 +100,6 @@ public class StdSchedulerFactory : ISchedulerFactory, IDisposable
     public const string PropertyJobStoreLockHandlerPrefix = PropertyJobStorePrefix + ".lockHandler";
     public const string PropertyJobStoreLockHandlerType = PropertyJobStoreLockHandlerPrefix + ".type";
     public const string PropertyTablePrefix = "tablePrefix";
-    public const string PropertySchedulerName = "schedName";
     public const string PropertyJobStoreType = "quartz.jobStore.type";
     public const string PropertyDataSourcePrefix = "quartz.dataSource";
     public const string PropertyDbProvider = "quartz.dbprovider";
@@ -424,7 +423,7 @@ public class StdSchedulerFactory : ISchedulerFactory, IDisposable
             {
                 if (key is not null)
                 {
-                    options[key] = cfg.UnderlyingProperties[key];
+                    options.Properties[key] = cfg.UnderlyingProperties[key];
                 }
             }
         });

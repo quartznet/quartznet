@@ -78,8 +78,8 @@ public interface IQuartzBuilder
     /// <summary>
     /// Uses a specific job factory, which decides how job instances are produced.
     /// </summary>
-    IQuartzBuilder UseJobFactory<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        Action<JobFactoryOptions>? configure = null) where T : class, IJobFactory;
+    IQuartzBuilder UseJobFactory<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
+        where T : class, IJobFactory;
 
     /// <summary>
     /// Uses a specific type load helper, which decides how type names are resolved.

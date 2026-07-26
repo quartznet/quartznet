@@ -211,7 +211,7 @@ public static class ServiceCollectionExtensions
             {
                 if (key is not null)
                 {
-                    options[key] = properties[key];
+                    options.Properties[key] = properties[key];
                 }
             }
         });
@@ -332,16 +332,9 @@ public static class ServiceCollectionExtensions
             c.WithIdentity(jobKey);
         }
 
-        var optionsName = options.SchedulerName;
-        options.Services.AddSingleton<IConfigureOptions<QuartzOptions>>(serviceProvider =>
-        {
-            var jobDetail = ConfigureAndBuildJobDetail(serviceProvider, jobType, c, configure, hasCustomKey: out _);
-
-            return new ConfigureNamedOptions<QuartzOptions>(optionsName, x =>
-            {
-                x._jobDetails.Add(jobDetail);
-            });
-        });
+        SchedulerContent.Register(options.Services, options.SchedulerName, serviceProvider =>
+            new SchedulerContent().Add(
+                ConfigureAndBuildJobDetail(serviceProvider, jobType, c, configure, hasCustomKey: out _)));
 
         return options;
     }
@@ -363,8 +356,7 @@ public static class ServiceCollectionExtensions
         this IQuartzBuilder options,
         Action<IServiceProvider, ITriggerConfigurator> configure)
     {
-        var optionsName = options.SchedulerName;
-        options.Services.AddSingleton<IConfigureOptions<QuartzOptions>>(serviceProvider =>
+        SchedulerContent.Register(options.Services, options.SchedulerName, serviceProvider =>
         {
             var c = new TriggerConfigurator();
             configure.Invoke(serviceProvider, c);
@@ -375,10 +367,7 @@ public static class ServiceCollectionExtensions
                 throw new InvalidOperationException("Trigger hasn't been associated with a job");
             }
 
-            return new ConfigureNamedOptions<QuartzOptions>(optionsName, x =>
-            {
-                x._triggers.Add(trigger);
-            });
+            return new SchedulerContent().Add(trigger);
         });
 
         return options;
@@ -405,39 +394,35 @@ public static class ServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(trigger);
 
-        var optionsName = options.SchedulerName;
-        options.Services.AddSingleton<IConfigureOptions<QuartzOptions>>(serviceProvider =>
+        // One registration carrying both, because the job's key may be derived from the trigger's: built
+        // as two independent registrations they could not agree on it.
+        SchedulerContent.Register(options.Services, options.SchedulerName, serviceProvider =>
         {
-            return new ConfigureNamedOptions<QuartzOptions>(optionsName, quartzOptions =>
+            var jobConfigurator = JobBuilder.Create();
+            var jobDetail = ConfigureAndBuildJobDetail(serviceProvider, typeof(T), jobConfigurator, job, out var jobHasCustomKey);
+
+            var triggerConfigurator = new TriggerConfigurator();
+            triggerConfigurator.ForJob(jobDetail);
+
+            trigger.Invoke(serviceProvider, triggerConfigurator);
+            var t = triggerConfigurator.Build();
+
+            // The job configurator is optional and omitted in most examples
+            // If no job key was specified, have the job key match the trigger key
+            if (!jobHasCustomKey)
             {
-                var jobConfigurator = JobBuilder.Create();
-                var jobDetail = ConfigureAndBuildJobDetail(serviceProvider, typeof(T), jobConfigurator, job, out var jobHasCustomKey);
+                ((JobDetailImpl) jobDetail).Key = new JobKey(t.Key.Name, t.Key.Group);
 
-                quartzOptions._jobDetails.Add(jobDetail);
+                // Keep ITrigger.JobKey in sync with IJobDetail.Key
+                ((IMutableTrigger) t).JobKey = jobDetail.Key;
+            }
 
-                var triggerConfigurator = new TriggerConfigurator();
-                triggerConfigurator.ForJob(jobDetail);
+            if (t.JobKey is null || !t.JobKey.Equals(jobDetail.Key))
+            {
+                Throw.InvalidOperationException("Trigger doesn't refer to job being scheduled");
+            }
 
-                trigger.Invoke(serviceProvider, triggerConfigurator);
-                var t = triggerConfigurator.Build();
-
-                // The job configurator is optional and omitted in most examples
-                // If no job key was specified, have the job key match the trigger key
-                if (!jobHasCustomKey)
-                {
-                    ((JobDetailImpl) jobDetail).Key = new JobKey(t.Key.Name, t.Key.Group);
-
-                    // Keep ITrigger.JobKey in sync with IJobDetail.Key
-                    ((IMutableTrigger) t).JobKey = jobDetail.Key;
-                }
-
-                if (t.JobKey is null || !t.JobKey.Equals(jobDetail.Key))
-                {
-                    Throw.InvalidOperationException("Trigger doesn't refer to job being scheduled");
-                }
-
-                quartzOptions._triggers.Add(t);
-            });
+            return new SchedulerContent().Add(jobDetail).Add(t);
         });
 
         return options;

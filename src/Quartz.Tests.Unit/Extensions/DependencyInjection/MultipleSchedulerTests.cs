@@ -34,22 +34,14 @@ public sealed class MultipleSchedulerTests
         });
 
         using var provider = services.BuildServiceProvider();
-        var optionsMonitor = provider.GetRequiredService<IOptionsMonitor<QuartzOptions>>();
-
         var schedulerOptions = provider.GetRequiredService<IOptionsMonitor<QuartzSchedulerOptions>>();
-        var options1 = optionsMonitor.Get("Scheduler1");
-        var options2 = optionsMonitor.Get("Scheduler2");
 
-        options1.JobDetails.Should().HaveCount(1);
-        options1.JobDetails[0].Key.Name.Should().Be("jobA");
-        options1.Triggers.Should().HaveCount(1);
-        options1.Triggers[0].Key.Name.Should().Be("triggerA");
+        provider.ScheduledJobs("Scheduler1").Should().ContainSingle().Which.Key.Name.Should().Be("jobA");
+        provider.ScheduledTriggers("Scheduler1").Should().ContainSingle().Which.Key.Name.Should().Be("triggerA");
         schedulerOptions.Get("Scheduler1").InstanceName.Should().Be("Scheduler1");
 
-        options2.JobDetails.Should().HaveCount(1);
-        options2.JobDetails[0].Key.Name.Should().Be("jobB");
-        options2.Triggers.Should().HaveCount(1);
-        options2.Triggers[0].Key.Name.Should().Be("triggerB");
+        provider.ScheduledJobs("Scheduler2").Should().ContainSingle().Which.Key.Name.Should().Be("jobB");
+        provider.ScheduledTriggers("Scheduler2").Should().ContainSingle().Which.Key.Name.Should().Be("triggerB");
         schedulerOptions.Get("Scheduler2").InstanceName.Should().Be("Scheduler2");
     }
 
@@ -67,11 +59,9 @@ public sealed class MultipleSchedulerTests
         });
 
         using var provider = services.BuildServiceProvider();
-        var optionsMonitor = provider.GetRequiredService<IOptionsMonitor<QuartzOptions>>();
 
-        var defaultOptions = optionsMonitor.Get(Options.DefaultName);
-        defaultOptions.JobDetails.Should().BeEmpty();
-        defaultOptions.Triggers.Should().BeEmpty();
+        provider.ScheduledJobs().Should().BeEmpty();
+        provider.ScheduledTriggers().Should().BeEmpty();
     }
 
     [Test]
@@ -177,11 +167,9 @@ public sealed class MultipleSchedulerTests
         });
 
         using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptions<QuartzOptions>>().Value;
 
-        options.JobDetails.Should().HaveCount(1);
-        options.JobDetails[0].Key.Name.Should().Be("defaultJob");
-        options.Triggers.Should().HaveCount(1);
+        provider.ScheduledJobs().Should().ContainSingle().Which.Key.Name.Should().Be("defaultJob");
+        provider.ScheduledTriggers().Should().HaveCount(1);
 
         provider.GetService<ISchedulerFactory>().Should().NotBeNull();
     }
@@ -206,13 +194,9 @@ public sealed class MultipleSchedulerTests
         });
 
         using var provider = services.BuildServiceProvider();
-        var optionsMonitor = provider.GetRequiredService<IOptionsMonitor<QuartzOptions>>();
 
-        optionsMonitor.Get(Options.DefaultName).JobDetails.Should().HaveCount(1);
-        optionsMonitor.Get(Options.DefaultName).JobDetails[0].Key.Name.Should().Be("defaultJob");
-
-        optionsMonitor.Get("Named1").JobDetails.Should().HaveCount(1);
-        optionsMonitor.Get("Named1").JobDetails[0].Key.Name.Should().Be("namedJob");
+        provider.ScheduledJobs().Should().ContainSingle().Which.Key.Name.Should().Be("defaultJob");
+        provider.ScheduledJobs("Named1").Should().ContainSingle().Which.Key.Name.Should().Be("namedJob");
 
         provider.GetService<ISchedulerFactory>().Should().NotBeNull();
 
@@ -276,15 +260,44 @@ public sealed class MultipleSchedulerTests
         });
 
         using var provider = services.BuildServiceProvider();
-        var optionsMonitor = provider.GetRequiredService<IOptionsMonitor<QuartzOptions>>();
-        var namedOptions = optionsMonitor.Get("Named");
 
-        namedOptions.JobDetails.Should().HaveCount(1);
-        namedOptions.JobDetails[0].Key.Name.Should().Be("scheduledJob");
-        namedOptions.Triggers.Should().HaveCount(1);
-        namedOptions.Triggers[0].Key.Name.Should().Be("scheduledTrigger");
+        provider.ScheduledJobs("Named").Should().ContainSingle().Which.Key.Name.Should().Be("scheduledJob");
+        provider.ScheduledTriggers("Named").Should().ContainSingle().Which.Key.Name.Should().Be("scheduledTrigger");
 
-        optionsMonitor.Get(Options.DefaultName).JobDetails.Should().BeEmpty();
+        provider.ScheduledJobs().Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task NamedSchedulerContent_ShouldBeScheduledOnThatSchedulerOnly()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddLogging();
+
+        services.AddQuartz(q => q.ConfigureScheduler(options => options.InstanceName = "ContentDefault"));
+        services.AddQuartz("ContentNamed", q => q.ScheduleJob<TestJobA>(
+            trigger => trigger.WithIdentity("namedOnlyTrigger").StartNow(),
+            job => job.WithIdentity("namedOnlyJob")));
+
+        await using var provider = services.BuildServiceProvider();
+
+        var named = await provider.GetRequiredKeyedService<ISchedulerFactory>("ContentNamed").GetScheduler();
+        var unnamed = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+
+        try
+        {
+            (await named.CheckExists(new JobKey("namedOnlyJob"))).Should().BeTrue();
+            (await named.CheckExists(new TriggerKey("namedOnlyTrigger"))).Should().BeTrue();
+
+            (await unnamed.CheckExists(new JobKey("namedOnlyJob"))).Should().BeFalse(
+                "a named scheduler's content is registered under its own key, so no other scheduler runs it");
+            (await unnamed.CheckExists(new TriggerKey("namedOnlyTrigger"))).Should().BeFalse();
+        }
+        finally
+        {
+            await named.Shutdown();
+            await unnamed.Shutdown();
+        }
     }
 
     [Test]

@@ -112,18 +112,18 @@ public class ServiceCollectionExtensionsTests
 
         using var serviceProvider = services.BuildServiceProvider();
 
-        var quartzOptions = serviceProvider.GetRequiredService<IOptions<QuartzOptions>>().Value;
+        var jobs = serviceProvider.ScheduledJobs();
 
-        Assert.That(quartzOptions.JobDetails, Has.Exactly(8).Items);
+        jobs.Should().HaveCount(8);
 
-        var job1 = quartzOptions.JobDetails[0];
-        var job2 = quartzOptions.JobDetails[1];
-        var job3 = quartzOptions.JobDetails[2];
-        var job4 = quartzOptions.JobDetails[3];
-        var job5 = quartzOptions.JobDetails[4];
-        var job6 = quartzOptions.JobDetails[5];
-        var job7 = quartzOptions.JobDetails[6];
-        var job8 = quartzOptions.JobDetails[7];
+        var job1 = jobs[0];
+        var job2 = jobs[1];
+        var job3 = jobs[2];
+        var job4 = jobs[3];
+        var job5 = jobs[4];
+        var job6 = jobs[5];
+        var job7 = jobs[6];
+        var job8 = jobs[7];
 
         Assert.Multiple(() =>
         {
@@ -198,12 +198,12 @@ public class ServiceCollectionExtensionsTests
 
         using var serviceProvider = services.BuildServiceProvider();
 
-        var quartzOptions = serviceProvider.GetRequiredService<IOptions<QuartzOptions>>().Value;
+        var triggers = serviceProvider.ScheduledTriggers();
 
-        Assert.That(quartzOptions.Triggers, Has.Exactly(2).Items);
+        triggers.Should().HaveCount(2);
 
-        var trigger1 = quartzOptions.Triggers[0];
-        var trigger2 = quartzOptions.Triggers[1];
+        var trigger1 = triggers[0];
+        var trigger2 = triggers[1];
 
         Assert.Multiple(() =>
         {
@@ -269,18 +269,16 @@ public class ServiceCollectionExtensionsTests
 
         using var serviceProvider = services.BuildServiceProvider();
 
-        var quartzOptions = serviceProvider.GetRequiredService<IOptions<QuartzOptions>>().Value;
+        var triggers = serviceProvider.ScheduledTriggers();
+        var jobs = serviceProvider.ScheduledJobs();
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(quartzOptions.Triggers, Has.Exactly(2).Items);
-            Assert.That(quartzOptions.JobDetails, Has.Exactly(2).Items);
-        });
+        triggers.Should().HaveCount(2);
+        jobs.Should().HaveCount(2);
 
-        var trigger1 = quartzOptions.Triggers[0];
-        var trigger2 = quartzOptions.Triggers[1];
-        var job1 = quartzOptions.JobDetails[0];
-        var job2 = quartzOptions.JobDetails[1];
+        var trigger1 = triggers[0];
+        var trigger2 = triggers[1];
+        var job1 = jobs[0];
+        var job2 = jobs[1];
 
         Assert.Multiple(() =>
         {
@@ -318,16 +316,11 @@ public class ServiceCollectionExtensionsTests
 
         using var serviceProvider = services.BuildServiceProvider();
 
-        var quartzOptions = serviceProvider.GetRequiredService<IOptions<QuartzOptions>>().Value;
+        serviceProvider.ScheduledTriggers().Should().HaveCount(1);
+        serviceProvider.ScheduledJobs().Should().HaveCount(1);
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(quartzOptions.Triggers, Has.Exactly(1).Items);
-            Assert.That(quartzOptions.JobDetails, Has.Exactly(1).Items);
-        });
-
-        var trigger = quartzOptions.Triggers.Single();
-        var job = quartzOptions.JobDetails.Single();
+        var trigger = serviceProvider.ScheduledTriggers().Single();
+        var job = serviceProvider.ScheduledJobs().Single();
 
         Assert.Multiple(() =>
         {
@@ -352,16 +345,11 @@ public class ServiceCollectionExtensionsTests
 
         using var serviceProvider = services.BuildServiceProvider();
 
-        var quartzOptions = serviceProvider.GetRequiredService<IOptions<QuartzOptions>>().Value;
+        serviceProvider.ScheduledTriggers().Should().HaveCount(1);
+        serviceProvider.ScheduledJobs().Should().HaveCount(1);
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(quartzOptions.Triggers, Has.Exactly(1).Items);
-            Assert.That(quartzOptions.JobDetails, Has.Exactly(1).Items);
-        });
-
-        var trigger = quartzOptions.Triggers.Single();
-        var job = quartzOptions.JobDetails.Single();
+        var trigger = serviceProvider.ScheduledTriggers().Single();
+        var job = serviceProvider.ScheduledJobs().Single();
 
         Assert.Multiple(() =>
         {
@@ -474,9 +462,8 @@ public class ServiceCollectionExtensionsTests
         });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var quartzOptions = serviceProvider.GetRequiredService<IOptions<QuartzOptions>>().Value;
 
-        Assert.That(quartzOptions.JobDetails, Has.Exactly(3).Items);
+        serviceProvider.ScheduledJobs().Should().HaveCount(3);
     }
 
     [Test]
@@ -501,9 +488,8 @@ public class ServiceCollectionExtensionsTests
         });
 
         using var serviceProvider = services.BuildServiceProvider();
-        var quartzOptions = serviceProvider.GetRequiredService<IOptions<QuartzOptions>>().Value;
 
-        Assert.That(quartzOptions.Triggers, Has.Exactly(2).Items);
+        serviceProvider.ScheduledTriggers().Should().HaveCount(2);
     }
 
     [Test]

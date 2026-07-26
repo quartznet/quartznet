@@ -150,10 +150,9 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
             quartzScheduler = serviceProvider.GetScheduler<QuartzScheduler>(Key);
             quartzScheduler.JobFactory = serviceProvider.GetScheduler<IJobFactory>(Key);
 
-            // Limits set in code beat the same limits spelled as properties, as everywhere else.
-            var executionLimits = serviceProvider.GetServices<SchedulerExecutionLimits>()
-                .LastOrDefault(x => string.Equals(x.SchedulerName, schedulerKey.OptionsName, StringComparison.Ordinal))?.Limits
-                ?? ExecutionLimitsParser.Parse(properties);
+            // Both code and quartz.executionLimit.* keys produce this registration, and the registration
+            // is first-wins, so the precedence between them is settled before we get here.
+            var executionLimits = serviceProvider.GetSchedulerService<SchedulerExecutionLimits>(Key)?.Limits;
 
             if (executionLimits is not null)
             {

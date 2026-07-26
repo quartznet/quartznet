@@ -117,11 +117,69 @@ q.UsePersistentStore(store => store.UseGenericDatabase("MyDatabase", connectionS
 See [the configuration reference](configuration/reference.md#describing-a-driver-quartz-does-not-know) for the
 full description. `DbProvider.RegisterDbMetadata` is gone with the process-wide lookup it wrote into; use
 the callback above, or register a `DbMetadataFactory` in the container.
+### `QuartzOptions` is no longer a dictionary
+
+`QuartzOptions` used to derive from `Dictionary<string, string?>`, and to hold a scheduler's jobs and
+triggers as well as its flat keys. It was the pivot the whole configuration model turned on; now that
+settings are typed options, the only things left in it were the legacy keys and the one thing that was
+never configuration at all. The keys moved to a `Properties` dictionary, and jobs and triggers became a
+per-scheduler registration like every other part of a scheduler.
+
+```diff
+  services.Configure<QuartzOptions>(options =>
+  {
+-     options["quartz.plugin.jobHistory.type"] = "Quartz.Plugin.History.LoggingJobHistoryPlugin, Quartz.Plugins";
++     options.Properties["quartz.plugin.jobHistory.type"] = "Quartz.Plugin.History.LoggingJobHistoryPlugin, Quartz.Plugins";
+  });
+```
+
+A plugin whose type you know is better added as one, which also gives it constructor injection:
+
+```csharp
+services.AddQuartz(q => q.AddPlugin<LoggingJobHistoryPlugin>());
+```
+
+Because the keys are a property rather than the object itself, a section of flat keys no longer binds
+onto `QuartzOptions` directly — it would bind `Quartz:Properties:*`. Pass the section to `AddQuartz`,
+which reads the keys where they have always been and binds the typed options from the same section:
+
+```diff
+- services.Configure<QuartzOptions>(configuration.GetSection("Quartz"));
+  services.AddQuartz(configuration.GetSection("Quartz"), q => { /* ... */ });
+```
+
+Jobs and triggers are added through the builder. The overloads taking an `IServiceProvider` cover the
+case the options callback used to be needed for:
+
+```diff
+- services.AddOptions<QuartzOptions>()
+-     .Configure<IOptions<SampleOptions>>((options, sample) =>
+-     {
+-         options.AddJob<ExampleJob>(j => j.WithIdentity("job", "group"));
+-         options.AddTrigger(t => t
+-             .ForJob("job", "group")
+-             .WithCronSchedule(sample.Value.CronSchedule));
+-     });
++ services.AddQuartz(q =>
++ {
++     q.AddJob<ExampleJob>(new JobKey("job", "group"));
++     q.AddTrigger((provider, t) => t
++         .ForJob("job", "group")
++         .WithCronSchedule(provider.GetRequiredService<IOptions<SampleOptions>>().Value.CronSchedule));
++ });
+```
+
+`QuartzOptions.SchedulerName` also used to read and write `schedName` — an ADO.NET column key that
+nothing reads — so a scheduler name set through it was accepted and then silently ignored. It now reads
+and writes `quartz.scheduler.instanceName`, which is the key the rest of the model uses.
 
 ### Removed
 
 | Removed | Use instead |
 |---|---|
+| `QuartzOptions : Dictionary<string, string?>` | `QuartzOptions.Properties` |
+| `QuartzOptions.JobDetails`, `.Triggers`, `.AddJob`, `.AddTrigger` | `AddQuartz(q => q.AddJob(…))` / `q.AddTrigger(…)` |
+| `StdSchedulerFactory.PropertySchedulerName` | nothing; it named an ADO.NET column, not a setting |
 | `SchedulerBuilder` | `QuartzSchedulerBuilder` for standalone use, `AddQuartz` under a host |
 | `DirectSchedulerFactory` | `QuartzSchedulerBuilder`, with `UseThreadPool` / `UseJobStore` for pre-built parts |
 | `IPropertyConfigurer`, `IPropertySetter`, `IPropertyConfigurationRoot`, `PropertiesHolder`, `PropertiesSetter` | typed options |

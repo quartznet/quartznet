@@ -114,6 +114,22 @@ internal static class QuartzPropertyBridge
         RegisterThreadPool(services, parser, schedulerName);
         RegisterDbProviderMetadata(services, properties);
         RegisterJobStore(services, parser, schedulerName);
+        RegisterExecutionLimits(services, properties, schedulerName);
+    }
+
+    /// <summary>
+    /// Turns <c>quartz.executionLimit.*</c> keys into the same registration <c>UseExecutionLimits</c>
+    /// produces, so the scheduler has one place to read limits from rather than two.
+    /// </summary>
+    private static void RegisterExecutionLimits(IServiceCollection services, NameValueCollection properties, string? schedulerName)
+    {
+        var limits = ExecutionLimitsParser.Parse(properties);
+        if (limits is null)
+        {
+            return;
+        }
+
+        RegisterConfigured<SchedulerExecutionLimits>(services, schedulerName, (_, _) => new SchedulerExecutionLimits(limits));
     }
 
     /// <summary>

@@ -66,9 +66,6 @@ With persistent job stores it's best practice to always declare at least job and
 ```csharp
 public void ConfigureServices(IServiceCollection services)
 {
-    // base configuration from appsettings.json
-    services.Configure<QuartzOptions>(Configuration.GetSection("Quartz"));
-
     // if you are using persistent job store, you might want to alter some options
     services.Configure<QuartzOptions>(options =>
     {
@@ -76,7 +73,8 @@ public void ConfigureServices(IServiceCollection services)
         options.Scheduling.OverWriteExistingData = true; // default: true
     });
 
-    services.AddQuartz(q =>
+    // base configuration from appsettings.json, plus configuration in code
+    services.AddQuartz(Configuration.GetSection("Quartz"), q =>
     {
         // handy when part of cluster or you want to otherwise identify multiple schedulers
         q.ConfigureScheduler(options => options.InstanceId = "Scheduler-Core");
@@ -191,6 +189,18 @@ public void ConfigureServices(IServiceCollection services)
         q.AddJobListener<SampleJobListener>(GroupMatcher<JobKey>.GroupEquals(jobKey.Group));
         q.AddTriggerListener<SampleTriggerListener>();
 
+        // your own configuration can decide what gets scheduled: whether there is a schedule at all is
+        // decided here, and the schedule itself is read from the container when the trigger is built
+        if (!string.IsNullOrWhiteSpace(Configuration.GetSection("Sample")["CronSchedule"]))
+        {
+            var customJobKey = new JobKey("options-custom-job", "custom");
+            q.AddJob<ExampleJob>(customJobKey);
+            q.AddTrigger((serviceProvider, trigger) => trigger
+                .WithIdentity("options-custom-trigger", "custom")
+                .ForJob(customJobKey)
+                .WithCronSchedule(serviceProvider.GetRequiredService<IOptions<SampleOptions>>().Value.CronSchedule));
+        }
+
         // example of persistent job store using JSON serializer as an example
         /*
         q.UsePersistentStore(s =>
@@ -214,25 +224,12 @@ public void ConfigureServices(IServiceCollection services)
         */
     });
 
- // we can use options pattern to support hooking your own configuration
- // because we don't use service registration api,
- // we need to manually ensure the job is present in DI
- services.AddTransient<ExampleJob>();
+    // because we don't use service registration api,
+    // we need to manually ensure the job is present in DI
+    services.AddTransient<ExampleJob>();
 
- services.Configure<SampleOptions>(Configuration.GetSection("Sample"));
- services.AddOptions<QuartzOptions>()
-  .Configure<IOptions<SampleOptions>>((options, dep) =>
-  {
-   if (!string.IsNullOrWhiteSpace(dep.Value.CronSchedule))
-   {
-    var jobKey = new JobKey("options-custom-job", "custom");
-    options.AddJob<ExampleJob>(j => j.WithIdentity(jobKey));
-    options.AddTrigger(trigger => trigger
-     .WithIdentity("options-custom-trigger", "custom")
-     .ForJob(jobKey)
-     .WithCronSchedule(dep.Value.CronSchedule));
-   }
-  });
+    // your own options, read by the trigger registered above
+    services.Configure<SampleOptions>(Configuration.GetSection("Sample"));
 
     // Quartz allows you to fire background service that handles scheduler lifecycle
     services.AddQuartzHostedService(options =>

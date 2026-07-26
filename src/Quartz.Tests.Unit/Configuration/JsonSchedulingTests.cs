@@ -26,13 +26,12 @@ public class JsonSchedulingTests
         services.AddQuartz(config);
 
         var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptions<QuartzOptions>>().Value;
 
         provider.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value
             .InstanceName.Should().Be("JsonTest");
-        options.JobDetails.Should().HaveCount(1);
-        options.Triggers.Should().HaveCount(1);
-        options.Triggers[0].Should().BeAssignableTo<ICronTrigger>();
+        provider.ScheduledJobs().Should().HaveCount(1);
+        provider.ScheduledTriggers().Should().HaveCount(1);
+        provider.ScheduledTriggers()[0].Should().BeAssignableTo<ICronTrigger>();
     }
 
     [Test]
@@ -54,8 +53,7 @@ public class JsonSchedulingTests
         services.AddQuartz(config);
 
         var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptions<QuartzOptions>>().Value;
-        var trigger = (ISimpleTrigger) options.Triggers[0];
+        var trigger = (ISimpleTrigger) provider.ScheduledTriggers()[0];
         trigger.RepeatCount.Should().Be(-1);
         trigger.RepeatInterval.Should().Be(TimeSpan.FromSeconds(10));
     }
@@ -101,14 +99,12 @@ public class JsonSchedulingTests
         services.AddQuartz("LocalScheduler", config);
 
         var provider = services.BuildServiceProvider();
-        var snapshot = provider.GetRequiredService<IOptionsSnapshot<QuartzOptions>>();
-        var options = snapshot.Get("LocalScheduler");
 
         provider.GetRequiredService<IOptionsSnapshot<ThreadPoolOptions>>()
             .Get("LocalScheduler").MaxConcurrency.Should().Be(7);
-        options.JobDetails.Should().HaveCount(1);
-        options.JobDetails[0].Key.Name.Should().Be("rootJob");
-        options.Triggers.Should().HaveCount(1);
+        provider.ScheduledJobs("LocalScheduler").Should().HaveCount(1);
+        provider.ScheduledJobs("LocalScheduler")[0].Key.Name.Should().Be("rootJob");
+        provider.ScheduledTriggers("LocalScheduler").Should().HaveCount(1);
     }
 
     [Test]
@@ -154,10 +150,9 @@ public class JsonSchedulingTests
         services.AddQuartz(config);
 
         var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptions<QuartzOptions>>().Value;
         provider.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value
             .InstanceName.Should().Be("NoSchedule");
-        options.JobDetails.Should().BeEmpty();
+        provider.ScheduledJobs().Should().BeEmpty();
     }
 
     [Test]
@@ -186,7 +181,7 @@ public class JsonSchedulingTests
         options.Scheduling.OverWriteExistingData.Should().BeFalse();
         options.Scheduling.IgnoreDuplicates.Should().BeTrue();
         options.Scheduling.ScheduleTriggerRelativeToReplacedTrigger.Should().BeTrue();
-        options.JobDetails.Should().HaveCount(1);
+        provider.ScheduledJobs().Should().HaveCount(1);
     }
 
     [Test]
@@ -208,7 +203,7 @@ public class JsonSchedulingTests
 
         options.Scheduling.OverWriteExistingData.Should().BeFalse();
         options.Scheduling.IgnoreDuplicates.Should().BeTrue();
-        options.JobDetails.Should().BeEmpty();
+        provider.ScheduledJobs().Should().BeEmpty();
     }
 
     [Test]
@@ -232,12 +227,11 @@ public class JsonSchedulingTests
         });
 
         var provider = services.BuildServiceProvider();
-        var snapshot = provider.GetRequiredService<IOptionsSnapshot<QuartzOptions>>();
-        var options = snapshot.Get("CustomLoader");
+        var jobs = provider.ScheduledJobs("CustomLoader");
 
-        options.JobDetails.Should().HaveCount(1);
-        options.JobDetails[0].Key.Name.Should().Be("customLoaderJob");
-        options.JobDetails[0].JobType.FullName.Should().Contain("Quartz.Job.NativeJob");
+        jobs.Should().HaveCount(1);
+        jobs[0].Key.Name.Should().Be("customLoaderJob");
+        jobs[0].JobType.FullName.Should().Contain("Quartz.Job.NativeJob");
     }
 
     [Test]
@@ -259,10 +253,10 @@ public class JsonSchedulingTests
         services.AddQuartz(config);
 
         var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptions<QuartzOptions>>().Value;
+        var triggers = provider.ScheduledTriggers();
 
-        options.Triggers.Should().HaveCount(1);
-        var trigger = (Quartz.Impl.Triggers.AbstractTrigger) options.Triggers[0];
+        triggers.Should().HaveCount(1);
+        var trigger = (Quartz.Impl.Triggers.AbstractTrigger) triggers[0];
         trigger.ExecutionGroup.Should().Be("batch");
     }
 

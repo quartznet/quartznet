@@ -149,6 +149,39 @@
     (`services.AddSingleton(new SystemTextJsonSerializerRegistry().AddTriggerSerializer<T>(...))`) to make a custom serializer
     visible to them. `HttpScheduler`'s constructor gained an optional `serializerRegistry` parameter, and
     `InProcessQuartzApiClient`'s constructor now takes a `SystemTextJsonSerializerRegistry`.
+  * **MicrosoftDependencyInjectionJobFactory**'s constructor no longer takes an `IOptions<QuartzOptions>`.
+    It was stored and never read (#3179).
+
+  * The empty **JobFactoryOptions** type was removed, along with `QuartzOptions.JobFactory` and the
+    `Action<JobFactoryOptions>` parameter of `UseJobFactory<T>()`. Use the parameterless overload (#3179).
+
+  * Execution group limits now always reach the scheduler through a single per-scheduler registration.
+    `quartz.executionLimit.*` keys feed that registration instead of being parsed separately at scheduler
+    creation, so limits set in code still beat the same limits spelled as properties, and a named
+    scheduler gets its own limits (#3179). A malformed `quartz.executionLimit.*` value is now reported
+    when the scheduler is registered rather than when it is first created.
+
+  * **QuartzOptions** no longer derives from `Dictionary<string, string?>`. The flat `quartz.*` keys it
+    carried are now a `Properties` dictionary on it, so `options["quartz.plugin.x.type"] = ...` becomes
+    `options.Properties["quartz.plugin.x.type"] = ...`. Binding a configuration section of flat keys
+    directly onto the options type therefore binds `Quartz:Properties:*`; use
+    `services.AddQuartz(configuration.GetSection("Quartz"))`, which accepts the keys where they have
+    always been (#3177).
+
+  * `QuartzOptions.JobDetails`, `QuartzOptions.Triggers`, `QuartzOptions.AddJob` and
+    `QuartzOptions.AddTrigger` were removed. A scheduler's jobs and triggers are its content rather than
+    its configuration, and are now registered per scheduler in the container. Add them through the
+    builder — `services.AddQuartz(q => q.AddJob<T>(...).AddTrigger(...))` — which is where the other ways
+    of adding them already went. The `AddJob`, `AddTrigger` and `ScheduleJob` overloads taking an
+    `IServiceProvider` cover configuration that depends on a service (#3177).
+
+  * `QuartzOptions.SchedulerName` now reads and writes `quartz.scheduler.instanceName`. It used to read
+    and write `schedName`, an ADO.NET column key that nothing reads, so a scheduler name set through it
+    was accepted and then silently ignored (#3177). The unused
+    `StdSchedulerFactory.PropertySchedulerName` constant that named that key was removed.
+
+  * **Quartz.Dashboard** registers its live-events and history plugins as services rather than by writing
+    `quartz.plugin.*.type` keys into `QuartzOptions`. The plugins keep the names they had (#3177).
 
 #### Cron Parser
 
