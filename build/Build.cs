@@ -46,7 +46,7 @@ partial class Build : FalloutBuild, ICompile, IPack
     AbsolutePath VersionPropsFile => RootDirectory / "Directory.Build.props";
 
     string PropsVersionPrefix =>
-        Regex.Match(VersionPropsFile.ReadAllText(), "<VersionPrefix>(.+)</VersionPrefix>").Groups[1].Value;
+        Regex.Match(VersionPropsFile.ReadAllText(), "<VersionPrefix>(.+)</VersionPrefix>", RegexOptions.None, TimeSpan.FromSeconds(5)).Groups[1].Value;
 
     static bool IsRunningOnWindows => RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
