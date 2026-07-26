@@ -763,7 +763,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
             {
                 return null;
             }
-            fireTime = startTimeOfDay.GetTimeOfDayForDate(fireTime);
+            fireTime = ApplyStartTimeOfDayForDate(fireTime);
             return fireTime?.ToUniversalTime();
         }
 
@@ -772,14 +772,26 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
         // the computed fire time to remain on the same local date instead of
         // advancing to the next day. Detect this by comparing the expected local
         // date (from wall-clock arithmetic) with the actual computed date.
-        if (fireTime.HasValue)
+        //
+        // This only applies to triggers that fire at most once per local day. With a
+        // shorter interval several fires per local date are expected, and on a
+        // spring-forward day (a 23 hour local day) the correction would move the fire
+        // time backwards into the previous local day, wedging the trigger in an
+        // infinite loop.
+        if (fireTime.HasValue && RepeatIntervalSpan >= TimeSpan.FromDays(1))
         {
             TimeSpan utcInterval = sTime - fireTimeStartDate.ToUniversalTime();
             DateTime expectedLocalTime = fireTimeStartDate.DateTime + utcInterval;
 
             if (expectedLocalTime.Date != fireTime.Value.DateTime.Date)
             {
-                fireTime = new DateTimeOffset(expectedLocalTime, TimeZoneUtil.GetUtcOffset(expectedLocalTime, TimeZone));
+                DateTimeOffset corrected = new DateTimeOffset(expectedLocalTime, TimeZoneUtil.GetUtcOffset(expectedLocalTime, TimeZone));
+
+                // GetFireTimeAfter must never move backwards
+                if (corrected > fireTime.Value)
+                {
+                    fireTime = corrected;
+                }
             }
         }
 
@@ -788,12 +800,49 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
         {
             fireTime = AdvanceToNextDayOfWeekIfNecessary(fireTime.Value, IsSameDay(fireTime.Value, fireTimeEndDate));
             // make sure we hit the startTimeOfDay on the new day
-            fireTime = startTimeOfDay.GetTimeOfDayForDate(fireTime);
+            fireTime = ApplyStartTimeOfDayForDate(fireTime);
         }
 
         // i. Return calculated fireTime.
         return fireTime?.ToUniversalTime();
     }
+
+    /// <summary>
+    /// Resets the time of day of <paramref name="fireTime" /> to <see cref="StartTimeOfDay" />, resolving
+    /// the UTC offset for the resulting local time instead of inheriting the one <paramref name="fireTime" />
+    /// happens to carry.
+    /// </summary>
+    /// <remarks>
+    /// The inherited offset can belong to the other side of a daylight saving transition, which yields an
+    /// instant up to an hour away from the requested time of day. In time zones that transition at midnight
+    /// that was enough to make <see cref="GetFireTimeAfter" /> return the very time it was given, leaving the
+    /// scheduler firing the trigger in a tight loop.
+    /// </remarks>
+    private DateTimeOffset? ApplyStartTimeOfDayForDate(DateTimeOffset? fireTime)
+    {
+        DateTimeOffset? startOfDay = StartTimeOfDay.GetTimeOfDayForDate(fireTime);
+
+        if (startOfDay is null)
+        {
+            return null;
+        }
+
+        // For a local time that does not exist (skipped by a spring-forward transition) the resolved
+        // offset is the one from before the transition, which lands on the first instant that does exist.
+        DateTime localTime = startOfDay.Value.DateTime;
+        return new DateTimeOffset(localTime, TimeZoneUtil.GetUtcOffset(localTime, TimeZone));
+    }
+
+    /// <summary>
+    /// The configured repeat interval expressed as a <see cref="TimeSpan" />.
+    /// </summary>
+    private TimeSpan RepeatIntervalSpan => RepeatIntervalUnit switch
+    {
+        IntervalUnit.Second => TimeSpan.FromSeconds(RepeatInterval),
+        IntervalUnit.Minute => TimeSpan.FromMinutes(RepeatInterval),
+        IntervalUnit.Hour => TimeSpan.FromHours(RepeatInterval),
+        _ => TimeSpan.Zero
+    };
 
     private bool IsSameDay(DateTimeOffset d1, DateTimeOffset d2)
     {
