@@ -197,6 +197,8 @@
     added to the constructor `CronExpression(SerializationInfo info, StreamingContext context)`.
   * Support multiple `L` instances in the day-of-month field (e.g. `L-1,L-2`), lifting the previous one-instance limitation
   * Fix `L-nW` (nearest weekday to an interior last-day offset) resolving a Sunday backwards to Friday instead of forwards to Monday
+  * `ISchedulerFactory.GetScheduler(name)` now matches the configured scheduler name case-insensitively, the way the
+    scheduler repository indexes names, so the name that finds a scheduler is also the name that creates it
 
 
 ## Release 3.14.0, Mar 8 2025
