@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -563,7 +563,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
         byte[]? data = await ReadBytesFromBlob(rs, colIndex, cancellationToken).ConfigureAwait(false);
         if (data is not null && data.Length > 0)
         {
-            obj = objectSerializer.DeSerialize<T>(data);
+            obj = objectSerializer.Deserialize<T>(data);
         }
         return obj;
     }

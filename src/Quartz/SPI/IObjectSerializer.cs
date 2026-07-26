@@ -1,4 +1,4 @@
-namespace Quartz.Spi;
+﻿namespace Quartz.Spi;
 
 /// <summary>
 /// Interface for object serializers.
@@ -6,8 +6,6 @@ namespace Quartz.Spi;
 /// <author>Marko Lahma</author>
 public interface IObjectSerializer
 {
-    void Initialize();
-
     /// <summary>
     /// Serializes given object as bytes
     /// that can be stored to permanent stores.
@@ -19,5 +17,5 @@ public interface IObjectSerializer
     /// Deserializes object from byte array presentation.
     /// </summary>
     /// <param name="data">Data to deserialize object from, always non-null and non-empty.</param>
-    T? DeSerialize<T>(byte[] data) where T : class;
+    T? Deserialize<T>(byte[] data) where T : class;
 }

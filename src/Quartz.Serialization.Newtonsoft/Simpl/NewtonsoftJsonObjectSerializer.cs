@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
@@ -15,7 +15,7 @@ namespace Quartz.Simpl;
 /// <author>Marko Lahma</author>
 public class NewtonsoftJsonObjectSerializer : IObjectSerializer
 {
-    private JsonSerializer serializer = null!;
+    private JsonSerializer? serializer;
 
     /// <summary>
     /// Creates a serializer that knows the built-in trigger and calendar types only.
@@ -40,10 +40,11 @@ public class NewtonsoftJsonObjectSerializer : IObjectSerializer
     /// </summary>
     protected NewtonsoftJsonSerializerRegistry Registry { get; }
 
-    public void Initialize()
-    {
-        serializer = JsonSerializer.Create(CreateSerializerSettings());
-    }
+    /// <summary>
+    /// The serializer this instance reads and writes with, built on first use so that
+    /// <see cref="CreateSerializerSettings" /> is not called from the constructor.
+    /// </summary>
+    private JsonSerializer Serializer => serializer ??= JsonSerializer.Create(CreateSerializerSettings());
 
     public bool RegisterTriggerConverters { get; set; }
 
@@ -83,15 +84,10 @@ public class NewtonsoftJsonObjectSerializer : IObjectSerializer
     /// <param name="obj">Object to serialize.</param>
     public byte[] Serialize<T>(T obj) where T : class
     {
-        if (serializer is null)
-        {
-            Throw.InvalidOperationException("The serializer hasn't been initialized, did you forget to call Initialize()?");
-        }
-
         using MemoryStream ms = new();
         using (StreamWriter sw = new(ms))
         {
-            serializer.Serialize(sw, obj, typeof(object));
+            Serializer.Serialize(sw, obj, typeof(object));
         }
 
         return ms.ToArray();
@@ -101,18 +97,13 @@ public class NewtonsoftJsonObjectSerializer : IObjectSerializer
     /// Deserializes object from byte array presentation.
     /// </summary>
     /// <param name="data">Data to deserialize object from.</param>
-    public T? DeSerialize<T>(byte[] data) where T : class
+    public T? Deserialize<T>(byte[] data) where T : class
     {
-        if (serializer is null)
-        {
-            Throw.InvalidOperationException("The serializer hasn't been initialized, did you forget to call Initialize()?");
-        }
-
         try
         {
             using MemoryStream ms = new(data);
             using StreamReader sr = new(ms);
-            return (T?) serializer.Deserialize(sr, typeof(T));
+            return (T?) Serializer.Deserialize(sr, typeof(T));
         }
         catch (JsonSerializationException e)
         {

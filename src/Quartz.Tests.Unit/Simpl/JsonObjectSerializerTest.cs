@@ -1,4 +1,4 @@
-using System.Collections.Specialized;
+﻿using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
@@ -41,14 +41,12 @@ public class JsonObjectSerializerTest
 
         newtonsoftSerializer = new IndentingJsonObjectSerializer(newtonsoftRegistry);
         newtonsoftSerializer.RegisterTriggerConverters = true;
-        newtonsoftSerializer.Initialize();
 
         var systemTextJsonRegistry = new SystemTextJsonSerializerRegistry()
             .AddCalendarSerializer<JsonSerializationTestCalendar>(new JsonSerializationTestCalendar.SystemTextJsonSerializer())
             .AddTriggerSerializer<JsonSerializationTestTrigger>(new JsonSerializationTestTrigger.SystemTextJsonSerializer());
 
         systemTextJsonSerializer = new IndentingSystemTextJsonObjectSerializer(systemTextJsonRegistry);
-        systemTextJsonSerializer.Initialize();
     }
 
     [Test]
@@ -517,7 +515,7 @@ public class JsonObjectSerializerTest
         foreach (var (serializer, deserializer) in comparisons)
         {
             byte[] bytes = serializer.Serialize(original);
-            T deserialized = deserializer.DeSerialize<T>(bytes);
+            T deserialized = deserializer.Deserialize<T>(bytes);
 
             asserter?.Invoke(deserialized, original);
 

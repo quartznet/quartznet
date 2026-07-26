@@ -46,7 +46,6 @@ public class StdAdoDelegateTest
     public StdAdoDelegateTest(Type serializerType)
     {
         serializer = (IObjectSerializer) Activator.CreateInstance(serializerType);
-        serializer.Initialize();
     }
 
     [Test]

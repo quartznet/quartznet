@@ -1,4 +1,4 @@
-#nullable enable
+﻿#nullable enable
 
 using System.Collections.Specialized;
 using System.Text.Json;
@@ -870,6 +870,6 @@ public class ConfigurationIsNeverSilentlyDroppedTest
 
         public byte[] Serialize<T>(T obj) where T : class => [];
 
-        public T? DeSerialize<T>(byte[] data) where T : class => null;
+        public T? Deserialize<T>(byte[] data) where T : class => null;
     }
 }

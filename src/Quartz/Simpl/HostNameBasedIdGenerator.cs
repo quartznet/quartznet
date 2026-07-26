@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -49,9 +49,9 @@ public abstract class HostNameBasedIdGenerator : IInstanceIdGenerator
     /// <param name="cancellationToken"></param>
     /// <returns> The clusterwide unique instance id.
     /// </returns>
-    public abstract ValueTask<string?> GenerateInstanceId(CancellationToken cancellationToken = default);
+    public abstract ValueTask<string> GenerateInstanceId(CancellationToken cancellationToken = default);
 
-    protected async ValueTask<string?> GetHostName(
+    protected async ValueTask<string> GetHostName(
         int maxLength,
         CancellationToken cancellationToken = default)
     {
@@ -59,7 +59,7 @@ public abstract class HostNameBasedIdGenerator : IInstanceIdGenerator
         {
             var hostAddress = await GetHostAddress(cancellationToken).ConfigureAwait(false);
             string hostName = hostAddress.HostName;
-            if (hostName is not null && hostName.Length > maxLength)
+            if (hostName.Length > maxLength)
             {
                 string newName = hostName.Substring(0, maxLength);
                 logger.LogInformation("Host name '{HostName}' was too long, shortened to '{Newname}'", hostName, newName);
@@ -70,7 +70,7 @@ public abstract class HostNameBasedIdGenerator : IInstanceIdGenerator
         catch (Exception e)
         {
             Throw.SchedulerException("Couldn't get host name!", e);
-            return null;
+            return null!;
         }
     }
 

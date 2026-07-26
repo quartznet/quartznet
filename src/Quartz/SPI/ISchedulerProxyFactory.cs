@@ -3,7 +3,7 @@
 /// <summary>
 /// Client Proxy to a IScheduler.
 /// </summary>
-public interface IRemotableSchedulerProxyFactory
+public interface ISchedulerProxyFactory
 {
     /// <summary>
     /// Returns a client proxy to a remote <see cref="IScheduler" />.

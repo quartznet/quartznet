@@ -6,10 +6,10 @@ using Quartz.Spi;
 namespace Quartz.Simpl;
 
 /// <summary>
-/// A <see cref="IRemotableSchedulerProxyFactory" /> implementation that creates
+/// A <see cref="ISchedulerProxyFactory" /> implementation that creates
 /// connection to remote scheduler using HTTP.
 /// </summary>
-public class HttpSchedulerProxyFactory : IRemotableSchedulerProxyFactory
+public class HttpSchedulerProxyFactory : ISchedulerProxyFactory
 {
     /// <summary>
     /// Gets or sets the remote scheduler address.

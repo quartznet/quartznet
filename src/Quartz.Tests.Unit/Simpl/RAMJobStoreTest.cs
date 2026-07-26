@@ -468,7 +468,6 @@ public class RAMJobStoreTest
     {
         ISchedulerSignaler schedSignaler = new SampleSignaler();
         ITypeLoadHelper loadHelper = new SimpleTypeLoadHelper();
-        loadHelper.Initialize();
 
         RAMJobStore store = TestJobStores.Ram();
         await store.Initialize();
@@ -511,7 +510,6 @@ public class RAMJobStoreTest
     {
         ISchedulerSignaler schedSignaler = new SampleSignaler();
         ITypeLoadHelper loadHelper = new SimpleTypeLoadHelper();
-        loadHelper.Initialize();
 
         RAMJobStore store = TestJobStores.Ram();
         await store.Initialize();

@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
@@ -28,12 +28,9 @@ namespace Quartz.Spi;
 public interface ITypeLoadHelper
 {
     /// <summary>
-    /// Called to give the implementation a chance to initialize itself.
+    /// Return the type with the given name, or <see langword="null" /> if the name is not one this
+    /// helper can resolve.
     /// </summary>
-    void Initialize();
-
-    /// <summary>
-    /// Return the class with the given name.
-    /// </summary>
-    Type? LoadType(string? name);
+    /// <param name="name">The assembly-qualified type name to load.</param>
+    Type? LoadType(string name);
 }

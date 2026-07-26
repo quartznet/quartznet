@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -175,7 +175,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
         var original = new CronExpression("0 15 10 1,L-1,LW,2W * ? 2010");
 
         var data = serializer.Serialize(original);
-        var deserialized = serializer.DeSerialize<CronExpression>(data);
+        var deserialized = serializer.Deserialize<CronExpression>(data);
 
         // The parsed state (lastDaySpecs, nearestWeekdays) is [NonSerialized] and
         // rebuilt from the expression string, so firing behaviour must survive the

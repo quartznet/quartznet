@@ -111,10 +111,10 @@ public class JobInterruptMonitorPlugin : TriggerListenerSupport, ISchedulerPlugi
         return default;
     }
 
-    public ValueTask Initialize(string name, IScheduler scheduler, CancellationToken cancellationToken = default)
+    public ValueTask Initialize(string pluginName, IScheduler scheduler, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Registering Job Interrupt Monitor Plugin");
-        this.name = name;
+        this.name = pluginName;
 
         taskScheduler = new QueuedTaskScheduler(1, "JobInterruptMonitorPlugin");
         scheduler.Context[JobInterruptMonitorKey] = this;

@@ -63,6 +63,6 @@ public interface ISchedulerSignaler
     /// </summary>
     ValueTask NotifySchedulerListenersError(
         string message,
-        SchedulerException jpe,
+        SchedulerException exception,
         CancellationToken cancellationToken = default);
 }

@@ -96,6 +96,28 @@
     the scheduler was tying up a thread every time it waited for pool capacity. They now use `WaitAsync`. Shutdown still waits
     synchronously for running jobs; that happens once, off the scheduling loop.
 
+  * `IObjectSerializer.DeSerialize` is spelled **`Deserialize`**, and `IObjectSerializer.Initialize()` and
+    `ITypeLoadHelper.Initialize()` were removed. Both serializers now build their options on first use, so there is
+    no half-constructed state to fall into and no `"did you forget to call Initialize()?"` to hit;
+    `SimpleTypeLoadHelper.Initialize` was empty to begin with. `ITypeLoadHelper.LoadType` takes a non-nullable `string`.
+
+  * `IInstanceIdGenerator.GenerateInstanceId` returns `ValueTask<string>` rather than `ValueTask<string?>`. It never
+    legitimately produced null — every implementation either returns a name or throws.
+
+  * **IRemotableSchedulerProxyFactory** is now **ISchedulerProxyFactory**. "Remotable" was .NET Remoting vocabulary
+    that has not applied since 3.0; the only implementation is `Quartz.HttpClient.HttpSchedulerProxyFactory`.
+
+  * `ISchedulerSignaler.NotifySchedulerListenersError`'s second parameter is named `exception` rather than `jpe`,
+    a leftover abbreviation of the Java `JobPersistenceException`.
+
+  * **XmlSchedulingOptions** and **JsonSchedulingOptions** were byte-for-byte identical and are now one
+    **FileSchedulingOptions**. `UseXmlSchedulingConfiguration` and `UseJsonSchedulingConfiguration` are otherwise
+    unchanged, and callers passing a lambda need no edit.
+
+  * Three plugins that shipped without a builder method got one: `UseJobHistoryLogging()`,
+    `UseTriggerHistoryLogging()` and `UseShutdownHook()`. Only the structured-logging variants had been given one, so
+    the classic history plugins and the shutdown hook could only be reached through `quartz.plugin.*` property keys.
+
   * **IThreadPool.InstanceId** and **IThreadPool.InstanceName** were removed. They were setter-only properties written by
     `DefaultSchedulerFactory` and read by nothing — `TaskSchedulingThreadPool` parked them in unused auto-properties and
     `ZeroSizeThreadPool` discarded them. A thread pool that wants the scheduler's identity should take

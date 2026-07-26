@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Reflection;
 
 using Microsoft.Extensions.Configuration;
@@ -516,7 +516,6 @@ internal static class JsonSchedulingHelper
             typeLoadHelper = serviceProvider.GetService<ITypeLoadHelper>() ?? new SimpleTypeLoadHelper();
         }
 
-        typeLoadHelper.Initialize();
         return typeLoadHelper;
     }
 

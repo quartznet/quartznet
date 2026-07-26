@@ -43,7 +43,6 @@ public static class JsonConfigurationExtensions
         {
             RegisterTriggerConverters = options.RegisterTriggerConverters
         };
-        serializer.Initialize();
         return builder.UseSerializer(_ => serializer);
     }
 }

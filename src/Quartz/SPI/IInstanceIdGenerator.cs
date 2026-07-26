@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
@@ -38,5 +38,5 @@ public interface IInstanceIdGenerator
     /// Generate the instance id for a <see cref="IScheduler" />
     /// </summary>
     /// <returns> The clusterwide unique instance id.</returns>
-    ValueTask<string?> GenerateInstanceId(CancellationToken cancellationToken = default);
+    ValueTask<string> GenerateInstanceId(CancellationToken cancellationToken = default);
 }

@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
@@ -66,9 +66,8 @@ public class PropertySettingJobFactoryTest
         if (serializerType is not null)
         {
             var serializer = (IObjectSerializer) Activator.CreateInstance(serializerType);
-            serializer.Initialize();
             var serialized = serializer.Serialize(jobDataMap);
-            jobDataMap = serializer.DeSerialize<JobDataMap>(serialized);
+            jobDataMap = serializer.Deserialize<JobDataMap>(serialized);
         }
 
         TestObject myObject = new TestObject();

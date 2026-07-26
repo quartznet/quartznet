@@ -98,9 +98,9 @@ internal sealed class SchedulerSignalerImpl : ISchedulerSignaler
 
     public ValueTask NotifySchedulerListenersError(
         string message,
-        SchedulerException jpe,
+        SchedulerException exception,
         CancellationToken cancellationToken = default)
     {
-        return sched.NotifySchedulerListenersError(message, jpe, cancellationToken);
+        return sched.NotifySchedulerListenersError(message, exception, cancellationToken);
     }
 }

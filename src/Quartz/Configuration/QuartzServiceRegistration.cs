@@ -1,4 +1,4 @@
-using System.Collections.Specialized;
+﻿using System.Collections.Specialized;
 using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -147,7 +147,6 @@ internal static class QuartzServiceRegistration
             // A serializer is unusable until Initialize builds its converter set. Construction goes
             // through ActivatorUtilities so this scheduler's SystemTextJsonSerializerRegistry is injected.
             var serializer = ActivatorUtilities.CreateInstance<SystemTextJsonObjectSerializer>(Scoped(provider, key));
-            serializer.Initialize();
             return serializer;
         });
 

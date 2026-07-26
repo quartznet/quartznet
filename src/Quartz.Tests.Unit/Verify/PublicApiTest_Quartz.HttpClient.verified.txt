@@ -99,7 +99,7 @@ namespace Quartz
 }
 namespace Quartz.Simpl
 {
-    public class HttpSchedulerProxyFactory : Quartz.Spi.IRemotableSchedulerProxyFactory
+    public class HttpSchedulerProxyFactory : Quartz.Spi.ISchedulerProxyFactory
     {
         public HttpSchedulerProxyFactory() { }
         public string? Address { set; }

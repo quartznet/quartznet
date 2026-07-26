@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -40,7 +40,7 @@ internal sealed class SimpleInstanceIdGenerator : HostNameBasedIdGenerator
     /// </summary>
     /// <param name="cancellationToken"></param>
     /// <returns>The clusterwide unique instance id.</returns>
-    public override async ValueTask<string?> GenerateInstanceId(CancellationToken cancellationToken = default)
+    public override async ValueTask<string> GenerateInstanceId(CancellationToken cancellationToken = default)
     {
         var hostName = await GetHostName(HostNameMaxLength, cancellationToken).ConfigureAwait(false);
         return hostName + TimeProvider.System.GetTimestamp();

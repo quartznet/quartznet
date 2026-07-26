@@ -57,9 +57,8 @@ namespace Quartz.Simpl
         public bool RegisterTriggerConverters { get; set; }
         protected Quartz.Serialization.Newtonsoft.NewtonsoftJsonSerializerRegistry Registry { get; }
         protected virtual Newtonsoft.Json.JsonSerializerSettings CreateSerializerSettings() { }
-        public T? DeSerialize<T>(byte[] data)
+        public T? Deserialize<T>(byte[] data)
             where T :  class { }
-        public void Initialize() { }
         public byte[] Serialize<T>(T obj)
             where T :  class { }
     }

@@ -1,34 +1,29 @@
 ﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
 namespace Quartz
 {
+    public sealed class FileSchedulingOptions
+    {
+        public FileSchedulingOptions() { }
+        public bool FailOnFileNotFound { get; set; }
+        public bool FailOnSchedulingError { get; set; }
+        public string[] Files { get; set; }
+        public System.TimeSpan ScanInterval { get; set; }
+    }
     public sealed class JobAutoInterruptOptions
     {
         public JobAutoInterruptOptions() { }
         public System.TimeSpan DefaultMaxRunTime { get; set; }
     }
-    public sealed class JsonSchedulingOptions
-    {
-        public JsonSchedulingOptions() { }
-        public bool FailOnFileNotFound { get; set; }
-        public bool FailOnSchedulingError { get; set; }
-        public string[] Files { get; set; }
-        public System.TimeSpan ScanInterval { get; set; }
-    }
     public static class PluginConfigurationExtensions
     {
         public static Quartz.IQuartzBuilder UseJobAutoInterrupt(this Quartz.IQuartzBuilder builder, System.Action<Quartz.JobAutoInterruptOptions>? configure = null) { }
-        public static Quartz.IQuartzBuilder UseJsonSchedulingConfiguration(this Quartz.IQuartzBuilder builder, System.Action<Quartz.JsonSchedulingOptions> configure) { }
+        public static Quartz.IQuartzBuilder UseJobHistoryLogging(this Quartz.IQuartzBuilder builder, System.Action<Quartz.Plugin.History.LoggingJobHistoryPlugin>? configure = null) { }
+        public static Quartz.IQuartzBuilder UseJsonSchedulingConfiguration(this Quartz.IQuartzBuilder builder, System.Action<Quartz.FileSchedulingOptions> configure) { }
+        public static Quartz.IQuartzBuilder UseShutdownHook(this Quartz.IQuartzBuilder builder, bool cleanShutdown = true) { }
         public static Quartz.IQuartzBuilder UseStructuredJobLogging(this Quartz.IQuartzBuilder builder) { }
         public static Quartz.IQuartzBuilder UseStructuredTriggerLogging(this Quartz.IQuartzBuilder builder) { }
-        public static Quartz.IQuartzBuilder UseXmlSchedulingConfiguration(this Quartz.IQuartzBuilder builder, System.Action<Quartz.XmlSchedulingOptions> configure) { }
-    }
-    public sealed class XmlSchedulingOptions
-    {
-        public XmlSchedulingOptions() { }
-        public bool FailOnFileNotFound { get; set; }
-        public bool FailOnSchedulingError { get; set; }
-        public string[] Files { get; set; }
-        public System.TimeSpan ScanInterval { get; set; }
+        public static Quartz.IQuartzBuilder UseTriggerHistoryLogging(this Quartz.IQuartzBuilder builder, System.Action<Quartz.Plugin.History.LoggingTriggerHistoryPlugin>? configure = null) { }
+        public static Quartz.IQuartzBuilder UseXmlSchedulingConfiguration(this Quartz.IQuartzBuilder builder, System.Action<Quartz.FileSchedulingOptions> configure) { }
     }
 }
 namespace Quartz.Plugin.History
@@ -113,7 +108,7 @@ namespace Quartz.Plugin.Interrupt
         public JobInterruptMonitorPlugin() { }
         public System.TimeSpan DefaultMaxRunTime { get; set; }
         public override string Name { get; }
-        public System.Threading.Tasks.ValueTask Initialize(string name, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask Initialize(string pluginName, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask Shutdown(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask Start(System.Threading.CancellationToken cancellationToken = default) { }
         public override System.Threading.Tasks.ValueTask TriggerComplete(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, Quartz.SchedulerInstruction triggerInstructionCode, System.Threading.CancellationToken cancellationToken = default) { }

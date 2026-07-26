@@ -1,4 +1,4 @@
-using Quartz.Spi;
+﻿using Quartz.Spi;
 
 namespace Quartz.Simpl;
 
@@ -21,7 +21,7 @@ internal sealed class SystemPropertyInstanceIdGenerator : IInstanceIdGenerator
     /// <summary>
     /// Returns the cluster wide value for this scheduler instance's id, based on a system property.
     /// </summary>
-    public ValueTask<string?> GenerateInstanceId(CancellationToken cancellationToken = default)
+    public ValueTask<string> GenerateInstanceId(CancellationToken cancellationToken = default)
     {
         var property = Environment.GetEnvironmentVariable(SystemPropertyName);
         if (property is null)
@@ -38,7 +38,7 @@ internal sealed class SystemPropertyInstanceIdGenerator : IInstanceIdGenerator
             property += Postpend;
         }
 
-        return new ValueTask<string?>(property);
+        return new ValueTask<string>(property);
     }
 
     /// <summary>

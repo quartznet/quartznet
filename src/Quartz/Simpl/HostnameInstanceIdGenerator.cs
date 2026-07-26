@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
@@ -41,7 +41,7 @@ internal sealed class HostnameInstanceIdGenerator : HostNameBasedIdGenerator
     /// </summary>
     /// <param name="cancellationToken"></param>
     /// <returns>The clusterwide unique instance id.</returns>
-    public override ValueTask<string?> GenerateInstanceId(CancellationToken cancellationToken = default)
+    public override ValueTask<string> GenerateInstanceId(CancellationToken cancellationToken = default)
     {
         return GetHostName(IdMaxLength, cancellationToken);
     }

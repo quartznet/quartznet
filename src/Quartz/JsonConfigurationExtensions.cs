@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 using Quartz.Serialization.Json;
 using Quartz.Serialization.Json.Calendars;
@@ -41,7 +41,6 @@ public static class JsonConfigurationExtensions
         return builder.UseSerializer(_ =>
         {
             var serializer = new SystemTextJsonObjectSerializer(registry);
-            serializer.Initialize();
             return serializer;
         });
     }

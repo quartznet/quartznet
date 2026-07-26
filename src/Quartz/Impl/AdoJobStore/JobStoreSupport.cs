@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -1759,11 +1759,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
     private sealed class NullJobTypeLoader : ITypeLoadHelper
     {
-        public void Initialize()
-        {
-        }
-
-        public Type? LoadType(string? name)
+        public Type? LoadType(string name)
         {
             return null;
         }

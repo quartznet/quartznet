@@ -228,7 +228,6 @@ public class MisfireBatchRecoveryTest
             .AddTriggerSerializer<CustomTrigger>(new CustomNewtonsoftTriggerSerializer());
 
         var serializer = new NewtonsoftJsonObjectSerializer(registry);
-        serializer.Initialize();
 
         var jobStore = new TestJobStoreTX(serializer, dbProvider, new CountingSQLiteDelegate(), maxMisfiresToHandleAtATime)
         {

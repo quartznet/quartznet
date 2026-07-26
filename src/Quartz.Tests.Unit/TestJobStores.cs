@@ -46,7 +46,6 @@ public static class TestJobStores
     public static IObjectSerializer Serializer()
     {
         var serializer = new SystemTextJsonObjectSerializer();
-        serializer.Initialize();
         return serializer;
     }
 

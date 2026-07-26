@@ -24,7 +24,6 @@ public class AdoSchedulerTest : AbstractSchedulerTest
     public AdoSchedulerTest(Type serializerType, string provider) : base(provider, serializerType.Name)
     {
         serializer = (IObjectSerializer) Activator.CreateInstance(serializerType);
-        serializer.Initialize();
     }
 
     protected override async ValueTask<IScheduler> CreateScheduler(string name, int threadPoolSize)

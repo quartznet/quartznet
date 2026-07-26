@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.Json;
 
 using Quartz.Serialization.Json;
@@ -12,7 +12,7 @@ namespace Quartz.Simpl;
 /// <author>Marko Lahma</author>
 public class SystemTextJsonObjectSerializer : IObjectSerializer
 {
-    private JsonSerializerOptions options = null!;
+    private JsonSerializerOptions? options;
 
     /// <summary>
     /// Creates a serializer that knows the built-in trigger and calendar types only.
@@ -37,10 +37,11 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
     /// </summary>
     protected SystemTextJsonSerializerRegistry Registry { get; }
 
-    public void Initialize()
-    {
-        options = CreateSerializerOptions();
-    }
+    /// <summary>
+    /// The options this serializer reads and writes with, built on first use so that
+    /// <see cref="CreateSerializerOptions" /> is not called from the constructor.
+    /// </summary>
+    private JsonSerializerOptions Options => options ??= CreateSerializerOptions();
 
     protected virtual JsonSerializerOptions CreateSerializerOptions()
     {
@@ -54,28 +55,18 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
     /// <param name="obj">Object to serialize.</param>
     public byte[] Serialize<T>(T obj) where T : class
     {
-        if (options is null)
-        {
-            Throw.InvalidOperationException("The serializer hasn't been initialized, did you forget to call Initialize()?");
-        }
-
-        return JsonSerializer.SerializeToUtf8Bytes<object>(obj, options);
+        return JsonSerializer.SerializeToUtf8Bytes<object>(obj, Options);
     }
 
     /// <summary>
     /// Deserializes object from byte array presentation.
     /// </summary>
     /// <param name="data">Data to deserialize object from.</param>
-    public T? DeSerialize<T>(byte[] data) where T : class
+    public T? Deserialize<T>(byte[] data) where T : class
     {
-        if (options is null)
-        {
-            Throw.InvalidOperationException("The serializer hasn't been initialized, did you forget to call Initialize()?");
-        }
-
         try
         {
-            return JsonSerializer.Deserialize<T?>(data, options);
+            return JsonSerializer.Deserialize<T?>(data, Options);
         }
         catch (JsonSerializationException e)
         {

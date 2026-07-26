@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
@@ -33,14 +33,9 @@ internal sealed class SimpleTypeLoadHelper : ITypeLoadHelper
     private const string QuartzJobsAssemblyTypePostfix = ", Quartz.Jobs";
 
     /// <inheritdoc />
-    public void Initialize()
+    public Type? LoadType(string name)
     {
-    }
-
-    /// <inheritdoc />
-    public Type? LoadType(string? name)
-    {
-        if (string.IsNullOrEmpty(name) || name is null)
+        if (string.IsNullOrEmpty(name))
         {
             return null;
         }

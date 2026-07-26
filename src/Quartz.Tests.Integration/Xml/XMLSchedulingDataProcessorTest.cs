@@ -256,7 +256,6 @@ public class XMLSchedulingDataProcessorTest
 
             // Now load the xml data with directives: overwrite-existing-data=false, ignore-duplicates=true
             ITypeLoadHelper loadHelper = new SimpleTypeLoadHelper();
-            loadHelper.Initialize();
             XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(logger, loadHelper, TimeProvider.System);
             await processor.ProcessFileAndScheduleJobs(tempFileName, scheduler);
             var jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("DEFAULT"));

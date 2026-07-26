@@ -3191,9 +3191,9 @@ namespace Quartz.Simpl
     {
         protected const int IdMaxLength = 50;
         protected HostNameBasedIdGenerator() { }
-        public abstract System.Threading.Tasks.ValueTask<string?> GenerateInstanceId(System.Threading.CancellationToken cancellationToken = default);
+        public abstract System.Threading.Tasks.ValueTask<string> GenerateInstanceId(System.Threading.CancellationToken cancellationToken = default);
         protected virtual System.Threading.Tasks.ValueTask<System.Net.IPHostEntry> GetHostAddress(System.Threading.CancellationToken cancellationToken = default) { }
-        protected System.Threading.Tasks.ValueTask<string?> GetHostName(int maxLength, System.Threading.CancellationToken cancellationToken = default) { }
+        protected System.Threading.Tasks.ValueTask<string> GetHostName(int maxLength, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public enum InternalTriggerState
     {
@@ -3303,9 +3303,8 @@ namespace Quartz.Simpl
         public SystemTextJsonObjectSerializer(Quartz.Serialization.Json.SystemTextJsonSerializerRegistry registry) { }
         protected Quartz.Serialization.Json.SystemTextJsonSerializerRegistry Registry { get; }
         protected virtual System.Text.Json.JsonSerializerOptions CreateSerializerOptions() { }
-        public T? DeSerialize<T>(byte[] data)
+        public T? Deserialize<T>(byte[] data)
             where T :  class { }
-        public void Initialize() { }
         public byte[] Serialize<T>(T obj)
             where T :  class { }
     }
@@ -3338,7 +3337,7 @@ namespace Quartz.Spi
 {
     public interface IInstanceIdGenerator
     {
-        System.Threading.Tasks.ValueTask<string?> GenerateInstanceId(System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<string> GenerateInstanceId(System.Threading.CancellationToken cancellationToken = default);
     }
     public interface IJobFactory
     {
@@ -3421,9 +3420,8 @@ namespace Quartz.Spi
     }
     public interface IObjectSerializer
     {
-        T? DeSerialize<T>(byte[] data)
+        T? Deserialize<T>(byte[] data)
             where T :  class;
-        void Initialize();
         byte[] Serialize<T>(T obj)
             where T :  class;
     }
@@ -3439,15 +3437,15 @@ namespace Quartz.Spi
         void UpdateWithNewCalendar(Quartz.ICalendar cal, System.TimeSpan misfireThreshold);
         void Validate();
     }
-    public interface IRemotableSchedulerProxyFactory
-    {
-        Quartz.IScheduler GetProxy(string schedulerName, string schedulerInstanceId);
-    }
     public interface ISchedulerPlugin
     {
         System.Threading.Tasks.ValueTask Initialize(string pluginName, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask Shutdown(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask Start(System.Threading.CancellationToken cancellationToken = default);
+    }
+    public interface ISchedulerProxyFactory
+    {
+        Quartz.IScheduler GetProxy(string schedulerName, string schedulerInstanceId);
     }
     public interface ISchedulerRepository
     {
@@ -3462,7 +3460,7 @@ namespace Quartz.Spi
     }
     public interface ISchedulerSignaler
     {
-        System.Threading.Tasks.ValueTask NotifySchedulerListenersError(string message, Quartz.SchedulerException jpe, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask NotifySchedulerListenersError(string message, Quartz.SchedulerException exception, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask NotifySchedulerListenersFinalized(Quartz.ITrigger trigger, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask NotifySchedulerListenersJobDeleted(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask NotifyTriggerListenersMisfired(Quartz.ITrigger trigger, System.Threading.CancellationToken cancellationToken = default);
@@ -3478,8 +3476,7 @@ namespace Quartz.Spi
     }
     public interface ITypeLoadHelper
     {
-        void Initialize();
-        System.Type? LoadType(string? name);
+        System.Type? LoadType(string name);
     }
     public readonly struct JobScope
     {

@@ -1,4 +1,4 @@
-using System.Collections.Specialized;
+﻿using System.Collections.Specialized;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
@@ -562,7 +562,6 @@ internal static class QuartzPropertyBridge
             // The serializer's own settings, such as whether to register the optimized trigger
             // converters, are applied before Initialize builds the converter set from them.
             ApplyStringProperties(serializer, provider, key, SerializerPrefix);
-            serializer.Initialize();
             return serializer;
         });
     }

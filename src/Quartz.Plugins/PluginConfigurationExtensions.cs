@@ -1,10 +1,11 @@
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Plugin.History;
 using Quartz.Plugin.Interrupt;
 using Quartz.Plugin.Json;
+using Quartz.Plugin.Management;
 using Quartz.Plugin.Xml;
 using Quartz.Spi;
 
@@ -24,12 +25,12 @@ public static class PluginConfigurationExtensions
     /// </summary>
     public static IQuartzBuilder UseXmlSchedulingConfiguration(
         this IQuartzBuilder builder,
-        Action<XmlSchedulingOptions> configure)
+        Action<FileSchedulingOptions> configure)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(configure);
 
-        var options = new XmlSchedulingOptions();
+        var options = new FileSchedulingOptions();
         configure(options);
 
         return builder.AddConfiguredPlugin<XMLSchedulingDataProcessorPlugin>("xml", plugin =>
@@ -52,12 +53,12 @@ public static class PluginConfigurationExtensions
     /// </summary>
     public static IQuartzBuilder UseJsonSchedulingConfiguration(
         this IQuartzBuilder builder,
-        Action<JsonSchedulingOptions> configure)
+        Action<FileSchedulingOptions> configure)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(configure);
 
-        var options = new JsonSchedulingOptions();
+        var options = new FileSchedulingOptions();
         configure(options);
 
         return builder.AddConfiguredPlugin<JsonSchedulingDataProcessorPlugin>("json", plugin =>
@@ -108,6 +109,50 @@ public static class PluginConfigurationExtensions
     }
 
     /// <summary>
+    /// Logs job execution history using classic numbered format strings.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="UseStructuredJobLogging" /> is the better default; this one exists for deployments
+    /// whose log pipeline expects the 3.x message shape.
+    /// </remarks>
+    public static IQuartzBuilder UseJobHistoryLogging(
+        this IQuartzBuilder builder,
+        Action<LoggingJobHistoryPlugin>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        return builder.AddConfiguredPlugin<LoggingJobHistoryPlugin>(
+            "jobHistoryLogging", plugin => configure?.Invoke(plugin));
+    }
+
+    /// <summary>
+    /// Logs trigger firing history using classic numbered format strings.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="UseStructuredTriggerLogging" /> is the better default; this one exists for
+    /// deployments whose log pipeline expects the 3.x message shape.
+    /// </remarks>
+    public static IQuartzBuilder UseTriggerHistoryLogging(
+        this IQuartzBuilder builder,
+        Action<LoggingTriggerHistoryPlugin>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        return builder.AddConfiguredPlugin<LoggingTriggerHistoryPlugin>(
+            "triggerHistoryLogging", plugin => configure?.Invoke(plugin));
+    }
+
+    /// <summary>
+    /// Shuts the scheduler down when the process exits.
+    /// </summary>
+    /// <param name="builder">The builder.</param>
+    /// <param name="cleanShutdown">Whether to wait for executing jobs to finish first.</param>
+    public static IQuartzBuilder UseShutdownHook(this IQuartzBuilder builder, bool cleanShutdown = true)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        return builder.AddConfiguredPlugin<ShutdownHookPlugin>(
+            "shutdownHook", plugin => plugin.CleanShutdown = cleanShutdown);
+    }
+
+    /// <summary>
     /// Registers a plugin that the container constructs and the caller then configures.
     /// </summary>
     private static IQuartzBuilder AddConfiguredPlugin<
@@ -141,35 +186,9 @@ public sealed class JobAutoInterruptOptions
 }
 
 /// <summary>
-/// Configuration for loading the schedule from XML files.
+/// Configuration for loading the schedule from files, in either XML or JSON form.
 /// </summary>
-public sealed class XmlSchedulingOptions
-{
-    /// <summary>
-    /// The files to load the schedule from.
-    /// </summary>
-    public string[] Files { get; set; } = [];
-
-    /// <summary>
-    /// Whether a missing file is an error rather than something to ignore.
-    /// </summary>
-    public bool FailOnFileNotFound { get; set; } = true;
-
-    /// <summary>
-    /// Whether a scheduling error while loading is fatal.
-    /// </summary>
-    public bool FailOnSchedulingError { get; set; }
-
-    /// <summary>
-    /// How often the files are rescanned for changes. Zero means they are read once.
-    /// </summary>
-    public TimeSpan ScanInterval { get; set; } = TimeSpan.Zero;
-}
-
-/// <summary>
-/// Configuration for loading the schedule from JSON files.
-/// </summary>
-public sealed class JsonSchedulingOptions
+public sealed class FileSchedulingOptions
 {
     /// <summary>
     /// The files to load the schedule from.

@@ -1,4 +1,4 @@
-
+﻿
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -272,11 +272,6 @@ public class JsonSchedulingTests
     private sealed class AliasTypeLoadHelper : Quartz.Spi.ITypeLoadHelper
     {
         private readonly Quartz.Simpl.SimpleTypeLoadHelper inner = new();
-
-        public void Initialize()
-        {
-            inner.Initialize();
-        }
 
         public Type LoadType(string name)
         {

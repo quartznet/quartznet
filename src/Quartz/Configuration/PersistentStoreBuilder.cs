@@ -1,4 +1,4 @@
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -140,7 +140,6 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
         return UseSerializer(provider =>
         {
             var serializer = ActivatorUtilities.CreateInstance<T>(provider);
-            serializer.Initialize();
             return serializer;
         });
     }
