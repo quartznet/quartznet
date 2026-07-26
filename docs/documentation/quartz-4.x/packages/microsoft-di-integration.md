@@ -3,7 +3,7 @@
 title: Microsoft DI Integration
 ---
 
-[Quartz.Extensions.DependencyInjection](https://www.nuget.org/packages/Quartz.Extensions.DependencyInjection)
+[Quartz](https://www.nuget.org/packages/Quartz)
 provides integration with [Microsoft Dependency Injection](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection).
 
 ::: tip
@@ -17,7 +17,7 @@ The configuration building wraps various [configuration properties](../configura
 You can also configure properties using standard .NET Core `appsettings.json` inside configuration section `Quartz`.
 
 ::: tip
-[Quartz.Extensions.Hosting](hosted-services-integration.md) allows you to have a background service for your application that handles starting and stopping the scheduler.
+[Quartz](hosted-services-integration.md) allows you to have a background service for your application that handles starting and stopping the scheduler.
 
 Need multiple independent schedulers in one application? See [Multiple Schedulers](multiple-schedulers.md).
 :::
@@ -79,10 +79,10 @@ public void ConfigureServices(IServiceCollection services)
     services.AddQuartz(q =>
     {
         // handy when part of cluster or you want to otherwise identify multiple schedulers
-        q.SchedulerId = "Scheduler-Core";
+        q.ConfigureScheduler(options => options.InstanceId = "Scheduler-Core");
 
         // we take this from appsettings.json, just show it's possible
-        // q.SchedulerName = "Quartz ASP.NET Core Sample Scheduler";
+        // q.ConfigureScheduler(options => options.InstanceName = "Quartz ASP.NET Core Sample Scheduler");
 
         // these are the defaults
         q.UseSimpleTypeLoader();
@@ -198,7 +198,7 @@ public void ConfigureServices(IServiceCollection services)
             s.PerformSchemaValidation = true; // default
             s.UseProperties = true; // preferred, but not default
             s.RetryInterval = TimeSpan.FromSeconds(15);
-            s.UseSqlServer("sql-server-01", sqlServer =>
+            s.UseSqlServer(sqlServer =>
             {
                 sqlServer.ConnectionString = "some connection string";
                 // this is the default
@@ -234,7 +234,7 @@ public void ConfigureServices(IServiceCollection services)
    }
   });
 
-    // Quartz.Extensions.Hosting allows you to fire background service that handles scheduler lifecycle
+    // Quartz allows you to fire background service that handles scheduler lifecycle
     services.AddQuartzHostedService(options =>
     {
         // when shutting down we want jobs to complete gracefully

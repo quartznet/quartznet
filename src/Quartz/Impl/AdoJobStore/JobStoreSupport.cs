@@ -24,6 +24,7 @@ using System.Data;
 using System.Data.Common;
 using System.Globalization;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Quartz.Diagnostics;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Matchers;
@@ -47,7 +48,6 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
     private string tablePrefix = DefaultTablePrefix;
     private bool useProperties;
-    private Type delegateType;
     private readonly Dictionary<string, ICalendar?> calendarCache = [];
     private IDriverDelegate driverDelegate = null!;
     private TimeSpan misfireThreshold = TimeSpan.FromMinutes(1); // one minute
@@ -66,19 +66,70 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <summary>
     /// Initializes a new instance of the <see cref="JobStoreSupport"/> class.
     /// </summary>
-    protected JobStoreSupport()
+    protected JobStoreSupport(
+        ISchedulerSignaler schedulerSignaler,
+        ITypeLoadHelper typeLoadHelper,
+        TimeProvider timeProvider,
+        IOptions<QuartzSchedulerOptions> schedulerOptions,
+        IOptions<AdoJobStoreOptions> storeOptions,
+        IObjectSerializer objectSerializer,
+        IDbConnectionManager connectionManager,
+        IDbProvider dbProvider,
+        IDriverDelegate driverDelegate,
+        ISemaphore? lockHandler = null)
     {
-        RetryableActionErrorLogThreshold = 4;
-        DoubleCheckLockMisfireHandler = true;
-        ClusterCheckinInterval = TimeSpan.FromMilliseconds(7500);
-        ClusterCheckinMisfireThreshold = TimeSpan.FromMilliseconds(7500);
-        MaxMisfiresToHandleAtATime = 20;
-        DbRetryInterval = TimeSpan.FromSeconds(15);
-        MaxTransientRetries = 3;
-        TransientRetryInterval = TimeSpan.FromSeconds(1);
-        Logger = LogProvider.CreateLogger<JobStoreSupport>();
-        delegateType = typeof(StdAdoDelegate);
-        ConnectionManager = DBConnectionManager.Instance;
+        schedSignaler = schedulerSignaler;
+        ObjectSerializer = objectSerializer;
+        this.typeLoadHelper = typeLoadHelper;
+        this.timeProvider = timeProvider;
+        InstanceName = schedulerOptions.Value.InstanceName;
+        InstanceId = schedulerOptions.Value.InstanceId;
+
+        // Created from the runtime type, so JobStoreTX and JobStoreCMT log under their own names rather
+        // than everything arriving as JobStoreSupport.
+        Logger = LogProvider.CreateLogger(GetType().FullName!);
+        ConnectionManager = connectionManager;
+
+        var options = storeOptions.Value;
+        DataSource = options.DataSource;
+        tablePrefix = options.TablePrefix;
+        useProperties = options.UseProperties;
+        MisfireThreshold = options.MisfireThreshold;
+        misfirehandlerFrequence = options.MisfireHandlerFrequency;
+        MaxMisfiresToHandleAtATime = options.MaxMisfiresToHandleAtATime;
+        Clustered = options.Clustered;
+        ClusterCheckinInterval = options.ClusterCheckinInterval;
+        ClusterCheckinMisfireThreshold = options.ClusterCheckinMisfireThreshold;
+        DbRetryInterval = options.DbRetryInterval;
+        MaxTransientRetries = options.MaxTransientRetries;
+        TransientRetryInterval = options.TransientRetryInterval;
+        RetryableActionErrorLogThreshold = options.RetryableActionErrorLogThreshold;
+        UseDBLocks = options.UseDbLocks;
+        LockOnInsert = options.LockOnInsert;
+        AcquireTriggersWithinLock = options.AcquireTriggersWithinLock;
+        TxIsolationLevelSerializable = options.TxIsolationLevelSerializable;
+        DoubleCheckLockMisfireHandler = options.DoubleCheckLockMisfireHandler;
+        MakeThreadsDaemons = options.MakeThreadsDaemons;
+        PerformSchemaValidation = options.PerformSchemaValidation;
+        SelectWithLockSQL = options.SelectWithLockSql;
+        DriverDelegateInitString = options.DriverDelegateInitString;
+
+        // The store uses the provider it was given. It is also published to the connection manager under
+        // the data source name, because code outside the container still resolves providers by name --
+        // but the store never reads it back, so two schedulers whose data sources happen to share a name
+        // cannot end up talking to each other's database.
+        DbProvider = dbProvider;
+        ConnectionManager.AddConnectionProvider(DataSource, dbProvider);
+
+        // The delegate and lock handler are chosen by configuration and built by the container, rather
+        // than loaded from a type name here.
+        this.driverDelegate = driverDelegate;
+
+        // A lock handler is only injected when one was chosen explicitly. Left null, Initialize picks
+        // between database row locks and an in-process monitor once the delegate and clustering settings
+        // are known — a decision that cannot be made at registration time, because it depends on which
+        // database this store turns out to be talking to.
+        LockHandler = lockHandler!;
     }
 
     /// <summary>
@@ -95,7 +146,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// Gets the log.
     /// </summary>
     /// <value>The log.</value>
-    internal ILogger<JobStoreSupport> Logger { get; }
+    internal ILogger Logger { get; }
 
     /// <summary>
     /// Get or sets the prefix that should be pre-pended to all table names.
@@ -139,16 +190,6 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// Get or set the instance Id of the Scheduler (must be unique within this server instance).
     /// </summary>
     public string InstanceName { get; set; } = "";
-
-    int IJobStore.ThreadPoolSize
-    {
-        set { }
-    }
-
-    TimeProvider IJobStore.TimeProvider
-    {
-        set => timeProvider = value;
-    }
 
     /// <summary>
     /// Gets or sets the number of retries before an error is logged for recovery operations.
@@ -356,7 +397,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
     public virtual TimeSpan GetAcquireRetryDelay(int failureCount) => DbRetryInterval;
 
-    protected DbMetadata DbMetadata => ConnectionManager.GetDbMetadata(DataSource);
+    protected DbMetadata DbMetadata => DbProvider.Metadata;
 
     protected abstract ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection();
 
@@ -370,7 +411,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         DbTransaction tx;
         try
         {
-            conn = ConnectionManager.GetConnection(DataSource);
+            conn = DbProvider.CreateConnection();
             await conn.OpenAsync().ConfigureAwait(false);
         }
         catch (Exception e)
@@ -436,56 +477,36 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     }
 
     /// <summary>
-    /// Get the driver delegate for DB operations.
+    /// Hands the container-supplied delegate the settings it needs, which are only complete once the
+    /// store has been configured.
     /// </summary>
-#pragma warning disable CA1716
-    protected virtual IDriverDelegate Delegate
-#pragma warning restore CA1716
+    private void InitializeDelegate()
     {
-        get
+        driverDelegate!.Initialize(new DelegateInitializationArgs
         {
-            lock (this)
-            {
-                if (driverDelegate is null)
-                {
-                    try
-                    {
-                        if (!string.IsNullOrWhiteSpace(DriverDelegateType))
-                        {
-                            delegateType = TypeLoadHelper.LoadType(DriverDelegateType)!;
-                        }
-
-                        IDbProvider dbProvider = ConnectionManager.GetDbProvider(DataSource);
-                        var args = new DelegateInitializationArgs();
-                        args.UseProperties = CanUseProperties;
-                        args.TablePrefix = tablePrefix;
-                        args.InstanceName = InstanceName;
-                        args.InstanceId = InstanceId;
-                        args.DbProvider = dbProvider;
-                        args.TypeLoadHelper = typeLoadHelper;
-                        args.ObjectSerializer = ObjectSerializer;
-                        args.InitString = DriverDelegateInitString;
-
-                        var ctor = delegateType.GetConstructor(Type.EmptyTypes);
-                        if (ctor is null)
-                        {
-                            Throw.InvalidConfigurationException("Configured delegate does not have public constructor that takes no arguments");
-                        }
-
-                        driverDelegate = (IDriverDelegate) ctor.Invoke(null);
-                        driverDelegate.Initialize(args);
-                    }
-                    catch (Exception e)
-                    {
-                        Throw.NoSuchDelegateException("Couldn't instantiate delegate: " + e.Message, e);
-                    }
-                }
-            }
-            return driverDelegate;
-        }
+            UseProperties = CanUseProperties,
+            TablePrefix = tablePrefix,
+            InstanceName = InstanceName,
+            InstanceId = InstanceId,
+            DbProvider = DbProvider,
+            TypeLoadHelper = typeLoadHelper,
+            ObjectSerializer = ObjectSerializer,
+            InitString = DriverDelegateInitString,
+            TimeProvider = timeProvider,
+        });
     }
 
-    private IDbProvider DbProvider => ConnectionManager.GetDbProvider(DataSource);
+    /// <summary>
+    /// The driver delegate this store speaks to its database through.
+    /// </summary>
+#pragma warning disable CA1716
+    protected virtual IDriverDelegate Delegate => driverDelegate!;
+#pragma warning restore CA1716
+
+    /// <summary>
+    /// The database provider this store was built with.
+    /// </summary>
+    protected internal IDbProvider DbProvider { get; }
 
     protected internal virtual ISemaphore LockHandler { get; set; } = null!;
 
@@ -498,10 +519,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// Called by the QuartzScheduler before the <see cref="IJobStore" /> is
     /// used, in order to give it a chance to Initialize.
     /// </summary>
-    public virtual async ValueTask Initialize(
-        ITypeLoadHelper loadHelper,
-        ISchedulerSignaler signaler,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask Initialize(CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(DataSource))
         {
@@ -509,8 +527,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
 
         LastCheckin = timeProvider.GetUtcNow();
-        typeLoadHelper = loadHelper;
-        schedSignaler = signaler;
+        InitializeDelegate();
 
         if (Delegate is SQLiteDelegate && LockHandler is not SQLiteSemaphore)
         {
@@ -583,6 +600,15 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         else
         {
+            // A lock handler built by the container knows nothing about the store it locks for, so it
+            // has to be told which tables to look in and whose rows they are. Without this it queries
+            // QRTZ_LOCKS with a null scheduler name, whatever the store is actually configured with.
+            if (LockHandler is ITablePrefixAware tablePrefixAware)
+            {
+                tablePrefixAware.TablePrefix = TablePrefix;
+                tablePrefixAware.SchedName = InstanceName;
+            }
+
             // be ready to give a friendly warning if SQL Server is used and sub-optimal locking
             if (LockHandler is UpdateLockRowSemaphore && Delegate is SqlServerDelegate)
             {
@@ -722,7 +748,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
         try
         {
-            ConnectionManager.Shutdown(DataSource);
+            DbProvider.Shutdown();
         }
         catch (Exception sqle)
         {

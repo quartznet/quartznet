@@ -42,8 +42,8 @@ public static class QuartzServiceCollectionExtensions
         return services;
     }
 
-    public static IServiceCollectionQuartzConfigurator AddHttpApi(
-        this IServiceCollectionQuartzConfigurator configurator,
+    public static IQuartzBuilder AddHttpApi(
+        this IQuartzBuilder configurator,
         Action<QuartzHttpApiOptions>? configure = null)
     {
         var optionsBuilder = configurator.Services

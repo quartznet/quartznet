@@ -20,13 +20,17 @@
 #endregion
 
 using System.Collections.Specialized;
-using System.Reflection;
+
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+
+using Microsoft.Extensions.Configuration;
+
+using Quartz.Configuration;
 using Quartz.Core;
 using Quartz.Diagnostics;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
-using Quartz.Impl.Matchers;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
@@ -70,7 +74,7 @@ namespace Quartz.Impl;
 /// <author>Anthony Eden</author>
 /// <author>Mohammad Rezaei</author>
 /// <author>Marko Lahma (.NET)</author>
-public class StdSchedulerFactory : ISchedulerFactory
+public class StdSchedulerFactory : ISchedulerFactory, IDisposable
 {
     private const string ConfigurationKeyPrefix = "quartz.";
     private const string ConfigurationKeyPrefixServer = "quartz.server";
@@ -167,13 +171,19 @@ public class StdSchedulerFactory : ISchedulerFactory
     public const string AutoGenerateInstanceId = "AUTO";
     public const string SystemPropertyAsInstanceId = "SYS_PROP";
 
-    private readonly SemaphoreSlim semaphore = new(1, 1);
-
-    private SchedulerException? initException;
+    /// <summary>
+    /// Guards building the private container, which two threads calling <c>GetScheduler</c> at once
+    /// would otherwise both do — producing two schedulers, one of which loses the race to bind itself
+    /// into the repository and is left running with nobody holding a reference to shut it down.
+    /// </summary>
+    private readonly Lock containerLock = new();
 
     private PropertiesParser cfg = null!;
 
     internal ILogger<StdSchedulerFactory> logger;
+
+    private ServiceProvider? provider;
+    private ISchedulerFactory? inner;
 
     private string SchedulerName
     {
@@ -233,15 +243,20 @@ public class StdSchedulerFactory : ISchedulerFactory
     }
 
     /// <summary>
-    /// Initialize the <see cref="ISchedulerFactory" />.
+    /// Initializes the factory from the <c>quartz.config</c> file, overridden by any <c>quartz.*</c>
+    /// environment variables.
     /// </summary>
     /// <remarks>
-    /// By default a properties file named "quartz.config" is loaded from
-    /// the 'current working directory'. If that fails, then the
-    /// "quartz.config" file located (as an embedded resource) in the Quartz.NET
-    /// assembly is loaded. If you wish to use a file other than these defaults,
-    /// you must define the system property 'quartz.properties' to point to
-    /// the file you want.
+    /// <para>
+    /// This is the entry point for applications that have not moved to <c>AddQuartz</c>, so it still
+    /// finds the file where it has always looked: <c>~/quartz.config</c>, or whatever the
+    /// <c>quartz.config</c> environment variable names. New applications should prefer
+    /// <see cref="IConfiguration"/> with <c>AddQuartz</c>, or <see cref="QuartzSchedulerBuilder"/>.
+    /// </para>
+    /// <para>
+    /// Unlike 3.x this does not fail when no file is found. A scheduler can now be configured entirely
+    /// through the container, so the absence of a file is not by itself a misconfiguration.
+    /// </para>
     /// </remarks>
     public virtual void Initialize()
     {
@@ -250,16 +265,14 @@ public class StdSchedulerFactory : ISchedulerFactory
         {
             return;
         }
-        if (initException is not null)
-        {
-            throw initException;
-        }
 
         logger = LogProvider.CreateLogger<StdSchedulerFactory>();
-        var props = InitializeProperties(logger, throwOnProblem: true);
-        Initialize(OverrideWithSysProps(props ?? new NameValueCollection()));
+        Initialize(OverrideWithSysProps(InitializeProperties(logger, throwOnProblem: false) ?? []));
     }
 
+    /// <summary>
+    /// Reads the <c>quartz.config</c> file, if present.
+    /// </summary>
     internal static NameValueCollection? InitializeProperties(ILogger<StdSchedulerFactory> logger, bool throwOnProblem)
     {
         NameValueCollection? props = null;
@@ -387,930 +400,121 @@ Please add configuration to your application config file to correctly initialize
         return false;
     }
 
-    /// <summary>  </summary>
-    private async ValueTask<IScheduler> Instantiate()
+    /// <summary>
+    /// Builds the container this factory resolves its scheduler from, if it has not been built yet.
+    /// </summary>
+    /// <remarks>
+    /// The scheduler is constructed from a container even here, so the properties-based entry point and
+    /// <c>AddQuartz</c> share one construction path rather than having a reflective one of their own.
+    /// The container is owned by this factory and lives as long as it does.
+    /// </remarks>
+    private ISchedulerFactory Inner()
+    {
+        if (inner is not null)
+        {
+            return inner;
+        }
+
+        lock (containerLock)
+        {
+            return inner ??= BuildInner();
+        }
+    }
+
+    private ISchedulerFactory BuildInner()
     {
         if (cfg is null)
         {
             Initialize();
         }
 
-        if (initException is not null)
+        var services = new ServiceCollection();
+
+        // Callers of this entry point look schedulers up through the process-wide repository and
+        // connection manager, so the container must share those rather than owning private ones.
+        services.AddSingleton<ISchedulerRepository>(SchedulerRepository.Instance);
+        services.AddSingleton<IDbConnectionManager>(DBConnectionManager.Instance);
+
+        // Plugins, execution limits and scheduler content are read from QuartzOptions, so the property
+        // bag has to be there as well as bound onto the typed options.
+        services.Configure<QuartzOptions>(options =>
         {
-            throw initException;
-        }
-
-        TimeProvider timeProvider = TimeProvider.System;
-        IJobStore js;
-        IThreadPool tp;
-        QuartzScheduler? qs = null;
-        IDbConnectionManager? dbMgr = null;
-        Type? instanceIdGeneratorType = null;
-        NameValueCollection tProps;
-        bool autoId = false;
-        TimeSpan idleWaitTime = cfg!.GetTimeSpanProperty(PropertySchedulerIdleWaitTime, QuartzSchedulerResources.DefaultIdleWaitTime);
-        if (idleWaitTime <= TimeSpan.Zero)
-        {
-            throw new SchedulerException("quartz.scheduler.idleWaitTime of zero or less is not legal.");
-        }
-        if (idleWaitTime < TimeSpan.FromMilliseconds(1000))
-        {
-            throw new SchedulerException("quartz.scheduler.idleWaitTime of less than 1000ms is not legal.");
-        }
-
-        TimeSpan dbFailureRetry = TimeSpan.FromSeconds(15);
-
-        // Get Scheduler Properties
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        string schedName = cfg.GetStringProperty(PropertySchedulerInstanceName, "QuartzScheduler")!;
-        string threadName = cfg.GetStringProperty(PropertySchedulerThreadName, $"{schedName}_QuartzSchedulerThread")!;
-        var schedInstId = cfg.GetStringProperty(PropertySchedulerInstanceId, DefaultInstanceId)!;
-
-        // Create type load helper
-        Type? typeLoadHelperType = LoadType(cfg.GetStringProperty(PropertySchedulerTypeLoadHelperType));
-        ITypeLoadHelper loadHelper;
-        try
-        {
-            loadHelper = InstantiateType<ITypeLoadHelper>(typeLoadHelperType ?? typeof(SimpleTypeLoadHelper));
-        }
-        catch (Exception e)
-        {
-            Throw.SchedulerConfigException($"Unable to instantiate type load helper: {e.Message}", e);
-            return default;
-        }
-
-        loadHelper.Initialize();
-
-        string? timeProviderTypeString = cfg.GetStringProperty(PropertyTimeProviderType);
-        if (!string.IsNullOrWhiteSpace(timeProviderTypeString))
-        {
-            var timeProviderType = loadHelper.LoadType(timeProviderTypeString);
-            if (timeProviderType is null)
+            foreach (var key in cfg!.UnderlyingProperties.AllKeys)
             {
-                logger.LogError("Unable to load time provider type: {TimeProviderType}", timeProviderTypeString);
-            }
-            else
-            {
-                timeProvider = InstantiateType<TimeProvider>(timeProviderType);
-                logger.LogInformation("Using custom time provider: {TimeProviderType}", timeProviderTypeString);
-            }
-        }
-        else
-        {
-            // try to resolve from DI, if possible
-            try
-            {
-                timeProvider = InstantiateType<TimeProvider>(implementationType: null);
-            }
-            catch
-            {
-                // ignore and default to system
-            }
-        }
-
-        if (schedInstId == AutoGenerateInstanceId)
-        {
-            autoId = true;
-            instanceIdGeneratorType = loadHelper.LoadType(cfg.GetStringProperty(PropertySchedulerInstanceIdGeneratorType)) ?? typeof(SimpleInstanceIdGenerator);
-        }
-        else if (schedInstId == SystemPropertyAsInstanceId)
-        {
-            autoId = true;
-            instanceIdGeneratorType = typeof(SystemPropertyInstanceIdGenerator);
-        }
-
-        dbFailureRetry = cfg.GetTimeSpanProperty(PropertyJobStoreDbRetryInterval, dbFailureRetry);
-        if (dbFailureRetry < TimeSpan.Zero)
-        {
-            Throw.SchedulerException(PropertyJobStoreDbRetryInterval + " of less than 0 ms is not legal.");
-        }
-
-        bool makeSchedulerThreadDaemon = cfg.GetBooleanProperty(PropertySchedulerMakeSchedulerThreadDaemon);
-        long batchTimeWindow = cfg.GetLongProperty(PropertySchedulerBatchTimeWindow, 0L);
-        int maxBatchSize = cfg.GetIntProperty(PropertySchedulerMaxBatchSize, QuartzSchedulerResources.DefaultMaxBatchSize);
-
-        bool interruptJobsOnShutdown = cfg.GetBooleanProperty(PropertySchedulerInterruptJobsOnShutdown, false);
-        bool interruptJobsOnShutdownWithWait = cfg.GetBooleanProperty(PropertySchedulerInterruptJobsOnShutdownWithWait, false);
-
-        var schedCtxtProps = cfg.GetPropertyGroup(PropertySchedulerContextPrefix, true);
-        var proxyScheduler = cfg.GetBooleanProperty(PropertySchedulerProxy, false);
-
-        // If Proxying to remote scheduler, short-circuit here...
-        // ~~~~~~~~~~~~~~~~~~
-        if (proxyScheduler)
-        {
-            if (autoId)
-            {
-                schedInstId = DefaultInstanceId;
-            }
-
-            var proxyType = loadHelper.LoadType(cfg.GetStringProperty(PropertySchedulerProxyType));
-            IRemotableSchedulerProxyFactory factory;
-            try
-            {
-                factory = InstantiateType<IRemotableSchedulerProxyFactory>(proxyType);
-                ObjectUtils.SetObjectProperties(factory, cfg.GetPropertyGroup(PropertySchedulerProxy, true));
-            }
-            catch (Exception e)
-            {
-                initException = new SchedulerException($"Remotable proxy factory '{proxyType}' could not be instantiated.", e);
-                throw initException;
-            }
-
-            var remoteScheduler = factory.GetProxy(schedName, schedInstId);
-            return remoteScheduler;
-        }
-
-        Type? jobFactoryType = loadHelper.LoadType(cfg.GetStringProperty(PropertySchedulerJobFactoryType));
-        IJobFactory? jobFactory = null;
-        if (jobFactoryType is not null)
-        {
-            try
-            {
-                jobFactory = InstantiateType<IJobFactory>(jobFactoryType);
-            }
-            catch (Exception e)
-            {
-                Throw.SchedulerConfigException($"Unable to Instantiate JobFactory: {e.Message}", e);
-            }
-
-            tProps = cfg.GetPropertyGroup(PropertySchedulerJobFactoryPrefix, stripPrefix: true);
-            try
-            {
-                ObjectUtils.SetObjectProperties(jobFactory, tProps);
-            }
-            catch (Exception e)
-            {
-                initException = new SchedulerException($"JobFactory of type '{jobFactoryType}' props could not be configured.", e);
-                throw initException;
-            }
-        }
-
-        IInstanceIdGenerator? instanceIdGenerator = null;
-        if (instanceIdGeneratorType is not null)
-        {
-            try
-            {
-                instanceIdGenerator = InstantiateType<IInstanceIdGenerator>(instanceIdGeneratorType);
-            }
-            catch (Exception e)
-            {
-                Throw.SchedulerConfigException($"Unable to Instantiate InstanceIdGenerator: {e.Message}", e);
-            }
-            tProps = cfg.GetPropertyGroup(PropertySchedulerInstanceIdGeneratorPrefix, stripPrefix: true);
-            try
-            {
-                ObjectUtils.SetObjectProperties(instanceIdGenerator, tProps);
-            }
-            catch (Exception e)
-            {
-                initException = new SchedulerException($"InstanceIdGenerator of type '{instanceIdGeneratorType}' props could not be configured.", e);
-                throw initException;
-            }
-        }
-
-        // Get ThreadPool Properties
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        var threadPoolTypeString = cfg.GetStringProperty(PropertyThreadPoolType).NullSafeTrim();
-        if (threadPoolTypeString is not null
-            && threadPoolTypeString.StartsWith("Quartz.Simpl.SimpleThreadPool", StringComparison.OrdinalIgnoreCase))
-        {
-            // default to use as synonym for now
-            threadPoolTypeString = typeof(DefaultThreadPool).AssemblyQualifiedNameWithoutVersion();
-        }
-
-        Type tpType = loadHelper.LoadType(threadPoolTypeString) ?? typeof(DefaultThreadPool);
-
-        try
-        {
-            tp = InstantiateType<IThreadPool>(tpType);
-        }
-        catch (Exception e)
-        {
-            initException = new SchedulerException($"ThreadPool type '{tpType}' could not be instantiated.", e);
-            throw initException;
-        }
-        tProps = cfg.GetPropertyGroup(PropertyThreadPoolPrefix, stripPrefix: true);
-        try
-        {
-            ObjectUtils.SetObjectProperties(tp, tProps);
-        }
-        catch (Exception e)
-        {
-            initException = new SchedulerException($"ThreadPool type '{tpType}' props could not be configured.", e);
-            throw initException;
-        }
-
-        // Set up any DataSources
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        var dsNames = cfg.GetPropertyGroups(PropertyDataSourcePrefix);
-        foreach (string dataSourceName in dsNames)
-        {
-            string datasourceKey = $"{PropertyDataSourcePrefix}.{dataSourceName}";
-            NameValueCollection propertyGroup = cfg.GetPropertyGroup(datasourceKey, stripPrefix: true);
-            PropertiesParser pp = new PropertiesParser(propertyGroup);
-
-            Type? cpType = loadHelper.LoadType(pp.GetStringProperty(PropertyDbProviderType, defaultValue: null));
-
-            // custom connectionProvider...
-            if (cpType is not null)
-            {
-                IDbProvider cp;
-                try
+                if (key is not null)
                 {
-                    cp = InstantiateType<IDbProvider>(cpType);
-                }
-                catch (Exception e)
-                {
-                    initException = new SchedulerException($"ConnectionProvider of type '{cpType}' could not be instantiated.", e);
-                    throw initException;
-                }
-
-                try
-                {
-                    // get new grouping for connection provider
-                    var group = datasourceKey + "." + "connectionProvider";
-                    var dbProviderProperties = new PropertiesParser(cfg.GetPropertyGroup(group, stripPrefix: true));
-                    // remove the type name, so it isn't attempted to be set
-                    dbProviderProperties.UnderlyingProperties.Remove("type");
-
-                    ObjectUtils.SetObjectProperties(cp, dbProviderProperties.UnderlyingProperties);
-                    cp.Initialize();
-                }
-                catch (Exception e)
-                {
-                    initException = new SchedulerException($"ConnectionProvider type '{cpType}' props could not be configured.", e);
-                    throw initException;
-                }
-
-                dbMgr = GetDbConnectionManager();
-                dbMgr.AddConnectionProvider(dataSourceName, cp);
-            }
-            else
-            {
-                var dsProvider = pp.GetStringProperty(PropertyDataSourceProvider, defaultValue: null);
-                var dsConnectionString = pp.GetStringProperty(PropertyDataSourceConnectionString, defaultValue: null);
-                var dsConnectionStringName = pp.GetStringProperty(PropertyDataSourceConnectionStringName, defaultValue: null);
-
-                if (dsConnectionString is null && !string.IsNullOrEmpty(dsConnectionStringName) && dsConnectionStringName is not null)
-                {
-                    var connectionString = GetNamedConnectionString(dsConnectionStringName);
-                    if (string.IsNullOrWhiteSpace(connectionString))
-                    {
-                        initException = new SchedulerException($"Named connection string '{dsConnectionStringName}' not found for DataSource: {dataSourceName}");
-                        throw initException;
-                    }
-                    dsConnectionString = connectionString;
-                }
-
-                if (dsProvider is null)
-                {
-                    initException = new SchedulerException($"Provider not specified for DataSource: {dataSourceName}");
-                    throw initException;
-                }
-                if (dsConnectionString is null)
-                {
-                    initException = new SchedulerException($"Connection string not specified for DataSource: {dataSourceName}");
-                    throw initException;
-                }
-                try
-                {
-                    DbProvider dbp = new DbProvider(dsProvider, dsConnectionString);
-                    dbp.Initialize();
-
-                    dbMgr = GetDbConnectionManager();
-                    dbMgr.AddConnectionProvider(dataSourceName, dbp);
-                }
-                catch (Exception exception)
-                {
-                    initException = new SchedulerException($"Could not Initialize DataSource: {dataSourceName}", exception);
-                    throw initException;
+                    options[key] = cfg.UnderlyingProperties[key];
                 }
             }
-        }
+        });
 
-        // Get JobStore Properties
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        QuartzPropertyBridge.Apply(services, cfg!.UnderlyingProperties);
 
-        Type? jsType = loadHelper.LoadType(cfg.GetStringProperty(PropertyJobStoreType));
-        try
-        {
-            js = InstantiateType<IJobStore>(jsType ?? typeof(RAMJobStore));
-        }
-        catch (Exception e)
-        {
-            initException = new SchedulerException($"JobStore of type '{jsType}' could not be instantiated.", e);
-            throw initException;
-        }
+        // Defaults last, so anything the properties selected explicitly is not beaten by its fallback.
+        services.AddQuartzScheduler();
 
-        // Get object serializer properties
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        IObjectSerializer? objectSerializer = null;
-        string serializerTypeKey = "quartz.serializer.type";
-        string? objectSerializerType = cfg.GetStringProperty(serializerTypeKey);
-        if (objectSerializerType is not null)
-        {
-            // some aliases
-            if (objectSerializerType.Equals("newtonsoft", StringComparison.OrdinalIgnoreCase))
-            {
-                objectSerializerType = "Quartz.Simpl.NewtonsoftJsonObjectSerializer, Quartz.Serialization.Newtonsoft";
-            }
-            if (objectSerializerType.Equals("stj", StringComparison.OrdinalIgnoreCase))
-            {
-                objectSerializerType = typeof(SystemTextJsonObjectSerializer).AssemblyQualifiedNameWithoutVersion();
-            }
-            if (objectSerializerType.Equals("binary", StringComparison.OrdinalIgnoreCase))
-            {
-                throw new SchedulerException("Binary serialization is not supported anymore. Use JSON serialization instead. You can also manually configure custom serializer.");
-            }
-
-            tProps = cfg.GetPropertyGroup(PropertyObjectSerializer, stripPrefix: true);
-            try
-            {
-                objectSerializer = InstantiateType<IObjectSerializer>(loadHelper.LoadType(objectSerializerType));
-                logger.LogInformation("Using object serializer: {Type}", objectSerializerType);
-
-                ObjectUtils.SetObjectProperties(objectSerializer, tProps);
-
-                objectSerializer.Initialize();
-            }
-            catch (Exception e)
-            {
-                initException = new SchedulerException($"Object serializer type '{objectSerializerType}' could not be instantiated.", e);
-                throw initException;
-            }
-        }
-        else if (js.GetType() != typeof(RAMJobStore))
-        {
-            // when we know for sure that job store does not need serialization we can be a bit more relaxed
-            // otherwise it's an error to not define the serialization strategy
-            initException = new SchedulerException($"You must define object serializer using configuration key '{serializerTypeKey}' when using other than RAMJobStore. " +
-                                                   "Out of the box supported values are 'json' and 'binary'. JSON doesn't suffer from versioning as much as binary serialization but you cannot use it if you already have binary serialized data.");
-            throw initException;
-        }
-        js.InstanceName = schedName;
-        js.InstanceId = schedInstId;
-
-        tProps = cfg.GetPropertyGroup(PropertyJobStorePrefix, stripPrefix: true, excludedPrefixes: [PropertyJobStoreLockHandlerPrefix]);
-
-        try
-        {
-            ObjectUtils.SetObjectProperties(js, tProps);
-        }
-        catch (Exception e)
-        {
-            initException = new SchedulerException($"JobStore type '{jsType}' props could not be configured.", e);
-            throw initException;
-        }
-
-        if (js is JobStoreSupport jobStoreSupport)
-        {
-            // check if we have custom DI setup
-            jobStoreSupport.ConnectionManager = GetDbConnectionManager();
-
-            // Install custom lock handler (Semaphore)
-            var lockHandlerType = loadHelper.LoadType(cfg.GetStringProperty(PropertyJobStoreLockHandlerType));
-            if (lockHandlerType is not null)
-            {
-                try
-                {
-                    ISemaphore lockHandler;
-                    var cWithDbProvider = lockHandlerType.GetConstructor([typeof(DbProvider)]);
-
-                    if (cWithDbProvider is not null)
-                    {
-                        // takes db provider
-                        IDbProvider dbProvider = GetDbConnectionManager().GetDbProvider(jobStoreSupport.DataSource);
-                        lockHandler = (ISemaphore) cWithDbProvider.Invoke([dbProvider]);
-                    }
-                    else
-                    {
-                        lockHandler = InstantiateType<ISemaphore>(lockHandlerType);
-                    }
-
-                    tProps = cfg.GetPropertyGroup(PropertyJobStoreLockHandlerPrefix, stripPrefix: true);
-
-                    // If this lock handler requires the table prefix, add it to its properties.
-                    if (lockHandler is ITablePrefixAware)
-                    {
-                        tProps[PropertyTablePrefix] = jobStoreSupport.TablePrefix;
-                        tProps[PropertySchedulerName] = schedName;
-                    }
-
-                    try
-                    {
-                        ObjectUtils.SetObjectProperties(lockHandler, tProps);
-                    }
-                    catch (Exception e)
-                    {
-                        initException = new SchedulerException($"JobStore LockHandler type '{lockHandlerType}' props could not be configured.", e);
-                        throw initException;
-                    }
-
-                    jobStoreSupport.LockHandler = lockHandler;
-                    logger.LogInformation("Using custom data access locking (synchronization): {LockHandlerType}", lockHandlerType);
-                }
-                catch (Exception e)
-                {
-                    initException = new SchedulerException($"JobStore LockHandler type '{lockHandlerType}' could not be instantiated.", e);
-                    throw initException;
-                }
-            }
-        }
-
-        // Set up any SchedulerPlugins
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        var pluginNames = cfg.GetPropertyGroups(PropertyPluginPrefix);
-        ISchedulerPlugin[] plugins = new ISchedulerPlugin[pluginNames.Count];
-        for (int i = 0; i < pluginNames.Count; i++)
-        {
-            var pp = cfg.GetPropertyGroup($"{PropertyPluginPrefix}.{pluginNames[index: i]}", stripPrefix: true);
-            var plugInType = pp[PropertyPluginType];
-
-            if (plugInType is null)
-            {
-                initException = new SchedulerException($"SchedulerPlugin type not specified for plugin '{pluginNames[index: i]}'");
-                throw initException;
-            }
-            ISchedulerPlugin plugin;
-            try
-            {
-                var pluginTypeType = loadHelper.LoadType(plugInType) ?? throw new SchedulerException($"Could not load plugin type {plugInType}");
-                // we need to use concrete types to resolve correct one
-                var method = GetType().GetMethod(nameof(InstantiateType), BindingFlags.Instance | BindingFlags.NonPublic)!.MakeGenericMethod(pluginTypeType);
-                plugin = (ISchedulerPlugin) method.Invoke(this, [pluginTypeType])!;
-            }
-            catch (Exception e)
-            {
-                initException = new SchedulerException($"SchedulerPlugin of type '{plugInType}' could not be instantiated.", e);
-                throw initException;
-            }
-            try
-            {
-                ObjectUtils.SetObjectProperties(plugin, pp);
-            }
-            catch (Exception e)
-            {
-                initException = new SchedulerException($"JobStore SchedulerPlugin '{plugInType}' props could not be configured.", e);
-                throw initException;
-            }
-
-            plugins[i] = plugin;
-        }
-
-        // Set up any JobListeners
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        var jobListenerNames = cfg.GetPropertyGroups(PropertyJobListenerPrefix);
-        IJobListener[] jobListeners = new IJobListener[jobListenerNames.Count];
-        for (int i = 0; i < jobListenerNames.Count; i++)
-        {
-            var lp = cfg.GetPropertyGroup(prefix: $"{PropertyJobListenerPrefix}.{jobListenerNames[index: i]}", stripPrefix: true);
-            var listenerType = lp[PropertyListenerType];
-
-            if (listenerType is null)
-            {
-                initException = new SchedulerException($"JobListener type not specified for listener '{jobListenerNames[index: i]}'");
-                throw initException;
-            }
-            IJobListener listener;
-            try
-            {
-                listener = InstantiateType<IJobListener>(loadHelper.LoadType(listenerType));
-            }
-            catch (Exception e)
-            {
-                initException = new SchedulerException($"JobListener of type '{listenerType}' could not be instantiated.", e);
-                throw initException;
-            }
-            try
-            {
-                var nameProperty = listener.GetType().GetProperty("Name", BindingFlags.Public | BindingFlags.Instance);
-                if (nameProperty is not null && nameProperty.CanWrite)
-                {
-                    nameProperty.GetSetMethod()!.Invoke(listener, [jobListenerNames[index: i]]);
-                }
-                ObjectUtils.SetObjectProperties(listener, lp);
-            }
-            catch (Exception e)
-            {
-                initException = new SchedulerException($"JobListener '{listenerType}' props could not be configured.", e);
-                throw initException;
-            }
-            jobListeners[i] = listener;
-        }
-
-        // Set up any TriggerListeners
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        var triggerListenerNames = cfg.GetPropertyGroups(PropertyTriggerListenerPrefix);
-        ITriggerListener[] triggerListeners = new ITriggerListener[triggerListenerNames.Count];
-        for (int i = 0; i < triggerListenerNames.Count; i++)
-        {
-            var lp = cfg.GetPropertyGroup(prefix: $"{PropertyTriggerListenerPrefix}.{triggerListenerNames[index: i]}", stripPrefix: true);
-            var listenerType = lp[PropertyListenerType];
-
-            if (listenerType is null)
-            {
-                initException = new SchedulerException($"TriggerListener type not specified for listener '{triggerListenerNames[index: i]}'");
-                throw initException;
-            }
-            ITriggerListener listener;
-            try
-            {
-                listener = InstantiateType<ITriggerListener>(loadHelper.LoadType(listenerType));
-            }
-            catch (Exception e)
-            {
-                initException = new SchedulerException($"TriggerListener of type '{listenerType}' could not be instantiated.", e);
-                throw initException;
-            }
-            try
-            {
-                var nameProperty = listener.GetType().GetProperty("Name", BindingFlags.Public | BindingFlags.Instance);
-                if (nameProperty is not null && nameProperty.CanWrite)
-                {
-                    nameProperty.GetSetMethod()!.Invoke(listener, [triggerListenerNames[index: i]]);
-                }
-                ObjectUtils.SetObjectProperties(listener, lp);
-            }
-            catch (Exception e)
-            {
-                initException = new SchedulerException($"TriggerListener '{listenerType}' props could not be configured.", e);
-                throw initException;
-            }
-            triggerListeners[i] = listener;
-        }
-
-        bool tpInited = false;
-        bool qsInited = false;
-
-        // Fire everything up
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        try
-        {
-            var jrsf = new StdJobRunShellFactory();
-
-            if (autoId)
-            {
-                try
-                {
-                    schedInstId = DefaultInstanceId;
-
-                    if (js.Clustered)
-                    {
-                        schedInstId = (await instanceIdGenerator!.GenerateInstanceId().ConfigureAwait(false))!;
-                    }
-                }
-                catch (Exception e)
-                {
-                    logger.LogError(e, "Couldn't generate instance Id!");
-                    Throw.InvalidOperationException("Cannot run without an instance id.");
-                }
-            }
-
-            if (js is JobStoreSupport js2)
-            {
-                js2.DbRetryInterval = dbFailureRetry;
-                js2.ObjectSerializer = objectSerializer;
-            }
-
-            QuartzSchedulerResources rsrcs = new QuartzSchedulerResources();
-            rsrcs.Name = schedName;
-            rsrcs.ThreadName = threadName;
-            rsrcs.InstanceId = schedInstId;
-            rsrcs.JobRunShellFactory = jrsf;
-            rsrcs.MakeSchedulerThreadDaemon = makeSchedulerThreadDaemon;
-            rsrcs.IdleWaitTime = idleWaitTime;
-            rsrcs.BatchTimeWindow = TimeSpan.FromMilliseconds(batchTimeWindow);
-            rsrcs.MaxBatchSize = maxBatchSize;
-            rsrcs.InterruptJobsOnShutdown = interruptJobsOnShutdown;
-            rsrcs.InterruptJobsOnShutdownWithWait = interruptJobsOnShutdownWithWait;
-            rsrcs.TimeProvider = timeProvider;
-            rsrcs.SchedulerRepository = GetSchedulerRepository();
-
-            tp.InstanceName = schedName;
-            tp.InstanceId = schedInstId;
-
-            rsrcs.ThreadPool = tp;
-
-            tp.Initialize();
-            tpInited = true;
-
-            rsrcs.JobStore = js;
-
-            // add plugins
-            foreach (ISchedulerPlugin plugin in plugins)
-            {
-                rsrcs.AddSchedulerPlugin(plugin);
-            }
-
-            qs = new QuartzScheduler(rsrcs, timeProvider);
-            qsInited = true;
-
-            // Parse execution limits
-            ExecutionLimits? executionLimits = ParseExecutionLimits(cfg);
-            if (executionLimits is not null)
-            {
-                qs.SetExecutionLimits(executionLimits);
-            }
-
-            // Create Scheduler ref...
-            IScheduler sched = Instantiate(rsrcs, qs);
-
-            // set job factory if specified
-            if (jobFactory is not null)
-            {
-                qs.JobFactory = jobFactory;
-            }
-
-            // Initialize plugins now that we have a Scheduler instance.
-            for (int i = 0; i < plugins.Length; i++)
-            {
-                await plugins[i].Initialize(pluginNames[i], sched).ConfigureAwait(false);
-            }
-
-            // add listeners
-            foreach (IJobListener listener in jobListeners)
-            {
-                qs.ListenerManager.AddJobListener(listener, EverythingMatcher<JobKey>.AllJobs());
-            }
-            foreach (ITriggerListener listener in triggerListeners)
-            {
-                qs.ListenerManager.AddTriggerListener(listener, EverythingMatcher<TriggerKey>.AllTriggers());
-            }
-
-            // set scheduler context data...
-            foreach (var key in schedCtxtProps)
-            {
-                var val = schedCtxtProps.Get((string) key!);
-                sched.Context[(string) key!] = val;
-            }
-
-            // fire up job store, and job run shell factory
-
-            js.InstanceId = schedInstId;
-            js.InstanceName = schedName;
-            js.ThreadPoolSize = tp.PoolSize;
-            js.TimeProvider = timeProvider;
-            await js.Initialize(loadHelper, qs.SchedulerSignaler).ConfigureAwait(false);
-
-            jrsf.Initialize(sched);
-            qs.Initialize();
-
-            logger.LogInformation("Quartz Scheduler {Version} - '{SchedulerName}' with instanceId '{SchedulerInstanceId}' initialized", qs.Version, qs.SchedulerName, qs.SchedulerInstanceId);
-            logger.LogInformation("Using thread pool '{ThreadPoolType}', size: {ThreadPoolSize}", qs.ThreadPoolClass.FullName, qs.ThreadPoolSize);
-            logger.LogInformation("Using job store '{JobStoreType}', supports persistence: {SupportsPersistence}, clustered: {Clustered}", qs.JobStoreClass.FullName, qs.SupportsPersistence, qs.Clustered);
-
-            // prevents the db manager from being garbage collected
-            if (dbMgr is not null)
-            {
-                qs.AddNoGCObject(dbMgr);
-            }
-
-            return sched;
-        }
-        catch
-        {
-            await ShutdownFromInstantiateException(tp, qs, tpInited, qsInited).ConfigureAwait(false);
-            throw;
-        }
-    }
-
-    protected virtual string? GetNamedConnectionString(string dsConnectionStringName)
-    {
-        return null;
-    }
-
-    protected virtual T InstantiateType<T>(Type? implementationType)
-    {
-        return ObjectUtils.InstantiateType<T>(implementationType);
-    }
-
-    private async ValueTask ShutdownFromInstantiateException(IThreadPool? tp, QuartzScheduler? qs, bool tpInited, bool qsInited)
-    {
-        try
-        {
-            if (qsInited)
-            {
-                await qs!.Shutdown(waitForJobsToComplete: false).ConfigureAwait(false);
-            }
-            else if (tpInited)
-            {
-                tp!.Shutdown(waitForJobsToComplete: false);
-            }
-        }
-        catch (Exception e)
-        {
-            logger.LogError(e, "Got another exception while shutting down after instantiation exception");
-        }
-    }
-
-    protected virtual IScheduler Instantiate(QuartzSchedulerResources rsrcs, QuartzScheduler qs)
-    {
-        IScheduler sched = new StdScheduler(qs);
-        return sched;
+        provider = services.BuildServiceProvider();
+        return provider.GetRequiredService<ISchedulerFactory>();
     }
 
     /// <summary>
-    /// Needed while loadhelper is not constructed.
+    /// Returns a handle to the scheduler produced by this factory, creating it if it does not yet exist.
     /// </summary>
-    /// <param name="typeName"></param>
-    /// <returns></returns>
-    protected virtual Type? LoadType(string? typeName)
+    public virtual ValueTask<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrEmpty(typeName))
-        {
-            return null;
-        }
-
-        return Type.GetType(typeName, throwOnError: true);
+        return Inner().GetScheduler(cancellationToken);
     }
 
     /// <summary>
-    /// Returns a handle to the Scheduler produced by this factory.
-    /// </summary>
-    /// <remarks>
-    /// If one of the <see cref="Initialize()" /> methods has not be previously
-    /// called, then the default (no-arg) <see cref="Initialize()" /> method
-    /// will be called by this method.
-    /// </remarks>
-    public virtual async ValueTask<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
-    {
-        // We always need to guarantee exclusivity because of the possible sequence of interactions with
-        // the SchedulerRepository.
-        if (!await semaphore.WaitAsync(0, cancellationToken).ConfigureAwait(false))
-        {
-            await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-        }
-
-        try
-        {
-            if (cfg is null)
-            {
-                Initialize();
-            }
-
-            ISchedulerRepository schedulerRepository = GetSchedulerRepository();
-
-            // For proxy schedulers with explicit instance IDs (e.g., connecting to different cluster nodes),
-            // use instance-aware lookup so multiple proxies with the same scheduler name can coexist.
-            string? explicitInstanceId = GetExplicitProxyInstanceId();
-
-            IScheduler? sched = explicitInstanceId is not null
-                ? schedulerRepository.Lookup(SchedulerName, explicitInstanceId)
-                : schedulerRepository.Lookup(SchedulerName);
-
-            if (sched is not null)
-            {
-                if (sched.IsShutdown)
-                {
-                    if (explicitInstanceId is not null)
-                    {
-                        schedulerRepository.Remove(SchedulerName, explicitInstanceId);
-                    }
-                    else
-                    {
-                        schedulerRepository.Remove(SchedulerName);
-                    }
-                }
-                else
-                {
-                    return sched;
-                }
-            }
-
-            sched = await Instantiate().ConfigureAwait(false);
-            if (explicitInstanceId is not null)
-            {
-                schedulerRepository.Bind(sched, explicitInstanceId);
-            }
-            else
-            {
-                schedulerRepository.Bind(sched);
-            }
-
-            return sched;
-        }
-        finally
-        {
-            semaphore.Release();
-        }
-    }
-
-    /// <summary> <para>
-    /// Returns a handle to the Scheduler with the given name, if it exists (if
-    /// it has already been instantiated).
-    /// </para>
+    /// Returns a handle to the scheduler with the given name, if it exists.
     /// </summary>
     public virtual ValueTask<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default)
     {
-        return new ValueTask<IScheduler?>(GetSchedulerRepository().Lookup(schedName));
+        return Inner().GetScheduler(schedName, cancellationToken);
     }
 
     /// <summary>
-    /// Returns the explicitly configured instance ID if this is a proxy scheduler configuration,
-    /// or <see langword="null"/> if this is not a proxy or uses auto-generated instance IDs.
+    /// Loads a type by name, using the configured type load helper.
     /// </summary>
-    private string? GetExplicitProxyInstanceId()
+    protected virtual Type? LoadType(string? typeName)
     {
-        bool isProxy = cfg.GetBooleanProperty(PropertySchedulerProxy, false);
-        if (!isProxy)
-        {
-            return null;
-        }
-
-        string rawInstanceId = cfg.GetStringProperty(PropertySchedulerInstanceId, DefaultInstanceId)!;
-        if (rawInstanceId.Equals(AutoGenerateInstanceId, StringComparison.OrdinalIgnoreCase) ||
-            rawInstanceId.Equals(SystemPropertyAsInstanceId, StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
-        return rawInstanceId;
+        return string.IsNullOrWhiteSpace(typeName) ? null : new SimpleTypeLoadHelper().LoadType(typeName);
     }
 
     /// <summary>
-    /// Parses execution limit properties (quartz.executionLimit.*) into an <see cref="ExecutionLimits"/> instance.
+    /// Disposes the container this factory built, and with it the scheduler's container-owned parts.
     /// </summary>
-    private static ExecutionLimits? ParseExecutionLimits(PropertiesParser cfg)
+    /// <remarks>
+    /// Shut the scheduler down first. Disposing the factory releases what the container holds; it does
+    /// not stop a running scheduler.
+    /// </remarks>
+    public void Dispose()
     {
-        var limitProps = cfg.GetPropertyGroup(PropertyExecutionLimitPrefix, true);
-        if (limitProps is null || limitProps.Count == 0)
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases the container this factory built.
+    /// </summary>
+    /// <param name="disposing">
+    /// <see langword="true"/> when called from <see cref="Dispose()"/> rather than a finalizer.
+    /// </param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing)
         {
-            return null;
+            return;
         }
 
-        ExecutionLimits limits = new();
-        foreach (string? rawGroupKey in limitProps.Keys)
+        ServiceProvider? owned;
+        lock (containerLock)
         {
-            if (rawGroupKey is null)
-            {
-                continue;
-            }
-
-            string groupKey = rawGroupKey.Trim();
-            if (groupKey.Length == 0)
-            {
-                throw new SchedulerConfigException(
-                    $"Empty execution limit group key in property '{PropertyExecutionLimitPrefix}.{rawGroupKey}'.");
-            }
-            string? rawValue = limitProps[rawGroupKey]?.Trim();
-
-            // Parse the limit value
-            int? limitValue;
-            if (string.IsNullOrEmpty(rawValue) ||
-                string.Equals(rawValue, "unlimited", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(rawValue, "none", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(rawValue, "null", StringComparison.OrdinalIgnoreCase))
-            {
-                limitValue = null; // unlimited
-            }
-            else if (!int.TryParse(rawValue, out int parsed) || parsed < 0)
-            {
-                throw new SchedulerConfigException(
-                    $"Invalid execution limit value '{rawValue}' for group '{groupKey}'. " +
-                    "Expected a non-negative integer, 'unlimited', 'none', or 'null'.");
-            }
-            else
-            {
-                limitValue = parsed;
-            }
-
-            // Map property key to the appropriate method
-            if (groupKey == "*")
-            {
-                if (limitValue.HasValue)
-                {
-                    limits.ForOtherGroups(limitValue.Value);
-                }
-            }
-            else if (groupKey == "_" || string.Equals(groupKey, "null", StringComparison.OrdinalIgnoreCase))
-            {
-                // underscore and "null" are aliases for the default (null execution group)
-                if (limitValue.HasValue)
-                {
-                    limits.ForDefaultGroup(limitValue.Value);
-                }
-            }
-            else
-            {
-                if (limitValue.HasValue)
-                {
-                    limits.ForGroup(groupKey, limitValue.Value);
-                }
-                else
-                {
-                    limits.Unlimited(groupKey);
-                }
-            }
+            owned = provider;
+            provider = null;
+            inner = null;
         }
 
-        return limits.Count > 0 ? limits : null;
+        owned?.Dispose();
     }
 }

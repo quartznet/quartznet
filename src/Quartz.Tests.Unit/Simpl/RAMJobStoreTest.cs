@@ -44,9 +44,9 @@ public class RAMJobStoreTest
     [SetUp]
     public void SetUp()
     {
-        fJobStore = new RAMJobStore();
+        fJobStore = TestJobStores.Ram();
         fSignaler = new SampleSignaler();
-        fJobStore.Initialize(null, fSignaler);
+        fJobStore.Initialize();
         fJobStore.SchedulerStarted();
 
         fJobDetail = JobBuilder.Create()
@@ -403,7 +403,7 @@ public class RAMJobStoreTest
     [Test]
     public async Task TestRetrieveJob_NoJobFound()
     {
-        RAMJobStore store = new RAMJobStore();
+        RAMJobStore store = TestJobStores.Ram();
         IJobDetail job = await store.RetrieveJob(new JobKey("not", "existing"));
         Assert.That(job, Is.Null);
     }
@@ -411,7 +411,7 @@ public class RAMJobStoreTest
     [Test]
     public async Task TestRetrieveTrigger_NoTriggerFound()
     {
-        RAMJobStore store = new RAMJobStore();
+        RAMJobStore store = TestJobStores.Ram();
         IOperableTrigger trigger = await store.RetrieveTrigger(new TriggerKey("not", "existing"));
         Assert.That(trigger, Is.Null);
     }
@@ -419,7 +419,7 @@ public class RAMJobStoreTest
     [Test]
     public async Task testStoreAndRetrieveJobs()
     {
-        RAMJobStore store = new RAMJobStore();
+        RAMJobStore store = TestJobStores.Ram();
 
         // Store jobs.
         for (int i = 0; i < 10; i++)
@@ -439,7 +439,7 @@ public class RAMJobStoreTest
     [Test]
     public async Task TestStoreAndRetrieveTriggers()
     {
-        RAMJobStore store = new RAMJobStore();
+        RAMJobStore store = TestJobStores.Ram();
 
         // Store jobs and triggers.
         for (int i = 0; i < 10; i++)
@@ -470,8 +470,8 @@ public class RAMJobStoreTest
         ITypeLoadHelper loadHelper = new SimpleTypeLoadHelper();
         loadHelper.Initialize();
 
-        RAMJobStore store = new RAMJobStore();
-        await store.Initialize(loadHelper, schedSignaler);
+        RAMJobStore store = TestJobStores.Ram();
+        await store.Initialize();
 
         // Setup: Store jobs and triggers.
         DateTime startTime0 = DateTime.UtcNow.AddMinutes(1).ToUniversalTime(); // a min from now.
@@ -513,8 +513,8 @@ public class RAMJobStoreTest
         ITypeLoadHelper loadHelper = new SimpleTypeLoadHelper();
         loadHelper.Initialize();
 
-        RAMJobStore store = new RAMJobStore();
-        await store.Initialize(loadHelper, schedSignaler);
+        RAMJobStore store = TestJobStores.Ram();
+        await store.Initialize();
 
         // Setup: Store jobs and triggers.
         DateTimeOffset startTime0 = DateTimeOffset.UtcNow.AddMinutes(1); // a min from now.
@@ -593,7 +593,7 @@ public class RAMJobStoreTest
             .StoreDurably()
             .Build();
 
-        var store = new RAMJobStore();
+        var store = TestJobStores.Ram();
         await store.StoreJob(job, false);
 
         var deleteSuccess = await store.RemoveJob(new JobKey("job0"));
@@ -707,10 +707,10 @@ public class RAMJobStoreTest
         var previousFireTime = new DateTimeOffset(2025, 6, 15, 10, 28, 0, TimeSpan.Zero);
 
         var fakeTime = new FakeTimeProvider(now);
-        var store = new RAMJobStore { MisfireThreshold = TimeSpan.FromSeconds(5) };
-        ((IJobStore) store).TimeProvider = fakeTime;
+        var store = TestJobStores.Ram(timeProvider: fakeTime);
+        store.MisfireThreshold = TimeSpan.FromSeconds(5);
         var signaler = new SampleSignaler();
-        await store.Initialize(null, signaler);
+        await store.Initialize();
         await store.SchedulerStarted();
 
         var job = JobBuilder.Create().OfType<NoOpJob>()
@@ -752,10 +752,10 @@ public class RAMJobStoreTest
         var now = new DateTimeOffset(2025, 6, 15, 10, 30, 30, TimeSpan.Zero);
 
         var fakeTime = new FakeTimeProvider(now);
-        var store = new RAMJobStore { MisfireThreshold = TimeSpan.FromSeconds(60) };
-        ((IJobStore) store).TimeProvider = fakeTime;
+        var store = TestJobStores.Ram(timeProvider: fakeTime);
+        store.MisfireThreshold = TimeSpan.FromSeconds(60);
         var signaler = new SampleSignaler();
-        await store.Initialize(null, signaler);
+        await store.Initialize();
         await store.SchedulerStarted();
 
         var job = JobBuilder.Create().OfType<NoOpJob>()

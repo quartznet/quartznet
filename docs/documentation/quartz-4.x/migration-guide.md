@@ -11,17 +11,132 @@ If you are a new user starting with the latest version, you don't need to follow
 
 ## Target Framework
 
-Quartz.NET 4.x targets `net8.0` and `net9.0`. The `netstandard2.0` build no longer references `System.Configuration.ConfigurationManager`, so there is no support for Full Framework style `.config` files.
+Quartz.NET 4.x targets `net10.0`. There is no `netstandard2.0` build and no support for Full Framework
+style `.config` files.
 
-If you are running on an older .NET version, you will need to upgrade your application to at least .NET 8.0 before upgrading to Quartz 4.x.
+If you are running on an older .NET version, you will need to upgrade your application to .NET 10
+before upgrading to Quartz 4.x.
+
+## Configuration
+
+This is the largest change in 4.x. Configuration is now strongly typed options and service
+registrations rather than a bag of `quartz.*` strings, and the dependency injection container builds
+the scheduler.
+
+### Flat keys still work
+
+If you configure Quartz from `appsettings.json` or a `NameValueCollection` of `quartz.*` keys, that
+keeps working. The keys are translated into the typed options, and both spellings of a setting always
+produce the same result. You do not have to migrate configuration files to move to 4.x.
+
+### Code-first configuration is typed
+
+Settings that used to be write-only properties on the configurator are now options:
+
+```diff
+  services.AddQuartz(q =>
+  {
+-     q.ConfigureScheduler(options => options.InstanceName = "core");
+-     q.ConfigureScheduler(options => options.InstanceId = "node-1");
+-     q.MaxBatchSize = 5;
+-     q.InterruptJobsOnShutdown = true;
++     q.ConfigureScheduler(options =>
++     {
++         options.InstanceName = "core";
++         options.InstanceId = "node-1";
++         options.MaxBatchSize = 5;
++         options.InterruptJobsOnShutdown = true;
++     });
+  });
+```
+
+The option names are the same words as the configuration keys, so `Quartz:Scheduler:MaxBatchSize` and
+`options.MaxBatchSize` are the same setting said two ways.
+
+### Data sources no longer need a name
+
+A scheduler has one job store and therefore one database, so there is no name to invent:
+
+```diff
+  q.UsePersistentStore(store =>
+  {
+-     store.UseProperties = true;
+      store.UseClustering();
+-     store.UseSqlServer("sql-server-01", connectionString);
++     store.UseSqlServer(connectionString);
+      store.UseSystemTextJsonSerializer();
++     store.Configure(options => options.UseProperties = true);
+  });
+```
+
+Schedulers that need different databases are registered under different names, and each gets its own
+services.
+
+### Removed
+
+| Removed | Use instead |
+|---|---|
+| `SchedulerBuilder` | `QuartzSchedulerBuilder` for standalone use, `AddQuartz` under a host |
+| `DirectSchedulerFactory` | `QuartzSchedulerBuilder`, with `UseThreadPool` / `UseJobStore` for pre-built parts |
+| `IPropertyConfigurer`, `IPropertySetter`, `IPropertyConfigurationRoot`, `PropertiesHolder`, `PropertiesSetter` | typed options |
+| `AddQuartz(Action<configurator, IServiceProvider>)` | see below |
+| `quartz.config` file discovery | `IConfiguration` |
+| `quartz.scheduler.proxy*`, `quartz.scheduler.exporter*` | nothing; remoting is not supported on modern .NET |
+| `quartz.checkConfiguration` | configuration is validated by the options system |
+
+### Deferred configuration
+
+The `AddQuartz` overloads taking an `IServiceProvider` are gone. They existed to reach services while
+configuring, which the options pattern already does:
+
+```diff
+- services.AddQuartz((q, provider) =>
+- {
+-     var connectionString = provider.GetRequiredService<IConfiguration>().GetConnectionString("Scheduler");
+-     q.UsePersistentStore(store => store.UseSqlServer("default", connectionString));
+- });
++ var connectionString = builder.Configuration.GetConnectionString("Scheduler");
++ services.AddQuartz(q => q.UsePersistentStore(store => store.UseSqlServer(connectionString)));
+```
+
+For an option that genuinely depends on a service, use the options pattern directly:
+
+```csharp
+services.AddOptions<AdoJobStoreOptions>()
+    .Configure<IMyService>((options, service) => options.TablePrefix = service.TablePrefix);
+```
+
+Listeners and plugins do not need this at all: they are registered services, so the container injects
+their dependencies.
+
+### SPI changes
+
+If you implement `IJobStore` or `ISchedulerPlugin` yourself, they take their collaborators through
+constructors now instead of being handed them afterwards.
+
+`IJobStore` loses `InstanceId`, `InstanceName`, `ThreadPoolSize` and `TimeProvider`, and `Initialize`
+loses its parameters:
+
+```diff
+- ValueTask Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler, CancellationToken cancellationToken = default);
++ ValueTask Initialize(CancellationToken cancellationToken = default);
+```
+
+Take what you need — `ISchedulerSignaler`, `ITypeLoadHelper`, `TimeProvider`,
+`IOptions<QuartzSchedulerOptions>` — through your constructor. What remains in `Initialize` is work
+that has to happen before the scheduler runs and cannot be done while constructing, such as verifying
+a database schema.
+
+Plugin configuration extension methods now extend `IQuartzBuilder` and register the plugin as a
+service, rather than deriving from `PropertiesSetter` to write string keys.
 
 ## Package Changes
 
-`Quartz.Extensions.DependencyInjection`, `Quartz.Extensions.Hosting`, and `Quartz.Serialization.SystemTextJson` have been merged into the main `Quartz` package. You can remove these package references from your project:
+`Quartz`, `Quartz`, and `Quartz.Serialization.SystemTextJson` have been merged into the main `Quartz` package. You can remove these package references from your project:
 
 ```diff
-- <PackageReference Include="Quartz.Extensions.DependencyInjection" Version="3.*" />
-- <PackageReference Include="Quartz.Extensions.Hosting" Version="3.*" />
+- <PackageReference Include="Quartz" Version="3.*" />
+- <PackageReference Include="Quartz" Version="3.*" />
 - <PackageReference Include="Quartz.Serialization.SystemTextJson" Version="3.*" />
 + <PackageReference Include="Quartz" Version="4.*" />
 ```

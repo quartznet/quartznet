@@ -1,3 +1,4 @@
+using Quartz.Tests;
 using BenchmarkDotNet.Attributes;
 using Quartz.Core;
 using Quartz.Impl;
@@ -396,7 +397,7 @@ public class QuartSchedulerBenchmark
             Name = name,
             InstanceId = instanceId,
             ThreadPool = threadPool,
-            JobStore = new RAMJobStore(),
+            JobStore = TestJobStores.Ram(),
             IdleWaitTime = TimeSpan.FromSeconds(30),
             MaxBatchSize = threadCount,
             BatchTimeWindow = TimeSpan.Zero

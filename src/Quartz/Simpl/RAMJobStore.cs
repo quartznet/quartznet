@@ -59,16 +59,25 @@ public class RAMJobStore : IJobStore
     private readonly HashSet<JobKey> blockedJobs = [];
     private readonly HashSet<JobKey> resumedJobsInPausedGroups = new HashSet<JobKey>();
     private TimeSpan misfireThreshold = TimeSpan.FromSeconds(5);
-    private ISchedulerSignaler signaler = null!;
-    private TimeProvider timeProvider = TimeProvider.System;
-    private readonly ILogger<RAMJobStore> logger;
+    private readonly ISchedulerSignaler signaler;
+    private readonly TimeProvider timeProvider;
+    private readonly ILogger logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RAMJobStore"/> class.
     /// </summary>
-    public RAMJobStore()
+    /// <remarks>
+    /// Takes a factory rather than an <c>ILogger&lt;RAMJobStore&gt;</c> so that a derived store logs
+    /// under its own name. A subclass would otherwise have to accept its base class's logger just to
+    /// pass it down, and everything the base class logged would be filed under the base class.
+    /// </remarks>
+    public RAMJobStore(ILoggerFactory loggerFactory, ISchedulerSignaler signaler, TimeProvider timeProvider)
     {
-        logger = LogProvider.CreateLogger<RAMJobStore>();
+        ArgumentNullException.ThrowIfNull(loggerFactory);
+
+        logger = loggerFactory.CreateLogger(GetType());
+        this.signaler = signaler;
+        this.timeProvider = timeProvider;
     }
 
     /// <summary>
@@ -110,9 +119,8 @@ public class RAMJobStore : IJobStore
     /// Called by the QuartzScheduler before the <see cref="IJobStore" /> is
     /// used, in order to give it a chance to Initialize.
     /// </summary>
-    public virtual ValueTask Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler, CancellationToken cancellationToken = default)
+    public virtual ValueTask Initialize(CancellationToken cancellationToken = default)
     {
-        this.signaler = signaler;
         logger.LogInformation("RAMJobStore initialized.");
         return default;
     }
@@ -2229,34 +2237,6 @@ public class RAMJobStore : IJobStore
         {
             lockObject.Release();
         }
-    }
-
-    /// <summary>
-    /// Inform the <see cref="IJobStore" /> of the Scheduler instance's Id,
-    /// prior to initialize being invoked.
-    /// </summary>
-    string IJobStore.InstanceId
-    {
-        set { }
-    }
-
-    /// <summary>
-    /// Inform the <see cref="IJobStore" /> of the Scheduler instance's name,
-    /// prior to initialize being invoked.
-    /// </summary>
-    string IJobStore.InstanceName
-    {
-        set { }
-    }
-
-    int IJobStore.ThreadPoolSize
-    {
-        set { }
-    }
-
-    TimeProvider IJobStore.TimeProvider
-    {
-        set => timeProvider = value;
     }
 
     public long EstimatedTimeToReleaseAndAcquireTrigger => 5;

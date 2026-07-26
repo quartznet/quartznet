@@ -22,7 +22,10 @@
 using System.Data.Common;
 
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
+using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Util;
 using Quartz.Spi;
 
 namespace Quartz.Impl.AdoJobStore;
@@ -43,6 +46,24 @@ namespace Quartz.Impl.AdoJobStore;
 public class JobStoreCMT : JobStoreSupport
 {
     /// <summary>
+    /// Initializes a new instance of the <see cref="JobStoreCMT"/> class.
+    /// </summary>
+    public JobStoreCMT(
+        ISchedulerSignaler schedulerSignaler,
+        ITypeLoadHelper typeLoadHelper,
+        TimeProvider timeProvider,
+        IOptions<QuartzSchedulerOptions> schedulerOptions,
+        IOptions<AdoJobStoreOptions> storeOptions,
+        IObjectSerializer objectSerializer,
+        IDbConnectionManager connectionManager,
+        IDbProvider dbProvider,
+        IDriverDelegate driverDelegate,
+        ISemaphore? lockHandler = null)
+        : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions, storeOptions, objectSerializer, connectionManager, dbProvider, driverDelegate, lockHandler)
+    {
+    }
+
+    /// <summary>
     /// Instructs this job store whether connections should be automatically opened.
     /// </summary>
     public virtual bool OpenConnection { protected get; set; }
@@ -51,10 +72,7 @@ public class JobStoreCMT : JobStoreSupport
     /// Called by the QuartzScheduler before the <see cref="IJobStore"/> is
     /// used, in order to give the it a chance to Initialize.
     /// </summary>
-    public override async ValueTask Initialize(
-        ITypeLoadHelper loadHelper,
-        ISchedulerSignaler signaler,
-        CancellationToken cancellationToken = default)
+    public override async ValueTask Initialize(CancellationToken cancellationToken = default)
     {
         if (LockHandler is null)
         {
@@ -63,7 +81,7 @@ public class JobStoreCMT : JobStoreSupport
             UseDBLocks = true;
         }
 
-        await base.Initialize(loadHelper, signaler, cancellationToken).ConfigureAwait(false);
+        await base.Initialize(cancellationToken).ConfigureAwait(false);
         Logger.LogInformation("JobStoreCMT initialized.");
     }
 
@@ -78,7 +96,7 @@ public class JobStoreCMT : JobStoreSupport
 
         try
         {
-            ConnectionManager.Shutdown(DataSource);
+            DbProvider.Shutdown();
         }
         catch (Exception ex)
         {
@@ -95,7 +113,7 @@ public class JobStoreCMT : JobStoreSupport
         DbConnection conn;
         try
         {
-            conn = ConnectionManager.GetConnection(DataSource);
+            conn = DbProvider.CreateConnection();
             if (OpenConnection)
             {
                 await conn.OpenAsync().ConfigureAwait(false);

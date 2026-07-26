@@ -16,7 +16,6 @@ internal sealed class NamedSchedulerHostedService : IHostedLifecycleService
 {
     private readonly Lifetime applicationLifetime;
     private readonly IServiceProvider serviceProvider;
-    private readonly IOptionsMonitor<QuartzOptions> optionsMonitor;
     private readonly IOptions<QuartzHostedServiceOptions> hostedServiceOptions;
     private readonly List<IScheduler> schedulers = [];
     private Task? startupTask;
@@ -24,12 +23,10 @@ internal sealed class NamedSchedulerHostedService : IHostedLifecycleService
     public NamedSchedulerHostedService(
         Lifetime applicationLifetime,
         IServiceProvider serviceProvider,
-        IOptionsMonitor<QuartzOptions> optionsMonitor,
         IOptions<QuartzHostedServiceOptions> hostedServiceOptions)
     {
         this.applicationLifetime = applicationLifetime;
         this.serviceProvider = serviceProvider;
-        this.optionsMonitor = optionsMonitor;
         this.hostedServiceOptions = hostedServiceOptions;
     }
 
@@ -45,12 +42,12 @@ internal sealed class NamedSchedulerHostedService : IHostedLifecycleService
 
         try
         {
-            // Create all named schedulers (requires successful initialization for app startup)
+            // Create all named schedulers (requires successful initialization for app startup).
+            // Each scheduler's factory is registered under the scheduler's name as the service key.
             foreach (string name in registry.Names)
             {
-                QuartzOptions quartzOptions = optionsMonitor.Get(name);
-                NamedSchedulerFactory factory = new(serviceProvider, name, quartzOptions);
-                IScheduler scheduler = await factory.CreateAndInitializeScheduler(cancellationToken).ConfigureAwait(false);
+                ISchedulerFactory factory = serviceProvider.GetRequiredKeyedService<ISchedulerFactory>(name);
+                IScheduler scheduler = await factory.GetScheduler(cancellationToken).ConfigureAwait(false);
                 schedulers.Add(scheduler);
             }
 

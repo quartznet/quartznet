@@ -107,40 +107,6 @@ public class StdSchedulerFactoryTest
     }
 
     [Test]
-    public async Task TestFactoryShouldLoadPropertiesFromFileWhosePathIsGivenByEnvVariable()
-    {
-        var tempFile = Path.GetTempFileName();
-        try
-        {
-            const string InstanceName = "TestInstance";
-
-            File.WriteAllText(tempFile, $"{StdSchedulerFactory.PropertySchedulerInstanceName}={InstanceName}");
-
-            Environment.SetEnvironmentVariable(StdSchedulerFactory.PropertiesFile, tempFile);
-
-            var factory = new StdSchedulerFactory();
-            factory.Initialize(); // <- optional, because `GetScheduler` does it anyway
-            var scheduler = await factory.GetScheduler();
-
-            Assert.That(scheduler.SchedulerName, Is.EqualTo(InstanceName));
-        }
-        finally
-        {
-            // clean up of temp file and env var
-            try
-            {
-                File.Delete(tempFile);
-            }
-            catch (Exception)
-            {
-                // ignore temp file delete error
-            }
-
-            Environment.SetEnvironmentVariable(StdSchedulerFactory.PropertiesFile, null);
-        }
-    }
-
-    [Test]
     public async Task ShouldBeAbleToDefineThreadPriority()
     {
         var properties = new NameValueCollection
@@ -165,7 +131,7 @@ public class StdSchedulerFactoryTest
         };
 
         var factory = new StdSchedulerFactory(properties);
-        Assert.ThrowsAsync<SchedulerException>(async () => await factory.GetScheduler());
+        Assert.ThrowsAsync<SchedulerConfigException>(async () => await factory.GetScheduler());
     }
 
     [Test]
@@ -179,7 +145,7 @@ public class StdSchedulerFactoryTest
         };
 
         var factory = new StdSchedulerFactory(properties);
-        Assert.ThrowsAsync<SchedulerException>(async () => await factory.GetScheduler());
+        Assert.ThrowsAsync<SchedulerConfigException>(async () => await factory.GetScheduler());
     }
 
     [Test]
@@ -193,7 +159,7 @@ public class StdSchedulerFactoryTest
         };
 
         var factory = new StdSchedulerFactory(properties);
-        Assert.ThrowsAsync<SchedulerException>(async () => await factory.GetScheduler());
+        Assert.ThrowsAsync<SchedulerConfigException>(async () => await factory.GetScheduler());
     }
 
     private class TestStdSchedulerFactory : StdSchedulerFactory

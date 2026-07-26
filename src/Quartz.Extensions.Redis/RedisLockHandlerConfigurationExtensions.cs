@@ -1,60 +1,56 @@
-using Quartz.Impl;
+using Microsoft.Extensions.DependencyInjection;
+
+using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.Redis;
-using Quartz.Util;
 
 namespace Quartz;
 
 /// <summary>
-/// Extension methods for configuring <see cref="RedisSemaphore"/> as the lock handler
-/// for persistent job stores.
+/// Configures <see cref="RedisSemaphore"/> as the lock handler for a persistent job store.
 /// </summary>
 public static class RedisLockHandlerConfigurationExtensions
 {
     /// <summary>
-    /// Use Redis-based distributed lock handler for clustered scheduling.
-    /// This replaces database row locks with Redis distributed locks using
-    /// <c>SET NX PX</c>.
+    /// Coordinates clustered schedulers with Redis distributed locks rather than database row locks.
     /// </summary>
-    /// <param name="persistentStoreOptions">The persistent store options to configure.</param>
-    /// <param name="configure">Optional callback to configure Redis lock handler options.</param>
-    public static void UseRedisLockHandler(
-        this SchedulerBuilder.PersistentStoreOptions persistentStoreOptions,
+    /// <param name="builder">The persistent store being configured.</param>
+    /// <param name="configure">Optional configuration for the Redis lock handler.</param>
+    public static IPersistentStoreBuilder UseRedisLockHandler(
+        this IPersistentStoreBuilder builder,
         Action<RedisLockHandlerOptions>? configure = null)
     {
-        persistentStoreOptions.SetProperty(
-            StdSchedulerFactory.PropertyJobStoreLockHandlerType,
-            typeof(RedisSemaphore).AssemblyQualifiedNameWithoutVersion());
+        ArgumentNullException.ThrowIfNull(builder);
 
         var options = new RedisLockHandlerOptions();
         configure?.Invoke(options);
 
-        if (options.RedisConfiguration is not null)
+        builder.UseLockHandler(provider =>
         {
-            persistentStoreOptions.SetProperty(
-                "quartz.jobStore.lockHandler.redisConfiguration",
-                options.RedisConfiguration);
-        }
+            var semaphore = ActivatorUtilities.CreateInstance<RedisSemaphore>(provider);
+            if (options.RedisConfiguration is not null)
+            {
+                semaphore.RedisConfiguration = options.RedisConfiguration;
+            }
 
-        if (options.KeyPrefix is not null)
-        {
-            persistentStoreOptions.SetProperty(
-                "quartz.jobStore.lockHandler.keyPrefix",
-                options.KeyPrefix);
-        }
+            if (options.KeyPrefix is not null)
+            {
+                semaphore.KeyPrefix = options.KeyPrefix;
+            }
 
-        if (options.LockTtlMilliseconds.HasValue)
-        {
-            persistentStoreOptions.SetProperty(
-                "quartz.jobStore.lockHandler.lockTtlMilliseconds",
-                options.LockTtlMilliseconds.Value.ToString());
-        }
+            if (options.LockTtlMilliseconds.HasValue)
+            {
+                semaphore.LockTtlMilliseconds = options.LockTtlMilliseconds.Value;
+            }
 
-        if (options.LockRetryIntervalMilliseconds.HasValue)
-        {
-            persistentStoreOptions.SetProperty(
-                "quartz.jobStore.lockHandler.lockRetryIntervalMilliseconds",
-                options.LockRetryIntervalMilliseconds.Value.ToString());
-        }
+            if (options.LockRetryIntervalMilliseconds.HasValue)
+            {
+                semaphore.LockRetryIntervalMilliseconds = options.LockRetryIntervalMilliseconds.Value;
+            }
+
+            return semaphore;
+        });
+
+        return builder;
     }
 }
 

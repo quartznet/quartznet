@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
 
@@ -8,6 +10,14 @@ namespace Quartz.Tests.Unit.Core;
 /// </summary>
 public class SlowRAMJobStore : RAMJobStore
 {
+    public SlowRAMJobStore(
+        ILoggerFactory loggerFactory,
+        ISchedulerSignaler signaler,
+        TimeProvider timeProvider)
+        : base(loggerFactory, signaler, timeProvider)
+    {
+    }
+
     public override async ValueTask<List<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow, CancellationToken cancellationToken = default)
     {
         var nextTriggers = await base.AcquireNextTriggers(noLaterThan, maxCount, timeWindow, cancellationToken);

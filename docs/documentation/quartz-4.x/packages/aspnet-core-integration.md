@@ -24,7 +24,7 @@ You can add Quartz configuration by invoking an extension method `AddQuartzServe
 This will add a hosted Quartz server into ASP.NET Core process that will be started and stopped based on applications lifetime.
 
 ::: tip
-See [Quartz.Extensions.DependencyInjection documentation](microsoft-di-integration) to learn more about configuring Quartz scheduler, jobs and triggers.
+See [Quartz documentation](microsoft-di-integration) to learn more about configuring Quartz scheduler, jobs and triggers.
 :::
 
 **Example Startup.ConfigureServices configuration**

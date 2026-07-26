@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <Description>Quartz.NET Plugins; $(Description)</Description>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <RootNamespace>Quartz</RootNamespace>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <PackageReadmeFile>quartz-plugins.md</PackageReadmeFile>

@@ -17,6 +17,8 @@
  */
 #endregion
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Core;
 using Quartz.Spi;
 
@@ -30,7 +32,17 @@ namespace Quartz.Impl;
 /// <author>Marko Lahma (.NET)</author>
 internal sealed class StdJobRunShellFactory : IJobRunShellFactory
 {
+    private readonly ILogger<JobRunShell> logger;
     private IScheduler scheduler = null!;
+
+    /// <remarks>
+    /// A <see cref="JobRunShell"/> is created per trigger firing, so its dependencies are injected here
+    /// once and handed through, rather than each shell reaching into a container for them.
+    /// </remarks>
+    public StdJobRunShellFactory(ILogger<JobRunShell> logger)
+    {
+        this.logger = logger;
+    }
 
     /// <summary>
     /// Initialize the factory, providing a handle to the <see cref="IScheduler" />
@@ -48,6 +60,6 @@ internal sealed class StdJobRunShellFactory : IJobRunShellFactory
     /// </summary>
     public JobRunShell CreateJobRunShell(TriggerFiredBundle bndle)
     {
-        return new JobRunShell(scheduler, bndle);
+        return new JobRunShell(scheduler, bndle, logger);
     }
 }

@@ -36,6 +36,7 @@ public sealed class MultipleSchedulerTests
         using var provider = services.BuildServiceProvider();
         var optionsMonitor = provider.GetRequiredService<IOptionsMonitor<QuartzOptions>>();
 
+        var schedulerOptions = provider.GetRequiredService<IOptionsMonitor<QuartzSchedulerOptions>>();
         var options1 = optionsMonitor.Get("Scheduler1");
         var options2 = optionsMonitor.Get("Scheduler2");
 
@@ -43,13 +44,13 @@ public sealed class MultipleSchedulerTests
         options1.JobDetails[0].Key.Name.Should().Be("jobA");
         options1.Triggers.Should().HaveCount(1);
         options1.Triggers[0].Key.Name.Should().Be("triggerA");
-        options1[StdSchedulerFactory.PropertySchedulerInstanceName].Should().Be("Scheduler1");
+        schedulerOptions.Get("Scheduler1").InstanceName.Should().Be("Scheduler1");
 
         options2.JobDetails.Should().HaveCount(1);
         options2.JobDetails[0].Key.Name.Should().Be("jobB");
         options2.Triggers.Should().HaveCount(1);
         options2.Triggers[0].Key.Name.Should().Be("triggerB");
-        options2[StdSchedulerFactory.PropertySchedulerInstanceName].Should().Be("Scheduler2");
+        schedulerOptions.Get("Scheduler2").InstanceName.Should().Be("Scheduler2");
     }
 
     [Test]
@@ -277,18 +278,19 @@ public sealed class MultipleSchedulerTests
     }
 
     [Test]
-    public void SchedulerName_SetterOnNamedConfigurator_ShouldThrow()
+    public void SchedulerName_ConfiguredOnNamedScheduler_IsOverriddenByItsRegistration()
     {
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         services.AddLogging();
 
-        Action act = () => services.AddQuartz("MyName", q =>
-        {
-            q.SchedulerName = "Other";
-        });
+        services.AddQuartz("MyName", q => q.ConfigureScheduler(options => options.InstanceName = "Other"));
 
-        act.Should().Throw<InvalidOperationException>().WithMessage("*cannot be changed*");
+        using var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptionsMonitor<QuartzSchedulerOptions>>().Get("MyName");
+
+        options.InstanceName.Should().Be("MyName",
+            "the registration name is also the service key, so the instance name cannot drift from it");
     }
 
     [Test]
@@ -337,10 +339,9 @@ public sealed class MultipleSchedulerTests
         services.AddQuartz("MyScheduler", properties, q => { });
 
         using var provider = services.BuildServiceProvider();
-        var optionsMonitor = provider.GetRequiredService<IOptionsMonitor<QuartzOptions>>();
-        var options = optionsMonitor.Get("MyScheduler");
+        var optionsMonitor = provider.GetRequiredService<IOptionsMonitor<QuartzSchedulerOptions>>();
 
-        options[StdSchedulerFactory.PropertySchedulerInstanceName].Should().Be("MyScheduler");
+        optionsMonitor.Get("MyScheduler").InstanceName.Should().Be("MyScheduler");
     }
 
     [Test]

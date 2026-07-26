@@ -28,7 +28,8 @@ public class JsonSchedulingTests
         var provider = services.BuildServiceProvider();
         var options = provider.GetRequiredService<IOptions<QuartzOptions>>().Value;
 
-        options["quartz.scheduler.instanceName"].Should().Be("JsonTest");
+        provider.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value
+            .InstanceName.Should().Be("JsonTest");
         options.JobDetails.Should().HaveCount(1);
         options.Triggers.Should().HaveCount(1);
         options.Triggers[0].Should().BeAssignableTo<ICronTrigger>();
@@ -73,10 +74,10 @@ public class JsonSchedulingTests
         services.AddQuartz(config);
 
         var provider = services.BuildServiceProvider();
-        var snapshot = provider.GetRequiredService<IOptionsSnapshot<QuartzOptions>>();
+        var threadPool = provider.GetRequiredService<IOptionsSnapshot<ThreadPoolOptions>>();
 
-        snapshot.Get("Primary")["quartz.threadPool.maxConcurrency"].Should().Be("10");
-        snapshot.Get("Secondary")["quartz.threadPool.maxConcurrency"].Should().Be("5");
+        threadPool.Get("Primary").MaxConcurrency.Should().Be(10);
+        threadPool.Get("Secondary").MaxConcurrency.Should().Be(5);
     }
 
     [Test]
@@ -103,7 +104,8 @@ public class JsonSchedulingTests
         var snapshot = provider.GetRequiredService<IOptionsSnapshot<QuartzOptions>>();
         var options = snapshot.Get("LocalScheduler");
 
-        options["quartz.threadPool.maxConcurrency"].Should().Be("7");
+        provider.GetRequiredService<IOptionsSnapshot<ThreadPoolOptions>>()
+            .Get("LocalScheduler").MaxConcurrency.Should().Be(7);
         options.JobDetails.Should().HaveCount(1);
         options.JobDetails[0].Key.Name.Should().Be("rootJob");
         options.Triggers.Should().HaveCount(1);
@@ -153,7 +155,8 @@ public class JsonSchedulingTests
 
         var provider = services.BuildServiceProvider();
         var options = provider.GetRequiredService<IOptions<QuartzOptions>>().Value;
-        options["quartz.scheduler.instanceName"].Should().Be("NoSchedule");
+        provider.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value
+            .InstanceName.Should().Be("NoSchedule");
         options.JobDetails.Should().BeEmpty();
     }
 

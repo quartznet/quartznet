@@ -41,6 +41,11 @@ public static class QuartzConfigurationHelper
         return properties;
     }
 
+    /// <summary>
+    /// Flattens a configuration section into the collection, in place.
+    /// </summary>
+    /// <param name="configuration">The section to flatten.</param>
+    /// <param name="properties">The collection to add the flattened keys to.</param>
     internal static void PopulateProperties(IConfiguration configuration, NameValueCollection properties)
     {
         foreach (var child in configuration.GetChildren())

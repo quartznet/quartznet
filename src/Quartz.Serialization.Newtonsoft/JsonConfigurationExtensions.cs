@@ -1,5 +1,8 @@
 using Quartz.Serialization.Newtonsoft;
+using Microsoft.Extensions.DependencyInjection;
+
 using Quartz.Simpl;
+using Quartz.Spi;
 using Quartz.Triggers;
 
 namespace Quartz;
@@ -9,14 +12,17 @@ public static class JsonConfigurationExtensions
     /// <summary>
     /// Use Newtonsoft JSON as data serialization strategy.
     /// </summary>
-    public static void UseNewtonsoftJsonSerializer(
-        this SchedulerBuilder.PersistentStoreOptions persistentStoreOptions,
+    public static IPersistentStoreBuilder UseNewtonsoftJsonSerializer(
+        this IPersistentStoreBuilder builder,
         Action<NewtonsoftJsonSerializerOptions>? configure = null)
     {
+        ArgumentNullException.ThrowIfNull(builder);
+
         var options = new NewtonsoftJsonSerializerOptions();
         configure?.Invoke(options);
-        persistentStoreOptions.UseSerializer<NewtonsoftJsonObjectSerializer>();
-        persistentStoreOptions.SetProperty("quartz.serializer.RegisterTriggerConverters", options.RegisterTriggerConverters.ToString());
+        var serializer = new NewtonsoftJsonObjectSerializer { RegisterTriggerConverters = options.RegisterTriggerConverters };
+        serializer.Initialize();
+        return builder.UseSerializer(_ => serializer);
     }
 }
 

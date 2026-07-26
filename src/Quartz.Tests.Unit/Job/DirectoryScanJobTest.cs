@@ -26,7 +26,7 @@ public class DirectoryScanJobTest
             serviceCollection.AddTransient<TestDirectoryScanListener>();
             var serviceProvider = serviceCollection.BuildServiceProvider(validateScopes: true);
 
-            var scheduler = await SchedulerBuilder.Create()
+            var scheduler = await QuartzSchedulerBuilder.Create()
                 .Build()
                 .GetScheduler();
 
@@ -76,7 +76,7 @@ public class DirectoryScanJobTest
 
         try
         {
-            var scheduler = await SchedulerBuilder.Create()
+            var scheduler = await QuartzSchedulerBuilder.Create()
                 .Build()
                 .GetScheduler();
 

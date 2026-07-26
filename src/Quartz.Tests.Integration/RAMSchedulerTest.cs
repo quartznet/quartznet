@@ -9,7 +9,7 @@ public class RAMSchedulerTest : AbstractSchedulerTest
 
     protected override ValueTask<IScheduler> CreateScheduler(string name, int threadPoolSize)
     {
-        var config = SchedulerBuilder.Create("AUTO", name + "Scheduler");
+        var config = QuartzSchedulerBuilder.Create().ConfigureScheduler(o => { o.InstanceId = "AUTO"; o.InstanceName = name + "Scheduler"; });
 
         config.UseDefaultThreadPool(x =>
         {

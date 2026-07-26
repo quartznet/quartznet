@@ -12,13 +12,15 @@ public static class JsonConfigurationExtensions
     /// <summary>
     /// Use System.Text.Json as data serialization strategy.
     /// </summary>
-    public static void UseSystemTextJsonSerializer(
-        this SchedulerBuilder.PersistentStoreOptions persistentStoreOptions,
+    public static IPersistentStoreBuilder UseSystemTextJsonSerializer(
+        this IPersistentStoreBuilder builder,
         Action<SystemTextJsonSerializerOptions>? configure = null)
     {
+        ArgumentNullException.ThrowIfNull(builder);
+
         var options = new SystemTextJsonSerializerOptions();
         configure?.Invoke(options);
-        persistentStoreOptions.UseSerializer<SystemTextJsonObjectSerializer>();
+        return builder.UseSerializer<SystemTextJsonObjectSerializer>();
     }
 
     internal static JsonSerializerOptions AddQuartzConverters(this JsonSerializerOptions options, bool newtonsoftCompatibilityMode)

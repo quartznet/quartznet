@@ -4,7 +4,7 @@ namespace Quartz.Configuration;
 
 /// <summary>
 /// Shared helper for creating listener instances from configuration objects.
-/// Used by both <see cref="ServiceCollectionSchedulerFactory"/> and <see cref="NamedSchedulerFactory"/>.
+/// Used when building a scheduler's listeners from registered configurations.
 /// </summary>
 internal static class ListenerCreationHelper
 {

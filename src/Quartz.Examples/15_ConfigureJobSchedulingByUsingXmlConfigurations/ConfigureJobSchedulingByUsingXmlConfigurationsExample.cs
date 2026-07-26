@@ -35,17 +35,20 @@ public class ConfigureJobSchedulingByUsingXmlConfigurationsExample : IExample
         Console.WriteLine("------- Initializing ----------------------");
 
         // First we must get a reference to a scheduler
-        var sched = await SchedulerBuilder.Create()
-            .WithName("XmlConfiguredInstance")
-            .UseDefaultThreadPool(maxConcurrency: 5)
-            // job initialization plugin handles our xml reading, without it defaults are used
-            .UseXmlSchedulingConfiguration(x =>
+        var sched = await QuartzSchedulerBuilder.Create()
+            .Configure(q =>
             {
-                x.Files = ["~/quartz_jobs.xml"];
-                // this is the default
-                x.FailOnFileNotFound = true;
-                // this is not the default
-                x.FailOnSchedulingError = true;
+                q.ConfigureScheduler(options => options.InstanceName = "XmlConfiguredInstance");
+                q.UseDefaultThreadPool(maxConcurrency: 5);
+                // job initialization plugin handles our xml reading, without it defaults are used
+                q.UseXmlSchedulingConfiguration(x =>
+                {
+                    x.Files = ["~/quartz_jobs.xml"];
+                    // this is the default
+                    x.FailOnFileNotFound = true;
+                    // this is not the default
+                    x.FailOnSchedulingError = true;
+                });
             })
             .BuildScheduler();
 

@@ -35,7 +35,7 @@ public class ServiceCollectionExtensionsTests
 
         services.AddSingleton<IConfiguration>(configurationBuilder.Build());
 
-        // Go through AddQuartz(), because the IServiceCollectionQuartzConfigurator interface refuses mocking or implementation, due to an internal default-implemented property
+        // Go through AddQuartz(), because the IQuartzBuilder interface refuses mocking or implementation, due to an internal default-implemented property
         services.AddQuartz(quartz =>
         {
             quartz.AddJob<DummyJob>(
@@ -176,7 +176,7 @@ public class ServiceCollectionExtensionsTests
 
         services.AddSingleton<IConfiguration>(configurationBuilder.Build());
 
-        // Go through AddQuartz(), because the IServiceCollectionQuartzConfigurator interface refuses mocking or implementation, due to an internal default-implemented property
+        // Go through AddQuartz(), because the IQuartzBuilder interface refuses mocking or implementation, due to an internal default-implemented property
         services.AddQuartz(quartz =>
         {
             quartz.AddTrigger(
@@ -239,7 +239,7 @@ public class ServiceCollectionExtensionsTests
 
         services.AddSingleton<IConfiguration>(configurationBuilder.Build());
 
-        // Go through AddQuartz(), because the IServiceCollectionQuartzConfigurator interface refuses mocking or implementation, due to an internal default-implemented property
+        // Go through AddQuartz(), because the IQuartzBuilder interface refuses mocking or implementation, due to an internal default-implemented property
         services.AddQuartz(quartz =>
         {
             quartz.ScheduleJob<DummyJob>(
@@ -312,7 +312,7 @@ public class ServiceCollectionExtensionsTests
     {
         var services = new ServiceCollection();
 
-        // Go through AddQuartz(), because the IServiceCollectionQuartzConfigurator interface refuses mocking or implementation, due to an internal default-implemented property
+        // Go through AddQuartz(), because the IQuartzBuilder interface refuses mocking or implementation, due to an internal default-implemented property
         services.AddQuartz(quartz => quartz.ScheduleJob<DummyJob>(
             trigger => { }));
 
@@ -346,7 +346,7 @@ public class ServiceCollectionExtensionsTests
     {
         var services = new ServiceCollection();
 
-        // Go through AddQuartz(), because the IServiceCollectionQuartzConfigurator interface refuses mocking or implementation, due to an internal default-implemented property
+        // Go through AddQuartz(), because the IQuartzBuilder interface refuses mocking or implementation, due to an internal default-implemented property
         services.AddQuartz(quartz => quartz.ScheduleJob<DummyJob>(
             trigger => trigger.WithIdentity("TriggerName", "TriggerGroup")));
 
@@ -392,7 +392,7 @@ public class ServiceCollectionExtensionsTests
 
         services.AddSingleton<IConfiguration>(configurationBuilder.Build());
 
-        // Go through AddQuartz(), because the IServiceCollectionQuartzConfigurator interface refuses mocking or implementation, due to an internal default-implemented property
+        // Go through AddQuartz(), because the IQuartzBuilder interface refuses mocking or implementation, due to an internal default-implemented property
         services.AddQuartz(quartz =>
         {
             quartz.AddCalendar<DummyCalendar>(
@@ -429,7 +429,7 @@ public class ServiceCollectionExtensionsTests
 
         services.AddSingleton<IConfiguration>(configurationBuilder.Build());
 
-        // Go through AddQuartz(), because the IServiceCollectionQuartzConfigurator interface refuses mocking or implementation, due to an internal default-implemented property
+        // Go through AddQuartz(), because the IQuartzBuilder interface refuses mocking or implementation, due to an internal default-implemented property
         services.AddQuartz(quartz =>
         {
             quartz.AddCalendar<DummyCalendar>(
@@ -514,25 +514,22 @@ public class ServiceCollectionExtensionsTests
         services.AddNpgsqlDataSource("Host=myserver;Username=mylogin;Password=mypass;Database=mydatabase");
         services.AddQuartz(quartz =>
         {
-            quartz.AddDataSourceProvider();
-
             quartz.UsePersistentStore(p =>
             {
-                p.UsePostgres("default", c => c.UseDataSourceConnectionProvider());
+                p.UsePostgres(c => c.Provider = "Npgsql");
+                p.UseDataSourceConnectionProvider();
             });
         });
 
         var provider = services.BuildServiceProvider();
 
-        Assert.That(provider.GetService<IDbProvider>(), Is.TypeOf<DataSourceDbProvider>());
+        // The connection provider is a registration now rather than a type name in a property bag,
+        // so the container itself is the thing to assert on.
+        provider.GetService<IDbProvider>().Should().BeOfType<DataSourceDbProvider>(
+            "asking for the container's data source must win over the provider the database method implies");
 
-        var quartzOptions = provider.GetRequiredService<IOptions<QuartzOptions>>().Value;
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(quartzOptions.ContainsKey("quartz.dataSource.default.connectionProvider.type"));
-            Assert.That(quartzOptions["quartz.dataSource.default.connectionProvider.type"], Is.EqualTo(typeof(DataSourceDbProvider).AssemblyQualifiedNameWithoutVersion()));
-        });
+        provider.GetRequiredService<IOptionsMonitor<DataSourceOptions>>().Get("quartz")
+            .UseRegisteredDataSource.Should().BeTrue();
     }
 
     [Test]
@@ -546,7 +543,7 @@ public class ServiceCollectionExtensionsTests
         services.AddLogging();
         services.AddQuartz(q =>
         {
-            q.SchedulerName = schedulerName;
+            q.ConfigureScheduler(options => options.InstanceName = schedulerName);
             q.UseInMemoryStore();
         });
 
@@ -573,7 +570,7 @@ public class ServiceCollectionExtensionsTests
         services.AddLogging();
         services.AddQuartz(q =>
         {
-            q.SchedulerName = schedulerName;
+            q.ConfigureScheduler(options => options.InstanceName = schedulerName);
             q.UseInMemoryStore();
         });
 

@@ -55,8 +55,7 @@ public class SchedulingJobsSettingMisfireInstructionsExample : IExample
         Console.WriteLine("------- Initializing -------------------");
 
         // First we must get a reference to a scheduler
-        StdSchedulerFactory sf = new StdSchedulerFactory();
-        IScheduler sched = await sf.GetScheduler();
+        IScheduler sched = await ExampleScheduler.Create();
 
         Console.WriteLine("------- Initialization Complete -----------");
 

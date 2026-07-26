@@ -18,7 +18,10 @@
 #endregion
 
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
+using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Util;
 using Quartz.Spi;
 
 namespace Quartz.Impl.AdoJobStore;
@@ -33,15 +36,30 @@ namespace Quartz.Impl.AdoJobStore;
 public class JobStoreTX : JobStoreSupport
 {
     /// <summary>
+    /// Initializes a new instance of the <see cref="JobStoreTX"/> class.
+    /// </summary>
+    public JobStoreTX(
+        ISchedulerSignaler schedulerSignaler,
+        ITypeLoadHelper typeLoadHelper,
+        TimeProvider timeProvider,
+        IOptions<QuartzSchedulerOptions> schedulerOptions,
+        IOptions<AdoJobStoreOptions> storeOptions,
+        IObjectSerializer objectSerializer,
+        IDbConnectionManager connectionManager,
+        IDbProvider dbProvider,
+        IDriverDelegate driverDelegate,
+        ISemaphore? lockHandler = null)
+        : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions, storeOptions, objectSerializer, connectionManager, dbProvider, driverDelegate, lockHandler)
+    {
+    }
+
+    /// <summary>
     /// Called by the QuartzScheduler before the <see cref="IJobStore"/> is
     /// used, in order to give the it a chance to Initialize.
     /// </summary>
-    public override async ValueTask Initialize(
-        ITypeLoadHelper loadHelper,
-        ISchedulerSignaler signaler,
-        CancellationToken cancellationToken = default)
+    public override async ValueTask Initialize(CancellationToken cancellationToken = default)
     {
-        await base.Initialize(loadHelper, signaler, cancellationToken).ConfigureAwait(false);
+        await base.Initialize(cancellationToken).ConfigureAwait(false);
         Logger.LogInformation("JobStoreTX initialized.");
     }
 

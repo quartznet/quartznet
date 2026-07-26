@@ -1,4 +1,5 @@
-﻿using System.Collections.Specialized;
+using Microsoft.Extensions.Options;
+using System.Collections.Specialized;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
 using Quartz.Impl;
@@ -93,6 +94,14 @@ public class CollectDurationBetweenFireTimesJob : IJob
 /// </summary>
 public class SlowRAMJobStore : RAMJobStore
 {
+    public SlowRAMJobStore(
+        ILoggerFactory loggerFactory,
+        ISchedulerSignaler signaler,
+        TimeProvider timeProvider)
+        : base(loggerFactory, signaler, timeProvider)
+    {
+    }
+
     public override async ValueTask<List<IOperableTrigger>> AcquireNextTriggers(
         DateTimeOffset noLaterThan,
         int maxCount,

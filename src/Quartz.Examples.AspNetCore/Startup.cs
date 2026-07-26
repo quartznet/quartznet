@@ -99,19 +99,19 @@ public class Startup
         services.AddQuartz(Configuration.GetSection("Quartz"), q =>
         {
             // handy when part of cluster or you want to otherwise identify multiple schedulers
-            q.SchedulerId = "Scheduler-Core";
+            q.ConfigureScheduler(options => options.InstanceId = "Scheduler-Core");
 
             // you can control whether job interruption happens for running jobs when scheduler is shutting down
-            q.InterruptJobsOnShutdown = true;
+            q.ConfigureScheduler(options => options.InterruptJobsOnShutdown = true);
 
             // when QuartzHostedServiceOptions.WaitForJobsToComplete = true or scheduler.Shutdown(waitForJobsToComplete: true)
-            q.InterruptJobsOnShutdownWithWait = true;
+            q.ConfigureScheduler(options => options.InterruptJobsOnShutdownWithWait = true);
 
             // we can change from the default of 1
-            q.MaxBatchSize = 5;
+            q.ConfigureScheduler(options => options.MaxBatchSize = 5);
 
             // we take this from appsettings.json, just show it's possible
-            // q.SchedulerName = "Quartz ASP.NET Core Sample Scheduler";
+            // q.ConfigureScheduler(options => options.InstanceName = "Quartz ASP.NET Core Sample Scheduler");
 
             // these are the defaults
             q.UseSimpleTypeLoader();

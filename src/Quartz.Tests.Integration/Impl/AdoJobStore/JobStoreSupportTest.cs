@@ -1,3 +1,8 @@
+using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Util;
+using Quartz.Spi;
+using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 using Npgsql;
 
 using Quartz.Impl.AdoJobStore;
@@ -10,7 +15,7 @@ public class JobStoreSupportTest
     [Test]
     public void CanDetectTransientException()
     {
-        var jobStoreSupport = new TestJobStoreSupport();
+        var jobStoreSupport = new TestJobStoreSupport(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler());
         var npgsqlException = new NpgsqlException("timeout", new TimeoutException());
         Assert.That(jobStoreSupport.IsTransientPublic(npgsqlException), Is.True);
 
@@ -33,6 +38,21 @@ public class JobStoreSupportTest
 
     private class TestJobStoreSupport : JobStoreSupport
     {
+        public TestJobStoreSupport(
+            ISchedulerSignaler schedulerSignaler,
+            ITypeLoadHelper typeLoadHelper,
+            TimeProvider timeProvider,
+            IOptions<QuartzSchedulerOptions> schedulerOptions,
+        IOptions<AdoJobStoreOptions> storeOptions,
+        IObjectSerializer objectSerializer,
+        IDbConnectionManager connectionManager,
+        IDbProvider dbProvider,
+        IDriverDelegate driverDelegate,
+        ISemaphore lockHandler)
+            : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions, storeOptions, objectSerializer, connectionManager, dbProvider, driverDelegate, lockHandler)
+        {
+        }
+
         protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection()
         {
             throw new NotImplementedException();

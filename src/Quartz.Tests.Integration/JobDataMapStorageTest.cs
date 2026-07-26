@@ -1,4 +1,4 @@
-﻿using Quartz.Impl;
+using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Job;
 using Quartz.Simpl;
@@ -54,23 +54,8 @@ public class JobDataMapStorageTest : IntegrationTest
         }
     }
 
-    private async ValueTask<IScheduler> CreateScheduler(string name)
+    private ValueTask<IScheduler> CreateScheduler(string name)
     {
-        DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType, out string dataSourceName);
-
-        var serializer = new NewtonsoftJsonObjectSerializer();
-        serializer.Initialize();
-        var jobStore = new JobStoreTX
-        {
-            DataSource = dataSourceName,
-            TablePrefix = "QRTZ_",
-            InstanceId = "AUTO",
-            DriverDelegateType = driverDelegateType,
-            ObjectSerializer = serializer
-        };
-
-        string schedulerName = SchedulerHelper.GetSchedulerName(provider, name);
-        await DirectSchedulerFactory.Instance.CreateScheduler(schedulerName, "AUTO", new DefaultThreadPool(), jobStore);
-        return SchedulerRepository.Instance.Lookup(schedulerName);
+        return SchedulerHelper.CreateScheduler(provider, name);
     }
 }

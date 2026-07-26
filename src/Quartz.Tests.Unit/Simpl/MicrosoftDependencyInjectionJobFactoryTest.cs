@@ -21,7 +21,7 @@ public class MicrosoftDependencyInjectionJobFactoryTest
     [Test]
     public async Task JobsShouldBeDisposedAfterExecute()
     {
-        var schedulerBuilder = SchedulerBuilder.Create()
+        var schedulerBuilder = QuartzSchedulerBuilder.Create()
             .Build();
 
         const string testValue = "test";

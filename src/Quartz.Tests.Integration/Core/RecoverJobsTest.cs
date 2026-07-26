@@ -1,3 +1,4 @@
+using Quartz.Tests.Integration.TestHelpers;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
 using Quartz.Impl;
@@ -21,22 +22,26 @@ public class RecoverJobsTest
         this.provider = provider;
     }
 
+    /// <summary>
+    /// Builds a scheduler sharing one database, so the tests can fail one over to another.
+    /// </summary>
+    private ValueTask<IScheduler> CreateRecoveryScheduler(string dataSourceName)
+    {
+        return SchedulerHelper.CreateScheduler(
+            provider,
+            options =>
+            {
+                options.InstanceName = dataSourceName;
+                options.InstanceId = "SINGLE_NODE_TEST";
+            },
+            store => store.MisfireThreshold = TimeSpan.FromSeconds(1));
+    }
+
     [Test]
     public async Task TestRecoveringRepeatJobWhichIsFiredAndMisfiredAtTheSameTime()
     {
         DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out _, out string dataSourceName);
-        var jobStore = new JobStoreTX
-        {
-            DataSource = dataSourceName,
-            InstanceId = "SINGLE_NODE_TEST",
-            InstanceName = dataSourceName,
-            MisfireThreshold = TimeSpan.FromSeconds(1)
-        };
-
-        var factory = DirectSchedulerFactory.Instance;
-
-        await factory.CreateScheduler(new DefaultThreadPool(), jobStore);
-        var scheduler = await factory.GetScheduler();
+        var scheduler = await CreateRecoveryScheduler(dataSourceName);
 
         // run forever up to the first fail over situation
         RecoverJobsTestJob.runForever = true;
@@ -89,8 +94,7 @@ public class RecoverJobsTest
         await Task.Delay(TimeSpan.FromSeconds(4));
 
         var isJobRecovered = new ManualResetEventSlim(false);
-        await factory.CreateScheduler(new DefaultThreadPool(), jobStore);
-        IScheduler recovery = await factory.GetScheduler();
+        IScheduler recovery = await CreateRecoveryScheduler(dataSourceName);
         recovery.ListenerManager.AddJobListener(new TestListener(isJobRecovered));
         await recovery.Start();
 
@@ -127,18 +131,7 @@ public class RecoverJobsTest
     public async Task TestRecoveryTriggersShouldNotExecuteAfterTriggerIsRemoved()
     {
         DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out _, out string dataSourceName);
-        var jobStore = new JobStoreTX
-        {
-            DataSource = dataSourceName,
-            InstanceId = "SINGLE_NODE_TEST",
-            InstanceName = dataSourceName,
-            MisfireThreshold = TimeSpan.FromSeconds(1)
-        };
-
-        var factory = DirectSchedulerFactory.Instance;
-
-        await factory.CreateScheduler(new DefaultThreadPool(), jobStore);
-        var scheduler = await factory.GetScheduler();
+        var scheduler = await CreateRecoveryScheduler(dataSourceName);
 
         // Make job run forever to simulate a job that's executing when scheduler shuts down
         RecoverJobsTestJob.runForever = true;
@@ -192,8 +185,7 @@ public class RecoverJobsTest
         RecoverJobsTestJob.runForever = false;
 
         // Now create a new scheduler instance to unschedule the trigger before starting
-        await factory.CreateScheduler(new DefaultThreadPool(), jobStore);
-        var newScheduler = await factory.GetScheduler();
+        var newScheduler = await CreateRecoveryScheduler(dataSourceName);
 
         // Get the trigger and unschedule it before starting the scheduler
         var triggers = await newScheduler.GetTriggersOfJob(job.Key);
