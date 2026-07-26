@@ -759,22 +759,27 @@ internal sealed class QuartzSchedulerThread
         ).Unwrap();
     }
 
+    /// <summary>
+    /// Stops the processing loop and releases its resources. Terminal: the loop cannot be started again
+    /// afterwards, which matches the scheduler not being restartable after shutdown.
+    /// </summary>
     public async Task Shutdown()
     {
         cancellationTokenSource.Cancel();
 
         // Nothing to wait for when the loop was never started.
-        if (task is null)
+        if (task is not null)
         {
-            return;
+            try
+            {
+                await task.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
         }
 
-        try
-        {
-            await task.ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-        }
+        // Disposed only here, once the loop has been awaited and can no longer read the token.
+        cancellationTokenSource.Dispose();
     }
 }
