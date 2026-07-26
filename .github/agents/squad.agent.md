@@ -1139,7 +1139,7 @@ The GitHub Copilot coding agent (`@copilot`) can join the Squad as an autonomous
 **On-demand reference:** Read `.squad/templates/copilot-agent.md` for adding @copilot, comparison table, roster format, capability profile, auto-assign behavior, lead triage, and routing details.
 
 **Core rules (always loaded):**
-- Badge: 🤖 Coding Agent. Always "@copilot" (no casting). No charter — uses `copilot-instructions.md`.
+- Badge: 🤖 Coding Agent. Always "@copilot" (no casting). No charter — uses `AGENTS.md`.
 - NOT spawnable — works via issue assignment, asynchronous.
 - Capability profile (🟢/🟡/🔴) lives in team.md. Lead evaluates issues against it during triage.
 - Auto-assign controlled by `<!-- copilot-auto-assign: true/false -->` in team.md.
