@@ -70,31 +70,56 @@ internal sealed class SchedulerContentInitializer
 
     private void AddSchedulerListeners(IScheduler scheduler)
     {
+        var configured = new List<ISchedulerListener>();
         foreach (var registration in Registrations<SchedulerListenerRegistration>())
         {
-            scheduler.ListenerManager.AddSchedulerListener(registration.CreateListener(serviceProvider));
+            configured.Add(registration.CreateListener(serviceProvider));
+        }
+
+        foreach (var listener in configured)
+        {
+            scheduler.ListenerManager.AddSchedulerListener(listener);
         }
 
         // Listeners the application registered as plain services, which carry nothing of their own.
+        // A scheduler listener manager keeps these in a plain list with no notion of identity, so a
+        // listener that was both configured and registered as a service would be notified twice.
         foreach (var listener in ListenerServices<ISchedulerListener>())
         {
+            if (AlreadyConfigured(configured, listener))
+            {
+                continue;
+            }
+
             scheduler.ListenerManager.AddSchedulerListener(listener);
         }
     }
 
     private void AddJobListeners(IScheduler scheduler)
     {
+        var configured = new List<IJobListener>();
         var listeners = new List<(IJobListener Listener, IMatcher<JobKey>[] Matchers)>();
 
         foreach (var registration in Registrations<JobListenerRegistration>())
         {
-            listeners.Add((registration.CreateListener(serviceProvider), registration.Matchers));
+            var listener = registration.CreateListener(serviceProvider);
+            configured.Add(listener);
+            listeners.Add((listener, registration.Matchers));
         }
+
+        // Two builder registrations answering to one name is the genuinely ambiguous case: both asked for
+        // matchers, and the listener manager can only keep one of them.
+        RejectDuplicateNames(scheduler, "job", configured);
 
         // Listeners the application registered as plain services, which carry no matchers and so listen
         // to everything.
         foreach (var listener in ListenerServices<IJobListener>())
         {
+            if (AlreadyConfigured(configured, listener))
+            {
+                continue;
+            }
+
             listeners.Add((listener, []));
         }
 
@@ -103,10 +128,13 @@ internal sealed class SchedulerContentInitializer
         foreach (var listener in PropertyListenerFactory.Create<IJobListener>(
                      serviceProvider, properties, StdSchedulerFactory.PropertyJobListenerPrefix))
         {
+            if (AlreadyConfigured(configured, listener))
+            {
+                continue;
+            }
+
             listeners.Add((listener, [EverythingMatcher<JobKey>.AllJobs()]));
         }
-
-        RejectDuplicateNames(scheduler, "job", listeners.Select(static x => (x.Listener.Name, (object) x.Listener)));
 
         foreach (var (listener, matchers) in listeners)
         {
@@ -116,25 +144,38 @@ internal sealed class SchedulerContentInitializer
 
     private void AddTriggerListeners(IScheduler scheduler)
     {
+        var configured = new List<ITriggerListener>();
         var listeners = new List<(ITriggerListener Listener, IMatcher<TriggerKey>[] Matchers)>();
 
         foreach (var registration in Registrations<TriggerListenerRegistration>())
         {
-            listeners.Add((registration.CreateListener(serviceProvider), registration.Matchers));
+            var listener = registration.CreateListener(serviceProvider);
+            configured.Add(listener);
+            listeners.Add((listener, registration.Matchers));
         }
+
+        RejectDuplicateNames(scheduler, "trigger", configured);
 
         foreach (var listener in ListenerServices<ITriggerListener>())
         {
+            if (AlreadyConfigured(configured, listener))
+            {
+                continue;
+            }
+
             listeners.Add((listener, []));
         }
 
         foreach (var listener in PropertyListenerFactory.Create<ITriggerListener>(
                      serviceProvider, properties, StdSchedulerFactory.PropertyTriggerListenerPrefix))
         {
+            if (AlreadyConfigured(configured, listener))
+            {
+                continue;
+            }
+
             listeners.Add((listener, [EverythingMatcher<TriggerKey>.AllTriggers()]));
         }
-
-        RejectDuplicateNames(scheduler, "trigger", listeners.Select(static x => (x.Listener.Name, (object) x.Listener)));
 
         foreach (var (listener, matchers) in listeners)
         {
@@ -176,7 +217,34 @@ internal sealed class SchedulerContentInitializer
     }
 
     /// <summary>
-    /// Refuses two listeners of the same kind that answer to the same name.
+    /// Whether a listener contributed by a plain service registration or by a
+    /// <c>quartz.*Listener.*</c> key is one the builder already contributed.
+    /// </summary>
+    /// <remarks>
+    /// Registering a listener through the builder and as a service is a normal thing to do — the builder
+    /// registration is how it gets its matchers, the service registration is how its dependencies get
+    /// injected — and it used to be recognised, by comparing the declared listener type. That comparison
+    /// went away with the type-keyed configurations, which left the same listener contributed twice: for
+    /// job and trigger listeners the second copy replaces the first and drops its matchers, and for
+    /// scheduler listeners both are notified. The builder registration wins because it is the one that
+    /// carries matchers.
+    /// </remarks>
+    private static bool AlreadyConfigured<TListener>(List<TListener> configured, TListener listener)
+        where TListener : class
+    {
+        foreach (var candidate in configured)
+        {
+            if (ReferenceEquals(candidate, listener) || candidate.GetType() == listener.GetType())
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Refuses two builder registrations of the same kind that answer to the same name.
     /// </summary>
     /// <remarks>
     /// A listener manager holds one listener per name and replaces on collision, and a replacement that
@@ -184,14 +252,24 @@ internal sealed class SchedulerContentInitializer
     /// to produce the same name therefore quietly become one — the very ambiguity that carrying the
     /// pairing in the registration removes. Say so instead of applying only one of them.
     /// </remarks>
-    private static void RejectDuplicateNames(
-        IScheduler scheduler,
-        string kind,
-        IEnumerable<(string Name, object Listener)> listeners)
+    /// <remarks>
+    /// Only builder registrations are checked. A listener that also arrives as a service or by property is
+    /// recognised as the same listener by <see cref="AlreadyConfigured{TListener}"/> and never reaches
+    /// here, because that is a configuration that has always worked rather than an ambiguous one.
+    /// </remarks>
+    private static void RejectDuplicateNames<TListener>(IScheduler scheduler, string kind, List<TListener> configured)
+        where TListener : class
     {
-        var seen = new Dictionary<string, object>(StringComparer.Ordinal);
-        foreach (var (name, listener) in listeners)
+        var seen = new Dictionary<string, TListener>(StringComparer.Ordinal);
+        foreach (var listener in configured)
         {
+            var name = listener switch
+            {
+                IJobListener job => job.Name,
+                ITriggerListener trigger => trigger.Name,
+                _ => null
+            };
+
             if (string.IsNullOrEmpty(name))
             {
                 // A nameless listener is rejected by the listener manager itself, which says so better.

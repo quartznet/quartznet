@@ -60,9 +60,20 @@ internal sealed class QuartzSchedulerThread
     private readonly CancellationTokenSource cancellationTokenSource = new();
 
     /// <summary>
+    /// Guards the <see cref="task"/> and <see cref="shutDown"/> transitions, so that a start racing a
+    /// shutdown cannot produce a second processing loop or touch a disposed cancellation source.
+    /// </summary>
+    private readonly Lock stateLock = new();
+
+    /// <summary>
     /// The processing loop, or <see langword="null" /> until <see cref="Start" /> has been called.
     /// </summary>
     private Task? task;
+
+    /// <summary>
+    /// Whether <see cref="Shutdown"/> has run, after which the cancellation source is disposed.
+    /// </summary>
+    private bool shutDown;
 
     private const int PausedWaitCheckIntervalMs = 1000;
 
@@ -169,14 +180,26 @@ internal sealed class QuartzSchedulerThread
             pauseSignal.Release();
         }
 
+        Task? running;
+        lock (stateLock)
+        {
+            // Shutdown has already cancelled and disposed the source; cancelling it again would throw.
+            if (shutDown)
+            {
+                return;
+            }
+
+            running = task;
+        }
+
         await cancellationTokenSource.CancelAsync().ConfigureAwait(false);
 
         // There is nothing to wait for when the loop was never started.
-        if (wait && task is not null)
+        if (wait && running is not null)
         {
             try
             {
-                await task.ConfigureAwait(false);
+                await running.ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -741,22 +764,32 @@ internal sealed class QuartzSchedulerThread
     }
 
     /// <summary>
-    /// Starts the processing loop. Does nothing if it is already running.
+    /// Starts the processing loop. Does nothing if it is already running, or if the loop has already been
+    /// shut down.
     /// </summary>
+    /// <remarks>
+    /// Starting after <see cref="Shutdown"/> is a no-op rather than an error: a scheduler being started
+    /// and stopped concurrently is reachable from the hosted services, whose graceful-shutdown deadline
+    /// can elapse while a start is still in flight, and the caller of <c>IScheduler.Start()</c> should not
+    /// see an exception about a disposed cancellation source because of it.
+    /// </remarks>
     public void Start()
     {
-        if (task is not null)
+        lock (stateLock)
         {
-            return;
-        }
+            if (shutDown || task is not null)
+            {
+                return;
+            }
 
-        task = Task.Factory.StartNew(
-            static state => ((QuartzSchedulerThread) state!).Run(),
-            this,
-            cancellationTokenSource.Token,
-            TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
-            TaskScheduler.Default
-        ).Unwrap();
+            task = Task.Factory.StartNew(
+                static state => ((QuartzSchedulerThread) state!).Run(),
+                this,
+                cancellationTokenSource.Token,
+                TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach,
+                TaskScheduler.Default
+            ).Unwrap();
+        }
     }
 
     /// <summary>
@@ -765,21 +798,34 @@ internal sealed class QuartzSchedulerThread
     /// </summary>
     public async Task Shutdown()
     {
+        Task? running;
+        lock (stateLock)
+        {
+            if (shutDown)
+            {
+                return;
+            }
+
+            shutDown = true;
+            running = task;
+        }
+
         cancellationTokenSource.Cancel();
 
         // Nothing to wait for when the loop was never started.
-        if (task is not null)
+        if (running is not null)
         {
             try
             {
-                await task.ConfigureAwait(false);
+                await running.ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
             }
         }
 
-        // Disposed only here, once the loop has been awaited and can no longer read the token.
+        // Disposed only here, once the loop has been awaited and can no longer read the token. Reaching
+        // this point twice would dispose it twice, which is why Shutdown returns early above.
         cancellationTokenSource.Dispose();
     }
 }

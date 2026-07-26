@@ -275,6 +275,35 @@ public class StdSchedulerFactoryTest
         };
     }
 
+    /// <summary>
+    /// A factory owns its scheduler repository, so a fresh factory per call would find no existing
+    /// scheduler and build a second live one carrying the same instance name and instance id.
+    /// </summary>
+    [Test]
+    public async Task GetDefaultSchedulerReturnsTheSameSchedulerEveryTime()
+    {
+        var first = await StdSchedulerFactory.GetDefaultScheduler();
+        var second = await StdSchedulerFactory.GetDefaultScheduler();
+
+        second.Should().BeSameAs(first, "two schedulers sharing one instance id would both check in as that node");
+    }
+
+    /// <summary>
+    /// Querying a disposed factory used to build a whole new container, hang it off the disposed factory
+    /// where nothing would dispose it, and report an empty repository as though the schedulers had gone.
+    /// </summary>
+    [Test]
+    public async Task ADisposedFactoryDoesNotBuildAnotherContainer()
+    {
+        var factory = new StdSchedulerFactory();
+        await factory.GetScheduler();
+        factory.Dispose();
+
+        var query = async () => await factory.GetAllSchedulers();
+
+        await query.Should().ThrowAsync<ObjectDisposedException>();
+    }
+
     private class TestStdSchedulerFactory : StdSchedulerFactory
     {
         public const string PropertyTest = "quartz.scheduler.test";

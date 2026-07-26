@@ -98,14 +98,11 @@
     scheduler no longer skips that source; register the listener under the scheduler's name as the service key, or add it
     through that scheduler's builder, if only one scheduler should have it. (#3176)
 
-  * Two job listeners — or two trigger listeners — configured for the same scheduler that answer to the same **Name** now
-    throw a **SchedulerConfigException** naming both. A scheduler knows a listener by its name, so previously the second
-    quietly replaced the first and dropped the matchers it had been registered with. Give the listeners distinct names. (#3176)
-
-  * A listener that is both configured through **IQuartzBuilder** (`AddJobListener`, `AddTriggerListener`,
-    `AddSchedulerListener`) and registered as a listener service is no longer silently deduplicated by its type; it is two
-    registrations, and for job and trigger listeners it now produces the duplicate-name error above. Register it one way
-    or the other. (#3176)
+  * Two job listeners — or two trigger listeners — registered **through the builder** for the same scheduler that answer to
+    the same **Name** now throw a **SchedulerConfigException** naming both. A scheduler knows a listener by its name, so
+    previously the second quietly replaced the first and dropped the matchers it had been registered with. Give the
+    listeners distinct names. (#3176) Registering one listener through the builder *and* as a service is not this case and
+    keeps working — the builder registration wins, because it is the one carrying matchers.
   * The `quartz.config` file is no longer read (#3174). Neither a file on disk, nor the one named by the `quartz.config`
     environment variable, nor the copy Quartz shipped as an embedded resource. `StdSchedulerFactory` now reads only the
     properties handed to it plus any `quartz.*` environment variables; everything else is configured through the container.
@@ -199,6 +196,27 @@
   * Fix `L-nW` (nearest weekday to an interior last-day offset) resolving a Sunday backwards to Friday instead of forwards to Monday
   * `ISchedulerFactory.GetScheduler(name)` now matches the configured scheduler name case-insensitively, the way the
     scheduler repository indexes names, so the name that finds a scheduler is also the name that creates it
+  * A scheduler `Start()` that overlaps a `Shutdown()` no longer throws `ObjectDisposedException` about the scheduler
+    thread's cancellation source, and `Halt`/`Shutdown` are safe to call more than once. Reachable from the hosted
+    services, whose graceful-shutdown deadline can elapse while a start is still in flight
+  * Concurrent `Start()` calls can no longer create two processing loops for one scheduler
+  * A listener registered both through the builder and as a service is recognised as one listener again — job and trigger
+    listeners no longer fail scheduler creation with a duplicate-name error, and scheduler listeners are no longer
+    notified twice
+  * `quartz.executionLimit.*` keys supplied after `AddQuartz` has run — for example from a `Configure<QuartzOptions>`
+    callback — are applied again instead of being silently dropped
+  * `StdSchedulerFactory.GetDefaultScheduler()` returns the same scheduler on every call. Since a factory owns its
+    scheduler repository, building a fresh factory per call produced a second live scheduler with the same instance name
+    and instance id
+  * Querying a disposed `StdSchedulerFactory` throws `ObjectDisposedException` instead of silently building another
+    container that nothing will dispose and reporting no schedulers
+  * `UseNewtonsoftJsonSerializer()` with no callback now reads a `NewtonsoftJsonSerializerRegistry` registered in the
+    container, matching `UseSystemTextJsonSerializer()`, instead of ignoring it in favour of a private built-ins-only one
+  * A driver described in code with `UseGenericDatabase(..., metadata => ...)` now beats one described by
+    `quartz.dbprovider.*` keys registered by an earlier `AddQuartz` call, as the code-beats-strings rule elsewhere implies
+  * A `quartz.config` that 4.x no longer reads is reported as an ignored file rather than passed over in silence
+  * The dashboard builds its `JsonSerializerOptions` once rather than per request or Blazor circuit, and
+    `new DbProvider(name, connectionString)` no longer re-parses the embedded provider descriptions on every construction
 
 
 ## Release 3.14.0, Mar 8 2025

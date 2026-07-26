@@ -46,16 +46,23 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
     /// custom trigger or calendar serializer registered there is what makes a custom type render as
     /// something other than a reflected blob.
     /// </remarks>
+    /// <remarks>
+    /// <paramref name="quartzSerializerOptions"/> carries the Quartz converters and is built once from the
+    /// container's registry rather than per scope: this client is scoped, and System.Text.Json caches type
+    /// metadata per options instance.
+    /// </remarks>
     public InProcessQuartzApiClient(
         ISchedulerRepository schedulerRepository,
         IOptions<QuartzDashboardOptions> options,
         IDashboardHistoryStore historyStore,
-        SystemTextJsonSerializerRegistry serializerRegistry)
+        JsonSerializerOptions quartzSerializerOptions)
     {
+        ArgumentNullException.ThrowIfNull(quartzSerializerOptions);
+
         this.schedulerRepository = schedulerRepository;
         this.options = options;
         this.historyStore = historyStore;
-        deserializerOptions = CreateDeserializerOptions(serializerRegistry);
+        deserializerOptions = quartzSerializerOptions;
     }
 
     public ValueTask<List<SchedulerHeaderDto>> GetSchedulers()
@@ -413,13 +420,6 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
         };
 
         return ValueTask.FromResult<JobHistoryPageDto?>(new JobHistoryPageDto(JsonSerializer.SerializeToElement(payload, serializerOptions)));
-    }
-
-    private static JsonSerializerOptions CreateDeserializerOptions(SystemTextJsonSerializerRegistry serializerRegistry)
-    {
-        JsonSerializerOptions options = new(JsonSerializerDefaults.Web);
-        options.AddQuartzConverters(serializerRegistry, newtonsoftCompatibilityMode: false);
-        return options;
     }
 
     private JsonElement SerializeTrigger(ITrigger trigger)
