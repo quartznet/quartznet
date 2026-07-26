@@ -17,6 +17,8 @@
  */
 #endregion
 
+using System.Diagnostics.CodeAnalysis;
+
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
@@ -90,7 +92,10 @@ public static class QuartzDashboardServiceCollectionExtensions
     /// initialized, and plugins that derive persisted job keys from that name would otherwise write a
     /// different set of rows than the same plugin named by a <c>quartz.plugin.&lt;name&gt;.*</c> key.
     /// </remarks>
-    private static void AddDashboardPlugin<T>(QuartzBuilder quartz, string name) where T : class, ISchedulerPlugin
+    private static void AddDashboardPlugin<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        QuartzBuilder quartz,
+        string name) where T : class, ISchedulerPlugin
     {
         quartz.Services.AddSingleton(new SchedulerPluginName(quartz.SchedulerName, typeof(T), name));
         quartz.AddPlugin<T>();
