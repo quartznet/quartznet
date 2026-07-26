@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Data.Common;
 using System.Globalization;
 
@@ -1102,7 +1102,7 @@ public partial class StdAdoDelegate
     }
 
     /// <inheritdoc />
-    public virtual async Task<List<TriggerKey>> SelectTriggersInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    public virtual async ValueTask<List<TriggerKey>> SelectTriggersInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
         string sql;
         string parameter;
@@ -1361,7 +1361,7 @@ public partial class StdAdoDelegate
         DateTimeOffset noLaterThan,
         DateTimeOffset noEarlierThan,
         int maxCount,
-        Dictionary<string, int?> executionLimits,
+        IReadOnlyDictionary<string, int?> executionLimits,
         long liveNodeCutoff,
         CancellationToken cancellationToken = default)
     {

@@ -1,4 +1,4 @@
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Configuration;
 using Quartz.Spi;
@@ -166,7 +166,7 @@ public sealed class QuartzSchedulerBuilder
             inner = provider.GetRequiredService<ISchedulerFactory>();
         }
 
-        public ValueTask<IReadOnlyList<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default)
+        public ValueTask<List<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default)
         {
             return inner.GetAllSchedulers(cancellationToken);
         }

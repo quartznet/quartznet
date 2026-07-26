@@ -96,6 +96,25 @@
     the scheduler was tying up a thread every time it waited for pool capacity. They now use `WaitAsync`. Shutdown still waits
     synchronously for running jobs; that happens once, off the scheduling loop.
 
+  * `IJobStore.EstimatedTimeToReleaseAndAcquireTrigger` is a **`TimeSpan`** rather than a `long` count of
+    milliseconds. The same interface already returned `TimeSpan` from `GetAcquireRetryDelay`, so it carried two
+    ways of saying the same kind of thing.
+
+  * The two `IJobStore.AcquireNextTriggers` overloads are one method with an optional `executionLimits` argument.
+    Neither had a default implementation, so every job store had to write both, and the shorter one always just
+    called the longer one with null. The parameter is now `IReadOnlyDictionary<string, int?>?` rather than a
+    mutable `Dictionary<string, int?>?`; `IDriverDelegate.SelectTriggerToAcquire` follows suit.
+
+  * `ISchedulerFactory.GetAllSchedulers` returns `ValueTask<List<IScheduler>>`. Quartz returns concrete collection
+    types from its query members for the sake of allocation and enumeration cost, and this was the one that did not.
+
+  * `[Serializable]` was removed from **TriggerFiredBundle** and **TriggerFiredResult**. It has meant nothing since
+    persistence became JSON-only and `BinaryFormatter` was dropped.
+
+  * The last public `Task`-returning members became `ValueTask`: nine notification methods on **QuartzScheduler**
+    (including `TriggerJob`, which shadowed a `ValueTask`-returning `IScheduler.TriggerJob`), `JobRunShell.Initialize`
+    and `Run`, and `IDriverDelegate.SelectTriggersInGroup` — the only `Task` in an otherwise-`ValueTask` interface.
+
   * **ISchedulerListener** gained a `Name` property, so all three kinds of listener now have the same shape and a
     scheduler listener can be addressed the way job and trigger listeners already could.
     `SchedulerListenerSupport` supplies the type name as a default, so an implementation deriving from it needs no

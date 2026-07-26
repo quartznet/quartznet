@@ -1,9 +1,8 @@
-namespace Quartz.Spi;
+﻿namespace Quartz.Spi;
 
 /// <summary>
 /// Result holder for trigger firing event.
 /// </summary>
-[Serializable]
 public sealed class TriggerFiredResult
 {
     ///<summary>

@@ -198,7 +198,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
     public IObjectSerializer? ObjectSerializer { get; set; }
 
-    public virtual long EstimatedTimeToReleaseAndAcquireTrigger { get; } = 70;
+    public virtual TimeSpan EstimatedTimeToReleaseAndAcquireTrigger { get; } = TimeSpan.FromMilliseconds(70);
 
     /// <summary>
     /// Get or set whether this instance is part of a cluster.
@@ -3182,17 +3182,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// by the calling scheduler.
     /// </summary>
     /// <seealso cref="ReleaseAcquiredTrigger(IOperableTrigger, CancellationToken)" />
-    public virtual ValueTask<List<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow, CancellationToken cancellationToken = default)
-    {
-        return AcquireNextTriggers(noLaterThan, maxCount, timeWindow, executionLimits: null, cancellationToken);
-    }
-
     /// <inheritdoc />
     public virtual ValueTask<List<IOperableTrigger>> AcquireNextTriggers(
         DateTimeOffset noLaterThan,
         int maxCount,
         TimeSpan timeWindow,
-        Dictionary<string, int?>? executionLimits,
+        IReadOnlyDictionary<string, int?>? executionLimits = null,
         CancellationToken cancellationToken = default)
     {
         string? lockName;
@@ -3256,7 +3251,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         DateTimeOffset noLaterThan,
         int maxCount,
         TimeSpan timeWindow,
-        Dictionary<string, int?>? executionLimits,
+        IReadOnlyDictionary<string, int?>? executionLimits = null,
         CancellationToken cancellationToken = default)
     {
         if (timeWindow < TimeSpan.Zero)

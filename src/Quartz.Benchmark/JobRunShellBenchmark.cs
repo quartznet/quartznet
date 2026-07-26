@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging.Abstractions;
+﻿using Microsoft.Extensions.Logging.Abstractions;
 using BenchmarkDotNet.Attributes;
 using Quartz.Core;
 using Quartz.Impl;
@@ -35,7 +35,7 @@ public class JobRunShellBenchmark
     }
 
     [Benchmark]
-    public Task Success_NoTriggerListenersAndSingleJobListener_MayFireAgain()
+    public ValueTask Success_NoTriggerListenersAndSingleJobListener_MayFireAgain()
     {
         return _jobRunShell.Run();
     }
@@ -121,7 +121,7 @@ public class JobRunShellBenchmark
     {
         public bool SupportsPersistence => false;
 
-        public long EstimatedTimeToReleaseAndAcquireTrigger => throw new NotImplementedException();
+        public TimeSpan EstimatedTimeToReleaseAndAcquireTrigger => throw new NotImplementedException();
 
         public bool Clustered => throw new NotImplementedException();
 
@@ -132,12 +132,7 @@ public class JobRunShellBenchmark
             throw new NotImplementedException();
         }
 
-        public ValueTask<List<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow, CancellationToken cancellationToken = default)
-        {
-            throw new NotImplementedException();
-        }
-
-        public ValueTask<List<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow, Dictionary<string, int?>? executionLimits, CancellationToken cancellationToken = default)
+        public ValueTask<List<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow, IReadOnlyDictionary<string, int?>? executionLimits = null, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }

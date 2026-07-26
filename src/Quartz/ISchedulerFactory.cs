@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
@@ -35,7 +35,7 @@ public interface ISchedulerFactory
     /// Returns handles to all known Schedulers (made by any SchedulerFactory
     /// within this app domain.).
     /// </summary>
-    ValueTask<IReadOnlyList<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default);
+    ValueTask<List<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns a client-usable handle to a <see cref="IScheduler" />.

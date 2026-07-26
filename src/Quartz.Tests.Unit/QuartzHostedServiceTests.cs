@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Options;
 
 using Quartz.Impl.Matchers;
 using Quartz.Spi;
@@ -33,7 +33,7 @@ public class QuartzHostedServiceTests
     {
         public MockScheduler LastCreatedScheduler { get; private set; }
 
-        public ValueTask<IReadOnlyList<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default)
+        public ValueTask<List<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }

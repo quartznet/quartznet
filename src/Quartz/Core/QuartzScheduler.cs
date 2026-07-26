@@ -775,7 +775,7 @@ public sealed class QuartzScheduler
 
         bool result = await resources.JobStore.RemoveTriggers(triggerKeys, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);
-        await Task.WhenAll(triggerKeys.Select(x => NotifySchedulerListenersUnscheduled(x, cancellationToken))).ConfigureAwait(false);
+        await Task.WhenAll(triggerKeys.Select(x => NotifySchedulerListenersUnscheduled(x, cancellationToken).AsTask())).ConfigureAwait(false);
         return result;
     }
 
@@ -1014,7 +1014,7 @@ public sealed class QuartzScheduler
     /// <summary>
     /// Store and schedule the identified <see cref="IOperableTrigger"/>
     /// </summary>
-    public async Task TriggerJob(
+    public async ValueTask TriggerJob(
         IOperableTrigger trig,
         CancellationToken cancellationToken = default)
     {
@@ -1070,7 +1070,7 @@ public sealed class QuartzScheduler
 
         var pausedGroups = await resources.JobStore.PauseTriggers(matcher, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);
-        await Task.WhenAll(pausedGroups.Select(x => NotifySchedulerListenersPausedTriggers(x, cancellationToken))).ConfigureAwait(false);
+        await Task.WhenAll(pausedGroups.Select(x => NotifySchedulerListenersPausedTriggers(x, cancellationToken).AsTask())).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -1105,7 +1105,7 @@ public sealed class QuartzScheduler
 
         var pausedGroups = await resources.JobStore.PauseJobs(groupMatcher, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);
-        await Task.WhenAll(pausedGroups.Select(x => NotifySchedulerListenersPausedJobs(x, cancellationToken))).ConfigureAwait(false);
+        await Task.WhenAll(pausedGroups.Select(x => NotifySchedulerListenersPausedJobs(x, cancellationToken).AsTask())).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -1148,7 +1148,7 @@ public sealed class QuartzScheduler
 
         var pausedGroups = await resources.JobStore.ResumeTriggers(matcher, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);
-        await Task.WhenAll(pausedGroups.Select(x => NotifySchedulerListenersResumedTriggers(x, cancellationToken))).ConfigureAwait(false);
+        await Task.WhenAll(pausedGroups.Select(x => NotifySchedulerListenersResumedTriggers(x, cancellationToken).AsTask())).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -1200,7 +1200,7 @@ public sealed class QuartzScheduler
 
         var resumedGroups = await resources.JobStore.ResumeJobs(matcher, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);
-        await Task.WhenAll(resumedGroups.Select(x => NotifySchedulerListenersResumedJobs(x, cancellationToken))).ConfigureAwait(false);
+        await Task.WhenAll(resumedGroups.Select(x => NotifySchedulerListenersResumedJobs(x, cancellationToken).AsTask())).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -1805,7 +1805,7 @@ public sealed class QuartzScheduler
     /// <summary>
     /// Notifies the scheduler listeners about job that was unscheduled.
     /// </summary>
-    public async Task NotifySchedulerListenersUnscheduled(
+    public async ValueTask NotifySchedulerListenersUnscheduled(
         TriggerKey? triggerKey,
         CancellationToken cancellationToken = default)
     {
@@ -1852,7 +1852,7 @@ public sealed class QuartzScheduler
     /// </summary>
     /// <param name="group">The group.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public async Task NotifySchedulerListenersPausedTriggers(
+    public async ValueTask NotifySchedulerListenersPausedTriggers(
         string? group,
         CancellationToken cancellationToken = default)
     {
@@ -1876,7 +1876,7 @@ public sealed class QuartzScheduler
     /// <summary>
     /// Notifies the scheduler listeners about paused trigger.
     /// </summary>
-    public async Task NotifySchedulerListenersPausedTrigger(
+    public async ValueTask NotifySchedulerListenersPausedTrigger(
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
@@ -1902,17 +1902,17 @@ public sealed class QuartzScheduler
     /// </summary>
     /// <param name="group">The group.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public Task NotifySchedulerListenersResumedTriggers(
+    public ValueTask NotifySchedulerListenersResumedTriggers(
         string? group,
         CancellationToken cancellationToken = default)
     {
-        return NotifySchedulerListeners(l => l.TriggersResumed(group, cancellationToken), $"resumed group: {group}").AsTask();
+        return NotifySchedulerListeners(l => l.TriggersResumed(group, cancellationToken), $"resumed group: {group}");
     }
 
     /// <summary>
     /// Notifies the scheduler listeners resumed trigger.
     /// </summary>
-    public async Task NotifySchedulerListenersResumedTrigger(
+    public async ValueTask NotifySchedulerListenersResumedTrigger(
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
@@ -1959,7 +1959,7 @@ public sealed class QuartzScheduler
     /// <summary>
     /// Notifies the scheduler listeners about paused job.
     /// </summary>
-    public async Task NotifySchedulerListenersPausedJobs(
+    public async ValueTask NotifySchedulerListenersPausedJobs(
         string group,
         CancellationToken cancellationToken = default)
     {
@@ -1983,7 +1983,7 @@ public sealed class QuartzScheduler
     /// <summary>
     /// Notifies the scheduler listeners about resumed job.
     /// </summary>
-    public async Task NotifySchedulerListenersResumedJob(
+    public async ValueTask NotifySchedulerListenersResumedJob(
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
@@ -2007,7 +2007,7 @@ public sealed class QuartzScheduler
     /// <summary>
     /// Notifies the scheduler listeners about resumed job.
     /// </summary>
-    public async Task NotifySchedulerListenersResumedJobs(
+    public async ValueTask NotifySchedulerListenersResumedJobs(
         string group,
         CancellationToken cancellationToken = default)
     {

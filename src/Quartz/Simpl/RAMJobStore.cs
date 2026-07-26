@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -1841,17 +1841,12 @@ public class RAMJobStore : IJobStore
     /// by the calling scheduler.
     /// </summary>
     /// <seealso cref="ITrigger" />
-    public virtual ValueTask<List<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow, CancellationToken cancellationToken = default)
-    {
-        return AcquireNextTriggers(noLaterThan, maxCount, timeWindow, executionLimits: null, cancellationToken);
-    }
-
     /// <inheritdoc />
     public virtual async ValueTask<List<IOperableTrigger>> AcquireNextTriggers(
         DateTimeOffset noLaterThan,
         int maxCount,
         TimeSpan timeWindow,
-        Dictionary<string, int?>? executionLimits,
+        IReadOnlyDictionary<string, int?>? executionLimits = null,
         CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -2239,7 +2234,7 @@ public class RAMJobStore : IJobStore
         }
     }
 
-    public long EstimatedTimeToReleaseAndAcquireTrigger => 5;
+    public TimeSpan EstimatedTimeToReleaseAndAcquireTrigger => TimeSpan.FromMilliseconds(5);
 
     public bool Clustered => false;
 

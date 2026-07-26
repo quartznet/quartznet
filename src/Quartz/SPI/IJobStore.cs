@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -50,10 +50,10 @@ public interface IJobStore
     bool SupportsPersistence { get; }
 
     /// <summary>
-    /// How long (in milliseconds) the <see cref="IJobStore" /> implementation
-    /// estimates that it will take to release a trigger and acquire a new one.
+    /// How long the <see cref="IJobStore" /> implementation estimates that it will take to
+    /// release a trigger and acquire a new one.
     /// </summary>
-    long EstimatedTimeToReleaseAndAcquireTrigger { get; }
+    TimeSpan EstimatedTimeToReleaseAndAcquireTrigger { get; }
 
     /// <summary>
     /// Whether the <see cref="IJobStore" /> implementation is clustered.
@@ -541,21 +541,6 @@ public interface IJobStore
     ValueTask ResumeAll(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get a handle to the next trigger to be fired, and mark it as 'reserved'
-    /// by the calling scheduler.
-    /// </summary>
-    /// <param name="noLaterThan">If &gt; 0, the JobStore should only return a Trigger
-    /// that will fire no later than the time represented in this value as
-    /// milliseconds.</param>
-    /// <param name="maxCount"></param>
-    /// <param name="timeWindow"></param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns></returns>
-    /// <seealso cref="ITrigger">
-    /// </seealso>
-    ValueTask<List<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Acquires the next triggers to be fired, respecting execution group limits.
     /// </summary>
     /// <param name="noLaterThan">If &gt; <see cref="DateTimeOffset.MinValue"/>, the JobStore should only return a Trigger
@@ -573,7 +558,7 @@ public interface IJobStore
         DateTimeOffset noLaterThan,
         int maxCount,
         TimeSpan timeWindow,
-        Dictionary<string, int?>? executionLimits,
+        IReadOnlyDictionary<string, int?>? executionLimits = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>

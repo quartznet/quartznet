@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -215,10 +215,10 @@ public class StdSchedulerFactory : ISchedulerFactory, IDisposable
     /// built them, so a scheduler created through <c>AddQuartz</c> or another
     /// <see cref="StdSchedulerFactory"/> is not listed here.
     /// </remarks>
-    public virtual ValueTask<IReadOnlyList<IScheduler>> GetAllSchedulers(
+    public virtual ValueTask<List<IScheduler>> GetAllSchedulers(
         CancellationToken cancellationToken = default)
     {
-        return new ValueTask<IReadOnlyList<IScheduler>>(GetSchedulerRepository().LookupAll());
+        return new ValueTask<List<IScheduler>>(GetSchedulerRepository().LookupAll());
     }
 
     /// <summary>

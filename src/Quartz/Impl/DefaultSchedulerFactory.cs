@@ -47,9 +47,9 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
 
     private object? Key => schedulerKey.Key;
 
-    public ValueTask<IReadOnlyList<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default)
+    public ValueTask<List<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default)
     {
-        return new ValueTask<IReadOnlyList<IScheduler>>(schedulerRepository.LookupAll());
+        return new ValueTask<List<IScheduler>>(schedulerRepository.LookupAll());
     }
 
     public async ValueTask<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default)

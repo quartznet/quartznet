@@ -86,12 +86,12 @@ public class JobRunShell : SchedulerListenerSupport
     /// </remarks>
     /// <param name="sched">The scheduler.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public virtual Task Initialize(
+    public virtual ValueTask Initialize(
         QuartzScheduler sched,
         CancellationToken cancellationToken = default)
     {
         qs = sched;
-        return Task.CompletedTask;
+        return default;
     }
 
     /// <summary>
@@ -106,7 +106,7 @@ public class JobRunShell : SchedulerListenerSupport
     /// run method to be called in that separately executing thread.
     /// </summary>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public virtual async Task Run(CancellationToken cancellationToken = default)
+    public virtual async ValueTask Run(CancellationToken cancellationToken = default)
     {
         Context.CallerId.Value = Guid.NewGuid();
 

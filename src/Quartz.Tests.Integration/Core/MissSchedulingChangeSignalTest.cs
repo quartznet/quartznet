@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Options;
 using System.Collections.Specialized;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
@@ -106,9 +106,10 @@ public class SlowRAMJobStore : RAMJobStore
         DateTimeOffset noLaterThan,
         int maxCount,
         TimeSpan timeWindow,
+        IReadOnlyDictionary<string, int?> executionLimits = null,
         CancellationToken cancellationToken = default)
     {
-        var nextTriggers = await base.AcquireNextTriggers(noLaterThan, maxCount, timeWindow, cancellationToken);
+        var nextTriggers = await base.AcquireNextTriggers(noLaterThan, maxCount, timeWindow, executionLimits, cancellationToken);
 
         // Wait just a bit for hopefully having a context switch leading to the race condition
         await Task.Delay(10, cancellationToken);

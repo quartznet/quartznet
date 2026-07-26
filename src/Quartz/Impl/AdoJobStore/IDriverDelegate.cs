@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -633,7 +633,7 @@ public interface IDriverDelegate
     /// <param name="matcher"></param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>An array of <see cref="String" /> trigger names.</returns>
-    Task<List<TriggerKey>> SelectTriggersInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default);
+    ValueTask<List<TriggerKey>> SelectTriggersInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Select all the triggers in a given state.
@@ -1183,7 +1183,7 @@ public interface IDriverDelegate
         DateTimeOffset noLaterThan,
         DateTimeOffset noEarlierThan,
         int maxCount,
-        Dictionary<string, int?> executionLimits,
+        IReadOnlyDictionary<string, int?> executionLimits,
         long liveNodeCutoff,
         CancellationToken cancellationToken = default);
 
