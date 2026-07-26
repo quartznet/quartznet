@@ -490,6 +490,23 @@ Please add configuration to your application config file to correctly initialize
     /// </remarks>
     public void Dispose()
     {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases the container this factory built.
+    /// </summary>
+    /// <param name="disposing">
+    /// <see langword="true"/> when called from <see cref="Dispose()"/> rather than a finalizer.
+    /// </param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing)
+        {
+            return;
+        }
+
         ServiceProvider? owned;
         lock (containerLock)
         {
@@ -499,6 +516,5 @@ Please add configuration to your application config file to correctly initialize
         }
 
         owned?.Dispose();
-        GC.SuppressFinalize(this);
     }
 }

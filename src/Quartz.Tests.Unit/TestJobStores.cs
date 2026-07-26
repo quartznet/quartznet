@@ -26,6 +26,8 @@ public static class TestJobStores
 {
     public static ILogger<T> Logger<T>() => NullLogger<T>.Instance;
 
+    public static ILoggerFactory LoggerFactory() => NullLoggerFactory.Instance;
+
     /// <summary>
     /// The process-wide connection manager, so a provider a test registers is visible to the store.
     /// </summary>
@@ -75,7 +77,7 @@ public static class TestJobStores
     public static RAMJobStore Ram(ISchedulerSignaler? signaler = null, TimeProvider? timeProvider = null)
     {
         return new RAMJobStore(
-            Logger<RAMJobStore>(),
+            LoggerFactory(),
             signaler ?? new NoOpSchedulerSignaler(),
             timeProvider ?? TimeProvider.System);
     }

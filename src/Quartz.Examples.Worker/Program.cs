@@ -36,14 +36,6 @@ public class Program
                     // handy when part of cluster or you want to otherwise identify multiple schedulers
                     q.ConfigureScheduler(options => options.InstanceId = "Scheduler-Core");
 
-                    var loggerFactory = new LoggerFactory()
-                        .AddSerilog(Log.Logger);
-
-                    // whether we want to validate used configuration properties, defaults to true
-
-                    // we take this from appsettings.json, just show it's possible
-                    // q.ConfigureScheduler(options => options.InstanceName = "Quartz ASP.NET Core Sample Scheduler");
-
                     // these are the defaults
                     q.UseSimpleTypeLoader();
                     q.UseInMemoryStore();

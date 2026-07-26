@@ -29,7 +29,7 @@ namespace Quartz.Configuration;
 /// </para>
 /// </remarks>
 internal sealed class SchedulerScopedServiceProvider
-    : IServiceProvider, IKeyedServiceProvider, IServiceProviderIsService, IServiceProviderIsKeyedService, IServiceScopeFactory
+    : IKeyedServiceProvider, IServiceProviderIsKeyedService, IServiceScopeFactory
 {
     /// <summary>
     /// The services registered once per scheduler rather than once per container.

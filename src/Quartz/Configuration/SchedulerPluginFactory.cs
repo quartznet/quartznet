@@ -69,28 +69,6 @@ internal static class SchedulerPluginFactory
         foreach (var name in PluginNames(properties))
         {
             var prefix = $"{StdSchedulerFactory.PropertyPluginPrefix}.{name}";
-            var typeName = properties[$"{prefix}.{StdSchedulerFactory.PropertyPluginType}"];
-
-            if (string.IsNullOrWhiteSpace(typeName))
-            {
-                // No type key. The plugin itself was added in code, and these are settings for it — so
-                // find it by the name it was added under rather than refusing to start.
-                var index = plugins.FindIndex(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
-                if (index < 0)
-                {
-                    Throw.SchedulerException($"SchedulerPlugin type not specified for plugin '{name}'");
-                }
-
-                ApplyProperties(plugins[index].Plugin, plugins[index].Plugin.GetType(), prefix, properties);
-                continue;
-            }
-
-            var type = loader.LoadType(typeName);
-            if (type is null)
-            {
-                Throw.SchedulerException($"SchedulerPlugin of type '{typeName}' could not be loaded.");
-                continue;
-            }
 
             // A plugin already added in code under this name is configured in code; apply the leftover
             // settings to it rather than building a second copy. Matching on the name rather than the
@@ -99,27 +77,53 @@ internal static class SchedulerPluginFactory
             var existing = plugins.FindIndex(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
             if (existing >= 0)
             {
-                ApplyProperties(plugins[existing].Plugin, type, prefix, properties);
+                ApplyProperties(plugins[existing].Plugin, plugins[existing].Plugin.GetType(), prefix, properties);
                 continue;
             }
 
-            ISchedulerPlugin plugin;
-            try
-            {
-                plugin = provider.GetService(type) as ISchedulerPlugin
-                    ?? (ISchedulerPlugin) ActivatorUtilities.CreateInstance(provider, type);
-            }
-            catch (Exception e)
-            {
-                Throw.SchedulerException($"SchedulerPlugin of type '{typeName}' could not be instantiated.", e);
-                continue;
-            }
+            var type = ResolveType(properties, prefix, name, loader);
+            var plugin = Build(provider, type);
 
             ApplyProperties(plugin, type, prefix, properties);
             plugins.Add((name, plugin));
         }
 
         return plugins;
+    }
+
+    /// <summary>
+    /// Loads the type a plugin entry names. A missing type key means the entry configures a plugin that
+    /// was never added, since one added in code would have been matched by name already.
+    /// </summary>
+    private static Type ResolveType(NameValueCollection properties, string prefix, string name, ITypeLoadHelper loader)
+    {
+        var typeName = properties[$"{prefix}.{StdSchedulerFactory.PropertyPluginType}"];
+        if (string.IsNullOrWhiteSpace(typeName))
+        {
+            Throw.SchedulerException($"SchedulerPlugin type not specified for plugin '{name}'");
+        }
+
+        var type = loader.LoadType(typeName);
+        if (type is null)
+        {
+            Throw.SchedulerException($"SchedulerPlugin of type '{typeName}' could not be loaded.");
+        }
+
+        return type!;
+    }
+
+    private static ISchedulerPlugin Build(IServiceProvider provider, Type type)
+    {
+        try
+        {
+            return provider.GetService(type) as ISchedulerPlugin
+                ?? (ISchedulerPlugin) ActivatorUtilities.CreateInstance(provider, type);
+        }
+        catch (Exception e)
+        {
+            Throw.SchedulerException($"SchedulerPlugin of type '{type}' could not be instantiated.", e);
+            return default!;
+        }
     }
 
     private static void ApplyProperties(ISchedulerPlugin plugin, Type type, string prefix, NameValueCollection properties)

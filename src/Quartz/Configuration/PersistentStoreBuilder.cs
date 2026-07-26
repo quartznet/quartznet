@@ -49,10 +49,10 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
         Services.Configure(DataSourceName, configure);
         Configure(options => options.DataSource = DataSourceName);
 
-        var dataSourceName = DataSourceName;
+        var name = DataSourceName;
         RegisterProvider(provider =>
         {
-            var options = provider.GetRequiredService<IOptionsMonitor<DataSourceOptions>>().Get(dataSourceName);
+            var options = provider.GetRequiredService<IOptionsMonitor<DataSourceOptions>>().Get(name);
             var connectionString = options.ConnectionString;
 
             if (string.IsNullOrWhiteSpace(connectionString) && !string.IsNullOrWhiteSpace(options.ConnectionStringName))
@@ -173,10 +173,10 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
 
         // Asking for the container's data source explicitly overrides whatever connection provider the
         // database method implied, whichever order they were called in.
-        var dataSourceName = DataSourceName;
+        var name = DataSourceName;
         IDbProvider Create(IServiceProvider provider)
         {
-            var options = provider.GetRequiredService<IOptionsMonitor<DataSourceOptions>>().Get(dataSourceName);
+            var options = provider.GetRequiredService<IOptionsMonitor<DataSourceOptions>>().Get(name);
             return new DataSourceDbProvider(options.Provider, provider.GetRequiredService<DbDataSource>());
         }
 

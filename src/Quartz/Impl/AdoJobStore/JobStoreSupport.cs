@@ -48,7 +48,6 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
     private string tablePrefix = DefaultTablePrefix;
     private bool useProperties;
-    private Type delegateType;
     private readonly Dictionary<string, ICalendar?> calendarCache = [];
     private IDriverDelegate driverDelegate = null!;
     private TimeSpan misfireThreshold = TimeSpan.FromMinutes(1); // one minute
@@ -86,8 +85,9 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         InstanceName = schedulerOptions.Value.InstanceName;
         InstanceId = schedulerOptions.Value.InstanceId;
 
-        Logger = LogProvider.CreateLogger<JobStoreSupport>();
-        delegateType = typeof(StdAdoDelegate);
+        // Created from the runtime type, so JobStoreTX and JobStoreCMT log under their own names rather
+        // than everything arriving as JobStoreSupport.
+        Logger = LogProvider.CreateLogger(GetType().FullName!);
         ConnectionManager = connectionManager;
 
         var options = storeOptions.Value;
@@ -124,7 +124,6 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         // The delegate and lock handler are chosen by configuration and built by the container, rather
         // than loaded from a type name here.
         this.driverDelegate = driverDelegate;
-        delegateType = driverDelegate.GetType();
 
         // A lock handler is only injected when one was chosen explicitly. Left null, Initialize picks
         // between database row locks and an in-process monitor once the delegate and clustering settings
@@ -147,7 +146,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// Gets the log.
     /// </summary>
     /// <value>The log.</value>
-    internal ILogger<JobStoreSupport> Logger { get; }
+    internal ILogger Logger { get; }
 
     /// <summary>
     /// Get or sets the prefix that should be pre-pended to all table names.

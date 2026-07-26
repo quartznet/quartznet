@@ -16,7 +16,6 @@ internal sealed class NamedSchedulerHostedService : IHostedLifecycleService
 {
     private readonly Lifetime applicationLifetime;
     private readonly IServiceProvider serviceProvider;
-    private readonly IOptionsMonitor<QuartzOptions> optionsMonitor;
     private readonly IOptions<QuartzHostedServiceOptions> hostedServiceOptions;
     private readonly List<IScheduler> schedulers = [];
     private Task? startupTask;
@@ -24,12 +23,10 @@ internal sealed class NamedSchedulerHostedService : IHostedLifecycleService
     public NamedSchedulerHostedService(
         Lifetime applicationLifetime,
         IServiceProvider serviceProvider,
-        IOptionsMonitor<QuartzOptions> optionsMonitor,
         IOptions<QuartzHostedServiceOptions> hostedServiceOptions)
     {
         this.applicationLifetime = applicationLifetime;
         this.serviceProvider = serviceProvider;
-        this.optionsMonitor = optionsMonitor;
         this.hostedServiceOptions = hostedServiceOptions;
     }
 

@@ -171,14 +171,14 @@ internal static class QuartzPropertyBridge
 
         public void Configure(TOptions options) => Configure(Microsoft.Extensions.Options.Options.DefaultName, options);
 
-        public void Configure(string? optionsName, TOptions options)
+        public void Configure(string? name, TOptions options)
         {
-            if (!string.Equals(optionsName ?? Microsoft.Extensions.Options.Options.DefaultName, name, StringComparison.Ordinal))
+            if (!string.Equals(name ?? Microsoft.Extensions.Options.Options.DefaultName, this.name, StringComparison.Ordinal))
             {
                 return;
             }
 
-            var properties = provider.GetRequiredService<IOptionsMonitor<QuartzOptions>>().Get(name).ToNameValueCollection();
+            var properties = provider.GetRequiredService<IOptionsMonitor<QuartzOptions>>().Get(this.name).ToNameValueCollection();
             map(options, new PropertyReader(properties));
         }
     }

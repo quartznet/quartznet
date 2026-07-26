@@ -61,14 +61,21 @@ public class RAMJobStore : IJobStore
     private TimeSpan misfireThreshold = TimeSpan.FromSeconds(5);
     private readonly ISchedulerSignaler signaler;
     private readonly TimeProvider timeProvider;
-    private readonly ILogger<RAMJobStore> logger;
+    private readonly ILogger logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RAMJobStore"/> class.
     /// </summary>
-    public RAMJobStore(ILogger<RAMJobStore> logger, ISchedulerSignaler signaler, TimeProvider timeProvider)
+    /// <remarks>
+    /// Takes a factory rather than an <c>ILogger&lt;RAMJobStore&gt;</c> so that a derived store logs
+    /// under its own name. A subclass would otherwise have to accept its base class's logger just to
+    /// pass it down, and everything the base class logged would be filed under the base class.
+    /// </remarks>
+    public RAMJobStore(ILoggerFactory loggerFactory, ISchedulerSignaler signaler, TimeProvider timeProvider)
     {
-        this.logger = logger;
+        ArgumentNullException.ThrowIfNull(loggerFactory);
+
+        logger = loggerFactory.CreateLogger(GetType());
         this.signaler = signaler;
         this.timeProvider = timeProvider;
     }

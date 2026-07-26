@@ -16,6 +16,7 @@ internal static class ExecutionLimitsParser
     {
         var limits = new ExecutionLimits();
         var prefix = StdSchedulerFactory.PropertyExecutionLimitPrefix + ".";
+        var configured = false;
 
         foreach (var key in properties.AllKeys)
         {
@@ -24,40 +25,60 @@ internal static class ExecutionLimitsParser
                 continue;
             }
 
-            var groupKey = key[prefix.Length..].Trim();
-            if (groupKey.Length == 0)
-            {
-                Throw.SchedulerConfigException($"Empty execution limit group key in property '{key}'.");
-            }
-
-            var limitValue = ParseLimit(properties[key]?.Trim(), groupKey);
-
-            if (groupKey == "*")
-            {
-                if (limitValue.HasValue)
-                {
-                    limits.ForOtherGroups(limitValue.Value);
-                }
-            }
-            else if (groupKey == "_" || string.Equals(groupKey, "null", StringComparison.OrdinalIgnoreCase))
-            {
-                // Underscore and "null" are aliases for the default (null) execution group.
-                if (limitValue.HasValue)
-                {
-                    limits.ForDefaultGroup(limitValue.Value);
-                }
-            }
-            else if (limitValue.HasValue)
-            {
-                limits.ForGroup(groupKey, limitValue.Value);
-            }
-            else
-            {
-                limits.Unlimited(groupKey);
-            }
+            configured |= Apply(limits, key[prefix.Length..].Trim(), properties[key]?.Trim(), key);
         }
 
-        return limits.Count > 0 ? limits : null;
+        // Whether anything was configured is tracked as it happens rather than read back off the
+        // limits, because "unlimited" for the catch-all or default group is a key that configures
+        // nothing at all.
+        return configured ? limits : null;
+    }
+
+    /// <summary>
+    /// Applies one key, and reports whether it configured anything.
+    /// </summary>
+    private static bool Apply(ExecutionLimits limits, string groupKey, string? rawValue, string key)
+    {
+        if (groupKey.Length == 0)
+        {
+            Throw.SchedulerConfigException($"Empty execution limit group key in property '{key}'.");
+        }
+
+        var limit = ParseLimit(rawValue, groupKey);
+
+        if (groupKey == ExecutionLimits.OtherGroups)
+        {
+            if (!limit.HasValue)
+            {
+                return false;
+            }
+
+            limits.ForOtherGroups(limit.Value);
+            return true;
+        }
+
+        // Underscore and "null" are aliases for the default (null) execution group.
+        if (groupKey == "_" || string.Equals(groupKey, "null", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!limit.HasValue)
+            {
+                return false;
+            }
+
+            limits.ForDefaultGroup(limit.Value);
+            return true;
+        }
+
+        if (limit.HasValue)
+        {
+            limits.ForGroup(groupKey, limit.Value);
+        }
+        else
+        {
+            limits.Unlimited(groupKey);
+        }
+
+        return true;
     }
 
     private static int? ParseLimit(string? rawValue, string groupKey)

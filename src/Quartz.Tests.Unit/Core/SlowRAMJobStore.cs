@@ -11,10 +11,10 @@ namespace Quartz.Tests.Unit.Core;
 public class SlowRAMJobStore : RAMJobStore
 {
     public SlowRAMJobStore(
-        ILogger<RAMJobStore> logger,
+        ILoggerFactory loggerFactory,
         ISchedulerSignaler signaler,
         TimeProvider timeProvider)
-        : base(logger, signaler, timeProvider)
+        : base(loggerFactory, signaler, timeProvider)
     {
     }
 

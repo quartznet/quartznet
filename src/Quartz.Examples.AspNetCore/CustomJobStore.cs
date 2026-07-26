@@ -14,12 +14,12 @@ public class CustomJobStore : RAMJobStore
     private readonly ILogger<CustomJobStore> logger;
 
     public CustomJobStore(
-        ILogger<RAMJobStore> baseLogger,
+        ILoggerFactory loggerFactory,
         ISchedulerSignaler signaler,
         TimeProvider timeProvider,
         IServiceProvider serviceProvider,
         ILogger<CustomJobStore> logger)
-        : base(baseLogger, signaler, timeProvider)
+        : base(loggerFactory, signaler, timeProvider)
     {
         this.serviceProvider = serviceProvider;
         this.logger = logger;
