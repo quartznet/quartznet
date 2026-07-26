@@ -2,6 +2,7 @@ using System.Text.Json;
 
 using Quartz.HttpApiContract;
 using Quartz.Impl.Matchers;
+using Quartz.Serialization.Json;
 using Quartz.Spi;
 
 namespace Quartz.HttpClient;
@@ -11,7 +12,19 @@ public class HttpScheduler : IScheduler
     private readonly System.Net.Http.HttpClient httpClient;
     private readonly JsonSerializerOptions jsonSerializerOptions;
 
-    public HttpScheduler(string schedulerName, System.Net.Http.HttpClient httpClient, JsonSerializerOptions? jsonSerializerOptions = null)
+    /// <param name="schedulerName">Name of the scheduler, must be same as the remote scheduler.</param>
+    /// <param name="httpClient">The client to call the remote scheduler with.</param>
+    /// <param name="jsonSerializerOptions">Optional serializer options; Quartz's own converters are added to them.</param>
+    /// <param name="serializerRegistry">
+    /// The trigger and calendar serializers to understand. Custom types are only readable over HTTP when
+    /// their serializers are given here — the remote scheduler's own registrations are not visible in this
+    /// process. Defaults to the built-in types.
+    /// </param>
+    public HttpScheduler(
+        string schedulerName,
+        System.Net.Http.HttpClient httpClient,
+        JsonSerializerOptions? jsonSerializerOptions = null,
+        SystemTextJsonSerializerRegistry? serializerRegistry = null)
     {
         if (string.IsNullOrWhiteSpace(schedulerName))
         {
@@ -27,7 +40,9 @@ public class HttpScheduler : IScheduler
         }
 
         this.jsonSerializerOptions = jsonSerializerOptions ?? new JsonSerializerOptions(JsonSerializerDefaults.Web);
-        this.jsonSerializerOptions.AddQuartzConverters(newtonsoftCompatibilityMode: false);
+        this.jsonSerializerOptions.AddQuartzConverters(
+            serializerRegistry ?? new SystemTextJsonSerializerRegistry(),
+            newtonsoftCompatibilityMode: false);
     }
 
     public string SchedulerName { get; }

@@ -9,6 +9,7 @@ using Quartz.Core;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Serialization.Json;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
@@ -57,6 +58,13 @@ internal static class QuartzServiceRegistration
         // built the scheduler rather than by how it was built.
         services.TryAddSingleton<ISchedulerRepository, SchedulerRepository>();
         services.TryAddSingleton<IDbConnectionManager, DBConnectionManager>();
+
+        // The container-wide set of trigger and calendar serializers, holding the built-in types. This is
+        // what the parts of Quartz that are not tied to one scheduler read — the HTTP API, the dashboard
+        // and the HTTP client all serialize triggers without knowing which scheduler they came from — so
+        // a custom serializer that should be visible there is registered here rather than through one
+        // scheduler's UseSystemTextJsonSerializer callback.
+        services.TryAddSingleton<SystemTextJsonSerializerRegistry>();
 
         // The descriptions of the ADO.NET drivers Quartz ships, added last so that a driver described in
         // code or by quartz.dbprovider.* keys — both of which register earlier — wins over a built-in of
@@ -124,9 +132,20 @@ internal static class QuartzServiceRegistration
         services.TryAddKeyed<IDriverDelegate>(key, static (provider, key) =>
             ActivatorUtilities.CreateInstance<StdAdoDelegate>(Scoped(provider, key)));
 
+        // A named scheduler that was not given its own set of custom trigger and calendar serializers
+        // reads the container's. Registered keyed so an application can hand one scheduler a different
+        // set — services.AddKeyedSingleton(schedulerName, registry) — without affecting the others.
+        if (schedulerName is not null)
+        {
+            services.TryAddKeyedSingleton<SystemTextJsonSerializerRegistry>(
+                schedulerName,
+                static (provider, _) => provider.GetRequiredService<SystemTextJsonSerializerRegistry>());
+        }
+
         services.TryAddKeyed<IObjectSerializer>(key, static (provider, key) =>
         {
-            // A serializer is unusable until Initialize builds its converter set.
+            // A serializer is unusable until Initialize builds its converter set. Construction goes
+            // through ActivatorUtilities so this scheduler's SystemTextJsonSerializerRegistry is injected.
             var serializer = ActivatorUtilities.CreateInstance<SystemTextJsonObjectSerializer>(Scoped(provider, key));
             serializer.Initialize();
             return serializer;

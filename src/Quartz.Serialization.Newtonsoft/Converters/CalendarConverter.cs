@@ -1,36 +1,14 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-using Quartz.Calendars;
 using Quartz.Impl.Calendar;
 using Quartz.Serialization.Newtonsoft;
 using Quartz.Util;
 
 namespace Quartz.Converters;
 
-internal sealed class CalendarConverter : JsonConverter
+internal sealed class CalendarConverter(NewtonsoftJsonSerializerRegistry registry) : JsonConverter
 {
-    private static readonly Dictionary<string, ICalendarSerializer> converters = new()
-    {
-        {typeof(BaseCalendar).AssemblyQualifiedNameWithoutVersion(), new BaseCalendarSerializer()},
-        {typeof(AnnualCalendar).AssemblyQualifiedNameWithoutVersion(), new AnnualCalendarSerializer()},
-        {typeof(CronCalendar).AssemblyQualifiedNameWithoutVersion(), new CronCalendarSerializer()},
-        {typeof(DailyCalendar).AssemblyQualifiedNameWithoutVersion(), new DailyCalendarSerializer()},
-        {typeof(HolidayCalendar).AssemblyQualifiedNameWithoutVersion(), new HolidayCalendarSerializer()},
-        {typeof(MonthlyCalendar).AssemblyQualifiedNameWithoutVersion(), new MonthlyCalendarSerializer()},
-        {typeof(WeeklyCalendar).AssemblyQualifiedNameWithoutVersion(), new WeeklyCalendarSerializer()}
-    };
-
-    private static ICalendarSerializer GetCalendarConverter(string typeName)
-    {
-        if (!converters.TryGetValue(typeName, out var converter))
-        {
-            throw new ArgumentException($"don't know how to handle {typeName}", nameof(typeName));
-        }
-
-        return converter;
-    }
-
     public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
     {
         if (value is not ICalendar calendar)
@@ -63,7 +41,7 @@ internal sealed class CalendarConverter : JsonConverter
             }
         }
 
-        GetCalendarConverter(type).SerializeFields(writer, calendar);
+        registry.GetCalendarSerializer(type).SerializeFields(writer, calendar);
 
         writer.WriteEndObject();
     }
@@ -73,7 +51,7 @@ internal sealed class CalendarConverter : JsonConverter
         JObject jObject = JObject.Load(reader);
         string type = jObject["$type"]!.Value<string>()!;
 
-        var calendarConverter = GetCalendarConverter(type);
+        var calendarConverter = registry.GetCalendarSerializer(type);
         ICalendar calendar = calendarConverter.Create(jObject);
         if (calendar is BaseCalendar target)
         {
@@ -94,10 +72,5 @@ internal sealed class CalendarConverter : JsonConverter
     public override bool CanConvert(Type objectType)
     {
         return typeof(ICalendar).IsAssignableFrom(objectType);
-    }
-
-    internal static void AddCalendarConverter<TCalendar>(ICalendarSerializer serializer)
-    {
-        converters[typeof(TCalendar).AssemblyQualifiedNameWithoutVersion()] = serializer;
     }
 }

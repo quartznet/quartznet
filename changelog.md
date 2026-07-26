@@ -133,6 +133,22 @@
     instead of reaching for a static. The same applies to data sources: a provider registered with one `IDbConnectionManager`
     is not visible to another. `StdSchedulerFactory.GetSchedulerRepository()` remains as an override point but now returns the
     repository of the factory's own container, and the unused `StdSchedulerFactory.GetDbConnectionManager()` seam was removed.
+  * Custom JSON trigger and calendar serializers are no longer registered in process-global static state (#3173).
+    `SystemTextJsonObjectSerializer.AddTriggerSerializer`, `SystemTextJsonObjectSerializer.AddCalendarSerializer` and the
+    `NewtonsoftJsonObjectSerializer` equivalents have been **removed**. They wrote into static dictionaries inside the JSON
+    converters, so every scheduler in the process shared one set of custom serializers and registration order silently decided
+    which one won. Register through the store builder callback instead — `store.UseSystemTextJsonSerializer(json => json.AddTriggerSerializer<T>(...))`
+    or `store.UseNewtonsoftJsonSerializer(json => ...)` — which is unchanged and now genuinely per-scheduler. Serializers built
+    by hand take a `SystemTextJsonSerializerRegistry` / `NewtonsoftJsonSerializerRegistry` constructor argument; both registries
+    are seeded with the built-in trigger and calendar types, and the parameterless serializer constructors still work and use
+    just those built-ins.
+
+  * Because the maps are now per-serializer, the parts of Quartz that serialize triggers without belonging to any one scheduler —
+    the HTTP API (`AddHttpApi`), the dashboard and `Quartz.HttpClient` — read a container-wide `SystemTextJsonSerializerRegistry`
+    rather than seeing whatever a scheduler happened to register. Register the registry as a singleton
+    (`services.AddSingleton(new SystemTextJsonSerializerRegistry().AddTriggerSerializer<T>(...))`) to make a custom serializer
+    visible to them. `HttpScheduler`'s constructor gained an optional `serializerRegistry` parameter, and
+    `InProcessQuartzApiClient`'s constructor now takes a `SystemTextJsonSerializerRegistry`.
 
 #### Cron Parser
 

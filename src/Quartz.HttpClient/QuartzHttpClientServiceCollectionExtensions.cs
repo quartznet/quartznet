@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Configuration;
 using Quartz.HttpClient;
+using Quartz.Serialization.Json;
 using Quartz.Simpl;
 using Quartz.Spi;
 
@@ -119,12 +120,19 @@ public static class QuartzHttpClientServiceCollectionExtensions
         // The repository the remote scheduler binds itself into is the container's, registered in exactly
         // one place. Creating one here would give a container that also calls AddQuartz two repositories,
         // and a scheduler registered in one would be invisible in the other.
+        // This also registers the container-wide serializer registry the client reads below. A remote
+        // scheduler's custom trigger and calendar serializers cannot be discovered over HTTP, so register
+        // a custom serializer there to be able to read custom types from the remote scheduler.
         services.AddQuartzSharedServices();
 
         services.AddSingleton<TScheduler>(serviceProvider =>
         {
             var httpClient = options.HttpClient ?? serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient(options.HttpClientName!);
-            IScheduler scheduler = new HttpScheduler(options.SchedulerName, httpClient, options.JsonSerializerOptions);
+            IScheduler scheduler = new HttpScheduler(
+                options.SchedulerName,
+                httpClient,
+                options.JsonSerializerOptions,
+                serviceProvider.GetRequiredService<SystemTextJsonSerializerRegistry>());
 
             if (typeof(TScheduler) != typeof(IScheduler))
             {

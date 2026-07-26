@@ -9,7 +9,8 @@ You should also strongly consider setting useProperties to true to restrict key-
 :::
 
 ::: tip
-System.Text.Json serialization is built into the `Quartz` package; see [Serialization](../configuration/reference#serialization).
+System.Text.Json serialization is built into the `Quartz` package and is the default; see
+[Serialization (System.Text.Json)](system-text-json).
 :::
 
 ## JSON.NET
@@ -228,7 +229,25 @@ config.UsePersistentStore(store =>
         json.AddCalendarSerializer<CustomCalendar>(new CustomCalendarSerializer());
     });
 });
+```
 
-// or just globally which is what above code calls
-NewtonsoftJsonObjectSerializer.AddCalendarSerializer<CustomCalendar>(new CustomCalendarSerializer());
+::: warning Changed in 4.0
+`NewtonsoftJsonObjectSerializer.AddCalendarSerializer` and `AddTriggerSerializer` were static in 3.x, so
+every scheduler in the process shared one set of custom serializers and registration order silently
+decided which one won. They have been removed. Register through the `UseNewtonsoftJsonSerializer`
+callback as above: what the callback registers belongs to that scheduler alone, so two schedulers in one
+container can serialize different custom types.
+:::
+
+If you build a serializer yourself rather than through the store builder, hand it a
+`NewtonsoftJsonSerializerRegistry`. A new registry already knows every built-in trigger and calendar type,
+so registering a custom one adds to that set:
+
+```csharp
+var registry = new NewtonsoftJsonSerializerRegistry()
+    .AddCalendarSerializer<CustomCalendar>(new CustomCalendarSerializer())
+    .AddTriggerSerializer<CustomTrigger>(new CustomTriggerSerializer());
+
+var serializer = new NewtonsoftJsonObjectSerializer(registry);
+serializer.Initialize();
 ```

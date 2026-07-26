@@ -21,12 +21,25 @@ using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
 
+using Quartz.Serialization.Json;
+
 namespace Quartz.Dashboard.Components.Shared;
 
 internal static class DisplayValueHelper
 {
+    /// <summary>
+    /// Options for reading a <see cref="JobDataMap"/> out of an already-serialized payload.
+    /// </summary>
+    /// <remarks>
+    /// The built-in registry is enough here, and deliberately so: this is the only thing these options
+    /// deserialize, and a job data map is read by <c>JobDataMapConverter</c> without ever consulting the
+    /// trigger or calendar converters. A custom trigger or calendar serializer registered in the
+    /// container therefore has nothing to contribute — the places that do need it
+    /// (<c>InProcessQuartzApiClient</c> and the HTTP API) resolve the container's registry instead.
+    /// </remarks>
     private static readonly JsonSerializerOptions JobDataMapOptions =
-        new JsonSerializerOptions(JsonSerializerDefaults.Web).AddQuartzConverters(newtonsoftCompatibilityMode: false);
+        new JsonSerializerOptions(JsonSerializerDefaults.Web)
+            .AddQuartzConverters(new SystemTextJsonSerializerRegistry(), newtonsoftCompatibilityMode: false);
 
     public static object? GetObject(object? source, params string[] paths)
     {

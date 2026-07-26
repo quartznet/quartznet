@@ -1,5 +1,3 @@
-using System.Text.Json;
-
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -11,6 +9,7 @@ using Quartz.AspNetCore.HealthChecks;
 using Quartz.AspNetCore.HttpApi;
 using Quartz.AspNetCore.HttpApi.Endpoints;
 using Quartz.AspNetCore.HttpApi.Util;
+using Quartz.Serialization.Json;
 
 namespace Quartz.AspNetCore;
 
@@ -58,19 +57,21 @@ public static class QuartzServiceCollectionExtensions
         configurator.Services.TryAddSingleton<ExceptionHandler>();
         configurator.Services.TryAddSingleton<EndpointHelper>();
 
+        // The HTTP API serves every scheduler in the container through one set of endpoints, so it cannot
+        // read any single scheduler's serializers. It reads the container's registry instead: register a
+        // custom trigger or calendar serializer there to have the API understand it.
+        configurator.Services.TryAddSingleton<SystemTextJsonSerializerRegistry>();
+
         // Add json converters into ASP.NET Core's default json options
-        configurator.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options => AddJsonConverters(options.SerializerOptions));
+        configurator.Services
+            .AddOptions<Microsoft.AspNetCore.Http.Json.JsonOptions>()
+            .Configure<SystemTextJsonSerializerRegistry>(AddJsonConverters);
 
         return configurator;
 
-        static void AddJsonConverters(JsonSerializerOptions? options)
+        static void AddJsonConverters(Microsoft.AspNetCore.Http.Json.JsonOptions options, SystemTextJsonSerializerRegistry registry)
         {
-            if (options is null)
-            {
-                return;
-            }
-
-            options.AddQuartzConverters(newtonsoftCompatibilityMode: false);
+            options.SerializerOptions?.AddQuartzConverters(registry, newtonsoftCompatibilityMode: false);
         }
     }
 

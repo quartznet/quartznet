@@ -15,6 +15,8 @@ using Newtonsoft.Json.Linq;
 
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
+using Quartz.Serialization.Json;
+using Quartz.Serialization.Newtonsoft;
 using Quartz.Simpl;
 using Quartz.Spi;
 
@@ -22,7 +24,6 @@ using StjJsonSerializerOptions = System.Text.Json.JsonSerializerOptions;
 
 namespace Quartz.Tests.Unit.Simpl;
 
-[NonParallelizable]
 public class JsonObjectSerializerTest
 {
     private NewtonsoftJsonObjectSerializer newtonsoftSerializer;
@@ -31,16 +32,23 @@ public class JsonObjectSerializerTest
     [SetUp]
     public void SetUp()
     {
-        newtonsoftSerializer = new IndentingJsonObjectSerializer();
+        // Each serializer owns the serializers for the custom types it has to understand, so the
+        // registrations have to be complete before the serializer is built rather than reaching it
+        // afterwards through process-global state.
+        var newtonsoftRegistry = new NewtonsoftJsonSerializerRegistry()
+            .AddCalendarSerializer<JsonSerializationTestCalendar>(new JsonSerializationTestCalendar.NewtonsoftSerializer())
+            .AddTriggerSerializer<JsonSerializationTestTrigger>(new JsonSerializationTestTrigger.NewtonsoftSerializer());
+
+        newtonsoftSerializer = new IndentingJsonObjectSerializer(newtonsoftRegistry);
         newtonsoftSerializer.RegisterTriggerConverters = true;
         newtonsoftSerializer.Initialize();
-        NewtonsoftJsonObjectSerializer.AddCalendarSerializer<JsonSerializationTestCalendar>(new JsonSerializationTestCalendar.NewtonsoftSerializer());
-        NewtonsoftJsonObjectSerializer.AddTriggerSerializer<JsonSerializationTestTrigger>(new JsonSerializationTestTrigger.NewtonsoftSerializer());
 
-        systemTextJsonSerializer = new IndentingSystemTextJsonObjectSerializer();
+        var systemTextJsonRegistry = new SystemTextJsonSerializerRegistry()
+            .AddCalendarSerializer<JsonSerializationTestCalendar>(new JsonSerializationTestCalendar.SystemTextJsonSerializer())
+            .AddTriggerSerializer<JsonSerializationTestTrigger>(new JsonSerializationTestTrigger.SystemTextJsonSerializer());
+
+        systemTextJsonSerializer = new IndentingSystemTextJsonObjectSerializer(systemTextJsonRegistry);
         systemTextJsonSerializer.Initialize();
-        SystemTextJsonObjectSerializer.AddCalendarSerializer<JsonSerializationTestCalendar>(new JsonSerializationTestCalendar.SystemTextJsonSerializer());
-        SystemTextJsonObjectSerializer.AddTriggerSerializer<JsonSerializationTestTrigger>(new JsonSerializationTestTrigger.SystemTextJsonSerializer());
     }
 
     [Test]
@@ -556,7 +564,7 @@ public class JsonObjectSerializerTest
         field!.SetValue(trigger, timeProvider);
     }
 
-    private class IndentingJsonObjectSerializer : NewtonsoftJsonObjectSerializer
+    private class IndentingJsonObjectSerializer(NewtonsoftJsonSerializerRegistry registry) : NewtonsoftJsonObjectSerializer(registry)
     {
         protected override JsonSerializerSettings CreateSerializerSettings()
         {
@@ -566,7 +574,7 @@ public class JsonObjectSerializerTest
         }
     }
 
-    private class IndentingSystemTextJsonObjectSerializer : SystemTextJsonObjectSerializer
+    private class IndentingSystemTextJsonObjectSerializer(SystemTextJsonSerializerRegistry registry) : SystemTextJsonObjectSerializer(registry)
     {
         protected override StjJsonSerializerOptions CreateSerializerOptions()
         {

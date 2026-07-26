@@ -1,26 +1,13 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-using Quartz.Impl.Triggers;
-using Quartz.Serialization.Json.Triggers;
 using Quartz.Spi;
 using Quartz.Util;
 
 namespace Quartz.Serialization.Json.Converters;
 
-internal sealed class TriggerConverter : JsonConverter<ITrigger>
+internal sealed class TriggerConverter(SystemTextJsonSerializerRegistry registry) : JsonConverter<ITrigger>
 {
-    private static readonly Dictionary<string, ITriggerSerializer> converters = new(StringComparer.OrdinalIgnoreCase);
-
-    static TriggerConverter()
-    {
-        AddTriggerSerializer<CalendarIntervalTriggerImpl>(new CalendarIntervalTriggerSerializer());
-        AddTriggerSerializer<CronTriggerImpl>(new CronTriggerSerializer());
-        AddTriggerSerializer<DailyTimeIntervalTriggerImpl>(new DailyTimeIntervalTriggerSerializer());
-        AddTriggerSerializer<SimpleTriggerImpl>(new SimpleTriggerSerializer());
-        AddTriggerSerializer<RecurrenceTriggerImpl>(new RecurrenceTriggerSerializer());
-    }
-
     public override bool CanConvert(Type typeToConvert) => typeof(ITrigger).IsAssignableFrom(typeToConvert);
 
     public override ITrigger Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
@@ -30,7 +17,7 @@ internal sealed class TriggerConverter : JsonConverter<ITrigger>
             var rootElement = JsonDocument.ParseValue(ref reader).RootElement;
             var type = rootElement.GetProperty(options.GetPropertyName("TriggerType")).GetString();
 
-            var triggerSerializer = GetTriggerSerializer(type);
+            var triggerSerializer = registry.GetTriggerSerializer(type);
             var scheduleBuilder = triggerSerializer.CreateScheduleBuilder(rootElement, options);
 
             var key = rootElement.GetProperty(options.GetPropertyName("Key")).GetTriggerKey(options);
@@ -96,7 +83,7 @@ internal sealed class TriggerConverter : JsonConverter<ITrigger>
         {
             writer.WriteStartObject();
             var type = value.GetType().AssemblyQualifiedNameWithoutVersion();
-            var triggerSerializer = GetTriggerSerializer(type);
+            var triggerSerializer = registry.GetTriggerSerializer(type);
 
             writer.WriteString(options.GetPropertyName("TriggerType"), triggerSerializer.TriggerTypeForJson);
 
@@ -125,23 +112,5 @@ internal sealed class TriggerConverter : JsonConverter<ITrigger>
         {
             throw new JsonSerializationException("Failed to serialize ITrigger to json", e);
         }
-    }
-
-    private static ITriggerSerializer GetTriggerSerializer(string? typeName)
-    {
-        if (string.IsNullOrWhiteSpace(typeName) || !converters.TryGetValue(typeName!, out var converter))
-        {
-            throw new ArgumentException($"Don't know how to handle {typeName}", nameof(typeName));
-        }
-
-        return converter;
-    }
-
-    public static void AddTriggerSerializer<TTrigger>(ITriggerSerializer serializer) where TTrigger : ITrigger
-    {
-        converters[serializer.TriggerTypeForJson] = serializer;
-
-        // Support also type name
-        converters[typeof(TTrigger).AssemblyQualifiedNameWithoutVersion()] = serializer;
     }
 }

@@ -6,7 +6,6 @@ using Newtonsoft.Json.Serialization;
 using Quartz.Converters;
 using Quartz.Serialization.Newtonsoft;
 using Quartz.Spi;
-using Quartz.Triggers;
 
 namespace Quartz.Simpl;
 
@@ -17,6 +16,29 @@ namespace Quartz.Simpl;
 public class NewtonsoftJsonObjectSerializer : IObjectSerializer
 {
     private JsonSerializer serializer = null!;
+
+    /// <summary>
+    /// Creates a serializer that knows the built-in trigger and calendar types only.
+    /// </summary>
+    public NewtonsoftJsonObjectSerializer()
+        : this(new NewtonsoftJsonSerializerRegistry())
+    {
+    }
+
+    /// <summary>
+    /// Creates a serializer that resolves trigger and calendar serializers through the given registry,
+    /// so a scheduler's custom types are known to its own serializer and to no other.
+    /// </summary>
+    public NewtonsoftJsonObjectSerializer(NewtonsoftJsonSerializerRegistry registry)
+    {
+        ArgumentNullException.ThrowIfNull(registry);
+        Registry = registry;
+    }
+
+    /// <summary>
+    /// The trigger and calendar serializers this serializer's converters resolve through.
+    /// </summary>
+    protected NewtonsoftJsonSerializerRegistry Registry { get; }
 
     public void Initialize()
     {
@@ -34,7 +56,7 @@ public class NewtonsoftJsonObjectSerializer : IObjectSerializer
                 new NameValueCollectionConverter(),
                 new StringKeyDirtyFlagMapConverter(),
                 new CronExpressionConverter(),
-                new CalendarConverter()
+                new CalendarConverter(Registry)
             },
             ConstructorHandling = ConstructorHandling.AllowNonPublicDefaultConstructor,
             TypeNameHandling = TypeNameHandling.Auto,
@@ -48,7 +70,7 @@ public class NewtonsoftJsonObjectSerializer : IObjectSerializer
 
         if (RegisterTriggerConverters)
         {
-            settings.Converters.Add(new TriggerConverter());
+            settings.Converters.Add(new TriggerConverter(Registry));
         }
 
         return settings;
@@ -97,15 +119,5 @@ public class NewtonsoftJsonObjectSerializer : IObjectSerializer
             string json = Encoding.UTF8.GetString(data);
             throw new JsonSerializationException($"Could not deserialize JSON: {json}", e);
         }
-    }
-
-    public static void AddCalendarSerializer<TCalendar>(ICalendarSerializer serializer)
-    {
-        CalendarConverter.AddCalendarConverter<TCalendar>(serializer);
-    }
-
-    public static void AddTriggerSerializer<TTrigger>(ITriggerSerializer serializer) where TTrigger : ITrigger
-    {
-        TriggerConverter.AddTriggerSerializer<TTrigger>(serializer);
     }
 }

@@ -22,6 +22,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Options;
 
 using Quartz.Impl.Matchers;
+using Quartz.Serialization.Json;
 using Quartz.Spi;
 
 namespace Quartz.Dashboard.Services;
@@ -33,20 +34,28 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
         WriteIndented = false,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
-    private static readonly JsonSerializerOptions deserializerOptions = CreateDeserializerOptions();
+    private readonly JsonSerializerOptions deserializerOptions;
 
     private readonly ISchedulerRepository schedulerRepository;
     private readonly IOptions<QuartzDashboardOptions> options;
     private readonly IDashboardHistoryStore historyStore;
 
+    /// <remarks>
+    /// The dashboard shows every scheduler in the container through one client, so it reads the
+    /// container's <see cref="SystemTextJsonSerializerRegistry"/> rather than any single scheduler's — a
+    /// custom trigger or calendar serializer registered there is what makes a custom type render as
+    /// something other than a reflected blob.
+    /// </remarks>
     public InProcessQuartzApiClient(
         ISchedulerRepository schedulerRepository,
         IOptions<QuartzDashboardOptions> options,
-        IDashboardHistoryStore historyStore)
+        IDashboardHistoryStore historyStore,
+        SystemTextJsonSerializerRegistry serializerRegistry)
     {
         this.schedulerRepository = schedulerRepository;
         this.options = options;
         this.historyStore = historyStore;
+        deserializerOptions = CreateDeserializerOptions(serializerRegistry);
     }
 
     public ValueTask<List<SchedulerHeaderDto>> GetSchedulers()
@@ -406,14 +415,14 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
         return ValueTask.FromResult<JobHistoryPageDto?>(new JobHistoryPageDto(JsonSerializer.SerializeToElement(payload, serializerOptions)));
     }
 
-    private static JsonSerializerOptions CreateDeserializerOptions()
+    private static JsonSerializerOptions CreateDeserializerOptions(SystemTextJsonSerializerRegistry serializerRegistry)
     {
         JsonSerializerOptions options = new(JsonSerializerDefaults.Web);
-        options.AddQuartzConverters(newtonsoftCompatibilityMode: false);
+        options.AddQuartzConverters(serializerRegistry, newtonsoftCompatibilityMode: false);
         return options;
     }
 
-    private static JsonElement SerializeTrigger(ITrigger trigger)
+    private JsonElement SerializeTrigger(ITrigger trigger)
     {
         try
         {
@@ -456,7 +465,7 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
         }
     }
 
-    private static JobDataMap DeserializeJobDataMap(JsonElement element)
+    private JobDataMap DeserializeJobDataMap(JsonElement element)
     {
         if (element.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
         {
@@ -467,7 +476,7 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
         return dataMap ?? new JobDataMap();
     }
 
-    private static ITrigger DeserializeTrigger(JsonElement element)
+    private ITrigger DeserializeTrigger(JsonElement element)
     {
         ITrigger? trigger = element.Deserialize<ITrigger>(deserializerOptions);
         if (trigger is null)
@@ -478,7 +487,7 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
         return trigger;
     }
 
-    private static ICalendar DeserializeCalendar(JsonElement element)
+    private ICalendar DeserializeCalendar(JsonElement element)
     {
         ICalendar? calendar = element.Deserialize<ICalendar>(deserializerOptions);
         if (calendar is null)
@@ -489,7 +498,7 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
         return calendar;
     }
 
-    private static IJobDetail BuildJobDetail(JobDetailDto source)
+    private IJobDetail BuildJobDetail(JobDetailDto source)
     {
         Type? jobType = Type.GetType(source.JobType, throwOnError: false);
         if (jobType is null)

@@ -1,6 +1,7 @@
 #nullable enable
 
 using System.Collections.Specialized;
+using System.Text.Json;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,6 +10,9 @@ using Microsoft.Extensions.Options;
 using Quartz.Core;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Impl.Triggers;
+using Quartz.Serialization.Json;
+using Quartz.Serialization.Json.Triggers;
 using Quartz.Simpl;
 using Quartz.Spi;
 
@@ -233,6 +237,97 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         provider.GetRequiredKeyedService<IObjectSerializer>("a").Should().BeOfType<SystemTextJsonObjectSerializer>();
         provider.GetRequiredKeyedService<IObjectSerializer>("b").Should().BeOfType<CountingObjectSerializer>(
             "reading a database written with one serializer using another fails at the first trigger fire");
+    }
+
+    [Test]
+    public void EachNamedSchedulerKeepsItsOwnCustomTriggerSerializers()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz("a", q => q.UsePersistentStore(store =>
+        {
+            store.Configure(options => options.DataSource = "test");
+            store.UseSystemTextJsonSerializer(json => json.AddTriggerSerializer<TriggerKnownToA>(new TriggerKnownToASerializer()));
+            RegisterStubProvider(store.Services, q.SchedulerName);
+        }));
+        services.AddQuartz("b", q => q.UsePersistentStore(store =>
+        {
+            store.Configure(options => options.DataSource = "test");
+            store.UseSystemTextJsonSerializer(json => json.AddTriggerSerializer<TriggerKnownToB>(new TriggerKnownToBSerializer()));
+            RegisterStubProvider(store.Services, q.SchedulerName);
+        }));
+
+        using var provider = services.BuildServiceProvider();
+
+        var a = provider.GetRequiredKeyedService<IObjectSerializer>("a");
+        var b = provider.GetRequiredKeyedService<IObjectSerializer>("b");
+
+        a.Serialize<ITrigger>(NewTrigger<TriggerKnownToA>()).Should().NotBeEmpty();
+        b.Serialize<ITrigger>(NewTrigger<TriggerKnownToB>()).Should().NotBeEmpty();
+
+        // While the maps lived in statics both schedulers saw both registrations, so whichever scheduler
+        // was configured last decided what every scheduler in the process could write.
+        a.Invoking(x => x.Serialize<ITrigger>(NewTrigger<TriggerKnownToB>())).Should().Throw<JsonSerializationException>(
+            "a custom trigger serializer registered for one scheduler must not leak into another");
+        b.Invoking(x => x.Serialize<ITrigger>(NewTrigger<TriggerKnownToA>())).Should().Throw<JsonSerializationException>();
+
+        // The built-ins are still there in both, which is what makes registering a custom serializer an
+        // addition rather than a replacement.
+        a.Serialize<ITrigger>(NewTrigger<SimpleTriggerImpl>()).Should().NotBeEmpty();
+        b.Serialize<ITrigger>(NewTrigger<SimpleTriggerImpl>()).Should().NotBeEmpty();
+    }
+
+    [Test]
+    public void AContainerRegisteredSerializerRegistryReachesTheDefaultSerializer()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton(new SystemTextJsonSerializerRegistry()
+            .AddTriggerSerializer<TriggerKnownToA>(new TriggerKnownToASerializer()));
+        services.AddQuartz(UseStubbedPersistentStore);
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IObjectSerializer>()
+            .Serialize<ITrigger>(NewTrigger<TriggerKnownToA>()).Should().NotBeEmpty(
+                "nothing called UseSystemTextJsonSerializer, so the container's registry is the only place "
+                + "the default serializer can learn a custom trigger type from");
+    }
+
+    [Test]
+    public void AKeyedSerializerRegistryReachesOnlyItsOwnScheduler()
+    {
+        var services = new ServiceCollection();
+        services.AddKeyedSingleton("a", new SystemTextJsonSerializerRegistry()
+            .AddTriggerSerializer<TriggerKnownToA>(new TriggerKnownToASerializer()));
+        services.AddQuartz("a", UseStubbedPersistentStore);
+        services.AddQuartz("b", UseStubbedPersistentStore);
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredKeyedService<IObjectSerializer>("a")
+            .Serialize<ITrigger>(NewTrigger<TriggerKnownToA>()).Should().NotBeEmpty();
+
+        provider.GetRequiredKeyedService<IObjectSerializer>("b")
+            .Invoking(x => x.Serialize<ITrigger>(NewTrigger<TriggerKnownToA>())).Should().Throw<JsonSerializationException>(
+                "a registry registered under one scheduler's key belongs to that scheduler, and the others "
+                + "keep reading the container's");
+    }
+
+    [Test]
+    public void AContainerRegisteredSerializerRegistryReachesAPropertyConfiguredSerializer()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton(new SystemTextJsonSerializerRegistry()
+            .AddTriggerSerializer<TriggerKnownToA>(new TriggerKnownToASerializer()));
+        services.AddQuartz(
+            new NameValueCollection { ["quartz.serializer.type"] = "stj" },
+            UseStubbedPersistentStore);
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IObjectSerializer>()
+            .Serialize<ITrigger>(NewTrigger<TriggerKnownToA>()).Should().NotBeEmpty(
+                "a serializer named by quartz.serializer.type is built without any callback to register "
+                + "custom serializers through, so it has to be handed the container's registry");
     }
 
     [Test]
@@ -580,6 +675,52 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         public ValueTask JobExecutionVetoed(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
 
         public ValueTask JobWasExecuted(IJobExecutionContext context, JobExecutionException? jobException, CancellationToken cancellationToken = default) => default;
+    }
+
+    private static TTrigger NewTrigger<TTrigger>() where TTrigger : SimpleTriggerImpl, new()
+    {
+        return new TTrigger
+        {
+            Key = new TriggerKey("trigger", "group"),
+            JobKey = new JobKey("job", "group"),
+            StartTimeUtc = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+        };
+    }
+
+    private sealed class TriggerKnownToA : SimpleTriggerImpl;
+
+    private sealed class TriggerKnownToB : SimpleTriggerImpl;
+
+    private sealed class TriggerKnownToASerializer : TriggerSerializer<TriggerKnownToA>
+    {
+        public override string TriggerTypeForJson => "KnownToA";
+
+        public override IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement, JsonSerializerOptions options)
+            => SimpleScheduleBuilder.Create();
+
+        protected override void SerializeFields(Utf8JsonWriter writer, TriggerKnownToA trigger, JsonSerializerOptions options)
+        {
+        }
+
+        protected override void DeserializeFields(TriggerKnownToA trigger, JsonElement jsonElement, JsonSerializerOptions options)
+        {
+        }
+    }
+
+    private sealed class TriggerKnownToBSerializer : TriggerSerializer<TriggerKnownToB>
+    {
+        public override string TriggerTypeForJson => "KnownToB";
+
+        public override IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement, JsonSerializerOptions options)
+            => SimpleScheduleBuilder.Create();
+
+        protected override void SerializeFields(Utf8JsonWriter writer, TriggerKnownToB trigger, JsonSerializerOptions options)
+        {
+        }
+
+        protected override void DeserializeFields(TriggerKnownToB trigger, JsonElement jsonElement, JsonSerializerOptions options)
+        {
+        }
     }
 
     private sealed class CountingObjectSerializer : IObjectSerializer
