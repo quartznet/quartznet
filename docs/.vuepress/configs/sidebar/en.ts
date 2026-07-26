@@ -137,6 +137,7 @@ export const sidebarEn: SidebarConfig = [
                 children: [
                   "/documentation/quartz-4.x/packages/dashboard",
                   "/documentation/quartz-4.x/packages/quartz-jobs",
+                  "/documentation/quartz-4.x/packages/system-text-json",
                   "/documentation/quartz-4.x/packages/json-serialization",
                   "/documentation/quartz-4.x/packages/quartz-plugins",
                 ],

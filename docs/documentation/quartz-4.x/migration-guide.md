@@ -346,6 +346,50 @@ q.UseNewtonsoftJsonSerializer();
 
 Remove the old `Quartz.Serialization.Json` package reference.
 
+### Custom trigger and calendar serializers are no longer static
+
+The static registration methods have been removed, because they wrote into process-global dictionaries: two
+schedulers in one process could not have different custom serializers, and registration order silently
+decided which one won.
+
+```csharp
+// 3.x
+SystemTextJsonObjectSerializer.AddCalendarSerializer<CustomCalendar>(new CustomCalendarSerializer());
+NewtonsoftJsonObjectSerializer.AddTriggerSerializer<CustomTrigger>(new CustomTriggerSerializer());
+
+// 4.x — register through the store builder; what the callback registers belongs to that scheduler alone
+q.UsePersistentStore(store => store.UseSystemTextJsonSerializer(json =>
+{
+    json.AddCalendarSerializer<CustomCalendar>(new CustomCalendarSerializer());
+    json.AddTriggerSerializer<CustomTrigger>(new CustomTriggerSerializer());
+}));
+```
+
+If you construct a serializer yourself, pass it a registry instead:
+
+```csharp
+var registry = new SystemTextJsonSerializerRegistry()
+    .AddCalendarSerializer<CustomCalendar>(new CustomCalendarSerializer());
+
+var serializer = new SystemTextJsonObjectSerializer(registry);
+serializer.Initialize();
+```
+
+The registries start out knowing every built-in trigger and calendar type, so a custom registration adds to
+that set. The parameterless serializer constructors still exist and use the built-ins only.
+
+One consequence worth checking: the HTTP API, the dashboard and `Quartz.HttpClient` also serialize triggers,
+and none of them belongs to a single scheduler, so they no longer inherit a scheduler's custom serializers
+for free. They read a container-wide registry — register it as a singleton to make a custom serializer
+visible there:
+
+```csharp
+services.AddSingleton(new SystemTextJsonSerializerRegistry()
+    .AddTriggerSerializer<CustomTrigger>(new CustomTriggerSerializer()));
+```
+
+See [Serialization (System.Text.Json)](packages/system-text-json) for the full picture.
+
 ## Sealed and Internalized Types
 
 Many types have been sealed and/or internalized to minimize the API surface that needs to be maintained. If you were extending a type that is now sealed or internal, file an issue to request it be reopened.

@@ -23,6 +23,7 @@ using Microsoft.Extensions.Options;
 
 using Quartz.Dashboard.Plugins;
 using Quartz.Dashboard.Services;
+using Quartz.Serialization.Json;
 using Quartz.Util;
 
 namespace Quartz;
@@ -58,6 +59,11 @@ public static class QuartzDashboardServiceCollectionExtensions
         services.AddSignalR();
         services.AddHttpContextAccessor();
         services.AddHttpClient("QuartzDashboard");
+
+        // The dashboard renders every scheduler in the container, so it cannot read any single scheduler's
+        // serializers; register a custom trigger or calendar serializer here to have the dashboard
+        // understand it.
+        services.TryAddSingleton<SystemTextJsonSerializerRegistry>();
 
         services.TryAddScoped<IQuartzApiClient, InProcessQuartzApiClient>();
         services.TryAddScoped<SchedulerState>();

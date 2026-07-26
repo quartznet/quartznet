@@ -1,26 +1,14 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-using Quartz.Impl.Triggers;
+using Quartz.Serialization.Newtonsoft;
 using Quartz.Spi;
-using Quartz.Triggers;
 using Quartz.Util;
 
 namespace Quartz.Converters;
 
-internal sealed class TriggerConverter : JsonConverter
+internal sealed class TriggerConverter(NewtonsoftJsonSerializerRegistry registry) : JsonConverter
 {
-    private static readonly Dictionary<string, ITriggerSerializer> converters = new(StringComparer.OrdinalIgnoreCase);
-
-    static TriggerConverter()
-    {
-        AddTriggerSerializer<CalendarIntervalTriggerImpl>(new CalendarIntervalTriggerSerializer());
-        AddTriggerSerializer<CronTriggerImpl>(new CronTriggerSerializer());
-        AddTriggerSerializer<DailyTimeIntervalTriggerImpl>(new DailyTimeIntervalTriggerSerializer());
-        AddTriggerSerializer<SimpleTriggerImpl>(new SimpleTriggerSerializer());
-        AddTriggerSerializer<RecurrenceTriggerImpl>(new RecurrenceTriggerSerializer());
-    }
-
     public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
     {
         try
@@ -29,7 +17,7 @@ internal sealed class TriggerConverter : JsonConverter
 
             writer.WriteStartObject();
             var type = value!.GetType().AssemblyQualifiedNameWithoutVersion();
-            var triggerSerializer = GetTriggerSerializer(type);
+            var triggerSerializer = registry.GetTriggerSerializer(type);
 
             writer.WritePropertyName("TriggerType");
             writer.WriteValue(triggerSerializer.TriggerTypeForJson);
@@ -86,7 +74,7 @@ internal sealed class TriggerConverter : JsonConverter
             var source = JObject.Load(reader);
             var type = source["TriggerType"]!.Value<string>()!;
 
-            var triggerSerializer = GetTriggerSerializer(type);
+            var triggerSerializer = registry.GetTriggerSerializer(type);
             var scheduleBuilder = triggerSerializer.CreateScheduleBuilder(source);
 
             var key = source.GetTriggerKey("Key");
@@ -147,22 +135,4 @@ internal sealed class TriggerConverter : JsonConverter
     }
 
     public override bool CanConvert(Type objectType) => typeof(ITrigger).IsAssignableFrom(objectType);
-
-    private static ITriggerSerializer GetTriggerSerializer(string? typeName)
-    {
-        if (string.IsNullOrWhiteSpace(typeName) || !converters.TryGetValue(typeName!, out var converter))
-        {
-            throw new ArgumentException($"Don't know how to handle {typeName}", nameof(typeName));
-        }
-
-        return converter;
-    }
-
-    public static void AddTriggerSerializer<TTrigger>(ITriggerSerializer serializer) where TTrigger : ITrigger
-    {
-        converters[serializer.TriggerTypeForJson] = serializer;
-
-        // Support also type name
-        converters[typeof(TTrigger).AssemblyQualifiedNameWithoutVersion()] = serializer;
-    }
 }

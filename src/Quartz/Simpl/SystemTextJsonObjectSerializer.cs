@@ -1,9 +1,7 @@
 using System.Text;
 using System.Text.Json;
 
-using Quartz.Serialization.Json.Calendars;
-using Quartz.Serialization.Json.Converters;
-using Quartz.Serialization.Json.Triggers;
+using Quartz.Serialization.Json;
 using Quartz.Spi;
 
 namespace Quartz.Simpl;
@@ -16,6 +14,29 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
 {
     private JsonSerializerOptions options = null!;
 
+    /// <summary>
+    /// Creates a serializer that knows the built-in trigger and calendar types only.
+    /// </summary>
+    public SystemTextJsonObjectSerializer()
+        : this(new SystemTextJsonSerializerRegistry())
+    {
+    }
+
+    /// <summary>
+    /// Creates a serializer that resolves trigger and calendar serializers through the given registry,
+    /// so a scheduler's custom types are known to its own serializer and to no other.
+    /// </summary>
+    public SystemTextJsonObjectSerializer(SystemTextJsonSerializerRegistry registry)
+    {
+        ArgumentNullException.ThrowIfNull(registry);
+        Registry = registry;
+    }
+
+    /// <summary>
+    /// The trigger and calendar serializers this serializer's converters resolve through.
+    /// </summary>
+    protected SystemTextJsonSerializerRegistry Registry { get; }
+
     public void Initialize()
     {
         options = CreateSerializerOptions();
@@ -23,7 +44,7 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
 
     protected virtual JsonSerializerOptions CreateSerializerOptions()
     {
-        return new JsonSerializerOptions().AddQuartzConverters(newtonsoftCompatibilityMode: true);
+        return new JsonSerializerOptions().AddQuartzConverters(Registry, newtonsoftCompatibilityMode: true);
     }
 
     /// <summary>
@@ -61,15 +82,5 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
             string json = Encoding.UTF8.GetString(data);
             throw new JsonSerializationException($"Could not deserialize JSON: {json}", e);
         }
-    }
-
-    public static void AddTriggerSerializer<TTrigger>(ITriggerSerializer serializer) where TTrigger : ITrigger
-    {
-        TriggerConverter.AddTriggerSerializer<TTrigger>(serializer);
-    }
-
-    public static void AddCalendarSerializer<TCalendar>(ICalendarSerializer serializer) where TCalendar : ICalendar
-    {
-        CalendarConverter.AddSerializer<TCalendar>(serializer);
     }
 }

@@ -224,9 +224,10 @@ public class MisfireBatchRecoveryTest
 
     private async Task<TestJobStoreTX> CreateJobStore(int maxMisfiresToHandleAtATime = 20)
     {
-        NewtonsoftJsonObjectSerializer.AddTriggerSerializer<CustomTrigger>(new CustomNewtonsoftTriggerSerializer());
+        var registry = new NewtonsoftJsonSerializerRegistry()
+            .AddTriggerSerializer<CustomTrigger>(new CustomNewtonsoftTriggerSerializer());
 
-        var serializer = new NewtonsoftJsonObjectSerializer();
+        var serializer = new NewtonsoftJsonObjectSerializer(registry);
         serializer.Initialize();
 
         var jobStore = new TestJobStoreTX(serializer, dbProvider, new CountingSQLiteDelegate(), maxMisfiresToHandleAtATime)

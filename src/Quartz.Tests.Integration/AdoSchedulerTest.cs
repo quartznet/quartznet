@@ -16,11 +16,11 @@ public class AdoSchedulerTest : AbstractSchedulerTest
 {
     private readonly IObjectSerializer serializer;
 
-    static AdoSchedulerTest()
-    {
-        SystemTextJsonObjectSerializer.AddTriggerSerializer<TestBlobCronTriggerImpl>(new TestBlobCronTriggerImpl.SystemTextJsonSerializer());
-    }
-
+    // No custom trigger serializer is registered for TestBlobCronTriggerImpl: the scheduler under test is
+    // built by SchedulerHelper.CreateScheduler, which uses the Newtonsoft serializer without the optimized
+    // trigger converters, so an unknown trigger type is persisted as a reflected blob and never reaches a
+    // trigger serializer at all. The registration this fixture used to make went into a process-global
+    // System.Text.Json map that the scheduler under test never read.
     public AdoSchedulerTest(Type serializerType, string provider) : base(provider, serializerType.Name)
     {
         serializer = (IObjectSerializer) Activator.CreateInstance(serializerType);

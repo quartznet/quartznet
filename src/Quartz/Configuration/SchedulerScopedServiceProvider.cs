@@ -7,6 +7,7 @@ using Quartz.Core;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Serialization.Json;
 using Quartz.Spi;
 
 namespace Quartz.Configuration;
@@ -42,6 +43,7 @@ internal sealed class SchedulerScopedServiceProvider
         typeof(IDriverDelegate),
         typeof(ISemaphore),
         typeof(IObjectSerializer),
+        typeof(SystemTextJsonSerializerRegistry),
         typeof(IThreadPool),
         typeof(IJobFactory),
         typeof(IJobRunShellFactory),

@@ -9,6 +9,7 @@ using Quartz.Dashboard.Services;
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
+using Quartz.Serialization.Json;
 
 namespace Quartz.Tests.AspNetCore.Dashboard;
 
@@ -237,7 +238,8 @@ public class InProcessQuartzApiClientTest
         return new InProcessQuartzApiClient(
             repository,
             Options.Create(new QuartzDashboardOptions()),
-            new DashboardHistoryStore());
+            new DashboardHistoryStore(),
+            new SystemTextJsonSerializerRegistry());
     }
 
     private sealed class NoOpJob : IJob
