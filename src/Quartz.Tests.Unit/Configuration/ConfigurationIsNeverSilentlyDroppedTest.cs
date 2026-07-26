@@ -127,7 +127,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         }));
 
         using var provider = services.BuildServiceProvider();
-        var properties = provider.GetRequiredService<IOptions<QuartzOptions>>().Value;
+        var properties = provider.GetRequiredService<IOptions<QuartzOptions>>().Value.Properties;
 
         properties["quartz.plugin.xml.type"].Should().NotBeNull(
             "plugins have no typed options yet, so dropping the section leaves nothing to read them");
@@ -655,7 +655,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         }));
 
         using var provider = services.BuildServiceProvider();
-        var properties = provider.GetRequiredService<IOptions<QuartzOptions>>().Value;
+        var properties = provider.GetRequiredService<IOptions<QuartzOptions>>().Value.Properties;
 
         properties["quartz.jobStore.marker"].Should().Be("configured",
             "a third-party store has no options type, so its settings are only ever read as flat keys");
@@ -700,6 +700,55 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         plugins.Select(x => ((RecordingPlugin) x.Plugin).SomeSetting)
             .Should().BeEquivalentTo(["dev", "tenantA"],
                 "one plugin per configured name is what the properties format has always meant");
+    }
+
+    [Test]
+    public async Task ASchedulerNameSetOnTheOptionsReachesTheScheduler()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz();
+        services.Configure<QuartzOptions>(options => options.SchedulerName = "NamedThroughOptions");
+
+        await using var provider = services.BuildServiceProvider();
+
+        provider.GetRequiredService<IOptions<QuartzOptions>>().Value
+            .Properties["quartz.scheduler.instanceName"].Should().Be("NamedThroughOptions",
+                "the property has to write the key the rest of the configuration model reads, not an "
+                + "ADO.NET column name that nothing reads");
+
+        provider.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value.InstanceName
+            .Should().Be("NamedThroughOptions");
+
+        var scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        try
+        {
+            scheduler.SchedulerName.Should().Be("NamedThroughOptions",
+                "a name accepted without complaint and then not used is the failure mode this suite exists for");
+        }
+        finally
+        {
+            await scheduler.Shutdown();
+        }
+    }
+
+    [Test]
+    public void EveryFlatKeyReachesTheReadersIncludingTheEmptyOnes()
+    {
+        var options = new QuartzOptions();
+        options.Properties["quartz.plugin.dev.type"] = null;
+        options.Properties["quartz.plugin.dev.blank"] = "   ";
+        options.Properties["quartz.plugin.dev.someSetting"] = "dev";
+
+        var properties = options.ToNameValueCollection();
+
+        properties.AllKeys.Should().BeEquivalentTo(
+            ["quartz.plugin.dev.type", "quartz.plugin.dev.blank", "quartz.plugin.dev.someSetting"],
+            "whether an empty value means 'not configured' is the reader's decision, and it makes it — "
+            + "dropping the key here instead would make a key set to an empty string indistinguishable "
+            + "from one that was never given");
+
+        properties["quartz.plugin.dev.type"].Should().BeNull();
+        properties["quartz.plugin.dev.blank"].Should().Be("   ");
     }
 
     private sealed class MarkedSemaphore : ISemaphore

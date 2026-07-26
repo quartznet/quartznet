@@ -13,9 +13,13 @@ using Quartz.Util;
 namespace Quartz.Configuration;
 
 /// <summary>
-/// Reads job and trigger definitions from an <see cref="IConfiguration"/> section
-/// and populates <see cref="QuartzOptions"/> accordingly.
+/// Reads scheduling directives and job and trigger definitions from an <see cref="IConfiguration"/>
+/// section.
 /// </summary>
+/// <remarks>
+/// The directives are configuration and land on <see cref="QuartzOptions.Scheduling"/>; the jobs and
+/// triggers are content and become a registration of their own, like every other way of adding them.
+/// </remarks>
 internal static class JsonSchedulingHelper
 {
     internal static void ConfigureOptionsFromConfiguration(
@@ -30,35 +34,36 @@ internal static class JsonSchedulingHelper
             return;
         }
 
-        services.AddSingleton<IConfigureOptions<QuartzOptions>>(serviceProvider =>
+        var name = optionsName ?? Options.DefaultName;
+
+        // Bind Scheduling directives (OverWriteExistingData, IgnoreDuplicates, etc.)
+        if (schedulingSection.Exists())
         {
-            return new ConfigureNamedOptions<QuartzOptions>(optionsName ?? Options.DefaultName, options =>
+            services.Configure<QuartzOptions>(name, options => BindSchedulingOptions(schedulingSection, options.Scheduling));
+        }
+
+        // Read jobs and triggers from the Schedule section
+        if (scheduleSection.Exists())
+        {
+            SchedulerContent.Register(services, name, serviceProvider =>
             {
-                // Bind Scheduling directives (OverWriteExistingData, IgnoreDuplicates, etc.)
-                if (schedulingSection.Exists())
+                var options = serviceProvider.GetRequiredService<IOptionsMonitor<QuartzOptions>>().Get(name);
+                var typeLoadHelper = ResolveTypeLoadHelper(options, serviceProvider);
+
+                var content = new SchedulerContent();
+                foreach (var job in ReadJobs(scheduleSection.GetSection("Jobs"), typeLoadHelper))
                 {
-                    BindSchedulingOptions(schedulingSection, options.Scheduling);
+                    content.Add(job);
                 }
 
-                // Read jobs and triggers from the Schedule section
-                if (scheduleSection.Exists())
+                foreach (var trigger in ReadTriggers(scheduleSection.GetSection("Triggers")))
                 {
-                    var typeLoadHelper = ResolveTypeLoadHelper(options, serviceProvider);
-                    var jobs = ReadJobs(scheduleSection.GetSection("Jobs"), typeLoadHelper);
-                    var triggers = ReadTriggers(scheduleSection.GetSection("Triggers"));
-
-                    foreach (var job in jobs)
-                    {
-                        options._jobDetails.Add(job);
-                    }
-
-                    foreach (var trigger in triggers)
-                    {
-                        options._triggers.Add(trigger);
-                    }
+                    content.Add(trigger);
                 }
+
+                return content;
             });
-        });
+        }
     }
 
     internal static List<IJobDetail> ReadJobs(IConfigurationSection jobsSection, ITypeLoadHelper typeLoadHelper)
@@ -500,7 +505,7 @@ internal static class JsonSchedulingHelper
     {
         ITypeLoadHelper typeLoadHelper;
 
-        if (options.TryGetValue(StdSchedulerFactory.PropertySchedulerTypeLoadHelperType, out var typeName)
+        if (options.Properties.TryGetValue(StdSchedulerFactory.PropertySchedulerTypeLoadHelperType, out var typeName)
             && !string.IsNullOrWhiteSpace(typeName))
         {
             var type = Type.GetType(typeName, throwOnError: true)!;

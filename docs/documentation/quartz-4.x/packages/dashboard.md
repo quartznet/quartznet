@@ -85,13 +85,14 @@ A custom `DashboardPath` is **not** supported when integrating into an existing 
 
 ## Enabling history plugin
 
-To populate execution history and make related views useful, enable Quartz history plugins in `QuartzOptions`:
+To populate execution history and make related views useful, add the Quartz history plugins to the
+scheduler:
 
 ```csharp
-services.Configure<QuartzOptions>(options =>
+services.AddQuartz(q =>
 {
-    options["quartz.plugin.jobHistory.type"] = "Quartz.Plugin.History.LoggingJobHistoryPlugin, Quartz.Plugins";
-    options["quartz.plugin.triggerHistory.type"] = "Quartz.Plugin.History.LoggingTriggerHistoryPlugin, Quartz.Plugins";
+    q.AddPlugin<LoggingJobHistoryPlugin>();
+    q.AddPlugin<LoggingTriggerHistoryPlugin>();
 });
 ```
 

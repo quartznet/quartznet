@@ -171,22 +171,36 @@ When using the unnamed default scheduler, call `services.AddQuartz(...)` before 
 
 ## Configuration via appsettings.json
 
-Named scheduler properties can be supplied through the standard options pattern:
+A named scheduler's configuration can come from a section. Pass the root `Quartz` section and the
+scheduler's own settings are resolved out of `Schedulers:{name}`:
 
 ```csharp
-builder.Services.Configure<QuartzOptions>("DurableScheduler",
-    builder.Configuration.GetSection("Quartz:DurableScheduler"));
+builder.Services.AddQuartz("DurableScheduler", builder.Configuration.GetSection("Quartz"));
 ```
 
 ```json
 {
   "Quartz": {
-    "DurableScheduler": {
-      "quartz.scheduler.instanceId": "AUTO",
-      "quartz.jobStore.type": "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz"
+    "Schedulers": {
+      "DurableScheduler": {
+        "Scheduler": {
+          "InstanceId": "AUTO"
+        },
+        "JobStore": {
+          "Type": "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz"
+        }
+      }
     }
   }
 }
+```
+
+Individual flat keys that no typed option covers can still be set on the named options directly, through
+the `Properties` dictionary:
+
+```csharp
+builder.Services.Configure<QuartzOptions>("DurableScheduler",
+    options => options.Properties["quartz.jobStore.someThirdPartySetting"] = "value");
 ```
 
 ## Limitations

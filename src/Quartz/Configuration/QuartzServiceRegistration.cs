@@ -184,17 +184,19 @@ internal static class QuartzServiceRegistration
             provider.GetRequiredService<TimeProvider>()));
 
         // The jobs, triggers, listeners and calendars a scheduler should carry are per-scheduler, so these
-        // are keyed too. Handing them the resolved QuartzOptions and their own key keeps a named scheduler
-        // from picking up the unnamed scheduler's content.
+        // are keyed too, and are handed this scheduler's own key, content and properties rather than
+        // resolving them unkeyed — which for a named scheduler would be the default scheduler's.
         services.TryAddKeyed<ContainerConfigurationProcessor>(key, static (provider, key) =>
             ActivatorUtilities.CreateInstance<ContainerConfigurationProcessor>(
-                Scoped(provider, key), provider.GetSchedulerOptions<QuartzOptions>(key)));
+                Scoped(provider, key),
+                provider.GetSchedulerOptions<QuartzOptions>(key),
+                provider.GetSchedulerServices<ISchedulerContent>(key).ToArray()));
 
         services.TryAddKeyed<SchedulerContentInitializer>(key, static (provider, key) =>
             ActivatorUtilities.CreateInstance<SchedulerContentInitializer>(
                 Scoped(provider, key),
                 new SchedulerKey(key),
-                provider.GetSchedulerOptions<QuartzOptions>(key),
+                provider.GetSchedulerProperties(key as string ?? Options.DefaultName),
                 provider.GetScheduler<ContainerConfigurationProcessor>(key)));
 
         services.TryAddKeyed<ISchedulerFactory>(key, static (provider, key) =>

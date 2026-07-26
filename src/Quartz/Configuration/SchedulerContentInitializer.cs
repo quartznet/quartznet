@@ -1,3 +1,5 @@
+using System.Collections.Specialized;
+
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Impl;
@@ -30,22 +32,24 @@ internal sealed class SchedulerContentInitializer
 
     private readonly IServiceProvider serviceProvider;
     private readonly SchedulerKey schedulerKey;
-    private readonly QuartzOptions options;
+    private readonly NameValueCollection properties;
     private readonly ContainerConfigurationProcessor processor;
 
     /// <remarks>
-    /// Takes the resolved options so a named scheduler gets its own, rather than every scheduler
-    /// sharing the unnamed instance.
+    /// Takes this scheduler's flat properties directly rather than its <see cref="QuartzOptions"/>. The
+    /// legacy <c>quartz.jobListener.*</c> and <c>quartz.triggerListener.*</c> keys are all this needs from
+    /// them, and they are resolved for this scheduler's options name so a named scheduler does not read
+    /// the default scheduler's.
     /// </remarks>
     public SchedulerContentInitializer(
         IServiceProvider serviceProvider,
         SchedulerKey schedulerKey,
-        QuartzOptions options,
+        NameValueCollection properties,
         ContainerConfigurationProcessor processor)
     {
         this.serviceProvider = serviceProvider;
         this.schedulerKey = schedulerKey;
-        this.options = options;
+        this.properties = properties;
         this.processor = processor;
     }
 
@@ -97,7 +101,7 @@ internal sealed class SchedulerContentInitializer
         // Listeners named by quartz.jobListener.* properties, which also carry no matchers, as that
         // format has always meant.
         foreach (var listener in PropertyListenerFactory.Create<IJobListener>(
-                     serviceProvider, options.ToNameValueCollection(), StdSchedulerFactory.PropertyJobListenerPrefix))
+                     serviceProvider, properties, StdSchedulerFactory.PropertyJobListenerPrefix))
         {
             listeners.Add((listener, [EverythingMatcher<JobKey>.AllJobs()]));
         }
@@ -125,7 +129,7 @@ internal sealed class SchedulerContentInitializer
         }
 
         foreach (var listener in PropertyListenerFactory.Create<ITriggerListener>(
-                     serviceProvider, options.ToNameValueCollection(), StdSchedulerFactory.PropertyTriggerListenerPrefix))
+                     serviceProvider, properties, StdSchedulerFactory.PropertyTriggerListenerPrefix))
         {
             listeners.Add((listener, [EverythingMatcher<TriggerKey>.AllTriggers()]));
         }

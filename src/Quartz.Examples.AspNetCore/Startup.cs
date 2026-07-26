@@ -19,6 +19,7 @@ using Quartz.AspNetCore;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Matchers;
+using Quartz.Plugin.History;
 using Quartz.Plugin.Interrupt;
 
 using Serilog;
@@ -82,8 +83,6 @@ public class Startup
         {
             options.Scheduling.IgnoreDuplicates = true; // default: false
             options.Scheduling.OverWriteExistingData = true; // default: true
-            options["quartz.plugin.jobHistory.type"] = "Quartz.Plugin.History.LoggingJobHistoryPlugin, Quartz.Plugins";
-            options["quartz.plugin.triggerHistory.type"] = "Quartz.Plugin.History.LoggingTriggerHistoryPlugin, Quartz.Plugins";
         });
 
         // custom connection provider
@@ -120,6 +119,10 @@ public class Startup
 
             // you could use custom too
             q.UseTypeLoader<CustomTypeLoader>();
+
+            // log what jobs and triggers do
+            q.AddPlugin<LoggingJobHistoryPlugin>();
+            q.AddPlugin<LoggingTriggerHistoryPlugin>();
 
             // quickest way to create a job with single trigger is to use ScheduleJob
             q.ScheduleJob<ExampleJob>(trigger => trigger
@@ -204,6 +207,20 @@ public class Startup
                 .ModifiedByCalendar(calendarName)
             );
 
+            // your own configuration can decide what a scheduler runs: whether there is a schedule at all
+            // is decided here, where jobs and triggers are registered, and the schedule itself is read out
+            // of the container when the trigger is built
+            if (!string.IsNullOrWhiteSpace(Configuration.GetSection("Sample")[nameof(SampleOptions.CronSchedule)]))
+            {
+                var customJobKey = new JobKey("options-custom-job", "custom");
+                q.AddJob<ExampleJob>(customJobKey);
+                q.AddTrigger((serviceProvider, trigger) => trigger
+                    .WithIdentity("options-custom-trigger", "custom")
+                    .ForJob(customJobKey)
+                    .WithCronSchedule(serviceProvider.GetRequiredService<IOptions<SampleOptions>>().Value.CronSchedule)
+                );
+            }
+
             // also add XML configuration and poll it for changes
             q.UseXmlSchedulingConfiguration(x =>
             {
@@ -264,8 +281,7 @@ public class Startup
             */
         });
 
-        // we can use options pattern to support hooking your own configuration with Quartz's
-        // because we don't use service registration api, we need to manually ensure the job is present in DI
+        // adding a job to the scheduler does not register its type, so we do that ourselves
         services.AddTransient<ExampleJob>();
 
         // if there is no need to use key matchers, job and trigger listeners can be added to services and Quartz will automatically use these
@@ -276,20 +292,8 @@ public class Startup
             return new SecondSampleTriggerListener(logger, "Example value");
         });
 
+        // your own options, read by the trigger registered above
         services.Configure<SampleOptions>(Configuration.GetSection("Sample"));
-        services.AddOptions<QuartzOptions>()
-            .Configure<IOptions<SampleOptions>>((options, dep) =>
-            {
-                if (!string.IsNullOrWhiteSpace(dep.Value.CronSchedule))
-                {
-                    var jobKey = new JobKey("options-custom-job", "custom");
-                    options.AddJob<ExampleJob>(j => j.WithIdentity(jobKey));
-                    options.AddTrigger(trigger => trigger
-                        .WithIdentity("options-custom-trigger", "custom")
-                        .ForJob(jobKey)
-                        .WithCronSchedule(dep.Value.CronSchedule));
-                }
-            });
 
         // Add health checks
         services.AddQuartzHealthChecks();
