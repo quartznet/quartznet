@@ -116,13 +116,13 @@ public interface ISchedulerListener
     /// Called by the <see cref="IScheduler"/> when a
     /// group of <see cref="IJobDetail"/>s has been  paused.
     /// <para>
-    /// If all groups were paused, then the <paramref name="jobGroup"/> parameter will be
-    /// null. If all jobs were paused, then both parameters will be null.
+    /// Pausing every group raises <see cref="JobsPaused" /> once per group rather than a single
+    /// call with no group, so this is always a group name.
     /// </para>
     /// </summary>
     /// <param name="jobGroup">The job group.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    ValueTask JobsPaused(string? jobGroup, CancellationToken cancellationToken = default);
+    ValueTask JobsPaused(string jobGroup, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
@@ -136,7 +136,7 @@ public interface ISchedulerListener
     /// </summary>
     /// <param name="jobGroup">The job group.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    ValueTask JobsResumed(string? jobGroup, CancellationToken cancellationToken = default);
+    ValueTask JobsResumed(string jobGroup, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> when a serious error has

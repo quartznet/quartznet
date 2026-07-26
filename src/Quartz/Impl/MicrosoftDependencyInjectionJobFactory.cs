@@ -43,7 +43,7 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
             // The scope rides along as the job's state so that ReturnJob can tear it down. The job
             // itself is handed to the scheduler unwrapped, so listeners and the execution context see
             // the type the user wrote rather than something of ours standing in front of it.
-            return new ValueTask<JobScope>(new JobScope(job, new ScopeState(scope, disposeJob: !fromContainer)));
+            return new ValueTask<JobScope>(new JobScope(job, new ScopeState(scope, job, disposeJob: !fromContainer)));
         }
         catch (Exception e)
         {
@@ -60,30 +60,20 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
         }
     }
 
-    public override async ValueTask ReturnJob(JobScope scope, CancellationToken cancellationToken = default)
+    public override ValueTask ReturnJob(JobScope scope, CancellationToken cancellationToken = default)
     {
-        // A job the container produced belongs to the scope and is disposed along with it, so
-        // disposing it here as well would hand user code a second Dispose call. One we activated
-        // ourselves is ours to dispose. When a derived factory has replaced the state we cannot tell
-        // which it is, so fall back to the base and rely on ScopeState's own guard to keep the scope
-        // from being torn down twice.
-        if (scope.State is not ScopeState state)
+        // The state knows what it owns: it disposes the job when we activated it ourselves, and then
+        // the scope, once. A job the container produced is disposed by the scope instead, because
+        // disposing it here as well would hand user code a second Dispose call.
+        if (scope.State is ScopeState state)
         {
-            await base.ReturnJob(scope, cancellationToken).ConfigureAwait(false);
-            return;
+            return state.DisposeAsync();
         }
 
-        try
-        {
-            if (state.DisposeJob)
-            {
-                await base.ReturnJob(new JobScope(scope.Job), cancellationToken).ConfigureAwait(false);
-            }
-        }
-        finally
-        {
-            await state.DisposeAsync().ConfigureAwait(false);
-        }
+        // A derived factory replaced the state. Whether the container owns the job is now its
+        // business, so dispose only the state and let it decide - if it wrapped ours it will reach
+        // it, and disposing a container-owned job here would be that second Dispose call.
+        return Dispose(scope.State);
     }
 
     private static ValueTask DisposeScope(IServiceScope scope)
@@ -127,26 +117,39 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
     private sealed class ScopeState : IAsyncDisposable
     {
         private readonly IServiceScope scope;
+        private readonly IJob job;
+        private readonly bool disposeJob;
         private int disposed;
 
-        public ScopeState(IServiceScope scope, bool disposeJob)
+        public ScopeState(IServiceScope scope, IJob job, bool disposeJob)
         {
             this.scope = scope;
-            DisposeJob = disposeJob;
+            this.job = job;
+            this.disposeJob = disposeJob;
         }
 
-        public bool DisposeJob { get; }
-
-        public ValueTask DisposeAsync()
+        public async ValueTask DisposeAsync()
         {
-            // A derived factory may pass this to the base ladder as well as leaving it to us, and a
-            // scope closed twice throws from the container rather than from anything we control.
+            // A derived factory may dispose this as well as leaving it to us, and a scope closed
+            // twice throws from the container rather than from anything we control.
             if (Interlocked.Exchange(ref disposed, 1) != 0)
             {
-                return default;
+                return;
             }
 
-            return DisposeScope(scope);
+            try
+            {
+                // Only a job we activated ourselves; one the container produced is registered with
+                // the scope and disposed by it below.
+                if (disposeJob)
+                {
+                    await Dispose(job).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                await DisposeScope(scope).ConfigureAwait(false);
+            }
         }
     }
 

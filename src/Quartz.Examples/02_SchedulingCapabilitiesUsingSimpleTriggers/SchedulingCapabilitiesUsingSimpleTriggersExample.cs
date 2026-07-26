@@ -47,7 +47,7 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
         // get a "nice round" time a few seconds in the future...
         DateTimeOffset startTime = DateBuilder.NextGivenSecondDate(null, 15);
 
-        // job1 will only fire once at date/time "ts"
+        // job1 will only fire once at date/time "timeSpan"
         IJobDetail job = JobBuilder.Create<SimpleJob>()
             .WithIdentity("job1", "group1")
             .Build();
@@ -64,7 +64,7 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
                           " and repeat: " + trigger.RepeatCount +
                           " times, every " + trigger.RepeatInterval.TotalSeconds + " seconds");
 
-        // job2 will only fire once at date/time "ts"
+        // job2 will only fire once at date/time "timeSpan"
         job = JobBuilder.Create<SimpleJob>()
             .WithIdentity("job2", "group1")
             .Build();

@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -41,7 +41,7 @@ public sealed class TriggerFiredBundle
     /// <param name="jobIsRecovering">if set to <c>true</c> [job is recovering].</param>
     /// <param name="fireTimeUtc">The fire time.</param>
     /// <param name="scheduledFireTimeUtc">The scheduled fire time.</param>
-    /// <param name="prevFireTimeUtc">The previous fire time.</param>
+    /// <param name="previousFireTimeUtc">The previous fire time.</param>
     /// <param name="nextFireTimeUtc">The next fire time.</param>
     public TriggerFiredBundle(
         IJobDetail job,
@@ -50,7 +50,7 @@ public sealed class TriggerFiredBundle
         bool jobIsRecovering,
         DateTimeOffset fireTimeUtc,
         DateTimeOffset? scheduledFireTimeUtc,
-        DateTimeOffset? prevFireTimeUtc,
+        DateTimeOffset? previousFireTimeUtc,
         DateTimeOffset? nextFireTimeUtc)
     {
         JobDetail = job;
@@ -59,7 +59,7 @@ public sealed class TriggerFiredBundle
         Recovering = jobIsRecovering;
         FireTimeUtc = fireTimeUtc;
         ScheduledFireTimeUtc = scheduledFireTimeUtc;
-        PrevFireTimeUtc = prevFireTimeUtc;
+        PrevFireTimeUtc = previousFireTimeUtc;
         NextFireTimeUtc = nextFireTimeUtc;
     }
 

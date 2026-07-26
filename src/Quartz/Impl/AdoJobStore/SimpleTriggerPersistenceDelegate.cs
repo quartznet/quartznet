@@ -33,12 +33,12 @@ internal class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelegate
 
     protected string TablePrefix { get; private set; } = null!;
 
-    protected string SchedName { get; private set; } = null!;
+    protected string SchedulerName { get; private set; } = null!;
 
     public void Initialize(string tablePrefix, string schedulerName, IDbAccessor dbAccessor)
     {
         TablePrefix = tablePrefix;
-        SchedName = schedulerName;
+        SchedulerName = schedulerName;
         DbAccessor = dbAccessor;
     }
 
@@ -58,7 +58,7 @@ internal class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlDeleteSimpleTrigger, TablePrefix));
-        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
+        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
         DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
         DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
@@ -75,7 +75,7 @@ internal class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelegate
         ISimpleTrigger simpleTrigger = (ISimpleTrigger) trigger;
 
         using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlInsertSimpleTrigger, TablePrefix));
-        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
+        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
         DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
         DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
         DbAccessor.AddCommandParameter(cmd, "triggerRepeatCount", simpleTrigger.RepeatCount);
@@ -91,7 +91,7 @@ internal class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelegate
         CancellationToken cancellationToken = default)
     {
         using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimpleTrigger, TablePrefix));
-        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
+        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
         DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
         DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
@@ -131,7 +131,7 @@ internal class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelegate
         ISimpleTrigger simpleTrigger = (ISimpleTrigger) trigger;
 
         using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlUpdateSimpleTrigger, TablePrefix));
-        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
+        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
         DbAccessor.AddCommandParameter(cmd, "triggerRepeatCount", simpleTrigger.RepeatCount);
         DbAccessor.AddCommandParameter(cmd, "triggerRepeatInterval", DbAccessor.GetDbTimeSpanValue(simpleTrigger.RepeatInterval));
         DbAccessor.AddCommandParameter(cmd, "triggerTimesTriggered", simpleTrigger.TimesTriggered);

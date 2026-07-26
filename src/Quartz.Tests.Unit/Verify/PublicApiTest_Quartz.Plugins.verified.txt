@@ -14,16 +14,31 @@ namespace Quartz
         public JobAutoInterruptOptions() { }
         public System.TimeSpan DefaultMaxRunTime { get; set; }
     }
+    public sealed class JobHistoryLoggingOptions
+    {
+        public JobHistoryLoggingOptions() { }
+        public string JobFailedMessage { get; set; }
+        public string JobSuccessMessage { get; set; }
+        public string JobToBeFiredMessage { get; set; }
+        public string JobWasVetoedMessage { get; set; }
+    }
     public static class PluginConfigurationExtensions
     {
         public static Quartz.IQuartzBuilder UseJobAutoInterrupt(this Quartz.IQuartzBuilder builder, System.Action<Quartz.JobAutoInterruptOptions>? configure = null) { }
-        public static Quartz.IQuartzBuilder UseJobHistoryLogging(this Quartz.IQuartzBuilder builder, System.Action<Quartz.Plugin.History.LoggingJobHistoryPlugin>? configure = null) { }
+        public static Quartz.IQuartzBuilder UseJobHistoryLogging(this Quartz.IQuartzBuilder builder, System.Action<Quartz.JobHistoryLoggingOptions>? configure = null) { }
         public static Quartz.IQuartzBuilder UseJsonSchedulingConfiguration(this Quartz.IQuartzBuilder builder, System.Action<Quartz.FileSchedulingOptions> configure) { }
         public static Quartz.IQuartzBuilder UseShutdownHook(this Quartz.IQuartzBuilder builder, bool cleanShutdown = true) { }
         public static Quartz.IQuartzBuilder UseStructuredJobLogging(this Quartz.IQuartzBuilder builder) { }
         public static Quartz.IQuartzBuilder UseStructuredTriggerLogging(this Quartz.IQuartzBuilder builder) { }
-        public static Quartz.IQuartzBuilder UseTriggerHistoryLogging(this Quartz.IQuartzBuilder builder, System.Action<Quartz.Plugin.History.LoggingTriggerHistoryPlugin>? configure = null) { }
+        public static Quartz.IQuartzBuilder UseTriggerHistoryLogging(this Quartz.IQuartzBuilder builder, System.Action<Quartz.TriggerHistoryLoggingOptions>? configure = null) { }
         public static Quartz.IQuartzBuilder UseXmlSchedulingConfiguration(this Quartz.IQuartzBuilder builder, System.Action<Quartz.FileSchedulingOptions> configure) { }
+    }
+    public sealed class TriggerHistoryLoggingOptions
+    {
+        public TriggerHistoryLoggingOptions() { }
+        public string TriggerCompleteMessage { get; set; }
+        public string TriggerFiredMessage { get; set; }
+        public string TriggerMisfiredMessage { get; set; }
     }
 }
 namespace Quartz.Plugin.History

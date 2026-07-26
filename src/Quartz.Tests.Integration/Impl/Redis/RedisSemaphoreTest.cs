@@ -18,7 +18,7 @@ public class RedisSemaphoreTest
         semaphore = new RedisSemaphore
         {
             RedisConfiguration = RedisTestEnvironment.ConnectionString,
-            SchedName = "TestScheduler",
+            SchedulerName = "TestScheduler",
             KeyPrefix = "quartz:test:lock:"
         };
 
@@ -177,7 +177,7 @@ public class RedisSemaphoreTest
         var shortTtlSemaphore = new RedisSemaphore
         {
             RedisConfiguration = RedisTestEnvironment.ConnectionString,
-            SchedName = "TestScheduler",
+            SchedulerName = "TestScheduler",
             KeyPrefix = "quartz:test:lock:",
             LockTtlMilliseconds = 2000
         };
@@ -248,7 +248,7 @@ public class RedisSemaphoreTest
         var semaphore2 = new RedisSemaphore
         {
             RedisConfiguration = RedisTestEnvironment.ConnectionString,
-            SchedName = "TestScheduler",
+            SchedulerName = "TestScheduler",
             KeyPrefix = "quartz:test:lock:"
         };
 

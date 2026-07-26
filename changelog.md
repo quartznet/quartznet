@@ -98,15 +98,13 @@
 
   * Abbreviated parameter names inherited from the Java port were spelled out across the public surface:
     `cal` → `calendar`, `sched` → `scheduler`, `schedName` → `schedulerName`, `calName` → `calendarName`,
-    `schedInstId` → `schedulerInstanceId`, and `msg`/`se`/`trig` on **QuartzScheduler**'s notification methods.
+    `schedInstId` → `schedulerInstanceId`, `triggerInstCode`/`instCode` → `triggerInstructionCode`/`instructionCode`,
+    `jec` → `context`, `prevFireTimeUtc` → `previousFireTimeUtc`, `ITablePrefixAware.SchedName` → `SchedulerName`
+    (and both its properties are now readable rather than setter-only), and `msg`/`se`/`trig` on
+    **QuartzScheduler**'s notification methods.
     Only callers using named arguments are affected. **QuartzScheduler.NotifySchedulerListenersShuttingdown**
     is likewise `NotifySchedulerListenersShuttingDown`, matching the listener member it raises.
 
-  * `ListenerManager.AddSchedulerListener` now replaces an existing listener that answers to the same
-    `Name`, as the job and trigger listener collections already did. The name-based `GetSchedulerListener`
-    and `RemoveSchedulerListener` overloads cannot mean anything if two listeners share a name — and note
-    that `SchedulerListenerSupport` defaults `Name` to the type name, so two instances of one listener
-    class collide unless one overrides it.
 
   * **The `Quartz.Spi` and `Quartz.Simpl` namespaces were renamed.** `Quartz.Spi` is now
     **`Quartz.Extensibility`** and `Quartz.Simpl` merged into the existing **`Quartz.Impl`**. Both were transliterated

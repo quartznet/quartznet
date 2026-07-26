@@ -117,11 +117,20 @@ public static class PluginConfigurationExtensions
     /// </remarks>
     public static IQuartzBuilder UseJobHistoryLogging(
         this IQuartzBuilder builder,
-        Action<LoggingJobHistoryPlugin>? configure = null)
+        Action<JobHistoryLoggingOptions>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
-        return builder.AddConfiguredPlugin<LoggingJobHistoryPlugin>(
-            "jobHistoryLogging", plugin => configure?.Invoke(plugin));
+
+        var options = new JobHistoryLoggingOptions();
+        configure?.Invoke(options);
+
+        return builder.AddConfiguredPlugin<LoggingJobHistoryPlugin>("jobHistoryLogging", plugin =>
+        {
+            plugin.JobSuccessMessage = options.JobSuccessMessage;
+            plugin.JobFailedMessage = options.JobFailedMessage;
+            plugin.JobToBeFiredMessage = options.JobToBeFiredMessage;
+            plugin.JobWasVetoedMessage = options.JobWasVetoedMessage;
+        });
     }
 
     /// <summary>
@@ -133,11 +142,19 @@ public static class PluginConfigurationExtensions
     /// </remarks>
     public static IQuartzBuilder UseTriggerHistoryLogging(
         this IQuartzBuilder builder,
-        Action<LoggingTriggerHistoryPlugin>? configure = null)
+        Action<TriggerHistoryLoggingOptions>? configure = null)
     {
         ArgumentNullException.ThrowIfNull(builder);
-        return builder.AddConfiguredPlugin<LoggingTriggerHistoryPlugin>(
-            "triggerHistoryLogging", plugin => configure?.Invoke(plugin));
+
+        var options = new TriggerHistoryLoggingOptions();
+        configure?.Invoke(options);
+
+        return builder.AddConfiguredPlugin<LoggingTriggerHistoryPlugin>("triggerHistoryLogging", plugin =>
+        {
+            plugin.TriggerFiredMessage = options.TriggerFiredMessage;
+            plugin.TriggerMisfiredMessage = options.TriggerMisfiredMessage;
+            plugin.TriggerCompleteMessage = options.TriggerCompleteMessage;
+        });
     }
 
     /// <summary>
@@ -168,6 +185,47 @@ public static class PluginConfigurationExtensions
             return plugin;
         });
     }
+}
+
+/// <summary>
+/// Message templates for the classic job history logging plugin.
+/// </summary>
+/// <remarks>
+/// The plugin's own <c>Name</c> is not configurable here: the scheduler assigns it the registration
+/// name when it initialises the plugin, so anything set for it would be discarded.
+/// </remarks>
+public sealed class JobHistoryLoggingOptions
+{
+    /// <summary>Message logged when a job completes successfully.</summary>
+    public string JobSuccessMessage { get; set; } = "Job {1}.{0} execution complete at {2:HH:mm:ss MM/dd/yyyy} and reports: {8}";
+
+    /// <summary>Message logged when a job throws.</summary>
+    public string JobFailedMessage { get; set; } = "Job {1}.{0} execution failed at {2:HH:mm:ss MM/dd/yyyy} and reports: {8}";
+
+    /// <summary>Message logged when a job is about to fire.</summary>
+    public string JobToBeFiredMessage { get; set; } = "Job {1}.{0} fired (by trigger {4}.{3}) at: {2:HH:mm:ss MM/dd/yyyy}";
+
+    /// <summary>Message logged when a trigger listener vetoes a job.</summary>
+    public string JobWasVetoedMessage { get; set; } = "Job {1}.{0} was vetoed.  It was to be fired (by trigger {4}.{3}) at: {2:HH:mm:ss MM/dd/yyyy}";
+}
+
+/// <summary>
+/// Message templates for the classic trigger history logging plugin.
+/// </summary>
+/// <remarks>
+/// The plugin's own <c>Name</c> is not configurable here: the scheduler assigns it the registration
+/// name when it initialises the plugin, so anything set for it would be discarded.
+/// </remarks>
+public sealed class TriggerHistoryLoggingOptions
+{
+    /// <summary>Message logged when a trigger fires.</summary>
+    public string TriggerFiredMessage { get; set; } = "Trigger {1}.{0} fired job {6}.{5} at: {4:HH:mm:ss MM/dd/yyyy}";
+
+    /// <summary>Message logged when a trigger misfires.</summary>
+    public string TriggerMisfiredMessage { get; set; } = "Trigger {1}.{0} misfired job {6}.{5}  at: {4:HH:mm:ss MM/dd/yyyy}.  Should have fired at: {3:HH:mm:ss MM/dd/yyyy}";
+
+    /// <summary>Message logged when a trigger completes.</summary>
+    public string TriggerCompleteMessage { get; set; } = "Trigger {1}.{0} completed firing job {6}.{5} at {4:HH:mm:ss MM/dd/yyyy} with resulting trigger instruction code: {9}";
 }
 
 /// <summary>

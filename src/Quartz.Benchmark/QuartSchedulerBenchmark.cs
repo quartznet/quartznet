@@ -622,12 +622,12 @@ public class QuartSchedulerBenchmark
             return default;
         }
 
-        public ValueTask JobsPaused(string? jobGroup, CancellationToken cancellationToken = default)
+        public ValueTask JobsPaused(string jobGroup, CancellationToken cancellationToken = default)
         {
             return default;
         }
 
-        public ValueTask JobsResumed(string? jobGroup, CancellationToken cancellationToken = default)
+        public ValueTask JobsResumed(string jobGroup, CancellationToken cancellationToken = default)
         {
             return default;
         }

@@ -113,7 +113,11 @@ public class SimpleJobFactory : IJobFactory
         }
     }
 
-    private static ValueTask Dispose(object? target)
+    /// <summary>
+    /// Disposes <paramref name="target" /> if it is disposable, preferring
+    /// <see cref="IAsyncDisposable" /> over <see cref="IDisposable" />. Anything else is left alone.
+    /// </summary>
+    protected static ValueTask Dispose(object? target)
     {
         if (target is IAsyncDisposable asyncDisposable)
         {

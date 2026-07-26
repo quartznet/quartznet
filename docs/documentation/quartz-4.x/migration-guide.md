@@ -433,7 +433,6 @@ var registry = new SystemTextJsonSerializerRegistry()
     .AddCalendarSerializer<CustomCalendar>(new CustomCalendarSerializer());
 
 var serializer = new SystemTextJsonObjectSerializer(registry);
-serializer.Initialize();
 ```
 
 The registries start out knowing every built-in trigger and calendar type, so a custom registration adds to

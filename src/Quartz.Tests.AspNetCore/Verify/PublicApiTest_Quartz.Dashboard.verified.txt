@@ -383,8 +383,8 @@ namespace Quartz.Dashboard.Plugins
         public System.Threading.Tasks.ValueTask JobToBeExecuted(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask JobUnscheduled(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask JobWasExecuted(Quartz.IJobExecutionContext context, Quartz.JobExecutionException? jobException, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask JobsPaused(string? jobGroup, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask JobsResumed(string? jobGroup, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask JobsPaused(string jobGroup, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask JobsResumed(string jobGroup, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask SchedulerError(string message, Quartz.SchedulerException exception, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask SchedulerInStandbyMode(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask SchedulerShutdown(System.Threading.CancellationToken cancellationToken = default) { }

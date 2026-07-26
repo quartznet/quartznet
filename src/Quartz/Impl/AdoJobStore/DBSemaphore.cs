@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -205,7 +205,7 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
         }
     }
 
-    public string? SchedName
+    public string? SchedulerName
     {
         get => schedulerName;
         set => schedulerName = value;

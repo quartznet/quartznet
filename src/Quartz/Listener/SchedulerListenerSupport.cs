@@ -102,7 +102,7 @@ public abstract class SchedulerListenerSupport : ISchedulerListener
     }
 
     public virtual ValueTask JobsPaused(
-        string? jobGroup,
+        string jobGroup,
         CancellationToken cancellationToken = default)
     {
         return default;
@@ -116,7 +116,7 @@ public abstract class SchedulerListenerSupport : ISchedulerListener
     }
 
     public virtual ValueTask JobsResumed(
-        string? jobGroup,
+        string jobGroup,
         CancellationToken cancellationToken = default)
     {
         return default;

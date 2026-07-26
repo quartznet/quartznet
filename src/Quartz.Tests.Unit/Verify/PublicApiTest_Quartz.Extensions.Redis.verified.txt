@@ -9,7 +9,7 @@ namespace Quartz.Impl.Redis
         public int LockTtlMilliseconds { get; set; }
         public string RedisConfiguration { get; set; }
         public bool RequiresConnection { get; }
-        public string? SchedName { get; set; }
+        public string? SchedulerName { get; set; }
         public string TablePrefix { get; set; }
         public System.Threading.Tasks.ValueTask<bool> ObtainLock(System.Guid requestorId, Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder? conn, string lockName, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask ReleaseLock(System.Guid requestorId, string lockName, System.Threading.CancellationToken cancellationToken = default) { }

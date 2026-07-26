@@ -88,7 +88,7 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
     /// </summary>
     /// <remarks>
     /// Defaults to <c>"quartz:lock:"</c>. The full key format is
-    /// <c>{KeyPrefix}{SchedName}:{lockName}</c>.
+    /// <c>{KeyPrefix}{SchedulerName}:{lockName}</c>.
     /// </remarks>
     public string KeyPrefix { get; set; } = "quartz:lock:";
 
@@ -127,7 +127,7 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
 
     /// <summary>
     /// Table prefix (unused, but required by <see cref="ITablePrefixAware"/>
-    /// so that <see cref="StdSchedulerFactory"/> auto-injects <see cref="SchedName"/>).
+    /// so that <see cref="StdSchedulerFactory"/> auto-injects <see cref="SchedulerName"/>).
     /// </summary>
     public string TablePrefix { get; set; } = "";
 
@@ -138,7 +138,7 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
     /// Auto-injected by <see cref="StdSchedulerFactory"/> when
     /// <see cref="ITablePrefixAware"/> is implemented.
     /// </remarks>
-    public string? SchedName { get; set; }
+    public string? SchedulerName { get; set; }
 
     /// <inheritdoc />
     public bool RequiresConnection => false;
@@ -280,9 +280,9 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
 
     private string BuildKey(string lockName)
     {
-        if (!string.IsNullOrEmpty(SchedName))
+        if (!string.IsNullOrEmpty(SchedulerName))
         {
-            return $"{KeyPrefix}{SchedName}:{lockName}";
+            return $"{KeyPrefix}{SchedulerName}:{lockName}";
         }
 
         return $"{KeyPrefix}{lockName}";

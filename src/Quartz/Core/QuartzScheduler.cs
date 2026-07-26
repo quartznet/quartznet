@@ -448,9 +448,9 @@ public sealed class QuartzScheduler
                 }
             }
 
-            // Deliberately not the caller's token: everything below - the scheduler thread, plugins,
-            // the job store and the shutdown notification - has to run even if the host's shutdown
-            // timeout has already elapsed, and a third-party pool that honoured the token would skip it.
+            // Deliberately not the caller's token: waiting for running jobs must not be abandoned
+            // part-way, because everything after it here still has to run. A third-party pool that
+            // honoured the token would otherwise skip the rest of shutdown.
             await resources.ThreadPool.Shutdown(waitForJobsToComplete, CancellationToken.None).ConfigureAwait(false);
 
             // Scheduler thread may have be waiting for the fire time of an acquired
@@ -1457,10 +1457,10 @@ public sealed class QuartzScheduler
     public ValueTask NotifyJobStoreJobVetoed(
         IOperableTrigger trigger,
         IJobDetail detail,
-        SchedulerInstruction instCode,
+        SchedulerInstruction instructionCode,
         CancellationToken cancellationToken = default)
     {
-        return resources.JobStore.TriggeredJobComplete(trigger, detail, instCode, cancellationToken);
+        return resources.JobStore.TriggeredJobComplete(trigger, detail, instructionCode, cancellationToken);
     }
 
     /// <summary>
@@ -1469,10 +1469,10 @@ public sealed class QuartzScheduler
     public ValueTask NotifyJobStoreJobComplete(
         IOperableTrigger trigger,
         IJobDetail detail,
-        SchedulerInstruction instCode,
+        SchedulerInstruction instructionCode,
         CancellationToken cancellationToken = default)
     {
-        return resources.JobStore.TriggeredJobComplete(trigger, detail, instCode, cancellationToken);
+        return resources.JobStore.TriggeredJobComplete(trigger, detail, instructionCode, cancellationToken);
     }
 
     /// <summary>
@@ -1521,45 +1521,45 @@ public sealed class QuartzScheduler
     /// <summary>
     /// Notifies the trigger listeners about fired trigger.
     /// </summary>
-    /// <param name="jec">The job execution context.</param>
+    /// <param name="context">The job execution context.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>
     /// <see langword="true"/> to vetoe the execution of the triggers; otherwise, <see langword="false"/>.
     /// </returns>
     public ValueTask<bool> NotifyTriggerListenersFired(
-        IJobExecutionContext jec,
+        IJobExecutionContext context,
         CancellationToken cancellationToken = default)
     {
         var listeners = ListenerManager.GetTriggerListeners();
 
         return listeners.Length == 0 ? new ValueTask<bool>(false)
-            : NotifyAwaited(ListenerManager, listeners, jec, cancellationToken);
+            : NotifyAwaited(ListenerManager, listeners, context, cancellationToken);
 
         static async ValueTask<bool> NotifyAwaited(IListenerManager listenerManager,
             ITriggerListener[] listeners,
-            IJobExecutionContext jec,
+            IJobExecutionContext context,
             CancellationToken cancellationToken)
         {
             var vetoedExecution = false;
             foreach (ITriggerListener tl in listeners)
             {
-                if (!MatchTriggerListener(listenerManager, tl, jec.Trigger.Key))
+                if (!MatchTriggerListener(listenerManager, tl, context.Trigger.Key))
                 {
                     continue;
                 }
 
                 try
                 {
-                    await tl.TriggerFired(jec.Trigger, jec, cancellationToken).ConfigureAwait(false);
+                    await tl.TriggerFired(context.Trigger, context, cancellationToken).ConfigureAwait(false);
 
-                    if (await tl.VetoJobExecution(jec.Trigger, jec, cancellationToken).ConfigureAwait(false))
+                    if (await tl.VetoJobExecution(context.Trigger, context, cancellationToken).ConfigureAwait(false))
                     {
                         vetoedExecution = true;
                     }
                 }
                 catch (Exception e)
                 {
-                    throw new JobExecutionProcessException(tl, jec, e);
+                    throw new JobExecutionProcessException(tl, context, e);
                 }
             }
 
@@ -1609,39 +1609,39 @@ public sealed class QuartzScheduler
     /// <summary>
     /// Notifies the trigger listeners of completion.
     /// </summary>
-    /// <param name="jec">The job execution context.</param>
-    /// <param name="instCode">The instruction code to report to triggers.</param>
+    /// <param name="context">The job execution context.</param>
+    /// <param name="instructionCode">The instruction code to report to triggers.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     public ValueTask NotifyTriggerListenersComplete(
-        IJobExecutionContext jec,
-        SchedulerInstruction instCode,
+        IJobExecutionContext context,
+        SchedulerInstruction instructionCode,
         CancellationToken cancellationToken = default)
     {
         var listeners = ListenerManager.GetTriggerListeners();
 
         return listeners.Length == 0 ? default
-            : NotifyAwaited(ListenerManager, listeners, jec, instCode, cancellationToken);
+            : NotifyAwaited(ListenerManager, listeners, context, instructionCode, cancellationToken);
 
         static async ValueTask NotifyAwaited(IListenerManager listenerManager,
             ITriggerListener[] listeners,
-            IJobExecutionContext jec,
-            SchedulerInstruction instCode,
+            IJobExecutionContext context,
+            SchedulerInstruction instructionCode,
             CancellationToken cancellationToken)
         {
             foreach (var tl in listeners)
             {
-                if (!MatchTriggerListener(listenerManager, tl, jec.Trigger.Key))
+                if (!MatchTriggerListener(listenerManager, tl, context.Trigger.Key))
                 {
                     continue;
                 }
 
                 try
                 {
-                    await tl.TriggerComplete(jec.Trigger, jec, instCode, cancellationToken).ConfigureAwait(false);
+                    await tl.TriggerComplete(context.Trigger, context, instructionCode, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
-                    throw new JobExecutionProcessException(tl, jec, e);
+                    throw new JobExecutionProcessException(tl, context, e);
                 }
             }
         }
@@ -1650,14 +1650,14 @@ public sealed class QuartzScheduler
     /// <summary>
     /// Notifies the job listeners about job to be executed.
     /// </summary>
-    /// <param name="jec">The jec.</param>
+    /// <param name="context">The context.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     public ValueTask NotifyJobListenersToBeExecuted(
-        IJobExecutionContext jec,
+        IJobExecutionContext context,
         CancellationToken cancellationToken = default)
     {
-        return NotifyJobListeners(static (jl, jec, je, cancellationToken) => jl.JobToBeExecuted(jec, cancellationToken),
-            jec,
+        return NotifyJobListeners(static (jl, context, jobExecutionException, cancellationToken) => jl.JobToBeExecuted(context, cancellationToken),
+            context,
             null,
             cancellationToken);
     }
@@ -1665,14 +1665,14 @@ public sealed class QuartzScheduler
     /// <summary>
     /// Notifies the job listeners that job execution was vetoed.
     /// </summary>
-    /// <param name="jec">The job execution context.</param>
+    /// <param name="context">The job execution context.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     public ValueTask NotifyJobListenersWasVetoed(
-        IJobExecutionContext jec,
+        IJobExecutionContext context,
         CancellationToken cancellationToken = default)
     {
-        return NotifyJobListeners(static (jl, jec, je, cancellationToken) => jl.JobExecutionVetoed(jec, cancellationToken),
-            jec,
+        return NotifyJobListeners(static (jl, context, jobExecutionException, cancellationToken) => jl.JobExecutionVetoed(context, cancellationToken),
+            context,
             null,
             cancellationToken);
     }
@@ -1680,78 +1680,78 @@ public sealed class QuartzScheduler
     /// <summary>
     /// Notifies the job listeners that job was executed.
     /// </summary>
-    /// <param name="jec">The jec.</param>
-    /// <param name="je">The je.</param>
+    /// <param name="context">The context.</param>
+    /// <param name="jobExecutionException">The jobExecutionException.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     public ValueTask NotifyJobListenersWasExecuted(
-        IJobExecutionContext jec,
-        JobExecutionException? je,
+        IJobExecutionContext context,
+        JobExecutionException? jobExecutionException,
         CancellationToken cancellationToken = default)
     {
-        return NotifyJobListeners(static (jl, jec, je, cancellationToken) => jl.JobWasExecuted(jec, je, cancellationToken),
-            jec,
-            je,
+        return NotifyJobListeners(static (jl, context, jobExecutionException, cancellationToken) => jl.JobWasExecuted(context, jobExecutionException, cancellationToken),
+            context,
+            jobExecutionException,
             cancellationToken);
     }
 
     // optimized version to reduce state machine creations
     private ValueTask NotifyJobListeners(
         Func<IJobListener, IJobExecutionContext, JobExecutionException?, CancellationToken, ValueTask> notifyAction,
-        IJobExecutionContext jec,
-        JobExecutionException? je,
+        IJobExecutionContext context,
+        JobExecutionException? jobExecutionException,
         CancellationToken cancellationToken)
     {
         var listeners = ListenerManager.GetJobListeners();
         if (listeners.Length == 0)
         {
-            return NotifyExecutingJobManager(notifyAction, jec, je, cancellationToken, jobMgr);
+            return NotifyExecutingJobManager(notifyAction, context, jobExecutionException, cancellationToken, jobMgr);
         }
 
-        return NotifyAllJobListeners(ListenerManager, jobMgr, listeners, notifyAction, jec, je, cancellationToken);
+        return NotifyAllJobListeners(ListenerManager, jobMgr, listeners, notifyAction, context, jobExecutionException, cancellationToken);
 
         static ValueTask NotifyExecutingJobManager(Func<IJobListener, IJobExecutionContext, JobExecutionException?, CancellationToken, ValueTask> notifyAction,
-            IJobExecutionContext jec,
-            JobExecutionException? je,
+            IJobExecutionContext context,
+            JobExecutionException? jobExecutionException,
             CancellationToken cancellationToken,
             ExecutingJobsManager jobsManager)
         {
-            var task = notifyAction(jobsManager, jec, je, cancellationToken);
-            return task.IsCompletedSuccessfully ? default : NotifySingle(task, jobsManager, jec);
+            var task = notifyAction(jobsManager, context, jobExecutionException, cancellationToken);
+            return task.IsCompletedSuccessfully ? default : NotifySingle(task, jobsManager, context);
         }
 
         static ValueTask NotifyAllJobListeners(IListenerManager listenerManager,
             ExecutingJobsManager jobManager,
             IJobListener[] listeners,
             Func<IJobListener, IJobExecutionContext, JobExecutionException?, CancellationToken, ValueTask> notifyAction,
-            IJobExecutionContext jec,
-            JobExecutionException? je,
+            IJobExecutionContext context,
+            JobExecutionException? jobExecutionException,
             CancellationToken cancellationToken)
         {
-            return NotifyAwaited(listenerManager, jobManager, listeners, notifyAction, jec, je, cancellationToken);
+            return NotifyAwaited(listenerManager, jobManager, listeners, notifyAction, context, jobExecutionException, cancellationToken);
         }
 
         static async ValueTask NotifyAwaited(IListenerManager listenerManager,
             ExecutingJobsManager jobManager,
             IJobListener[] listeners,
             Func<IJobListener, IJobExecutionContext, JobExecutionException?, CancellationToken, ValueTask> notifyAction,
-            IJobExecutionContext jec,
-            JobExecutionException? je,
+            IJobExecutionContext context,
+            JobExecutionException? jobExecutionException,
             CancellationToken cancellationToken)
         {
-            await NotifySingle(notifyAction(jobManager, jec, je, cancellationToken), jobManager, jec).ConfigureAwait(false);
+            await NotifySingle(notifyAction(jobManager, context, jobExecutionException, cancellationToken), jobManager, context).ConfigureAwait(false);
 
             foreach (var jl in listeners)
             {
-                if (!MatchJobListener(listenerManager, jl, jec.JobDetail.Key))
+                if (!MatchJobListener(listenerManager, jl, context.JobDetail.Key))
                 {
                     continue;
                 }
 
-                await NotifySingle(notifyAction(jl, jec, je, cancellationToken), jl, jec).ConfigureAwait(false);
+                await NotifySingle(notifyAction(jl, context, jobExecutionException, cancellationToken), jl, context).ConfigureAwait(false);
             }
         }
 
-        static async ValueTask NotifySingle(ValueTask t, IJobListener jl, IJobExecutionContext jec)
+        static async ValueTask NotifySingle(ValueTask t, IJobListener jl, IJobExecutionContext context)
         {
             try
             {
@@ -1759,7 +1759,7 @@ public sealed class QuartzScheduler
             }
             catch (Exception e)
             {
-                throw new JobExecutionProcessException(jl, jec, e);
+                throw new JobExecutionProcessException(jl, context, e);
             }
         }
     }

@@ -45,8 +45,8 @@ public class ObjectUtilsTest
     [Test]
     public void TimeSpanConversionShouldWork()
     {
-        TimeSpan ts = (TimeSpan) ObjectUtils.ConvertValueIfNecessary(typeof(TimeSpan), "1");
-        Assert.That(ts.TotalDays, Is.EqualTo(1));
+        TimeSpan timeSpan = (TimeSpan) ObjectUtils.ConvertValueIfNecessary(typeof(TimeSpan), "1");
+        Assert.That(timeSpan.TotalDays, Is.EqualTo(1));
     }
 
     [Test]

@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -2122,7 +2122,7 @@ public class RAMJobStore : IJobStore
     /// in the given <see cref="IJobDetail" /> should be updated if the <see cref="IJob" />
     /// is stateful.
     /// </summary>
-    public virtual async ValueTask TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction triggerInstCode, CancellationToken cancellationToken = default)
+    public virtual async ValueTask TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -2179,7 +2179,7 @@ public class RAMJobStore : IJobStore
             // check for trigger deleted during execution...
             if (triggersByKey.TryGetValue(trigger.Key, out var tw))
             {
-                if (triggerInstCode == SchedulerInstruction.DeleteTrigger)
+                if (triggerInstructionCode == SchedulerInstruction.DeleteTrigger)
                 {
                     logger.LogDebug("Deleting trigger");
                     DateTimeOffset? d = trigger.NextFireTimeUtc;
@@ -2203,25 +2203,25 @@ public class RAMJobStore : IJobStore
                         await signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc: null, cancellationToken).ConfigureAwait(false);
                     }
                 }
-                else if (triggerInstCode == SchedulerInstruction.SetTriggerComplete)
+                else if (triggerInstructionCode == SchedulerInstruction.SetTriggerComplete)
                 {
                     tw.state = InternalTriggerState.Complete;
                     timeTriggers.Remove(tw);
                     await signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc: null, cancellationToken).ConfigureAwait(false);
                 }
-                else if (triggerInstCode == SchedulerInstruction.SetTriggerError)
+                else if (triggerInstructionCode == SchedulerInstruction.SetTriggerError)
                 {
                     logger.LogInformation("Trigger {TriggerKey} set to ERROR state.", trigger.Key);
                     tw.state = InternalTriggerState.Error;
                     await signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc: null, cancellationToken).ConfigureAwait(false);
                 }
-                else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersError)
+                else if (triggerInstructionCode == SchedulerInstruction.SetAllJobTriggersError)
                 {
                     logger.LogInformation("All triggers of Job {JobKey} set to ERROR state.", trigger.JobKey);
                     SetAllTriggersOfJobToState(trigger.JobKey, InternalTriggerState.Error);
                     await signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc: null, cancellationToken).ConfigureAwait(false);
                 }
-                else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersComplete)
+                else if (triggerInstructionCode == SchedulerInstruction.SetAllJobTriggersComplete)
                 {
                     SetAllTriggersOfJobToState(trigger.JobKey, InternalTriggerState.Complete);
                     await signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc: null, cancellationToken).ConfigureAwait(false);

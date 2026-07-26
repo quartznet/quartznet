@@ -528,7 +528,10 @@ internal sealed class QuartzSchedulerThread
                                 }
                             };
 
-                            var threadPoolRunResult = await qsRsrcs.ThreadPool.TryRun(jobRunner, cancellationTokenSource.Token).ConfigureAwait(false);
+                            // Deliberately not this thread's token: TriggersFired has already committed
+                            // this firing to the job store and advanced the trigger, so refusing to dispatch
+                            // now loses the occurrence entirely. Only the pool's own shutdown may say no.
+                            var threadPoolRunResult = await qsRsrcs.ThreadPool.TryRun(jobRunner, CancellationToken.None).ConfigureAwait(false);
                             if (!threadPoolRunResult)
                             {
                                 // The lambda never ran - decrement the count we pre-incremented
@@ -540,14 +543,14 @@ internal sealed class QuartzSchedulerThread
                                     // Scheduler is shutting down, complete the trigger gracefully
                                     // Use TriggeredJobComplete to properly unblock other triggers
                                     // for DisallowConcurrentExecution jobs (TriggersFired already ran)
-                                    logger.LogDebug("ThreadPool.RunInThread() returned false due to scheduler shutdown, completing trigger");
+                                    logger.LogDebug("ThreadPool.TryRun() returned false due to scheduler shutdown, completing trigger");
                                     await qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.NoInstruction, CancellationToken.None).ConfigureAwait(false);
                                 }
                                 else
                                 {
                                     // this case should never happen, as it is indicative of a bug in the thread pool or
                                     // a thread pool being used concurrently - which the docs say not to do...
-                                    logger.LogError("ThreadPool.RunInThread() returned false");
+                                    logger.LogError("ThreadPool.TryRun() returned false");
                                     await qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError, CancellationToken.None).ConfigureAwait(false);
                                 }
                             }

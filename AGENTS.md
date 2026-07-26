@@ -162,7 +162,6 @@ fallback in `SimpleTypeLoadHelper`, with a warning.
 | `IInstanceIdGenerator` → `ValueTask<string?>` | `ValueTask<string>` |
 | `IRemotableSchedulerProxyFactory` | `ISchedulerProxyFactory` |
 | `ISchedulerListener.SchedulerShuttingdown` | `SchedulerShuttingDown` |
-| `ISchedulerListener` (no `Name`) | has `Name`; `SchedulerListenerSupport` defaults it to the type name |
 | `IListenerManager.GetSchedulerListeners()` → `IReadOnlyCollection<T>` | `ISchedulerListener[]` |
 | `IJobStore.EstimatedTimeToReleaseAndAcquireTrigger` (`long` ms) | `TimeSpan` |
 | two `IJobStore.AcquireNextTriggers` overloads | one, with optional `executionLimits` |

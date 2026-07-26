@@ -52,7 +52,7 @@ internal class JobRunShell : SchedulerListenerSupport
 {
     private readonly ILogger<JobRunShell> logger;
 
-    private JobExecutionContextImpl? jec;
+    private JobExecutionContextImpl? context;
     private QuartzScheduler? qs;
     private readonly IScheduler scheduler;
     private readonly TriggerFiredBundle firedTriggerBundle;
@@ -148,7 +148,7 @@ internal class JobRunShell : SchedulerListenerSupport
         {
             try
             {
-                jec = new JobExecutionContextImpl(scheduler, firedTriggerBundle, jobScope.Job);
+                context = new JobExecutionContextImpl(scheduler, firedTriggerBundle, jobScope.Job);
             }
             catch (Exception e)
             {
@@ -158,7 +158,7 @@ internal class JobRunShell : SchedulerListenerSupport
 
             qs!.AddInternalSchedulerListener(this);
 
-            IOperableTrigger trigger = (IOperableTrigger) jec!.Trigger;
+            IOperableTrigger trigger = (IOperableTrigger) context!.Trigger;
             do
             {
                 JobExecutionException? jobExEx = null;
@@ -169,17 +169,17 @@ internal class JobRunShell : SchedulerListenerSupport
                 }
                 catch (SchedulerException se)
                 {
-                    string msg = $"Error executing Job {jec.JobDetail.Key}: couldn't begin execution.";
+                    string msg = $"Error executing Job {context.JobDetail.Key}: couldn't begin execution.";
                     await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
                     await qs.NotifyJobStoreJobComplete(trigger, jobDetail, SchedulerInstruction.NoInstruction, cancellationToken).ConfigureAwait(false);
                     break;
                 }
 
                 // notify job & trigger listeners...
-                SchedulerInstruction instCode;
+                SchedulerInstruction instructionCode;
                 try
                 {
-                    if (!await NotifyListenersBeginning(jec, cancellationToken).ConfigureAwait(false))
+                    if (!await NotifyListenersBeginning(context, cancellationToken).ConfigureAwait(false))
                     {
                         await qs.NotifyJobStoreJobComplete(trigger, jobDetail, SchedulerInstruction.NoInstruction, cancellationToken).ConfigureAwait(false);
                         break;
@@ -189,19 +189,19 @@ internal class JobRunShell : SchedulerListenerSupport
                 {
                     try
                     {
-                        instCode = trigger.ExecutionComplete(jec, result: null);
-                        await qs.NotifyJobStoreJobVetoed(trigger, jobDetail, instCode, cancellationToken).ConfigureAwait(false);
+                        instructionCode = trigger.ExecutionComplete(context, result: null);
+                        await qs.NotifyJobStoreJobVetoed(trigger, jobDetail, instructionCode, cancellationToken).ConfigureAwait(false);
 
                         // Even if trigger got vetoed, we still needs to check to see if it's the trigger's finalized run or not.
                         if (!trigger.GetMayFireAgain())
                         {
-                            await qs.NotifySchedulerListenersFinalized(jec.Trigger, cancellationToken).ConfigureAwait(false);
+                            await qs.NotifySchedulerListenersFinalized(context.Trigger, cancellationToken).ConfigureAwait(false);
                         }
                         Complete(successfulExecution: true);
                     }
                     catch (SchedulerException se)
                     {
-                        string msg = $"Error during veto of Job {jec.JobDetail.Key}: couldn't finalize execution.";
+                        string msg = $"Error during veto of Job {context.JobDetail.Key}: couldn't finalize execution.";
                         await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
                     }
                     break;
@@ -216,17 +216,17 @@ internal class JobRunShell : SchedulerListenerSupport
                 long startTimestamp = timeProvider.GetTimestamp();
                 long endTimestamp;
 
-                StartedActivity activity = QuartzActivitySource.StartJobExecute(jec, timeProvider.GetUtcNow());
-                Instrumentation instrumentation = Meters.StartJobExecute(jec);
+                StartedActivity activity = QuartzActivitySource.StartJobExecute(context, timeProvider.GetUtcNow());
+                Instrumentation instrumentation = Meters.StartJobExecute(context);
 
 
                 // Execute the job
                 try
                 {
-                    await jobScope.Job.Execute(jec, jec.CancellationToken).ConfigureAwait(false);
+                    await jobScope.Job.Execute(context, context.CancellationToken).ConfigureAwait(false);
                     endTimestamp = timeProvider.GetTimestamp();
                 }
-                catch (OperationCanceledException) when (jec.CancellationToken.IsCancellationRequested)
+                catch (OperationCanceledException) when (context.CancellationToken.IsCancellationRequested)
                 {
                     endTimestamp = timeProvider.GetTimestamp();
                     logger.LogInformation("Job {JobDetailKey} was cancelled", jobDetail.Key);
@@ -242,27 +242,27 @@ internal class JobRunShell : SchedulerListenerSupport
                 {
                     endTimestamp = timeProvider.GetTimestamp();
                     logger.LogError(e, "Job {JobDetailKey} threw an unhandled Exception: ", jobDetail.Key);
-                    SchedulerException se = new JobExecutionProcessException(jec, e);
-                    await qs.NotifySchedulerListenersError($"Job {jec.JobDetail.Key} threw an exception.", se, cancellationToken).ConfigureAwait(false);
+                    SchedulerException se = new JobExecutionProcessException(context, e);
+                    await qs.NotifySchedulerListenersError($"Job {context.JobDetail.Key} threw an exception.", se, cancellationToken).ConfigureAwait(false);
                     jobExEx = new JobExecutionException(se, refireImmediately: false);
                     jobExEx.JobDetail = jobDetail;
                 }
 
-                jec.JobRunTime = timeProvider.GetElapsedTime(startTimestamp, endTimestamp);
+                context.JobRunTime = timeProvider.GetElapsedTime(startTimestamp, endTimestamp);
 
                 activity.Stop(timeProvider.GetUtcNow(), jobExEx);
-                instrumentation.EndJobExecute(jec.JobRunTime, jobExEx);
+                instrumentation.EndJobExecute(context.JobRunTime, jobExEx);
 
-                instCode = SchedulerInstruction.NoInstruction;
+                instructionCode = SchedulerInstruction.NoInstruction;
 
                 // update the trigger — must happen before listener notifications
                 // so we know whether to refire (and skip notifications) or complete
                 try
                 {
-                    instCode = trigger.ExecutionComplete(jec, jobExEx);
+                    instructionCode = trigger.ExecutionComplete(context, jobExEx);
                     if (logger.IsEnabled(LogLevel.Debug))
                     {
-                        logger.LogDebug("Trigger instruction : {InstCode}", instCode);
+                        logger.LogDebug("Trigger instruction : {InstCode}", instructionCode);
                     }
                 }
                 catch (Exception e)
@@ -274,33 +274,33 @@ internal class JobRunShell : SchedulerListenerSupport
 
                 // re-Execute job — skip listener notifications so that listeners like
                 // JobChainingJobListener don't see intermediate refire attempts as completions (#663)
-                if (instCode == SchedulerInstruction.ReExecuteJob)
+                if (instructionCode == SchedulerInstruction.ReExecuteJob)
                 {
                     if (logger.IsEnabled(LogLevel.Debug))
                     {
                         logger.LogDebug("Rescheduling trigger to reexecute");
                     }
-                    jec.IncrementRefireCount();
+                    context.IncrementRefireCount();
                     try
                     {
                         Complete(successfulExecution: false);
                     }
                     catch (SchedulerException se)
                     {
-                        await qs.NotifySchedulerListenersError($"Error executing Job {jec.JobDetail.Key}: couldn't finalize execution.", se, cancellationToken).ConfigureAwait(false);
+                        await qs.NotifySchedulerListenersError($"Error executing Job {context.JobDetail.Key}: couldn't finalize execution.", se, cancellationToken).ConfigureAwait(false);
                     }
                     continue;
                 }
 
                 // notify all job listeners
-                if (!await NotifyJobListenersComplete(qs, jec, jobExEx, cancellationToken).ConfigureAwait(false))
+                if (!await NotifyJobListenersComplete(qs, context, jobExEx, cancellationToken).ConfigureAwait(false))
                 {
-                    await qs.NotifyJobStoreJobComplete(trigger, jobDetail, instCode, cancellationToken).ConfigureAwait(false);
+                    await qs.NotifyJobStoreJobComplete(trigger, jobDetail, instructionCode, cancellationToken).ConfigureAwait(false);
                     break;
                 }
 
                 // notify all trigger listeners
-                if (!await NotifyTriggerListenersComplete(qs, jec, instCode, cancellationToken).ConfigureAwait(false))
+                if (!await NotifyTriggerListenersComplete(qs, context, instructionCode, cancellationToken).ConfigureAwait(false))
                 {
                     // Ensure finalized notification is still sent when the trigger has no next fire time,
                     // even if trigger listener notification failed.
@@ -308,7 +308,7 @@ internal class JobRunShell : SchedulerListenerSupport
                     {
                         if (!trigger.GetMayFireAgain())
                         {
-                            await qs.NotifySchedulerListenersFinalized(jec.Trigger, cancellationToken).ConfigureAwait(false);
+                            await qs.NotifySchedulerListenersFinalized(context.Trigger, cancellationToken).ConfigureAwait(false);
                         }
                     }
                     catch (Exception e)
@@ -317,7 +317,7 @@ internal class JobRunShell : SchedulerListenerSupport
                         await qs.NotifySchedulerListenersError("Error notifying scheduler listeners of finalized trigger.", se2, cancellationToken).ConfigureAwait(false);
                     }
 
-                    await qs.NotifyJobStoreJobComplete(trigger, jobDetail, instCode, cancellationToken).ConfigureAwait(false);
+                    await qs.NotifyJobStoreJobComplete(trigger, jobDetail, instructionCode, cancellationToken).ConfigureAwait(false);
                     break;
                 }
 
@@ -327,11 +327,11 @@ internal class JobRunShell : SchedulerListenerSupport
                 }
                 catch (SchedulerException se)
                 {
-                    await qs.NotifySchedulerListenersError($"Error executing Job {jec.JobDetail.Key}: couldn't finalize execution.", se, cancellationToken).ConfigureAwait(false);
+                    await qs.NotifySchedulerListenersError($"Error executing Job {context.JobDetail.Key}: couldn't finalize execution.", se, cancellationToken).ConfigureAwait(false);
                     continue;
                 }
 
-                await qs.NotifyJobStoreJobComplete(trigger, jobDetail, instCode, cancellationToken).ConfigureAwait(false);
+                await qs.NotifyJobStoreJobComplete(trigger, jobDetail, instructionCode, cancellationToken).ConfigureAwait(false);
 
                 break;
             } while (true);
@@ -355,7 +355,7 @@ internal class JobRunShell : SchedulerListenerSupport
             }
             finally
             {
-                jec?.Dispose();
+                context?.Dispose();
             }
         }
 
@@ -392,7 +392,7 @@ internal class JobRunShell : SchedulerListenerSupport
     /// </summary>
     public virtual void Passivate()
     {
-        jec = null;
+        context = null;
         qs = null;
     }
 
@@ -469,7 +469,7 @@ internal class JobRunShell : SchedulerListenerSupport
 
     private static ValueTask<bool> NotifyTriggerListenersComplete(QuartzScheduler qs,
         JobExecutionContextImpl ctx,
-        SchedulerInstruction instCode,
+        SchedulerInstruction instructionCode,
         CancellationToken cancellationToken = default)
     {
         // check if we can do quick path
@@ -477,7 +477,7 @@ internal class JobRunShell : SchedulerListenerSupport
         {
             try
             {
-                var task = qs.NotifyTriggerListenersComplete(ctx, instCode, cancellationToken);
+                var task = qs.NotifyTriggerListenersComplete(ctx, instructionCode, cancellationToken);
                 return task.IsCompletedSuccessfully ? new ValueTask<bool>(true) : DoNotify(task, qs, ctx, cancellationToken);
             }
             catch (SchedulerException se)
@@ -486,14 +486,14 @@ internal class JobRunShell : SchedulerListenerSupport
             }
         }
 
-        return NotifyAwaited(qs, ctx, instCode, cancellationToken);
+        return NotifyAwaited(qs, ctx, instructionCode, cancellationToken);
 
         static async ValueTask<bool> NotifyAwaited(QuartzScheduler qs,
             JobExecutionContextImpl ctx,
-            SchedulerInstruction instCode,
+            SchedulerInstruction instructionCode,
             CancellationToken cancellationToken)
         {
-            await DoNotify(qs.NotifyTriggerListenersComplete(ctx, instCode, cancellationToken), qs, ctx, cancellationToken).ConfigureAwait(false);
+            await DoNotify(qs.NotifyTriggerListenersComplete(ctx, instructionCode, cancellationToken), qs, ctx, cancellationToken).ConfigureAwait(false);
             await qs.NotifySchedulerListenersFinalized(ctx.Trigger, cancellationToken).ConfigureAwait(false);
 
             return true;

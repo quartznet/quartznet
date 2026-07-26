@@ -162,7 +162,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
 
     public ValueTask JobInterrupted(JobKey jobKey, CancellationToken cancellationToken = default) => default;
 
-    public ValueTask JobsPaused(string? jobGroup, CancellationToken cancellationToken = default) => default;
+    public ValueTask JobsPaused(string jobGroup, CancellationToken cancellationToken = default) => default;
 
     public ValueTask JobResumed(JobKey jobKey, CancellationToken cancellationToken = default)
     {
@@ -170,7 +170,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
         return BroadcastToScheduler(schedulerName, client => client.JobResumed(payload));
     }
 
-    public ValueTask JobsResumed(string? jobGroup, CancellationToken cancellationToken = default) => default;
+    public ValueTask JobsResumed(string jobGroup, CancellationToken cancellationToken = default) => default;
 
     public ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default)
     {

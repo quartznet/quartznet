@@ -46,7 +46,7 @@ internal record CurrentlyExecutingJobDto(
             jobIsRecovering: Recovering,
             fireTimeUtc: FireTime,
             scheduledFireTimeUtc: ScheduledFireTime,
-            prevFireTimeUtc: PreviousFireTime,
+            previousFireTimeUtc: PreviousFireTime,
             nextFireTimeUtc: NextFireTime
         );
 

@@ -111,9 +111,9 @@ public class InterruptableJobTest
 
         Assert.That(executingJobs, Has.Count.EqualTo(1), "Number of executing jobs should be 1 ");
 
-        IJobExecutionContext jec = executingJobs.First();
+        IJobExecutionContext context = executingJobs.First();
 
-        bool interruptResult = await scheduler.Interrupt(jec.FireInstanceId);
+        bool interruptResult = await scheduler.Interrupt(context.FireInstanceId);
 
         ended.WaitOne(); // wait for the job to terminate
 

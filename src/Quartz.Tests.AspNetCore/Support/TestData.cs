@@ -199,7 +199,7 @@ public static class TestData
                 jobIsRecovering: false,
                 fireTimeUtc: DateTimeOffset.Now.AddSeconds(-1),
                 scheduledFireTimeUtc: DateTimeOffset.Now.AddSeconds(-1),
-                prevFireTimeUtc: DateTimeOffset.Now.AddMinutes(-10),
+                previousFireTimeUtc: DateTimeOffset.Now.AddMinutes(-10),
                 nextFireTimeUtc: DateTimeOffset.Now.AddMinutes(10)
             ),
             job: new DummyJob()
@@ -214,7 +214,7 @@ public static class TestData
                 jobIsRecovering: true,
                 fireTimeUtc: DateTimeOffset.Now.AddSeconds(-5),
                 scheduledFireTimeUtc: null,
-                prevFireTimeUtc: null,
+                previousFireTimeUtc: null,
                 nextFireTimeUtc: null
             ),
             job: new DummyJob()

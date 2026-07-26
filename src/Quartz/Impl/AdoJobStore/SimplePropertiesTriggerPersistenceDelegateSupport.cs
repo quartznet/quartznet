@@ -89,7 +89,7 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateSupport : ITrigg
     {
         TablePrefix = tablePrefix;
         DbAccessor = dbAccessor;
-        SchedName = schedulerName;
+        SchedulerName = schedulerName;
     }
 
     /// <summary>
@@ -108,7 +108,7 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateSupport : ITrigg
 
     protected string TablePrefix { get; private set; } = null!;
 
-    protected string SchedName { get; private set; } = null!;
+    protected string SchedulerName { get; private set; } = null!;
 
     protected IDbAccessor DbAccessor { get; private set; } = null!;
 
@@ -118,7 +118,7 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateSupport : ITrigg
         CancellationToken cancellationToken = default)
     {
         using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(DeleteSimplePropsTrigger, TablePrefix));
-        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
+        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
         DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
         DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
@@ -135,7 +135,7 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateSupport : ITrigg
         SimplePropertiesTriggerProperties properties = GetTriggerProperties(trigger);
 
         using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(InsertSimplePropsTrigger, TablePrefix));
-        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
+        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
         DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
         DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
 
@@ -161,7 +161,7 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateSupport : ITrigg
         CancellationToken cancellationToken = default)
     {
         using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(SelectSimplePropsTrigger, TablePrefix));
-        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
+        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
         DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
         DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
@@ -205,7 +205,7 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateSupport : ITrigg
         SimplePropertiesTriggerProperties properties = GetTriggerProperties(trigger);
 
         using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(UpdateSimplePropsTrigger, TablePrefix));
-        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
+        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
         DbAccessor.AddCommandParameter(cmd, "string1", properties.String1);
         DbAccessor.AddCommandParameter(cmd, "string2", properties.String2);
         DbAccessor.AddCommandParameter(cmd, "string3", properties.String3);

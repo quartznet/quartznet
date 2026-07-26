@@ -15,7 +15,8 @@ namespace Quartz.Impl;
 /// <author>Marko Lahma</author>
 public class NewtonsoftJsonObjectSerializer : IObjectSerializer
 {
-    private JsonSerializer? serializer;
+    private readonly Lock serializerLock = new();
+    private volatile JsonSerializer? serializer;
     private bool registerTriggerConverters;
 
     /// <summary>
@@ -45,7 +46,22 @@ public class NewtonsoftJsonObjectSerializer : IObjectSerializer
     /// The serializer this instance reads and writes with, built on first use so that
     /// <see cref="CreateSerializerSettings" /> is not called from the constructor.
     /// </summary>
-    private JsonSerializer Serializer => serializer ??= JsonSerializer.Create(CreateSerializerSettings());
+    private JsonSerializer Serializer
+    {
+        get
+        {
+            var current = serializer;
+            if (current is not null)
+            {
+                return current;
+            }
+
+            lock (serializerLock)
+            {
+                return serializer ??= JsonSerializer.Create(CreateSerializerSettings());
+            }
+        }
+    }
 
     /// <summary>
     /// Whether trigger converters are registered with the underlying serializer.
@@ -59,8 +75,11 @@ public class NewtonsoftJsonObjectSerializer : IObjectSerializer
         get => registerTriggerConverters;
         set
         {
-            registerTriggerConverters = value;
-            serializer = null;
+            lock (serializerLock)
+            {
+                registerTriggerConverters = value;
+                serializer = null;
+            }
         }
     }
 

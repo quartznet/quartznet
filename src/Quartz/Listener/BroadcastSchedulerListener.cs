@@ -130,7 +130,7 @@ public sealed class BroadcastSchedulerListener : ISchedulerListener
         return IterateListenersInGuard(l => l.JobInterrupted(jobKey, cancellationToken), nameof(JobInterrupted));
     }
 
-    public ValueTask JobsPaused(string? jobGroup, CancellationToken cancellationToken = default)
+    public ValueTask JobsPaused(string jobGroup, CancellationToken cancellationToken = default)
     {
         return IterateListenersInGuard(l => l.JobsPaused(jobGroup, cancellationToken), nameof(JobsPaused));
     }
@@ -140,7 +140,7 @@ public sealed class BroadcastSchedulerListener : ISchedulerListener
         return IterateListenersInGuard(l => l.JobPaused(jobKey, cancellationToken), nameof(JobPaused));
     }
 
-    public ValueTask JobsResumed(string? jobGroup, CancellationToken cancellationToken = default)
+    public ValueTask JobsResumed(string jobGroup, CancellationToken cancellationToken = default)
     {
         return IterateListenersInGuard(l => l.JobsResumed(jobGroup, cancellationToken), nameof(JobsResumed));
     }

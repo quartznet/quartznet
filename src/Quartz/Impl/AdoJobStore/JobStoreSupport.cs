@@ -606,7 +606,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             if (LockHandler is ITablePrefixAware tablePrefixAware)
             {
                 tablePrefixAware.TablePrefix = TablePrefix;
-                tablePrefixAware.SchedName = InstanceName;
+                tablePrefixAware.SchedulerName = InstanceName;
             }
 
             // be ready to give a friendly warning if SQL Server is used and sub-optimal locking
@@ -3702,13 +3702,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// in the given <see cref="IJobDetail" /> should be updated if the <see cref="IJob" />
     /// is stateful.
     /// </summary>
-    public virtual async ValueTask TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction triggerInstCode, CancellationToken cancellationToken = default)
+    public virtual async ValueTask TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default)
     {
         await activityTracer.Trace(
             OperationName.JobStore.TriggeredJobComplete,
             () => RetryExecuteInNonManagedTXLock(
                 LockTriggerAccess,
-                conn => TriggeredJobComplete(conn, trigger, jobDetail, triggerInstCode, cancellationToken),
+                conn => TriggeredJobComplete(conn, trigger, jobDetail, triggerInstructionCode, cancellationToken),
                 cancellationToken),
             activity =>
             {
@@ -3723,12 +3723,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
         IJobDetail jobDetail,
-        SchedulerInstruction triggerInstCode,
+        SchedulerInstruction triggerInstructionCode,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            if (triggerInstCode == SchedulerInstruction.DeleteTrigger)
+            if (triggerInstructionCode == SchedulerInstruction.DeleteTrigger)
             {
                 if (!trigger.NextFireTimeUtc.HasValue)
                 {
@@ -3746,23 +3746,23 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                     conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
                 }
             }
-            else if (triggerInstCode == SchedulerInstruction.SetTriggerComplete)
+            else if (triggerInstructionCode == SchedulerInstruction.SetTriggerComplete)
             {
                 await Delegate.UpdateTriggerState(conn, trigger.Key, StateComplete, cancellationToken).ConfigureAwait(false);
                 conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
             }
-            else if (triggerInstCode == SchedulerInstruction.SetTriggerError)
+            else if (triggerInstructionCode == SchedulerInstruction.SetTriggerError)
             {
                 Logger.LogInformation("Trigger {Trigger} set to ERROR state.", trigger.Key);
                 await Delegate.UpdateTriggerState(conn, trigger.Key, StateError, cancellationToken).ConfigureAwait(false);
                 conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
             }
-            else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersComplete)
+            else if (triggerInstructionCode == SchedulerInstruction.SetAllJobTriggersComplete)
             {
                 await Delegate.UpdateTriggerStatesForJob(conn, trigger.JobKey, StateComplete, cancellationToken).ConfigureAwait(false);
                 conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
             }
-            else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersError)
+            else if (triggerInstructionCode == SchedulerInstruction.SetAllJobTriggersError)
             {
                 Logger.LogInformation("All triggers of Job {Job} set to ERROR state.", trigger.JobKey);
                 await Delegate.UpdateTriggerStatesForJob(conn, trigger.JobKey, StateError, cancellationToken).ConfigureAwait(false);

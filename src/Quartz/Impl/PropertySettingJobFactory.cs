@@ -209,9 +209,16 @@ public class PropertySettingJobFactory : SimpleJobFactory
     /// </summary>
     /// <remarks>
     /// This is the extension point for derived factories that need to change how the job is built —
-    /// resolving it from a container, for example. It is asynchronous so that such a factory can do
-    /// real work here without having to override <see cref="CreateJob" /> and reimplement the
-    /// property setting this class exists to provide.
+    /// resolving it from a container, for example — without overriding <see cref="CreateJob" /> and
+    /// reimplementing the property setting this class exists to provide.
+    /// <para>
+    /// It returns a <see cref="ValueTask{TResult}" /> so an override <i>can</i> await, but prefer to
+    /// keep the synchronous path synchronous: an <c>async</c> override puts the work inside a state
+    /// machine, which restores the caller's <see cref="System.Threading.ExecutionContext" /> when its
+    /// synchronous part returns and so discards any <see cref="System.Threading.AsyncLocal{T}" /> the
+    /// override set. Ambient context established here has to survive into <see cref="IJob.Execute" />
+    /// (#1528). Return a completed <see cref="ValueTask{TResult}" /> when nothing needs awaiting.
+    /// </para>
     /// </remarks>
     /// <param name="bundle">The TriggerFiredBundle from which the <see cref="IJobDetail" />
     ///   and other info relating to the trigger firing can be obtained.</param>

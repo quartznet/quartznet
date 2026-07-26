@@ -12,7 +12,8 @@ namespace Quartz.Impl;
 /// <author>Marko Lahma</author>
 public class SystemTextJsonObjectSerializer : IObjectSerializer
 {
-    private JsonSerializerOptions? options;
+    private readonly Lock optionsLock = new();
+    private volatile JsonSerializerOptions? options;
 
     /// <summary>
     /// Creates a serializer that knows the built-in trigger and calendar types only.
@@ -41,7 +42,22 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
     /// The options this serializer reads and writes with, built on first use so that
     /// <see cref="CreateSerializerOptions" /> is not called from the constructor.
     /// </summary>
-    private JsonSerializerOptions Options => options ??= CreateSerializerOptions();
+    private JsonSerializerOptions Options
+    {
+        get
+        {
+            var current = options;
+            if (current is not null)
+            {
+                return current;
+            }
+
+            lock (optionsLock)
+            {
+                return options ??= CreateSerializerOptions();
+            }
+        }
+    }
 
     protected virtual JsonSerializerOptions CreateSerializerOptions()
     {
