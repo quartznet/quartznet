@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -410,12 +410,12 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
                     newFireTime = null;
                 }
             }
-            SetNextFireTimeUtc(newFireTime);
+            NextFireTimeUtc = newFireTime;
         }
         else if (instr == Quartz.MisfireInstruction.CalendarIntervalTrigger.FireOnceNow)
         {
             // fire once now...
-            SetNextFireTimeUtc(TimeProvider.GetUtcNow());
+            NextFireTimeUtc = TimeProvider.GetUtcNow();
             // the new fire time afterward will magically preserve the original
             // time of day for firing for day/week/month interval triggers,
             // because of the way getFireTimeAfter() works - in its always restarting
@@ -515,13 +515,13 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
     /// </para>
     ///
     /// <para>
-    /// After this method has been called, <see cref="ITrigger.GetNextFireTimeUtc" />
+    /// After this method has been called, <see cref="ITrigger.NextFireTimeUtc" />
     /// should return a valid answer.
     /// </para>
     /// </remarks>
     /// <returns>
     /// The first time at which the <see cref="ITrigger" /> will be fired
-    /// by the scheduler, which is also the same value <see cref="ITrigger.GetNextFireTimeUtc" />
+    /// by the scheduler, which is also the same value <see cref="ITrigger.NextFireTimeUtc" />
     /// will return (until after the first firing of the <see cref="ITrigger" />).
     /// </returns>
     public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? calendar)
@@ -561,29 +561,23 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
     /// has been added to the scheduler.
     /// </remarks>
     /// <returns></returns>
-    public override DateTimeOffset? GetNextFireTimeUtc()
+    public override DateTimeOffset? NextFireTimeUtc
     {
-        return nextFireTimeUtc;
+        get => nextFireTimeUtc;
+        set => nextFireTimeUtc = value;
     }
 
     /// <summary>
     /// Returns the previous time at which the <see cref="ICalendarIntervalTrigger" /> fired.
     /// If the trigger has not yet fired, <see langword="null" /> will be returned.
     /// </summary>
-    public override DateTimeOffset? GetPreviousFireTimeUtc()
+    public override DateTimeOffset? PreviousFireTimeUtc
     {
-        return previousFireTimeUtc;
+        get => previousFireTimeUtc;
+        set => previousFireTimeUtc = value;
     }
 
-    public override void SetNextFireTimeUtc(DateTimeOffset? value)
-    {
-        nextFireTimeUtc = value;
-    }
 
-    public override void SetPreviousFireTimeUtc(DateTimeOffset? previousFireTimeUtc)
-    {
-        this.previousFireTimeUtc = previousFireTimeUtc;
-    }
 
     /// <summary>
     /// Returns the next time at which the <see cref="ICalendarIntervalTrigger" /> will fire,
@@ -965,7 +959,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
     /// <returns></returns>
     public override bool GetMayFireAgain()
     {
-        return GetNextFireTimeUtc() is not null;
+        return NextFireTimeUtc is not null;
     }
 
     /// <summary>

@@ -1,4 +1,4 @@
-namespace Quartz.Spi;
+﻿namespace Quartz.Spi;
 
 /// <summary>
 /// Internal interface for managing triggers. This interface should not be used by the Quartz client.
@@ -28,13 +28,13 @@ public interface IOperableTrigger : IMutableTrigger
     /// </para>
     ///
     /// <para>
-    /// After this method has been called, <see cref="ITrigger.GetNextFireTimeUtc" />
+    /// After this method has been called, <see cref="ITrigger.NextFireTimeUtc" />
     /// should return a valid answer.
     /// </para>
     /// </remarks>
     /// <returns>
     /// The first time at which the <see cref="ITrigger" /> will be fired
-    /// by the scheduler, which is also the same value <see cref="ITrigger.GetNextFireTimeUtc" />
+    /// by the scheduler, which is also the same value <see cref="ITrigger.NextFireTimeUtc" />
     /// will return (until after the first firing of the <see cref="ITrigger" />).
     /// </returns>
     DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? calendar);
@@ -105,7 +105,5 @@ public interface IOperableTrigger : IMutableTrigger
     /// </remarks>
     string FireInstanceId { get; set; }
 
-    void SetNextFireTimeUtc(DateTimeOffset? value);
 
-    void SetPreviousFireTimeUtc(DateTimeOffset? value);
 }

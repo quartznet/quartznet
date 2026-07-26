@@ -1,4 +1,4 @@
-using System.Data;
+﻿using System.Data;
 using System.Data.Common;
 
 using FakeItEasy;
@@ -64,8 +64,8 @@ public class UpdateTriggerTest
         cronTriggerImpl.CalendarName = "calName";
         cronTriggerImpl.MisfireInstruction = 1;
         cronTriggerImpl.Description = "Description";
-        cronTriggerImpl.SetPreviousFireTimeUtc(new DateTimeOffset(new DateTime(2010, 1, 1)));
-        cronTriggerImpl.SetNextFireTimeUtc(new DateTimeOffset(new DateTime(2010, 2, 1)));
+        cronTriggerImpl.PreviousFireTimeUtc = new DateTimeOffset(new DateTime(2010, 1, 1));
+        cronTriggerImpl.NextFireTimeUtc = new DateTimeOffset(new DateTime(2010, 2, 1));
         cronTriggerImpl.JobKey = new JobKey("JobKey", "JobKeyGroup");
         cronTriggerImpl.Priority = 1;
 
@@ -146,8 +146,8 @@ public class UpdateTriggerTest
         cronTriggerImpl.CalendarName = "calName";
         cronTriggerImpl.MisfireInstruction = 1;
         cronTriggerImpl.Description = "Description";
-        cronTriggerImpl.SetPreviousFireTimeUtc(new DateTimeOffset(new DateTime(2010, 1, 1)));
-        cronTriggerImpl.SetNextFireTimeUtc(new DateTimeOffset(new DateTime(2010, 2, 1)));
+        cronTriggerImpl.PreviousFireTimeUtc = new DateTimeOffset(new DateTime(2010, 1, 1));
+        cronTriggerImpl.NextFireTimeUtc = new DateTimeOffset(new DateTime(2010, 2, 1));
         cronTriggerImpl.JobKey = new JobKey("JobKey", "JobKeyGroup");
         cronTriggerImpl.Priority = 1;
 

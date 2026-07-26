@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -48,14 +48,14 @@ public static class TriggerUtils
 
         IOperableTrigger t = (IOperableTrigger) trigger.Clone();
 
-        if (t.GetNextFireTimeUtc() is null || !t.GetNextFireTimeUtc().HasValue)
+        if (t.NextFireTimeUtc is null || !t.NextFireTimeUtc.HasValue)
         {
             t.ComputeFirstFireTimeUtc(calendar);
         }
 
         for (int i = 0; i < numTimes; i++)
         {
-            DateTimeOffset? d = t.GetNextFireTimeUtc();
+            DateTimeOffset? d = t.NextFireTimeUtc;
             if (d.HasValue)
             {
                 lst.Add(d.Value);
@@ -87,7 +87,7 @@ public static class TriggerUtils
     {
         IOperableTrigger t = (IOperableTrigger) trigger.Clone();
 
-        if (t.GetNextFireTimeUtc() is null)
+        if (t.NextFireTimeUtc is null)
         {
             t.ComputeFirstFireTimeUtc(calendar);
         }
@@ -97,7 +97,7 @@ public static class TriggerUtils
 
         for (int i = 0; i < numberOfTimes; i++)
         {
-            DateTimeOffset? d = t.GetNextFireTimeUtc();
+            DateTimeOffset? d = t.NextFireTimeUtc;
             if (d is not null)
             {
                 c++;
@@ -145,7 +145,7 @@ public static class TriggerUtils
 
         IOperableTrigger t = (IOperableTrigger) trigger.Clone();
 
-        if (t.GetNextFireTimeUtc() is null || !t.GetNextFireTimeUtc().HasValue)
+        if (t.NextFireTimeUtc is null || !t.NextFireTimeUtc.HasValue)
         {
             // Only preserve the trigger's own StartTimeUtc if it falls within
             // the query range [from, to]. This ensures fire times stay aligned
@@ -166,7 +166,7 @@ public static class TriggerUtils
         //        to the type of trigger ...
         while (true)
         {
-            DateTimeOffset? d = t.GetNextFireTimeUtc();
+            DateTimeOffset? d = t.NextFireTimeUtc;
             if (d.HasValue)
             {
                 if (d.Value < from)

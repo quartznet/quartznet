@@ -556,7 +556,7 @@ public sealed class QuartzScheduler
 
         await resources.JobStore.StoreJobAndTrigger(jobDetail, trig, cancellationToken).ConfigureAwait(false);
         await NotifySchedulerListenersJobAdded(jobDetail, cancellationToken).ConfigureAwait(false);
-        NotifySchedulerThread(trigger.GetNextFireTimeUtc());
+        NotifySchedulerThread(trigger.NextFireTimeUtc);
         await NotifySchedulerListenersScheduled(trigger, cancellationToken).ConfigureAwait(false);
 
         return ft.Value;
@@ -600,7 +600,7 @@ public sealed class QuartzScheduler
         }
 
         await resources.JobStore.StoreTrigger(trig, false, cancellationToken).ConfigureAwait(false);
-        NotifySchedulerThread(trigger.GetNextFireTimeUtc());
+        NotifySchedulerThread(trigger.NextFireTimeUtc);
         await NotifySchedulerListenersScheduled(trigger, cancellationToken).ConfigureAwait(false);
 
         return ft.Value;
@@ -849,7 +849,7 @@ public sealed class QuartzScheduler
         }
 
         DateTimeOffset? ft;
-        if (trigger.GetNextFireTimeUtc() is not null)
+        if (trigger.NextFireTimeUtc is not null)
         {
             // use a cloned trigger so that we don't lose possible forcefully set next fire time
             var clonedTrigger = (IOperableTrigger) trigger.Clone();
@@ -868,7 +868,7 @@ public sealed class QuartzScheduler
 
         if (await resources.JobStore.ReplaceTrigger(triggerKey, trigger, cancellationToken).ConfigureAwait(false))
         {
-            NotifySchedulerThread(newTrigger.GetNextFireTimeUtc());
+            NotifySchedulerThread(newTrigger.NextFireTimeUtc);
             await NotifySchedulerListenersUnscheduled(triggerKey, cancellationToken).ConfigureAwait(false);
             await NotifySchedulerListenersScheduled(newTrigger, cancellationToken).ConfigureAwait(false);
         }
@@ -924,7 +924,7 @@ public sealed class QuartzScheduler
     private void AdjustSimpleTriggerStartTimeIfInPast(IOperableTrigger trigger)
     {
         if (trigger is ISimpleTrigger simpleTrigger
-            && trigger.GetPreviousFireTimeUtc() is null
+            && trigger.PreviousFireTimeUtc is null
             && simpleTrigger.RepeatCount != 0
             && simpleTrigger.RepeatInterval > TimeSpan.Zero)
         {
@@ -1007,7 +1007,7 @@ public sealed class QuartzScheduler
             }
         }
 
-        NotifySchedulerThread(trig.GetNextFireTimeUtc());
+        NotifySchedulerThread(trig.NextFireTimeUtc);
         await NotifySchedulerListenersScheduled(trig, cancellationToken).ConfigureAwait(false);
     }
 
@@ -1036,7 +1036,7 @@ public sealed class QuartzScheduler
             }
         }
 
-        NotifySchedulerThread(trig.GetNextFireTimeUtc());
+        NotifySchedulerThread(trig.NextFireTimeUtc);
         await NotifySchedulerListenersScheduled(trig, cancellationToken).ConfigureAwait(false);
     }
 

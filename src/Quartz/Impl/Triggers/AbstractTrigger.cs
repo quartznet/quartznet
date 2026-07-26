@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
@@ -347,15 +347,19 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// </remarks>
     public virtual string FireInstanceId { get; set; } = null!;
 
-    public abstract void SetNextFireTimeUtc(DateTimeOffset? nextFireTime);
-
-    public abstract void SetPreviousFireTimeUtc(DateTimeOffset? previousFireTime);
-
     /// <summary>
-    /// Returns the previous time at which the <see cref="ITrigger" /> fired.
+    /// The previous time at which the <see cref="ITrigger" /> fired.
     /// If the trigger has not yet fired, <see langword="null" /> will be returned.
     /// </summary>
-    public abstract DateTimeOffset? GetPreviousFireTimeUtc();
+    public abstract DateTimeOffset? PreviousFireTimeUtc { get; set; }
+
+    /// <inheritdoc cref="ITrigger.PreviousFireTimeUtc" />
+    /// <remarks>
+    /// Kept as a method as well as a property so that code holding a concrete trigger type — where
+    /// the interface's default implementation is not reachable — still compiles.
+    /// </remarks>
+    [Obsolete("Use the PreviousFireTimeUtc property instead.")]
+    public DateTimeOffset? GetPreviousFireTimeUtc() => PreviousFireTimeUtc;
 
     /// <summary>
     /// Gets and sets the date/time on which the trigger must stop firing. This
@@ -600,8 +604,15 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// The value returned is not guaranteed to be valid until after the <see cref="ITrigger" />
     /// has been added to the scheduler.
     /// </remarks>
-    /// <returns></returns>
-    public abstract DateTimeOffset? GetNextFireTimeUtc();
+    public abstract DateTimeOffset? NextFireTimeUtc { get; set; }
+
+    /// <inheritdoc cref="ITrigger.NextFireTimeUtc" />
+    /// <remarks>
+    /// Kept as a method as well as a property so that code holding a concrete trigger type — where
+    /// the interface's default implementation is not reachable — still compiles.
+    /// </remarks>
+    [Obsolete("Use the NextFireTimeUtc property instead.")]
+    public DateTimeOffset? GetNextFireTimeUtc() => NextFireTimeUtc;
 
     /// <summary>
     /// Returns the next time at which the <see cref="ITrigger" /> will fire,
@@ -679,7 +690,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// Return a simple string representation of this object.
     /// </summary>
     public override string ToString()
-        => $"Trigger '{key}':  triggerClass: '{GetType().FullName} calendar: '{CalendarName}' misfireInstruction: {MisfireInstruction} nextFireTime: {GetNextFireTimeUtc()}";
+        => $"Trigger '{key}':  triggerClass: '{GetType().FullName} calendar: '{CalendarName}' misfireInstruction: {MisfireInstruction} nextFireTime: {NextFireTimeUtc}";
 
     /// <summary>
     /// Determines whether the specified <see cref="System.Object"></see> is equal to the current <see cref="System.Object"></see>.

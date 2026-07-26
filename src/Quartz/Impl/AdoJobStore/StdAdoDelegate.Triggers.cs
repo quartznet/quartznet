@@ -340,8 +340,8 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "triggerJobName", trigger.JobKey.Name);
         AddCommandParameter(cmd, "triggerJobGroup", trigger.JobKey.Group);
         AddCommandParameter(cmd, "triggerDescription", trigger.Description);
-        AddCommandParameter(cmd, "triggerNextFireTime", GetDbDateTimeValue(trigger.GetNextFireTimeUtc()));
-        AddCommandParameter(cmd, "triggerPreviousFireTime", GetDbDateTimeValue(trigger.GetPreviousFireTimeUtc()));
+        AddCommandParameter(cmd, "triggerNextFireTime", GetDbDateTimeValue(trigger.NextFireTimeUtc));
+        AddCommandParameter(cmd, "triggerPreviousFireTime", GetDbDateTimeValue(trigger.PreviousFireTimeUtc));
         AddCommandParameter(cmd, "triggerState", state);
 
         var tDel = FindTriggerPersistenceDelegate(trigger);
@@ -433,8 +433,8 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "triggerJobName", trigger.JobKey.Name);
         AddCommandParameter(cmd, "triggerJobGroup", trigger.JobKey.Group);
         AddCommandParameter(cmd, "triggerDescription", trigger.Description);
-        AddCommandParameter(cmd, "triggerNextFireTime", GetDbDateTimeValue(trigger.GetNextFireTimeUtc()));
-        AddCommandParameter(cmd, "triggerPreviousFireTime", GetDbDateTimeValue(trigger.GetPreviousFireTimeUtc()));
+        AddCommandParameter(cmd, "triggerNextFireTime", GetDbDateTimeValue(trigger.NextFireTimeUtc));
+        AddCommandParameter(cmd, "triggerPreviousFireTime", GetDbDateTimeValue(trigger.PreviousFireTimeUtc));
 
         AddCommandParameter(cmd, "triggerState", state);
 
@@ -803,8 +803,8 @@ public partial class StdAdoDelegate
     private static void ApplyTriggerFireState(IOperableTrigger trigger, TriggerRow row)
     {
         trigger.MisfireInstruction = row.MisfireInstruction;
-        trigger.SetNextFireTimeUtc(row.NextFireTimeUtc);
-        trigger.SetPreviousFireTimeUtc(row.PreviousFireTimeUtc);
+        trigger.NextFireTimeUtc = row.NextFireTimeUtc;
+        trigger.PreviousFireTimeUtc = row.PreviousFireTimeUtc;
 
         if (row.MisfireOriginalFireTime.HasValue && trigger is AbstractTrigger at)
         {
@@ -1443,7 +1443,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
         AddCommandParameter(cmd, "triggerInstanceName", instanceId);
         AddCommandParameter(cmd, "triggerFireTime", GetDbDateTimeValue(timeProvider.GetUtcNow()));
-        AddCommandParameter(cmd, "triggerScheduledTime", GetDbDateTimeValue(trigger.GetNextFireTimeUtc()));
+        AddCommandParameter(cmd, "triggerScheduledTime", GetDbDateTimeValue(trigger.NextFireTimeUtc));
         AddCommandParameter(cmd, "triggerState", state);
         if (job is not null)
         {
@@ -1477,7 +1477,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(ps, "schedulerName", schedName);
         AddCommandParameter(ps, "instanceName", instanceId);
         AddCommandParameter(ps, "firedTime", GetDbDateTimeValue(timeProvider.GetUtcNow()));
-        AddCommandParameter(ps, "scheduledTime", GetDbDateTimeValue(trigger.GetNextFireTimeUtc()));
+        AddCommandParameter(ps, "scheduledTime", GetDbDateTimeValue(trigger.NextFireTimeUtc));
         AddCommandParameter(ps, "entryState", state);
         AddCommandParameter(ps, "jobName", trigger.JobKey.Name);
         AddCommandParameter(ps, "jobGroup", trigger.JobKey.Group);
@@ -2089,8 +2089,8 @@ public partial class StdAdoDelegate
         List<SqlStatementParameter> parameters =
         [
             new("schedulerName", schedName),
-            new("triggerNextFireTime", GetDbDateTimeValue(trigger.GetNextFireTimeUtc())),
-            new("triggerPreviousFireTime", GetDbDateTimeValue(trigger.GetPreviousFireTimeUtc())),
+            new("triggerNextFireTime", GetDbDateTimeValue(trigger.NextFireTimeUtc)),
+            new("triggerPreviousFireTime", GetDbDateTimeValue(trigger.PreviousFireTimeUtc)),
             new("triggerState", update.NewState),
             new("triggerStartTime", GetDbDateTimeValue(trigger.StartTimeUtc))
         ];

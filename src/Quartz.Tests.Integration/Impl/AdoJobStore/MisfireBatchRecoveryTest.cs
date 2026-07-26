@@ -1,4 +1,4 @@
-using System.Data.Common;
+﻿using System.Data.Common;
 
 using FakeItEasy;
 
@@ -110,8 +110,8 @@ public class MisfireBatchRecoveryTest
 
             IOperableTrigger trigger = await jobStore.RetrieveTrigger(key);
             trigger.Should().NotBeNull();
-            trigger.GetNextFireTimeUtc().Should().NotBeNull("trigger '{0}' should have a next fire time", name);
-            trigger.GetNextFireTimeUtc().Value.Should().BeAfter(DateTimeOffset.UtcNow.AddMinutes(-1), "trigger '{0}' should have moved forward", name);
+            trigger.NextFireTimeUtc.Should().NotBeNull("trigger '{0}' should have a next fire time", name);
+            trigger.NextFireTimeUtc.Value.Should().BeAfter(DateTimeOffset.UtcNow.AddMinutes(-1), "trigger '{0}' should have moved forward", name);
         }
     }
 
@@ -192,7 +192,7 @@ public class MisfireBatchRecoveryTest
         // A past start time is not enough on its own — a cron schedule, for one, just recomputes forward
         // to the next matching time. Pin the stored next fire time into the past, which is what a trigger
         // that nobody got around to firing actually looks like.
-        trigger.SetNextFireTimeUtc(DateTimeOffset.UtcNow.AddHours(-1));
+        trigger.NextFireTimeUtc = DateTimeOffset.UtcNow.AddHours(-1);
 
         await jobStore.StoreJobAndTrigger(job, trigger);
     }
@@ -217,7 +217,7 @@ public class MisfireBatchRecoveryTest
         };
 
         trigger.ComputeFirstFireTimeUtc(null);
-        trigger.SetNextFireTimeUtc(DateTimeOffset.UtcNow.AddHours(-1));
+        trigger.NextFireTimeUtc = DateTimeOffset.UtcNow.AddHours(-1);
 
         await jobStore.StoreJobAndTrigger(job, trigger);
     }

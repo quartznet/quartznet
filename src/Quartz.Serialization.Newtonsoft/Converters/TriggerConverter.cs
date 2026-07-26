@@ -1,4 +1,4 @@
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 using Quartz.Serialization.Newtonsoft;
@@ -47,10 +47,10 @@ internal sealed class TriggerConverter(NewtonsoftJsonSerializerRegistry registry
             writer.WriteValue(trigger.Priority);
 
             writer.WritePropertyName("NextFireTimeUtc");
-            writer.WriteValue(trigger.GetNextFireTimeUtc());
+            writer.WriteValue(trigger.NextFireTimeUtc);
 
             writer.WritePropertyName("PreviousFireTimeUtc");
-            writer.WriteValue(trigger.GetPreviousFireTimeUtc());
+            writer.WriteValue(trigger.PreviousFireTimeUtc);
 
             if (trigger is Quartz.Impl.Triggers.AbstractTrigger abstractTrigger)
             {
@@ -116,8 +116,8 @@ internal sealed class TriggerConverter(NewtonsoftJsonSerializerRegistry registry
                 var nextFireTimeUtc = source.Value<DateTimeOffset?>("NextFireTimeUtc");
                 var previousFireTimeUtc = source.Value<DateTimeOffset?>("PreviousFireTimeUtc");
 
-                operableTrigger.SetNextFireTimeUtc(nextFireTimeUtc);
-                operableTrigger.SetPreviousFireTimeUtc(previousFireTimeUtc);
+                operableTrigger.NextFireTimeUtc = nextFireTimeUtc;
+                operableTrigger.PreviousFireTimeUtc = previousFireTimeUtc;
             }
 
             if (trigger is Quartz.Impl.Triggers.AbstractTrigger abstractTrigger)

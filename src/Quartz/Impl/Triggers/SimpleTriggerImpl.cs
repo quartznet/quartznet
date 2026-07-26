@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
@@ -590,13 +590,13 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// added to the scheduler, in order to have the <see cref="ITrigger" />
     /// compute its first fire time, based on any associated calendar.
     /// <para>
-    /// After this method has been called, <see cref="GetNextFireTimeUtc" />
+    /// After this method has been called, <see cref="NextFireTimeUtc" />
     /// should return a valid answer.
     /// </para>
     /// </summary>
     /// <returns>
     /// The first time at which the <see cref="ITrigger" /> will be fired
-    /// by the scheduler, which is also the same value <see cref="GetNextFireTimeUtc" />
+    /// by the scheduler, which is also the same value <see cref="NextFireTimeUtc" />
     /// will return (until after the first firing of the <see cref="ITrigger" />).
     /// </returns>
     public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? cal)
@@ -632,29 +632,23 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// returned. The value returned is not guaranteed to be valid until after
     /// the <see cref="ITrigger" /> has been added to the scheduler.
     /// </summary>
-    public override DateTimeOffset? GetNextFireTimeUtc()
+    public override DateTimeOffset? NextFireTimeUtc
     {
-        return nextFireTimeUtc;
+        get => nextFireTimeUtc;
+        set => nextFireTimeUtc = value;
     }
 
-    public override void SetNextFireTimeUtc(DateTimeOffset? nextFireTime)
-    {
-        nextFireTimeUtc = nextFireTime;
-    }
 
-    public override void SetPreviousFireTimeUtc(DateTimeOffset? previousFireTime)
-    {
-        previousFireTimeUtc = previousFireTime;
-    }
 
     /// <summary>
     /// Returns the previous time at which the <see cref="ISimpleTrigger" /> fired.
     /// If the trigger has not yet fired, <see langword="null" /> will be
     /// returned.
     /// </summary>
-    public override DateTimeOffset? GetPreviousFireTimeUtc()
+    public override DateTimeOffset? PreviousFireTimeUtc
     {
-        return previousFireTimeUtc;
+        get => previousFireTimeUtc;
+        set => previousFireTimeUtc = value;
     }
 
     /// <summary>
@@ -746,7 +740,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// </summary>
     public override bool GetMayFireAgain()
     {
-        return GetNextFireTimeUtc().HasValue;
+        return NextFireTimeUtc.HasValue;
     }
 
     /// <summary>

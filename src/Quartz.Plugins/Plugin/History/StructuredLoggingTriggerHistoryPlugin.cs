@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -137,8 +137,8 @@ public sealed class StructuredLoggingTriggerHistoryPlugin : ISchedulerPlugin, IT
             context.JobDetail.Key.Group,
             context.JobDetail.Key.Name,
             timeProvider.GetUtcNow(),
-            trigger.GetPreviousFireTimeUtc(),
-            trigger.GetNextFireTimeUtc(),
+            trigger.PreviousFireTimeUtc,
+            trigger.NextFireTimeUtc,
             context.RefireCount);
 #pragma warning restore CA2254
 
@@ -163,8 +163,8 @@ public sealed class StructuredLoggingTriggerHistoryPlugin : ISchedulerPlugin, IT
             trigger.JobKey.Group,
             trigger.JobKey.Name,
             timeProvider.GetUtcNow(),
-            trigger.GetPreviousFireTimeUtc(),
-            trigger.GetNextFireTimeUtc());
+            trigger.PreviousFireTimeUtc,
+            trigger.NextFireTimeUtc);
 #pragma warning restore CA2254
 
         return default;
@@ -190,8 +190,8 @@ public sealed class StructuredLoggingTriggerHistoryPlugin : ISchedulerPlugin, IT
             context.JobDetail.Key.Group,
             context.JobDetail.Key.Name,
             timeProvider.GetUtcNow(),
-            trigger.GetPreviousFireTimeUtc(),
-            trigger.GetNextFireTimeUtc(),
+            trigger.PreviousFireTimeUtc,
+            trigger.NextFireTimeUtc,
             triggerInstructionCode);
 #pragma warning restore CA2254
 

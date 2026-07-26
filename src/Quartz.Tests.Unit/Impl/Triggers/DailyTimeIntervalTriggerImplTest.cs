@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -1243,7 +1243,7 @@ public class DailyTimeIntervalTriggerImplTest
 
         trigger.UpdateAfterMisfire(null);
 
-        DateTimeOffset? nextFire = trigger.GetNextFireTimeUtc();
+        DateTimeOffset? nextFire = trigger.NextFireTimeUtc;
         Assert.IsNotNull(nextFire);
         Assert.That(nextFire.Value, Is.GreaterThan(frozenNow),
             "Trigger must not fire immediately after misfire handling (#3096)");

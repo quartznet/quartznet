@@ -1010,8 +1010,8 @@ public interface IDriverDelegate
     /// in ascending order of fire time, and then descending by priority.
     /// </summary>
     /// <param name="conn">The conn.</param>
-    /// <param name="noLaterThan">highest value of <see cref="ITrigger.GetNextFireTimeUtc" /> of the triggers (exclusive)</param>
-    /// <param name="noEarlierThan">lowest value of <see cref="ITrigger.GetNextFireTimeUtc" /> of the triggers (inclusive)</param>
+    /// <param name="noLaterThan">highest value of <see cref="ITrigger.NextFireTimeUtc" /> of the triggers (exclusive)</param>
+    /// <param name="noEarlierThan">lowest value of <see cref="ITrigger.NextFireTimeUtc" /> of the triggers (inclusive)</param>
     /// <param name="maxCount">maximum number of trigger keys allow to acquired in the returning list.</param>
     /// <param name="liveNodeCutoff">Tick value below which a node's last check-in is considered
     /// stale, releasing its pinned triggers to other nodes (preferred node / node affinity).</param>

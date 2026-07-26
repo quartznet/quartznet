@@ -1,4 +1,4 @@
-using System.Runtime.Serialization;
+﻿using System.Runtime.Serialization;
 using System.Text.Json;
 
 using Newtonsoft.Json;
@@ -267,11 +267,11 @@ public class SmokeTestPerformer
                 };
 
                 customTrigger.ComputeFirstFireTimeUtc(null);
-                var nextFireTimeUtc = customTrigger.GetNextFireTimeUtc();
+                var nextFireTimeUtc = customTrigger.NextFireTimeUtc;
 
                 await scheduler.ScheduleJob(customTrigger);
                 var loadedCustomTrigger = (CustomTrigger) await scheduler.GetTrigger(customTrigger.Key);
-                Assert.That(loadedCustomTrigger.GetNextFireTimeUtc(), Is.EqualTo(nextFireTimeUtc));
+                Assert.That(loadedCustomTrigger.NextFireTimeUtc, Is.EqualTo(nextFireTimeUtc));
                 Assert.That(loadedCustomTrigger.CronExpressionString, Is.EqualTo(customTrigger.CronExpressionString));
                 Assert.That(loadedCustomTrigger.SomeCustomProperty, Is.True);
 

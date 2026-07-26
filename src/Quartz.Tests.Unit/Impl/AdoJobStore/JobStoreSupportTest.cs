@@ -1,4 +1,4 @@
-using Quartz.Tests;
+﻿using Quartz.Tests;
 using System.Data.Common;
 using System.Reflection;
 
@@ -42,7 +42,7 @@ public class JobStoreSupportTest
     private static IOperableTrigger CreateMisfiredTrigger(string name, int minutesLate = 10)
     {
         IOperableTrigger trigger = CreateTestTrigger(name);
-        trigger.SetNextFireTimeUtc(DateTimeOffset.UtcNow - TimeSpan.FromMinutes(minutesLate));
+        trigger.NextFireTimeUtc = DateTimeOffset.UtcNow - TimeSpan.FromMinutes(minutesLate);
         return trigger;
     }
 
@@ -534,7 +534,7 @@ public class JobStoreSupportTest
             .StartNow()
             .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
             .Build();
-        existingTrigger.SetPreviousFireTimeUtc(previousFireTime);
+        existingTrigger.PreviousFireTimeUtc = previousFireTime;
 
         A.CallTo(() => driverDelegate.TriggerExists(conn, triggerKey, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(true));
@@ -547,7 +547,7 @@ public class JobStoreSupportTest
 
         await jobStoreSupport.CallStoreTrigger(conn, newTrigger, job, replaceExisting: true);
 
-        newTrigger.GetPreviousFireTimeUtc().Should().Be(previousFireTime,
+        newTrigger.PreviousFireTimeUtc.Should().Be(previousFireTime,
             "PreviousFireTimeUtc should be preserved from the existing trigger when replacing (#1834)");
 
         A.CallTo(() => driverDelegate.UpdateTrigger(conn, newTrigger, A<string>.Ignored, job, A<CancellationToken>.Ignored))
@@ -572,7 +572,7 @@ public class JobStoreSupportTest
             .StartNow()
             .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
             .Build();
-        newTrigger.SetPreviousFireTimeUtc(newPreviousFireTime);
+        newTrigger.PreviousFireTimeUtc = newPreviousFireTime;
 
         A.CallTo(() => driverDelegate.TriggerExists(conn, triggerKey, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(true));
@@ -582,7 +582,7 @@ public class JobStoreSupportTest
 
         await jobStoreSupport.CallStoreTrigger(conn, newTrigger, job, replaceExisting: true);
 
-        newTrigger.GetPreviousFireTimeUtc().Should().Be(newPreviousFireTime);
+        newTrigger.PreviousFireTimeUtc.Should().Be(newPreviousFireTime);
 
         A.CallTo(() => driverDelegate.SelectTrigger(conn, triggerKey, A<CancellationToken>.Ignored))
             .MustNotHaveHappened();
@@ -1049,8 +1049,8 @@ public class JobStoreSupportTest
         IJobDetail job = CreateConcurrentJob();
 
         // Capture trigger A's original fire times to verify cloning protects against double-mutation
-        DateTimeOffset? originalNextFireTime = triggerA.GetNextFireTimeUtc();
-        DateTimeOffset? originalPrevFireTime = triggerA.GetPreviousFireTimeUtc();
+        DateTimeOffset? originalNextFireTime = triggerA.NextFireTimeUtc;
+        DateTimeOffset? originalPrevFireTime = triggerA.PreviousFireTimeUtc;
 
         // Trigger A always succeeds — but its work is rolled back when B fails
         A.CallTo(() => del.SelectTriggerState(A<ConnectionAndTransactionHolder>.Ignored, triggerA.Key, A<CancellationToken>.Ignored))
@@ -1083,9 +1083,9 @@ public class JobStoreSupportTest
 
         // Verify original trigger objects were NOT mutated (clone protects against
         // double-mutation from trigger.Triggered() across retry attempts)
-        triggerA.GetNextFireTimeUtc().Should().Be(originalNextFireTime,
+        triggerA.NextFireTimeUtc.Should().Be(originalNextFireTime,
             "original trigger must not be mutated by TriggersFired — clones should be used");
-        triggerA.GetPreviousFireTimeUtc().Should().Be(originalPrevFireTime,
+        triggerA.PreviousFireTimeUtc.Should().Be(originalPrevFireTime,
             "original trigger must not be mutated by TriggersFired — clones should be used");
     }
 

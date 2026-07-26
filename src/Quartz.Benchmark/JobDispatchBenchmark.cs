@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging.Abstractions;
+﻿using Microsoft.Extensions.Logging.Abstractions;
 using BenchmarkDotNet.Attributes;
 
 using Quartz.Core;
@@ -25,7 +25,7 @@ public class JobDispatchBenchmark
             .Build();
 
         trigger.FireInstanceId = "fire-instance-id";
-        trigger.SetNextFireTimeUtc(DateTimeOffset.UtcNow.AddSeconds(10));
+        trigger.NextFireTimeUtc = DateTimeOffset.UtcNow.AddSeconds(10);
         var bundle = new TriggerFiredBundle(job, trigger, null, false, DateTimeOffset.UtcNow, null, null, null);
         shell = new JobRunShell(scheduler, bundle, NullLogger<JobRunShell>.Instance);
     }

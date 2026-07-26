@@ -1,4 +1,4 @@
-using Quartz.Spi;
+﻿using Quartz.Spi;
 
 namespace Quartz.Tests.Unit;
 
@@ -192,14 +192,16 @@ public class TriggerTimeComparatorTest
             throw new NotImplementedException();
         }
 
-        public DateTimeOffset? GetNextFireTimeUtc()
+        public DateTimeOffset? NextFireTimeUtc
         {
-            return _nextFireTimeUtc;
+            get => _nextFireTimeUtc;
+            set => throw new NotImplementedException();
         }
 
-        public DateTimeOffset? GetPreviousFireTimeUtc()
+        public DateTimeOffset? PreviousFireTimeUtc
         {
-            throw new NotImplementedException();
+            get => throw new NotImplementedException();
+            set => throw new NotImplementedException();
         }
 
         public IScheduleBuilder GetScheduleBuilder()

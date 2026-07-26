@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright 2001-2010 Terracotta, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -958,12 +958,12 @@ public class XMLSchedulingDataProcessor
         {
             logger.LogDebug("Using relative scheduling for trigger with key {TriggerKey}", trigger.Key);
 
-            var oldTriggerPreviousFireTime = oldTrigger.GetPreviousFireTimeUtc();
+            var oldTriggerPreviousFireTime = oldTrigger.PreviousFireTimeUtc;
             trigger.StartTimeUtc = oldTrigger.StartTimeUtc;
-            ((IOperableTrigger) trigger).SetPreviousFireTimeUtc(oldTriggerPreviousFireTime);
+            ((IOperableTrigger) trigger).PreviousFireTimeUtc = oldTriggerPreviousFireTime;
             // if oldTriggerPreviousFireTime is null then NextFireTime should be set relative to oldTrigger.StartTimeUtc
             // to be able to handle misfiring for an existing trigger that has never been executed before.
-            ((IOperableTrigger) trigger).SetNextFireTimeUtc(trigger.GetFireTimeAfter(oldTriggerPreviousFireTime ?? oldTrigger.StartTimeUtc));
+            ((IOperableTrigger) trigger).NextFireTimeUtc = trigger.GetFireTimeAfter(oldTriggerPreviousFireTime ?? oldTrigger.StartTimeUtc);
         }
 
         return sched.RescheduleJob(trigger.Key, trigger, cancellationToken);

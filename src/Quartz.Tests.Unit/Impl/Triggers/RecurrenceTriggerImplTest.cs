@@ -1,4 +1,4 @@
-using Quartz.Impl.AdoJobStore;
+﻿using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
 using Quartz.Spi;
@@ -46,8 +46,8 @@ public class RecurrenceTriggerImplTest
 
         trigger.Triggered(null);
         Assert.AreEqual(1, trigger.TimesTriggered);
-        Assert.IsNotNull(trigger.GetNextFireTimeUtc());
-        Assert.AreEqual(new DateTimeOffset(2025, 1, 2, 9, 0, 0, TimeSpan.Zero), trigger.GetNextFireTimeUtc());
+        Assert.IsNotNull(trigger.NextFireTimeUtc);
+        Assert.AreEqual(new DateTimeOffset(2025, 1, 2, 9, 0, 0, TimeSpan.Zero), trigger.NextFireTimeUtc);
     }
 
     [Test]
@@ -62,7 +62,7 @@ public class RecurrenceTriggerImplTest
 
         // Fire 1
         trigger.Triggered(null);
-        Assert.IsNotNull(trigger.GetNextFireTimeUtc());
+        Assert.IsNotNull(trigger.NextFireTimeUtc);
 
         // Fire 2 - should exhaust COUNT
         trigger.Triggered(null);
@@ -70,7 +70,7 @@ public class RecurrenceTriggerImplTest
         // TimesTriggered is now 2, which equals COUNT=2
         // GetFireTimeAfter should return null
         Assert.AreEqual(2, trigger.TimesTriggered);
-        Assert.IsNull(trigger.GetFireTimeAfter(trigger.GetPreviousFireTimeUtc()));
+        Assert.IsNull(trigger.GetFireTimeAfter(trigger.PreviousFireTimeUtc));
     }
 
     [Test]
@@ -88,7 +88,7 @@ public class RecurrenceTriggerImplTest
         trigger.Triggered(null); // now next fire = Jan 3
         trigger.Triggered(null); // now next fire should be null (past end time)
 
-        Assert.IsNull(trigger.GetNextFireTimeUtc());
+        Assert.IsNull(trigger.NextFireTimeUtc);
     }
 
     [Test]
@@ -105,11 +105,11 @@ public class RecurrenceTriggerImplTest
 
         trigger.ComputeFirstFireTimeUtc(cal);
         // First fire = Jan 1
-        Assert.AreEqual(new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero), trigger.GetNextFireTimeUtc());
+        Assert.AreEqual(new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero), trigger.NextFireTimeUtc);
 
         // After triggering, next should skip Jan 2 (excluded) and land on Jan 3
         trigger.Triggered(cal);
-        Assert.AreEqual(new DateTimeOffset(2025, 1, 3, 9, 0, 0, TimeSpan.Zero), trigger.GetNextFireTimeUtc());
+        Assert.AreEqual(new DateTimeOffset(2025, 1, 3, 9, 0, 0, TimeSpan.Zero), trigger.NextFireTimeUtc);
     }
 
     [Test]
@@ -214,15 +214,15 @@ public class RecurrenceTriggerImplTest
 
         trigger.ComputeFirstFireTimeUtc(null);
         // First fire should be Jan 1 (Wednesday)
-        Assert.AreEqual(new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero), trigger.GetNextFireTimeUtc());
+        Assert.AreEqual(new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero), trigger.NextFireTimeUtc);
 
         trigger.Triggered(null);
         // Next should be Friday Jan 3
-        Assert.AreEqual(new DateTimeOffset(2025, 1, 3, 9, 0, 0, TimeSpan.Zero), trigger.GetNextFireTimeUtc());
+        Assert.AreEqual(new DateTimeOffset(2025, 1, 3, 9, 0, 0, TimeSpan.Zero), trigger.NextFireTimeUtc);
 
         trigger.Triggered(null);
         // Next should be Monday Jan 6
-        Assert.AreEqual(new DateTimeOffset(2025, 1, 6, 9, 0, 0, TimeSpan.Zero), trigger.GetNextFireTimeUtc());
+        Assert.AreEqual(new DateTimeOffset(2025, 1, 6, 9, 0, 0, TimeSpan.Zero), trigger.NextFireTimeUtc);
     }
 
     [Test]

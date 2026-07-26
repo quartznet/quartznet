@@ -1,4 +1,4 @@
-using BenchmarkDotNet.Attributes;
+﻿using BenchmarkDotNet.Attributes;
 using Quartz.Spi;
 
 namespace Quartz.Benchmark;
@@ -225,8 +225,8 @@ public class TriggerTimeComparatorBenchmark
                 return 0;
             }
 
-            var t1 = trig1!.GetNextFireTimeUtc();
-            var t2 = trig2!.GetNextFireTimeUtc();
+            var t1 = trig1!.NextFireTimeUtc;
+            var t2 = trig2!.NextFireTimeUtc;
 
             if (t1 is not null || t2 is not null)
             {
@@ -308,14 +308,16 @@ public class TriggerTimeComparatorBenchmark
             throw new NotImplementedException();
         }
 
-        public DateTimeOffset? GetNextFireTimeUtc()
+        public DateTimeOffset? NextFireTimeUtc
         {
-            return _nextFireTimeUtc;
+            get => _nextFireTimeUtc;
+            set => throw new NotImplementedException();
         }
 
-        public DateTimeOffset? GetPreviousFireTimeUtc()
+        public DateTimeOffset? PreviousFireTimeUtc
         {
-            throw new NotImplementedException();
+            get => throw new NotImplementedException();
+            set => throw new NotImplementedException();
         }
 
         public IScheduleBuilder GetScheduleBuilder()

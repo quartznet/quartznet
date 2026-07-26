@@ -1,4 +1,4 @@
-using System.Collections.Specialized;
+﻿using System.Collections.Specialized;
 using System.Diagnostics;
 
 using Quartz.Impl;
@@ -403,21 +403,21 @@ public class SchedulerTest
         Assert.Multiple(() =>
         {
             Assert.That(trigger.StartTimeUtc, Is.EqualTo(triggerStartTime));
-            Assert.That(trigger.GetNextFireTimeUtc(), Is.EqualTo(triggerStartTime));
-            Assert.That(trigger.GetPreviousFireTimeUtc(), Is.EqualTo(null));
+            Assert.That(trigger.NextFireTimeUtc, Is.EqualTo(triggerStartTime));
+            Assert.That(trigger.PreviousFireTimeUtc, Is.EqualTo(null));
         });
 
         var previousFireTimeUtc = triggerStartTime.AddDays(1);
-        trigger.SetPreviousFireTimeUtc(previousFireTimeUtc);
-        trigger.SetNextFireTimeUtc(trigger.GetFireTimeAfter(previousFireTimeUtc));
+        trigger.PreviousFireTimeUtc = previousFireTimeUtc;
+        trigger.NextFireTimeUtc = trigger.GetFireTimeAfter(previousFireTimeUtc);
 
         await scheduler.RescheduleJob(trigger.Key, trigger);
 
         trigger = (IOperableTrigger) await scheduler.GetTrigger(trigger.Key);
         Assert.Multiple(() =>
         {
-            Assert.That(trigger.GetNextFireTimeUtc(), Is.Not.Null);
-            Assert.That(trigger.GetNextFireTimeUtc(), Is.EqualTo(previousFireTimeUtc.AddHours(1)));
+            Assert.That(trigger.NextFireTimeUtc, Is.Not.Null);
+            Assert.That(trigger.NextFireTimeUtc, Is.EqualTo(previousFireTimeUtc.AddHours(1)));
         });
 
         await scheduler.Shutdown(true);

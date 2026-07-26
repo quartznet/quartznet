@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -73,7 +73,7 @@ public class RAMJobStoreTest
         await fJobStore.StoreTrigger(trigger2, false);
         await fJobStore.StoreTrigger(trigger3, false);
 
-        DateTimeOffset firstFireTime = trigger1.GetNextFireTimeUtc().Value;
+        DateTimeOffset firstFireTime = trigger1.NextFireTimeUtc.Value;
 
         await Assert.MultipleAsync(async () =>
         {
@@ -116,7 +116,7 @@ public class RAMJobStoreTest
         await fJobStore.StoreTrigger(trigger4, false);
         await fJobStore.StoreTrigger(trigger10, false);
 
-        DateTimeOffset firstFireTime = trigger1.GetNextFireTimeUtc().Value;
+        DateTimeOffset firstFireTime = trigger1.NextFireTimeUtc.Value;
 
         List<IOperableTrigger> acquiredTriggers = (await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 4, TimeSpan.FromSeconds(1))).ToList();
         Assert.Multiple(() =>
@@ -210,14 +210,14 @@ public class RAMJobStoreTest
         await fJobStore.ResumeTrigger(trigger.Key);
         Assert.That(await fJobStore.GetTriggerState(trigger.Key), Is.EqualTo(TriggerState.Normal));
 
-        trigger = (await fJobStore.AcquireNextTriggers(trigger.GetNextFireTimeUtc().Value.AddSeconds(10), 1, TimeSpan.FromMilliseconds(1))).First();
+        trigger = (await fJobStore.AcquireNextTriggers(trigger.NextFireTimeUtc.Value.AddSeconds(10), 1, TimeSpan.FromMilliseconds(1))).First();
         Assert.That(trigger, Is.Not.Null);
         await fJobStore.ReleaseAcquiredTrigger(trigger);
-        trigger = (await fJobStore.AcquireNextTriggers(trigger.GetNextFireTimeUtc().Value.AddSeconds(10), 1, TimeSpan.FromMilliseconds(1))).First();
+        trigger = (await fJobStore.AcquireNextTriggers(trigger.NextFireTimeUtc.Value.AddSeconds(10), 1, TimeSpan.FromMilliseconds(1))).First();
         Assert.Multiple(async () =>
         {
             Assert.That(trigger, Is.Not.Null);
-            Assert.That((await fJobStore.AcquireNextTriggers(trigger.GetNextFireTimeUtc().Value.AddSeconds(10), 1, TimeSpan.FromMilliseconds(1))), Is.Empty);
+            Assert.That((await fJobStore.AcquireNextTriggers(trigger.NextFireTimeUtc.Value.AddSeconds(10), 1, TimeSpan.FromMilliseconds(1))), Is.Empty);
         });
     }
 
@@ -562,7 +562,7 @@ public class RAMJobStoreTest
         trigger1.ComputeFirstFireTimeUtc(null);
         await fJobStore.StoreTrigger(trigger1, false);
 
-        var firstFireTime = trigger1.GetNextFireTimeUtc().Value;
+        var firstFireTime = trigger1.NextFireTimeUtc.Value;
 
         // pretend to fire it
         var aqTs = await fJobStore.AcquireNextTriggers(firstFireTime.AddMilliseconds(10000), 1, TimeSpan.Zero);
@@ -720,8 +720,8 @@ public class RAMJobStoreTest
             JobKey = job.Key,
             MisfireInstruction = MisfireInstruction.CronTrigger.FireOnceNow
         };
-        trigger.SetPreviousFireTimeUtc(previousFireTime);
-        trigger.SetNextFireTimeUtc(originalScheduledTime);
+        trigger.PreviousFireTimeUtc = previousFireTime;
+        trigger.NextFireTimeUtc = originalScheduledTime;
         await store.StoreTrigger(trigger, false);
 
         var acquired = await store.AcquireNextTriggers(now.AddMinutes(1), 1, TimeSpan.Zero);
@@ -781,7 +781,7 @@ public class RAMJobStoreTest
 
         var stored = await store.RetrieveTrigger(trigger.Key);
         Assert.That(stored, Is.Not.Null);
-        Assert.That(stored!.GetNextFireTimeUtc(), Is.EqualTo(new DateTimeOffset(2025, 6, 15, 10, 35, 0, TimeSpan.Zero)),
+        Assert.That(stored!.NextFireTimeUtc, Is.EqualTo(new DateTimeOffset(2025, 6, 15, 10, 35, 0, TimeSpan.Zero)),
             "Trigger should be rescheduled to the next scheduled time strictly after now");
     }
 
@@ -830,7 +830,7 @@ public class RAMJobStoreTest
         await fJobStore.StoreTrigger(trigger3, false);
 
         // Acquire all three triggers
-        DateTimeOffset firstFireTime = trigger1.GetNextFireTimeUtc()!.Value;
+        DateTimeOffset firstFireTime = trigger1.NextFireTimeUtc!.Value;
         var acquired = await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 3, TimeSpan.Zero);
         Assert.That(acquired, Has.Count.EqualTo(3), "Should acquire all 3 triggers");
 
@@ -872,7 +872,7 @@ public class RAMJobStoreTest
         await fJobStore.StoreTrigger(trigger2, false);
 
         // Acquire both triggers
-        DateTimeOffset firstFireTime = trigger1.GetNextFireTimeUtc()!.Value;
+        DateTimeOffset firstFireTime = trigger1.NextFireTimeUtc!.Value;
         var acquired = await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 2, TimeSpan.Zero);
         Assert.That(acquired, Has.Count.EqualTo(2));
 

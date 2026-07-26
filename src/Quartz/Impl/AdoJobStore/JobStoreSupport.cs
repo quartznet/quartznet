@@ -910,7 +910,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 continue;
             }
 
-            DateTimeOffset? nextTime = trig.GetNextFireTimeUtc();
+            DateTimeOffset? nextTime = trig.NextFireTimeUtc;
             if (nextTime.HasValue)
             {
                 if (nextTime.Value < earliestNewTime)
@@ -977,13 +977,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
         await schedSignaler.NotifyTriggerListenersMisfired(trig, cancellationToken).ConfigureAwait(false);
 
-        DateTimeOffset? originalFireTime = trig.GetNextFireTimeUtc();
+        DateTimeOffset? originalFireTime = trig.NextFireTimeUtc;
         DateTimeOffset now = timeProvider.GetUtcNow();
 
         trig.UpdateAfterMisfire(cal);
 
         // Determine new state.
-        DateTimeOffset? newFireTime = trig.GetNextFireTimeUtc();
+        DateTimeOffset? newFireTime = trig.NextFireTimeUtc;
         string newState = newFireTime.HasValue ? newStateIfNotComplete : StateComplete;
 
         // Compute misfire-original-fire-time for "fire now" policies (folded into the single UPDATE).
@@ -1102,7 +1102,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold.TotalMilliseconds);
             }
 
-            if (trig.GetNextFireTimeUtc().GetValueOrDefault() > misfireTime)
+            if (trig.NextFireTimeUtc.GetValueOrDefault() > misfireTime)
             {
                 return false;
             }
@@ -1129,12 +1129,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
         await schedSignaler.NotifyTriggerListenersMisfired(trig).ConfigureAwait(false);
 
-        var originalFireTime = trig.GetNextFireTimeUtc();
+        var originalFireTime = trig.NextFireTimeUtc;
         var now = timeProvider.GetUtcNow();
 
         trig.UpdateAfterMisfire(cal);
 
-        if (!trig.GetNextFireTimeUtc().HasValue)
+        if (!trig.NextFireTimeUtc.HasValue)
         {
             await StoreTrigger(conn, trig, null, true, StateComplete, forceState, recovering).ConfigureAwait(false);
             await schedSignaler.NotifySchedulerListenersFinalized(trig).ConfigureAwait(false);
@@ -1147,7 +1147,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         // Persist original fire time for "fire now" misfire policies.
         // "Fire now" policies set nextFireTimeUtc to ~now; "reschedule next" policies
         // set it to a future schedule time where the existing code is already correct.
-        var newFireTime = trig.GetNextFireTimeUtc();
+        var newFireTime = trig.NextFireTimeUtc;
         if (originalFireTime.HasValue && newFireTime.HasValue
             && originalFireTime.Value != newFireTime.Value
             && Math.Abs((newFireTime.Value - now).TotalMilliseconds) < AbstractTrigger.FireNowMisfireDetectionThresholdMs)
@@ -1176,7 +1176,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         // Single targeted UPDATE (1-2 DB round-trips) instead of StoreTrigger's 7-12.
         await Delegate.UpdateMisfiredTrigger(conn, trig, update.NewState, update.MisfireOriginalFireTime, cancellationToken).ConfigureAwait(false);
 
-        if (!trig.GetNextFireTimeUtc().HasValue)
+        if (!trig.NextFireTimeUtc.HasValue)
         {
             await schedSignaler.NotifySchedulerListenersFinalized(trig, cancellationToken).ConfigureAwait(false);
         }
@@ -1428,13 +1428,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             {
                 // Preserve PreviousFireTimeUtc from the existing trigger when replacing,
                 // so that context.PreviousFireTimeUtc is not lost on application restart (#1834)
-                if (newTrigger.GetPreviousFireTimeUtc() is null)
+                if (newTrigger.PreviousFireTimeUtc is null)
                 {
                     IOperableTrigger? existingTrig = await Delegate.SelectTrigger(conn, newTrigger.Key, cancellationToken).ConfigureAwait(false);
-                    var prevFireTime = existingTrig?.GetPreviousFireTimeUtc();
+                    var prevFireTime = existingTrig?.PreviousFireTimeUtc;
                     if (prevFireTime is not null)
                     {
-                        newTrigger.SetPreviousFireTimeUtc(prevFireTime);
+                        newTrigger.PreviousFireTimeUtc = prevFireTime;
                     }
                 }
 
@@ -3343,7 +3343,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                         }
                     }
 
-                    var nextFireTimeUtc = nextTrigger.GetNextFireTimeUtc();
+                    var nextFireTimeUtc = nextTrigger.NextFireTimeUtc;
 
                     // A trigger should not return NULL on nextFireTime when fetched from DB.
                     // But for whatever reason if we do have this (BAD trigger implementation or
@@ -3650,7 +3650,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             await Delegate.ClearMisfireOriginalFireTime(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
         }
 
-        DateTimeOffset? prevFireTime = trigger.GetPreviousFireTimeUtc();
+        DateTimeOffset? prevFireTime = trigger.PreviousFireTimeUtc;
 
         // call triggered - to update the trigger's next-fire-time state...
         trigger.Triggered(cal);
@@ -3674,7 +3674,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
         }
 
-        if (!trigger.GetNextFireTimeUtc().HasValue)
+        if (!trigger.NextFireTimeUtc.HasValue)
         {
             state2 = StateComplete;
             force = true;
@@ -3690,9 +3690,9 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             cal,
             jobIsRecovering: trigger.Key.Group == SchedulerConstants.DefaultRecoveryGroup,
             timeProvider.GetUtcNow(),
-            scheduledFireTime ?? trigger.GetPreviousFireTimeUtc(),
+            scheduledFireTime ?? trigger.PreviousFireTimeUtc,
             prevFireTime,
-            trigger.GetNextFireTimeUtc());
+            trigger.NextFireTimeUtc);
     }
 
     /// <summary>
@@ -3730,7 +3730,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         {
             if (triggerInstCode == SchedulerInstruction.DeleteTrigger)
             {
-                if (!trigger.GetNextFireTimeUtc().HasValue)
+                if (!trigger.NextFireTimeUtc.HasValue)
                 {
                     // double check for possible reschedule within job
                     // execution, which would cancel the need to delete...

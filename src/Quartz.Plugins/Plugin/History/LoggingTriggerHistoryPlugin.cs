@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -314,8 +314,8 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
         [
             trigger.Key.Name,
             trigger.Key.Group,
-            trigger.GetPreviousFireTimeUtc(),
-            trigger.GetNextFireTimeUtc(),
+            trigger.PreviousFireTimeUtc,
+            trigger.NextFireTimeUtc,
             timeProvider.GetUtcNow(),
             context.JobDetail.Key.Name,
             context.JobDetail.Key.Group,
@@ -351,8 +351,8 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
         [
             trigger.Key.Name,
             trigger.Key.Group,
-            trigger.GetPreviousFireTimeUtc(),
-            trigger.GetNextFireTimeUtc(),
+            trigger.PreviousFireTimeUtc,
+            trigger.NextFireTimeUtc,
             timeProvider.GetUtcNow(),
             trigger.JobKey.Name,
             trigger.JobKey.Group
@@ -410,8 +410,8 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
         [
             trigger.Key.Name,
             trigger.Key.Group,
-            trigger.GetPreviousFireTimeUtc(),
-            trigger.GetNextFireTimeUtc(),
+            trigger.PreviousFireTimeUtc,
+            trigger.NextFireTimeUtc,
             timeProvider.GetUtcNow(),
             context.JobDetail.Key.Name,
             context.JobDetail.Key.Group,

@@ -1,13 +1,13 @@
-namespace Quartz.Spi;
+﻿namespace Quartz.Spi;
 
 /// <summary>
 /// Should not be used by end users.
 /// </summary>
 public interface IMutableTrigger : ITrigger
 {
-    new TriggerKey Key { set; get; }
+    new TriggerKey Key { get; set; }
 
-    new JobKey JobKey { set; get; }
+    new JobKey JobKey { get; set; }
 
     /// <summary>
     /// Set a description for the <see cref="ITrigger" /> instance - may be
@@ -41,7 +41,7 @@ public interface IMutableTrigger : ITrigger
     /// <summary>
     /// Associate the <see cref="ICalendar" /> with the given name with this Trigger.
     /// </summary>
-    new string? CalendarName { set; get; }
+    new string? CalendarName { get; set; }
 
     /// <summary>
     /// Set the <see cref="JobDataMap" /> to be associated with the
@@ -73,7 +73,6 @@ public interface IMutableTrigger : ITrigger
     /// fire time that is in the past, which may cause an immediate misfire
     /// of the trigger.
     /// </para>
-    /// ew DateTimeOffset StartTimeUtc {  get; set; }
     /// </summary>
     new DateTimeOffset StartTimeUtc { get; set; }
 
@@ -87,6 +86,16 @@ public interface IMutableTrigger : ITrigger
     /// <remarks>
     /// </remarks>
     new DateTimeOffset? EndTimeUtc { get; set; }
+
+    /// <summary>
+    /// The next time at which the <see cref="ITrigger" /> is scheduled to fire.
+    /// </summary>
+    new DateTimeOffset? NextFireTimeUtc { get; set; }
+
+    /// <summary>
+    /// The previous time at which the <see cref="ITrigger" /> fired.
+    /// </summary>
+    new DateTimeOffset? PreviousFireTimeUtc { get; set; }
 
     /// <summary>
     /// Set the instruction the <see cref="IScheduler" /> should be given for

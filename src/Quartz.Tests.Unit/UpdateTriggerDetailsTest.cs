@@ -1,4 +1,4 @@
-using System.Collections.Specialized;
+﻿using System.Collections.Specialized;
 
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
@@ -39,7 +39,7 @@ public class UpdateTriggerDetailsTest
         trigger.ComputeFirstFireTimeUtc(null);
         await jobStore.StoreTrigger(trigger, false);
 
-        DateTimeOffset nextFireBefore = trigger.GetNextFireTimeUtc()!.Value;
+        DateTimeOffset nextFireBefore = trigger.NextFireTimeUtc!.Value;
 
         TriggerDetailsUpdate update = new TriggerDetailsUpdate()
             .WithDescription("Updated description");
@@ -50,7 +50,7 @@ public class UpdateTriggerDetailsTest
         IOperableTrigger retrieved = (await jobStore.RetrieveTrigger(trigger.Key))!;
         retrieved.Should().NotBeNull();
         retrieved.Description.Should().Be("Updated description");
-        retrieved.GetNextFireTimeUtc().Should().Be(nextFireBefore);
+        retrieved.NextFireTimeUtc.Should().Be(nextFireBefore);
     }
 
     [Test]
@@ -61,7 +61,7 @@ public class UpdateTriggerDetailsTest
         trigger.ComputeFirstFireTimeUtc(null);
         await jobStore.StoreTrigger(trigger, false);
 
-        DateTimeOffset nextFireBefore = trigger.GetNextFireTimeUtc()!.Value;
+        DateTimeOffset nextFireBefore = trigger.NextFireTimeUtc!.Value;
 
         TriggerDetailsUpdate update = new TriggerDetailsUpdate()
             .WithPriority(10);
@@ -71,7 +71,7 @@ public class UpdateTriggerDetailsTest
         result.Should().BeTrue();
         IOperableTrigger retrieved = (await jobStore.RetrieveTrigger(trigger.Key))!;
         retrieved.Priority.Should().Be(10);
-        retrieved.GetNextFireTimeUtc().Should().Be(nextFireBefore);
+        retrieved.NextFireTimeUtc.Should().Be(nextFireBefore);
     }
 
     [Test]
@@ -82,7 +82,7 @@ public class UpdateTriggerDetailsTest
         trigger.ComputeFirstFireTimeUtc(null);
         await jobStore.StoreTrigger(trigger, false);
 
-        DateTimeOffset nextFireBefore = trigger.GetNextFireTimeUtc()!.Value;
+        DateTimeOffset nextFireBefore = trigger.NextFireTimeUtc!.Value;
 
         JobDataMap newData = new JobDataMap { { "key1", "value1" } };
         TriggerDetailsUpdate update = new TriggerDetailsUpdate()
@@ -93,7 +93,7 @@ public class UpdateTriggerDetailsTest
         result.Should().BeTrue();
         IOperableTrigger retrieved = (await jobStore.RetrieveTrigger(trigger.Key))!;
         retrieved.JobDataMap.GetString("key1").Should().Be("value1");
-        retrieved.GetNextFireTimeUtc().Should().Be(nextFireBefore);
+        retrieved.NextFireTimeUtc.Should().Be(nextFireBefore);
     }
 
     [Test]
@@ -139,7 +139,7 @@ public class UpdateTriggerDetailsTest
 
         await jobStore.UpdateTriggerDetails(trigger2.Key, new TriggerDetailsUpdate().WithPriority(10));
 
-        DateTimeOffset firstFireTime = trigger1.GetNextFireTimeUtc()!.Value;
+        DateTimeOffset firstFireTime = trigger1.NextFireTimeUtc!.Value;
         var acquired = await jobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 2, TimeSpan.FromMilliseconds(1));
 
         acquired.Should().HaveCount(2);
@@ -195,7 +195,7 @@ public class UpdateTriggerDetailsTest
         trigger.ComputeFirstFireTimeUtc(null);
         await jobStore.StoreTrigger(trigger, false);
 
-        DateTimeOffset nextFireBefore = trigger.GetNextFireTimeUtc()!.Value;
+        DateTimeOffset nextFireBefore = trigger.NextFireTimeUtc!.Value;
 
         TriggerDetailsUpdate update = new TriggerDetailsUpdate()
             .WithDescription("new desc")
@@ -209,7 +209,7 @@ public class UpdateTriggerDetailsTest
         retrieved.Description.Should().Be("new desc");
         retrieved.Priority.Should().Be(7);
         retrieved.JobDataMap.GetString("k").Should().Be("v");
-        retrieved.GetNextFireTimeUtc().Should().Be(nextFireBefore);
+        retrieved.NextFireTimeUtc.Should().Be(nextFireBefore);
     }
 
     [Test]
@@ -221,14 +221,14 @@ public class UpdateTriggerDetailsTest
         trigger.ComputeFirstFireTimeUtc(null);
         await jobStore.StoreTrigger(trigger, false);
 
-        DateTimeOffset nextFireBefore = trigger.GetNextFireTimeUtc()!.Value;
+        DateTimeOffset nextFireBefore = trigger.NextFireTimeUtc!.Value;
 
         bool result = await jobStore.UpdateTriggerDetails(trigger.Key, new TriggerDetailsUpdate().WithMisfireInstruction(MisfireInstruction.CronTrigger.DoNothing));
 
         result.Should().BeTrue();
         IOperableTrigger retrieved = (await jobStore.RetrieveTrigger(trigger.Key))!;
         retrieved.MisfireInstruction.Should().Be(MisfireInstruction.CronTrigger.DoNothing);
-        retrieved.GetNextFireTimeUtc().Should().Be(nextFireBefore);
+        retrieved.NextFireTimeUtc.Should().Be(nextFireBefore);
     }
 
     [Test]
@@ -256,7 +256,7 @@ public class UpdateTriggerDetailsTest
             await scheduler.AddJob(job, true);
             await scheduler.ScheduleJob(trigger);
 
-            DateTimeOffset nextFireBefore = trigger.GetNextFireTimeUtc()!.Value;
+            DateTimeOffset nextFireBefore = trigger.NextFireTimeUtc!.Value;
 
             TriggerDetailsUpdate update = new TriggerDetailsUpdate()
                 .WithDescription("via scheduler")
@@ -268,7 +268,7 @@ public class UpdateTriggerDetailsTest
             ITrigger retrieved = (await scheduler.GetTrigger(trigger.Key))!;
             retrieved.Description.Should().Be("via scheduler");
             retrieved.Priority.Should().Be(8);
-            retrieved.GetNextFireTimeUtc().Should().Be(nextFireBefore);
+            retrieved.NextFireTimeUtc.Should().Be(nextFireBefore);
         }
         finally
         {

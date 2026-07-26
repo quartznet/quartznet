@@ -322,8 +322,8 @@ public class JsonObjectSerializerTest
             {
                 using (new AssertionScope())
                 {
-                    original.GetNextFireTimeUtc().Should().Be(deserialized.GetNextFireTimeUtc());
-                    original.GetPreviousFireTimeUtc().Should().Be(deserialized.GetPreviousFireTimeUtc());
+                    original.NextFireTimeUtc.Should().Be(deserialized.NextFireTimeUtc);
+                    original.PreviousFireTimeUtc.Should().Be(deserialized.PreviousFireTimeUtc);
                 }
             }
         );
@@ -362,8 +362,8 @@ public class JsonObjectSerializerTest
             {
                 using (new AssertionScope())
                 {
-                    original.GetNextFireTimeUtc().Should().Be(deserialized.GetNextFireTimeUtc());
-                    original.GetPreviousFireTimeUtc().Should().Be(deserialized.GetPreviousFireTimeUtc());
+                    original.NextFireTimeUtc.Should().Be(deserialized.NextFireTimeUtc);
+                    original.PreviousFireTimeUtc.Should().Be(deserialized.PreviousFireTimeUtc);
                 }
             }
         );
@@ -405,8 +405,8 @@ public class JsonObjectSerializerTest
             {
                 using (new AssertionScope())
                 {
-                    original.GetNextFireTimeUtc().Should().Be(deserialized.GetNextFireTimeUtc());
-                    original.GetPreviousFireTimeUtc().Should().Be(deserialized.GetPreviousFireTimeUtc());
+                    original.NextFireTimeUtc.Should().Be(deserialized.NextFireTimeUtc);
+                    original.PreviousFireTimeUtc.Should().Be(deserialized.PreviousFireTimeUtc);
                 }
             }
         );
@@ -447,8 +447,8 @@ public class JsonObjectSerializerTest
             {
                 using (new AssertionScope())
                 {
-                    original.GetNextFireTimeUtc().Should().Be(deserialized.GetNextFireTimeUtc());
-                    original.GetPreviousFireTimeUtc().Should().Be(deserialized.GetPreviousFireTimeUtc());
+                    original.NextFireTimeUtc.Should().Be(deserialized.NextFireTimeUtc);
+                    original.PreviousFireTimeUtc.Should().Be(deserialized.PreviousFireTimeUtc);
                 }
             }
         );
@@ -490,8 +490,8 @@ public class JsonObjectSerializerTest
             {
                 using (new AssertionScope())
                 {
-                    original.GetNextFireTimeUtc().Should().Be(deserialized.GetNextFireTimeUtc());
-                    original.GetPreviousFireTimeUtc().Should().Be(deserialized.GetPreviousFireTimeUtc());
+                    original.NextFireTimeUtc.Should().Be(deserialized.NextFireTimeUtc);
+                    original.PreviousFireTimeUtc.Should().Be(deserialized.PreviousFireTimeUtc);
                 }
             }
         );

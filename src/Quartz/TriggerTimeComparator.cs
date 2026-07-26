@@ -1,4 +1,4 @@
-namespace Quartz;
+﻿namespace Quartz;
 
 /// <summary>
 /// A Comparator that compares trigger's next fire times, or in other words,
@@ -27,8 +27,8 @@ internal sealed class TriggerTimeComparator : IComparer<ITrigger>
             return -1;
         }
 
-        var t1 = trig1.GetNextFireTimeUtc();
-        var t2 = trig2.GetNextFireTimeUtc();
+        var t1 = trig1.NextFireTimeUtc;
+        var t2 = trig2.NextFireTimeUtc;
 
         if (t1 is not null || t2 is not null)
         {

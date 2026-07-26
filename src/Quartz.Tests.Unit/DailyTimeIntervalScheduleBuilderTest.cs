@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -91,7 +91,7 @@ public class DailyTimeIntervalScheduleBuilderTest
         await scheduler.ScheduleJob(job, trigger);
 
         trigger = await scheduler.GetTrigger(trigger.Key);
-        var nextFireTime = trigger.GetNextFireTimeUtc();
+        var nextFireTime = trigger.NextFireTimeUtc;
 
         Assert.That(nextFireTime, Is.Not.Null);
         Assert.That(nextFireTime, Is.GreaterThan(currTime));
@@ -109,7 +109,7 @@ public class DailyTimeIntervalScheduleBuilderTest
         await scheduler.ScheduleJob(job, trigger);
 
         trigger = await scheduler.GetTrigger(trigger.Key);
-        nextFireTime = trigger.GetNextFireTimeUtc();
+        nextFireTime = trigger.NextFireTimeUtc;
 
         Assert.That(nextFireTime, Is.Not.Null);
         Assert.That(nextFireTime, Is.EqualTo(startTime));

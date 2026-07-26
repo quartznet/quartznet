@@ -1,4 +1,4 @@
-using BenchmarkDotNet.Attributes;
+﻿using BenchmarkDotNet.Attributes;
 using Quartz.Impl.Triggers;
 
 namespace Quartz.Benchmark;
@@ -29,7 +29,7 @@ public class SimpleTriggerImplBenchmark
             SimpleTriggerImpl.RepeatIndefinitely,
             TimeSpan.FromTicks(1000));
         _trigger1.MisfireInstruction = MisfireInstruction.SmartPolicy;
-        _trigger1.SetNextFireTimeUtc(DateTimeOffset.UtcNow);
+        _trigger1.NextFireTimeUtc = DateTimeOffset.UtcNow;
 
         _trigger1Legacy = new SimpleTriggerImplLegacy("1",
             new DateTimeOffset(2, 1, 1, 0, 0, 0, 0, TimeSpan.Zero),
@@ -37,7 +37,7 @@ public class SimpleTriggerImplBenchmark
             SimpleTriggerImpl.RepeatIndefinitely,
             TimeSpan.FromTicks(1000));
         _trigger1Legacy.MisfireInstruction = MisfireInstruction.SmartPolicy;
-        _trigger1Legacy.SetNextFireTimeUtc(DateTimeOffset.UtcNow);
+        _trigger1Legacy.NextFireTimeUtc = DateTimeOffset.UtcNow;
 
         _trigger2 = new SimpleTriggerImpl("1",
             DateTimeOffset.MinValue,
@@ -73,7 +73,7 @@ public class SimpleTriggerImplBenchmark
             SimpleTriggerImpl.RepeatIndefinitely,
             TimeSpan.FromTicks(1000));
         _trigger4.MisfireInstruction = MisfireInstruction.SimpleTrigger.FireNow;
-        _trigger4.SetNextFireTimeUtc(DateTimeOffset.UtcNow);
+        _trigger4.NextFireTimeUtc = DateTimeOffset.UtcNow;
 
         _trigger4Legacy = new SimpleTriggerImplLegacy("1",
             DateTimeOffset.MinValue,
@@ -81,7 +81,7 @@ public class SimpleTriggerImplBenchmark
             SimpleTriggerImpl.RepeatIndefinitely,
             TimeSpan.FromTicks(1000));
         _trigger4Legacy.MisfireInstruction = MisfireInstruction.SimpleTrigger.FireNow;
-        _trigger4Legacy.SetNextFireTimeUtc(DateTimeOffset.UtcNow);
+        _trigger4Legacy.NextFireTimeUtc = DateTimeOffset.UtcNow;
 
         _trigger5 = new SimpleTriggerImpl("1",
             DateTimeOffset.MinValue,
@@ -103,7 +103,7 @@ public class SimpleTriggerImplBenchmark
             int.MaxValue,
             TimeSpan.FromDays(1));
         _trigger6.MisfireInstruction = MisfireInstruction.SimpleTrigger.FireNow;
-        _trigger6.SetNextFireTimeUtc(DateTimeOffset.UtcNow);
+        _trigger6.NextFireTimeUtc = DateTimeOffset.UtcNow;
 
         _trigger6Legacy = new SimpleTriggerImplLegacy("1",
             DateTimeOffset.MinValue,
@@ -111,7 +111,7 @@ public class SimpleTriggerImplBenchmark
             int.MaxValue,
             TimeSpan.FromDays(1));
         _trigger6Legacy.MisfireInstruction = MisfireInstruction.SimpleTrigger.FireNow;
-        _trigger6Legacy.SetNextFireTimeUtc(DateTimeOffset.UtcNow);
+        _trigger6Legacy.NextFireTimeUtc = DateTimeOffset.UtcNow;
 
         _today = new DateTimeOffset(DateTime.Today.ToUniversalTime(), TimeSpan.Zero);
     }
@@ -270,7 +270,7 @@ public class SimpleTriggerImplBenchmark
         _trigger4!.UpdateAfterMisfire(null);
         // This is only necessary for the legacy implementation, but we do this here to make
         // sure we benchmark the same
-        _trigger4!.SetNextFireTimeUtc(_today);
+        _trigger4!.NextFireTimeUtc = _today;
     }
 
     [Benchmark]
@@ -279,7 +279,7 @@ public class SimpleTriggerImplBenchmark
         _trigger4Legacy!.UpdateAfterMisfire(null);
         // UpdateAfterMisfire will set next fire time to null, so make sure we don't crash on
         // the next invocation
-        _trigger4Legacy!.SetNextFireTimeUtc(_today);
+        _trigger4Legacy!.NextFireTimeUtc = _today;
     }
 
     [Benchmark]
@@ -879,19 +879,10 @@ public class SimpleTriggerImplBenchmark
         /// returned. The value returned is not guaranteed to be valid until after
         /// the <see cref="ITrigger" /> has been added to the scheduler.
         /// </summary>
-        public override DateTimeOffset? GetNextFireTimeUtc()
+        public override DateTimeOffset? NextFireTimeUtc
         {
-            return nextFireTimeUtc;
-        }
-
-        public override void SetNextFireTimeUtc(DateTimeOffset? nextFireTime)
-        {
-            nextFireTimeUtc = nextFireTime;
-        }
-
-        public override void SetPreviousFireTimeUtc(DateTimeOffset? previousFireTime)
-        {
-            previousFireTimeUtc = previousFireTime;
+            get => nextFireTimeUtc;
+            set => nextFireTimeUtc = value;
         }
 
         /// <summary>
@@ -899,9 +890,10 @@ public class SimpleTriggerImplBenchmark
         /// If the trigger has not yet fired, <see langword="null" /> will be
         /// returned.
         /// </summary>
-        public override DateTimeOffset? GetPreviousFireTimeUtc()
+        public override DateTimeOffset? PreviousFireTimeUtc
         {
-            return previousFireTimeUtc;
+            get => previousFireTimeUtc;
+            set => previousFireTimeUtc = value;
         }
 
         /// <summary>
@@ -994,7 +986,7 @@ public class SimpleTriggerImplBenchmark
         /// </summary>
         public override bool GetMayFireAgain()
         {
-            return GetNextFireTimeUtc().HasValue;
+            return NextFireTimeUtc.HasValue;
         }
 
         /// <summary>

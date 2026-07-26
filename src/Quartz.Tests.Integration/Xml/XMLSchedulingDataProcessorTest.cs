@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -106,8 +106,7 @@ public class XMLSchedulingDataProcessorTest
         DateTimeOffset previousFireTime = new DateTimeOffset(2013, 2, 15, 15, 0, 0, TimeSpan.Zero);
         SimpleTriggerImpl existing = new SimpleTriggerImpl("triggerToReplace", "groupToReplace", startTime, null, SimpleTriggerImpl.RepeatIndefinitely, TimeSpan.FromHours(1));
         existing.JobKey = new JobKey("jobName1", "jobGroup1");
-        existing.SetPreviousFireTimeUtc(previousFireTime);
-        existing.GetNextFireTimeUtc();
+        existing.PreviousFireTimeUtc = previousFireTime;
 
         A.CallTo(() => mockScheduler.GetTrigger(existing.Key, A<CancellationToken>._)).Returns(new ValueTask<ITrigger>(existing));
 
@@ -123,7 +122,7 @@ public class XMLSchedulingDataProcessorTest
             // replacement trigger should have same start time and next fire relative to old trigger's last fire time
             Assert.That(argumentTrigger, Is.Not.Null);
             Assert.That(argumentTrigger.StartTimeUtc, Is.EqualTo(startTime));
-            Assert.That(argumentTrigger.GetNextFireTimeUtc(), Is.EqualTo(previousFireTime.AddSeconds(10)));
+            Assert.That(argumentTrigger.NextFireTimeUtc, Is.EqualTo(previousFireTime.AddSeconds(10)));
             return true;
         }).MustHaveHappened();
     }

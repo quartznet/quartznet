@@ -96,6 +96,19 @@
     the scheduler was tying up a thread every time it waited for pool capacity. They now use `WaitAsync`. Shutdown still waits
     synchronously for running jobs; that happens once, off the scheduling loop.
 
+  * **ITrigger** exposes the fire times as properties — `NextFireTimeUtc` and `PreviousFireTimeUtc` — rather than
+    only as `GetNextFireTimeUtc()` / `GetPreviousFireTimeUtc()` methods, which were a direct port of Java's
+    accessor style. **Existing calling code keeps compiling**: the two methods remain as `[Obsolete]` default
+    interface implementations that forward to the properties, and `AbstractTrigger` keeps concrete `[Obsolete]`
+    forwarders as well, so code holding a concrete trigger type — where a default implementation is not reachable —
+    is unaffected too. You will get an obsolescence warning and can fix it by deleting `Get` and `()`.
+
+    `IMutableTrigger` re-declares both properties with setters, which let **`IOperableTrigger.SetNextFireTimeUtc`**
+    and **`SetPreviousFireTimeUtc` be removed**: `trigger.SetNextFireTimeUtc(value)` becomes
+    `trigger.NextFireTimeUtc = value`. That pair had no obsolete stand-in because a method and a property setter
+    cannot coexist under one name. `IMutableTrigger` also lost its stray `{ set; get; }` accessor ordering and a
+    doc comment that had leaked a fragment of code into the summary text.
+
   * `IJobStore.EstimatedTimeToReleaseAndAcquireTrigger` is a **`TimeSpan`** rather than a `long` count of
     milliseconds. The same interface already returned `TimeSpan` from `GetAcquireRetryDelay`, so it carried two
     ways of saying the same kind of thing.

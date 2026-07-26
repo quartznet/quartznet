@@ -526,9 +526,10 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// has been added to the scheduler.
     /// </remarks>
     /// <returns></returns>
-    public override DateTimeOffset? GetNextFireTimeUtc()
+    public override DateTimeOffset? NextFireTimeUtc
     {
-        return nextFireTimeUtc;
+        get => nextFireTimeUtc;
+        set => nextFireTimeUtc = value;
     }
 
     /// <summary>
@@ -536,33 +537,10 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// If the trigger has not yet fired, <see langword="null" /> will be returned.
     /// </summary>
     /// <returns></returns>
-    public override DateTimeOffset? GetPreviousFireTimeUtc()
+    public override DateTimeOffset? PreviousFireTimeUtc
     {
-        return previousFireTimeUtc;
-    }
-
-    /// <summary>
-    /// Sets the next fire time.
-    /// <para>
-    /// <b>This method should not be invoked by client code.</b>
-    /// </para>
-    /// </summary>
-    /// <param name="fireTime">The fire time.</param>
-    public override void SetNextFireTimeUtc(DateTimeOffset? fireTime)
-    {
-        nextFireTimeUtc = fireTime;
-    }
-
-    /// <summary>
-    /// Sets the previous fire time.
-    /// <para>
-    /// <b>This method should not be invoked by client code.</b>
-    /// </para>
-    /// </summary>
-    /// <param name="fireTime">The fire time.</param>
-    public override void SetPreviousFireTimeUtc(DateTimeOffset? fireTime)
-    {
-        previousFireTimeUtc = fireTime;
+        get => previousFireTimeUtc;
+        set => previousFireTimeUtc = value;
     }
 
     /// <summary>
@@ -710,7 +688,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// <returns></returns>
     public override bool GetMayFireAgain()
     {
-        return GetNextFireTimeUtc().HasValue;
+        return NextFireTimeUtc.HasValue;
     }
 
     /// <summary>
@@ -774,11 +752,11 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
                     newFireTime = null;
                 }
             }
-            SetNextFireTimeUtc(newFireTime);
+            NextFireTimeUtc = newFireTime;
         }
         else if (instr == Quartz.MisfireInstruction.CronTrigger.FireOnceNow)
         {
-            SetNextFireTimeUtc(TimeProvider.GetUtcNow());
+            NextFireTimeUtc = TimeProvider.GetUtcNow();
         }
     }
 
@@ -915,14 +893,14 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// added to the scheduler, in order to have the <see cref="ITrigger" />
     /// compute its first fire time, based on any associated calendar.
     /// <para>
-    /// After this method has been called, <see cref="GetNextFireTimeUtc" />
+    /// After this method has been called, <see cref="NextFireTimeUtc" />
     /// should return a valid answer.
     /// </para>
     /// </summary>
     /// <param name="cal"></param>
     /// <returns>
     /// the first time at which the <see cref="ITrigger" /> will be fired
-    /// by the scheduler, which is also the same value <see cref="GetNextFireTimeUtc" />
+    /// by the scheduler, which is also the same value <see cref="NextFireTimeUtc" />
     /// will return (until after the first firing of the <see cref="ITrigger" />).
     /// </returns>
     public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? cal)

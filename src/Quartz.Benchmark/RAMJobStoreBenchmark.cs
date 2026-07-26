@@ -462,7 +462,7 @@ public class RAMJobStoreBenchmark
 
         if (nextFireTimeUtc is not null)
         {
-            trigger.SetNextFireTimeUtc(nextFireTimeUtc);
+            trigger.NextFireTimeUtc = nextFireTimeUtc;
         }
         else
         {
@@ -543,12 +543,12 @@ public class RAMJobStoreBenchmark
 
         public override void UpdateAfterMisfire(ICalendar? cal)
         {
-            base.SetNextFireTimeUtc(base.GetNextFireTimeUtc().GetValueOrDefault().AddSeconds(1));
+            base.NextFireTimeUtc = base.NextFireTimeUtc.GetValueOrDefault().AddSeconds(1);
         }
 
         public override void Triggered(ICalendar? cal)
         {
-            base.SetNextFireTimeUtc(base.GetNextFireTimeUtc().GetValueOrDefault().AddSeconds(2));
+            base.NextFireTimeUtc = base.NextFireTimeUtc.GetValueOrDefault().AddSeconds(2);
         }
     }
 }

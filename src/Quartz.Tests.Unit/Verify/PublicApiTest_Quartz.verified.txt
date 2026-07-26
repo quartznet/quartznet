@@ -568,13 +568,17 @@ namespace Quartz
         Quartz.JobKey JobKey { get; }
         Quartz.TriggerKey Key { get; }
         int MisfireInstruction { get; }
+        System.DateTimeOffset? NextFireTimeUtc { get; }
         string? PreferredNode { get; }
+        System.DateTimeOffset? PreviousFireTimeUtc { get; }
         int Priority { get; set; }
         System.DateTimeOffset StartTimeUtc { get; }
         Quartz.ITrigger Clone();
         System.DateTimeOffset? GetFireTimeAfter(System.DateTimeOffset? afterTime);
         bool GetMayFireAgain();
+        [System.Obsolete("Use the NextFireTimeUtc property instead.")]
         System.DateTimeOffset? GetNextFireTimeUtc();
+        [System.Obsolete("Use the PreviousFireTimeUtc property instead.")]
         System.DateTimeOffset? GetPreviousFireTimeUtc();
         Quartz.IScheduleBuilder GetScheduleBuilder();
         Quartz.TriggerBuilder GetTriggerBuilder();
@@ -2793,7 +2797,9 @@ namespace Quartz.Impl.Triggers
         public Quartz.JobKey JobKey { get; set; }
         public Quartz.TriggerKey Key { get; set; }
         public virtual int MisfireInstruction { get; set; }
+        public abstract System.DateTimeOffset? NextFireTimeUtc { get; set; }
         public string? PreferredNode { get; set; }
+        public abstract System.DateTimeOffset? PreviousFireTimeUtc { get; set; }
         public virtual int Priority { get; set; }
         public virtual System.DateTimeOffset StartTimeUtc { get; set; }
         public virtual Quartz.ITrigger Clone() { }
@@ -2804,12 +2810,12 @@ namespace Quartz.Impl.Triggers
         public abstract System.DateTimeOffset? GetFireTimeAfter(System.DateTimeOffset? afterTime);
         public override int GetHashCode() { }
         public abstract bool GetMayFireAgain();
-        public abstract System.DateTimeOffset? GetNextFireTimeUtc();
-        public abstract System.DateTimeOffset? GetPreviousFireTimeUtc();
+        [System.Obsolete("Use the NextFireTimeUtc property instead.")]
+        public System.DateTimeOffset? GetNextFireTimeUtc() { }
+        [System.Obsolete("Use the PreviousFireTimeUtc property instead.")]
+        public System.DateTimeOffset? GetPreviousFireTimeUtc() { }
         public abstract Quartz.IScheduleBuilder GetScheduleBuilder();
         public Quartz.TriggerBuilder GetTriggerBuilder() { }
-        public abstract void SetNextFireTimeUtc(System.DateTimeOffset? nextFireTime);
-        public abstract void SetPreviousFireTimeUtc(System.DateTimeOffset? previousFireTime);
         public override string ToString() { }
         public abstract void Triggered(Quartz.ICalendar? cal);
         public abstract void UpdateAfterMisfire(Quartz.ICalendar? cal);
@@ -2830,7 +2836,9 @@ namespace Quartz.Impl.Triggers
         public override System.DateTimeOffset? EndTimeUtc { get; set; }
         public override System.DateTimeOffset? FinalFireTimeUtc { get; }
         public override bool HasMillisecondPrecision { get; }
+        public override System.DateTimeOffset? NextFireTimeUtc { get; set; }
         public bool PreserveHourOfDayAcrossDaylightSavings { get; set; }
+        public override System.DateTimeOffset? PreviousFireTimeUtc { get; set; }
         public int RepeatInterval { get; set; }
         public Quartz.IntervalUnit RepeatIntervalUnit { get; set; }
         public bool SkipDayIfHourDoesNotExist { get; set; }
@@ -2840,11 +2848,7 @@ namespace Quartz.Impl.Triggers
         public override System.DateTimeOffset? ComputeFirstFireTimeUtc(Quartz.ICalendar? calendar) { }
         public override System.DateTimeOffset? GetFireTimeAfter(System.DateTimeOffset? afterTime) { }
         public override bool GetMayFireAgain() { }
-        public override System.DateTimeOffset? GetNextFireTimeUtc() { }
-        public override System.DateTimeOffset? GetPreviousFireTimeUtc() { }
         public override Quartz.IScheduleBuilder GetScheduleBuilder() { }
-        public override void SetNextFireTimeUtc(System.DateTimeOffset? value) { }
-        public override void SetPreviousFireTimeUtc(System.DateTimeOffset? previousFireTimeUtc) { }
         public override void Triggered(Quartz.ICalendar? calendar) { }
         public override void UpdateAfterMisfire(Quartz.ICalendar? cal) { }
         public override void UpdateWithNewCalendar(Quartz.ICalendar calendar, System.TimeSpan misfireThreshold) { }
@@ -2868,6 +2872,8 @@ namespace Quartz.Impl.Triggers
         public override System.DateTimeOffset? EndTimeUtc { get; set; }
         public override System.DateTimeOffset? FinalFireTimeUtc { get; }
         public override bool HasMillisecondPrecision { get; }
+        public override System.DateTimeOffset? NextFireTimeUtc { get; set; }
+        public override System.DateTimeOffset? PreviousFireTimeUtc { get; set; }
         public override System.DateTimeOffset StartTimeUtc { get; set; }
         public System.TimeZoneInfo TimeZone { get; set; }
         public override Quartz.ITrigger Clone() { }
@@ -2875,12 +2881,8 @@ namespace Quartz.Impl.Triggers
         public string? GetExpressionSummary() { }
         public override System.DateTimeOffset? GetFireTimeAfter(System.DateTimeOffset? afterTimeUtc) { }
         public override bool GetMayFireAgain() { }
-        public override System.DateTimeOffset? GetNextFireTimeUtc() { }
-        public override System.DateTimeOffset? GetPreviousFireTimeUtc() { }
         public override Quartz.IScheduleBuilder GetScheduleBuilder() { }
         protected System.DateTimeOffset? GetTimeBefore(System.DateTimeOffset date) { }
-        public override void SetNextFireTimeUtc(System.DateTimeOffset? fireTime) { }
-        public override void SetPreviousFireTimeUtc(System.DateTimeOffset? fireTime) { }
         public override void Triggered(Quartz.ICalendar? cal) { }
         public override void UpdateAfterMisfire(Quartz.ICalendar? cal) { }
         public override void UpdateWithNewCalendar(Quartz.ICalendar calendar, System.TimeSpan misfireThreshold) { }
@@ -2903,6 +2905,8 @@ namespace Quartz.Impl.Triggers
         public override System.DateTimeOffset? EndTimeUtc { get; set; }
         public override System.DateTimeOffset? FinalFireTimeUtc { get; }
         public override bool HasMillisecondPrecision { get; }
+        public override System.DateTimeOffset? NextFireTimeUtc { get; set; }
+        public override System.DateTimeOffset? PreviousFireTimeUtc { get; set; }
         public int RepeatCount { get; set; }
         public int RepeatInterval { get; set; }
         public Quartz.IntervalUnit RepeatIntervalUnit { get; set; }
@@ -2913,11 +2917,7 @@ namespace Quartz.Impl.Triggers
         public override System.DateTimeOffset? ComputeFirstFireTimeUtc(Quartz.ICalendar? calendar) { }
         public override System.DateTimeOffset? GetFireTimeAfter(System.DateTimeOffset? afterTime) { }
         public override bool GetMayFireAgain() { }
-        public override System.DateTimeOffset? GetNextFireTimeUtc() { }
-        public override System.DateTimeOffset? GetPreviousFireTimeUtc() { }
         public override Quartz.IScheduleBuilder GetScheduleBuilder() { }
-        public override void SetNextFireTimeUtc(System.DateTimeOffset? value) { }
-        public override void SetPreviousFireTimeUtc(System.DateTimeOffset? previousFireTimeUtc) { }
         public override void Triggered(Quartz.ICalendar? calendar) { }
         public override void UpdateAfterMisfire(Quartz.ICalendar? cal) { }
         public override void UpdateWithNewCalendar(Quartz.ICalendar calendar, System.TimeSpan misfireThreshold) { }
@@ -2931,6 +2931,8 @@ namespace Quartz.Impl.Triggers
         public override System.DateTimeOffset? EndTimeUtc { get; set; }
         public override System.DateTimeOffset? FinalFireTimeUtc { get; }
         public override bool HasMillisecondPrecision { get; }
+        public override System.DateTimeOffset? NextFireTimeUtc { get; set; }
+        public override System.DateTimeOffset? PreviousFireTimeUtc { get; set; }
         public string RecurrenceRule { get; set; }
         public override System.DateTimeOffset StartTimeUtc { get; set; }
         public System.TimeZoneInfo TimeZone { get; set; }
@@ -2938,11 +2940,7 @@ namespace Quartz.Impl.Triggers
         public override System.DateTimeOffset? ComputeFirstFireTimeUtc(Quartz.ICalendar? calendar) { }
         public override System.DateTimeOffset? GetFireTimeAfter(System.DateTimeOffset? afterTime) { }
         public override bool GetMayFireAgain() { }
-        public override System.DateTimeOffset? GetNextFireTimeUtc() { }
-        public override System.DateTimeOffset? GetPreviousFireTimeUtc() { }
         public override Quartz.IScheduleBuilder GetScheduleBuilder() { }
-        public override void SetNextFireTimeUtc(System.DateTimeOffset? value) { }
-        public override void SetPreviousFireTimeUtc(System.DateTimeOffset? previousFireTimeUtc) { }
         public override void Triggered(Quartz.ICalendar? calendar) { }
         public override void UpdateAfterMisfire(Quartz.ICalendar? cal) { }
         public override void UpdateWithNewCalendar(Quartz.ICalendar calendar, System.TimeSpan misfireThreshold) { }
@@ -2966,6 +2964,8 @@ namespace Quartz.Impl.Triggers
         public SimpleTriggerImpl(string name, string group, string jobName, string jobGroup, System.DateTimeOffset startTimeUtc, System.DateTimeOffset? endTimeUtc, int repeatCount, System.TimeSpan repeatInterval, System.TimeProvider? timeProvider = null) { }
         public override System.DateTimeOffset? FinalFireTimeUtc { get; }
         public override bool HasMillisecondPrecision { get; }
+        public override System.DateTimeOffset? NextFireTimeUtc { get; set; }
+        public override System.DateTimeOffset? PreviousFireTimeUtc { get; set; }
         public int RepeatCount { get; set; }
         public System.TimeSpan RepeatInterval { get; set; }
         public int TimesTriggered { get; set; }
@@ -2974,11 +2974,7 @@ namespace Quartz.Impl.Triggers
         public override System.DateTimeOffset? GetFireTimeAfter(System.DateTimeOffset? afterTimeUtc) { }
         public System.DateTimeOffset? GetFireTimeBefore(System.DateTimeOffset endUtc) { }
         public override bool GetMayFireAgain() { }
-        public override System.DateTimeOffset? GetNextFireTimeUtc() { }
-        public override System.DateTimeOffset? GetPreviousFireTimeUtc() { }
         public override Quartz.IScheduleBuilder GetScheduleBuilder() { }
-        public override void SetNextFireTimeUtc(System.DateTimeOffset? nextFireTime) { }
-        public override void SetPreviousFireTimeUtc(System.DateTimeOffset? previousFireTime) { }
         public override void Triggered(Quartz.ICalendar? cal) { }
         public override void UpdateAfterMisfire(Quartz.ICalendar? cal) { }
         public override void UpdateWithNewCalendar(Quartz.ICalendar calendar, System.TimeSpan misfireThreshold) { }
@@ -3416,7 +3412,9 @@ namespace Quartz.Spi
         new Quartz.JobKey JobKey { get; set; }
         new Quartz.TriggerKey Key { get; set; }
         new int MisfireInstruction { get; set; }
+        new System.DateTimeOffset? NextFireTimeUtc { get; set; }
         new string? PreferredNode { get; set; }
+        new System.DateTimeOffset? PreviousFireTimeUtc { get; set; }
         new int Priority { get; set; }
         new System.DateTimeOffset StartTimeUtc { get; set; }
     }
@@ -3432,8 +3430,6 @@ namespace Quartz.Spi
         string FireInstanceId { get; set; }
         System.DateTimeOffset? ComputeFirstFireTimeUtc(Quartz.ICalendar? calendar);
         Quartz.SchedulerInstruction ExecutionComplete(Quartz.IJobExecutionContext context, Quartz.JobExecutionException? result);
-        void SetNextFireTimeUtc(System.DateTimeOffset? value);
-        void SetPreviousFireTimeUtc(System.DateTimeOffset? value);
         void Triggered(Quartz.ICalendar? calendar);
         void UpdateAfterMisfire(Quartz.ICalendar? cal);
         void UpdateWithNewCalendar(Quartz.ICalendar cal, System.TimeSpan misfireThreshold);

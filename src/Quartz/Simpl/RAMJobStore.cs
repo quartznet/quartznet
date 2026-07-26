@@ -1786,7 +1786,7 @@ public class RAMJobStore : IJobStore
             misfireTime = misfireTime.AddTicks(-1 * MisfireThreshold.Ticks);
         }
 
-        DateTimeOffset? tnft = tw.Trigger.GetNextFireTimeUtc();
+        DateTimeOffset? tnft = tw.Trigger.NextFireTimeUtc;
         if (!tnft.HasValue || tnft.GetValueOrDefault() > misfireTime)
         {
             return false;
@@ -1810,7 +1810,7 @@ public class RAMJobStore : IJobStore
         // These set nextFireTimeUtc to ~now. "Reschedule next" policies (DoNothing,
         // RescheduleNextWith*) set it to a future schedule time where the existing code
         // already produces the correct ScheduledFireTimeUtc.
-        var updatedTnft = tw.Trigger.GetNextFireTimeUtc();
+        var updatedTnft = tw.Trigger.NextFireTimeUtc;
         if (tw.Trigger is AbstractTrigger abstractTrigger
             && originalFireTime.HasValue && updatedTnft.HasValue
             && originalFireTime.Value != updatedTnft.Value
@@ -1883,7 +1883,7 @@ public class RAMJobStore : IJobStore
                 timeTriggers.Remove(tw);
 
                 // Use a local for the next fire time to reduce number of interface calls.
-                var tnft = tw.Trigger.GetNextFireTimeUtc();
+                var tnft = tw.Trigger.NextFireTimeUtc;
 
                 // When the trigger is not scheduled to fire, continue with the next trigger.
                 if (!tnft.HasValue)
@@ -1896,7 +1896,7 @@ public class RAMJobStore : IJobStore
                     // If - after applying the misfire policy - the trigger is still scheduled to fire, we'll
                     // add it back to the set of triggers. We cannot use the "cached" next fire time here as
                     // it has been updated in ApplyMisfire(TriggerWrapper tw).
-                    if (tw.Trigger.GetNextFireTimeUtc() is not null)
+                    if (tw.Trigger.NextFireTimeUtc is not null)
                     {
                         timeTriggers.Add(tw);
                     }
@@ -2041,7 +2041,7 @@ public class RAMJobStore : IJobStore
                     }
                 }
 
-                DateTimeOffset? prevFireTime = trigger.GetPreviousFireTimeUtc();
+                DateTimeOffset? prevFireTime = trigger.PreviousFireTimeUtc;
 
                 // Read saved original fire time (set during ApplyMisfireNoLock if a misfire occurred)
                 DateTimeOffset? scheduledFireTime = null;
@@ -2070,9 +2070,9 @@ public class RAMJobStore : IJobStore
                     cal,
                     jobIsRecovering: false,
                     timeProvider.GetUtcNow(),
-                    scheduledFireTime ?? trigger.GetPreviousFireTimeUtc(),
+                    scheduledFireTime ?? trigger.PreviousFireTimeUtc,
                     prevFireTime,
-                    trigger.GetNextFireTimeUtc());
+                    trigger.NextFireTimeUtc);
 
                 IJobDetail job = bndle.JobDetail;
 
@@ -2099,7 +2099,7 @@ public class RAMJobStore : IJobStore
 
                     blockedJobs.Add(job.Key);
                 }
-                else if (tw.Trigger.GetNextFireTimeUtc() is not null)
+                else if (tw.Trigger.NextFireTimeUtc is not null)
                 {
                     timeTriggers.Add(tw);
                 }
@@ -2182,12 +2182,12 @@ public class RAMJobStore : IJobStore
                 if (triggerInstCode == SchedulerInstruction.DeleteTrigger)
                 {
                     logger.LogDebug("Deleting trigger");
-                    DateTimeOffset? d = trigger.GetNextFireTimeUtc();
+                    DateTimeOffset? d = trigger.NextFireTimeUtc;
                     if (!d.HasValue)
                     {
                         // double check for possible reschedule within job
                         // execution, which would cancel the need to delete...
-                        d = tw.Trigger.GetNextFireTimeUtc();
+                        d = tw.Trigger.NextFireTimeUtc;
                         if (!d.HasValue)
                         {
                             await RemoveTriggerNoLock(trigger.Key, removeOrphanedJob: true, cancellationToken).ConfigureAwait(false);

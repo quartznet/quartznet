@@ -1,4 +1,4 @@
-using System.Data;
+﻿using System.Data;
 using System.Data.Common;
 
 using FakeItEasy;
@@ -130,7 +130,7 @@ public class UpdateMisfiredTriggersBatchTest
                 RepeatCount = SimpleTriggerImpl.RepeatIndefinitely,
                 RepeatInterval = TimeSpan.FromMinutes(1)
             };
-            trigger.SetNextFireTimeUtc(DateTimeOffset.UtcNow.AddMinutes(1));
+            trigger.NextFireTimeUtc = DateTimeOffset.UtcNow.AddMinutes(1);
 
             updates.Add(new MisfiredTriggerUpdate(trigger, AdoConstants.StateWaiting, null));
         }

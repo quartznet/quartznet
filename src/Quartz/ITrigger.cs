@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
@@ -209,14 +209,25 @@ public interface ITrigger
     /// The value returned is not guaranteed to be valid until after the <see cref="ITrigger" />
     /// has been added to the scheduler.
     /// </remarks>
-    /// <returns></returns>
-    DateTimeOffset? GetNextFireTimeUtc();
+    DateTimeOffset? NextFireTimeUtc { get; }
+
+    /// <summary>
+    /// The previous time at which the <see cref="ITrigger" /> fired.
+    /// If the trigger has not yet fired, <see langword="null" /> will be returned.
+    /// </summary>
+    DateTimeOffset? PreviousFireTimeUtc { get; }
+
+    /// <summary>
+    /// Returns the next time at which the <see cref="ITrigger" /> is scheduled to fire.
+    /// </summary>
+    [Obsolete("Use the NextFireTimeUtc property instead.")]
+    DateTimeOffset? GetNextFireTimeUtc() => NextFireTimeUtc;
 
     /// <summary>
     /// Returns the previous time at which the <see cref="ITrigger" /> fired.
-    /// If the trigger has not yet fired, <see langword="null" /> will be returned.
     /// </summary>
-    DateTimeOffset? GetPreviousFireTimeUtc();
+    [Obsolete("Use the PreviousFireTimeUtc property instead.")]
+    DateTimeOffset? GetPreviousFireTimeUtc() => PreviousFireTimeUtc;
 
     /// <summary>
     /// Returns the next time at which the <see cref="ITrigger" /> will fire,

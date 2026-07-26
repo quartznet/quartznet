@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -153,8 +153,8 @@ public sealed class StructuredLoggingJobHistoryPlugin : ISchedulerPlugin, IJobLi
             trigger.Key.Group,
             trigger.Key.Name,
             timeProvider.GetUtcNow(),
-            trigger.GetPreviousFireTimeUtc(),
-            trigger.GetNextFireTimeUtc(),
+            trigger.PreviousFireTimeUtc,
+            trigger.NextFireTimeUtc,
             context.RefireCount);
 #pragma warning restore CA2254
 

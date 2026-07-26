@@ -363,7 +363,7 @@ internal sealed class QuartzSchedulerThread
                     if (triggers is not null && triggers.Count > 0)
                     {
                         now = qsRsrcs.TimeProvider.GetUtcNow();
-                        DateTimeOffset triggerTime = triggers[0].GetNextFireTimeUtc()!.Value;
+                        DateTimeOffset triggerTime = triggers[0].NextFireTimeUtc!.Value;
                         TimeSpan timeUntilTrigger = triggerTime - now;
 
                         while (timeUntilTrigger > TimeSpan.Zero)

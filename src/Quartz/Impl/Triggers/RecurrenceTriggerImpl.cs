@@ -1,4 +1,4 @@
-using RRule = Quartz.Impl.Recurrence.RecurrenceRule;
+﻿using RRule = Quartz.Impl.Recurrence.RecurrenceRule;
 
 namespace Quartz.Impl.Triggers;
 
@@ -173,11 +173,11 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
                     newFireTime = null;
                 }
             }
-            SetNextFireTimeUtc(newFireTime);
+            NextFireTimeUtc = newFireTime;
         }
         else if (instr == Quartz.MisfireInstruction.RecurrenceTrigger.FireOnceNow)
         {
-            SetNextFireTimeUtc(TimeProvider.GetUtcNow());
+            NextFireTimeUtc = TimeProvider.GetUtcNow();
         }
     }
 
@@ -282,28 +282,22 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
     }
 
     /// <inheritdoc/>
-    public override DateTimeOffset? GetNextFireTimeUtc()
+    public override DateTimeOffset? NextFireTimeUtc
     {
-        return nextFireTimeUtc;
+        get => nextFireTimeUtc;
+        set => nextFireTimeUtc = value;
     }
 
     /// <inheritdoc/>
-    public override DateTimeOffset? GetPreviousFireTimeUtc()
+    public override DateTimeOffset? PreviousFireTimeUtc
     {
-        return previousFireTimeUtc;
+        get => previousFireTimeUtc;
+        set => previousFireTimeUtc = value;
     }
 
     /// <inheritdoc/>
-    public override void SetNextFireTimeUtc(DateTimeOffset? value)
-    {
-        nextFireTimeUtc = value;
-    }
 
     /// <inheritdoc/>
-    public override void SetPreviousFireTimeUtc(DateTimeOffset? previousFireTimeUtc)
-    {
-        this.previousFireTimeUtc = previousFireTimeUtc;
-    }
 
     /// <inheritdoc/>
     public override DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTime)
@@ -348,7 +342,7 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
     /// <inheritdoc/>
     public override bool GetMayFireAgain()
     {
-        return GetNextFireTimeUtc() != null;
+        return NextFireTimeUtc != null;
     }
 
     /// <inheritdoc/>

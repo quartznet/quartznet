@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -361,8 +361,8 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
             timeProvider.GetUtcNow(),
             trigger.Key.Name,
             trigger.Key.Group,
-            trigger.GetPreviousFireTimeUtc(),
-            trigger.GetNextFireTimeUtc(),
+            trigger.PreviousFireTimeUtc,
+            trigger.NextFireTimeUtc,
             context.RefireCount
         ];
 
@@ -398,8 +398,8 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
                 timeProvider.GetUtcNow(),
                 trigger.Key.Name,
                 trigger.Key.Group,
-                trigger.GetPreviousFireTimeUtc(),
-                trigger.GetNextFireTimeUtc(),
+                trigger.PreviousFireTimeUtc,
+                trigger.NextFireTimeUtc,
                 context.RefireCount,
                 errMsg
             ];
@@ -417,7 +417,7 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
             args =
             [
                 context.JobDetail.Key.Name, context.JobDetail.Key.Group, timeProvider.GetUtcNow(), trigger.Key.Name, trigger.Key.Group,
-                trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, result
+                trigger.PreviousFireTimeUtc, trigger.NextFireTimeUtc, context.RefireCount, result
             ];
 
             WriteInfo(string.Format(CultureInfo.InvariantCulture, JobSuccessMessage, args));
@@ -450,8 +450,8 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
             timeProvider.GetUtcNow(),
             trigger.Key.Name,
             trigger.Key.Group,
-            trigger.GetPreviousFireTimeUtc(),
-            trigger.GetNextFireTimeUtc(),
+            trigger.PreviousFireTimeUtc,
+            trigger.NextFireTimeUtc,
             context.RefireCount
         ];
 

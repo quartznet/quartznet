@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -119,7 +119,7 @@ public class ClusteringJobsExecutionExample : IExample
                 .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(5)))
                 .Build();
 
-            Console.WriteLine("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.Key, trigger.GetNextFireTimeUtc(), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds);
+            Console.WriteLine("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.Key, trigger.NextFireTimeUtc, trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds);
 
             count++;
 
@@ -134,7 +134,7 @@ public class ClusteringJobsExecutionExample : IExample
                 .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(5)))
                 .Build();
 
-            Console.WriteLine($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
+            Console.WriteLine($"{job.Key} will run at: {trigger.NextFireTimeUtc} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
             await sched.ScheduleJob(job, trigger);
 
             count++;
@@ -150,7 +150,7 @@ public class ClusteringJobsExecutionExample : IExample
                 .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(3)))
                 .Build();
 
-            Console.WriteLine($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
+            Console.WriteLine($"{job.Key} will run at: {trigger.NextFireTimeUtc} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
             await sched.ScheduleJob(job, trigger);
 
             count++;
@@ -166,7 +166,7 @@ public class ClusteringJobsExecutionExample : IExample
                 .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(4)))
                 .Build();
 
-            Console.WriteLine($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} & repeat: {trigger.RepeatCount}/{trigger.RepeatInterval}");
+            Console.WriteLine($"{job.Key} will run at: {trigger.NextFireTimeUtc} & repeat: {trigger.RepeatCount}/{trigger.RepeatInterval}");
             await sched.ScheduleJob(job, trigger);
 
             count++;
@@ -182,7 +182,7 @@ public class ClusteringJobsExecutionExample : IExample
                 .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromMilliseconds(4500)))
                 .Build();
 
-            Console.WriteLine($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} & repeat: {trigger.RepeatCount}/{trigger.RepeatInterval}");
+            Console.WriteLine($"{job.Key} will run at: {trigger.NextFireTimeUtc} & repeat: {trigger.RepeatCount}/{trigger.RepeatInterval}");
             await sched.ScheduleJob(job, trigger);
         }
 
