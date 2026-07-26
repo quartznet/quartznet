@@ -245,6 +245,15 @@ internal static class QuartzServiceRegistration
     }
 
     /// <summary>
+    /// Resolves a scheduler-scoped service that a scheduler may not have, treating a
+    /// <see langword="null"/> key as the default scheduler's unkeyed registration.
+    /// </summary>
+    internal static T? GetSchedulerService<T>(this IServiceProvider provider, object? key) where T : class
+    {
+        return key is null ? provider.GetService<T>() : provider.GetKeyedService<T>(key);
+    }
+
+    /// <summary>
     /// Resolves all scheduler-scoped services of a type, treating a <see langword="null"/> key as the
     /// default scheduler's unkeyed registrations.
     /// </summary>

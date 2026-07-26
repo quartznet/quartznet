@@ -115,15 +115,10 @@ internal sealed class QuartzBuilder : IQuartzBuilder
         return this;
     }
 
-    public IQuartzBuilder UseJobFactory<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        Action<JobFactoryOptions>? configure = null) where T : class, IJobFactory
+    public IQuartzBuilder UseJobFactory<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
+        where T : class, IJobFactory
     {
         Register<IJobFactory, T>();
-        if (configure is not null)
-        {
-            Services.Configure<QuartzOptions>(OptionsName, options => configure(options.JobFactory));
-        }
-
         return this;
     }
 
@@ -271,7 +266,10 @@ internal sealed class QuartzBuilder : IQuartzBuilder
 
         var limits = new ExecutionLimits();
         configure(limits);
-        Services.AddSingleton(new SchedulerExecutionLimits(SchedulerName, limits));
+
+        // TryAdd, and this runs before the property-derived registration, so limits set in code beat the
+        // same limits spelled as quartz.executionLimit.* keys — as everywhere else.
+        RegisterConfigured<SchedulerExecutionLimits>((_, _) => new SchedulerExecutionLimits(limits));
         return this;
     }
 
@@ -344,7 +342,11 @@ internal sealed class QuartzBuilder : IQuartzBuilder
 /// <summary>
 /// Execution group limits configured for a scheduler.
 /// </summary>
-internal sealed record SchedulerExecutionLimits(string SchedulerName, ExecutionLimits Limits);
+/// <remarks>
+/// Registered per scheduler like every other component, so the scheduler it belongs to is the service
+/// key rather than a field to be filtered on afterwards.
+/// </remarks>
+internal sealed record SchedulerExecutionLimits(ExecutionLimits Limits);
 
 /// <summary>
 /// The name a plugin registered in code should be known by.

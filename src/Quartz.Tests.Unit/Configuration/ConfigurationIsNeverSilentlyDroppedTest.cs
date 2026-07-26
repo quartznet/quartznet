@@ -354,6 +354,71 @@ public class ConfigurationIsNeverSilentlyDroppedTest
     }
 
     [Test]
+    public async Task ExecutionLimitsSpelledAsPropertiesAreApplied()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(new NameValueCollection
+        {
+            ["quartz.executionLimit.heavy"] = "2"
+        });
+
+        using var provider = services.BuildServiceProvider();
+        var scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        try
+        {
+            provider.GetRequiredService<QuartzScheduler>().GetExecutionLimits()!["heavy"]
+                .Should().Be(2, "quartz.executionLimit.* keys must reach the scheduler like limits set in code");
+        }
+        finally
+        {
+            await scheduler.Shutdown();
+        }
+    }
+
+    [Test]
+    public async Task ExecutionLimitsSetInCodeBeatTheSameLimitsSpelledAsProperties()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(
+            new NameValueCollection { ["quartz.executionLimit.heavy"] = "2" },
+            q => q.UseExecutionLimits(limits => limits.ForGroup("heavy", 9)));
+
+        using var provider = services.BuildServiceProvider();
+        var scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        try
+        {
+            provider.GetRequiredService<QuartzScheduler>().GetExecutionLimits()!["heavy"]
+                .Should().Be(9, "code beats strings, as everywhere else");
+        }
+        finally
+        {
+            await scheduler.Shutdown();
+        }
+    }
+
+    [Test]
+    public async Task EachNamedSchedulerKeepsItsOwnExecutionLimits()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz("reporting", new NameValueCollection { ["quartz.executionLimit.heavy"] = "2" });
+        services.AddQuartz("ingest", q => q.UseExecutionLimits(limits => limits.ForGroup("heavy", 7)));
+
+        using var provider = services.BuildServiceProvider();
+        var reporting = await provider.GetRequiredKeyedService<ISchedulerFactory>("reporting").GetScheduler();
+        var ingest = await provider.GetRequiredKeyedService<ISchedulerFactory>("ingest").GetScheduler();
+        try
+        {
+            (await reporting.GetExecutionLimits())!["heavy"].Should().Be(2);
+            (await ingest.GetExecutionLimits())!["heavy"].Should().Be(7);
+        }
+        finally
+        {
+            await reporting.Shutdown();
+            await ingest.Shutdown();
+        }
+    }
+
+    [Test]
     public async Task LegacyListenerPropertiesStillAttachTheirListener()
     {
         var services = new ServiceCollection();

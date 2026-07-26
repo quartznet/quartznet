@@ -14,7 +14,7 @@ public class MicrosoftDependencyInjectionJobFactoryTest
     [Ignore("WIP")]
     public async Task DisposedServiceProviderShouldThrowSchedulerException()
     {
-        var factory = new MicrosoftDependencyInjectionJobFactory(new TestServiceProvider(), Options.Create(new QuartzOptions()));
+        var factory = new MicrosoftDependencyInjectionJobFactory(new TestServiceProvider());
         await factory.NewJob(TestUtil.NewMinimalTriggerFiredBundle(), null!);
     }
 
@@ -37,7 +37,7 @@ public class MicrosoftDependencyInjectionJobFactoryTest
         var serviceProvider = serviceCollection.BuildServiceProvider(validateScopes: true);
 
         var scheduler = await schedulerBuilder.GetScheduler();
-        scheduler.JobFactory = new MicrosoftDependencyInjectionJobFactory(serviceProvider, Options.Create(new QuartzOptions()));
+        scheduler.JobFactory = new MicrosoftDependencyInjectionJobFactory(serviceProvider);
         await scheduler.Start();
 
         await scheduler.AddJob(jobDetail, replace: false);

@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 
 using Quartz.Spi;
 
@@ -11,15 +10,11 @@ namespace Quartz.Simpl;
 public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
 {
     private readonly IServiceProvider serviceProvider;
-    private readonly IOptions<QuartzOptions> options;
     private readonly JobActivatorCache activatorCache = new();
 
-    public MicrosoftDependencyInjectionJobFactory(
-        IServiceProvider serviceProvider,
-        IOptions<QuartzOptions> options)
+    public MicrosoftDependencyInjectionJobFactory(IServiceProvider serviceProvider)
     {
         this.serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
-        this.options = options ?? throw new ArgumentNullException(nameof(options));
     }
 
     protected override IJob InstantiateJob(TriggerFiredBundle bundle, IScheduler scheduler)

@@ -30,7 +30,7 @@ public class DirectoryScanJobTest
                 .Build()
                 .GetScheduler();
 
-            scheduler.JobFactory = new MicrosoftDependencyInjectionJobFactory(serviceProvider, Options.Create(new QuartzOptions()));
+            scheduler.JobFactory = new MicrosoftDependencyInjectionJobFactory(serviceProvider);
 
             var jobDetail = JobBuilder.Create<DirectoryScanJob>()
                 .WithIdentity("TestJob")

@@ -48,8 +48,6 @@ public class QuartzOptions : Dictionary<string, string?>
 
     public SchedulingOptions Scheduling { get; set; } = new();
 
-    public JobFactoryOptions JobFactory { get; set; } = new();
-
     public IReadOnlyList<IJobDetail> JobDetails => _jobDetails;
 
     public IReadOnlyList<ITrigger> Triggers => _triggers;

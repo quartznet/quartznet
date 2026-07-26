@@ -149,6 +149,17 @@
     (`services.AddSingleton(new SystemTextJsonSerializerRegistry().AddTriggerSerializer<T>(...))`) to make a custom serializer
     visible to them. `HttpScheduler`'s constructor gained an optional `serializerRegistry` parameter, and
     `InProcessQuartzApiClient`'s constructor now takes a `SystemTextJsonSerializerRegistry`.
+  * **MicrosoftDependencyInjectionJobFactory**'s constructor no longer takes an `IOptions<QuartzOptions>`.
+    It was stored and never read (#3179).
+
+  * The empty **JobFactoryOptions** type was removed, along with `QuartzOptions.JobFactory` and the
+    `Action<JobFactoryOptions>` parameter of `UseJobFactory<T>()`. Use the parameterless overload (#3179).
+
+  * Execution group limits now always reach the scheduler through a single per-scheduler registration.
+    `quartz.executionLimit.*` keys feed that registration instead of being parsed separately at scheduler
+    creation, so limits set in code still beat the same limits spelled as properties, and a named
+    scheduler gets its own limits (#3179). A malformed `quartz.executionLimit.*` value is now reported
+    when the scheduler is registered rather than when it is first created.
 
 #### Cron Parser
 
