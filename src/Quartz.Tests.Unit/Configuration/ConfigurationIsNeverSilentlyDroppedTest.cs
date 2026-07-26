@@ -396,6 +396,31 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         }
     }
 
+    /// <summary>
+    /// A key supplied after <c>AddQuartz</c> has run is not in the collection <c>AddQuartz</c> was handed,
+    /// so registration-time parsing alone cannot see it. This is the documented route for a key the typed
+    /// options do not cover, and it silently stopped applying.
+    /// </summary>
+    [Test]
+    public async Task ExecutionLimitsSetThroughQuartzOptionsAfterAddQuartzAreApplied()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.ConfigureScheduler(options => options.InstanceName = "deferred-limits"));
+        services.Configure<QuartzOptions>(options => options.Properties["quartz.executionLimit.heavy"] = "2");
+
+        using var provider = services.BuildServiceProvider();
+        var scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        try
+        {
+            provider.GetRequiredService<QuartzScheduler>().GetExecutionLimits()!["heavy"]
+                .Should().Be(2, "a group left uncapped saturates the whole thread pool");
+        }
+        finally
+        {
+            await scheduler.Shutdown();
+        }
+    }
+
     [Test]
     public async Task EachNamedSchedulerKeepsItsOwnExecutionLimits()
     {

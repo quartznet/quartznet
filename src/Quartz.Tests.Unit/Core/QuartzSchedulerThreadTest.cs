@@ -75,6 +75,70 @@ public class QuartzSchedulerThreadTest
         thread.Running.Should().BeFalse();
     }
 
+    /// <summary>
+    /// Shutdown disposes the cancellation source, so a start that lands after it must not touch the token.
+    /// A start racing a shutdown is reachable from the hosted services, whose graceful-shutdown deadline
+    /// can elapse while a start is still in flight.
+    /// </summary>
+    [Test]
+    public async Task StartAfterShutdownDoesNothingRatherThanThrowing()
+    {
+        QuartzSchedulerResources resources = new() { IdleWaitTime = TimeSpan.FromSeconds(1) };
+        QuartzScheduler scheduler = new(resources);
+        var thread = new QuartzSchedulerThread(scheduler, resources);
+
+        await thread.Shutdown();
+
+        var start = () => thread.Start();
+
+        start.Should().NotThrow<ObjectDisposedException>();
+        thread.Running.Should().BeFalse("the loop cannot be started again after shutdown");
+    }
+
+    [Test]
+    public async Task HaltAfterShutdownDoesNotThrow()
+    {
+        QuartzSchedulerResources resources = new() { IdleWaitTime = TimeSpan.FromSeconds(1) };
+        QuartzScheduler scheduler = new(resources);
+        var thread = new QuartzSchedulerThread(scheduler, resources);
+
+        await thread.Shutdown();
+
+        var halt = async () => await thread.Halt(wait: false);
+
+        await halt.Should().NotThrowAsync<ObjectDisposedException>();
+    }
+
+    [Test]
+    public async Task ShutdownIsIdempotentSoItCannotDisposeTwice()
+    {
+        QuartzSchedulerResources resources = new() { IdleWaitTime = TimeSpan.FromSeconds(1) };
+        QuartzScheduler scheduler = new(resources);
+        var thread = new QuartzSchedulerThread(scheduler, resources);
+
+        await thread.Shutdown();
+        var again = async () => await thread.Shutdown();
+
+        await again.Should().NotThrowAsync();
+    }
+
+    [Test]
+    public void ConcurrentStartsCreateOnlyOneLoop()
+    {
+        QuartzSchedulerResources resources = new()
+        {
+            IdleWaitTime = TimeSpan.FromSeconds(1),
+            JobStore = TestJobStores.Ram()
+        };
+        QuartzScheduler scheduler = new(resources);
+        var thread = new QuartzSchedulerThread(scheduler, resources);
+
+        // Two loops for one scheduler would both acquire triggers, and Shutdown would await only one.
+        Parallel.For(0, 16, _ => thread.Start());
+
+        thread.Running.Should().BeTrue();
+    }
+
     private static IEnumerable<TimeSpan> ValidIdleWaitTimes()
     {
         return QuartzSchedulerResourcesTest.ValidIdleWaitTimes();

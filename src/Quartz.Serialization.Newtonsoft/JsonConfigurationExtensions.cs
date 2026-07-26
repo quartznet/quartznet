@@ -1,3 +1,5 @@
+using Microsoft.Extensions.DependencyInjection.Extensions;
+
 using Quartz.Serialization.Newtonsoft;
 
 using Quartz.Simpl;
@@ -22,8 +24,18 @@ public static class JsonConfigurationExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
+        if (configure is null)
+        {
+            // Nothing scheduler-specific was asked for, so the serializer reads the container's registry,
+            // the same way the System.Text.Json path does. Without this branch an application that
+            // registers a NewtonsoftJsonSerializerRegistry of its own — the pattern the docs teach — has it
+            // silently ignored in favour of a private built-ins-only one.
+            builder.Services.TryAddSingleton<NewtonsoftJsonSerializerRegistry>();
+            return builder.UseSerializer<NewtonsoftJsonObjectSerializer>();
+        }
+
         var options = new NewtonsoftJsonSerializerOptions();
-        configure?.Invoke(options);
+        configure.Invoke(options);
 
         // The registry the callback filled is captured here rather than published to the container, which
         // is what keeps two schedulers in one container from sharing each other's custom serializers.

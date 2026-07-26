@@ -35,11 +35,18 @@ internal sealed class DbMetadataResolver
     {
         ArgumentNullException.ThrowIfNull(factories);
 
-        // Ordering is stable, so everything the application registered keeps its relative order and only
-        // the built-ins are moved to the back. Registration order alone is not enough: a second AddQuartz
-        // call describing a driver registers after the first call has already pulled the built-ins in.
+        // Ordering is stable, so factories of equal rank keep their relative registration order.
+        // Registration order alone is not enough for two reasons: a second AddQuartz call describing a
+        // driver registers after the first call has already pulled the built-ins in, and a description
+        // written in code has to beat one spelled as quartz.dbprovider.* keys even when the keys were
+        // registered by an earlier call — the same "code beats strings" rule as everywhere else.
         this.factories = factories
-            .OrderBy(factory => factory is EmbeddedAssemblyResourceDbMetadataFactory ? 1 : 0)
+            .OrderBy(factory => factory switch
+            {
+                ConfiguredDbMetadataFactory => 0,
+                EmbeddedAssemblyResourceDbMetadataFactory => 2,
+                _ => 1
+            })
             .ToArray();
     }
 
@@ -47,7 +54,16 @@ internal sealed class DbMetadataResolver
     /// A resolver over nothing but the driver descriptions Quartz ships, for callers that construct a
     /// <see cref="DbProvider"/> without a container to ask.
     /// </summary>
-    public static DbMetadataResolver BuiltIn() => new([new EmbeddedAssemblyResourceDbMetadataFactory()]);
+    /// <remarks>
+    /// Shared, and therefore cached, for the lifetime of the process. Safe to share where a container's
+    /// resolver is not: it holds only the descriptions Quartz ships, which are the same everywhere, so
+    /// there is no container-specific metadata for the cache to leak. A fresh instance per call would
+    /// re-read the embedded resource and re-run <see cref="DbMetadata.Init"/> on every
+    /// <see cref="DbProvider"/> construction, which is what the deleted static constructor did once.
+    /// </remarks>
+    public static DbMetadataResolver BuiltIn() => builtIn;
+
+    private static readonly DbMetadataResolver builtIn = new([new EmbeddedAssemblyResourceDbMetadataFactory()]);
 
     /// <summary>
     /// Returns the metadata describing a provider, or throws naming the providers that are known.

@@ -111,6 +111,70 @@ public class ListenerRegistrationTest
         }
     }
 
+    /// <summary>
+    /// Registering a listener through the builder and as a service is how it gets matchers from one and
+    /// dependencies from the other. That combination used to be recognised by comparing listener types;
+    /// losing that comparison turned it into a duplicate name and aborted scheduler creation.
+    /// </summary>
+    [Test]
+    public async Task AConfiguredListenerAlsoRegisteredAsAServiceKeepsItsMatchers()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IJobListener, AuditListener>();
+        services.AddSingleton<ITriggerListener, AuditTriggerListener>();
+        services.AddQuartz(q =>
+        {
+            q.ConfigureScheduler(options => options.InstanceName = "configured-and-service");
+            q.AddJobListener<AuditListener>(GroupMatcher<JobKey>.GroupEquals("reports"));
+            q.AddTriggerListener<AuditTriggerListener>(GroupMatcher<TriggerKey>.GroupEquals("reports"));
+        });
+
+        using var provider = services.BuildServiceProvider();
+        var scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        try
+        {
+            scheduler.ListenerManager.GetJobListeners().Should().ContainSingle(
+                "the builder registration is the same listener, not a second one");
+            scheduler.ListenerManager.GetJobListenerMatchers(nameof(AuditListener)).Should().ContainSingle(
+                "the service copy carries no matchers, so letting it through would erase the configured ones");
+
+            scheduler.ListenerManager.GetTriggerListeners().Should().ContainSingle();
+            scheduler.ListenerManager.GetTriggerListenerMatchers(nameof(AuditTriggerListener)).Should().ContainSingle();
+        }
+        finally
+        {
+            await scheduler.Shutdown();
+        }
+    }
+
+    /// <summary>
+    /// The same case for scheduler listeners, which have no name for the duplicate check to key on and are
+    /// held in a plain list — so a second copy is simply notified alongside the first.
+    /// </summary>
+    [Test]
+    public async Task AConfiguredSchedulerListenerAlsoRegisteredAsAServiceIsAttachedOnce()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<ISchedulerListener, RecordingSchedulerListener>();
+        services.AddQuartz(q =>
+        {
+            q.ConfigureScheduler(options => options.InstanceName = "configured-and-service-scheduler-listener");
+            q.AddSchedulerListener<RecordingSchedulerListener>();
+        });
+
+        using var provider = services.BuildServiceProvider();
+        var scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
+        try
+        {
+            scheduler.ListenerManager.GetSchedulerListeners().Should().ContainSingle(
+                "attaching it twice would notify every scheduler event twice");
+        }
+        finally
+        {
+            await scheduler.Shutdown();
+        }
+    }
+
     [Test]
     public async Task TwoJobListenersWithTheSameNameAreRejected()
     {

@@ -153,8 +153,12 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
             quartzScheduler.JobFactory = serviceProvider.GetScheduler<IJobFactory>(Key);
 
             // Both code and quartz.executionLimit.* keys produce this registration, and the registration
-            // is first-wins, so the precedence between them is settled before we get here.
-            var executionLimits = serviceProvider.GetSchedulerService<SchedulerExecutionLimits>(Key)?.Limits;
+            // is first-wins, so the precedence between them is settled before we get here. Falling back to
+            // the resolved properties covers limits that only exist once the container is built — a key set
+            // from a Configure<QuartzOptions> callback was not in the collection AddQuartz was handed, and
+            // would otherwise be dropped without a word.
+            var executionLimits = serviceProvider.GetSchedulerService<SchedulerExecutionLimits>(Key)?.Limits
+                ?? ExecutionLimitsParser.Parse(properties);
 
             if (executionLimits is not null)
             {

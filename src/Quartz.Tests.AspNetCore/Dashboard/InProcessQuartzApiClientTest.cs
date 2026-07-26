@@ -239,7 +239,7 @@ public class InProcessQuartzApiClientTest
             repository,
             Options.Create(new QuartzDashboardOptions()),
             new DashboardHistoryStore(),
-            new SystemTextJsonSerializerRegistry());
+            new DashboardSerializerOptions(new SystemTextJsonSerializerRegistry()).Deserializer);
     }
 
     private sealed class NoOpJob : IJob

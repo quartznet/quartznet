@@ -68,7 +68,12 @@ public static class QuartzDashboardServiceCollectionExtensions
         // understand it.
         services.TryAddSingleton<SystemTextJsonSerializerRegistry>();
 
-        services.TryAddScoped<IQuartzApiClient, InProcessQuartzApiClient>();
+        services.TryAddSingleton<DashboardSerializerOptions>();
+        services.TryAddScoped<IQuartzApiClient>(static provider => new InProcessQuartzApiClient(
+            provider.GetRequiredService<ISchedulerRepository>(),
+            provider.GetRequiredService<IOptions<QuartzDashboardOptions>>(),
+            provider.GetRequiredService<IDashboardHistoryStore>(),
+            provider.GetRequiredService<DashboardSerializerOptions>().Deserializer));
         services.TryAddScoped<SchedulerState>();
         services.TryAddScoped<ToastService>();
         services.TryAddSingleton<IDashboardHistoryStore, DashboardHistoryStore>();

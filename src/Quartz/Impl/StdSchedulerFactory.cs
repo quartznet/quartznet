@@ -178,6 +178,7 @@ public class StdSchedulerFactory : ISchedulerFactory, IDisposable
     private ServiceProvider? provider;
     private ISchedulerFactory? inner;
     private ISchedulerRepository? schedulerRepository;
+    private bool disposed;
 
     private string SchedulerName
     {
@@ -189,14 +190,22 @@ public class StdSchedulerFactory : ISchedulerFactory, IDisposable
     /// Returns a handle to the default Scheduler, creating it if it does not
     /// yet exist.
     /// </summary>
+    /// <remarks>
+    /// Every call shares one factory, and therefore one scheduler. A factory owns its scheduler
+    /// repository, so constructing a new one per call would find no existing scheduler to return and would
+    /// build a second live scheduler carrying the same instance name and instance id as the first — two
+    /// thread pools, two sets of connections, and against a clustered database two nodes checking in as
+    /// the same instance.
+    /// </remarks>
     /// <seealso cref="Initialize()">
     /// </seealso>
     public static ValueTask<IScheduler> GetDefaultScheduler(
         CancellationToken cancellationToken = default)
     {
-        StdSchedulerFactory fact = new StdSchedulerFactory();
-        return fact.GetScheduler(cancellationToken);
+        return defaultFactory.Value.GetScheduler(cancellationToken);
     }
+
+    private static readonly Lazy<StdSchedulerFactory> defaultFactory = new(static () => new StdSchedulerFactory());
 
     /// <summary>
     /// Returns a handle to every scheduler this factory has produced.
@@ -272,7 +281,36 @@ public class StdSchedulerFactory : ISchedulerFactory, IDisposable
         }
 
         logger = LogProvider.CreateLogger<StdSchedulerFactory>();
+        WarnAboutIgnoredConfigurationFile();
         Initialize(OverrideWithSysProps(EmbeddedDefaults()));
+    }
+
+    /// <summary>
+    /// Says so when a <c>quartz.config</c> that 3.x would have loaded is present but ignored.
+    /// </summary>
+    /// <remarks>
+    /// Dropping file discovery without a word is the worst version of this change: an application that
+    /// still ships a file selecting a database job store silently becomes an in-memory scheduler, its
+    /// persisted triggers stop firing, and nothing in the log points at the file. This does not read the
+    /// file — it only reports that something which used to be configuration no longer is.
+    /// </remarks>
+    private void WarnAboutIgnoredConfigurationFile()
+    {
+        var requestedFile = QuartzEnvironment.GetEnvironmentVariable(LegacyPropertiesFileVariable);
+        var named = !string.IsNullOrWhiteSpace(requestedFile);
+        var fileName = named ? requestedFile! : "~/quartz.config";
+        var resolved = FileUtil.ResolveFile(fileName);
+
+        if (!named && (resolved is null || !File.Exists(resolved)))
+        {
+            return;
+        }
+
+        logger.LogWarning(
+            "Ignoring Quartz configuration file '{PropFileName}': configuration is no longer read from disk in 4.x. "
+            + "Pass the properties to StdSchedulerFactory, or configure the scheduler through the container with "
+            + "AddQuartz and IConfiguration. See the 4.x migration guide.",
+            resolved ?? fileName);
     }
 
     /// <summary>
@@ -402,6 +440,11 @@ public class StdSchedulerFactory : ISchedulerFactory, IDisposable
 
         lock (containerLock)
         {
+            // Without this a call after Dispose would build a second container and hang it off the
+            // disposed factory, where nothing will ever dispose it — and report an empty repository as
+            // though the factory's schedulers had gone away.
+            ObjectDisposedException.ThrowIf(disposed, this);
+
             return inner ??= BuildInner();
         }
     }
@@ -499,6 +542,7 @@ public class StdSchedulerFactory : ISchedulerFactory, IDisposable
             provider = null;
             inner = null;
             schedulerRepository = null;
+            disposed = true;
         }
 
         owned?.Dispose();
