@@ -1,4 +1,4 @@
-using System.Collections.Specialized;
+﻿using System.Collections.Specialized;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
 
@@ -10,8 +10,7 @@ using Microsoft.Extensions.Options;
 using Quartz.Configuration;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore.Common;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Util;
 
 namespace Quartz;

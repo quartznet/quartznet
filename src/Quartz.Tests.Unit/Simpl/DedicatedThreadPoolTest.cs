@@ -1,6 +1,6 @@
-using System.Reflection;
+﻿using System.Reflection;
 
-using Quartz.Simpl;
+using Quartz.Impl;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Simpl;

@@ -4,7 +4,7 @@ using System.Diagnostics;
 using Quartz.Impl;
 using Quartz.Impl.Matchers;
 using Quartz.Job;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 
 namespace Quartz.Tests.Unit;
@@ -105,7 +105,7 @@ public class SchedulerTest
             ["quartz.scheduler.instanceName"] = "SchedulerTest_Scheduler",
             ["quartz.scheduler.instanceId"] = "AUTO",
             ["quartz.threadPool.threadCount"] = "2",
-            ["quartz.threadPool.type"] = "Quartz.Simpl.DefaultThreadPool, Quartz",
+            ["quartz.threadPool.type"] = "Quartz.Impl.DefaultThreadPool, Quartz",
             ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
         };
         IScheduler sched = await new StdSchedulerFactory(config).GetScheduler();

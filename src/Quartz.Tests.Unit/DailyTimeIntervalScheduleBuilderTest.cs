@@ -26,7 +26,7 @@ using AwesomeAssertions.Execution;
 using Quartz.Impl;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit;

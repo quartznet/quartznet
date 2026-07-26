@@ -1,6 +1,6 @@
-using BenchmarkDotNet.Attributes;
+﻿using BenchmarkDotNet.Attributes;
 
-using Quartz.Simpl;
+using Quartz.Impl;
 
 namespace Quartz.Benchmark;
 

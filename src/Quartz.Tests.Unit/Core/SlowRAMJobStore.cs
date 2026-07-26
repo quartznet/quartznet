@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit.Core;
 

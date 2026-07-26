@@ -1,10 +1,10 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Serialization.Json;
 using Quartz.Serialization.Json.Triggers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Integration;
 

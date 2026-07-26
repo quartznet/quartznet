@@ -1,9 +1,8 @@
-using FakeItEasy;
+﻿using FakeItEasy;
 
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.AspNetCore.Support;
 

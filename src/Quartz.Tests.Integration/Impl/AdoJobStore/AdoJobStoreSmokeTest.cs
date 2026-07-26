@@ -1,5 +1,5 @@
-using Quartz.Impl.AdoJobStore;
-using Quartz.Simpl;
+﻿using Quartz.Impl.AdoJobStore;
+using Quartz.Impl;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Collections.Specialized;
@@ -8,12 +8,11 @@ using System.Diagnostics;
 
 using Microsoft.Data.Sqlite;
 
-using Quartz.Impl;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Util;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;

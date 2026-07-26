@@ -96,6 +96,17 @@
     the scheduler was tying up a thread every time it waited for pool capacity. They now use `WaitAsync`. Shutdown still waits
     synchronously for running jobs; that happens once, off the scheduling loop.
 
+  * **The `Quartz.Spi` and `Quartz.Simpl` namespaces were renamed.** `Quartz.Spi` is now
+    **`Quartz.Extensibility`** and `Quartz.Simpl` merged into the existing **`Quartz.Impl`**. Both were transliterated
+    from `org.quartz.spi` and `org.quartz.simpl` and mean nothing in .NET. Fixing the compiler errors is a
+    find-and-replace over `using` directives.
+
+    Configuration is the part that would not have failed loudly, because it names types by string —
+    `quartz.jobStore.type`, `quartz.threadPool.type`, `quartz.serializer.type`, `quartz.plugin.<name>.type`. So
+    `SimpleTypeLoadHelper` retries a name that fails to resolve under the old namespace and logs a warning naming
+    both spellings. **Existing `Quartz.Simpl.*` and `Quartz.Spi.*` configuration keeps working**, but it is a
+    fallback rather than a promise — update it when convenient.
+
   * **JobRunShell**, **IJobRunShellFactory**, `QuartzSchedulerResources.JobRunShellFactory` and the
     `InternalTriggerState` enum are now `internal`. None had an implementer or caller outside Quartz itself, and a
     public enum named `Internal*` was self-refuting. `ZeroSizeThreadPool`, `ISchedulerProxyFactory` and

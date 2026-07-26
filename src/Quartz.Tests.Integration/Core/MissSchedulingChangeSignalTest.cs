@@ -3,8 +3,7 @@ using System.Collections.Specialized;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
 using Quartz.Impl;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Integration.Core;
 

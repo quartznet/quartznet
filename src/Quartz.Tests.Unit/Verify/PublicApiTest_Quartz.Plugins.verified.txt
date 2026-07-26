@@ -28,7 +28,7 @@ namespace Quartz
 }
 namespace Quartz.Plugin.History
 {
-    public class LoggingJobHistoryPlugin : Quartz.IJobListener, Quartz.Spi.ISchedulerPlugin
+    public class LoggingJobHistoryPlugin : Quartz.Extensibility.ISchedulerPlugin, Quartz.IJobListener
     {
         public LoggingJobHistoryPlugin() { }
         public LoggingJobHistoryPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugin.History.LoggingJobHistoryPlugin> logger, System.TimeProvider timeProvider) { }
@@ -48,7 +48,7 @@ namespace Quartz.Plugin.History
         protected virtual void WriteInfo(string message) { }
         protected virtual void WriteWarning(string message, System.Exception ex) { }
     }
-    public class LoggingTriggerHistoryPlugin : Quartz.ITriggerListener, Quartz.Spi.ISchedulerPlugin
+    public class LoggingTriggerHistoryPlugin : Quartz.Extensibility.ISchedulerPlugin, Quartz.ITriggerListener
     {
         public LoggingTriggerHistoryPlugin() { }
         public LoggingTriggerHistoryPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugin.History.LoggingTriggerHistoryPlugin> logger, System.TimeProvider timeProvider) { }
@@ -66,7 +66,7 @@ namespace Quartz.Plugin.History
         public virtual System.Threading.Tasks.ValueTask<bool> VetoJobExecution(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual void WriteInfo(string message) { }
     }
-    public sealed class StructuredLoggingJobHistoryPlugin : Quartz.IJobListener, Quartz.Spi.ISchedulerPlugin
+    public sealed class StructuredLoggingJobHistoryPlugin : Quartz.Extensibility.ISchedulerPlugin, Quartz.IJobListener
     {
         public StructuredLoggingJobHistoryPlugin() { }
         public StructuredLoggingJobHistoryPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugin.History.StructuredLoggingJobHistoryPlugin> logger, System.TimeProvider timeProvider) { }
@@ -82,7 +82,7 @@ namespace Quartz.Plugin.History
         public System.Threading.Tasks.ValueTask Shutdown(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask Start(System.Threading.CancellationToken cancellationToken = default) { }
     }
-    public sealed class StructuredLoggingTriggerHistoryPlugin : Quartz.ITriggerListener, Quartz.Spi.ISchedulerPlugin
+    public sealed class StructuredLoggingTriggerHistoryPlugin : Quartz.Extensibility.ISchedulerPlugin, Quartz.ITriggerListener
     {
         public StructuredLoggingTriggerHistoryPlugin() { }
         public StructuredLoggingTriggerHistoryPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugin.History.StructuredLoggingTriggerHistoryPlugin> logger, System.TimeProvider timeProvider) { }
@@ -101,7 +101,7 @@ namespace Quartz.Plugin.History
 }
 namespace Quartz.Plugin.Interrupt
 {
-    public class JobInterruptMonitorPlugin : Quartz.Listener.TriggerListenerSupport, Quartz.Spi.ISchedulerPlugin
+    public class JobInterruptMonitorPlugin : Quartz.Listener.TriggerListenerSupport, Quartz.Extensibility.ISchedulerPlugin
     {
         public const string JobDataMapKeyAutoInterruptable = "AutoInterruptable";
         public const string JobDataMapKeyMaxRunTime = "MaxRunTime";
@@ -117,10 +117,10 @@ namespace Quartz.Plugin.Interrupt
 }
 namespace Quartz.Plugin.Json
 {
-    public sealed class JsonSchedulingDataProcessorPlugin : Quartz.Job.IFileScanListener, Quartz.Spi.ISchedulerPlugin
+    public sealed class JsonSchedulingDataProcessorPlugin : Quartz.Extensibility.ISchedulerPlugin, Quartz.Job.IFileScanListener
     {
         public JsonSchedulingDataProcessorPlugin() { }
-        public JsonSchedulingDataProcessorPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugin.Json.JsonSchedulingDataProcessorPlugin> logger, Quartz.Spi.ITypeLoadHelper typeLoadHelper, System.TimeProvider timeProvider) { }
+        public JsonSchedulingDataProcessorPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugin.Json.JsonSchedulingDataProcessorPlugin> logger, Quartz.Extensibility.ITypeLoadHelper typeLoadHelper, System.TimeProvider timeProvider) { }
         public bool FailOnFileNotFound { get; set; }
         public bool FailOnSchedulingError { get; set; }
         public string FileNames { get; set; }
@@ -135,7 +135,7 @@ namespace Quartz.Plugin.Json
 }
 namespace Quartz.Plugin.Management
 {
-    public class ShutdownHookPlugin : Quartz.Spi.ISchedulerPlugin
+    public class ShutdownHookPlugin : Quartz.Extensibility.ISchedulerPlugin
     {
         public ShutdownHookPlugin() { }
         public bool CleanShutdown { get; set; }
@@ -146,10 +146,10 @@ namespace Quartz.Plugin.Management
 }
 namespace Quartz.Plugin.Xml
 {
-    public class XMLSchedulingDataProcessorPlugin : Quartz.Job.IFileScanListener, Quartz.Spi.ISchedulerPlugin
+    public class XMLSchedulingDataProcessorPlugin : Quartz.Extensibility.ISchedulerPlugin, Quartz.Job.IFileScanListener
     {
         public XMLSchedulingDataProcessorPlugin() { }
-        public XMLSchedulingDataProcessorPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin> logger, Quartz.Spi.ITypeLoadHelper typeLoadHelper, System.TimeProvider timeProvider) { }
+        public XMLSchedulingDataProcessorPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin> logger, Quartz.Extensibility.ITypeLoadHelper typeLoadHelper, System.TimeProvider timeProvider) { }
         public bool FailOnFileNotFound { get; set; }
         public virtual bool FailOnSchedulingError { get; set; }
         public string FileNames { get; set; }
@@ -157,7 +157,7 @@ namespace Quartz.Plugin.Xml
         public string Name { get; }
         public System.TimeSpan ScanInterval { get; set; }
         public Quartz.IScheduler Scheduler { get; }
-        protected Quartz.Spi.ITypeLoadHelper TypeLoadHelper { get; }
+        protected Quartz.Extensibility.ITypeLoadHelper TypeLoadHelper { get; }
         public virtual System.Threading.Tasks.ValueTask FileUpdated(string fName, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask Initialize(string pluginName, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask ProcessFile(string filePath, System.Threading.CancellationToken cancellationToken = default) { }

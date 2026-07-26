@@ -1,7 +1,7 @@
 ﻿using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit.Impl.Triggers;
 

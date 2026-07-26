@@ -4,7 +4,7 @@ using Quartz.Serialization.Json;
 using Quartz.Serialization.Json.Calendars;
 using Quartz.Serialization.Json.Converters;
 using Quartz.Serialization.Json.Triggers;
-using Quartz.Simpl;
+using Quartz.Impl;
 
 namespace Quartz;
 

@@ -1,7 +1,7 @@
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Configuration;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Core;
 

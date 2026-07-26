@@ -20,7 +20,7 @@
 #endregion
 
 using Quartz.Impl.Matchers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Impl.AdoJobStore;
 

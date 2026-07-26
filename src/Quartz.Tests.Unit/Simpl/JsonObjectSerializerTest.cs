@@ -17,8 +17,8 @@ using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
 using Quartz.Serialization.Json;
 using Quartz.Serialization.Newtonsoft;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 
 using StjJsonSerializerOptions = System.Text.Json.JsonSerializerOptions;
 

@@ -25,7 +25,7 @@ using System.Diagnostics;
 
 using Newtonsoft.Json;
 
-using Quartz.Simpl;
+using Quartz.Impl;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit;

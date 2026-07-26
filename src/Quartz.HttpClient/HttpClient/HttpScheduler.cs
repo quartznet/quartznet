@@ -1,9 +1,9 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 using Quartz.HttpApiContract;
 using Quartz.Impl.Matchers;
 using Quartz.Serialization.Json;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.HttpClient;
 

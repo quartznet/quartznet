@@ -1,9 +1,8 @@
-using Quartz.Tests;
+﻿using Quartz.Tests;
 using BenchmarkDotNet.Attributes;
 
 using Quartz.Impl;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Benchmark;
 

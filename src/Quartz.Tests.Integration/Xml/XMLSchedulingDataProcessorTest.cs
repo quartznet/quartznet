@@ -30,8 +30,7 @@ using Quartz.Impl;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Tests.Integration.Utils;
 using Quartz.Xml;
 

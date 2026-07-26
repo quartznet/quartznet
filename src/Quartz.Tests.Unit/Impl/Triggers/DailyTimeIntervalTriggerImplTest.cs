@@ -22,7 +22,7 @@
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Util;
 
 using TimeZoneConverter;

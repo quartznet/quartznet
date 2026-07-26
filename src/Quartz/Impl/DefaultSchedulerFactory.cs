@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 using Quartz.Configuration;
 using Quartz.Core;
 using Quartz.Impl.AdoJobStore;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Impl;
 

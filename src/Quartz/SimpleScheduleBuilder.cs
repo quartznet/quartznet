@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -20,7 +20,7 @@
 #endregion
 
 using Quartz.Impl.Triggers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz;
 

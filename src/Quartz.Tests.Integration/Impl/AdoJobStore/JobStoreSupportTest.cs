@@ -1,6 +1,6 @@
-using Quartz.Impl.AdoJobStore.Common;
+﻿using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Util;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
 using Npgsql;

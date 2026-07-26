@@ -19,7 +19,7 @@
 
 using System.Runtime.Serialization;
 
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Impl.Triggers;
 

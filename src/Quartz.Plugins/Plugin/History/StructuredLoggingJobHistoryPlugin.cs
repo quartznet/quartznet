@@ -25,7 +25,7 @@ using Microsoft.Extensions.Logging;
 
 using Quartz.Diagnostics;
 using Quartz.Impl.Matchers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 

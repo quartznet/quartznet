@@ -1,6 +1,6 @@
-using Quartz.Impl.Triggers;
-using Quartz.Simpl;
-using Quartz.Spi;
+﻿using Quartz.Impl.Triggers;
+using Quartz.Impl;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit;
 

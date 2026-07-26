@@ -1,9 +1,9 @@
-using System.Data.Common;
+﻿using System.Data.Common;
 using System.Runtime.Serialization;
 
 using Microsoft.Extensions.Logging;
 
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Util;
 
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;

@@ -1,9 +1,9 @@
-
+﻿
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 using Quartz.Job;
-using Quartz.Simpl;
+using Quartz.Impl;
 
 namespace Quartz.Tests.Unit.Job;
 

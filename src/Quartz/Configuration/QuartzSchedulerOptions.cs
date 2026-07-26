@@ -1,4 +1,4 @@
-namespace Quartz;
+﻿namespace Quartz;
 
 /// <summary>
 /// Strongly typed configuration for the scheduler itself.
@@ -35,7 +35,7 @@ public sealed class QuartzSchedulerOptions
 
     /// <summary>
     /// When <see langword="true"/>, <see cref="InstanceId"/> is generated at startup by the registered
-    /// <see cref="Spi.IInstanceIdGenerator"/> instead of being taken from <see cref="InstanceId"/>.
+    /// <see cref="Extensibility.IInstanceIdGenerator"/> instead of being taken from <see cref="InstanceId"/>.
     /// </summary>
     public bool GenerateInstanceId { get; set; }
 

@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 using AwesomeAssertions.Execution;
 
@@ -8,7 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.HttpApiContract;
 using Quartz.HttpClient;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Tests.AspNetCore.Support;
 
 namespace Quartz.Tests.AspNetCore.HttpApi;

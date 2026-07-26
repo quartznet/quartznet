@@ -1,8 +1,8 @@
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Configuration;
 using Quartz.Dashboard.Plugins;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.AspNetCore.Dashboard;
 

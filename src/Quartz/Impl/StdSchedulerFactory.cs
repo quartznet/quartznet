@@ -31,8 +31,8 @@ using Quartz.Core;
 using Quartz.Diagnostics;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 using Quartz.Util;
 
 namespace Quartz.Impl;

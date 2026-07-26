@@ -3,8 +3,7 @@ using BenchmarkDotNet.Attributes;
 using Quartz.Core;
 using Quartz.Impl;
 using Quartz.Impl.Matchers;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Benchmark;
 

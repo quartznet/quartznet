@@ -1,8 +1,8 @@
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 using Quartz;
-using Quartz.Simpl;
+using Quartz.Impl;
 
 // Using HttpClientFactory with host builder
 var host = Host.CreateDefaultBuilder(args)

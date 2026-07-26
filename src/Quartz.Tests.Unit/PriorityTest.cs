@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -24,7 +24,7 @@ using System.Text;
 
 using Quartz.Impl;
 using Quartz.Impl.Triggers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit;
 
@@ -56,7 +56,7 @@ public class PriorityTest
     {
         NameValueCollection config = new NameValueCollection();
         config["quartz.threadPool.threadCount"] = "1";
-        config["quartz.threadPool.type"] = "Quartz.Simpl.DefaultThreadPool";
+        config["quartz.threadPool.type"] = "Quartz.Impl.DefaultThreadPool";
         config["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
 
         IScheduler sched = await new StdSchedulerFactory(config).GetScheduler();
@@ -88,7 +88,7 @@ public class PriorityTest
     {
         NameValueCollection config = new NameValueCollection();
         config["quartz.threadPool.threadCount"] = "1";
-        config["quartz.threadPool.type"] = "Quartz.Simpl.DefaultThreadPool";
+        config["quartz.threadPool.type"] = "Quartz.Impl.DefaultThreadPool";
         config["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
 
         IScheduler sched = await new StdSchedulerFactory(config).GetScheduler();

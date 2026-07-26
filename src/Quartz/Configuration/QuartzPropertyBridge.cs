@@ -12,8 +12,7 @@ using Microsoft.Extensions.Options;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Util;
 
 namespace Quartz.Configuration;
@@ -353,7 +352,7 @@ internal static class QuartzPropertyBridge
         // config files. Treating it as a synonym is what main did; loading it would just fail.
         var configured = parser.String(StdSchedulerFactory.PropertyThreadPoolType);
         var threadPoolType = configured is not null
-            && configured.StartsWith("Quartz.Simpl.SimpleThreadPool", StringComparison.OrdinalIgnoreCase)
+            && configured.StartsWith("Quartz.Impl.SimpleThreadPool", StringComparison.OrdinalIgnoreCase)
                 ? typeof(DefaultThreadPool)
                 : parser.Type(StdSchedulerFactory.PropertyThreadPoolType);
 
@@ -545,7 +544,7 @@ internal static class QuartzPropertyBridge
         var serializerType = configured.ToLowerInvariant() switch
         {
             "stj" or "json" => typeof(SystemTextJsonObjectSerializer),
-            "newtonsoft" => typeLoadHelper.LoadType("Quartz.Simpl.NewtonsoftJsonObjectSerializer, Quartz.Serialization.Newtonsoft"),
+            "newtonsoft" => typeLoadHelper.LoadType("Quartz.Impl.NewtonsoftJsonObjectSerializer, Quartz.Serialization.Newtonsoft"),
             _ => typeLoadHelper.LoadType(configured),
         };
 

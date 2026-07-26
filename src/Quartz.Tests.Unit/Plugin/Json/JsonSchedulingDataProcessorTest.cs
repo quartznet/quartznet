@@ -1,8 +1,8 @@
-
+﻿
 using Microsoft.Extensions.Logging.Abstractions;
 
 using Quartz.Plugin.Json;
-using Quartz.Simpl;
+using Quartz.Impl;
 
 namespace Quartz.Tests.Unit.Plugin.Json;
 

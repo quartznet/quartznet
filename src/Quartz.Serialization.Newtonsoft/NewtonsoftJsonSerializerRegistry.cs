@@ -1,4 +1,4 @@
-using Quartz.Calendars;
+﻿using Quartz.Calendars;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
 using Quartz.Triggers;
@@ -7,7 +7,7 @@ using Quartz.Util;
 namespace Quartz.Serialization.Newtonsoft;
 
 /// <summary>
-/// The trigger and calendar serializers a <see cref="Quartz.Simpl.NewtonsoftJsonObjectSerializer"/>
+/// The trigger and calendar serializers a <see cref="Quartz.Impl.NewtonsoftJsonObjectSerializer"/>
 /// knows about.
 /// </summary>
 /// <remarks>

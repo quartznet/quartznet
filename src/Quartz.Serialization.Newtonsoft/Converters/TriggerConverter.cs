@@ -2,7 +2,7 @@
 using Newtonsoft.Json.Linq;
 
 using Quartz.Serialization.Newtonsoft;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Util;
 
 namespace Quartz.Converters;

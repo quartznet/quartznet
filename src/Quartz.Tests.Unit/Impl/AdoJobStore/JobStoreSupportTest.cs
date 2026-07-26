@@ -7,7 +7,7 @@ using FakeItEasy;
 
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.Calendar;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 
@@ -281,7 +281,7 @@ public class JobStoreSupportTest
 
         A.CallTo(() => driverDelegate.SelectTriggerState(conn, trigger.Key, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<string>(AdoConstants.StateAcquired));
-        A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Spi.ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Extensibility.ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
         A.CallTo(() => driverDelegate.IsJobCurrentlyExecuting(conn, trigger.JobKey.Name, trigger.JobKey.Group, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(true));
@@ -306,7 +306,7 @@ public class JobStoreSupportTest
 
         A.CallTo(() => driverDelegate.SelectTriggerState(conn, trigger.Key, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<string>(AdoConstants.StateAcquired));
-        A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Spi.ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Extensibility.ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
         A.CallTo(() => driverDelegate.IsJobCurrentlyExecuting(conn, trigger.JobKey.Name, trigger.JobKey.Group, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(false));
@@ -326,7 +326,7 @@ public class JobStoreSupportTest
 
         A.CallTo(() => driverDelegate.SelectTriggerState(conn, trigger.Key, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<string>(AdoConstants.StateAcquired));
-        A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Spi.ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Extensibility.ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
 
         await jobStoreSupport.CallTriggerFired(conn, trigger);

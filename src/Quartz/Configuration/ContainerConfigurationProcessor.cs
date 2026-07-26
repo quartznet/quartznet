@@ -1,7 +1,7 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Xml;
 
 namespace Quartz.Configuration;

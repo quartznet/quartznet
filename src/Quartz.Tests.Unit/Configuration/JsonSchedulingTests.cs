@@ -269,9 +269,9 @@ public class JsonSchedulingTests
     /// A type load helper that maps the alias "MyApp.AliasedJob" to NativeJob,
     /// proving the custom loader was used instead of the default.
     /// </summary>
-    private sealed class AliasTypeLoadHelper : Quartz.Spi.ITypeLoadHelper
+    private sealed class AliasTypeLoadHelper : Quartz.Extensibility.ITypeLoadHelper
     {
-        private readonly Quartz.Simpl.SimpleTypeLoadHelper inner = new();
+        private readonly Quartz.Impl.SimpleTypeLoadHelper inner = new();
 
         public Type LoadType(string name)
         {

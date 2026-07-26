@@ -1,0 +1,43 @@
+﻿using System.Text.Json;
+
+using Quartz.HttpClient;
+using Quartz.Extensibility;
+
+namespace Quartz.Impl;
+
+/// <summary>
+/// A <see cref="ISchedulerProxyFactory" /> implementation that creates
+/// connection to remote scheduler using HTTP.
+/// </summary>
+public class HttpSchedulerProxyFactory : ISchedulerProxyFactory
+{
+    /// <summary>
+    /// Gets or sets the remote scheduler address.
+    /// </summary>
+    /// <value>The remote scheduler address.</value>
+    public string? Address { private get; set; }
+
+    /// <summary>
+    /// Returns a client proxy to a remote <see cref="IScheduler" />.
+    /// </summary>
+    public IScheduler GetProxy(string schedulerName, string schedulerInstanceId)
+    {
+        if (string.IsNullOrWhiteSpace(Address))
+        {
+            Throw.InvalidOperationException("Address hasn't been configured");
+        }
+
+        var scheduler = new HttpScheduler(schedulerName, CreateHttpClient(Address!), CreateJsonSerializerOptions());
+        return scheduler;
+    }
+
+    protected virtual System.Net.Http.HttpClient CreateHttpClient(string address)
+    {
+        return new System.Net.Http.HttpClient
+        {
+            BaseAddress = new Uri(address)
+        };
+    }
+
+    protected virtual JsonSerializerOptions? CreateJsonSerializerOptions() => null;
+}

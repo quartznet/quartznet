@@ -1,4 +1,4 @@
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -8,7 +8,7 @@ using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Serialization.Json;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Configuration;
 

@@ -7,7 +7,7 @@ using Quartz.Plugin.Interrupt;
 using Quartz.Plugin.Json;
 using Quartz.Plugin.Management;
 using Quartz.Plugin.Xml;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz;
 

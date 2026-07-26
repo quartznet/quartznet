@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -26,7 +26,7 @@ using Microsoft.Extensions.Logging;
 
 using Quartz.Diagnostics;
 using Quartz.Impl.Matchers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Util;
 using Quartz.Xml;
 

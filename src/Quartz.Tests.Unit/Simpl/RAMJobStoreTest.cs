@@ -25,8 +25,8 @@ using Quartz.Impl.Calendar;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit.Simpl;
 

@@ -1,8 +1,8 @@
-using System.Collections.Specialized;
+﻿using System.Collections.Specialized;
 
 using Quartz.Impl;
 using Quartz.Impl.Triggers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Integration.ExceptionPolicy;
 

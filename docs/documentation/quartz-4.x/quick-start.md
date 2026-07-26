@@ -217,8 +217,8 @@ Now we should get a lot more information when we start the application.
   NOT STARTED.
   Currently in standby mode.
   Number of jobs executed: 0
-  Using thread pool 'Quartz.Simpl.DefaultThreadPool' - with 3 threads.
-  Using job-store 'Quartz.Simpl.RAMJobStore' - which does not support persistence. and is not clustered.
+  Using thread pool 'Quartz.Impl.DefaultThreadPool' - with 3 threads.
+  Using job-store 'Quartz.Impl.RAMJobStore' - which does not support persistence. and is not clustered.
 
 [12.51.10] [Info] Quartz scheduler 'MyScheduler' initialized
 [12.51.10] [Info] Quartz scheduler version: 3.0.0.0

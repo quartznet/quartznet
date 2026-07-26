@@ -29,7 +29,7 @@ For some applications this is acceptable - or even the desired behavior, but for
 
 ```text
  // this is actually the default, so you don't need to explicitly set this
- quartz.jobStore.type = Quartz.Simpl.RAMJobStore, Quartz
+ quartz.jobStore.type = Quartz.Impl.RAMJobStore, Quartz
 ```
 
 To use `RAMJobStore` (and assuming you're using `StdSchedulerFactory`) you don't need to do anything special. Default configuration
@@ -185,7 +185,7 @@ ISchedulerFactory schedulerFactory = config.Build();
 #### Using properties
 
 ```csharp
-    // "stj" is an alias for "Quartz.Simpl.SystemTextJsonObjectSerializer, Quartz"
-    // "newtonsoft" is alias for "Quartz.Simpl.NewtonsoftJsonObjectSerializer, Quartz.Serialization.Newtonsoft"
+    // "stj" is an alias for "Quartz.Impl.SystemTextJsonObjectSerializer, Quartz"
+    // "newtonsoft" is alias for "Quartz.Impl.NewtonsoftJsonObjectSerializer, Quartz.Serialization.Newtonsoft"
     quartz.serializer.type = stj
 ```

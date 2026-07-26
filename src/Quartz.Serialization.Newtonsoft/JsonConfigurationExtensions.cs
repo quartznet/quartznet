@@ -1,8 +1,8 @@
-using Microsoft.Extensions.DependencyInjection.Extensions;
+﻿using Microsoft.Extensions.DependencyInjection.Extensions;
 
 using Quartz.Serialization.Newtonsoft;
 
-using Quartz.Simpl;
+using Quartz.Impl;
 using Quartz.Triggers;
 
 namespace Quartz;

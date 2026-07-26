@@ -7,8 +7,8 @@ using Microsoft.Data.Sqlite;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Serialization.Newtonsoft;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 

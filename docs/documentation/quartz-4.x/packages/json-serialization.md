@@ -101,8 +101,8 @@ using System.Runtime.Serialization.Formatters.Binary;
 
 using Newtonsoft.Json;
 
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 
 namespace Quartz;
 

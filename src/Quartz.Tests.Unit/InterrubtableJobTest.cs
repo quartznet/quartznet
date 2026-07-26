@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
@@ -85,7 +85,7 @@ public class InterruptableJobTest
             ["quartz.scheduler.instanceName"] = "InterruptableJobTest_Scheduler",
             ["quartz.scheduler.instanceId"] = "AUTO",
             ["quartz.threadPool.threadCount"] = "2",
-            ["quartz.threadPool.type"] = "Quartz.Simpl.DefaultThreadPool",
+            ["quartz.threadPool.type"] = "Quartz.Impl.DefaultThreadPool",
             ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
         };
         IScheduler sched = await new StdSchedulerFactory(config).GetScheduler();

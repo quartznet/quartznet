@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -22,8 +22,8 @@
 
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl.Calendar;

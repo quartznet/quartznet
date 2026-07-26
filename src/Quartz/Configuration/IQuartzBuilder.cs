@@ -1,8 +1,8 @@
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.Extensions.DependencyInjection;
 
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz;
 

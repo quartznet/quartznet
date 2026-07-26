@@ -11,7 +11,7 @@ using Microsoft.Extensions.Options;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Util;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Configuration;
 

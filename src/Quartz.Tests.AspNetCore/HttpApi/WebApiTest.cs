@@ -1,10 +1,10 @@
-using FakeItEasy;
+﻿using FakeItEasy;
 
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.HttpClient;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Tests.AspNetCore.Support;
 
 namespace Quartz.Tests.AspNetCore.HttpApi;

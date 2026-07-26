@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -23,7 +23,6 @@ using AwesomeAssertions.Execution;
 
 using Quartz.Impl;
 using Quartz.Job;
-using Quartz.Simpl;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit;

@@ -13,8 +13,8 @@ using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Triggers;
 using Quartz.Serialization.Json;
 using Quartz.Serialization.Json.Triggers;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit.Configuration;
 
@@ -560,7 +560,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         var services = new ServiceCollection();
         services.AddQuartz(new NameValueCollection
         {
-            ["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz",
+            ["quartz.threadPool.type"] = "Quartz.Impl.SimpleThreadPool, Quartz",
         });
 
         using var provider = services.BuildServiceProvider();

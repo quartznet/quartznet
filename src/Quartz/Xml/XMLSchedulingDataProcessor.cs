@@ -24,7 +24,7 @@ using System.Xml.Serialization;
 using Microsoft.Extensions.Logging;
 
 using Quartz.Impl.Matchers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Util;
 using Quartz.Xml.JobSchedulingData20;
 

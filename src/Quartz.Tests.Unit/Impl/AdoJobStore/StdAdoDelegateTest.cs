@@ -30,8 +30,8 @@ using Microsoft.Data.SqlClient;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Triggers;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;

@@ -20,7 +20,7 @@
 #endregion
 
 using Quartz.Impl.Triggers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Util;
 
 namespace Quartz;

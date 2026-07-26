@@ -9,7 +9,7 @@ using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Serialization.Newtonsoft;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Tests.Integration.Impl.AdoJobStore;
 using Quartz.Triggers;
 using Quartz.Util;

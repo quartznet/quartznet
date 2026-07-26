@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -23,7 +23,6 @@ using System.Collections.Specialized;
 
 
 using Quartz.Impl;
-using Quartz.Simpl;
 
 namespace Quartz.Tests.Unit.Impl;
 
@@ -145,7 +144,7 @@ public class StdSchedulerFactoryTest
     {
         var properties = new NameValueCollection
         {
-            ["quartz.threadPool.type"] = "Quartz.Simpl.DefaultThreadPool, Quartz",
+            ["quartz.threadPool.type"] = "Quartz.Impl.DefaultThreadPool, Quartz",
             ["quartz.threadPool.threadCount"] = "3"
         };
 

@@ -1,7 +1,7 @@
-using System.Collections.Specialized;
+﻿using System.Collections.Specialized;
 
 using Quartz.Impl;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit.Core;
 

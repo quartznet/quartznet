@@ -1,5 +1,5 @@
 ﻿using BenchmarkDotNet.Attributes;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Benchmark;
 

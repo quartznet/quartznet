@@ -1,6 +1,6 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Core;
 

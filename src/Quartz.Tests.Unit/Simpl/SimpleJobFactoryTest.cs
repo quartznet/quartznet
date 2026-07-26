@@ -1,6 +1,6 @@
-using Quartz.Job;
-using Quartz.Simpl;
-using Quartz.Spi;
+﻿using Quartz.Job;
+using Quartz.Impl;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit.Simpl;
 

@@ -9,6 +9,21 @@ namespace Quartz.Converters
         public override void WriteJson(Newtonsoft.Json.JsonWriter writer, object? value, Newtonsoft.Json.JsonSerializer serializer) { }
     }
 }
+namespace Quartz.Impl
+{
+    public class NewtonsoftJsonObjectSerializer : Quartz.Extensibility.IObjectSerializer
+    {
+        public NewtonsoftJsonObjectSerializer() { }
+        public NewtonsoftJsonObjectSerializer(Quartz.Serialization.Newtonsoft.NewtonsoftJsonSerializerRegistry registry) { }
+        public bool RegisterTriggerConverters { get; set; }
+        protected Quartz.Serialization.Newtonsoft.NewtonsoftJsonSerializerRegistry Registry { get; }
+        protected virtual Newtonsoft.Json.JsonSerializerSettings CreateSerializerSettings() { }
+        public T? Deserialize<T>(byte[] data)
+            where T :  class { }
+        public byte[] Serialize<T>(T obj)
+            where T :  class { }
+    }
+}
 namespace Quartz
 {
     public static class JsonConfigurationExtensions
@@ -46,21 +61,6 @@ namespace Quartz.Serialization.Newtonsoft
         public Quartz.Serialization.Newtonsoft.NewtonsoftJsonSerializerRegistry AddCalendarSerializer<TCalendar>(Quartz.Serialization.Newtonsoft.ICalendarSerializer serializer) { }
         public Quartz.Serialization.Newtonsoft.NewtonsoftJsonSerializerRegistry AddTriggerSerializer<TTrigger>(Quartz.Triggers.ITriggerSerializer serializer)
             where TTrigger : Quartz.ITrigger { }
-    }
-}
-namespace Quartz.Simpl
-{
-    public class NewtonsoftJsonObjectSerializer : Quartz.Spi.IObjectSerializer
-    {
-        public NewtonsoftJsonObjectSerializer() { }
-        public NewtonsoftJsonObjectSerializer(Quartz.Serialization.Newtonsoft.NewtonsoftJsonSerializerRegistry registry) { }
-        public bool RegisterTriggerConverters { get; set; }
-        protected Quartz.Serialization.Newtonsoft.NewtonsoftJsonSerializerRegistry Registry { get; }
-        protected virtual Newtonsoft.Json.JsonSerializerSettings CreateSerializerSettings() { }
-        public T? Deserialize<T>(byte[] data)
-            where T :  class { }
-        public byte[] Serialize<T>(T obj)
-            where T :  class { }
     }
 }
 namespace Quartz.Triggers

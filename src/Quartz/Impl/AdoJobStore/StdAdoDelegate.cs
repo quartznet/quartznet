@@ -29,7 +29,7 @@ using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Matchers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore;

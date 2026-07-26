@@ -1,4 +1,4 @@
-using AwesomeAssertions.Execution;
+﻿using AwesomeAssertions.Execution;
 
 using FakeItEasy;
 
@@ -6,8 +6,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 using Quartz.Impl.Triggers;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit.Simpl;
 

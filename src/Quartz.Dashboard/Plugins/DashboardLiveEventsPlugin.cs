@@ -23,7 +23,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Quartz.Dashboard.Hubs;
 using Quartz.Dashboard.Services;
 using Quartz.Impl.Matchers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Dashboard.Plugins;
 

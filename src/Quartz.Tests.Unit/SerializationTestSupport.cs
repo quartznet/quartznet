@@ -21,7 +21,7 @@
 
 using System.Reflection;
 
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit;
 

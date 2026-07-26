@@ -1,4 +1,11 @@
 ﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
+namespace Quartz.Extensibility
+{
+    public interface IDirectoryProvider
+    {
+        System.Collections.Generic.IReadOnlyList<string> GetDirectoriesToScan(Quartz.JobDataMap mergedJobDataMap);
+    }
+}
 namespace Quartz.Job
 {
     [Quartz.DisallowConcurrentExecution]
@@ -78,12 +85,5 @@ namespace Quartz.Job
             public int? SmtpPort { get; set; }
             public string? SmtpUserName { get; set; }
         }
-    }
-}
-namespace Quartz.Spi
-{
-    public interface IDirectoryProvider
-    {
-        System.Collections.Generic.IReadOnlyList<string> GetDirectoriesToScan(Quartz.JobDataMap mergedJobDataMap);
     }
 }

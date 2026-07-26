@@ -1,12 +1,12 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Configuration;
 using Quartz.HttpClient;
 using Quartz.Serialization.Json;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 
 namespace Quartz;
 

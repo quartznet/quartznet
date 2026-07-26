@@ -29,7 +29,7 @@ using Quartz.Diagnostics;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Util;
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
@@ -1000,8 +1000,8 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
     /// <summary>
     /// Recover triggers that have been stuck in the ACQUIRED state for longer than
-    /// expected. This can happen when <see cref="Spi.IJobStore.ReleaseAcquiredTrigger"/>
-    /// fails after <see cref="Spi.IJobStore.TriggersFired"/> fails, leaving the trigger
+    /// expected. This can happen when <see cref="Extensibility.IJobStore.ReleaseAcquiredTrigger"/>
+    /// fails after <see cref="Extensibility.IJobStore.TriggersFired"/> fails, leaving the trigger
     /// in ACQUIRED state with no one to fire or release it.
     /// </summary>
     protected virtual async Task<int> RecoverStaleAcquiredTriggers(

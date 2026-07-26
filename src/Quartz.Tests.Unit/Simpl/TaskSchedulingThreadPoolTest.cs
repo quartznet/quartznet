@@ -1,4 +1,4 @@
-﻿using Quartz.Simpl;
+﻿using Quartz.Impl;
 
 namespace Quartz.Tests.Unit.Simpl;
 

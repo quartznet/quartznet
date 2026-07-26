@@ -1,5 +1,5 @@
-using Quartz.Impl.Triggers;
-using Quartz.Spi;
+﻿using Quartz.Impl.Triggers;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit;
 
