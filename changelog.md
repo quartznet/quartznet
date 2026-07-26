@@ -96,6 +96,13 @@
     the scheduler was tying up a thread every time it waited for pool capacity. They now use `WaitAsync`. Shutdown still waits
     synchronously for running jobs; that happens once, off the scheduling loop.
 
+  * **JobRunShell**, **IJobRunShellFactory**, `QuartzSchedulerResources.JobRunShellFactory` and the
+    `InternalTriggerState` enum are now `internal`. None had an implementer or caller outside Quartz itself, and a
+    public enum named `Internal*` was self-refuting. `ZeroSizeThreadPool`, `ISchedulerProxyFactory` and
+    `QuartzScheduler` were considered and **left public**: the first two can still reasonably be named by
+    configuration or implemented by someone outside the repository, and `QuartzScheduler` is exposed by
+    `StdScheduler`'s public constructor.
+
   * **ITrigger** exposes the fire times as properties — `NextFireTimeUtc` and `PreviousFireTimeUtc` — rather than
     only as `GetNextFireTimeUtc()` / `GetPreviousFireTimeUtc()` methods, which were a direct port of Java's
     accessor style. **Existing calling code keeps compiling**: the two methods remain as `[Obsolete]` default

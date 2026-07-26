@@ -1,10 +1,10 @@
-namespace Quartz.Simpl;
+﻿namespace Quartz.Simpl;
 
 /// <summary>
 /// Possible internal trigger states 
 /// in RAMJobStore
 /// </summary>
-public enum InternalTriggerState
+internal enum InternalTriggerState
 {
     /// <summary>
     /// Waiting 

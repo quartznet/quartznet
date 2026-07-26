@@ -1143,25 +1143,9 @@ namespace Quartz.Configuration
 }
 namespace Quartz.Core
 {
-    public interface IJobRunShellFactory
-    {
-        Quartz.Core.JobRunShell CreateJobRunShell(Quartz.Spi.TriggerFiredBundle bndle);
-        void Initialize(Quartz.IScheduler sched);
-    }
     public sealed class JobExecutionProcessException : Quartz.SchedulerException
     {
         public Quartz.IJobExecutionContext JobExecutionContext { get; }
-    }
-    public class JobRunShell : Quartz.Listener.SchedulerListenerSupport
-    {
-        public JobRunShell(Quartz.IScheduler scheduler, Quartz.Spi.TriggerFiredBundle bundle, Microsoft.Extensions.Logging.ILogger<Quartz.Core.JobRunShell> logger) { }
-        protected virtual void Begin() { }
-        protected virtual void Complete(bool successfulExecution) { }
-        public virtual System.Threading.Tasks.ValueTask Initialize(Quartz.Core.QuartzScheduler sched, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual void Passivate() { }
-        public virtual void RequestShutdown() { }
-        public virtual System.Threading.Tasks.ValueTask Run(System.Threading.CancellationToken cancellationToken = default) { }
-        public override System.Threading.Tasks.ValueTask SchedulerShuttingDown(System.Threading.CancellationToken cancellationToken = default) { }
     }
     public sealed class QuartzScheduler
     {
@@ -1282,7 +1266,6 @@ namespace Quartz.Core
         public string InstanceId { get; set; }
         public bool InterruptJobsOnShutdown { get; set; }
         public bool InterruptJobsOnShutdownWithWait { get; set; }
-        public Quartz.Core.IJobRunShellFactory JobRunShellFactory { get; set; }
         public Quartz.Spi.IJobStore JobStore { get; set; }
         public bool MakeSchedulerThreadDaemon { get; set; }
         public int MaxBatchSize { get; set; }
@@ -3195,17 +3178,6 @@ namespace Quartz.Simpl
         protected virtual System.Threading.Tasks.ValueTask<System.Net.IPHostEntry> GetHostAddress(System.Threading.CancellationToken cancellationToken = default) { }
         protected System.Threading.Tasks.ValueTask<string> GetHostName(int maxLength, System.Threading.CancellationToken cancellationToken = default) { }
     }
-    public enum InternalTriggerState
-    {
-        Waiting = 0,
-        Acquired = 1,
-        Executing = 2,
-        Complete = 3,
-        Paused = 4,
-        Blocked = 5,
-        PausedAndBlocked = 6,
-        Error = 7,
-    }
     public class MicrosoftDependencyInjectionJobFactory : Quartz.Simpl.PropertySettingJobFactory
     {
         public MicrosoftDependencyInjectionJobFactory(System.IServiceProvider serviceProvider) { }
@@ -3278,7 +3250,6 @@ namespace Quartz.Simpl
         public System.Threading.Tasks.ValueTask SchedulerPaused(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask SchedulerResumed(System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask SchedulerStarted(System.Threading.CancellationToken cancellationToken = default) { }
-        protected virtual void SetAllTriggersOfJobToState(Quartz.JobKey jobKey, Quartz.Simpl.InternalTriggerState state) { }
         public virtual System.Threading.Tasks.ValueTask Shutdown(System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask StoreCalendar(string name, Quartz.ICalendar calendar, bool replaceExisting, bool updateTriggers, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask StoreJob(Quartz.IJobDetail job, bool replaceExisting, System.Threading.CancellationToken cancellationToken = default) { }

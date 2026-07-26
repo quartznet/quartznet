@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -29,7 +29,7 @@ namespace Quartz.Core;
 /// </summary>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public interface IJobRunShellFactory
+internal interface IJobRunShellFactory
 {
     /// <summary>
     /// Initialize the factory, providing a handle to the <see cref="IScheduler" />

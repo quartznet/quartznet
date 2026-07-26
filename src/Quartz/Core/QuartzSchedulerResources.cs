@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
@@ -170,7 +170,7 @@ public sealed class QuartzSchedulerResources
     /// <exception cref="ArgumentException">
     /// if jobRunShellFactory is null.
     /// </exception>
-    public IJobRunShellFactory JobRunShellFactory
+    internal IJobRunShellFactory JobRunShellFactory
     {
         get => jobRunShellFactory;
         set

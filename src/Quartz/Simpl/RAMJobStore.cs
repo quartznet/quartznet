@@ -2246,7 +2246,7 @@ public class RAMJobStore : IJobStore
     /// <remarks>
     /// This method should only be executed while holding the instance level lock.
     /// </remarks>
-    protected virtual void SetAllTriggersOfJobToState(JobKey jobKey, InternalTriggerState state)
+    internal virtual void SetAllTriggersOfJobToState(JobKey jobKey, InternalTriggerState state)
     {
         var triggerWrappersForJob = GetTriggerWrappersForJobNoLock(jobKey);
 

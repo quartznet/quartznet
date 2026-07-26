@@ -48,7 +48,7 @@ namespace Quartz.Core;
 /// <seealso cref="ITrigger" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public class JobRunShell : SchedulerListenerSupport
+internal class JobRunShell : SchedulerListenerSupport
 {
     private readonly ILogger<JobRunShell> logger;
 
