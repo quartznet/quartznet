@@ -118,14 +118,22 @@ public sealed class MultipleSchedulerTests
         provider.GetServices<ITriggerListener>().Should().BeEmpty();
         provider.GetServices<ISchedulerListener>().Should().BeEmpty();
 
-        // But their configurations should be tagged correctly
-        var jobListenerConfigs = provider.GetServices<JobListenerConfiguration>().ToList();
-        jobListenerConfigs.Should().HaveCount(2);
-        jobListenerConfigs.Should().Contain(c => c.OptionsName == "Scheduler1" && c.ListenerType == typeof(TestJobListenerA));
-        jobListenerConfigs.Should().Contain(c => c.OptionsName == "Scheduler2" && c.ListenerType == typeof(TestJobListenerB));
+        // Each scheduler's registrations are held under its own service key, so one scheduler's listeners
+        // are not even visible to another.
+        provider.GetKeyedServices<JobListenerRegistration>("Scheduler1").Should().ContainSingle()
+            .Which.ListenerType.Should().Be(typeof(TestJobListenerA));
+        provider.GetKeyedServices<JobListenerRegistration>("Scheduler2").Should().ContainSingle()
+            .Which.ListenerType.Should().Be(typeof(TestJobListenerB));
+        provider.GetServices<JobListenerRegistration>().Should().BeEmpty(
+            "no default scheduler was registered, so nothing belongs to the unkeyed set");
 
-        provider.GetServices<TriggerListenerConfiguration>().Should().ContainSingle(c => c.OptionsName == "Scheduler1");
-        provider.GetServices<SchedulerListenerConfiguration>().Should().ContainSingle(c => c.OptionsName == "Scheduler1");
+        provider.GetKeyedServices<TriggerListenerRegistration>("Scheduler1").Should().ContainSingle()
+            .Which.ListenerType.Should().Be(typeof(TestTriggerListenerA));
+        provider.GetKeyedServices<TriggerListenerRegistration>("Scheduler2").Should().BeEmpty();
+
+        provider.GetKeyedServices<SchedulerListenerRegistration>("Scheduler1").Should().ContainSingle()
+            .Which.ListenerType.Should().Be(typeof(TestSchedulerListenerA));
+        provider.GetKeyedServices<SchedulerListenerRegistration>("Scheduler2").Should().BeEmpty();
     }
 
     [Test]
@@ -146,11 +154,13 @@ public sealed class MultipleSchedulerTests
         });
 
         using var provider = services.BuildServiceProvider();
-        var calConfigs = provider.GetServices<CalendarConfiguration>().ToList();
 
-        calConfigs.Should().HaveCount(2);
-        calConfigs.Should().Contain(c => c.OptionsName == "Scheduler1" && c.Name == "cal1");
-        calConfigs.Should().Contain(c => c.OptionsName == "Scheduler2" && c.Name == "cal2");
+        provider.GetKeyedServices<CalendarConfiguration>("Scheduler1").Should().ContainSingle()
+            .Which.Name.Should().Be("cal1");
+        provider.GetKeyedServices<CalendarConfiguration>("Scheduler2").Should().ContainSingle()
+            .Which.Name.Should().Be("cal2");
+        provider.GetServices<CalendarConfiguration>().Should().BeEmpty(
+            "no default scheduler was registered, so nothing belongs to the unkeyed set");
     }
 
     [Test]

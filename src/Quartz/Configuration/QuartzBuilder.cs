@@ -198,68 +198,70 @@ internal sealed class QuartzBuilder : IQuartzBuilder
         return AddPlugin<T>();
     }
 
+    /// <remarks>
+    /// Only the registration is added. Registering the listener as a service as well would attach it
+    /// twice, once from each source.
+    /// </remarks>
     public IQuartzBuilder AddSchedulerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
         where T : class, ISchedulerListener
     {
-        // Only a configuration is registered. Registering the listener as a service too would make the
-        // default scheduler attach it twice, once from each source.
-        Services.AddSingleton(new SchedulerListenerConfiguration(typeof(T), SchedulerName));
+        AddContent(new SchedulerListenerRegistration(typeof(T)));
         return this;
     }
 
     public IQuartzBuilder AddSchedulerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         T listener) where T : class, ISchedulerListener
     {
-        Services.AddSingleton(new SchedulerListenerConfiguration(typeof(T), SchedulerName, listenerInstance: listener));
+        AddContent(new SchedulerListenerRegistration(typeof(T), listenerInstance: listener));
         return this;
     }
 
     public IQuartzBuilder AddSchedulerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         Func<IServiceProvider, T> factory) where T : class, ISchedulerListener
     {
-        Services.AddSingleton(new SchedulerListenerConfiguration(typeof(T), SchedulerName, listenerFactory: provider => factory(provider)));
+        AddContent(new SchedulerListenerRegistration(typeof(T), listenerFactory: provider => factory(provider)));
         return this;
     }
 
     public IQuartzBuilder AddJobListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         params IMatcher<JobKey>[] matchers) where T : class, IJobListener
     {
-        Services.AddSingleton(new JobListenerConfiguration(typeof(T), matchers, SchedulerName));
+        AddContent(new JobListenerRegistration(typeof(T), matchers));
         return this;
     }
 
     public IQuartzBuilder AddJobListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         T listener, params IMatcher<JobKey>[] matchers) where T : class, IJobListener
     {
-        Services.AddSingleton(new JobListenerConfiguration(typeof(T), matchers, SchedulerName, listenerInstance: listener));
+        AddContent(new JobListenerRegistration(typeof(T), matchers, listenerInstance: listener));
         return this;
     }
 
     public IQuartzBuilder AddJobListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         Func<IServiceProvider, T> factory, params IMatcher<JobKey>[] matchers) where T : class, IJobListener
     {
-        Services.AddSingleton(new JobListenerConfiguration(typeof(T), matchers, SchedulerName, listenerFactory: provider => factory(provider)));
+        AddContent(new JobListenerRegistration(typeof(T), matchers, listenerFactory: provider => factory(provider)));
         return this;
     }
 
     public IQuartzBuilder AddTriggerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener
     {
-        Services.AddSingleton(new TriggerListenerConfiguration(typeof(T), matchers, SchedulerName));
+        AddContent(new TriggerListenerRegistration(typeof(T), matchers));
         return this;
     }
 
     public IQuartzBuilder AddTriggerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         T listener, params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener
     {
-        Services.AddSingleton(new TriggerListenerConfiguration(typeof(T), matchers, SchedulerName, listenerInstance: listener));
+        AddContent(new TriggerListenerRegistration(typeof(T), matchers, listenerInstance: listener));
         return this;
     }
 
     public IQuartzBuilder AddTriggerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         Func<IServiceProvider, T> factory, params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener
     {
-        Services.AddSingleton(new TriggerListenerConfiguration(typeof(T), matchers, SchedulerName, listenerFactory: provider => factory(provider)));
+        AddContent(new TriggerListenerRegistration(typeof(T), matchers, listenerFactory: provider => factory(provider)));
         return this;
     }
 
@@ -271,6 +273,18 @@ internal sealed class QuartzBuilder : IQuartzBuilder
         configure(limits);
         Services.AddSingleton(new SchedulerExecutionLimits(SchedulerName, limits));
         return this;
+    }
+
+    /// <summary>
+    /// Registers something this scheduler carries — a listener — under its own key.
+    /// </summary>
+    /// <remarks>
+    /// Several of these can exist per scheduler and they are resolved as a set, so they go in the same
+    /// shape plugins do rather than as a single keyed service.
+    /// </remarks>
+    private void AddContent<TContent>(TContent content) where TContent : class
+    {
+        SchedulerContentRegistration.Add(this, content);
     }
 
     /// <summary>
