@@ -72,14 +72,14 @@ code, and use AwesomeAssertions for anything new.
 Quartz.NET is an enterprise job scheduling library. The core domain model:
 
 - **`IScheduler`** → main entry point; schedules jobs with triggers. Implemented by `StdScheduler` which delegates to `QuartzScheduler`.
-- **`IJob`** → user-implemented interface with a single `ValueTask Execute(IJobExecutionContext context)` method (no CancellationToken parameter).
+- **`IJob`** → user-implemented interface with a single `ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)` method. The token is the *same* one as `IJobExecutionContext.CancellationToken`; it is a parameter so that `CA2016` can flag jobs that fail to forward it.
 - **`IJobDetail`** → metadata about a job (type, key, JobDataMap). Built via `JobBuilder`.
 - **`ITrigger`** → defines when a job fires (cron, simple interval, daily time interval, calendar interval). Built via `TriggerBuilder` + schedule builders (`CronScheduleBuilder`, `SimpleScheduleBuilder`, etc.).
 - **`JobKey` / `TriggerKey`** → identity objects composed of name + group.
 
 ### Job Stores
 
-- **`RAMJobStore`** (`Quartz.Simpl`) — in-memory, volatile. Default.
+- **`RAMJobStore`** (`Quartz.Impl`) — in-memory, volatile. Default.
 - **`JobStoreSupport`** → `JobStoreTX` / `JobStoreCMT` (`Quartz.Impl.AdoJobStore`) — ADO.NET-based persistence with database-specific delegates (`SqlServerDelegate`, `PostgreSQLDelegate`, `OracleDelegate`, `MySQLDelegate`, `SQLiteDelegate`, `FirebirdDelegate`).
 
 Database schemas live in `database/tables/`.
@@ -115,6 +115,67 @@ Pluggable serialization for job store persistence:
 - For OpenTelemetry, use [OpenTelemetry.Instrumentation.Quartz](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.Quartz).
 - Logging uses `Microsoft.Extensions.Logging` via `Quartz.Diagnostics.LogProvider`.
 
+## Porting changes between 3.x and main
+
+`3.x` is the maintenance branch and `main` is 4.x. A change written against one usually needs
+relocating for the other. This maps where things moved; when a port does not compile, check here
+before assuming the code is missing.
+
+### Namespaces
+
+| 3.x | main |
+|-----|------|
+| `Quartz.Spi` | `Quartz.Extensibility` |
+| `Quartz.Simpl` | `Quartz.Impl` (merged into the one that already existed) |
+| `Quartz.Extensions.DependencyInjection` | `Quartz.Configuration` in the core package |
+| `Quartz.Extensions.Hosting` | `Quartz.Hosting` in the core package |
+| `Quartz.Serialization.SystemTextJson` | core package (`SystemTextJsonObjectSerializer`) |
+
+Directory layout follows: `src/Quartz/SPI/` → `src/Quartz/Extensibility/`, `src/Quartz/Simpl/` →
+`src/Quartz/Impl/`. String-typed configuration naming the old namespaces still resolves through a
+fallback in `SimpleTypeLoadHelper`, with a warning.
+
+### Contracts that changed shape
+
+| 3.x | main |
+|-----|------|
+| `IJob.Execute(context)` | `Execute(context, cancellationToken)` — same token as `context.CancellationToken` |
+| `IJobFactory.NewJob(...)` → `IJob` | `CreateJob(...)` → `ValueTask<JobScope>` |
+| `IJobFactory.ReturnJob(IJob)` | `ReturnJob(JobScope, CancellationToken)` |
+| `internal IJobWithAsyncReturnFactory` | gone — merged into `IJobFactory` |
+| `IJobWrapper` | gone — per-fire state rides in `JobScope.State` |
+| `PropertySettingJobFactory.InstantiateJob` (sync) | `CreateJobInstance` → `ValueTask<JobScope>` |
+| `ITrigger.GetNextFireTimeUtc()` | `ITrigger.NextFireTimeUtc` (method kept as `[Obsolete]` forwarder) |
+| `IOperableTrigger.SetNextFireTimeUtc(v)` | `NextFireTimeUtc = v` on `IMutableTrigger` (no forwarder) |
+| `IThreadPool.RunInThread` / `BlockForAvailableThreads` | `TryRun` / `WaitForAvailableThreads`, both `ValueTask` |
+| `IThreadPool.InstanceId` / `InstanceName` | removed — nothing read them |
+| `IObjectSerializer.DeSerialize` | `Deserialize`; `Initialize()` gone (options built on first use) |
+| `ITypeLoadHelper.Initialize()` | gone |
+| `IInstanceIdGenerator` → `ValueTask<string?>` | `ValueTask<string>` |
+| `IRemotableSchedulerProxyFactory` | `ISchedulerProxyFactory` |
+| `ISchedulerListener.SchedulerShuttingdown` | `SchedulerShuttingDown` |
+| `ISchedulerListener` (no `Name`) | has `Name`; `SchedulerListenerSupport` defaults it to the type name |
+| `IListenerManager.GetSchedulerListeners()` → `IReadOnlyCollection<T>` | `ISchedulerListener[]` |
+| `IJobStore.EstimatedTimeToReleaseAndAcquireTrigger` (`long` ms) | `TimeSpan` |
+| two `IJobStore.AcquireNextTriggers` overloads | one, with optional `executionLimits` |
+| `JobRunShell`, `IJobRunShellFactory` (public) | `internal` |
+
+### Configuration
+
+3.x configures from flat `quartz.*` strings and reflective instantiation. On main the container
+builds the scheduler; flat keys still work but are translated by `QuartzPropertyBridge`, which is
+the only place that understands them. A 3.x change that adds a property key needs a typed option
+plus a bridge entry on main.
+
+### Practical notes
+
+- **Ported code that fails to build is usually a rename, not a missing feature.** Check the tables
+  above and `changelog.md`'s BREAKING CHANGES section, which explains the reasoning for each.
+- **`docs/documentation/quartz-3.x/` must keep the old names.** Only update `quartz-4.x/`.
+- **`src/Quartz.Tests.Unit/Verify/PublicApiTest_*.verified.txt` are the public API baselines.**
+  Any change to public API fails those tests; review the diff, and if the change is intended,
+  accept the new baseline and carry the same diff into `changelog.md`. Never hand-edit them.
+
 ## Key Conventions
 
 - **File-scoped namespaces** — enforced as error (`csharp_style_namespace_declarations = file_scoped:error`).
@@ -124,7 +185,11 @@ Pluggable serialization for job store persistence:
 - **Allman brace style** — braces on new lines for methods, types, control blocks, properties, accessors, lambdas.
 - **No `DateTime.Now`/`DateTimeOffset.Now`** — banned via Roslyn analyzer (`BannedSymbols.txt`). Use `TimeProvider` instead.
 - **No implicit `DateTime` → `DateTimeOffset` cast** — also banned.
-- **All public APIs return `ValueTask`** rather than `Task` (e.g., `IJob.Execute`, `IScheduler` methods).
+- **All public APIs return `ValueTask`** rather than `Task` (e.g., `IJob.Execute`, `IScheduler` methods). This holds for classes too — there are no public `Task`-returning members left.
+- **No `Async` suffix** on Quartz-authored members; the bare verb *is* the async one. Only names dictated by a BCL interface (`IHostedService`, `IAsyncDisposable`, `IHealthCheck`) carry it.
+- **Every async member ends with `CancellationToken cancellationToken = default`.** There are no exceptions left.
+- **Return concrete collection types, accept abstractions** — `List<T>` or `T[]` out, `IReadOnlyCollection<T>`/`IReadOnlyList<T>` in.
+- **No setter-only properties on interfaces.** Identity and configuration arrive by constructor or an explicit context parameter.
 - **Strong-named assemblies** — signed with `quartz.net.snk` (except examples).
 - **Central package management** — package versions in `Directory.Packages.props`.
 - **Single target** — everything targets `net10.0`.
