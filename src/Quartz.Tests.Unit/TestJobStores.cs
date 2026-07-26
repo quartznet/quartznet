@@ -29,9 +29,10 @@ public static class TestJobStores
     public static ILoggerFactory LoggerFactory() => NullLoggerFactory.Instance;
 
     /// <summary>
-    /// The process-wide connection manager, so a provider a test registers is visible to the store.
+    /// A connection manager of its own for the store under test. There is no process-wide one, so a test
+    /// that wants to read a provider back out has to hold on to the manager it passed in.
     /// </summary>
-    public static IDbConnectionManager ConnectionManager() => DBConnectionManager.Instance;
+    public static IDbConnectionManager ConnectionManager() => new DBConnectionManager(Logger<DBConnectionManager>());
 
     /// <summary>
     /// A database provider that never connects, for tests that only exercise the store's logic.

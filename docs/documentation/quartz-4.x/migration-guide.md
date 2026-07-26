@@ -72,6 +72,52 @@ A scheduler has one job store and therefore one database, so there is no name to
 Schedulers that need different databases are registered under different names, and each gets its own
 services.
 
+### The quartz.config file is no longer read
+
+Nothing is loaded from disk any more. A `quartz.config` file next to your application — or named by the
+`quartz.config` environment variable — is ignored, and so is the copy of it Quartz used to ship as an
+embedded resource. `StdSchedulerFactory` reads only the properties you hand it plus any `quartz.*`
+environment variables; everything else configures a scheduler through the container.
+
+**No defaults change.** The three settings the embedded file supplied are now seeded by
+`StdSchedulerFactory.Initialize()`, which is the only entry point that ever read the file:
+
+| Setting | Value |
+|---|---|
+| `quartz.scheduler.instanceName` | `DefaultQuartzScheduler` |
+| `quartz.threadPool.threadCount` | 10 |
+| `quartz.jobStore.misfireThreshold` | 60000 |
+
+Environment variables still override them, and anything you pass to `Initialize(NameValueCollection)`
+replaces them, exactly as the file behaved.
+
+Note these were never the defaults for `AddQuartz` or for `new StdSchedulerFactory(properties)`: handing
+the factory properties always bypassed the file, so those paths fell back — and still fall back — to
+`QuartzSchedulerOptions.InstanceName` (`QuartzScheduler`) and
+`InMemoryJobStoreOptions.MisfireThreshold` (5 seconds). Set them explicitly if you want the other values.
+
+The one thing the file was still needed for was describing an ADO.NET driver Quartz ships no metadata
+for. That now has a code-first form, and the `quartz.dbprovider.*` keys themselves still work — they just
+arrive through `IConfiguration` or a `NameValueCollection` like every other key:
+
+```csharp
+q.UsePersistentStore(store => store.UseGenericDatabase("MyDatabase", connectionString, metadata =>
+{
+    metadata.ProductName = "My Database";
+    metadata.ConnectionType = typeof(MyConnection);
+    metadata.CommandType = typeof(MyCommand);
+    metadata.ParameterType = typeof(MyParameter);
+    metadata.ParameterDbType = typeof(MyDbType);
+    metadata.ParameterDbTypePropertyName = nameof(MyParameter.MyDbType);
+    metadata.ParameterNamePrefix = "@";
+    metadata.DbBinaryTypeName = "VarBinary";
+}));
+```
+
+See [the configuration reference](configuration/reference.md#describing-a-driver-quartz-does-not-know) for the
+full description. `DbProvider.RegisterDbMetadata` is gone with the process-wide lookup it wrote into; use
+the callback above, or register a `DbMetadataFactory` in the container.
+
 ### Removed
 
 | Removed | Use instead |
@@ -80,9 +126,13 @@ services.
 | `DirectSchedulerFactory` | `QuartzSchedulerBuilder`, with `UseThreadPool` / `UseJobStore` for pre-built parts |
 | `IPropertyConfigurer`, `IPropertySetter`, `IPropertyConfigurationRoot`, `PropertiesHolder`, `PropertiesSetter` | typed options |
 | `AddQuartz(Action<configurator, IServiceProvider>)` | see below |
-| `quartz.config` file discovery | `IConfiguration` |
+| `quartz.config` file discovery, `StdSchedulerFactory.PropertiesFile` | `IConfiguration`, or properties passed to `StdSchedulerFactory` |
+| `DbProvider.RegisterDbMetadata` | the metadata callback on `UseGenericDatabase`, or a `DbMetadataFactory` registration |
 | `quartz.scheduler.proxy*`, `quartz.scheduler.exporter*` | nothing; remoting is not supported on modern .NET |
 | `quartz.checkConfiguration` | configuration is validated by the options system |
+| `SchedulerRepository.Instance` | `ISchedulerRepository` resolved from the container |
+| `DBConnectionManager.Instance` | `IDbConnectionManager` resolved from the container |
+| `StdSchedulerFactory.GetDbConnectionManager()` | nothing; it had no callers |
 
 ### Deferred configuration
 
@@ -129,6 +179,45 @@ a database schema.
 
 Plugin configuration extension methods now extend `IQuartzBuilder` and register the plugin as a
 service, rather than deriving from `PropertiesSetter` to write string keys.
+
+### No process-global scheduler or connection state
+
+`SchedulerRepository.Instance` and `DBConnectionManager.Instance` are gone. Both are ordinary container
+registrations now, which means **a scheduler is only visible in the repository belonging to the container
+that built it**:
+
+```diff
+- var scheduler = SchedulerRepository.Instance.Lookup("reporting");
++ var scheduler = serviceProvider.GetRequiredService<ISchedulerRepository>().Lookup("reporting");
+```
+
+```diff
+- DBConnectionManager.Instance.AddConnectionProvider("default", myProvider);
++ serviceProvider.GetRequiredService<IDbConnectionManager>().AddConnectionProvider("default", myProvider);
+```
+
+The observable consequence is that schedulers built different ways no longer find each other. Given a
+scheduler registered with `AddQuartz` and another created by `StdSchedulerFactory` in the same process:
+
+* `ISchedulerFactory.GetAllSchedulers()` on either one lists only its own schedulers.
+* `ISchedulerFactory.GetScheduler(name)` returns `null` for the other one's name.
+* `ISchedulerRepository.Lookup(name)` likewise sees only its own container's schedulers.
+
+If you were relying on that reach — typically to find a scheduler from code that had no reference to the
+factory that created it — register the scheduler with `AddQuartz` and inject `IScheduler`,
+`ISchedulerFactory` or `ISchedulerRepository` instead. If you genuinely need one repository across
+several entry points, register your own instance before calling `AddQuartz`; every Quartz registration
+is `TryAdd`, so yours wins:
+
+```csharp
+var repository = new SchedulerRepository();
+services.AddSingleton<ISchedulerRepository>(repository);
+services.AddQuartz(/* ... */);
+```
+
+`StdSchedulerFactory.GetSchedulerRepository()` is still an override point, but it now returns the
+repository of the factory's own container. `StdSchedulerFactory.GetDbConnectionManager()` was removed; it
+had no callers.
 
 ## Package Changes
 

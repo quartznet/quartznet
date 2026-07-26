@@ -20,7 +20,6 @@
 using System.Collections.Concurrent;
 using System.Data.Common;
 using Microsoft.Extensions.Logging;
-using Quartz.Diagnostics;
 using Quartz.Impl.AdoJobStore.Common;
 
 namespace Quartz.Util;
@@ -29,6 +28,11 @@ namespace Quartz.Util;
 /// Manages a collection of IDbProviders, and provides transparent access
 /// to their database.
 /// </summary>
+/// <remarks>
+/// A connection manager is owned by the container it is registered in; there is no process-wide
+/// instance. Resolve <see cref="IDbConnectionManager"/> to reach the one a scheduler's job store
+/// publishes its providers into.
+/// </remarks>
 /// <seealso cref="IDbProvider" />
 /// <author>James House</author>
 /// <author>Sharada Jambula</author>
@@ -36,26 +40,13 @@ namespace Quartz.Util;
 /// <author>Marko Lahma (.NET)</author>
 public sealed class DBConnectionManager : IDbConnectionManager
 {
-    private static readonly DBConnectionManager instance = new();
     private readonly ILogger<DBConnectionManager> logger;
 
     private readonly ConcurrentDictionary<string, IDbProvider> providers = new();
 
-    /// <summary>
-    /// Get the class instance.
-    /// </summary>
-    /// <returns> an instance of this class
-    /// </returns>
-    public static IDbConnectionManager Instance => instance;
-
-    private DBConnectionManager()
+    public DBConnectionManager(ILogger<DBConnectionManager> logger)
     {
-        logger = LogProvider.CreateLogger<DBConnectionManager>();
-    }
-
-    public DBConnectionManager(ILogger<DBConnectionManager> loggger)
-    {
-        this.logger = loggger;
+        this.logger = logger;
     }
 
     /// <summary>

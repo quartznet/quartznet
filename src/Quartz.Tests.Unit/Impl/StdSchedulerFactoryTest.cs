@@ -23,6 +23,7 @@ using System.Collections.Specialized;
 
 
 using Quartz.Impl;
+using Quartz.Simpl;
 
 namespace Quartz.Tests.Unit.Impl;
 
@@ -33,6 +34,15 @@ namespace Quartz.Tests.Unit.Impl;
 [NonParallelizable]
 public class StdSchedulerFactoryTest
 {
+    [TearDown]
+    public void ClearEnvironmentOverrides()
+    {
+        // TestFactoryShouldOverrideConfigurationWithSysProperties sets these, and a leftover
+        // instanceName would silently decide the name any later test reads back.
+        Environment.SetEnvironmentVariable("quartz.scheduler.instanceName", null);
+        Environment.SetEnvironmentVariable("quartz.serializer.type", null);
+    }
+
     [Test]
     public async ValueTask TestFactoryCanBeUsedWithEmptyProperties()
     {
@@ -94,6 +104,30 @@ public class StdSchedulerFactoryTest
         factory = new StdSchedulerFactory();
         scheduler = await factory.GetScheduler();
         Assert.That(scheduler.SchedulerName, Is.EqualTo("fromSystemProperties"));
+    }
+
+    /// <summary>
+    /// The embedded <c>quartz.config</c> is gone, but the defaults it supplied to a factory given no
+    /// properties of its own are not: they are seeded by <c>Initialize()</c> instead. A factory handed
+    /// properties never read that file, and still falls back to the typed options.
+    /// </summary>
+    [Test]
+    public async Task AFactoryGivenNoPropertiesKeepsTheDefaultsTheEmbeddedConfigSupplied()
+    {
+        var scheduler = await new StdSchedulerFactory().GetScheduler();
+        try
+        {
+            var metaData = await scheduler.GetMetaData();
+            var jobStore = (RAMJobStore) ((StdScheduler) scheduler).sched.resources.JobStore;
+
+            scheduler.SchedulerName.Should().Be("DefaultQuartzScheduler");
+            metaData.ThreadPoolSize.Should().Be(10);
+            jobStore.MisfireThreshold.Should().Be(TimeSpan.FromSeconds(60));
+        }
+        finally
+        {
+            await scheduler.Shutdown();
+        }
     }
 
     [Test]

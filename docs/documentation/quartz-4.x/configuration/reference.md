@@ -139,7 +139,7 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 | `UseFirebird` | Firebird |
 | `UseSQLite` | SQLite, using the System.Data.SQLite driver |
 | `UseMicrosoftSQLite` | SQLite, using the Microsoft.Data.Sqlite driver |
-| `UseGenericDatabase` | Anything else, using the generic SQL dialect |
+| `UseGenericDatabase` | Anything else, using the generic SQL dialect — and the only one that can [describe its own driver](#describing-a-driver-quartz-does-not-know) |
 
 Each takes either a connection string or a callback over `DataSourceOptions`:
 
@@ -150,6 +150,64 @@ store.UseSqlServer(db => db.ConnectionStringName = "Scheduler");
 
 To connect through a `DbDataSource` registered in the container rather than a connection string of
 Quartz's own, add `store.UseDataSourceConnectionProvider()`.
+
+#### Describing a driver Quartz does not know
+
+The provider name each method passes — `SqlServer`, `Npgsql` and so on — names a description of an
+ADO.NET driver: which connection, command and parameter types to instantiate, how parameters are named,
+and which enum value means "binary column". Quartz ships descriptions for the drivers of every database
+listed above. For anything else, describe the driver in the `UseGenericDatabase` call:
+
+```csharp
+store.UseGenericDatabase("MyDatabase", connectionString, metadata =>
+{
+    metadata.ProductName = "My Database";
+    metadata.AssemblyName = typeof(MyConnection).Assembly.FullName;
+    metadata.ConnectionType = typeof(MyConnection);
+    metadata.CommandType = typeof(MyCommand);
+    metadata.ParameterType = typeof(MyParameter);
+    metadata.ParameterDbType = typeof(MyDbType);
+    metadata.ParameterDbTypePropertyName = nameof(MyParameter.MyDbType);
+    metadata.ParameterNamePrefix = "@";
+    metadata.ExceptionType = typeof(MyException);
+    metadata.UseParameterNamePrefixInParameterCollection = true;
+    metadata.BindByName = true;
+    metadata.DbBinaryTypeName = "VarBinary";
+});
+```
+
+There is a four-argument overload taking a `DataSourceOptions` callback instead of a connection string,
+for a driver described in code that also uses a named connection string.
+
+A description is a registration in the container rather than process-wide state, so two containers in one
+process no longer have to agree on what a provider name means. Within one container a provider name means
+one thing, since a name is what a data source points at — two schedulers that need two different drivers
+give them two different names.
+
+Describing a name Quartz already ships a description for replaces it, and a description registered in code
+wins over one written as `quartz.dbprovider.*` keys. For several drivers, or a description built from data
+of your own, register a `DbMetadataFactory` against `Services`.
+
+The same thing can be said as properties, which is the form 3.x used and which now arrives through
+`IConfiguration` like everything else:
+
+```json
+{
+  "Quartz": {
+    "quartz.dbprovider.MyDatabase.productName": "My Database",
+    "quartz.dbprovider.MyDatabase.connectionType": "MyNamespace.MyConnection, MyDriver",
+    "quartz.dbprovider.MyDatabase.commandType": "MyNamespace.MyCommand, MyDriver",
+    "quartz.dbprovider.MyDatabase.parameterType": "MyNamespace.MyParameter, MyDriver",
+    "quartz.dbprovider.MyDatabase.parameterDbType": "MyNamespace.MyDbType, MyDriver",
+    "quartz.dbprovider.MyDatabase.parameterDbTypePropertyName": "MyDbType",
+    "quartz.dbprovider.MyDatabase.parameterNamePrefix": "@",
+    "quartz.dbprovider.MyDatabase.exceptionType": "MyNamespace.MyException, MyDriver",
+    "quartz.dbprovider.MyDatabase.useParameterNamePrefixInParameterCollection": "true",
+    "quartz.dbprovider.MyDatabase.bindByName": "true",
+    "quartz.dbprovider.MyDatabase.dbBinaryTypeName": "VarBinary"
+  }
+}
+```
 
 A store's data source is named after the scheduler that owns it, or `quartz` for the default scheduler.
 Connection providers are held per process, so if you run two default schedulers in one process — two
@@ -174,7 +232,7 @@ named scheduler will not see.
 
 | Option | Type | Description |
 |---|---|---|
-| `Provider` | string | Provider name identifying the ADO.NET driver. Set for you by the database methods above. |
+| `Provider` | string | Names the description of the ADO.NET driver to use. Set for you by the database methods above; see [Describing a driver Quartz does not know](#describing-a-driver-quartz-does-not-know) for a driver Quartz ships no description for. |
 | `ConnectionString` | string? | The connection string. Takes precedence over `ConnectionStringName`. |
 | `ConnectionStringName` | string? | A connection string to resolve from `IConfiguration`. |
 | `UseRegisteredDataSource` | bool | Connections come from a `DbDataSource` in the container. Set by `UseDataSourceConnectionProvider()`. |
@@ -339,6 +397,7 @@ Two differences are worth knowing:
 | `quartz.dataSource.NAME.provider` | `DataSource:NAME:Provider` |
 | `quartz.dataSource.NAME.connectionString` | `DataSource:NAME:ConnectionString` |
 | `quartz.dataSource.NAME.connectionStringName` | `DataSource:NAME:ConnectionStringName` |
+| `quartz.dbprovider.NAME.*` | the metadata callback on `UseGenericDatabase`; the keys still work |
 | `quartz.serializer.type` | `UseSystemTextJsonSerializer()` / `UseNewtonsoftJsonSerializer()` |
 | `quartz.plugin.NAME.type` | `AddPlugin<T>()` or the plugin's own `Use*` method |
 | `quartz.jobStore.lockHandler.type` | `UseLockHandler<T>()` |

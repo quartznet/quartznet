@@ -50,7 +50,10 @@ public sealed class QuartzSchedulerResources
         _idleWaitTime = DefaultIdleWaitTime;
         _batchTimeWindow = DefaultBatchTimeWindow;
         TimeProvider = TimeProvider.System;
-        SchedulerRepository = Impl.SchedulerRepository.Instance;
+
+        // A private repository, so a hand-built scheduler still has somewhere to unbind itself from on
+        // shutdown. The container path replaces this with the one its schedulers share.
+        SchedulerRepository = new Impl.SchedulerRepository();
     }
 
     /// <summary>

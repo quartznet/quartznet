@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Quartz;
 using Quartz.HttpClient;
 using Quartz.Impl;
+using Quartz.Spi;
 
 using QuartzHttpClientServiceCollectionExtensionsTestTypes;
 
@@ -30,7 +31,8 @@ namespace Quartz.Tests.Unit.Extensions.DependencyInjection
             testClient?.Dispose();
             testClient = null;
 
-            ClearSchedulerRepository();
+            // Nothing else to clean up: each test builds its own container, and the repository the
+            // schedulers bind into goes away with it.
         }
 
         [Test]
@@ -115,12 +117,28 @@ namespace Quartz.Tests.Unit.Extensions.DependencyInjection
             scheduler.Should().BeNull();
         }
 
-        private static void ClearSchedulerRepository()
+        [Test]
+        public void EachContainerShouldGetItsOwnSchedulerRepository()
         {
-            foreach (var scheduler in SchedulerRepository.Instance.LookupAll())
-            {
-                SchedulerRepository.Instance.Remove(scheduler.SchedulerName);
-            }
+            var firstServices = new ServiceCollection();
+            firstServices.AddQuartzHttpClient("Scheduler", testClient);
+
+            var secondServices = new ServiceCollection();
+            secondServices.AddQuartzHttpClient("Scheduler", testClient);
+
+            using var first = firstServices.BuildServiceProvider();
+            using var second = secondServices.BuildServiceProvider();
+
+            // Resolving the scheduler is what binds it into its container's repository.
+            first.GetRequiredService<IScheduler>();
+            second.GetRequiredService<IScheduler>();
+
+            var firstRepository = first.GetRequiredService<ISchedulerRepository>();
+            var secondRepository = second.GetRequiredService<ISchedulerRepository>();
+
+            firstRepository.Should().NotBeSameAs(secondRepository);
+            firstRepository.LookupAll().Should().ContainSingle("a repository only holds its own container's schedulers");
+            secondRepository.LookupAll().Should().ContainSingle();
         }
     }
 }

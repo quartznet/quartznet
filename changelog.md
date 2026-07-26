@@ -106,6 +106,33 @@
     `AddSchedulerListener`) and registered as a listener service is no longer silently deduplicated by its type; it is two
     registrations, and for job and trigger listeners it now produces the duplicate-name error above. Register it one way
     or the other. (#3176)
+  * The `quartz.config` file is no longer read (#3174). Neither a file on disk, nor the one named by the `quartz.config`
+    environment variable, nor the copy Quartz shipped as an embedded resource. `StdSchedulerFactory` now reads only the
+    properties handed to it plus any `quartz.*` environment variables; everything else is configured through the container.
+    `StdSchedulerFactory.PropertiesFile` and the internal `InitializeProperties` are gone. **No defaults change.** The three
+    settings the embedded file supplied — `quartz.scheduler.instanceName = DefaultQuartzScheduler`,
+    `quartz.threadPool.threadCount = 10` and `quartz.jobStore.misfireThreshold = 60000` — are now seeded by
+    `StdSchedulerFactory.Initialize()`, the one entry point that ever read the file, so a factory given no properties still
+    produces exactly the scheduler it always did. A factory handed an explicit `NameValueCollection` never read the file and
+    is likewise unchanged.
+
+  * ADO.NET provider metadata is now configured through the container rather than through a file or a process-wide static
+    (#3174). A driver Quartz ships no description for is described in code with the new
+    `UseGenericDatabase(provider, connectionString, metadata => ...)` overload, or by registering a `DbMetadataFactory`;
+    the `quartz.dbprovider.*` keys keep working and now arrive through `IConfiguration` like every other key.
+    `DbProvider`'s static constructor, its process-wide metadata lookup, `DbProvider.RegisterDbMetadata` and the
+    `protected static GenerateValidProviderNamesInfo` helper have been removed, and `DbProvider` gained a
+    `DbProvider(DbMetadata, string)` constructor taking an already-resolved description. `UseGenericDatabase` also gained
+    the `Action<DataSourceOptions>` overload every named database already had.
+
+  * The process-global `SchedulerRepository.Instance` and `DBConnectionManager.Instance` singletons have been removed (#3178).
+    Both are now ordinary container registrations, so **a scheduler is only ever visible in the repository belonging to the
+    container that built it**. Two schedulers created different ways — one through `AddQuartz`, one through
+    `StdSchedulerFactory` or `QuartzSchedulerBuilder` — no longer find each other through `ISchedulerFactory.GetAllSchedulers`,
+    `ISchedulerFactory.GetScheduler(name)` or `ISchedulerRepository.Lookup`. Resolve `ISchedulerRepository` from the container
+    instead of reaching for a static. The same applies to data sources: a provider registered with one `IDbConnectionManager`
+    is not visible to another. `StdSchedulerFactory.GetSchedulerRepository()` remains as an override point but now returns the
+    repository of the factory's own container, and the unused `StdSchedulerFactory.GetDbConnectionManager()` seam was removed.
 
 #### Cron Parser
 

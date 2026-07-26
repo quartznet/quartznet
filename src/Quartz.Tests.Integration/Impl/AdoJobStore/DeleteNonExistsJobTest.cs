@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
 using Quartz.Impl;
 using Quartz.Tests.Integration.Utils;
-using Quartz.Util;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 
@@ -14,7 +13,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 public class DeleteNonExistsJobTest
 {
     private readonly string provider;
-    private readonly string dataSourceName;
     private static readonly ILogger<DeleteNonExistsJobTest> logger = LogProvider.CreateLogger<DeleteNonExistsJobTest>();
     private const string SchedulerName = "DeleteNonExistsJobTestScheduler";
     private static IScheduler scheduler;
@@ -22,7 +20,6 @@ public class DeleteNonExistsJobTest
     public DeleteNonExistsJobTest(string provider)
     {
         this.provider = provider;
-        dataSourceName = DatabaseHelper.GetDataSourceName(provider);
     }
 
     [SetUp]
@@ -36,12 +33,12 @@ public class DeleteNonExistsJobTest
         ISchedulerFactory sf = new StdSchedulerFactory(properties);
         scheduler = await sf.GetScheduler();
 
-        await ResetDatabaseData(dataSourceName);
+        await ResetDatabaseData(provider);
     }
 
-    private static async Task ResetDatabaseData(string dataSourceName)
+    private static async Task ResetDatabaseData(string provider)
     {
-        using var conn = DBConnectionManager.Instance.GetConnection(dataSourceName);
+        using var conn = DatabaseHelper.CreateConnection(provider);
         await conn.OpenAsync();
         await RunDbCommand(conn, "delete from qrtz_fired_triggers");
         await RunDbCommand(conn, "delete from qrtz_paused_trigger_grps");
@@ -127,7 +124,7 @@ public class DeleteNonExistsJobTest
 
     private async Task ModifyStoredJobClassName()
     {
-        using var conn = DBConnectionManager.Instance.GetConnection(dataSourceName);
+        using var conn = DatabaseHelper.CreateConnection(provider);
         await conn.OpenAsync();
         await RunDbCommand(conn, "update qrtz_job_details set job_class_name='com.FakeNonExistsJob'");
         conn.Close();

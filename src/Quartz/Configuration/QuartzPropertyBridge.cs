@@ -112,7 +112,40 @@ internal static class QuartzPropertyBridge
         ApplySerializer(services, parser, schedulerName);
         RegisterSchedulerParts(services, parser, schedulerName);
         RegisterThreadPool(services, parser, schedulerName);
+        RegisterDbProviderMetadata(services, properties);
         RegisterJobStore(services, parser, schedulerName);
+    }
+
+    /// <summary>
+    /// Registers the ADO.NET driver descriptions declared by <c>quartz.dbprovider.*</c> keys.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is the one thing the flat format could say that had no code-first equivalent, which is why a
+    /// <c>quartz.config</c> file was still being read for it. The keys are unchanged; they now arrive
+    /// through the container like everything else, so declaring them in <c>appsettings.json</c> works.
+    /// </para>
+    /// <para>
+    /// A driver description belongs to an ADO.NET provider name rather than to a scheduler, so this is
+    /// registered container-wide. Registration order is resolution order: this runs after the
+    /// configuration callback and before the built-in descriptions, so a description written in code beats
+    /// one written as keys, and both beat the built-in of the same name.
+    /// </para>
+    /// </remarks>
+    private static void RegisterDbProviderMetadata(IServiceCollection services, NameValueCollection properties)
+    {
+        var prefix = StdSchedulerFactory.PropertyDbProvider + ".";
+        var declared = properties.AllKeys.Any(key => key is not null && key.StartsWith(prefix, StringComparison.Ordinal));
+        if (!declared)
+        {
+            // Registering an empty factory would cost a wasted lookup on every provider name resolved.
+            return;
+        }
+
+        // Copied, so a caller reusing its property collection for another scheduler cannot change what
+        // this registration describes after the fact.
+        services.AddSingleton<DbMetadataFactory>(
+            new ConfigurationBasedDbMetadataFactory(new NameValueCollection(properties), StdSchedulerFactory.PropertyDbProvider));
     }
 
     /// <summary>
@@ -392,7 +425,8 @@ internal static class QuartzPropertyBridge
                     Throw.SchedulerConfigException($"No connection string configured for data source '{dataSourceName}'.");
                 }
 
-                return new DbProvider(dataSource.Provider, connectionString!);
+                var metadata = provider.GetRequiredService<DbMetadataResolver>().Resolve(dataSource.Provider);
+                return new DbProvider(metadata, connectionString!);
             });
 
             // The driver delegate and serializer fallbacks are registered with the rest of the defaults,

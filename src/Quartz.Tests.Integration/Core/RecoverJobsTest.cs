@@ -6,7 +6,6 @@ using Quartz.Impl.AdoJobStore;
 using Quartz.Listener;
 using Quartz.Simpl;
 using Quartz.Tests.Integration.Utils;
-using Quartz.Util;
 
 namespace Quartz.Tests.Integration.Core;
 
@@ -40,7 +39,7 @@ public class RecoverJobsTest
     [Test]
     public async Task TestRecoveringRepeatJobWhichIsFiredAndMisfiredAtTheSameTime()
     {
-        DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out _, out string dataSourceName);
+        var dataSourceName = DatabaseHelper.GetDataSourceName(provider);
         var scheduler = await CreateRecoveryScheduler(dataSourceName);
 
         // run forever up to the first fail over situation
@@ -68,7 +67,7 @@ public class RecoverJobsTest
         // emulate fail over situation
         await scheduler.Shutdown(false);
 
-        using (var connection = DBConnectionManager.Instance.GetConnection(dataSourceName))
+        using (var connection = DatabaseHelper.CreateConnection(provider))
         {
             await connection.OpenAsync();
             using (var command = connection.CreateCommand())
@@ -130,7 +129,7 @@ public class RecoverJobsTest
     [Test]
     public async Task TestRecoveryTriggersShouldNotExecuteAfterTriggerIsRemoved()
     {
-        DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out _, out string dataSourceName);
+        var dataSourceName = DatabaseHelper.GetDataSourceName(provider);
         var scheduler = await CreateRecoveryScheduler(dataSourceName);
 
         // Make job run forever to simulate a job that's executing when scheduler shuts down
@@ -159,7 +158,7 @@ public class RecoverJobsTest
         // Simulate scheduler crash (shutdown without waiting for jobs to complete)
         await scheduler.Shutdown(false);
 
-        using (var connection = DBConnectionManager.Instance.GetConnection(dataSourceName))
+        using (var connection = DatabaseHelper.CreateConnection(provider))
         {
             await connection.OpenAsync();
             using (var command = connection.CreateCommand())
@@ -196,7 +195,7 @@ public class RecoverJobsTest
         Assert.That(removed, Is.True, "Trigger should be unscheduled successfully");
 
         // Verify trigger is removed from QRTZ_TRIGGERS table
-        using (var connection = DBConnectionManager.Instance.GetConnection(dataSourceName))
+        using (var connection = DatabaseHelper.CreateConnection(provider))
         {
             await connection.OpenAsync();
             using (var command = connection.CreateCommand())

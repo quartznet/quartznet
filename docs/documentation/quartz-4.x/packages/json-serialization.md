@@ -41,20 +41,24 @@ ISchedulerFactory schedulerFactory = new StdSchedulerFactory(properties);
 **Configuring using scheduler builder**
 
 ```csharp
-var config = SchedulerBuilder.Create();
-config.UsePersistentStore(store =>
-{
-    // it's generally recommended to stick with
-    // string property keys and values when serializing
-    store.UseProperties = true;
-    store.UseGenericDatabase(dbProvider, db =>
-        db.ConnectionString = "my connection string"
-    );
+ISchedulerFactory schedulerFactory = QuartzSchedulerBuilder.Create()
+    .Configure(q => q.UsePersistentStore(store =>
+    {
+        store.UseGenericDatabase("MyProvider", "my connection string");
 
-    store.UseNewtonsoftJsonSerializer();
-});
-ISchedulerFactory schedulerFactory = config.Build();
+        // it's generally recommended to stick with
+        // string property keys and values when serializing
+        store.Configure(options => options.UseProperties = true);
+
+        store.UseNewtonsoftJsonSerializer();
+    }))
+    .Build();
 ```
+
+`UseGenericDatabase` is the right method only for a database Quartz has no specific support for; use
+`UseSqlServer`, `UsePostgres` and the rest otherwise. If Quartz ships no description of your ADO.NET
+driver either, describe it in the same call — see
+[the configuration reference](../configuration/reference.md#describing-a-driver-quartz-does-not-know).
 
 ### Migrating from binary serialization
 

@@ -3,7 +3,7 @@
 title: Multiple Schedulers with Microsoft DI
 ---
 
-Quartz.NET has always supported running multiple schedulers in a single process -- each `StdSchedulerFactory` instance can create and manage an independent scheduler, and the `SchedulerRepository` tracks them all by name. However, configuring multiple schedulers through the Microsoft DI `AddQuartz()` API required workarounds because the registration model was designed around a single scheduler per container.
+Quartz.NET has always supported running multiple schedulers in a single process -- each `StdSchedulerFactory` instance can create and manage an independent scheduler, and an `ISchedulerRepository` tracks by name the schedulers built alongside it. However, configuring multiple schedulers through the Microsoft DI `AddQuartz()` API required workarounds because the registration model was designed around a single scheduler per container.
 
 The named `AddQuartz(string name, ...)` overload makes this first-class: each named scheduler gets its own isolated configuration, jobs, triggers, listeners, and calendars, all managed through the familiar DI fluent API.
 
@@ -85,7 +85,7 @@ builder.Services.AddQuartz("Scheduler2", q =>
 
 ## Accessing Named Schedulers Programmatically
 
-All schedulers -- whether created via DI or directly -- are registered in the shared `ISchedulerRepository`. You can retrieve any scheduler by name using the repository:
+Every scheduler registered in a container is bound into that container's `ISchedulerRepository`, so you can retrieve any of them by name from the repository:
 
 ```csharp
 public class MyService
@@ -135,6 +135,8 @@ public class MyService
 Named schedulers are only available after the hosted service has created and started them. During application startup, they may not yet be in the repository.
 
 `ISchedulerFactory` is only available from DI when a default (unnamed) `AddQuartz()` call has been made. If you only use named schedulers, inject `ISchedulerRepository` instead.
+
+The repository is scoped to the container, not the process. A scheduler created by a `StdSchedulerFactory` or a `QuartzSchedulerBuilder` of its own is not in it -- see [the migration guide](../migration-guide.md#no-process-global-scheduler-or-connection-state).
 :::
 
 ## Mixing Default and Named Schedulers

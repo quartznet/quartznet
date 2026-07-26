@@ -1,4 +1,5 @@
 using System.Collections.Specialized;
+using System.Data.Common;
 
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
@@ -18,28 +19,26 @@ public static class DatabaseHelper
         };
     }
 
-    public static void RegisterDatabaseSettingsForProvider(string provider, out string driverDelegateType)
+    /// <summary>
+    /// A provider for the given database. Connection managers are per-container now, so a test that
+    /// wants to look at the database itself builds its own provider rather than borrowing a scheduler's.
+    /// </summary>
+    public static IDbProvider CreateDbProvider(string provider)
     {
-        RegisterDatabaseSettingsForProvider(provider, out driverDelegateType, out _);
+        return provider switch
+        {
+            TestConstants.DefaultSqlServerProvider => new DbProvider(TestConstants.DefaultSqlServerProvider, TestConstants.SqlServerConnectionString),
+            TestConstants.PostgresProvider => new DbProvider("Npgsql", TestConstants.PostgresConnectionString),
+            _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unknown provider")
+        };
     }
 
-    public static void RegisterDatabaseSettingsForProvider(string provider, out string driverDelegateType, out string dataSourceName)
+    /// <summary>
+    /// An unopened connection to the given database, for tests that assert against the stored rows.
+    /// </summary>
+    public static DbConnection CreateConnection(string provider)
     {
-        dataSourceName = GetDataSourceName(provider);
-
-        switch (provider)
-        {
-            case TestConstants.DefaultSqlServerProvider:
-                driverDelegateType = typeof(SqlServerDelegate).AssemblyQualifiedName;
-                DBConnectionManager.Instance.AddConnectionProvider(dataSourceName, new DbProvider(TestConstants.DefaultSqlServerProvider, TestConstants.SqlServerConnectionString));
-                break;
-            case TestConstants.PostgresProvider:
-                driverDelegateType = typeof(PostgreSQLDelegate).AssemblyQualifiedName;
-                DBConnectionManager.Instance.AddConnectionProvider(dataSourceName, new DbProvider("Npgsql", TestConstants.PostgresConnectionString));
-                break;
-            default:
-                throw new ArgumentOutOfRangeException("Unknown database type " + provider);
-        }
+        return CreateDbProvider(provider).CreateConnection();
     }
 
     public static NameValueCollection CreatePropertiesForProvider(string provider)

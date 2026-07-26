@@ -65,7 +65,10 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
                 }
             }
 
-            return new DbProvider(options.Provider, connectionString!);
+            // The driver description comes from the container, so a provider Quartz ships no description
+            // for is usable as soon as the application registers one.
+            var metadata = provider.GetRequiredService<DbMetadataResolver>().Resolve(options.Provider);
+            return new DbProvider(metadata, connectionString!);
         });
 
         return this;
@@ -177,7 +180,8 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
         IDbProvider Create(IServiceProvider provider)
         {
             var options = provider.GetRequiredService<IOptionsMonitor<DataSourceOptions>>().Get(name);
-            return new DataSourceDbProvider(options.Provider, provider.GetRequiredService<DbDataSource>());
+            var metadata = provider.GetRequiredService<DbMetadataResolver>().Resolve(options.Provider);
+            return new DataSourceDbProvider(metadata, provider.GetRequiredService<DbDataSource>());
         }
 
         if (schedulerKey is null)
