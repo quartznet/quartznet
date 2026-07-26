@@ -1,10 +1,9 @@
 using System.Text.Json;
 
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 
+using Quartz.Configuration;
 using Quartz.HttpClient;
-using Quartz.Impl;
 using Quartz.Simpl;
 using Quartz.Spi;
 
@@ -117,7 +116,10 @@ public static class QuartzHttpClientServiceCollectionExtensions
 
         options.AssertValid();
 
-        services.TryAddSingleton<ISchedulerRepository>(new SchedulerRepository());
+        // The repository the remote scheduler binds itself into is the container's, registered in exactly
+        // one place. Creating one here would give a container that also calls AddQuartz two repositories,
+        // and a scheduler registered in one would be invisible in the other.
+        services.AddQuartzSharedServices();
 
         services.AddSingleton<TScheduler>(serviceProvider =>
         {

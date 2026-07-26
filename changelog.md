@@ -124,6 +124,15 @@
     `DbProvider(DbMetadata, string)` constructor taking an already-resolved description. `UseGenericDatabase` also gained
     the `Action<DataSourceOptions>` overload every named database already had.
 
+  * The process-global `SchedulerRepository.Instance` and `DBConnectionManager.Instance` singletons have been removed (#3178).
+    Both are now ordinary container registrations, so **a scheduler is only ever visible in the repository belonging to the
+    container that built it**. Two schedulers created different ways — one through `AddQuartz`, one through
+    `StdSchedulerFactory` or `QuartzSchedulerBuilder` — no longer find each other through `ISchedulerFactory.GetAllSchedulers`,
+    `ISchedulerFactory.GetScheduler(name)` or `ISchedulerRepository.Lookup`. Resolve `ISchedulerRepository` from the container
+    instead of reaching for a static. The same applies to data sources: a provider registered with one `IDbConnectionManager`
+    is not visible to another. `StdSchedulerFactory.GetSchedulerRepository()` remains as an override point but now returns the
+    repository of the factory's own container, and the unused `StdSchedulerFactory.GetDbConnectionManager()` seam was removed.
+
 #### Cron Parser
 
   * Add cron parser support for 'L' and 'LW' in expression combinations for daysOfMonth (#1939) (#1288)

@@ -9,7 +9,6 @@ using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Serialization.Newtonsoft;
 using Quartz.Simpl;
 using Quartz.Spi;
-using Quartz.Util;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 
@@ -27,6 +26,7 @@ public class MisfireBatchRecoveryTest
     private const string SchedulerName = "MisfireBatchRecoveryTest";
 
     private string dbFileName;
+    private IDbProvider dbProvider;
     private CountingSQLiteDelegate.Counter commandCounter;
 
     [SetUp]
@@ -41,9 +41,9 @@ public class MisfireBatchRecoveryTest
             await command.ExecuteNonQueryAsync();
         }
 
-        DBConnectionManager.Instance.AddConnectionProvider(
-            DataSourceName,
-            new DbProvider("SQLite-Microsoft", $"Data Source={dbFileName};"));
+        // The store publishes whatever provider it is handed into its own connection manager, so the test
+        // only has to build the provider — there is no shared manager to register it with.
+        dbProvider = new DbProvider("SQLite-Microsoft", $"Data Source={dbFileName};");
 
         commandCounter = new CountingSQLiteDelegate.Counter();
         CountingSQLiteDelegate.CurrentCounter = commandCounter;
@@ -222,14 +222,14 @@ public class MisfireBatchRecoveryTest
         await jobStore.StoreJobAndTrigger(job, trigger);
     }
 
-    private static async Task<TestJobStoreTX> CreateJobStore(int maxMisfiresToHandleAtATime = 20)
+    private async Task<TestJobStoreTX> CreateJobStore(int maxMisfiresToHandleAtATime = 20)
     {
         NewtonsoftJsonObjectSerializer.AddTriggerSerializer<CustomTrigger>(new CustomNewtonsoftTriggerSerializer());
 
         var serializer = new NewtonsoftJsonObjectSerializer();
         serializer.Initialize();
 
-        var jobStore = new TestJobStoreTX(serializer, new CountingSQLiteDelegate(), maxMisfiresToHandleAtATime)
+        var jobStore = new TestJobStoreTX(serializer, dbProvider, new CountingSQLiteDelegate(), maxMisfiresToHandleAtATime)
         {
             InstanceId = "AUTO",
             InstanceName = SchedulerName,
@@ -258,7 +258,7 @@ public class MisfireBatchRecoveryTest
 
     private sealed class TestJobStoreTX : JobStoreTX
     {
-        public TestJobStoreTX(IObjectSerializer serializer, IDriverDelegate driverDelegate, int maxMisfiresToHandleAtATime)
+        public TestJobStoreTX(IObjectSerializer serializer, IDbProvider dbProvider, IDriverDelegate driverDelegate, int maxMisfiresToHandleAtATime)
             : base(
                 TestJobStores.Signaler(),
                 TestJobStores.TypeLoader(),
@@ -272,7 +272,7 @@ public class MisfireBatchRecoveryTest
                 }),
                 serializer,
                 TestJobStores.ConnectionManager(),
-                DBConnectionManager.Instance.GetDbProvider(DataSourceName),
+                dbProvider,
                 driverDelegate,
                 TestJobStores.LockHandler())
         {

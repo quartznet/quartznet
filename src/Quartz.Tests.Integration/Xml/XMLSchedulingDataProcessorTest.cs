@@ -33,7 +33,6 @@ using Quartz.Job;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Tests.Integration.Utils;
-using Quartz.Util;
 using Quartz.Xml;
 
 namespace Quartz.Tests.Integration.Xml;
@@ -415,7 +414,7 @@ public class XMLSchedulingDataProcessorTest
 
     private async Task ModifyStoredJobType()
     {
-        using var conn = DBConnectionManager.Instance.GetConnection(DatabaseHelper.GetDataSourceName(provider));
+        using var conn = DatabaseHelper.CreateConnection(provider);
         await conn.OpenAsync();
         using (IDbCommand dbCommand = conn.CreateCommand())
         {

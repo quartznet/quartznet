@@ -80,17 +80,11 @@ public abstract class ClusteredPostgresTestBase
 
         configure?.Invoke(properties);
 
+        // Cluster nodes share the scheduler (instance) name, and a factory's repository lookup is
+        // name-only — but each factory owns its own repository, so every call here builds a genuinely
+        // separate node rather than handing back the first one.
         var factory = new StdSchedulerFactory(properties);
-        var scheduler = await factory.GetScheduler();
-
-        // Cluster nodes share the scheduler (instance) name, but StdSchedulerFactory's
-        // non-proxy repository lookup is name-only: a second CreateScheduler call would
-        // silently return the first, still-running node instead of creating a new one —
-        // collapsing multi-node tests to a single node. Unbind each node right away so
-        // every call builds a genuinely separate scheduler.
-        SchedulerRepository.Instance.Remove(SchedulerName, scheduler.SchedulerInstanceId);
-
-        return scheduler;
+        return await factory.GetScheduler();
     }
 
     protected static async Task WaitForCondition(

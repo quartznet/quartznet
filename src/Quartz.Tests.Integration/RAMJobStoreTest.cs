@@ -1,6 +1,5 @@
 using System.Text.Json;
 
-using Quartz.Impl;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Serialization.Json;
@@ -471,7 +470,6 @@ public abstract class AbstractSchedulerTest
     [Test]
     public async Task TestDurableStorageFunctions()
     {
-        SchedulerRepository.Instance.Remove(CreateSchedulerName("testDurableStorageFunctions")); // workaround prior test cleanup - relates to issue in #1453
         IScheduler sched = await CreateScheduler("testDurableStorageFunctions", 2);
         await sched.Clear();
 

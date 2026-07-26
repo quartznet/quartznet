@@ -24,24 +24,25 @@ using Quartz.Spi;
 namespace Quartz.Impl;
 
 /// <summary>
-/// Holds references to Scheduler instances - ensuring uniqueness, and preventing garbage collection, and allowing 'global' lookups.
+/// Holds references to Scheduler instances - ensuring uniqueness, and preventing garbage collection, and allowing lookups by name.
 /// </summary>
 /// <remarks>
+/// <para>
+/// A repository is owned by the container it is registered in; there is no process-wide instance.
+/// Resolve <see cref="ISchedulerRepository"/> to reach the one belonging to a scheduler, which is what
+/// makes two sets of schedulers in one process independent of each other.
+/// </para>
+/// <para>
 /// Schedulers are indexed by name. Multiple schedulers with the same name but different instance IDs
 /// can coexist (e.g., remote proxies to different cluster nodes). Use <see cref="Lookup(string, string)"/>
 /// to disambiguate by instance ID.
+/// </para>
 /// </remarks>
 /// <author>Marko Lahma (.NET)</author>
 public sealed class SchedulerRepository : ISchedulerRepository
 {
     private readonly Dictionary<string, List<SchedulerEntry>> schedulers = new(StringComparer.OrdinalIgnoreCase);
     private readonly Lock syncRoot = new();
-
-    /// <summary>
-    /// Gets the singleton instance.
-    /// </summary>
-    /// <value>The instance.</value>
-    public static SchedulerRepository Instance { get; } = new();
 
     /// <inheritdoc />
     /// <remarks>

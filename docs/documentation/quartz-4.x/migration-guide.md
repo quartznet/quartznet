@@ -128,6 +128,9 @@ the callback above, or register a `DbMetadataFactory` in the container.
 | `DbProvider.RegisterDbMetadata` | the metadata callback on `UseGenericDatabase`, or a `DbMetadataFactory` registration |
 | `quartz.scheduler.proxy*`, `quartz.scheduler.exporter*` | nothing; remoting is not supported on modern .NET |
 | `quartz.checkConfiguration` | configuration is validated by the options system |
+| `SchedulerRepository.Instance` | `ISchedulerRepository` resolved from the container |
+| `DBConnectionManager.Instance` | `IDbConnectionManager` resolved from the container |
+| `StdSchedulerFactory.GetDbConnectionManager()` | nothing; it had no callers |
 
 ### Deferred configuration
 
@@ -174,6 +177,45 @@ a database schema.
 
 Plugin configuration extension methods now extend `IQuartzBuilder` and register the plugin as a
 service, rather than deriving from `PropertiesSetter` to write string keys.
+
+### No process-global scheduler or connection state
+
+`SchedulerRepository.Instance` and `DBConnectionManager.Instance` are gone. Both are ordinary container
+registrations now, which means **a scheduler is only visible in the repository belonging to the container
+that built it**:
+
+```diff
+- var scheduler = SchedulerRepository.Instance.Lookup("reporting");
++ var scheduler = serviceProvider.GetRequiredService<ISchedulerRepository>().Lookup("reporting");
+```
+
+```diff
+- DBConnectionManager.Instance.AddConnectionProvider("default", myProvider);
++ serviceProvider.GetRequiredService<IDbConnectionManager>().AddConnectionProvider("default", myProvider);
+```
+
+The observable consequence is that schedulers built different ways no longer find each other. Given a
+scheduler registered with `AddQuartz` and another created by `StdSchedulerFactory` in the same process:
+
+* `ISchedulerFactory.GetAllSchedulers()` on either one lists only its own schedulers.
+* `ISchedulerFactory.GetScheduler(name)` returns `null` for the other one's name.
+* `ISchedulerRepository.Lookup(name)` likewise sees only its own container's schedulers.
+
+If you were relying on that reach — typically to find a scheduler from code that had no reference to the
+factory that created it — register the scheduler with `AddQuartz` and inject `IScheduler`,
+`ISchedulerFactory` or `ISchedulerRepository` instead. If you genuinely need one repository across
+several entry points, register your own instance before calling `AddQuartz`; every Quartz registration
+is `TryAdd`, so yours wins:
+
+```csharp
+var repository = new SchedulerRepository();
+services.AddSingleton<ISchedulerRepository>(repository);
+services.AddQuartz(/* ... */);
+```
+
+`StdSchedulerFactory.GetSchedulerRepository()` is still an override point, but it now returns the
+repository of the factory's own container. `StdSchedulerFactory.GetDbConnectionManager()` was removed; it
+had no callers.
 
 ## Package Changes
 

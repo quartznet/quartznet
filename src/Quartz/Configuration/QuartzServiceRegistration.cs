@@ -52,11 +52,11 @@ internal static class QuartzServiceRegistration
 
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<ITypeLoadHelper, SimpleTypeLoadHelper>();
+        // The repository and the connection manager belong to this container and nothing else. Neither has
+        // a process-wide instance any more, so "which repository am I in" is answered by which container
+        // built the scheduler rather than by how it was built.
         services.TryAddSingleton<ISchedulerRepository, SchedulerRepository>();
-        // The process-wide connection manager, so a provider registered with DBConnectionManager.Instance
-        // is visible to schedulers built through the container and vice versa. Two of these would mean
-        // a data source registered in one place is invisible in the other.
-        services.TryAddSingleton<IDbConnectionManager>(DBConnectionManager.Instance);
+        services.TryAddSingleton<IDbConnectionManager, DBConnectionManager>();
 
         // The descriptions of the ADO.NET drivers Quartz ships, added last so that a driver described in
         // code or by quartz.dbprovider.* keys — both of which register earlier — wins over a built-in of

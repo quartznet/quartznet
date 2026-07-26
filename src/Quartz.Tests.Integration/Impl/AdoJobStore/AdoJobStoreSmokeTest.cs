@@ -28,6 +28,7 @@ public class AdoJobStoreSmokeTest
     };
     private readonly bool clearJobs = true;
     private readonly bool scheduleJobs = true;
+    private readonly List<IScheduler> createdSchedulers = [];
 
     private const string KeyResetEvent = "ResetEvent";
 
@@ -246,6 +247,7 @@ public class AdoJobStoreSmokeTest
 
         // First we must get a reference to a scheduler
         IScheduler sched = await config.BuildScheduler();
+        createdSchedulers.Add(sched);
         SmokeTestPerformer performer = new SmokeTestPerformer();
         await performer.Test(sched, clearJobs, scheduleJobs);
 
@@ -301,6 +303,7 @@ public class AdoJobStoreSmokeTest
         properties["quartz.jobStore.useProperties"] = false.ToString();
         sf = new StdSchedulerFactory(properties);
         sched = await sf.GetScheduler();
+        createdSchedulers.Add(sched);
 
         triggerWithDataFromDb = await sched.GetTrigger(new TriggerKey("datatrigger", "triggergroup"));
         jobWithDataFromDb = await sched.GetJobDetail(new JobKey("datajob", "jobgroup"));
@@ -442,7 +445,7 @@ public class AdoJobStoreSmokeTest
         Assert.That(await scheduler.GetTriggerState(badTrigger.Key), Is.Not.EqualTo(TriggerState.Blocked));
     }
 
-    private static async Task<IScheduler> CreateScheduler(NameValueCollection properties)
+    private async Task<IScheduler> CreateScheduler(NameValueCollection properties)
     {
         properties ??= new NameValueCollection();
 
@@ -462,6 +465,7 @@ public class AdoJobStoreSmokeTest
         // First we must get a reference to a scheduler
         ISchedulerFactory sf = new StdSchedulerFactory(properties);
         IScheduler sched = await sf.GetScheduler();
+        createdSchedulers.Add(sched);
         return sched;
     }
 
@@ -590,13 +594,20 @@ public class AdoJobStoreSmokeTest
         }
     }
 
+    /// <summary>
+    /// Shuts down whatever the test left running. Each scheduler here is built from a container of its
+    /// own, so there is no shared repository to sweep — the ones to shut down are the ones this fixture
+    /// created.
+    /// </summary>
     [TearDown]
     public async Task ShutdownSchedulers()
     {
-        foreach (var scheduler in SchedulerRepository.Instance.LookupAll())
+        foreach (var scheduler in createdSchedulers)
         {
             await scheduler.Shutdown(CancellationToken.None);
         }
+
+        createdSchedulers.Clear();
     }
 
     private static string GetConnectionString(string connectionStringId)

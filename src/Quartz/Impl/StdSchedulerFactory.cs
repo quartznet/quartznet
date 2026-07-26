@@ -178,6 +178,7 @@ public class StdSchedulerFactory : ISchedulerFactory, IDisposable
 
     private ServiceProvider? provider;
     private ISchedulerFactory? inner;
+    private ISchedulerRepository? schedulerRepository;
 
     private string SchedulerName
     {
@@ -198,25 +199,31 @@ public class StdSchedulerFactory : ISchedulerFactory, IDisposable
         return fact.GetScheduler(cancellationToken);
     }
 
-    /// <summary> <para>
-    /// Returns a handle to all known Schedulers (made by any
-    /// StdSchedulerFactory instance.).
-    /// </para>
+    /// <summary>
+    /// Returns a handle to every scheduler this factory has produced.
     /// </summary>
+    /// <remarks>
+    /// This is no longer process-wide. Schedulers live in the repository belonging to the container that
+    /// built them, so a scheduler created through <c>AddQuartz</c> or another
+    /// <see cref="StdSchedulerFactory"/> is not listed here.
+    /// </remarks>
     public virtual ValueTask<IReadOnlyList<IScheduler>> GetAllSchedulers(
         CancellationToken cancellationToken = default)
     {
         return new ValueTask<IReadOnlyList<IScheduler>>(GetSchedulerRepository().LookupAll());
     }
 
+    /// <summary>
+    /// Returns the repository this factory's schedulers are bound into.
+    /// </summary>
+    /// <remarks>
+    /// The repository is owned by this factory's container, so asking for it builds that container if it
+    /// has not been built yet — there is no process-wide repository to fall back on.
+    /// </remarks>
     protected virtual ISchedulerRepository GetSchedulerRepository()
     {
-        return SchedulerRepository.Instance;
-    }
-
-    protected virtual IDbConnectionManager GetDbConnectionManager()
-    {
-        return DBConnectionManager.Instance;
+        Inner();
+        return schedulerRepository!;
     }
 
     /// <summary>
@@ -378,11 +385,6 @@ public class StdSchedulerFactory : ISchedulerFactory, IDisposable
 
         var services = new ServiceCollection();
 
-        // Callers of this entry point look schedulers up through the process-wide repository and
-        // connection manager, so the container must share those rather than owning private ones.
-        services.AddSingleton<ISchedulerRepository>(SchedulerRepository.Instance);
-        services.AddSingleton<IDbConnectionManager>(DBConnectionManager.Instance);
-
         // Plugins, execution limits and scheduler content are read from QuartzOptions, so the property
         // bag has to be there as well as bound onto the typed options.
         services.Configure<QuartzOptions>(options =>
@@ -402,6 +404,11 @@ public class StdSchedulerFactory : ISchedulerFactory, IDisposable
         services.AddQuartzScheduler();
 
         provider = services.BuildServiceProvider();
+
+        // Held on to so GetSchedulerRepository does not have to reach back into a provider that Dispose
+        // may have replaced with null in the meantime.
+        schedulerRepository = provider.GetRequiredService<ISchedulerRepository>();
+
         return provider.GetRequiredService<ISchedulerFactory>();
     }
 
@@ -461,6 +468,7 @@ public class StdSchedulerFactory : ISchedulerFactory, IDisposable
             owned = provider;
             provider = null;
             inner = null;
+            schedulerRepository = null;
         }
 
         owned?.Dispose();
