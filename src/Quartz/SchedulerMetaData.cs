@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
@@ -37,38 +37,38 @@ public sealed class SchedulerMetaData
     /// </summary>
     /// <param name="schedulerName">Name of the scheduler.</param>
     /// <param name="schedulerInstanceId">The scheduler instance.</param>
-    /// <param name="schedType">The scheduler type.</param>
+    /// <param name="schedulerType">The scheduler type.</param>
     /// <param name="isRemote">if set to <c>true</c>, scheduler is a remote scheduler.</param>
     /// <param name="started">if set to <c>true</c>, scheduler is started.</param>
     /// <param name="isInStandbyMode">if set to <c>true</c>, scheduler is in standby mode.</param>
     /// <param name="shutdown">if set to <c>true</c>, scheduler is shutdown.</param>
     /// <param name="startTime">The start time.</param>
-    /// <param name="numberOfJobsExec">The number of jobs executed.</param>
-    /// <param name="jsType">The job store type.</param>
-    /// <param name="jsPersistent">if set to <c>true</c>, job store is persistent.</param>
-    /// <param name="jsClustered">if set to <c>true</c>, the job store is clustered</param>
-    /// <param name="tpType">The thread pool type.</param>
-    /// <param name="tpSize">Size of the thread pool.</param>
+    /// <param name="numberOfJobsExecuted">The number of jobs executed.</param>
+    /// <param name="jobStoreType">The job store type.</param>
+    /// <param name="jobStoreSupportsPersistence">if set to <c>true</c>, job store is persistent.</param>
+    /// <param name="jobStoreClustered">if set to <c>true</c>, the job store is clustered</param>
+    /// <param name="threadPoolType">The thread pool type.</param>
+    /// <param name="threadPoolSize">Size of the thread pool.</param>
     /// <param name="version">The version string.</param>
     public SchedulerMetaData(
-        string schedulerName, string schedulerInstanceId, Type schedType, bool isRemote, bool started, bool isInStandbyMode,
-        bool shutdown, DateTimeOffset? startTime, int numberOfJobsExec, Type jsType, bool jsPersistent, bool jsClustered,
-        Type tpType, int tpSize, string version)
+        string schedulerName, string schedulerInstanceId, Type schedulerType, bool isRemote, bool started, bool isInStandbyMode,
+        bool shutdown, DateTimeOffset? startTime, int numberOfJobsExecuted, Type jobStoreType, bool jobStoreSupportsPersistence, bool jobStoreClustered,
+        Type threadPoolType, int threadPoolSize, string version)
     {
         SchedulerName = schedulerName;
         SchedulerInstanceId = schedulerInstanceId;
-        SchedulerType = schedType;
+        SchedulerType = schedulerType;
         SchedulerRemote = isRemote;
         Started = started;
         InStandbyMode = isInStandbyMode;
         Shutdown = shutdown;
         RunningSince = startTime;
-        NumberOfJobsExecuted = numberOfJobsExec;
-        JobStoreType = jsType;
-        JobStoreSupportsPersistence = jsPersistent;
-        JobStoreClustered = jsClustered;
-        ThreadPoolType = tpType;
-        ThreadPoolSize = tpSize;
+        NumberOfJobsExecuted = numberOfJobsExecuted;
+        JobStoreType = jobStoreType;
+        JobStoreSupportsPersistence = jobStoreSupportsPersistence;
+        JobStoreClustered = jobStoreClustered;
+        ThreadPoolType = threadPoolType;
+        ThreadPoolSize = threadPoolSize;
         Version = version;
     }
 

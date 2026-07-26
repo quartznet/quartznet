@@ -1,4 +1,4 @@
-﻿using Quartz.Tests;
+using Quartz.Tests;
 using System.Data.Common;
 using System.Reflection;
 
@@ -142,7 +142,7 @@ public class JobStoreSupportTest
         // not the existing RetrieveCalendar lazy-cache (which is active when Clustered=false).
         jobStoreSupport.Clustered = true;
 
-        string calendarName = "shared-calendar";
+        string calendarName = "shared-cal";
 
         IOperableTrigger trigger1 = CreateMisfiredTrigger("misfired1");
         trigger1.CalendarName = calendarName;

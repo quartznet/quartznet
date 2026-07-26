@@ -1,4 +1,4 @@
-﻿using System.Collections.Specialized;
+using System.Collections.Specialized;
 
 using Quartz.Impl;
 using Quartz.Impl.Triggers;

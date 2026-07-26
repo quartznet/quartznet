@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;

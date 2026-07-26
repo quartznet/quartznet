@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 
 using Quartz.HttpApiContract;
 using Quartz.Impl.Matchers;

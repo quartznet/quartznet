@@ -1,4 +1,4 @@
-﻿namespace Quartz;
+namespace Quartz;
 
 /// <summary>
 /// Strongly typed configuration for the scheduler itself.

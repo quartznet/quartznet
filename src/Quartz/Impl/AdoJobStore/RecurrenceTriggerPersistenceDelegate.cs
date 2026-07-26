@@ -1,4 +1,4 @@
-﻿
+
 using Quartz.Impl.Triggers;
 using Quartz.Extensibility;
 using Quartz.Util;

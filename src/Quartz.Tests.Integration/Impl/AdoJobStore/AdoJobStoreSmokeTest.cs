@@ -1,4 +1,4 @@
-﻿using Quartz.Impl.AdoJobStore;
+using Quartz.Impl.AdoJobStore;
 using Quartz.Impl;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;

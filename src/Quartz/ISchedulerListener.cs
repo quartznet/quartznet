@@ -35,16 +35,6 @@ namespace Quartz;
 public interface ISchedulerListener
 {
     /// <summary>
-    /// Get the name of the <see cref="ISchedulerListener" />.
-    /// </summary>
-    /// <remarks>
-    /// A scheduler knows a listener by its name, so two scheduler listeners registered with the
-    /// same scheduler must not share one. <see cref="Quartz.Listener.SchedulerListenerSupport" />
-    /// supplies the type name, which is unique often enough to be a reasonable default.
-    /// </remarks>
-    string Name { get; }
-
-    /// <summary>
     /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
     /// is scheduled.
     /// </summary>

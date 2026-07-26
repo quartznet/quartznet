@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Data.Common;
 using System.Globalization;
 

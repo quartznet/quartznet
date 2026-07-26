@@ -1,4 +1,4 @@
-﻿using Quartz.Impl;
+using Quartz.Impl;
 using Quartz.Extensibility;
 
 namespace Quartz.HttpApiContract;

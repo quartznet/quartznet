@@ -415,9 +415,9 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
             Throw.ArgumentException("The given count " + count + " is too large! The max you can set is " + maxNumOfCount);
         }
 
-        DateTime calendar = timeProvider.GetUtcNow().Date;
-        calendar = calendar.Add(endTimeOfDayDate.TimeOfDay);
-        endTimeOfDayUtc = TimeOfDay.HourMinuteAndSecondOfDay(calendar.Hour, calendar.Minute, calendar.Second);
+        DateTime date = timeProvider.GetUtcNow().Date;
+        date = date.Add(endTimeOfDayDate.TimeOfDay);
+        endTimeOfDayUtc = TimeOfDay.HourMinuteAndSecondOfDay(date.Hour, date.Minute, date.Second);
         return this;
     }
 

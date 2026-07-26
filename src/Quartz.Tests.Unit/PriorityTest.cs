@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -62,10 +62,10 @@ public class PriorityTest
         IScheduler scheduler = await new StdSchedulerFactory(config).GetScheduler();
 
         DateTime n = DateTime.UtcNow;
-        DateTime calendar = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond, DateTimeKind.Utc);
+        DateTime date = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond, DateTimeKind.Utc);
 
-        IMutableTrigger trig1 = new SimpleTriggerImpl("T1", calendar);
-        IMutableTrigger trig2 = new SimpleTriggerImpl("T2", calendar);
+        IMutableTrigger trig1 = new SimpleTriggerImpl("T1", date);
+        IMutableTrigger trig2 = new SimpleTriggerImpl("T2", date);
 
         JobDetailImpl jobDetail = new JobDetailImpl("JD", typeof(TestJob));
 
@@ -94,12 +94,12 @@ public class PriorityTest
         IScheduler scheduler = await new StdSchedulerFactory(config).GetScheduler();
 
         DateTime n = DateTime.UtcNow.AddSeconds(1);
-        DateTime calendar = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond, DateTimeKind.Utc);
+        DateTime date = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond, DateTimeKind.Utc);
 
-        IOperableTrigger trig1 = new SimpleTriggerImpl("T1", calendar);
+        IOperableTrigger trig1 = new SimpleTriggerImpl("T1", date);
         trig1.Priority = 5;
 
-        IOperableTrigger trig2 = new SimpleTriggerImpl("T2", calendar);
+        IOperableTrigger trig2 = new SimpleTriggerImpl("T2", date);
         trig2.Priority = 10;
 
         JobDetailImpl jobDetail = new JobDetailImpl("JD", typeof(TestJob));

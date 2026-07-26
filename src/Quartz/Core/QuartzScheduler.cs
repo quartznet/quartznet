@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -448,7 +448,10 @@ public sealed class QuartzScheduler
                 }
             }
 
-            await resources.ThreadPool.Shutdown(waitForJobsToComplete, cancellationToken).ConfigureAwait(false);
+            // Deliberately not the caller's token: everything below - the scheduler thread, plugins,
+            // the job store and the shutdown notification - has to run even if the host's shutdown
+            // timeout has already elapsed, and a third-party pool that honoured the token would skip it.
+            await resources.ThreadPool.Shutdown(waitForJobsToComplete, CancellationToken.None).ConfigureAwait(false);
 
             // Scheduler thread may have be waiting for the fire time of an acquired
             // trigger and need time to release the trigger once halted, so make sure

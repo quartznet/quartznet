@@ -16,6 +16,7 @@ namespace Quartz.Impl;
 public class NewtonsoftJsonObjectSerializer : IObjectSerializer
 {
     private JsonSerializer? serializer;
+    private bool registerTriggerConverters;
 
     /// <summary>
     /// Creates a serializer that knows the built-in trigger and calendar types only.
@@ -46,7 +47,22 @@ public class NewtonsoftJsonObjectSerializer : IObjectSerializer
     /// </summary>
     private JsonSerializer Serializer => serializer ??= JsonSerializer.Create(CreateSerializerSettings());
 
-    public bool RegisterTriggerConverters { get; set; }
+    /// <summary>
+    /// Whether trigger converters are registered with the underlying serializer.
+    /// </summary>
+    /// <remarks>
+    /// The serializer is built on first use, so setting this afterwards would otherwise have no
+    /// effect; assigning it discards the built serializer so the next use picks the change up.
+    /// </remarks>
+    public bool RegisterTriggerConverters
+    {
+        get => registerTriggerConverters;
+        set
+        {
+            registerTriggerConverters = value;
+            serializer = null;
+        }
+    }
 
     protected virtual JsonSerializerSettings CreateSerializerSettings()
     {

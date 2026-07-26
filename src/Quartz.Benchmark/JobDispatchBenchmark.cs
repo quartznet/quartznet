@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging.Abstractions;
 using BenchmarkDotNet.Attributes;
 
 using Quartz.Core;

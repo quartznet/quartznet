@@ -1,4 +1,4 @@
-﻿namespace Quartz;
+namespace Quartz;
 
 /// <summary>
 /// A Comparator that compares trigger's next fire times, or in other words,

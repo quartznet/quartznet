@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -73,26 +73,26 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     {
         CronExpression cronExpression = new CronExpression("0 15 10 * * ? 2005");
 
-        DateTime calendar = new DateTime(2005, 6, 1, 10, 15, 0).ToUniversalTime();
-        Assert.That(cronExpression.IsSatisfiedBy(calendar), Is.True);
+        DateTime date = new DateTime(2005, 6, 1, 10, 15, 0).ToUniversalTime();
+        Assert.That(cronExpression.IsSatisfiedBy(date), Is.True);
 
-        calendar = calendar.AddYears(1);
-        Assert.That(cronExpression.IsSatisfiedBy(calendar), Is.False);
+        date = date.AddYears(1);
+        Assert.That(cronExpression.IsSatisfiedBy(date), Is.False);
 
-        calendar = new DateTime(2005, 6, 1, 10, 16, 0).ToUniversalTime();
-        Assert.That(cronExpression.IsSatisfiedBy(calendar), Is.False);
+        date = new DateTime(2005, 6, 1, 10, 16, 0).ToUniversalTime();
+        Assert.That(cronExpression.IsSatisfiedBy(date), Is.False);
 
-        calendar = new DateTime(2005, 6, 1, 10, 14, 0).ToUniversalTime();
-        Assert.That(cronExpression.IsSatisfiedBy(calendar), Is.False);
+        date = new DateTime(2005, 6, 1, 10, 14, 0).ToUniversalTime();
+        Assert.That(cronExpression.IsSatisfiedBy(date), Is.False);
 
         cronExpression = new CronExpression("0 15 10 ? * MON-FRI");
 
         // weekends
-        calendar = new DateTime(2007, 6, 9, 10, 15, 0).ToUniversalTime();
+        date = new DateTime(2007, 6, 9, 10, 15, 0).ToUniversalTime();
         Assert.Multiple(() =>
         {
-            Assert.That(cronExpression.IsSatisfiedBy(calendar), Is.False);
-            Assert.That(cronExpression.IsSatisfiedBy(calendar.AddDays(1)), Is.False);
+            Assert.That(cronExpression.IsSatisfiedBy(date), Is.False);
+            Assert.That(cronExpression.IsSatisfiedBy(date.AddDays(1)), Is.False);
         });
     }
 
@@ -101,26 +101,26 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     {
         CronExpression cronExpression = new CronExpression("0 15 10 L-2 * ? 2010");
 
-        DateTime calendar = new DateTime(2010, 10, 29, 10, 15, 0).ToUniversalTime(); // last day - 2
-        Assert.That(cronExpression.IsSatisfiedBy(calendar), Is.True);
+        DateTime date = new DateTime(2010, 10, 29, 10, 15, 0).ToUniversalTime(); // last day - 2
+        Assert.That(cronExpression.IsSatisfiedBy(date), Is.True);
 
-        calendar = new DateTime(2010, 10, 28, 10, 15, 0).ToUniversalTime();
-        Assert.That(cronExpression.IsSatisfiedBy(calendar), Is.False);
+        date = new DateTime(2010, 10, 28, 10, 15, 0).ToUniversalTime();
+        Assert.That(cronExpression.IsSatisfiedBy(date), Is.False);
 
         cronExpression = new CronExpression("0 15 10 L-5W * ? 2010");
 
-        calendar = new DateTime(2010, 10, 26, 10, 15, 0).ToUniversalTime(); // last day - 5
-        Assert.That(cronExpression.IsSatisfiedBy(calendar), Is.True);
+        date = new DateTime(2010, 10, 26, 10, 15, 0).ToUniversalTime(); // last day - 5
+        Assert.That(cronExpression.IsSatisfiedBy(date), Is.True);
 
         cronExpression = new CronExpression("0 15 10 L-1 * ? 2010");
 
-        calendar = new DateTime(2010, 10, 30, 10, 15, 0).ToUniversalTime(); // last day - 1
-        Assert.That(cronExpression.IsSatisfiedBy(calendar), Is.True);
+        date = new DateTime(2010, 10, 30, 10, 15, 0).ToUniversalTime(); // last day - 1
+        Assert.That(cronExpression.IsSatisfiedBy(date), Is.True);
 
         cronExpression = new CronExpression("0 15 10 L-1W * ? 2010");
 
-        calendar = new DateTime(2010, 10, 29, 10, 15, 0).ToUniversalTime(); // nearest weekday to last day - 1 (29th is a friday in 2010)
-        Assert.That(cronExpression.IsSatisfiedBy(calendar), Is.True);
+        date = new DateTime(2010, 10, 29, 10, 15, 0).ToUniversalTime(); // nearest weekday to last day - 1 (29th is a friday in 2010)
+        Assert.That(cronExpression.IsSatisfiedBy(date), Is.True);
     }
 
     [TestCase("0 15 10 6,15 * ? 2010", "0 15 10 6,15 * ? 2010")]
@@ -370,20 +370,20 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     {
         // Scenario where external serialization occurrs outside of the provided Quartz Serializers.
         var cronExpression = new CronExpression("0 15 23 * * ?");
-        var calendar = new DateTime(2005, 6, 1, 23, 16, 0).ToUniversalTime();
+        var date = new DateTime(2005, 6, 1, 23, 16, 0).ToUniversalTime();
         var nextExpectedFireTime = new DateTime(2005, 6, 2, 23, 15, 0).ToUniversalTime();
         var jsonCronExpression = JsonConvert.SerializeObject(cronExpression);
         var deSerializedCron = JsonConvert.DeserializeObject<CronExpression>(jsonCronExpression);
-        deSerializedCron.GetNextValidTimeAfter(calendar).Value.Should().Be(nextExpectedFireTime);
+        deSerializedCron.GetNextValidTimeAfter(date).Value.Should().Be(nextExpectedFireTime);
     }
 
     [Test]
     public void TestCronExpressionPassingMidnight()
     {
         CronExpression cronExpression = new CronExpression("0 15 23 * * ?");
-        DateTimeOffset calendar = new DateTime(2005, 6, 1, 23, 16, 0).ToUniversalTime();
+        DateTimeOffset date = new DateTime(2005, 6, 1, 23, 16, 0).ToUniversalTime();
         DateTimeOffset nextExpectedFireTime = new DateTime(2005, 6, 2, 23, 15, 0).ToUniversalTime();
-        Assert.That(cronExpression.GetTimeAfter(calendar).Value, Is.EqualTo(nextExpectedFireTime));
+        Assert.That(cronExpression.GetTimeAfter(date).Value, Is.EqualTo(nextExpectedFireTime));
     }
 
     [Test]
@@ -465,9 +465,9 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     {
         // cronexpression that fires every 5 seconds
         CronExpression cronExpression = new CronExpression("0/5 * * * * ?");
-        DateTimeOffset calendar = new DateTimeOffset(2005, 6, 1, 1, 59, 55, TimeSpan.Zero);
+        DateTimeOffset date = new DateTimeOffset(2005, 6, 1, 1, 59, 55, TimeSpan.Zero);
         DateTimeOffset nextExpectedFireTime = new DateTimeOffset(2005, 6, 1, 2, 0, 0, TimeSpan.Zero);
-        Assert.That(cronExpression.GetTimeAfter(calendar).Value, Is.EqualTo(nextExpectedFireTime));
+        Assert.That(cronExpression.GetTimeAfter(date).Value, Is.EqualTo(nextExpectedFireTime));
     }
 
     [Test]
@@ -475,9 +475,9 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     {
         // QRTZNET-28
         CronExpression cronExpression = new CronExpression("* * 1 * * ?");
-        DateTimeOffset calendar = new DateTime(2005, 7, 31, 22, 59, 57).ToUniversalTime();
+        DateTimeOffset date = new DateTime(2005, 7, 31, 22, 59, 57).ToUniversalTime();
         DateTimeOffset nextExpectedFireTime = new DateTime(2005, 8, 1, 1, 0, 0).ToUniversalTime();
-        Assert.That(cronExpression.GetTimeAfter(calendar).Value, Is.EqualTo(nextExpectedFireTime));
+        Assert.That(cronExpression.GetTimeAfter(date).Value, Is.EqualTo(nextExpectedFireTime));
     }
 
     [Test]
@@ -510,16 +510,16 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     {
         // test failed before because of improper trimming
         string expr = " 30 *   * * * ?  ";
-        CronExpression calendar = new CronExpression(expr);
-        Assert.That(calendar.IsSatisfiedBy(DateTime.UtcNow.Date.AddMinutes(2)), Is.False, "Time was included");
+        CronExpression date = new CronExpression(expr);
+        Assert.That(date.IsSatisfiedBy(DateTime.UtcNow.Date.AddMinutes(2)), Is.False, "Time was included");
     }
 
     private static void TestCorrectWeekFireDays(CronExpression cronExpression, IList<int> correctFireDays)
     {
         List<int> fireDays = [];
 
-        DateTime calendar = new DateTime(2007, 6, 1, 11, 0, 0).ToUniversalTime();
-        DateTimeOffset? nextFireTime = calendar;
+        DateTime date = new DateTime(2007, 6, 1, 11, 0, 0).ToUniversalTime();
+        DateTimeOffset? nextFireTime = date;
 
         for (int i = 0; i < DateTime.DaysInMonth(2007, 6); ++i)
         {
@@ -529,7 +529,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
                 // next fire day may be monday for several days..
                 fireDays.Add(nextFireTime.Value.Day);
             }
-            //calendar = calendar.AddDays(1);
+            //date = date.AddDays(1);
         }
 
         // check rite dates fired

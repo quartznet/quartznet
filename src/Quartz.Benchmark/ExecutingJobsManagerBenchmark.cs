@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using BenchmarkDotNet.Attributes;
 using Quartz.Core;
 using Quartz.Extensibility;

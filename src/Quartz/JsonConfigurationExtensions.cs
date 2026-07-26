@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 
 using Quartz.Serialization.Json;
 using Quartz.Serialization.Json.Calendars;

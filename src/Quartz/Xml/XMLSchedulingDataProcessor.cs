@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright 2001-2010 Terracotta, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -439,7 +439,7 @@ public class XMLSchedulingDataProcessor
 
             DateTimeOffset? triggerEndTime = triggerNode.Item.endtimeSpecified ? new DateTimeOffset(triggerNode.Item.endtime) : null;
 
-            IScheduleBuilder scheduler;
+            IScheduleBuilder scheduleBuilder;
 
             if (triggerNode.Item is simpleTriggerType simpleTrigger)
             {
@@ -449,13 +449,13 @@ public class XMLSchedulingDataProcessor
                 int repeatCount = ParseSimpleTriggerRepeatCount(repeatCountString!);
                 TimeSpan repeatInterval = repeatIntervalString is null ? TimeSpan.Zero : TimeSpan.FromMilliseconds(Convert.ToInt64(repeatIntervalString));
 
-                scheduler = SimpleScheduleBuilder.Create()
+                scheduleBuilder = SimpleScheduleBuilder.Create()
                     .WithInterval(repeatInterval)
                     .WithRepeatCount(repeatCount);
 
                 if (!string.IsNullOrWhiteSpace(simpleTrigger.misfireinstruction))
                 {
-                    ((SimpleScheduleBuilder) scheduler).WithMisfireHandlingInstruction(ReadMisfireInstructionFromString(simpleTrigger.misfireinstruction));
+                    ((SimpleScheduleBuilder) scheduleBuilder).WithMisfireHandlingInstruction(ReadMisfireInstructionFromString(simpleTrigger.misfireinstruction));
                 }
             }
             else if (triggerNode.Item is cronTriggerType cronTrigger)
@@ -464,12 +464,12 @@ public class XMLSchedulingDataProcessor
                 var timezoneString = cronTrigger.timezone.TrimEmptyToNull();
 
                 TimeZoneInfo? tz = timezoneString is not null ? TimeZoneUtil.FindTimeZoneById(timezoneString) : null;
-                scheduler = CronScheduleBuilder.CronSchedule(cronExpression!)
+                scheduleBuilder = CronScheduleBuilder.CronSchedule(cronExpression!)
                     .InTimeZone(tz!);
 
                 if (!string.IsNullOrWhiteSpace(cronTrigger.misfireinstruction))
                 {
-                    ((CronScheduleBuilder) scheduler).WithMisfireHandlingInstruction(ReadMisfireInstructionFromString(cronTrigger.misfireinstruction));
+                    ((CronScheduleBuilder) scheduleBuilder).WithMisfireHandlingInstruction(ReadMisfireInstructionFromString(cronTrigger.misfireinstruction));
                 }
             }
             else if (triggerNode.Item is calendarIntervalTriggerType)
@@ -480,12 +480,12 @@ public class XMLSchedulingDataProcessor
                 IntervalUnit intervalUnit = ParseDateIntervalTriggerIntervalUnit(calendarIntervalTrigger.repeatintervalunit.TrimEmptyToNull());
                 int repeatInterval = repeatIntervalString is null ? 0 : Convert.ToInt32(repeatIntervalString);
 
-                scheduler = CalendarIntervalScheduleBuilder.Create()
+                scheduleBuilder = CalendarIntervalScheduleBuilder.Create()
                     .WithInterval(repeatInterval, intervalUnit);
 
                 if (!string.IsNullOrWhiteSpace(calendarIntervalTrigger.misfireinstruction))
                 {
-                    ((CalendarIntervalScheduleBuilder) scheduler).WithMisfireHandlingInstruction(ReadMisfireInstructionFromString(calendarIntervalTrigger.misfireinstruction));
+                    ((CalendarIntervalScheduleBuilder) scheduleBuilder).WithMisfireHandlingInstruction(ReadMisfireInstructionFromString(calendarIntervalTrigger.misfireinstruction));
                 }
             }
             else
@@ -502,7 +502,7 @@ public class XMLSchedulingDataProcessor
                 .EndAt(triggerEndTime)
                 .WithPriority(triggerPriority)
                 .ModifiedByCalendar(triggerCalendarRef)
-                .WithSchedule(scheduler)
+                .WithSchedule(scheduleBuilder)
                 .Build();
 
             if (triggerNode.Item.jobdatamap is not null && triggerNode.Item.jobdatamap.entry is not null)

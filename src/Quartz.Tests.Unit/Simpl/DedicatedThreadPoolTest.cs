@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 
 using Quartz.Impl;
 using Quartz.Util;

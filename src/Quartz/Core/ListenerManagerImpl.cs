@@ -1,4 +1,4 @@
-﻿using Quartz.Collections;
+using Quartz.Collections;
 
 namespace Quartz.Core;
 
@@ -524,26 +524,8 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
     public void AddSchedulerListener(ISchedulerListener schedulerListener)
     {
-        if (schedulerListener is null)
-        {
-            Throw.ArgumentNullException(nameof(schedulerListener));
-        }
-
         lock (schedulerListeners)
         {
-            // A scheduler knows a listener by its name, and the name-based overloads below cannot mean
-            // anything if two listeners answer to one. Job and trigger listeners get this from being
-            // stored name-keyed and replacing on a repeat; do the same rather than quietly keeping
-            // both and letting Remove(name) take whichever was added first.
-            for (var i = 0; i < schedulerListeners.Count; i++)
-            {
-                if (string.Equals(schedulerListeners[i].Name, schedulerListener.Name, StringComparison.Ordinal))
-                {
-                    schedulerListeners[i] = schedulerListener;
-                    return;
-                }
-            }
-
             schedulerListeners.Add(schedulerListener);
         }
     }
@@ -556,23 +538,6 @@ internal sealed class ListenerManagerImpl : IListenerManager
         }
     }
 
-    public bool RemoveSchedulerListener(string name)
-    {
-        lock (schedulerListeners)
-        {
-            for (var i = 0; i < schedulerListeners.Count; i++)
-            {
-                if (schedulerListeners[i].Name == name)
-                {
-                    schedulerListeners.RemoveAt(i);
-                    return true;
-                }
-            }
-
-            return false;
-        }
-    }
-
     public ISchedulerListener[] GetSchedulerListeners()
     {
         lock (schedulerListeners)
@@ -580,23 +545,6 @@ internal sealed class ListenerManagerImpl : IListenerManager
             return schedulerListeners.Count > 0
                 ? schedulerListeners.ToArray()
                 : [];
-        }
-    }
-
-    public ISchedulerListener GetSchedulerListener(string name)
-    {
-        lock (schedulerListeners)
-        {
-            foreach (var listener in schedulerListeners)
-            {
-                if (listener.Name == name)
-                {
-                    return listener;
-                }
-            }
-
-            Throw.KeyNotFoundException();
-            return null!;
         }
     }
 

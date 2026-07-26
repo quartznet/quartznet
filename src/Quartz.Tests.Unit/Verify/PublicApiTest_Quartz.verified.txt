@@ -358,7 +358,6 @@ namespace Quartz
         Quartz.IJobListener GetJobListener(string name);
         System.Collections.Generic.IReadOnlyCollection<Quartz.IMatcher<Quartz.JobKey>>? GetJobListenerMatchers(string listenerName);
         Quartz.IJobListener[] GetJobListeners();
-        Quartz.ISchedulerListener GetSchedulerListener(string name);
         Quartz.ISchedulerListener[] GetSchedulerListeners();
         Quartz.ITriggerListener GetTriggerListener(string name);
         System.Collections.Generic.IReadOnlyCollection<Quartz.IMatcher<Quartz.TriggerKey>>? GetTriggerListenerMatchers(string listenerName);
@@ -366,7 +365,6 @@ namespace Quartz
         bool RemoveJobListener(string name);
         bool RemoveJobListenerMatcher(string listenerName, Quartz.IMatcher<Quartz.JobKey> matcher);
         bool RemoveSchedulerListener(Quartz.ISchedulerListener schedulerListener);
-        bool RemoveSchedulerListener(string name);
         bool RemoveTriggerListener(string name);
         bool RemoveTriggerListenerMatcher(string listenerName, Quartz.IMatcher<Quartz.TriggerKey> matcher);
         bool SetJobListenerMatchers(string listenerName, System.Collections.Generic.IReadOnlyCollection<Quartz.IMatcher<Quartz.JobKey>> matchers);
@@ -526,7 +524,6 @@ namespace Quartz
     }
     public interface ISchedulerListener
     {
-        string Name { get; }
         System.Threading.Tasks.ValueTask JobAdded(Quartz.IJobDetail jobDetail, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask JobDeleted(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask JobInterrupted(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
@@ -918,7 +915,7 @@ namespace Quartz
     [System.Serializable]
     public sealed class SchedulerMetaData
     {
-        public SchedulerMetaData(string schedulerName, string schedulerInstanceId, System.Type schedType, bool isRemote, bool started, bool isInStandbyMode, bool shutdown, System.DateTimeOffset? startTime, int numberOfJobsExec, System.Type jsType, bool jsPersistent, bool jsClustered, System.Type tpType, int tpSize, string version) { }
+        public SchedulerMetaData(string schedulerName, string schedulerInstanceId, System.Type schedulerType, bool isRemote, bool started, bool isInStandbyMode, bool shutdown, System.DateTimeOffset? startTime, int numberOfJobsExecuted, System.Type jobStoreType, bool jobStoreSupportsPersistence, bool jobStoreClustered, System.Type threadPoolType, int threadPoolSize, string version) { }
         public bool InStandbyMode { get; }
         public bool JobStoreClustered { get; }
         public bool JobStoreSupportsPersistence { get; }
@@ -3291,7 +3288,6 @@ namespace Quartz.Listener
     {
         public BroadcastSchedulerListener() { }
         public BroadcastSchedulerListener(System.Collections.Generic.IEnumerable<Quartz.ISchedulerListener> listeners) { }
-        public string Name { get; }
         public void AddListener(Quartz.ISchedulerListener listener) { }
         public System.Collections.Generic.IReadOnlyList<Quartz.ISchedulerListener> GetListeners() { }
         public System.Threading.Tasks.ValueTask JobAdded(Quartz.IJobDetail jobDetail, System.Threading.CancellationToken cancellationToken = default) { }
@@ -3349,7 +3345,6 @@ namespace Quartz.Listener
     public abstract class SchedulerListenerSupport : Quartz.ISchedulerListener
     {
         protected SchedulerListenerSupport() { }
-        public virtual string Name { get; }
         public virtual System.Threading.Tasks.ValueTask JobAdded(Quartz.IJobDetail jobDetail, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask JobDeleted(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask JobInterrupted(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }

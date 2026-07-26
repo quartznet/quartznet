@@ -263,13 +263,6 @@ public interface IListenerManager
     bool RemoveSchedulerListener(ISchedulerListener schedulerListener);
 
     /// <summary>
-    /// Remove the <see cref="ISchedulerListener" /> that has the given name from the
-    /// <see cref="IScheduler" />.
-    /// </summary>
-    /// <returns>true if the identified listener was found in the list, and removed.</returns>
-    bool RemoveSchedulerListener(string name);
-
-    /// <summary>
     /// Gets all of the <see cref="ISchedulerListener" /> instances in the <see cref="IScheduler" />.
     /// </summary>
     /// <returns>
@@ -277,8 +270,4 @@ public interface IListenerManager
     /// </returns>
     ISchedulerListener[] GetSchedulerListeners();
 
-    /// <summary>
-    /// Get the <see cref="ISchedulerListener" /> that has the given name.
-    /// </summary>
-    ISchedulerListener GetSchedulerListener(string name);
 }

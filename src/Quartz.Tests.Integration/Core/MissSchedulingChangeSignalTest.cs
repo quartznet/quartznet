@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Options;
 using System.Collections.Specialized;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;

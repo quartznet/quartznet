@@ -1,4 +1,4 @@
-﻿using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Util;
 using Quartz.Tests;
 using Quartz.Extensibility;

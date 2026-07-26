@@ -1,4 +1,4 @@
-﻿using Quartz.Calendars;
+using Quartz.Calendars;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
 using Quartz.Triggers;

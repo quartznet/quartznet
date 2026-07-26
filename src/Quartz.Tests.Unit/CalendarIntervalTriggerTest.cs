@@ -1,4 +1,4 @@
-﻿using AwesomeAssertions.Execution;
+using AwesomeAssertions.Execution;
 
 using Quartz.Impl.Triggers;
 using Quartz.Impl;

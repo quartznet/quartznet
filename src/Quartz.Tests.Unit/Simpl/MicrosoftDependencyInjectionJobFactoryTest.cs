@@ -1,4 +1,4 @@
-﻿using AwesomeAssertions.Execution;
+using AwesomeAssertions.Execution;
 
 using FakeItEasy;
 
@@ -123,6 +123,52 @@ public class MicrosoftDependencyInjectionJobFactoryTest
         {
         }
 
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+    }
+
+    [Test]
+    public async Task ShouldFlowAsyncLocalSetInConfigureScopeThroughToTheJob()
+    {
+        // ConfigureScope exists to establish ambient context for a job, and an AsyncLocal written
+        // there has to survive into Execute (#1528). It does not if the factory is an async method,
+        // because the state machine restores the caller's ExecutionContext when its synchronous part
+        // returns - which is why CreateJobInstance and CreateJob are deliberately not async.
+        var serviceCollection = new ServiceCollection();
+        serviceCollection.AddTransient<TenantCapturingJob>();
+        await using var serviceProvider = serviceCollection.BuildServiceProvider(validateScopes: true);
+
+        var factory = new TenantSettingJobFactory(serviceProvider);
+        var scope = await factory.CreateJob(NewBundleFor<TenantCapturingJob>(), NewScheduler());
+
+        try
+        {
+            TenantSettingJobFactory.Tenant.Value.Should().Be(
+                "tenant-from-configure-scope",
+                "the value ConfigureScope set must still be on the caller's execution context");
+        }
+        finally
+        {
+            await factory.ReturnJob(scope);
+            TenantSettingJobFactory.Tenant.Value = null;
+        }
+    }
+
+    private sealed class TenantSettingJobFactory : MicrosoftDependencyInjectionJobFactory
+    {
+        public static readonly AsyncLocal<string> Tenant = new();
+
+        public TenantSettingJobFactory(IServiceProvider serviceProvider) : base(serviceProvider)
+        {
+        }
+
+        protected override void ConfigureScope(IServiceScope scope, TriggerFiredBundle bundle, IScheduler scheduler)
+        {
+            Tenant.Value = "tenant-from-configure-scope";
+        }
+    }
+
+    private sealed class TenantCapturingJob : IJob
+    {
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
     }
 

@@ -1,4 +1,4 @@
-﻿using System.Collections.Specialized;
+using System.Collections.Specialized;
 
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Extensibility;

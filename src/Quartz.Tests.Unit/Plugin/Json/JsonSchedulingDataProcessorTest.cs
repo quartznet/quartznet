@@ -1,4 +1,4 @@
-﻿
+
 using Microsoft.Extensions.Logging.Abstractions;
 
 using Quartz.Plugin.Json;

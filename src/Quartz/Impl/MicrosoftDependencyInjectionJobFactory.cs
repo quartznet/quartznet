@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using System.Runtime.ExceptionServices;
+
+using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Extensibility;
 
@@ -17,7 +19,13 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
         this.serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
     }
 
-    protected override async ValueTask<JobScope> CreateJobInstance(
+    /// <remarks>
+    /// Deliberately not an <c>async</c> method: an async state machine would restore the caller's
+    /// <see cref="System.Threading.ExecutionContext" /> when its synchronous part returns, discarding
+    /// any <see cref="System.Threading.AsyncLocal{T}" /> that <see cref="ConfigureScope" /> set — which
+    /// is most of the reason that hook exists (#1528).
+    /// </remarks>
+    protected override ValueTask<JobScope> CreateJobInstance(
         TriggerFiredBundle bundle,
         IScheduler scheduler,
         CancellationToken cancellationToken = default)
@@ -35,29 +43,47 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
             // The scope rides along as the job's state so that ReturnJob can tear it down. The job
             // itself is handed to the scheduler unwrapped, so listeners and the execution context see
             // the type the user wrote rather than something of ours standing in front of it.
-            return new JobScope(job, new ScopeState(scope, disposeJob: !fromContainer));
+            return new ValueTask<JobScope>(new JobScope(job, new ScopeState(scope, disposeJob: !fromContainer)));
         }
-        catch
+        catch (Exception e)
         {
             // ReturnJob is not called when CreateJob throws, so the scope we just opened would be
             // abandoned - along with every scoped dependency already resolved into it.
+            return DisposeScopeAndRethrow(scope, e);
+        }
+
+        static async ValueTask<JobScope> DisposeScopeAndRethrow(IServiceScope scope, Exception failure)
+        {
             await DisposeScope(scope).ConfigureAwait(false);
-            throw;
+            ExceptionDispatchInfo.Capture(failure).Throw();
+            return default;
         }
     }
 
-    public override ValueTask ReturnJob(JobScope scope, CancellationToken cancellationToken = default)
+    public override async ValueTask ReturnJob(JobScope scope, CancellationToken cancellationToken = default)
     {
         // A job the container produced belongs to the scope and is disposed along with it, so
-        // disposing it here too would hand user code a second Dispose call. One we activated
-        // ourselves is ours to dispose. Anything else - a derived factory's own state - is left to
-        // the base, which disposes the job and then the state.
-        if (scope.State is ScopeState { DisposeJob: false } state)
+        // disposing it here as well would hand user code a second Dispose call. One we activated
+        // ourselves is ours to dispose. When a derived factory has replaced the state we cannot tell
+        // which it is, so fall back to the base and rely on ScopeState's own guard to keep the scope
+        // from being torn down twice.
+        if (scope.State is not ScopeState state)
         {
-            return base.ReturnJob(new JobScope(NoDisposeJob.Instance, state), cancellationToken);
+            await base.ReturnJob(scope, cancellationToken).ConfigureAwait(false);
+            return;
         }
 
-        return base.ReturnJob(scope, cancellationToken);
+        try
+        {
+            if (state.DisposeJob)
+            {
+                await base.ReturnJob(new JobScope(scope.Job), cancellationToken).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            await state.DisposeAsync().ConfigureAwait(false);
+        }
     }
 
     private static ValueTask DisposeScope(IServiceScope scope)
@@ -101,6 +127,7 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
     private sealed class ScopeState : IAsyncDisposable
     {
         private readonly IServiceScope scope;
+        private int disposed;
 
         public ScopeState(IServiceScope scope, bool disposeJob)
         {
@@ -110,17 +137,17 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
 
         public bool DisposeJob { get; }
 
-        public ValueTask DisposeAsync() => DisposeScope(scope);
+        public ValueTask DisposeAsync()
+        {
+            // A derived factory may pass this to the base ladder as well as leaving it to us, and a
+            // scope closed twice throws from the container rather than from anything we control.
+            if (Interlocked.Exchange(ref disposed, 1) != 0)
+            {
+                return default;
+            }
+
+            return DisposeScope(scope);
+        }
     }
 
-    /// <summary>
-    /// Stands in for a job the container owns, so the base factory's disposal of "the job" is a
-    /// no-op while its disposal of the scope still runs.
-    /// </summary>
-    private sealed class NoDisposeJob : IJob
-    {
-        public static readonly NoDisposeJob Instance = new();
-
-        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
-    }
 }

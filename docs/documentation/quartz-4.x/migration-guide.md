@@ -491,11 +491,7 @@ The following properties are now explicit interface implementations and cannot b
 
 `IListenerManager.GetJobListeners()` and `GetTriggerListeners()` now return arrays instead of `IReadOnlyCollection<T>` for improved performance and reduced allocations.
 
-`ISchedulerListener` now has a `Name`, so all three listener kinds have the same shape and a scheduler listener can
-be addressed by name like the other two. If you derive from `SchedulerListenerSupport` you get the type name for
-free and need no change; implementing the interface directly means adding the property.
-`GetSchedulerListeners()` returns an array, and there are new `GetSchedulerListener(string)` and
-`RemoveSchedulerListener(string)` overloads.
+`IListenerManager.GetSchedulerListeners()` returns an array, like its job and trigger counterparts.
 
 Three members were renamed or re-annotated:
 
@@ -617,10 +613,21 @@ in order to build a job — a DI scope, a connection, a tenant context — put i
 +     TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default)
 + {
 +     var scope = serviceProvider.CreateScope();
-+     return new ValueTask<JobScope>(
-+         new JobScope(scope.ServiceProvider.GetRequiredService<MyJob>(), scope));
++     var job = ActivatorUtilities.CreateInstance<MyJob>(scope.ServiceProvider);
++     return new ValueTask<JobScope>(new JobScope(job, scope));
 + }
 ```
+
+::: warning
+Note that this example *activates* the job rather than resolving it from the scope. `SimpleJobFactory.ReturnJob`
+disposes the job and then the state, so if you resolve the job from the scope — `GetRequiredService<MyJob>()` — the
+scope disposes it too and your job's `Dispose` is called twice. Either activate it as above, or override `ReturnJob`
+to skip the job when the container owns it, which is what `MicrosoftDependencyInjectionJobFactory` does.
+:::
+
+Keep `CreateJobInstance` non-`async` when its body is synchronous. An async state machine restores the caller's
+execution context when its synchronous part returns, which would discard any `AsyncLocal` you set while building the
+job — including anything `ConfigureScope` establishes for the job to read.
 
 Because of that, **`IJobWrapper` has been removed** and `MicrosoftDependencyInjectionJobFactory` no longer wraps
 your job. `IJobExecutionContext.JobInstance` and every listener now see the type you actually wrote.

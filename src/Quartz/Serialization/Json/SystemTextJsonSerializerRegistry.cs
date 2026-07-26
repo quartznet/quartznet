@@ -1,4 +1,4 @@
-﻿using Quartz.Impl.Calendar;
+using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
 using Quartz.Serialization.Json.Calendars;
 using Quartz.Serialization.Json.Triggers;

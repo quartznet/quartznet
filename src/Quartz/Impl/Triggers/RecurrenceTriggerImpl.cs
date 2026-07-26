@@ -1,4 +1,4 @@
-﻿using RRule = Quartz.Impl.Recurrence.RecurrenceRule;
+using RRule = Quartz.Impl.Recurrence.RecurrenceRule;
 
 namespace Quartz.Impl.Triggers;
 

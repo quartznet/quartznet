@@ -429,8 +429,6 @@ public sealed class MultipleSchedulerTests
 
     private sealed class TestSchedulerListenerA : ISchedulerListener
     {
-        public string Name => nameof(TestSchedulerListenerA);
-
         public ValueTask JobScheduled(ITrigger trigger, CancellationToken cancellationToken = default) => default;
         public ValueTask JobUnscheduled(TriggerKey triggerKey, CancellationToken cancellationToken = default) => default;
         public ValueTask TriggerFinalized(ITrigger trigger, CancellationToken cancellationToken = default) => default;

@@ -31,12 +31,6 @@ namespace Quartz.Listener;
 /// <seealso cref="ISchedulerListener" />
 public abstract class SchedulerListenerSupport : ISchedulerListener
 {
-    /// <summary>
-    /// The name the scheduler knows this listener by; the type name unless a derived class says
-    /// otherwise, which is distinct enough as long as one scheduler has one of each listener type.
-    /// </summary>
-    public virtual string Name => GetType().Name;
-
     public virtual ValueTask JobScheduled(
         ITrigger trigger,
         CancellationToken cancellationToken = default)

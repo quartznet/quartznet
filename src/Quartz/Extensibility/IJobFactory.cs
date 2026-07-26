@@ -71,9 +71,12 @@ public interface IJobFactory
     /// Allows the job factory to destroy/cleanup the job once it has finished executing.
     /// </summary>
     /// <remarks>
-    /// Called for every scope <see cref="CreateJob" /> returned, whether the job succeeded, failed
-    /// or was vetoed. It is not called when <see cref="CreateJob" /> itself throws — a factory that
-    /// allocates before it fails is responsible for its own cleanup on that path.
+    /// The scheduler calls this for every scope <see cref="CreateJob" /> returned, whether the job
+    /// succeeded, failed or was vetoed. The scheduler does <b>not</b> call it when
+    /// <see cref="CreateJob" /> itself throws, so a factory that has already allocated by the time it
+    /// fails is responsible for its own cleanup on that path — the factories shipped with Quartz do
+    /// that by calling this method themselves before rethrowing, so an override may see a job that
+    /// never executed.
     /// </remarks>
     /// <param name="scope">The scope returned by <see cref="CreateJob" />, carrying the job and its state.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>

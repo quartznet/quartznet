@@ -1,4 +1,4 @@
-﻿using Quartz.Tests.Integration.TestHelpers;
+using Quartz.Tests.Integration.TestHelpers;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
 using Quartz.Impl;

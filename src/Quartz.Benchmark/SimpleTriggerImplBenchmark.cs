@@ -1,4 +1,4 @@
-﻿using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Attributes;
 using Quartz.Impl.Triggers;
 
 namespace Quartz.Benchmark;

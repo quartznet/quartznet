@@ -45,9 +45,6 @@ public sealed class BroadcastSchedulerListener : ISchedulerListener
     private readonly List<ISchedulerListener> listeners;
     private readonly ILogger<BroadcastSchedulerListener> logger;
 
-    /// <inheritdoc />
-    public string Name => nameof(BroadcastSchedulerListener);
-
     public BroadcastSchedulerListener()
     {
         listeners = new List<ISchedulerListener>();

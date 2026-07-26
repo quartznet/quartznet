@@ -64,8 +64,6 @@ public class SchedulerListenerTest
 
     public class Qtz205ScheListener : ISchedulerListener
     {
-        public string Name => nameof(Qtz205ScheListener);
-
         public int TriggerFinalizedCount { get; private set; }
 
         public ValueTask JobScheduled(ITrigger trigger, CancellationToken cancellationToken)

@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 
 using Quartz.HttpApiContract;
 using Quartz.Impl.Matchers;
@@ -105,18 +105,18 @@ public class HttpScheduler : IScheduler
         var metadata = new SchedulerMetaData(
             schedulerName: schedulerDto.Name,
             schedulerInstanceId: schedulerDto.SchedulerInstanceId,
-            schedType: GetType(),
+            schedulerType: GetType(),
             isRemote: true,
             started: schedulerDto.Status == SchedulerStatus.Running,
             isInStandbyMode: schedulerDto.Status == SchedulerStatus.Standby,
             shutdown: schedulerDto.Status == SchedulerStatus.Shutdown,
             startTime: schedulerDto.Statistics.RunningSince,
-            numberOfJobsExec: schedulerDto.Statistics.NumberOfJobsExecuted,
-            jsType: Type.GetType(schedulerDto.JobStore.Type, throwOnError: true)!,
-            jsPersistent: schedulerDto.JobStore.Persistent,
-            jsClustered: schedulerDto.JobStore.Clustered,
-            tpType: Type.GetType(schedulerDto.ThreadPool.Type, throwOnError: true)!,
-            tpSize: schedulerDto.ThreadPool.Size,
+            numberOfJobsExecuted: schedulerDto.Statistics.NumberOfJobsExecuted,
+            jobStoreType: Type.GetType(schedulerDto.JobStore.Type, throwOnError: true)!,
+            jobStoreSupportsPersistence: schedulerDto.JobStore.Persistent,
+            jobStoreClustered: schedulerDto.JobStore.Clustered,
+            threadPoolType: Type.GetType(schedulerDto.ThreadPool.Type, throwOnError: true)!,
+            threadPoolSize: schedulerDto.ThreadPool.Size,
             version: schedulerDto.Statistics.Version
         );
 

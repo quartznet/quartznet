@@ -1,4 +1,4 @@
-﻿using Quartz.Tests.Integration.TestHelpers;
+using Quartz.Tests.Integration.TestHelpers;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Extensibility;

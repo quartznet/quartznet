@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Collections.Specialized;
 using System.Text;
 
@@ -38,17 +38,17 @@ public abstract class ClusteredPostgresTestBase
         await connection.OpenAsync();
         using var command = connection.CreateCommand();
         command.CommandText =
-            "DELETE FROM qrtz_fired_triggers WHERE sched_name = @scheduler;" +
-            "DELETE FROM qrtz_simple_triggers WHERE sched_name = @scheduler;" +
-            "DELETE FROM qrtz_cron_triggers WHERE sched_name = @scheduler;" +
-            "DELETE FROM qrtz_simprop_triggers WHERE sched_name = @scheduler;" +
-            "DELETE FROM qrtz_blob_triggers WHERE sched_name = @scheduler;" +
-            "DELETE FROM qrtz_triggers WHERE sched_name = @scheduler;" +
-            "DELETE FROM qrtz_job_details WHERE sched_name = @scheduler;" +
-            "DELETE FROM qrtz_calendars WHERE sched_name = @scheduler;" +
-            "DELETE FROM qrtz_paused_trigger_grps WHERE sched_name = @scheduler;" +
-            "DELETE FROM qrtz_scheduler_state WHERE sched_name = @scheduler;";
-        command.Parameters.AddWithValue("sched", SchedulerName);
+            "DELETE FROM qrtz_fired_triggers WHERE sched_name = @schedulerName;" +
+            "DELETE FROM qrtz_simple_triggers WHERE sched_name = @schedulerName;" +
+            "DELETE FROM qrtz_cron_triggers WHERE sched_name = @schedulerName;" +
+            "DELETE FROM qrtz_simprop_triggers WHERE sched_name = @schedulerName;" +
+            "DELETE FROM qrtz_blob_triggers WHERE sched_name = @schedulerName;" +
+            "DELETE FROM qrtz_triggers WHERE sched_name = @schedulerName;" +
+            "DELETE FROM qrtz_job_details WHERE sched_name = @schedulerName;" +
+            "DELETE FROM qrtz_calendars WHERE sched_name = @schedulerName;" +
+            "DELETE FROM qrtz_paused_trigger_grps WHERE sched_name = @schedulerName;" +
+            "DELETE FROM qrtz_scheduler_state WHERE sched_name = @schedulerName;";
+        command.Parameters.AddWithValue("schedulerName", SchedulerName);
         await command.ExecuteNonQueryAsync();
     }
 
@@ -114,10 +114,10 @@ public abstract class ClusteredPostgresTestBase
         await connection.OpenAsync();
         using var command = connection.CreateCommand();
         command.CommandText =
-            "SELECT 'TRIGGER: ' || trigger_name || ' state=' || trigger_state || ' pin=' || COALESCE(preferred_node, '<null>') || ' auto=' || preferred_node_auto || ' group=' || COALESCE(execution_group, '<null>') || ' next=' || next_fire_time FROM qrtz_triggers WHERE sched_name = @scheduler " +
-            "UNION ALL SELECT 'STATE: ' || instance_name || ' lastCheckin=' || last_checkin_time FROM qrtz_scheduler_state WHERE sched_name = @scheduler " +
-            "UNION ALL SELECT 'FIRED: ' || trigger_name || ' instance=' || instance_name || ' state=' || state FROM qrtz_fired_triggers WHERE sched_name = @scheduler";
-        command.Parameters.AddWithValue("sched", SchedulerName);
+            "SELECT 'TRIGGER: ' || trigger_name || ' state=' || trigger_state || ' pin=' || COALESCE(preferred_node, '<null>') || ' auto=' || preferred_node_auto || ' group=' || COALESCE(execution_group, '<null>') || ' next=' || next_fire_time FROM qrtz_triggers WHERE sched_name = @schedulerName " +
+            "UNION ALL SELECT 'STATE: ' || instance_name || ' lastCheckin=' || last_checkin_time FROM qrtz_scheduler_state WHERE sched_name = @schedulerName " +
+            "UNION ALL SELECT 'FIRED: ' || trigger_name || ' instance=' || instance_name || ' state=' || state FROM qrtz_fired_triggers WHERE sched_name = @schedulerName";
+        command.Parameters.AddWithValue("schedulerName", SchedulerName);
         var result = new StringBuilder();
         using (var reader = await command.ExecuteReaderAsync())
         {

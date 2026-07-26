@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Options;
 
 using Quartz.Impl.Matchers;
 using Quartz.Extensibility;

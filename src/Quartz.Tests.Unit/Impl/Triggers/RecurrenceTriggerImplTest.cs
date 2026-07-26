@@ -1,4 +1,4 @@
-﻿using Quartz.Impl.AdoJobStore;
+using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
 using Quartz.Extensibility;

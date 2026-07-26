@@ -1,4 +1,4 @@
-﻿using Quartz.Tests;
+using Quartz.Tests;
 #nullable disable
 
 using BenchmarkDotNet.Attributes;

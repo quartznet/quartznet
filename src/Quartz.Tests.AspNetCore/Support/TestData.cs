@@ -1,4 +1,4 @@
-﻿using FakeItEasy;
+using FakeItEasy;
 
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
@@ -37,18 +37,18 @@ public static class TestData
         Metadata = new SchedulerMetaData(
             schedulerName: SchedulerName,
             schedulerInstanceId: SchedulerInstanceId,
-            schedType: typeof(IScheduler),
+            schedulerType: typeof(IScheduler),
             isRemote: false,
             started: true,
             isInStandbyMode: false,
             shutdown: false,
             startTime: DateTimeOffset.Now.AddDays(-1),
-            numberOfJobsExec: 1_000_000,
-            jsType: typeof(RAMJobStore),
-            jsPersistent: false,
-            jsClustered: false,
-            tpType: typeof(DefaultThreadPool),
-            tpSize: 10,
+            numberOfJobsExecuted: 1_000_000,
+            jobStoreType: typeof(RAMJobStore),
+            jobStoreSupportsPersistence: false,
+            jobStoreClustered: false,
+            threadPoolType: typeof(DefaultThreadPool),
+            threadPoolSize: 10,
             version: "1.2.3"
         );
 

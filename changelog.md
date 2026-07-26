@@ -1,4 +1,4 @@
-﻿# QUARTZ.NET CHANGELOG
+# QUARTZ.NET CHANGELOG
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
@@ -158,13 +158,11 @@
     (including `TriggerJob`, which shadowed a `ValueTask`-returning `IScheduler.TriggerJob`), `JobRunShell.Initialize`
     and `Run`, and `IDriverDelegate.SelectTriggersInGroup` — the only `Task` in an otherwise-`ValueTask` interface.
 
-  * **ISchedulerListener** gained a `Name` property, so all three kinds of listener now have the same shape and a
-    scheduler listener can be addressed the way job and trigger listeners already could.
-    `SchedulerListenerSupport` supplies the type name as a default, so an implementation deriving from it needs no
-    change. `IListenerManager` follows: `GetSchedulerListeners()` returns `ISchedulerListener[]` rather than
-    `IReadOnlyCollection<ISchedulerListener>` — matching the array the job and trigger getters have returned since
-    the allocation work earlier in 4.0 — and there are new `GetSchedulerListener(string)` and
-    `RemoveSchedulerListener(string)` overloads.
+  * `IListenerManager.GetSchedulerListeners()` returns `ISchedulerListener[]` rather than
+    `IReadOnlyCollection<ISchedulerListener>`, matching the array the job and trigger getters have returned since
+    the allocation work earlier in 4.0. `ISchedulerListener` itself is unchanged: it has no `Name`, because unlike
+    job and trigger listeners it has no matchers to key by one, and a scheduler listener is identified by its
+    instance.
 
   * **ISchedulerListener.SchedulerShuttingdown** is spelled `SchedulerShuttingDown`.
 

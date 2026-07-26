@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Globalization;
 using System.Reflection;
 using System.Reflection.Emit;
 
@@ -19,6 +20,7 @@ internal static class SchedulerTypeBuilder
 
     private static readonly ModuleBuilder moduleBuilder = CreateModuleBuilder();
     private static readonly ConcurrentDictionary<Type, Type> createdTypes = new();
+    private static int typeNameSuffix;
 
     private static ModuleBuilder CreateModuleBuilder()
     {
@@ -84,9 +86,13 @@ internal static class SchedulerTypeBuilder
 
     private static Type CreateTypeForInterface(Type interfaceType)
     {
+        // The cache is keyed on the Type, so two assemblies declaring the same namespace-qualified
+        // interface both get here; the emitted name has to distinguish them too, or the second one
+        // fails inside DefineType instead of the dictionary.
+        var suffix = Interlocked.Increment(ref typeNameSuffix).ToString(CultureInfo.InvariantCulture);
         var typeName = interfaceType.Namespace is not null ?
-            $"{AssemblyName}.{interfaceType.Namespace}.{interfaceType.Name}Instance" :
-            $"{AssemblyName}.{interfaceType.Name}Instance";
+            $"{AssemblyName}.{interfaceType.Namespace}.{interfaceType.Name}Instance{suffix}" :
+            $"{AssemblyName}.{interfaceType.Name}Instance{suffix}";
 
         try
         {
