@@ -55,9 +55,11 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
     public async ValueTask<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default)
     {
         // Asking for this factory's scheduler by name has to be able to create it. Looking straight in
-        // the repository would only ever find a scheduler somebody else had already asked for.
+        // the repository would only ever find a scheduler somebody else had already asked for. The
+        // comparison ignores case because that is how the repository indexes names, so the create path
+        // and the lookup path agree on what counts as the same scheduler.
         var options = serviceProvider.GetSchedulerOptions<QuartzSchedulerOptions>(Key);
-        if (string.Equals(schedName, options.InstanceName, StringComparison.Ordinal))
+        if (string.Equals(schedName, options.InstanceName, StringComparison.OrdinalIgnoreCase))
         {
             return await GetScheduler(cancellationToken).ConfigureAwait(false);
         }
