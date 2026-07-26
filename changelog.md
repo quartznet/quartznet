@@ -106,6 +106,23 @@
     `AddSchedulerListener`) and registered as a listener service is no longer silently deduplicated by its type; it is two
     registrations, and for job and trigger listeners it now produces the duplicate-name error above. Register it one way
     or the other. (#3176)
+  * The `quartz.config` file is no longer read (#3174). Neither a file on disk, nor the one named by the `quartz.config`
+    environment variable, nor the copy Quartz shipped as an embedded resource. `StdSchedulerFactory` now reads only the
+    properties handed to it plus any `quartz.*` environment variables; everything else is configured through the container.
+    `StdSchedulerFactory.PropertiesFile` and the internal `InitializeProperties` are gone. Two defaults the embedded file
+    supplied change for a `new StdSchedulerFactory()` given no properties of its own: the scheduler's name is now
+    `QuartzScheduler` rather than `DefaultQuartzScheduler`, and the in-memory store's misfire threshold is
+    `InMemoryJobStoreOptions`' own default of 5 seconds rather than 60 seconds. Set them explicitly if you depended on the
+    old values — `quartz.threadPool.threadCount` is unaffected, since `ThreadPoolOptions.MaxConcurrency` already defaults to 10.
+
+  * ADO.NET provider metadata is now configured through the container rather than through a file or a process-wide static
+    (#3174). A driver Quartz ships no description for is described in code with the new
+    `UseGenericDatabase(provider, connectionString, metadata => ...)` overload, or by registering a `DbMetadataFactory`;
+    the `quartz.dbprovider.*` keys keep working and now arrive through `IConfiguration` like every other key.
+    `DbProvider`'s static constructor, its process-wide metadata lookup, `DbProvider.RegisterDbMetadata` and the
+    `protected static GenerateValidProviderNamesInfo` helper have been removed, and `DbProvider` gained a
+    `DbProvider(DbMetadata, string)` constructor taking an already-resolved description. `UseGenericDatabase` also gained
+    the `Action<DataSourceOptions>` overload every named database already had.
 
 #### Cron Parser
 

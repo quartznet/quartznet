@@ -19,13 +19,9 @@
 
 #endregion
 
-using System.Collections.Concurrent;
-using System.Collections.Specialized;
 using System.Data.Common;
 using System.Reflection;
-using System.Text;
 
-using Quartz.Diagnostics;
 using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore.Common;
@@ -33,47 +29,50 @@ namespace Quartz.Impl.AdoJobStore.Common;
 /// <summary>
 /// Concrete implementation of <see cref="IDbProvider" />.
 /// </summary>
+/// <remarks>
+/// A provider is described by its <see cref="DbMetadata"/>: the connection, command and parameter types
+/// to instantiate, the parameter prefix, and so on. Descriptions come from the container — the drivers
+/// Quartz ships descriptions for, plus anything the application registered — rather than from process-wide
+/// state, so two containers in one process no longer have to agree on what a provider name means.
+/// </remarks>
 /// <author>Marko Lahma</author>
 public class DbProvider : IDbProvider
 {
     protected const string PropertyDbProvider = StdSchedulerFactory.PropertyDbProvider;
-    protected const string DbProviderResourceName = "Quartz.Impl.AdoJobStore.Common.dbproviders.netstandard.properties";
+    protected const string DbProviderResourceName = EmbeddedAssemblyResourceDbMetadataFactory.DefaultResourceName;
 
     private readonly MethodInfo? commandBindByNamePropertySetter;
     private readonly ConstructorInfo connectionConstructor;
     private readonly ConstructorInfo commandConstructor;
 
-    private static readonly List<DbMetadataFactory> dbMetadataFactories;
-    // needs to allow concurrent threads to read and update, since field is static
-    private static readonly ConcurrentDictionary<string, DbMetadata> dbMetadataLookup = new();
-
     /// <summary>
-    /// Parse metadata once.
+    /// Initializes a new instance of the <see cref="DbProvider"/> class, described by one of the drivers
+    /// Quartz ships a description for.
     /// </summary>
-    static DbProvider()
-    {
-        var properties = StdSchedulerFactory.InitializeProperties(LogProvider.CreateLogger<StdSchedulerFactory>(), throwOnProblem: false);
-        dbMetadataFactories =
-        [
-            new ConfigurationBasedDbMetadataFactory(properties ?? new NameValueCollection(), PropertyDbProvider),
-            new EmbeddedAssemblyResourceDbMetadataFactory(DbProviderResourceName, PropertyDbProvider)
-        ];
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="DbProvider"/> class.
-    /// </summary>
+    /// <remarks>
+    /// This overload has no container to ask, so it sees only the built-in descriptions. A driver Quartz
+    /// knows nothing about is described through the container instead — see the metadata callback on
+    /// <c>UseGenericDatabase</c> — which is also how a built-in description is replaced.
+    /// </remarks>
     /// <param name="dbProviderName">Name of the db provider.</param>
     /// <param name="connectionString">The connection string.</param>
     public DbProvider(string dbProviderName, string connectionString)
+        : this(DbMetadataResolver.BuiltIn().Resolve(dbProviderName), connectionString)
     {
-        ConnectionString = connectionString;
-        Metadata = GetDbMetadata(dbProviderName);
+    }
 
-        if (Metadata is null)
-        {
-            Throw.ArgumentException($"Invalid DB provider name: {dbProviderName}{Environment.NewLine}{GenerateValidProviderNamesInfo()}");
-        }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DbProvider"/> class from an already-resolved
+    /// description of the driver.
+    /// </summary>
+    /// <param name="metadata">The metadata describing the ADO.NET driver.</param>
+    /// <param name="connectionString">The connection string.</param>
+    public DbProvider(DbMetadata metadata, string connectionString)
+    {
+        ArgumentNullException.ThrowIfNull(metadata);
+
+        ConnectionString = connectionString;
+        Metadata = metadata;
 
         // check if command supports direct setting of BindByName property, needed for Oracle Managed ODP diver at least
         var property = Metadata.CommandType?.GetProperty("BindByName", BindingFlags.Instance | BindingFlags.Public);
@@ -88,55 +87,7 @@ public class DbProvider : IDbProvider
 
     public void Initialize()
     {
-        // do nothing, initialized in static constructor
-    }
-
-    ///<summary>
-    /// Registers DB metadata information for given provider name.
-    ///</summary>
-    ///<param name="dbProviderName"></param>
-    ///<param name="metadata"></param>
-    public static void RegisterDbMetadata(string dbProviderName, DbMetadata metadata)
-    {
-        dbMetadataLookup[dbProviderName] = metadata;
-    }
-
-    private static DbMetadata GetDbMetadata(string providerName)
-    {
-        if (!dbMetadataLookup.TryGetValue(providerName, out var result))
-        {
-            foreach (DbMetadataFactory? dbMetadataFactory in dbMetadataFactories)
-            {
-                if (dbMetadataFactory.GetProviderNames().Contains(providerName))
-                {
-                    result = dbMetadataFactory.GetDbMetadata(providerName);
-                    RegisterDbMetadata(providerName, result);
-                    return result;
-                }
-            }
-            Throw.ArgumentOutOfRangeException(nameof(providerName), $"There is no metadata information for provider '{providerName}'");
-        }
-
-        return result;
-    }
-
-    /// <summary>
-    /// Generates the valid provider names information.
-    /// </summary>
-    /// <returns></returns>
-    protected static string GenerateValidProviderNamesInfo()
-    {
-        var providerNames = dbMetadataFactories
-            .SelectMany(factory => factory.GetProviderNames())
-            .Distinct()
-            .OrderBy(name => name);
-
-        StringBuilder sb = new StringBuilder("Valid DB Provider names are:").Append(Environment.NewLine);
-        foreach (string providerName in providerNames)
-        {
-            sb.Append('\t').Append(providerName).Append(Environment.NewLine);
-        }
-        return sb.ToString();
+        // do nothing, the driver description is resolved during construction
     }
 
     /// <inheritdoc />

@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 using Quartz.Core;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
+using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
@@ -56,6 +57,17 @@ internal static class QuartzServiceRegistration
         // is visible to schedulers built through the container and vice versa. Two of these would mean
         // a data source registered in one place is invisible in the other.
         services.TryAddSingleton<IDbConnectionManager>(DBConnectionManager.Instance);
+
+        // The descriptions of the ADO.NET drivers Quartz ships, added last so that a driver described in
+        // code or by quartz.dbprovider.* keys — both of which register earlier — wins over a built-in of
+        // the same name. Resolution walks the registrations in order.
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<DbMetadataFactory, EmbeddedAssemblyResourceDbMetadataFactory>(
+                static _ => new EmbeddedAssemblyResourceDbMetadataFactory()));
+
+        // One resolver per container, so its cache of resolved descriptions cannot leak one container's
+        // idea of a provider name into another's.
+        services.TryAddSingleton<DbMetadataResolver>();
 
         return services;
     }

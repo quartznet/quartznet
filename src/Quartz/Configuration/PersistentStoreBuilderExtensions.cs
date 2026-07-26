@@ -1,6 +1,9 @@
 using System.Diagnostics.CodeAnalysis;
 
+using Microsoft.Extensions.DependencyInjection;
+
 using Quartz.Impl.AdoJobStore;
+using Quartz.Impl.AdoJobStore.Common;
 
 namespace Quartz;
 
@@ -97,6 +100,111 @@ public static class PersistentStoreBuilderExtensions
         string provider,
         string connectionString)
         => builder.UseDatabase<StdAdoDelegate>(provider, connectionString);
+
+    /// <summary>
+    /// Stores the schedule in a database Quartz has no specific support for, using the generic SQL
+    /// dialect.
+    /// </summary>
+    /// <param name="builder">The store being configured.</param>
+    /// <param name="provider">The Quartz provider name identifying the ADO.NET driver.</param>
+    /// <param name="configure">Configures the data source, for example a named connection string.</param>
+    public static IPersistentStoreBuilder UseGenericDatabase(
+        this IPersistentStoreBuilder builder,
+        string provider,
+        Action<DataSourceOptions> configure)
+        => builder.UseDatabase<StdAdoDelegate>(provider, configure);
+
+    /// <summary>
+    /// Stores the schedule in a database Quartz ships no ADO.NET driver description for, describing the
+    /// driver in code.
+    /// </summary>
+    /// <remarks>
+    /// This is the code-first form of the <c>quartz.dbprovider.&lt;name&gt;.*</c> keys: it says which
+    /// connection, command and parameter types to instantiate, how parameters are named, and which enum
+    /// value means "binary column". Registering a description under a name Quartz already ships one for
+    /// replaces it.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// store.UseGenericDatabase("MyDatabase", connectionString, metadata =>
+    /// {
+    ///     metadata.ProductName = "My Database";
+    ///     metadata.AssemblyName = typeof(MyConnection).Assembly.FullName;
+    ///     metadata.ConnectionType = typeof(MyConnection);
+    ///     metadata.CommandType = typeof(MyCommand);
+    ///     metadata.ParameterType = typeof(MyParameter);
+    ///     metadata.ParameterDbType = typeof(MyDbType);
+    ///     metadata.ParameterDbTypePropertyName = nameof(MyParameter.MyDbType);
+    ///     metadata.ParameterNamePrefix = "@";
+    ///     metadata.ExceptionType = typeof(MyException);
+    ///     metadata.UseParameterNamePrefixInParameterCollection = true;
+    ///     metadata.BindByName = true;
+    ///     metadata.DbBinaryTypeName = "VarBinary";
+    /// });
+    /// </code>
+    /// </example>
+    /// <param name="builder">The store being configured.</param>
+    /// <param name="provider">The provider name the driver description is registered under.</param>
+    /// <param name="connectionString">The connection string.</param>
+    /// <param name="configureMetadata">Describes the ADO.NET driver.</param>
+    public static IPersistentStoreBuilder UseGenericDatabase(
+        this IPersistentStoreBuilder builder,
+        string provider,
+        string connectionString,
+        Action<DbMetadata> configureMetadata)
+    {
+        DescribeDbProvider(builder, provider, configureMetadata);
+        return builder.UseDatabase<StdAdoDelegate>(provider, connectionString);
+    }
+
+    /// <summary>
+    /// Stores the schedule in a database Quartz ships no ADO.NET driver description for, describing both
+    /// the data source and the driver in code.
+    /// </summary>
+    /// <param name="builder">The store being configured.</param>
+    /// <param name="provider">The provider name the driver description is registered under.</param>
+    /// <param name="configureDataSource">Configures the data source, for example a named connection string.</param>
+    /// <param name="configureMetadata">Describes the ADO.NET driver.</param>
+    public static IPersistentStoreBuilder UseGenericDatabase(
+        this IPersistentStoreBuilder builder,
+        string provider,
+        Action<DataSourceOptions> configureDataSource,
+        Action<DbMetadata> configureMetadata)
+    {
+        DescribeDbProvider(builder, provider, configureMetadata);
+        return builder.UseDatabase<StdAdoDelegate>(provider, configureDataSource);
+    }
+
+    /// <summary>
+    /// Registers a driver description as a metadata factory in the container.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Added rather than tried, so describing two providers registers two descriptions instead of the
+    /// second one silently losing to the first.
+    /// </para>
+    /// <para>
+    /// <see cref="DbMetadata.Init"/> is called here rather than later because it is what turns the
+    /// settable bag into usable metadata — it resolves the binary column type and the parameter's db type
+    /// property by reflection. Doing it now means a description that cannot work fails while the
+    /// container is being configured rather than when the first command is built.
+    /// </para>
+    /// </remarks>
+    private static void DescribeDbProvider(
+        IPersistentStoreBuilder builder,
+        string provider,
+        Action<DbMetadata> configure)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentException.ThrowIfNullOrWhiteSpace(provider);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        var metadata = new DbMetadata();
+        configure(metadata);
+        metadata.Init();
+
+        builder.Services.AddSingleton<DbMetadataFactory>(new ConfiguredDbMetadataFactory(provider, metadata));
+    }
 
     private static IPersistentStoreBuilder UseDatabase<
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] TDelegate>(

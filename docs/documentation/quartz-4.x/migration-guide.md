@@ -72,6 +72,50 @@ A scheduler has one job store and therefore one database, so there is no name to
 Schedulers that need different databases are registered under different names, and each gets its own
 services.
 
+### The quartz.config file is no longer read
+
+Nothing is loaded from disk any more. A `quartz.config` file next to your application — or named by the
+`quartz.config` environment variable — is ignored, and so is the copy of it Quartz used to ship as an
+embedded resource. `StdSchedulerFactory` reads only the properties you hand it plus any `quartz.*`
+environment variables; everything else configures a scheduler through the container.
+
+Two consequences if you relied on the embedded defaults, which only affect a
+`new StdSchedulerFactory()` given no properties of its own:
+
+| Setting | Was | Now |
+|---|---|---|
+| `quartz.scheduler.instanceName` | `DefaultQuartzScheduler` | `QuartzScheduler` |
+| `quartz.jobStore.misfireThreshold` | 60 seconds | 5 seconds for the in-memory store (`InMemoryJobStoreOptions.MisfireThreshold`); still 60 seconds for the database store |
+
+`quartz.threadPool.threadCount` is unaffected — `ThreadPoolOptions.MaxConcurrency` already defaults to
+10. Set `InstanceName` explicitly if your application, cluster or monitoring depends on the old literal:
+
+```csharp
+services.AddQuartz(q => q.ConfigureScheduler(options => options.InstanceName = "DefaultQuartzScheduler"));
+```
+
+The one thing the file was still needed for was describing an ADO.NET driver Quartz ships no metadata
+for. That now has a code-first form, and the `quartz.dbprovider.*` keys themselves still work — they just
+arrive through `IConfiguration` or a `NameValueCollection` like every other key:
+
+```csharp
+q.UsePersistentStore(store => store.UseGenericDatabase("MyDatabase", connectionString, metadata =>
+{
+    metadata.ProductName = "My Database";
+    metadata.ConnectionType = typeof(MyConnection);
+    metadata.CommandType = typeof(MyCommand);
+    metadata.ParameterType = typeof(MyParameter);
+    metadata.ParameterDbType = typeof(MyDbType);
+    metadata.ParameterDbTypePropertyName = nameof(MyParameter.MyDbType);
+    metadata.ParameterNamePrefix = "@";
+    metadata.DbBinaryTypeName = "VarBinary";
+}));
+```
+
+See [the configuration reference](configuration/reference.md#describing-a-driver-quartz-does-not-know) for the
+full description. `DbProvider.RegisterDbMetadata` is gone with the process-wide lookup it wrote into; use
+the callback above, or register a `DbMetadataFactory` in the container.
+
 ### Removed
 
 | Removed | Use instead |
@@ -80,7 +124,8 @@ services.
 | `DirectSchedulerFactory` | `QuartzSchedulerBuilder`, with `UseThreadPool` / `UseJobStore` for pre-built parts |
 | `IPropertyConfigurer`, `IPropertySetter`, `IPropertyConfigurationRoot`, `PropertiesHolder`, `PropertiesSetter` | typed options |
 | `AddQuartz(Action<configurator, IServiceProvider>)` | see below |
-| `quartz.config` file discovery | `IConfiguration` |
+| `quartz.config` file discovery, `StdSchedulerFactory.PropertiesFile` | `IConfiguration`, or properties passed to `StdSchedulerFactory` |
+| `DbProvider.RegisterDbMetadata` | the metadata callback on `UseGenericDatabase`, or a `DbMetadataFactory` registration |
 | `quartz.scheduler.proxy*`, `quartz.scheduler.exporter*` | nothing; remoting is not supported on modern .NET |
 | `quartz.checkConfiguration` | configuration is validated by the options system |
 

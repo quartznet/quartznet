@@ -38,21 +38,16 @@ using Quartz.Util;
 namespace Quartz.Impl;
 
 /// <summary>
-/// An implementation of <see cref="ISchedulerFactory" /> that
-/// does all of it's work of creating a <see cref="QuartzScheduler" /> instance
-/// based on the contents of a properties file.
+/// An implementation of <see cref="ISchedulerFactory" /> that creates a
+/// <see cref="QuartzScheduler" /> instance from a flat collection of <c>quartz.*</c> properties.
 /// </summary>
 /// <remarks>
 /// <para>
-/// By default a properties are loaded from App.config's quartz section.
-/// If that fails, then the file is loaded "quartz.config". If file does not exist,
-/// default configuration located (as a embedded resource) in Quartz.dll is loaded. If you
-/// wish to use a file other than these defaults, you must define the system
-/// property 'quartz.properties' to point to the file you want.
-/// </para>
-/// <para>
-/// See the sample properties that are distributed with Quartz for
-/// information about the various settings available within the file.
+/// Properties are supplied by the caller, through <see cref="StdSchedulerFactory(NameValueCollection)"/>
+/// or <see cref="Initialize(NameValueCollection)"/>, and are overridden by any <c>quartz.*</c>
+/// environment variables. Nothing is read from disk: since 4.0 there is no <c>quartz.config</c> file
+/// discovery. Prefer <c>AddQuartz</c> with <see cref="IConfiguration"/>, or
+/// <see cref="QuartzSchedulerBuilder"/>, both of which configure a scheduler through the container.
 /// </para>
 /// <para>
 /// Alternatively, you can explicitly Initialize the factory by calling one of
@@ -78,7 +73,6 @@ public class StdSchedulerFactory : ISchedulerFactory, IDisposable
 {
     private const string ConfigurationKeyPrefix = "quartz.";
     private const string ConfigurationKeyPrefixServer = "quartz.server";
-    public const string PropertiesFile = "quartz.config";
     public const string PropertySchedulerInstanceName = "quartz.scheduler.instanceName";
     public const string PropertySchedulerInstanceId = "quartz.scheduler.instanceId";
     public const string PropertySchedulerInstanceIdGeneratorPrefix = "quartz.scheduler.instanceIdGenerator";
@@ -243,19 +237,19 @@ public class StdSchedulerFactory : ISchedulerFactory, IDisposable
     }
 
     /// <summary>
-    /// Initializes the factory from the <c>quartz.config</c> file, overridden by any <c>quartz.*</c>
-    /// environment variables.
+    /// Initializes the factory from the <c>quartz.*</c> environment variables.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// This is the entry point for applications that have not moved to <c>AddQuartz</c>, so it still
-    /// finds the file where it has always looked: <c>~/quartz.config</c>, or whatever the
-    /// <c>quartz.config</c> environment variable names. New applications should prefer
-    /// <see cref="IConfiguration"/> with <c>AddQuartz</c>, or <see cref="QuartzSchedulerBuilder"/>.
+    /// This is the entry point for applications that have not moved to <c>AddQuartz</c>. Nothing is read
+    /// from disk: a scheduler is configured either by the properties handed to
+    /// <see cref="Initialize(NameValueCollection)"/>, by environment variables, or — preferably — through
+    /// the container with <see cref="IConfiguration"/> and <c>AddQuartz</c>, or with
+    /// <see cref="QuartzSchedulerBuilder"/>.
     /// </para>
     /// <para>
-    /// Unlike 3.x this does not fail when no file is found. A scheduler can now be configured entirely
-    /// through the container, so the absence of a file is not by itself a misconfiguration.
+    /// Configuring nothing at all is not a misconfiguration. Every setting has a typed default, so a
+    /// scheduler with no configuration is a valid in-memory scheduler.
     /// </para>
     /// </remarks>
     public virtual void Initialize()
@@ -267,62 +261,18 @@ public class StdSchedulerFactory : ISchedulerFactory, IDisposable
         }
 
         logger = LogProvider.CreateLogger<StdSchedulerFactory>();
-        Initialize(OverrideWithSysProps(InitializeProperties(logger, throwOnProblem: false) ?? []));
+        Initialize(OverrideWithSysProps([]));
     }
 
     /// <summary>
-    /// Reads the <c>quartz.config</c> file, if present.
+    /// The environment variable that used to name a <c>quartz.config</c> file.
     /// </summary>
-    internal static NameValueCollection? InitializeProperties(ILogger<StdSchedulerFactory> logger, bool throwOnProblem)
-    {
-        NameValueCollection? props = null;
-
-        string? requestedFile = QuartzEnvironment.GetEnvironmentVariable(PropertiesFile);
-        string propFileName = (requestedFile is not null && !string.IsNullOrWhiteSpace(requestedFile)) ? requestedFile : "~/quartz.config";
-
-        // check for specials
-        propFileName = FileUtil.ResolveFile(propFileName) ?? "quartz.config";
-
-        if (File.Exists(propFileName))
-        {
-            // file system
-            try
-            {
-                PropertiesParser pp = PropertiesParser.ReadFromFileResource(propFileName);
-                props = pp.UnderlyingProperties;
-                logger.LogInformation("Quartz.NET properties loaded from configuration file {PropFileName}", propFileName);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Could not load properties for Quartz from file {PropFileName}: {ExceptionMessage}", propFileName, ex.Message);
-            }
-        }
-
-        if (props is null)
-        {
-            // read from assembly
-            try
-            {
-                PropertiesParser pp = PropertiesParser.ReadFromEmbeddedAssemblyResource("Quartz.quartz.config");
-                props = pp.UnderlyingProperties;
-                logger.LogInformation("Default Quartz.NET properties loaded from embedded resource file");
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Could not load default properties for Quartz from Quartz assembly: {Message}", args: ex.Message);
-            }
-        }
-
-        if (props is null && throwOnProblem)
-        {
-            Throw.SchedulerConfigException(
-                @"Could not find <quartz> configuration section from your application config or load default configuration from assembly.
-Please add configuration to your application config file to correctly initialize Quartz.");
-        }
-
-
-        return props;
-    }
+    /// <remarks>
+    /// No longer honoured — configuration does not come from a file any more. It is still recognised so
+    /// that an application which still sets it is not failed by configuration validation over a variable
+    /// that only looks like a setting.
+    /// </remarks>
+    private const string LegacyPropertiesFileVariable = "quartz.config";
 
     /// <summary>
     /// Creates a new name value collection and overrides its values
@@ -337,9 +287,7 @@ Please add configuration to your application config file to correctly initialize
 
         foreach (string key in vars.Keys)
         {
-            // skip environment variable "quartz.config" that specifies the pros file,
-            // because it looks like part of the quartz props, but is not, so it would make ValidateConfiguration fail
-            if (string.Equals(key, PropertiesFile, StringComparison.Ordinal))
+            if (string.Equals(key, LegacyPropertiesFileVariable, StringComparison.Ordinal))
             {
                 continue;
             }

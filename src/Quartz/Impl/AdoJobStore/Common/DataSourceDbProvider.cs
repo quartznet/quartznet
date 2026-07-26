@@ -7,16 +7,16 @@ namespace Quartz.Impl.AdoJobStore.Common;
 /// connection string Quartz holds.
 /// </summary>
 /// <remarks>
-/// The provider name is still needed, because it selects the SQL dialect metadata, but the connection
-/// itself comes from the data source. It is passed in rather than looked up from configuration, so this
-/// works the same whether the scheduler was configured in code or from a file.
+/// The driver description is still needed, because it decides how parameters are named and typed, but the
+/// connection itself comes from the data source. It is passed in rather than looked up, so this works the
+/// same whether the driver is one Quartz ships a description for or one the application described.
 /// </remarks>
 internal sealed class DataSourceDbProvider : DbProvider
 {
     private readonly DbDataSource source;
 
-    public DataSourceDbProvider(string providerName, DbDataSource source)
-        : base(providerName, string.Empty)
+    public DataSourceDbProvider(DbMetadata metadata, DbDataSource source)
+        : base(metadata, string.Empty)
     {
         this.source = source;
     }

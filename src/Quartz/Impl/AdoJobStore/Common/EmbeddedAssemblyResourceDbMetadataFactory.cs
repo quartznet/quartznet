@@ -9,8 +9,21 @@ namespace Quartz.Impl.AdoJobStore.Common;
 /// </summary>
 internal sealed class EmbeddedAssemblyResourceDbMetadataFactory : DbMetadataFactory
 {
+    /// <summary>
+    /// The resource holding the driver descriptions Quartz ships.
+    /// </summary>
+    internal const string DefaultResourceName = "Quartz.Impl.AdoJobStore.Common.dbproviders.netstandard.properties";
+
     private readonly string resourceName;
     private readonly string propertyGroupName;
+
+    /// <summary>
+    /// Initializes a new instance reading the driver descriptions Quartz ships.
+    /// </summary>
+    public EmbeddedAssemblyResourceDbMetadataFactory()
+        : this(DefaultResourceName, StdSchedulerFactory.PropertyDbProvider)
+    {
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EmbeddedAssemblyResourceDbMetadataFactory"/> class.
