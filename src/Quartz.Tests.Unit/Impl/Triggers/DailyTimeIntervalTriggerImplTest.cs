@@ -943,19 +943,29 @@ public class DailyTimeIntervalTriggerImplTest
     }
 
     [Test]
+    [Category("windowstimezoneid")]
     public void TestDayLightSaving2()
     {
+        // Issue #332. StartTimeUtc must be set explicitly: the builder defaults it to "now",
+        // which clamps afterTime forward and made the original assertion vacuous.
         var timeZoneInfo = TZConvert.GetTimeZoneInfo("Central Standard Time");
 
-        var trigger = DailyTimeIntervalScheduleBuilder.Create()
+        IOperableTrigger trigger = (IOperableTrigger) DailyTimeIntervalScheduleBuilder.Create()
             .OnEveryDay()
             .InTimeZone(timeZoneInfo)
             .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(0, 0))
             .WithIntervalInHours(4)
             .Build();
 
-        var first = trigger.GetFireTimeAfter(new DateTimeOffset(2017, 3, 12, 9, 0, 0, TimeSpan.Zero));
-        Assert.That(first, !Is.EqualTo(new DateTimeOffset(2017, 3, 12, 9, 0, 0, TimeSpan.Zero)));
+        trigger.StartTimeUtc = new DateTimeOffset(2017, 3, 1, 0, 0, 0, TimeSpan.Zero);
+        trigger.ComputeFirstFireTimeUtc(null);
+
+        DateTimeOffset afterTime = new DateTimeOffset(2017, 3, 12, 9, 0, 0, TimeSpan.Zero);
+        DateTimeOffset? first = trigger.GetFireTimeAfter(afterTime);
+
+        first.Should().NotBe(afterTime);
+        // Mar 12 05:00 CDT (-05:00) = Mar 12 10:00 UTC
+        first.Should().Be(new DateTimeOffset(2017, 3, 12, 10, 0, 0, TimeSpan.Zero));
     }
 
     [Test]
@@ -1302,5 +1312,205 @@ public class DailyTimeIntervalTriggerImplTest
         Assert.That(times[2], Is.EqualTo(new DateTimeOffset(2020, 10, 26, 1, 30, 0, TimeSpan.Zero)));
         // Oct 27 02:30 CET (+01:00) = Oct 27 01:30 UTC
         Assert.That(times[3], Is.EqualTo(new DateTimeOffset(2020, 10, 27, 1, 30, 0, TimeSpan.Zero)));
+    }
+
+    [Test]
+    [Category("windowstimezoneid")]
+    public void TestSpringForwardWithHourlyIntervalDoesNotReturnItsOwnInput()
+    {
+        // Reproduces GitHub issue #332: on a spring-forward day the local day is only
+        // 23 hours long, and GetFireTimeAfter used to return the very time it was given.
+        // QuartzSchedulerThread then fires, computes the same next fire time, and fires
+        // again - a hot loop that pins a core and floods the log.
+        // CET, Mar 25 2018: clocks go from CET (+01:00) to CEST (+02:00) at 02:00 local.
+        TimeZoneInfo timeZoneInfo = TZConvert.GetTimeZoneInfo("Central European Standard Time");
+
+        IOperableTrigger trigger = (IOperableTrigger) DailyTimeIntervalScheduleBuilder.Create()
+            .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(0, 0))
+            .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
+            .OnEveryDay()
+            .WithIntervalInHours(1)
+            .InTimeZone(timeZoneInfo)
+            .Build();
+
+        trigger.StartTimeUtc = new DateTimeOffset(2018, 3, 1, 0, 0, 0, TimeSpan.Zero);
+        trigger.ComputeFirstFireTimeUtc(null);
+
+        // 2018-03-25 21:00 UTC is 23:00 CEST, the last hourly slot of the spring-forward day
+        DateTimeOffset afterTime = new DateTimeOffset(2018, 3, 25, 21, 0, 0, TimeSpan.Zero);
+        DateTimeOffset? next = trigger.GetFireTimeAfter(afterTime);
+
+        next.Should().NotBe(afterTime, "GetFireTimeAfter must never return its own input");
+        // Mar 26 00:00 CEST (+02:00) = Mar 25 22:00 UTC
+        next.Should().Be(new DateTimeOffset(2018, 3, 25, 22, 0, 0, TimeSpan.Zero));
+    }
+
+    [Test]
+    [Category("windowstimezoneid")]
+    public void TestSpringForwardWithSubHourIntervalDoesNotMoveBackwards()
+    {
+        // Same root cause as TestSpringForwardWithHourlyIntervalDoesNotReturnItsOwnInput,
+        // but with a sub-hour interval the fire time jumped 55 minutes *backwards*,
+        // replaying the last hour of the spring-forward day forever.
+        TimeZoneInfo timeZoneInfo = TZConvert.GetTimeZoneInfo("Central European Standard Time");
+
+        IOperableTrigger trigger = (IOperableTrigger) DailyTimeIntervalScheduleBuilder.Create()
+            .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(0, 0))
+            .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
+            .OnEveryDay()
+            .WithIntervalInMinutes(5)
+            .InTimeZone(timeZoneInfo)
+            .Build();
+
+        trigger.StartTimeUtc = new DateTimeOffset(2018, 3, 24, 23, 0, 0, TimeSpan.Zero);
+        trigger.ComputeFirstFireTimeUtc(null);
+
+        // 2018-03-25 21:55 UTC is 23:55 CEST, the last slot of the spring-forward day
+        DateTimeOffset afterTime = new DateTimeOffset(2018, 3, 25, 21, 55, 0, TimeSpan.Zero);
+        DateTimeOffset? next = trigger.GetFireTimeAfter(afterTime);
+
+        next.Should().BeAfter(afterTime);
+        // Mar 26 00:00 CEST (+02:00) = Mar 25 22:00 UTC
+        next.Should().Be(new DateTimeOffset(2018, 3, 25, 22, 0, 0, TimeSpan.Zero));
+
+        // The spring-forward day is 23 hours long, so a 5 minute trigger fires 276 times
+        // instead of the usual 288, and never during the local hour that does not exist.
+        List<DateTimeOffset> springForwardDay = TriggerUtils.ComputeFireTimes(trigger, null, 400)
+            .Select(t => TimeZoneInfo.ConvertTime(t, timeZoneInfo))
+            .Where(t => t.Date == new DateTime(2018, 3, 25))
+            .ToList();
+
+        springForwardDay.Should().HaveCount(276);
+        springForwardDay[0].TimeOfDay.Should().Be(new TimeSpan(0, 0, 0));
+        springForwardDay[^1].TimeOfDay.Should().Be(new TimeSpan(23, 55, 0));
+        springForwardDay.Should().NotContain(t => t.Hour == 2, "02:00-02:59 does not exist on the spring-forward day");
+    }
+
+    [Test]
+    [Category("windowstimezoneid")]
+    [TestCase(IntervalUnit.Second, 900)]
+    [TestCase(IntervalUnit.Minute, 1)]
+    [TestCase(IntervalUnit.Minute, 5)]
+    [TestCase(IntervalUnit.Minute, 15)]
+    [TestCase(IntervalUnit.Minute, 30)]
+    [TestCase(IntervalUnit.Minute, 45)]
+    [TestCase(IntervalUnit.Hour, 1)]
+    [TestCase(IntervalUnit.Hour, 2)]
+    [TestCase(IntervalUnit.Hour, 4)]
+    [TestCase(IntervalUnit.Hour, 24)]
+    public void TestSpringForwardFireTimesAreStrictlyIncreasing(IntervalUnit unit, int interval)
+    {
+        // Every interval of one hour or less used to wedge on the spring-forward day: a
+        // slot always lands in the [23h, 24h) window past startTimeOfDay, and that is the
+        // slot the DST correction rewound. Longer intervals escaped only by alignment.
+        TimeZoneInfo timeZoneInfo = TZConvert.GetTimeZoneInfo("Central European Standard Time");
+
+        IOperableTrigger trigger = (IOperableTrigger) DailyTimeIntervalScheduleBuilder.Create()
+            .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(0, 0))
+            .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
+            .OnEveryDay()
+            .WithInterval(interval, unit)
+            .InTimeZone(timeZoneInfo)
+            .Build();
+
+        // Mar 24 23:00 UTC is Mar 25 00:00 CET, the start of the spring-forward day
+        trigger.StartTimeUtc = new DateTimeOffset(2018, 3, 24, 23, 0, 0, TimeSpan.Zero);
+        trigger.ComputeFirstFireTimeUtc(null);
+
+        TimeSpan intervalSpan = unit switch
+        {
+            IntervalUnit.Second => TimeSpan.FromSeconds(interval),
+            IntervalUnit.Minute => TimeSpan.FromMinutes(interval),
+            _ => TimeSpan.FromHours(interval)
+        };
+
+        // enough fire times to get past the end of the spring-forward day
+        int count = (int) (TimeSpan.FromHours(26).Ticks / intervalSpan.Ticks) + 5;
+        IReadOnlyList<DateTimeOffset> times = TriggerUtils.ComputeFireTimes(trigger, null, count);
+
+        for (int i = 1; i < times.Count; i++)
+        {
+            times[i].Should().BeAfter(times[i - 1], $"fire time {i} must come after fire time {i - 1}");
+        }
+
+        times.Select(t => TimeZoneInfo.ConvertTime(t, timeZoneInfo).Date)
+            .Distinct()
+            .Should().HaveCountGreaterThan(1, "the trigger must advance past the spring-forward day");
+    }
+
+    [Test]
+    [Category("windowstimezoneid")]
+    public void TestFallBackWithSubHourIntervalDoesNotDropLastHourOfDay()
+    {
+        // The fall-back day is 25 hours long, so a 5 minute trigger fires 300 times, with
+        // the ambiguous local hour 02:00-02:59 occurring twice. The DST correction used to
+        // push the fires past endTimeOfDay from the 24 hour mark onwards, silently dropping
+        // the last hour of the day (local 23:00-23:55).
+        TimeZoneInfo timeZoneInfo = TZConvert.GetTimeZoneInfo("Central European Standard Time");
+
+        IOperableTrigger trigger = (IOperableTrigger) DailyTimeIntervalScheduleBuilder.Create()
+            .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(0, 0))
+            .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
+            .OnEveryDay()
+            .WithIntervalInMinutes(5)
+            .InTimeZone(timeZoneInfo)
+            .Build();
+
+        // Oct 27 22:00 UTC is Oct 28 00:00 CEST, the start of the fall-back day
+        trigger.StartTimeUtc = new DateTimeOffset(2018, 10, 27, 22, 0, 0, TimeSpan.Zero);
+        trigger.ComputeFirstFireTimeUtc(null);
+
+        List<DateTimeOffset> fallBackDay = TriggerUtils.ComputeFireTimes(trigger, null, 400)
+            .Select(t => TimeZoneInfo.ConvertTime(t, timeZoneInfo))
+            .Where(t => t.Date == new DateTime(2018, 10, 28))
+            .ToList();
+
+        fallBackDay.Should().HaveCount(300);
+        fallBackDay[0].TimeOfDay.Should().Be(new TimeSpan(0, 0, 0));
+        fallBackDay[^1].TimeOfDay.Should().Be(new TimeSpan(23, 55, 0));
+        fallBackDay.Where(t => t.Hour == 2).Should().HaveCount(24, "the ambiguous hour occurs twice");
+    }
+
+    [Test]
+    [Category("windowstimezoneid")]
+    [TestCase(24)]
+    [TestCase(12)]
+    [TestCase(8)]
+    public void TestSpringForwardAtMidnightDoesNotLoop(int intervalInHours)
+    {
+        // Chile moves the clock forward at midnight, so startTimeOfDay 00:00 is itself a local
+        // time that does not exist on the transition day. Resetting the time of day to
+        // startTimeOfDay used to keep whatever UTC offset the fire time already carried, which
+        // resolved 00:00 to an instant an hour before the transition - the same instant that was
+        // passed in. GetFireTimeAfter then returned its own input and the scheduler span.
+        TimeZoneInfo timeZoneInfo = TZConvert.GetTimeZoneInfo("Pacific SA Standard Time");
+
+        Assume.That(timeZoneInfo.IsInvalidTime(new DateTime(2026, 9, 6, 0, 0, 0)),
+            "test premise: the time zone database has Chile moving the clock forward at midnight on 2026-09-06");
+
+        IOperableTrigger trigger = (IOperableTrigger) DailyTimeIntervalScheduleBuilder.Create()
+            .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(0, 0))
+            .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
+            .OnEveryDay()
+            .WithIntervalInHours(intervalInHours)
+            .InTimeZone(timeZoneInfo)
+            .Build();
+
+        trigger.StartTimeUtc = new DateTimeOffset(2026, 9, 4, 10, 0, 0, TimeSpan.Zero);
+        trigger.ComputeFirstFireTimeUtc(null);
+
+        // 2026-09-06 03:00 UTC is 2026-09-05 23:00 -04:00, the last instant before the transition
+        DateTimeOffset afterTime = new DateTimeOffset(2026, 9, 6, 3, 0, 0, TimeSpan.Zero);
+        DateTimeOffset? next = trigger.GetFireTimeAfter(afterTime);
+
+        next.Should().NotBe(afterTime, "GetFireTimeAfter must never return its own input");
+        // 00:00 does not exist on Sep 6, so the first instant that does is 01:00 -03:00 = 04:00 UTC
+        next.Should().Be(new DateTimeOffset(2026, 9, 6, 4, 0, 0, TimeSpan.Zero));
+
+        IReadOnlyList<DateTimeOffset> times = TriggerUtils.ComputeFireTimes(trigger, null, 40);
+        for (int i = 1; i < times.Count; i++)
+        {
+            times[i].Should().BeAfter(times[i - 1], $"fire time {i} must come after fire time {i - 1}");
+        }
     }
 }
