@@ -314,7 +314,7 @@ public class StdAdoDelegateTest
 
     private class TestJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context) => throw new NotSupportedException();
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     [Test]

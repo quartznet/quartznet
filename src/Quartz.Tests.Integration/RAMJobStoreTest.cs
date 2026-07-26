@@ -20,7 +20,7 @@ public abstract class AbstractSchedulerTest
     [PersistJobDataAfterExecution]
     public class TestStatefulJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             return default;
         }
@@ -28,7 +28,7 @@ public abstract class AbstractSchedulerTest
 
     public class TestJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             return default;
         }
@@ -44,7 +44,7 @@ public abstract class AbstractSchedulerTest
 
     public class TestJobWithSync : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -69,7 +69,7 @@ public abstract class AbstractSchedulerTest
     [PersistJobDataAfterExecution]
     public class TestAnnotatedJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             return default;
         }

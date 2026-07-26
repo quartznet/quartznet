@@ -577,7 +577,7 @@ public class ServiceCollectionExtensionsTests
 
     private sealed class DummyJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             return default;
         }

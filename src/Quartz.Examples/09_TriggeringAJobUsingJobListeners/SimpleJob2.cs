@@ -28,7 +28,7 @@ namespace Quartz.Examples.Example09;
 /// <author>Marko Lahma (.NET)</author>
 public class SimpleJob2 : IJob
 {
-    public virtual ValueTask Execute(IJobExecutionContext context)
+    public virtual ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         // This job simply prints out its job name and the
         // date and time that it is running

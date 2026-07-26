@@ -71,10 +71,28 @@
   * `Task` return types and parameters have been changed to `ValueTask`.  Any consumers of Quartz expecting a `Task` will require to update the signatures to `ValueTask`,
      or use the `AsTask()` Method on ValueTask to Return the `ValueTask` as a `Task`  (#988)
 
-  * `IJobFactory.NewJob` now returns `ValueTask<IJob>` and accepts a `CancellationToken`, allowing factories to perform asynchronous work
-    (such as resolving tenant context from an external store) before producing a job instance. Existing synchronous implementations should return
-    `new ValueTask<IJob>(job)`. Built-in factories that derive from `SimpleJobFactory` can call the new protected `InstantiateJobCore` helper
-    when they need a job instance from the synchronous code path. (#3045)
+  * **IJob.Execute** now takes a `CancellationToken` alongside the context:
+    `ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)`. It is the same token as
+    `IJobExecutionContext.CancellationToken`, which stays and keeps working — the parameter exists because a token on a context
+    property is easy to never notice, and a job that never notices it cannot be interrupted and holds up shutdown. As a parameter
+    it is also visible to the `CA2016` analyzer, which now points at every `await` inside a job that fails to forward it. Every
+    job has to change its signature for the `Task` → `ValueTask` move above anyway, so this is one edit rather than two.
+
+  * `IJobFactory` was reshaped around a job *scope* rather than a bare job instance (#3062):
+    `ValueTask<JobScope> CreateJob(TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default)`
+    replaces `NewJob`, and `ValueTask ReturnJob(JobScope scope, CancellationToken cancellationToken = default)` replaces
+    `ReturnJob(IJob)`. The new `JobScope` is a readonly struct carrying the job plus an opaque `State` object, so a factory that
+    has to allocate something to build the job — a DI scope, a connection, a tenant context — gets it handed back when the job is
+    returned instead of having to hide it inside the job instance. Because of that, **`IJobWrapper` has been removed**:
+    `MicrosoftDependencyInjectionJobFactory` no longer wraps the job, so `IJobExecutionContext.JobInstance` and every listener now
+    see the job type the user actually wrote. `ReturnJob` is `public virtual` on `SimpleJobFactory`, so job teardown is
+    overridable. Both members are async and cancellable, closing the one place in the SPI where an async member took no token.
+
+  * `PropertySettingJobFactory.InstantiateJob(TriggerFiredBundle, IScheduler)` — the synchronous hook derived factories override —
+    was replaced by `protected virtual ValueTask<JobScope> CreateJobInstance(TriggerFiredBundle, IScheduler, CancellationToken)`.
+    The old hook was synchronous even after `NewJob` became asynchronous (#3045), so a factory that needed to do real work to
+    produce a job had to override `NewJob` outright and reimplement the property setting this class exists to provide.
+    `SimpleJobFactory.InstantiateJobCore` is unchanged and still available for the synchronous path.
 
   * To configure JSON serialization to be used in job store instead of old `UseJsonSerializer` you should now use either `UseSystemTextJsonSerializer` or `UseNewtonsoftJsonSerializer`
     and remove the old package reference `Quartz.Serialization.Json` (and if Newtonsoft used, reference `Quartz.Serialization.Newtonsoft`). Change was made to distinguish the two common

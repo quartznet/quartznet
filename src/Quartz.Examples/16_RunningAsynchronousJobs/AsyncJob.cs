@@ -32,7 +32,7 @@ public class AsyncJob : IJob
     /// <see cref="ITrigger" /> fires that is associated with
     /// the <see cref="IJob" />.
     /// </summary>
-    public virtual async ValueTask Execute(IJobExecutionContext context)
+    public virtual async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         // This job simply prints out its job name and the
         // date and time that it is running

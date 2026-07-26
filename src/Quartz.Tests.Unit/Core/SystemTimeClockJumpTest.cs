@@ -93,7 +93,7 @@ public sealed class SystemTimeClockJumpTest
     {
         internal static TaskCompletionSource<bool> Signal = null!;
 
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             Signal.TrySetResult(true);
             return default;

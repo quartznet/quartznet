@@ -95,18 +95,38 @@ public class PropertySettingJobFactory : SimpleJobFactory
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>the newly instantiated Job</returns>
     /// <throws>  SchedulerException if there is a problem instantiating the Job. </throws>
-    public override ValueTask<IJob> NewJob(TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default)
+    public override ValueTask<JobScope> CreateJob(TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default)
     {
-        IJob job = InstantiateJob(bundle, scheduler);
+        var creatingScope = CreateJobInstance(bundle, scheduler, cancellationToken);
 
+        if (!creatingScope.IsCompletedSuccessfully)
+        {
+            return AwaitScope(this, creatingScope, bundle, scheduler);
+        }
+
+        return new ValueTask<JobScope>(ApplyProperties(creatingScope.Result, bundle, scheduler));
+
+        static async ValueTask<JobScope> AwaitScope(
+            PropertySettingJobFactory factory,
+            ValueTask<JobScope> creatingScope,
+            TriggerFiredBundle bundle,
+            IScheduler scheduler)
+        {
+            var scope = await creatingScope.ConfigureAwait(false);
+            return factory.ApplyProperties(scope, bundle, scheduler);
+        }
+    }
+
+    private JobScope ApplyProperties(JobScope scope, TriggerFiredBundle bundle, IScheduler scheduler)
+    {
         var jobDataMap = BuildJobDataMap(bundle, scheduler);
 
         if (jobDataMap.Count > 0)
         {
-            SetObjectProperties(job, jobDataMap);
+            SetObjectProperties(scope.Job, jobDataMap);
         }
 
-        return new ValueTask<IJob>(job);
+        return scope;
     }
 
     protected virtual JobDataMap BuildJobDataMap(TriggerFiredBundle bundle, IScheduler scheduler)
@@ -133,9 +153,25 @@ public class PropertySettingJobFactory : SimpleJobFactory
         return jobDataMap;
     }
 
-    protected virtual IJob InstantiateJob(TriggerFiredBundle bundle, IScheduler scheduler)
+    /// <summary>
+    /// Produces the job instance, before any <see cref="JobDataMap" /> properties are applied to it.
+    /// </summary>
+    /// <remarks>
+    /// This is the extension point for derived factories that need to change how the job is built —
+    /// resolving it from a container, for example. It is asynchronous so that such a factory can do
+    /// real work here without having to override <see cref="CreateJob" /> and reimplement the
+    /// property setting this class exists to provide.
+    /// </remarks>
+    /// <param name="bundle">The TriggerFiredBundle from which the <see cref="IJobDetail" />
+    ///   and other info relating to the trigger firing can be obtained.</param>
+    /// <param name="scheduler">a handle to the scheduler that is about to execute the job</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    protected virtual ValueTask<JobScope> CreateJobInstance(
+        TriggerFiredBundle bundle,
+        IScheduler scheduler,
+        CancellationToken cancellationToken = default)
     {
-        return InstantiateJobCore(bundle);
+        return new ValueTask<JobScope>(new JobScope(InstantiateJobCore(bundle)));
     }
 
     /// <summary>
@@ -145,16 +181,9 @@ public class PropertySettingJobFactory : SimpleJobFactory
     /// <param name="data">The data to set.</param>
     public virtual void SetObjectProperties(object obj, JobDataMap data)
     {
-        if (obj is IJobWrapper jobWrapper)
+        foreach (string name in data.Keys)
         {
-            SetObjectProperties(jobWrapper.Target, data);
-        }
-        else
-        {
-            foreach (string name in data.Keys)
-            {
-                SetObjectProperty(obj, name, data[name]);
-            }
+            SetObjectProperty(obj, name, data[name]);
         }
     }
 

@@ -33,7 +33,7 @@ public class HelloJob : IJob
     /// <see cref="ITrigger" /> fires that is associated with
     /// the <see cref="IJob" />.
     /// </summary>
-    public virtual ValueTask Execute(IJobExecutionContext context)
+    public virtual ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         // Say Hello to the World and display the date/time
         var timestamp = DateTime.Now;

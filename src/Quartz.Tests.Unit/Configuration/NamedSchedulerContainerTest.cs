@@ -115,6 +115,6 @@ public class NamedSchedulerContainerTest
 
     public class NoOpJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context) => default;
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
     }
 }

@@ -37,7 +37,7 @@ public class StatefulDumbJob : IJob
     /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
     /// fires that is associated with the <see cref="IJob" />.
     /// </summary>
-    public virtual async ValueTask Execute(IJobExecutionContext context)
+    public virtual async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         Console.WriteLine("---{0} executing.[{1:r}]", context.JobDetail.Key, DateTime.Now);
 
@@ -59,7 +59,7 @@ public class StatefulDumbJob : IJob
             delay = map.GetInt(ExecutionDelay);
         }
 
-        await Task.Delay(delay);
+        await Task.Delay(delay, cancellationToken);
 
         Console.WriteLine("  -{0} complete ({1}).", context.JobDetail.Key, executeCount);
     }

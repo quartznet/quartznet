@@ -37,7 +37,7 @@ public class TestJob : IJob
     /// execution.
     /// </remarks>
     /// <param name="context">The execution context.</param>
-    public ValueTask Execute(IJobExecutionContext context)
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         JobHasFired = true;
         return default;

@@ -99,7 +99,8 @@ public class DirectoryScanJob : IJob
     /// </summary>
     /// <param name="context">The <see cref="IJobExecutionContext"/> that
     /// the job will use during execution.</param>
-    public ValueTask Execute(IJobExecutionContext context)
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         DirectoryScanJobModel model = DirectoryScanJobModel.GetInstance(context, serviceProvider);
 

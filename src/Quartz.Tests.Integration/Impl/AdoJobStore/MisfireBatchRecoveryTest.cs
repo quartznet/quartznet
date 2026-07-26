@@ -254,7 +254,7 @@ public class MisfireBatchRecoveryTest
 
     public sealed class MisfireTestJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context) => default;
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
     }
 
     private sealed class TestJobStoreTX : JobStoreTX

@@ -16,7 +16,7 @@ public class SchedulerTest
     [PersistJobDataAfterExecution]
     public class TestStatefulJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             return default;
         }
@@ -24,7 +24,7 @@ public class SchedulerTest
 
     public class TestJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             return default;
         }
@@ -46,7 +46,7 @@ public class SchedulerTest
             };
         }
 
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             if (!context.JobDetail.JobDataMap.TryGetValue(ExecutingWaitHandleKey, out var executing))
             {
@@ -74,7 +74,7 @@ public class SchedulerTest
     [PersistJobDataAfterExecution]
     public class TestAnnotatedJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             return default;
         }

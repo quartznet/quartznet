@@ -36,7 +36,7 @@ public class DumbInterruptableJob : IJob
     /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
     /// fires that is associated with the <see cref="IJob" />.
     /// </summary>
-    public virtual async ValueTask Execute(IJobExecutionContext context)
+    public virtual async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         jobKey = context.JobDetail.Key;
         Console.WriteLine("---- {0} executing at {1:r}", jobKey, DateTime.Now);
@@ -48,17 +48,17 @@ public class DumbInterruptableJob : IJob
 
             for (int i = 0; i < 4; i++)
             {
-                await Task.Delay(10 * 1000);
-
-                // periodically check if we've been interrupted...
-                if (context.CancellationToken.IsCancellationRequested)
-                {
-                    Console.WriteLine("--- {0}  -- Interrupted... bailing out!", jobKey);
-                    return; // could also choose to throw a JobExecutionException
-                    // if that made for sense based on the particular
-                    // job's responsibilities/behaviors
-                }
+                // hand the token to everything you await, and the wait itself becomes
+                // interruptible - without it, an interrupt would not be noticed until this
+                // ten second sleep finished on its own
+                await Task.Delay(10 * 1000, cancellationToken);
             }
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine("--- {0}  -- Interrupted... bailing out!", jobKey);
+            // could also choose to throw a JobExecutionException if that made for sense
+            // based on the particular job's responsibilities/behaviors
         }
         finally
         {

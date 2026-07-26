@@ -73,7 +73,7 @@ public class CollectDurationBetweenFireTimesJob : IJob
     private static DateTime? lastFireTime;
     private static readonly ILogger<CollectDurationBetweenFireTimesJob> logger = LogProvider.CreateLogger<CollectDurationBetweenFireTimesJob>();
 
-    public ValueTask Execute(IJobExecutionContext context)
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         DateTime now = DateTime.UtcNow;
         logger.LogInformation("Fire time: {FireTime}", now);

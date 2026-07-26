@@ -543,7 +543,7 @@ public class AdoJobStoreSmokeTest
 
     public class BadJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             return default;
         }
@@ -551,7 +551,7 @@ public class AdoJobStoreSmokeTest
 
     public class GoodJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -639,7 +639,7 @@ public class SimpleRecoveryJob : IJob
     /// <see cref="ITrigger" /> fires that is associated with
     /// the <see cref="IJob" />.
     /// </summary>
-    public virtual async ValueTask Execute(IJobExecutionContext context)
+    public virtual async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         // delay for ten seconds
         await Task.Delay(TimeSpan.FromSeconds(10));

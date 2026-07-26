@@ -394,12 +394,12 @@ public sealed class MultipleSchedulerTests
 
     private sealed class TestJobA : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context) => default;
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
     }
 
     private sealed class TestJobB : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context) => default;
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
     }
 
     private sealed class TestJobListenerA : IJobListener

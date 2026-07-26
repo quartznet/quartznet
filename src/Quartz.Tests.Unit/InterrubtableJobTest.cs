@@ -43,7 +43,7 @@ public class InterruptableJobTest
     {
         public static bool interrupted;
 
-        public async ValueTask Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             // Console.WriteLine("TestInterruptableJob is executing.");
             try

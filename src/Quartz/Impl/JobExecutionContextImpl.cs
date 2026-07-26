@@ -213,7 +213,7 @@ public sealed class JobExecutionContextImpl : ICancellableJobExecutionContext, I
     /// interfaces.
     /// </para>
     /// </summary>
-    public IJob JobInstance => (jobInstance as IJobWrapper)?.Target ?? jobInstance;
+    public IJob JobInstance => jobInstance;
 
     /// <summary>
     /// The actual time the trigger fired. For instance the scheduled time may

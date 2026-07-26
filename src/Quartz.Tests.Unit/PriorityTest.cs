@@ -122,7 +122,7 @@ public class PriorityTest
     [PersistJobDataAfterExecution]
     private class TestJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             result.Append(context.Trigger.Key.Name);
             countdownEvent.Signal();

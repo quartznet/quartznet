@@ -14,7 +14,7 @@ public class QuartzSchedulerBuilderTest
 
     public class SignallingJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             fired.TrySetResult(true);
             return default;

@@ -214,7 +214,7 @@ public sealed class NodeAffinityTest
 
     private sealed class TestJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context) => default;
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
     }
 
     private sealed class SampleSignaler : ISchedulerSignaler

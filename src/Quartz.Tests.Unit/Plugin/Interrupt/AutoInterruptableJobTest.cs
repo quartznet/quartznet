@@ -16,7 +16,7 @@ public class AutoInterruptableJobTest
     {
         internal static bool interrupted;
 
-        public async ValueTask Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             // Console.WriteLine("TestInterruptableJob is executing.");
             sync.Release(); // wait for test thread to notice the job is now running

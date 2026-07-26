@@ -99,7 +99,7 @@ public class JobDetailTest
 
     public class GenericJob<T> : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context) => default;
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
     }
 
     public interface IJobSubType { }

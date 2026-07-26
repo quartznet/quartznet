@@ -478,7 +478,7 @@ public class RAMJobStoreBenchmark
         /// <summary>
         /// Do nothing.
         /// </summary>
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             return default;
         }
@@ -489,7 +489,7 @@ public class RAMJobStoreBenchmark
         /// <summary>
         /// Do nothing.
         /// </summary>
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             return default;
         }

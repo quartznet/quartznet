@@ -925,7 +925,7 @@ public class RAMJobStoreTest
     [DisallowConcurrentExecution]
     private class DisallowConcurrentNoOpJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             return default;
         }

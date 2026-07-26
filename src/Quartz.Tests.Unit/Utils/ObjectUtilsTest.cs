@@ -145,7 +145,7 @@ public class ObjectUtilsTest
     [DisallowConcurrentExecution]
     private class BaseJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             // Console.WriteLine(GetType().Name);
             return default;

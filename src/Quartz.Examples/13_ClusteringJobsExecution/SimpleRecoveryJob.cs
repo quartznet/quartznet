@@ -35,7 +35,7 @@ public class SimpleRecoveryJob : IJob
     /// <see cref="ITrigger" /> fires that is associated with
     /// the <see cref="IJob" />.
     /// </summary>
-    public virtual async ValueTask Execute(IJobExecutionContext context)
+    public virtual async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         JobKey jobKey = context.JobDetail.Key;
 
@@ -50,7 +50,7 @@ public class SimpleRecoveryJob : IJob
         }
 
         // delay for ten seconds
-        await Task.Delay(TimeSpan.FromSeconds(10));
+        await Task.Delay(TimeSpan.FromSeconds(10), cancellationToken);
 
         JobDataMap data = context.JobDetail.JobDataMap;
         int count;

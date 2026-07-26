@@ -458,7 +458,7 @@ public class QuartSchedulerBenchmark
         private static int RunCount = 0;
         private static int _operationsPerRun;
 
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             if (Interlocked.Increment(ref RunCount) == _operationsPerRun)
             {

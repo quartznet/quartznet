@@ -81,7 +81,8 @@ public class SendMailJob : IJob
     /// Executes the job.
     /// </summary>
     /// <param name="context">The job execution context.</param>
-    public virtual ValueTask Execute(IJobExecutionContext context)
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    public virtual ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         JobDataMap data = context.MergedJobDataMap;
 

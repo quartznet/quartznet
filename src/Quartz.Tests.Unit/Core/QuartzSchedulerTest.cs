@@ -289,7 +289,7 @@ public class QuartzSchedulerTest
     {
         private static readonly TimeSpan _delay = TimeSpan.FromMilliseconds(200);
 
-        public async ValueTask Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             await Task.Delay(_delay).ConfigureAwait(false);
         }

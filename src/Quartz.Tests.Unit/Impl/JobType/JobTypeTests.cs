@@ -40,7 +40,7 @@ public class JobTypeTests
 
     public sealed class LoggerJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             Console.WriteLine("TestJobExecuted");
             return default;

@@ -13,7 +13,7 @@ public class AsyncDisposableJob : IJob, IAsyncDisposable
         this.dependency = dependency;
     }
 
-    public ValueTask Execute(IJobExecutionContext context)
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("{JobType} running with dependency {DependencyType}", GetType().Name, dependency.GetType().Name);
         return ValueTask.CompletedTask;

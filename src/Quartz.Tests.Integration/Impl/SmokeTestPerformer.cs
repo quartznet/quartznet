@@ -590,7 +590,7 @@ public class SmokeTestPerformer
 
 public class SignallingJob : IJob
 {
-    public async ValueTask Execute(IJobExecutionContext context)
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         var jobStarted = (SemaphoreSlim) context.Scheduler.Context["JobStarted_2255"];
         var jobCanFinish = (SemaphoreSlim) context.Scheduler.Context["JobCanFinish_2255"];
@@ -608,7 +608,7 @@ public class GenericJobType : IJob
 {
     private static readonly ManualResetEventSlim triggered = new ManualResetEventSlim();
 
-    public ValueTask Execute(IJobExecutionContext context)
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         TriggeredCount++;
         triggered.Set();

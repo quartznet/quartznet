@@ -270,7 +270,7 @@ public class RecoverJobsTest
 
         internal static bool runForever = true;
 
-        public async ValueTask Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             long now = DateTime.UtcNow.Ticks;
             int tic = 0;

@@ -61,12 +61,21 @@ public interface IJobFactory
     /// <param name="scheduler">a handle to the scheduler that is about to execute the job</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <throws>  SchedulerException if there is a problem instantiating the Job. </throws>
-    /// <returns> the newly instantiated Job
+    /// <returns>
+    /// The newly instantiated job, together with any per-fire state the factory wants handed back
+    /// to <see cref="ReturnJob" />.
     /// </returns>
-    ValueTask<IJob> NewJob(TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default);
+    ValueTask<JobScope> CreateJob(TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Allows the job factory to destroy/cleanup the job if needed.
+    /// Allows the job factory to destroy/cleanup the job once it has finished executing.
     /// </summary>
-    ValueTask ReturnJob(IJob job);
+    /// <remarks>
+    /// Called for every scope <see cref="CreateJob" /> returned, whether the job succeeded, failed
+    /// or was vetoed. It is not called when <see cref="CreateJob" /> itself throws — a factory that
+    /// allocates before it fails is responsible for its own cleanup on that path.
+    /// </remarks>
+    /// <param name="scope">The scope returned by <see cref="CreateJob" />, carrying the job and its state.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask ReturnJob(JobScope scope, CancellationToken cancellationToken = default);
 }

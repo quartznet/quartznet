@@ -609,7 +609,7 @@ public class SchedulerBenchmark
 
         public static int RunCount => _runCount;
 
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             if (Interlocked.Increment(ref _runCount) == _operationsPerRun)
             {
@@ -648,7 +648,7 @@ public class SchedulerBenchmark
 
         public static int RunCount => _runCount;
 
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             if (Interlocked.Increment(ref _runCount) == _operationsPerRun)
             {
@@ -688,7 +688,7 @@ public class SchedulerBenchmark
 
         public static int RunCount => _runCount;
 
-        public async ValueTask Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             int runs = Interlocked.Increment(ref _runCount);
 

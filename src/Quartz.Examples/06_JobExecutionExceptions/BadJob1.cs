@@ -34,7 +34,7 @@ public class BadJob1 : IJob
     /// Called by the <see cref="IScheduler" /> when a Trigger" />
     /// fires that is associated with the <see cref="IJob" />.
     /// </summary>
-    public virtual ValueTask Execute(IJobExecutionContext context)
+    public virtual ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         JobKey jobKey = context.JobDetail.Key;
         JobDataMap dataMap = context.JobDetail.JobDataMap;

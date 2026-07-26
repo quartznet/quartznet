@@ -63,13 +63,13 @@ public class SimpleJobFactory : IJobFactory
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>the newly instantiated Job</returns>
     /// <throws>  SchedulerException if there is a problem instantiating the Job. </throws>
-    public virtual ValueTask<IJob> NewJob(TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default)
+    public virtual ValueTask<JobScope> CreateJob(TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default)
     {
-        return new ValueTask<IJob>(InstantiateJobCore(bundle));
+        return new ValueTask<JobScope>(new JobScope(InstantiateJobCore(bundle)));
     }
 
     /// <summary>
-    /// Synchronous core of <see cref="NewJob" /> that derived classes can call when
+    /// Synchronous core of <see cref="CreateJob" /> that derived classes can call when
     /// they need a job instance without driving the asynchronous code path.
     /// </summary>
     protected IJob InstantiateJobCore(TriggerFiredBundle bundle)
@@ -93,24 +93,46 @@ public class SimpleJobFactory : IJobFactory
     }
 
     /// <summary>
-    /// Allows the job factory to destroy/cleanup the job if needed.
-    /// No-op when using SimpleJobFactory.
+    /// Allows the job factory to destroy/cleanup the job once it has finished executing.
     /// </summary>
-    public virtual ValueTask ReturnJob(IJob job)
+    /// <remarks>
+    /// Disposes the job, then any state the factory attached to the scope, preferring
+    /// <see cref="IAsyncDisposable" /> over <see cref="IDisposable" /> for each. Anything that is
+    /// neither is left alone.
+    /// </remarks>
+    public virtual ValueTask ReturnJob(JobScope scope, CancellationToken cancellationToken = default)
     {
-        if (job is IAsyncDisposable asyncDisposableJob)
+        var disposingJob = Dispose(scope.Job);
+
+        if (scope.State is null)
         {
-            return asyncDisposableJob.DisposeAsync();
+            return disposingJob;
         }
-        if (job is IDisposable disposableJob)
+
+        if (disposingJob.IsCompletedSuccessfully)
         {
-            disposableJob.Dispose();
+            return Dispose(scope.State);
         }
-        // check for wrapped jobs only if the current job is not disposable
-        // disposable wrappers should handle inner disposal on it's own
-        else if (job is IJobWrapper jobWrapper)
+
+        return AwaitBoth(disposingJob, scope.State);
+
+        static async ValueTask AwaitBoth(ValueTask disposingJob, object state)
         {
-            return ReturnJob(jobWrapper.Target);
+            await disposingJob.ConfigureAwait(false);
+            await Dispose(state).ConfigureAwait(false);
+        }
+    }
+
+    private static ValueTask Dispose(object? target)
+    {
+        if (target is IAsyncDisposable asyncDisposable)
+        {
+            return asyncDisposable.DisposeAsync();
+        }
+
+        if (target is IDisposable disposable)
+        {
+            disposable.Dispose();
         }
 
         return default;

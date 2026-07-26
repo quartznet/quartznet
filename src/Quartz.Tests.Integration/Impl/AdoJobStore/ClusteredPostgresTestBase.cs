@@ -165,7 +165,7 @@ public abstract class ClusteredPostgresTestBase
 
         public static void Reset() => Interlocked.Exchange(ref executions, new ConcurrentQueue<string>());
 
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             Executions.Enqueue(context.Scheduler.SchedulerInstanceId);
             return default;

@@ -10,7 +10,7 @@ public class SlowJob : IJob
         this.logger = logger;
     }
 
-    public async ValueTask Execute(IJobExecutionContext context)
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         // simulate slow behavior happening from time to time
         var sleepTime = random.Next() % 2 == 0
