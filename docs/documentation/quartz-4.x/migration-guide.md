@@ -326,8 +326,11 @@ For example, to migrate jobs:
 public async Task Execute(IJobExecutionContext context)
 
 // 4.x
-public async ValueTask Execute(IJobExecutionContext context)
+public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
 ```
+
+`Execute` also gained a `CancellationToken`. See [Jobs take a CancellationToken](#jobs-take-a-cancellationtoken)
+below for why, and for what to do with it.
 
 ::: warning
 The following operations should never be performed on a `ValueTask<TResult>` instance:
@@ -488,6 +491,28 @@ The following properties are now explicit interface implementations and cannot b
 
 `IListenerManager.GetJobListeners()` and `GetTriggerListeners()` now return arrays instead of `IReadOnlyCollection<T>` for improved performance and reduced allocations.
 
+`ISchedulerListener` now has a `Name`, so all three listener kinds have the same shape and a scheduler listener can
+be addressed by name like the other two. If you derive from `SchedulerListenerSupport` you get the type name for
+free and need no change; implementing the interface directly means adding the property.
+`GetSchedulerListeners()` returns an array, and there are new `GetSchedulerListener(string)` and
+`RemoveSchedulerListener(string)` overloads.
+
+Three members were renamed or re-annotated:
+
+```diff
+- ValueTask SchedulerShuttingdown(CancellationToken cancellationToken = default);
++ ValueTask SchedulerShuttingDown(CancellationToken cancellationToken = default);
+
+- ValueTask JobsPaused(string jobGroup, CancellationToken cancellationToken = default);
++ ValueTask JobsPaused(string? jobGroup, CancellationToken cancellationToken = default);
+
+- ValueTask SchedulerError(string msg, SchedulerException cause, CancellationToken cancellationToken = default);
++ ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default);
+```
+
+The nullable job group matches what the documentation always said: the parameter is null when every group was
+paused.
+
 An `IJobStore` that implements `IJobListener` no longer automatically receives all events. Register it explicitly as a job listener using `ListenerManager`:
 
 ```csharp
@@ -538,6 +563,124 @@ One behavioral note: `ITriggerListener.TriggerMisfired` is now raised for every 
 any of that batch's database updates are written, where previously the notification and the update were
 interleaved per trigger. Everything still happens inside the same transaction and under the same lock, so
 what other nodes observe is unchanged.
+
+## Jobs take a CancellationToken
+
+`IJob.Execute` now takes the cancellation token as a parameter alongside the context:
+
+```diff
+- public async ValueTask Execute(IJobExecutionContext context)
++ public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+```
+
+It is the *same* token as `IJobExecutionContext.CancellationToken`, which still works — so a job body that already
+reads the token off the context needs no further change. The parameter exists because a token on a context property
+is easy to never notice, and a job that never notices it cannot be interrupted by `IScheduler.Interrupt` and will
+hold up shutdown until it finishes on its own.
+
+The practical benefit is that the compiler now helps. With the token as a parameter, the built-in `CA2016` analyzer
+flags every `await` inside a job that fails to pass it on:
+
+```diff
+  public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+  {
+-     await httpClient.GetAsync(url);              // CA2016: forward the cancellationToken parameter
++     await httpClient.GetAsync(url, cancellationToken);
+  }
+```
+
+When adding this to Quartz's own jobs it found nine places that were silently ignoring interruption, including the
+sample that exists to demonstrate interruption.
+
+## The job factory hands out a scope
+
+`IJobFactory` is built around a `JobScope` rather than a bare `IJob`, and `NewJob` is now `CreateJob`:
+
+```diff
+- ValueTask<IJob> NewJob(TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default);
+- ValueTask ReturnJob(IJob job);
++ ValueTask<JobScope> CreateJob(TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default);
++ ValueTask ReturnJob(JobScope scope, CancellationToken cancellationToken = default);
+```
+
+`JobScope` is a readonly struct holding the job plus an opaque `State` object. If your factory allocates something
+in order to build a job — a DI scope, a connection, a tenant context — put it in `State` and you get it back in
+`ReturnJob` instead of having to hide it inside the job instance:
+
+```diff
+- protected override IJob InstantiateJob(TriggerFiredBundle bundle, IScheduler scheduler)
+- {
+-     var scope = serviceProvider.CreateScope();
+-     return new MyWrapperJob(scope, scope.ServiceProvider.GetRequiredService<MyJob>());
+- }
++ protected override ValueTask<JobScope> CreateJobInstance(
++     TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default)
++ {
++     var scope = serviceProvider.CreateScope();
++     return new ValueTask<JobScope>(
++         new JobScope(scope.ServiceProvider.GetRequiredService<MyJob>(), scope));
++ }
+```
+
+Because of that, **`IJobWrapper` has been removed** and `MicrosoftDependencyInjectionJobFactory` no longer wraps
+your job. `IJobExecutionContext.JobInstance` and every listener now see the type you actually wrote.
+
+`PropertySettingJobFactory.InstantiateJob` — the hook derived factories override — was replaced by the asynchronous
+`CreateJobInstance` shown above. The old hook was synchronous even after `NewJob` became asynchronous, so a factory
+that needed to do real work had to override `NewJob` outright and reimplement the property setting.
+
+## Trigger fire times are properties
+
+```diff
+- DateTimeOffset? next = trigger.GetNextFireTimeUtc();
++ DateTimeOffset? next = trigger.NextFireTimeUtc;
+
+- operableTrigger.SetNextFireTimeUtc(value);
++ operableTrigger.NextFireTimeUtc = value;
+```
+
+The two `Get` methods still work — they are `[Obsolete]` forwarders on both `ITrigger` and `AbstractTrigger` — so
+this shows up as a warning rather than an error and you can fix it by deleting `Get` and `()`. The `Set` methods
+have no stand-in, because a method and a property setter cannot share a name; those are a compile error.
+
+## The thread pool is asynchronous
+
+Only relevant if you implement `IThreadPool` yourself:
+
+```diff
+- bool RunInThread(Func<Task> runnable);
+- int BlockForAvailableThreads();
+- void Initialize();
+- void Shutdown(bool waitForJobsToComplete = true);
+- string InstanceId { set; }
+- string InstanceName { set; }
++ ValueTask<bool> TryRun(Func<Task> action, CancellationToken cancellationToken = default);
++ ValueTask<int> WaitForAvailableThreads(CancellationToken cancellationToken = default);
++ ValueTask Initialize(CancellationToken cancellationToken = default);
++ ValueTask Shutdown(bool waitForJobsToComplete = true, CancellationToken cancellationToken = default);
+```
+
+The two renamed methods used to block the calling thread on a semaphore, and the caller is the scheduler's own
+asynchronous loop, so waiting for pool capacity tied up a thread. Use `WaitAsync` in your implementation.
+
+`InstanceId` and `InstanceName` are gone rather than moved: Quartz set them and nothing ever read them. If your
+pool wants the scheduler's identity, take `IOptions<QuartzSchedulerOptions>` from the container.
+
+## Quartz.Spi and Quartz.Simpl were renamed
+
+`Quartz.Spi` is now `Quartz.Extensibility`, and `Quartz.Simpl` merged into the existing `Quartz.Impl`. Both old
+names were transliterations of `org.quartz.spi` and `org.quartz.simpl`. For source code this is a find-and-replace
+over `using` directives that the compiler will walk you through.
+
+Configuration is the part that would not have failed loudly, because it names types by string:
+
+```diff
+- quartz.jobStore.type = Quartz.Simpl.RAMJobStore, Quartz
++ quartz.jobStore.type = Quartz.Impl.RAMJobStore, Quartz
+```
+
+**Existing configuration keeps working.** A type name that does not resolve is retried under its pre-4.0 namespace,
+and a warning is logged naming both spellings. Treat that as a grace period rather than a promise.
 
 ## Other Breaking Changes
 

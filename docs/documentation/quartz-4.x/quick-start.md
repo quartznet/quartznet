@@ -230,7 +230,7 @@ We need a simple test job to test the functionality, lets create HelloJob that o
 ```csharp
 public class HelloJob : IJob
 {
- public async ValueTask Execute(IJobExecutionContext context)
+ public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
  {
   await Console.Out.WriteLineAsync("Greetings from HelloJob!");
  }
@@ -326,7 +326,7 @@ namespace QuartzSampleApp
 
     public class HelloJob : IJob
     {
-        public async ValueTask Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             await Console.Out.WriteLineAsync("Greetings from HelloJob!");
         }
