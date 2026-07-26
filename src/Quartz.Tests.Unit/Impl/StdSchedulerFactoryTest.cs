@@ -197,6 +197,85 @@ public class StdSchedulerFactoryTest
         Assert.ThrowsAsync<SchedulerException>(() => factory.GetScheduler());
     }
 
+    [Test]
+    public async Task ShouldCreateSchedulerWhenLookedUpByItsConfiguredName()
+    {
+        const string SchedulerName = "NamedLookupCreatesScheduler";
+        var factory = new StdSchedulerFactory(PropertiesForScheduler(SchedulerName));
+
+        // no GetScheduler() call first, which used to be the only way to get a non-null result here
+        IScheduler scheduler = await factory.GetScheduler(SchedulerName);
+
+        try
+        {
+            scheduler.Should().NotBeNull();
+            scheduler.SchedulerName.Should().Be(SchedulerName);
+        }
+        finally
+        {
+            await scheduler.Shutdown();
+        }
+    }
+
+    [Test]
+    public async Task ShouldReturnSameSchedulerForNamedAndDefaultLookup()
+    {
+        const string SchedulerName = "NamedLookupReturnsSameScheduler";
+        var factory = new StdSchedulerFactory(PropertiesForScheduler(SchedulerName));
+
+        IScheduler defaultScheduler = await factory.GetScheduler();
+
+        try
+        {
+            IScheduler namedScheduler = await factory.GetScheduler(SchedulerName);
+            namedScheduler.Should().BeSameAs(defaultScheduler);
+        }
+        finally
+        {
+            await defaultScheduler.Shutdown();
+        }
+    }
+
+    [Test]
+    public async Task ShouldMatchConfiguredSchedulerNameCaseInsensitively()
+    {
+        const string SchedulerName = "NamedLookupIgnoresCase";
+        var factory = new StdSchedulerFactory(PropertiesForScheduler(SchedulerName));
+
+        IScheduler scheduler = await factory.GetScheduler(SchedulerName.ToLowerInvariant());
+
+        try
+        {
+            scheduler.Should().NotBeNull("SchedulerRepository indexes names case-insensitively, so creating by name should too");
+            scheduler.SchedulerName.Should().Be(SchedulerName);
+        }
+        finally
+        {
+            await scheduler.Shutdown();
+        }
+    }
+
+    [Test]
+    public async Task ShouldNotCreateSchedulerWhenLookedUpByAnotherName()
+    {
+        const string SchedulerName = "NamedLookupOtherName";
+        var factory = new StdSchedulerFactory(PropertiesForScheduler(SchedulerName));
+
+        IScheduler scheduler = await factory.GetScheduler("SchedulerThisFactoryDoesNotProduce");
+
+        scheduler.Should().BeNull();
+        SchedulerRepository.Instance.Lookup(SchedulerName).Should().BeNull("asking for another name must not create this factory's own scheduler");
+    }
+
+    private static NameValueCollection PropertiesForScheduler(string schedulerName)
+    {
+        return new NameValueCollection
+        {
+            ["quartz.scheduler.instanceName"] = schedulerName,
+            ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
+        };
+    }
+
     private class TestStdSchedulerFactory : StdSchedulerFactory
     {
         public const string PropertyTest = "quartz.scheduler.test";
