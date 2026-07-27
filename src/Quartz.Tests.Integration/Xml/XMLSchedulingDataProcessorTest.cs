@@ -30,8 +30,7 @@ using Quartz.Impl;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Tests.Integration.Utils;
 using Quartz.Xml;
 
@@ -72,7 +71,7 @@ public class XMLSchedulingDataProcessorTest
     {
         Stream s = ReadJobXmlFromEmbeddedResource("MinimalConfiguration_20.xml");
         await processor.ProcessStream(s, null);
-        Assert.That(processor.OverWriteExistingData, Is.False);
+        Assert.That(processor.OverwriteExistingData, Is.False);
 
         await processor.ScheduleJobs(mockScheduler);
     }
@@ -82,7 +81,7 @@ public class XMLSchedulingDataProcessorTest
     {
         Stream s = ReadJobXmlFromEmbeddedResource("RichConfiguration_20.xml");
         await processor.ProcessStream(s, null);
-        Assert.That(processor.OverWriteExistingData, Is.False);
+        Assert.That(processor.OverwriteExistingData, Is.False);
         Assert.That(processor.IgnoreDuplicates, Is.True);
 
         await processor.ScheduleJobs(mockScheduler);
@@ -106,8 +105,7 @@ public class XMLSchedulingDataProcessorTest
         DateTimeOffset previousFireTime = new DateTimeOffset(2013, 2, 15, 15, 0, 0, TimeSpan.Zero);
         SimpleTriggerImpl existing = new SimpleTriggerImpl("triggerToReplace", "groupToReplace", startTime, null, SimpleTriggerImpl.RepeatIndefinitely, TimeSpan.FromHours(1));
         existing.JobKey = new JobKey("jobName1", "jobGroup1");
-        existing.SetPreviousFireTimeUtc(previousFireTime);
-        existing.GetNextFireTimeUtc();
+        existing.PreviousFireTimeUtc = previousFireTime;
 
         A.CallTo(() => mockScheduler.GetTrigger(existing.Key, A<CancellationToken>._)).Returns(new ValueTask<ITrigger>(existing));
 
@@ -123,7 +121,7 @@ public class XMLSchedulingDataProcessorTest
             // replacement trigger should have same start time and next fire relative to old trigger's last fire time
             Assert.That(argumentTrigger, Is.Not.Null);
             Assert.That(argumentTrigger.StartTimeUtc, Is.EqualTo(startTime));
-            Assert.That(argumentTrigger.GetNextFireTimeUtc(), Is.EqualTo(previousFireTime.AddSeconds(10)));
+            Assert.That(argumentTrigger.NextFireTimeUtc, Is.EqualTo(previousFireTime.AddSeconds(10)));
             return true;
         }).MustHaveHappened();
     }
@@ -137,7 +135,7 @@ public class XMLSchedulingDataProcessorTest
     }
 
     /// <summary>
-    /// The default XMLSchedulingDataProcessor will setOverWriteExistingData(true), and we want to
+    /// The default XMLSchedulingDataProcessor will set OverwriteExistingData to true, and we want to
     /// test programmatically overriding this value.
     /// </summary>
     /// <remarks>
@@ -256,7 +254,6 @@ public class XMLSchedulingDataProcessorTest
 
             // Now load the xml data with directives: overwrite-existing-data=false, ignore-duplicates=true
             ITypeLoadHelper loadHelper = new SimpleTypeLoadHelper();
-            loadHelper.Initialize();
             XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(logger, loadHelper, TimeProvider.System);
             await processor.ProcessFileAndScheduleJobs(tempFileName, scheduler);
             var jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("DEFAULT"));

@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Options;
 
 using Quartz.Impl.Matchers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 using Lifetime = Microsoft.Extensions.Hosting.IHostApplicationLifetime;
 
@@ -33,7 +33,7 @@ public class QuartzHostedServiceTests
     {
         public MockScheduler LastCreatedScheduler { get; private set; }
 
-        public ValueTask<IReadOnlyList<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default)
+        public ValueTask<List<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -47,7 +47,7 @@ public class QuartzHostedServiceTests
             return scheduler;
         }
 
-        public ValueTask<IScheduler> GetScheduler(string schedName, CancellationToken cancellationToken = default)
+        public ValueTask<IScheduler> GetScheduler(string schedulerName, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -64,7 +64,7 @@ public class QuartzHostedServiceTests
         public IListenerManager ListenerManager { get; }
         public bool IsStarted { get; private set; }
 
-        public ValueTask AddCalendar(string name, ICalendar calendar, bool replace, bool updateTriggers, CancellationToken cancellationToken = default)
+        public ValueTask AddCalendar(string calendarName, ICalendar calendar, bool replace, bool updateTriggers, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -94,7 +94,7 @@ public class QuartzHostedServiceTests
             throw new NotImplementedException();
         }
 
-        public ValueTask<bool> DeleteCalendar(string name, CancellationToken cancellationToken = default)
+        public ValueTask<bool> DeleteCalendar(string calendarName, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -109,7 +109,7 @@ public class QuartzHostedServiceTests
             throw new NotImplementedException();
         }
 
-        public ValueTask<ICalendar> GetCalendar(string name, CancellationToken cancellationToken = default)
+        public ValueTask<ICalendar> GetCalendar(string calendarName, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }

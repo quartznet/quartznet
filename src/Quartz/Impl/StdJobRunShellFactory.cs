@@ -20,7 +20,7 @@
 using Microsoft.Extensions.Logging;
 
 using Quartz.Core;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Impl;
 
@@ -49,9 +49,9 @@ internal sealed class StdJobRunShellFactory : IJobRunShellFactory
     /// that should be made available within the <see cref="JobRunShell" /> and
     /// the <see cref="IJobExecutionContext" /> s within it.
     /// </summary>
-    public void Initialize(IScheduler sched)
+    public void Initialize(IScheduler scheduler)
     {
-        scheduler = sched;
+        this.scheduler = scheduler;
     }
 
     /// <summary>

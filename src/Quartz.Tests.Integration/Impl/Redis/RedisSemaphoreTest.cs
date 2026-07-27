@@ -18,7 +18,7 @@ public class RedisSemaphoreTest
         semaphore = new RedisSemaphore
         {
             RedisConfiguration = RedisTestEnvironment.ConnectionString,
-            SchedName = "TestScheduler",
+            SchedulerName = "TestScheduler",
             KeyPrefix = "quartz:test:lock:"
         };
 
@@ -60,8 +60,8 @@ public class RedisSemaphoreTest
 
         Assert.That(sut.RedisConfiguration, Is.EqualTo("localhost:6379"));
         Assert.That(sut.KeyPrefix, Is.EqualTo("quartz:lock:"));
-        Assert.That(sut.LockTtlMilliseconds, Is.EqualTo(30_000));
-        Assert.That(sut.LockRetryIntervalMilliseconds, Is.EqualTo(100));
+        sut.LockTimeToLive.Should().Be(TimeSpan.FromSeconds(30), "the default lock TTL must survive the move from milliseconds to TimeSpan");
+        sut.LockRetryInterval.Should().Be(TimeSpan.FromMilliseconds(100), "the default retry interval must survive the move from milliseconds to TimeSpan");
     }
 
     [Test]
@@ -177,9 +177,9 @@ public class RedisSemaphoreTest
         var shortTtlSemaphore = new RedisSemaphore
         {
             RedisConfiguration = RedisTestEnvironment.ConnectionString,
-            SchedName = "TestScheduler",
+            SchedulerName = "TestScheduler",
             KeyPrefix = "quartz:test:lock:",
-            LockTtlMilliseconds = 2000
+            LockTimeToLive = TimeSpan.FromSeconds(2)
         };
 
         var requestorId = Guid.NewGuid();
@@ -248,7 +248,7 @@ public class RedisSemaphoreTest
         var semaphore2 = new RedisSemaphore
         {
             RedisConfiguration = RedisTestEnvironment.ConnectionString,
-            SchedName = "TestScheduler",
+            SchedulerName = "TestScheduler",
             KeyPrefix = "quartz:test:lock:"
         };
 

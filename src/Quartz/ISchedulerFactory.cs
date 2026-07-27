@@ -35,7 +35,7 @@ public interface ISchedulerFactory
     /// Returns handles to all known Schedulers (made by any SchedulerFactory
     /// within this app domain.).
     /// </summary>
-    ValueTask<IReadOnlyList<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default);
+    ValueTask<List<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns a client-usable handle to a <see cref="IScheduler" />.
@@ -46,5 +46,5 @@ public interface ISchedulerFactory
     /// Returns a handle to the Scheduler with the given name. A factory can create the scheduler it is
     /// configured to produce; any other name is returned only if that scheduler already exists.
     /// </summary>
-    ValueTask<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default);
+    ValueTask<IScheduler?> GetScheduler(string schedulerName, CancellationToken cancellationToken = default);
 }

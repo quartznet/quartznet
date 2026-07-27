@@ -9,7 +9,7 @@ public abstract class DbMetadataFactory
     /// Gets the supported provider names.
     /// </summary>
     /// <returns>The enumeration of the supported provider names</returns>
-    public abstract IReadOnlyCollection<string> GetProviderNames();
+    public abstract List<string> GetProviderNames();
 
     /// <summary>
     /// Gets the database metadata associated to the specified provider name.

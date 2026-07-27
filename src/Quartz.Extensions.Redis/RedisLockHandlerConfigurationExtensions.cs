@@ -37,14 +37,14 @@ public static class RedisLockHandlerConfigurationExtensions
                 semaphore.KeyPrefix = options.KeyPrefix;
             }
 
-            if (options.LockTtlMilliseconds.HasValue)
+            if (options.LockTimeToLive.HasValue)
             {
-                semaphore.LockTtlMilliseconds = options.LockTtlMilliseconds.Value;
+                semaphore.LockTimeToLive = options.LockTimeToLive.Value;
             }
 
-            if (options.LockRetryIntervalMilliseconds.HasValue)
+            if (options.LockRetryInterval.HasValue)
             {
-                semaphore.LockRetryIntervalMilliseconds = options.LockRetryIntervalMilliseconds.Value;
+                semaphore.LockRetryInterval = options.LockRetryInterval.Value;
             }
 
             return semaphore;
@@ -76,18 +76,18 @@ public sealed class RedisLockHandlerOptions
     public string? KeyPrefix { get; set; }
 
     /// <summary>
-    /// Gets or sets the lock TTL (time-to-live) in milliseconds.
+    /// Gets or sets the lock time-to-live.
     /// </summary>
     /// <remarks>
-    /// When not set, defaults to <c>30000</c> (30 seconds).
+    /// When not set, defaults to 30 seconds.
     /// </remarks>
-    public int? LockTtlMilliseconds { get; set; }
+    public TimeSpan? LockTimeToLive { get; set; }
 
     /// <summary>
-    /// Gets or sets the polling interval in milliseconds between <c>SET NX</c> retry attempts.
+    /// Gets or sets the polling interval between <c>SET NX</c> retry attempts.
     /// </summary>
     /// <remarks>
-    /// When not set, defaults to <c>100</c> milliseconds.
+    /// When not set, defaults to 100 milliseconds.
     /// </remarks>
-    public int? LockRetryIntervalMilliseconds { get; set; }
+    public TimeSpan? LockRetryInterval { get; set; }
 }

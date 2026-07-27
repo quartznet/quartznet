@@ -36,7 +36,7 @@ public class InterrupInProgressJobsExample : IExample
         Console.WriteLine("------- Initializing ----------------------");
 
         // First we must get a reference to a scheduler
-        IScheduler sched = await ExampleScheduler.Create();
+        IScheduler scheduler = await ExampleScheduler.Create();
 
         Console.WriteLine("------- Initialization Complete -----------");
 
@@ -56,12 +56,12 @@ public class InterrupInProgressJobsExample : IExample
             .WithSimpleSchedule(x => x.WithIntervalInSeconds(5).RepeatForever())
             .Build();
 
-        DateTimeOffset ft = await sched.ScheduleJob(job, trigger);
+        DateTimeOffset ft = await scheduler.ScheduleJob(job, trigger);
         Console.WriteLine($"{job.Key} will run at: {ft:r} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
 
         // start up the scheduler (jobs do not start to fire until
         // the scheduler has been started)
-        await sched.Start();
+        await scheduler.Start();
         Console.WriteLine("------- Started Scheduler -----------------");
 
         Console.WriteLine("------- Starting loop to interrupt job every 7 seconds ----------");
@@ -71,7 +71,7 @@ public class InterrupInProgressJobsExample : IExample
             {
                 await Task.Delay(TimeSpan.FromSeconds(7));
                 // tell the scheduler to interrupt our job
-                await sched.Interrupt(job.Key);
+                await scheduler.Interrupt(job.Key);
             }
             catch (Exception ex)
             {
@@ -81,10 +81,10 @@ public class InterrupInProgressJobsExample : IExample
 
         Console.WriteLine("------- Shutting Down ---------------------");
 
-        await sched.Shutdown(true);
+        await scheduler.Shutdown(true);
 
         Console.WriteLine("------- Shutdown Complete -----------------");
-        SchedulerMetaData metaData = await sched.GetMetaData();
+        SchedulerMetaData metaData = await scheduler.GetMetaData();
         Console.WriteLine($"Executed {metaData.NumberOfJobsExecuted} jobs.");
     }
 }

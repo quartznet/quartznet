@@ -3,7 +3,7 @@ using System.Text.Json;
 using Quartz.HttpApiContract;
 using Quartz.Impl.Matchers;
 using Quartz.Serialization.Json;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.HttpClient;
 
@@ -63,11 +63,6 @@ public class HttpScheduler : IScheduler
         }
     }
 
-    public IJobFactory JobFactory
-    {
-        set => Throw.SchedulerException("Operation not supported for remote schedulers.");
-    }
-
     public IListenerManager ListenerManager
     {
         get
@@ -103,20 +98,20 @@ public class HttpScheduler : IScheduler
     {
         var schedulerDto = await GetSchedulerDetails(cancellationToken).ConfigureAwait(false);
         var metadata = new SchedulerMetaData(
-            schedName: schedulerDto.Name,
-            schedInst: schedulerDto.SchedulerInstanceId,
-            schedType: GetType(),
+            schedulerName: schedulerDto.Name,
+            schedulerInstanceId: schedulerDto.SchedulerInstanceId,
+            schedulerType: GetType(),
             isRemote: true,
             started: schedulerDto.Status == SchedulerStatus.Running,
             isInStandbyMode: schedulerDto.Status == SchedulerStatus.Standby,
             shutdown: schedulerDto.Status == SchedulerStatus.Shutdown,
             startTime: schedulerDto.Statistics.RunningSince,
-            numberOfJobsExec: schedulerDto.Statistics.NumberOfJobsExecuted,
-            jsType: Type.GetType(schedulerDto.JobStore.Type, throwOnError: true)!,
-            jsPersistent: schedulerDto.JobStore.Persistent,
-            jsClustered: schedulerDto.JobStore.Clustered,
-            tpType: Type.GetType(schedulerDto.ThreadPool.Type, throwOnError: true)!,
-            tpSize: schedulerDto.ThreadPool.Size,
+            numberOfJobsExecuted: schedulerDto.Statistics.NumberOfJobsExecuted,
+            jobStoreType: Type.GetType(schedulerDto.JobStore.Type, throwOnError: true)!,
+            jobStoreSupportsPersistence: schedulerDto.JobStore.Persistent,
+            jobStoreClustered: schedulerDto.JobStore.Clustered,
+            threadPoolType: Type.GetType(schedulerDto.ThreadPool.Type, throwOnError: true)!,
+            threadPoolSize: schedulerDto.ThreadPool.Size,
             version: schedulerDto.Statistics.Version
         );
 
@@ -498,28 +493,28 @@ public class HttpScheduler : IScheduler
         return httpClient.Post($"{TriggerEndpointUrl(triggerKey)}/reset-from-error-state", jsonSerializerOptions, cancellationToken);
     }
 
-    public ValueTask AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers, CancellationToken cancellationToken = default)
+    public ValueTask AddCalendar(string calendarName, ICalendar calendar, bool replace, bool updateTriggers, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(calName))
+        if (string.IsNullOrWhiteSpace(calendarName))
         {
-            throw new ArgumentException("Calendar name required", nameof(calName));
+            throw new ArgumentException("Calendar name required", nameof(calendarName));
         }
 
         ArgumentNullException.ThrowIfNull(calendar);
 
-        var requestContent = new AddCalendarRequest(calName, calendar, replace, updateTriggers);
+        var requestContent = new AddCalendarRequest(calendarName, calendar, replace, updateTriggers);
         return httpClient.Post(CalendarEndpointUrl(), requestContent, jsonSerializerOptions, cancellationToken);
     }
 
-    public async ValueTask<bool> DeleteCalendar(string calName, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> DeleteCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
-        var result = await httpClient.DeleteWithResponse<DeleteCalendarResponse>(CalendarEndpointUrl(calName), jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        var result = await httpClient.DeleteWithResponse<DeleteCalendarResponse>(CalendarEndpointUrl(calendarName), jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
         return result.CalendarFound;
     }
 
-    public ValueTask<ICalendar?> GetCalendar(string calName, CancellationToken cancellationToken = default)
+    public ValueTask<ICalendar?> GetCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
-        return httpClient.GetWithNullForNotFound<ICalendar>(CalendarEndpointUrl(calName), jsonSerializerOptions, cancellationToken);
+        return httpClient.GetWithNullForNotFound<ICalendar>(CalendarEndpointUrl(calendarName), jsonSerializerOptions, cancellationToken);
     }
 
     public async ValueTask<List<string>> GetCalendarNames(CancellationToken cancellationToken = default)

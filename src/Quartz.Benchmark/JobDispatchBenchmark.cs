@@ -4,7 +4,7 @@ using BenchmarkDotNet.Attributes;
 using Quartz.Core;
 using Quartz.Impl;
 using Quartz.Job;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Benchmark;
 
@@ -25,7 +25,7 @@ public class JobDispatchBenchmark
             .Build();
 
         trigger.FireInstanceId = "fire-instance-id";
-        trigger.SetNextFireTimeUtc(DateTimeOffset.UtcNow.AddSeconds(10));
+        trigger.NextFireTimeUtc = DateTimeOffset.UtcNow.AddSeconds(10);
         var bundle = new TriggerFiredBundle(job, trigger, null, false, DateTimeOffset.UtcNow, null, null, null);
         shell = new JobRunShell(scheduler, bundle, NullLogger<JobRunShell>.Instance);
     }
@@ -33,7 +33,7 @@ public class JobDispatchBenchmark
     [Benchmark]
     public async Task Run()
     {
-        await shell.Initialize(scheduler.sched);
+        await shell.Initialize(scheduler.scheduler);
         await shell.Run();
     }
 }

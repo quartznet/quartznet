@@ -17,8 +17,8 @@ using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
 using Quartz.Serialization.Json;
 using Quartz.Serialization.Newtonsoft;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 
 using StjJsonSerializerOptions = System.Text.Json.JsonSerializerOptions;
 
@@ -41,14 +41,12 @@ public class JsonObjectSerializerTest
 
         newtonsoftSerializer = new IndentingJsonObjectSerializer(newtonsoftRegistry);
         newtonsoftSerializer.RegisterTriggerConverters = true;
-        newtonsoftSerializer.Initialize();
 
         var systemTextJsonRegistry = new SystemTextJsonSerializerRegistry()
             .AddCalendarSerializer<JsonSerializationTestCalendar>(new JsonSerializationTestCalendar.SystemTextJsonSerializer())
             .AddTriggerSerializer<JsonSerializationTestTrigger>(new JsonSerializationTestTrigger.SystemTextJsonSerializer());
 
         systemTextJsonSerializer = new IndentingSystemTextJsonObjectSerializer(systemTextJsonRegistry);
-        systemTextJsonSerializer.Initialize();
     }
 
     [Test]
@@ -324,8 +322,8 @@ public class JsonObjectSerializerTest
             {
                 using (new AssertionScope())
                 {
-                    original.GetNextFireTimeUtc().Should().Be(deserialized.GetNextFireTimeUtc());
-                    original.GetPreviousFireTimeUtc().Should().Be(deserialized.GetPreviousFireTimeUtc());
+                    original.NextFireTimeUtc.Should().Be(deserialized.NextFireTimeUtc);
+                    original.PreviousFireTimeUtc.Should().Be(deserialized.PreviousFireTimeUtc);
                 }
             }
         );
@@ -364,8 +362,8 @@ public class JsonObjectSerializerTest
             {
                 using (new AssertionScope())
                 {
-                    original.GetNextFireTimeUtc().Should().Be(deserialized.GetNextFireTimeUtc());
-                    original.GetPreviousFireTimeUtc().Should().Be(deserialized.GetPreviousFireTimeUtc());
+                    original.NextFireTimeUtc.Should().Be(deserialized.NextFireTimeUtc);
+                    original.PreviousFireTimeUtc.Should().Be(deserialized.PreviousFireTimeUtc);
                 }
             }
         );
@@ -407,8 +405,8 @@ public class JsonObjectSerializerTest
             {
                 using (new AssertionScope())
                 {
-                    original.GetNextFireTimeUtc().Should().Be(deserialized.GetNextFireTimeUtc());
-                    original.GetPreviousFireTimeUtc().Should().Be(deserialized.GetPreviousFireTimeUtc());
+                    original.NextFireTimeUtc.Should().Be(deserialized.NextFireTimeUtc);
+                    original.PreviousFireTimeUtc.Should().Be(deserialized.PreviousFireTimeUtc);
                 }
             }
         );
@@ -449,8 +447,8 @@ public class JsonObjectSerializerTest
             {
                 using (new AssertionScope())
                 {
-                    original.GetNextFireTimeUtc().Should().Be(deserialized.GetNextFireTimeUtc());
-                    original.GetPreviousFireTimeUtc().Should().Be(deserialized.GetPreviousFireTimeUtc());
+                    original.NextFireTimeUtc.Should().Be(deserialized.NextFireTimeUtc);
+                    original.PreviousFireTimeUtc.Should().Be(deserialized.PreviousFireTimeUtc);
                 }
             }
         );
@@ -492,8 +490,8 @@ public class JsonObjectSerializerTest
             {
                 using (new AssertionScope())
                 {
-                    original.GetNextFireTimeUtc().Should().Be(deserialized.GetNextFireTimeUtc());
-                    original.GetPreviousFireTimeUtc().Should().Be(deserialized.GetPreviousFireTimeUtc());
+                    original.NextFireTimeUtc.Should().Be(deserialized.NextFireTimeUtc);
+                    original.PreviousFireTimeUtc.Should().Be(deserialized.PreviousFireTimeUtc);
                 }
             }
         );
@@ -517,7 +515,7 @@ public class JsonObjectSerializerTest
         foreach (var (serializer, deserializer) in comparisons)
         {
             byte[] bytes = serializer.Serialize(original);
-            T deserialized = deserializer.DeSerialize<T>(bytes);
+            T deserialized = deserializer.Deserialize<T>(bytes);
 
             asserter?.Invoke(deserialized, original);
 
@@ -564,7 +562,7 @@ public class JsonObjectSerializerTest
         field!.SetValue(trigger, timeProvider);
     }
 
-    private class IndentingJsonObjectSerializer(NewtonsoftJsonSerializerRegistry registry) : NewtonsoftJsonObjectSerializer(registry)
+    private sealed class IndentingJsonObjectSerializer(NewtonsoftJsonSerializerRegistry registry) : NewtonsoftJsonObjectSerializer(registry)
     {
         protected override JsonSerializerSettings CreateSerializerSettings()
         {
@@ -574,7 +572,7 @@ public class JsonObjectSerializerTest
         }
     }
 
-    private class IndentingSystemTextJsonObjectSerializer(SystemTextJsonSerializerRegistry registry) : SystemTextJsonObjectSerializer(registry)
+    private sealed class IndentingSystemTextJsonObjectSerializer(SystemTextJsonSerializerRegistry registry) : SystemTextJsonObjectSerializer(registry)
     {
         protected override StjJsonSerializerOptions CreateSerializerOptions()
         {
@@ -666,7 +664,7 @@ public class JsonSerializationTestTrigger : SimpleTriggerImpl
         }
     }
 
-    public sealed class NewtonsoftSerializer : Triggers.TriggerSerializer<JsonSerializationTestTrigger>
+    public sealed class NewtonsoftSerializer : Serialization.Newtonsoft.Triggers.TriggerSerializer<JsonSerializationTestTrigger>
     {
         public override string TriggerTypeForJson => "TestTrigger";
 

@@ -24,7 +24,7 @@ using System.Text;
 
 using Quartz.Impl;
 using Quartz.Impl.Triggers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit;
 
@@ -56,31 +56,31 @@ public class PriorityTest
     {
         NameValueCollection config = new NameValueCollection();
         config["quartz.threadPool.threadCount"] = "1";
-        config["quartz.threadPool.type"] = "Quartz.Simpl.DefaultThreadPool";
+        config["quartz.threadPool.type"] = "Quartz.Impl.DefaultThreadPool";
         config["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
 
-        IScheduler sched = await new StdSchedulerFactory(config).GetScheduler();
+        IScheduler scheduler = await new StdSchedulerFactory(config).GetScheduler();
 
         DateTime n = DateTime.UtcNow;
-        DateTime cal = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond, DateTimeKind.Utc);
+        DateTime date = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond, DateTimeKind.Utc);
 
-        IMutableTrigger trig1 = new SimpleTriggerImpl("T1", cal);
-        IMutableTrigger trig2 = new SimpleTriggerImpl("T2", cal);
+        IMutableTrigger trig1 = new SimpleTriggerImpl("T1", date);
+        IMutableTrigger trig2 = new SimpleTriggerImpl("T2", date);
 
         JobDetailImpl jobDetail = new JobDetailImpl("JD", typeof(TestJob));
 
-        await sched.ScheduleJob(jobDetail, trig1);
+        await scheduler.ScheduleJob(jobDetail, trig1);
 
         trig2.JobKey = new JobKey(jobDetail.Key.Name);
-        await sched.ScheduleJob(trig2);
+        await scheduler.ScheduleJob(trig2);
 
-        await sched.Start();
+        await scheduler.Start();
 
         countdownEvent.Wait();
 
         Assert.That(result.ToString(), Is.EqualTo("T1T2"));
 
-        await sched.Shutdown();
+        await scheduler.Shutdown();
     }
 
     [Test]
@@ -88,41 +88,41 @@ public class PriorityTest
     {
         NameValueCollection config = new NameValueCollection();
         config["quartz.threadPool.threadCount"] = "1";
-        config["quartz.threadPool.type"] = "Quartz.Simpl.DefaultThreadPool";
+        config["quartz.threadPool.type"] = "Quartz.Impl.DefaultThreadPool";
         config["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
 
-        IScheduler sched = await new StdSchedulerFactory(config).GetScheduler();
+        IScheduler scheduler = await new StdSchedulerFactory(config).GetScheduler();
 
         DateTime n = DateTime.UtcNow.AddSeconds(1);
-        DateTime cal = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond, DateTimeKind.Utc);
+        DateTime date = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond, DateTimeKind.Utc);
 
-        IOperableTrigger trig1 = new SimpleTriggerImpl("T1", cal);
+        IOperableTrigger trig1 = new SimpleTriggerImpl("T1", date);
         trig1.Priority = 5;
 
-        IOperableTrigger trig2 = new SimpleTriggerImpl("T2", cal);
+        IOperableTrigger trig2 = new SimpleTriggerImpl("T2", date);
         trig2.Priority = 10;
 
         JobDetailImpl jobDetail = new JobDetailImpl("JD", typeof(TestJob));
 
-        await sched.ScheduleJob(jobDetail, trig1);
+        await scheduler.ScheduleJob(jobDetail, trig1);
 
         trig2.JobKey = new JobKey(jobDetail.Key.Name);
-        await sched.ScheduleJob(trig2);
+        await scheduler.ScheduleJob(trig2);
 
-        await sched.Start();
+        await scheduler.Start();
 
         countdownEvent.Wait();
 
         Assert.That(result.ToString(), Is.EqualTo("T2T1"));
 
-        await sched.Shutdown();
+        await scheduler.Shutdown();
     }
 
     [DisallowConcurrentExecution]
     [PersistJobDataAfterExecution]
-    private class TestJob : IJob
+    private sealed class TestJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             result.Append(context.Trigger.Key.Name);
             countdownEvent.Signal();

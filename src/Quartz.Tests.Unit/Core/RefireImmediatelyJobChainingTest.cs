@@ -95,7 +95,7 @@ public sealed class RefireTrackingJob : IJob
         Interlocked.Exchange(ref lastExecutionTicks, 0);
     }
 
-    public ValueTask Execute(IJobExecutionContext context)
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         var count = Interlocked.Increment(ref executionCount);
         Interlocked.Exchange(ref lastExecutionTicks, DateTimeOffset.UtcNow.UtcTicks);
@@ -126,7 +126,7 @@ public sealed class ChainedTrackingJob : IJob
         completed.Reset();
     }
 
-    public ValueTask Execute(IJobExecutionContext context)
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         var count = Interlocked.Increment(ref executionCount);
         if (count == 1)

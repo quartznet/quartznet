@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Util;
 
 namespace Quartz.Serialization.Json.Converters;
@@ -59,8 +59,8 @@ internal sealed class TriggerConverter(SystemTextJsonSerializerRegistry registry
                 var nextFireTimeUtc = rootElement.GetPropertyOrNull(options.GetPropertyName("NextFireTimeUtc"))?.GetDateTimeOffsetOrNull();
                 var previousFireTimeUtc = rootElement.GetPropertyOrNull(options.GetPropertyName("PreviousFireTimeUtc"))?.GetDateTimeOffsetOrNull();
 
-                operableTrigger.SetNextFireTimeUtc(nextFireTimeUtc);
-                operableTrigger.SetPreviousFireTimeUtc(previousFireTimeUtc);
+                operableTrigger.NextFireTimeUtc = nextFireTimeUtc;
+                operableTrigger.PreviousFireTimeUtc = previousFireTimeUtc;
             }
 
             if (trigger is Quartz.Impl.Triggers.AbstractTrigger abstractTrigger)
@@ -97,8 +97,8 @@ internal sealed class TriggerConverter(SystemTextJsonSerializerRegistry registry
             writer.WriteString(options.GetPropertyName("StartTimeUtc"), value.StartTimeUtc);
             writer.WriteString(options.GetPropertyName("EndTimeUtc"), value.EndTimeUtc);
             writer.WriteNumber(options.GetPropertyName("Priority"), value.Priority);
-            writer.WriteString(options.GetPropertyName("NextFireTimeUtc"), value.GetNextFireTimeUtc());
-            writer.WriteString(options.GetPropertyName("PreviousFireTimeUtc"), value.GetPreviousFireTimeUtc());
+            writer.WriteString(options.GetPropertyName("NextFireTimeUtc"), value.NextFireTimeUtc);
+            writer.WriteString(options.GetPropertyName("PreviousFireTimeUtc"), value.PreviousFireTimeUtc);
 
             if (value is Quartz.Impl.Triggers.AbstractTrigger abstractTrigger)
             {

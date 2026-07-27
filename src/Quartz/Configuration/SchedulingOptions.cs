@@ -12,18 +12,18 @@ public class SchedulingOptions
     /// error will occur.
     /// </remarks>
     /// <seealso cref="IgnoreDuplicates" />
-    public bool OverWriteExistingData { get; set; } = true;
+    public bool OverwriteExistingData { get; set; } = true;
 
     /// <summary>
-    /// If true (and <see cref="OverWriteExistingData" /> is false) then any
+    /// If true (and <see cref="OverwriteExistingData" /> is false) then any
     /// job/triggers encountered in this file that have names that already exist
     /// in the scheduler will be ignored, and no error will be produced.
     /// </summary>
-    /// <seealso cref="OverWriteExistingData"/>
+    /// <seealso cref="OverwriteExistingData"/>
     public bool IgnoreDuplicates { get; set; }
 
     /// <summary>
-    /// If true (and <see cref="OverWriteExistingData" /> is true) then any
+    /// If true (and <see cref="OverwriteExistingData" /> is true) then any
     /// job/triggers encountered in this file that already exist is scheduler
     /// will be updated with start time relative to old trigger. Effectively
     /// new trigger's last fire time will be updated to old trigger's last fire time

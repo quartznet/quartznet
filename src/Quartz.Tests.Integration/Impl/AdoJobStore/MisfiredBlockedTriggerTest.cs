@@ -130,7 +130,7 @@ internal sealed class MisfiredBlockedTriggerTestSlowJob : IJob
     /// </summary>
     internal static readonly SemaphoreSlim Started = new(0, 1);
 
-    public async ValueTask Execute(IJobExecutionContext context)
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         try
         {

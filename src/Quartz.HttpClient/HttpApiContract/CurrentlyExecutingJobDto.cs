@@ -1,5 +1,5 @@
 using Quartz.Impl;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.HttpApiContract;
 
@@ -42,11 +42,11 @@ internal record CurrentlyExecutingJobDto(
         var triggerFiredBundle = new TriggerFiredBundle(
             job: jobDetail,
             trigger: (IOperableTrigger) Trigger,
-            cal: Calendar,
+            calendar: Calendar,
             jobIsRecovering: Recovering,
             fireTimeUtc: FireTime,
             scheduledFireTimeUtc: ScheduledFireTime,
-            prevFireTimeUtc: PreviousFireTime,
+            previousFireTimeUtc: PreviousFireTime,
             nextFireTimeUtc: NextFireTime
         );
 

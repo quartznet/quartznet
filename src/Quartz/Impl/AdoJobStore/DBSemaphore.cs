@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -42,31 +42,31 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
 
     private string tablePrefix = null!;
 
-    private string? schedName;
+    private string? schedulerName;
 
-    private string expandedSQL = null!;
-    private string expandedInsertSQL = null!;
+    private string expandedSql = null!;
+    private string expandedInsertSql = null!;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DBSemaphore"/> class.
     /// </summary>
     /// <param name="tablePrefix">The table prefix.</param>
-    /// <param name="schedName">the scheduler name</param>
-    /// <param name="defaultInsertSQL">The SQL.</param>
-    /// <param name="defaultSQL">The default SQL.</param>
+    /// <param name="schedulerName">the scheduler name</param>
+    /// <param name="defaultInsertSql">The SQL.</param>
+    /// <param name="defaultSql">The default SQL.</param>
     /// <param name="dbProvider">The db provider.</param>
     protected DBSemaphore(
         string tablePrefix,
-        string? schedName,
-        string defaultSQL,
-        string defaultInsertSQL,
+        string? schedulerName,
+        string defaultSql,
+        string defaultInsertSql,
         IDbProvider dbProvider)
     {
         logger = LogProvider.CreateLogger<DBSemaphore>();
-        this.schedName = schedName;
+        this.schedulerName = schedulerName;
         this.tablePrefix = tablePrefix;
-        SQL = defaultSQL;
-        InsertSQL = defaultInsertSQL;
+        Sql = defaultSql;
+        InsertSql = defaultInsertSql;
         AdoUtil = new AdoUtil(dbProvider);
     }
 
@@ -79,13 +79,13 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
     /// <summary>
     /// Execute the SQL that will lock the proper database row.
     /// </summary>
-    protected abstract ValueTask ExecuteSQL(
+    protected abstract ValueTask ExecuteSql(
         Guid requestorId,
         ConnectionAndTransactionHolder conn,
         string lockName,
         string expandedSql,
         string expandedInsertSql,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Grants a lock on the identified resource to the calling thread (blocking
@@ -107,7 +107,7 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
         var key = new ThreadLockKey(requestorId, lockName);
         if (!IsLockOwner(key))
         {
-            await ExecuteSQL(requestorId, conn!, lockName, expandedSQL, expandedInsertSQL, cancellationToken)
+            await ExecuteSql(requestorId, conn!, lockName, expandedSql, expandedInsertSql, cancellationToken)
                 .ConfigureAwait(false);
 
             if (isDebugEnabled)
@@ -169,7 +169,7 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
     /// </summary>
     public bool RequiresConnection => true;
 
-    protected string SQL
+    protected string Sql
     {
         get => sql;
         set
@@ -183,8 +183,9 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
         }
     }
 
-    protected string InsertSQL
+    protected string InsertSql
     {
+        get => insertSql;
         set
         {
             if (!string.IsNullOrWhiteSpace(value))
@@ -200,15 +201,15 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
     {
         if (TablePrefix is not null && sql is not null && insertSql is not null)
         {
-            expandedSQL = AdoJobStoreUtil.ReplaceTablePrefix(sql, TablePrefix);
-            expandedInsertSQL = AdoJobStoreUtil.ReplaceTablePrefix(insertSql, TablePrefix);
+            expandedSql = AdoJobStoreUtil.ReplaceTablePrefix(sql, TablePrefix);
+            expandedInsertSql = AdoJobStoreUtil.ReplaceTablePrefix(insertSql, TablePrefix);
         }
     }
 
-    public string? SchedName
+    public string? SchedulerName
     {
-        get => schedName;
-        set => schedName = value;
+        get => schedulerName;
+        set => schedulerName = value;
     }
 
     /// <summary>

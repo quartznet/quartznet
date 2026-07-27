@@ -96,12 +96,12 @@ public sealed class DateBuilder
     /// <summary>
     /// Create a DateBuilder, with initial settings for the current date and time in the given timezone.
     /// </summary>
-    /// <param name="tz">Time zone to use.</param>
+    /// <param name="timeZone">Time zone to use.</param>
     /// <param name="timeProvider"></param>
     /// <returns></returns>
-    public static DateBuilder NewDateInTimeZone(TimeZoneInfo tz, TimeProvider? timeProvider = null)
+    public static DateBuilder NewDateInTimeZone(TimeZoneInfo timeZone, TimeProvider? timeProvider = null)
     {
-        return new DateBuilder(timeProvider ?? TimeProvider.System, tz);
+        return new DateBuilder(timeProvider ?? TimeProvider.System, timeZone);
     }
 
     /// <summary>
@@ -218,11 +218,11 @@ public sealed class DateBuilder
     /// <summary>
     /// Set the TimeZoneInfo for the Date that will be built by this builder (if "null", system default will be used)
     /// </summary>
-    /// <param name="tz"></param>
+    /// <param name="timeZone"></param>
     /// <returns></returns>
-    public DateBuilder InTimeZone(TimeZoneInfo tz)
+    public DateBuilder InTimeZone(TimeZoneInfo timeZone)
     {
-        this.tz = tz;
+        tz = timeZone;
         return this;
     }
 

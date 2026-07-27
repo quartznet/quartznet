@@ -89,7 +89,7 @@ public class ShutdownDuringTriggerAcquisitionTest
     /// </summary>
     public class SlowJob : IJob
     {
-        public async ValueTask Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             await Task.Delay(1000);
         }
@@ -160,7 +160,7 @@ public class ShutdownDuringTriggerAcquisitionTest
 
     public class SimpleJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             return ValueTask.CompletedTask;
         }

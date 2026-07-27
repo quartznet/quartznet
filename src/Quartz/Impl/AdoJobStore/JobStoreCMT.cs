@@ -26,7 +26,7 @@ using Microsoft.Extensions.Options;
 
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Util;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Impl.AdoJobStore;
 
@@ -78,7 +78,7 @@ public class JobStoreCMT : JobStoreSupport
         {
             // If the user hasn't specified an explicit lock handler,
             // then we ///must/// use DB locks with CMT...
-            UseDBLocks = true;
+            UseDbLocks = true;
         }
 
         await base.Initialize(cancellationToken).ConfigureAwait(false);
@@ -108,7 +108,7 @@ public class JobStoreCMT : JobStoreSupport
     /// Gets the non managed TX connection.
     /// </summary>
     /// <returns></returns>
-    protected override async ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection()
+    protected override async ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection(CancellationToken cancellationToken = default)
     {
         DbConnection conn;
         try
@@ -116,7 +116,7 @@ public class JobStoreCMT : JobStoreSupport
             conn = DbProvider.CreateConnection();
             if (OpenConnection)
             {
-                await conn.OpenAsync().ConfigureAwait(false);
+                await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
             }
         }
         catch (Exception e)
@@ -136,8 +136,8 @@ public class JobStoreCMT : JobStoreSupport
     /// </summary>
     /// <seealso cref="JobStoreSupport.ExecuteInNonManagedTXLock" />
     /// <seealso cref="JobStoreSupport.ExecuteInLock" />
-    /// <seealso cref="JobStoreSupport.GetNonManagedTXConnection()" />
-    /// <seealso cref="JobStoreSupport.GetConnection()" />
+    /// <seealso cref="JobStoreSupport.GetNonManagedTXConnection(CancellationToken)" />
+    /// <seealso cref="JobStoreSupport.GetConnection(CancellationToken)" />
     /// <param name="lockName">
     /// The name of the lock to acquire, for example
     /// "TRIGGER_ACCESS".  If null, then no lock is acquired, but the
@@ -161,7 +161,7 @@ public class JobStoreCMT : JobStoreSupport
                 // until after acquiring the lock since it isn't needed.
                 if (LockHandler.RequiresConnection)
                 {
-                    conn = await GetNonManagedTXConnection().ConfigureAwait(false);
+                    conn = await GetNonManagedTXConnection(cancellationToken).ConfigureAwait(false);
                 }
 
                 transOwner = await LockHandler.ObtainLock(requestorId, conn!, lockName, cancellationToken).ConfigureAwait(false);
@@ -169,7 +169,7 @@ public class JobStoreCMT : JobStoreSupport
 
             if (conn is null)
             {
-                conn = await GetNonManagedTXConnection().ConfigureAwait(false);
+                conn = await GetNonManagedTXConnection(cancellationToken).ConfigureAwait(false);
             }
 
             return await txCallback(conn).ConfigureAwait(false);
@@ -182,7 +182,7 @@ public class JobStoreCMT : JobStoreSupport
             }
             finally
             {
-                await CleanupConnection(conn).ConfigureAwait(false);
+                await CleanupConnection(conn, cancellationToken).ConfigureAwait(false);
             }
         }
     }

@@ -6,8 +6,8 @@ using FakeItEasy;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Triggers;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 
@@ -130,7 +130,7 @@ public class UpdateMisfiredTriggersBatchTest
                 RepeatCount = SimpleTriggerImpl.RepeatIndefinitely,
                 RepeatInterval = TimeSpan.FromMinutes(1)
             };
-            trigger.SetNextFireTimeUtc(DateTimeOffset.UtcNow.AddMinutes(1));
+            trigger.NextFireTimeUtc = DateTimeOffset.UtcNow.AddMinutes(1);
 
             updates.Add(new MisfiredTriggerUpdate(trigger, AdoConstants.StateWaiting, null));
         }

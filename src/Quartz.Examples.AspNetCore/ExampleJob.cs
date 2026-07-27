@@ -18,7 +18,7 @@ public class ExampleJob : IJob, IDisposable
     public string? InjectedString { get; set; }
     public bool InjectedBool { get; set; }
 
-    public async ValueTask Execute(IJobExecutionContext context)
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         logger.LogInformation(
             "Job {Job} executing, triggered by {Trigger}. InjectedString: {InjectedString}, InjectedBool: {InjectedBool}",
@@ -28,10 +28,10 @@ public class ExampleJob : IJob, IDisposable
             InjectedBool);
 
         using var httpClient = httpClientFactory.CreateClient("example");
-        var result = await httpClient.GetFromJsonAsync<JsonObject>("http://localhost:5000/healthz");
+        var result = await httpClient.GetFromJsonAsync<JsonObject>("http://localhost:5000/healthz", cancellationToken);
         logger.LogInformation("Got health check result {Result}", result);
 
-        await Task.Delay(TimeSpan.FromSeconds(1));
+        await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
     }
 
     public void Dispose()

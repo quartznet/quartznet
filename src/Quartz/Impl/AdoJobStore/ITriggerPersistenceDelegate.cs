@@ -21,7 +21,7 @@
 
 using System.Data.Common;
 
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Impl.AdoJobStore;
 

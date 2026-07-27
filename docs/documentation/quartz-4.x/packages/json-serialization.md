@@ -101,8 +101,8 @@ using System.Runtime.Serialization.Formatters.Binary;
 
 using Newtonsoft.Json;
 
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 
 namespace Quartz;
 
@@ -111,14 +111,12 @@ public sealed class MigratorSerializer : IObjectSerializer
     // you might need custom configuration, see sections about customizing in documentation
     private readonly NewtonsoftJsonObjectSerializer jsonSerializer = new();
 
-    public void Initialize() => jsonSerializer.Initialize();
-
-    public T DeSerialize<T>(byte[] data) where T : class
+    public T Deserialize<T>(byte[] data) where T : class
     {
         try
         {
             // Attempt to deserialize data as JSON
-            return jsonSerializer.DeSerialize<T>(data)!;
+            return jsonSerializer.Deserialize<T>(data)!;
         }
         catch (JsonReaderException)
         {
@@ -249,5 +247,4 @@ var registry = new NewtonsoftJsonSerializerRegistry()
     .AddTriggerSerializer<CustomTrigger>(new CustomTriggerSerializer());
 
 var serializer = new NewtonsoftJsonObjectSerializer(registry);
-serializer.Initialize();
 ```

@@ -24,7 +24,7 @@ using System.Globalization;
 
 using AwesomeAssertions.Execution;
 
-using Quartz.Simpl;
+using Quartz.Impl;
 
 namespace Quartz.Tests.Unit;
 

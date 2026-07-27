@@ -59,11 +59,11 @@ public class StdRowLockSemaphore : DBSemaphore
     /// Initializes a new instance of the <see cref="StdRowLockSemaphore"/> class.
     /// </summary>
     /// <param name="tablePrefix">The table prefix.</param>
-    /// <param name="schedName">the scheduler name</param>
-    /// <param name="selectWithLockSQL">The select with lock SQL.</param>
+    /// <param name="schedulerName">the scheduler name</param>
+    /// <param name="selectWithLockSql">The select with lock SQL.</param>
     /// <param name="dbProvider"></param>
-    public StdRowLockSemaphore(string tablePrefix, string schedName, string? selectWithLockSQL, IDbProvider dbProvider)
-        : base(tablePrefix, schedName, selectWithLockSQL ?? SelectForLock, InsertLock, dbProvider)
+    public StdRowLockSemaphore(string tablePrefix, string schedulerName, string? selectWithLockSql, IDbProvider dbProvider)
+        : base(tablePrefix, schedulerName, selectWithLockSql ?? SelectForLock, InsertLock, dbProvider)
     {
     }
 
@@ -83,13 +83,13 @@ public class StdRowLockSemaphore : DBSemaphore
     /// <summary>
     /// Execute the SQL select for update that will lock the proper database row.
     /// </summary>
-    protected override async ValueTask ExecuteSQL(
+    protected override async ValueTask ExecuteSql(
         Guid requestorId,
         ConnectionAndTransactionHolder conn,
         string lockName,
         string expandedSql,
         string expandedInsertSql,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         Exception? initCause = null;
         // attempt lock two times (to work-around possible race conditions in inserting the lock row the first time running)
@@ -105,7 +105,7 @@ public class StdRowLockSemaphore : DBSemaphore
             try
             {
                 using DbCommand cmd = AdoUtil.PrepareCommand(conn, expandedSql);
-                AdoUtil.AddCommandParameter(cmd, "schedulerName", SchedName);
+                AdoUtil.AddCommandParameter(cmd, "schedulerName", SchedulerName);
                 AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
 
                 bool found;
@@ -127,7 +127,7 @@ public class StdRowLockSemaphore : DBSemaphore
                     }
 
                     using DbCommand cmd2 = AdoUtil.PrepareCommand(conn, expandedInsertSql);
-                    AdoUtil.AddCommandParameter(cmd2, "schedulerName", SchedName);
+                    AdoUtil.AddCommandParameter(cmd2, "schedulerName", SchedulerName);
                     AdoUtil.AddCommandParameter(cmd2, "lockName", lockName);
                     int res = await cmd2.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 

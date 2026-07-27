@@ -2,10 +2,9 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 using Quartz.Impl.Calendar;
-using Quartz.Serialization.Newtonsoft;
 using Quartz.Util;
 
-namespace Quartz.Converters;
+namespace Quartz.Serialization.Newtonsoft;
 
 internal sealed class CalendarConverter(NewtonsoftJsonSerializerRegistry registry) : JsonConverter
 {

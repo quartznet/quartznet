@@ -30,8 +30,8 @@ using Microsoft.Data.SqlClient;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Triggers;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;
@@ -46,7 +46,6 @@ public class StdAdoDelegateTest
     public StdAdoDelegateTest(Type serializerType)
     {
         serializer = (IObjectSerializer) Activator.CreateInstance(serializerType);
-        serializer.Initialize();
     }
 
     [Test]
@@ -86,7 +85,7 @@ public class StdAdoDelegateTest
         }
     }
 
-    private class NonSerializableTestClass;
+    private sealed class NonSerializableTestClass;
 
     [Test]
     public async Task TestSelectBlobTriggerWithNoBlobContent()
@@ -257,7 +256,7 @@ public class StdAdoDelegateTest
             BindByName = true,
             ParameterNamePrefix = "@"
         };
-        dbMetadata.Init();
+        dbMetadata.Initialize();
         A.CallTo(() => dbProvider.Metadata)
             .Returns(dbMetadata);
 
@@ -312,9 +311,9 @@ public class StdAdoDelegateTest
         Assert.That(command.CommandText, Is.EqualTo(expectedCommandText));
     }
 
-    private class TestJob : IJob
+    private sealed class TestJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context) => throw new NotSupportedException();
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
 
     [Test]
@@ -416,7 +415,7 @@ public class StdAdoDelegateTest
         A.CallTo(() => dataReader[AdoConstants.ColumnJobGroup]).Returns("DEFAULT");
         A.CallTo(() => dataReader[AdoConstants.ColumnDescription]).Returns(DBNull.Value);
         A.CallTo(() => dataReader[AdoConstants.ColumnCalendarName]).Returns(DBNull.Value);
-        A.CallTo(() => dataReader[AdoConstants.ColumnMifireInstruction]).Returns(2);
+        A.CallTo(() => dataReader[AdoConstants.ColumnMisfireInstruction]).Returns(2);
         A.CallTo(() => dataReader[AdoConstants.ColumnPriority]).Returns(5);
         A.CallTo(() => dataReader[AdoConstants.ColumnNextFireTime]).Returns(nextFireTime.UtcTicks);
         A.CallTo(() => dataReader[AdoConstants.ColumnPreviousFireTime]).Returns(prevFireTime.UtcTicks);
@@ -454,8 +453,8 @@ public class StdAdoDelegateTest
         Assert.That(trigger, Is.Not.Null);
         Assert.Multiple(() =>
         {
-            Assert.That(trigger.GetNextFireTimeUtc(), Is.EqualTo(nextFireTime));
-            Assert.That(trigger.GetPreviousFireTimeUtc(), Is.EqualTo(prevFireTime));
+            Assert.That(trigger.NextFireTimeUtc, Is.EqualTo(nextFireTime));
+            Assert.That(trigger.PreviousFireTimeUtc, Is.EqualTo(prevFireTime));
             Assert.That(trigger.MisfireInstruction, Is.EqualTo(2));
         });
     }
@@ -496,7 +495,7 @@ public class StdAdoDelegateTest
         A.CallTo(() => dataReader[AdoConstants.ColumnJobGroup]).Returns("DEFAULT");
         A.CallTo(() => dataReader[AdoConstants.ColumnDescription]).Returns(DBNull.Value);
         A.CallTo(() => dataReader[AdoConstants.ColumnCalendarName]).Returns(DBNull.Value);
-        A.CallTo(() => dataReader[AdoConstants.ColumnMifireInstruction]).Returns(1);
+        A.CallTo(() => dataReader[AdoConstants.ColumnMisfireInstruction]).Returns(1);
         A.CallTo(() => dataReader[AdoConstants.ColumnPriority]).Returns(5);
         A.CallTo(() => dataReader[AdoConstants.ColumnNextFireTime]).Returns(nextFireTime.UtcTicks);
         A.CallTo(() => dataReader[AdoConstants.ColumnPreviousFireTime]).Returns(DBNull.Value);
@@ -532,7 +531,7 @@ public class StdAdoDelegateTest
         Assert.That(trigger, Is.Not.Null);
         Assert.Multiple(() =>
         {
-            Assert.That(trigger.GetNextFireTimeUtc(), Is.EqualTo(nextFireTime));
+            Assert.That(trigger.NextFireTimeUtc, Is.EqualTo(nextFireTime));
             Assert.That(trigger.MisfireInstruction, Is.EqualTo(1));
             Assert.That(((AbstractTrigger) trigger).MisfiredFromFireTimeUtc, Is.EqualTo(misfireOrigFireTime));
         });
@@ -556,7 +555,7 @@ public class StdAdoDelegateTest
         adoDelegate.Initialize(delegateInitializationArgs);
     }
 
-    private class TestStdAdoDelegate : StdAdoDelegate
+    private sealed class TestStdAdoDelegate : StdAdoDelegate
     {
         private readonly ITriggerPersistenceDelegate testDelegate;
 
@@ -575,7 +574,7 @@ public class StdAdoDelegateTest
     /// Test subclass that bypasses actual blob deserialization to return a pre-built trigger,
     /// allowing tests to verify that SelectTrigger sets fire times from DB columns on blob triggers.
     /// </summary>
-    private class BlobTriggerOverrideDelegate : StdAdoDelegate
+    private sealed class BlobTriggerOverrideDelegate : StdAdoDelegate
     {
         private readonly IOperableTrigger blobTrigger;
 
@@ -690,4 +689,4 @@ public class StubParameterCollection : DbParameterCollection
     }
 }
 
-internal class TestTriggerPersistenceDelegate : SimpleTriggerPersistenceDelegate;
+internal sealed class TestTriggerPersistenceDelegate : SimpleTriggerPersistenceDelegate;

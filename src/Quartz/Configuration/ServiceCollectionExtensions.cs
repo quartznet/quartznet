@@ -10,8 +10,7 @@ using Microsoft.Extensions.Options;
 using Quartz.Configuration;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore.Common;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Util;
 
 namespace Quartz;
@@ -445,17 +444,17 @@ public static class ServiceCollectionExtensions
 
     public static IQuartzBuilder AddCalendar<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         this IQuartzBuilder configurator,
-        string name,
+        string calendarName,
         bool replace,
         bool updateTriggers,
         Action<T> configure) where T : ICalendar, new()
     {
-        return configurator.AddCalendar<T>(name, replace, updateTriggers, (_, calendar) => configure(calendar));
+        return configurator.AddCalendar<T>(calendarName, replace, updateTriggers, (_, calendar) => configure(calendar));
     }
 
     public static IQuartzBuilder AddCalendar<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         this IQuartzBuilder configurator,
-        string name,
+        string calendarName,
         bool replace,
         bool updateTriggers,
         Action<IServiceProvider, T> configure) where T : ICalendar, new()
@@ -465,19 +464,19 @@ public static class ServiceCollectionExtensions
             var calendar = new T();
             configure(serviceProvider, calendar);
 
-            return new CalendarConfiguration(name, calendar, replace, updateTriggers);
+            return new CalendarConfiguration(calendarName, calendar, replace, updateTriggers);
         });
         return configurator;
     }
 
     public static IQuartzBuilder AddCalendar(
         this IQuartzBuilder configurator,
-        string name,
+        string calendarName,
         ICalendar calendar,
         bool replace,
         bool updateTriggers)
     {
-        SchedulerContentRegistration.Add(configurator, new CalendarConfiguration(name, calendar, replace, updateTriggers));
+        SchedulerContentRegistration.Add(configurator, new CalendarConfiguration(calendarName, calendar, replace, updateTriggers));
         return configurator;
     }
 

@@ -23,8 +23,8 @@ using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 using Quartz.Util;
 using Quartz.Xml;
 
@@ -111,12 +111,12 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
     public IReadOnlyCollection<KeyValuePair<string, JobFile>> JobFiles => jobFiles;
 
     public virtual ValueTask FileUpdated(
-        string fName,
+        string fileName,
         CancellationToken cancellationToken = default)
     {
         if (started)
         {
-            return ProcessFile(fName, cancellationToken);
+            return ProcessFile(fileName, cancellationToken);
         }
 
         return default;

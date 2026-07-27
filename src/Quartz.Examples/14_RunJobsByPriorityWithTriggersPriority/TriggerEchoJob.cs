@@ -42,7 +42,7 @@ public class TriggerEchoJob : IJob
     /// 	<param name="context">The execution context.</param>
     /// </summary>
     /// <param name="context"></param>
-    public ValueTask Execute(IJobExecutionContext context)
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         Console.WriteLine("TRIGGER: " + context.Trigger.Key);
         return default;

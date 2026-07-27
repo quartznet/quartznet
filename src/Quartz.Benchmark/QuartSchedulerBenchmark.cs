@@ -3,8 +3,7 @@ using BenchmarkDotNet.Attributes;
 using Quartz.Core;
 using Quartz.Impl;
 using Quartz.Impl.Matchers;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Benchmark;
 
@@ -80,7 +79,7 @@ public class QuartSchedulerBenchmark
     [Benchmark(OperationsPerInvoke = 200_000)]
     public void NotifyTriggerListenersFired_QuartScheduler1_MultiThreaded()
     {
-        Execute(_quartzScheduler1, 20, 10_000, (scheduler) =>
+        RunConcurrently(_quartzScheduler1, 20, 10_000, (scheduler) =>
         {
             scheduler.NotifyTriggerListenersFired(_jobExecutionContext).GetAwaiter().GetResult();
         });
@@ -95,7 +94,7 @@ public class QuartSchedulerBenchmark
     [Benchmark(OperationsPerInvoke = 200_000)]
     public void NotifyTriggerListenersFired_QuartScheduler2_MultiThreaded()
     {
-        Execute(_quartzScheduler2, 20, 10_000, (scheduler) =>
+        RunConcurrently(_quartzScheduler2, 20, 10_000, (scheduler) =>
         {
             scheduler.NotifyTriggerListenersFired(_jobExecutionContext).GetAwaiter().GetResult();
         });
@@ -110,7 +109,7 @@ public class QuartSchedulerBenchmark
     [Benchmark(OperationsPerInvoke = 200_000)]
     public void NotifyTriggerListenersFired_QuartScheduler3_MultiThreaded()
     {
-        Execute(_quartzScheduler3, 20, 10_000, (scheduler) =>
+        RunConcurrently(_quartzScheduler3, 20, 10_000, (scheduler) =>
         {
             scheduler.NotifyTriggerListenersFired(_jobExecutionContext).GetAwaiter().GetResult();
         });
@@ -125,7 +124,7 @@ public class QuartSchedulerBenchmark
     [Benchmark(OperationsPerInvoke = 200_000)]
     public void NotifyTriggerListenersFired_QuartScheduler4_MultiThreaded()
     {
-        Execute(_quartzScheduler4, 20, 10_000, (scheduler) =>
+        RunConcurrently(_quartzScheduler4, 20, 10_000, (scheduler) =>
         {
             scheduler.NotifyTriggerListenersFired(_jobExecutionContext).GetAwaiter().GetResult();
         });
@@ -140,7 +139,7 @@ public class QuartSchedulerBenchmark
     [Benchmark(OperationsPerInvoke = 200_000)]
     public void NotifyTriggerListenersMisfired_QuartzScheduler1_MultiThreaded()
     {
-        Execute(_quartzScheduler1, 20, 10_000, (scheduler) =>
+        RunConcurrently(_quartzScheduler1, 20, 10_000, (scheduler) =>
         {
             scheduler.NotifyTriggerListenersMisfired(_trigger).GetAwaiter().GetResult();
         });
@@ -155,7 +154,7 @@ public class QuartSchedulerBenchmark
     [Benchmark(OperationsPerInvoke = 200_000)]
     public void NotifyTriggerListenersMisfired_QuartzScheduler2_MultiThreaded()
     {
-        Execute(_quartzScheduler2, 20, 10_000, (scheduler) =>
+        RunConcurrently(_quartzScheduler2, 20, 10_000, (scheduler) =>
         {
             scheduler.NotifyTriggerListenersMisfired(_trigger).GetAwaiter().GetResult();
         });
@@ -170,7 +169,7 @@ public class QuartSchedulerBenchmark
     [Benchmark(OperationsPerInvoke = 200_000)]
     public void NotifyTriggerListenersMisfired_QuartzScheduler3_MultiThreaded()
     {
-        Execute(_quartzScheduler3, 20, 10_000, (scheduler) =>
+        RunConcurrently(_quartzScheduler3, 20, 10_000, (scheduler) =>
         {
             scheduler.NotifyTriggerListenersMisfired(_trigger).GetAwaiter().GetResult();
         });
@@ -185,7 +184,7 @@ public class QuartSchedulerBenchmark
     [Benchmark(OperationsPerInvoke = 200_000)]
     public void NotifyTriggerListenersMisfired_QuartzScheduler4_MultiThreaded()
     {
-        Execute(_quartzScheduler4, 20, 10_000, (scheduler) =>
+        RunConcurrently(_quartzScheduler4, 20, 10_000, (scheduler) =>
         {
             scheduler.NotifyTriggerListenersMisfired(_trigger).GetAwaiter().GetResult();
         });
@@ -202,7 +201,7 @@ public class QuartSchedulerBenchmark
     [Benchmark(OperationsPerInvoke = 200_000)]
     public void NotifyTriggerListenersComplete_QuartzScheduler1_MultiThreaded()
     {
-        Execute(_quartzScheduler1, 20, 10_000, (scheduler) =>
+        RunConcurrently(_quartzScheduler1, 20, 10_000, (scheduler) =>
         {
             scheduler.NotifyTriggerListenersComplete(_jobExecutionContext, SchedulerInstruction.NoInstruction)
                 .GetAwaiter()
@@ -221,7 +220,7 @@ public class QuartSchedulerBenchmark
     [Benchmark(OperationsPerInvoke = 200_000)]
     public void NotifyTriggerListenersComplete_QuartzScheduler2_MultiThreaded()
     {
-        Execute(_quartzScheduler2, 20, 10_000, (scheduler) =>
+        RunConcurrently(_quartzScheduler2, 20, 10_000, (scheduler) =>
         {
             scheduler.NotifyTriggerListenersComplete(_jobExecutionContext, SchedulerInstruction.NoInstruction)
                 .GetAwaiter()
@@ -240,7 +239,7 @@ public class QuartSchedulerBenchmark
     [Benchmark(OperationsPerInvoke = 200_000)]
     public void NotifyTriggerListenersComplete_QuartzScheduler3_MultiThreaded()
     {
-        Execute(_quartzScheduler3, 20, 10_000, (scheduler) =>
+        RunConcurrently(_quartzScheduler3, 20, 10_000, (scheduler) =>
         {
             scheduler.NotifyTriggerListenersComplete(_jobExecutionContext, SchedulerInstruction.NoInstruction)
                 .GetAwaiter()
@@ -259,7 +258,7 @@ public class QuartSchedulerBenchmark
     [Benchmark(OperationsPerInvoke = 200_000)]
     public void NotifyTriggerListenersComplete_QuartzScheduler4_MultiThreaded()
     {
-        Execute(_quartzScheduler4, 20, 10_000, (scheduler) =>
+        RunConcurrently(_quartzScheduler4, 20, 10_000, (scheduler) =>
         {
             scheduler.NotifyTriggerListenersComplete(_jobExecutionContext, SchedulerInstruction.NoInstruction)
                 .GetAwaiter()
@@ -276,7 +275,7 @@ public class QuartSchedulerBenchmark
     [Benchmark(OperationsPerInvoke = 200_000)]
     public void NotifySchedulerListenersStarted_QuartzScheduler1_MultiThreaded()
     {
-        Execute(_quartzScheduler1, 20, 10_000, (scheduler) =>
+        RunConcurrently(_quartzScheduler1, 20, 10_000, (scheduler) =>
         {
             scheduler.NotifySchedulerListenersStarted().GetAwaiter().GetResult();
         });
@@ -291,7 +290,7 @@ public class QuartSchedulerBenchmark
     [Benchmark(OperationsPerInvoke = 200_000)]
     public void NotifySchedulerListenersStarted_QuartzScheduler2_MultiThreaded()
     {
-        Execute(_quartzScheduler2, 20, 10_000, (scheduler) =>
+        RunConcurrently(_quartzScheduler2, 20, 10_000, (scheduler) =>
         {
             scheduler.NotifySchedulerListenersStarted().GetAwaiter().GetResult();
         });
@@ -306,7 +305,7 @@ public class QuartSchedulerBenchmark
     [Benchmark(OperationsPerInvoke = 200_000)]
     public void NotifySchedulerListenersStarted_QuartzScheduler3_MultiThreaded()
     {
-        Execute(_quartzScheduler3, 20, 10_000, (scheduler) =>
+        RunConcurrently(_quartzScheduler3, 20, 10_000, (scheduler) =>
         {
             scheduler.NotifySchedulerListenersStarted().GetAwaiter().GetResult();
         });
@@ -321,7 +320,7 @@ public class QuartSchedulerBenchmark
     [Benchmark(OperationsPerInvoke = 200_000)]
     public void NotifySchedulerListenersStarted_QuartzScheduler4_MultiThreaded()
     {
-        Execute(_quartzScheduler4, 20, 10_000, (scheduler) =>
+        RunConcurrently(_quartzScheduler4, 20, 10_000, (scheduler) =>
         {
             scheduler.NotifySchedulerListenersStarted().GetAwaiter().GetResult();
         });
@@ -336,7 +335,7 @@ public class QuartSchedulerBenchmark
     [Benchmark(OperationsPerInvoke = 200_000)]
     public void NotifyJobListenersToBeExecuted_QuartzScheduler1_MultiThreaded()
     {
-        Execute(_quartzScheduler1, 20, 10_000, (scheduler) =>
+        RunConcurrently(_quartzScheduler1, 20, 10_000, (scheduler) =>
         {
             scheduler.NotifyJobListenersToBeExecuted(_jobExecutionContext).GetAwaiter().GetResult();
         });
@@ -351,7 +350,7 @@ public class QuartSchedulerBenchmark
     [Benchmark(OperationsPerInvoke = 200_000)]
     public void NotifyJobListenersToBeExecuted_QuartzScheduler2_MultiThreaded()
     {
-        Execute(_quartzScheduler2, 20, 10_000, (scheduler) =>
+        RunConcurrently(_quartzScheduler2, 20, 10_000, (scheduler) =>
         {
             scheduler.NotifyJobListenersToBeExecuted(_jobExecutionContext).GetAwaiter().GetResult();
         });
@@ -366,7 +365,7 @@ public class QuartSchedulerBenchmark
     [Benchmark(OperationsPerInvoke = 200_000)]
     public void NotifyJobListenersToBeExecuted_QuartzScheduler3_MultiThreaded()
     {
-        Execute(_quartzScheduler3, 20, 10_000, (scheduler) =>
+        RunConcurrently(_quartzScheduler3, 20, 10_000, (scheduler) =>
         {
             scheduler.NotifyJobListenersToBeExecuted(_jobExecutionContext).GetAwaiter().GetResult();
         });
@@ -381,7 +380,7 @@ public class QuartSchedulerBenchmark
     [Benchmark(OperationsPerInvoke = 200_000)]
     public void NotifyJobListenersToBeExecuted_QuartzScheduler4_MultiThreaded()
     {
-        Execute(_quartzScheduler4, 20, 10_000, (scheduler) =>
+        RunConcurrently(_quartzScheduler4, 20, 10_000, (scheduler) =>
         {
             scheduler.NotifyJobListenersToBeExecuted(_jobExecutionContext).GetAwaiter().GetResult();
         });
@@ -429,7 +428,7 @@ public class QuartSchedulerBenchmark
         return JobBuilder.Create(jobType).WithIdentity(Guid.NewGuid().ToString(), group).Build();
     }
 
-    private static void Execute(QuartzScheduler scheduler, int threadCount, int iterationsPerThread, Action<QuartzScheduler> action)
+    private static void RunConcurrently(QuartzScheduler scheduler, int threadCount, int iterationsPerThread, Action<QuartzScheduler> action)
     {
         ManualResetEvent start = new ManualResetEvent(false);
 
@@ -458,7 +457,7 @@ public class QuartSchedulerBenchmark
         private static int RunCount = 0;
         private static int _operationsPerRun;
 
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             if (Interlocked.Increment(ref RunCount) == _operationsPerRun)
             {
@@ -484,7 +483,7 @@ public class QuartSchedulerBenchmark
         }
     }
 
-    private class NoOpListener : IJobListener, ITriggerListener, ISchedulerListener
+    private sealed class NoOpListener : IJobListener, ITriggerListener, ISchedulerListener
     {
         public NoOpListener(string name)
         {
@@ -513,7 +512,7 @@ public class QuartSchedulerBenchmark
             return default;
         }
 
-        public ValueTask SchedulerError(string msg, SchedulerException cause, CancellationToken cancellationToken = default)
+        public ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default)
         {
             return default;
         }
@@ -528,7 +527,7 @@ public class QuartSchedulerBenchmark
             return default;
         }
 
-        public ValueTask SchedulerShuttingdown(CancellationToken cancellationToken = default)
+        public ValueTask SchedulerShuttingDown(CancellationToken cancellationToken = default)
         {
             return default;
         }

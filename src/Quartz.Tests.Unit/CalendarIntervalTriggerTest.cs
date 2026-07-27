@@ -1,8 +1,8 @@
 using AwesomeAssertions.Execution;
 
 using Quartz.Impl.Triggers;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 using Quartz.Util;
 
 using TimeZoneConverter;
@@ -1182,7 +1182,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
 
         trigger.UpdateAfterMisfire(null);
 
-        DateTimeOffset? nextFire = trigger.GetNextFireTimeUtc();
+        DateTimeOffset? nextFire = trigger.NextFireTimeUtc;
         Assert.IsNotNull(nextFire);
         Assert.That(nextFire.Value, Is.GreaterThan(frozenNow),
             "Trigger must not fire immediately after misfire handling (#3096)");

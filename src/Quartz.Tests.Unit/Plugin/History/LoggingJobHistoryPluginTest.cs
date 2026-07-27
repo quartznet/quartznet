@@ -23,7 +23,7 @@ using Quartz.Impl;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Plugin.History;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit.Plugin.History;
 
@@ -79,7 +79,7 @@ public class LoggingJobHistoryPluginTest
         return ctx;
     }
 
-    private class RecordingLoggingJobHistoryPlugin : LoggingJobHistoryPlugin
+    private sealed class RecordingLoggingJobHistoryPlugin : LoggingJobHistoryPlugin
     {
         public List<string> InfoMessages { get; } = new List<string>();
         public List<string> WarnMessages { get; } = new List<string>();

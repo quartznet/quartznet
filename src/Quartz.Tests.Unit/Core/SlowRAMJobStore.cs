@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit.Core;
 
@@ -18,9 +18,9 @@ public class SlowRAMJobStore : RAMJobStore
     {
     }
 
-    public override async ValueTask<List<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow, CancellationToken cancellationToken = default)
+    public override async ValueTask<List<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow, IReadOnlyDictionary<string, int?> executionLimits = null, CancellationToken cancellationToken = default)
     {
-        var nextTriggers = await base.AcquireNextTriggers(noLaterThan, maxCount, timeWindow, cancellationToken);
+        var nextTriggers = await base.AcquireNextTriggers(noLaterThan, maxCount, timeWindow, executionLimits, cancellationToken);
 
         // Wait just a bit for hopefully having a context switch leading to the race condition
         await Task.Delay(10, cancellationToken);

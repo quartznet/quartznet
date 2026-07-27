@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Configuration;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Core;
 
@@ -53,8 +53,8 @@ internal sealed class LazySchedulerSignaler : ISchedulerSignaler
         return signaler.Value.SignalSchedulingChange(candidateNewNextFireTimeUtc, cancellationToken);
     }
 
-    public ValueTask NotifySchedulerListenersError(string message, SchedulerException jpe, CancellationToken cancellationToken = default)
+    public ValueTask NotifySchedulerListenersError(string message, SchedulerException exception, CancellationToken cancellationToken = default)
     {
-        return signaler.Value.NotifySchedulerListenersError(message, jpe, cancellationToken);
+        return signaler.Value.NotifySchedulerListenersError(message, exception, cancellationToken);
     }
 }

@@ -1,8 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Core;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit.Configuration;
 
@@ -115,6 +115,6 @@ public class NamedSchedulerContainerTest
 
     public class NoOpJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context) => default;
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
     }
 }

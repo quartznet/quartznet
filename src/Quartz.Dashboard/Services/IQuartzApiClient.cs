@@ -23,73 +23,73 @@ namespace Quartz.Dashboard.Services;
 
 public interface IQuartzApiClient
 {
-    ValueTask<List<SchedulerHeaderDto>> GetSchedulers();
+    ValueTask<List<SchedulerHeaderDto>> GetSchedulers(CancellationToken cancellationToken = default);
 
-    ValueTask<SchedulerDetailDto> GetScheduler(string schedulerName);
+    ValueTask<SchedulerDetailDto> GetScheduler(string schedulerName, CancellationToken cancellationToken = default);
 
-    ValueTask StartScheduler(string schedulerName);
+    ValueTask StartScheduler(string schedulerName, CancellationToken cancellationToken = default);
 
-    ValueTask StandbyScheduler(string schedulerName);
+    ValueTask StandbyScheduler(string schedulerName, CancellationToken cancellationToken = default);
 
-    ValueTask ShutdownScheduler(string schedulerName);
+    ValueTask ShutdownScheduler(string schedulerName, CancellationToken cancellationToken = default);
 
-    ValueTask PauseAll(string schedulerName);
+    ValueTask PauseAll(string schedulerName, CancellationToken cancellationToken = default);
 
-    ValueTask ResumeAll(string schedulerName);
+    ValueTask ResumeAll(string schedulerName, CancellationToken cancellationToken = default);
 
-    ValueTask<List<JobKeyDto>> GetJobKeys(string schedulerName, string? groupFilter = null);
+    ValueTask<List<JobKeyDto>> GetJobKeys(string schedulerName, string? groupFilter = null, CancellationToken cancellationToken = default);
 
-    ValueTask<JobDetailDto> GetJob(string schedulerName, string group, string name);
+    ValueTask<JobDetailDto> GetJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
 
-    ValueTask<List<TriggerHeaderDto>> GetJobTriggers(string schedulerName, string group, string name);
+    ValueTask<List<TriggerHeaderDto>> GetJobTriggers(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
 
-    ValueTask<List<CurrentlyExecutingJobDto>> GetCurrentlyExecutingJobs(string schedulerName);
+    ValueTask<List<CurrentlyExecutingJobDto>> GetCurrentlyExecutingJobs(string schedulerName, CancellationToken cancellationToken = default);
 
-    ValueTask PauseJob(string schedulerName, string group, string name);
+    ValueTask PauseJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
 
-    ValueTask ResumeJob(string schedulerName, string group, string name);
+    ValueTask ResumeJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
 
-    ValueTask TriggerJob(string schedulerName, string group, string name);
+    ValueTask TriggerJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
 
-    ValueTask TriggerJobWithData(string schedulerName, string group, string name, JsonElement jobDataMap);
+    ValueTask TriggerJobWithData(string schedulerName, string group, string name, JsonElement jobDataMap, CancellationToken cancellationToken = default);
 
-    ValueTask<bool> IsJobGroupPaused(string schedulerName, string group);
+    ValueTask<bool> IsJobGroupPaused(string schedulerName, string group, CancellationToken cancellationToken = default);
 
-    ValueTask InterruptJob(string schedulerName, string group, string name);
+    ValueTask InterruptJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
 
-    ValueTask DeleteJob(string schedulerName, string group, string name);
+    ValueTask DeleteJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
 
-    ValueTask AddJob(string schedulerName, AddJobRequest request);
+    ValueTask AddJob(string schedulerName, AddJobRequest request, CancellationToken cancellationToken = default);
 
-    ValueTask<List<TriggerHeaderDto>> GetTriggerKeys(string schedulerName, string? groupFilter = null);
+    ValueTask<List<TriggerHeaderDto>> GetTriggerKeys(string schedulerName, string? groupFilter = null, CancellationToken cancellationToken = default);
 
-    ValueTask<TriggerDetailDto> GetTrigger(string schedulerName, string group, string name);
+    ValueTask<TriggerDetailDto> GetTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
 
-    ValueTask<string> GetTriggerState(string schedulerName, string group, string name);
+    ValueTask<string> GetTriggerState(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
 
-    ValueTask PauseTrigger(string schedulerName, string group, string name);
+    ValueTask PauseTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
 
-    ValueTask ResumeTrigger(string schedulerName, string group, string name);
+    ValueTask ResumeTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
 
-    ValueTask ResetTriggerFromErrorState(string schedulerName, string group, string name);
+    ValueTask ResetTriggerFromErrorState(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
 
-    ValueTask ScheduleJob(string schedulerName, ScheduleJobRequest request);
+    ValueTask ScheduleJob(string schedulerName, ScheduleJobRequest request, CancellationToken cancellationToken = default);
 
-    ValueTask UnscheduleJob(string schedulerName, string group, string name);
+    ValueTask UnscheduleJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
 
-    ValueTask RescheduleJob(string schedulerName, string group, string name, RescheduleRequest request);
+    ValueTask RescheduleJob(string schedulerName, string group, string name, RescheduleRequest request, CancellationToken cancellationToken = default);
 
-    ValueTask<List<string>> GetCalendarNames(string schedulerName);
+    ValueTask<List<string>> GetCalendarNames(string schedulerName, CancellationToken cancellationToken = default);
 
-    ValueTask<CalendarDetailDto> GetCalendar(string schedulerName, string calendarName);
+    ValueTask<CalendarDetailDto> GetCalendar(string schedulerName, string calendarName, CancellationToken cancellationToken = default);
 
-    ValueTask AddCalendar(string schedulerName, AddCalendarRequest request);
+    ValueTask AddCalendar(string schedulerName, AddCalendarRequest request, CancellationToken cancellationToken = default);
 
-    ValueTask DeleteCalendar(string schedulerName, string calendarName);
+    ValueTask DeleteCalendar(string schedulerName, string calendarName, CancellationToken cancellationToken = default);
 
-    ValueTask<JobHistoryPageDto?> GetHistory(JobHistoryQueryDto query);
+    ValueTask<JobHistoryPageDto?> GetHistory(JobHistoryQueryDto query, CancellationToken cancellationToken = default);
 
-    ValueTask<ExecutionLimitsDto?> GetExecutionLimits(string schedulerName);
+    ValueTask<ExecutionLimitsDto?> GetExecutionLimits(string schedulerName, CancellationToken cancellationToken = default);
 }
 
 public sealed record JobHistoryQueryDto(
@@ -146,4 +146,4 @@ public sealed record AddJobRequest(JobDetailDto Job, bool Replace, bool? StoreNo
 
 public sealed record JobHistoryPageDto(JsonElement Value);
 
-public sealed record ExecutionLimitsDto(IReadOnlyDictionary<string, int?> Limits);
+public sealed record ExecutionLimitsDto(Dictionary<string, int?> Limits);

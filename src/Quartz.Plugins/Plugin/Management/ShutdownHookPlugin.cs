@@ -22,7 +22,7 @@
 using Microsoft.Extensions.Logging;
 
 using Quartz.Diagnostics;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Plugin.Management;
 

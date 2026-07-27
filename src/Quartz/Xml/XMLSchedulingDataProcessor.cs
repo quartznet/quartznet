@@ -24,7 +24,7 @@ using System.Xml.Serialization;
 using Microsoft.Extensions.Logging;
 
 using Quartz.Impl.Matchers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Util;
 using Quartz.Xml.JobSchedulingData20;
 
@@ -93,7 +93,7 @@ public class XMLSchedulingDataProcessor
         TypeLoadHelper = typeLoadHelper;
         this.timeProvider = timeProvider;
 
-        OverWriteExistingData = true;
+        OverwriteExistingData = true;
         IgnoreDuplicates = false;
     }
 
@@ -107,18 +107,18 @@ public class XMLSchedulingDataProcessor
     /// error will occur.
     /// </remarks>
     /// <seealso cref="IgnoreDuplicates" />
-    public virtual bool OverWriteExistingData { get; set; }
+    public virtual bool OverwriteExistingData { get; set; }
 
     /// <summary>
-    /// If true (and <see cref="OverWriteExistingData" /> is false) then any
+    /// If true (and <see cref="OverwriteExistingData" /> is false) then any
     /// job/triggers encountered in this file that have names that already exist
     /// in the scheduler will be ignored, and no error will be produced.
     /// </summary>
-    /// <seealso cref="OverWriteExistingData"/>
+    /// <seealso cref="OverwriteExistingData"/>
     public virtual bool IgnoreDuplicates { get; set; }
 
     /// <summary>
-    /// If true (and <see cref="OverWriteExistingData" /> is true) then any
+    /// If true (and <see cref="OverwriteExistingData" /> is true) then any
     /// job/triggers encountered in this file that already exist is scheduler
     /// will be updated with start time relative to old trigger. Effectively
     /// new trigger's last fire time will be updated to old trigger's last fire time
@@ -126,9 +126,9 @@ public class XMLSchedulingDataProcessor
     /// </summary>
     public virtual bool ScheduleTriggerRelativeToReplacedTrigger { get; set; }
 
-    protected virtual IReadOnlyList<IJobDetail> LoadedJobs => loadedJobs.AsReadOnly();
+    protected virtual List<IJobDetail> LoadedJobs => new List<IJobDetail>(loadedJobs);
 
-    protected virtual IReadOnlyList<ITrigger> LoadedTriggers => loadedTriggers.AsReadOnly();
+    protected virtual List<ITrigger> LoadedTriggers => new List<ITrigger>(loadedTriggers);
 
     protected ITypeLoadHelper TypeLoadHelper { get; }
 
@@ -195,11 +195,11 @@ public class XMLSchedulingDataProcessor
         ProcessInternal(await sr.ReadToEndAsync(cancellationToken).ConfigureAwait(false));
     }
 
-    protected virtual void PrepForProcessing()
+    protected virtual void PrepareForProcessing()
     {
         ClearValidationExceptions();
 
-        OverWriteExistingData = true;
+        OverwriteExistingData = true;
         IgnoreDuplicates = false;
         ScheduleTriggerRelativeToReplacedTrigger = false;
 
@@ -214,7 +214,7 @@ public class XMLSchedulingDataProcessor
 
     protected virtual void ProcessInternal(string xml)
     {
-        PrepForProcessing();
+        PrepareForProcessing();
 
         ValidateXml(xml);
         MaybeThrowValidationException();
@@ -308,11 +308,11 @@ public class XMLSchedulingDataProcessor
         {
             bool overWrite = data.processingdirectives[0].overwriteexistingdata;
             logger.LogDebug("Directive 'overwrite-existing-data' specified as: {Overwrite}", overWrite);
-            OverWriteExistingData = overWrite;
+            OverwriteExistingData = overWrite;
         }
         else
         {
-            logger.LogDebug("Directive 'overwrite-existing-data' not specified, defaulting to {Overwrite}", OverWriteExistingData);
+            logger.LogDebug("Directive 'overwrite-existing-data' not specified, defaulting to {Overwrite}", OverwriteExistingData);
         }
 
         if (data.processingdirectives is not null && data.processingdirectives.Length > 0)
@@ -439,7 +439,7 @@ public class XMLSchedulingDataProcessor
 
             DateTimeOffset? triggerEndTime = triggerNode.Item.endtimeSpecified ? new DateTimeOffset(triggerNode.Item.endtime) : null;
 
-            IScheduleBuilder sched;
+            IScheduleBuilder scheduleBuilder;
 
             if (triggerNode.Item is simpleTriggerType simpleTrigger)
             {
@@ -449,13 +449,13 @@ public class XMLSchedulingDataProcessor
                 int repeatCount = ParseSimpleTriggerRepeatCount(repeatCountString!);
                 TimeSpan repeatInterval = repeatIntervalString is null ? TimeSpan.Zero : TimeSpan.FromMilliseconds(Convert.ToInt64(repeatIntervalString));
 
-                sched = SimpleScheduleBuilder.Create()
+                scheduleBuilder = SimpleScheduleBuilder.Create()
                     .WithInterval(repeatInterval)
                     .WithRepeatCount(repeatCount);
 
                 if (!string.IsNullOrWhiteSpace(simpleTrigger.misfireinstruction))
                 {
-                    ((SimpleScheduleBuilder) sched).WithMisfireHandlingInstruction(ReadMisfireInstructionFromString(simpleTrigger.misfireinstruction));
+                    ((SimpleScheduleBuilder) scheduleBuilder).WithMisfireHandlingInstruction(ReadMisfireInstructionFromString(simpleTrigger.misfireinstruction));
                 }
             }
             else if (triggerNode.Item is cronTriggerType cronTrigger)
@@ -464,12 +464,12 @@ public class XMLSchedulingDataProcessor
                 var timezoneString = cronTrigger.timezone.TrimEmptyToNull();
 
                 TimeZoneInfo? tz = timezoneString is not null ? TimeZoneUtil.FindTimeZoneById(timezoneString) : null;
-                sched = CronScheduleBuilder.CronSchedule(cronExpression!)
+                scheduleBuilder = CronScheduleBuilder.CronSchedule(cronExpression!)
                     .InTimeZone(tz!);
 
                 if (!string.IsNullOrWhiteSpace(cronTrigger.misfireinstruction))
                 {
-                    ((CronScheduleBuilder) sched).WithMisfireHandlingInstruction(ReadMisfireInstructionFromString(cronTrigger.misfireinstruction));
+                    ((CronScheduleBuilder) scheduleBuilder).WithMisfireHandlingInstruction(ReadMisfireInstructionFromString(cronTrigger.misfireinstruction));
                 }
             }
             else if (triggerNode.Item is calendarIntervalTriggerType)
@@ -480,12 +480,12 @@ public class XMLSchedulingDataProcessor
                 IntervalUnit intervalUnit = ParseDateIntervalTriggerIntervalUnit(calendarIntervalTrigger.repeatintervalunit.TrimEmptyToNull());
                 int repeatInterval = repeatIntervalString is null ? 0 : Convert.ToInt32(repeatIntervalString);
 
-                sched = CalendarIntervalScheduleBuilder.Create()
+                scheduleBuilder = CalendarIntervalScheduleBuilder.Create()
                     .WithInterval(repeatInterval, intervalUnit);
 
                 if (!string.IsNullOrWhiteSpace(calendarIntervalTrigger.misfireinstruction))
                 {
-                    ((CalendarIntervalScheduleBuilder) sched).WithMisfireHandlingInstruction(ReadMisfireInstructionFromString(calendarIntervalTrigger.misfireinstruction));
+                    ((CalendarIntervalScheduleBuilder) scheduleBuilder).WithMisfireHandlingInstruction(ReadMisfireInstructionFromString(calendarIntervalTrigger.misfireinstruction));
                 }
             }
             else
@@ -502,7 +502,7 @@ public class XMLSchedulingDataProcessor
                 .EndAt(triggerEndTime)
                 .WithPriority(triggerPriority)
                 .ModifiedByCalendar(triggerCalendarRef)
-                .WithSchedule(sched)
+                .WithSchedule(scheduleBuilder)
                 .Build();
 
             if (triggerNode.Item.jobdatamap is not null && triggerNode.Item.jobdatamap.entry is not null)
@@ -534,17 +534,17 @@ public class XMLSchedulingDataProcessor
         loadedTriggers.Add(trigger);
     }
 
-    protected virtual int ParseSimpleTriggerRepeatCount(string repeatcount)
+    protected virtual int ParseSimpleTriggerRepeatCount(string repeatCount)
     {
-        int value = Convert.ToInt32(repeatcount, CultureInfo.InvariantCulture);
+        int value = Convert.ToInt32(repeatCount, CultureInfo.InvariantCulture);
         return value;
     }
 
-    protected virtual int ReadMisfireInstructionFromString(string misfireinstruction)
+    protected virtual int ReadMisfireInstructionFromString(string misfireInstruction)
     {
         Constants c = new Constants(typeof(MisfireInstruction), typeof(MisfireInstruction.CronTrigger),
             typeof(MisfireInstruction.SimpleTrigger));
-        return c.AsNumber(misfireinstruction);
+        return c.AsNumber(misfireInstruction);
     }
 
     protected virtual IntervalUnit ParseDateIntervalTriggerIntervalUnit(string? intervalUnit)
@@ -562,15 +562,15 @@ public class XMLSchedulingDataProcessor
         return retValue;
     }
 
-    protected virtual bool TryParseEnum<T>(string str, out T value) where T : struct
+    protected virtual bool TryParseEnum<T>(string value, out T result) where T : struct
     {
         var names = Enum.GetNames(typeof(T));
-        value = (T) Enum.GetValues(typeof(T)).GetValue(0)!;
+        result = (T) Enum.GetValues(typeof(T)).GetValue(0)!;
         foreach (var name in names)
         {
-            if (name == str)
+            if (name == value)
             {
-                value = Enum.Parse<T>(name);
+                result = Enum.Parse<T>(name);
                 return true;
             }
         }
@@ -630,18 +630,18 @@ public class XMLSchedulingDataProcessor
     /// <summary>
     /// Process the xml file in the default location, and schedule all of the jobs defined within it.
     /// </summary>
-    /// <remarks>Note that we will set overWriteExistingJobs after the default xml is parsed.</remarks>
+    /// <remarks>Note that we will set overwriteExistingJobs after the default xml is parsed.</remarks>
     public async ValueTask ProcessFileAndScheduleJobs(
-        IScheduler sched,
-        bool overWriteExistingJobs,
+        IScheduler scheduler,
+        bool overwriteExistingJobs,
         CancellationToken cancellationToken = default)
     {
         await ProcessFile(QuartzXmlFileName, QuartzXmlFileName, cancellationToken).ConfigureAwait(false);
-        // The overWriteExistingJobs flag was set by processFile() -> prepForProcessing(), then by xml parsing, and then now
+        // The overwriteExistingJobs flag was set by ProcessFile() -> PrepareForProcessing(), then by xml parsing, and then now
         // we need to reset it again here by this method parameter to override it.
-        OverWriteExistingData = overWriteExistingJobs;
-        await ExecutePreProcessCommands(sched, cancellationToken).ConfigureAwait(false);
-        await ScheduleJobs(sched, cancellationToken).ConfigureAwait(false);
+        OverwriteExistingData = overwriteExistingJobs;
+        await ExecutePreProcessCommands(scheduler, cancellationToken).ConfigureAwait(false);
+        await ScheduleJobs(scheduler, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -649,10 +649,10 @@ public class XMLSchedulingDataProcessor
     /// jobs defined within it.
     /// </summary>
     public virtual ValueTask ProcessFileAndScheduleJobs(
-        IScheduler sched,
+        IScheduler scheduler,
         CancellationToken cancellationToken = default)
     {
-        return ProcessFileAndScheduleJobs(QuartzXmlFileName, sched, cancellationToken);
+        return ProcessFileAndScheduleJobs(QuartzXmlFileName, scheduler, cancellationToken);
     }
 
     /// <summary>
@@ -660,14 +660,14 @@ public class XMLSchedulingDataProcessor
     /// jobs defined within it.
     /// </summary>
     /// <param name="fileName">meta data file name.</param>
-    /// <param name="sched">The scheduler.</param>
+    /// <param name="scheduler">The scheduler.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     public virtual ValueTask ProcessFileAndScheduleJobs(
         string fileName,
-        IScheduler sched,
+        IScheduler scheduler,
         CancellationToken cancellationToken = default)
     {
-        return ProcessFileAndScheduleJobs(fileName, fileName, sched, cancellationToken);
+        return ProcessFileAndScheduleJobs(fileName, fileName, scheduler, cancellationToken);
     }
 
     /// <summary>
@@ -676,17 +676,17 @@ public class XMLSchedulingDataProcessor
     /// </summary>
     /// <param name="fileName">Name of the file.</param>
     /// <param name="systemId">The system id.</param>
-    /// <param name="sched">The sched.</param>
+    /// <param name="scheduler">The scheduler.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     public virtual async ValueTask ProcessFileAndScheduleJobs(
         string fileName,
         string systemId,
-        IScheduler sched,
+        IScheduler scheduler,
         CancellationToken cancellationToken = default)
     {
         await ProcessFile(fileName, systemId, cancellationToken).ConfigureAwait(false);
-        await ExecutePreProcessCommands(sched, cancellationToken).ConfigureAwait(false);
-        await ScheduleJobs(sched, cancellationToken).ConfigureAwait(false);
+        await ExecutePreProcessCommands(scheduler, cancellationToken).ConfigureAwait(false);
+        await ScheduleJobs(scheduler, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -694,11 +694,11 @@ public class XMLSchedulingDataProcessor
     /// jobs defined within it.
     /// </summary>
     /// <param name="stream">stream to read XML data from.</param>
-    /// <param name="sched">The sched.</param>
+    /// <param name="scheduler">The scheduler.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     public virtual async ValueTask ProcessStreamAndScheduleJobs(
         Stream stream,
-        IScheduler sched,
+        IScheduler scheduler,
         CancellationToken cancellationToken = default)
     {
         using (var sr = new StreamReader(stream))
@@ -706,17 +706,17 @@ public class XMLSchedulingDataProcessor
             ProcessInternal(await sr.ReadToEndAsync(cancellationToken).ConfigureAwait(false));
         }
 
-        await ExecutePreProcessCommands(sched, cancellationToken).ConfigureAwait(false);
-        await ScheduleJobs(sched, cancellationToken).ConfigureAwait(false);
+        await ExecutePreProcessCommands(scheduler, cancellationToken).ConfigureAwait(false);
+        await ScheduleJobs(scheduler, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Schedules the given sets of jobs and triggers.
     /// </summary>
-    /// <param name="sched">The sched.</param>
+    /// <param name="scheduler">The scheduler.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     public virtual async ValueTask ScheduleJobs(
-        IScheduler sched,
+        IScheduler scheduler,
         CancellationToken cancellationToken = default)
     {
         List<IJobDetail> jobs = new List<IJobDetail>(LoadedJobs);
@@ -724,7 +724,7 @@ public class XMLSchedulingDataProcessor
 
         logger.LogInformation("Adding {JobCount} jobs, {TriggerCount} triggers", jobs.Count, triggers.Count);
 
-        IDictionary<JobKey, List<IMutableTrigger>> triggersByFQJobName = BuildTriggersByFQJobNameMap(triggers);
+        Dictionary<JobKey, List<IMutableTrigger>> triggersByFQJobName = BuildTriggersByFullyQualifiedJobNameMap(triggers);
 
         // add each job, and it's associated triggers
         while (jobs.Count > 0)
@@ -738,15 +738,15 @@ public class XMLSchedulingDataProcessor
             {
                 // The existing job could have been deleted, and Quartz API doesn't allow us to query this without
                 // loading the job class, so use try/catch to handle it.
-                dupeJ = await sched.GetJobDetail(detail.Key, cancellationToken).ConfigureAwait(false);
+                dupeJ = await scheduler.GetJobDetail(detail.Key, cancellationToken).ConfigureAwait(false);
             }
             catch (JobPersistenceException e)
             {
-                if (e.InnerException is TypeLoadException && OverWriteExistingData)
+                if (e.InnerException is TypeLoadException && OverwriteExistingData)
                 {
                     // We are going to replace jobDetail anyway, so just delete it first.
                     logger.LogInformation("Removing job: {JobKey}", detail.Key);
-                    await sched.DeleteJob(detail.Key, cancellationToken).ConfigureAwait(false);
+                    await scheduler.DeleteJob(detail.Key, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
@@ -756,13 +756,13 @@ public class XMLSchedulingDataProcessor
 
             if (dupeJ is not null)
             {
-                if (!OverWriteExistingData && IgnoreDuplicates)
+                if (!OverwriteExistingData && IgnoreDuplicates)
                 {
                     logger.LogInformation("Not overwriting existing job: {JobKey}", dupeJ.Key);
                     continue; // just ignore the entry
                 }
 
-                if (!OverWriteExistingData && !IgnoreDuplicates)
+                if (!OverwriteExistingData && !IgnoreDuplicates)
                 {
                     Throw.ObjectAlreadyExistsException(detail);
                 }
@@ -788,7 +788,7 @@ public class XMLSchedulingDataProcessor
                         detail.Key);
                 }
 
-                if (dupeJ.Durable && (await sched.GetTriggersOfJob(detail.Key, cancellationToken).ConfigureAwait(false)).Count == 0)
+                if (dupeJ.Durable && (await scheduler.GetTriggersOfJob(detail.Key, cancellationToken).ConfigureAwait(false)).Count == 0)
                 {
                     Throw.SchedulerException(
                         "Can't change existing durable job without triggers to non-durable: " +
@@ -800,11 +800,11 @@ public class XMLSchedulingDataProcessor
             {
                 if (triggersOfJob is not null && triggersOfJob.Count > 0)
                 {
-                    await sched.AddJob(detail, true, true, cancellationToken).ConfigureAwait(false); // add the job regardless is durable or not b/c we have trigger to add
+                    await scheduler.AddJob(detail, true, true, cancellationToken).ConfigureAwait(false); // add the job regardless is durable or not b/c we have trigger to add
                 }
                 else
                 {
-                    await sched.AddJob(detail, true, false, cancellationToken).ConfigureAwait(false); // add the job only if a replacement or durable, else exception will throw!
+                    await scheduler.AddJob(detail, true, false, cancellationToken).ConfigureAwait(false); // add the job only if a replacement or durable, else exception will throw!
                 }
             }
             else
@@ -818,10 +818,10 @@ public class XMLSchedulingDataProcessor
                     // remove triggers as we handle them...
                     triggersOfJob.Remove(trigger);
 
-                    ITrigger? dupeT = await sched.GetTrigger(trigger.Key, cancellationToken).ConfigureAwait(false);
+                    ITrigger? dupeT = await scheduler.GetTrigger(trigger.Key, cancellationToken).ConfigureAwait(false);
                     if (dupeT is not null)
                     {
-                        if (OverWriteExistingData)
+                        if (OverwriteExistingData)
                         {
                             if (logger.IsEnabled(LogLevel.Debug))
                             {
@@ -843,7 +843,7 @@ public class XMLSchedulingDataProcessor
                             ReportDuplicateTrigger(trigger);
                         }
 
-                        await DoRescheduleJob(sched, trigger, dupeT, cancellationToken).ConfigureAwait(false);
+                        await DoRescheduleJob(scheduler, trigger, dupeT, cancellationToken).ConfigureAwait(false);
                     }
                     else
                     {
@@ -856,12 +856,12 @@ public class XMLSchedulingDataProcessor
                         {
                             if (addJobWithFirstSchedule)
                             {
-                                await sched.ScheduleJob(detail, trigger, cancellationToken).ConfigureAwait(false); // add the job if it's not in yet...
+                                await scheduler.ScheduleJob(detail, trigger, cancellationToken).ConfigureAwait(false); // add the job if it's not in yet...
                                 addJobWithFirstSchedule = false;
                             }
                             else
                             {
-                                await sched.ScheduleJob(trigger, cancellationToken).ConfigureAwait(false);
+                                await scheduler.ScheduleJob(trigger, cancellationToken).ConfigureAwait(false);
                             }
                         }
                         catch (ObjectAlreadyExistsException)
@@ -874,8 +874,8 @@ public class XMLSchedulingDataProcessor
                             }
 
                             // Let's try one more time as reschedule.
-                            var oldTrigger = await sched.GetTrigger(trigger.Key, cancellationToken).ConfigureAwait(false);
-                            await DoRescheduleJob(sched, trigger, oldTrigger, cancellationToken).ConfigureAwait(false);
+                            var oldTrigger = await scheduler.GetTrigger(trigger.Key, cancellationToken).ConfigureAwait(false);
+                            await DoRescheduleJob(scheduler, trigger, oldTrigger, cancellationToken).ConfigureAwait(false);
                         }
                     }
                 }
@@ -885,10 +885,10 @@ public class XMLSchedulingDataProcessor
         // add triggers that weren't associated with a new job... (those we already handled were removed above)
         foreach (IMutableTrigger trigger in triggers)
         {
-            ITrigger? dupeT = await sched.GetTrigger(trigger.Key, cancellationToken).ConfigureAwait(false);
+            ITrigger? dupeT = await scheduler.GetTrigger(trigger.Key, cancellationToken).ConfigureAwait(false);
             if (dupeT is not null)
             {
-                if (OverWriteExistingData)
+                if (OverwriteExistingData)
                 {
                     if (logger.IsEnabled(LogLevel.Debug))
                     {
@@ -910,7 +910,7 @@ public class XMLSchedulingDataProcessor
                     ReportDuplicateTrigger(trigger);
                 }
 
-                await DoRescheduleJob(sched, trigger, dupeT, cancellationToken).ConfigureAwait(false);
+                await DoRescheduleJob(scheduler, trigger, dupeT, cancellationToken).ConfigureAwait(false);
             }
             else
             {
@@ -921,7 +921,7 @@ public class XMLSchedulingDataProcessor
 
                 try
                 {
-                    await sched.ScheduleJob(trigger, cancellationToken).ConfigureAwait(false);
+                    await scheduler.ScheduleJob(trigger, cancellationToken).ConfigureAwait(false);
                 }
                 catch (ObjectAlreadyExistsException)
                 {
@@ -934,8 +934,8 @@ public class XMLSchedulingDataProcessor
                     }
 
                     // Let's rescheduleJob one more time.
-                    var oldTrigger = await sched.GetTrigger(trigger.Key, cancellationToken).ConfigureAwait(false);
-                    await DoRescheduleJob(sched, trigger, oldTrigger, cancellationToken).ConfigureAwait(false);
+                    var oldTrigger = await scheduler.GetTrigger(trigger.Key, cancellationToken).ConfigureAwait(false);
+                    await DoRescheduleJob(scheduler, trigger, oldTrigger, cancellationToken).ConfigureAwait(false);
                 }
             }
         }
@@ -948,7 +948,7 @@ public class XMLSchedulingDataProcessor
     }
 
     private ValueTask<DateTimeOffset?> DoRescheduleJob(
-        IScheduler sched,
+        IScheduler scheduler,
         IMutableTrigger trigger,
         ITrigger? oldTrigger,
         CancellationToken cancellationToken = default)
@@ -958,18 +958,18 @@ public class XMLSchedulingDataProcessor
         {
             logger.LogDebug("Using relative scheduling for trigger with key {TriggerKey}", trigger.Key);
 
-            var oldTriggerPreviousFireTime = oldTrigger.GetPreviousFireTimeUtc();
+            var oldTriggerPreviousFireTime = oldTrigger.PreviousFireTimeUtc;
             trigger.StartTimeUtc = oldTrigger.StartTimeUtc;
-            ((IOperableTrigger) trigger).SetPreviousFireTimeUtc(oldTriggerPreviousFireTime);
+            ((IOperableTrigger) trigger).PreviousFireTimeUtc = oldTriggerPreviousFireTime;
             // if oldTriggerPreviousFireTime is null then NextFireTime should be set relative to oldTrigger.StartTimeUtc
             // to be able to handle misfiring for an existing trigger that has never been executed before.
-            ((IOperableTrigger) trigger).SetNextFireTimeUtc(trigger.GetFireTimeAfter(oldTriggerPreviousFireTime ?? oldTrigger.StartTimeUtc));
+            ((IOperableTrigger) trigger).NextFireTimeUtc = trigger.GetFireTimeAfter(oldTriggerPreviousFireTime ?? oldTrigger.StartTimeUtc);
         }
 
-        return sched.RescheduleJob(trigger.Key, trigger, cancellationToken);
+        return scheduler.RescheduleJob(trigger.Key, trigger, cancellationToken);
     }
 
-    protected virtual IDictionary<JobKey, List<IMutableTrigger>> BuildTriggersByFQJobNameMap(List<ITrigger> triggers)
+    protected virtual Dictionary<JobKey, List<IMutableTrigger>> BuildTriggersByFullyQualifiedJobNameMap(IReadOnlyCollection<ITrigger> triggers)
     {
         Dictionary<JobKey, List<IMutableTrigger>> triggersByFQJobName = new Dictionary<JobKey, List<IMutableTrigger>>();
 

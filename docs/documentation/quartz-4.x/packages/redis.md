@@ -30,11 +30,11 @@ The Redis lock handler replaces these database locks with Redis `SET NX PX` dist
 
 ## Configuring
 
-### Using SchedulerBuilder (recommended)
+### Using the builder (recommended)
 
 ```csharp
-var schedulerFactory = SchedulerBuilder.Create()
-    .UsePersistentStore(store =>
+var schedulerFactory = QuartzSchedulerBuilder.Create()
+    .Configure(q => q.UsePersistentStore(store =>
     {
         store.UseSqlServer(connectionString);
         store.UseSystemTextJsonSerializer();
@@ -43,9 +43,11 @@ var schedulerFactory = SchedulerBuilder.Create()
         {
             redis.RedisConfiguration = "redis-server:6379";
         });
-    })
+    }))
     .Build();
 ```
+
+The same `UseRedisLockHandler` call works under a host: `services.AddQuartz(q => q.UsePersistentStore(store => …))`.
 
 ### Using properties
 
@@ -65,8 +67,20 @@ var properties = new NameValueCollection
 |---|---|---|
 | `redisConfiguration` | `localhost:6379` | StackExchange.Redis connection string |
 | `keyPrefix` | `quartz:lock:` | Prefix for Redis lock keys |
-| `lockTtlMilliseconds` | `30000` | Lock TTL in milliseconds (auto-expires after this duration) |
-| `lockRetryIntervalMilliseconds` | `100` | Polling interval between `SET NX` retry attempts |
+| `lockTimeToLive` | `30000` (30 seconds) | Lock TTL &mdash; the lock auto-expires after this duration |
+| `lockRetryInterval` | `100` (100 milliseconds) | Polling interval between `SET NX` retry attempts |
+
+`LockTimeToLive` and `LockRetryInterval` are `TimeSpan` properties, and a bare number in a `quartz.*` key is read as
+milliseconds. In code they take a `TimeSpan`:
+
+```csharp
+store.UseRedisLockHandler(redis =>
+{
+    redis.RedisConfiguration = "redis-server:6379";
+    redis.LockTimeToLive = TimeSpan.FromSeconds(30);
+    redis.LockRetryInterval = TimeSpan.FromMilliseconds(100);
+});
+```
 
 All properties are set under `quartz.jobStore.lockHandler.*`. The `schedName` and `tablePrefix` properties are injected automatically.
 

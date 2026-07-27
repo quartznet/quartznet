@@ -26,7 +26,7 @@ public class DisallowConcurrentExecutionJobTest
     [DisallowConcurrentExecution]
     public class TestJob : IJob
     {
-        public async ValueTask Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             jobExecDates.Add(DateTime.UtcNow);
 

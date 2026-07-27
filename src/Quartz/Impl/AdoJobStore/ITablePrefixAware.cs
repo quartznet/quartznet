@@ -27,9 +27,12 @@ namespace Quartz.Impl.AdoJobStore;
 public interface ITablePrefixAware
 {
     /// <summary>
-    /// Table prefix to use.
+    /// Table prefix of the tables the ADO.NET job store uses.
     /// </summary>
-    string TablePrefix { set; }
+    string TablePrefix { get; set; }
 
-    string? SchedName { set; }
+    /// <summary>
+    /// Name of the scheduler whose rows these tables hold.
+    /// </summary>
+    string? SchedulerName { get; set; }
 }

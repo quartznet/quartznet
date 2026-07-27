@@ -23,7 +23,7 @@ using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
 using Quartz.Impl.Matchers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace Quartz.Plugin.History;
@@ -250,7 +250,7 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
     /// Get the name of the <see cref="ITriggerListener" />.
     /// </summary>
     /// <value></value>
-    public virtual string Name { get; set; } = "Logging Trigger History Plugin";
+    public string Name { get; private set; } = "Logging Trigger History Plugin";
 
     /// <summary>
     /// Called during creation of the <see cref="IScheduler" /> in order to give
@@ -314,8 +314,8 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
         [
             trigger.Key.Name,
             trigger.Key.Group,
-            trigger.GetPreviousFireTimeUtc(),
-            trigger.GetNextFireTimeUtc(),
+            trigger.PreviousFireTimeUtc,
+            trigger.NextFireTimeUtc,
             timeProvider.GetUtcNow(),
             context.JobDetail.Key.Name,
             context.JobDetail.Key.Group,
@@ -351,8 +351,8 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
         [
             trigger.Key.Name,
             trigger.Key.Group,
-            trigger.GetPreviousFireTimeUtc(),
-            trigger.GetNextFireTimeUtc(),
+            trigger.PreviousFireTimeUtc,
+            trigger.NextFireTimeUtc,
             timeProvider.GetUtcNow(),
             trigger.JobKey.Name,
             trigger.JobKey.Group
@@ -410,8 +410,8 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
         [
             trigger.Key.Name,
             trigger.Key.Group,
-            trigger.GetPreviousFireTimeUtc(),
-            trigger.GetNextFireTimeUtc(),
+            trigger.PreviousFireTimeUtc,
+            trigger.NextFireTimeUtc,
             timeProvider.GetUtcNow(),
             context.JobDetail.Key.Name,
             context.JobDetail.Key.Group,

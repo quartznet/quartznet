@@ -160,7 +160,7 @@ public class JsonSchedulingTests
     {
         var config = BuildConfig(new Dictionary<string, string>
         {
-            { "Scheduling:OverWriteExistingData", "false" },
+            { "Scheduling:OverwriteExistingData", "false" },
             { "Scheduling:IgnoreDuplicates", "true" },
             { "Scheduling:ScheduleTriggerRelativeToReplacedTrigger", "true" },
             { "Schedule:Jobs:0:Name", "testJob" },
@@ -178,7 +178,7 @@ public class JsonSchedulingTests
         var provider = services.BuildServiceProvider();
         var options = provider.GetRequiredService<IOptions<QuartzOptions>>().Value;
 
-        options.Scheduling.OverWriteExistingData.Should().BeFalse();
+        options.Scheduling.OverwriteExistingData.Should().BeFalse();
         options.Scheduling.IgnoreDuplicates.Should().BeTrue();
         options.Scheduling.ScheduleTriggerRelativeToReplacedTrigger.Should().BeTrue();
         provider.ScheduledJobs().Should().HaveCount(1);
@@ -190,7 +190,7 @@ public class JsonSchedulingTests
         var config = BuildConfig(new Dictionary<string, string>
         {
             { "Scheduler:InstanceName", "SchedulingOnly" },
-            { "Scheduling:OverWriteExistingData", "false" },
+            { "Scheduling:OverwriteExistingData", "false" },
             { "Scheduling:IgnoreDuplicates", "true" },
         });
 
@@ -201,7 +201,7 @@ public class JsonSchedulingTests
         var provider = services.BuildServiceProvider();
         var options = provider.GetRequiredService<IOptions<QuartzOptions>>().Value;
 
-        options.Scheduling.OverWriteExistingData.Should().BeFalse();
+        options.Scheduling.OverwriteExistingData.Should().BeFalse();
         options.Scheduling.IgnoreDuplicates.Should().BeTrue();
         provider.ScheduledJobs().Should().BeEmpty();
     }
@@ -269,14 +269,9 @@ public class JsonSchedulingTests
     /// A type load helper that maps the alias "MyApp.AliasedJob" to NativeJob,
     /// proving the custom loader was used instead of the default.
     /// </summary>
-    private sealed class AliasTypeLoadHelper : Quartz.Spi.ITypeLoadHelper
+    private sealed class AliasTypeLoadHelper : Quartz.Extensibility.ITypeLoadHelper
     {
-        private readonly Quartz.Simpl.SimpleTypeLoadHelper inner = new();
-
-        public void Initialize()
-        {
-            inner.Initialize();
-        }
+        private readonly Quartz.Impl.SimpleTypeLoadHelper inner = new();
 
         public Type LoadType(string name)
         {

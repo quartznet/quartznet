@@ -22,7 +22,7 @@
 using System.Data.Common;
 
 using Quartz.Impl.Triggers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore;
@@ -34,18 +34,18 @@ namespace Quartz.Impl.AdoJobStore;
 /// <see cref="ICronTrigger"/>
 internal sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
 {
-    public void Initialize(string tablePrefix, string schedName, IDbAccessor dbAccessor)
+    public void Initialize(string tablePrefix, string schedulerName, IDbAccessor dbAccessor)
     {
         TablePrefix = tablePrefix;
         DbAccessor = dbAccessor;
-        SchedName = schedName;
+        SchedulerName = schedulerName;
     }
 
     private string TablePrefix { get; set; } = null!;
 
     private IDbAccessor DbAccessor { get; set; } = null!;
 
-    private string SchedName { get; set; } = null!;
+    private string SchedulerName { get; set; } = null!;
 
     public string GetHandledTriggerTypeDiscriminator()
     {
@@ -63,7 +63,7 @@ internal sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelega
         CancellationToken cancellationToken = default)
     {
         using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlDeleteCronTrigger, TablePrefix));
-        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
+        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
         DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
         DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
@@ -80,7 +80,7 @@ internal sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelega
         ICronTrigger cronTrigger = (ICronTrigger) trigger;
 
         using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlInsertCronTrigger, TablePrefix));
-        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
+        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
         DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
         DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
         DbAccessor.AddCommandParameter(cmd, "triggerCronExpression", cronTrigger.CronExpressionString);
@@ -95,7 +95,7 @@ internal sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelega
         CancellationToken cancellationToken = default)
     {
         using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectCronTriggers, TablePrefix));
-        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
+        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
         DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
         DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
@@ -134,7 +134,7 @@ internal sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelega
         ICronTrigger cronTrigger = (ICronTrigger) trigger;
 
         using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlUpdateCronTrigger, TablePrefix));
-        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
+        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedulerName);
         DbAccessor.AddCommandParameter(cmd, "triggerCronExpression", cronTrigger.CronExpressionString);
         DbAccessor.AddCommandParameter(cmd, "timeZoneId", cronTrigger.TimeZone.Id);
         DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);

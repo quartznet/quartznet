@@ -18,7 +18,7 @@ public class SchedulerListenerTest
 
     public class Qtz205Job : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             jobExecutionCount++;
             logger.LogInformation("Job executed. jobExecutionCount={ExecutionCount}", jobExecutionCount);
@@ -138,7 +138,7 @@ public class SchedulerListenerTest
             return default;
         }
 
-        public ValueTask SchedulerError(string msg, SchedulerException cause, CancellationToken cancellationToken)
+        public ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken)
         {
             return default;
         }
@@ -163,7 +163,7 @@ public class SchedulerListenerTest
             return default;
         }
 
-        public ValueTask SchedulerShuttingdown(CancellationToken cancellationToken)
+        public ValueTask SchedulerShuttingDown(CancellationToken cancellationToken)
         {
             return default;
         }

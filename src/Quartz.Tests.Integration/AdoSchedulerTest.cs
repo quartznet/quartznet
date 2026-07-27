@@ -1,8 +1,7 @@
 using Quartz.Tests.Integration.TestHelpers;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Tests.Integration.Utils;
 
 namespace Quartz.Tests.Integration;
@@ -24,7 +23,6 @@ public class AdoSchedulerTest : AbstractSchedulerTest
     public AdoSchedulerTest(Type serializerType, string provider) : base(provider, serializerType.Name)
     {
         serializer = (IObjectSerializer) Activator.CreateInstance(serializerType);
-        serializer.Initialize();
     }
 
     protected override async ValueTask<IScheduler> CreateScheduler(string name, int threadPoolSize)

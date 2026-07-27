@@ -27,7 +27,7 @@ public class Program
                 services.Configure<QuartzOptions>(options =>
                 {
                     options.Scheduling.IgnoreDuplicates = true; // default: false
-                    options.Scheduling.OverWriteExistingData = true; // default: true
+                    options.Scheduling.OverwriteExistingData = true; // default: true
                 });
 
                 // base configuration for DI

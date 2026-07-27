@@ -4,8 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 using Quartz.Impl.AdoJobStore;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 
 namespace Quartz.Configuration;
 
@@ -119,6 +119,13 @@ internal sealed class QuartzBuilder : IQuartzBuilder
         where T : class, IJobFactory
     {
         Register<IJobFactory, T>();
+        return this;
+    }
+
+    public IQuartzBuilder UseJobFactory(IJobFactory jobFactory)
+    {
+        ArgumentNullException.ThrowIfNull(jobFactory);
+        RegisterConfigured<IJobFactory>((_, _) => jobFactory);
         return this;
     }
 

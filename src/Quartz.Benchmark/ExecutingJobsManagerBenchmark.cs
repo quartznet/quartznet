@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using BenchmarkDotNet.Attributes;
 using Quartz.Core;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Benchmark;
 

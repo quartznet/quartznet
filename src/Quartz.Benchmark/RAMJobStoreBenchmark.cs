@@ -2,8 +2,8 @@ using Quartz.Tests;
 using BenchmarkDotNet.Attributes;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 
 namespace Quartz.Benchmark;
 
@@ -462,7 +462,7 @@ public class RAMJobStoreBenchmark
 
         if (nextFireTimeUtc is not null)
         {
-            trigger.SetNextFireTimeUtc(nextFireTimeUtc);
+            trigger.NextFireTimeUtc = nextFireTimeUtc;
         }
         else
         {
@@ -473,23 +473,23 @@ public class RAMJobStoreBenchmark
     }
 
     [DisallowConcurrentExecution]
-    private class NoOpJobDisallowConcurrent : IJob
+    private sealed class NoOpJobDisallowConcurrent : IJob
     {
         /// <summary>
         /// Do nothing.
         /// </summary>
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             return default;
         }
     }
 
-    private class NoOpJob : IJob
+    private sealed class NoOpJob : IJob
     {
         /// <summary>
         /// Do nothing.
         /// </summary>
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             return default;
         }
@@ -497,7 +497,7 @@ public class RAMJobStoreBenchmark
 
     public class NoOpSignaler : ISchedulerSignaler
     {
-        public ValueTask NotifySchedulerListenersError(string message, SchedulerException jpe, CancellationToken cancellationToken = default)
+        public ValueTask NotifySchedulerListenersError(string message, SchedulerException exception, CancellationToken cancellationToken = default)
         {
             return default;
         }
@@ -523,32 +523,28 @@ public class RAMJobStoreBenchmark
         }
     }
 
-    private class NullJobTypeLoader : ITypeLoadHelper
+    private sealed class NullJobTypeLoader : ITypeLoadHelper
     {
-        public void Initialize()
+        public Type? LoadType(string name)
         {
-        }
-
-        public Type? LoadType(string? name)
-        {
-            return null;
+            throw new NotSupportedException($"The benchmark never resolves a job type through this helper, but '{name}' was requested.");
         }
     }
 
-    private class MisfireTrigger : SimpleTriggerImpl
+    private sealed class MisfireTrigger : SimpleTriggerImpl
     {
         public MisfireTrigger()
         {
         }
 
-        public override void UpdateAfterMisfire(ICalendar? cal)
+        public override void UpdateAfterMisfire(ICalendar? calendar)
         {
-            base.SetNextFireTimeUtc(base.GetNextFireTimeUtc().GetValueOrDefault().AddSeconds(1));
+            base.NextFireTimeUtc = base.NextFireTimeUtc.GetValueOrDefault().AddSeconds(1);
         }
 
-        public override void Triggered(ICalendar? cal)
+        public override void Triggered(ICalendar? calendar)
         {
-            base.SetNextFireTimeUtc(base.GetNextFireTimeUtc().GetValueOrDefault().AddSeconds(2));
+            base.NextFireTimeUtc = base.NextFireTimeUtc.GetValueOrDefault().AddSeconds(2);
         }
     }
 }

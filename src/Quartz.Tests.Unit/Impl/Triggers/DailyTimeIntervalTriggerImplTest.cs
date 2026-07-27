@@ -22,7 +22,7 @@
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Util;
 
 using TimeZoneConverter;
@@ -1243,7 +1243,7 @@ public class DailyTimeIntervalTriggerImplTest
 
         trigger.UpdateAfterMisfire(null);
 
-        DateTimeOffset? nextFire = trigger.GetNextFireTimeUtc();
+        DateTimeOffset? nextFire = trigger.NextFireTimeUtc;
         Assert.IsNotNull(nextFire);
         Assert.That(nextFire.Value, Is.GreaterThan(frozenNow),
             "Trigger must not fire immediately after misfire handling (#3096)");

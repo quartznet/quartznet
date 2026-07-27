@@ -37,7 +37,7 @@ namespace Quartz.Job;
 ///     job.JobDataMap[Quartz.Jobs.NativeJob.PropertyCommand] = "echo \"hi\" >> foobar.txt";
 ///     Trigger trigger = TriggerUtils.MakeSecondlyTrigger(5);
 ///     trigger.Name = "dumbTrigger";
-///     sched.ScheduleJob(job, trigger);
+///     scheduler.ScheduleJob(job, trigger);
 /// </example>
 /// If PropertyWaitForProcess is true, then the integer exit value of the process
 /// will be saved as the job execution result in the JobExecutionContext.
@@ -115,7 +115,8 @@ public class NativeJob : IJob
     /// </para>
     /// </summary>
     /// <param name="context"></param>
-    public virtual ValueTask Execute(IJobExecutionContext context)
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    public virtual ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         JobDataMap data = context.MergedJobDataMap;
 

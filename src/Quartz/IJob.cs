@@ -51,5 +51,17 @@ public interface IJob
     /// execution.
     /// </remarks>
     /// <param name="context">The execution context.</param>
-    ValueTask Execute(IJobExecutionContext context);
+    /// <param name="cancellationToken">
+    /// Signalled when this execution is interrupted — either by
+    /// <see cref="IScheduler.Interrupt(JobKey, CancellationToken)" /> or by the scheduler shutting
+    /// down while configured to interrupt running jobs. A long-running job should pass this on to
+    /// everything it awaits; a job that ignores it cannot be interrupted, and will hold up shutdown
+    /// until it finishes on its own.
+    /// <para>
+    /// This is the same token as <see cref="IJobExecutionContext.CancellationToken" />, given as a
+    /// parameter so that it is impossible to miss and so that the compiler can point out where it
+    /// has not been forwarded.
+    /// </para>
+    /// </param>
+    ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default);
 }

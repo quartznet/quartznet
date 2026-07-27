@@ -26,7 +26,7 @@
   * The ctor for **QuartzScheduler** no longer takes an **idleWaitTime** argument. This value
     is now obtained from a newly introduced **IdleWaitTime** property on **QuartzSchedulerResources**.
 
-  * `SystemTime` was removed as way to provide "now", you can inject `TimeProvider` via configuration or `SchedulerBuilder.UseTimeProvider<T>()`
+  * `SystemTime` was removed as way to provide "now", you can inject `TimeProvider` via configuration or `UseTimeProvider(TimeProvider)` on the builder
 
   * The `Equals(StringOperator? other)` method of **StringOperator** is now also virtual to allow it to be
     overridden in pair with `Equals(object? obj)` and `GetHashCode()`.
@@ -71,10 +71,192 @@
   * `Task` return types and parameters have been changed to `ValueTask`.  Any consumers of Quartz expecting a `Task` will require to update the signatures to `ValueTask`,
      or use the `AsTask()` Method on ValueTask to Return the `ValueTask` as a `Task`  (#988)
 
-  * `IJobFactory.NewJob` now returns `ValueTask<IJob>` and accepts a `CancellationToken`, allowing factories to perform asynchronous work
-    (such as resolving tenant context from an external store) before producing a job instance. Existing synchronous implementations should return
-    `new ValueTask<IJob>(job)`. Built-in factories that derive from `SimpleJobFactory` can call the new protected `InstantiateJobCore` helper
-    when they need a job instance from the synchronous code path. (#3045)
+  * **IJob.Execute** now takes a `CancellationToken` alongside the context:
+    `ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)`. It is the same token as
+    `IJobExecutionContext.CancellationToken`, which stays and keeps working — the parameter exists because a token on a context
+    property is easy to never notice, and a job that never notices it cannot be interrupted and holds up shutdown. As a parameter
+    it is also visible to the `CA2016` analyzer, which now points at every `await` inside a job that fails to forward it. Every
+    job has to change its signature for the `Task` → `ValueTask` move above anyway, so this is one edit rather than two.
+
+  * `IJobFactory` was reshaped around a job *scope* rather than a bare job instance (#3062):
+    `ValueTask<JobScope> CreateJob(TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default)`
+    replaces `NewJob`, and `ValueTask ReturnJob(JobScope scope, CancellationToken cancellationToken = default)` replaces
+    `ReturnJob(IJob)`. The new `JobScope` is a readonly struct carrying the job plus an opaque `State` object, so a factory that
+    has to allocate something to build the job — a DI scope, a connection, a tenant context — gets it handed back when the job is
+    returned instead of having to hide it inside the job instance. Because of that, **`IJobWrapper` has been removed**:
+    `MicrosoftDependencyInjectionJobFactory` no longer wraps the job, so `IJobExecutionContext.JobInstance` and every listener now
+    see the job type the user actually wrote. `ReturnJob` is `public virtual` on `SimpleJobFactory`, so job teardown is
+    overridable. Both members are async and cancellable, closing the one place in the SPI where an async member took no token.
+
+  * **IThreadPool** is now asynchronous, and two of its members were renamed away from their Java origins:
+    `BlockForAvailableThreads()` → `ValueTask<int> WaitForAvailableThreads(CancellationToken)` and
+    `bool RunInThread(Func<Task>)` → `ValueTask<bool> TryRun(Func<Task>, CancellationToken)`; `Initialize` and `Shutdown`
+    return `ValueTask` like every other lifecycle member in the SPI. This is not only cosmetic — both of the renamed methods
+    blocked the calling thread on `SemaphoreSlim.Wait`, and the caller is `QuartzSchedulerThread`'s own asynchronous loop, so
+    the scheduler was tying up a thread every time it waited for pool capacity. They now use `WaitAsync`. Shutdown still waits
+    synchronously for running jobs; that happens once, off the scheduling loop.
+
+  * Abbreviated parameter names inherited from the Java port were spelled out across the public surface:
+    `cal` → `calendar`, `sched` → `scheduler`, `schedName` → `schedulerName`, `calName` → `calendarName`,
+    `schedInstId` → `schedulerInstanceId`, `triggerInstCode`/`instCode` → `triggerInstructionCode`/`instructionCode`,
+    `jec` → `context`, `prevFireTimeUtc` → `previousFireTimeUtc`, `ITablePrefixAware.SchedName` → `SchedulerName`
+    (and both its properties are now readable rather than setter-only), `msg`/`se` on **QuartzScheduler**'s
+    notification methods and `trig` on **QuartzScheduler.TriggerJob**, `je` → `jobExecutionException` on
+    **QuartzScheduler.NotifyJobListenersWasExecuted**, and every abbreviated constructor parameter of
+    **SchedulerMetaData**: `schedInst` → `schedulerInstanceId`, `schedType` → `schedulerType`,
+    `numberOfJobsExec` → `numberOfJobsExecuted`, `jsType` → `jobStoreType`,
+    `jsPersistent` → `jobStoreSupportsPersistence`, `jsClustered` → `jobStoreClustered`,
+    `tpType` → `threadPoolType` and `tpSize` → `threadPoolSize`.
+    The same pass reached `tz`/`timezone` → `timeZone` on the `InTimeZone` schedule-builder methods and
+    `DateBuilder.NewDateInTimeZone`, `fName` → `fileName` on the XML and JSON scheduling plugins'
+    `FileUpdated`, `selectWithLockSQL` → `selectWithLockSql` and `defaultSQL`/`defaultInsertSQL` →
+    `defaultSql`/`defaultInsertSql` on the semaphore constructors, `overWriteExistingJobs` →
+    `overwriteExistingJobs` on `XMLSchedulingDataProcessor.ProcessFileAndScheduleJobs`, and
+    `repeatcount`/`misfireinstruction`/`str` → `repeatCount`/`misfireInstruction`/`value` on that type's
+    protected parsing helpers.
+    Only callers using named arguments are affected. **QuartzScheduler.NotifySchedulerListenersShuttingdown**
+    is likewise `NotifySchedulerListenersShuttingDown`, matching the listener member it raises.
+
+  * The calendar-name parameter is spelled `calendarName` everywhere it was `name`: `IScheduler.AddCalendar`,
+    `GetCalendar` and `DeleteCalendar`, `IJobStore.StoreCalendar`, `RetrieveCalendar`, `RemoveCalendar` and
+    `CalendarExists`, the implementations of those in **QuartzScheduler**, **StdScheduler**, **HttpScheduler**,
+    **RAMJobStore** and **JobStoreSupport**, and the `AddCalendar` builder extensions. A calendar name is not
+    the same kind of name as a job or trigger name, and the protected halves of these methods already said so.
+
+  * **The `Quartz.Spi` and `Quartz.Simpl` namespaces were renamed.** `Quartz.Spi` is now
+    **`Quartz.Extensibility`** and `Quartz.Simpl` merged into the existing **`Quartz.Impl`**. Both were transliterated
+    from `org.quartz.spi` and `org.quartz.simpl` and mean nothing in .NET. Fixing the compiler errors is a
+    find-and-replace over `using` directives.
+
+    Configuration is the part that would not have failed loudly, because it names types by string —
+    `quartz.jobStore.type`, `quartz.threadPool.type`, `quartz.serializer.type`, `quartz.plugin.<name>.type`. So
+    `SimpleTypeLoadHelper` retries a name that fails to resolve under the old namespace and logs a warning naming
+    both spellings. The same fallback covers the assemblies that were merged into the core package —
+    `Quartz.Extensions.DependencyInjection`, `Quartz.Extensions.Hosting` and `Quartz.Serialization.SystemTextJson`
+    are retried as `Quartz` — and composes the two, so a string naming both an old namespace and a merged assembly
+    still resolves. **Existing `Quartz.Simpl.*` and `Quartz.Spi.*` configuration keeps working**, but it is a
+    fallback rather than a promise — update it when convenient.
+
+  * The **Quartz.Serialization.Newtonsoft** package no longer puts types in namespaces that read as if they came
+    from the core package. `Quartz.Triggers` is **`Quartz.Serialization.Newtonsoft.Triggers`** (`ITriggerSerializer`,
+    `TriggerSerializer<T>` and the built-in trigger serializers), and `Quartz.Converters` folded into
+    **`Quartz.Serialization.Newtonsoft`**. `JsonConfigurationExtensions` is
+    **`NewtonsoftJsonConfigurationExtensions`**, which also resolves a collision: the core package has a type of
+    the same name, so referencing both packages made `UseNewtonsoftJsonSerializer` ambiguous.
+    `NewtonsoftJsonSerializerOptions.AddCalendarSerializer<TCalendar>` and the registry's equivalent are now
+    constrained to `ICalendar`, matching the trigger side.
+
+  * `TriggerFiredBundle.PrevFireTimeUtc` is `PreviousFireTimeUtc`, matching the spelling used everywhere else.
+
+  * `RAMJobStore.SetAllTriggersOfJobToState` is `internal` rather than `protected`, because the `InternalTriggerState`
+    it takes is now internal too. A job store deriving from `RAMJobStore` can no longer override it.
+
+  * Non-public classes throughout the codebase are `sealed` where nothing derives from them.
+
+  * **JobRunShell**, **IJobRunShellFactory**, `QuartzSchedulerResources.JobRunShellFactory` and the
+    `InternalTriggerState` enum are now `internal`. None had an implementer or caller outside Quartz itself, and a
+    public enum named `Internal*` was self-refuting. `ZeroSizeThreadPool`, `ISchedulerProxyFactory` and
+    `QuartzScheduler` were considered and **left public**: the first two can still reasonably be named by
+    configuration or implemented by someone outside the repository, and `QuartzScheduler` is exposed by
+    `StdScheduler`'s public constructor.
+
+  * **ITrigger** exposes the fire times as properties — `NextFireTimeUtc` and `PreviousFireTimeUtc` — rather than
+    only as `GetNextFireTimeUtc()` / `GetPreviousFireTimeUtc()` methods, which were a direct port of Java's
+    accessor style. **Existing calling code keeps compiling**: the two methods remain as `[Obsolete]` default
+    interface implementations that forward to the properties, and `AbstractTrigger` keeps concrete `[Obsolete]`
+    forwarders as well, so code holding a concrete trigger type — where a default implementation is not reachable —
+    is unaffected too. You will get an obsolescence warning and can fix it by deleting `Get` and `()`.
+
+    `IMutableTrigger` re-declares both properties with setters, which let **`IOperableTrigger.SetNextFireTimeUtc`**
+    and **`SetPreviousFireTimeUtc` be removed**: `trigger.SetNextFireTimeUtc(value)` becomes
+    `trigger.NextFireTimeUtc = value`. That pair had no obsolete stand-in because a method and a property setter
+    cannot coexist under one name. `IMutableTrigger` also lost its stray `{ set; get; }` accessor ordering and a
+    doc comment that had leaked a fragment of code into the summary text.
+
+    **`GetMayFireAgain()` became the `MayFireAgain` property** the same way, with an `[Obsolete]` forwarder on both
+    `ITrigger` and `AbstractTrigger`. On `AbstractTrigger` the property is the abstract member the trigger
+    implementations override, so a custom trigger deriving from it overrides `MayFireAgain` rather than
+    `GetMayFireAgain` — that one is a compile error rather than a warning, because there is nothing left to
+    override. `CronTriggerImpl.CronExpression` also gained a getter (it was setter-only) and is nullable, which is
+    what it always was underneath.
+
+  * `IJobStore.EstimatedTimeToReleaseAndAcquireTrigger` is a **`TimeSpan`** rather than a `long` count of
+    milliseconds. The same interface already returned `TimeSpan` from `GetAcquireRetryDelay`, so it carried two
+    ways of saying the same kind of thing.
+
+  * The two `IJobStore.AcquireNextTriggers` overloads are one method with an optional `executionLimits` argument.
+    Neither had a default implementation, so every job store had to write both, and the shorter one always just
+    called the longer one with null. The parameter is now `IReadOnlyDictionary<string, int?>?` rather than a
+    mutable `Dictionary<string, int?>?`; the `executionLimits` parameter of `IDriverDelegate.SelectTriggerToAcquire`
+    changed the same way, though that member keeps its two overloads.
+
+  * `ISchedulerFactory.GetAllSchedulers` returns `ValueTask<List<IScheduler>>`. Quartz returns concrete collection
+    types from its query members for the sake of allocation and enumeration cost, and this was the one that did not.
+
+    The remaining query members followed: `TriggerUtils.ComputeFireTimes` and `ComputeFireTimesBetween`,
+    `HolidayCalendar.ExcludedDates`, `DbMetadataFactory.GetProviderNames`, `ValidationException.ValidationExceptions`,
+    `QuartzOptions.Properties`, `QuartzSchedulerResources.SchedulerPlugins`,
+    `QuartzScheduler.InternalSchedulerListeners`, `XMLSchedulingDataProcessor`'s `LoadedJobs`, `LoadedTriggers` and
+    `BuildTriggersByFullyQualifiedJobNameMap`, `IDirectoryProvider.GetDirectoriesToScan`,
+    `QuartzHealthCheckOptions.Tags`, and the dashboard's `DashboardHistoryPage.Entries` and `ExecutionLimitsDto.Limits`
+    all return a `List<T>` or `Dictionary<K,V>` now. The mirror-image rule applies to what they accept:
+    `DirectoryScanJob.GetUpdatedOrNewFiles`, `JobStoreSupport.ClusterRecover` and the `BroadcastJobListener` /
+    `BroadcastSchedulerListener` constructors take `IReadOnlyCollection<T>` where they used to demand a `List<T>` or
+    an `IEnumerable<T>`. `BroadcastSchedulerListener.GetListeners()` is also a `Listeners` property, matching
+    `BroadcastJobListener` and `BroadcastTriggerListener`.
+
+  * `[Serializable]` was removed from **TriggerFiredBundle** and **TriggerFiredResult**. It has meant nothing since
+    persistence became JSON-only and `BinaryFormatter` was dropped.
+
+  * The last public `Task`-returning members became `ValueTask`: eight notification methods on **QuartzScheduler**
+    plus `TriggerJob` (which shadowed a `ValueTask`-returning `IScheduler.TriggerJob`), `JobRunShell.Initialize`
+    and `Run`, and `IDriverDelegate.SelectTriggersInGroup` — the only `Task` in an otherwise-`ValueTask` interface.
+    `JobStoreSupport.RecoverStaleAcquiredTriggers` was the last one left and is now `ValueTask<int>`.
+
+  * `IListenerManager.GetSchedulerListeners()` returns `ISchedulerListener[]` rather than
+    `IReadOnlyCollection<ISchedulerListener>`, matching the array the job and trigger getters have returned since
+    the allocation work earlier in 4.0. `ISchedulerListener` itself is unchanged: it has no `Name`, because unlike
+    job and trigger listeners it has no matchers to key by one, and a scheduler listener is identified by its
+    instance. `GetJobListenerMatchers` and `GetTriggerListenerMatchers` return `IMatcher<JobKey>[]?` and
+    `IMatcher<TriggerKey>[]?` for the same reason; they still return null for a listener that is not registered.
+
+  * **ISchedulerListener.SchedulerShuttingdown** is spelled `SchedulerShuttingDown`.
+
+  * `ISchedulerListener.SchedulerError`'s parameters are named `message` and `exception` rather than `msg` and
+    `cause`, matching `ISchedulerSignaler.NotifySchedulerListenersError`, which describes the same event.
+
+  * `IObjectSerializer.DeSerialize` is spelled **`Deserialize`**, and `IObjectSerializer.Initialize()` and
+    `ITypeLoadHelper.Initialize()` were removed. Both serializers now build their options on first use, so there is
+    no half-constructed state to fall into and no `"did you forget to call Initialize()?"` to hit;
+    `SimpleTypeLoadHelper.Initialize` was empty to begin with. `ITypeLoadHelper.LoadType` takes a non-nullable `string`.
+
+  * `IInstanceIdGenerator.GenerateInstanceId` returns `ValueTask<string>` rather than `ValueTask<string?>`. It never
+    legitimately produced null — every implementation either returns a name or throws.
+
+  * **IRemotableSchedulerProxyFactory** is now **ISchedulerProxyFactory**. "Remotable" was .NET Remoting vocabulary
+    that has not applied since 3.0; the only implementation is `HttpSchedulerProxyFactory` in `Quartz.HttpClient`.
+
+  * `ISchedulerSignaler.NotifySchedulerListenersError`'s second parameter is named `exception` rather than `jpe`,
+    a leftover abbreviation of the Java `JobPersistenceException`.
+
+  * **XmlSchedulingOptions** and **JsonSchedulingOptions** were byte-for-byte identical and are now one
+    **FileSchedulingOptions**. `UseXmlSchedulingConfiguration` and `UseJsonSchedulingConfiguration` are otherwise
+    unchanged, and callers passing a lambda need no edit.
+
+  * Three plugins that shipped without a builder method got one: `UseJobHistoryLogging()`,
+    `UseTriggerHistoryLogging()` and `UseShutdownHook()`. Only the structured-logging variants had been given one, so
+    the classic history plugins and the shutdown hook could only be reached through `quartz.plugin.*` property keys.
+
+  * **IThreadPool.InstanceId** and **IThreadPool.InstanceName** were removed. They were setter-only properties written by
+    `DefaultSchedulerFactory` and read by nothing — `TaskSchedulingThreadPool` parked them in unused auto-properties and
+    `ZeroSizeThreadPool` discarded them. A thread pool that wants the scheduler's identity should take
+    `IOptions<QuartzSchedulerOptions>` from the container, like everything else in 4.x.
+
+  * `PropertySettingJobFactory.InstantiateJob(TriggerFiredBundle, IScheduler)` — the synchronous hook derived factories override —
+    was replaced by `protected virtual ValueTask<JobScope> CreateJobInstance(TriggerFiredBundle, IScheduler, CancellationToken)`.
+    The old hook was synchronous even after `NewJob` became asynchronous (#3045), so a factory that needed to do real work to
+    produce a job had to override `NewJob` outright and reimplement the property setting this class exists to provide.
+    `SimpleJobFactory.InstantiateJobCore` is unchanged and still available for the synchronous path.
 
   * To configure JSON serialization to be used in job store instead of old `UseJsonSerializer` you should now use either `UseSystemTextJsonSerializer` or `UseNewtonsoftJsonSerializer`
     and remove the old package reference `Quartz.Serialization.Json` (and if Newtonsoft used, reference `Quartz.Serialization.Newtonsoft`). Change was made to distinguish the two common
@@ -179,6 +361,95 @@
 
   * **Quartz.Dashboard** registers its live-events and history plugins as services rather than by writing
     `quartz.plugin.*.type` keys into `QuartzOptions`. The plugins keep the names they had (#3177).
+
+  * **The `IScheduler.JobFactory` setter was removed**, along with its implementations on `StdScheduler`,
+    `DelegatingScheduler` and `HttpScheduler`. A job factory is part of how a scheduler is built rather than
+    something to swap underneath a running one, and on `HttpScheduler` the setter only ever threw — the jobs run
+    in another process. Set it where the scheduler is configured:
+
+    ```csharp
+    // 3.x
+    scheduler.JobFactory = new MyJobFactory();
+
+    // 4.x
+    services.AddQuartz(q => q.UseJobFactory(new MyJobFactory()));      // or UseJobFactory<MyJobFactory>()
+    QuartzSchedulerBuilder.Create().UseJobFactory(new MyJobFactory()); // standalone
+    ```
+
+    `IQuartzBuilder.UseJobFactory(IJobFactory)` and `QuartzSchedulerBuilder.UseJobFactory(IJobFactory)` are new:
+    the generic overloads have always existed, but an already-constructed factory had nowhere to go.
+    `QuartzScheduler.JobFactory` is still settable, for the code paths that build a scheduler by hand.
+
+  * **IJobConfigurator**'s members return `IJobConfigurator` rather than `JobBuilder`. The interface exists so a
+    configuration callback does not have to know it is holding a `JobBuilder`, and returning the concrete type
+    from every member defeated that. `JobBuilder` implements the interface explicitly and keeps its own
+    `JobBuilder`-returning members, so `JobBuilder.Create()...` chains are unaffected; a callback typed as
+    `Action<IJobConfigurator>` now chains through the interface. Both gained a `UsingJobData(string, decimal)`
+    overload, which was the one numeric primitive missing from the set, and `UsingJobData(string, string?)`
+    accepts null, as the underlying map does.
+
+  * Names that spelled an acronym or a shortened word oddly were normalized. Only a rename in each case:
+    * `QuartzScheduler.NumJobsExecuted` → `NumberOfJobsExecuted`, `JobStoreClass` → `JobStoreType`,
+      `ThreadPoolClass` → `ThreadPoolType` (they return a `Type`, not a class name).
+    * `JobStoreSupport.UseDBLocks` → `UseDbLocks`, `SelectWithLockSQL` → `SelectWithLockSql`.
+    * `DBSemaphore.SQL` → `Sql`, `InsertSQL` → `InsertSql` (both now readable), `ExecuteSQL` → `ExecuteSql`.
+    * `Quartz.Util.DBConnectionManager` → `DbConnectionManager`; the `IDbConnectionManager` interface it
+      implements was already spelled that way.
+    * `DbMetadata.Init()` → `Initialize()`, matching every other lifecycle member.
+    * `AdoConstants.ColumnMifireInstruction` → `ColumnMisfireInstruction` — a typo, and the column name it
+      holds is unchanged.
+    * `SchedulerConstants.FailedJobOriginalTriggerFiretime` → `FailedJobOriginalTriggerFireTime` and
+      `FailedJobOriginalTriggerScheduledFiretime` → `FailedJobOriginalTriggerScheduledFireTime`. The string
+      values are unchanged, so nothing in an existing `JobDataMap` moves.
+    * `XMLSchedulingDataProcessor.OverWriteExistingData` → `OverwriteExistingData`, `PrepForProcessing` →
+      `PrepareForProcessing`, `BuildTriggersByFQJobNameMap` → `BuildTriggersByFullyQualifiedJobNameMap`.
+      `SchedulingOptions.OverWriteExistingData` changed with it, so the configuration key is now spelled
+      `Quartz:Scheduling:OverwriteExistingData` (and `OverwriteExistingData` in a JSON scheduling file).
+      Configuration keys are matched case-insensitively, so a file that still says `OverWriteExistingData`
+      keeps binding; code assigning the property does not.
+    * `SimpleJobFactory.Dispose(object?)` → `DisposeIfDisposable(object?, CancellationToken)`. The old name
+      promised more than the method does: it disposes the argument only when the argument is disposable.
+
+  * Every remaining async member takes a `CancellationToken`, and every optional one defaults it. This reaches
+    the protected surface of `JobStoreSupport` (`GetConnection`, `GetNonManagedTXConnection`, `CleanupConnection`,
+    `CloseConnection`, `CommitConnection`, `RollbackConnection`, `ReleaseLock`, `RecoverJobs`, `DoRecoverMisfires`,
+    `ExecuteInNonManagedTXLock`, `SignalSchedulingChangeImmediately`), `ConnectionAndTransactionHolder`'s `Close`,
+    `Commit` and `Rollback`, `StdAdoDelegate`'s `GetJobDataFromBlob`, `ReadBytesFromBlob`, `DeleteTriggerExtension`
+    and `ValidateSchema`, and `RAMJobStore.RemoveTrigger`. Overriding code has to add the parameter; calling code
+    does not. `IDirectoryScanListener.FilesUpdatedOrAdded` and `FilesDeleted` return `ValueTask` and take a token
+    too — a directory-scan listener that wants to do I/O no longer has to block a thread to do it.
+
+  * The redundant `protected JobStoreSupport.AcquireNextTrigger` overload without `executionLimits` was removed,
+    mirroring the `IJobStore.AcquireNextTriggers` collapse above, and the **`JobStoreSupport.UseProperties`
+    `string` setter** is gone. It existed so a `"true"` from a properties file could be assigned to what is a
+    `bool`; the bridge parses the key now. `AdoJobStoreOptions.UseProperties` and the read-only
+    `CanUseProperties` are unchanged.
+
+  * **TimeSpanParseRuleAttribute** is public. It says how a bare number in configuration is read as a `TimeSpan`
+    — `quartz.jobStore.misfireThreshold = 60000` means milliseconds — and a component configured through the
+    same `quartz.*` keys had no way to say the same thing about its own properties.
+
+  * `TaskSchedulingThreadPool.ThreadCount` was removed; it was an alias that read and wrote `MaxConcurrency`.
+    **The `quartz.threadPool.threadCount` configuration key is unaffected** and still sets `MaxConcurrency`.
+
+  * **Quartz.Extensions.Redis**: `RedisSemaphore.LockTtlMilliseconds` and `LockRetryIntervalMilliseconds` are
+    `LockTimeToLive` and `LockRetryInterval`, both `TimeSpan`, and `RedisLockHandlerOptions` matches. Both carry
+    `[TimeSpanParseRule(Milliseconds)]`, so a bare number in `quartz.jobStore.lockHandler.*` still means
+    milliseconds — but the key names follow the properties: `lockTimeToLive` and `lockRetryInterval`.
+
+  * **Quartz.Dashboard**: `IQuartzApiClient`'s members all take a `CancellationToken`, and `IDashboardHistoryStore`
+    is asynchronous (`ValueTask Add`, `ValueTask<DashboardHistoryPage> GetPage`) so a store can talk to a
+    database. `QuartzApiClient` and `InProcessQuartzApiClient` are `internal` — resolve `IQuartzApiClient` —
+    and `QuartzDashboardOptions` is `sealed`. **`IDashboardAuthorizationFilter` and
+    `QuartzDashboardOptions.AuthorizationFilter` were removed**: nothing ever invoked the filter, so setting it
+    bought a false sense of security. Use `AuthorizationPolicy`, which is enforced. The filter will come back if
+    and when it is actually applied. `SearchFilter.DebounceMilliseconds` is a `TimeSpan Debounce`.
+
+  * Members that were setter-only for no reason gained getters: `DbMetadata.DbBinaryTypeName` (now `string?`)
+    and `ParameterDbTypePropertyName`, and `HttpSchedulerProxyFactory.Address`.
+    `TimeZoneUtil.CustomResolver` is a property rather than a public mutable field, and
+    `LoggingJobHistoryPlugin.Name` and `LoggingTriggerHistoryPlugin.Name` are get-only — a plugin's name is
+    handed to it by `Initialize`, and writing to it afterwards did nothing.
 
 #### Cron Parser
 

@@ -244,7 +244,7 @@ public class InProcessQuartzApiClientTest
 
     private sealed class NoOpJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             return ValueTask.CompletedTask;
         }

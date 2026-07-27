@@ -42,7 +42,7 @@ public class SimpleJob : IJob
     /// </para>
     /// </summary>
     /// <param name="context"></param>
-    public virtual ValueTask Execute(IJobExecutionContext context)
+    public virtual ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         // This job simply prints out its job name and the
         // date and time that it is running

@@ -20,7 +20,7 @@
 #endregion
 
 using Quartz.Impl.Matchers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz;
 
@@ -174,18 +174,6 @@ public interface IScheduler
     /// </remarks>
     /// <seealso cref="IJobExecutionContext" />
     ValueTask<List<IJobExecutionContext>> GetCurrentlyExecutingJobs(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Set the <see cref="JobFactory" /> that will be responsible for producing
-    /// instances of <see cref="IJob" /> classes.
-    /// </summary>
-    /// <remarks>
-    /// JobFactories may be of use to those wishing to have their application
-    /// produce <see cref="IJob" /> instances via some special mechanism, such as to
-    /// give the opportunity for dependency injection.
-    /// </remarks>
-    /// <seealso cref="IJobFactory" />
-    IJobFactory JobFactory { set; }
 
     /// <summary>
     /// Get a reference to the scheduler's <see cref="IListenerManager" />,
@@ -721,7 +709,7 @@ public interface IScheduler
     /// <summary>
     /// Add (register) the given <see cref="ICalendar" /> to the Scheduler.
     /// </summary>
-    /// <param name="name">Name of the calendar.</param>
+    /// <param name="calendarName">Name of the calendar.</param>
     /// <param name="calendar">The calendar.</param>
     /// <param name="replace">if set to <c>true</c> [replace].</param>
     /// <param name="updateTriggers">whether or not to update existing triggers that
@@ -729,7 +717,7 @@ public interface IScheduler
     /// based on the new trigger.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask AddCalendar(
-        string name,
+        string calendarName,
         ICalendar calendar,
         bool replace,
         bool updateTriggers,
@@ -743,15 +731,15 @@ public interface IScheduler
     /// <see cref="ITrigger" />s pointing to non-existent calendars, then a
     /// <see cref="SchedulerException" /> will be thrown.
     /// </remarks>
-    /// <param name="name">Name of the calendar.</param>
+    /// <param name="calendarName">Name of the calendar.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if the Calendar was found and deleted.</returns>
-    ValueTask<bool> DeleteCalendar(string name, CancellationToken cancellationToken = default);
+    ValueTask<bool> DeleteCalendar(string calendarName, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get the <see cref="ICalendar" /> instance with the given name.
     /// </summary>
-    ValueTask<ICalendar?> GetCalendar(string name, CancellationToken cancellationToken = default);
+    ValueTask<ICalendar?> GetCalendar(string calendarName, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get the names of all registered <see cref="ICalendar" />.

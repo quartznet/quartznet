@@ -25,7 +25,7 @@ using System.Data.Common;
 using Microsoft.Extensions.Logging;
 
 using Quartz.Diagnostics;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
@@ -121,8 +121,8 @@ internal sealed class QuartzSchedulerThread
 
     /// <summary>
     /// Construct a new <see cref="QuartzSchedulerThread" /> for the given
-    /// <see cref="QuartzScheduler" /> as a non-daemon <see cref="Thread" />
-    /// with normal priority.
+    /// <see cref="QuartzScheduler" />. The scheduling loop runs as a task on the
+    /// thread pool rather than on a dedicated thread.
     /// </summary>
     /// <param name="qs">The scheduler.</param>
     /// <param name="qsRsrcs">The resources.</param>
@@ -300,7 +300,10 @@ internal sealed class QuartzSchedulerThread
                     try
                     {
                         var delay = ComputeDelayForRepeatedErrors(qsRsrcs.JobStore, acquiresFailed);
-                        await Task.Delay(delay).ConfigureAwait(false);
+                        // Cancellable so that shutdown does not stall for the remainder of the
+                        // back-off; the catch swallows the OperationCanceledException and the
+                        // halted/cancellation checks right below exit the loop.
+                        await Task.Delay(delay, cancellationTokenSource.Token).ConfigureAwait(false);
                     }
                     catch
                     {
@@ -308,7 +311,7 @@ internal sealed class QuartzSchedulerThread
                 }
 
                 cancellationTokenSource.Token.ThrowIfCancellationRequested();
-                int availThreadCount = qsRsrcs.ThreadPool.BlockForAvailableThreads();
+                int availThreadCount = await qsRsrcs.ThreadPool.WaitForAvailableThreads(cancellationTokenSource.Token).ConfigureAwait(false);
                 if (halted)
                 {
                     break;
@@ -325,14 +328,7 @@ internal sealed class QuartzSchedulerThread
                         var noLaterThan = now + qsRsrcs.IdleWaitTime;
                         var maxCount = Math.Min(availThreadCount, qsRsrcs.MaxBatchSize);
                         Dictionary<string, int?>? availableLimits = ComputeAvailableExecutionGroupLimits();
-                        if (availableLimits is not null)
-                        {
-                            triggers = new List<IOperableTrigger>(await qsRsrcs.JobStore.AcquireNextTriggers(noLaterThan, maxCount, qsRsrcs.BatchTimeWindow, availableLimits, CancellationToken.None).ConfigureAwait(false));
-                        }
-                        else
-                        {
-                            triggers = new List<IOperableTrigger>(await qsRsrcs.JobStore.AcquireNextTriggers(noLaterThan, maxCount, qsRsrcs.BatchTimeWindow, CancellationToken.None).ConfigureAwait(false));
-                        }
+                        triggers = new List<IOperableTrigger>(await qsRsrcs.JobStore.AcquireNextTriggers(noLaterThan, maxCount, qsRsrcs.BatchTimeWindow, availableLimits, CancellationToken.None).ConfigureAwait(false));
                         acquiresFailed = 0;
                         if (logger.IsEnabled(LogLevel.Debug))
                         {
@@ -370,7 +366,7 @@ internal sealed class QuartzSchedulerThread
                     if (triggers is not null && triggers.Count > 0)
                     {
                         now = qsRsrcs.TimeProvider.GetUtcNow();
-                        DateTimeOffset triggerTime = triggers[0].GetNextFireTimeUtc()!.Value;
+                        DateTimeOffset triggerTime = triggers[0].NextFireTimeUtc!.Value;
                         TimeSpan timeUntilTrigger = triggerTime - now;
 
                         while (timeUntilTrigger > TimeSpan.Zero)
@@ -535,7 +531,10 @@ internal sealed class QuartzSchedulerThread
                                 }
                             };
 
-                            var threadPoolRunResult = qsRsrcs.ThreadPool.RunInThread(jobRunner);
+                            // Deliberately not this thread's token: TriggersFired has already committed
+                            // this firing to the job store and advanced the trigger, so refusing to dispatch
+                            // now loses the occurrence entirely. Only the pool's own shutdown may say no.
+                            var threadPoolRunResult = await qsRsrcs.ThreadPool.TryRun(jobRunner, CancellationToken.None).ConfigureAwait(false);
                             if (!threadPoolRunResult)
                             {
                                 // The lambda never ran - decrement the count we pre-incremented
@@ -547,14 +546,14 @@ internal sealed class QuartzSchedulerThread
                                     // Scheduler is shutting down, complete the trigger gracefully
                                     // Use TriggeredJobComplete to properly unblock other triggers
                                     // for DisallowConcurrentExecution jobs (TriggersFired already ran)
-                                    logger.LogDebug("ThreadPool.RunInThread() returned false due to scheduler shutdown, completing trigger");
+                                    logger.LogDebug("ThreadPool.TryRun() returned false due to scheduler shutdown, completing trigger");
                                     await qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.NoInstruction, CancellationToken.None).ConfigureAwait(false);
                                 }
                                 else
                                 {
                                     // this case should never happen, as it is indicative of a bug in the thread pool or
                                     // a thread pool being used concurrently - which the docs say not to do...
-                                    logger.LogError("ThreadPool.RunInThread() returned false");
+                                    logger.LogError("ThreadPool.TryRun() returned false");
                                     await qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError, CancellationToken.None).ConfigureAwait(false);
                                 }
                             }

@@ -1,7 +1,7 @@
 using System.Collections.Specialized;
 
 using Quartz.Impl.AdoJobStore.Common;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Impl.AdoJobStore;
 

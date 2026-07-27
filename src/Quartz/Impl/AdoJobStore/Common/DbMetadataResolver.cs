@@ -58,7 +58,7 @@ internal sealed class DbMetadataResolver
     /// Shared, and therefore cached, for the lifetime of the process. Safe to share where a container's
     /// resolver is not: it holds only the descriptions Quartz ships, which are the same everywhere, so
     /// there is no container-specific metadata for the cache to leak. A fresh instance per call would
-    /// re-read the embedded resource and re-run <see cref="DbMetadata.Init"/> on every
+    /// re-read the embedded resource and re-run <see cref="DbMetadata.Initialize"/> on every
     /// <see cref="DbProvider"/> construction, which is what the deleted static constructor did once.
     /// </remarks>
     public static DbMetadataResolver BuiltIn() => builtIn;

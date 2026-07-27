@@ -3,8 +3,7 @@ using System.Collections.Specialized;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
 using Quartz.Impl;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Integration.Core;
 
@@ -22,7 +21,7 @@ public class MissSchedulingChangeSignalTest
         properties["quartz.jobStore.type"] = typeof(SlowRAMJobStore).AssemblyQualifiedName;
         properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
         ISchedulerFactory sf = new StdSchedulerFactory(properties);
-        IScheduler sched = await sf.GetScheduler();
+        IScheduler scheduler = await sf.GetScheduler();
         logger.LogInformation("------- Initialization Complete -----------");
 
         logger.LogInformation("------- Scheduling Job  -------------------");
@@ -38,11 +37,11 @@ public class MissSchedulingChangeSignalTest
                 .WithMisfireHandlingInstructionIgnoreMisfires())
             .Build();
 
-        await sched.ScheduleJob(job, trigger);
+        await scheduler.ScheduleJob(job, trigger);
 
         // Start up the scheduler (nothing can actually run until the
         // scheduler has been started)
-        await sched.Start();
+        await scheduler.Start();
 
         logger.LogInformation("------- Scheduler Started -----------------");
 
@@ -73,7 +72,7 @@ public class CollectDurationBetweenFireTimesJob : IJob
     private static DateTime? lastFireTime;
     private static readonly ILogger<CollectDurationBetweenFireTimesJob> logger = LogProvider.CreateLogger<CollectDurationBetweenFireTimesJob>();
 
-    public ValueTask Execute(IJobExecutionContext context)
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         DateTime now = DateTime.UtcNow;
         logger.LogInformation("Fire time: {FireTime}", now);
@@ -106,9 +105,10 @@ public class SlowRAMJobStore : RAMJobStore
         DateTimeOffset noLaterThan,
         int maxCount,
         TimeSpan timeWindow,
+        IReadOnlyDictionary<string, int?> executionLimits = null,
         CancellationToken cancellationToken = default)
     {
-        var nextTriggers = await base.AcquireNextTriggers(noLaterThan, maxCount, timeWindow, cancellationToken);
+        var nextTriggers = await base.AcquireNextTriggers(noLaterThan, maxCount, timeWindow, executionLimits, cancellationToken);
 
         // Wait just a bit for hopefully having a context switch leading to the race condition
         await Task.Delay(10, cancellationToken);

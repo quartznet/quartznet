@@ -394,12 +394,12 @@ public sealed class MultipleSchedulerTests
 
     private sealed class TestJobA : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context) => default;
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
     }
 
     private sealed class TestJobB : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context) => default;
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
     }
 
     private sealed class TestJobListenerA : IJobListener
@@ -442,12 +442,12 @@ public sealed class MultipleSchedulerTests
         public ValueTask JobsPaused(string jobGroup, CancellationToken cancellationToken = default) => default;
         public ValueTask JobResumed(JobKey jobKey, CancellationToken cancellationToken = default) => default;
         public ValueTask JobsResumed(string jobGroup, CancellationToken cancellationToken = default) => default;
-        public ValueTask SchedulerError(string msg, SchedulerException cause, CancellationToken cancellationToken = default) => default;
+        public ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default) => default;
         public ValueTask SchedulerInStandbyMode(CancellationToken cancellationToken = default) => default;
         public ValueTask SchedulerStarted(CancellationToken cancellationToken = default) => default;
         public ValueTask SchedulerStarting(CancellationToken cancellationToken = default) => default;
         public ValueTask SchedulerShutdown(CancellationToken cancellationToken = default) => default;
-        public ValueTask SchedulerShuttingdown(CancellationToken cancellationToken = default) => default;
+        public ValueTask SchedulerShuttingDown(CancellationToken cancellationToken = default) => default;
         public ValueTask SchedulingDataCleared(CancellationToken cancellationToken = default) => default;
         public ValueTask JobInterrupted(JobKey jobKey, CancellationToken cancellationToken = default) => default;
     }

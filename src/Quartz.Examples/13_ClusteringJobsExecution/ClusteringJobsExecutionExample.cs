@@ -66,7 +66,7 @@ public class ClusteringJobsExecutionExample : IExample
     public virtual async Task Run(bool inClearJobs, bool inScheduleJobs)
     {
         // First we must get a reference to a scheduler
-        IScheduler sched = await QuartzSchedulerBuilder.Create()
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
             .Configure(q =>
             {
                 q.ConfigureScheduler(options =>
@@ -95,7 +95,7 @@ public class ClusteringJobsExecutionExample : IExample
         if (inClearJobs)
         {
             Console.WriteLine("***** Deleting existing jobs/triggers *****");
-            await sched.Clear();
+            await scheduler.Clear();
         }
 
         Console.WriteLine("------- Initialization Complete -----------");
@@ -104,7 +104,7 @@ public class ClusteringJobsExecutionExample : IExample
         {
             Console.WriteLine("------- Scheduling Jobs ------------------");
 
-            string schedId = sched.SchedulerInstanceId;
+            string schedId = scheduler.SchedulerInstanceId;
 
             int count = 1;
 
@@ -119,7 +119,7 @@ public class ClusteringJobsExecutionExample : IExample
                 .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(5)))
                 .Build();
 
-            Console.WriteLine("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.Key, trigger.GetNextFireTimeUtc(), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds);
+            Console.WriteLine("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.Key, trigger.NextFireTimeUtc, trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds);
 
             count++;
 
@@ -134,8 +134,8 @@ public class ClusteringJobsExecutionExample : IExample
                 .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(5)))
                 .Build();
 
-            Console.WriteLine($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
-            await sched.ScheduleJob(job, trigger);
+            Console.WriteLine($"{job.Key} will run at: {trigger.NextFireTimeUtc} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
+            await scheduler.ScheduleJob(job, trigger);
 
             count++;
 
@@ -150,8 +150,8 @@ public class ClusteringJobsExecutionExample : IExample
                 .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(3)))
                 .Build();
 
-            Console.WriteLine($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
-            await sched.ScheduleJob(job, trigger);
+            Console.WriteLine($"{job.Key} will run at: {trigger.NextFireTimeUtc} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
+            await scheduler.ScheduleJob(job, trigger);
 
             count++;
 
@@ -166,8 +166,8 @@ public class ClusteringJobsExecutionExample : IExample
                 .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(4)))
                 .Build();
 
-            Console.WriteLine($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} & repeat: {trigger.RepeatCount}/{trigger.RepeatInterval}");
-            await sched.ScheduleJob(job, trigger);
+            Console.WriteLine($"{job.Key} will run at: {trigger.NextFireTimeUtc} & repeat: {trigger.RepeatCount}/{trigger.RepeatInterval}");
+            await scheduler.ScheduleJob(job, trigger);
 
             count++;
 
@@ -182,13 +182,13 @@ public class ClusteringJobsExecutionExample : IExample
                 .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromMilliseconds(4500)))
                 .Build();
 
-            Console.WriteLine($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} & repeat: {trigger.RepeatCount}/{trigger.RepeatInterval}");
-            await sched.ScheduleJob(job, trigger);
+            Console.WriteLine($"{job.Key} will run at: {trigger.NextFireTimeUtc} & repeat: {trigger.RepeatCount}/{trigger.RepeatInterval}");
+            await scheduler.ScheduleJob(job, trigger);
         }
 
         // jobs don't start firing until start() has been called...
         Console.WriteLine("------- Starting Scheduler ---------------");
-        await sched.Start();
+        await scheduler.Start();
         Console.WriteLine("------- Started Scheduler ----------------");
 
         Console.WriteLine("------- Waiting for one hour... ----------");
@@ -196,7 +196,7 @@ public class ClusteringJobsExecutionExample : IExample
         await Task.Delay(TimeSpan.FromHours(1));
 
         Console.WriteLine("------- Shutting Down --------------------");
-        await sched.Shutdown();
+        await scheduler.Shutdown();
         Console.WriteLine("------- Shutdown Complete ----------------");
     }
 

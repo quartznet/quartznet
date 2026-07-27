@@ -30,8 +30,8 @@ public class JobExecutionExceptionTest
         });
     }
 
-    private class NoOpJob : IJob
+    private sealed class NoOpJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context) => default;
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
     }
 }

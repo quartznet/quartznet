@@ -17,7 +17,7 @@ public sealed class QuartzHealthCheckOptions
     /// Tags associated with the health check, allowing it to be filtered (for example into
     /// separate liveness and readiness probes).
     /// </summary>
-    public IList<string> Tags { get; } = new List<string>();
+    public List<string> Tags { get; } = new List<string>();
 
     /// <summary>
     /// The <see cref="HealthStatus" /> reported when the check fails. When <see langword="null" />

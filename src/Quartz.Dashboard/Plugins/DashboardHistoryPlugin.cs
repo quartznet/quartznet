@@ -21,7 +21,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Dashboard.Services;
 using Quartz.Impl.Matchers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Dashboard.Plugins;
 
@@ -75,8 +75,7 @@ public sealed class DashboardHistoryPlugin : ISchedulerPlugin, IJobListener
                 Succeeded: jobException is null,
                 ExceptionMessage: jobException?.Message);
 
-            store.Add(entry);
-            return default;
+            return store.Add(entry, cancellationToken);
         }
         catch (ObjectDisposedException)
         {

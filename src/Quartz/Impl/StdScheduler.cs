@@ -21,7 +21,7 @@
 
 using Quartz.Core;
 using Quartz.Impl.Matchers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Impl;
 
@@ -34,17 +34,17 @@ namespace Quartz.Impl;
 /// <seealso cref="QuartzScheduler" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-internal class StdScheduler : IScheduler
+internal sealed class StdScheduler : IScheduler
 {
-    internal readonly QuartzScheduler sched;
+    internal readonly QuartzScheduler scheduler;
 
     /// <summary>
     /// Construct a <see cref="StdScheduler" /> instance to proxy the given
     /// <see cref="QuartzScheduler" /> instance.
     /// </summary>
-    public StdScheduler(QuartzScheduler sched)
+    public StdScheduler(QuartzScheduler scheduler)
     {
-        this.sched = sched;
+        this.scheduler = scheduler;
     }
 
     /// <summary>
@@ -55,7 +55,7 @@ internal class StdScheduler : IScheduler
         string groupName,
         CancellationToken cancellationToken = default)
     {
-        return sched.IsJobGroupPaused(groupName, cancellationToken);
+        return scheduler.IsJobGroupPaused(groupName, cancellationToken);
     }
 
     /// <summary>
@@ -66,18 +66,18 @@ internal class StdScheduler : IScheduler
         string groupName,
         CancellationToken cancellationToken = default)
     {
-        return sched.IsTriggerGroupPaused(groupName, cancellationToken);
+        return scheduler.IsTriggerGroupPaused(groupName, cancellationToken);
     }
 
     /// <summary>
     /// Returns the name of the <see cref="IScheduler" />.
     /// </summary>
-    public virtual string SchedulerName => sched.SchedulerName;
+    public string SchedulerName => scheduler.SchedulerName;
 
     /// <summary>
     /// Returns the instance Id of the <see cref="IScheduler" />.
     /// </summary>
-    public virtual string SchedulerInstanceId => sched.SchedulerInstanceId;
+    public string SchedulerInstanceId => scheduler.SchedulerInstanceId;
 
     /// <summary>
     /// Get a <see cref="SchedulerMetaData"/> object describing the settings
@@ -98,20 +98,20 @@ internal class StdScheduler : IScheduler
             IsStarted,
             InStandbyMode,
             IsShutdown,
-            sched.RunningSince,
-            sched.NumJobsExecuted,
-            sched.JobStoreClass,
-            sched.SupportsPersistence,
-            sched.Clustered,
-            sched.ThreadPoolClass,
-            sched.ThreadPoolSize,
-            sched.Version));
+            scheduler.RunningSince,
+            scheduler.NumberOfJobsExecuted,
+            scheduler.JobStoreType,
+            scheduler.SupportsPersistence,
+            scheduler.Clustered,
+            scheduler.ThreadPoolType,
+            scheduler.ThreadPoolSize,
+            scheduler.Version));
     }
 
     /// <summary>
     /// Returns the <see cref="SchedulerContext" /> of the <see cref="IScheduler" />.
     /// </summary>
-    public virtual SchedulerContext Context => sched.SchedulerContext;
+    public SchedulerContext Context => scheduler.SchedulerContext;
 
     /// <summary>
     /// Whether the scheduler has been started.
@@ -126,24 +126,24 @@ internal class StdScheduler : IScheduler
     /// <seealso cref="Start"/>
     /// <seealso cref="IsShutdown"/>
     /// <seealso cref="InStandbyMode"/>
-    public bool IsStarted => sched.RunningSince.HasValue;
+    public bool IsStarted => scheduler.RunningSince.HasValue;
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual bool InStandbyMode => sched.InStandbyMode;
+    public bool InStandbyMode => scheduler.InStandbyMode;
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual bool IsShutdown => sched.IsShutdown;
+    public bool IsShutdown => scheduler.IsShutdown;
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
     public ValueTask<List<IJobExecutionContext>> GetCurrentlyExecutingJobs(CancellationToken cancellationToken = default)
     {
-        return new ValueTask<List<IJobExecutionContext>>(sched.GetCurrentlyExecutingJobs());
+        return new ValueTask<List<IJobExecutionContext>>(scheduler.GetCurrentlyExecutingJobs());
     }
 
     /// <summary>
@@ -151,7 +151,7 @@ internal class StdScheduler : IScheduler
     /// </summary>
     public ValueTask Clear(CancellationToken cancellationToken = default)
     {
-        return sched.Clear(cancellationToken);
+        return scheduler.Clear(cancellationToken);
     }
 
     /// <summary>
@@ -159,43 +159,36 @@ internal class StdScheduler : IScheduler
     /// </summary>
     public ValueTask<List<string>> GetPausedTriggerGroups(CancellationToken cancellationToken = default)
     {
-        return sched.GetPausedTriggerGroups(cancellationToken);
+        return scheduler.GetPausedTriggerGroups(cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public IListenerManager ListenerManager => sched.ListenerManager;
+    public IListenerManager ListenerManager => scheduler.ListenerManager;
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<List<string>> GetJobGroupNames(CancellationToken cancellationToken = default)
+    public ValueTask<List<string>> GetJobGroupNames(CancellationToken cancellationToken = default)
     {
-        return sched.GetJobGroupNames(cancellationToken);
+        return scheduler.GetJobGroupNames(cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<List<string>> GetTriggerGroupNames(CancellationToken cancellationToken = default)
+    public ValueTask<List<string>> GetTriggerGroupNames(CancellationToken cancellationToken = default)
     {
-        return sched.GetTriggerGroupNames(cancellationToken);
-    }
-
-    /// <seealso cref="IScheduler.JobFactory">
-    /// </seealso>
-    public virtual IJobFactory JobFactory
-    {
-        set => sched.JobFactory = value;
+        return scheduler.GetTriggerGroupNames(cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask Start(CancellationToken cancellationToken = default)
+    public ValueTask Start(CancellationToken cancellationToken = default)
     {
-        return sched.Start(cancellationToken);
+        return scheduler.Start(cancellationToken);
     }
 
     /// <summary>
@@ -203,84 +196,84 @@ internal class StdScheduler : IScheduler
     /// </summary>
     public ValueTask StartDelayed(TimeSpan delay, CancellationToken cancellationToken = default)
     {
-        return sched.StartDelayed(delay, cancellationToken);
+        return scheduler.StartDelayed(delay, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask Standby(CancellationToken cancellationToken = default)
+    public ValueTask Standby(CancellationToken cancellationToken = default)
     {
-        return sched.Standby(cancellationToken);
+        return scheduler.Standby(cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask Shutdown(CancellationToken cancellationToken = default)
+    public ValueTask Shutdown(CancellationToken cancellationToken = default)
     {
-        return sched.Shutdown(cancellationToken);
+        return scheduler.Shutdown(cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask Shutdown(
+    public ValueTask Shutdown(
         bool waitForJobsToComplete,
         CancellationToken cancellationToken = default)
     {
-        return sched.Shutdown(waitForJobsToComplete, cancellationToken);
+        return scheduler.Shutdown(waitForJobsToComplete, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<DateTimeOffset> ScheduleJob(
+    public ValueTask<DateTimeOffset> ScheduleJob(
         IJobDetail jobDetail,
         ITrigger trigger,
         CancellationToken cancellationToken = default)
     {
-        return sched.ScheduleJob(jobDetail, trigger, cancellationToken);
+        return scheduler.ScheduleJob(jobDetail, trigger, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<DateTimeOffset> ScheduleJob(
+    public ValueTask<DateTimeOffset> ScheduleJob(
         ITrigger trigger,
         CancellationToken cancellationToken = default)
     {
-        return sched.ScheduleJob(trigger, cancellationToken);
+        return scheduler.ScheduleJob(trigger, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask AddJob(
+    public ValueTask AddJob(
         IJobDetail jobDetail,
         bool replace,
         bool storeNonDurableWhileAwaitingScheduling,
         CancellationToken cancellationToken = default)
     {
-        return sched.AddJob(jobDetail, replace, storeNonDurableWhileAwaitingScheduling, cancellationToken);
+        return scheduler.AddJob(jobDetail, replace, storeNonDurableWhileAwaitingScheduling, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask AddJob(
+    public ValueTask AddJob(
         IJobDetail jobDetail,
         bool replace,
         CancellationToken cancellationToken = default)
     {
-        return sched.AddJob(jobDetail, replace, cancellationToken);
+        return scheduler.AddJob(jobDetail, replace, cancellationToken);
     }
 
     public ValueTask<bool> DeleteJobs(
         IReadOnlyCollection<JobKey> jobKeys,
         CancellationToken cancellationToken = default)
     {
-        return sched.DeleteJobs(jobKeys, cancellationToken);
+        return scheduler.DeleteJobs(jobKeys, cancellationToken);
     }
 
     public ValueTask ScheduleJobs(
@@ -288,7 +281,7 @@ internal class StdScheduler : IScheduler
         bool replace,
         CancellationToken cancellationToken = default)
     {
-        return sched.ScheduleJobs(triggersAndJobs, replace, cancellationToken);
+        return scheduler.ScheduleJobs(triggersAndJobs, replace, cancellationToken);
     }
 
     public ValueTask ScheduleJob(
@@ -297,56 +290,56 @@ internal class StdScheduler : IScheduler
         bool replace,
         CancellationToken cancellationToken = default)
     {
-        return sched.ScheduleJob(jobDetail, triggersForJob, replace, cancellationToken);
+        return scheduler.ScheduleJob(jobDetail, triggersForJob, replace, cancellationToken);
     }
 
     public ValueTask<bool> UnscheduleJobs(
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default)
     {
-        return sched.UnscheduleJobs(triggerKeys, cancellationToken);
+        return scheduler.UnscheduleJobs(triggerKeys, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<bool> DeleteJob(
+    public ValueTask<bool> DeleteJob(
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
-        return sched.DeleteJob(jobKey, cancellationToken);
+        return scheduler.DeleteJob(jobKey, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<bool> UnscheduleJob(
+    public ValueTask<bool> UnscheduleJob(
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
-        return sched.UnscheduleJob(triggerKey, cancellationToken);
+        return scheduler.UnscheduleJob(triggerKey, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<DateTimeOffset?> RescheduleJob(
+    public ValueTask<DateTimeOffset?> RescheduleJob(
         TriggerKey triggerKey,
         ITrigger newTrigger,
         CancellationToken cancellationToken = default)
     {
-        return sched.RescheduleJob(triggerKey, newTrigger, cancellationToken);
+        return scheduler.RescheduleJob(triggerKey, newTrigger, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<bool> UpdateTriggerDetails(
+    public ValueTask<bool> UpdateTriggerDetails(
         TriggerKey triggerKey,
         TriggerDetailsUpdate update,
         CancellationToken cancellationToken = default)
     {
-        return sched.UpdateTriggerDetails(triggerKey, update, cancellationToken);
+        return scheduler.UpdateTriggerDetails(triggerKey, update, cancellationToken);
     }
 
     /// <summary>
@@ -355,7 +348,7 @@ internal class StdScheduler : IScheduler
     public ValueTask SetExecutionLimits(ExecutionLimits? limits, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        sched.SetExecutionLimits(limits);
+        scheduler.SetExecutionLimits(limits);
         return default;
     }
 
@@ -365,13 +358,13 @@ internal class StdScheduler : IScheduler
     public ValueTask<ExecutionLimits?> GetExecutionLimits(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return new ValueTask<ExecutionLimits?>(sched.GetExecutionLimits()?.Snapshot());
+        return new ValueTask<ExecutionLimits?>(scheduler.GetExecutionLimits()?.Snapshot());
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask TriggerJob(
+    public ValueTask TriggerJob(
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
@@ -381,12 +374,12 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask TriggerJob(
+    public ValueTask TriggerJob(
         JobKey jobKey,
         JobDataMap? data,
         CancellationToken cancellationToken = default)
     {
-        return sched.TriggerJob(jobKey, data, cancellationToken);
+        return scheduler.TriggerJob(jobKey, data, cancellationToken);
     }
 
     /// <summary>
@@ -396,7 +389,7 @@ internal class StdScheduler : IScheduler
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
-        return sched.CheckExists(jobKey, cancellationToken);
+        return scheduler.CheckExists(jobKey, cancellationToken);
     }
 
     /// <summary>
@@ -406,155 +399,155 @@ internal class StdScheduler : IScheduler
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
-        return sched.CheckExists(triggerKey, cancellationToken);
+        return scheduler.CheckExists(triggerKey, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask PauseTrigger(
+    public ValueTask PauseTrigger(
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
-        return sched.PauseTrigger(triggerKey, cancellationToken);
+        return scheduler.PauseTrigger(triggerKey, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask PauseTriggers(
+    public ValueTask PauseTriggers(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
-        return sched.PauseTriggers(matcher, cancellationToken);
+        return scheduler.PauseTriggers(matcher, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask PauseJob(
+    public ValueTask PauseJob(
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
-        return sched.PauseJob(jobKey, cancellationToken);
+        return scheduler.PauseJob(jobKey, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask PauseJobs(
+    public ValueTask PauseJobs(
         GroupMatcher<JobKey> matcher,
         CancellationToken cancellationToken = default)
     {
-        return sched.PauseJobs(matcher, cancellationToken);
+        return scheduler.PauseJobs(matcher, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask ResumeTrigger(
+    public ValueTask ResumeTrigger(
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
-        return sched.ResumeTrigger(triggerKey, cancellationToken);
+        return scheduler.ResumeTrigger(triggerKey, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask ResumeTriggers(
+    public ValueTask ResumeTriggers(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
-        return sched.ResumeTriggers(matcher, cancellationToken);
+        return scheduler.ResumeTriggers(matcher, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask ResumeJob(
+    public ValueTask ResumeJob(
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
-        return sched.ResumeJob(jobKey, cancellationToken);
+        return scheduler.ResumeJob(jobKey, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask ResumeJobs(
+    public ValueTask ResumeJobs(
         GroupMatcher<JobKey> matcher,
         CancellationToken cancellationToken = default)
     {
-        return sched.ResumeJobs(matcher, cancellationToken);
+        return scheduler.ResumeJobs(matcher, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask PauseAll(CancellationToken cancellationToken = default)
+    public ValueTask PauseAll(CancellationToken cancellationToken = default)
     {
-        return sched.PauseAll(cancellationToken);
+        return scheduler.PauseAll(cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask ResumeAll(CancellationToken cancellationToken = default)
+    public ValueTask ResumeAll(CancellationToken cancellationToken = default)
     {
-        return sched.ResumeAll(cancellationToken);
+        return scheduler.ResumeAll(cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<List<ITrigger>> GetTriggersOfJob(JobKey jobKey, CancellationToken cancellationToken = default)
+    public ValueTask<List<ITrigger>> GetTriggersOfJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        return sched.GetTriggersOfJob(jobKey, cancellationToken);
+        return scheduler.GetTriggersOfJob(jobKey, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<List<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    public ValueTask<List<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
-        return sched.GetJobKeys(matcher, cancellationToken);
+        return scheduler.GetJobKeys(matcher, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<List<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    public ValueTask<List<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
-        return sched.GetTriggerKeys(matcher, cancellationToken);
+        return scheduler.GetTriggerKeys(matcher, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<IJobDetail?> GetJobDetail(
+    public ValueTask<IJobDetail?> GetJobDetail(
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
-        return sched.GetJobDetail(jobKey, cancellationToken);
+        return scheduler.GetJobDetail(jobKey, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<ITrigger?> GetTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public ValueTask<ITrigger?> GetTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        return sched.GetTrigger(triggerKey, cancellationToken);
+        return scheduler.GetTrigger(triggerKey, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<TriggerState> GetTriggerState(
+    public ValueTask<TriggerState> GetTriggerState(
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
-        return sched.GetTriggerState(triggerKey, cancellationToken);
+        return scheduler.GetTriggerState(triggerKey, cancellationToken);
     }
 
     /// <summary>
@@ -562,38 +555,38 @@ internal class StdScheduler : IScheduler
     /// </summary>
     public async ValueTask ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        await sched.ResetTriggerFromErrorState(triggerKey, cancellationToken).ConfigureAwait(false);
+        await scheduler.ResetTriggerFromErrorState(triggerKey, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask AddCalendar(
-        string name,
+    public ValueTask AddCalendar(
+        string calendarName,
         ICalendar calendar,
         bool replace,
         bool updateTriggers,
         CancellationToken cancellationToken = default)
     {
-        return sched.AddCalendar(name, calendar, replace, updateTriggers, cancellationToken);
+        return scheduler.AddCalendar(calendarName, calendar, replace, updateTriggers, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<bool> DeleteCalendar(
-        string name,
+    public ValueTask<bool> DeleteCalendar(
+        string calendarName,
         CancellationToken cancellationToken = default)
     {
-        return sched.DeleteCalendar(name, cancellationToken);
+        return scheduler.DeleteCalendar(calendarName, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<ICalendar?> GetCalendar(string name, CancellationToken cancellationToken = default)
+    public ValueTask<ICalendar?> GetCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
-        return sched.GetCalendar(name, cancellationToken);
+        return scheduler.GetCalendar(calendarName, cancellationToken);
     }
 
     /// <summary>
@@ -602,7 +595,7 @@ internal class StdScheduler : IScheduler
     /// <returns></returns>
     public ValueTask<List<string>> GetCalendarNames(CancellationToken cancellationToken = default)
     {
-        return sched.GetCalendarNames(cancellationToken);
+        return scheduler.GetCalendarNames(cancellationToken);
     }
 
     /// <summary>
@@ -634,17 +627,17 @@ internal class StdScheduler : IScheduler
     /// <returns>true is at least one instance of the identified job was found and interrupted.</returns>
     /// <throws>  UnableToInterruptJobException if the job does not implement </throws>
     /// <seealso cref="GetCurrentlyExecutingJobs"/>
-    public virtual ValueTask<bool> Interrupt(
+    public ValueTask<bool> Interrupt(
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
-        return sched.Interrupt(jobKey, cancellationToken);
+        return scheduler.Interrupt(jobKey, cancellationToken);
     }
 
     public ValueTask<bool> Interrupt(
         string fireInstanceId,
         CancellationToken cancellationToken = default)
     {
-        return sched.Interrupt(fireInstanceId, cancellationToken);
+        return scheduler.Interrupt(fireInstanceId, cancellationToken);
     }
 }

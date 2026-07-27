@@ -1,0 +1,89 @@
+﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
+namespace Quartz.Extensibility
+{
+    public interface IDirectoryProvider
+    {
+        System.Collections.Generic.List<string> GetDirectoriesToScan(Quartz.JobDataMap mergedJobDataMap);
+    }
+}
+namespace Quartz.Job
+{
+    [Quartz.DisallowConcurrentExecution]
+    [Quartz.PersistJobDataAfterExecution]
+    public class DirectoryScanJob : Quartz.IJob
+    {
+        public const string DirectoryName = "DIRECTORY_NAME";
+        public const string DirectoryNames = "DIRECTORY_NAMES";
+        public const string DirectoryProviderName = "DIRECTORY_PROVIDER_NAME";
+        public const string DirectoryScanListenerName = "DIRECTORY_SCAN_LISTENER_NAME";
+        public const string MinimumUpdateAge = "MINIMUM_UPDATE_AGE";
+        public DirectoryScanJob() { }
+        public DirectoryScanJob(System.IServiceProvider serviceProvider) { }
+        public System.Threading.Tasks.ValueTask Execute(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
+        protected void GetUpdatedOrNewFiles(string dirName, System.DateTime lastModifiedDate, System.DateTime maxAgeDate, System.Collections.Generic.IReadOnlyCollection<System.IO.FileInfo> currentFileList, out System.Collections.Generic.List<System.IO.FileInfo> allFiles, out System.Collections.Generic.List<System.IO.FileInfo> updatedFiles, out System.Collections.Generic.List<System.IO.FileInfo> deletedFiles, string searchPattern = "*", bool includeSubDirectories = false) { }
+    }
+    [Quartz.DisallowConcurrentExecution]
+    [Quartz.PersistJobDataAfterExecution]
+    public class FileScanJob : Quartz.IJob
+    {
+        public const string FileName = "FILE_NAME";
+        public const string FileScanListenerName = "FILE_SCAN_LISTENER_NAME";
+        public const string MinimumUpdateAge = "MINIMUM_UPDATE_AGE";
+        public FileScanJob() { }
+        public virtual System.Threading.Tasks.ValueTask Execute(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
+        protected virtual System.DateTime GetLastModifiedDate(string fileName) { }
+    }
+    public interface IDirectoryScanListener
+    {
+        System.Threading.Tasks.ValueTask FilesDeleted(System.Collections.Generic.IReadOnlyCollection<System.IO.FileInfo> deletedFiles, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask FilesUpdatedOrAdded(System.Collections.Generic.IReadOnlyCollection<System.IO.FileInfo> updatedFiles, System.Threading.CancellationToken cancellationToken = default);
+    }
+    public interface IFileScanListener
+    {
+        System.Threading.Tasks.ValueTask FileUpdated(string fileName, System.Threading.CancellationToken cancellationToken = default);
+    }
+    public class NativeJob : Quartz.IJob
+    {
+        public const string PropertyCommand = "command";
+        public const string PropertyConsumeStreams = "consumeStreams";
+        public const string PropertyParameters = "parameters";
+        public const string PropertyWaitForProcess = "waitForProcess";
+        public const string PropertyWorkingDirectory = "workingDirectory";
+        public NativeJob() { }
+        public virtual System.Threading.Tasks.ValueTask Execute(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public class NoOpJob : Quartz.IJob
+    {
+        public NoOpJob() { }
+        public System.Threading.Tasks.ValueTask Execute(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public class SendMailJob : Quartz.IJob
+    {
+        public const string PropertyCcRecipient = "cc_recipient";
+        public const string PropertyEncoding = "encoding";
+        public const string PropertyMessage = "message";
+        public const string PropertyPassword = "smtp_password";
+        public const string PropertyRecipient = "recipient";
+        public const string PropertyReplyTo = "reply_to";
+        public const string PropertySender = "sender";
+        public const string PropertySmtpHost = "smtp_host";
+        public const string PropertySmtpPort = "smtp_port";
+        public const string PropertySubject = "subject";
+        public const string PropertyUsername = "smtp_username";
+        public SendMailJob() { }
+        protected virtual System.Net.Mail.MailMessage BuildMessageFromParameters(Quartz.JobDataMap data) { }
+        public virtual System.Threading.Tasks.ValueTask Execute(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
+        protected virtual string? GetOptionalParameter(Quartz.JobDataMap data, string propertyName) { }
+        protected virtual string GetRequiredParameter(Quartz.JobDataMap data, string propertyName) { }
+        protected virtual void Send(Quartz.Job.SendMailJob.MailInfo mailInfo) { }
+        public class MailInfo
+        {
+            public MailInfo() { }
+            public System.Net.Mail.MailMessage MailMessage { get; set; }
+            public string SmtpHost { get; set; }
+            public string? SmtpPassword { get; set; }
+            public int? SmtpPort { get; set; }
+            public string? SmtpUserName { get; set; }
+        }
+    }
+}

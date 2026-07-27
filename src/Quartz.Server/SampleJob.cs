@@ -24,10 +24,10 @@ public class SampleJob : IJob
     /// execution.
     /// </remarks>
     /// <param name="context">The execution context.</param>
-    public async ValueTask Execute(IJobExecutionContext context)
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("SampleJob running...");
-        await Task.Delay(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+        await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken).ConfigureAwait(false);
         logger.LogInformation("SampleJob run finished.");
     }
 }

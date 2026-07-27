@@ -1,4 +1,4 @@
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Examples.AspNetCore;
 
@@ -11,11 +11,7 @@ public class CustomTypeLoader : ITypeLoadHelper
         this.logger = logger;
     }
 
-    public void Initialize()
-    {
-    }
-
-    public Type? LoadType(string? name)
+    public Type? LoadType(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -23,6 +19,8 @@ public class CustomTypeLoader : ITypeLoadHelper
         }
 
         logger.LogInformation("Requested to load type {TypeName}", name);
-        return Type.GetType(name);
+
+        // Throwing rather than returning null is the contract: Quartz only asks for types it needs.
+        return Type.GetType(name, throwOnError: true);
     }
 }

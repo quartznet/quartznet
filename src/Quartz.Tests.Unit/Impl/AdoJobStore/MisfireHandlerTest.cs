@@ -165,7 +165,7 @@ public class MisfireHandlerTest
         }
     }
 
-    private class TestJobStoreSupport : JobStoreSupport
+    private sealed class TestJobStoreSupport : JobStoreSupport
     {
         public TestJobStoreSupport()
         : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
@@ -177,7 +177,7 @@ public class MisfireHandlerTest
             MisfireHandlerFrequency = TimeSpan.FromMilliseconds(100);
         }
 
-        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection()
+        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection(CancellationToken cancellationToken = default)
         {
             // Return a fake connection that will be used but won't actually do anything
             var fakeConnection = A.Fake<DbConnection>();

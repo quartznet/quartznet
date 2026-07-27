@@ -19,7 +19,7 @@
 
 using System.Runtime.Serialization;
 
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Impl.Triggers;
 
@@ -347,15 +347,23 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// </remarks>
     public virtual string FireInstanceId { get; set; } = null!;
 
-    public abstract void SetNextFireTimeUtc(DateTimeOffset? nextFireTime);
-
-    public abstract void SetPreviousFireTimeUtc(DateTimeOffset? previousFireTime);
-
     /// <summary>
-    /// Returns the previous time at which the <see cref="ITrigger" /> fired.
+    /// The previous time at which the <see cref="ITrigger" /> fired.
     /// If the trigger has not yet fired, <see langword="null" /> will be returned.
     /// </summary>
-    public abstract DateTimeOffset? GetPreviousFireTimeUtc();
+    /// <remarks>
+    /// <b>The setter should not be used by client code.</b> The scheduler records this as it fires
+    /// the trigger; assigning it yourself corrupts the schedule.
+    /// </remarks>
+    public abstract DateTimeOffset? PreviousFireTimeUtc { get; set; }
+
+    /// <inheritdoc cref="ITrigger.PreviousFireTimeUtc" />
+    /// <remarks>
+    /// Kept as a method as well as a property so that code holding a concrete trigger type — where
+    /// the interface's default implementation is not reachable — still compiles.
+    /// </remarks>
+    [Obsolete("Use the PreviousFireTimeUtc property instead.")]
+    public DateTimeOffset? GetPreviousFireTimeUtc() => PreviousFireTimeUtc;
 
     /// <summary>
     /// Gets and sets the date/time on which the trigger must stop firing. This
@@ -509,7 +517,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// triggering (if any).
     /// </remarks>
     /// <seealso cref="JobExecutionException" />
-    public abstract void Triggered(ICalendar? cal);
+    public abstract void Triggered(ICalendar? calendar);
 
 
     /// <summary>
@@ -523,16 +531,16 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// </para>
     ///
     /// <para>
-    /// After this method has been called, <see cref="GetNextFireTimeUtc" />
+    /// After this method has been called, <see cref="NextFireTimeUtc" />
     /// should return a valid answer.
     /// </para>
     /// </remarks>
     /// <returns>
     /// The first time at which the <see cref="ITrigger" /> will be fired
-    /// by the scheduler, which is also the same value <see cref="GetNextFireTimeUtc" />
+    /// by the scheduler, which is also the same value <see cref="NextFireTimeUtc" />
     /// will return (until after the first firing of the <see cref="ITrigger" />).
     /// </returns>
-    public abstract DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? cal);
+    public abstract DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? calendar);
 
     /// <summary>
     /// This method should not be used by the Quartz client.
@@ -570,7 +578,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
             return SchedulerInstruction.SetAllJobTriggersComplete;
         }
 
-        if (!GetMayFireAgain())
+        if (!MayFireAgain)
         {
             return SchedulerInstruction.DeleteTrigger;
         }
@@ -586,7 +594,15 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// may remove the <see cref="ITrigger" /> from the <see cref="IJobStore" />.
     /// </para>
     /// </summary>
-    public abstract bool GetMayFireAgain();
+    public abstract bool MayFireAgain { get; }
+
+    /// <inheritdoc cref="ITrigger.MayFireAgain" />
+    /// <remarks>
+    /// Kept as a method as well as a property so that code holding a concrete trigger type — where
+    /// the interface's default implementation is not reachable — still compiles.
+    /// </remarks>
+    [Obsolete("Use the MayFireAgain property instead.")]
+    public bool GetMayFireAgain() => MayFireAgain;
 
     /// <summary>
     /// Returns the next time at which the <see cref="ITrigger" /> is scheduled to fire. If
@@ -599,9 +615,20 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     ///<remarks>
     /// The value returned is not guaranteed to be valid until after the <see cref="ITrigger" />
     /// has been added to the scheduler.
+    /// <para>
+    /// <b>The setter should not be used by client code.</b> The scheduler advances this as it fires
+    /// the trigger; assigning it yourself corrupts the schedule.
+    /// </para>
     /// </remarks>
-    /// <returns></returns>
-    public abstract DateTimeOffset? GetNextFireTimeUtc();
+    public abstract DateTimeOffset? NextFireTimeUtc { get; set; }
+
+    /// <inheritdoc cref="ITrigger.NextFireTimeUtc" />
+    /// <remarks>
+    /// Kept as a method as well as a property so that code holding a concrete trigger type — where
+    /// the interface's default implementation is not reachable — still compiles.
+    /// </remarks>
+    [Obsolete("Use the NextFireTimeUtc property instead.")]
+    public DateTimeOffset? GetNextFireTimeUtc() => NextFireTimeUtc;
 
     /// <summary>
     /// Returns the next time at which the <see cref="ITrigger" /> will fire,
@@ -628,7 +655,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// was created.
     /// </para>
     /// </summary>
-    public abstract void UpdateAfterMisfire(ICalendar? cal);
+    public abstract void UpdateAfterMisfire(ICalendar? calendar);
 
     /// <summary>
     /// This method should not be used by the Quartz client.
@@ -639,9 +666,9 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// given the Calendar's new settings).
     /// </para>
     /// </summary>
-    /// <param name="cal"> </param>
+    /// <param name="calendar"> </param>
     /// <param name="misfireThreshold"></param>
-    public abstract void UpdateWithNewCalendar(ICalendar cal, TimeSpan misfireThreshold);
+    public abstract void UpdateWithNewCalendar(ICalendar calendar, TimeSpan misfireThreshold);
 
     /// <summary>
     /// Validates whether the properties of the <see cref="IJobDetail" /> are
@@ -679,7 +706,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// Return a simple string representation of this object.
     /// </summary>
     public override string ToString()
-        => $"Trigger '{key}':  triggerClass: '{GetType().FullName} calendar: '{CalendarName}' misfireInstruction: {MisfireInstruction} nextFireTime: {GetNextFireTimeUtc()}";
+        => $"Trigger '{key}':  triggerClass: '{GetType().FullName} calendar: '{CalendarName}' misfireInstruction: {MisfireInstruction} nextFireTime: {NextFireTimeUtc}";
 
     /// <summary>
     /// Determines whether the specified <see cref="System.Object"></see> is equal to the current <see cref="System.Object"></see>.

@@ -7,7 +7,7 @@ using FakeItEasy;
 
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.Calendar;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 
@@ -42,7 +42,7 @@ public class JobStoreSupportTest
     private static IOperableTrigger CreateMisfiredTrigger(string name, int minutesLate = 10)
     {
         IOperableTrigger trigger = CreateTestTrigger(name);
-        trigger.SetNextFireTimeUtc(DateTimeOffset.UtcNow - TimeSpan.FromMinutes(minutesLate));
+        trigger.NextFireTimeUtc = DateTimeOffset.UtcNow - TimeSpan.FromMinutes(minutesLate);
         return trigger;
     }
 
@@ -281,7 +281,7 @@ public class JobStoreSupportTest
 
         A.CallTo(() => driverDelegate.SelectTriggerState(conn, trigger.Key, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<string>(AdoConstants.StateAcquired));
-        A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Spi.ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Extensibility.ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
         A.CallTo(() => driverDelegate.IsJobCurrentlyExecuting(conn, trigger.JobKey.Name, trigger.JobKey.Group, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(true));
@@ -306,7 +306,7 @@ public class JobStoreSupportTest
 
         A.CallTo(() => driverDelegate.SelectTriggerState(conn, trigger.Key, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<string>(AdoConstants.StateAcquired));
-        A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Spi.ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Extensibility.ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
         A.CallTo(() => driverDelegate.IsJobCurrentlyExecuting(conn, trigger.JobKey.Name, trigger.JobKey.Group, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(false));
@@ -326,7 +326,7 @@ public class JobStoreSupportTest
 
         A.CallTo(() => driverDelegate.SelectTriggerState(conn, trigger.Key, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<string>(AdoConstants.StateAcquired));
-        A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Spi.ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Extensibility.ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
 
         await jobStoreSupport.CallTriggerFired(conn, trigger);
@@ -348,7 +348,7 @@ public class JobStoreSupportTest
     {
         // Arrange
         var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
-        var calName = "testCal";
+        var calendarName = "testCal";
         ICalendar calendar = new BaseCalendar();
         var triggerKey = new TriggerKey("t1", "g1");
         var jobKey = new JobKey("j1", "jg1");
@@ -364,11 +364,11 @@ public class JobStoreSupportTest
             .WithIdentity(jobKey)
             .Build();
 
-        A.CallTo(() => driverDelegate.CalendarExists(conn, calName, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.CalendarExists(conn, calendarName, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(true));
-        A.CallTo(() => driverDelegate.UpdateCalendar(conn, calName, calendar, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.UpdateCalendar(conn, calendarName, calendar, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<int>(1));
-        A.CallTo(() => driverDelegate.SelectTriggersForCalendar(conn, calName, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.SelectTriggersForCalendar(conn, calendarName, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<List<IOperableTrigger>>(new List<IOperableTrigger> { trigger }));
         A.CallTo(() => driverDelegate.SelectTriggerState(conn, triggerKey, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<string>(originalState));
@@ -378,7 +378,7 @@ public class JobStoreSupportTest
             .Returns(new ValueTask<IJobDetail>(job));
 
         // Act
-        await jobStoreSupport.CallStoreCalendar(conn, calName, calendar, replaceExisting: true, updateTriggers: true);
+        await jobStoreSupport.CallStoreCalendar(conn, calendarName, calendar, replaceExisting: true, updateTriggers: true);
 
         // Assert: UpdateTrigger should be called with the original state preserved
         A.CallTo(() => driverDelegate.UpdateTrigger(conn, trigger, originalState, job, A<CancellationToken>.Ignored))
@@ -390,7 +390,7 @@ public class JobStoreSupportTest
     {
         // Arrange
         var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
-        var calName = "testCal";
+        var calendarName = "testCal";
         ICalendar calendar = new BaseCalendar();
         var triggerKey = new TriggerKey("t1", "g1");
         var jobKey = new JobKey("j1", "jg1");
@@ -402,17 +402,17 @@ public class JobStoreSupportTest
             .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
             .Build();
 
-        A.CallTo(() => driverDelegate.CalendarExists(conn, calName, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.CalendarExists(conn, calendarName, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(true));
-        A.CallTo(() => driverDelegate.UpdateCalendar(conn, calName, calendar, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.UpdateCalendar(conn, calendarName, calendar, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<int>(1));
-        A.CallTo(() => driverDelegate.SelectTriggersForCalendar(conn, calName, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.SelectTriggersForCalendar(conn, calendarName, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<List<IOperableTrigger>>(new List<IOperableTrigger> { trigger }));
         A.CallTo(() => driverDelegate.SelectTriggerState(conn, triggerKey, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<string>(AdoConstants.StateDeleted));
 
         // Act
-        await jobStoreSupport.CallStoreCalendar(conn, calName, calendar, replaceExisting: true, updateTriggers: true);
+        await jobStoreSupport.CallStoreCalendar(conn, calendarName, calendar, replaceExisting: true, updateTriggers: true);
 
         // Assert: trigger in DELETED state should be skipped entirely
         A.CallTo(() => driverDelegate.UpdateTrigger(
@@ -432,7 +432,7 @@ public class JobStoreSupportTest
     {
         // Arrange: two triggers on same calendar, one paused and one waiting
         var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
-        var calName = "testCal";
+        var calendarName = "testCal";
         ICalendar calendar = new BaseCalendar();
         var jobKey = new JobKey("j1", "jg1");
 
@@ -456,11 +456,11 @@ public class JobStoreSupportTest
             .WithIdentity(jobKey)
             .Build();
 
-        A.CallTo(() => driverDelegate.CalendarExists(conn, calName, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.CalendarExists(conn, calendarName, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(true));
-        A.CallTo(() => driverDelegate.UpdateCalendar(conn, calName, calendar, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.UpdateCalendar(conn, calendarName, calendar, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<int>(1));
-        A.CallTo(() => driverDelegate.SelectTriggersForCalendar(conn, calName, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.SelectTriggersForCalendar(conn, calendarName, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<List<IOperableTrigger>>(new List<IOperableTrigger> { pausedTrigger, waitingTrigger }));
 
         A.CallTo(() => driverDelegate.SelectTriggerState(conn, pausedTriggerKey, A<CancellationToken>.Ignored))
@@ -474,7 +474,7 @@ public class JobStoreSupportTest
             .Returns(new ValueTask<IJobDetail>(job));
 
         // Act
-        await jobStoreSupport.CallStoreCalendar(conn, calName, calendar, replaceExisting: true, updateTriggers: true);
+        await jobStoreSupport.CallStoreCalendar(conn, calendarName, calendar, replaceExisting: true, updateTriggers: true);
 
         // Assert: each trigger should be stored with its own original state
         A.CallTo(() => driverDelegate.UpdateTrigger(conn, pausedTrigger, AdoConstants.StatePaused, job, A<CancellationToken>.Ignored))
@@ -534,7 +534,7 @@ public class JobStoreSupportTest
             .StartNow()
             .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
             .Build();
-        existingTrigger.SetPreviousFireTimeUtc(previousFireTime);
+        existingTrigger.PreviousFireTimeUtc = previousFireTime;
 
         A.CallTo(() => driverDelegate.TriggerExists(conn, triggerKey, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(true));
@@ -547,7 +547,7 @@ public class JobStoreSupportTest
 
         await jobStoreSupport.CallStoreTrigger(conn, newTrigger, job, replaceExisting: true);
 
-        newTrigger.GetPreviousFireTimeUtc().Should().Be(previousFireTime,
+        newTrigger.PreviousFireTimeUtc.Should().Be(previousFireTime,
             "PreviousFireTimeUtc should be preserved from the existing trigger when replacing (#1834)");
 
         A.CallTo(() => driverDelegate.UpdateTrigger(conn, newTrigger, A<string>.Ignored, job, A<CancellationToken>.Ignored))
@@ -572,7 +572,7 @@ public class JobStoreSupportTest
             .StartNow()
             .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
             .Build();
-        newTrigger.SetPreviousFireTimeUtc(newPreviousFireTime);
+        newTrigger.PreviousFireTimeUtc = newPreviousFireTime;
 
         A.CallTo(() => driverDelegate.TriggerExists(conn, triggerKey, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(true));
@@ -582,21 +582,21 @@ public class JobStoreSupportTest
 
         await jobStoreSupport.CallStoreTrigger(conn, newTrigger, job, replaceExisting: true);
 
-        newTrigger.GetPreviousFireTimeUtc().Should().Be(newPreviousFireTime);
+        newTrigger.PreviousFireTimeUtc.Should().Be(newPreviousFireTime);
 
         A.CallTo(() => driverDelegate.SelectTrigger(conn, triggerKey, A<CancellationToken>.Ignored))
             .MustNotHaveHappened();
     }
 
     [DisallowConcurrentExecution]
-    private class DisallowConcurrentTestJob : IJob
+    private sealed class DisallowConcurrentTestJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context) => default;
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
     }
 
-    private class ConcurrentTestJob : IJob
+    private sealed class ConcurrentTestJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context) => default;
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
     }
 
     [Test]
@@ -829,7 +829,7 @@ public class JobStoreSupportTest
         : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
     {
     }
-        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection()
+        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection(CancellationToken cancellationToken = default)
         {
             return new ValueTask<ConnectionAndTransactionHolder>(new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null));
         }
@@ -884,19 +884,19 @@ public class JobStoreSupportTest
             return StoreTrigger(conn, newTrigger, job, replaceExisting, AdoConstants.StateWaiting, false, false, CancellationToken.None);
         }
 
-        internal Task<int> CallRecoverStaleAcquiredTriggers(ConnectionAndTransactionHolder conn)
+        internal ValueTask<int> CallRecoverStaleAcquiredTriggers(ConnectionAndTransactionHolder conn)
         {
             return RecoverStaleAcquiredTriggers(conn, CancellationToken.None);
         }
 
         internal ValueTask CallStoreCalendar(
             ConnectionAndTransactionHolder conn,
-            string calName,
+            string calendarName,
             ICalendar calendar,
             bool replaceExisting,
             bool updateTriggers)
         {
-            return StoreCalendar(conn, calName, calendar, replaceExisting, updateTriggers, CancellationToken.None);
+            return StoreCalendar(conn, calendarName, calendar, replaceExisting, updateTriggers, CancellationToken.None);
         }
 
         internal ValueTask<bool> CallIsTriggerGroupPaused(ConnectionAndTransactionHolder conn, string group)
@@ -916,7 +916,7 @@ public class JobStoreSupportTest
         {
         }
 
-        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection()
+        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection(CancellationToken cancellationToken = default)
         {
             // Return a holder with a mock connection and no transaction
             return new ValueTask<ConnectionAndTransactionHolder>(
@@ -1049,8 +1049,8 @@ public class JobStoreSupportTest
         IJobDetail job = CreateConcurrentJob();
 
         // Capture trigger A's original fire times to verify cloning protects against double-mutation
-        DateTimeOffset? originalNextFireTime = triggerA.GetNextFireTimeUtc();
-        DateTimeOffset? originalPrevFireTime = triggerA.GetPreviousFireTimeUtc();
+        DateTimeOffset? originalNextFireTime = triggerA.NextFireTimeUtc;
+        DateTimeOffset? originalPrevFireTime = triggerA.PreviousFireTimeUtc;
 
         // Trigger A always succeeds — but its work is rolled back when B fails
         A.CallTo(() => del.SelectTriggerState(A<ConnectionAndTransactionHolder>.Ignored, triggerA.Key, A<CancellationToken>.Ignored))
@@ -1083,9 +1083,9 @@ public class JobStoreSupportTest
 
         // Verify original trigger objects were NOT mutated (clone protects against
         // double-mutation from trigger.Triggered() across retry attempts)
-        triggerA.GetNextFireTimeUtc().Should().Be(originalNextFireTime,
+        triggerA.NextFireTimeUtc.Should().Be(originalNextFireTime,
             "original trigger must not be mutated by TriggersFired — clones should be used");
-        triggerA.GetPreviousFireTimeUtc().Should().Be(originalPrevFireTime,
+        triggerA.PreviousFireTimeUtc.Should().Be(originalPrevFireTime,
             "original trigger must not be mutated by TriggersFired — clones should be used");
     }
 
@@ -1110,7 +1110,7 @@ public class JobStoreSupportTest
             TransientRetryInterval = TimeSpan.Zero;
         }
 
-        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection()
+        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection(CancellationToken cancellationToken = default)
         {
             return new ValueTask<ConnectionAndTransactionHolder>(
                 new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null));
@@ -1291,7 +1291,7 @@ public class JobStoreSupportTest
             fieldInfo.SetValue(this, value);
         }
 
-        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection()
+        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection(CancellationToken cancellationToken = default)
         {
             return new ValueTask<ConnectionAndTransactionHolder>(
                 new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null));

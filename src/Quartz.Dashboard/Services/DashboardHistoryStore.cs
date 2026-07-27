@@ -34,14 +34,15 @@ public sealed record DashboardHistoryEntry(
 
 public interface IDashboardHistoryStore
 {
-    void Add(DashboardHistoryEntry entry);
+    ValueTask Add(DashboardHistoryEntry entry, CancellationToken cancellationToken = default);
 
-    DashboardHistoryPage GetPage(
+    ValueTask<DashboardHistoryPage> GetPage(
         string schedulerName,
         int page,
         int pageSize,
         string? jobFilter = null,
-        string? triggerFilter = null);
+        string? triggerFilter = null,
+        CancellationToken cancellationToken = default);
 }
 
 internal sealed class DashboardHistoryStore : IDashboardHistoryStore
@@ -49,7 +50,7 @@ internal sealed class DashboardHistoryStore : IDashboardHistoryStore
     private readonly ConcurrentDictionary<string, List<DashboardHistoryEntry>> entriesByScheduler = new(StringComparer.OrdinalIgnoreCase);
     private readonly int maxEntriesPerScheduler = 2000;
 
-    public void Add(DashboardHistoryEntry entry)
+    public ValueTask Add(DashboardHistoryEntry entry, CancellationToken cancellationToken = default)
     {
         List<DashboardHistoryEntry> list = entriesByScheduler.GetOrAdd(entry.SchedulerName, _ => []);
         lock (list)
@@ -60,14 +61,17 @@ internal sealed class DashboardHistoryStore : IDashboardHistoryStore
                 list.RemoveRange(0, list.Count - maxEntriesPerScheduler);
             }
         }
+
+        return default;
     }
 
-    public DashboardHistoryPage GetPage(
+    public ValueTask<DashboardHistoryPage> GetPage(
         string schedulerName,
         int page,
         int pageSize,
         string? jobFilter = null,
-        string? triggerFilter = null)
+        string? triggerFilter = null,
+        CancellationToken cancellationToken = default)
     {
         int safePageSize = Math.Clamp(pageSize, 1, 100);
         List<DashboardHistoryEntry> snapshot = [];
@@ -104,7 +108,7 @@ internal sealed class DashboardHistoryStore : IDashboardHistoryStore
         int safePage = Math.Clamp(page, 1, totalPages);
         int skip = (safePage - 1) * safePageSize;
         List<DashboardHistoryEntry> pageItems = ordered.Skip(skip).Take(safePageSize).ToList();
-        return new DashboardHistoryPage(safePage, safePageSize, totalCount, pageItems);
+        return ValueTask.FromResult(new DashboardHistoryPage(safePage, safePageSize, totalCount, pageItems));
     }
 
     private static bool MatchesFilter(string group, string name, string filter)
@@ -116,4 +120,4 @@ internal sealed class DashboardHistoryStore : IDashboardHistoryStore
     }
 }
 
-public sealed record DashboardHistoryPage(int Page, int PageSize, int TotalCount, IReadOnlyList<DashboardHistoryEntry> Entries);
+public sealed record DashboardHistoryPage(int Page, int PageSize, int TotalCount, List<DashboardHistoryEntry> Entries);

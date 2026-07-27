@@ -2,8 +2,7 @@ using FakeItEasy;
 
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.AspNetCore.Support;
 
@@ -36,20 +35,20 @@ public static class TestData
     static TestData()
     {
         Metadata = new SchedulerMetaData(
-            schedName: SchedulerName,
-            schedInst: SchedulerInstanceId,
-            schedType: typeof(IScheduler),
+            schedulerName: SchedulerName,
+            schedulerInstanceId: SchedulerInstanceId,
+            schedulerType: typeof(IScheduler),
             isRemote: false,
             started: true,
             isInStandbyMode: false,
             shutdown: false,
             startTime: DateTimeOffset.Now.AddDays(-1),
-            numberOfJobsExec: 1_000_000,
-            jsType: typeof(RAMJobStore),
-            jsPersistent: false,
-            jsClustered: false,
-            tpType: typeof(DefaultThreadPool),
-            tpSize: 10,
+            numberOfJobsExecuted: 1_000_000,
+            jobStoreType: typeof(RAMJobStore),
+            jobStoreSupportsPersistence: false,
+            jobStoreClustered: false,
+            threadPoolType: typeof(DefaultThreadPool),
+            threadPoolSize: 10,
             version: "1.2.3"
         );
 
@@ -196,11 +195,11 @@ public static class TestData
             firedBundle: new TriggerFiredBundle(
                 job: JobDetail,
                 trigger: (IOperableTrigger) CronTrigger,
-                cal: CronCalendar,
+                calendar: CronCalendar,
                 jobIsRecovering: false,
                 fireTimeUtc: DateTimeOffset.Now.AddSeconds(-1),
                 scheduledFireTimeUtc: DateTimeOffset.Now.AddSeconds(-1),
-                prevFireTimeUtc: DateTimeOffset.Now.AddMinutes(-10),
+                previousFireTimeUtc: DateTimeOffset.Now.AddMinutes(-10),
                 nextFireTimeUtc: DateTimeOffset.Now.AddMinutes(10)
             ),
             job: new DummyJob()
@@ -211,11 +210,11 @@ public static class TestData
             firedBundle: new TriggerFiredBundle(
                 job: JobDetail2,
                 trigger: (IOperableTrigger) SimpleTrigger,
-                cal: null,
+                calendar: null,
                 jobIsRecovering: true,
                 fireTimeUtc: DateTimeOffset.Now.AddSeconds(-5),
                 scheduledFireTimeUtc: null,
-                prevFireTimeUtc: null,
+                previousFireTimeUtc: null,
                 nextFireTimeUtc: null
             ),
             job: new DummyJob()

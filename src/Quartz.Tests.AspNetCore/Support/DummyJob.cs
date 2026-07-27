@@ -2,5 +2,5 @@ namespace Quartz.Tests.AspNetCore.Support;
 
 public class DummyJob : IJob
 {
-    public ValueTask Execute(IJobExecutionContext context) => throw new NotImplementedException();
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => throw new NotImplementedException();
 }

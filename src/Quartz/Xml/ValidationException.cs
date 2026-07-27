@@ -36,7 +36,7 @@ public sealed class ValidationException : Exception
     /// Gets the validation exceptions.
     /// </summary>
     /// <value>The validation exceptions.</value>
-    public IReadOnlyList<Exception> ValidationExceptions { get; } = new List<Exception>();
+    public List<Exception> ValidationExceptions { get; } = new List<Exception>();
 
     /// <summary>
     /// Returns the detail message string.
@@ -82,7 +82,7 @@ public sealed class ValidationException : Exception
     /// <param name="errors">collection of validation exceptions.</param>
     public ValidationException(IEnumerable<Exception> errors) : this()
     {
-        ValidationExceptions = new List<Exception>(errors).AsReadOnly();
+        ValidationExceptions = new List<Exception>(errors);
     }
 
     /// <summary>

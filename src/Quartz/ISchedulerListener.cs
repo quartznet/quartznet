@@ -19,7 +19,7 @@
 
 #endregion
 
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz;
 
@@ -116,8 +116,8 @@ public interface ISchedulerListener
     /// Called by the <see cref="IScheduler"/> when a
     /// group of <see cref="IJobDetail"/>s has been  paused.
     /// <para>
-    /// If all groups were paused, then the <see param="jobName"/> parameter will be
-    /// null. If all jobs were paused, then both parameters will be null.
+    /// Pausing every group raises <see cref="JobsPaused" /> once per group rather than a single
+    /// call with no group, so this is always a group name.
     /// </para>
     /// </summary>
     /// <param name="jobGroup">The job group.</param>
@@ -145,8 +145,8 @@ public interface ISchedulerListener
     /// <see cref="ITrigger" /> has fired.
     /// </summary>
     ValueTask SchedulerError(
-        string msg,
-        SchedulerException cause,
+        string message,
+        SchedulerException exception,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -176,7 +176,7 @@ public interface ISchedulerListener
     /// Called by the <see cref="IScheduler" /> to inform the listener
     /// that it has begun the shutdown sequence.
     /// </summary>
-    ValueTask SchedulerShuttingdown(CancellationToken cancellationToken = default);
+    ValueTask SchedulerShuttingDown(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> to inform the listener

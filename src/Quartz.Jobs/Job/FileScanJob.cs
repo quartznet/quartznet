@@ -90,9 +90,10 @@ public class FileScanJob : IJob
     /// </para>
     /// </summary>
     /// <param name="context">The execution context.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <seealso cref="IJob">
     /// </seealso>
-    public virtual async ValueTask Execute(IJobExecutionContext context)
+    public virtual async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         JobDataMap mergedJobDataMap = context.MergedJobDataMap;
         SchedulerContext schedCtxt;
@@ -150,7 +151,7 @@ public class FileScanJob : IJob
         {
             // notify call back...
             logger.LogInformation("File '{FileName}' updated, notifying listener.", fileName);
-            await listener.FileUpdated(fileName).ConfigureAwait(false);
+            await listener.FileUpdated(fileName, cancellationToken).ConfigureAwait(false);
         }
         else
         {

@@ -38,7 +38,7 @@ public class MisfireJob : IJob
     /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
     /// fires that is associated with the <see cref="IJob" />.
     /// </summary>
-    public virtual async ValueTask Execute(IJobExecutionContext context)
+    public virtual async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         JobKey jobKey = context.JobDetail.Key;
         Console.WriteLine($"---{jobKey} executing at {DateTime.Now:r}");
@@ -53,7 +53,7 @@ public class MisfireJob : IJob
             delay = map.GetInt(ExecutionDelay);
         }
 
-        await Task.Delay(TimeSpan.FromSeconds(delay));
+        await Task.Delay(TimeSpan.FromSeconds(delay), cancellationToken);
 
         Console.WriteLine($"---{jobKey} completed at {DateTime.Now:r}");
     }

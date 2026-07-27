@@ -7,7 +7,7 @@ public class JobBuilderTest
     [PersistJobDataAfterExecution]
     public class TestStatefulJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             return default;
         }
@@ -15,7 +15,7 @@ public class JobBuilderTest
 
     public class TestJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             return default;
         }
@@ -25,7 +25,7 @@ public class JobBuilderTest
     [PersistJobDataAfterExecution]
     public class TestAnnotatedJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             return default;
         }

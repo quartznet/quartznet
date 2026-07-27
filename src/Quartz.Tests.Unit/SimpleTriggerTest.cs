@@ -27,8 +27,7 @@ using Quartz.Impl;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit;
 
@@ -116,7 +115,7 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
         {
             Assert.That(simpleTrigger.StartTimeUtc, Is.EqualTo(startTime));
             Assert.That(simpleTrigger.EndTimeUtc.Value, Is.EqualTo(endTime));
-            Assert.That(!simpleTrigger.GetNextFireTimeUtc().HasValue, Is.True);
+            Assert.That(!simpleTrigger.NextFireTimeUtc.HasValue, Is.True);
         });
     }
 
@@ -183,7 +182,7 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
         simpleTrigger.StartTimeUtc = neverFireTime;
 
         simpleTrigger.ComputeFirstFireTimeUtc(dailyCalendar);
-        DateTimeOffset? fireTimeAfter = simpleTrigger.GetNextFireTimeUtc();
+        DateTimeOffset? fireTimeAfter = simpleTrigger.NextFireTimeUtc;
 
         Assert.That(fireTimeAfter, Is.Null);
     }
@@ -288,7 +287,7 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
 
             ITrigger storedTrigger = await scheduler.GetTrigger(trigger.Key);
             Assert.IsNotNull(storedTrigger);
-            Assert.That(storedTrigger.GetNextFireTimeUtc(), Is.GreaterThanOrEqualTo(now),
+            Assert.That(storedTrigger.NextFireTimeUtc, Is.GreaterThanOrEqualTo(now),
                 "Stored trigger's next fire time should not be in the past");
         }
         finally
@@ -453,7 +452,7 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
 
         trigger.UpdateAfterMisfire(null);
 
-        DateTimeOffset? nextFire = trigger.GetNextFireTimeUtc();
+        DateTimeOffset? nextFire = trigger.NextFireTimeUtc;
         Assert.IsNotNull(nextFire);
         Assert.That(nextFire.Value, Is.GreaterThan(frozenNow),
             "Trigger must not fire immediately after misfire handling (#3096)");
@@ -478,12 +477,12 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
         trigger.ComputeFirstFireTimeUtc(null);
 
         // Simulate that the trigger has already fired once at 10:00:00
-        trigger.SetNextFireTimeUtc(startTime);
+        trigger.NextFireTimeUtc = startTime;
         trigger.TimesTriggered = 1;
 
         trigger.UpdateAfterMisfire(null);
 
-        DateTimeOffset? nextFire = trigger.GetNextFireTimeUtc();
+        DateTimeOffset? nextFire = trigger.NextFireTimeUtc;
         Assert.IsNotNull(nextFire);
         Assert.That(nextFire.Value, Is.GreaterThan(frozenNow),
             "Trigger must not fire immediately after misfire handling (#3096)");

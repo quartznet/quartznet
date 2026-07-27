@@ -29,8 +29,7 @@ using Quartz.Core;
 using Quartz.Impl;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit.Core;
 
@@ -58,7 +57,7 @@ public class QuartzSchedulerTest
         NameValueCollection properties = new NameValueCollection();
         properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
         ISchedulerFactory sf = new StdSchedulerFactory(properties);
-        IScheduler sched = await sf.GetScheduler();
+        IScheduler scheduler = await sf.GetScheduler();
 
         DateTime runTime = DateTime.Now.AddMinutes(10);
 
@@ -75,7 +74,7 @@ public class QuartzSchedulerTest
 
         try
         {
-            await sched.ScheduleJob(job, trigger);
+            await scheduler.ScheduleJob(job, trigger);
             Assert.Fail("No error for non-existing calendar");
         }
         catch (SchedulerException ex)
@@ -85,7 +84,7 @@ public class QuartzSchedulerTest
 
         try
         {
-            await sched.ScheduleJob(trigger);
+            await scheduler.ScheduleJob(trigger);
             Assert.Fail("No error for non-existing calendar");
         }
         catch (SchedulerException ex)
@@ -93,7 +92,7 @@ public class QuartzSchedulerTest
             Assert.That(ex.Message, Is.EqualTo(ExpectedError));
         }
 
-        await sched.Shutdown(false);
+        await scheduler.Shutdown(false);
     }
 
     [Test]
@@ -103,11 +102,11 @@ public class QuartzSchedulerTest
         properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
         var sf = new StdSchedulerFactory(properties);
 
-        IScheduler sched = await sf.GetScheduler();
-        await sched.StartDelayed(TimeSpan.FromMilliseconds(100));
-        Assert.That(sched.IsStarted, Is.False);
+        IScheduler scheduler = await sf.GetScheduler();
+        await scheduler.StartDelayed(TimeSpan.FromMilliseconds(100));
+        Assert.That(scheduler.IsStarted, Is.False);
         await Task.Delay(2000);
-        Assert.That(sched.IsStarted, Is.True);
+        Assert.That(scheduler.IsStarted, Is.True);
     }
 
     [Test]
@@ -182,30 +181,30 @@ public class QuartzSchedulerTest
 
     [Test]
     [Ignore("Flaky in CI")]
-    public void NumJobsExecuted()
+    public void NumberOfJobsExecuted()
     {
         var scheduler = CreateQuartzScheduler("A", "B", 5);
 
-        Assert.That(scheduler.NumJobsExecuted, Is.EqualTo(0));
+        Assert.That(scheduler.NumberOfJobsExecuted, Is.EqualTo(0));
 
         scheduler.Start().GetAwaiter().GetResult();
 
-        Assert.That(scheduler.NumJobsExecuted, Is.EqualTo(0));
+        Assert.That(scheduler.NumberOfJobsExecuted, Is.EqualTo(0));
 
         ScheduleJobs<DelayedJob>(scheduler, 3, true, false, 1, TimeSpan.FromMilliseconds(1), 1);
         ScheduleJobs<DelayedJob>(scheduler, 1, true, false, 1, TimeSpan.FromMilliseconds(1), 0);
 
         Thread.Sleep(150);
 
-        Assert.That(scheduler.NumJobsExecuted, Is.EqualTo(4));
+        Assert.That(scheduler.NumberOfJobsExecuted, Is.EqualTo(4));
 
         Thread.Sleep(150);
 
-        Assert.That(scheduler.NumJobsExecuted, Is.EqualTo(7));
+        Assert.That(scheduler.NumberOfJobsExecuted, Is.EqualTo(7));
 
         Thread.Sleep(200);
 
-        Assert.That(scheduler.NumJobsExecuted, Is.EqualTo(7));
+        Assert.That(scheduler.NumberOfJobsExecuted, Is.EqualTo(7));
 
         scheduler.Shutdown(true).GetAwaiter().GetResult();
     }
@@ -289,7 +288,7 @@ public class QuartzSchedulerTest
     {
         private static readonly TimeSpan _delay = TimeSpan.FromMilliseconds(200);
 
-        public async ValueTask Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             await Task.Delay(_delay).ConfigureAwait(false);
         }

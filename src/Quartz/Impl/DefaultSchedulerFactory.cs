@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 using Quartz.Configuration;
 using Quartz.Core;
 using Quartz.Impl.AdoJobStore;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Impl;
 
@@ -47,24 +47,24 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
 
     private object? Key => schedulerKey.Key;
 
-    public ValueTask<IReadOnlyList<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default)
+    public ValueTask<List<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default)
     {
-        return new ValueTask<IReadOnlyList<IScheduler>>(schedulerRepository.LookupAll());
+        return new ValueTask<List<IScheduler>>(schedulerRepository.LookupAll());
     }
 
-    public async ValueTask<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default)
+    public async ValueTask<IScheduler?> GetScheduler(string schedulerName, CancellationToken cancellationToken = default)
     {
         // Asking for this factory's scheduler by name has to be able to create it. Looking straight in
         // the repository would only ever find a scheduler somebody else had already asked for. The
         // comparison ignores case because that is how the repository indexes names, so the create path
         // and the lookup path agree on what counts as the same scheduler.
         var options = serviceProvider.GetSchedulerOptions<QuartzSchedulerOptions>(Key);
-        if (string.Equals(schedName, options.InstanceName, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(schedulerName, options.InstanceName, StringComparison.OrdinalIgnoreCase))
         {
             return await GetScheduler(cancellationToken).ConfigureAwait(false);
         }
 
-        return schedulerRepository.Lookup(schedName);
+        return schedulerRepository.Lookup(schedulerName);
     }
 
     public async ValueTask<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
@@ -142,9 +142,7 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
         }
 
         var threadPool = resources.ThreadPool;
-        threadPool.InstanceName = resources.Name;
-        threadPool.InstanceId = resources.InstanceId;
-        threadPool.Initialize();
+        await threadPool.Initialize(cancellationToken).ConfigureAwait(false);
 
         QuartzScheduler? quartzScheduler = null;
         try
@@ -191,10 +189,10 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
                 quartzScheduler.Version, quartzScheduler.SchedulerName, quartzScheduler.SchedulerInstanceId);
             logger.LogInformation(
                 "Using thread pool '{ThreadPoolType}', size: {ThreadPoolSize}",
-                quartzScheduler.ThreadPoolClass.FullName, quartzScheduler.ThreadPoolSize);
+                quartzScheduler.ThreadPoolType.FullName, quartzScheduler.ThreadPoolSize);
             logger.LogInformation(
                 "Using job store '{JobStoreType}', supports persistence: {SupportsPersistence}, clustered: {Clustered}",
-                quartzScheduler.JobStoreClass.FullName, quartzScheduler.SupportsPersistence, quartzScheduler.Clustered);
+                quartzScheduler.JobStoreType.FullName, quartzScheduler.SupportsPersistence, quartzScheduler.Clustered);
 
             return scheduler;
         }
@@ -242,7 +240,7 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
             }
             else
             {
-                threadPool.Shutdown(waitForJobsToComplete: false);
+                await threadPool.Shutdown(waitForJobsToComplete: false, CancellationToken.None).ConfigureAwait(false);
             }
         }
         catch (Exception e)

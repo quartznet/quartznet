@@ -17,8 +17,8 @@
  */
 #endregion
 
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit.Simpl;
 
@@ -66,9 +66,8 @@ public class PropertySettingJobFactoryTest
         if (serializerType is not null)
         {
             var serializer = (IObjectSerializer) Activator.CreateInstance(serializerType);
-            serializer.Initialize();
             var serialized = serializer.Serialize(jobDataMap);
-            jobDataMap = serializer.DeSerialize<JobDataMap>(serialized);
+            jobDataMap = serializer.Deserialize<JobDataMap>(serialized);
         }
 
         TestObject myObject = new TestObject();

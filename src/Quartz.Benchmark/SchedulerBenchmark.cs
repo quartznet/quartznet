@@ -2,8 +2,7 @@ using Quartz.Tests;
 using BenchmarkDotNet.Attributes;
 
 using Quartz.Impl;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Benchmark;
 
@@ -555,10 +554,9 @@ public class SchedulerBenchmark
             })
             .UseThreadPool(threadPool)
             .UseJobStore(store)
+            .UseJobFactory(_jobFactory)
             .BuildScheduler()
             .ConfigureAwait(false).GetAwaiter().GetResult();
-
-        scheduler.JobFactory = _jobFactory;
 
         var triggersByJob = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>();
 
@@ -609,7 +607,7 @@ public class SchedulerBenchmark
 
         public static int RunCount => _runCount;
 
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             if (Interlocked.Increment(ref _runCount) == _operationsPerRun)
             {
@@ -648,7 +646,7 @@ public class SchedulerBenchmark
 
         public static int RunCount => _runCount;
 
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             if (Interlocked.Increment(ref _runCount) == _operationsPerRun)
             {
@@ -688,13 +686,13 @@ public class SchedulerBenchmark
 
         public static int RunCount => _runCount;
 
-        public async ValueTask Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             int runs = Interlocked.Increment(ref _runCount);
 
             if (runs < _operationsPerRun)
             {
-                await Task.Delay(_delay).ConfigureAwait(false);
+                await Task.Delay(_delay, cancellationToken).ConfigureAwait(false);
             }
             else if (runs == _operationsPerRun)
             {

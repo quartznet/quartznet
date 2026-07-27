@@ -2,8 +2,8 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Configuration;
 using Quartz.Core;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit.Configuration;
 
@@ -14,7 +14,7 @@ public class QuartzSchedulerBuilderTest
 
     public class SignallingJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             fired.TrySetResult(true);
             return default;

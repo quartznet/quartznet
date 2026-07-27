@@ -20,7 +20,7 @@
 #endregion
 
 using Quartz.Impl.Matchers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Impl.AdoJobStore;
 
@@ -633,7 +633,7 @@ public interface IDriverDelegate
     /// <param name="matcher"></param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>An array of <see cref="String" /> trigger names.</returns>
-    Task<List<TriggerKey>> SelectTriggersInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default);
+    ValueTask<List<TriggerKey>> SelectTriggersInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Select all the triggers in a given state.
@@ -1010,8 +1010,8 @@ public interface IDriverDelegate
     /// in ascending order of fire time, and then descending by priority.
     /// </summary>
     /// <param name="conn">The conn.</param>
-    /// <param name="noLaterThan">highest value of <see cref="ITrigger.GetNextFireTimeUtc" /> of the triggers (exclusive)</param>
-    /// <param name="noEarlierThan">lowest value of <see cref="ITrigger.GetNextFireTimeUtc" /> of the triggers (inclusive)</param>
+    /// <param name="noLaterThan">highest value of <see cref="ITrigger.NextFireTimeUtc" /> of the triggers (exclusive)</param>
+    /// <param name="noEarlierThan">lowest value of <see cref="ITrigger.NextFireTimeUtc" /> of the triggers (inclusive)</param>
     /// <param name="maxCount">maximum number of trigger keys allow to acquired in the returning list.</param>
     /// <param name="liveNodeCutoff">Tick value below which a node's last check-in is considered
     /// stale, releasing its pinned triggers to other nodes (preferred node / node affinity).</param>
@@ -1183,7 +1183,7 @@ public interface IDriverDelegate
         DateTimeOffset noLaterThan,
         DateTimeOffset noEarlierThan,
         int maxCount,
-        Dictionary<string, int?> executionLimits,
+        IReadOnlyDictionary<string, int?> executionLimits,
         long liveNodeCutoff,
         CancellationToken cancellationToken = default);
 

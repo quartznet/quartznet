@@ -43,7 +43,7 @@ public class BadJob2 : IJob
     /// </para>
     /// </summary>
     /// <param name="context">Execution context.</param>
-    public virtual ValueTask Execute(IJobExecutionContext context)
+    public virtual ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         JobKey jobKey = context.JobDetail.Key;
         Console.WriteLine("---{0} executing at {1:r}", jobKey, DateTime.Now);

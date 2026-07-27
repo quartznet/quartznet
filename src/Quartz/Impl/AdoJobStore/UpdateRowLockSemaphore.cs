@@ -63,23 +63,23 @@ public class UpdateLockRowSemaphore : DBSemaphore
 
     protected UpdateLockRowSemaphore(
         string tablePrefix,
-        string? schedName,
-        string defaultSQL,
-        string defaultInsertSQL,
-        IDbProvider dbProvider) : base(tablePrefix, schedName, defaultSQL, defaultInsertSQL, dbProvider)
+        string? schedulerName,
+        string defaultSql,
+        string defaultInsertSql,
+        IDbProvider dbProvider) : base(tablePrefix, schedulerName, defaultSql, defaultInsertSql, dbProvider)
     {
     }
 
     /// <summary>
     /// Execute the SQL that will lock the proper database row.
     /// </summary>
-    protected override async ValueTask ExecuteSQL(
+    protected override async ValueTask ExecuteSql(
         Guid requestorId,
         ConnectionAndTransactionHolder conn,
         string lockName,
         string expandedSql,
         string expandedInsertSql,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         Exception? lastFailure = null;
         for (int i = 0; i < RetryCount; i++)
@@ -127,7 +127,7 @@ public class UpdateLockRowSemaphore : DBSemaphore
         CancellationToken cancellationToken)
     {
         using DbCommand cmd = AdoUtil.PrepareCommand(conn, sql);
-        AdoUtil.AddCommandParameter(cmd, "schedulerName", SchedName);
+        AdoUtil.AddCommandParameter(cmd, "schedulerName", SchedulerName);
         AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
 
         if (logger.IsEnabled(LogLevel.Debug))
@@ -155,7 +155,7 @@ public class UpdateLockRowSemaphore : DBSemaphore
         }
 
         using var cmd = AdoUtil.PrepareCommand(conn, sql);
-        AdoUtil.AddCommandParameter(cmd, "schedulerName", SchedName);
+        AdoUtil.AddCommandParameter(cmd, "schedulerName", SchedulerName);
         AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
 
         if (await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) != 1)

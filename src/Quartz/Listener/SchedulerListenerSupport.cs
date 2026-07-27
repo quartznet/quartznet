@@ -96,7 +96,7 @@ public abstract class SchedulerListenerSupport : ISchedulerListener
 
     public virtual ValueTask JobInterrupted(
         JobKey jobKey,
-        CancellationToken cancellationToken = new CancellationToken())
+        CancellationToken cancellationToken = default)
     {
         return default;
     }
@@ -130,8 +130,8 @@ public abstract class SchedulerListenerSupport : ISchedulerListener
     }
 
     public virtual ValueTask SchedulerError(
-        string msg,
-        SchedulerException cause,
+        string message,
+        SchedulerException exception,
         CancellationToken cancellationToken = default)
     {
         return default;
@@ -157,7 +157,7 @@ public abstract class SchedulerListenerSupport : ISchedulerListener
         return default;
     }
 
-    public virtual ValueTask SchedulerShuttingdown(CancellationToken cancellationToken = default)
+    public virtual ValueTask SchedulerShuttingDown(CancellationToken cancellationToken = default)
     {
         return default;
     }

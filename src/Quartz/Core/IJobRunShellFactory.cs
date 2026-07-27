@@ -19,7 +19,7 @@
 
 #endregion
 
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Core;
 
@@ -29,14 +29,14 @@ namespace Quartz.Core;
 /// </summary>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public interface IJobRunShellFactory
+internal interface IJobRunShellFactory
 {
     /// <summary>
     /// Initialize the factory, providing a handle to the <see cref="IScheduler" />
     /// that should be made available within the <see cref="JobRunShell" /> and
     /// the <see cref="IJobExecutionContext" />s within it.
     /// </summary>
-    void Initialize(IScheduler sched);
+    void Initialize(IScheduler scheduler);
 
     /// <summary>
     /// Called by the <see cref="QuartzSchedulerThread" />

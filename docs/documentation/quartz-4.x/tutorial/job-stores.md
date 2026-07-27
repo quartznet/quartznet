@@ -29,7 +29,7 @@ For some applications this is acceptable - or even the desired behavior, but for
 
 ```text
  // this is actually the default, so you don't need to explicitly set this
- quartz.jobStore.type = Quartz.Simpl.RAMJobStore, Quartz
+ quartz.jobStore.type = Quartz.Impl.RAMJobStore, Quartz
 ```
 
 To use `RAMJobStore` (and assuming you're using `StdSchedulerFactory`) you don't need to do anything special. Default configuration
@@ -158,7 +158,7 @@ This is recommended configuration because it greatly decreases the possibility o
 Quartz.NET supports both binary and JSON serialization. Using binary serialization is discouraged as it will no longer be supported in future versions.
 
 * JSON serialization based on System.Text.Json comes bundled with Quartz
-* JSON serialization based on Newtonsoft.Json comes from separate [Quartz.Serialization.Json](../packages/json-serialization) NuGet package
+* JSON serialization based on Newtonsoft.Json comes from separate [Quartz.Serialization.Newtonsoft](../packages/json-serialization) NuGet package
 
 ::: tip
 JSON is recommended persistent format to store data in database for greenfield projects.
@@ -185,7 +185,7 @@ ISchedulerFactory schedulerFactory = config.Build();
 #### Using properties
 
 ```csharp
-    // "stj" is an alias for "Quartz.Simpl.SystemTextJsonObjectSerializer, Quartz"
-    // "newtonsoft" is alias for "Quartz.Simpl.NewtonsoftJsonObjectSerializer, Quartz.Serialization.Newtonsoft"
+    // "stj" is an alias for "Quartz.Impl.SystemTextJsonObjectSerializer, Quartz"
+    // "newtonsoft" is alias for "Quartz.Impl.NewtonsoftJsonObjectSerializer, Quartz.Serialization.Newtonsoft"
     quartz.serializer.type = stj
 ```

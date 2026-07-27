@@ -22,7 +22,7 @@ public class JobStoreCMTTest
         jobStore = new TestJobStoreCMT(dbProvider);
     }
 
-    private class TestJobStoreCMT : JobStoreCMT
+    private sealed class TestJobStoreCMT : JobStoreCMT
     {
         public TestJobStoreCMT(IDbProvider dbProvider)
             : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), dbProvider, TestJobStores.DriverDelegate(), TestJobStores.LockHandler())

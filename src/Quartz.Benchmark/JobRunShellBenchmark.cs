@@ -3,8 +3,7 @@ using BenchmarkDotNet.Attributes;
 using Quartz.Core;
 using Quartz.Impl;
 using Quartz.Impl.Matchers;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Benchmark;
 
@@ -35,7 +34,7 @@ public class JobRunShellBenchmark
     }
 
     [Benchmark]
-    public Task Success_NoTriggerListenersAndSingleJobListener_MayFireAgain()
+    public ValueTask Success_NoTriggerListenersAndSingleJobListener_MayFireAgain()
     {
         return _jobRunShell.Run();
     }
@@ -91,7 +90,7 @@ public class JobRunShellBenchmark
         private static int RunCount = 0;
         private static int _operationsPerRun;
 
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             if (Interlocked.Increment(ref RunCount) == _operationsPerRun)
             {
@@ -117,11 +116,11 @@ public class JobRunShellBenchmark
         }
     }
 
-    private class NoOpJobStore : IJobStore
+    private sealed class NoOpJobStore : IJobStore
     {
         public bool SupportsPersistence => false;
 
-        public long EstimatedTimeToReleaseAndAcquireTrigger => throw new NotImplementedException();
+        public TimeSpan EstimatedTimeToReleaseAndAcquireTrigger => throw new NotImplementedException();
 
         public bool Clustered => throw new NotImplementedException();
 
@@ -132,17 +131,12 @@ public class JobRunShellBenchmark
             throw new NotImplementedException();
         }
 
-        public ValueTask<List<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow, CancellationToken cancellationToken = default)
+        public ValueTask<List<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow, IReadOnlyDictionary<string, int?>? executionLimits = null, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
 
-        public ValueTask<List<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow, Dictionary<string, int?>? executionLimits, CancellationToken cancellationToken = default)
-        {
-            throw new NotImplementedException();
-        }
-
-        public ValueTask<bool> CalendarExists(string calName, CancellationToken cancellationToken = default)
+        public ValueTask<bool> CalendarExists(string calendarName, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -267,7 +261,7 @@ public class JobRunShellBenchmark
             throw new NotImplementedException();
         }
 
-        public ValueTask<bool> RemoveCalendar(string calName, CancellationToken cancellationToken = default)
+        public ValueTask<bool> RemoveCalendar(string calendarName, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -327,7 +321,7 @@ public class JobRunShellBenchmark
             throw new NotImplementedException();
         }
 
-        public ValueTask<ICalendar?> RetrieveCalendar(string calName, CancellationToken cancellationToken = default)
+        public ValueTask<ICalendar?> RetrieveCalendar(string calendarName, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -362,7 +356,7 @@ public class JobRunShellBenchmark
             return default;
         }
 
-        public ValueTask StoreCalendar(string name, ICalendar calendar, bool replaceExisting, bool updateTriggers, CancellationToken cancellationToken = default)
+        public ValueTask StoreCalendar(string calendarName, ICalendar calendar, bool replaceExisting, bool updateTriggers, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -387,7 +381,7 @@ public class JobRunShellBenchmark
             throw new NotImplementedException();
         }
 
-        public ValueTask TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction triggerInstCode, CancellationToken cancellationToken = default)
+        public ValueTask TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default)
         {
             return default;
         }

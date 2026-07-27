@@ -10,8 +10,7 @@ using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Serialization.Json;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Util;
 
 namespace Quartz.Configuration;
@@ -57,7 +56,7 @@ internal static class QuartzServiceRegistration
         // a process-wide instance any more, so "which repository am I in" is answered by which container
         // built the scheduler rather than by how it was built.
         services.TryAddSingleton<ISchedulerRepository, SchedulerRepository>();
-        services.TryAddSingleton<IDbConnectionManager, DBConnectionManager>();
+        services.TryAddSingleton<IDbConnectionManager, DbConnectionManager>();
 
         // The container-wide set of trigger and calendar serializers, holding the built-in types. This is
         // what the parts of Quartz that are not tied to one scheduler read — the HTTP API, the dashboard
@@ -144,10 +143,9 @@ internal static class QuartzServiceRegistration
 
         services.TryAddKeyed<IObjectSerializer>(key, static (provider, key) =>
         {
-            // A serializer is unusable until Initialize builds its converter set. Construction goes
-            // through ActivatorUtilities so this scheduler's SystemTextJsonSerializerRegistry is injected.
+            // Construction goes through ActivatorUtilities so this scheduler's
+            // SystemTextJsonSerializerRegistry is injected. The converter set is built on first use.
             var serializer = ActivatorUtilities.CreateInstance<SystemTextJsonObjectSerializer>(Scoped(provider, key));
-            serializer.Initialize();
             return serializer;
         });
 

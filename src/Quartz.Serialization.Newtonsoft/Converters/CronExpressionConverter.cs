@@ -3,7 +3,7 @@ using Newtonsoft.Json.Linq;
 
 using Quartz.Util;
 
-namespace Quartz.Converters;
+namespace Quartz.Serialization.Newtonsoft;
 
 internal sealed class CronExpressionConverter : JsonConverter
 {

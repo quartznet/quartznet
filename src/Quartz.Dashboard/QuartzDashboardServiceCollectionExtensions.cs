@@ -27,7 +27,7 @@ using Quartz.Configuration;
 using Quartz.Dashboard.Plugins;
 using Quartz.Dashboard.Services;
 using Quartz.Serialization.Json;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz;
 

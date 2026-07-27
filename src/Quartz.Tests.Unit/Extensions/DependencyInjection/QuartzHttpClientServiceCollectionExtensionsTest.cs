@@ -6,7 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Quartz;
 using Quartz.HttpClient;
 using Quartz.Impl;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 using QuartzHttpClientServiceCollectionExtensionsTestTypes;
 

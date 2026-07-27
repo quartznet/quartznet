@@ -19,7 +19,7 @@
 
 #endregion
 
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Impl;
 
@@ -102,7 +102,7 @@ public sealed class JobExecutionContextImpl : ICancellableJobExecutionContext, I
         Recovering = firedBundle.Recovering;
         FireTimeUtc = firedBundle.FireTimeUtc;
         ScheduledFireTimeUtc = firedBundle.ScheduledFireTimeUtc;
-        PreviousFireTimeUtc = firedBundle.PrevFireTimeUtc;
+        PreviousFireTimeUtc = firedBundle.PreviousFireTimeUtc;
         NextFireTimeUtc = firedBundle.NextFireTimeUtc;
     }
 
@@ -213,7 +213,7 @@ public sealed class JobExecutionContextImpl : ICancellableJobExecutionContext, I
     /// interfaces.
     /// </para>
     /// </summary>
-    public IJob JobInstance => (jobInstance as IJobWrapper)?.Target ?? jobInstance;
+    public IJob JobInstance => jobInstance;
 
     /// <summary>
     /// The actual time the trigger fired. For instance the scheduled time may

@@ -38,9 +38,6 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// </summary>
     public const int RepeatIndefinitely = -1;
 
-    private DateTimeOffset? nextFireTimeUtc;
-    private DateTimeOffset? previousFireTimeUtc;
-
     private int repeatCount;
     private TimeSpan repeatInterval = TimeSpan.Zero;
     private int timesTriggered;
@@ -378,7 +375,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// </li>
     /// </ul>
     /// </remarks>
-    public override void UpdateAfterMisfire(ICalendar? cal)
+    public override void UpdateAfterMisfire(ICalendar? calendar)
     {
         int instr = MisfireInstruction;
         if (instr == Quartz.MisfireInstruction.SmartPolicy)
@@ -403,15 +400,15 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
 
         if (instr == Quartz.MisfireInstruction.SimpleTrigger.FireNow)
         {
-            nextFireTimeUtc = TimeProvider.GetUtcNow();
+            NextFireTimeUtc = TimeProvider.GetUtcNow();
         }
         else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount)
         {
             DateTimeOffset? newFireTime = GetFireTimeAfter(null);
 
-            if (cal is not null && newFireTime.HasValue)
+            if (calendar is not null && newFireTime.HasValue)
             {
-                while (!cal.IsTimeIncluded(newFireTime.GetValueOrDefault()))
+                while (!calendar.IsTimeIncluded(newFireTime.GetValueOrDefault()))
                 {
                     newFireTime = GetFireTimeAfter(newFireTime);
 
@@ -428,15 +425,15 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
                     }
                 }
             }
-            nextFireTimeUtc = newFireTime;
+            NextFireTimeUtc = newFireTime;
         }
         else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount)
         {
             DateTimeOffset? newFireTime = GetFireTimeAfter(null);
 
-            if (cal is not null && newFireTime.HasValue)
+            if (calendar is not null && newFireTime.HasValue)
             {
-                while (!cal.IsTimeIncluded(newFireTime.GetValueOrDefault()))
+                while (!calendar.IsTimeIncluded(newFireTime.GetValueOrDefault()))
                 {
                     newFireTime = GetFireTimeAfter(newFireTime);
 
@@ -456,11 +453,11 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
 
             if (newFireTime.HasValue)
             {
-                int timesMissed = ComputeNumTimesFiredBetween(nextFireTimeUtc.GetValueOrDefault(), newFireTime.GetValueOrDefault());
+                int timesMissed = ComputeNumTimesFiredBetween(NextFireTimeUtc.GetValueOrDefault(), newFireTime.GetValueOrDefault());
                 TimesTriggered = TimesTriggered + timesMissed;
             }
 
-            nextFireTimeUtc = newFireTime;
+            NextFireTimeUtc = newFireTime;
         }
         else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount)
         {
@@ -474,12 +471,12 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
 
             if (EndTimeUtc.HasValue && EndTimeUtc.GetValueOrDefault() < newFireTime)
             {
-                nextFireTimeUtc = null; // We are past the end time
+                NextFireTimeUtc = null; // We are past the end time
             }
             else
             {
                 StartTimeUtc = newFireTime;
-                nextFireTimeUtc = newFireTime;
+                NextFireTimeUtc = newFireTime;
             }
         }
         else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount)
@@ -488,7 +485,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
 
             if (repeatCount != 0 && repeatCount != RepeatIndefinitely)
             {
-                int timesMissed = ComputeNumTimesFiredBetween(nextFireTimeUtc.GetValueOrDefault(), newFireTime);
+                int timesMissed = ComputeNumTimesFiredBetween(NextFireTimeUtc.GetValueOrDefault(), newFireTime);
                 int remainingCount = RepeatCount - (TimesTriggered + timesMissed);
                 if (remainingCount <= 0)
                 {
@@ -500,12 +497,12 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
 
             if (EndTimeUtc.HasValue && EndTimeUtc.GetValueOrDefault() < newFireTime)
             {
-                nextFireTimeUtc = null; // We are past the end time
+                NextFireTimeUtc = null; // We are past the end time
             }
             else
             {
                 StartTimeUtc = newFireTime;
-                nextFireTimeUtc = newFireTime;
+                NextFireTimeUtc = newFireTime;
             }
         }
     }
@@ -517,27 +514,27 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// triggering (if any).
     /// </summary>
     /// <seealso cref="JobExecutionException" />
-    public override void Triggered(ICalendar? cal)
+    public override void Triggered(ICalendar? calendar)
     {
         timesTriggered++;
-        previousFireTimeUtc = nextFireTimeUtc;
-        nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+        PreviousFireTimeUtc = NextFireTimeUtc;
+        NextFireTimeUtc = GetFireTimeAfter(NextFireTimeUtc);
 
-        if (cal is not null && nextFireTimeUtc.HasValue)
+        if (calendar is not null && NextFireTimeUtc.HasValue)
         {
-            while (!cal.IsTimeIncluded(nextFireTimeUtc.GetValueOrDefault()))
+            while (!calendar.IsTimeIncluded(NextFireTimeUtc.GetValueOrDefault()))
             {
-                nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+                NextFireTimeUtc = GetFireTimeAfter(NextFireTimeUtc);
 
-                if (!nextFireTimeUtc.HasValue)
+                if (!NextFireTimeUtc.HasValue)
                 {
                     break;
                 }
 
                 //avoid infinite loop
-                if (nextFireTimeUtc.GetValueOrDefault().Year > TriggerConstants.YearToGiveUpSchedulingAt)
+                if (NextFireTimeUtc.GetValueOrDefault().Year > TriggerConstants.YearToGiveUpSchedulingAt)
                 {
-                    nextFireTimeUtc = null;
+                    NextFireTimeUtc = null;
                     break;
                 }
             }
@@ -551,35 +548,35 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// <param name="misfireThreshold">The misfire threshold.</param>
     public override void UpdateWithNewCalendar(ICalendar calendar, TimeSpan misfireThreshold)
     {
-        nextFireTimeUtc = GetFireTimeAfter(previousFireTimeUtc);
+        NextFireTimeUtc = GetFireTimeAfter(PreviousFireTimeUtc);
 
-        if (nextFireTimeUtc is null || calendar is null)
+        if (NextFireTimeUtc is null || calendar is null)
         {
             return;
         }
 
         DateTimeOffset now = TimeProvider.GetUtcNow();
-        while (nextFireTimeUtc.HasValue && !calendar.IsTimeIncluded(nextFireTimeUtc.GetValueOrDefault()))
+        while (NextFireTimeUtc.HasValue && !calendar.IsTimeIncluded(NextFireTimeUtc.GetValueOrDefault()))
         {
-            nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+            NextFireTimeUtc = GetFireTimeAfter(NextFireTimeUtc);
 
-            if (!nextFireTimeUtc.HasValue)
+            if (!NextFireTimeUtc.HasValue)
             {
                 break;
             }
 
             //avoid infinite loop
-            if (nextFireTimeUtc.GetValueOrDefault().Year > TriggerConstants.YearToGiveUpSchedulingAt)
+            if (NextFireTimeUtc.GetValueOrDefault().Year > TriggerConstants.YearToGiveUpSchedulingAt)
             {
-                nextFireTimeUtc = null;
+                NextFireTimeUtc = null;
             }
 
-            if (nextFireTimeUtc is not null && nextFireTimeUtc.GetValueOrDefault() < now)
+            if (NextFireTimeUtc is not null && NextFireTimeUtc.GetValueOrDefault() < now)
             {
-                TimeSpan diff = now - nextFireTimeUtc.GetValueOrDefault();
+                TimeSpan diff = now - NextFireTimeUtc.GetValueOrDefault();
                 if (diff >= misfireThreshold)
                 {
-                    nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+                    NextFireTimeUtc = GetFireTimeAfter(NextFireTimeUtc);
                 }
             }
         }
@@ -590,39 +587,39 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// added to the scheduler, in order to have the <see cref="ITrigger" />
     /// compute its first fire time, based on any associated calendar.
     /// <para>
-    /// After this method has been called, <see cref="GetNextFireTimeUtc" />
+    /// After this method has been called, <see cref="NextFireTimeUtc" />
     /// should return a valid answer.
     /// </para>
     /// </summary>
     /// <returns>
     /// The first time at which the <see cref="ITrigger" /> will be fired
-    /// by the scheduler, which is also the same value <see cref="GetNextFireTimeUtc" />
+    /// by the scheduler, which is also the same value <see cref="NextFireTimeUtc" />
     /// will return (until after the first firing of the <see cref="ITrigger" />).
     /// </returns>
-    public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? cal)
+    public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? calendar)
     {
-        nextFireTimeUtc = StartTimeUtc;
+        NextFireTimeUtc = StartTimeUtc;
 
-        if (cal is not null)
+        if (calendar is not null)
         {
-            while (!cal.IsTimeIncluded(nextFireTimeUtc.GetValueOrDefault()))
+            while (!calendar.IsTimeIncluded(NextFireTimeUtc.GetValueOrDefault()))
             {
-                nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+                NextFireTimeUtc = GetFireTimeAfter(NextFireTimeUtc);
 
-                if (!nextFireTimeUtc.HasValue)
+                if (!NextFireTimeUtc.HasValue)
                 {
                     break;
                 }
 
                 //avoid infinite loop
-                if (nextFireTimeUtc.GetValueOrDefault().Year > TriggerConstants.YearToGiveUpSchedulingAt)
+                if (NextFireTimeUtc.GetValueOrDefault().Year > TriggerConstants.YearToGiveUpSchedulingAt)
                 {
                     return null;
                 }
             }
         }
 
-        return nextFireTimeUtc;
+        return NextFireTimeUtc;
     }
 
 
@@ -632,30 +629,16 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// returned. The value returned is not guaranteed to be valid until after
     /// the <see cref="ITrigger" /> has been added to the scheduler.
     /// </summary>
-    public override DateTimeOffset? GetNextFireTimeUtc()
-    {
-        return nextFireTimeUtc;
-    }
+    public override DateTimeOffset? NextFireTimeUtc { get; set; }
 
-    public override void SetNextFireTimeUtc(DateTimeOffset? nextFireTime)
-    {
-        nextFireTimeUtc = nextFireTime;
-    }
 
-    public override void SetPreviousFireTimeUtc(DateTimeOffset? previousFireTime)
-    {
-        previousFireTimeUtc = previousFireTime;
-    }
 
     /// <summary>
     /// Returns the previous time at which the <see cref="ISimpleTrigger" /> fired.
     /// If the trigger has not yet fired, <see langword="null" /> will be
     /// returned.
     /// </summary>
-    public override DateTimeOffset? GetPreviousFireTimeUtc()
-    {
-        return previousFireTimeUtc;
-    }
+    public override DateTimeOffset? PreviousFireTimeUtc { get; set; }
 
     /// <summary>
     /// Returns the next UTC time at which the <see cref="ISimpleTrigger" /> will
@@ -744,10 +727,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// Determines whether or not the <see cref="ISimpleTrigger" /> will occur
     /// again.
     /// </summary>
-    public override bool GetMayFireAgain()
-    {
-        return GetNextFireTimeUtc().HasValue;
-    }
+    public override bool MayFireAgain => NextFireTimeUtc.HasValue;
 
     /// <summary>
     /// Validates whether the properties of the <see cref="IJobDetail" /> are

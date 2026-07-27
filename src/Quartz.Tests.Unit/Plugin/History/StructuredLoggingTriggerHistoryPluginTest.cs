@@ -24,7 +24,7 @@ using Microsoft.Extensions.Logging;
 using Quartz.Impl;
 using Quartz.Job;
 using Quartz.Plugin.History;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit.Plugin.History;
 

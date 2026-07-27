@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Xml;
 
 namespace Quartz.Configuration;
@@ -12,8 +12,8 @@ namespace Quartz.Configuration;
 internal sealed class ContainerConfigurationProcessor : XMLSchedulingDataProcessor
 {
     private readonly QuartzOptions options;
-    private readonly IJobDetail[] jobs;
-    private readonly ITrigger[] triggers;
+    private readonly List<IJobDetail> jobs;
+    private readonly List<ITrigger> triggers;
 
     /// <remarks>
     /// Takes the resolved options and this scheduler's own content registrations rather than
@@ -32,15 +32,15 @@ internal sealed class ContainerConfigurationProcessor : XMLSchedulingDataProcess
 
         // Materialized once: each registration builds its jobs and triggers when it is first resolved,
         // and enumerating twice would be two passes over the same lazily built content.
-        var parts = content.ToArray();
-        jobs = parts.SelectMany(x => x.Jobs).ToArray();
-        triggers = parts.SelectMany(x => x.Triggers).ToArray();
+        ISchedulerContent[] parts = content.ToArray();
+        jobs = parts.SelectMany(x => x.Jobs).ToList();
+        triggers = parts.SelectMany(x => x.Triggers).ToList();
     }
 
-    public override bool OverWriteExistingData => options.Scheduling.OverWriteExistingData;
+    public override bool OverwriteExistingData => options.Scheduling.OverwriteExistingData;
     public override bool IgnoreDuplicates => options.Scheduling.IgnoreDuplicates;
     public override bool ScheduleTriggerRelativeToReplacedTrigger => options.Scheduling.ScheduleTriggerRelativeToReplacedTrigger;
 
-    protected override IReadOnlyList<IJobDetail> LoadedJobs => jobs;
-    protected override IReadOnlyList<ITrigger> LoadedTriggers => triggers;
+    protected override List<IJobDetail> LoadedJobs => jobs;
+    protected override List<ITrigger> LoadedTriggers => triggers;
 }

@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -83,8 +83,6 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
     public const int RepeatIndefinitely = -1;
     private DateTimeOffset startTimeUtc;
     private DateTimeOffset? endTimeUtc;
-    private DateTimeOffset? nextFireTimeUtc;
-    private DateTimeOffset? previousFireTimeUtc;
     private int repeatInterval = 1;
     private IntervalUnit repeatIntervalUnit = IntervalUnit.Minute;
     private HashSet<DayOfWeek> daysOfWeek = null!;
@@ -413,7 +411,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
     ///     <li>The instruction will be interpreted as <see cref="MisfireInstruction.DailyTimeIntervalTrigger.FireOnceNow" /></li>
     /// </ul>
     /// </remarks>
-    public override void UpdateAfterMisfire(ICalendar? cal)
+    public override void UpdateAfterMisfire(ICalendar? calendar)
     {
         int instr = MisfireInstruction;
 
@@ -430,7 +428,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
         if (instr == Quartz.MisfireInstruction.DailyTimeIntervalTrigger.DoNothing)
         {
             DateTimeOffset? newFireTime = GetFireTimeAfter(TimeProvider.GetUtcNow());
-            while (newFireTime is not null && cal is not null && !cal.IsTimeIncluded(newFireTime.Value))
+            while (newFireTime is not null && calendar is not null && !calendar.IsTimeIncluded(newFireTime.Value))
             {
                 newFireTime = GetFireTimeAfter(newFireTime);
 
@@ -445,12 +443,12 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
                     newFireTime = null;
                 }
             }
-            SetNextFireTimeUtc(newFireTime);
+            NextFireTimeUtc = newFireTime;
         }
         else if (instr == Quartz.MisfireInstruction.DailyTimeIntervalTrigger.FireOnceNow)
         {
             // fire once now...
-            SetNextFireTimeUtc(TimeProvider.GetUtcNow());
+            NextFireTimeUtc = TimeProvider.GetUtcNow();
             // the new fire time afterward will magically preserve the original
             // time of day for firing for day/week/month interval triggers,
             // because of the way getFireTimeAfter() works - in its always restarting
@@ -469,27 +467,27 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
     public override void Triggered(ICalendar? calendar)
     {
         TimesTriggered++;
-        previousFireTimeUtc = nextFireTimeUtc;
-        nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+        PreviousFireTimeUtc = NextFireTimeUtc;
+        NextFireTimeUtc = GetFireTimeAfter(NextFireTimeUtc);
 
-        while (nextFireTimeUtc is not null && calendar is not null
-                                       && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
+        while (NextFireTimeUtc is not null && calendar is not null
+                                       && !calendar.IsTimeIncluded(NextFireTimeUtc.Value))
         {
-            nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+            NextFireTimeUtc = GetFireTimeAfter(NextFireTimeUtc);
 
-            if (nextFireTimeUtc is null)
+            if (NextFireTimeUtc is null)
             {
                 break;
             }
 
             //avoid infinite loop
-            if (nextFireTimeUtc.Value.Year > TriggerConstants.YearToGiveUpSchedulingAt)
+            if (NextFireTimeUtc.Value.Year > TriggerConstants.YearToGiveUpSchedulingAt)
             {
-                nextFireTimeUtc = null;
+                NextFireTimeUtc = null;
             }
         }
 
-        if (nextFireTimeUtc is null)
+        if (NextFireTimeUtc is null)
         {
             complete = true;
         }
@@ -503,35 +501,35 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
     /// <see cref="AbstractTrigger.UpdateWithNewCalendar"/>
     public override void UpdateWithNewCalendar(ICalendar calendar, TimeSpan misfireThreshold)
     {
-        nextFireTimeUtc = GetFireTimeAfter(previousFireTimeUtc);
+        NextFireTimeUtc = GetFireTimeAfter(PreviousFireTimeUtc);
 
-        if (nextFireTimeUtc is null || calendar is null)
+        if (NextFireTimeUtc is null || calendar is null)
         {
             return;
         }
 
         DateTimeOffset now = TimeProvider.GetUtcNow();
-        while (nextFireTimeUtc is not null && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
+        while (NextFireTimeUtc is not null && !calendar.IsTimeIncluded(NextFireTimeUtc.Value))
         {
-            nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+            NextFireTimeUtc = GetFireTimeAfter(NextFireTimeUtc);
 
-            if (nextFireTimeUtc is null)
+            if (NextFireTimeUtc is null)
             {
                 break;
             }
 
             //avoid infinite loop
-            if (nextFireTimeUtc.Value.Year > TriggerConstants.YearToGiveUpSchedulingAt)
+            if (NextFireTimeUtc.Value.Year > TriggerConstants.YearToGiveUpSchedulingAt)
             {
-                nextFireTimeUtc = null;
+                NextFireTimeUtc = null;
             }
 
-            if (nextFireTimeUtc is not null && nextFireTimeUtc < now)
+            if (NextFireTimeUtc is not null && NextFireTimeUtc < now)
             {
-                TimeSpan diff = now - nextFireTimeUtc.Value;
+                TimeSpan diff = now - NextFireTimeUtc.Value;
                 if (diff >= misfireThreshold)
                 {
-                    nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+                    NextFireTimeUtc = GetFireTimeAfter(NextFireTimeUtc);
                 }
             }
         }
@@ -548,38 +546,38 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
     /// </para>
     ///
     /// <para>
-    /// After this method has been called, <see cref="ITrigger.GetNextFireTimeUtc" />
+    /// After this method has been called, <see cref="ITrigger.NextFireTimeUtc" />
     /// should return a valid answer.
     /// </para>
     /// </remarks>
     /// <returns>
     /// The first time at which the <see cref="ITrigger" /> will be fired
-    /// by the scheduler, which is also the same value <see cref="ITrigger.GetNextFireTimeUtc" />
+    /// by the scheduler, which is also the same value <see cref="ITrigger.NextFireTimeUtc" />
     /// will return (until after the first firing of the <see cref="ITrigger" />).
     /// </returns>
     public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? calendar)
     {
-        nextFireTimeUtc = GetFireTimeAfter(StartTimeUtc.AddSeconds(-1));
+        NextFireTimeUtc = GetFireTimeAfter(StartTimeUtc.AddSeconds(-1));
 
         // Check calendar for date-time exclusion
-        while (nextFireTimeUtc is not null && calendar is not null
-                                       && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
+        while (NextFireTimeUtc is not null && calendar is not null
+                                       && !calendar.IsTimeIncluded(NextFireTimeUtc.Value))
         {
-            nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+            NextFireTimeUtc = GetFireTimeAfter(NextFireTimeUtc);
 
-            if (nextFireTimeUtc is null)
+            if (NextFireTimeUtc is null)
             {
                 break;
             }
 
             //avoid infinite loop
-            if (nextFireTimeUtc.Value.Year > TriggerConstants.YearToGiveUpSchedulingAt)
+            if (NextFireTimeUtc.Value.Year > TriggerConstants.YearToGiveUpSchedulingAt)
             {
                 return null;
             }
         }
 
-        return nextFireTimeUtc;
+        return NextFireTimeUtc;
     }
 
     private DateTimeOffset CreateCalendarTime(DateTimeOffset dateTime)
@@ -600,43 +598,13 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
     /// has been added to the scheduler.
     /// </remarks>
     /// <returns></returns>
-    public override DateTimeOffset? GetNextFireTimeUtc()
-    {
-        return nextFireTimeUtc;
-    }
+    public override DateTimeOffset? NextFireTimeUtc { get; set; }
 
     /// <summary>
     /// Returns the previous time at which the <see cref="ICalendarIntervalTrigger" /> fired.
     /// If the trigger has not yet fired, <see langword="null" /> will be returned.
     /// </summary>
-    public override DateTimeOffset? GetPreviousFireTimeUtc()
-    {
-        return previousFireTimeUtc;
-    }
-
-    /// <summary>
-    /// Set the next time at which the <see cref="IDailyTimeIntervalTrigger" /> should fire.
-    /// </summary>
-    /// <remarks>
-    /// This method should not be invoked by client code.
-    /// </remarks>
-    /// <param name="value"></param>
-    public override void SetNextFireTimeUtc(DateTimeOffset? value)
-    {
-        nextFireTimeUtc = value;
-    }
-
-    /// <summary>
-    /// Set the previous time at which the <see cref="IDailyTimeIntervalTrigger" /> fired.
-    /// </summary>
-    /// <remarks>
-    /// This method should not be invoked by client code.
-    /// </remarks>
-    /// <param name="previousFireTimeUtc"></param>
-    public override void SetPreviousFireTimeUtc(DateTimeOffset? previousFireTimeUtc)
-    {
-        this.previousFireTimeUtc = previousFireTimeUtc;
-    }
+    public override DateTimeOffset? PreviousFireTimeUtc { get; set; }
 
     /// <summary>
     /// Returns the next time at which the <see cref="IDailyTimeIntervalTrigger" /> will
@@ -930,11 +898,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
     /// Determines whether or not the <see cref="IDailyTimeIntervalTrigger" /> will occur
     /// again.
     /// </summary>
-    /// <returns></returns>
-    public override bool GetMayFireAgain()
-    {
-        return GetNextFireTimeUtc() is not null;
-    }
+    public override bool MayFireAgain => NextFireTimeUtc is not null;
 
     /// <summary>
     /// Validates whether the properties of the <see cref="IJobDetail" /> are

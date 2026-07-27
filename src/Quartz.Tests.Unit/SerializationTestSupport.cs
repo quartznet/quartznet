@@ -21,7 +21,7 @@
 
 using System.Reflection;
 
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit;
 
@@ -39,7 +39,6 @@ public abstract class SerializationTestSupport<T, TInterface> where T : class wh
     public SerializationTestSupport(Type serializerType)
     {
         serializer = (IObjectSerializer) Activator.CreateInstance(serializerType);
-        serializer.Initialize();
     }
 
     /// <summary>
@@ -64,7 +63,7 @@ public abstract class SerializationTestSupport<T, TInterface> where T : class wh
     {
         T targetObject = GetTargetObject();
         var data = serializer.Serialize(targetObject);
-        var deserialized = serializer.DeSerialize<TInterface>(data);
+        var deserialized = serializer.Deserialize<TInterface>(data);
         VerifyMatch(targetObject, deserialized as T);
     }
 

@@ -37,7 +37,7 @@ public class TriggeringAJobUsingJobListenersExample : IExample
         Console.WriteLine("------- Initializing ----------------------");
 
         // First we must get a reference to a scheduler
-        IScheduler sched = await ExampleScheduler.Create();
+        IScheduler scheduler = await ExampleScheduler.Create();
 
         Console.WriteLine("------- Initialization Complete -----------");
 
@@ -56,15 +56,15 @@ public class TriggeringAJobUsingJobListenersExample : IExample
         // Set up the listener
         IJobListener listener = new SimpleJob1Listener();
         IMatcher<JobKey> matcher = KeyMatcher<JobKey>.KeyEquals(job.Key);
-        sched.ListenerManager.AddJobListener(listener, matcher);
+        scheduler.ListenerManager.AddJobListener(listener, matcher);
 
         // schedule the job to run
-        await sched.ScheduleJob(job, trigger);
+        await scheduler.ScheduleJob(job, trigger);
 
         // All of the jobs have been added to the scheduler, but none of the jobs
         // will run until the scheduler has been started
         Console.WriteLine("------- Starting Scheduler ----------------");
-        await sched.Start();
+        await scheduler.Start();
 
         // wait 30 seconds:
         // note:  nothing will run
@@ -76,10 +76,10 @@ public class TriggeringAJobUsingJobListenersExample : IExample
 
         // shut down the scheduler
         Console.WriteLine("------- Shutting Down ---------------------");
-        await sched.Shutdown(true);
+        await scheduler.Shutdown(true);
         Console.WriteLine("------- Shutdown Complete -----------------");
 
-        SchedulerMetaData metaData = await sched.GetMetaData();
+        SchedulerMetaData metaData = await scheduler.GetMetaData();
         Console.WriteLine($"Executed {metaData.NumberOfJobsExecuted} jobs.");
     }
 }

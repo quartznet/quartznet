@@ -23,7 +23,6 @@ using System.Collections.Specialized;
 
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
-using Quartz.Simpl;
 
 namespace Quartz.Tests.Unit.Simpl;
 
@@ -114,8 +113,8 @@ public class SystemPropertyInstanceIdGeneratorTest
         config["quartz.jobStore.clustered"] = "true";
         config["quartz.jobStore.dataSource"] = "MeSchedulerDatabase";
 
-        IScheduler sched = await new StdSchedulerFactory(config).GetScheduler();
+        IScheduler scheduler = await new StdSchedulerFactory(config).GetScheduler();
 
-        Assert.That(sched.SchedulerInstanceId, Is.EqualTo("1goo2"));
+        Assert.That(scheduler.SchedulerInstanceId, Is.EqualTo("1goo2"));
     }
 }

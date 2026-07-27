@@ -9,9 +9,9 @@ using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Serialization.Newtonsoft;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Tests.Integration.Impl.AdoJobStore;
-using Quartz.Triggers;
+using Quartz.Serialization.Newtonsoft.Triggers;
 using Quartz.Util;
 
 namespace Quartz.Tests.Integration.Impl;
@@ -36,9 +36,9 @@ public class SmokeTestPerformer
                 ITrigger t = await scheduler.GetTrigger(new TriggerKey("NonExistingTrigger", "NonExistingGroup"));
                 Assert.That(t, Is.Null);
 
-                AnnualCalendar cal = new AnnualCalendar();
-                cal.SetDayExcluded(new DateTime(2018, 7, 4), true);
-                await scheduler.AddCalendar("annualCalendar", cal, false, true);
+                AnnualCalendar calendar = new AnnualCalendar();
+                calendar.SetDayExcluded(new DateTime(2018, 7, 4), true);
+                await scheduler.AddCalendar("annualCalendar", calendar, false, true);
 
                 IOperableTrigger calendarsTrigger = new SimpleTriggerImpl("calendarsTrigger", "test", 20, TimeSpan.FromHours(2));
                 calendarsTrigger.CalendarName = "annualCalendar";
@@ -49,11 +49,11 @@ public class SmokeTestPerformer
                 await scheduler.ScheduleJob(jd, calendarsTrigger);
 
                 // QRTZNET-93
-                await scheduler.AddCalendar("annualCalendar", cal, true, true);
+                await scheduler.AddCalendar("annualCalendar", calendar, true, true);
 
                 var annualCalendar = (AnnualCalendar) await scheduler.GetCalendar("annualCalendar");
-                Assert.That(annualCalendar.Description, Is.EqualTo(cal.Description));
-                Assert.That(annualCalendar.DaysExcluded, Is.EquivalentTo(cal.DaysExcluded));
+                Assert.That(annualCalendar.Description, Is.EqualTo(calendar.Description));
+                Assert.That(annualCalendar.DaysExcluded, Is.EquivalentTo(calendar.DaysExcluded));
 
                 await scheduler.AddCalendar("baseCalendar", new BaseCalendar(), false, true);
                 await scheduler.AddCalendar("cronCalendar", cronCalendar, false, true);
@@ -267,11 +267,11 @@ public class SmokeTestPerformer
                 };
 
                 customTrigger.ComputeFirstFireTimeUtc(null);
-                var nextFireTimeUtc = customTrigger.GetNextFireTimeUtc();
+                var nextFireTimeUtc = customTrigger.NextFireTimeUtc;
 
                 await scheduler.ScheduleJob(customTrigger);
                 var loadedCustomTrigger = (CustomTrigger) await scheduler.GetTrigger(customTrigger.Key);
-                Assert.That(loadedCustomTrigger.GetNextFireTimeUtc(), Is.EqualTo(nextFireTimeUtc));
+                Assert.That(loadedCustomTrigger.NextFireTimeUtc, Is.EqualTo(nextFireTimeUtc));
                 Assert.That(loadedCustomTrigger.CronExpressionString, Is.EqualTo(customTrigger.CronExpressionString));
                 Assert.That(loadedCustomTrigger.SomeCustomProperty, Is.True);
 
@@ -590,7 +590,7 @@ public class SmokeTestPerformer
 
 public class SignallingJob : IJob
 {
-    public async ValueTask Execute(IJobExecutionContext context)
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         var jobStarted = (SemaphoreSlim) context.Scheduler.Context["JobStarted_2255"];
         var jobCanFinish = (SemaphoreSlim) context.Scheduler.Context["JobCanFinish_2255"];
@@ -608,7 +608,7 @@ public class GenericJobType : IJob
 {
     private static readonly ManualResetEventSlim triggered = new ManualResetEventSlim();
 
-    public ValueTask Execute(IJobExecutionContext context)
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         TriggeredCount++;
         triggered.Set();
@@ -709,7 +709,7 @@ internal sealed class CustomTrigger : CronTriggerImpl
     public bool SomeCustomProperty { get; set; } = true;
 }
 
-internal class CustomNewtonsoftTriggerSerializer : CronTriggerSerializer
+internal sealed class CustomNewtonsoftTriggerSerializer : CronTriggerSerializer
 {
     public override string TriggerTypeForJson => "CustomTrigger";
 
@@ -733,7 +733,7 @@ internal class CustomNewtonsoftTriggerSerializer : CronTriggerSerializer
         ((CustomTrigger) trigger).SomeCustomProperty = source.Value<bool>("SomeCustomProperty");
     }
 
-    private class CustomTriggerScheduleBuilder : ScheduleBuilder<CustomTrigger>
+    private sealed class CustomTriggerScheduleBuilder : ScheduleBuilder<CustomTrigger>
     {
         public override IMutableTrigger Build()
         {
@@ -742,7 +742,7 @@ internal class CustomNewtonsoftTriggerSerializer : CronTriggerSerializer
     }
 }
 
-internal class CustomSystemTextJsonTriggerSerializer : Serialization.Json.Triggers.CronTriggerSerializer
+internal sealed class CustomSystemTextJsonTriggerSerializer : Serialization.Json.Triggers.CronTriggerSerializer
 {
     public override string TriggerTypeForJson => "CustomTrigger";
 
@@ -765,7 +765,7 @@ internal class CustomSystemTextJsonTriggerSerializer : Serialization.Json.Trigge
         ((CustomTrigger) trigger).SomeCustomProperty = jsonElement.GetProperty("SomeCustomProperty").GetBoolean();
     }
 
-    private class CustomTriggerScheduleBuilder : ScheduleBuilder<CustomTrigger>
+    private sealed class CustomTriggerScheduleBuilder : ScheduleBuilder<CustomTrigger>
     {
         public override IMutableTrigger Build()
         {

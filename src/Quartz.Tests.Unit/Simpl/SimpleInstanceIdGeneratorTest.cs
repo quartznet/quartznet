@@ -21,8 +21,8 @@
 
 using System.Net;
 
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit.Simpl;
 
@@ -43,7 +43,7 @@ public class SimpleInstanceIdGeneratorTest
         Assert.That(instanceId, Has.Length.LessThanOrEqualTo(50));
     }
 
-    private class TestInstanceIdGenerator : HostNameBasedIdGenerator
+    private sealed class TestInstanceIdGenerator : HostNameBasedIdGenerator
     {
         // assume ticks to be at most 20 chars long
         private const int HostNameMaxLength = IdMaxLength - 20;

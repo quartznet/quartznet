@@ -27,7 +27,7 @@ using Microsoft.Extensions.Options;
 
 namespace Quartz.Dashboard.Services;
 
-public sealed class QuartzApiClient : IQuartzApiClient
+internal sealed class QuartzApiClient : IQuartzApiClient
 {
     private readonly IHttpClientFactory httpClientFactory;
     private readonly IHttpContextAccessor httpContextAccessor;
@@ -45,9 +45,9 @@ public sealed class QuartzApiClient : IQuartzApiClient
         this.options = options;
     }
 
-    public async ValueTask<List<SchedulerHeaderDto>> GetSchedulers()
+    public async ValueTask<List<SchedulerHeaderDto>> GetSchedulers(CancellationToken cancellationToken = default)
     {
-        JsonElement json = await GetJsonAsync($"{ApiPath}/schedulers").ConfigureAwait(false);
+        JsonElement json = await GetJson($"{ApiPath}/schedulers", cancellationToken).ConfigureAwait(false);
         if (json.ValueKind is not JsonValueKind.Array)
         {
             return [];
@@ -65,41 +65,41 @@ public sealed class QuartzApiClient : IQuartzApiClient
         return result;
     }
 
-    public async ValueTask<SchedulerDetailDto> GetScheduler(string schedulerName)
+    public async ValueTask<SchedulerDetailDto> GetScheduler(string schedulerName, CancellationToken cancellationToken = default)
     {
-        JsonElement json = await GetJsonAsync($"{GetSchedulerPath(schedulerName)}").ConfigureAwait(false);
+        JsonElement json = await GetJson($"{GetSchedulerPath(schedulerName)}", cancellationToken).ConfigureAwait(false);
         string resolvedName = GetStringProperty(json, "name");
         string schedulerInstanceId = GetStringProperty(json, "schedulerInstanceId");
         string status = TranslateSchedulerStatus(GetIntProperty(json, "status"));
         return new SchedulerDetailDto(schedulerInstanceId, resolvedName, status);
     }
 
-    public ValueTask StartScheduler(string schedulerName)
+    public ValueTask StartScheduler(string schedulerName, CancellationToken cancellationToken = default)
     {
-        return PostAsync($"{GetSchedulerPath(schedulerName)}/start");
+        return Post($"{GetSchedulerPath(schedulerName)}/start", body: null, cancellationToken);
     }
 
-    public ValueTask StandbyScheduler(string schedulerName)
+    public ValueTask StandbyScheduler(string schedulerName, CancellationToken cancellationToken = default)
     {
-        return PostAsync($"{GetSchedulerPath(schedulerName)}/standby");
+        return Post($"{GetSchedulerPath(schedulerName)}/standby", body: null, cancellationToken);
     }
 
-    public ValueTask ShutdownScheduler(string schedulerName)
+    public ValueTask ShutdownScheduler(string schedulerName, CancellationToken cancellationToken = default)
     {
-        return PostAsync($"{GetSchedulerPath(schedulerName)}/shutdown");
+        return Post($"{GetSchedulerPath(schedulerName)}/shutdown", body: null, cancellationToken);
     }
 
-    public ValueTask PauseAll(string schedulerName)
+    public ValueTask PauseAll(string schedulerName, CancellationToken cancellationToken = default)
     {
-        return PostAsync($"{GetSchedulerPath(schedulerName)}/pause-all");
+        return Post($"{GetSchedulerPath(schedulerName)}/pause-all", body: null, cancellationToken);
     }
 
-    public ValueTask ResumeAll(string schedulerName)
+    public ValueTask ResumeAll(string schedulerName, CancellationToken cancellationToken = default)
     {
-        return PostAsync($"{GetSchedulerPath(schedulerName)}/resume-all");
+        return Post($"{GetSchedulerPath(schedulerName)}/resume-all", body: null, cancellationToken);
     }
 
-    public async ValueTask<List<JobKeyDto>> GetJobKeys(string schedulerName, string? groupFilter = null)
+    public async ValueTask<List<JobKeyDto>> GetJobKeys(string schedulerName, string? groupFilter = null, CancellationToken cancellationToken = default)
     {
         string path = $"{GetSchedulerPath(schedulerName)}/jobs";
         if (!string.IsNullOrWhiteSpace(groupFilter))
@@ -107,7 +107,7 @@ public sealed class QuartzApiClient : IQuartzApiClient
             path += $"?groupContains={Uri.EscapeDataString(groupFilter)}";
         }
 
-        JsonElement json = await GetJsonAsync(path).ConfigureAwait(false);
+        JsonElement json = await GetJson(path, cancellationToken).ConfigureAwait(false);
         if (json.ValueKind is not JsonValueKind.Array)
         {
             return [];
@@ -124,9 +124,9 @@ public sealed class QuartzApiClient : IQuartzApiClient
         return result;
     }
 
-    public async ValueTask<JobDetailDto> GetJob(string schedulerName, string group, string name)
+    public async ValueTask<JobDetailDto> GetJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
-        JsonElement json = await GetJsonAsync($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}").ConfigureAwait(false);
+        JsonElement json = await GetJson($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}", cancellationToken).ConfigureAwait(false);
 
         return new JobDetailDto(
             Name: GetStringProperty(json, "name"),
@@ -140,9 +140,9 @@ public sealed class QuartzApiClient : IQuartzApiClient
             JobDataMap: GetOptionalProperty(json, "jobDataMap"));
     }
 
-    public async ValueTask<List<TriggerHeaderDto>> GetJobTriggers(string schedulerName, string group, string name)
+    public async ValueTask<List<TriggerHeaderDto>> GetJobTriggers(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
-        JsonElement json = await GetJsonAsync($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/triggers").ConfigureAwait(false);
+        JsonElement json = await GetJson($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/triggers", cancellationToken).ConfigureAwait(false);
         if (json.ValueKind is not JsonValueKind.Array)
         {
             return [];
@@ -165,9 +165,9 @@ public sealed class QuartzApiClient : IQuartzApiClient
         return result;
     }
 
-    public async ValueTask<List<CurrentlyExecutingJobDto>> GetCurrentlyExecutingJobs(string schedulerName)
+    public async ValueTask<List<CurrentlyExecutingJobDto>> GetCurrentlyExecutingJobs(string schedulerName, CancellationToken cancellationToken = default)
     {
-        JsonElement json = await GetJsonAsync($"{GetSchedulerPath(schedulerName)}/jobs/currently-executing").ConfigureAwait(false);
+        JsonElement json = await GetJson($"{GetSchedulerPath(schedulerName)}/jobs/currently-executing", cancellationToken).ConfigureAwait(false);
         if (json.ValueKind is not JsonValueKind.Array)
         {
             return [];
@@ -200,53 +200,53 @@ public sealed class QuartzApiClient : IQuartzApiClient
         return result;
     }
 
-    public ValueTask PauseJob(string schedulerName, string group, string name)
+    public ValueTask PauseJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
-        return PostAsync($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/pause");
+        return Post($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/pause", body: null, cancellationToken);
     }
 
-    public ValueTask ResumeJob(string schedulerName, string group, string name)
+    public ValueTask ResumeJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
-        return PostAsync($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/resume");
+        return Post($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/resume", body: null, cancellationToken);
     }
 
-    public ValueTask TriggerJob(string schedulerName, string group, string name)
+    public ValueTask TriggerJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
-        return PostAsync($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/trigger");
+        return Post($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/trigger", body: null, cancellationToken);
     }
 
-    public ValueTask TriggerJobWithData(string schedulerName, string group, string name, JsonElement jobDataMap)
+    public ValueTask TriggerJobWithData(string schedulerName, string group, string name, JsonElement jobDataMap, CancellationToken cancellationToken = default)
     {
         object payload = new
         {
             JobData = jobDataMap
         };
-        return PostAsync($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/trigger", payload);
+        return Post($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/trigger", payload, cancellationToken);
     }
 
-    public async ValueTask<bool> IsJobGroupPaused(string schedulerName, string group)
+    public async ValueTask<bool> IsJobGroupPaused(string schedulerName, string group, CancellationToken cancellationToken = default)
     {
-        JsonElement json = await GetJsonAsync($"{GetSchedulerPath(schedulerName)}/jobs/groups/{Uri.EscapeDataString(group)}/paused").ConfigureAwait(false);
+        JsonElement json = await GetJson($"{GetSchedulerPath(schedulerName)}/jobs/groups/{Uri.EscapeDataString(group)}/paused", cancellationToken).ConfigureAwait(false);
         return GetBooleanProperty(json, "paused");
     }
 
-    public ValueTask InterruptJob(string schedulerName, string group, string name)
+    public ValueTask InterruptJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
-        return PostAsync($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/interrupt");
+        return Post($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/interrupt", body: null, cancellationToken);
     }
 
-    public ValueTask DeleteJob(string schedulerName, string group, string name)
+    public ValueTask DeleteJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
-        return DeleteAsync($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}");
+        return Delete($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}", cancellationToken);
     }
 
-    public ValueTask AddJob(string schedulerName, AddJobRequest request)
+    public ValueTask AddJob(string schedulerName, AddJobRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        return PostAsync($"{GetSchedulerPath(schedulerName)}/jobs", request);
+        return Post($"{GetSchedulerPath(schedulerName)}/jobs", request, cancellationToken);
     }
 
-    public async ValueTask<List<TriggerHeaderDto>> GetTriggerKeys(string schedulerName, string? groupFilter = null)
+    public async ValueTask<List<TriggerHeaderDto>> GetTriggerKeys(string schedulerName, string? groupFilter = null, CancellationToken cancellationToken = default)
     {
         string path = $"{GetSchedulerPath(schedulerName)}/triggers";
         if (!string.IsNullOrWhiteSpace(groupFilter))
@@ -254,7 +254,7 @@ public sealed class QuartzApiClient : IQuartzApiClient
             path += $"?groupContains={Uri.EscapeDataString(groupFilter)}";
         }
 
-        JsonElement json = await GetJsonAsync(path).ConfigureAwait(false);
+        JsonElement json = await GetJson(path, cancellationToken).ConfigureAwait(false);
         if (json.ValueKind is not JsonValueKind.Array)
         {
             return [];
@@ -272,15 +272,15 @@ public sealed class QuartzApiClient : IQuartzApiClient
         return result;
     }
 
-    public async ValueTask<TriggerDetailDto> GetTrigger(string schedulerName, string group, string name)
+    public async ValueTask<TriggerDetailDto> GetTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
-        JsonElement json = await GetJsonAsync($"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}").ConfigureAwait(false);
+        JsonElement json = await GetJson($"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}", cancellationToken).ConfigureAwait(false);
         return new TriggerDetailDto(json);
     }
 
-    public async ValueTask<string> GetTriggerState(string schedulerName, string group, string name)
+    public async ValueTask<string> GetTriggerState(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
-        JsonElement json = await GetJsonAsync($"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/state").ConfigureAwait(false);
+        JsonElement json = await GetJson($"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/state", cancellationToken).ConfigureAwait(false);
         int state = GetIntProperty(json, "state");
         if (Enum.IsDefined(typeof(TriggerState), state))
         {
@@ -290,41 +290,41 @@ public sealed class QuartzApiClient : IQuartzApiClient
         return state.ToString(CultureInfo.InvariantCulture);
     }
 
-    public ValueTask PauseTrigger(string schedulerName, string group, string name)
+    public ValueTask PauseTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
-        return PostAsync($"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/pause");
+        return Post($"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/pause", body: null, cancellationToken);
     }
 
-    public ValueTask ResumeTrigger(string schedulerName, string group, string name)
+    public ValueTask ResumeTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
-        return PostAsync($"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/resume");
+        return Post($"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/resume", body: null, cancellationToken);
     }
 
-    public ValueTask ResetTriggerFromErrorState(string schedulerName, string group, string name)
+    public ValueTask ResetTriggerFromErrorState(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
-        return PostAsync($"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/reset-from-error-state");
+        return Post($"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/reset-from-error-state", body: null, cancellationToken);
     }
 
-    public ValueTask ScheduleJob(string schedulerName, ScheduleJobRequest request)
+    public ValueTask ScheduleJob(string schedulerName, ScheduleJobRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        return PostAsync($"{GetSchedulerPath(schedulerName)}/triggers/schedule", request);
+        return Post($"{GetSchedulerPath(schedulerName)}/triggers/schedule", request, cancellationToken);
     }
 
-    public ValueTask UnscheduleJob(string schedulerName, string group, string name)
+    public ValueTask UnscheduleJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
-        return PostAsync($"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/unschedule");
+        return Post($"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/unschedule", body: null, cancellationToken);
     }
 
-    public ValueTask RescheduleJob(string schedulerName, string group, string name, RescheduleRequest request)
+    public ValueTask RescheduleJob(string schedulerName, string group, string name, RescheduleRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        return PostAsync($"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/reschedule", request);
+        return Post($"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/reschedule", request, cancellationToken);
     }
 
-    public async ValueTask<List<string>> GetCalendarNames(string schedulerName)
+    public async ValueTask<List<string>> GetCalendarNames(string schedulerName, CancellationToken cancellationToken = default)
     {
-        JsonElement json = await GetJsonAsync($"{GetSchedulerPath(schedulerName)}/calendars").ConfigureAwait(false);
+        JsonElement json = await GetJson($"{GetSchedulerPath(schedulerName)}/calendars", cancellationToken).ConfigureAwait(false);
         JsonElement names = GetOptionalProperty(json, "names");
         if (names.ValueKind is not JsonValueKind.Array)
         {
@@ -340,24 +340,24 @@ public sealed class QuartzApiClient : IQuartzApiClient
         return result;
     }
 
-    public async ValueTask<CalendarDetailDto> GetCalendar(string schedulerName, string calendarName)
+    public async ValueTask<CalendarDetailDto> GetCalendar(string schedulerName, string calendarName, CancellationToken cancellationToken = default)
     {
-        JsonElement json = await GetJsonAsync($"{GetSchedulerPath(schedulerName)}/calendars/{Uri.EscapeDataString(calendarName)}").ConfigureAwait(false);
+        JsonElement json = await GetJson($"{GetSchedulerPath(schedulerName)}/calendars/{Uri.EscapeDataString(calendarName)}", cancellationToken).ConfigureAwait(false);
         return new CalendarDetailDto(json);
     }
 
-    public ValueTask AddCalendar(string schedulerName, AddCalendarRequest request)
+    public ValueTask AddCalendar(string schedulerName, AddCalendarRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
-        return PostAsync($"{GetSchedulerPath(schedulerName)}/calendars", request);
+        return Post($"{GetSchedulerPath(schedulerName)}/calendars", request, cancellationToken);
     }
 
-    public ValueTask DeleteCalendar(string schedulerName, string calendarName)
+    public ValueTask DeleteCalendar(string schedulerName, string calendarName, CancellationToken cancellationToken = default)
     {
-        return DeleteAsync($"{GetSchedulerPath(schedulerName)}/calendars/{Uri.EscapeDataString(calendarName)}");
+        return Delete($"{GetSchedulerPath(schedulerName)}/calendars/{Uri.EscapeDataString(calendarName)}", cancellationToken);
     }
 
-    public async ValueTask<JobHistoryPageDto?> GetHistory(JobHistoryQueryDto query)
+    public async ValueTask<JobHistoryPageDto?> GetHistory(JobHistoryQueryDto query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 
@@ -373,14 +373,14 @@ public sealed class QuartzApiClient : IQuartzApiClient
             path += $"&triggerFilter={Uri.EscapeDataString(query.TriggerFilter)}";
         }
 
-        using HttpResponseMessage response = await client.GetAsync(path).ConfigureAwait(false);
+        using HttpResponseMessage response = await client.GetAsync(path, cancellationToken).ConfigureAwait(false);
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
             return null;
         }
 
         response.EnsureSuccessStatusCode();
-        JsonElement json = await ParseJsonAsync(response).ConfigureAwait(false);
+        JsonElement json = await ParseJson(response, cancellationToken).ConfigureAwait(false);
         return new JobHistoryPageDto(json);
     }
 
@@ -444,15 +444,15 @@ public sealed class QuartzApiClient : IQuartzApiClient
         return client;
     }
 
-    private async ValueTask<JsonElement> GetJsonAsync(string path)
+    private async ValueTask<JsonElement> GetJson(string path, CancellationToken cancellationToken = default)
     {
         System.Net.Http.HttpClient client = CreateClient();
-        using HttpResponseMessage response = await client.GetAsync(path).ConfigureAwait(false);
+        using HttpResponseMessage response = await client.GetAsync(path, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
-        return await ParseJsonAsync(response).ConfigureAwait(false);
+        return await ParseJson(response, cancellationToken).ConfigureAwait(false);
     }
 
-    private async ValueTask PostAsync(string path, object? body = null)
+    private async ValueTask Post(string path, object? body = null, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
 
@@ -460,11 +460,11 @@ public sealed class QuartzApiClient : IQuartzApiClient
         HttpResponseMessage response;
         if (body is null)
         {
-            response = await client.PostAsync(path, content: null).ConfigureAwait(false);
+            response = await client.PostAsync(path, content: null, cancellationToken).ConfigureAwait(false);
         }
         else
         {
-            response = await client.PostAsJsonAsync(path, body).ConfigureAwait(false);
+            response = await client.PostAsJsonAsync(path, body, cancellationToken).ConfigureAwait(false);
         }
 
         using (response)
@@ -473,12 +473,12 @@ public sealed class QuartzApiClient : IQuartzApiClient
         }
     }
 
-    private async ValueTask DeleteAsync(string path)
+    private async ValueTask Delete(string path, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
 
         System.Net.Http.HttpClient client = CreateClient();
-        using HttpResponseMessage response = await client.DeleteAsync(path).ConfigureAwait(false);
+        using HttpResponseMessage response = await client.DeleteAsync(path, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
     }
 
@@ -490,9 +490,9 @@ public sealed class QuartzApiClient : IQuartzApiClient
         }
     }
 
-    private static async ValueTask<JsonElement> ParseJsonAsync(HttpResponseMessage response)
+    private static async ValueTask<JsonElement> ParseJson(HttpResponseMessage response, CancellationToken cancellationToken = default)
     {
-        string jsonContent = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+        string jsonContent = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         using JsonDocument document = JsonDocument.Parse(jsonContent);
         return document.RootElement.Clone();
     }
@@ -660,18 +660,18 @@ public sealed class QuartzApiClient : IQuartzApiClient
         return null;
     }
 
-    public async ValueTask<ExecutionLimitsDto?> GetExecutionLimits(string schedulerName)
+    public async ValueTask<ExecutionLimitsDto?> GetExecutionLimits(string schedulerName, CancellationToken cancellationToken = default)
     {
         using System.Net.Http.HttpClient client = CreateClient();
         string url = $"{GetSchedulerPath(schedulerName)}/execution-limits";
-        using HttpResponseMessage response = await client.GetAsync(url).ConfigureAwait(false);
+        using HttpResponseMessage response = await client.GetAsync(url, cancellationToken).ConfigureAwait(false);
 
         if (!response.IsSuccessStatusCode)
         {
             return null;
         }
 
-        JsonElement json = await ParseJsonAsync(response).ConfigureAwait(false);
+        JsonElement json = await ParseJson(response, cancellationToken).ConfigureAwait(false);
         if (!json.TryGetProperty("limits", out JsonElement limitsElement) || limitsElement.ValueKind == JsonValueKind.Null)
         {
             return null;

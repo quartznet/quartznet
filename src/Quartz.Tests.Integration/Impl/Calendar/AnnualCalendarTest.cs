@@ -38,13 +38,13 @@ public class AnnualCalendarTest : IntegrationTest
             ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
         };
         ISchedulerFactory sf = new StdSchedulerFactory(properties);
-        sched = await sf.GetScheduler();
+        scheduler = await sf.GetScheduler();
     }
 
     [Test]
     public async Task TestTriggerFireExclusion()
     {
-        await sched.Start();
+        await scheduler.Start();
         TestJob.JobHasFired = false;
         IJobDetail jobDetail = JobBuilder.Create<TestJob>()
             .WithIdentity("name", "group")
@@ -58,9 +58,9 @@ public class AnnualCalendarTest : IntegrationTest
 
         AnnualCalendar calendar = new AnnualCalendar();
         calendar.SetDayExcluded(DateTime.Now, true);
-        await sched.AddCalendar("calendar", calendar, true, true);
+        await scheduler.AddCalendar("calendar", calendar, true, true);
 
-        await sched.ScheduleJob(jobDetail, trigger);
+        await scheduler.ScheduleJob(jobDetail, trigger);
 
         ITrigger triggerreplace = TriggerBuilder.Create()
             .WithIdentity("foo", "trigGroup")
@@ -69,18 +69,18 @@ public class AnnualCalendarTest : IntegrationTest
             .WithCronSchedule("0/15 * * * * ?")
             .Build();
 
-        await sched.RescheduleJob(new TriggerKey("trigName", "trigGroup"), triggerreplace);
+        await scheduler.RescheduleJob(new TriggerKey("trigName", "trigGroup"), triggerreplace);
         await Task.Delay(TimeSpan.FromSeconds(20));
         Assert.That(TestJob.JobHasFired, Is.False, "task must not be neglected - it is forbidden by the calendar");
 
         calendar.SetDayExcluded(DateTime.Now, false);
-        await sched.AddCalendar("calendar", calendar, true, true);
+        await scheduler.AddCalendar("calendar", calendar, true, true);
         await Task.Delay(TimeSpan.FromSeconds(20));
         Assert.That(TestJob.JobHasFired, Is.True, "task must be neglected - it is permitted by the calendar");
 
-        await sched.DeleteJob(new JobKey("name", "group"));
-        await sched.DeleteCalendar("calendar");
+        await scheduler.DeleteJob(new JobKey("name", "group"));
+        await scheduler.DeleteCalendar("calendar");
 
-        await sched.Shutdown();
+        await scheduler.Shutdown();
     }
 }

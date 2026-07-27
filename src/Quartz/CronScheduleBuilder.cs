@@ -20,7 +20,7 @@
 #endregion
 
 using Quartz.Impl.Triggers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz;
 
@@ -328,18 +328,18 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>, IHashKe
     /// </summary>
     /// <remarks>
     /// </remarks>
-    /// <param name="tz">the time-zone for the schedule.</param>
+    /// <param name="timeZone">the time-zone for the schedule.</param>
     /// <returns>the updated CronScheduleBuilder</returns>
     /// <seealso cref="CronExpression.TimeZone" />
-    public CronScheduleBuilder InTimeZone(TimeZoneInfo tz)
+    public CronScheduleBuilder InTimeZone(TimeZoneInfo timeZone)
     {
         if (cronExpression is not null)
         {
-            cronExpression.TimeZone = tz;
+            cronExpression.TimeZone = timeZone;
         }
         else
         {
-            deferredTimeZone = tz;
+            deferredTimeZone = timeZone;
         }
         return this;
     }

@@ -1,4 +1,4 @@
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit;
 
@@ -133,7 +133,7 @@ public class TriggerTimeComparatorTest
         Assert.That(actual, Is.EqualTo(0));
     }
 
-    private class MutableTrigger : IMutableTrigger
+    private sealed class MutableTrigger : IMutableTrigger
     {
         private readonly DateTimeOffset? _nextFireTimeUtc;
 
@@ -187,19 +187,18 @@ public class TriggerTimeComparatorTest
             throw new NotImplementedException();
         }
 
-        public bool GetMayFireAgain()
+        public bool MayFireAgain => throw new NotImplementedException();
+
+        public DateTimeOffset? NextFireTimeUtc
         {
-            throw new NotImplementedException();
+            get => _nextFireTimeUtc;
+            set => throw new NotImplementedException();
         }
 
-        public DateTimeOffset? GetNextFireTimeUtc()
+        public DateTimeOffset? PreviousFireTimeUtc
         {
-            return _nextFireTimeUtc;
-        }
-
-        public DateTimeOffset? GetPreviousFireTimeUtc()
-        {
-            throw new NotImplementedException();
+            get => throw new NotImplementedException();
+            set => throw new NotImplementedException();
         }
 
         public IScheduleBuilder GetScheduleBuilder()

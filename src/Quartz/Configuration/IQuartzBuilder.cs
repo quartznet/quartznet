@@ -2,7 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.Extensions.DependencyInjection;
 
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz;
 
@@ -80,6 +80,11 @@ public interface IQuartzBuilder
     /// </summary>
     IQuartzBuilder UseJobFactory<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
         where T : class, IJobFactory;
+
+    /// <summary>
+    /// Uses a job factory the caller has already built.
+    /// </summary>
+    IQuartzBuilder UseJobFactory(IJobFactory jobFactory);
 
     /// <summary>
     /// Uses a specific type load helper, which decides how type names are resolved.

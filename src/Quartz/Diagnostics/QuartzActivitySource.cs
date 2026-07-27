@@ -8,7 +8,7 @@ internal static class QuartzActivitySource
 {
     internal static readonly ActivitySource Instance = new(ActivityOptions.DefaultListenerName, ActivityOptions.Version);
 
-    public static StartedActivity StartJobExecute(JobExecutionContextImpl jec, DateTimeOffset startTime)
+    public static StartedActivity StartJobExecute(JobExecutionContextImpl context, DateTimeOffset startTime)
     {
         Activity? activity = Instance.CreateActivity(OperationName.Job.Execute, ActivityKind.Internal);
         if (activity == null)
@@ -17,7 +17,7 @@ internal static class QuartzActivitySource
         }
 
         activity.SetStartTime(startTime.UtcDateTime);
-        activity.EnrichFrom(jec);
+        activity.EnrichFrom(context);
         activity.Start();
 
         return new StartedActivity(activity);

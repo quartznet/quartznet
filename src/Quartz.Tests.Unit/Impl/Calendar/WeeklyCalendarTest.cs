@@ -18,7 +18,7 @@
 #endregion
 
 using Quartz.Impl.Calendar;
-using Quartz.Simpl;
+using Quartz.Impl;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl.Calendar;
@@ -29,7 +29,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar;
 [NonParallelizable]
 public class WeeklyCalendarTest : SerializationTestSupport<WeeklyCalendar, ICalendar>
 {
-    private WeeklyCalendar cal;
+    private WeeklyCalendar calendar;
 
     public WeeklyCalendarTest(Type serializerType) : base(serializerType)
     {
@@ -38,17 +38,17 @@ public class WeeklyCalendarTest : SerializationTestSupport<WeeklyCalendar, ICale
     [SetUp]
     public void Setup()
     {
-        cal = new WeeklyCalendar();
-        cal.TimeZone = TimeZoneInfo.Utc; //assume utc if not specified.
+        calendar = new WeeklyCalendar();
+        calendar.TimeZone = TimeZoneInfo.Utc; //assume utc if not specified.
     }
 
     [Test]
     public void TestAddAndRemoveExclusion()
     {
-        cal.SetDayExcluded(DayOfWeek.Monday, true);
-        Assert.That(cal.IsDayExcluded(DayOfWeek.Monday), Is.True);
-        cal.SetDayExcluded(DayOfWeek.Monday, false);
-        Assert.That(cal.IsDayExcluded(DayOfWeek.Monday), Is.False);
+        calendar.SetDayExcluded(DayOfWeek.Monday, true);
+        Assert.That(calendar.IsDayExcluded(DayOfWeek.Monday), Is.True);
+        calendar.SetDayExcluded(DayOfWeek.Monday, false);
+        Assert.That(calendar.IsDayExcluded(DayOfWeek.Monday), Is.False);
     }
 
     [Test]
@@ -56,29 +56,29 @@ public class WeeklyCalendarTest : SerializationTestSupport<WeeklyCalendar, ICale
     {
         // this is friday
         DateTimeOffset excluded = new DateTimeOffset(2007, 8, 3, 0, 0, 0, TimeSpan.Zero);
-        cal.SetDayExcluded(DayOfWeek.Friday, true);
+        calendar.SetDayExcluded(DayOfWeek.Friday, true);
         // next monday should be next possible
-        Assert.That(cal.GetNextIncludedTimeUtc(excluded), Is.EqualTo(excluded.AddDays(3)));
+        Assert.That(calendar.GetNextIncludedTimeUtc(excluded), Is.EqualTo(excluded.AddDays(3)));
     }
 
 
     [Test]
     public void TestDaylightSavingTransition()
     {
-        cal.TimeZone = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
-        cal.SetDayExcluded(DayOfWeek.Monday, false); //Monday only
-        cal.SetDayExcluded(DayOfWeek.Tuesday, true);
-        cal.SetDayExcluded(DayOfWeek.Wednesday, true);
-        cal.SetDayExcluded(DayOfWeek.Thursday, true);
-        cal.SetDayExcluded(DayOfWeek.Friday, true);
-        cal.SetDayExcluded(DayOfWeek.Saturday, true);
-        cal.SetDayExcluded(DayOfWeek.Sunday, true);
+        calendar.TimeZone = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
+        calendar.SetDayExcluded(DayOfWeek.Monday, false); //Monday only
+        calendar.SetDayExcluded(DayOfWeek.Tuesday, true);
+        calendar.SetDayExcluded(DayOfWeek.Wednesday, true);
+        calendar.SetDayExcluded(DayOfWeek.Thursday, true);
+        calendar.SetDayExcluded(DayOfWeek.Friday, true);
+        calendar.SetDayExcluded(DayOfWeek.Saturday, true);
+        calendar.SetDayExcluded(DayOfWeek.Sunday, true);
 
         //11/5/2012 12:00:00 AM -04:00 will translate into 11/4/2012 11:00:00 PM -05:00, which is a Sunday, not monday
         DateTimeOffset date = new DateTimeOffset(2012, 11, 5, 0, 0, 0, TimeSpan.FromHours(-4));
-        Assert.That(cal.IsTimeIncluded(date), Is.False);
+        Assert.That(calendar.IsTimeIncluded(date), Is.False);
 
-        date = cal.GetNextIncludedTimeUtc(date);
+        date = calendar.GetNextIncludedTimeUtc(date);
         DateTimeOffset expected = new DateTimeOffset(2012, 11, 5, 0, 0, 0, TimeSpan.FromHours(-5));
 
         Assert.That(date, Is.EqualTo(expected));

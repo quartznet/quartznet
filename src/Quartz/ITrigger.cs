@@ -17,7 +17,7 @@
  */
 #endregion
 
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz;
 
@@ -195,7 +195,7 @@ public interface ITrigger
     /// may remove the <see cref="ITrigger" /> from the <see cref="IJobStore" />.
     /// </para>
     /// </summary>
-    bool GetMayFireAgain();
+    bool MayFireAgain { get; }
 
     /// <summary>
     /// Returns the next time at which the <see cref="ITrigger" /> is scheduled to fire. If
@@ -209,14 +209,31 @@ public interface ITrigger
     /// The value returned is not guaranteed to be valid until after the <see cref="ITrigger" />
     /// has been added to the scheduler.
     /// </remarks>
-    /// <returns></returns>
-    DateTimeOffset? GetNextFireTimeUtc();
+    DateTimeOffset? NextFireTimeUtc { get; }
+
+    /// <summary>
+    /// The previous time at which the <see cref="ITrigger" /> fired.
+    /// If the trigger has not yet fired, <see langword="null" /> will be returned.
+    /// </summary>
+    DateTimeOffset? PreviousFireTimeUtc { get; }
+
+    /// <summary>
+    /// Returns whether it is possible for the <see cref="ITrigger" /> to fire again.
+    /// </summary>
+    [Obsolete("Use the MayFireAgain property instead.")]
+    bool GetMayFireAgain() => MayFireAgain;
+
+    /// <summary>
+    /// Returns the next time at which the <see cref="ITrigger" /> is scheduled to fire.
+    /// </summary>
+    [Obsolete("Use the NextFireTimeUtc property instead.")]
+    DateTimeOffset? GetNextFireTimeUtc() => NextFireTimeUtc;
 
     /// <summary>
     /// Returns the previous time at which the <see cref="ITrigger" /> fired.
-    /// If the trigger has not yet fired, <see langword="null" /> will be returned.
     /// </summary>
-    DateTimeOffset? GetPreviousFireTimeUtc();
+    [Obsolete("Use the PreviousFireTimeUtc property instead.")]
+    DateTimeOffset? GetPreviousFireTimeUtc() => PreviousFireTimeUtc;
 
     /// <summary>
     /// Returns the next time at which the <see cref="ITrigger" /> will fire,

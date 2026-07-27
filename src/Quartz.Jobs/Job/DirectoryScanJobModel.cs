@@ -4,8 +4,8 @@ using System.Reflection;
 using Microsoft.Extensions.Logging;
 
 using Quartz.Diagnostics;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 
 namespace Quartz.Job;
 

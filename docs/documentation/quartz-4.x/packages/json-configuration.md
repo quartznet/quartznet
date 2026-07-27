@@ -300,7 +300,7 @@ Standalone JSON files use the same `Jobs` and `Triggers` format as the `Schedule
     ]
   },
   "ProcessingDirectives": {
-    "OverWriteExistingData": true,
+    "OverwriteExistingData": true,
     "IgnoreDuplicates": false,
     "ScheduleTriggerRelativeToReplacedTrigger": false
   },
@@ -340,6 +340,6 @@ Commands executed before scheduling. All fields are optional:
 
 | Field | Default | Description |
 |---|---|---|
-| `OverWriteExistingData` | `true` | Replace existing jobs/triggers with the same identity. |
-| `IgnoreDuplicates` | `false` | When `OverWriteExistingData` is `false`, silently skip duplicates instead of erroring. |
+| `OverwriteExistingData` | `true` | Replace existing jobs/triggers with the same identity. |
+| `IgnoreDuplicates` | `false` | When `OverwriteExistingData` is `false`, silently skip duplicates instead of erroring. |
 | `ScheduleTriggerRelativeToReplacedTrigger` | `false` | Adjust new trigger timing based on old trigger's last fire time. |

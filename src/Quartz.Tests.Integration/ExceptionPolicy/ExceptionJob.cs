@@ -21,7 +21,7 @@ public class ExceptionJob : IJob
     /// <see cref="ITriggerListener"/>s that are watching the job's
     /// execution.
     /// </remarks>
-    public ValueTask Execute(IJobExecutionContext context)
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         LaunchCount++;
         if (ThrowsException)

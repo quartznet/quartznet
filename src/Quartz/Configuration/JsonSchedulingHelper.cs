@@ -6,8 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 using Quartz.Impl;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Util;
 
 namespace Quartz.Configuration;
@@ -36,7 +35,7 @@ internal static class JsonSchedulingHelper
 
         var name = optionsName ?? Options.DefaultName;
 
-        // Bind Scheduling directives (OverWriteExistingData, IgnoreDuplicates, etc.)
+        // Bind Scheduling directives (OverwriteExistingData, IgnoreDuplicates, etc.)
         if (schedulingSection.Exists())
         {
             services.Configure<QuartzOptions>(name, options => BindSchedulingOptions(schedulingSection, options.Scheduling));
@@ -437,20 +436,20 @@ internal static class JsonSchedulingHelper
 
     private static TimeOfDay ParseTimeOfDay(string value)
     {
-        if (!TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out var ts))
+        if (!TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out var timeSpan))
         {
             throw new SchedulerConfigException($"Invalid TimeOfDay value '{value}'. Expected format 'HH:mm:ss'.");
         }
 
-        if (ts < TimeSpan.Zero || ts >= TimeSpan.FromHours(24))
+        if (timeSpan < TimeSpan.Zero || timeSpan >= TimeSpan.FromHours(24))
         {
             throw new SchedulerConfigException($"TimeOfDay value '{value}' is out of range. Must be between 00:00:00 and 23:59:59.");
         }
-        if (ts.Milliseconds != 0 || ts.Ticks % TimeSpan.TicksPerMillisecond != 0)
+        if (timeSpan.Milliseconds != 0 || timeSpan.Ticks % TimeSpan.TicksPerMillisecond != 0)
         {
             throw new SchedulerConfigException($"TimeOfDay value '{value}' must not contain fractional seconds.");
         }
-        return new TimeOfDay(ts.Hours, ts.Minutes, ts.Seconds);
+        return new TimeOfDay(timeSpan.Hours, timeSpan.Minutes, timeSpan.Seconds);
     }
 
     private static int ParseMisfireInstruction(string value)
@@ -516,7 +515,6 @@ internal static class JsonSchedulingHelper
             typeLoadHelper = serviceProvider.GetService<ITypeLoadHelper>() ?? new SimpleTypeLoadHelper();
         }
 
-        typeLoadHelper.Initialize();
         return typeLoadHelper;
     }
 
@@ -525,10 +523,10 @@ internal static class JsonSchedulingHelper
     /// </summary>
     private static void BindSchedulingOptions(IConfigurationSection section, SchedulingOptions scheduling)
     {
-        var overwrite = section[nameof(SchedulingOptions.OverWriteExistingData)];
+        var overwrite = section[nameof(SchedulingOptions.OverwriteExistingData)];
         if (overwrite is not null)
         {
-            scheduling.OverWriteExistingData = ParseBool(overwrite, nameof(SchedulingOptions.OverWriteExistingData));
+            scheduling.OverwriteExistingData = ParseBool(overwrite, nameof(SchedulingOptions.OverwriteExistingData));
         }
 
         var ignoreDups = section[nameof(SchedulingOptions.IgnoreDuplicates)];

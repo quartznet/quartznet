@@ -25,7 +25,7 @@ using Microsoft.Extensions.Logging;
 
 using Quartz.Diagnostics;
 using Quartz.Impl.Matchers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
@@ -153,8 +153,8 @@ public sealed class StructuredLoggingJobHistoryPlugin : ISchedulerPlugin, IJobLi
             trigger.Key.Group,
             trigger.Key.Name,
             timeProvider.GetUtcNow(),
-            trigger.GetPreviousFireTimeUtc(),
-            trigger.GetNextFireTimeUtc(),
+            trigger.PreviousFireTimeUtc,
+            trigger.NextFireTimeUtc,
             context.RefireCount);
 #pragma warning restore CA2254
 

@@ -184,7 +184,7 @@ public static class PersistentStoreBuilderExtensions
     /// second one silently losing to the first.
     /// </para>
     /// <para>
-    /// <see cref="DbMetadata.Init"/> is called here rather than later because it is what turns the
+    /// <see cref="DbMetadata.Initialize"/> is called here rather than later because it is what turns the
     /// settable bag into usable metadata — it resolves the binary column type and the parameter's db type
     /// property by reflection. Doing it now means a description that cannot work fails while the
     /// container is being configured rather than when the first command is built.
@@ -201,7 +201,7 @@ public static class PersistentStoreBuilderExtensions
 
         var metadata = new DbMetadata();
         configure(metadata);
-        metadata.Init();
+        metadata.Initialize();
 
         builder.Services.AddSingleton<DbMetadataFactory>(new ConfiguredDbMetadataFactory(provider, metadata));
     }

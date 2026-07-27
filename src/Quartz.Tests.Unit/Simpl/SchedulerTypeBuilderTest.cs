@@ -1,7 +1,6 @@
 
 using Quartz;
 using Quartz.Impl;
-using Quartz.Simpl;
 
 using SchedulerTypeBuilderTestTypes;
 

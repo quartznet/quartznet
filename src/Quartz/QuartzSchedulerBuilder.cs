@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Configuration;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz;
 
@@ -115,6 +115,16 @@ public sealed class QuartzSchedulerBuilder
     }
 
     /// <summary>
+    /// Uses a job factory the caller has already built.
+    /// </summary>
+    public QuartzSchedulerBuilder UseJobFactory(IJobFactory jobFactory)
+    {
+        ArgumentNullException.ThrowIfNull(jobFactory);
+        services.AddSingleton(jobFactory);
+        return this;
+    }
+
+    /// <summary>
     /// Uses the in-memory job store, which does not survive process restarts.
     /// </summary>
     public QuartzSchedulerBuilder UseInMemoryStore(Action<InMemoryJobStoreOptions>? configure = null)
@@ -166,7 +176,7 @@ public sealed class QuartzSchedulerBuilder
             inner = provider.GetRequiredService<ISchedulerFactory>();
         }
 
-        public ValueTask<IReadOnlyList<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default)
+        public ValueTask<List<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default)
         {
             return inner.GetAllSchedulers(cancellationToken);
         }
@@ -176,9 +186,9 @@ public sealed class QuartzSchedulerBuilder
             return inner.GetScheduler(cancellationToken);
         }
 
-        public ValueTask<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default)
+        public ValueTask<IScheduler?> GetScheduler(string schedulerName, CancellationToken cancellationToken = default)
         {
-            return inner.GetScheduler(schedName, cancellationToken);
+            return inner.GetScheduler(schedulerName, cancellationToken);
         }
 
         public void Dispose()

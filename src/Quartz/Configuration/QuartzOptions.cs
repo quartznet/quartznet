@@ -32,7 +32,7 @@ public class QuartzOptions
     /// Setting a key here is still the way to configure something the typed options do not cover — a
     /// third-party job store's own settings, for instance.
     /// </remarks>
-    public IDictionary<string, string?> Properties { get; } = new Dictionary<string, string?>(StringComparer.Ordinal);
+    public Dictionary<string, string?> Properties { get; } = new Dictionary<string, string?>(StringComparer.Ordinal);
 
     /// <summary>
     /// The scheduler's instance id, as <c>quartz.scheduler.instanceId</c>.
@@ -47,7 +47,7 @@ public class QuartzOptions
     /// The scheduler's name, as <c>quartz.scheduler.instanceName</c>.
     /// </summary>
     /// <remarks>
-    /// Up to 4.0 this read and wrote <c>schedName</c>, which is an ADO.NET column key that nothing
+    /// Up to 4.0 this read and wrote <c>schedulerName</c>, which is an ADO.NET column key that nothing
     /// reads — so a name set here was silently discarded.
     /// </remarks>
     public string? SchedulerName

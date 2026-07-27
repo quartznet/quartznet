@@ -31,8 +31,8 @@ using Quartz.Core;
 using Quartz.Diagnostics;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 using Quartz.Util;
 
 namespace Quartz.Impl;
@@ -215,10 +215,10 @@ public class StdSchedulerFactory : ISchedulerFactory, IDisposable
     /// built them, so a scheduler created through <c>AddQuartz</c> or another
     /// <see cref="StdSchedulerFactory"/> is not listed here.
     /// </remarks>
-    public virtual ValueTask<IReadOnlyList<IScheduler>> GetAllSchedulers(
+    public virtual ValueTask<List<IScheduler>> GetAllSchedulers(
         CancellationToken cancellationToken = default)
     {
-        return new ValueTask<IReadOnlyList<IScheduler>>(GetSchedulerRepository().LookupAll());
+        return new ValueTask<List<IScheduler>>(GetSchedulerRepository().LookupAll());
     }
 
     /// <summary>
@@ -496,9 +496,9 @@ public class StdSchedulerFactory : ISchedulerFactory, IDisposable
     /// <summary>
     /// Returns a handle to the scheduler with the given name, if it exists.
     /// </summary>
-    public virtual ValueTask<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default)
+    public virtual ValueTask<IScheduler?> GetScheduler(string schedulerName, CancellationToken cancellationToken = default)
     {
-        return Inner().GetScheduler(schedName, cancellationToken);
+        return Inner().GetScheduler(schedulerName, cancellationToken);
     }
 
     /// <summary>

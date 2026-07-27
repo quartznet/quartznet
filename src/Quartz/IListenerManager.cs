@@ -129,7 +129,7 @@ public interface IListenerManager
     /// listener or the event matches ANY of the matchers that were registered for that
     /// <see cref="IJobListener"/>.
     /// </remarks>
-    IReadOnlyCollection<IMatcher<JobKey>>? GetJobListenerMatchers(string listenerName);
+    IMatcher<JobKey>[]? GetJobListenerMatchers(string listenerName);
 
     /// <summary>
     /// Remove the identified <see cref="IJobListener" /> from the <see cref="IScheduler" />.
@@ -226,15 +226,14 @@ public interface IListenerManager
     /// </remarks>
     /// <param name="listenerName">the name of the listener to add the matcher to</param>
     /// <returns>the matchers registered for selecting events for the identified listener</returns>
-    IReadOnlyCollection<IMatcher<TriggerKey>>? GetTriggerListenerMatchers(string listenerName);
+    IMatcher<TriggerKey>[]? GetTriggerListenerMatchers(string listenerName);
 
     /// <summary>
     /// Removes the identified <see cref="ITriggerListener" /> from the <see cref="IScheduler" />.
     /// </summary>
     /// <remarks>
     /// </remarks>
-    /// <returns>true if the identified listener was found in the list, and</returns>
-    /// removed.
+    /// <returns>true if the identified listener was found in the list, and removed.</returns>
     bool RemoveTriggerListener(string name);
 
     /// <summary>
@@ -260,14 +259,15 @@ public interface IListenerManager
     /// Remove the given <see cref="ISchedulerListener" /> from the
     ///<see cref="IScheduler" />.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
     /// <returns>true if the identified listener was found in the list, and removed.</returns>
     bool RemoveSchedulerListener(ISchedulerListener schedulerListener);
 
     /// <summary>
-    /// Get a List containing all of the <see cref="ISchedulerListener" />s
-    /// registered with the <see cref="IScheduler" />.
+    /// Gets all of the <see cref="ISchedulerListener" /> instances in the <see cref="IScheduler" />.
     /// </summary>
-    IReadOnlyCollection<ISchedulerListener> GetSchedulerListeners();
+    /// <returns>
+    /// A shallow copy of all <see cref="ISchedulerListener" /> instances that are registered.
+    /// </returns>
+    ISchedulerListener[] GetSchedulerListeners();
+
 }

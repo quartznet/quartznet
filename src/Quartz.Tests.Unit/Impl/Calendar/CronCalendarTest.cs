@@ -20,7 +20,7 @@
 #endregion
 
 using Quartz.Impl.Calendar;
-using Quartz.Simpl;
+using Quartz.Impl;
 
 namespace Quartz.Tests.Unit.Impl.Calendar;
 

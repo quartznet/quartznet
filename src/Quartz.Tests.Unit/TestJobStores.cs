@@ -9,8 +9,8 @@ using Microsoft.Extensions.Options;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Util;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests;
 
@@ -32,7 +32,7 @@ public static class TestJobStores
     /// A connection manager of its own for the store under test. There is no process-wide one, so a test
     /// that wants to read a provider back out has to hold on to the manager it passed in.
     /// </summary>
-    public static IDbConnectionManager ConnectionManager() => new DBConnectionManager(Logger<DBConnectionManager>());
+    public static IDbConnectionManager ConnectionManager() => new DbConnectionManager(Logger<DbConnectionManager>());
 
     /// <summary>
     /// A database provider that never connects, for tests that only exercise the store's logic.
@@ -46,7 +46,6 @@ public static class TestJobStores
     public static IObjectSerializer Serializer()
     {
         var serializer = new SystemTextJsonObjectSerializer();
-        serializer.Initialize();
         return serializer;
     }
 

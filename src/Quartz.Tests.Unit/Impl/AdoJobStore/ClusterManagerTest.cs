@@ -1,7 +1,7 @@
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Util;
 using Quartz.Tests;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
 #region License
@@ -130,7 +130,7 @@ public class ClusterManagerTest
         timeToSleep.Should().Be(TimeSpan.FromSeconds(15));
     }
 
-    private class TestJobStoreSupport : JobStoreSupport
+    private sealed class TestJobStoreSupport : JobStoreSupport
     {
         public TestJobStoreSupport(
             ISchedulerSignaler schedulerSignaler,
@@ -157,7 +157,7 @@ public class ClusterManagerTest
             ClusterCheckinInterval = TimeSpan.FromMilliseconds(100);
         }
 
-        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection()
+        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection(CancellationToken cancellationToken = default)
         {
             // Return a fake connection that will be used but won't actually do anything
             var fakeConnection = A.Fake<DbConnection>();

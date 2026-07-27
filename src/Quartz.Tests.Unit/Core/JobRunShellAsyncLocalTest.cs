@@ -1,12 +1,10 @@
-using System.Collections.Specialized;
-
 using Quartz.Impl;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit.Core;
 
 /// <summary>
-/// Verifies that AsyncLocal values set during IJobFactory.NewJob
+/// Verifies that AsyncLocal values set during IJobFactory.CreateJob
 /// flow correctly to IJob.Execute (GitHub issue #1528).
 /// </summary>
 [NonParallelizable]
@@ -27,15 +25,9 @@ public class JobRunShellAsyncLocalTest
     {
         const string expectedTenant = "tenant-42";
 
-        NameValueCollection properties = new NameValueCollection
-        {
-            ["quartz.serializer.type"] = TestConstants.DefaultSerializerType,
-            ["quartz.scheduler.instanceName"] = "AsyncLocalTest",
-        };
-
-        ISchedulerFactory sf = new StdSchedulerFactory(properties);
-        IScheduler scheduler = await sf.GetScheduler();
-        scheduler.JobFactory = new AsyncLocalSettingJobFactory(expectedTenant);
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
+            .UseJobFactory(new AsyncLocalSettingJobFactory(expectedTenant))
+            .BuildScheduler();
 
         try
         {
@@ -55,7 +47,7 @@ public class JobRunShellAsyncLocalTest
             bool signaled = AsyncLocalCapturingJob.Executed.Wait(TimeSpan.FromSeconds(10));
             Assert.That(signaled, Is.True, "Job did not execute within timeout");
             Assert.That(AsyncLocalCapturingJob.CapturedTenantId, Is.EqualTo(expectedTenant),
-                "AsyncLocal value set in IJobFactory.NewJob must be visible in IJob.Execute");
+                "AsyncLocal value set in IJobFactory.CreateJob must be visible in IJob.Execute");
         }
         finally
         {
@@ -66,15 +58,9 @@ public class JobRunShellAsyncLocalTest
     [Test]
     public async Task AsyncJobFactory_AwaitedWorkCompletesBeforeJobExecute()
     {
-        NameValueCollection properties = new NameValueCollection
-        {
-            ["quartz.serializer.type"] = TestConstants.DefaultSerializerType,
-            ["quartz.scheduler.instanceName"] = "AsyncJobFactoryTest",
-        };
-
-        ISchedulerFactory sf = new StdSchedulerFactory(properties);
-        IScheduler scheduler = await sf.GetScheduler();
-        scheduler.JobFactory = new AwaitingJobFactory();
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
+            .UseJobFactory(new AwaitingJobFactory())
+            .BuildScheduler();
 
         try
         {
@@ -94,7 +80,7 @@ public class JobRunShellAsyncLocalTest
             bool signaled = AsyncLocalCapturingJob.Executed.Wait(TimeSpan.FromSeconds(10));
             Assert.That(signaled, Is.True, "Job did not execute within timeout");
             Assert.That(AwaitingJobFactory.AwaitedWorkCompleted, Is.True,
-                "Awaited work in IJobFactory.NewJob must complete before IJob.Execute runs");
+                "Awaited work in IJobFactory.CreateJob must complete before IJob.Execute runs");
         }
         finally
         {
@@ -111,13 +97,13 @@ public class JobRunShellAsyncLocalTest
             this.tenantId = tenantId;
         }
 
-        public ValueTask<IJob> NewJob(TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default)
+        public ValueTask<JobScope> CreateJob(TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default)
         {
             TenantId.Value = tenantId;
-            return new ValueTask<IJob>(new AsyncLocalCapturingJob());
+            return new ValueTask<JobScope>(new JobScope(new AsyncLocalCapturingJob()));
         }
 
-        public ValueTask ReturnJob(IJob job)
+        public ValueTask ReturnJob(JobScope scope, CancellationToken cancellationToken = default)
         {
             return default;
         }
@@ -128,7 +114,7 @@ public class JobRunShellAsyncLocalTest
         public static readonly ManualResetEventSlim Executed = new(false);
         public static string CapturedTenantId;
 
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             CapturedTenantId = TenantId.Value;
             Executed.Set();
@@ -140,14 +126,14 @@ public class JobRunShellAsyncLocalTest
     {
         public static volatile bool AwaitedWorkCompleted;
 
-        public async ValueTask<IJob> NewJob(TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default)
+        public async ValueTask<JobScope> CreateJob(TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default)
         {
             await Task.Yield();
             await Task.Delay(50, cancellationToken).ConfigureAwait(false);
             AwaitedWorkCompleted = true;
-            return new AsyncLocalCapturingJob();
+            return new JobScope(new AsyncLocalCapturingJob());
         }
 
-        public ValueTask ReturnJob(IJob job) => default;
+        public ValueTask ReturnJob(JobScope scope, CancellationToken cancellationToken = default) => default;
     }
 }

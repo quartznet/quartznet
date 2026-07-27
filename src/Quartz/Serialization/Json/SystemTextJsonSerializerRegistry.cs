@@ -7,7 +7,7 @@ using Quartz.Util;
 namespace Quartz.Serialization.Json;
 
 /// <summary>
-/// The trigger and calendar serializers a <see cref="Quartz.Simpl.SystemTextJsonObjectSerializer"/>
+/// The trigger and calendar serializers a <see cref="Quartz.Impl.SystemTextJsonObjectSerializer"/>
 /// knows about.
 /// </summary>
 /// <remarks>

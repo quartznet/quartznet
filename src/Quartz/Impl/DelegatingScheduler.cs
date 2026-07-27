@@ -1,5 +1,5 @@
 using Quartz.Impl.Matchers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Impl;
 
@@ -36,11 +36,6 @@ public class DelegatingScheduler : IScheduler
     public ValueTask<List<IJobExecutionContext>> GetCurrentlyExecutingJobs(CancellationToken cancellationToken = default)
     {
         return scheduler.GetCurrentlyExecutingJobs(cancellationToken);
-    }
-
-    public IJobFactory JobFactory
-    {
-        set => scheduler.JobFactory = value;
     }
 
     public IListenerManager ListenerManager => scheduler.ListenerManager;
@@ -252,19 +247,19 @@ public class DelegatingScheduler : IScheduler
         return scheduler.ResetTriggerFromErrorState(triggerKey, cancellationToken);
     }
 
-    public ValueTask AddCalendar(string name, ICalendar calendar, bool replace, bool updateTriggers, CancellationToken cancellationToken = default)
+    public ValueTask AddCalendar(string calendarName, ICalendar calendar, bool replace, bool updateTriggers, CancellationToken cancellationToken = default)
     {
-        return scheduler.AddCalendar(name, calendar, replace, updateTriggers, cancellationToken);
+        return scheduler.AddCalendar(calendarName, calendar, replace, updateTriggers, cancellationToken);
     }
 
-    public ValueTask<bool> DeleteCalendar(string name, CancellationToken cancellationToken = default)
+    public ValueTask<bool> DeleteCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
-        return scheduler.DeleteCalendar(name, cancellationToken);
+        return scheduler.DeleteCalendar(calendarName, cancellationToken);
     }
 
-    public ValueTask<ICalendar?> GetCalendar(string name, CancellationToken cancellationToken = default)
+    public ValueTask<ICalendar?> GetCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
-        return scheduler.GetCalendar(name, cancellationToken);
+        return scheduler.GetCalendar(calendarName, cancellationToken);
     }
 
     public ValueTask<List<string>> GetCalendarNames(CancellationToken cancellationToken = default)

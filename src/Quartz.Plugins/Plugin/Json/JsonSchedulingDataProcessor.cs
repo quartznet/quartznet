@@ -26,7 +26,7 @@ using Microsoft.Extensions.Logging;
 
 using Quartz.Diagnostics;
 using Quartz.Impl.Matchers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Util;
 using Quartz.Xml;
 
@@ -103,7 +103,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
 
     internal void ProcessJsonContent(string json)
     {
-        PrepForProcessing();
+        PrepareForProcessing();
         jsonJobGroupsToDelete.Clear();
         jsonTriggerGroupsToDelete.Clear();
         jsonJobsToDelete.Clear();
@@ -119,7 +119,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
 
         if (data.ProcessingDirectives is not null)
         {
-            OverWriteExistingData = data.ProcessingDirectives.OverWriteExistingData;
+            OverwriteExistingData = data.ProcessingDirectives.OverwriteExistingData;
             IgnoreDuplicates = data.ProcessingDirectives.IgnoreDuplicates;
             ScheduleTriggerRelativeToReplacedTrigger = data.ProcessingDirectives.ScheduleTriggerRelativeToReplacedTrigger;
         }
@@ -385,11 +385,11 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
         return builder;
     }
 
-    private static CalendarIntervalScheduleBuilder BuildCalendarIntervalSchedule(JsonFileCalendarIntervalSchedule cal)
+    private static CalendarIntervalScheduleBuilder BuildCalendarIntervalSchedule(JsonFileCalendarIntervalSchedule calendar)
     {
-        var unit = SafeParseEnum<IntervalUnit>(cal.RepeatIntervalUnit, "CalendarInterval.RepeatIntervalUnit");
-        var builder = CalendarIntervalScheduleBuilder.Create().WithInterval(cal.RepeatInterval, unit);
-        if (cal.MisfireInstruction is not null) builder.WithMisfireHandlingInstruction(ParseMisfireInstruction(cal.MisfireInstruction));
+        var unit = SafeParseEnum<IntervalUnit>(calendar.RepeatIntervalUnit, "CalendarInterval.RepeatIntervalUnit");
+        var builder = CalendarIntervalScheduleBuilder.Create().WithInterval(calendar.RepeatInterval, unit);
+        if (calendar.MisfireInstruction is not null) builder.WithMisfireHandlingInstruction(ParseMisfireInstruction(calendar.MisfireInstruction));
         return builder;
     }
 
@@ -422,20 +422,20 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
 
     private static TimeOfDay ParseTimeOfDay(string value)
     {
-        if (!TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out var ts))
+        if (!TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out var timeSpan))
         {
             throw new SchedulerConfigException($"Invalid TimeOfDay value '{value}'. Expected format 'HH:mm:ss'.");
         }
 
-        if (ts < TimeSpan.Zero || ts >= TimeSpan.FromHours(24))
+        if (timeSpan < TimeSpan.Zero || timeSpan >= TimeSpan.FromHours(24))
         {
             throw new SchedulerConfigException($"TimeOfDay value '{value}' is out of range. Must be between 00:00:00 and 23:59:59.");
         }
-        if (ts.Milliseconds != 0 || ts.Ticks % TimeSpan.TicksPerMillisecond != 0)
+        if (timeSpan.Milliseconds != 0 || timeSpan.Ticks % TimeSpan.TicksPerMillisecond != 0)
         {
             throw new SchedulerConfigException($"TimeOfDay value '{value}' must not contain fractional seconds.");
         }
-        return new TimeOfDay(ts.Hours, ts.Minutes, ts.Seconds);
+        return new TimeOfDay(timeSpan.Hours, timeSpan.Minutes, timeSpan.Seconds);
     }
 
     private static int ParseMisfireInstruction(string value)

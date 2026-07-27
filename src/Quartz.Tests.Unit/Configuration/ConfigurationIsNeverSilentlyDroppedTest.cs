@@ -13,8 +13,8 @@ using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Triggers;
 using Quartz.Serialization.Json;
 using Quartz.Serialization.Json.Triggers;
-using Quartz.Simpl;
-using Quartz.Spi;
+using Quartz.Impl;
+using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit.Configuration;
 
@@ -864,12 +864,8 @@ public class ConfigurationIsNeverSilentlyDroppedTest
 
     private sealed class CountingObjectSerializer : IObjectSerializer
     {
-        public void Initialize()
-        {
-        }
-
         public byte[] Serialize<T>(T obj) where T : class => [];
 
-        public T? DeSerialize<T>(byte[] data) where T : class => null;
+        public T? Deserialize<T>(byte[] data) where T : class => null;
     }
 }

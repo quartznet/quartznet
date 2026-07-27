@@ -1,6 +1,6 @@
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Util;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
 using Npgsql;
@@ -23,7 +23,7 @@ public class JobStoreSupportTest
         Assert.That(jobStoreSupport.IsTransientPublic(sqlException), Is.True);
     }
 
-    private class SqlExceptionSimulator : Exception
+    private sealed class SqlExceptionSimulator : Exception
     {
         public IEnumerable<SqlErrorSimulator> Errors => new List<SqlErrorSimulator>
         {
@@ -36,7 +36,7 @@ public class JobStoreSupportTest
         }
     }
 
-    private class TestJobStoreSupport : JobStoreSupport
+    private sealed class TestJobStoreSupport : JobStoreSupport
     {
         public TestJobStoreSupport(
             ISchedulerSignaler schedulerSignaler,
@@ -53,7 +53,7 @@ public class JobStoreSupportTest
         {
         }
 
-        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection()
+        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection(CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }

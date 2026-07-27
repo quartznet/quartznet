@@ -62,7 +62,7 @@ The class should extend the `IJob` interface and implement the `Execute` method.
 ```csharp
 public class SendEmailJob : IJob
 {
-    public ValueTask Execute(IJobExecutionContext context)
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         // Code that sends a periodic email to the user (for example)
         // Note: This method must always return a value 
@@ -79,7 +79,6 @@ After that, you just need to build Quartz trigger in `Program.cs`, which guarant
 ```csharp
 builder.Services.AddQuartz(q =>
 {
-    q.UseMicrosoftDependencyInjectionScopedJobFactory();
     // Just use the name of your job that you created in the Jobs folder.
     var jobKey = new JobKey("SendEmailJob");
     q.AddJob<SendEmailJob>(opts => opts.WithIdentity(jobKey));

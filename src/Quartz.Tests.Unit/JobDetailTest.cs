@@ -23,7 +23,6 @@ using AwesomeAssertions.Execution;
 
 using Quartz.Impl;
 using Quartz.Job;
-using Quartz.Simpl;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit;
@@ -99,7 +98,7 @@ public class JobDetailTest
 
     public class GenericJob<T> : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context) => default;
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
     }
 
     public interface IJobSubType { }

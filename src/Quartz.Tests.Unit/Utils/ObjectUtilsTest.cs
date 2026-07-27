@@ -21,7 +21,7 @@
 
 using System.Collections.Specialized;
 
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Utils;
@@ -45,8 +45,8 @@ public class ObjectUtilsTest
     [Test]
     public void TimeSpanConversionShouldWork()
     {
-        TimeSpan ts = (TimeSpan) ObjectUtils.ConvertValueIfNecessary(typeof(TimeSpan), "1");
-        Assert.That(ts.TotalDays, Is.EqualTo(1));
+        TimeSpan timeSpan = (TimeSpan) ObjectUtils.ConvertValueIfNecessary(typeof(TimeSpan), "1");
+        Assert.That(timeSpan.TotalDays, Is.EqualTo(1));
     }
 
     [Test]
@@ -145,7 +145,7 @@ public class ObjectUtilsTest
     [DisallowConcurrentExecution]
     private class BaseJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             // Console.WriteLine(GetType().Name);
             return default;
@@ -157,7 +157,7 @@ public class ObjectUtilsTest
     }
 
     [PersistJobDataAfterExecution]
-    private class ReallyExtendedJob : ExtendedJob
+    private sealed class ReallyExtendedJob : ExtendedJob
     {
     }
 
@@ -181,28 +181,31 @@ public class ObjectUtilsTest
 
 internal sealed class ExplicitImplementor : IThreadPool
 {
-    public bool RunInThread(Func<Task> runnable)
+    public ValueTask<bool> TryRun(Func<Task> action, CancellationToken cancellationToken = default)
     {
         throw new NotImplementedException();
     }
 
-    int IThreadPool.BlockForAvailableThreads()
+    ValueTask<int> IThreadPool.WaitForAvailableThreads(CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }
 
-    void IThreadPool.Initialize()
+    ValueTask IThreadPool.Initialize(CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }
 
-    void IThreadPool.Shutdown(bool waitForJobsToComplete)
+    ValueTask IThreadPool.Shutdown(bool waitForJobsToComplete, CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }
 
     int IThreadPool.PoolSize => throw new NotImplementedException();
 
-    public string InstanceId { get; set; }
+    /// <summary>
+    /// A plain settable property on a type whose interface members are all explicit — the thing
+    /// this fake exists to prove <see cref="ObjectUtils.SetObjectProperties" /> can still reach.
+    /// </summary>
     public string InstanceName { get; set; }
 }

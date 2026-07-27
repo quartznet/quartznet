@@ -2,7 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 using Quartz;
-using Quartz.Simpl;
+using Quartz.Impl;
 
 // Using HttpClientFactory with host builder
 var host = Host.CreateDefaultBuilder(args)
@@ -87,9 +87,7 @@ while (true)
     }
 }
 
-#pragma warning disable CA1852
-internal class MyHttpSchedulerProxyFactory : HttpSchedulerProxyFactory
-#pragma warning restore CA1852
+internal sealed class MyHttpSchedulerProxyFactory : HttpSchedulerProxyFactory
 {
     protected override HttpClient CreateHttpClient(string address)
     {

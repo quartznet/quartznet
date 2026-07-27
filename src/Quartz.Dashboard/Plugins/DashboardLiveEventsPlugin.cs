@@ -23,7 +23,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Quartz.Dashboard.Hubs;
 using Quartz.Dashboard.Services;
 using Quartz.Impl.Matchers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Dashboard.Plugins;
 
@@ -172,9 +172,9 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
 
     public ValueTask JobsResumed(string jobGroup, CancellationToken cancellationToken = default) => default;
 
-    public ValueTask SchedulerError(string msg, SchedulerException cause, CancellationToken cancellationToken = default)
+    public ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default)
     {
-        SchedulerErrorDto payload = new(schedulerName, msg, cause.Message);
+        SchedulerErrorDto payload = new(schedulerName, message, exception.Message);
         return BroadcastToScheduler(schedulerName, client => client.SchedulerError(payload));
     }
 
@@ -202,7 +202,7 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
         return BroadcastToScheduler(schedulerName, client => client.SchedulerStateChanged(payload));
     }
 
-    public ValueTask SchedulerShuttingdown(CancellationToken cancellationToken = default)
+    public ValueTask SchedulerShuttingDown(CancellationToken cancellationToken = default)
     {
         SchedulerStateDto payload = new(schedulerName, "ShuttingDown");
         return BroadcastToScheduler(schedulerName, client => client.SchedulerStateChanged(payload));

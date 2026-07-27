@@ -191,9 +191,9 @@ public sealed class TimeOfDay
     /// <param name="dateTime"></param>
     public DateTimeOffset GetTimeOfDayForDate(DateTimeOffset dateTime)
     {
-        DateTimeOffset cal = new DateTimeOffset(dateTime.Date, dateTime.Offset);
+        DateTimeOffset date = new DateTimeOffset(dateTime.Date, dateTime.Offset);
         TimeSpan t = new TimeSpan(0, Hour, Minute, Second);
-        return cal.Add(t);
+        return date.Add(t);
     }
 
     public override string ToString()

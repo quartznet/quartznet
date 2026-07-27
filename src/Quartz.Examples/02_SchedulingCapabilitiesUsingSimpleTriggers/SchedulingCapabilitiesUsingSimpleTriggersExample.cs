@@ -36,18 +36,18 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
         Console.WriteLine("------- Initializing -------------------");
 
         // First we must get a reference to a scheduler
-        IScheduler sched = await ExampleScheduler.Create();
+        IScheduler scheduler = await ExampleScheduler.Create();
 
         Console.WriteLine("------- Initialization Complete --------");
 
         Console.WriteLine("------- Scheduling Jobs ----------------");
 
-        // jobs can be scheduled before sched.start() has been called
+        // jobs can be scheduled before scheduler.start() has been called
 
         // get a "nice round" time a few seconds in the future...
         DateTimeOffset startTime = DateBuilder.NextGivenSecondDate(null, 15);
 
-        // job1 will only fire once at date/time "ts"
+        // job1 will only fire once at date/time "timeSpan"
         IJobDetail job = JobBuilder.Create<SimpleJob>()
             .WithIdentity("job1", "group1")
             .Build();
@@ -58,13 +58,13 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
             .Build();
 
         // schedule it to run!
-        DateTimeOffset? ft = await sched.ScheduleJob(job, trigger);
+        DateTimeOffset? ft = await scheduler.ScheduleJob(job, trigger);
         Console.WriteLine(job.Key +
                           " will run at: " + ft +
                           " and repeat: " + trigger.RepeatCount +
                           " times, every " + trigger.RepeatInterval.TotalSeconds + " seconds");
 
-        // job2 will only fire once at date/time "ts"
+        // job2 will only fire once at date/time "timeSpan"
         job = JobBuilder.Create<SimpleJob>()
             .WithIdentity("job2", "group1")
             .Build();
@@ -74,7 +74,7 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
             .StartAt(startTime)
             .Build();
 
-        ft = await sched.ScheduleJob(job, trigger);
+        ft = await scheduler.ScheduleJob(job, trigger);
         Console.WriteLine(job.Key +
                           " will run at: " + ft +
                           " and repeat: " + trigger.RepeatCount +
@@ -92,7 +92,7 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
             .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).WithRepeatCount(10))
             .Build();
 
-        ft = await sched.ScheduleJob(job, trigger);
+        ft = await scheduler.ScheduleJob(job, trigger);
         Console.WriteLine(job.Key +
                           " will run at: " + ft +
                           " and repeat: " + trigger.RepeatCount +
@@ -108,7 +108,7 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
             .ForJob(job)
             .Build();
 
-        ft = await sched.ScheduleJob(trigger);
+        ft = await scheduler.ScheduleJob(trigger);
         Console.WriteLine(job.Key +
                           " will [also] run at: " + ft +
                           " and repeat: " + trigger.RepeatCount +
@@ -126,7 +126,7 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
             .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).WithRepeatCount(5))
             .Build();
 
-        ft = await sched.ScheduleJob(job, trigger);
+        ft = await scheduler.ScheduleJob(job, trigger);
         Console.WriteLine(job.Key +
                           " will run at: " + ft +
                           " and repeat: " + trigger.RepeatCount +
@@ -142,7 +142,7 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
             .StartAt(DateBuilder.FutureDate(5, IntervalUnit.Minute))
             .Build();
 
-        ft = await sched.ScheduleJob(job, trigger);
+        ft = await scheduler.ScheduleJob(job, trigger);
         Console.WriteLine(job.Key +
                           " will run at: " + ft +
                           " and repeat: " + trigger.RepeatCount +
@@ -159,7 +159,7 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
             .WithSimpleSchedule(x => x.WithIntervalInSeconds(40).RepeatForever())
             .Build();
 
-        ft = await sched.ScheduleJob(job, trigger);
+        ft = await scheduler.ScheduleJob(job, trigger);
         Console.WriteLine(job.Key +
                           " will run at: " + ft +
                           " and repeat: " + trigger.RepeatCount +
@@ -169,7 +169,7 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
 
         // All of the jobs have been added to the scheduler, but none of the jobs
         // will run until the scheduler has been started
-        await sched.Start();
+        await scheduler.Start();
 
         Console.WriteLine("------- Started Scheduler -----------------");
 
@@ -185,7 +185,7 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
             .WithSimpleSchedule(x => x.WithIntervalInMinutes(5).WithRepeatCount(20))
             .Build();
 
-        ft = await sched.ScheduleJob(job, trigger);
+        ft = await scheduler.ScheduleJob(job, trigger);
         Console.WriteLine(job.Key +
                           " will run at: " + ft +
                           " and repeat: " + trigger.RepeatCount +
@@ -197,10 +197,10 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
             .StoreDurably()
             .Build();
 
-        await sched.AddJob(job, true);
+        await scheduler.AddJob(job, true);
 
         Console.WriteLine("'Manually' triggering job8...");
-        await sched.TriggerJob(new JobKey("job8", "group1"));
+        await scheduler.TriggerJob(new JobKey("job8", "group1"));
 
         Console.WriteLine("------- Waiting 30 seconds... --------------");
 
@@ -223,7 +223,7 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
             .WithSimpleSchedule(x => x.WithIntervalInMinutes(5).WithRepeatCount(20))
             .Build();
 
-        ft = await sched.RescheduleJob(trigger.Key, trigger);
+        ft = await scheduler.RescheduleJob(trigger.Key, trigger);
         Console.WriteLine("job7 rescheduled to run at: " + ft);
 
         Console.WriteLine("------- Waiting five minutes... ------------");
@@ -233,12 +233,12 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
 
         Console.WriteLine("------- Shutting Down ---------------------");
 
-        await sched.Shutdown(true);
+        await scheduler.Shutdown(true);
 
         Console.WriteLine("------- Shutdown Complete -----------------");
 
         // display some stats about the schedule that just ran
-        SchedulerMetaData metaData = await sched.GetMetaData();
+        SchedulerMetaData metaData = await scheduler.GetMetaData();
         Console.WriteLine($"Executed {metaData.NumberOfJobsExecuted} jobs.");
     }
 }

@@ -55,7 +55,7 @@ public sealed class BroadcastSchedulerListener : ISchedulerListener
     /// Construct an instance with the given List of listeners.
     /// </summary>
     /// <param name="listeners">The initial List of SchedulerListeners to broadcast to.</param>
-    public BroadcastSchedulerListener(IEnumerable<ISchedulerListener> listeners) : this()
+    public BroadcastSchedulerListener(IReadOnlyCollection<ISchedulerListener> listeners) : this()
     {
         this.listeners.AddRange(listeners);
     }
@@ -70,10 +70,7 @@ public sealed class BroadcastSchedulerListener : ISchedulerListener
         return listeners.Remove(listener);
     }
 
-    public IReadOnlyList<ISchedulerListener> GetListeners()
-    {
-        return listeners;
-    }
+    public IReadOnlyList<ISchedulerListener> Listeners => listeners;
 
     public ValueTask JobAdded(IJobDetail jobDetail, CancellationToken cancellationToken = default)
     {
@@ -150,9 +147,9 @@ public sealed class BroadcastSchedulerListener : ISchedulerListener
         return IterateListenersInGuard(l => l.JobResumed(jobKey, cancellationToken), nameof(JobResumed));
     }
 
-    public ValueTask SchedulerError(string msg, SchedulerException cause, CancellationToken cancellationToken = default)
+    public ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default)
     {
-        return IterateListenersInGuard(l => l.SchedulerError(msg, cause, cancellationToken), nameof(SchedulerError));
+        return IterateListenersInGuard(l => l.SchedulerError(message, exception, cancellationToken), nameof(SchedulerError));
     }
 
     public ValueTask SchedulerStarted(CancellationToken cancellationToken = default)
@@ -175,9 +172,9 @@ public sealed class BroadcastSchedulerListener : ISchedulerListener
         return IterateListenersInGuard(l => l.SchedulerShutdown(cancellationToken), nameof(SchedulerShutdown));
     }
 
-    public ValueTask SchedulerShuttingdown(CancellationToken cancellationToken = default)
+    public ValueTask SchedulerShuttingDown(CancellationToken cancellationToken = default)
     {
-        return IterateListenersInGuard(l => l.SchedulerShuttingdown(cancellationToken), nameof(SchedulerShuttingdown));
+        return IterateListenersInGuard(l => l.SchedulerShuttingDown(cancellationToken), nameof(SchedulerShuttingDown));
     }
 
     private async ValueTask IterateListenersInGuard(Func<ISchedulerListener, ValueTask> action, string methodName)

@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -20,7 +20,7 @@
 #endregion
 
 using Quartz.Impl.Triggers;
-using Quartz.Spi;
+using Quartz.Extensibility;
 using Quartz.Util;
 
 namespace Quartz;
@@ -415,9 +415,9 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
             Throw.ArgumentException("The given count " + count + " is too large! The max you can set is " + maxNumOfCount);
         }
 
-        DateTime cal = timeProvider.GetUtcNow().Date;
-        cal = cal.Add(endTimeOfDayDate.TimeOfDay);
-        endTimeOfDayUtc = TimeOfDay.HourMinuteAndSecondOfDay(cal.Hour, cal.Minute, cal.Second);
+        DateTime date = timeProvider.GetUtcNow().Date;
+        date = date.Add(endTimeOfDayDate.TimeOfDay);
+        endTimeOfDayUtc = TimeOfDay.HourMinuteAndSecondOfDay(date.Hour, date.Minute, date.Second);
         return this;
     }
 
@@ -475,12 +475,12 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
     /// <summary>
     /// TimeZone in which to base the schedule.
     /// </summary>
-    /// <param name="timezone">the time-zone for the schedule</param>
+    /// <param name="timeZone">the time-zone for the schedule</param>
     /// <returns>the updated CalendarIntervalScheduleBuilder</returns>
     /// <seealso cref="ICalendarIntervalTrigger.TimeZone" />
-    public DailyTimeIntervalScheduleBuilder InTimeZone(TimeZoneInfo timezone)
+    public DailyTimeIntervalScheduleBuilder InTimeZone(TimeZoneInfo timeZone)
     {
-        timeZone = timezone;
+        this.timeZone = timeZone;
         return this;
     }
 

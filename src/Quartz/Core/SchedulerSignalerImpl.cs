@@ -20,7 +20,7 @@
 using Microsoft.Extensions.Logging;
 
 using Quartz.Diagnostics;
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Core;
 
@@ -33,12 +33,12 @@ namespace Quartz.Core;
 internal sealed class SchedulerSignalerImpl : ISchedulerSignaler
 {
     private readonly ILogger<SchedulerSignalerImpl> logger = LogProvider.CreateLogger<SchedulerSignalerImpl>();
-    private readonly QuartzScheduler sched;
+    private readonly QuartzScheduler scheduler;
     private readonly QuartzSchedulerThread schedThread;
 
-    public SchedulerSignalerImpl(QuartzScheduler sched, QuartzSchedulerThread schedThread)
+    public SchedulerSignalerImpl(QuartzScheduler scheduler, QuartzSchedulerThread schedThread)
     {
-        this.sched = sched;
+        this.scheduler = scheduler;
         this.schedThread = schedThread;
 
         logger.LogInformation("Initialized Scheduler Signaller of type: {Type}", GetType());
@@ -56,12 +56,12 @@ internal sealed class SchedulerSignalerImpl : ISchedulerSignaler
     {
         try
         {
-            await sched.NotifyTriggerListenersMisfired(trigger, cancellationToken).ConfigureAwait(false);
+            await scheduler.NotifyTriggerListenersMisfired(trigger, cancellationToken).ConfigureAwait(false);
         }
         catch (SchedulerException se)
         {
             logger.LogError(se, "Error notifying listeners of trigger misfire.");
-            await sched.NotifySchedulerListenersError("Error notifying listeners of trigger misfire.", se, cancellationToken).ConfigureAwait(false);
+            await scheduler.NotifySchedulerListenersError("Error notifying listeners of trigger misfire.", se, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -75,7 +75,7 @@ internal sealed class SchedulerSignalerImpl : ISchedulerSignaler
         ITrigger trigger,
         CancellationToken cancellationToken = default)
     {
-        return sched.NotifySchedulerListenersFinalized(trigger, cancellationToken);
+        return scheduler.NotifySchedulerListenersFinalized(trigger, cancellationToken);
     }
 
     /// <summary>
@@ -93,14 +93,14 @@ internal sealed class SchedulerSignalerImpl : ISchedulerSignaler
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
-        return sched.NotifySchedulerListenersJobDeleted(jobKey, cancellationToken);
+        return scheduler.NotifySchedulerListenersJobDeleted(jobKey, cancellationToken);
     }
 
     public ValueTask NotifySchedulerListenersError(
         string message,
-        SchedulerException jpe,
+        SchedulerException exception,
         CancellationToken cancellationToken = default)
     {
-        return sched.NotifySchedulerListenersError(message, jpe, cancellationToken);
+        return scheduler.NotifySchedulerListenersError(message, exception, cancellationToken);
     }
 }

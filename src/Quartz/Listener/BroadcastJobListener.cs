@@ -70,7 +70,7 @@ public sealed class BroadcastJobListener : IJobListener
     /// <param name="logger">logger</param>
     /// <param name="name">the name of this instance</param>
     /// <param name="listeners">the initial List of JobListeners to broadcast to.</param>
-    public BroadcastJobListener(ILogger<BroadcastJobListener> logger, string name, List<IJobListener> listeners) : this(logger, name)
+    public BroadcastJobListener(ILogger<BroadcastJobListener> logger, string name, IReadOnlyCollection<IJobListener> listeners) : this(logger, name)
     {
         this.listeners.AddRange(listeners);
     }

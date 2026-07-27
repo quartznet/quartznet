@@ -23,7 +23,6 @@ using System.Collections.Specialized;
 
 
 using Quartz.Impl;
-using Quartz.Simpl;
 
 namespace Quartz.Tests.Unit.Impl;
 
@@ -118,7 +117,7 @@ public class StdSchedulerFactoryTest
         try
         {
             var metaData = await scheduler.GetMetaData();
-            var jobStore = (RAMJobStore) ((StdScheduler) scheduler).sched.resources.JobStore;
+            var jobStore = (RAMJobStore) ((StdScheduler) scheduler).scheduler.resources.JobStore;
 
             scheduler.SchedulerName.Should().Be("DefaultQuartzScheduler");
             metaData.ThreadPoolSize.Should().Be(10);
@@ -145,7 +144,7 @@ public class StdSchedulerFactoryTest
     {
         var properties = new NameValueCollection
         {
-            ["quartz.threadPool.type"] = "Quartz.Simpl.DefaultThreadPool, Quartz",
+            ["quartz.threadPool.type"] = "Quartz.Impl.DefaultThreadPool, Quartz",
             ["quartz.threadPool.threadCount"] = "3"
         };
 
@@ -304,7 +303,7 @@ public class StdSchedulerFactoryTest
         await query.Should().ThrowAsync<ObjectDisposedException>();
     }
 
-    private class TestStdSchedulerFactory : StdSchedulerFactory
+    private sealed class TestStdSchedulerFactory : StdSchedulerFactory
     {
         public const string PropertyTest = "quartz.scheduler.test";
 

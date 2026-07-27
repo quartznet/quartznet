@@ -21,13 +21,13 @@ public class QuartzConfigurationHelperTests
         {
             { "Scheduler:InstanceName", "Test" },
             { "ThreadPool:MaxConcurrency", "10" },
-            { "JobStore:Type", "Quartz.Simpl.RAMJobStore, Quartz" },
+            { "JobStore:Type", "Quartz.Impl.RAMJobStore, Quartz" },
         });
 
         var result = QuartzConfigurationHelper.ToNameValueCollection(config);
         result["quartz.scheduler.instanceName"].Should().Be("Test");
         result["quartz.threadPool.maxConcurrency"].Should().Be("10");
-        result["quartz.jobStore.type"].Should().Be("Quartz.Simpl.RAMJobStore, Quartz");
+        result["quartz.jobStore.type"].Should().Be("Quartz.Impl.RAMJobStore, Quartz");
     }
 
     [Test]

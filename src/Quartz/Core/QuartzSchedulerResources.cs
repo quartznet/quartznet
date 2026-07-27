@@ -17,7 +17,7 @@
  */
 #endregion
 
-using Quartz.Spi;
+using Quartz.Extensibility;
 
 namespace Quartz.Core;
 
@@ -170,7 +170,7 @@ public sealed class QuartzSchedulerResources
     /// <exception cref="ArgumentException">
     /// if jobRunShellFactory is null.
     /// </exception>
-    public IJobRunShellFactory JobRunShellFactory
+    internal IJobRunShellFactory JobRunShellFactory
     {
         get => jobRunShellFactory;
         set
@@ -186,12 +186,12 @@ public sealed class QuartzSchedulerResources
     /// <summary>
     /// Gets the unique identifier.
     /// </summary>
-    /// <param name="schedName">Name of the scheduler.</param>
-    /// <param name="schedInstId">The scheduler instance id.</param>
+    /// <param name="schedulerName">Name of the scheduler.</param>
+    /// <param name="schedulerInstanceId">The scheduler instance id.</param>
     /// <returns></returns>
-    public static string GetUniqueIdentifier(string schedName, string schedInstId)
+    public static string GetUniqueIdentifier(string schedulerName, string schedulerInstanceId)
     {
-        return $"{schedName}_$_{schedInstId}";
+        return $"{schedulerName}_$_{schedulerInstanceId}";
     }
 
     /// <summary>
@@ -220,7 +220,7 @@ public sealed class QuartzSchedulerResources
     /// <see cref="QuartzScheduler" /> to use.
     /// </summary>
     /// <returns></returns>
-    public IList<ISchedulerPlugin> SchedulerPlugins { get; } = new List<ISchedulerPlugin>(10);
+    public List<ISchedulerPlugin> SchedulerPlugins { get; } = new List<ISchedulerPlugin>(10);
 
     /// <summary>
     /// Gets or sets a value indicating whether to make scheduler thread daemon.
