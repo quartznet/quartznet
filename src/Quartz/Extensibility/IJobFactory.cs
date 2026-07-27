@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
@@ -50,8 +50,12 @@ public interface IJobFactory
     /// intervention (e.g. an application restart after fixing whatever
     /// configuration problem led to the issue with instantiating the Job).
     /// <para>
-    /// Implementations may perform asynchronous work (for example, resolving
-    /// tenant context from an external store) before returning the job instance.
+    /// Implementations may perform asynchronous work before returning the job instance, but prefer
+    /// to keep a synchronous body synchronous. An <c>async</c> method restores the caller's
+    /// <see cref="System.Threading.ExecutionContext" /> when its synchronous part returns, so any
+    /// <see cref="System.Threading.AsyncLocal{T}" /> the factory sets while building the job is
+    /// discarded instead of reaching <see cref="IJob.Execute" /> (#1528). Return a completed
+    /// <see cref="ValueTask{TResult}" /> when nothing needs awaiting.
     /// </para>
     /// </remarks>
     /// <param name="bundle">

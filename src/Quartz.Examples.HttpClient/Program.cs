@@ -88,7 +88,7 @@ while (true)
 }
 
 #pragma warning disable CA1852
-internal class MyHttpSchedulerProxyFactory : HttpSchedulerProxyFactory
+internal sealed class MyHttpSchedulerProxyFactory : HttpSchedulerProxyFactory
 #pragma warning restore CA1852
 {
     protected override HttpClient CreateHttpClient(string address)

@@ -17,7 +17,7 @@ public class TriggerComparatorTest
         ITrigger t6 = TriggerBuilder.Create().WithIdentity("a", "c").Build();
 
         // add triggers to list in somewhat randomized order
-        List<ITrigger> timeSpan =
+        List<ITrigger> triggers =
         [
             t5,
             t6,
@@ -28,17 +28,17 @@ public class TriggerComparatorTest
         ];
 
         // sort the list
-        timeSpan.Sort(TriggerComparer.Instance);
+        triggers.Sort(TriggerComparer.Instance);
 
         Assert.Multiple(() =>
         {
             // check the order of the list
-            Assert.That(timeSpan[0], Is.EqualTo(t1));
-            Assert.That(timeSpan[1], Is.EqualTo(t2));
-            Assert.That(timeSpan[2], Is.EqualTo(t3));
-            Assert.That(timeSpan[3], Is.EqualTo(t4));
-            Assert.That(timeSpan[4], Is.EqualTo(t5));
-            Assert.That(timeSpan[5], Is.EqualTo(t6));
+            Assert.That(triggers[0], Is.EqualTo(t1));
+            Assert.That(triggers[1], Is.EqualTo(t2));
+            Assert.That(triggers[2], Is.EqualTo(t3));
+            Assert.That(triggers[3], Is.EqualTo(t4));
+            Assert.That(triggers[4], Is.EqualTo(t5));
+            Assert.That(triggers[5], Is.EqualTo(t6));
         });
     }
 
@@ -66,7 +66,7 @@ public class TriggerComparatorTest
         ((IOperableTrigger) t9).ComputeFirstFireTimeUtc(null);
 
         // add triggers to list in somewhat randomized order
-        List<ITrigger> timeSpan =
+        List<ITrigger> triggers =
         [
             t5,
             t9,
@@ -81,20 +81,20 @@ public class TriggerComparatorTest
         ];
 
         // sort the list
-        timeSpan.Sort(TriggerComparer.Instance);
+        triggers.Sort(TriggerComparer.Instance);
 
         Assert.Multiple(() =>
         {
             // check the order of the list
-            Assert.That(timeSpan[0], Is.EqualTo(t1));
-            Assert.That(timeSpan[1], Is.EqualTo(t2));
-            Assert.That(timeSpan[2], Is.EqualTo(t3));
-            Assert.That(timeSpan[3], Is.EqualTo(t4));
-            Assert.That(timeSpan[4], Is.EqualTo(t5));
-            Assert.That(timeSpan[5], Is.EqualTo(t6));
-            Assert.That(timeSpan[6], Is.EqualTo(t7));
-            Assert.That(timeSpan[7], Is.EqualTo(t8));
-            Assert.That(timeSpan[8], Is.EqualTo(t9));
+            Assert.That(triggers[0], Is.EqualTo(t1));
+            Assert.That(triggers[1], Is.EqualTo(t2));
+            Assert.That(triggers[2], Is.EqualTo(t3));
+            Assert.That(triggers[3], Is.EqualTo(t4));
+            Assert.That(triggers[4], Is.EqualTo(t5));
+            Assert.That(triggers[5], Is.EqualTo(t6));
+            Assert.That(triggers[6], Is.EqualTo(t7));
+            Assert.That(triggers[7], Is.EqualTo(t8));
+            Assert.That(triggers[8], Is.EqualTo(t9));
         });
     }
 }

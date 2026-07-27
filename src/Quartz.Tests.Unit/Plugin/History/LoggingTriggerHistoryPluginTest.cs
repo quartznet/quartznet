@@ -85,7 +85,7 @@ public class LoggingTriggerHistoryPluginTest
         Assert.That(plugin.InfoMessages, Has.Count.EqualTo(1));
     }
 
-    private class RecordingLoggingTriggerHistoryPlugin : LoggingTriggerHistoryPlugin
+    private sealed class RecordingLoggingTriggerHistoryPlugin : LoggingTriggerHistoryPlugin
     {
         public List<string> InfoMessages { get; } = new List<string>();
 

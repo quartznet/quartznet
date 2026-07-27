@@ -498,15 +498,10 @@ Three members were renamed or re-annotated:
 - ValueTask SchedulerShuttingdown(CancellationToken cancellationToken = default);
 + ValueTask SchedulerShuttingDown(CancellationToken cancellationToken = default);
 
-- ValueTask JobsPaused(string jobGroup, CancellationToken cancellationToken = default);
-+ ValueTask JobsPaused(string? jobGroup, CancellationToken cancellationToken = default);
 
 - ValueTask SchedulerError(string msg, SchedulerException cause, CancellationToken cancellationToken = default);
 + ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default);
 ```
-
-The nullable job group matches what the documentation always said: the parameter is null when every group was
-paused.
 
 An `IJobStore` that implements `IJobListener` no longer automatically receives all events. Register it explicitly as a job listener using `ListenerManager`:
 
@@ -685,8 +680,8 @@ Configuration is the part that would not have failed loudly, because it names ty
 + quartz.jobStore.type = Quartz.Impl.RAMJobStore, Quartz
 ```
 
-**Existing configuration keeps working.** A type name that does not resolve is retried under its pre-4.0 namespace,
-and a warning is logged naming both spellings. Treat that as a grace period rather than a promise.
+**Existing configuration keeps working.** A type name naming a pre-4.0 namespace that no longer resolves is retried
+under the new one, and a warning is logged naming both spellings. Treat that as a grace period rather than a promise.
 
 ## Other Breaking Changes
 

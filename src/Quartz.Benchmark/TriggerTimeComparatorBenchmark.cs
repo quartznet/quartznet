@@ -261,7 +261,7 @@ public class TriggerTimeComparatorBenchmark
         }
     }
 
-    private class MutableTrigger : IMutableTrigger
+    private sealed class MutableTrigger : IMutableTrigger
     {
         private readonly DateTimeOffset? _nextFireTimeUtc;
 

@@ -130,7 +130,7 @@ public class ClusterManagerTest
         timeToSleep.Should().Be(TimeSpan.FromSeconds(15));
     }
 
-    private class TestJobStoreSupport : JobStoreSupport
+    private sealed class TestJobStoreSupport : JobStoreSupport
     {
         public TestJobStoreSupport(
             ISchedulerSignaler schedulerSignaler,

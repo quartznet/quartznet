@@ -165,7 +165,7 @@ public class MisfireHandlerTest
         }
     }
 
-    private class TestJobStoreSupport : JobStoreSupport
+    private sealed class TestJobStoreSupport : JobStoreSupport
     {
         public TestJobStoreSupport()
         : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())

@@ -303,7 +303,7 @@ public class StdSchedulerFactoryTest
         await query.Should().ThrowAsync<ObjectDisposedException>();
     }
 
-    private class TestStdSchedulerFactory : StdSchedulerFactory
+    private sealed class TestStdSchedulerFactory : StdSchedulerFactory
     {
         public const string PropertyTest = "quartz.scheduler.test";
 

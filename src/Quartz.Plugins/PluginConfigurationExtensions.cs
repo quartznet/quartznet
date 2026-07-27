@@ -124,12 +124,12 @@ public static class PluginConfigurationExtensions
         var options = new JobHistoryLoggingOptions();
         configure?.Invoke(options);
 
-        return builder.AddConfiguredPlugin<LoggingJobHistoryPlugin>("jobHistoryLogging", plugin =>
+        return builder.AddConfiguredPlugin<LoggingJobHistoryPlugin>("jobHistory", plugin =>
         {
-            plugin.JobSuccessMessage = options.JobSuccessMessage;
-            plugin.JobFailedMessage = options.JobFailedMessage;
-            plugin.JobToBeFiredMessage = options.JobToBeFiredMessage;
-            plugin.JobWasVetoedMessage = options.JobWasVetoedMessage;
+            Apply(options.JobSuccessMessage, value => plugin.JobSuccessMessage = value);
+            Apply(options.JobFailedMessage, value => plugin.JobFailedMessage = value);
+            Apply(options.JobToBeFiredMessage, value => plugin.JobToBeFiredMessage = value);
+            Apply(options.JobWasVetoedMessage, value => plugin.JobWasVetoedMessage = value);
         });
     }
 
@@ -149,11 +149,11 @@ public static class PluginConfigurationExtensions
         var options = new TriggerHistoryLoggingOptions();
         configure?.Invoke(options);
 
-        return builder.AddConfiguredPlugin<LoggingTriggerHistoryPlugin>("triggerHistoryLogging", plugin =>
+        return builder.AddConfiguredPlugin<LoggingTriggerHistoryPlugin>("triggerHistory", plugin =>
         {
-            plugin.TriggerFiredMessage = options.TriggerFiredMessage;
-            plugin.TriggerMisfiredMessage = options.TriggerMisfiredMessage;
-            plugin.TriggerCompleteMessage = options.TriggerCompleteMessage;
+            Apply(options.TriggerFiredMessage, value => plugin.TriggerFiredMessage = value);
+            Apply(options.TriggerMisfiredMessage, value => plugin.TriggerMisfiredMessage = value);
+            Apply(options.TriggerCompleteMessage, value => plugin.TriggerCompleteMessage = value);
         });
     }
 
@@ -167,6 +167,18 @@ public static class PluginConfigurationExtensions
         ArgumentNullException.ThrowIfNull(builder);
         return builder.AddConfiguredPlugin<ShutdownHookPlugin>(
             "shutdownHook", plugin => plugin.CleanShutdown = cleanShutdown);
+    }
+
+    /// <summary>
+    /// Applies a message template only when the caller set one, so the plugin keeps its own default
+    /// rather than a copy of it that can drift.
+    /// </summary>
+    private static void Apply(string? value, Action<string> set)
+    {
+        if (value is not null)
+        {
+            set(value);
+        }
     }
 
     /// <summary>
@@ -196,17 +208,17 @@ public static class PluginConfigurationExtensions
 /// </remarks>
 public sealed class JobHistoryLoggingOptions
 {
-    /// <summary>Message logged when a job completes successfully.</summary>
-    public string JobSuccessMessage { get; set; } = "Job {1}.{0} execution complete at {2:HH:mm:ss MM/dd/yyyy} and reports: {8}";
+    /// <summary>Overrides the plugin's own template for a job completes successfully.</summary>
+    public string? JobSuccessMessage { get; set; }
 
-    /// <summary>Message logged when a job throws.</summary>
-    public string JobFailedMessage { get; set; } = "Job {1}.{0} execution failed at {2:HH:mm:ss MM/dd/yyyy} and reports: {8}";
+    /// <summary>Overrides the plugin's own template for a job throws.</summary>
+    public string? JobFailedMessage { get; set; }
 
-    /// <summary>Message logged when a job is about to fire.</summary>
-    public string JobToBeFiredMessage { get; set; } = "Job {1}.{0} fired (by trigger {4}.{3}) at: {2:HH:mm:ss MM/dd/yyyy}";
+    /// <summary>Overrides the plugin's own template for a job is about to fire.</summary>
+    public string? JobToBeFiredMessage { get; set; }
 
-    /// <summary>Message logged when a trigger listener vetoes a job.</summary>
-    public string JobWasVetoedMessage { get; set; } = "Job {1}.{0} was vetoed.  It was to be fired (by trigger {4}.{3}) at: {2:HH:mm:ss MM/dd/yyyy}";
+    /// <summary>Overrides the plugin's own template for a trigger listener vetoes a job.</summary>
+    public string? JobWasVetoedMessage { get; set; }
 }
 
 /// <summary>
@@ -218,14 +230,14 @@ public sealed class JobHistoryLoggingOptions
 /// </remarks>
 public sealed class TriggerHistoryLoggingOptions
 {
-    /// <summary>Message logged when a trigger fires.</summary>
-    public string TriggerFiredMessage { get; set; } = "Trigger {1}.{0} fired job {6}.{5} at: {4:HH:mm:ss MM/dd/yyyy}";
+    /// <summary>Overrides the plugin's own template for a trigger fires.</summary>
+    public string? TriggerFiredMessage { get; set; }
 
-    /// <summary>Message logged when a trigger misfires.</summary>
-    public string TriggerMisfiredMessage { get; set; } = "Trigger {1}.{0} misfired job {6}.{5}  at: {4:HH:mm:ss MM/dd/yyyy}.  Should have fired at: {3:HH:mm:ss MM/dd/yyyy}";
+    /// <summary>Overrides the plugin's own template for a trigger misfires.</summary>
+    public string? TriggerMisfiredMessage { get; set; }
 
-    /// <summary>Message logged when a trigger completes.</summary>
-    public string TriggerCompleteMessage { get; set; } = "Trigger {1}.{0} completed firing job {6}.{5} at {4:HH:mm:ss MM/dd/yyyy} with resulting trigger instruction code: {9}";
+    /// <summary>Overrides the plugin's own template for a trigger completes.</summary>
+    public string? TriggerCompleteMessage { get; set; }
 }
 
 /// <summary>

@@ -23,7 +23,7 @@ public class JobStoreSupportTest
         Assert.That(jobStoreSupport.IsTransientPublic(sqlException), Is.True);
     }
 
-    private class SqlExceptionSimulator : Exception
+    private sealed class SqlExceptionSimulator : Exception
     {
         public IEnumerable<SqlErrorSimulator> Errors => new List<SqlErrorSimulator>
         {
@@ -36,7 +36,7 @@ public class JobStoreSupportTest
         }
     }
 
-    private class TestJobStoreSupport : JobStoreSupport
+    private sealed class TestJobStoreSupport : JobStoreSupport
     {
         public TestJobStoreSupport(
             ISchedulerSignaler schedulerSignaler,

@@ -1,4 +1,4 @@
-﻿namespace Quartz.Impl;
+namespace Quartz.Impl;
 
 internal sealed class JobWrapper
 {

@@ -1,4 +1,4 @@
-﻿namespace Quartz.Extensibility;
+namespace Quartz.Extensibility;
 
 /// <summary>
 /// Client Proxy to a IScheduler.

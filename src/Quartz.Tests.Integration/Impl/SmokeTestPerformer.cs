@@ -709,7 +709,7 @@ internal sealed class CustomTrigger : CronTriggerImpl
     public bool SomeCustomProperty { get; set; } = true;
 }
 
-internal class CustomNewtonsoftTriggerSerializer : CronTriggerSerializer
+internal sealed class CustomNewtonsoftTriggerSerializer : CronTriggerSerializer
 {
     public override string TriggerTypeForJson => "CustomTrigger";
 
@@ -733,7 +733,7 @@ internal class CustomNewtonsoftTriggerSerializer : CronTriggerSerializer
         ((CustomTrigger) trigger).SomeCustomProperty = source.Value<bool>("SomeCustomProperty");
     }
 
-    private class CustomTriggerScheduleBuilder : ScheduleBuilder<CustomTrigger>
+    private sealed class CustomTriggerScheduleBuilder : ScheduleBuilder<CustomTrigger>
     {
         public override IMutableTrigger Build()
         {
@@ -742,7 +742,7 @@ internal class CustomNewtonsoftTriggerSerializer : CronTriggerSerializer
     }
 }
 
-internal class CustomSystemTextJsonTriggerSerializer : Serialization.Json.Triggers.CronTriggerSerializer
+internal sealed class CustomSystemTextJsonTriggerSerializer : Serialization.Json.Triggers.CronTriggerSerializer
 {
     public override string TriggerTypeForJson => "CustomTrigger";
 
@@ -765,7 +765,7 @@ internal class CustomSystemTextJsonTriggerSerializer : Serialization.Json.Trigge
         ((CustomTrigger) trigger).SomeCustomProperty = jsonElement.GetProperty("SomeCustomProperty").GetBoolean();
     }
 
-    private class CustomTriggerScheduleBuilder : ScheduleBuilder<CustomTrigger>
+    private sealed class CustomTriggerScheduleBuilder : ScheduleBuilder<CustomTrigger>
     {
         public override IMutableTrigger Build()
         {

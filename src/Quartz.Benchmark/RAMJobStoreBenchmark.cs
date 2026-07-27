@@ -473,7 +473,7 @@ public class RAMJobStoreBenchmark
     }
 
     [DisallowConcurrentExecution]
-    private class NoOpJobDisallowConcurrent : IJob
+    private sealed class NoOpJobDisallowConcurrent : IJob
     {
         /// <summary>
         /// Do nothing.
@@ -484,7 +484,7 @@ public class RAMJobStoreBenchmark
         }
     }
 
-    private class NoOpJob : IJob
+    private sealed class NoOpJob : IJob
     {
         /// <summary>
         /// Do nothing.
@@ -523,7 +523,7 @@ public class RAMJobStoreBenchmark
         }
     }
 
-    private class NullJobTypeLoader : ITypeLoadHelper
+    private sealed class NullJobTypeLoader : ITypeLoadHelper
     {
         public void Initialize()
         {
@@ -535,7 +535,7 @@ public class RAMJobStoreBenchmark
         }
     }
 
-    private class MisfireTrigger : SimpleTriggerImpl
+    private sealed class MisfireTrigger : SimpleTriggerImpl
     {
         public MisfireTrigger()
         {

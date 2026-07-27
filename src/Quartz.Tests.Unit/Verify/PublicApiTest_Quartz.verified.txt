@@ -1510,7 +1510,7 @@ namespace Quartz.Extensibility
         public System.DateTimeOffset FireTimeUtc { get; }
         public Quartz.IJobDetail JobDetail { get; }
         public System.DateTimeOffset? NextFireTimeUtc { get; }
-        public System.DateTimeOffset? PrevFireTimeUtc { get; }
+        public System.DateTimeOffset? PreviousFireTimeUtc { get; }
         public bool Recovering { get; }
         public System.DateTimeOffset? ScheduledFireTimeUtc { get; }
         public Quartz.Extensibility.IOperableTrigger Trigger { get; }

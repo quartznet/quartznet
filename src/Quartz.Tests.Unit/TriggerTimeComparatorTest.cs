@@ -133,7 +133,7 @@ public class TriggerTimeComparatorTest
         Assert.That(actual, Is.EqualTo(0));
     }
 
-    private class MutableTrigger : IMutableTrigger
+    private sealed class MutableTrigger : IMutableTrigger
     {
         private readonly DateTimeOffset? _nextFireTimeUtc;
 

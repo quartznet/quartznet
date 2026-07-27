@@ -157,7 +157,7 @@ public class ObjectUtilsTest
     }
 
     [PersistJobDataAfterExecution]
-    private class ReallyExtendedJob : ExtendedJob
+    private sealed class ReallyExtendedJob : ExtendedJob
     {
     }
 

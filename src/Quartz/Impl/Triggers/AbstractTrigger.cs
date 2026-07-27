@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
@@ -351,6 +351,10 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// The previous time at which the <see cref="ITrigger" /> fired.
     /// If the trigger has not yet fired, <see langword="null" /> will be returned.
     /// </summary>
+    /// <remarks>
+    /// <b>The setter should not be used by client code.</b> The scheduler records this as it fires
+    /// the trigger; assigning it yourself corrupts the schedule.
+    /// </remarks>
     public abstract DateTimeOffset? PreviousFireTimeUtc { get; set; }
 
     /// <inheritdoc cref="ITrigger.PreviousFireTimeUtc" />
@@ -603,6 +607,10 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     ///<remarks>
     /// The value returned is not guaranteed to be valid until after the <see cref="ITrigger" />
     /// has been added to the scheduler.
+    /// <para>
+    /// <b>The setter should not be used by client code.</b> The scheduler advances this as it fires
+    /// the trigger; assigning it yourself corrupts the schedule.
+    /// </para>
     /// </remarks>
     public abstract DateTimeOffset? NextFireTimeUtc { get; set; }
 

@@ -105,7 +105,7 @@ public class RecoverJobsTest
         Assert.That(isJobRecovered.Wait(TimeSpan.FromSeconds(10)), Is.True);
     }
 
-    private class TestListener : JobListenerSupport
+    private sealed class TestListener : JobListenerSupport
     {
         private readonly ManualResetEventSlim isJobRecovered;
 
@@ -239,7 +239,7 @@ public class RecoverJobsTest
             "Job should NOT execute with recovery=true after trigger was explicitly removed");
     }
 
-    private class RecoveryDetectionListener : JobListenerSupport
+    private sealed class RecoveryDetectionListener : JobListenerSupport
     {
         private readonly ManualResetEventSlim recoveryExecuted;
 

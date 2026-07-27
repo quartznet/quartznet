@@ -1,4 +1,4 @@
-﻿namespace Quartz.Impl;
+namespace Quartz.Impl;
 
 /// <summary>
 /// Comparer for trigger wrappers.

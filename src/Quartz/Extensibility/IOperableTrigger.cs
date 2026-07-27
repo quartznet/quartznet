@@ -1,4 +1,4 @@
-﻿namespace Quartz.Extensibility;
+namespace Quartz.Extensibility;
 
 /// <summary>
 /// Internal interface for managing triggers. This interface should not be used by the Quartz client.

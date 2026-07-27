@@ -562,7 +562,7 @@ public class JsonObjectSerializerTest
         field!.SetValue(trigger, timeProvider);
     }
 
-    private class IndentingJsonObjectSerializer(NewtonsoftJsonSerializerRegistry registry) : NewtonsoftJsonObjectSerializer(registry)
+    private sealed class IndentingJsonObjectSerializer(NewtonsoftJsonSerializerRegistry registry) : NewtonsoftJsonObjectSerializer(registry)
     {
         protected override JsonSerializerSettings CreateSerializerSettings()
         {
@@ -572,7 +572,7 @@ public class JsonObjectSerializerTest
         }
     }
 
-    private class IndentingSystemTextJsonObjectSerializer(SystemTextJsonSerializerRegistry registry) : SystemTextJsonObjectSerializer(registry)
+    private sealed class IndentingSystemTextJsonObjectSerializer(SystemTextJsonSerializerRegistry registry) : SystemTextJsonObjectSerializer(registry)
     {
         protected override StjJsonSerializerOptions CreateSerializerOptions()
         {

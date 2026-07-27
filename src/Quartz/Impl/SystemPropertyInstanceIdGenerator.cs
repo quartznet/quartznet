@@ -1,4 +1,4 @@
-﻿using Quartz.Extensibility;
+using Quartz.Extensibility;
 
 namespace Quartz.Impl;
 

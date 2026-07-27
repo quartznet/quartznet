@@ -1,4 +1,4 @@
-﻿using Quartz.Core;
+using Quartz.Core;
 using Quartz.Impl.Matchers;
 using Quartz.Listener;
 
@@ -11,7 +11,7 @@ public class ListenerManagerTest
 {
     private ListenerManagerImpl _manager;
 
-    private class TestJobListener : JobListenerSupport
+    private sealed class TestJobListener : JobListenerSupport
     {
         public TestJobListener(string name)
         {
@@ -21,7 +21,7 @@ public class ListenerManagerTest
         public override string Name { get; }
     }
 
-    private class TestTriggerListener : TriggerListenerSupport
+    private sealed class TestTriggerListener : TriggerListenerSupport
     {
         public TestTriggerListener(string name)
         {
@@ -30,7 +30,7 @@ public class ListenerManagerTest
 
         public override string Name { get; }
     }
-    private class TestSchedulerListener : SchedulerListenerSupport;
+    private sealed class TestSchedulerListener : SchedulerListenerSupport;
 
     private sealed class OtherSchedulerListener : SchedulerListenerSupport;
 

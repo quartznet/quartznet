@@ -1,4 +1,4 @@
-# QUARTZ.NET CHANGELOG
+﻿# QUARTZ.NET CHANGELOG
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
@@ -117,6 +117,13 @@
     both spellings. **Existing `Quartz.Simpl.*` and `Quartz.Spi.*` configuration keeps working**, but it is a
     fallback rather than a promise — update it when convenient.
 
+  * `TriggerFiredBundle.PrevFireTimeUtc` is `PreviousFireTimeUtc`, matching the spelling used everywhere else.
+
+  * `RAMJobStore.SetAllTriggersOfJobToState` is `internal` rather than `protected`, because the `InternalTriggerState`
+    it takes is now internal too. A job store deriving from `RAMJobStore` can no longer override it.
+
+  * Non-public classes throughout the codebase are `sealed` where nothing derives from them.
+
   * **JobRunShell**, **IJobRunShellFactory**, `QuartzSchedulerResources.JobRunShellFactory` and the
     `InternalTriggerState` enum are now `internal`. None had an implementer or caller outside Quartz itself, and a
     public enum named `Internal*` was self-refuting. `ZeroSizeThreadPool`, `ISchedulerProxyFactory` and
@@ -164,8 +171,6 @@
 
   * **ISchedulerListener.SchedulerShuttingdown** is spelled `SchedulerShuttingDown`.
 
-  * `ISchedulerListener.JobsPaused` and `JobsResumed` take a `string?` job group. Their own documentation always said
-    the parameter is null when every group was paused; only the annotation disagreed.
 
   * `ISchedulerListener.SchedulerError`'s parameters are named `message` and `exception` rather than `msg` and
     `cause`, matching `ISchedulerSignaler.NotifySchedulerListenersError`, which describes the same event.

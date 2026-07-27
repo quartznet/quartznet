@@ -1,4 +1,4 @@
-using System.Collections.Specialized;
+﻿using System.Collections.Specialized;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
@@ -350,11 +350,15 @@ internal static class QuartzPropertyBridge
     {
         // SimpleThreadPool was renamed to DefaultThreadPool, and the old name is still in plenty of
         // config files. Treating it as a synonym is what main did; loading it would just fail.
-        // The spelling here is the pre-4.0 one on purpose: Quartz.Simpl.SimpleThreadPool is what those
-        // files contain, and no type has ever been called Quartz.Impl.SimpleThreadPool.
+        // Both spellings are accepted: existing files say Quartz.Simpl.SimpleThreadPool, and the 4.0
+        // migration guide tells readers to rewrite Quartz.Simpl.* as Quartz.Impl.*, which turns this
+        // setting into a name no release ever had. Following the documentation must not break startup.
         var configured = parser.String(StdSchedulerFactory.PropertyThreadPoolType);
-        var threadPoolType = configured is not null
-            && configured.StartsWith("Quartz.Simpl.SimpleThreadPool", StringComparison.OrdinalIgnoreCase)
+        var legacyThreadPool = configured is not null
+            && (configured.StartsWith("Quartz.Simpl.SimpleThreadPool", StringComparison.OrdinalIgnoreCase)
+                || configured.StartsWith("Quartz.Impl.SimpleThreadPool", StringComparison.OrdinalIgnoreCase));
+
+        var threadPoolType = legacyThreadPool
                 ? typeof(DefaultThreadPool)
                 : parser.Type(StdSchedulerFactory.PropertyThreadPoolType);
 
@@ -561,7 +565,7 @@ internal static class QuartzPropertyBridge
                 SchedulerScopedServiceProvider.For(provider, key), serializerType!);
 
             // The serializer's own settings, such as whether to register the optimized trigger
-            // converters, are applied before Initialize builds the converter set from them.
+            // converters, are applied before the converter set is built from them on first use.
             ApplyStringProperties(serializer, provider, key, SerializerPrefix);
             return serializer;
         });

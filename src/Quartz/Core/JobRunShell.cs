@@ -262,7 +262,7 @@ internal class JobRunShell : SchedulerListenerSupport
                     instructionCode = trigger.ExecutionComplete(context, jobExEx);
                     if (logger.IsEnabled(LogLevel.Debug))
                     {
-                        logger.LogDebug("Trigger instruction : {InstCode}", instructionCode);
+                        logger.LogDebug("Trigger instruction : {InstructionCode}", instructionCode);
                     }
                 }
                 catch (Exception e)

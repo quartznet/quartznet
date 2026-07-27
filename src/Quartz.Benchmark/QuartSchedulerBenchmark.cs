@@ -483,7 +483,7 @@ public class QuartSchedulerBenchmark
         }
     }
 
-    private class NoOpListener : IJobListener, ITriggerListener, ISchedulerListener
+    private sealed class NoOpListener : IJobListener, ITriggerListener, ISchedulerListener
     {
         public NoOpListener(string name)
         {

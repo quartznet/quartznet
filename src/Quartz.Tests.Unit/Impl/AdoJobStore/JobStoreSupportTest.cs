@@ -589,12 +589,12 @@ public class JobStoreSupportTest
     }
 
     [DisallowConcurrentExecution]
-    private class DisallowConcurrentTestJob : IJob
+    private sealed class DisallowConcurrentTestJob : IJob
     {
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
     }
 
-    private class ConcurrentTestJob : IJob
+    private sealed class ConcurrentTestJob : IJob
     {
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
     }

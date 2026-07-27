@@ -408,7 +408,7 @@ public class StringOperatorTest
         });
     }
 
-    private class NothingOperator : StringOperator
+    private sealed class NothingOperator : StringOperator
     {
         public override bool Evaluate(string value, string compareTo)
         {

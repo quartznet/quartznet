@@ -59,7 +59,7 @@ public sealed class TriggerFiredBundle
         Recovering = jobIsRecovering;
         FireTimeUtc = fireTimeUtc;
         ScheduledFireTimeUtc = scheduledFireTimeUtc;
-        PrevFireTimeUtc = previousFireTimeUtc;
+        PreviousFireTimeUtc = previousFireTimeUtc;
         NextFireTimeUtc = nextFireTimeUtc;
     }
 
@@ -104,7 +104,7 @@ public sealed class TriggerFiredBundle
     /// </summary>
     /// <value>The previous fire time.</value>
     /// <returns> Returns the previous fire time. </returns>
-    public DateTimeOffset? PrevFireTimeUtc { get; }
+    public DateTimeOffset? PreviousFireTimeUtc { get; }
 
     /// <returns>
     /// Returns the scheduled UTC fire time.

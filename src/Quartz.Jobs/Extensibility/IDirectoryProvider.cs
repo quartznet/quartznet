@@ -1,4 +1,4 @@
-﻿using Quartz.Job;
+using Quartz.Job;
 
 namespace Quartz.Extensibility;
 

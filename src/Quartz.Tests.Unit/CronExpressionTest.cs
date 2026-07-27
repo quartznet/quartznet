@@ -1084,7 +1084,7 @@ years: *
 
 public class CronTestScenarios
 {
-    private class TestCaseProps
+    private sealed class TestCaseProps
     {
         public CronExpression CronExpression { get; init; }
 

@@ -1,4 +1,4 @@
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -135,7 +135,7 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
     public IPersistentStoreBuilder UseSerializer<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
         where T : class, IObjectSerializer
     {
-        // A serializer is unusable until Initialize builds its converter set, so register it already
+        // The converter set is built on first use, so register the serializer already
         // initialized rather than relying on somebody remembering to call it.
         return UseSerializer(provider =>
         {

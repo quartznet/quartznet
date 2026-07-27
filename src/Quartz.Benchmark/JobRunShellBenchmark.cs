@@ -116,7 +116,7 @@ public class JobRunShellBenchmark
         }
     }
 
-    private class NoOpJobStore : IJobStore
+    private sealed class NoOpJobStore : IJobStore
     {
         public bool SupportsPersistence => false;
 

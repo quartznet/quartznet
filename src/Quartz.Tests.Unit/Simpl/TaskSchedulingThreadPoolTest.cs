@@ -60,7 +60,7 @@ public class TaskSchedulingThreadPoolTest
        
     }
 
-    private class CustomTaskSchedulingThreadPool : TaskSchedulingThreadPool
+    private sealed class CustomTaskSchedulingThreadPool : TaskSchedulingThreadPool
     {
         private readonly TaskScheduler taskScheduler;
 

@@ -734,7 +734,7 @@ public class RAMJobStoreTest
         Assert.That(bundle, Is.Not.Null);
         Assert.That(bundle!.ScheduledFireTimeUtc, Is.EqualTo(originalScheduledTime),
             "ScheduledFireTimeUtc should reflect the original scheduled time, not the misfire-adjusted time");
-        Assert.That(bundle.PrevFireTimeUtc, Is.EqualTo(previousFireTime));
+        Assert.That(bundle.PreviousFireTimeUtc, Is.EqualTo(previousFireTime));
     }
 
     [Test]
@@ -921,7 +921,7 @@ public class RAMJobStoreTest
     }
 
     [DisallowConcurrentExecution]
-    private class DisallowConcurrentNoOpJob : IJob
+    private sealed class DisallowConcurrentNoOpJob : IJob
     {
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {

@@ -1,4 +1,4 @@
-﻿using System.Runtime.ExceptionServices;
+using System.Runtime.ExceptionServices;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -60,19 +60,32 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
         }
     }
 
+    /// <summary>
+    /// Returns the job, closing the dependency injection scope it was built in.
+    /// </summary>
+    /// <remarks>
+    /// The scope is carried in <see cref="JobScope.State" />, and it knows whether the job is its to
+    /// dispose: one the container resolved is registered with the scope and disposed by it, while one
+    /// this factory activated itself is not, and is disposed here.
+    /// <para>
+    /// A derived factory that overrides <see cref="PropertySettingJobFactory.CreateJobInstance" /> and
+    /// returns state of its own takes over that decision completely — it must dispose whatever it
+    /// replaced the state with, and this method will not touch the job. Wrapping the state this
+    /// factory produced, rather than discarding it, keeps the scope teardown working: it is
+    /// <see cref="IAsyncDisposable" /> for exactly that reason.
+    /// </para>
+    /// </remarks>
     public override ValueTask ReturnJob(JobScope scope, CancellationToken cancellationToken = default)
     {
-        // The state knows what it owns: it disposes the job when we activated it ourselves, and then
-        // the scope, once. A job the container produced is disposed by the scope instead, because
-        // disposing it here as well would hand user code a second Dispose call.
         if (scope.State is ScopeState state)
         {
+            // Disposes the job (only when we activated it) and then the scope, once.
             return state.DisposeAsync();
         }
 
-        // A derived factory replaced the state. Whether the container owns the job is now its
-        // business, so dispose only the state and let it decide - if it wrapped ours it will reach
-        // it, and disposing a container-owned job here would be that second Dispose call.
+        // A derived factory replaced the state, so it owns the teardown. Dispose what it gave us and
+        // leave the job alone: we can no longer tell whether the container owns it, and disposing one
+        // it owns would hand user code a second Dispose call.
         return Dispose(scope.State);
     }
 

@@ -3,7 +3,7 @@ using Quartz.Collections;
 namespace Quartz.Tests.Unit.Collections;
 
 [TestFixture]
-internal class OrderedDictionaryTest
+internal sealed class OrderedDictionaryTest
 {
     [Test]
     public void Values_Empty_ToArray()

@@ -241,7 +241,7 @@ public class MicrosoftDependencyInjectionJobFactoryTest
         }
     }
 
-    private class TestJob : IJob, IDisposable
+    private sealed class TestJob : IJob, IDisposable
     {
         public static bool Executed { get; set; }
         public static bool Disposed { get; set; }
@@ -276,7 +276,7 @@ public class MicrosoftDependencyInjectionJobFactoryTest
         }
     }
 
-    private class TestServiceProvider : IServiceProvider
+    private sealed class TestServiceProvider : IServiceProvider
     {
         public object GetService(Type serviceType)
         {

@@ -120,7 +120,7 @@ public class PriorityTest
 
     [DisallowConcurrentExecution]
     [PersistJobDataAfterExecution]
-    private class TestJob : IJob
+    private sealed class TestJob : IJob
     {
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {

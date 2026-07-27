@@ -12,7 +12,7 @@ public class AutoInterruptableJobTest
 {
     private static readonly SemaphoreSlim sync = new(0);
 
-    private class TestInterruptableJob : IJob
+    private sealed class TestInterruptableJob : IJob
     {
         internal static bool interrupted;
 

@@ -17,10 +17,10 @@ namespace Quartz
     public sealed class JobHistoryLoggingOptions
     {
         public JobHistoryLoggingOptions() { }
-        public string JobFailedMessage { get; set; }
-        public string JobSuccessMessage { get; set; }
-        public string JobToBeFiredMessage { get; set; }
-        public string JobWasVetoedMessage { get; set; }
+        public string? JobFailedMessage { get; set; }
+        public string? JobSuccessMessage { get; set; }
+        public string? JobToBeFiredMessage { get; set; }
+        public string? JobWasVetoedMessage { get; set; }
     }
     public static class PluginConfigurationExtensions
     {
@@ -36,9 +36,9 @@ namespace Quartz
     public sealed class TriggerHistoryLoggingOptions
     {
         public TriggerHistoryLoggingOptions() { }
-        public string TriggerCompleteMessage { get; set; }
-        public string TriggerFiredMessage { get; set; }
-        public string TriggerMisfiredMessage { get; set; }
+        public string? TriggerCompleteMessage { get; set; }
+        public string? TriggerFiredMessage { get; set; }
+        public string? TriggerMisfiredMessage { get; set; }
     }
 }
 namespace Quartz.Plugin.History

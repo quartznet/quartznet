@@ -85,7 +85,7 @@ public class StdAdoDelegateTest
         }
     }
 
-    private class NonSerializableTestClass;
+    private sealed class NonSerializableTestClass;
 
     [Test]
     public async Task TestSelectBlobTriggerWithNoBlobContent()
@@ -311,7 +311,7 @@ public class StdAdoDelegateTest
         Assert.That(command.CommandText, Is.EqualTo(expectedCommandText));
     }
 
-    private class TestJob : IJob
+    private sealed class TestJob : IJob
     {
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => throw new NotSupportedException();
     }
@@ -453,8 +453,8 @@ public class StdAdoDelegateTest
         Assert.That(trigger, Is.Not.Null);
         Assert.Multiple(() =>
         {
-            Assert.That(trigger.GetNextFireTimeUtc(), Is.EqualTo(nextFireTime));
-            Assert.That(trigger.GetPreviousFireTimeUtc(), Is.EqualTo(prevFireTime));
+            Assert.That(trigger.NextFireTimeUtc, Is.EqualTo(nextFireTime));
+            Assert.That(trigger.PreviousFireTimeUtc, Is.EqualTo(prevFireTime));
             Assert.That(trigger.MisfireInstruction, Is.EqualTo(2));
         });
     }
@@ -531,7 +531,7 @@ public class StdAdoDelegateTest
         Assert.That(trigger, Is.Not.Null);
         Assert.Multiple(() =>
         {
-            Assert.That(trigger.GetNextFireTimeUtc(), Is.EqualTo(nextFireTime));
+            Assert.That(trigger.NextFireTimeUtc, Is.EqualTo(nextFireTime));
             Assert.That(trigger.MisfireInstruction, Is.EqualTo(1));
             Assert.That(((AbstractTrigger) trigger).MisfiredFromFireTimeUtc, Is.EqualTo(misfireOrigFireTime));
         });
@@ -555,7 +555,7 @@ public class StdAdoDelegateTest
         adoDelegate.Initialize(delegateInitializationArgs);
     }
 
-    private class TestStdAdoDelegate : StdAdoDelegate
+    private sealed class TestStdAdoDelegate : StdAdoDelegate
     {
         private readonly ITriggerPersistenceDelegate testDelegate;
 
@@ -574,7 +574,7 @@ public class StdAdoDelegateTest
     /// Test subclass that bypasses actual blob deserialization to return a pre-built trigger,
     /// allowing tests to verify that SelectTrigger sets fire times from DB columns on blob triggers.
     /// </summary>
-    private class BlobTriggerOverrideDelegate : StdAdoDelegate
+    private sealed class BlobTriggerOverrideDelegate : StdAdoDelegate
     {
         private readonly IOperableTrigger blobTrigger;
 
@@ -689,4 +689,4 @@ public class StubParameterCollection : DbParameterCollection
     }
 }
 
-internal class TestTriggerPersistenceDelegate : SimpleTriggerPersistenceDelegate;
+internal sealed class TestTriggerPersistenceDelegate : SimpleTriggerPersistenceDelegate;

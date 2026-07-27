@@ -102,7 +102,7 @@ public sealed class JobExecutionContextImpl : ICancellableJobExecutionContext, I
         Recovering = firedBundle.Recovering;
         FireTimeUtc = firedBundle.FireTimeUtc;
         ScheduledFireTimeUtc = firedBundle.ScheduledFireTimeUtc;
-        PreviousFireTimeUtc = firedBundle.PrevFireTimeUtc;
+        PreviousFireTimeUtc = firedBundle.PreviousFireTimeUtc;
         NextFireTimeUtc = firedBundle.NextFireTimeUtc;
     }
 

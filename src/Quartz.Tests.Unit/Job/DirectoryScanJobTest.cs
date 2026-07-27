@@ -120,7 +120,7 @@ public class DirectoryScanJobTest
         }
     }
 
-    private class TestDirectoryScanListener : IDirectoryScanListener
+    private sealed class TestDirectoryScanListener : IDirectoryScanListener
     {
         public static bool FilesUpdatedCalled { get; set; }
         public static bool FilesDeletedCalled { get; set; }

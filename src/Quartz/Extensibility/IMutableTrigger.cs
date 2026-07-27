@@ -1,4 +1,4 @@
-﻿namespace Quartz.Extensibility;
+namespace Quartz.Extensibility;
 
 /// <summary>
 /// Should not be used by end users.
@@ -90,11 +90,17 @@ public interface IMutableTrigger : ITrigger
     /// <summary>
     /// The next time at which the <see cref="ITrigger" /> is scheduled to fire.
     /// </summary>
+    /// <remarks>
+    /// <b>Not for client code.</b> The scheduler and job store advance this as the trigger fires.
+    /// </remarks>
     new DateTimeOffset? NextFireTimeUtc { get; set; }
 
     /// <summary>
     /// The previous time at which the <see cref="ITrigger" /> fired.
     /// </summary>
+    /// <remarks>
+    /// <b>Not for client code.</b> The scheduler and job store record this as the trigger fires.
+    /// </remarks>
     new DateTimeOffset? PreviousFireTimeUtc { get; set; }
 
     /// <summary>
