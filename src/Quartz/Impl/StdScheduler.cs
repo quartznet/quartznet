@@ -34,7 +34,7 @@ namespace Quartz.Impl;
 /// <seealso cref="QuartzScheduler" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-internal class StdScheduler : IScheduler
+internal sealed class StdScheduler : IScheduler
 {
     internal readonly QuartzScheduler scheduler;
 
@@ -72,12 +72,12 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Returns the name of the <see cref="IScheduler" />.
     /// </summary>
-    public virtual string SchedulerName => scheduler.SchedulerName;
+    public string SchedulerName => scheduler.SchedulerName;
 
     /// <summary>
     /// Returns the instance Id of the <see cref="IScheduler" />.
     /// </summary>
-    public virtual string SchedulerInstanceId => scheduler.SchedulerInstanceId;
+    public string SchedulerInstanceId => scheduler.SchedulerInstanceId;
 
     /// <summary>
     /// Get a <see cref="SchedulerMetaData"/> object describing the settings
@@ -99,11 +99,11 @@ internal class StdScheduler : IScheduler
             InStandbyMode,
             IsShutdown,
             scheduler.RunningSince,
-            scheduler.NumJobsExecuted,
-            scheduler.JobStoreClass,
+            scheduler.NumberOfJobsExecuted,
+            scheduler.JobStoreType,
             scheduler.SupportsPersistence,
             scheduler.Clustered,
-            scheduler.ThreadPoolClass,
+            scheduler.ThreadPoolType,
             scheduler.ThreadPoolSize,
             scheduler.Version));
     }
@@ -111,7 +111,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Returns the <see cref="SchedulerContext" /> of the <see cref="IScheduler" />.
     /// </summary>
-    public virtual SchedulerContext Context => scheduler.SchedulerContext;
+    public SchedulerContext Context => scheduler.SchedulerContext;
 
     /// <summary>
     /// Whether the scheduler has been started.
@@ -131,12 +131,12 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual bool InStandbyMode => scheduler.InStandbyMode;
+    public bool InStandbyMode => scheduler.InStandbyMode;
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual bool IsShutdown => scheduler.IsShutdown;
+    public bool IsShutdown => scheduler.IsShutdown;
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
@@ -170,7 +170,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<List<string>> GetJobGroupNames(CancellationToken cancellationToken = default)
+    public ValueTask<List<string>> GetJobGroupNames(CancellationToken cancellationToken = default)
     {
         return scheduler.GetJobGroupNames(cancellationToken);
     }
@@ -178,22 +178,15 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<List<string>> GetTriggerGroupNames(CancellationToken cancellationToken = default)
+    public ValueTask<List<string>> GetTriggerGroupNames(CancellationToken cancellationToken = default)
     {
         return scheduler.GetTriggerGroupNames(cancellationToken);
-    }
-
-    /// <seealso cref="IScheduler.JobFactory">
-    /// </seealso>
-    public virtual IJobFactory JobFactory
-    {
-        set => scheduler.JobFactory = value;
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask Start(CancellationToken cancellationToken = default)
+    public ValueTask Start(CancellationToken cancellationToken = default)
     {
         return scheduler.Start(cancellationToken);
     }
@@ -209,7 +202,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask Standby(CancellationToken cancellationToken = default)
+    public ValueTask Standby(CancellationToken cancellationToken = default)
     {
         return scheduler.Standby(cancellationToken);
     }
@@ -217,7 +210,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask Shutdown(CancellationToken cancellationToken = default)
+    public ValueTask Shutdown(CancellationToken cancellationToken = default)
     {
         return scheduler.Shutdown(cancellationToken);
     }
@@ -225,7 +218,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask Shutdown(
+    public ValueTask Shutdown(
         bool waitForJobsToComplete,
         CancellationToken cancellationToken = default)
     {
@@ -235,7 +228,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<DateTimeOffset> ScheduleJob(
+    public ValueTask<DateTimeOffset> ScheduleJob(
         IJobDetail jobDetail,
         ITrigger trigger,
         CancellationToken cancellationToken = default)
@@ -246,7 +239,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<DateTimeOffset> ScheduleJob(
+    public ValueTask<DateTimeOffset> ScheduleJob(
         ITrigger trigger,
         CancellationToken cancellationToken = default)
     {
@@ -256,7 +249,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask AddJob(
+    public ValueTask AddJob(
         IJobDetail jobDetail,
         bool replace,
         bool storeNonDurableWhileAwaitingScheduling,
@@ -268,7 +261,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask AddJob(
+    public ValueTask AddJob(
         IJobDetail jobDetail,
         bool replace,
         CancellationToken cancellationToken = default)
@@ -310,7 +303,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<bool> DeleteJob(
+    public ValueTask<bool> DeleteJob(
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
@@ -320,7 +313,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<bool> UnscheduleJob(
+    public ValueTask<bool> UnscheduleJob(
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
@@ -330,7 +323,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<DateTimeOffset?> RescheduleJob(
+    public ValueTask<DateTimeOffset?> RescheduleJob(
         TriggerKey triggerKey,
         ITrigger newTrigger,
         CancellationToken cancellationToken = default)
@@ -341,7 +334,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<bool> UpdateTriggerDetails(
+    public ValueTask<bool> UpdateTriggerDetails(
         TriggerKey triggerKey,
         TriggerDetailsUpdate update,
         CancellationToken cancellationToken = default)
@@ -371,7 +364,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask TriggerJob(
+    public ValueTask TriggerJob(
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
@@ -381,7 +374,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask TriggerJob(
+    public ValueTask TriggerJob(
         JobKey jobKey,
         JobDataMap? data,
         CancellationToken cancellationToken = default)
@@ -412,7 +405,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask PauseTrigger(
+    public ValueTask PauseTrigger(
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
@@ -422,7 +415,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask PauseTriggers(
+    public ValueTask PauseTriggers(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
@@ -432,7 +425,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask PauseJob(
+    public ValueTask PauseJob(
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
@@ -442,7 +435,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask PauseJobs(
+    public ValueTask PauseJobs(
         GroupMatcher<JobKey> matcher,
         CancellationToken cancellationToken = default)
     {
@@ -452,7 +445,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask ResumeTrigger(
+    public ValueTask ResumeTrigger(
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
@@ -462,7 +455,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask ResumeTriggers(
+    public ValueTask ResumeTriggers(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
@@ -472,7 +465,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask ResumeJob(
+    public ValueTask ResumeJob(
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
@@ -482,7 +475,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask ResumeJobs(
+    public ValueTask ResumeJobs(
         GroupMatcher<JobKey> matcher,
         CancellationToken cancellationToken = default)
     {
@@ -492,7 +485,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask PauseAll(CancellationToken cancellationToken = default)
+    public ValueTask PauseAll(CancellationToken cancellationToken = default)
     {
         return scheduler.PauseAll(cancellationToken);
     }
@@ -500,7 +493,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask ResumeAll(CancellationToken cancellationToken = default)
+    public ValueTask ResumeAll(CancellationToken cancellationToken = default)
     {
         return scheduler.ResumeAll(cancellationToken);
     }
@@ -508,7 +501,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<List<ITrigger>> GetTriggersOfJob(JobKey jobKey, CancellationToken cancellationToken = default)
+    public ValueTask<List<ITrigger>> GetTriggersOfJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         return scheduler.GetTriggersOfJob(jobKey, cancellationToken);
     }
@@ -516,7 +509,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<List<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    public ValueTask<List<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         return scheduler.GetJobKeys(matcher, cancellationToken);
     }
@@ -524,7 +517,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<List<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    public ValueTask<List<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
         return scheduler.GetTriggerKeys(matcher, cancellationToken);
     }
@@ -532,7 +525,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<IJobDetail?> GetJobDetail(
+    public ValueTask<IJobDetail?> GetJobDetail(
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
@@ -542,7 +535,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<ITrigger?> GetTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public ValueTask<ITrigger?> GetTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         return scheduler.GetTrigger(triggerKey, cancellationToken);
     }
@@ -550,7 +543,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<TriggerState> GetTriggerState(
+    public ValueTask<TriggerState> GetTriggerState(
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
@@ -568,32 +561,32 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask AddCalendar(
-        string name,
+    public ValueTask AddCalendar(
+        string calendarName,
         ICalendar calendar,
         bool replace,
         bool updateTriggers,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.AddCalendar(name, calendar, replace, updateTriggers, cancellationToken);
+        return scheduler.AddCalendar(calendarName, calendar, replace, updateTriggers, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<bool> DeleteCalendar(
-        string name,
+    public ValueTask<bool> DeleteCalendar(
+        string calendarName,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.DeleteCalendar(name, cancellationToken);
+        return scheduler.DeleteCalendar(calendarName, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<ICalendar?> GetCalendar(string name, CancellationToken cancellationToken = default)
+    public ValueTask<ICalendar?> GetCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
-        return scheduler.GetCalendar(name, cancellationToken);
+        return scheduler.GetCalendar(calendarName, cancellationToken);
     }
 
     /// <summary>
@@ -634,7 +627,7 @@ internal class StdScheduler : IScheduler
     /// <returns>true is at least one instance of the identified job was found and interrupted.</returns>
     /// <throws>  UnableToInterruptJobException if the job does not implement </throws>
     /// <seealso cref="GetCurrentlyExecutingJobs"/>
-    public virtual ValueTask<bool> Interrupt(
+    public ValueTask<bool> Interrupt(
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {

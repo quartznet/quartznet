@@ -59,6 +59,7 @@ public sealed class QuartzScheduler
     private readonly List<object> holdToPreventGc = new List<object>(5);
     private volatile bool closed;
     private volatile bool shuttingDown;
+    private int shutdownInitiated;
     private DateTimeOffset? initialStart;
     private volatile ExecutionLimits? executionLimits;
 
@@ -135,13 +136,13 @@ public sealed class QuartzScheduler
     /// Gets the job store class.
     /// </summary>
     /// <value>The job store class.</value>
-    public Type JobStoreClass => resources.JobStore.GetType();
+    public Type JobStoreType => resources.JobStore.GetType();
 
     /// <summary>
     /// Gets the thread pool class.
     /// </summary>
     /// <value>The thread pool class.</value>
-    public Type ThreadPoolClass => resources.ThreadPool.GetType();
+    public Type ThreadPoolType => resources.ThreadPool.GetType();
 
     /// <summary>
     /// Gets the size of the thread pool.
@@ -191,7 +192,7 @@ public sealed class QuartzScheduler
     /// <see cref="IScheduler" />'s list of internal listeners.
     /// </summary>
     /// <param name="schedulerListener"></param>
-    /// <returns>true if the identified listener was found in the list, andremoved.</returns>
+    /// <returns>true if the identified listener was found in the list, and removed.</returns>
     public bool RemoveInternalSchedulerListener(ISchedulerListener schedulerListener)
     {
         lock (internalSchedulerListeners)
@@ -204,7 +205,7 @@ public sealed class QuartzScheduler
     /// Get a List containing all of the <i>internal</i> <see cref="ISchedulerListener" />s
     /// registered with the <see cref="IScheduler" />.
     /// </summary>
-    public IReadOnlyList<ISchedulerListener> InternalSchedulerListeners
+    public List<ISchedulerListener> InternalSchedulerListeners
     {
         get
         {
@@ -375,7 +376,7 @@ public sealed class QuartzScheduler
     /// Gets the number of jobs executed.
     /// </summary>
     /// <value>The number of jobs executed.</value>
-    public int NumJobsExecuted => jobMgr.NumJobsFired;
+    public int NumberOfJobsExecuted => jobMgr.NumJobsFired;
 
     /// <summary>
     /// Gets a value indicating whether this scheduler supports persistence.
@@ -414,7 +415,9 @@ public sealed class QuartzScheduler
         bool waitForJobsToComplete,
         CancellationToken cancellationToken = default)
     {
-        if (shuttingDown || closed)
+        // Atomic claim: two concurrent callers (say a hosted service's StopAsync and user code)
+        // must not both run the shutdown sequence — the steps below are not idempotent.
+        if (closed || Interlocked.Exchange(ref shutdownInitiated, 1) == 1)
         {
             return;
         }
@@ -460,11 +463,15 @@ public sealed class QuartzScheduler
 
             closed = true;
 
-            await ShutdownPlugins(cancellationToken).ConfigureAwait(false);
+            // Same reasoning as the pool shutdown above: in hosted shutdown the caller's token is
+            // the graceful-deadline token, which by design may already have fired while waiting for
+            // jobs. A plugin, job store or listener that honoured it would abort the remaining
+            // teardown and leave the scheduler wedged with no listener ever told it shut down.
+            await ShutdownPlugins(CancellationToken.None).ConfigureAwait(false);
 
-            await resources.JobStore.Shutdown(cancellationToken).ConfigureAwait(false);
+            await resources.JobStore.Shutdown(CancellationToken.None).ConfigureAwait(false);
 
-            await NotifySchedulerListenersShutdown(cancellationToken).ConfigureAwait(false);
+            await NotifySchedulerListenersShutdown(CancellationToken.None).ConfigureAwait(false);
 
         }
         finally
@@ -1414,33 +1421,33 @@ public sealed class QuartzScheduler
     /// Add (register) the given <see cref="ICalendar" /> to the Scheduler.
     /// </summary>
     public ValueTask AddCalendar(
-        string name,
+        string calendarName,
         ICalendar calendar,
         bool replace,
         bool updateTriggers,
         CancellationToken cancellationToken = default)
     {
         ValidateState();
-        return resources.JobStore.StoreCalendar(name, calendar, replace, updateTriggers, cancellationToken);
+        return resources.JobStore.StoreCalendar(calendarName, calendar, replace, updateTriggers, cancellationToken);
     }
 
     /// <summary>
     /// Delete the identified <see cref="ICalendar" /> from the Scheduler.
     /// </summary>
     /// <returns> true if the Calendar was found and deleted.</returns>
-    public ValueTask<bool> DeleteCalendar(string name, CancellationToken cancellationToken = default)
+    public ValueTask<bool> DeleteCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
         ValidateState();
-        return resources.JobStore.RemoveCalendar(name, cancellationToken);
+        return resources.JobStore.RemoveCalendar(calendarName, cancellationToken);
     }
 
     /// <summary>
     /// Get the <see cref="ICalendar" /> instance with the given name.
     /// </summary>
-    public ValueTask<ICalendar?> GetCalendar(string name, CancellationToken cancellationToken = default)
+    public ValueTask<ICalendar?> GetCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
         ValidateState();
-        return resources.JobStore.RetrieveCalendar(name, cancellationToken);
+        return resources.JobStore.RetrieveCalendar(calendarName, cancellationToken);
     }
 
     /// <summary>

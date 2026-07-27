@@ -2,7 +2,7 @@ using Newtonsoft.Json;
 
 using Quartz.Util;
 
-namespace Quartz.Converters;
+namespace Quartz.Serialization.Newtonsoft;
 
 internal sealed class StringKeyDirtyFlagMapConverter : JsonConverter
 {

@@ -1,4 +1,4 @@
-﻿using System.Collections.Specialized;
+using System.Collections.Specialized;
 
 using Quartz.Util;
 
@@ -40,11 +40,11 @@ internal sealed class EmbeddedAssemblyResourceDbMetadataFactory : DbMetadataFact
     /// Gets the supported provider names.
     /// </summary>
     /// <returns>The enumeration of the supported provider names</returns>
-    public override IReadOnlyCollection<string> GetProviderNames()
+    public override List<string> GetProviderNames()
     {
         PropertiesParser pp = PropertiesParser.ReadFromEmbeddedAssemblyResource(resourceName);
-        var result = pp.GetPropertyGroups(propertyGroupName);
-        return result;
+        IReadOnlyList<string> result = pp.GetPropertyGroups(propertyGroupName);
+        return new List<string>(result);
     }
 
     /// <summary>
@@ -72,7 +72,7 @@ internal sealed class EmbeddedAssemblyResourceDbMetadataFactory : DbMetadataFact
             DbMetadata metadata = new DbMetadata();
 
             ObjectUtils.SetObjectProperties(metadata, props);
-            metadata.Init();
+            metadata.Initialize();
 
             return metadata;
         }

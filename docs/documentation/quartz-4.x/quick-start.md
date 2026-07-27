@@ -31,7 +31,7 @@ or from NuGet Command-Line:
 Install-Package Quartz
 ```
 
-If you want to add JSON Serialization, just add the [Quartz.Serialization.Json](packages/json-serialization) package the same way.
+JSON serialization with `System.Text.Json` is part of the main package. If you want Newtonsoft.Json instead, add the [Quartz.Serialization.Newtonsoft](packages/json-serialization) package the same way.
 
 ### Zip Archive
 

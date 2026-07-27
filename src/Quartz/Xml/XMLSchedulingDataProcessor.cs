@@ -93,7 +93,7 @@ public class XMLSchedulingDataProcessor
         TypeLoadHelper = typeLoadHelper;
         this.timeProvider = timeProvider;
 
-        OverWriteExistingData = true;
+        OverwriteExistingData = true;
         IgnoreDuplicates = false;
     }
 
@@ -107,18 +107,18 @@ public class XMLSchedulingDataProcessor
     /// error will occur.
     /// </remarks>
     /// <seealso cref="IgnoreDuplicates" />
-    public virtual bool OverWriteExistingData { get; set; }
+    public virtual bool OverwriteExistingData { get; set; }
 
     /// <summary>
-    /// If true (and <see cref="OverWriteExistingData" /> is false) then any
+    /// If true (and <see cref="OverwriteExistingData" /> is false) then any
     /// job/triggers encountered in this file that have names that already exist
     /// in the scheduler will be ignored, and no error will be produced.
     /// </summary>
-    /// <seealso cref="OverWriteExistingData"/>
+    /// <seealso cref="OverwriteExistingData"/>
     public virtual bool IgnoreDuplicates { get; set; }
 
     /// <summary>
-    /// If true (and <see cref="OverWriteExistingData" /> is true) then any
+    /// If true (and <see cref="OverwriteExistingData" /> is true) then any
     /// job/triggers encountered in this file that already exist is scheduler
     /// will be updated with start time relative to old trigger. Effectively
     /// new trigger's last fire time will be updated to old trigger's last fire time
@@ -126,9 +126,9 @@ public class XMLSchedulingDataProcessor
     /// </summary>
     public virtual bool ScheduleTriggerRelativeToReplacedTrigger { get; set; }
 
-    protected virtual IReadOnlyList<IJobDetail> LoadedJobs => loadedJobs.AsReadOnly();
+    protected virtual List<IJobDetail> LoadedJobs => new List<IJobDetail>(loadedJobs);
 
-    protected virtual IReadOnlyList<ITrigger> LoadedTriggers => loadedTriggers.AsReadOnly();
+    protected virtual List<ITrigger> LoadedTriggers => new List<ITrigger>(loadedTriggers);
 
     protected ITypeLoadHelper TypeLoadHelper { get; }
 
@@ -195,11 +195,11 @@ public class XMLSchedulingDataProcessor
         ProcessInternal(await sr.ReadToEndAsync(cancellationToken).ConfigureAwait(false));
     }
 
-    protected virtual void PrepForProcessing()
+    protected virtual void PrepareForProcessing()
     {
         ClearValidationExceptions();
 
-        OverWriteExistingData = true;
+        OverwriteExistingData = true;
         IgnoreDuplicates = false;
         ScheduleTriggerRelativeToReplacedTrigger = false;
 
@@ -214,7 +214,7 @@ public class XMLSchedulingDataProcessor
 
     protected virtual void ProcessInternal(string xml)
     {
-        PrepForProcessing();
+        PrepareForProcessing();
 
         ValidateXml(xml);
         MaybeThrowValidationException();
@@ -308,11 +308,11 @@ public class XMLSchedulingDataProcessor
         {
             bool overWrite = data.processingdirectives[0].overwriteexistingdata;
             logger.LogDebug("Directive 'overwrite-existing-data' specified as: {Overwrite}", overWrite);
-            OverWriteExistingData = overWrite;
+            OverwriteExistingData = overWrite;
         }
         else
         {
-            logger.LogDebug("Directive 'overwrite-existing-data' not specified, defaulting to {Overwrite}", OverWriteExistingData);
+            logger.LogDebug("Directive 'overwrite-existing-data' not specified, defaulting to {Overwrite}", OverwriteExistingData);
         }
 
         if (data.processingdirectives is not null && data.processingdirectives.Length > 0)
@@ -534,17 +534,17 @@ public class XMLSchedulingDataProcessor
         loadedTriggers.Add(trigger);
     }
 
-    protected virtual int ParseSimpleTriggerRepeatCount(string repeatcount)
+    protected virtual int ParseSimpleTriggerRepeatCount(string repeatCount)
     {
-        int value = Convert.ToInt32(repeatcount, CultureInfo.InvariantCulture);
+        int value = Convert.ToInt32(repeatCount, CultureInfo.InvariantCulture);
         return value;
     }
 
-    protected virtual int ReadMisfireInstructionFromString(string misfireinstruction)
+    protected virtual int ReadMisfireInstructionFromString(string misfireInstruction)
     {
         Constants c = new Constants(typeof(MisfireInstruction), typeof(MisfireInstruction.CronTrigger),
             typeof(MisfireInstruction.SimpleTrigger));
-        return c.AsNumber(misfireinstruction);
+        return c.AsNumber(misfireInstruction);
     }
 
     protected virtual IntervalUnit ParseDateIntervalTriggerIntervalUnit(string? intervalUnit)
@@ -562,15 +562,15 @@ public class XMLSchedulingDataProcessor
         return retValue;
     }
 
-    protected virtual bool TryParseEnum<T>(string str, out T value) where T : struct
+    protected virtual bool TryParseEnum<T>(string value, out T result) where T : struct
     {
         var names = Enum.GetNames(typeof(T));
-        value = (T) Enum.GetValues(typeof(T)).GetValue(0)!;
+        result = (T) Enum.GetValues(typeof(T)).GetValue(0)!;
         foreach (var name in names)
         {
-            if (name == str)
+            if (name == value)
             {
-                value = Enum.Parse<T>(name);
+                result = Enum.Parse<T>(name);
                 return true;
             }
         }
@@ -630,16 +630,16 @@ public class XMLSchedulingDataProcessor
     /// <summary>
     /// Process the xml file in the default location, and schedule all of the jobs defined within it.
     /// </summary>
-    /// <remarks>Note that we will set overWriteExistingJobs after the default xml is parsed.</remarks>
+    /// <remarks>Note that we will set overwriteExistingJobs after the default xml is parsed.</remarks>
     public async ValueTask ProcessFileAndScheduleJobs(
         IScheduler scheduler,
-        bool overWriteExistingJobs,
+        bool overwriteExistingJobs,
         CancellationToken cancellationToken = default)
     {
         await ProcessFile(QuartzXmlFileName, QuartzXmlFileName, cancellationToken).ConfigureAwait(false);
-        // The overWriteExistingJobs flag was set by processFile() -> prepForProcessing(), then by xml parsing, and then now
+        // The overwriteExistingJobs flag was set by ProcessFile() -> PrepareForProcessing(), then by xml parsing, and then now
         // we need to reset it again here by this method parameter to override it.
-        OverWriteExistingData = overWriteExistingJobs;
+        OverwriteExistingData = overwriteExistingJobs;
         await ExecutePreProcessCommands(scheduler, cancellationToken).ConfigureAwait(false);
         await ScheduleJobs(scheduler, cancellationToken).ConfigureAwait(false);
     }
@@ -724,7 +724,7 @@ public class XMLSchedulingDataProcessor
 
         logger.LogInformation("Adding {JobCount} jobs, {TriggerCount} triggers", jobs.Count, triggers.Count);
 
-        IDictionary<JobKey, List<IMutableTrigger>> triggersByFQJobName = BuildTriggersByFQJobNameMap(triggers);
+        Dictionary<JobKey, List<IMutableTrigger>> triggersByFQJobName = BuildTriggersByFullyQualifiedJobNameMap(triggers);
 
         // add each job, and it's associated triggers
         while (jobs.Count > 0)
@@ -742,7 +742,7 @@ public class XMLSchedulingDataProcessor
             }
             catch (JobPersistenceException e)
             {
-                if (e.InnerException is TypeLoadException && OverWriteExistingData)
+                if (e.InnerException is TypeLoadException && OverwriteExistingData)
                 {
                     // We are going to replace jobDetail anyway, so just delete it first.
                     logger.LogInformation("Removing job: {JobKey}", detail.Key);
@@ -756,13 +756,13 @@ public class XMLSchedulingDataProcessor
 
             if (dupeJ is not null)
             {
-                if (!OverWriteExistingData && IgnoreDuplicates)
+                if (!OverwriteExistingData && IgnoreDuplicates)
                 {
                     logger.LogInformation("Not overwriting existing job: {JobKey}", dupeJ.Key);
                     continue; // just ignore the entry
                 }
 
-                if (!OverWriteExistingData && !IgnoreDuplicates)
+                if (!OverwriteExistingData && !IgnoreDuplicates)
                 {
                     Throw.ObjectAlreadyExistsException(detail);
                 }
@@ -821,7 +821,7 @@ public class XMLSchedulingDataProcessor
                     ITrigger? dupeT = await scheduler.GetTrigger(trigger.Key, cancellationToken).ConfigureAwait(false);
                     if (dupeT is not null)
                     {
-                        if (OverWriteExistingData)
+                        if (OverwriteExistingData)
                         {
                             if (logger.IsEnabled(LogLevel.Debug))
                             {
@@ -888,7 +888,7 @@ public class XMLSchedulingDataProcessor
             ITrigger? dupeT = await scheduler.GetTrigger(trigger.Key, cancellationToken).ConfigureAwait(false);
             if (dupeT is not null)
             {
-                if (OverWriteExistingData)
+                if (OverwriteExistingData)
                 {
                     if (logger.IsEnabled(LogLevel.Debug))
                     {
@@ -969,7 +969,7 @@ public class XMLSchedulingDataProcessor
         return scheduler.RescheduleJob(trigger.Key, trigger, cancellationToken);
     }
 
-    protected virtual IDictionary<JobKey, List<IMutableTrigger>> BuildTriggersByFQJobNameMap(List<ITrigger> triggers)
+    protected virtual Dictionary<JobKey, List<IMutableTrigger>> BuildTriggersByFullyQualifiedJobNameMap(IReadOnlyCollection<ITrigger> triggers)
     {
         Dictionary<JobKey, List<IMutableTrigger>> triggersByFQJobName = new Dictionary<JobKey, List<IMutableTrigger>>();
 

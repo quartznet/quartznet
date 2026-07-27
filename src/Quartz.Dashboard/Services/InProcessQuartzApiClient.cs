@@ -27,7 +27,7 @@ using Quartz.Extensibility;
 
 namespace Quartz.Dashboard.Services;
 
-public sealed class InProcessQuartzApiClient : IQuartzApiClient
+internal sealed class InProcessQuartzApiClient : IQuartzApiClient
 {
     private static readonly JsonSerializerOptions serializerOptions = new()
     {
@@ -65,7 +65,7 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
         deserializerOptions = quartzSerializerOptions;
     }
 
-    public ValueTask<List<SchedulerHeaderDto>> GetSchedulers()
+    public ValueTask<List<SchedulerHeaderDto>> GetSchedulers(CancellationToken cancellationToken = default)
     {
         List<IScheduler> schedulers = schedulerRepository.LookupAll();
         List<SchedulerHeaderDto> result = [];
@@ -77,53 +77,53 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
         return ValueTask.FromResult(result);
     }
 
-    public ValueTask<SchedulerDetailDto> GetScheduler(string schedulerName)
+    public ValueTask<SchedulerDetailDto> GetScheduler(string schedulerName, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         SchedulerDetailDto result = new(scheduler.SchedulerInstanceId, scheduler.SchedulerName, GetSchedulerStatus(scheduler));
         return ValueTask.FromResult(result);
     }
 
-    public ValueTask StartScheduler(string schedulerName)
+    public ValueTask StartScheduler(string schedulerName, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        return scheduler.Start();
+        return scheduler.Start(cancellationToken);
     }
 
-    public ValueTask StandbyScheduler(string schedulerName)
+    public ValueTask StandbyScheduler(string schedulerName, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        return scheduler.Standby();
+        return scheduler.Standby(cancellationToken);
     }
 
-    public ValueTask ShutdownScheduler(string schedulerName)
+    public ValueTask ShutdownScheduler(string schedulerName, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        return scheduler.Shutdown();
+        return scheduler.Shutdown(cancellationToken);
     }
 
-    public ValueTask PauseAll(string schedulerName)
+    public ValueTask PauseAll(string schedulerName, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        return scheduler.PauseAll();
+        return scheduler.PauseAll(cancellationToken);
     }
 
-    public ValueTask ResumeAll(string schedulerName)
+    public ValueTask ResumeAll(string schedulerName, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        return scheduler.ResumeAll();
+        return scheduler.ResumeAll(cancellationToken);
     }
 
-    public async ValueTask<List<JobKeyDto>> GetJobKeys(string schedulerName, string? groupFilter = null)
+    public async ValueTask<List<JobKeyDto>> GetJobKeys(string schedulerName, string? groupFilter = null, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         GroupMatcher<JobKey> matcher = groupFilter is null ? GroupMatcher<JobKey>.AnyGroup() : GroupMatcher<JobKey>.GroupContains(groupFilter);
-        List<JobKey> jobKeys = await scheduler.GetJobKeys(matcher).ConfigureAwait(false);
+        List<JobKey> jobKeys = await scheduler.GetJobKeys(matcher, cancellationToken).ConfigureAwait(false);
 
         List<JobKeyDto> result = [];
         foreach (JobKey jobKey in jobKeys)
@@ -134,11 +134,11 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
         return result;
     }
 
-    public async ValueTask<JobDetailDto> GetJob(string schedulerName, string group, string name)
+    public async ValueTask<JobDetailDto> GetJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         JobKey jobKey = new(name, group);
-        IJobDetail? jobDetail = await scheduler.GetJobDetail(jobKey).ConfigureAwait(false);
+        IJobDetail? jobDetail = await scheduler.GetJobDetail(jobKey, cancellationToken).ConfigureAwait(false);
         if (jobDetail is null)
         {
             throw new KeyNotFoundException($"Job '{group}.{name}' was not found in scheduler '{schedulerName}'.");
@@ -157,11 +157,11 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
             JobDataMap: jobDataMap);
     }
 
-    public async ValueTask<List<TriggerHeaderDto>> GetJobTriggers(string schedulerName, string group, string name)
+    public async ValueTask<List<TriggerHeaderDto>> GetJobTriggers(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         JobKey jobKey = new(name, group);
-        List<ITrigger> triggers = await scheduler.GetTriggersOfJob(jobKey).ConfigureAwait(false);
+        List<ITrigger> triggers = await scheduler.GetTriggersOfJob(jobKey, cancellationToken).ConfigureAwait(false);
 
         List<TriggerHeaderDto> result = [];
         foreach (ITrigger trigger in triggers)
@@ -176,10 +176,10 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
         return result;
     }
 
-    public async ValueTask<List<CurrentlyExecutingJobDto>> GetCurrentlyExecutingJobs(string schedulerName)
+    public async ValueTask<List<CurrentlyExecutingJobDto>> GetCurrentlyExecutingJobs(string schedulerName, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        List<IJobExecutionContext> currentlyExecutingJobs = await scheduler.GetCurrentlyExecutingJobs().ConfigureAwait(false);
+        List<IJobExecutionContext> currentlyExecutingJobs = await scheduler.GetCurrentlyExecutingJobs(cancellationToken).ConfigureAwait(false);
 
         List<CurrentlyExecutingJobDto> result = [];
         foreach (IJobExecutionContext jobExecutionContext in currentlyExecutingJobs)
@@ -196,62 +196,62 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
         return result;
     }
 
-    public ValueTask PauseJob(string schedulerName, string group, string name)
+    public ValueTask PauseJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         JobKey jobKey = new(name, group);
-        return scheduler.PauseJob(jobKey);
+        return scheduler.PauseJob(jobKey, cancellationToken);
     }
 
-    public ValueTask ResumeJob(string schedulerName, string group, string name)
+    public ValueTask ResumeJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         JobKey jobKey = new(name, group);
-        return scheduler.ResumeJob(jobKey);
+        return scheduler.ResumeJob(jobKey, cancellationToken);
     }
 
-    public ValueTask TriggerJob(string schedulerName, string group, string name)
+    public ValueTask TriggerJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         JobKey jobKey = new(name, group);
-        return scheduler.TriggerJob(jobKey);
+        return scheduler.TriggerJob(jobKey, cancellationToken);
     }
 
-    public ValueTask TriggerJobWithData(string schedulerName, string group, string name, JsonElement jobDataMap)
+    public ValueTask TriggerJobWithData(string schedulerName, string group, string name, JsonElement jobDataMap, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         JobKey jobKey = new(name, group);
         JobDataMap triggerDataMap = DeserializeJobDataMap(jobDataMap);
-        return scheduler.TriggerJob(jobKey, triggerDataMap);
+        return scheduler.TriggerJob(jobKey, triggerDataMap, cancellationToken);
     }
 
-    public ValueTask<bool> IsJobGroupPaused(string schedulerName, string group)
+    public ValueTask<bool> IsJobGroupPaused(string schedulerName, string group, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        return scheduler.IsJobGroupPaused(group);
+        return scheduler.IsJobGroupPaused(group, cancellationToken);
     }
 
-    public async ValueTask InterruptJob(string schedulerName, string group, string name)
-    {
-        EnsureWritable();
-        IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        JobKey jobKey = new(name, group);
-        _ = await scheduler.Interrupt(jobKey).ConfigureAwait(false);
-    }
-
-    public async ValueTask DeleteJob(string schedulerName, string group, string name)
+    public async ValueTask InterruptJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         JobKey jobKey = new(name, group);
-        _ = await scheduler.DeleteJob(jobKey).ConfigureAwait(false);
+        _ = await scheduler.Interrupt(jobKey, cancellationToken).ConfigureAwait(false);
     }
 
-    public ValueTask AddJob(string schedulerName, AddJobRequest request)
+    public async ValueTask DeleteJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
+    {
+        EnsureWritable();
+        IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
+        JobKey jobKey = new(name, group);
+        _ = await scheduler.DeleteJob(jobKey, cancellationToken).ConfigureAwait(false);
+    }
+
+    public ValueTask AddJob(string schedulerName, AddJobRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
         EnsureWritable();
@@ -259,33 +259,33 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
         IJobDetail jobDetail = BuildJobDetail(request.Job);
         if (request.StoreNonDurableWhileAwaitingScheduling.HasValue)
         {
-            return scheduler.AddJob(jobDetail, request.Replace, request.StoreNonDurableWhileAwaitingScheduling.Value);
+            return scheduler.AddJob(jobDetail, request.Replace, request.StoreNonDurableWhileAwaitingScheduling.Value, cancellationToken);
         }
 
-        return scheduler.AddJob(jobDetail, request.Replace);
+        return scheduler.AddJob(jobDetail, request.Replace, cancellationToken);
     }
 
-    public async ValueTask<List<TriggerHeaderDto>> GetTriggerKeys(string schedulerName, string? groupFilter = null)
+    public async ValueTask<List<TriggerHeaderDto>> GetTriggerKeys(string schedulerName, string? groupFilter = null, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         GroupMatcher<TriggerKey> matcher = groupFilter is null ? GroupMatcher<TriggerKey>.AnyGroup() : GroupMatcher<TriggerKey>.GroupContains(groupFilter);
-        List<TriggerKey> triggerKeys = await scheduler.GetTriggerKeys(matcher).ConfigureAwait(false);
+        List<TriggerKey> triggerKeys = await scheduler.GetTriggerKeys(matcher, cancellationToken).ConfigureAwait(false);
 
         List<TriggerHeaderDto> result = [];
         foreach (TriggerKey triggerKey in triggerKeys)
         {
-            ITrigger? trigger = await scheduler.GetTrigger(triggerKey).ConfigureAwait(false);
+            ITrigger? trigger = await scheduler.GetTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
             result.Add(new TriggerHeaderDto(triggerKey.Group, triggerKey.Name, trigger?.ExecutionGroup));
         }
 
         return result;
     }
 
-    public async ValueTask<TriggerDetailDto> GetTrigger(string schedulerName, string group, string name)
+    public async ValueTask<TriggerDetailDto> GetTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         TriggerKey triggerKey = new(name, group);
-        ITrigger? trigger = await scheduler.GetTrigger(triggerKey).ConfigureAwait(false);
+        ITrigger? trigger = await scheduler.GetTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
         if (trigger is null)
         {
             throw new KeyNotFoundException($"Trigger '{group}.{name}' was not found in scheduler '{schedulerName}'.");
@@ -294,39 +294,39 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
         return new TriggerDetailDto(SerializeTrigger(trigger));
     }
 
-    public async ValueTask<string> GetTriggerState(string schedulerName, string group, string name)
+    public async ValueTask<string> GetTriggerState(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         TriggerKey triggerKey = new(name, group);
-        TriggerState triggerState = await scheduler.GetTriggerState(triggerKey).ConfigureAwait(false);
+        TriggerState triggerState = await scheduler.GetTriggerState(triggerKey, cancellationToken).ConfigureAwait(false);
         return triggerState.ToString();
     }
 
-    public ValueTask PauseTrigger(string schedulerName, string group, string name)
+    public ValueTask PauseTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         TriggerKey triggerKey = new(name, group);
-        return scheduler.PauseTrigger(triggerKey);
+        return scheduler.PauseTrigger(triggerKey, cancellationToken);
     }
 
-    public ValueTask ResumeTrigger(string schedulerName, string group, string name)
+    public ValueTask ResumeTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         TriggerKey triggerKey = new(name, group);
-        return scheduler.ResumeTrigger(triggerKey);
+        return scheduler.ResumeTrigger(triggerKey, cancellationToken);
     }
 
-    public ValueTask ResetTriggerFromErrorState(string schedulerName, string group, string name)
+    public ValueTask ResetTriggerFromErrorState(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         TriggerKey triggerKey = new(name, group);
-        return scheduler.ResetTriggerFromErrorState(triggerKey);
+        return scheduler.ResetTriggerFromErrorState(triggerKey, cancellationToken);
     }
 
-    public ValueTask ScheduleJob(string schedulerName, ScheduleJobRequest request)
+    public ValueTask ScheduleJob(string schedulerName, ScheduleJobRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
         EnsureWritable();
@@ -334,42 +334,42 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
         ITrigger trigger = DeserializeTrigger(request.Trigger);
         if (request.Job is null)
         {
-            return ScheduleTriggerOnlyAsync(scheduler, trigger);
+            return ScheduleTriggerOnly(scheduler, trigger, cancellationToken);
         }
 
         IJobDetail jobDetail = BuildJobDetail(request.Job);
-        return ScheduleJobWithTriggerAsync(scheduler, jobDetail, trigger);
+        return ScheduleJobWithTrigger(scheduler, jobDetail, trigger, cancellationToken);
     }
 
-    public async ValueTask UnscheduleJob(string schedulerName, string group, string name)
+    public async ValueTask UnscheduleJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         TriggerKey triggerKey = new(name, group);
-        _ = await scheduler.UnscheduleJob(triggerKey).ConfigureAwait(false);
+        _ = await scheduler.UnscheduleJob(triggerKey, cancellationToken).ConfigureAwait(false);
     }
 
-    public ValueTask RescheduleJob(string schedulerName, string group, string name, RescheduleRequest request)
+    public ValueTask RescheduleJob(string schedulerName, string group, string name, RescheduleRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         TriggerKey triggerKey = new(name, group);
         ITrigger newTrigger = DeserializeTrigger(request.NewTrigger);
-        return RescheduleTriggerAsync(scheduler, triggerKey, newTrigger);
+        return RescheduleTrigger(scheduler, triggerKey, newTrigger, cancellationToken);
     }
 
-    public async ValueTask<List<string>> GetCalendarNames(string schedulerName)
+    public async ValueTask<List<string>> GetCalendarNames(string schedulerName, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        List<string> names = await scheduler.GetCalendarNames().ConfigureAwait(false);
+        List<string> names = await scheduler.GetCalendarNames(cancellationToken).ConfigureAwait(false);
         return names;
     }
 
-    public async ValueTask<CalendarDetailDto> GetCalendar(string schedulerName, string calendarName)
+    public async ValueTask<CalendarDetailDto> GetCalendar(string schedulerName, string calendarName, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        ICalendar? calendar = await scheduler.GetCalendar(calendarName).ConfigureAwait(false);
+        ICalendar? calendar = await scheduler.GetCalendar(calendarName, cancellationToken).ConfigureAwait(false);
         if (calendar is null)
         {
             throw new KeyNotFoundException($"Calendar '{calendarName}' was not found in scheduler '{schedulerName}'.");
@@ -379,27 +379,29 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
         return new CalendarDetailDto(calendarJson);
     }
 
-    public ValueTask AddCalendar(string schedulerName, AddCalendarRequest request)
+    public ValueTask AddCalendar(string schedulerName, AddCalendarRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         ICalendar calendar = DeserializeCalendar(request.Calendar);
-        return scheduler.AddCalendar(request.CalendarName, calendar, request.Replace, request.UpdateTriggers);
+        return scheduler.AddCalendar(request.CalendarName, calendar, request.Replace, request.UpdateTriggers, cancellationToken);
     }
 
-    public async ValueTask DeleteCalendar(string schedulerName, string calendarName)
+    public async ValueTask DeleteCalendar(string schedulerName, string calendarName, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        _ = await scheduler.DeleteCalendar(calendarName).ConfigureAwait(false);
+        _ = await scheduler.DeleteCalendar(calendarName, cancellationToken).ConfigureAwait(false);
     }
 
-    public ValueTask<JobHistoryPageDto?> GetHistory(JobHistoryQueryDto query)
+    public async ValueTask<JobHistoryPageDto?> GetHistory(JobHistoryQueryDto query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        DashboardHistoryPage historyPage = historyStore.GetPage(query.SchedulerName, query.Page, query.PageSize, query.JobFilter, query.TriggerFilter);
+        DashboardHistoryPage historyPage = await historyStore
+            .GetPage(query.SchedulerName, query.Page, query.PageSize, query.JobFilter, query.TriggerFilter, cancellationToken)
+            .ConfigureAwait(false);
         object payload = new
         {
             page = historyPage.Page,
@@ -419,7 +421,7 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
             }).ToList()
         };
 
-        return ValueTask.FromResult<JobHistoryPageDto?>(new JobHistoryPageDto(JsonSerializer.SerializeToElement(payload, serializerOptions)));
+        return new JobHistoryPageDto(JsonSerializer.SerializeToElement(payload, serializerOptions));
     }
 
     private JsonElement SerializeTrigger(ITrigger trigger)
@@ -519,19 +521,19 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
         return jobDetail;
     }
 
-    private static async ValueTask ScheduleTriggerOnlyAsync(IScheduler scheduler, ITrigger trigger)
+    private static async ValueTask ScheduleTriggerOnly(IScheduler scheduler, ITrigger trigger, CancellationToken cancellationToken = default)
     {
-        _ = await scheduler.ScheduleJob(trigger).ConfigureAwait(false);
+        _ = await scheduler.ScheduleJob(trigger, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async ValueTask ScheduleJobWithTriggerAsync(IScheduler scheduler, IJobDetail jobDetail, ITrigger trigger)
+    private static async ValueTask ScheduleJobWithTrigger(IScheduler scheduler, IJobDetail jobDetail, ITrigger trigger, CancellationToken cancellationToken = default)
     {
-        _ = await scheduler.ScheduleJob(jobDetail, trigger).ConfigureAwait(false);
+        _ = await scheduler.ScheduleJob(jobDetail, trigger, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async ValueTask RescheduleTriggerAsync(IScheduler scheduler, TriggerKey key, ITrigger trigger)
+    private static async ValueTask RescheduleTrigger(IScheduler scheduler, TriggerKey key, ITrigger trigger, CancellationToken cancellationToken = default)
     {
-        _ = await scheduler.RescheduleJob(key, trigger).ConfigureAwait(false);
+        _ = await scheduler.RescheduleJob(key, trigger, cancellationToken).ConfigureAwait(false);
     }
 
     private IScheduler GetSchedulerOrThrow(string schedulerName)
@@ -573,12 +575,12 @@ public sealed class InProcessQuartzApiClient : IQuartzApiClient
         return "Unknown";
     }
 
-    public async ValueTask<ExecutionLimitsDto?> GetExecutionLimits(string schedulerName)
+    public async ValueTask<ExecutionLimitsDto?> GetExecutionLimits(string schedulerName, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         try
         {
-            ExecutionLimits? limits = await scheduler.GetExecutionLimits().ConfigureAwait(false);
+            ExecutionLimits? limits = await scheduler.GetExecutionLimits(cancellationToken).ConfigureAwait(false);
             if (limits is null || limits.Count == 0)
             {
                 return null;

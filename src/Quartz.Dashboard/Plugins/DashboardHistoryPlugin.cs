@@ -75,8 +75,7 @@ public sealed class DashboardHistoryPlugin : ISchedulerPlugin, IJobListener
                 Succeeded: jobException is null,
                 ExceptionMessage: jobException?.Message);
 
-            store.Add(entry);
-            return default;
+            return store.Add(entry, cancellationToken);
         }
         catch (ObjectDisposedException)
         {

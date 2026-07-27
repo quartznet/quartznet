@@ -64,22 +64,22 @@ public class UpdateLockRowSemaphore : DBSemaphore
     protected UpdateLockRowSemaphore(
         string tablePrefix,
         string? schedulerName,
-        string defaultSQL,
-        string defaultInsertSQL,
-        IDbProvider dbProvider) : base(tablePrefix, schedulerName, defaultSQL, defaultInsertSQL, dbProvider)
+        string defaultSql,
+        string defaultInsertSql,
+        IDbProvider dbProvider) : base(tablePrefix, schedulerName, defaultSql, defaultInsertSql, dbProvider)
     {
     }
 
     /// <summary>
     /// Execute the SQL that will lock the proper database row.
     /// </summary>
-    protected override async ValueTask ExecuteSQL(
+    protected override async ValueTask ExecuteSql(
         Guid requestorId,
         ConnectionAndTransactionHolder conn,
         string lockName,
         string expandedSql,
         string expandedInsertSql,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         Exception? lastFailure = null;
         for (int i = 0; i < RetryCount; i++)

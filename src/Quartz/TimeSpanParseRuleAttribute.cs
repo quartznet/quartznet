@@ -1,4 +1,4 @@
-﻿namespace Quartz;
+namespace Quartz;
 
 /// <summary>
 /// Attribute to use with public <see cref="TimeSpan" /> properties that
@@ -9,7 +9,7 @@
 /// <author>Marko Lahma (.NET)</author>
 /// <seealso cref="TimeSpanParseRuleAttribute" />
 [AttributeUsage(AttributeTargets.Property)]
-internal sealed class TimeSpanParseRuleAttribute : Attribute
+public sealed class TimeSpanParseRuleAttribute : Attribute
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="TimeSpanParseRuleAttribute"/> class.

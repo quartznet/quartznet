@@ -122,6 +122,13 @@ internal sealed class QuartzBuilder : IQuartzBuilder
         return this;
     }
 
+    public IQuartzBuilder UseJobFactory(IJobFactory jobFactory)
+    {
+        ArgumentNullException.ThrowIfNull(jobFactory);
+        RegisterConfigured<IJobFactory>((_, _) => jobFactory);
+        return this;
+    }
+
     public IQuartzBuilder UseTypeLoader<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
         where T : class, ITypeLoadHelper
     {

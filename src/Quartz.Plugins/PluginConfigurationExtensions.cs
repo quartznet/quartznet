@@ -121,7 +121,7 @@ public static class PluginConfigurationExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        var options = new JobHistoryLoggingOptions();
+        JobHistoryLoggingOptions options = new JobHistoryLoggingOptions();
         configure?.Invoke(options);
 
         return builder.AddConfiguredPlugin<LoggingJobHistoryPlugin>("jobHistory", plugin =>
@@ -146,7 +146,7 @@ public static class PluginConfigurationExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        var options = new TriggerHistoryLoggingOptions();
+        TriggerHistoryLoggingOptions options = new TriggerHistoryLoggingOptions();
         configure?.Invoke(options);
 
         return builder.AddConfiguredPlugin<LoggingTriggerHistoryPlugin>("triggerHistory", plugin =>

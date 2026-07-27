@@ -3,7 +3,7 @@ using System.Globalization;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace Quartz.Triggers;
+namespace Quartz.Serialization.Newtonsoft.Triggers;
 
 public class SimpleTriggerSerializer : TriggerSerializer<ISimpleTrigger>
 {

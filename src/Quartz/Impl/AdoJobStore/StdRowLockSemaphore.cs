@@ -60,10 +60,10 @@ public class StdRowLockSemaphore : DBSemaphore
     /// </summary>
     /// <param name="tablePrefix">The table prefix.</param>
     /// <param name="schedulerName">the scheduler name</param>
-    /// <param name="selectWithLockSQL">The select with lock SQL.</param>
+    /// <param name="selectWithLockSql">The select with lock SQL.</param>
     /// <param name="dbProvider"></param>
-    public StdRowLockSemaphore(string tablePrefix, string schedulerName, string? selectWithLockSQL, IDbProvider dbProvider)
-        : base(tablePrefix, schedulerName, selectWithLockSQL ?? SelectForLock, InsertLock, dbProvider)
+    public StdRowLockSemaphore(string tablePrefix, string schedulerName, string? selectWithLockSql, IDbProvider dbProvider)
+        : base(tablePrefix, schedulerName, selectWithLockSql ?? SelectForLock, InsertLock, dbProvider)
     {
     }
 
@@ -83,13 +83,13 @@ public class StdRowLockSemaphore : DBSemaphore
     /// <summary>
     /// Execute the SQL select for update that will lock the proper database row.
     /// </summary>
-    protected override async ValueTask ExecuteSQL(
+    protected override async ValueTask ExecuteSql(
         Guid requestorId,
         ConnectionAndTransactionHolder conn,
         string lockName,
         string expandedSql,
         string expandedInsertSql,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         Exception? initCause = null;
         // attempt lock two times (to work-around possible race conditions in inserting the lock row the first time running)

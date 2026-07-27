@@ -1,7 +1,7 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-namespace Quartz.Triggers;
+namespace Quartz.Serialization.Newtonsoft.Triggers;
 
 public interface ITriggerSerializer
 {

@@ -127,7 +127,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
         }
     }
 
-    public IReadOnlyCollection<IMatcher<JobKey>>? GetJobListenerMatchers(string listenerName)
+    public IMatcher<JobKey>[]? GetJobListenerMatchers(string listenerName)
     {
         if (listenerName is null)
         {
@@ -146,7 +146,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
                 return null;
             }
 
-            return matchers.AsReadOnly();
+            return matchers.ToArray();
         }
     }
 
@@ -393,7 +393,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
         }
     }
 
-    public IReadOnlyCollection<IMatcher<TriggerKey>>? GetTriggerListenerMatchers(string listenerName)
+    public IMatcher<TriggerKey>[]? GetTriggerListenerMatchers(string listenerName)
     {
         if (listenerName is null)
         {
@@ -412,7 +412,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
                 return null;
             }
 
-            return matchers.AsReadOnly();
+            return matchers.ToArray();
         }
     }
 

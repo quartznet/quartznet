@@ -14,5 +14,5 @@ public interface IDirectoryProvider
     /// to monitor - absolute paths are recommended.
     /// </summary>
     /// <returns></returns>
-    IReadOnlyList<string> GetDirectoriesToScan(JobDataMap mergedJobDataMap);
+    List<string> GetDirectoriesToScan(JobDataMap mergedJobDataMap);
 }

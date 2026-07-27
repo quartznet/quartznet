@@ -35,7 +35,7 @@ internal static class JsonSchedulingHelper
 
         var name = optionsName ?? Options.DefaultName;
 
-        // Bind Scheduling directives (OverWriteExistingData, IgnoreDuplicates, etc.)
+        // Bind Scheduling directives (OverwriteExistingData, IgnoreDuplicates, etc.)
         if (schedulingSection.Exists())
         {
             services.Configure<QuartzOptions>(name, options => BindSchedulingOptions(schedulingSection, options.Scheduling));
@@ -523,10 +523,10 @@ internal static class JsonSchedulingHelper
     /// </summary>
     private static void BindSchedulingOptions(IConfigurationSection section, SchedulingOptions scheduling)
     {
-        var overwrite = section[nameof(SchedulingOptions.OverWriteExistingData)];
+        var overwrite = section[nameof(SchedulingOptions.OverwriteExistingData)];
         if (overwrite is not null)
         {
-            scheduling.OverWriteExistingData = ParseBool(overwrite, nameof(SchedulingOptions.OverWriteExistingData));
+            scheduling.OverwriteExistingData = ParseBool(overwrite, nameof(SchedulingOptions.OverwriteExistingData));
         }
 
         var ignoreDups = section[nameof(SchedulingOptions.IgnoreDuplicates)];

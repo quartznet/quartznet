@@ -103,7 +103,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
 
     internal void ProcessJsonContent(string json)
     {
-        PrepForProcessing();
+        PrepareForProcessing();
         jsonJobGroupsToDelete.Clear();
         jsonTriggerGroupsToDelete.Clear();
         jsonJobsToDelete.Clear();
@@ -119,7 +119,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
 
         if (data.ProcessingDirectives is not null)
         {
-            OverWriteExistingData = data.ProcessingDirectives.OverWriteExistingData;
+            OverwriteExistingData = data.ProcessingDirectives.OverwriteExistingData;
             IgnoreDuplicates = data.ProcessingDirectives.IgnoreDuplicates;
             ScheduleTriggerRelativeToReplacedTrigger = data.ProcessingDirectives.ScheduleTriggerRelativeToReplacedTrigger;
         }

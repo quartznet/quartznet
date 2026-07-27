@@ -75,7 +75,7 @@ public class AdoConstants
     public const string ColumnTriggerType = "TRIGGER_TYPE";
     public const string ColumnStartTime = "START_TIME";
     public const string ColumnEndTime = "END_TIME";
-    public const string ColumnMifireInstruction = "MISFIRE_INSTR";
+    public const string ColumnMisfireInstruction = "MISFIRE_INSTR";
     public const string ColumnPriority = "PRIORITY";
     public const string ColumnMisfireOriginalFireTime = "MISFIRE_ORIG_FIRE_TIME";
     public const string ColumnExecutionGroup = "EXECUTION_GROUP";

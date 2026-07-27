@@ -15,7 +15,7 @@ public class HttpSchedulerProxyFactory : ISchedulerProxyFactory
     /// Gets or sets the remote scheduler address.
     /// </summary>
     /// <value>The remote scheduler address.</value>
-    public string? Address { private get; set; }
+    public string? Address { get; set; }
 
     /// <summary>
     /// Returns a client proxy to a remote <see cref="IScheduler" />.

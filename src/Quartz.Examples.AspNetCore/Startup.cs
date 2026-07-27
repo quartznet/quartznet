@@ -82,7 +82,7 @@ public class Startup
         services.Configure<QuartzOptions>(options =>
         {
             options.Scheduling.IgnoreDuplicates = true; // default: false
-            options.Scheduling.OverWriteExistingData = true; // default: true
+            options.Scheduling.OverwriteExistingData = true; // default: true
         });
 
         // custom connection provider
@@ -192,7 +192,7 @@ public class Startup
 
             const string calendarName = "myHolidayCalendar";
             q.AddCalendar<HolidayCalendar>(
-                name: calendarName,
+                calendarName: calendarName,
                 replace: true,
                 updateTriggers: true,
                 x => x.AddExcludedDate(new DateTime(2020, 5, 15))

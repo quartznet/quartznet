@@ -69,8 +69,7 @@ public abstract class HostNameBasedIdGenerator : IInstanceIdGenerator
         }
         catch (Exception e)
         {
-            Throw.SchedulerException("Couldn't get host name!", e);
-            return null!;
+            throw new SchedulerException("Couldn't get host name!", e);
         }
     }
 

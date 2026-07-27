@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 using AwesomeAssertions.Execution;
 
 using FakeItEasy;
@@ -101,7 +103,8 @@ public class MicrosoftDependencyInjectionJobFactoryTest
         // Depends on a service that is not registered, so activation fails after the scope is open.
         var act = async () => await factory.CreateJob(NewBundleFor<NeedsMissingDependencyJob>(), NewScheduler());
 
-        await act.Should().ThrowAsync<Exception>();
+        await act.Should().ThrowAsync<InvalidOperationException>(
+            "ActivatorUtilities throws that when a constructor parameter cannot be resolved");
         ScopedDependency.Disposed.Should().BeTrue(
             "ReturnJob is not called when CreateJob throws, so the scope has to be closed on the way out");
     }
@@ -127,18 +130,18 @@ public class MicrosoftDependencyInjectionJobFactoryTest
     }
 
     [Test]
-    public async Task ShouldFlowAsyncLocalSetInConfigureScopeThroughToTheJob()
+    public async Task ShouldFlowAsyncLocalSetInConfigureScopeThroughCreateJob()
     {
         // ConfigureScope exists to establish ambient context for a job, and an AsyncLocal written
         // there has to survive into Execute (#1528). It does not if the factory is an async method,
         // because the state machine restores the caller's ExecutionContext when its synchronous part
         // returns - which is why CreateJobInstance and CreateJob are deliberately not async.
         var serviceCollection = new ServiceCollection();
-        serviceCollection.AddTransient<TenantCapturingJob>();
+        serviceCollection.AddTransient<TenantFlowJob>();
         await using var serviceProvider = serviceCollection.BuildServiceProvider(validateScopes: true);
 
         var factory = new TenantSettingJobFactory(serviceProvider);
-        var scope = await factory.CreateJob(NewBundleFor<TenantCapturingJob>(), NewScheduler());
+        var scope = await factory.CreateJob(NewBundleFor<TenantFlowJob>(), NewScheduler());
 
         try
         {
@@ -167,7 +170,7 @@ public class MicrosoftDependencyInjectionJobFactoryTest
         }
     }
 
-    private sealed class TenantCapturingJob : IJob
+    private sealed class TenantFlowJob : IJob
     {
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
     }
@@ -208,8 +211,8 @@ public class MicrosoftDependencyInjectionJobFactoryTest
     [Test]
     public async Task JobsShouldBeDisposedAfterExecute()
     {
-        var schedulerBuilder = QuartzSchedulerBuilder.Create()
-            .Build();
+        TestJob.Reset();
+        Dependency.Reset();
 
         const string testValue = "test";
 
@@ -223,14 +226,24 @@ public class MicrosoftDependencyInjectionJobFactoryTest
         serviceCollection.AddTransient<Dependency>();
         var serviceProvider = serviceCollection.BuildServiceProvider(validateScopes: true);
 
+        var schedulerBuilder = QuartzSchedulerBuilder.Create()
+            .UseJobFactory(new MicrosoftDependencyInjectionJobFactory(serviceProvider))
+            .Build();
+
         var scheduler = await schedulerBuilder.GetScheduler();
-        scheduler.JobFactory = new MicrosoftDependencyInjectionJobFactory(serviceProvider);
         await scheduler.Start();
 
         await scheduler.AddJob(jobDetail, replace: false);
         await scheduler.TriggerJob(jobDetail.Key);
 
-        await Task.Delay(100);
+        // Every observable step signals, so the assertions run once the firing is genuinely over
+        // rather than once an arbitrary delay has elapsed.
+        await Task.WhenAll(
+                TestJob.ExecutedSignal.Task,
+                TestJob.DisposedSignal.Task,
+                Dependency.DisposedSignal.Task)
+            .WaitAsync(TimeSpan.FromSeconds(10));
+
         using (new AssertionScope())
         {
             TestJob.Executed.Should().BeTrue();
@@ -247,6 +260,17 @@ public class MicrosoftDependencyInjectionJobFactoryTest
         public static bool Disposed { get; set; }
         public static string TestValue { get; set; }
 
+        public static TaskCompletionSource ExecutedSignal { get; private set; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public static TaskCompletionSource DisposedSignal { get; private set; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public static void Reset()
+        {
+            Executed = false;
+            Disposed = false;
+            ExecutedSignal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            DisposedSignal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
         public string Test { get; set; }
 
         public TestJob(Dependency dependency)
@@ -257,12 +281,14 @@ public class MicrosoftDependencyInjectionJobFactoryTest
         {
             Executed = true;
             TestValue = Test;
+            ExecutedSignal.TrySetResult();
             return new ValueTask();
         }
 
         public void Dispose()
         {
             Disposed = true;
+            DisposedSignal.TrySetResult();
         }
     }
 
@@ -270,9 +296,18 @@ public class MicrosoftDependencyInjectionJobFactoryTest
     {
         public static bool Disposed { get; set; }
 
+        public static TaskCompletionSource DisposedSignal { get; private set; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public static void Reset()
+        {
+            Disposed = false;
+            DisposedSignal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
         public void Dispose()
         {
             Disposed = true;
+            DisposedSignal.TrySetResult();
         }
     }
 
@@ -282,5 +317,196 @@ public class MicrosoftDependencyInjectionJobFactoryTest
         {
             return Activator.CreateInstance(serviceType);
         }
+    }
+
+    [Test]
+    public async Task ShouldDisposeScopeAndJobWhenExecuteThrows()
+    {
+        // A job that fails is exactly the case where a leaked scope is easiest to miss: the failure
+        // takes a different path out of the run shell, and ReturnJob still has to happen.
+        FailingJob.Reset();
+        FailingJobDependency.Reset();
+
+        ServiceCollection serviceCollection = [];
+        serviceCollection.AddTransient<FailingJob>();
+        serviceCollection.AddScoped<FailingJobDependency>();
+        await using ServiceProvider serviceProvider = serviceCollection.BuildServiceProvider(validateScopes: true);
+
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
+            .ConfigureScheduler(options => options.InstanceName = "dijobexecutethrows")
+            .UseJobFactory(new MicrosoftDependencyInjectionJobFactory(serviceProvider))
+            .BuildScheduler();
+
+        try
+        {
+            IJobDetail jobDetail = JobBuilder.Create<FailingJob>()
+                .WithIdentity("job", "dijobexecutethrows")
+                .StoreDurably()
+                .Build();
+
+            await scheduler.Start();
+            await scheduler.AddJob(jobDetail, replace: false);
+            await scheduler.TriggerJob(jobDetail.Key);
+
+            await Task.WhenAll(
+                    FailingJob.ExecutedSignal.Task,
+                    FailingJob.DisposedSignal.Task,
+                    FailingJobDependency.DisposedSignal.Task)
+                .WaitAsync(TimeSpan.FromSeconds(10));
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: true);
+        }
+
+        using (new AssertionScope())
+        {
+            FailingJob.Executed.Should().BeTrue("the job has to have run for this test to prove anything");
+            FailingJob.Disposed.Should().BeTrue(
+                "the container-resolved job is registered with the scope, so closing the scope has to dispose it even though it threw");
+            FailingJobDependency.Disposed.Should().BeTrue(
+                "a job that throws must still have its scope closed, or every failing firing leaks its scoped dependencies");
+        }
+    }
+
+    [Test]
+    public async Task ShouldBuildADistinctJobAndScopePerFiring()
+    {
+        // Two firings are two scopes: sharing either the job or a scoped dependency between them
+        // would let one firing see the other's state.
+        PerFiringJob.Reset();
+
+        ServiceCollection serviceCollection = [];
+        serviceCollection.AddTransient<PerFiringJob>();
+        serviceCollection.AddScoped<PerFiringDependency>();
+        await using ServiceProvider serviceProvider = serviceCollection.BuildServiceProvider(validateScopes: true);
+
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
+            .ConfigureScheduler(options => options.InstanceName = "diinstanceperfiring")
+            .UseJobFactory(new MicrosoftDependencyInjectionJobFactory(serviceProvider))
+            .BuildScheduler();
+
+        try
+        {
+            IJobDetail jobDetail = JobBuilder.Create<PerFiringJob>()
+                .WithIdentity("job", "diinstanceperfiring")
+                .StoreDurably()
+                .Build();
+
+            await scheduler.Start();
+            await scheduler.AddJob(jobDetail, replace: false);
+            await scheduler.TriggerJob(jobDetail.Key);
+            await scheduler.TriggerJob(jobDetail.Key);
+
+            await PerFiringJob.BothFired.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: true);
+        }
+
+        List<PerFiringJob.Firing> firings = PerFiringJob.Firings.ToList();
+
+        using (new AssertionScope())
+        {
+            firings.Should().HaveCount(2, "both triggerings have to have reached the job");
+            firings[0].Job.Should().NotBeSameAs(firings[1].Job,
+                "a transient job has to be built afresh for every firing, otherwise two firings share its fields");
+            firings[0].Dependency.Should().NotBeSameAs(firings[1].Dependency,
+                "each firing gets its own dependency injection scope, so its scoped services are its own");
+        }
+    }
+
+    private sealed class FailingJob : IJob, IDisposable
+    {
+        public static bool Executed { get; set; }
+        public static bool Disposed { get; set; }
+
+        public static TaskCompletionSource ExecutedSignal { get; private set; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public static TaskCompletionSource DisposedSignal { get; private set; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public static void Reset()
+        {
+            Executed = false;
+            Disposed = false;
+            ExecutedSignal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            DisposedSignal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        public FailingJob(FailingJobDependency dependency)
+        {
+        }
+
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            Executed = true;
+            ExecutedSignal.TrySetResult();
+            throw new InvalidOperationException("job failed");
+        }
+
+        public void Dispose()
+        {
+            Disposed = true;
+            DisposedSignal.TrySetResult();
+        }
+    }
+
+    private sealed class FailingJobDependency : IDisposable
+    {
+        public static bool Disposed { get; set; }
+
+        public static TaskCompletionSource DisposedSignal { get; private set; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public static void Reset()
+        {
+            Disposed = false;
+            DisposedSignal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        public void Dispose()
+        {
+            Disposed = true;
+            DisposedSignal.TrySetResult();
+        }
+    }
+
+    private sealed class PerFiringJob : IJob
+    {
+        private static int fireCount;
+
+        public static ConcurrentBag<Firing> Firings { get; private set; } = [];
+        public static TaskCompletionSource BothFired { get; private set; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        private readonly PerFiringDependency dependency;
+
+        public PerFiringJob(PerFiringDependency dependency)
+        {
+            this.dependency = dependency;
+        }
+
+        public static void Reset()
+        {
+            Firings = [];
+            BothFired = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            fireCount = 0;
+        }
+
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            Firings.Add(new Firing(this, dependency));
+
+            if (Interlocked.Increment(ref fireCount) == 2)
+            {
+                BothFired.TrySetResult();
+            }
+
+            return default;
+        }
+
+        internal sealed record Firing(PerFiringJob Job, PerFiringDependency Dependency);
+    }
+
+    private sealed class PerFiringDependency
+    {
     }
 }

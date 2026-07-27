@@ -5,8 +5,10 @@ namespace Quartz.Impl.Redis
     {
         public RedisSemaphore() { }
         public string KeyPrefix { get; set; }
-        public int LockRetryIntervalMilliseconds { get; set; }
-        public int LockTtlMilliseconds { get; set; }
+        [Quartz.TimeSpanParseRule(Quartz.TimeSpanParseRule.Milliseconds)]
+        public System.TimeSpan LockRetryInterval { get; set; }
+        [Quartz.TimeSpanParseRule(Quartz.TimeSpanParseRule.Milliseconds)]
+        public System.TimeSpan LockTimeToLive { get; set; }
         public string RedisConfiguration { get; set; }
         public bool RequiresConnection { get; }
         public string? SchedulerName { get; set; }
@@ -25,8 +27,8 @@ namespace Quartz
     {
         public RedisLockHandlerOptions() { }
         public string? KeyPrefix { get; set; }
-        public int? LockRetryIntervalMilliseconds { get; set; }
-        public int? LockTtlMilliseconds { get; set; }
+        public System.TimeSpan? LockRetryInterval { get; set; }
+        public System.TimeSpan? LockTimeToLive { get; set; }
         public string? RedisConfiguration { get; set; }
     }
 }

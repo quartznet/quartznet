@@ -27,10 +27,9 @@ public class DirectoryScanJobTest
             var serviceProvider = serviceCollection.BuildServiceProvider(validateScopes: true);
 
             var scheduler = await QuartzSchedulerBuilder.Create()
+                .UseJobFactory(new MicrosoftDependencyInjectionJobFactory(serviceProvider))
                 .Build()
                 .GetScheduler();
-
-            scheduler.JobFactory = new MicrosoftDependencyInjectionJobFactory(serviceProvider);
 
             var jobDetail = JobBuilder.Create<DirectoryScanJob>()
                 .WithIdentity("TestJob")
@@ -136,22 +135,24 @@ public class DirectoryScanJobTest
             DeletedFileNames.Clear();
         }
 
-        public void FilesUpdatedOrAdded(IReadOnlyCollection<FileInfo> updatedFiles)
+        public ValueTask FilesUpdatedOrAdded(IReadOnlyCollection<FileInfo> updatedFiles, CancellationToken cancellationToken = default)
         {
             FilesUpdatedCalled = true;
             foreach (var file in updatedFiles)
             {
                 UpdatedFileNames.Add(file.Name);
             }
+            return default;
         }
 
-        public void FilesDeleted(IReadOnlyCollection<FileInfo> deletedFiles)
+        public ValueTask FilesDeleted(IReadOnlyCollection<FileInfo> deletedFiles, CancellationToken cancellationToken = default)
         {
             FilesDeletedCalled = true;
             foreach (var file in deletedFiles)
             {
                 DeletedFileNames.Add(file.Name);
             }
+            return default;
         }
     }
 }

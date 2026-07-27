@@ -256,7 +256,7 @@ public class StdAdoDelegateTest
             BindByName = true,
             ParameterNamePrefix = "@"
         };
-        dbMetadata.Init();
+        dbMetadata.Initialize();
         A.CallTo(() => dbProvider.Metadata)
             .Returns(dbMetadata);
 
@@ -415,7 +415,7 @@ public class StdAdoDelegateTest
         A.CallTo(() => dataReader[AdoConstants.ColumnJobGroup]).Returns("DEFAULT");
         A.CallTo(() => dataReader[AdoConstants.ColumnDescription]).Returns(DBNull.Value);
         A.CallTo(() => dataReader[AdoConstants.ColumnCalendarName]).Returns(DBNull.Value);
-        A.CallTo(() => dataReader[AdoConstants.ColumnMifireInstruction]).Returns(2);
+        A.CallTo(() => dataReader[AdoConstants.ColumnMisfireInstruction]).Returns(2);
         A.CallTo(() => dataReader[AdoConstants.ColumnPriority]).Returns(5);
         A.CallTo(() => dataReader[AdoConstants.ColumnNextFireTime]).Returns(nextFireTime.UtcTicks);
         A.CallTo(() => dataReader[AdoConstants.ColumnPreviousFireTime]).Returns(prevFireTime.UtcTicks);
@@ -495,7 +495,7 @@ public class StdAdoDelegateTest
         A.CallTo(() => dataReader[AdoConstants.ColumnJobGroup]).Returns("DEFAULT");
         A.CallTo(() => dataReader[AdoConstants.ColumnDescription]).Returns(DBNull.Value);
         A.CallTo(() => dataReader[AdoConstants.ColumnCalendarName]).Returns(DBNull.Value);
-        A.CallTo(() => dataReader[AdoConstants.ColumnMifireInstruction]).Returns(1);
+        A.CallTo(() => dataReader[AdoConstants.ColumnMisfireInstruction]).Returns(1);
         A.CallTo(() => dataReader[AdoConstants.ColumnPriority]).Returns(5);
         A.CallTo(() => dataReader[AdoConstants.ColumnNextFireTime]).Returns(nextFireTime.UtcTicks);
         A.CallTo(() => dataReader[AdoConstants.ColumnPreviousFireTime]).Returns(DBNull.Value);

@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -181,8 +181,6 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     private CronExpression? cronEx;
     private DateTimeOffset startTimeUtc = DateTimeOffset.MinValue;
     private DateTimeOffset? endTimeUtc;
-    private DateTimeOffset? nextFireTimeUtc;
-    private DateTimeOffset? previousFireTimeUtc;
 
     [NonSerialized] private TimeZoneInfo? timeZone;
 
@@ -462,12 +460,13 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// CronExpression over-rides any that was already set on the Trigger.
     /// </summary>
     /// <value>The cron expression.</value>
-    public CronExpression CronExpression
+    public CronExpression? CronExpression
     {
+        get => cronEx;
         set
         {
             cronEx = value;
-            timeZone = value.TimeZone;
+            timeZone = value?.TimeZone;
         }
     }
 
@@ -526,22 +525,14 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// has been added to the scheduler.
     /// </remarks>
     /// <returns></returns>
-    public override DateTimeOffset? NextFireTimeUtc
-    {
-        get => nextFireTimeUtc;
-        set => nextFireTimeUtc = value;
-    }
+    public override DateTimeOffset? NextFireTimeUtc { get; set; }
 
     /// <summary>
     /// Returns the previous time at which the <see cref="ITrigger" /> fired.
     /// If the trigger has not yet fired, <see langword="null" /> will be returned.
     /// </summary>
     /// <returns></returns>
-    public override DateTimeOffset? PreviousFireTimeUtc
-    {
-        get => previousFireTimeUtc;
-        set => previousFireTimeUtc = value;
-    }
+    public override DateTimeOffset? PreviousFireTimeUtc { get; set; }
 
     /// <summary>
     /// Sets the time zone for which the <see cref="ICronTrigger.CronExpressionString" /> of this
@@ -685,11 +676,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// may remove the <see cref="ITrigger" /> from the <see cref="IJobStore" />.
     /// </para>
     /// </summary>
-    /// <returns></returns>
-    public override bool GetMayFireAgain()
-    {
-        return NextFireTimeUtc.HasValue;
-    }
+    public override bool MayFireAgain => NextFireTimeUtc.HasValue;
 
     /// <summary>
     /// Validates the misfire instruction.
@@ -836,13 +823,13 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// <seealso cref="JobExecutionException" />
     public override void Triggered(ICalendar? calendar)
     {
-        previousFireTimeUtc = nextFireTimeUtc;
-        nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+        PreviousFireTimeUtc = NextFireTimeUtc;
+        NextFireTimeUtc = GetFireTimeAfter(NextFireTimeUtc);
 
-        while (nextFireTimeUtc.HasValue && calendar is not null
-                                        && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
+        while (NextFireTimeUtc.HasValue && calendar is not null
+                                        && !calendar.IsTimeIncluded(NextFireTimeUtc.Value))
         {
-            nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+            NextFireTimeUtc = GetFireTimeAfter(NextFireTimeUtc);
         }
     }
 
@@ -853,36 +840,36 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// <param name="misfireThreshold">The misfire threshold.</param>
     public override void UpdateWithNewCalendar(ICalendar calendar, TimeSpan misfireThreshold)
     {
-        nextFireTimeUtc = GetFireTimeAfter(previousFireTimeUtc);
+        NextFireTimeUtc = GetFireTimeAfter(PreviousFireTimeUtc);
 
-        if (!nextFireTimeUtc.HasValue || calendar is null)
+        if (!NextFireTimeUtc.HasValue || calendar is null)
         {
             return;
         }
 
         DateTimeOffset now = TimeProvider.GetUtcNow();
 
-        while (nextFireTimeUtc.HasValue && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
+        while (NextFireTimeUtc.HasValue && !calendar.IsTimeIncluded(NextFireTimeUtc.Value))
         {
-            nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+            NextFireTimeUtc = GetFireTimeAfter(NextFireTimeUtc);
 
-            if (!nextFireTimeUtc.HasValue)
+            if (!NextFireTimeUtc.HasValue)
             {
                 break;
             }
 
             // avoid infinite loop
-            if (nextFireTimeUtc.Value.Year > TriggerConstants.YearToGiveUpSchedulingAt)
+            if (NextFireTimeUtc.Value.Year > TriggerConstants.YearToGiveUpSchedulingAt)
             {
-                nextFireTimeUtc = null;
+                NextFireTimeUtc = null;
             }
 
-            if (nextFireTimeUtc.HasValue && nextFireTimeUtc.Value < now)
+            if (NextFireTimeUtc.HasValue && NextFireTimeUtc.Value < now)
             {
-                TimeSpan diff = now - nextFireTimeUtc.Value;
+                TimeSpan diff = now - NextFireTimeUtc.Value;
                 if (diff >= misfireThreshold)
                 {
-                    nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+                    NextFireTimeUtc = GetFireTimeAfter(NextFireTimeUtc);
                 }
             }
         }
@@ -913,22 +900,22 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
             return null;
         }
 
-        nextFireTimeUtc = GetFireTimeAfter(startTimeUtc.AddSeconds(-1));
+        NextFireTimeUtc = GetFireTimeAfter(startTimeUtc.AddSeconds(-1));
 
         // If the computed fire time is in the past, advance to the next fire time
         // after now to prevent spurious firing when a trigger is rescheduled
         // with an old StartTimeUtc (e.g., via GetTriggerBuilder().Build())
-        if (nextFireTimeUtc.HasValue && nextFireTimeUtc.Value < now)
+        if (NextFireTimeUtc.HasValue && NextFireTimeUtc.Value < now)
         {
-            nextFireTimeUtc = GetFireTimeAfter(now);
+            NextFireTimeUtc = GetFireTimeAfter(now);
         }
 
-        while (nextFireTimeUtc.HasValue && calendar is not null && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
+        while (NextFireTimeUtc.HasValue && calendar is not null && !calendar.IsTimeIncluded(NextFireTimeUtc.Value))
         {
-            nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+            NextFireTimeUtc = GetFireTimeAfter(NextFireTimeUtc);
         }
 
-        return nextFireTimeUtc;
+        return NextFireTimeUtc;
     }
 
     /// <summary>

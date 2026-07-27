@@ -70,7 +70,7 @@ public void ConfigureServices(IServiceCollection services)
     services.Configure<QuartzOptions>(options =>
     {
         options.Scheduling.IgnoreDuplicates = true; // default: false
-        options.Scheduling.OverWriteExistingData = true; // default: true
+        options.Scheduling.OverwriteExistingData = true; // default: true
     });
 
     // base configuration from appsettings.json, plus configuration in code

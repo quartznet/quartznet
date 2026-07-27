@@ -3,7 +3,7 @@ using Newtonsoft.Json.Linq;
 
 using Quartz.Util;
 
-namespace Quartz.Triggers;
+namespace Quartz.Serialization.Newtonsoft.Triggers;
 
 public class CronTriggerSerializer : TriggerSerializer<ICronTrigger>
 {

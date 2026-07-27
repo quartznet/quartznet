@@ -158,7 +158,7 @@ This is recommended configuration because it greatly decreases the possibility o
 Quartz.NET supports both binary and JSON serialization. Using binary serialization is discouraged as it will no longer be supported in future versions.
 
 * JSON serialization based on System.Text.Json comes bundled with Quartz
-* JSON serialization based on Newtonsoft.Json comes from separate [Quartz.Serialization.Json](../packages/json-serialization) NuGet package
+* JSON serialization based on Newtonsoft.Json comes from separate [Quartz.Serialization.Newtonsoft](../packages/json-serialization) NuGet package
 
 ::: tip
 JSON is recommended persistent format to store data in database for greenfield projects.

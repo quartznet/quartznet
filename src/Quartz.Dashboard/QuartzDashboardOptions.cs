@@ -19,7 +19,7 @@
 
 namespace Quartz;
 
-public class QuartzDashboardOptions
+public sealed class QuartzDashboardOptions
 {
     internal const string DefaultDashboardPath = "/quartz";
 
@@ -32,8 +32,6 @@ public class QuartzDashboardOptions
     public string DashboardPath { get; set; } = DefaultDashboardPath;
 
     public string? AuthorizationPolicy { get; set; }
-
-    public IDashboardAuthorizationFilter? AuthorizationFilter { get; set; }
 
     public bool ReadOnly { get; set; }
 

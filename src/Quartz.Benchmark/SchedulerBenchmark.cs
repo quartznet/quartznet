@@ -554,10 +554,9 @@ public class SchedulerBenchmark
             })
             .UseThreadPool(threadPool)
             .UseJobStore(store)
+            .UseJobFactory(_jobFactory)
             .BuildScheduler()
             .ConfigureAwait(false).GetAwaiter().GetResult();
-
-        scheduler.JobFactory = _jobFactory;
 
         var triggersByJob = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>();
 
@@ -693,7 +692,7 @@ public class SchedulerBenchmark
 
             if (runs < _operationsPerRun)
             {
-                await Task.Delay(_delay).ConfigureAwait(false);
+                await Task.Delay(_delay, cancellationToken).ConfigureAwait(false);
             }
             else if (runs == _operationsPerRun)
             {

@@ -232,8 +232,8 @@ public partial class StdAdoDelegate
             JobDataMap jd = await SelectTriggerJobDataMap(conn, key, cancellationToken).ConfigureAwait(false);
             jd[SchedulerConstants.FailedJobOriginalTriggerName] = key.Name;
             jd[SchedulerConstants.FailedJobOriginalTriggerGroup] = key.Group;
-            jd[SchedulerConstants.FailedJobOriginalTriggerFiretime] = Convert.ToString(dataHolder.FireTimestamp, CultureInfo.InvariantCulture)!;
-            jd[SchedulerConstants.FailedJobOriginalTriggerScheduledFiretime] = Convert.ToString(dataHolder.ScheduleTimestamp, CultureInfo.InvariantCulture)!;
+            jd[SchedulerConstants.FailedJobOriginalTriggerFireTime] = Convert.ToString(dataHolder.FireTimestamp, CultureInfo.InvariantCulture)!;
+            jd[SchedulerConstants.FailedJobOriginalTriggerScheduledFireTime] = Convert.ToString(dataHolder.ScheduleTimestamp, CultureInfo.InvariantCulture)!;
             trigger.JobDataMap = jd;
         }
 
@@ -712,7 +712,7 @@ public partial class StdAdoDelegate
     protected virtual async ValueTask DeleteTriggerExtension(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         foreach (ITriggerPersistenceDelegate tDel in triggerPersistenceDelegates)
         {
@@ -766,7 +766,7 @@ public partial class StdAdoDelegate
             Description = rs.GetString(ColumnDescription),
             TriggerType = rs.GetString(ColumnTriggerType)!,
             CalendarName = rs.GetString(ColumnCalendarName),
-            MisfireInstruction = rs.GetInt32(ColumnMifireInstruction),
+            MisfireInstruction = rs.GetInt32(ColumnMisfireInstruction),
             Priority = rs.GetInt32(ColumnPriority)
         };
 

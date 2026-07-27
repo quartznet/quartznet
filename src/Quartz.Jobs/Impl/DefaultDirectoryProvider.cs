@@ -10,7 +10,7 @@ namespace Quartz.Impl;
 /// </summary>
 internal sealed class DefaultDirectoryProvider : IDirectoryProvider
 {
-    public IReadOnlyList<string> GetDirectoriesToScan(JobDataMap mergedJobDataMap)
+    public List<string> GetDirectoriesToScan(JobDataMap mergedJobDataMap)
     {
         List<string> directoriesToScan = new List<string>();
         var dirName = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryName);

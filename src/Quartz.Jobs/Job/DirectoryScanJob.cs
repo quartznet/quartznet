@@ -100,7 +100,7 @@ public class DirectoryScanJob : IJob
     /// <param name="context">The <see cref="IJobExecutionContext"/> that
     /// the job will use during execution.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         DirectoryScanJobModel model = DirectoryScanJobModel.GetInstance(context, serviceProvider);
 
@@ -131,13 +131,13 @@ public class DirectoryScanJob : IJob
             // notify call back...
             if (updatedFiles.Count > 0)
             {
-                model.DirectoryScanListener.FilesUpdatedOrAdded(updatedFiles);
+                await model.DirectoryScanListener.FilesUpdatedOrAdded(updatedFiles, cancellationToken).ConfigureAwait(false);
                 DateTime latestWriteTimeFromFiles = updatedFiles.Select(x => x.LastWriteTime).Max();
                 model.UpdateLastModifiedDate(latestWriteTimeFromFiles);
             }
             if (deletedFiles.Count > 0)
             {
-                model.DirectoryScanListener.FilesDeleted(deletedFiles);
+                await model.DirectoryScanListener.FilesDeleted(deletedFiles, cancellationToken).ConfigureAwait(false);
             }
 
             //Update current file list
@@ -150,10 +150,9 @@ public class DirectoryScanJob : IJob
                 logger.LogDebug("Directory '{Directory}' contents unchanged.", dir);
             }
         }
-        return default;
     }
 
-    protected void GetUpdatedOrNewFiles(string dirName, DateTime lastModifiedDate, DateTime maxAgeDate, List<FileInfo> currentFileList,
+    protected void GetUpdatedOrNewFiles(string dirName, DateTime lastModifiedDate, DateTime maxAgeDate, IReadOnlyCollection<FileInfo> currentFileList,
         out List<FileInfo> allFiles, out List<FileInfo> updatedFiles, out List<FileInfo> deletedFiles, string searchPattern = "*", bool includeSubDirectories = false)
     {
         updatedFiles = new List<FileInfo>();

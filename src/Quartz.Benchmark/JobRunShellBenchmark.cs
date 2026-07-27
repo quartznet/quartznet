@@ -356,7 +356,7 @@ public class JobRunShellBenchmark
             return default;
         }
 
-        public ValueTask StoreCalendar(string name, ICalendar calendar, bool replaceExisting, bool updateTriggers, CancellationToken cancellationToken = default)
+        public ValueTask StoreCalendar(string calendarName, ICalendar calendar, bool replaceExisting, bool updateTriggers, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }

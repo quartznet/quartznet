@@ -64,7 +64,7 @@ public class QuartzHostedServiceTests
         public IListenerManager ListenerManager { get; }
         public bool IsStarted { get; private set; }
 
-        public ValueTask AddCalendar(string name, ICalendar calendar, bool replace, bool updateTriggers, CancellationToken cancellationToken = default)
+        public ValueTask AddCalendar(string calendarName, ICalendar calendar, bool replace, bool updateTriggers, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -94,7 +94,7 @@ public class QuartzHostedServiceTests
             throw new NotImplementedException();
         }
 
-        public ValueTask<bool> DeleteCalendar(string name, CancellationToken cancellationToken = default)
+        public ValueTask<bool> DeleteCalendar(string calendarName, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -109,7 +109,7 @@ public class QuartzHostedServiceTests
             throw new NotImplementedException();
         }
 
-        public ValueTask<ICalendar> GetCalendar(string name, CancellationToken cancellationToken = default)
+        public ValueTask<ICalendar> GetCalendar(string calendarName, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }

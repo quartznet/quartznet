@@ -115,6 +115,16 @@ public sealed class QuartzSchedulerBuilder
     }
 
     /// <summary>
+    /// Uses a job factory the caller has already built.
+    /// </summary>
+    public QuartzSchedulerBuilder UseJobFactory(IJobFactory jobFactory)
+    {
+        ArgumentNullException.ThrowIfNull(jobFactory);
+        services.AddSingleton(jobFactory);
+        return this;
+    }
+
+    /// <summary>
     /// Uses the in-memory job store, which does not survive process restarts.
     /// </summary>
     public QuartzSchedulerBuilder UseInMemoryStore(Action<InMemoryJobStoreOptions>? configure = null)

@@ -121,8 +121,8 @@ internal sealed class QuartzSchedulerThread
 
     /// <summary>
     /// Construct a new <see cref="QuartzSchedulerThread" /> for the given
-    /// <see cref="QuartzScheduler" /> as a non-daemon <see cref="Thread" />
-    /// with normal priority.
+    /// <see cref="QuartzScheduler" />. The scheduling loop runs as a task on the
+    /// thread pool rather than on a dedicated thread.
     /// </summary>
     /// <param name="qs">The scheduler.</param>
     /// <param name="qsRsrcs">The resources.</param>
@@ -300,7 +300,10 @@ internal sealed class QuartzSchedulerThread
                     try
                     {
                         var delay = ComputeDelayForRepeatedErrors(qsRsrcs.JobStore, acquiresFailed);
-                        await Task.Delay(delay).ConfigureAwait(false);
+                        // Cancellable so that shutdown does not stall for the remainder of the
+                        // back-off; the catch swallows the OperationCanceledException and the
+                        // halted/cancellation checks right below exit the loop.
+                        await Task.Delay(delay, cancellationTokenSource.Token).ConfigureAwait(false);
                     }
                     catch
                     {

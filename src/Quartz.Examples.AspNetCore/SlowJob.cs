@@ -19,10 +19,10 @@ public class SlowJob : IJob
 
         try
         {
-            // in your own logic you should check if context.CancellationToken.IsCancellationRequested is set
+            // in your own logic you should check if cancellationToken.IsCancellationRequested is set
             // for simplicity we just use Task.Delay which throws accordingly when interrupt requested
 
-            await Task.Delay(sleepTime, context.CancellationToken);
+            await Task.Delay(sleepTime, cancellationToken);
             logger.LogInformation("Run fast enough for monitor not to interrupt");
         }
         catch (TaskCanceledException)

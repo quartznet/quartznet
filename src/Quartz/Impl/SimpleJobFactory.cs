@@ -59,9 +59,9 @@ public class SimpleJobFactory : IJobFactory
     /// </remarks>
     /// <param name="bundle">The TriggerFiredBundle from which the <see cref="IJobDetail" />
     ///   and other info relating to the trigger firing can be obtained.</param>
-    /// <param name="scheduler"></param>
+    /// <param name="scheduler">The scheduler the job will run under, made available to the job through its execution context.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>the newly instantiated Job</returns>
+    /// <returns>the newly instantiated job, together with any per-fire state, in a <see cref="JobScope" /></returns>
     /// <throws>  SchedulerException if there is a problem instantiating the Job. </throws>
     public virtual ValueTask<JobScope> CreateJob(TriggerFiredBundle bundle, IScheduler scheduler, CancellationToken cancellationToken = default)
     {
@@ -105,11 +105,11 @@ public class SimpleJobFactory : IJobFactory
     {
         try
         {
-            await Dispose(scope.Job).ConfigureAwait(false);
+            await DisposeIfDisposable(scope.Job, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
-            await Dispose(scope.State).ConfigureAwait(false);
+            await DisposeIfDisposable(scope.State, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -117,7 +117,7 @@ public class SimpleJobFactory : IJobFactory
     /// Disposes <paramref name="target" /> if it is disposable, preferring
     /// <see cref="IAsyncDisposable" /> over <see cref="IDisposable" />. Anything else is left alone.
     /// </summary>
-    protected static ValueTask Dispose(object? target)
+    protected static ValueTask DisposeIfDisposable(object? target, CancellationToken cancellationToken = default)
     {
         if (target is IAsyncDisposable asyncDisposable)
         {

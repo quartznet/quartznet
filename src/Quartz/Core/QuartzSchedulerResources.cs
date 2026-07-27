@@ -220,7 +220,7 @@ public sealed class QuartzSchedulerResources
     /// <see cref="QuartzScheduler" /> to use.
     /// </summary>
     /// <returns></returns>
-    public IList<ISchedulerPlugin> SchedulerPlugins { get; } = new List<ISchedulerPlugin>(10);
+    public List<ISchedulerPlugin> SchedulerPlugins { get; } = new List<ISchedulerPlugin>(10);
 
     /// <summary>
     /// Gets or sets a value indicating whether to make scheduler thread daemon.

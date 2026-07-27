@@ -41,6 +41,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
 
     private TaskScheduler scheduler = null!;
     private bool isInitialized;
+    private int shutdownInitialSignalDone;
 
     protected TaskSchedulingThreadPool() : this(DefaultMaxConcurrency)
     {
@@ -107,19 +108,6 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     }
 
     /// <summary>
-    /// The maximum number of thread pool tasks which can be executing in parallel
-    /// </summary>
-    /// <remarks>
-    /// This alias for MaximumConcurrency is meant to make config files previously used with
-    /// SimpleThreadPool or CLRThreadPool work more directly.
-    /// </remarks>
-    public int ThreadCount
-    {
-        get => MaxConcurrency;
-        set => MaxConcurrency = value;
-    }
-
-    /// <summary>
     /// The number of tasks that can run concurrently in this thread pool
     /// </summary>
     public virtual int PoolSize => MaxConcurrency;
@@ -128,7 +116,8 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     /// Initializes the thread pool for use
     /// </summary>
     /// <remarks>
-    /// Note that after invoking this method, neither
+    /// Note that after invoking this method, changes to <see cref="MaxConcurrency"/>
+    /// and <see cref="Scheduler"/> are silently ignored.
     /// </remarks>
     public virtual ValueTask Initialize(CancellationToken cancellationToken = default)
     {
@@ -172,7 +161,9 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
             return 0;
         }
 
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(shutdownCancellation.Token, cancellationToken);
+        using CancellationTokenSource? linked = cancellationToken.CanBeCanceled
+            ? CancellationTokenSource.CreateLinkedTokenSource(shutdownCancellation.Token, cancellationToken)
+            : null;
 
         try
         {
@@ -188,7 +179,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
             //
             // In the worst case, TryRun will just wait
             // for the next thread and clustered scenarios may experience some imbalanced loads.
-            await concurrencySemaphore.WaitAsync(linked.Token).ConfigureAwait(false);
+            await concurrencySemaphore.WaitAsync(linked?.Token ?? shutdownCancellation.Token).ConfigureAwait(false);
             return 1 + concurrencySemaphore.Release();
         }
         catch (OperationCanceledException)
@@ -213,11 +204,13 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
         }
 
         // Acquire the semaphore (return false if shutdown occurs while waiting)
-        using (var linked = CancellationTokenSource.CreateLinkedTokenSource(shutdownCancellation.Token, cancellationToken))
+        using (CancellationTokenSource? linked = cancellationToken.CanBeCanceled
+                   ? CancellationTokenSource.CreateLinkedTokenSource(shutdownCancellation.Token, cancellationToken)
+                   : null)
         {
             try
             {
-                await concurrencySemaphore.WaitAsync(linked.Token).ConfigureAwait(false);
+                await concurrencySemaphore.WaitAsync(linked?.Token ?? shutdownCancellation.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -253,7 +246,17 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
 #pragma warning restore MA0134
 
         // Start the task using the task scheduler
-        task.Start(Scheduler);
+        try
+        {
+            task.Start(Scheduler);
+        }
+        catch (TaskSchedulerException)
+        {
+            // Shutdown(waitForJobsToComplete: false) disposed the scheduler between the double-check
+            // above and Start. The task is faulted rather than lost, so the completion continuation
+            // still fires and releases the semaphore and countdown — do not release them here.
+            return false;
+        }
 
         return true;
     }
@@ -265,6 +268,13 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     /// <param name="completedTask">The task which has completed.</param>
     private void SignalTaskComplete(Task completedTask)
     {
+        if (completedTask.Exception is not null)
+        {
+            // Observing the fault here keeps it off the UnobservedTaskException path; a failure
+            // can reach this point only by escaping the job run shell's own error handling.
+            logger.LogError(completedTask.Exception, "A task handed to the thread pool faulted.");
+        }
+
         concurrencySemaphore.Release();
         runningTasksCountdown.Signal();
     }
@@ -281,6 +291,12 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     /// </remarks>
     public ValueTask Shutdown(bool waitForJobsToComplete = true, CancellationToken cancellationToken = default)
     {
+        // A pool that was never initialized has no countdown, no semaphore and nothing running.
+        if (!isInitialized)
+        {
+            return default;
+        }
+
         logger.LogDebug("Shutting down threadpool...");
 
         // Cancel using our shutdown token
@@ -292,13 +308,18 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
             lock (runningTasksCountdown)
             {
                 // Cancellation has been signaled, so no new tasks will begin once
-                // shutdown has acquired this lock
-                logger.LogDebug("Waiting for {ThreadCount} threads to complete.", runningTasksCountdown.CurrentCount.ToString());
+                // shutdown has acquired this lock. CurrentCount includes the +1 guard
+                // that keeps the event from starting in "signaled" state.
+                logger.LogDebug("Waiting for {RunningTaskCount} running tasks to complete.", runningTasksCountdown.CurrentCount - 1);
             }
 
             // Signal the initial count that we used to make sure the CountDownEvent didn't start
-            // in "signaled" state
-            runningTasksCountdown.Signal();
+            // in "signaled" state. One-shot so that concurrent or repeated shutdowns cannot
+            // double-signal, which would end the wait one running task early.
+            if (Interlocked.Exchange(ref shutdownInitialSignalDone, 1) == 0)
+            {
+                runningTasksCountdown.Signal();
+            }
 
             // Wait for pending tasks to complete. Deliberately not cancellable: the caller is
             // QuartzScheduler.Shutdown, and abandoning this wait would skip the job store shutdown,

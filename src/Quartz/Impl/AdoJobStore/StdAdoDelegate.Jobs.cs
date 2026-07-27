@@ -281,21 +281,25 @@ public partial class StdAdoDelegate
     /// </summary>
     /// <param name="rs">The result set, already queued to the correct row.</param>
     /// <param name="colIndex">The column index for the BLOB.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>The deserialized Object from the ResultSet BLOB.</returns>
-    protected virtual ValueTask<T?> GetJobDataFromBlob<T>(DbDataReader rs, int colIndex) where T : class
+    protected virtual ValueTask<T?> GetJobDataFromBlob<T>(
+        DbDataReader rs,
+        int colIndex,
+        CancellationToken cancellationToken = default) where T : class
     {
         if (CanUseProperties)
         {
             if (!rs.IsDBNull(colIndex))
             {
                 // should be NameValueCollection
-                return GetObjectFromBlob<T>(rs, colIndex);
+                return GetObjectFromBlob<T>(rs, colIndex, cancellationToken);
             }
 
             return new((T?) null);
         }
 
-        return GetObjectFromBlob<T>(rs, colIndex);
+        return GetObjectFromBlob<T>(rs, colIndex, cancellationToken);
     }
 
     /// <summary>

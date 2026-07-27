@@ -864,10 +864,6 @@ public class ConfigurationIsNeverSilentlyDroppedTest
 
     private sealed class CountingObjectSerializer : IObjectSerializer
     {
-        public void Initialize()
-        {
-        }
-
         public byte[] Serialize<T>(T obj) where T : class => [];
 
         public T? Deserialize<T>(byte[] data) where T : class => null;

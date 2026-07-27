@@ -67,8 +67,8 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
 
     private IConnectionMultiplexer? redis;
     private readonly SemaphoreSlim connectionLock = new(1, 1);
-    private int lockTtlMilliseconds = 30_000;
-    private int lockRetryIntervalMilliseconds = 100;
+    private TimeSpan lockTimeToLive = TimeSpan.FromSeconds(30);
+    private TimeSpan lockRetryInterval = TimeSpan.FromMilliseconds(100);
 
     public RedisSemaphore()
     {
@@ -93,35 +93,37 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
     public string KeyPrefix { get; set; } = "quartz:lock:";
 
     /// <summary>
-    /// Gets or sets the lock TTL (time-to-live) in milliseconds.
+    /// Gets or sets the lock time-to-live.
     /// </summary>
     /// <remarks>
-    /// Defaults to <c>30000</c> (30 seconds). The lock automatically expires after this
+    /// Defaults to 30 seconds. The lock automatically expires after this
     /// duration, allowing recovery when a node crashes while holding a lock.
     /// </remarks>
-    public int LockTtlMilliseconds
+    [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
+    public TimeSpan LockTimeToLive
     {
-        get => lockTtlMilliseconds;
+        get => lockTimeToLive;
         set
         {
-            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(value);
-            lockTtlMilliseconds = value;
+            ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(value, TimeSpan.Zero);
+            lockTimeToLive = value;
         }
     }
 
     /// <summary>
-    /// Gets or sets the polling interval in milliseconds between <c>SET NX</c> retry attempts.
+    /// Gets or sets the polling interval between <c>SET NX</c> retry attempts.
     /// </summary>
     /// <remarks>
-    /// Defaults to <c>100</c> milliseconds.
+    /// Defaults to 100 milliseconds.
     /// </remarks>
-    public int LockRetryIntervalMilliseconds
+    [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
+    public TimeSpan LockRetryInterval
     {
-        get => lockRetryIntervalMilliseconds;
+        get => lockRetryInterval;
         set
         {
-            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(value);
-            lockRetryIntervalMilliseconds = value;
+            ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(value, TimeSpan.Zero);
+            lockRetryInterval = value;
         }
     }
 
@@ -194,8 +196,8 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
             var db = connection.GetDatabase();
             var key = BuildKey(lockName);
             var value = requestorId.ToString("N");
-            var ttl = TimeSpan.FromMilliseconds(LockTtlMilliseconds);
-            var retryInterval = TimeSpan.FromMilliseconds(LockRetryIntervalMilliseconds);
+            TimeSpan ttl = LockTimeToLive;
+            TimeSpan retryInterval = LockRetryInterval;
 
             while (true)
             {

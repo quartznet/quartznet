@@ -187,10 +187,7 @@ public class TriggerTimeComparatorTest
             throw new NotImplementedException();
         }
 
-        public bool GetMayFireAgain()
-        {
-            throw new NotImplementedException();
-        }
+        public bool MayFireAgain => throw new NotImplementedException();
 
         public DateTimeOffset? NextFireTimeUtc
         {

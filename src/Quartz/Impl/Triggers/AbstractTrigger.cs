@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
@@ -531,13 +531,13 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// </para>
     ///
     /// <para>
-    /// After this method has been called, <see cref="GetNextFireTimeUtc" />
+    /// After this method has been called, <see cref="NextFireTimeUtc" />
     /// should return a valid answer.
     /// </para>
     /// </remarks>
     /// <returns>
     /// The first time at which the <see cref="ITrigger" /> will be fired
-    /// by the scheduler, which is also the same value <see cref="GetNextFireTimeUtc" />
+    /// by the scheduler, which is also the same value <see cref="NextFireTimeUtc" />
     /// will return (until after the first firing of the <see cref="ITrigger" />).
     /// </returns>
     public abstract DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? calendar);
@@ -578,7 +578,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
             return SchedulerInstruction.SetAllJobTriggersComplete;
         }
 
-        if (!GetMayFireAgain())
+        if (!MayFireAgain)
         {
             return SchedulerInstruction.DeleteTrigger;
         }
@@ -594,7 +594,15 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// may remove the <see cref="ITrigger" /> from the <see cref="IJobStore" />.
     /// </para>
     /// </summary>
-    public abstract bool GetMayFireAgain();
+    public abstract bool MayFireAgain { get; }
+
+    /// <inheritdoc cref="ITrigger.MayFireAgain" />
+    /// <remarks>
+    /// Kept as a method as well as a property so that code holding a concrete trigger type — where
+    /// the interface's default implementation is not reachable — still compiles.
+    /// </remarks>
+    [Obsolete("Use the MayFireAgain property instead.")]
+    public bool GetMayFireAgain() => MayFireAgain;
 
     /// <summary>
     /// Returns the next time at which the <see cref="ITrigger" /> is scheduled to fire. If

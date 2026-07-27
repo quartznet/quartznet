@@ -574,10 +574,6 @@ public class AdoJobStoreSmokeTest
 
     public class SpecialClassLoadHelper : ITypeLoadHelper
     {
-        public void Initialize()
-        {
-        }
-
         public Type LoadType(string name)
         {
             if (string.IsNullOrEmpty(name))

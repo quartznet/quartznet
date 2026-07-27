@@ -67,10 +67,10 @@ public class JobStoreTX : JobStoreSupport
     /// For <see cref="JobStoreTX" />, the non-managed TX connection is just
     /// the normal connection because it is not CMT.
     /// </summary>
-    /// <seealso cref="JobStoreSupport.GetConnection()" />
-    protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection()
+    /// <seealso cref="JobStoreSupport.GetConnection(CancellationToken)" />
+    protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection(CancellationToken cancellationToken = default)
     {
-        return GetConnection();
+        return GetConnection(cancellationToken);
     }
 
     /// <summary>
@@ -88,8 +88,8 @@ public class JobStoreTX : JobStoreSupport
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns></returns>
     /// <seealso cref="JobStoreSupport.ExecuteInNonManagedTXLock" />
-    /// <seealso cref="JobStoreSupport.GetNonManagedTXConnection()" />
-    /// <seealso cref="JobStoreSupport.GetConnection()" />
+    /// <seealso cref="JobStoreSupport.GetNonManagedTXConnection(CancellationToken)" />
+    /// <seealso cref="JobStoreSupport.GetConnection(CancellationToken)" />
     protected override ValueTask<T> ExecuteInLock<T>(
         string? lockName,
         Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,

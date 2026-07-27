@@ -42,7 +42,7 @@ public static class TriggerUtils
     /// <param name="trigger">The trigger upon which to do the work</param>
     /// <param name="calendar">The calendar to apply to the trigger's schedule</param>
     /// <param name="numTimes">The number of next fire times to produce</param>
-    public static IReadOnlyList<DateTimeOffset> ComputeFireTimes(IOperableTrigger trigger, ICalendar? calendar, int numTimes)
+    public static List<DateTimeOffset> ComputeFireTimes(IOperableTrigger trigger, ICalendar? calendar, int numTimes)
     {
         List<DateTimeOffset> lst = new List<DateTimeOffset>();
 
@@ -67,7 +67,7 @@ public static class TriggerUtils
             }
         }
 
-        return lst.AsReadOnly();
+        return lst;
     }
 
     /// <summary>
@@ -139,7 +139,7 @@ public static class TriggerUtils
     /// <param name="calendar">The calendar to apply to the trigger's schedule</param>
     /// <param name="from">The starting date at which to find fire times</param>
     /// <param name="to">The ending date at which to stop finding fire times</param>
-    public static IReadOnlyList<DateTimeOffset> ComputeFireTimesBetween(IOperableTrigger trigger, ICalendar? calendar, DateTimeOffset from, DateTimeOffset to)
+    public static List<DateTimeOffset> ComputeFireTimesBetween(IOperableTrigger trigger, ICalendar? calendar, DateTimeOffset from, DateTimeOffset to)
     {
         List<DateTimeOffset> lst = new List<DateTimeOffset>();
 
@@ -186,6 +186,6 @@ public static class TriggerUtils
                 break;
             }
         }
-        return lst.AsReadOnly();
+        return lst;
     }
 }

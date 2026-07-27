@@ -1,5 +1,3 @@
-using System.Collections.Specialized;
-
 using Quartz.Impl;
 using Quartz.Extensibility;
 
@@ -27,15 +25,9 @@ public class JobRunShellAsyncLocalTest
     {
         const string expectedTenant = "tenant-42";
 
-        NameValueCollection properties = new NameValueCollection
-        {
-            ["quartz.serializer.type"] = TestConstants.DefaultSerializerType,
-            ["quartz.scheduler.instanceName"] = "AsyncLocalTest",
-        };
-
-        ISchedulerFactory sf = new StdSchedulerFactory(properties);
-        IScheduler scheduler = await sf.GetScheduler();
-        scheduler.JobFactory = new AsyncLocalSettingJobFactory(expectedTenant);
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
+            .UseJobFactory(new AsyncLocalSettingJobFactory(expectedTenant))
+            .BuildScheduler();
 
         try
         {
@@ -66,15 +58,9 @@ public class JobRunShellAsyncLocalTest
     [Test]
     public async Task AsyncJobFactory_AwaitedWorkCompletesBeforeJobExecute()
     {
-        NameValueCollection properties = new NameValueCollection
-        {
-            ["quartz.serializer.type"] = TestConstants.DefaultSerializerType,
-            ["quartz.scheduler.instanceName"] = "AsyncJobFactoryTest",
-        };
-
-        ISchedulerFactory sf = new StdSchedulerFactory(properties);
-        IScheduler scheduler = await sf.GetScheduler();
-        scheduler.JobFactory = new AwaitingJobFactory();
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
+            .UseJobFactory(new AwaitingJobFactory())
+            .BuildScheduler();
 
         try
         {

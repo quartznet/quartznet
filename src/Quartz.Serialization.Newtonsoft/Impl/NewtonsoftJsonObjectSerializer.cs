@@ -3,7 +3,6 @@ using System.Text;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 
-using Quartz.Converters;
 using Quartz.Serialization.Newtonsoft;
 using Quartz.Extensibility;
 

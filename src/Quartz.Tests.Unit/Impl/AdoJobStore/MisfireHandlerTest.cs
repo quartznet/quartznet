@@ -177,7 +177,7 @@ public class MisfireHandlerTest
             MisfireHandlerFrequency = TimeSpan.FromMilliseconds(100);
         }
 
-        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection()
+        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection(CancellationToken cancellationToken = default)
         {
             // Return a fake connection that will be used but won't actually do anything
             var fakeConnection = A.Fake<DbConnection>();

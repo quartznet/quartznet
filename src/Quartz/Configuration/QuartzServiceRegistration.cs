@@ -1,4 +1,4 @@
-﻿using System.Collections.Specialized;
+using System.Collections.Specialized;
 using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -56,7 +56,7 @@ internal static class QuartzServiceRegistration
         // a process-wide instance any more, so "which repository am I in" is answered by which container
         // built the scheduler rather than by how it was built.
         services.TryAddSingleton<ISchedulerRepository, SchedulerRepository>();
-        services.TryAddSingleton<IDbConnectionManager, DBConnectionManager>();
+        services.TryAddSingleton<IDbConnectionManager, DbConnectionManager>();
 
         // The container-wide set of trigger and calendar serializers, holding the built-in types. This is
         // what the parts of Quartz that are not tied to one scheduler read — the HTTP API, the dashboard

@@ -78,9 +78,9 @@ public sealed class JsonSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileS
     public bool FailOnFileNotFound { get; set; } = true;
     public bool FailOnSchedulingError { get; set; }
 
-    public ValueTask FileUpdated(string fName, CancellationToken cancellationToken = default)
+    public ValueTask FileUpdated(string fileName, CancellationToken cancellationToken = default)
     {
-        return started ? new ValueTask(ProcessFile(fName, cancellationToken)) : ValueTask.CompletedTask;
+        return started ? new ValueTask(ProcessFile(fileName, cancellationToken)) : ValueTask.CompletedTask;
     }
 
     public async ValueTask Initialize(string pluginName, IScheduler scheduler, CancellationToken cancellationToken = default)

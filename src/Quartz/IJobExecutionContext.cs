@@ -40,7 +40,7 @@ public interface IJobExecutionContext
     /// of the originally firing trigger. This recovering job will have been scheduled for
     /// the same firing time as the original job, and so is available via the
     /// <see cref="ScheduledFireTimeUtc" /> property. The original firing time of the job can be
-    /// accessed via the <see cref="SchedulerConstants.FailedJobOriginalTriggerFiretime" />
+    /// accessed via the <see cref="SchedulerConstants.FailedJobOriginalTriggerFireTime" />
     /// element of this job's <see cref="JobDataMap" />.
     /// </remarks>
     TriggerKey? RecoveringTriggerKey { get; }

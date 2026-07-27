@@ -129,7 +129,7 @@ public interface IListenerManager
     /// listener or the event matches ANY of the matchers that were registered for that
     /// <see cref="IJobListener"/>.
     /// </remarks>
-    IReadOnlyCollection<IMatcher<JobKey>>? GetJobListenerMatchers(string listenerName);
+    IMatcher<JobKey>[]? GetJobListenerMatchers(string listenerName);
 
     /// <summary>
     /// Remove the identified <see cref="IJobListener" /> from the <see cref="IScheduler" />.
@@ -226,7 +226,7 @@ public interface IListenerManager
     /// </remarks>
     /// <param name="listenerName">the name of the listener to add the matcher to</param>
     /// <returns>the matchers registered for selecting events for the identified listener</returns>
-    IReadOnlyCollection<IMatcher<TriggerKey>>? GetTriggerListenerMatchers(string listenerName);
+    IMatcher<TriggerKey>[]? GetTriggerListenerMatchers(string listenerName);
 
     /// <summary>
     /// Removes the identified <see cref="ITriggerListener" /> from the <see cref="IScheduler" />.

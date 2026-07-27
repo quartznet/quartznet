@@ -220,7 +220,7 @@ public class CronTriggerTest
         DateTimeOffset? firstFireTime = trigger.ComputeFirstFireTimeUtc(null);
 
         Assert.That(firstFireTime, Is.Null, "Trigger with end date in the past should not schedule any fire time");
-        Assert.That(trigger.GetMayFireAgain(), Is.False, "Trigger should not fire again when end date is in the past");
+        Assert.That(trigger.MayFireAgain, Is.False, "Trigger should not fire again when end date is in the past");
     }
 
     [Test]
@@ -241,7 +241,7 @@ public class CronTriggerTest
         Assert.That(firstFireTime, Is.Not.Null, "Trigger with future end date should schedule a fire time");
         Assert.That(firstFireTime!.Value >= DateTimeOffset.UtcNow, Is.True, "Fire time should be in the future");
         Assert.That(firstFireTime.Value <= endDate, Is.True, "Fire time should be before end date");
-        Assert.That(trigger.GetMayFireAgain(), Is.True, "Trigger should be able to fire again");
+        Assert.That(trigger.MayFireAgain, Is.True, "Trigger should be able to fire again");
 
         var now = DateTimeOffset.UtcNow;
         DateTimeOffset? nextFireTime = trigger.GetFireTimeAfter(now);

@@ -30,7 +30,7 @@ namespace Quartz.Extensibility;
 /// produce <see cref="IJob" /> instances via some special mechanism, such as to
 /// give the opportunity for dependency injection.
 /// </remarks>
-/// <seealso cref="IScheduler.JobFactory" />
+/// <seealso cref="IQuartzBuilder.UseJobFactory(IJobFactory)" />
 /// <seealso cref="SimpleJobFactory" />
 /// <seealso cref="PropertySettingJobFactory" />
 /// <author>James House</author>

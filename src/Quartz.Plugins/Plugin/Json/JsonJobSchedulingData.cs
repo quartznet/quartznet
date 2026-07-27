@@ -50,7 +50,7 @@ internal sealed class JsonDeleteTriggerCommand
 
 internal sealed class JsonProcessingDirectives
 {
-    public bool OverWriteExistingData { get; set; } = true;
+    public bool OverwriteExistingData { get; set; } = true;
     public bool IgnoreDuplicates { get; set; }
     public bool ScheduleTriggerRelativeToReplacedTrigger { get; set; }
 }

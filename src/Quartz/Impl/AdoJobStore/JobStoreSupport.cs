@@ -104,14 +104,14 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         MaxTransientRetries = options.MaxTransientRetries;
         TransientRetryInterval = options.TransientRetryInterval;
         RetryableActionErrorLogThreshold = options.RetryableActionErrorLogThreshold;
-        UseDBLocks = options.UseDbLocks;
+        UseDbLocks = options.UseDbLocks;
         LockOnInsert = options.LockOnInsert;
         AcquireTriggersWithinLock = options.AcquireTriggersWithinLock;
         TxIsolationLevelSerializable = options.TxIsolationLevelSerializable;
         DoubleCheckLockMisfireHandler = options.DoubleCheckLockMisfireHandler;
         MakeThreadsDaemons = options.MakeThreadsDaemons;
         PerformSchemaValidation = options.PerformSchemaValidation;
-        SelectWithLockSQL = options.SelectWithLockSql;
+        SelectWithLockSql = options.SelectWithLockSql;
         DriverDelegateInitString = options.DriverDelegateInitString;
 
         // The store uses the provider it was given. It is also published to the connection manager under
@@ -162,22 +162,6 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
 
             tablePrefix = value;
-        }
-    }
-
-    /// <summary>
-    /// Set whether string-only properties will be handled in JobDataMaps.
-    /// </summary>
-    public string UseProperties
-    {
-        set
-        {
-            if (value is null)
-            {
-                value = "false";
-            }
-
-            useProperties = bool.Parse(value);
         }
     }
 
@@ -262,7 +246,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// Get or set whether this instance should use database-based thread
     /// synchronization.
     /// </summary>
-    public bool UseDBLocks { get; set; }
+    public bool UseDbLocks { get; set; }
 
     /// <summary>
     /// Whether or not to obtain locks when inserting new jobs/triggers.
@@ -368,7 +352,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// table.
     /// </summary>
     /// <seealso cref="StdRowLockSemaphore" />
-    public virtual string? SelectWithLockSQL { get; set; }
+    public virtual string? SelectWithLockSql { get; set; }
 
     protected virtual ITypeLoadHelper TypeLoadHelper => typeLoadHelper;
 
@@ -399,20 +383,20 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
     protected DbMetadata DbMetadata => DbProvider.Metadata;
 
-    protected abstract ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection();
+    protected abstract ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets the connection and starts a new transaction.
     /// </summary>
     /// <returns></returns>
-    protected virtual async ValueTask<ConnectionAndTransactionHolder> GetConnection()
+    protected virtual async ValueTask<ConnectionAndTransactionHolder> GetConnection(CancellationToken cancellationToken = default)
     {
         DbConnection conn;
         DbTransaction tx;
         try
         {
             conn = DbProvider.CreateConnection();
-            await conn.OpenAsync().ConfigureAwait(false);
+            await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -424,11 +408,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         {
             if (TxIsolationLevelSerializable)
             {
-                tx = await conn.BeginTransactionAsync(IsolationLevel.Serializable).ConfigureAwait(false);
+                tx = await conn.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken).ConfigureAwait(false);
             }
             else
             {
-                tx = await conn.BeginTransactionAsync(IsolationLevel.ReadCommitted).ConfigureAwait(false);
+                tx = await conn.BeginTransactionAsync(IsolationLevel.ReadCommitted, cancellationToken).ConfigureAwait(false);
             }
         }
         catch (Exception e)
@@ -559,35 +543,35 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
 
         // If the user hasn't specified an explicit lock handler, then
-        // choose one based on CMT/Clustered/UseDBLocks.
+        // choose one based on CMT/Clustered/UseDbLocks.
         if (LockHandler is null)
         {
             // If the user hasn't specified an explicit lock handler,
             // then we *must* use DB locks with clustering
             if (Clustered)
             {
-                UseDBLocks = true;
+                UseDbLocks = true;
             }
 
-            if (UseDBLocks)
+            if (UseDbLocks)
             {
                 if (Delegate is SqlServerDelegate)
                 {
-                    if (SelectWithLockSQL is null)
+                    if (SelectWithLockSql is null)
                     {
                         const string DefaultLockSql = "SELECT * FROM {0}LOCKS WITH (UPDLOCK,ROWLOCK) WHERE " + ColumnSchedulerName + " = @schedulerName AND LOCK_NAME = @lockName";
                         Logger.LogInformation("Detected usage of SqlServerDelegate - defaulting 'selectWithLockSQL' to '{DefaultLockSql}'.", DefaultLockSql);
-                        SelectWithLockSQL = DefaultLockSql;
+                        SelectWithLockSql = DefaultLockSql;
                     }
                 }
 
                 if (Delegate is PostgreSQLDelegate)
                 {
-                    LockHandler = new PostgreSQLRowLockSemaphore(TablePrefix, InstanceName, SelectWithLockSQL, DbProvider);
+                    LockHandler = new PostgreSQLRowLockSemaphore(TablePrefix, InstanceName, SelectWithLockSql, DbProvider);
                 }
                 else
                 {
-                    LockHandler = new StdRowLockSemaphore(TablePrefix, InstanceName, SelectWithLockSQL, DbProvider);
+                    LockHandler = new StdRowLockSemaphore(TablePrefix, InstanceName, SelectWithLockSql, DbProvider);
                 }
                 
                 Logger.LogInformation("Using db table-based data access locking (synchronization) via {LockHandlerType}.", LockHandler.GetType().Name);
@@ -767,7 +751,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         Guid requestorId,
         string lockName,
         bool doIt,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         if (doIt)
         {
@@ -786,7 +770,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// Will recover any failed or misfired jobs and clean up the data store as
     /// appropriate.
     /// </summary>
-    protected virtual ValueTask<bool> RecoverJobs(CancellationToken cancellationToken)
+    protected virtual ValueTask<bool> RecoverJobs(CancellationToken cancellationToken = default)
     {
         return ExecuteInNonManagedTXLock(
             LockTriggerAccess,
@@ -1004,7 +988,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// fails after <see cref="Extensibility.IJobStore.TriggersFired"/> fails, leaving the trigger
     /// in ACQUIRED state with no one to fire or release it.
     /// </summary>
-    protected virtual async Task<int> RecoverStaleAcquiredTriggers(
+    protected virtual async ValueTask<int> RecoverStaleAcquiredTriggers(
         ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default)
     {
@@ -2192,19 +2176,19 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <see cref="ITrigger" />s pointing to non-existent calendars, then a
     /// <see cref="JobPersistenceException" /> will be thrown.
     /// </remarks>
-    /// <param name="name">The name of the <see cref="ICalendar" /> to be removed.</param>
+    /// <param name="calendarName">The name of the <see cref="ICalendar" /> to be removed.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>
     /// <see langword="true" /> if a <see cref="ICalendar" /> with the given name
     /// was found and removed from the store.
     ///</returns>
     public ValueTask<bool> RemoveCalendar(
-        string name,
+        string calendarName,
         CancellationToken cancellationToken = default)
     {
         return activityTracer.Trace(
             OperationName.JobStore.RemoveCalendar,
-            () => ExecuteInLock(LockTriggerAccess, conn => RemoveCalendar(conn, name, cancellationToken), cancellationToken));
+            () => ExecuteInLock(LockTriggerAccess, conn => RemoveCalendar(conn, calendarName, cancellationToken), cancellationToken));
     }
 
     protected virtual async ValueTask<bool> RemoveCalendar(
@@ -2236,13 +2220,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <summary>
     /// Retrieve the given <see cref="ITrigger" />.
     /// </summary>
-    /// <param name="name">The name of the <see cref="ICalendar" /> to be retrieved.</param>
+    /// <param name="calendarName">The name of the <see cref="ICalendar" /> to be retrieved.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>The desired <see cref="ICalendar" />, or null if there is no match.</returns>
-    public ValueTask<ICalendar?> RetrieveCalendar(string name, CancellationToken cancellationToken = default)
+    public ValueTask<ICalendar?> RetrieveCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
         return ExecuteWithoutLock( // no locks necessary for read...
-            conn => RetrieveCalendar(conn, name, cancellationToken),
+            conn => RetrieveCalendar(conn, calendarName, cancellationToken),
             cancellationToken);
     }
 
@@ -2392,15 +2376,15 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// </summary>
     /// <remarks>
     /// </remarks>
-    /// <param name="name">the identifier to check for</param>
+    /// <param name="calendarName">the identifier to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a calendar exists with the given identifier</returns>
     public ValueTask<bool> CalendarExists(
-        string name,
+        string calendarName,
         CancellationToken cancellationToken = default)
     {
         return ExecuteWithoutLock( // no locks necessary for read...
-            conn => CheckExists(conn, name, cancellationToken),
+            conn => CheckExists(conn, calendarName, cancellationToken),
             cancellationToken);
     }
 
@@ -3236,16 +3220,6 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     // TODO: this really ought to return something like a FiredTriggerBundle,
     // so that the fireInstanceId doesn't have to be on the trigger...
 
-    protected virtual ValueTask<List<IOperableTrigger>> AcquireNextTrigger(
-        ConnectionAndTransactionHolder conn,
-        DateTimeOffset noLaterThan,
-        int maxCount,
-        TimeSpan timeWindow,
-        CancellationToken cancellationToken = default)
-    {
-        return AcquireNextTrigger(conn, noLaterThan, maxCount, timeWindow, executionLimits: null, cancellationToken);
-    }
-
     protected virtual async ValueTask<List<IOperableTrigger>> AcquireNextTrigger(
         ConnectionAndTransactionHolder conn,
         DateTimeOffset noLaterThan,
@@ -3843,7 +3817,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
     protected internal async ValueTask<RecoverMisfiredJobsResult> DoRecoverMisfires(
         Guid requestorId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         bool transOwner = false;
         ConnectionAndTransactionHolder? conn = null;
@@ -3858,13 +3832,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 // "database is locked" errors from concurrent serializable transactions.
                 // Skip the double-check optimization since in-memory lock is cheap.
                 transOwner = await LockHandler.ObtainLock(requestorId, null, LockTriggerAccess, cancellationToken).ConfigureAwait(false);
-                conn = await GetNonManagedTXConnection().ConfigureAwait(false);
+                conn = await GetNonManagedTXConnection(cancellationToken).ConfigureAwait(false);
                 result = await RecoverMisfiredJobs(conn, false, cancellationToken).ConfigureAwait(false);
                 staleCount = await RecoverStaleAcquiredTriggers(conn, cancellationToken).ConfigureAwait(false);
             }
             else
             {
-                conn = await GetNonManagedTXConnection().ConfigureAwait(false);
+                conn = await GetNonManagedTXConnection(cancellationToken).ConfigureAwait(false);
 
                 // Before we make the potentially expensive call to acquire the
                 // trigger lock, peek ahead to see if it is likely we would find
@@ -3904,17 +3878,17 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 result = new RecoverMisfiredJobsResult(result.HasMoreMisfiredTriggers, totalCount, earliestNewTime);
             }
 
-            await CommitConnection(conn, false).ConfigureAwait(false);
+            await CommitConnection(conn, false, cancellationToken).ConfigureAwait(false);
             return result;
         }
         catch (JobPersistenceException jpe)
         {
-            await RollbackConnection(conn, jpe).ConfigureAwait(false);
+            await RollbackConnection(conn, jpe, cancellationToken).ConfigureAwait(false);
             throw;
         }
         catch (Exception e)
         {
-            await RollbackConnection(conn, e).ConfigureAwait(false);
+            await RollbackConnection(conn, e, cancellationToken).ConfigureAwait(false);
             Throw.JobPersistenceException("Database error recovering from misfires.", e);
             return default;
         }
@@ -3926,14 +3900,16 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
             finally
             {
-                await CleanupConnection(conn).ConfigureAwait(false);
+                await CleanupConnection(conn, cancellationToken).ConfigureAwait(false);
             }
         }
     }
 
-    protected internal virtual ValueTask SignalSchedulingChangeImmediately(DateTimeOffset? candidateNewNextFireTime)
+    protected internal virtual ValueTask SignalSchedulingChangeImmediately(
+        DateTimeOffset? candidateNewNextFireTime,
+        CancellationToken cancellationToken = default)
     {
-        return schedSignaler.SignalSchedulingChange(candidateNewNextFireTime);
+        return schedSignaler.SignalSchedulingChange(candidateNewNextFireTime, cancellationToken);
     }
 
     //---------------------------------------------------------------------------
@@ -3956,7 +3932,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             bool transStateOwner = false;
             bool recovered = false;
 
-            ConnectionAndTransactionHolder conn = await GetNonManagedTXConnection().ConfigureAwait(false);
+            ConnectionAndTransactionHolder conn = await GetNonManagedTXConnection(cancellationToken).ConfigureAwait(false);
             try
             {
                 // Other than the first time, always checkin first to make sure there is
@@ -3967,7 +3943,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 if (!firstCheckIn)
                 {
                     failedRecords = await ClusterCheckIn(conn, cancellationToken).ConfigureAwait(false);
-                    await CommitConnection(conn, true).ConfigureAwait(false);
+                    await CommitConnection(conn, true, cancellationToken).ConfigureAwait(false);
                 }
 
                 if (firstCheckIn || failedRecords is not null && failedRecords.Count > 0)
@@ -3995,14 +3971,14 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                     }
                 }
 
-                await CommitConnection(conn, false).ConfigureAwait(false);
+                await CommitConnection(conn, false, cancellationToken).ConfigureAwait(false);
 
                 firstCheckIn = false;
                 return recovered;
             }
             catch (JobPersistenceException jpe)
             {
-                await RollbackConnection(conn, jpe).ConfigureAwait(false);
+                await RollbackConnection(conn, jpe, cancellationToken).ConfigureAwait(false);
                 if (attempt < totalAttempts && IsTransient(jpe))
                 {
                     Logger.LogWarning(jpe, "Transient exception on attempt {Attempt} of {TotalAttempts} in DoCheckin, will retry after {RetryInterval}", attempt, totalAttempts, TransientRetryInterval);
@@ -4026,7 +4002,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                     }
                     finally
                     {
-                        await CleanupConnection(conn).ConfigureAwait(false);
+                        await CleanupConnection(conn, cancellationToken).ConfigureAwait(false);
                     }
                 }
             }
@@ -4172,7 +4148,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
     protected virtual async ValueTask ClusterRecover(
         ConnectionAndTransactionHolder conn,
-        List<SchedulerStateRecord> failedInstances,
+        IReadOnlyCollection<SchedulerStateRecord> failedInstances,
         CancellationToken cancellationToken = default)
     {
         if (failedInstances.Count > 0)
@@ -4274,7 +4250,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                                 JobDataMap jd = await Delegate.SelectTriggerJobDataMap(conn, tKey, cancellationToken).ConfigureAwait(false);
                                 jd[SchedulerConstants.FailedJobOriginalTriggerName] = tKey.Name;
                                 jd[SchedulerConstants.FailedJobOriginalTriggerGroup] = tKey.Group;
-                                jd[SchedulerConstants.FailedJobOriginalTriggerFiretime] = Convert.ToString(ftRec.FireTimestamp, CultureInfo.InvariantCulture);
+                                jd[SchedulerConstants.FailedJobOriginalTriggerFireTime] = Convert.ToString(ftRec.FireTimestamp, CultureInfo.InvariantCulture);
                                 rcvryTrig.JobDataMap = jd;
 
                                 rcvryTrig.ComputeFirstFireTimeUtc(null);
@@ -4408,12 +4384,14 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// expects the same connection back that it originally returned
     /// from the datasource.
     /// </remarks>
-    /// <seealso cref="CloseConnection(ConnectionAndTransactionHolder)" />
-    protected virtual async ValueTask CleanupConnection(ConnectionAndTransactionHolder? conn)
+    /// <seealso cref="CloseConnection(ConnectionAndTransactionHolder, CancellationToken)" />
+    protected virtual async ValueTask CleanupConnection(
+        ConnectionAndTransactionHolder? conn,
+        CancellationToken cancellationToken = default)
     {
         if (conn is not null)
         {
-            await CloseConnection(conn).ConfigureAwait(false);
+            await CloseConnection(conn, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -4421,15 +4399,21 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// Closes the supplied connection.
     /// </summary>
     /// <param name="cth">(Optional)</param>
-    protected virtual async ValueTask CloseConnection(ConnectionAndTransactionHolder cth)
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    protected virtual async ValueTask CloseConnection(
+        ConnectionAndTransactionHolder cth,
+        CancellationToken cancellationToken = default)
     {
-        await cth.Close().ConfigureAwait(false);
+        await cth.Close(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Rollback the supplied connection.
     /// </summary>
-    protected virtual async ValueTask RollbackConnection(ConnectionAndTransactionHolder? cth, Exception cause)
+    protected virtual async ValueTask RollbackConnection(
+        ConnectionAndTransactionHolder? cth,
+        Exception cause,
+        CancellationToken cancellationToken = default)
     {
         if (cth is null)
         {
@@ -4438,7 +4422,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             return;
         }
 
-        await cth.Rollback(IsTransient(cause)).ConfigureAwait(false);
+        await cth.Rollback(IsTransient(cause), cancellationToken).ConfigureAwait(false);
     }
 
 
@@ -4662,15 +4646,19 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// </summary>
     /// <param name="cth">The CTH.</param>
     /// <param name="openNewTransaction">if set to <c>true</c> opens a new transaction.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <throws>JobPersistenceException thrown if a SQLException occurs when the </throws>
-    protected virtual async ValueTask CommitConnection(ConnectionAndTransactionHolder cth, bool openNewTransaction)
+    protected virtual async ValueTask CommitConnection(
+        ConnectionAndTransactionHolder cth,
+        bool openNewTransaction,
+        CancellationToken cancellationToken = default)
     {
         if (cth is null)
         {
             Logger.LogDebug("ConnectionAndTransactionHolder passed to CommitConnection was null, ignoring");
             return;
         }
-        await cth.Commit(openNewTransaction).ConfigureAwait(false);
+        await cth.Commit(openNewTransaction, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -4769,7 +4757,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     protected ValueTask<bool> ExecuteInNonManagedTXLock(
         string lockName,
         Func<ConnectionAndTransactionHolder, ValueTask> txCallback,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         return ExecuteInNonManagedTXLock(lockName, async conn =>
         {
@@ -4781,9 +4769,9 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     protected ValueTask<T> ExecuteInNonManagedTXLock<T>(
         string? lockName,
         Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
-        return ExecuteInNonManagedTXLock(lockName, txCallback, null, cancellationToken);
+        return ExecuteInNonManagedTXLock(lockName, txCallback, txValidator: null, requestorId: null, cancellationToken);
     }
 
     /// <summary>
@@ -4804,14 +4792,14 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         string? lockName,
         Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
         Func<ConnectionAndTransactionHolder, T, ValueTask<bool>>? txValidator,
-        CancellationToken cancellationToken) => ExecuteInNonManagedTXLock(lockName, txCallback, txValidator, requestorId: null, cancellationToken);
+        CancellationToken cancellationToken = default) => ExecuteInNonManagedTXLock(lockName, txCallback, txValidator, requestorId: null, cancellationToken);
 
     protected async ValueTask<T> ExecuteInNonManagedTXLock<T>(
         string? lockName,
         Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
         Func<ConnectionAndTransactionHolder, T, ValueTask<bool>>? txValidator,
         Guid? requestorId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         if (requestorId is null)
         {
@@ -4836,7 +4824,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                     // until after acquiring the lock since it isn't needed.
                     if (LockHandler.RequiresConnection)
                     {
-                        conn = await GetNonManagedTXConnection().ConfigureAwait(false);
+                        conn = await GetNonManagedTXConnection(cancellationToken).ConfigureAwait(false);
                     }
 
                     transOwner = await LockHandler.ObtainLock(requestorId.Value, conn, lockName, cancellationToken).ConfigureAwait(false);
@@ -4844,17 +4832,17 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
                 if (conn is null)
                 {
-                    conn = await GetNonManagedTXConnection().ConfigureAwait(false);
+                    conn = await GetNonManagedTXConnection(cancellationToken).ConfigureAwait(false);
                 }
 
                 T result = await txCallback(conn).ConfigureAwait(false);
                 try
                 {
-                    await CommitConnection(conn, false).ConfigureAwait(false);
+                    await CommitConnection(conn, false, cancellationToken).ConfigureAwait(false);
                 }
                 catch (JobPersistenceException jpe)
                 {
-                    await RollbackConnection(conn, jpe).ConfigureAwait(false);
+                    await RollbackConnection(conn, jpe, cancellationToken).ConfigureAwait(false);
                     if (txValidator is null)
                     {
                         throw;
@@ -4872,14 +4860,14 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 DateTimeOffset? sigTime = conn.SignalSchedulingChangeOnTxCompletion;
                 if (sigTime is not null)
                 {
-                    await SignalSchedulingChangeImmediately(sigTime).ConfigureAwait(false);
+                    await SignalSchedulingChangeImmediately(sigTime, cancellationToken).ConfigureAwait(false);
                 }
 
                 return result;
             }
             catch (JobPersistenceException jpe)
             {
-                await RollbackConnection(conn, jpe).ConfigureAwait(false);
+                await RollbackConnection(conn, jpe, cancellationToken).ConfigureAwait(false);
                 if (attempt < totalAttempts && IsTransient(jpe))
                 {
                     Logger.LogWarning(jpe, "Transient exception on attempt {Attempt} of {TotalAttempts} in ExecuteInNonManagedTXLock, will retry after {RetryInterval}", attempt, totalAttempts, TransientRetryInterval);
@@ -4891,7 +4879,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
             catch (Exception e)
             {
-                await RollbackConnection(conn, e).ConfigureAwait(false);
+                await RollbackConnection(conn, e, cancellationToken).ConfigureAwait(false);
                 Throw.JobPersistenceException("Unexpected runtime exception: " + e.Message, e);
                 return default;
             }
@@ -4903,7 +4891,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 }
                 finally
                 {
-                    await CleanupConnection(conn).ConfigureAwait(false);
+                    await CleanupConnection(conn, cancellationToken).ConfigureAwait(false);
                 }
             }
 

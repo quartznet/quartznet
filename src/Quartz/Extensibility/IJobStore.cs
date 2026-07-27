@@ -239,10 +239,10 @@ public interface IJobStore
     /// </summary>
     /// <remarks>
     /// </remarks>
-    /// <param name="name">the identifier to check for</param>
+    /// <param name="calendarName">the identifier to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a calendar exists with the given identifier</returns>
-    ValueTask<bool> CalendarExists(string name, CancellationToken cancellationToken = default);
+    ValueTask<bool> CalendarExists(string calendarName, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Determine whether a <see cref="IJob" /> with the given identifier already
@@ -277,7 +277,7 @@ public interface IJobStore
     /// <summary>
     /// Store the given <see cref="ICalendar" />.
     /// </summary>
-    /// <param name="name">The name.</param>
+    /// <param name="calendarName">The name.</param>
     /// <param name="calendar">The <see cref="ICalendar" /> to be stored.</param>
     /// <param name="replaceExisting">If <see langword="true" />, any <see cref="ICalendar" /> existing
     /// in the <see cref="IJobStore" /> with the same name and group
@@ -288,7 +288,7 @@ public interface IJobStore
     /// re-computed with the new <see cref="ICalendar" />.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <throws>  ObjectAlreadyExistsException </throws>
-    ValueTask StoreCalendar(string name, ICalendar calendar, bool replaceExisting, bool updateTriggers, CancellationToken cancellationToken = default);
+    ValueTask StoreCalendar(string calendarName, ICalendar calendar, bool replaceExisting, bool updateTriggers, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Remove (delete) the <see cref="ICalendar" /> with the
@@ -299,24 +299,24 @@ public interface IJobStore
     /// <see cref="ITrigger" />s pointing to non-existent calendars, then a
     /// <see cref="JobPersistenceException" /> will be thrown.
     /// </remarks>
-    /// <param name="name">The name of the <see cref="ICalendar" /> to be removed.</param>
+    /// <param name="calendarName">The name of the <see cref="ICalendar" /> to be removed.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>
     /// 	<see langword="true" /> if a <see cref="ICalendar" /> with the given name
     /// was found and removed from the store.
     /// </returns>
-    ValueTask<bool> RemoveCalendar(string name, CancellationToken cancellationToken = default);
+    ValueTask<bool> RemoveCalendar(string calendarName, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieve the given <see cref="ITrigger" />.
     /// </summary>
-    /// <param name="name">The name of the <see cref="ICalendar" /> to be retrieved.</param>
+    /// <param name="calendarName">The name of the <see cref="ICalendar" /> to be retrieved.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>
     /// The desired <see cref="ICalendar" />, or null if there is no
     /// match.
     /// </returns>
-    ValueTask<ICalendar?> RetrieveCalendar(string name, CancellationToken cancellationToken = default);
+    ValueTask<ICalendar?> RetrieveCalendar(string calendarName, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get the number of <see cref="IJob" />s that are
@@ -591,16 +591,16 @@ public interface IJobStore
     ValueTask TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get the amount of time (in ms) to wait when accessing this job store repeatedly fails.
+    /// Get the amount of time to wait when accessing this job store repeatedly fails.
     /// </summary>
     /// <remarks>
     /// Called by the executor thread(s) when calls to <c>AcquireNextTriggers</c> fail more than once in succession,
     /// and the thread thus wants to wait a bit before trying again, to not consume 100% CPU,
     /// write huge amounts of errors into logs, etc. in cases like the DB being offline/restarting.
     ///
-    /// The delay returned by implementations should be between 20 and 600000 milliseconds.* @param failureCount
+    /// The delay returned by implementations should be between 20 milliseconds and 10 minutes.
     /// </remarks>
     /// <param name="failureCount">the number of successive failures seen so far</param>
-    /// <returns>the time (in milliseconds) to wait before trying again</returns>
+    /// <returns>the time to wait before trying again</returns>
     TimeSpan GetAcquireRetryDelay(int failureCount);
 }

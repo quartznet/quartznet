@@ -279,16 +279,19 @@ had no callers.
 
 ## Package Changes
 
-`Quartz`, `Quartz`, and `Quartz.Serialization.SystemTextJson` have been merged into the main `Quartz` package. You can remove these package references from your project:
+`Quartz.Extensions.DependencyInjection`, `Quartz.Extensions.Hosting`, and `Quartz.Serialization.SystemTextJson` have been merged into the main `Quartz` package. You can remove these package references from your project:
 
 ```diff
-- <PackageReference Include="Quartz" Version="3.*" />
-- <PackageReference Include="Quartz" Version="3.*" />
+- <PackageReference Include="Quartz.Extensions.DependencyInjection" Version="3.*" />
+- <PackageReference Include="Quartz.Extensions.Hosting" Version="3.*" />
 - <PackageReference Include="Quartz.Serialization.SystemTextJson" Version="3.*" />
 + <PackageReference Include="Quartz" Version="4.*" />
 ```
 
 If you use Newtonsoft.Json serialization, reference `Quartz.Serialization.Newtonsoft` instead of the old `Quartz.Serialization.Json`.
+
+Configuration that names a type from one of the merged assemblies as a string keeps working: a name that fails to
+resolve is retried against `Quartz`, with a warning naming both spellings.
 
 ## Database Schema Migration
 
@@ -354,8 +357,15 @@ For more information on `ValueTask` please see [Microsoft docs](https://learn.mi
 SystemTime.UtcNow = () => new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
 // 4.x — use TimeProvider
-var builder = SchedulerBuilder.Create();
-builder.UseTimeProvider<FakeTimeProvider>();
+var scheduler = await QuartzSchedulerBuilder.Create()
+    .Configure(q => q.UseTimeProvider(new FakeTimeProvider()))
+    .BuildScheduler();
+```
+
+Under a host, the same call goes on the `AddQuartz` builder:
+
+```csharp
+services.AddQuartz(q => q.UseTimeProvider(new FakeTimeProvider()));
 ```
 
 ## Logging
@@ -375,17 +385,15 @@ LogProvider.SetLogProvider(loggerFactory);
 
 See the Quartz.Examples project for examples on setting up [Serilog](https://serilog.net/) and Microsoft.Logging with Quartz.
 
-An alternative approach is to configure the `LoggerFactory` via a `HostBuilder`:
+Under a host, the `ILoggerFactory` the host already builds is the one Quartz uses — hand it to `LogProvider`
+once the host is built:
 
 ```csharp
-Host.CreateDefaultBuilder(args)
-.ConfigureServices((hostContext, services) =>
-{
-  services.AddQuartz(q =>
-        {
-          q.SetLoggerFactory(loggerFactory);
-        });
-});
+var host = Host.CreateDefaultBuilder(args)
+    .ConfigureServices((hostContext, services) => services.AddQuartz(q => { /* ... */ }))
+    .Build();
+
+LogProvider.SetLogProvider(host.Services.GetRequiredService<ILoggerFactory>());
 ```
 
 Further information on configuring Microsoft.Logging can be found [at Microsoft docs](https://docs.microsoft.com/en-us/dotnet/core/extensions/logging).
@@ -450,6 +458,22 @@ services.AddSingleton(new SystemTextJsonSerializerRegistry()
 
 See [Serialization (System.Text.Json)](packages/system-text-json) for the full picture.
 
+### Newtonsoft types moved out of the core namespaces
+
+The `Quartz.Serialization.Newtonsoft` package used to put types in namespaces that read as if they came from the
+core package, and one of its types collided outright: both packages had a `Quartz.JsonConfigurationExtensions`,
+which made `UseNewtonsoftJsonSerializer` ambiguous when both were referenced.
+
+| 3.x | 4.x |
+|---|---|
+| `Quartz.JsonConfigurationExtensions` (Newtonsoft) | `Quartz.NewtonsoftJsonConfigurationExtensions` |
+| `Quartz.Triggers.ITriggerSerializer`, `TriggerSerializer<T>`, the built-in trigger serializers | `Quartz.Serialization.Newtonsoft.Triggers.*` |
+| `Quartz.Converters.NameValueCollectionConverter` | `Quartz.Serialization.Newtonsoft.NameValueCollectionConverter` |
+
+`UseNewtonsoftJsonSerializer` itself is unchanged — only the `using` on a file that names one of these types.
+`AddCalendarSerializer<TCalendar>` is now constrained to `ICalendar`, matching the trigger side; a call that
+passed something else was never going to work at runtime.
+
 ## Sealed and Internalized Types
 
 Many types have been sealed and/or internalized to minimize the API surface that needs to be maintained. If you were extending a type that is now sealed or internal, file an issue to request it be reopened.
@@ -492,16 +516,22 @@ The following properties are now explicit interface implementations and cannot b
 
 `IListenerManager.GetSchedulerListeners()` returns an array, like its job and trigger counterparts.
 
-Three members were renamed or re-annotated:
+`GetJobListenerMatchers()` and `GetTriggerListenerMatchers()` return arrays too, and still return `null` for a
+listener that is not registered.
+
+Two members were renamed:
 
 ```diff
 - ValueTask SchedulerShuttingdown(CancellationToken cancellationToken = default);
 + ValueTask SchedulerShuttingDown(CancellationToken cancellationToken = default);
 
-
 - ValueTask SchedulerError(string msg, SchedulerException cause, CancellationToken cancellationToken = default);
 + ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default);
 ```
+
+The broadcast listeners line up with each other: `BroadcastSchedulerListener.GetListeners()` is a `Listeners`
+property, matching `BroadcastJobListener` and `BroadcastTriggerListener`, and all three constructors take an
+`IReadOnlyCollection<T>`.
 
 An `IJobStore` that implements `IJobListener` no longer automatically receives all events. Register it explicitly as a job listener using `ListenerManager`:
 
@@ -514,7 +544,6 @@ scheduler.ListenerManager.AddJobListener(myJobStoreListener);
 * `IdleWaitTime` values less than or equal to zero are no longer silently replaced with a 30-second default — they now throw.
 * Negative values for `IdleWaitTime` or `BatchTimeWindow` are rejected.
 * `MaxBatchSize` values less than or equal to zero are rejected.
-* `DirectSchedulerFactory.CreateScheduler` must now be `await`ed.
 
 ## Cron Parser Enhancements
 
@@ -630,6 +659,32 @@ your job. `IJobExecutionContext.JobInstance` and every listener now see the type
 `CreateJobInstance` shown above. The old hook was synchronous even after `NewJob` became asynchronous, so a factory
 that needed to do real work had to override `NewJob` outright and reimplement the property setting.
 
+`SimpleJobFactory`'s `protected static Dispose(object?)` helper is `DisposeIfDisposable(object?, CancellationToken)`,
+which is what it has always done: it disposes the argument only when the argument is disposable.
+
+### The factory is set where the scheduler is built
+
+`IScheduler.JobFactory` was a setter-only property, and it is gone from `IScheduler`, `StdScheduler`,
+`DelegatingScheduler` and `HttpScheduler`. A job factory is part of how a scheduler is built, not something to swap
+underneath a running one — and on `HttpScheduler` the setter only ever threw, since the jobs run in another process.
+
+```diff
+- scheduler.JobFactory = new MyJobFactory();
++ services.AddQuartz(q => q.UseJobFactory(new MyJobFactory()));
+```
+
+`UseJobFactory(IJobFactory)` is new on both `IQuartzBuilder` and `QuartzSchedulerBuilder` — the generic
+`UseJobFactory<T>()` overloads have always been there, but an already-constructed factory had nowhere to go:
+
+```csharp
+// standalone
+var scheduler = await QuartzSchedulerBuilder.Create()
+    .UseJobFactory(new MyJobFactory())
+    .BuildScheduler();
+```
+
+If you build a `QuartzScheduler` by hand, its `JobFactory` property is still settable.
+
 ## Trigger fire times are properties
 
 ```diff
@@ -638,11 +693,26 @@ that needed to do real work had to override `NewJob` outright and reimplement th
 
 - operableTrigger.SetNextFireTimeUtc(value);
 + operableTrigger.NextFireTimeUtc = value;
+
+- if (trigger.GetMayFireAgain()) { … }
++ if (trigger.MayFireAgain) { … }
 ```
 
-The two `Get` methods still work — they are `[Obsolete]` forwarders on both `ITrigger` and `AbstractTrigger` — so
+The three `Get` methods still work — they are `[Obsolete]` forwarders on both `ITrigger` and `AbstractTrigger` — so
 this shows up as a warning rather than an error and you can fix it by deleting `Get` and `()`. The `Set` methods
 have no stand-in, because a method and a property setter cannot share a name; those are a compile error.
+
+One case is an error rather than a warning: a **custom trigger deriving from `AbstractTrigger`** overrides the
+`MayFireAgain` property now, because that is the abstract member. `GetMayFireAgain` is a non-virtual forwarder,
+so there is nothing left to override:
+
+```diff
+- public override bool GetMayFireAgain() => NextFireTimeUtc is not null;
++ public override bool MayFireAgain => NextFireTimeUtc is not null;
+```
+
+`CronTriggerImpl.CronExpression` also gained a getter — it was setter-only — and is typed `CronExpression?`,
+which is what it always was underneath.
 
 ## The thread pool is asynchronous
 
@@ -667,6 +737,9 @@ asynchronous loop, so waiting for pool capacity tied up a thread. Use `WaitAsync
 `InstanceId` and `InstanceName` are gone rather than moved: Quartz set them and nothing ever read them. If your
 pool wants the scheduler's identity, take `IOptions<QuartzSchedulerOptions>` from the container.
 
+`TaskSchedulingThreadPool.ThreadCount` was removed as well; it read and wrote `MaxConcurrency`, so use that
+directly. **The `quartz.threadPool.threadCount` configuration key is unaffected** and still sets `MaxConcurrency`.
+
 ## Quartz.Spi and Quartz.Simpl were renamed
 
 `Quartz.Spi` is now `Quartz.Extensibility`, and `Quartz.Simpl` merged into the existing `Quartz.Impl`. Both old
@@ -683,6 +756,33 @@ Configuration is the part that would not have failed loudly, because it names ty
 **Existing configuration keeps working.** A type name naming a pre-4.0 namespace that no longer resolves is retried
 under the new one, and a warning is logged naming both spellings. Treat that as a grace period rather than a promise.
 
+The same fallback covers the assemblies that were merged into the core package, and composes with the namespace
+rename, so a string naming both still resolves:
+
+```diff
+- quartz.serializer.type = Quartz.Simpl.SystemTextJsonObjectSerializer, Quartz.Serialization.SystemTextJson
++ quartz.serializer.type = Quartz.Impl.SystemTextJsonObjectSerializer, Quartz
+```
+
+## Names that were normalized
+
+Renames only — the behavior behind each is unchanged, and a rename that also changes a configuration key is
+called out.
+
+| 3.x | 4.x |
+|---|---|
+| `QuartzScheduler.NumJobsExecuted` | `NumberOfJobsExecuted` |
+| `QuartzScheduler.JobStoreClass`, `.ThreadPoolClass` | `JobStoreType`, `ThreadPoolType` (they return a `Type`) |
+| `JobStoreSupport.UseDBLocks`, `.SelectWithLockSQL` | `UseDbLocks`, `SelectWithLockSql` |
+| `DBSemaphore.SQL`, `.InsertSQL`, `.ExecuteSQL` | `Sql`, `InsertSql` (both readable now), `ExecuteSql` |
+| `Quartz.Util.DBConnectionManager` | `DbConnectionManager` |
+| `DbMetadata.Init()` | `Initialize()` |
+| `AdoConstants.ColumnMifireInstruction` | `ColumnMisfireInstruction` (a typo; the column name is unchanged) |
+| `SchedulerConstants.FailedJobOriginalTriggerFiretime`, `…ScheduledFiretime` | `…TriggerFireTime`, `…ScheduledFireTime` (the string values are unchanged) |
+| `XMLSchedulingDataProcessor.OverWriteExistingData`, `SchedulingOptions.OverWriteExistingData` | `OverwriteExistingData`. The configuration key is spelled `Quartz:Scheduling:OverwriteExistingData` now; keys are matched case-insensitively, so an existing file keeps binding, but code assigning the property has to change |
+| `XMLSchedulingDataProcessor.PrepForProcessing`, `.BuildTriggersByFQJobNameMap` | `PrepareForProcessing`, `BuildTriggersByFullyQualifiedJobNameMap` |
+| `RedisSemaphore.LockTtlMilliseconds`, `.LockRetryIntervalMilliseconds` | `LockTimeToLive`, `LockRetryInterval`, both `TimeSpan` — **also the config keys `lockTtlMilliseconds` → `lockTimeToLive` and `lockRetryIntervalMilliseconds` → `lockRetryInterval`** |
+
 ## Other Breaking Changes
 
 | Change | Details |
@@ -693,3 +793,13 @@ under the new one, and a warning is logged naming both spellings. Treat that as 
 | `RecoveringTriggerKey` behavior | `IJobExecutionContext.RecoveringTriggerKey` now returns `null` when not recovering instead of throwing |
 | `DictionaryExtensions` removed | `Quartz.Util.DictionaryExtensions` type was removed |
 | `JobStoreSupport` connection methods | `GetNonManagedTXConnection` and `GetConnection` now return `ValueTask<ConnectionAndTransactionHolder>` |
+| `JobStoreSupport.UseProperties` `string` setter removed | The `bool` `AdoJobStoreOptions.UseProperties` option and the read-only `CanUseProperties` remain; the property bridge parses the key |
+| Protected `JobStoreSupport` / `StdAdoDelegate` members take a `CancellationToken` | Overrides have to add the parameter; callers do not |
+| `ConnectionAndTransactionHolder.Close`, `.Commit`, `.Rollback` take a `CancellationToken` | Same |
+| `IJobConfigurator` members return `IJobConfigurator` | `JobBuilder` implements them explicitly and keeps its own `JobBuilder`-returning members, so `JobBuilder.Create()…` chains are unaffected |
+| `IJobConfigurator` / `JobBuilder` gained `UsingJobData(string, decimal)` | And `UsingJobData(string, string?)` accepts null |
+| `IDirectoryScanListener` is asynchronous | `FilesUpdatedOrAdded` and `FilesDeleted` return `ValueTask` and take a `CancellationToken` |
+| `LoggingJobHistoryPlugin.Name`, `LoggingTriggerHistoryPlugin.Name` are get-only | The name is handed to a plugin by `Initialize`; writing it afterwards did nothing |
+| `TimeSpanParseRuleAttribute` is public | It says how a bare number in configuration is read as a `TimeSpan`, which a component configured by the same keys needs to be able to say |
+| `TimeZoneUtil.CustomResolver` is a property | It was a public mutable field |
+| Setter-only members gained getters | `DbMetadata.DbBinaryTypeName` (now nullable) and `.ParameterDbTypePropertyName`, `HttpSchedulerProxyFactory.Address` |

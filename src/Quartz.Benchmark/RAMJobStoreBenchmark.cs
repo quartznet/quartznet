@@ -497,7 +497,7 @@ public class RAMJobStoreBenchmark
 
     public class NoOpSignaler : ISchedulerSignaler
     {
-        public ValueTask NotifySchedulerListenersError(string message, SchedulerException jpe, CancellationToken cancellationToken = default)
+        public ValueTask NotifySchedulerListenersError(string message, SchedulerException exception, CancellationToken cancellationToken = default)
         {
             return default;
         }
@@ -525,13 +525,9 @@ public class RAMJobStoreBenchmark
 
     private sealed class NullJobTypeLoader : ITypeLoadHelper
     {
-        public void Initialize()
+        public Type? LoadType(string name)
         {
-        }
-
-        public Type? LoadType(string? name)
-        {
-            return null;
+            throw new NotSupportedException($"The benchmark never resolves a job type through this helper, but '{name}' was requested.");
         }
     }
 

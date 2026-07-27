@@ -69,10 +69,12 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
     /// this factory activated itself is not, and is disposed here.
     /// <para>
     /// A derived factory that overrides <see cref="PropertySettingJobFactory.CreateJobInstance" /> and
-    /// returns state of its own takes over that decision completely — it must dispose whatever it
-    /// replaced the state with, and this method will not touch the job. Wrapping the state this
-    /// factory produced, rather than discarding it, keeps the scope teardown working: it is
-    /// <see cref="IAsyncDisposable" /> for exactly that reason.
+    /// returns state of its own takes over that decision completely: this method will not touch the
+    /// job, and it disposes the replacement state only if that state is itself disposable. The
+    /// replacement's disposal must therefore cascade to the state this factory produced — wrap it
+    /// rather than discard it; it is <see cref="IAsyncDisposable" /> for exactly that reason. A
+    /// derived factory whose replacement state is not disposable must override this method as well
+    /// and do its own teardown.
     /// </para>
     /// </remarks>
     public override ValueTask ReturnJob(JobScope scope, CancellationToken cancellationToken = default)
@@ -86,7 +88,7 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
         // A derived factory replaced the state, so it owns the teardown. Dispose what it gave us and
         // leave the job alone: we can no longer tell whether the container owns it, and disposing one
         // it owns would hand user code a second Dispose call.
-        return Dispose(scope.State);
+        return DisposeIfDisposable(scope.State, cancellationToken);
     }
 
     private static ValueTask DisposeScope(IServiceScope scope)
@@ -156,7 +158,7 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
                 // the scope and disposed by it below.
                 if (disposeJob)
                 {
-                    await Dispose(job).ConfigureAwait(false);
+                    await DisposeIfDisposable(job).ConfigureAwait(false);
                 }
             }
             finally

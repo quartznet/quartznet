@@ -111,12 +111,12 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
     public IReadOnlyCollection<KeyValuePair<string, JobFile>> JobFiles => jobFiles;
 
     public virtual ValueTask FileUpdated(
-        string fName,
+        string fileName,
         CancellationToken cancellationToken = default)
     {
         if (started)
         {
-            return ProcessFile(fName, cancellationToken);
+            return ProcessFile(fileName, cancellationToken);
         }
 
         return default;

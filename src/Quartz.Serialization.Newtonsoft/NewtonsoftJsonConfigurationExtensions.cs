@@ -3,11 +3,11 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Quartz.Serialization.Newtonsoft;
 
 using Quartz.Impl;
-using Quartz.Triggers;
+using Quartz.Serialization.Newtonsoft.Triggers;
 
 namespace Quartz;
 
-public static class JsonConfigurationExtensions
+public static class NewtonsoftJsonConfigurationExtensions
 {
     /// <summary>
     /// Use Newtonsoft JSON as data serialization strategy.
@@ -73,7 +73,7 @@ public class NewtonsoftJsonSerializerOptions
     /// <summary>
     /// Add serializer for custom calendar
     /// </summary>
-    public NewtonsoftJsonSerializerOptions AddCalendarSerializer<TCalendar>(ICalendarSerializer serializer)
+    public NewtonsoftJsonSerializerOptions AddCalendarSerializer<TCalendar>(ICalendarSerializer serializer) where TCalendar : ICalendar
     {
         Registry.AddCalendarSerializer<TCalendar>(serializer);
         return this;

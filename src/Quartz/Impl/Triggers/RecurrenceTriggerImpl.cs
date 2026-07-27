@@ -19,8 +19,6 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
 
     private DateTimeOffset startTime;
     private DateTimeOffset? endTime;
-    private DateTimeOffset? nextFireTimeUtc;
-    private DateTimeOffset? previousFireTimeUtc;
     private string recurrenceRuleString = "";
     internal TimeZoneInfo? triggerTimeZone;
 
@@ -185,22 +183,22 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
     public override void Triggered(ICalendar? calendar)
     {
         TimesTriggered++;
-        previousFireTimeUtc = nextFireTimeUtc;
-        nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+        PreviousFireTimeUtc = NextFireTimeUtc;
+        NextFireTimeUtc = GetFireTimeAfter(NextFireTimeUtc);
 
-        while (nextFireTimeUtc != null && calendar != null
-                                       && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
+        while (NextFireTimeUtc != null && calendar != null
+                                       && !calendar.IsTimeIncluded(NextFireTimeUtc.Value))
         {
-            nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+            NextFireTimeUtc = GetFireTimeAfter(NextFireTimeUtc);
 
-            if (nextFireTimeUtc == null)
+            if (NextFireTimeUtc == null)
             {
                 break;
             }
 
-            if (nextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
+            if (NextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
             {
-                nextFireTimeUtc = null;
+                NextFireTimeUtc = null;
             }
         }
     }
@@ -208,34 +206,34 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
     /// <inheritdoc/>
     public override void UpdateWithNewCalendar(ICalendar calendar, TimeSpan misfireThreshold)
     {
-        nextFireTimeUtc = GetFireTimeAfter(previousFireTimeUtc);
+        NextFireTimeUtc = GetFireTimeAfter(PreviousFireTimeUtc);
 
-        if (nextFireTimeUtc == null || calendar == null)
+        if (NextFireTimeUtc == null || calendar == null)
         {
             return;
         }
 
         DateTimeOffset now = TimeProvider.GetUtcNow();
-        while (nextFireTimeUtc != null && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
+        while (NextFireTimeUtc != null && !calendar.IsTimeIncluded(NextFireTimeUtc.Value))
         {
-            nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+            NextFireTimeUtc = GetFireTimeAfter(NextFireTimeUtc);
 
-            if (nextFireTimeUtc == null)
+            if (NextFireTimeUtc == null)
             {
                 break;
             }
 
-            if (nextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
+            if (NextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
             {
-                nextFireTimeUtc = null;
+                NextFireTimeUtc = null;
             }
 
-            if (nextFireTimeUtc != null && nextFireTimeUtc < now)
+            if (NextFireTimeUtc != null && NextFireTimeUtc < now)
             {
-                TimeSpan diff = now - nextFireTimeUtc.Value;
+                TimeSpan diff = now - NextFireTimeUtc.Value;
                 if (diff >= misfireThreshold)
                 {
-                    nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+                    NextFireTimeUtc = GetFireTimeAfter(NextFireTimeUtc);
                 }
             }
         }
@@ -255,49 +253,37 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
         // and the sub-daily fast-forward optimizations in FindNextOccurrenceNonCount are
         // used, avoiding MaxIterations exhaustion for sparse rules like FREQ=SECONDLY;BYMONTH=12.
         RRule rule = GetParsedRule();
-        nextFireTimeUtc = rule.GetNextOccurrence(StartTimeUtc, StartTimeUtc.AddSeconds(-1), TimeZone, EndTimeUtc, skipCount: true);
+        NextFireTimeUtc = rule.GetNextOccurrence(StartTimeUtc, StartTimeUtc.AddSeconds(-1), TimeZone, EndTimeUtc, skipCount: true);
 
-        if (nextFireTimeUtc == null)
+        if (NextFireTimeUtc == null)
         {
             return null;
         }
 
-        while (nextFireTimeUtc != null && calendar != null
-                                       && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
+        while (NextFireTimeUtc != null && calendar != null
+                                       && !calendar.IsTimeIncluded(NextFireTimeUtc.Value))
         {
-            nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+            NextFireTimeUtc = GetFireTimeAfter(NextFireTimeUtc);
 
-            if (nextFireTimeUtc == null)
+            if (NextFireTimeUtc == null)
             {
                 break;
             }
 
-            if (nextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
+            if (NextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
             {
                 return null;
             }
         }
 
-        return nextFireTimeUtc;
+        return NextFireTimeUtc;
     }
 
     /// <inheritdoc/>
-    public override DateTimeOffset? NextFireTimeUtc
-    {
-        get => nextFireTimeUtc;
-        set => nextFireTimeUtc = value;
-    }
+    public override DateTimeOffset? NextFireTimeUtc { get; set; }
 
     /// <inheritdoc/>
-    public override DateTimeOffset? PreviousFireTimeUtc
-    {
-        get => previousFireTimeUtc;
-        set => previousFireTimeUtc = value;
-    }
-
-    /// <inheritdoc/>
-
-    /// <inheritdoc/>
+    public override DateTimeOffset? PreviousFireTimeUtc { get; set; }
 
     /// <inheritdoc/>
     public override DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTime)
@@ -340,10 +326,7 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
     }
 
     /// <inheritdoc/>
-    public override bool GetMayFireAgain()
-    {
-        return NextFireTimeUtc != null;
-    }
+    public override bool MayFireAgain => NextFireTimeUtc != null;
 
     /// <inheritdoc/>
     public override void Validate()

@@ -189,10 +189,10 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
                 quartzScheduler.Version, quartzScheduler.SchedulerName, quartzScheduler.SchedulerInstanceId);
             logger.LogInformation(
                 "Using thread pool '{ThreadPoolType}', size: {ThreadPoolSize}",
-                quartzScheduler.ThreadPoolClass.FullName, quartzScheduler.ThreadPoolSize);
+                quartzScheduler.ThreadPoolType.FullName, quartzScheduler.ThreadPoolSize);
             logger.LogInformation(
                 "Using job store '{JobStoreType}', supports persistence: {SupportsPersistence}, clustered: {Clustered}",
-                quartzScheduler.JobStoreClass.FullName, quartzScheduler.SupportsPersistence, quartzScheduler.Clustered);
+                quartzScheduler.JobStoreType.FullName, quartzScheduler.SupportsPersistence, quartzScheduler.Clustered);
 
             return scheduler;
         }

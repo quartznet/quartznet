@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -80,7 +80,7 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
         return batch;
     }
 
-    public async ValueTask Commit(bool openNewTransaction)
+    public async ValueTask Commit(bool openNewTransaction, CancellationToken cancellationToken = default)
     {
         if (transaction is not null)
         {
@@ -88,11 +88,11 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
             {
                 CheckNotZombied();
                 IsolationLevel il = transaction.IsolationLevel;
-                await transaction.CommitAsync().ConfigureAwait(false);
+                await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
                 if (openNewTransaction)
                 {
                     // open new transaction to go with
-                    transaction = await connection.BeginTransactionAsync(il).ConfigureAwait(false);
+                    transaction = await connection.BeginTransactionAsync(il, cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (Exception e)
@@ -102,7 +102,7 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
         }
     }
 
-    public async ValueTask Close()
+    public async ValueTask Close(CancellationToken cancellationToken = default)
     {
         try
         {
@@ -158,7 +158,7 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
         }
     }
 
-    public async ValueTask Rollback(bool transientError)
+    public async ValueTask Rollback(bool transientError, CancellationToken cancellationToken = default)
     {
         if (transaction is not null)
         {
@@ -174,7 +174,7 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
 
             try
             {
-                await transaction.RollbackAsync().ConfigureAwait(false);
+                await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)
             {

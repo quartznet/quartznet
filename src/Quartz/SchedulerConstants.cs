@@ -79,7 +79,7 @@ public struct SchedulerConstants
     /// always fire exactly on time.
     /// </remarks>
     /// <seealso cref="IJobDetail.RequestsRecovery" />
-    public const string FailedJobOriginalTriggerFiretime = "QRTZ_FAILED_JOB_ORIG_TRIGGER_FIRETIME_AS_STRING";
+    public const string FailedJobOriginalTriggerFireTime = "QRTZ_FAILED_JOB_ORIG_TRIGGER_FIRETIME_AS_STRING";
 
     /// <summary>
     /// A constant <code>JobDataMap</code> key that can be used to retrieve the scheduled
@@ -90,7 +90,7 @@ public struct SchedulerConstants
     /// Note that this is the time the original firing was scheduled for, which may
     /// be different from the actual firing time - as a trigger doesn't always fire exactly on time.
     /// </remarks>
-    public const string FailedJobOriginalTriggerScheduledFiretime = "QRTZ_FAILED_JOB_ORIG_TRIGGER_SCHEDULED_FIRETIME_AS_STRING";
+    public const string FailedJobOriginalTriggerScheduledFireTime = "QRTZ_FAILED_JOB_ORIG_TRIGGER_SCHEDULED_FIRETIME_AS_STRING";
 
     /// <summary>
     /// A special date time to check against when signaling scheduling change when the signaled fire date suggestion is actually irrelevant.

@@ -21,7 +21,7 @@ internal sealed class ConfiguredDbMetadataFactory : DbMetadataFactory
         this.metadata = metadata;
     }
 
-    public override IReadOnlyCollection<string> GetProviderNames() => [providerName];
+    public override List<string> GetProviderNames() => [providerName];
 
     public override DbMetadata GetDbMetadata(string providerName)
     {

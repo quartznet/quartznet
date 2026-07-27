@@ -269,12 +269,12 @@ public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarI
     /// <summary>
     /// TimeZone in which to base the schedule.
     /// </summary>
-    /// <param name="timezone">the time-zone for the schedule</param>
+    /// <param name="timeZone">the time-zone for the schedule</param>
     /// <returns>the updated CalendarIntervalScheduleBuilder</returns>
     /// <seealso cref="ICalendarIntervalTrigger.TimeZone" />
-    public CalendarIntervalScheduleBuilder InTimeZone(TimeZoneInfo? timezone)
+    public CalendarIntervalScheduleBuilder InTimeZone(TimeZoneInfo? timeZone)
     {
-        timeZone = timezone;
+        this.timeZone = timeZone;
         return this;
     }
 

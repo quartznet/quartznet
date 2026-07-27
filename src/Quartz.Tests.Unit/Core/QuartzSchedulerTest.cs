@@ -181,30 +181,30 @@ public class QuartzSchedulerTest
 
     [Test]
     [Ignore("Flaky in CI")]
-    public void NumJobsExecuted()
+    public void NumberOfJobsExecuted()
     {
         var scheduler = CreateQuartzScheduler("A", "B", 5);
 
-        Assert.That(scheduler.NumJobsExecuted, Is.EqualTo(0));
+        Assert.That(scheduler.NumberOfJobsExecuted, Is.EqualTo(0));
 
         scheduler.Start().GetAwaiter().GetResult();
 
-        Assert.That(scheduler.NumJobsExecuted, Is.EqualTo(0));
+        Assert.That(scheduler.NumberOfJobsExecuted, Is.EqualTo(0));
 
         ScheduleJobs<DelayedJob>(scheduler, 3, true, false, 1, TimeSpan.FromMilliseconds(1), 1);
         ScheduleJobs<DelayedJob>(scheduler, 1, true, false, 1, TimeSpan.FromMilliseconds(1), 0);
 
         Thread.Sleep(150);
 
-        Assert.That(scheduler.NumJobsExecuted, Is.EqualTo(4));
+        Assert.That(scheduler.NumberOfJobsExecuted, Is.EqualTo(4));
 
         Thread.Sleep(150);
 
-        Assert.That(scheduler.NumJobsExecuted, Is.EqualTo(7));
+        Assert.That(scheduler.NumberOfJobsExecuted, Is.EqualTo(7));
 
         Thread.Sleep(200);
 
-        Assert.That(scheduler.NumJobsExecuted, Is.EqualTo(7));
+        Assert.That(scheduler.NumberOfJobsExecuted, Is.EqualTo(7));
 
         scheduler.Shutdown(true).GetAwaiter().GetResult();
     }

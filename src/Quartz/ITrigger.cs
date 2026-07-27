@@ -195,7 +195,7 @@ public interface ITrigger
     /// may remove the <see cref="ITrigger" /> from the <see cref="IJobStore" />.
     /// </para>
     /// </summary>
-    bool GetMayFireAgain();
+    bool MayFireAgain { get; }
 
     /// <summary>
     /// Returns the next time at which the <see cref="ITrigger" /> is scheduled to fire. If
@@ -216,6 +216,12 @@ public interface ITrigger
     /// If the trigger has not yet fired, <see langword="null" /> will be returned.
     /// </summary>
     DateTimeOffset? PreviousFireTimeUtc { get; }
+
+    /// <summary>
+    /// Returns whether it is possible for the <see cref="ITrigger" /> to fire again.
+    /// </summary>
+    [Obsolete("Use the MayFireAgain property instead.")]
+    bool GetMayFireAgain() => MayFireAgain;
 
     /// <summary>
     /// Returns the next time at which the <see cref="ITrigger" /> is scheduled to fire.

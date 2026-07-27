@@ -58,33 +58,33 @@ public interface IThreadPool
     ValueTask Initialize(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Determines the number of threads that are currently available in
-    /// the pool.  Useful for determining the number of times
-    /// <see cref="TryRun"/>  can be called before returning
-    /// false.
+    /// Determines the number of execution slots that are currently available in
+    /// the pool. The scheduler uses the count to size the batch of triggers it
+    /// acquires next.
     /// </summary>
     ///<remarks>
     /// The implementation of this method should wait until there is at
-    /// least one available thread. It is awaited by the scheduler's own loop, so an
+    /// least one available slot. It is awaited by the scheduler's own loop, so an
     /// implementation must not block the calling thread while it waits.
     ///</remarks>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>the number of currently available threads</returns>
+    /// <returns>the number of currently available execution slots</returns>
     ValueTask<int> WaitForAvailableThreads(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Execute the given <see cref="Task" /> in the next
-    /// available <see cref="Thread" />.
+    /// Schedules the given work to run as soon as the pool's concurrency
+    /// rules allow it.
     /// </summary>
     /// <remarks>
     /// The implementation of this interface should not throw exceptions unless
     /// there is a serious problem (i.e. a serious misconfiguration). If there
-    /// are no available threads, rather it should either queue the action, or
-    /// wait until a thread is available, depending on the desired strategy.
+    /// are no available slots, rather it should either queue the action, or
+    /// wait until a slot is available, depending on the desired strategy.
     /// </remarks>
     /// <param name="action">The work to run.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns><see langword="true" /> if the work was scheduled; otherwise, <see langword="false" />.</returns>
+    /// <returns><see langword="true" /> if the work was scheduled; otherwise, <see langword="false" />
+    /// (the pool has been shut down or was never initialized).</returns>
     ValueTask<bool> TryRun(Func<Task> action, CancellationToken cancellationToken = default);
 
     /// <summary>

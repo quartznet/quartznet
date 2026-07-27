@@ -38,13 +38,13 @@ namespace Quartz.Util;
 /// <author>Sharada Jambula</author>
 /// <author>Mohammad Rezaei</author>
 /// <author>Marko Lahma (.NET)</author>
-public sealed class DBConnectionManager : IDbConnectionManager
+public sealed class DbConnectionManager : IDbConnectionManager
 {
-    private readonly ILogger<DBConnectionManager> logger;
+    private readonly ILogger<DbConnectionManager> logger;
 
     private readonly ConcurrentDictionary<string, IDbProvider> providers = new();
 
-    public DBConnectionManager(ILogger<DBConnectionManager> logger)
+    public DbConnectionManager(ILogger<DbConnectionManager> logger)
     {
         this.logger = logger;
     }

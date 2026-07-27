@@ -185,7 +185,7 @@ public class RecurrenceTriggerImplTest
     }
 
     [Test]
-    public void TestGetMayFireAgain()
+    public void TestMayFireAgain()
     {
         RecurrenceTriggerImpl trigger = new RecurrenceTriggerImpl();
         trigger.RecurrenceRule = "FREQ=DAILY";
@@ -193,7 +193,7 @@ public class RecurrenceTriggerImplTest
         trigger.TimeZone = TimeZoneInfo.Utc;
 
         trigger.ComputeFirstFireTimeUtc(null);
-        Assert.IsTrue(trigger.GetMayFireAgain());
+        Assert.IsTrue(trigger.MayFireAgain);
     }
 
     [Test]

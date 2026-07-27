@@ -32,7 +32,7 @@ public class CustomSqlServerConnectionProvider : IDbProvider
             ParameterType = typeof(SqlParameter),
             UseParameterNamePrefixInParameterCollection = true
         };
-        Metadata.Init();
+        Metadata.Initialize();
     }
 
     public void Initialize()

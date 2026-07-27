@@ -98,8 +98,10 @@ Database schemas live in `database/tables/`.
 
 ### Hosting & DI
 
-DI and hosting live in the core `Quartz` package (`Quartz/Configuration`, `Quartz/Hosting`); they are
-no longer separate `Quartz.Extensions.*` packages.
+DI and hosting live in the core `Quartz` package, under `src/Quartz/Configuration/` and `src/Quartz/Hosting/`;
+they are no longer separate `Quartz.Extensions.*` packages. Directory is not namespace here: the hosting types
+are all in the `Quartz` namespace, and so are the `AddQuartz` extensions — `Quartz.Configuration` holds the
+internals behind them.
 
 - `IServiceCollection.AddQuartz()` — registers a scheduler's object graph. `AddQuartz(name, ...)`
   registers a named scheduler, whose parts are keyed by that name.
@@ -135,8 +137,8 @@ before assuming the code is missing.
 |-----|------|
 | `Quartz.Spi` | `Quartz.Extensibility` |
 | `Quartz.Simpl` | `Quartz.Impl` (merged into the one that already existed) |
-| `Quartz.Extensions.DependencyInjection` | `Quartz.Configuration` in the core package |
-| `Quartz.Extensions.Hosting` | `Quartz.Hosting` in the core package |
+| `Quartz.Extensions.DependencyInjection` | `Quartz.Configuration` in the core package (the `AddQuartz` extensions stay in `Quartz`) |
+| `Quartz.Extensions.Hosting` | `src/Quartz/Hosting/` in the core package (types are in the `Quartz` namespace) |
 | `Quartz.Serialization.SystemTextJson` | core package (`SystemTextJsonObjectSerializer`) |
 
 Directory layout follows: `src/Quartz/SPI/` → `src/Quartz/Extensibility/`, `src/Quartz/Simpl/` →

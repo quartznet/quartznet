@@ -55,7 +55,7 @@ public sealed class BroadcastSchedulerListener : ISchedulerListener
     /// Construct an instance with the given List of listeners.
     /// </summary>
     /// <param name="listeners">The initial List of SchedulerListeners to broadcast to.</param>
-    public BroadcastSchedulerListener(IEnumerable<ISchedulerListener> listeners) : this()
+    public BroadcastSchedulerListener(IReadOnlyCollection<ISchedulerListener> listeners) : this()
     {
         this.listeners.AddRange(listeners);
     }
@@ -70,10 +70,7 @@ public sealed class BroadcastSchedulerListener : ISchedulerListener
         return listeners.Remove(listener);
     }
 
-    public IReadOnlyList<ISchedulerListener> GetListeners()
-    {
-        return listeners;
-    }
+    public IReadOnlyList<ISchedulerListener> Listeners => listeners;
 
     public ValueTask JobAdded(IJobDetail jobDetail, CancellationToken cancellationToken = default)
     {

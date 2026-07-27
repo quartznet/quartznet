@@ -40,7 +40,7 @@ public sealed class DbMetadata
     /// Initializes this instance. Parses information and initializes startup
     /// values.
     /// </summary>
-    public void Init()
+    public void Initialize()
     {
         // parse value to db binary column type
         if (dbBinaryTypeName is not null)
@@ -129,8 +129,9 @@ public sealed class DbMetadata
     /// Enum element because this information is database driver specific.
     /// </summary>
     /// <value>The type of the db binary.</value>
-    public string DbBinaryTypeName
+    public string? DbBinaryTypeName
     {
+        get => dbBinaryTypeName;
         set => dbBinaryTypeName = value;
     }
 
@@ -139,11 +140,12 @@ public sealed class DbMetadata
     public Enum? DbBinaryType => dbBinaryType;
 
     /// <summary>
-    /// Sets the name of the parameter db type property.
+    /// Gets or sets the name of the parameter db type property.
     /// </summary>
     /// <value>The name of the parameter db type property.</value>
     public string ParameterDbTypePropertyName
     {
+        get => parameterDbTypePropertyName;
         set => parameterDbTypePropertyName = value;
     }
 

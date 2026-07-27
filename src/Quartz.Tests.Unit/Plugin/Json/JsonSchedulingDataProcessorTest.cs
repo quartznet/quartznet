@@ -159,10 +159,10 @@ public class JsonSchedulingDataProcessorTest
     [Test]
     public void ParsesProcessingDirectives()
     {
-        var json = """{ "ProcessingDirectives": { "OverWriteExistingData": false, "IgnoreDuplicates": true }, "Schedule": {} }""";
+        var json = """{ "ProcessingDirectives": { "OverwriteExistingData": false, "IgnoreDuplicates": true }, "Schedule": {} }""";
         var processor = CreateProcessor();
         processor.ProcessJsonContent(json);
-        processor.OverWriteExistingData.Should().BeFalse();
+        processor.OverwriteExistingData.Should().BeFalse();
         processor.IgnoreDuplicates.Should().BeTrue();
     }
 
@@ -172,7 +172,7 @@ public class JsonSchedulingDataProcessorTest
         var jsonWithDirectives = """
         {
             "ProcessingDirectives": {
-                "OverWriteExistingData": false,
+                "OverwriteExistingData": false,
                 "IgnoreDuplicates": true,
                 "ScheduleTriggerRelativeToReplacedTrigger": true
             },
@@ -186,13 +186,13 @@ public class JsonSchedulingDataProcessorTest
 
         processor.ProcessJsonContent(jsonWithDirectives);
         processor.ScheduleTriggerRelativeToReplacedTrigger.Should().BeTrue();
-        processor.OverWriteExistingData.Should().BeFalse();
+        processor.OverwriteExistingData.Should().BeFalse();
         processor.IgnoreDuplicates.Should().BeTrue();
 
         // Second load (hot reload) without directives should reset all flags to defaults
         processor.ProcessJsonContent(jsonWithoutDirectives);
         processor.ScheduleTriggerRelativeToReplacedTrigger.Should().BeFalse();
-        processor.OverWriteExistingData.Should().BeTrue();
+        processor.OverwriteExistingData.Should().BeTrue();
         processor.IgnoreDuplicates.Should().BeFalse();
     }
 

@@ -296,7 +296,7 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
     /// Get the name of the <see cref="IJobListener" />.
     /// </summary>
     /// <value></value>
-    public virtual string Name { get; set; } = "Logging Job History Plugin";
+    public string Name { get; private set; } = "Logging Job History Plugin";
 
     /// <summary>
     /// Called during creation of the <see cref="IScheduler" /> in order to give

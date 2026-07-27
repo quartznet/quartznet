@@ -32,7 +32,7 @@ public class QuartzOptions
     /// Setting a key here is still the way to configure something the typed options do not cover — a
     /// third-party job store's own settings, for instance.
     /// </remarks>
-    public IDictionary<string, string?> Properties { get; } = new Dictionary<string, string?>(StringComparer.Ordinal);
+    public Dictionary<string, string?> Properties { get; } = new Dictionary<string, string?>(StringComparer.Ordinal);
 
     /// <summary>
     /// The scheduler's instance id, as <c>quartz.scheduler.instanceId</c>.

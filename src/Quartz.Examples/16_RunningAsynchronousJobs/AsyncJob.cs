@@ -40,18 +40,18 @@ public class AsyncJob : IJob
 
         Console.WriteLine("Job initially executing on thread {0}", Environment.CurrentManagedThreadId);
 
-        await Task.Delay(TimeSpan.FromSeconds(1), context.CancellationToken);
+        await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
 
         Console.WriteLine("Job continuing executing on thread {0} after first await", Environment.CurrentManagedThreadId);
 
-        await Task.Delay(TimeSpan.FromSeconds(1), context.CancellationToken);
+        await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
 
         Console.WriteLine("Job continuing executing on thread {0} after second await", Environment.CurrentManagedThreadId);
 
-        await Task.Delay(TimeSpan.FromSeconds(10), context.CancellationToken);
-        Console.WriteLine("Cancellation requested: {0}", context.CancellationToken.IsCancellationRequested);
+        await Task.Delay(TimeSpan.FromSeconds(10), cancellationToken);
+        Console.WriteLine("Cancellation requested: {0}", cancellationToken.IsCancellationRequested);
 
-        context.CancellationToken.ThrowIfCancellationRequested();
+        cancellationToken.ThrowIfCancellationRequested();
 
         Console.WriteLine("Finished Executing job: {0} at {1:r}", jobKey, DateTime.Now);
     }

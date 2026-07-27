@@ -571,7 +571,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
     protected virtual ValueTask<byte[]?> ReadBytesFromBlob(
         IDataReader dr,
         int colIndex,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         if (dr.IsDBNull(colIndex))
         {
@@ -603,7 +603,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
     /// <summary>
     /// Validates the persistence schema and returns the number of validates objects.
     /// </summary>
-    public virtual async ValueTask<int> ValidateSchema(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken)
+    public virtual async ValueTask<int> ValidateSchema(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default)
     {
         foreach (var tableName in AllTableNames)
         {

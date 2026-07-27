@@ -1,4 +1,4 @@
-﻿using Quartz.Job;
+using Quartz.Job;
 using Quartz.Impl;
 using Quartz.Extensibility;
 
@@ -47,9 +47,14 @@ public class SimpleJobFactoryTest
     {
         // The point of JobScope.State is that a factory can put anything there; only the disposable
         // case gets any help from the base factory.
-        var act = async () => await factory.ReturnJob(new JobScope(new DisposableJob(), "a tenant id"));
+        var disposableJob = new DisposableJob();
+        var state = new NotDisposableState();
+
+        var act = async () => await factory.ReturnJob(new JobScope(disposableJob, state));
 
         await act.Should().NotThrowAsync();
+        disposableJob.WasDisposed.Should().BeTrue("the job is still disposed even when the state alongside it is not");
+        state.WasTornDown.Should().BeFalse("state the factory cannot dispose through an interface must be left untouched");
     }
 
     [Test]
@@ -100,5 +105,19 @@ public class SimpleJobFactoryTest
         }
 
         public bool WasDisposed { get; private set; }
+    }
+
+    /// <summary>
+    /// Deliberately implements neither <see cref="IDisposable" /> nor <see cref="IAsyncDisposable" />,
+    /// while still offering the shape a teardown would reach for. Nothing may call it.
+    /// </summary>
+    private sealed class NotDisposableState
+    {
+        public void Dispose()
+        {
+            WasTornDown = true;
+        }
+
+        public bool WasTornDown { get; private set; }
     }
 }

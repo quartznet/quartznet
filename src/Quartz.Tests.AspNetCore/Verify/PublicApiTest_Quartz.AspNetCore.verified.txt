@@ -6,7 +6,7 @@ namespace Quartz.AspNetCore.HealthChecks
         public QuartzHealthCheckOptions() { }
         public Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus? FailureStatus { get; set; }
         public string Name { get; set; }
-        public System.Collections.Generic.IList<string> Tags { get; }
+        public System.Collections.Generic.List<string> Tags { get; }
     }
 }
 namespace Quartz.AspNetCore.HttpApi

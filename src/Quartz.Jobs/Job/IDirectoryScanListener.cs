@@ -28,10 +28,12 @@ public interface IDirectoryScanListener
     /// <param name="updatedFiles">
     /// An array of <see cref="FileInfo"/> objects that were updated/added since the last scan of the directory
     /// </param>
-    void FilesUpdatedOrAdded(IReadOnlyCollection<FileInfo> updatedFiles);
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask FilesUpdatedOrAdded(IReadOnlyCollection<FileInfo> updatedFiles, CancellationToken cancellationToken = default);
 
     /// <param name="deletedFiles">
     /// An array of <see cref="FileInfo"/> objects that were deleted since the last scan of the directory
     /// </param>
-    void FilesDeleted(IReadOnlyCollection<FileInfo> deletedFiles);
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask FilesDeleted(IReadOnlyCollection<FileInfo> deletedFiles, CancellationToken cancellationToken = default);
 }

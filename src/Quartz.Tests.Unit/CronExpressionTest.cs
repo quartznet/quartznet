@@ -510,8 +510,8 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     {
         // test failed before because of improper trimming
         string expr = " 30 *   * * * ?  ";
-        CronExpression date = new CronExpression(expr);
-        Assert.That(date.IsSatisfiedBy(DateTime.UtcNow.Date.AddMinutes(2)), Is.False, "Time was included");
+        CronExpression cronExpression = new CronExpression(expr);
+        Assert.That(cronExpression.IsSatisfiedBy(DateTime.UtcNow.Date.AddMinutes(2)), Is.False, "Time was included");
     }
 
     private static void TestCorrectWeekFireDays(CronExpression cronExpression, IList<int> correctFireDays)

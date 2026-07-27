@@ -387,6 +387,17 @@ public sealed class JobBuilder : IJobConfigurator
     /// </summary>
     ///<returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobDataMap" />
+    public JobBuilder UsingJobData(string key, decimal value)
+    {
+        jobDataMap[key] = value;
+        return this;
+    }
+
+    /// <summary>
+    /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
+    /// </summary>
+    ///<returns>the updated JobBuilder</returns>
+    /// <seealso cref="IJobDetail.JobDataMap" />
     public JobBuilder UsingJobData(string key, bool value)
     {
         jobDataMap[key] = value;
@@ -449,4 +460,42 @@ public sealed class JobBuilder : IJobConfigurator
         jobDataMap = newJobDataMap;
         return this;
     }
+
+    IJobConfigurator IJobConfigurator.WithIdentity(string name) => WithIdentity(name);
+
+    IJobConfigurator IJobConfigurator.WithIdentity(string name, string group) => WithIdentity(name, group);
+
+    IJobConfigurator IJobConfigurator.WithIdentity(JobKey key) => WithIdentity(key);
+
+    IJobConfigurator IJobConfigurator.WithDescription(string? description) => WithDescription(description);
+
+    IJobConfigurator IJobConfigurator.RequestRecovery(bool shouldRecover) => RequestRecovery(shouldRecover);
+
+    IJobConfigurator IJobConfigurator.StoreDurably(bool durability) => StoreDurably(durability);
+
+    IJobConfigurator IJobConfigurator.UsingJobData(string key, string? value) => UsingJobData(key, value);
+
+    IJobConfigurator IJobConfigurator.UsingJobData(string key, int value) => UsingJobData(key, value);
+
+    IJobConfigurator IJobConfigurator.UsingJobData(string key, long value) => UsingJobData(key, value);
+
+    IJobConfigurator IJobConfigurator.UsingJobData(string key, float value) => UsingJobData(key, value);
+
+    IJobConfigurator IJobConfigurator.UsingJobData(string key, double value) => UsingJobData(key, value);
+
+    IJobConfigurator IJobConfigurator.UsingJobData(string key, decimal value) => UsingJobData(key, value);
+
+    IJobConfigurator IJobConfigurator.UsingJobData(string key, bool value) => UsingJobData(key, value);
+
+    IJobConfigurator IJobConfigurator.UsingJobData(string key, Guid value) => UsingJobData(key, value);
+
+    IJobConfigurator IJobConfigurator.UsingJobData(string key, char value) => UsingJobData(key, value);
+
+    IJobConfigurator IJobConfigurator.UsingJobData(JobDataMap newJobDataMap) => UsingJobData(newJobDataMap);
+
+    IJobConfigurator IJobConfigurator.SetJobData(JobDataMap newJobDataMap) => SetJobData(newJobDataMap);
+
+    IJobConfigurator IJobConfigurator.DisallowConcurrentExecution(bool concurrentExecutionDisallowed) => DisallowConcurrentExecution(concurrentExecutionDisallowed);
+
+    IJobConfigurator IJobConfigurator.PersistJobDataAfterExecution(bool persistJobDataAfterExecution) => PersistJobDataAfterExecution(persistJobDataAfterExecution);
 }

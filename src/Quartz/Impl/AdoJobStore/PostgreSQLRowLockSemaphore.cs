@@ -45,7 +45,7 @@ public class PostgreSQLRowLockSemaphore : StdRowLockSemaphore
     public PostgreSQLRowLockSemaphore(IDbProvider dbProvider)
         : base(dbProvider)
     {
-        InsertSQL = PostgreSQLInsertLock;
+        InsertSql = PostgreSQLInsertLock;
     }
 
     /// <summary>
@@ -53,11 +53,11 @@ public class PostgreSQLRowLockSemaphore : StdRowLockSemaphore
     /// </summary>
     /// <param name="tablePrefix">The table prefix.</param>
     /// <param name="schedulerName">the scheduler name</param>
-    /// <param name="selectWithLockSQL">The select with lock SQL.</param>
+    /// <param name="selectWithLockSql">The select with lock SQL.</param>
     /// <param name="dbProvider">The db provider.</param>
-    public PostgreSQLRowLockSemaphore(string tablePrefix, string schedulerName, string? selectWithLockSQL, IDbProvider dbProvider)
-        : base(tablePrefix, schedulerName, selectWithLockSQL, dbProvider)
+    public PostgreSQLRowLockSemaphore(string tablePrefix, string schedulerName, string? selectWithLockSql, IDbProvider dbProvider)
+        : base(tablePrefix, schedulerName, selectWithLockSql, dbProvider)
     {
-        InsertSQL = PostgreSQLInsertLock;
+        InsertSql = PostgreSQLInsertLock;
     }
 }

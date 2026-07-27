@@ -70,9 +70,9 @@ public sealed class RecurrenceScheduleBuilder : ScheduleBuilder<IRecurrenceTrigg
     /// <summary>
     /// Set the time zone for recurrence calculations.
     /// </summary>
-    public RecurrenceScheduleBuilder InTimeZone(TimeZoneInfo? tz)
+    public RecurrenceScheduleBuilder InTimeZone(TimeZoneInfo? timeZone)
     {
-        timeZone = tz;
+        this.timeZone = timeZone;
         return this;
     }
 

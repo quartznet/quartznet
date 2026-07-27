@@ -14,7 +14,7 @@
     public string Placeholder { get; set; } = "Filter by group or name";
 
     [Parameter]
-    public int DebounceMilliseconds { get; set; } = 300;
+    public TimeSpan Debounce { get; set; } = TimeSpan.FromMilliseconds(300);
 
     [Parameter]
     public EventCallback<string> OnFilterChanged { get; set; }
@@ -30,7 +30,7 @@
 
         try
         {
-            await Task.Delay(DebounceMilliseconds, token);
+            await Task.Delay(Debounce, token);
             await OnFilterChanged.InvokeAsync(_value);
         }
         catch (OperationCanceledException)

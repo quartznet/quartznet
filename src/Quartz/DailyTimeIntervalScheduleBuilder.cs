@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -475,12 +475,12 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
     /// <summary>
     /// TimeZone in which to base the schedule.
     /// </summary>
-    /// <param name="timezone">the time-zone for the schedule</param>
+    /// <param name="timeZone">the time-zone for the schedule</param>
     /// <returns>the updated CalendarIntervalScheduleBuilder</returns>
     /// <seealso cref="ICalendarIntervalTrigger.TimeZone" />
-    public DailyTimeIntervalScheduleBuilder InTimeZone(TimeZoneInfo timezone)
+    public DailyTimeIntervalScheduleBuilder InTimeZone(TimeZoneInfo timeZone)
     {
-        timeZone = timezone;
+        this.timeZone = timeZone;
         return this;
     }
 

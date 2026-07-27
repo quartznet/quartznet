@@ -829,7 +829,7 @@ public class JobStoreSupportTest
         : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
     {
     }
-        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection()
+        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection(CancellationToken cancellationToken = default)
         {
             return new ValueTask<ConnectionAndTransactionHolder>(new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null));
         }
@@ -884,7 +884,7 @@ public class JobStoreSupportTest
             return StoreTrigger(conn, newTrigger, job, replaceExisting, AdoConstants.StateWaiting, false, false, CancellationToken.None);
         }
 
-        internal Task<int> CallRecoverStaleAcquiredTriggers(ConnectionAndTransactionHolder conn)
+        internal ValueTask<int> CallRecoverStaleAcquiredTriggers(ConnectionAndTransactionHolder conn)
         {
             return RecoverStaleAcquiredTriggers(conn, CancellationToken.None);
         }
@@ -916,7 +916,7 @@ public class JobStoreSupportTest
         {
         }
 
-        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection()
+        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection(CancellationToken cancellationToken = default)
         {
             // Return a holder with a mock connection and no transaction
             return new ValueTask<ConnectionAndTransactionHolder>(
@@ -1110,7 +1110,7 @@ public class JobStoreSupportTest
             TransientRetryInterval = TimeSpan.Zero;
         }
 
-        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection()
+        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection(CancellationToken cancellationToken = default)
         {
             return new ValueTask<ConnectionAndTransactionHolder>(
                 new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null));
@@ -1291,7 +1291,7 @@ public class JobStoreSupportTest
             fieldInfo.SetValue(this, value);
         }
 
-        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection()
+        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection(CancellationToken cancellationToken = default)
         {
             return new ValueTask<ConnectionAndTransactionHolder>(
                 new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null));

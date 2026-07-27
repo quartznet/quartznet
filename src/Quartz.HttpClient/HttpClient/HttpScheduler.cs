@@ -63,11 +63,6 @@ public class HttpScheduler : IScheduler
         }
     }
 
-    public IJobFactory JobFactory
-    {
-        set => Throw.SchedulerException("Operation not supported for remote schedulers.");
-    }
-
     public IListenerManager ListenerManager
     {
         get

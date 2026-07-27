@@ -45,9 +45,9 @@ public sealed class HolidayCalendar : BaseCalendar
     /// days. Only the month, day and year of the returned dates are
     /// significant.
     /// </summary>
-    public IReadOnlyCollection<DateTime> ExcludedDates
+    public List<DateTime> ExcludedDates
     {
-        get => new HashSet<DateTime>(dates);
+        get => new List<DateTime>(dates);
         internal set => dates = new SortedSet<DateTime>(value);
     }
 

@@ -14,7 +14,6 @@ namespace Quartz.HttpClient
         public bool InStandbyMode { get; }
         public bool IsShutdown { get; }
         public bool IsStarted { get; }
-        public Quartz.Extensibility.IJobFactory JobFactory { set; }
         public Quartz.IListenerManager ListenerManager { get; }
         public string SchedulerInstanceId { get; }
         public string SchedulerName { get; }
@@ -102,7 +101,7 @@ namespace Quartz.Impl
     public class HttpSchedulerProxyFactory : Quartz.Extensibility.ISchedulerProxyFactory
     {
         public HttpSchedulerProxyFactory() { }
-        public string? Address { set; }
+        public string? Address { get; set; }
         protected virtual System.Net.Http.HttpClient CreateHttpClient(string address) { }
         protected virtual System.Text.Json.JsonSerializerOptions? CreateJsonSerializerOptions() { }
         public Quartz.IScheduler GetProxy(string schedulerName, string schedulerInstanceId) { }

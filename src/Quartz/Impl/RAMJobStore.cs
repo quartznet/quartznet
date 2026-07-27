@@ -550,7 +550,7 @@ public class RAMJobStore : IJobStore
     /// <param name="key">The <see cref="ITrigger" /> to be removed.</param>
     /// <param name="removeOrphanedJob">Whether to delete orphaned job details from scheduler if job becomes orphaned from removing the trigger.</param>
     /// <param name="cancellationToken"></param>
-    protected virtual async ValueTask<bool> RemoveTrigger(TriggerKey key, bool removeOrphanedJob, CancellationToken cancellationToken)
+    protected virtual async ValueTask<bool> RemoveTrigger(TriggerKey key, bool removeOrphanedJob, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -783,15 +783,15 @@ public class RAMJobStore : IJobStore
     /// </summary>
     /// <remarks>
     /// </remarks>
-    /// <param name="name">the identifier to check for</param>
+    /// <param name="calendarName">the identifier to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a calendar exists with the given identifier</returns>
-    public async ValueTask<bool> CalendarExists(string name, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> CalendarExists(string calendarName, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return calendarsByName.ContainsKey(name);
+            return calendarsByName.ContainsKey(calendarName);
         }
         finally
         {
@@ -913,7 +913,7 @@ public class RAMJobStore : IJobStore
     /// <summary>
     /// Store the given <see cref="ICalendar" />.
     /// </summary>
-    /// <param name="name">The name.</param>
+    /// <param name="calendarName">The name.</param>
     /// <param name="calendar">The <see cref="ICalendar" /> to be stored.</param>
     /// <param name="replaceExisting">If <see langword="true" />, any <see cref="ICalendar" /> existing
     /// in the <see cref="IJobStore" /> with the same name and group
@@ -924,7 +924,7 @@ public class RAMJobStore : IJobStore
     /// re-computed with the new <see cref="ICalendar" />.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     public virtual async ValueTask StoreCalendar(
-        string name,
+        string calendarName,
         ICalendar calendar,
         bool replaceExisting,
         bool updateTriggers,
@@ -935,23 +935,23 @@ public class RAMJobStore : IJobStore
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            calendarsByName.TryGetValue(name, out var obj);
+            calendarsByName.TryGetValue(calendarName, out var obj);
 
             if (obj is not null && !replaceExisting)
             {
-                Throw.ObjectAlreadyExistsException($"Calendar with name '{name}' already exists.");
+                Throw.ObjectAlreadyExistsException($"Calendar with name '{calendarName}' already exists.");
             }
 
             if (obj is not null)
             {
-                calendarsByName.TryRemove(name, out _);
+                calendarsByName.TryRemove(calendarName, out _);
             }
 
-            calendarsByName[name] = calendar;
+            calendarsByName[calendarName] = calendar;
 
             if (obj is not null && updateTriggers)
             {
-                foreach (TriggerWrapper tw in GetTriggerWrappersForCalendarNoLock(name))
+                foreach (TriggerWrapper tw in GetTriggerWrappersForCalendarNoLock(calendarName))
                 {
                     bool removed = timeTriggers.Remove(tw);
 
@@ -978,18 +978,18 @@ public class RAMJobStore : IJobStore
     /// <see cref="ITrigger" />s pointing to non-existent calendars, then a
     /// <see cref="JobPersistenceException" /> will be thrown.</para>
     /// </summary>
-    /// <param name="name">The name of the <see cref="ICalendar" /> to be removed.</param>
+    /// <param name="calendarName">The name of the <see cref="ICalendar" /> to be removed.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>
     /// 	<see langword="true" /> if a <see cref="ICalendar" /> with the given name
     /// was found and removed from the store.
     /// </returns>
-    public virtual async ValueTask<bool> RemoveCalendar(string name, CancellationToken cancellationToken = default)
+    public virtual async ValueTask<bool> RemoveCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return RemoveCalendarNoLock(name);
+            return RemoveCalendarNoLock(calendarName);
         }
         finally
         {
@@ -1020,17 +1020,17 @@ public class RAMJobStore : IJobStore
     /// <summary>
     /// Retrieve the given <see cref="ITrigger" />.
     /// </summary>
-    /// <param name="name">The name of the <see cref="ICalendar" /> to be retrieved.</param>
+    /// <param name="calendarName">The name of the <see cref="ICalendar" /> to be retrieved.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>
     /// The desired <see cref="ICalendar" />, or null if there is no match.
     /// </returns>
-    public virtual async ValueTask<ICalendar?> RetrieveCalendar(string name, CancellationToken cancellationToken = default)
+    public virtual async ValueTask<ICalendar?> RetrieveCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            calendarsByName.TryGetValue(name, out var calendar);
+            calendarsByName.TryGetValue(calendarName, out var calendar);
             return calendar?.Clone();
         }
         finally

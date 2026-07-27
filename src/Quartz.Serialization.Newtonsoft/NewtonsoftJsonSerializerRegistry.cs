@@ -1,7 +1,7 @@
 using Quartz.Calendars;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
-using Quartz.Triggers;
+using Quartz.Serialization.Newtonsoft.Triggers;
 using Quartz.Util;
 
 namespace Quartz.Serialization.Newtonsoft;
@@ -69,7 +69,7 @@ public sealed class NewtonsoftJsonSerializerRegistry
     /// <summary>
     /// Adds a serializer for a custom calendar type.
     /// </summary>
-    public NewtonsoftJsonSerializerRegistry AddCalendarSerializer<TCalendar>(ICalendarSerializer serializer)
+    public NewtonsoftJsonSerializerRegistry AddCalendarSerializer<TCalendar>(ICalendarSerializer serializer) where TCalendar : ICalendar
     {
         ArgumentNullException.ThrowIfNull(serializer);
 

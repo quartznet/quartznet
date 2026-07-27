@@ -23,7 +23,6 @@ using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
 using Quartz.Impl;
-using Quartz.Listener;
 using Quartz.Extensibility;
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
@@ -48,7 +47,7 @@ namespace Quartz.Core;
 /// <seealso cref="ITrigger" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-internal class JobRunShell : SchedulerListenerSupport
+internal sealed class JobRunShell
 {
     private readonly ILogger<JobRunShell> logger;
 
@@ -71,12 +70,6 @@ internal class JobRunShell : SchedulerListenerSupport
         this.logger = logger;
     }
 
-    public override ValueTask SchedulerShuttingDown(CancellationToken cancellationToken = default)
-    {
-        RequestShutdown();
-        return default;
-    }
-
     /// <summary>
     /// Initializes the job execution context with given scheduler and bundle.
     /// </summary>
@@ -86,7 +79,7 @@ internal class JobRunShell : SchedulerListenerSupport
     /// </remarks>
     /// <param name="scheduler">The scheduler.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public virtual ValueTask Initialize(
+    public ValueTask Initialize(
         QuartzScheduler scheduler,
         CancellationToken cancellationToken = default)
     {
@@ -95,33 +88,30 @@ internal class JobRunShell : SchedulerListenerSupport
     }
 
     /// <summary>
-    /// Requests the Shutdown.
-    /// </summary>
-    public virtual void RequestShutdown()
-    {
-    }
-
-    /// <summary>
     /// This method has to be implemented in order that starting of the thread causes the object's
     /// run method to be called in that separately executing thread.
     /// </summary>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public virtual async ValueTask Run(CancellationToken cancellationToken = default)
+    public async ValueTask Run(CancellationToken cancellationToken = default)
     {
         Context.CallerId.Value = Guid.NewGuid();
 
         // Create the job here (moved from Initialize) so that AsyncLocal values
         // set during IJobFactory.CreateJob flow correctly to IJob.Execute (#1528)
         IJobDetail jobDetail = firedTriggerBundle.JobDetail;
+
+        // Read the factory once: the scope handed out by CreateJob must be returned to the same
+        // factory, even if QuartzScheduler.JobFactory is swapped while this job is in flight.
+        IJobFactory jobFactory = qs!.JobFactory;
         JobScope jobScope;
         try
         {
-            jobScope = await qs!.JobFactory.CreateJob(firedTriggerBundle, scheduler, cancellationToken).ConfigureAwait(false);
+            jobScope = await jobFactory.CreateJob(firedTriggerBundle, scheduler, cancellationToken).ConfigureAwait(false);
 
             if (jobScope.Job is null)
             {
                 Throw.SchedulerException(
-                    $"Job factory {qs.JobFactory.GetType().FullName} returned an empty JobScope for job '{jobDetail.Key}'. "
+                    $"Job factory {jobFactory.GetType().FullName} returned an empty JobScope for job '{jobDetail.Key}'. "
                     + "A factory must build its result with the JobScope constructor rather than returning default.");
             }
         }
@@ -156,24 +146,10 @@ internal class JobRunShell : SchedulerListenerSupport
                 return;
             }
 
-            qs!.AddInternalSchedulerListener(this);
-
             IOperableTrigger trigger = (IOperableTrigger) context!.Trigger;
             do
             {
                 JobExecutionException? jobExEx = null;
-
-                try
-                {
-                    Begin();
-                }
-                catch (SchedulerException se)
-                {
-                    string msg = $"Error executing Job {context.JobDetail.Key}: couldn't begin execution.";
-                    await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
-                    await qs.NotifyJobStoreJobComplete(trigger, jobDetail, SchedulerInstruction.NoInstruction, cancellationToken).ConfigureAwait(false);
-                    break;
-                }
 
                 // notify job & trigger listeners...
                 SchedulerInstruction instructionCode;
@@ -193,11 +169,10 @@ internal class JobRunShell : SchedulerListenerSupport
                         await qs.NotifyJobStoreJobVetoed(trigger, jobDetail, instructionCode, cancellationToken).ConfigureAwait(false);
 
                         // Even if trigger got vetoed, we still needs to check to see if it's the trigger's finalized run or not.
-                        if (!trigger.GetMayFireAgain())
+                        if (!trigger.MayFireAgain)
                         {
                             await qs.NotifySchedulerListenersFinalized(context.Trigger, cancellationToken).ConfigureAwait(false);
                         }
-                        Complete(successfulExecution: true);
                     }
                     catch (SchedulerException se)
                     {
@@ -281,14 +256,6 @@ internal class JobRunShell : SchedulerListenerSupport
                         logger.LogDebug("Rescheduling trigger to reexecute");
                     }
                     context.IncrementRefireCount();
-                    try
-                    {
-                        Complete(successfulExecution: false);
-                    }
-                    catch (SchedulerException se)
-                    {
-                        await qs.NotifySchedulerListenersError($"Error executing Job {context.JobDetail.Key}: couldn't finalize execution.", se, cancellationToken).ConfigureAwait(false);
-                    }
                     continue;
                 }
 
@@ -306,7 +273,7 @@ internal class JobRunShell : SchedulerListenerSupport
                     // even if trigger listener notification failed.
                     try
                     {
-                        if (!trigger.GetMayFireAgain())
+                        if (!trigger.MayFireAgain)
                         {
                             await qs.NotifySchedulerListenersFinalized(context.Trigger, cancellationToken).ConfigureAwait(false);
                         }
@@ -321,16 +288,6 @@ internal class JobRunShell : SchedulerListenerSupport
                     break;
                 }
 
-                try
-                {
-                    Complete(successfulExecution: true);
-                }
-                catch (SchedulerException se)
-                {
-                    await qs.NotifySchedulerListenersError($"Error executing Job {context.JobDetail.Key}: couldn't finalize execution.", se, cancellationToken).ConfigureAwait(false);
-                    continue;
-                }
-
                 await qs.NotifyJobStoreJobComplete(trigger, jobDetail, instructionCode, cancellationToken).ConfigureAwait(false);
 
                 break;
@@ -338,11 +295,9 @@ internal class JobRunShell : SchedulerListenerSupport
         }
         finally
         {
-            qs!.RemoveInternalSchedulerListener(this);
-
             try
             {
-                await qs.JobFactory.ReturnJob(jobScope, cancellationToken).ConfigureAwait(false);
+                await jobFactory.ReturnJob(jobScope, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -370,30 +325,6 @@ internal class JobRunShell : SchedulerListenerSupport
                 : SchedulerInstruction.SetAllJobTriggersError;
             await qs.NotifyJobStoreJobComplete(errorTrigger, jobDetail, instruction, cancellationToken).ConfigureAwait(false);
         }
-    }
-
-    /// <summary>
-    /// Runs begin procedures on this instance.
-    /// </summary>
-    protected virtual void Begin()
-    {
-    }
-
-    /// <summary>
-    /// Completes the execution.
-    /// </summary>
-    /// <param name="successfulExecution">if set to <c>true</c> [successful execution].</param>
-    protected virtual void Complete(bool successfulExecution)
-    {
-    }
-
-    /// <summary>
-    /// Passivates this instance.
-    /// </summary>
-    public virtual void Passivate()
-    {
-        context = null;
-        qs = null;
     }
 
     private async ValueTask<bool> NotifyListenersBeginning(
@@ -473,7 +404,7 @@ internal class JobRunShell : SchedulerListenerSupport
         CancellationToken cancellationToken = default)
     {
         // check if we can do quick path
-        if (ctx.Trigger.GetMayFireAgain())
+        if (ctx.Trigger.MayFireAgain)
         {
             try
             {

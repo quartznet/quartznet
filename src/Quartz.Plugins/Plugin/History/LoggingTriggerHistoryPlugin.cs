@@ -250,7 +250,7 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
     /// Get the name of the <see cref="ITriggerListener" />.
     /// </summary>
     /// <value></value>
-    public virtual string Name { get; set; } = "Logging Trigger History Plugin";
+    public string Name { get; private set; } = "Logging Trigger History Plugin";
 
     /// <summary>
     /// Called during creation of the <see cref="IScheduler" /> in order to give

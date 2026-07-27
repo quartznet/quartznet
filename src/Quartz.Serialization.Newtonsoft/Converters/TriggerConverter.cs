@@ -1,11 +1,10 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-using Quartz.Serialization.Newtonsoft;
 using Quartz.Extensibility;
 using Quartz.Util;
 
-namespace Quartz.Converters;
+namespace Quartz.Serialization.Newtonsoft;
 
 internal sealed class TriggerConverter(NewtonsoftJsonSerializerRegistry registry) : JsonConverter
 {

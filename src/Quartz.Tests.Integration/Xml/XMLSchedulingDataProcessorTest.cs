@@ -71,7 +71,7 @@ public class XMLSchedulingDataProcessorTest
     {
         Stream s = ReadJobXmlFromEmbeddedResource("MinimalConfiguration_20.xml");
         await processor.ProcessStream(s, null);
-        Assert.That(processor.OverWriteExistingData, Is.False);
+        Assert.That(processor.OverwriteExistingData, Is.False);
 
         await processor.ScheduleJobs(mockScheduler);
     }
@@ -81,7 +81,7 @@ public class XMLSchedulingDataProcessorTest
     {
         Stream s = ReadJobXmlFromEmbeddedResource("RichConfiguration_20.xml");
         await processor.ProcessStream(s, null);
-        Assert.That(processor.OverWriteExistingData, Is.False);
+        Assert.That(processor.OverwriteExistingData, Is.False);
         Assert.That(processor.IgnoreDuplicates, Is.True);
 
         await processor.ScheduleJobs(mockScheduler);
@@ -135,7 +135,7 @@ public class XMLSchedulingDataProcessorTest
     }
 
     /// <summary>
-    /// The default XMLSchedulingDataProcessor will setOverWriteExistingData(true), and we want to
+    /// The default XMLSchedulingDataProcessor will set OverwriteExistingData to true, and we want to
     /// test programmatically overriding this value.
     /// </summary>
     /// <remarks>

@@ -4,7 +4,7 @@ using BenchmarkDotNet.Running;
 
 namespace Quartz.Benchmark;
 
-internal sealed class Program
+internal static class Program
 {
     private static void Main(string[] args)
     {

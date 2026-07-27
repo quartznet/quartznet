@@ -82,6 +82,11 @@ public interface IQuartzBuilder
         where T : class, IJobFactory;
 
     /// <summary>
+    /// Uses a job factory the caller has already built.
+    /// </summary>
+    IQuartzBuilder UseJobFactory(IJobFactory jobFactory);
+
+    /// <summary>
     /// Uses a specific type load helper, which decides how type names are resolved.
     /// </summary>
     IQuartzBuilder UseTypeLoader<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
