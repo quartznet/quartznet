@@ -308,3 +308,118 @@ GO
 -- Firebird
 -- CREATE INDEX IDX_QRTZ_J_G_N ON QRTZ_JOB_DETAILS(SCHED_NAME,JOB_GROUP,JOB_NAME);
 -- CREATE INDEX IDX_QRTZ_T_G_N ON QRTZ_TRIGGERS(SCHED_NAME,TRIGGER_GROUP,TRIGGER_NAME);
+
+--
+-- Drops indexes that are redundant: every column list below is the leading prefix, in the
+-- same order, of another index on the same table, so every lookup, range scan and ordered
+-- scan that used the narrow index is served by the wider one. They only cost writes and
+-- storage. Each one and the index that covers it:
+--
+--   IDX_QRTZ_J_GRP             (SCHED_NAME, JOB_GROUP)
+--     covered by IDX_QRTZ_J_G_N              (SCHED_NAME, JOB_GROUP, JOB_NAME)
+--   IDX_QRTZ_T_G               (SCHED_NAME, TRIGGER_GROUP)
+--     covered by IDX_QRTZ_T_N_G_STATE        (SCHED_NAME, TRIGGER_GROUP, TRIGGER_STATE)
+--     and by     IDX_QRTZ_T_G_N              (SCHED_NAME, TRIGGER_GROUP, TRIGGER_NAME)
+--   IDX_QRTZ_T_STATE           (SCHED_NAME, TRIGGER_STATE)
+--     covered by IDX_QRTZ_T_NFT_ST           (SCHED_NAME, TRIGGER_STATE, NEXT_FIRE_TIME)
+--   IDX_QRTZ_T_NFT_MISFIRE     (SCHED_NAME, MISFIRE_INSTR, NEXT_FIRE_TIME)
+--     covered by IDX_QRTZ_T_NFT_ST_MISFIRE   (SCHED_NAME, MISFIRE_INSTR, NEXT_FIRE_TIME, TRIGGER_STATE)
+--   IDX_QRTZ_FT_TRIG_INST_NAME (SCHED_NAME, INSTANCE_NAME)
+--     covered by IDX_QRTZ_FT_INST_JOB_REQ_RCVRY (SCHED_NAME, INSTANCE_NAME, REQUESTS_RECOVERY)
+--
+-- These drops are OPTIONAL: 4.x runs unchanged with the extra indexes, they are just dead
+-- weight. Which of them a schema has varies by database and by how old the schema is, so
+-- every statement checks first. IDX_QRTZ_J_GRP is dropped only once IDX_QRTZ_J_G_N exists,
+-- because that index is what replaces it -- run the section above first.
+--
+
+-- SQL Server
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IDX_QRTZ_J_GRP' AND object_id = OBJECT_ID('dbo.QRTZ_JOB_DETAILS'))
+   AND EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IDX_QRTZ_J_G_N' AND object_id = OBJECT_ID('dbo.QRTZ_JOB_DETAILS'))
+BEGIN
+  DROP INDEX [IDX_QRTZ_J_GRP] ON [dbo].[QRTZ_JOB_DETAILS];
+END
+GO
+
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IDX_QRTZ_T_G' AND object_id = OBJECT_ID('dbo.QRTZ_TRIGGERS'))
+   AND EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IDX_QRTZ_T_N_G_STATE' AND object_id = OBJECT_ID('dbo.QRTZ_TRIGGERS'))
+BEGIN
+  DROP INDEX [IDX_QRTZ_T_G] ON [dbo].[QRTZ_TRIGGERS];
+END
+GO
+
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IDX_QRTZ_T_STATE' AND object_id = OBJECT_ID('dbo.QRTZ_TRIGGERS'))
+   AND EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IDX_QRTZ_T_NFT_ST' AND object_id = OBJECT_ID('dbo.QRTZ_TRIGGERS'))
+BEGIN
+  DROP INDEX [IDX_QRTZ_T_STATE] ON [dbo].[QRTZ_TRIGGERS];
+END
+GO
+
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IDX_QRTZ_T_NFT_MISFIRE' AND object_id = OBJECT_ID('dbo.QRTZ_TRIGGERS'))
+   AND EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IDX_QRTZ_T_NFT_ST_MISFIRE' AND object_id = OBJECT_ID('dbo.QRTZ_TRIGGERS'))
+BEGIN
+  DROP INDEX [IDX_QRTZ_T_NFT_MISFIRE] ON [dbo].[QRTZ_TRIGGERS];
+END
+GO
+
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IDX_QRTZ_FT_TRIG_INST_NAME' AND object_id = OBJECT_ID('dbo.QRTZ_FIRED_TRIGGERS'))
+   AND EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IDX_QRTZ_FT_INST_JOB_REQ_RCVRY' AND object_id = OBJECT_ID('dbo.QRTZ_FIRED_TRIGGERS'))
+BEGIN
+  DROP INDEX [IDX_QRTZ_FT_TRIG_INST_NAME] ON [dbo].[QRTZ_FIRED_TRIGGERS];
+END
+GO
+
+-- PostgreSQL
+-- Only idx_qrtz_t_state applies; the 3.x PostgreSQL schema had no equivalent of the others.
+-- CAUTION: it is covered only by the 4.x idx_qrtz_t_nft_st. The 3.x index of that name was
+-- (next_fire_time, trigger_state), which does not lead with trigger_state and so does not
+-- cover it. Check yours with \d qrtz_triggers, and if it is still the 3.x shape, rebuild it
+-- before dropping idx_qrtz_t_state:
+-- DROP INDEX IF EXISTS idx_qrtz_t_nft_st;
+-- CREATE INDEX idx_qrtz_t_nft_st ON qrtz_triggers (sched_name, trigger_state, next_fire_time);
+--
+-- DROP INDEX IF EXISTS idx_qrtz_t_state;
+
+-- MySQL
+-- DROP INDEX has no IF EXISTS clause, so skip any line whose index your schema lacks --
+-- SHOW INDEX FROM QRTZ_TRIGGERS and SHOW INDEX FROM QRTZ_JOB_DETAILS list them.
+-- DROP INDEX IDX_QRTZ_J_GRP ON QRTZ_JOB_DETAILS;
+-- DROP INDEX IDX_QRTZ_T_G ON QRTZ_TRIGGERS;
+-- DROP INDEX IDX_QRTZ_T_STATE ON QRTZ_TRIGGERS;
+-- DROP INDEX IDX_QRTZ_T_NFT_MISFIRE ON QRTZ_TRIGGERS;
+-- DROP INDEX IDX_QRTZ_FT_TRIG_INST_NAME ON QRTZ_FIRED_TRIGGERS;
+--
+-- The 3.x QRTZ_BLOB_TRIGGERS table also declared an inline INDEX on the primary key's own
+-- columns (SCHED_NAME, TRIGGER_NAME, TRIGGER_GROUP), which InnoDB stores as a second copy of
+-- the primary key. MySQL auto-named it, usually SCHED_NAME or SCHED_NAME_2; find the name
+-- with SHOW INDEX FROM QRTZ_BLOB_TRIGGERS and drop it:
+-- DROP INDEX SCHED_NAME ON QRTZ_BLOB_TRIGGERS;
+
+-- SQLite
+-- Nothing to drop: the 3.x SQLite schema created no secondary indexes.
+
+-- Oracle (check existence before dropping)
+-- DECLARE
+--   index_exists NUMBER;
+-- BEGIN
+--   SELECT COUNT(*) INTO index_exists FROM user_indexes WHERE index_name = 'IDX_QRTZ_J_G_N';
+--   IF index_exists > 0 THEN
+--     FOR i IN (SELECT index_name FROM user_indexes WHERE index_name = 'IDX_QRTZ_J_GRP') LOOP
+--       EXECUTE IMMEDIATE 'DROP INDEX ' || i.index_name;
+--     END LOOP;
+--   END IF;
+--   FOR i IN (SELECT index_name FROM user_indexes
+--             WHERE index_name IN ('IDX_QRTZ_T_G', 'IDX_QRTZ_T_STATE', 'IDX_QRTZ_T_NFT_MISFIRE',
+--                                  'IDX_QRTZ_FT_TRIG_INST_NAME')) LOOP
+--     EXECUTE IMMEDIATE 'DROP INDEX ' || i.index_name;
+--   END LOOP;
+-- END;
+-- /
+
+-- Firebird
+-- DROP INDEX errors if the index is absent, so skip any line whose index your schema lacks.
+-- DROP INDEX IDX_QRTZ_J_GRP;
+-- DROP INDEX IDX_QRTZ_T_G;
+-- DROP INDEX IDX_QRTZ_T_STATE;
+-- DROP INDEX IDX_QRTZ_T_NFT_MISFIRE;
+-- DROP INDEX IDX_QRTZ_FT_TRIG_INST_NAME;
