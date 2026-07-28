@@ -370,8 +370,8 @@ public class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTimeInterv
 
         //apply proper offsets according to timezone
         TimeZoneInfo targetTimeZone = timeZone ?? TimeZoneInfo.Local;
-        startTimeOfDayDate = new DateTimeOffset(startTimeOfDayDate.DateTime, TimeZoneUtil.GetUtcOffset(startTimeOfDayDate.DateTime, targetTimeZone));
-        tomorrow = new DateTimeOffset(tomorrow.DateTime, TimeZoneUtil.GetUtcOffset(tomorrow.DateTime, targetTimeZone));
+        startTimeOfDayDate = TimeZoneUtil.ResolveLocal(startTimeOfDayDate.DateTime, targetTimeZone);
+        tomorrow = TimeZoneUtil.ResolveLocal(tomorrow.DateTime, targetTimeZone);
 
         TimeSpan remainingMillisInDay = tomorrow - startTimeOfDayDate;
         TimeSpan intervalInMillis;

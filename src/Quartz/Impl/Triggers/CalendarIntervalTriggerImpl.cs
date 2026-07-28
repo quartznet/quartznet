@@ -819,7 +819,7 @@ public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTri
         {
             //first apply the date, and then find the proper timezone offset
             newTime = new DateTimeOffset(newTime.Year, newTime.Month, newTime.Day, initialHourOfDay, newTime.Minute, newTime.Second, newTime.Millisecond, TimeSpan.Zero);
-            newTime = new DateTimeOffset(newTime.DateTime, TimeZoneUtil.GetUtcOffset(newTime.DateTime, TimeZone));
+            newTime = TimeZoneUtil.ResolveLocal(newTime.DateTime, TimeZone);
 
             //TimeZone.IsInvalidTime is true, if this hour does not exist in the specified timezone
             bool isInvalid = TimeZone.IsInvalidTime(newTime.DateTime);
@@ -828,14 +828,13 @@ public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTri
             {
                 return SkipDayIfHourDoesNotExist;
             }
-            //don't skip this day, instead find closest valid time by adding minutes.
-            while (TimeZone.IsInvalidTime(newTime.DateTime))
-            {
-                newTime = newTime.AddMinutes(1);
-            }
 
-            //apply proper offset for the adjusted time
-            newTime = new DateTimeOffset(newTime.DateTime, TimeZoneUtil.GetUtcOffset(newTime.DateTime, TimeZone));
+            if (isInvalid)
+            {
+                //don't skip this day, instead find the closest valid time after the gap
+                //and apply the proper offset for the adjusted time
+                newTime = TimeZoneUtil.ResolveLocal(TimeZoneUtil.WalkToGapEnd(newTime.DateTime, TimeZone), TimeZone);
+            }
         }
         return false;
     }
@@ -857,7 +856,7 @@ public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTri
         {
             //first apply the date, and then find the proper timezone offset
             sTime = new DateTimeOffset(initalYear, initalMonth, initialDay, initialHourOfDay, sTime.Minute, sTime.Second, sTime.Millisecond, TimeSpan.Zero);
-            sTime = new DateTimeOffset(sTime.DateTime, TimeZoneUtil.GetUtcOffset(sTime.DateTime, TimeZone));
+            sTime = TimeZoneUtil.ResolveLocal(sTime.DateTime, TimeZone);
         }
     }
 

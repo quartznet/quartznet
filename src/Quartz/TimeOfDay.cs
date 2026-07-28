@@ -192,6 +192,12 @@ public class TimeOfDay
     /// <summary>
     /// Return a date with time of day reset to this object values. The millisecond value will be zero.
     /// </summary>
+    /// <remarks>
+    /// The returned value inherits the offset carried by <paramref name="dateTime"/> without
+    /// consulting any time zone. Around a daylight saving transition that inherited offset can be
+    /// wrong for the produced wall-clock time (see #3190), so callers that cross transitions must
+    /// re-resolve the result, for example with <c>TimeZoneUtil.ResolveLocal</c>.
+    /// </remarks>
     /// <param name="dateTime"></param>
     public DateTimeOffset GetTimeOfDayForDate(DateTimeOffset dateTime)
     {
