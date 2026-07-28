@@ -148,6 +148,31 @@ public class TimeZoneUtilTest
         }
     }
 
+    [TestCase("Eastern", "2024-11-03 01:30", "2024-11-03 01:00", "2024-11-03 02:00")]
+    [TestCase("CentralEuropean", "2018-10-28 02:30", "2018-10-28 02:00", "2018-10-28 03:00")]
+    [TestCase("LordHowe", "2019-04-07 01:45", "2019-04-07 01:30", "2019-04-07 02:00")]
+    [TestCase("Santiago", "2019-04-06 23:30", "2019-04-06 23:00", "2019-04-07 00:00")]
+    public void TryGetAmbiguousWindow_ReturnsWallClockWindow(string zoneKey, string ambiguousLocal, string expectedStart, string expectedEnd)
+    {
+        TimeZoneInfo zone = ResolveZone(zoneKey);
+        DateTime local = DateTime.Parse(ambiguousLocal, CultureInfo.InvariantCulture);
+        TestTimeZones.AssumeAmbiguousLocalTime(zone, local);
+
+        TimeZoneUtil.TryGetAmbiguousWindow(local, zone, out DateTime windowStart, out DateTime windowEnd).Should().BeTrue();
+
+        windowStart.Should().Be(DateTime.Parse(expectedStart, CultureInfo.InvariantCulture));
+        windowEnd.Should().Be(DateTime.Parse(expectedEnd, CultureInfo.InvariantCulture));
+
+        // pairing the window start with the standard (smaller) offset yields the transition instant,
+        // which renders in the zone as the window start itself - the first instant of the second pass
+        TimeSpan standardOffset = zone.GetAmbiguousTimeOffsets(local).Min();
+        DateTimeOffset transition = new DateTimeOffset(windowStart, standardOffset);
+        TimeZoneInfo.ConvertTime(transition, zone).DateTime.Should().Be(windowStart);
+
+        TimeZoneUtil.TryGetAmbiguousWindow(local.Date.AddHours(12), zone, out _, out _)
+            .Should().BeFalse("noon is not ambiguous");
+    }
+
     [TestCase("Eastern", "2024-03-10 02:30", "2024-03-10 03:00")]
     [TestCase("LordHowe", "2019-10-06 02:15", "2019-10-06 02:30")]
     [TestCase("Santiago", "2019-09-08 00:30", "2019-09-08 01:00")]

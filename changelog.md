@@ -28,6 +28,13 @@
 
   * `SystemTime` was removed as way to provide "now", you can inject `TimeProvider` via configuration or `UseTimeProvider(TimeProvider)` on the builder
 
+  * Cron expressions whose second, minute or hour field uses a wildcard, step or range (interval
+    expressions such as `0 * * * * ?` or `0 0/30 * * * ?`) now fire through **both** occurrences of the
+    wall-clock window that repeats when daylight saving time falls back. Previously the repeated window
+    fired only once, so an "every minute" schedule silently skipped an hour of real time. Fixed-time
+    expressions (such as `0 30 2 * * ?`, including comma lists like `0 0,30 2 * * ?`) keep firing once
+    per day, at the first occurrence of an ambiguous wall-clock time.
+
   * The `Equals(StringOperator? other)` method of **StringOperator** is now also virtual to allow it to be
     overridden in pair with `Equals(object? obj)` and `GetHashCode()`.
 

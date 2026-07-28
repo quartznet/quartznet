@@ -131,6 +131,44 @@ public static class TimeZoneUtil
     }
 
     /// <summary>
+    /// Determines the wall-clock window that occurs twice around a fall-back transition. Returns
+    /// false when the given time is not ambiguous. On success <paramref name="windowStart"/> is the
+    /// first ambiguous wall-clock minute (pairing it with the standard offset yields the transition
+    /// instant, i.e. the first instant of the second pass) and <paramref name="windowEnd"/> is the
+    /// first wall-clock minute after the window. Boundaries are found by scanning a minute at a
+    /// time, which handles transition deltas that are not whole hours.
+    /// </summary>
+    internal static bool TryGetAmbiguousWindow(DateTime dateTime, TimeZoneInfo timeZoneInfo, out DateTime windowStart, out DateTime windowEnd)
+    {
+        if (!timeZoneInfo.IsAmbiguousTime(dateTime))
+        {
+            windowStart = default;
+            windowEnd = default;
+            return false;
+        }
+
+        DateTime minute = new DateTime(dateTime.Year, dateTime.Month, dateTime.Day, dateTime.Hour, dateTime.Minute, 0, dateTime.Kind);
+
+        DateTime start = minute;
+        int guard = 0;
+        while (timeZoneInfo.IsAmbiguousTime(start.AddMinutes(-1)) && guard++ < MaxTransitionScanMinutes)
+        {
+            start = start.AddMinutes(-1);
+        }
+
+        DateTime end = minute;
+        guard = 0;
+        while (timeZoneInfo.IsAmbiguousTime(end) && guard++ < MaxTransitionScanMinutes)
+        {
+            end = end.AddMinutes(1);
+        }
+
+        windowStart = start;
+        windowEnd = end;
+        return true;
+    }
+
+    /// <summary>
     /// Walks forward from a wall-clock time inside a spring-forward gap to the first wall-clock
     /// time that exists in the given zone (the end of the gap). Returns the input unchanged when it
     /// is already valid.

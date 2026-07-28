@@ -265,30 +265,18 @@ public class CronExpressionDstTests
         cron.IsSatisfiedBy(insideGapHour).Should().BeTrue("07:15Z is local 03:15 -04:00, an ordinary matching minute");
     }
 
-    #region Current-behavior pins (decision points)
-
     /// <summary>
-    /// CURRENT BEHAVIOR PIN — known deviation, expected to change on main/4.0.
+    /// Interval expressions fire through BOTH occurrences of the repeated fall-back window: an
+    /// "every minute" schedule means 1500 minute fires in a 25 hour day (1499 in this walk, which
+    /// excludes both boundary instants).
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// A sequential walk of an interval (minutely) expression across a fall-back transition
-    /// currently SKIPS the entire repeated standard-pass hour. After the last daylight-pass fire at
-    /// 02:59 +02:00 (00:59Z) the next fire produced is 03:00 +01:00 (02:00Z), so the whole UTC hour
-    /// [01:00Z, 02:00Z) — local 02:00-02:59 +01:00 — never fires. The cause is that the wall clock
-    /// walk advances 02:59 to 03:00 and only then resolves the offset; 03:00 is unambiguous, so the
-    /// standard-offset repeat of 02:xx is never visited.
-    /// </para>
-    /// <para>
-    /// This violates the rule that interval expressions should fire in BOTH fall-back passes (the
-    /// Cronos invariant, and what an "every minute" schedule means to a user: 25 fires per hour-of
-    /// -day on this date, 1500 minute fires in a 25 hour day). The flip target is 1499 fires
-    /// (25 * 60 - 1, the walk excluding both boundary instants) plus PRESENCE of fires inside
-    /// [01:00Z, 02:00Z), replacing the 1439 and the emptiness assertion pinned here.
-    /// </para>
+    /// The wall-clock walk steps from 02:59 +02:00 to 03:00, so on its own it would skip the
+    /// standard-offset repeat of 02:xx entirely; <c>ApplySecondAmbiguousPassIfNeeded</c> re-enters
+    /// the window at the transition instant and the fall-back demotion then walks the second pass.
     /// </remarks>
     [Test]
-    public void SequentialWalk_MinutelyCron_FallBackDay_CurrentlySkipsRepeatedStandardHour()
+    public void SequentialWalk_MinutelyCron_FallBackDay_FiresThroughBothPassesOfRepeatedHour()
     {
         TimeZoneInfo zone = TestTimeZones.CentralEuropean;
         TestTimeZones.AssumeAmbiguousLocalTime(zone, WallClock("2018-10-28 02:30"));
@@ -300,39 +288,22 @@ public class CronExpressionDstTests
 
         List<DateTimeOffset> fireTimes = TestTimeZones.Walk(cron.GetTimeAfter, dayStart, dayEnd);
 
-        // 25 real hours, minus both excluded boundary instants, would be 1499 fires. 60 of them —
-        // the standard pass over local 02:00-02:59 — are currently skipped.
-        fireTimes.Should().HaveCount(1439, "the repeated standard-pass hour is currently skipped entirely");
+        fireTimes.Should().HaveCount(1499, "the 25 hour day fires every real minute, both walk boundaries excluded");
 
         DateTimeOffset repeatedHourStart = TestTimeZones.Local("2018-10-28 01:00 +00:00");
         DateTimeOffset repeatedHourEnd = TestTimeZones.Local("2018-10-28 02:00 +00:00");
 
-        fireTimes.Should().NotContain(
-            fire => fire >= repeatedHourStart && fire < repeatedHourEnd,
-            "the sequential walk currently jumps from 02:59 +02:00 straight to 03:00 +01:00");
+        fireTimes.Count(fire => fire >= repeatedHourStart && fire < repeatedHourEnd)
+            .Should().Be(60, "the standard pass over local 02:00-02:59 fires every minute");
     }
 
     /// <summary>
-    /// CURRENT BEHAVIOR PIN — known internal inconsistency, expected to change on main/4.0.
+    /// <see cref="CronExpression.IsSatisfiedBy" /> and the sequential walk agree inside the
+    /// repeated standard-pass hour: the instants the walk schedules are the instants the
+    /// expression matches.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// <see cref="CronExpression.IsSatisfiedBy" /> answers TRUE for instants inside the repeated
-    /// standard-pass hour that the sequential walk never produces. It is implemented as
-    /// <c>GetTimeAfter(instant - 1s) == instant</c>, and starting the search from just inside that
-    /// hour makes the daylight interpretation land before the "after" instant, which triggers the
-    /// demotion to the standard offset and reproduces the instant exactly. Starting the search from
-    /// BEFORE the transition never reaches it.
-    /// </para>
-    /// <para>
-    /// So the same expression both matches and does not schedule the same instant, depending only
-    /// on where the question is asked from. Pinned here in one place. Once the walk fires in both
-    /// passes this test becomes redundant with the walk simply containing the hour, and the
-    /// emptiness assertion below should be deleted.
-    /// </para>
-    /// </remarks>
     [Test]
-    public void IsSatisfiedBy_RepeatedHourStandardPass_TrueButNeverProducedByWalk()
+    public void IsSatisfiedBy_RepeatedHourStandardPass_AgreesWithSequentialWalk()
     {
         TimeZoneInfo zone = TestTimeZones.CentralEuropean;
         TestTimeZones.AssumeAmbiguousLocalTime(zone, WallClock("2018-10-28 02:30"));
@@ -348,14 +319,99 @@ public class CronExpressionDstTests
             TestTimeZones.Local("2018-10-28 00:55 +02:00"),
             TestTimeZones.Local("2018-10-28 04:00 +01:00"));
 
-        DateTimeOffset repeatedHourStart = TestTimeZones.Local("2018-10-28 01:00 +00:00");
-        DateTimeOffset repeatedHourEnd = TestTimeZones.Local("2018-10-28 02:00 +00:00");
-
-        fireTimes.Should().NotBeEmpty();
-        fireTimes.Should().NotContain(
-            fire => fire >= repeatedHourStart && fire < repeatedHourEnd,
-            "a walk across the transition never schedules the instant IsSatisfiedBy just accepted");
+        fireTimes.Should().Contain(standardPassInstant, "the walk schedules the instant IsSatisfiedBy accepts");
     }
+
+    /// <summary>
+    /// The interval-vs-fixed-time distinction is decided at parse time, from the second, minute
+    /// and hour fields only: a wildcard, step or range means "fire every interval"; plain values
+    /// and comma lists mean "fire at these times of day". Day, month and year fields never
+    /// contribute.
+    /// </summary>
+    [TestCase("0 * * * * ?", true)]
+    [TestCase("*/30 0 2 * * ?", true)]
+    [TestCase("0 0/30 2 * * ?", true)]
+    [TestCase("0 30 1-9 * * ?", true)]
+    [TestCase("0 15,45 2-4 * * ?", true)]
+    [TestCase("0 30 2 * * ?", false)]
+    [TestCase("0 0,30 2 * * ?", false)]
+    [TestCase("0 30 2 1-15 * ?", false)]
+    [TestCase("0 30 2 ? * MON-FRI", false)]
+    public void HasIntervalSemantics_SetForWildcardStepAndRangeInTimeFields(string expression, bool expected)
+    {
+        CronExpression cron = new CronExpression(expression);
+
+        cron.HasIntervalSemantics.Should().Be(expected);
+    }
+
+    /// <summary>
+    /// An hourly interval expression fires every real hour of the 25 hour fall-back day - the
+    /// 02:00 wall clock runs at both of its occurrences.
+    /// </summary>
+    [Test]
+    public void SequentialWalk_HourlyCron_FallBackDay_FiresEveryRealHour()
+    {
+        TimeZoneInfo zone = TestTimeZones.CentralEuropean;
+        TestTimeZones.AssumeAmbiguousLocalTime(zone, WallClock("2018-10-28 02:30"));
+
+        CronExpression cron = CronIn("0 0 * * * ?", zone);
+
+        List<DateTimeOffset> fireTimes = TestTimeZones.Walk(
+            cron.GetTimeAfter,
+            TestTimeZones.Local("2018-10-28 00:00 +02:00"),
+            TestTimeZones.Local("2018-10-29 00:00 +01:00"));
+
+        fireTimes.Should().HaveCount(24, "25 hourly instants in the local day, both walk boundaries excluded");
+        fireTimes.Should().Contain(TestTimeZones.Local("2018-10-28 02:00 +02:00"), "the first occurrence of 02:00 fires");
+        fireTimes.Should().Contain(TestTimeZones.Local("2018-10-28 02:00 +01:00"), "the second occurrence of 02:00 fires too");
+    }
+
+    /// <summary>
+    /// A comma list of plain values is a fixed-time expression: each listed time fires once, at
+    /// its first (daylight) occurrence, and the second pass of the repeated window is skipped.
+    /// </summary>
+    [Test]
+    public void FixedTimeCommaList_FallBackDay_FiresOnlyFirstPass()
+    {
+        TimeZoneInfo zone = TestTimeZones.CentralEuropean;
+        TestTimeZones.AssumeAmbiguousLocalTime(zone, WallClock("2018-10-28 02:30"));
+
+        CronExpression cron = CronIn("0 0,30 2 * * ?", zone);
+
+        List<DateTimeOffset> fireTimes = TestTimeZones.Walk(
+            cron.GetTimeAfter,
+            TestTimeZones.Local("2018-10-28 00:00 +02:00"),
+            TestTimeZones.Local("2018-10-29 00:00 +01:00"));
+
+        fireTimes.Should().Equal(
+            TestTimeZones.Local("2018-10-28 02:00 +02:00"),
+            TestTimeZones.Local("2018-10-28 02:30 +02:00"));
+    }
+
+    /// <summary>
+    /// The repeated window on Lord Howe Island is only 30 minutes wide (the daylight delta is half
+    /// an hour), and a minutely interval expression fires through both passes of it.
+    /// </summary>
+    [Test]
+    public void SequentialWalk_MinutelyCron_LordHoweFallBack_FiresBothHalfHourPasses()
+    {
+        TimeZoneInfo zone = TestTimeZones.LordHowe;
+        TestTimeZones.AssumeAmbiguousLocalTime(zone, WallClock("2019-04-07 01:45"));
+
+        CronExpression cron = CronIn("0 * * * * ?", zone);
+
+        // 2019-04-07 02:00 +11:00 becomes 01:30 +10:30; the walk covers 14:00Z-16:00Z around it
+        List<DateTimeOffset> fireTimes = TestTimeZones.Walk(
+            cron.GetTimeAfter,
+            TestTimeZones.Local("2019-04-07 01:00 +11:00"),
+            TestTimeZones.Local("2019-04-07 02:30 +10:30"));
+
+        fireTimes.Should().HaveCount(119, "two real hours of minute fires, both walk boundaries excluded");
+        fireTimes.Should().Contain(TestTimeZones.Local("2019-04-07 01:45 +11:00"), "first pass of the repeated half hour");
+        fireTimes.Should().Contain(TestTimeZones.Local("2019-04-07 01:45 +10:30"), "second pass of the repeated half hour");
+    }
+
+    #region Current-behavior pins (decision points)
 
     /// <summary>
     /// CURRENT BEHAVIOR PIN — known internal inconsistency, expected to change on main/4.0.
