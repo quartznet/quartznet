@@ -576,42 +576,11 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
     /// </summary>
     public override DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTime)
     {
-        return GetFireTimeAfter(afterTime, false, 0);
+        return GetFireTimeAfter(afterTime, false);
     }
 
-    private DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTime, bool ignoreEndTime, int recursionDepth = 0)
+    private DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTime, bool ignoreEndTime)
     {
-        // Prevent infinite recursion (safety check)
-        if (recursionDepth > 10)
-        {
-            // This should never happen, but if it does, skip well past the problem
-            // by advancing by 2 intervals in the appropriate unit
-            DateTimeOffset? fallbackTime = RepeatIntervalUnit switch
-            {
-                IntervalUnit.Second => afterTime?.AddSeconds(RepeatInterval * 2),
-                IntervalUnit.Minute => afterTime?.AddMinutes(RepeatInterval * 2),
-                IntervalUnit.Hour => afterTime?.AddHours(RepeatInterval * 2),
-                IntervalUnit.Day => afterTime?.AddDays(RepeatInterval * 2),
-                IntervalUnit.Week => afterTime?.AddDays(RepeatInterval * 2 * 7),
-                IntervalUnit.Month => afterTime?.AddMonths(RepeatInterval * 2),
-                IntervalUnit.Year => afterTime?.AddYears(RepeatInterval * 2),
-                _ => afterTime?.AddDays(RepeatInterval * 2)
-            };
-
-            // Respect the end time even in the fallback case
-            if (!ignoreEndTime && EndTimeUtc != null && fallbackTime >= EndTimeUtc)
-            {
-                return null;
-            }
-
-            return fallbackTime;
-        }
-
-        // Store the original input time for validation at the end.
-        // This ensures we never return a time <= the input, which would cause infinite loops
-        // during DST transitions where the "next" fire time could be adjusted back to the input time.
-        DateTimeOffset? originalAfterTime = afterTime;
-
         // increment afterTime by a second, so that we are
         // comparing against a time after it!
         if (afterTime is null)
@@ -675,11 +644,16 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
             }
             time = sTime.AddHours(RepeatInterval * (int) jumpCount);
         }
+        else if (PreserveHourOfDayAcrossDaylightSavings)
+        {
+            // intervals a day or greater, anchored to the local time of day: step the schedule in
+            // naked local wall-clock time, where the scheduled hour cannot drift by construction,
+            // and resolve each candidate to an instant through the shared daylight saving policy
+            time = ComputePreserveHourOfDayFireTimeAfter(afterTime.Value);
+        }
         else
         {
             // intervals a day or greater ...
-
-            int initialHourOfDay = sTime.Hour;
 
             if (RepeatIntervalUnit == IntervalUnit.Day)
             {
@@ -714,11 +688,6 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
 
                 // now baby-step the rest of the way there...
                 while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < TriggerConstants.YearToGiveUpSchedulingAt)
-                {
-                    sTime = sTime.AddDays(RepeatInterval);
-                    MakeHourAdjustmentIfNeeded(ref sTime, initialHourOfDay); //hours can shift due to DST
-                }
-                while (DaylightSavingHourShiftOccurredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < TriggerConstants.YearToGiveUpSchedulingAt)
                 {
                     sTime = sTime.AddDays(RepeatInterval);
                 }
@@ -759,11 +728,6 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
                 while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < TriggerConstants.YearToGiveUpSchedulingAt)
                 {
                     sTime = sTime.AddDays(RepeatInterval * 7);
-                    MakeHourAdjustmentIfNeeded(ref sTime, initialHourOfDay); //hours can shift due to DST
-                }
-                while (DaylightSavingHourShiftOccurredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < TriggerConstants.YearToGiveUpSchedulingAt)
-                {
-                    sTime = sTime.AddDays(RepeatInterval * 7);
                 }
                 time = sTime;
             }
@@ -776,23 +740,12 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
                 while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < TriggerConstants.YearToGiveUpSchedulingAt)
                 {
                     sTime = sTime.AddMonths(RepeatInterval);
-                    MakeHourAdjustmentIfNeeded(ref sTime, initialHourOfDay); //hours can shift due to DST
-                }
-                while (DaylightSavingHourShiftOccurredAndAdvanceNeeded(ref sTime, initialHourOfDay)
-                       && sTime.Year < TriggerConstants.YearToGiveUpSchedulingAt)
-                {
-                    sTime = sTime.AddMonths(RepeatInterval);
                 }
                 time = sTime;
             }
             else if (RepeatIntervalUnit == IntervalUnit.Year)
             {
                 while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < TriggerConstants.YearToGiveUpSchedulingAt)
-                {
-                    sTime = sTime.AddYears(RepeatInterval);
-                    MakeHourAdjustmentIfNeeded(ref sTime, initialHourOfDay); //hours can shift due to DST
-                }
-                while (DaylightSavingHourShiftOccurredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < TriggerConstants.YearToGiveUpSchedulingAt)
                 {
                     sTime = sTime.AddYears(RepeatInterval);
                 }
@@ -804,77 +757,79 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
             return null;
         }
 
-        sTime = TimeZoneUtil.ConvertTime(sTime, TimeZone); //apply the timezone before we return the time.
-
-        // CRITICAL: Ensure we never return a time <= the original input.
-        // This prevents infinite loops during DST transitions where DST adjustment logic
-        // might inadvertently return the same time we were given.
-        // This is especially important during spring-forward transitions where scheduled times
-        // don't exist (e.g., 2:01 AM when clocks jump from 2:00 AM to 3:00 AM).
-        if (originalAfterTime != null && time != null && time <= originalAfterTime)
-        {
-            // The calculated time is not progressing forward. This can happen during DST transitions
-            // when PreserveHourOfDayAcrossDaylightSavings is true and the adjustment logic
-            // brings us back to the same time.
-
-            // To fix this, we skip forward past the problematic DST window by advancing the
-            // reference time by a couple of hours and then recursively calling GetFireTimeAfter.
-            // The recursive call re-runs the same timezone/DST adjustment logic, but starting from
-            // a point safely beyond the transition, which guarantees forward progress.
-            DateTimeOffset skipAhead = originalAfterTime.Value.AddHours(2); // Skip past DST transition
-            return GetFireTimeAfter(skipAhead, ignoreEndTime, recursionDepth + 1);
-        }
-
         return time;
     }
 
-    private bool DaylightSavingHourShiftOccurredAndAdvanceNeeded(ref DateTimeOffset newTime, int initialHourOfDay)
+    /// <summary>
+    /// Computes the next fire time for day-or-wider units when
+    /// <see cref="PreserveHourOfDayAcrossDaylightSavings"/> is set, by stepping the schedule in
+    /// naked local wall-clock time.
+    /// </summary>
+    /// <remarks>
+    /// The scheduled time of day cannot drift because it is part of the wall clock being stepped;
+    /// each candidate is then resolved to an instant through the shared daylight saving policy: an
+    /// ambiguous candidate (fall-back overlap) fires at its first occurrence, and a candidate that
+    /// does not exist (spring-forward gap) either moves to the end of the gap or, with
+    /// <see cref="SkipDayIfHourDoesNotExist"/>, skips the whole interval. Every returned value is
+    /// on schedule and strictly increasing, which is what the previous implementation's
+    /// hour-adjustment passes, monotonicity clamp and skip-two-hours recursion approximated.
+    /// Months and years accumulate step by step so that end-of-month clamping
+    /// (Jan 31 -> Feb 28 -> Mar 28) behaves exactly as it always has.
+    /// </remarks>
+    private DateTimeOffset ComputePreserveHourOfDayFireTimeAfter(DateTimeOffset afterTime)
     {
-        //need to apply timezone again to properly check if initialHourOfDay has changed.
-        DateTimeOffset toCheck = TimeZoneUtil.ConvertTime(newTime, TimeZone);
-
-        if (PreserveHourOfDayAcrossDaylightSavings && toCheck.Hour != initialHourOfDay)
+        if (afterTime.UtcDateTime <= StartTimeUtc.UtcDateTime)
         {
-            //first apply the date, and then find the proper timezone offset
-            newTime = new DateTimeOffset(newTime.Year, newTime.Month, newTime.Day, initialHourOfDay, newTime.Minute, newTime.Second, newTime.Millisecond, TimeSpan.Zero);
-            newTime = TimeZoneUtil.ResolveLocal(newTime.DateTime, TimeZone);
+            return TimeZoneUtil.ConvertTime(StartTimeUtc, TimeZone);
+        }
 
-            //TimeZone.IsInvalidTime is true, if this hour does not exist in the specified timezone
-            bool isInvalid = TimeZone.IsInvalidTime(newTime.DateTime);
+        DateTime candidateLocal = TimeZoneUtil.ConvertTime(StartTimeUtc, TimeZone).DateTime;
 
-            if (isInvalid && SkipDayIfHourDoesNotExist)
+        // day-based steps are linear in the local calendar, so jump most of the way there instead
+        // of iterating; aim short of the target because DST makes the UTC distance and the calendar
+        // distance differ by up to the daylight delta
+        if (RepeatIntervalUnit == IntervalUnit.Day || RepeatIntervalUnit == IntervalUnit.Week)
+        {
+            int daysPerStep = RepeatIntervalUnit == IntervalUnit.Day ? RepeatInterval : RepeatInterval * 7;
+            long stepsToTarget = (long) ((afterTime.UtcDateTime - StartTimeUtc.UtcDateTime).TotalDays / daysPerStep);
+            if (stepsToTarget > 20)
             {
-                return SkipDayIfHourDoesNotExist;
-            }
-
-            if (isInvalid)
-            {
-                //don't skip this day, instead find the closest valid time after the gap
-                //and apply the proper offset for the adjusted time
-                newTime = TimeZoneUtil.ResolveLocal(TimeZoneUtil.WalkToGapEnd(newTime.DateTime, TimeZone), TimeZone);
+                long jumpSteps = (long) (stepsToTarget * 0.95);
+                candidateLocal = candidateLocal.AddDays(jumpSteps * daysPerStep);
             }
         }
-        return false;
-    }
 
-    private void MakeHourAdjustmentIfNeeded(ref DateTimeOffset sTime, int initialHourOfDay)
-    {
-        //this method was made to adjust the time if a DST occurred, this is to stay consistent with the time
-        //we are checking against, which is the afterTime. There were problems the occurred when the DST adjustment
-        //took the time an hour back, leading to the times were not being adjusted properly.
-
-        //avoid shifts in day, otherwise this will cause an infinite loop in the code.
-        int initalYear = sTime.Year;
-        int initalMonth = sTime.Month;
-        int initialDay = sTime.Day;
-
-        sTime = TimeZoneUtil.ConvertTime(sTime, TimeZone);
-
-        if (PreserveHourOfDayAcrossDaylightSavings && sTime.Hour != initialHourOfDay)
+        while (true)
         {
-            //first apply the date, and then find the proper timezone offset
-            sTime = new DateTimeOffset(initalYear, initalMonth, initialDay, initialHourOfDay, sTime.Minute, sTime.Second, sTime.Millisecond, TimeSpan.Zero);
-            sTime = TimeZoneUtil.ResolveLocal(sTime.DateTime, TimeZone);
+            candidateLocal = RepeatIntervalUnit switch
+            {
+                IntervalUnit.Day => candidateLocal.AddDays(RepeatInterval),
+                IntervalUnit.Week => candidateLocal.AddDays(RepeatInterval * 7),
+                IntervalUnit.Month => candidateLocal.AddMonths(RepeatInterval),
+                _ => candidateLocal.AddYears(RepeatInterval),
+            };
+
+            DateTimeOffset resolved;
+            if (TimeZone.IsInvalidTime(candidateLocal))
+            {
+                if (SkipDayIfHourDoesNotExist && candidateLocal.Year <= TriggerConstants.YearToGiveUpSchedulingAt)
+                {
+                    // documented contract: the day is skipped entirely and the schedule moves on by
+                    // a whole interval
+                    continue;
+                }
+
+                resolved = TimeZoneUtil.ResolveLocal(TimeZoneUtil.WalkToGapEnd(candidateLocal, TimeZone), TimeZone);
+            }
+            else
+            {
+                resolved = TimeZoneUtil.ResolveLocal(candidateLocal, TimeZone);
+            }
+
+            if (resolved.UtcDateTime >= afterTime.UtcDateTime || candidateLocal.Year > TriggerConstants.YearToGiveUpSchedulingAt)
+            {
+                return resolved;
+            }
         }
     }
 

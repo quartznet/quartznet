@@ -35,6 +35,14 @@
     expressions (such as `0 30 2 * * ?`, including comma lists like `0 0,30 2 * * ?`) keep firing once
     per day, at the first occurrence of an ambiguous wall-clock time.
 
+  * **CalendarIntervalTrigger** with `PreserveHourOfDayAcrossDaylightSavings` now steps its schedule in
+    local wall-clock time. Fire times are always exactly on schedule and strictly increasing; the
+    previous implementation could return times the schedule never specified when its daylight-saving
+    adjustments failed to make progress. In time zones whose daylight delta is not a whole hour
+    (Australia/Lord_Howe), the scheduled local time no longer drifts by the sub-hour part of the delta
+    across a transition — the flag now preserves the full time of day, as its documentation always
+    promised.
+
   * The `Equals(StringOperator? other)` method of **StringOperator** is now also virtual to allow it to be
     overridden in pair with `Equals(object? obj)` and `GetHashCode()`.
 

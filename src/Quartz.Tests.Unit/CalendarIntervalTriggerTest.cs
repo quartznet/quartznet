@@ -945,56 +945,57 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
     }
 
     [Test]
-    [Description("Recursion depth guard should respect EndTimeUtc")]
-    public void TestRecursionDepthGuardRespectsEndTime()
+    [Description("Preserve-hour fire times stay on schedule, strictly increase and respect EndTimeUtc across DST transitions")]
+    public void TestPreserveHourFireTimesStayOnScheduleAcrossDstTransitions()
     {
-        // Test that the recursion-depth safety guard (which triggers after 10+ recursive calls)
-        // still respects the trigger's EndTimeUtc instead of returning a time past the end time.
-
-        var startDate = new DateTimeOffset(2024, 1, 1, 10, 0, 0, TimeSpan.Zero);
-        var endDate = startDate.AddDays(30); // End time is 30 days after start
+        // Replaces the recursion-depth guard test: the previous implementation approximated
+        // forward progress with an add-two-hours-and-retry guard that could return times the
+        // schedule never specified. The wall-clock stepping implementation cannot produce such
+        // times, so the guarantees the guard existed for are asserted directly: every fire is at
+        // the scheduled local time (or the end of a spring-forward gap), strictly increasing, and
+        // never at or past EndTimeUtc.
+        var timeZone = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
+        var scheduledStart = new DateTime(2024, 2, 25, 2, 1, 0);
+        var startDate = new DateTimeOffset(scheduledStart, timeZone.GetUtcOffset(scheduledStart));
+        var endDate = startDate.AddDays(30); // spans the 2024-03-10 spring-forward transition
 
         var trigger = new CalendarIntervalTriggerImpl
         {
             StartTimeUtc = startDate,
             EndTimeUtc = endDate,
             RepeatInterval = 1,
-            RepeatIntervalUnit = IntervalUnit.Day
+            RepeatIntervalUnit = IntervalUnit.Day,
+            TimeZone = timeZone,
+            PreserveHourOfDayAcrossDaylightSavings = true
         };
 
-        var getFireTimeAfterWithDepth = typeof(CalendarIntervalTriggerImpl).GetMethod(
-            "GetFireTimeAfter",
-            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic,
-            binder: null,
-            new[] { typeof(DateTimeOffset?), typeof(bool), typeof(int) },
-            modifiers: null);
+        var fireTimes = new List<DateTimeOffset>();
+        DateTimeOffset? fireTime = trigger.ComputeFirstFireTimeUtc(null);
+        while (fireTime is not null && fireTimes.Count < 100)
+        {
+            fireTimes.Add(fireTime.Value);
+            fireTime = trigger.GetFireTimeAfter(fireTime.Value);
+        }
 
-        Assert.That(getFireTimeAfterWithDepth, Is.Not.Null);
+        // 31, not 30: the 23 hour transition day pulls every later fire one UTC hour earlier, so
+        // the 2024-03-26 fire still lands just before the pure-UTC end instant
+        Assert.That(fireTimes, Has.Count.EqualTo(31), "one daily fire per local day until EndTimeUtc");
 
-        // Call GetFireTimeAfter with a high recursion depth (> 10) to trigger the guard
-        // The afterTime is close to the end time
-        var afterTime = endDate.AddDays(-5);
+        for (var i = 0; i < fireTimes.Count; i++)
+        {
+            if (i > 0)
+            {
+                Assert.That(fireTimes[i] > fireTimes[i - 1], Is.True, $"fire time {i} should be after fire time {i - 1}");
+            }
 
-        // With recursionDepth > 10, the fallback logic adds 2 intervals (2 days)
-        // afterTime + 2 days would be endDate - 3 days, which is still before endDate
-        var fireTime = (DateTimeOffset?) getFireTimeAfterWithDepth!.Invoke(trigger, new object[] { afterTime, false, 11 });
+            Assert.That(fireTimes[i] < endDate, Is.True, "no fire may land at or past EndTimeUtc");
 
-        // Should return a valid time before the end date
-        Assert.That(fireTime, Is.Not.Null);
-        Assert.That(fireTime < endDate, Is.True);
-
-        // Now test when the fallback would exceed the end time
-        afterTime = endDate.AddDays(-1); // 1 day before end
-
-        // With recursionDepth > 10, the fallback adds 2 days: afterTime + 2 days = endDate + 1 day
-        // This exceeds EndTimeUtc, so it should return null
-        fireTime = (DateTimeOffset?) getFireTimeAfterWithDepth.Invoke(trigger, new object[] { afterTime, false, 11 });
-
-        Assert.That(fireTime, Is.Null, "Recursion guard should return null when fallback time exceeds EndTimeUtc");
-
-        // Verify that with ignoreEndTime=true, it returns a time even past the end
-        fireTime = (DateTimeOffset?) getFireTimeAfterWithDepth.Invoke(trigger, new object[] { afterTime, true, 11 });
-        Assert.That(fireTime, Is.Not.Null);
+            var local = TimeZoneInfo.ConvertTime(fireTimes[i], timeZone);
+            var expectedTimeOfDay = local.Date == new DateTime(2024, 3, 10)
+                ? new TimeSpan(3, 0, 0) // 02:01 does not exist on the transition day; the fire moves to the gap end
+                : new TimeSpan(2, 1, 0);
+            Assert.That(local.TimeOfDay, Is.EqualTo(expectedTimeOfDay), $"fire {i} must be on schedule, was {local}");
+        }
     }
 
     [Test]
