@@ -810,36 +810,17 @@ internal sealed class RecurrenceRule
         // Check if time falls in a DST gap (spring forward)
         if (tz.IsInvalidTime(local))
         {
-            // Advance past the gap by computing the DST transition delta
-            TimeSpan adjustment = tz.GetUtcOffset(local.AddHours(2)) - tz.GetUtcOffset(local.AddHours(-2));
-            if (adjustment > TimeSpan.Zero)
-            {
-                local = local.Add(adjustment);
-            }
-            else
-            {
-                local = local.AddHours(1);
-            }
+            // Resolve the nonexistent wall-clock time to its shifted instant, then take the zone's
+            // canonical rendering so the returned value carries a valid wall clock (e.g. a daily
+            // 02:30 in a one hour gap comes back as 03:30 at the post-transition offset). Deriving
+            // the shift this way is robust for transition deltas that are not whole hours and for
+            // zones modeled with a negative daylight delta.
+            return TimeZoneInfo.ConvertTime(TimeZoneUtil.ResolveLocal(local, tz), tz);
         }
 
-        TimeSpan offset = tz.GetUtcOffset(local);
-
-        // For ambiguous times (DST overlap / fall back), use the daylight offset
-        // (the larger UTC offset = earlier UTC instant), matching CalendarIntervalTriggerImpl behavior
-        if (tz.IsAmbiguousTime(local))
-        {
-            TimeSpan[] offsets = tz.GetAmbiguousTimeOffsets(local);
-            offset = offsets[0];
-            for (int i = 1; i < offsets.Length; i++)
-            {
-                if (offsets[i] > offset)
-                {
-                    offset = offsets[i];
-                }
-            }
-        }
-
-        return new DateTimeOffset(local, offset);
+        // Ambiguous times (DST overlap / fall back) resolve to the daylight offset - the first of
+        // the two occurrences - matching the shared scheduler-wide policy.
+        return TimeZoneUtil.ResolveLocal(local, tz);
     }
 
     /// <summary>
