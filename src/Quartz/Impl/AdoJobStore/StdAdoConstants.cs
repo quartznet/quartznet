@@ -34,6 +34,29 @@ public class StdAdoConstants : AdoConstants
 {
     public const string TablePrefixSubst = "{0}";
 
+    /// <summary>
+    /// Escape character for the group-name patterns <c>StdAdoDelegate.ToSqlLikeClause</c> produces, so
+    /// that a group literally named <c>50%</c> or <c>a_b</c> matches itself instead of acting as a
+    /// wildcard.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately not the conventional backslash: MySQL applies C-style escaping inside string
+    /// literals, where <c>ESCAPE '\'</c> is a syntax error (it would need <c>ESCAPE '\\'</c>, which in
+    /// turn is wrong everywhere else). <c>!</c> is an ordinary character in a string literal on every
+    /// supported dialect, so one statement text serves them all.
+    /// </remarks>
+    public const char SqlLikeEscapeCharacter = '!';
+
+    /// <summary>
+    /// The ANSI <c>ESCAPE</c> clause naming <see cref="SqlLikeEscapeCharacter" />. Every statement that
+    /// binds a pattern from <c>StdAdoDelegate.ToSqlLikeClause</c> ends its LIKE with this.
+    /// </summary>
+    /// <remarks>
+    /// <c>ESCAPE</c> is ANSI SQL and is accepted by SQL Server, PostgreSQL, MySQL, SQLite, Oracle and
+    /// Firebird alike.
+    /// </remarks>
+    public static readonly string SqlLikeEscapeClause = Invariant($" ESCAPE '{SqlLikeEscapeCharacter}'");
+
     // DELETE
     public static readonly string SqlDeleteBlobTrigger =
         Invariant($"DELETE FROM {TablePrefixSubst}{TableBlobTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
@@ -62,8 +85,20 @@ public class StdAdoConstants : AdoConstants
     public static readonly string SqlDeleteJobDetail =
         Invariant($"DELETE FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup");
 
+    /// <summary>
+    /// Deletes a paused trigger group named literally. This is what a group name that is not a
+    /// pattern — including the <see cref="AdoConstants.AllGroupsPaused" /> sentinel, whose
+    /// underscores would otherwise act as wildcards — has to run.
+    /// </summary>
+    public static readonly string SqlDeletePausedTriggerGroupEquals =
+        Invariant($"DELETE FROM {TablePrefixSubst}{TablePausedTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} = @triggerGroup");
+
+    /// <summary>
+    /// Deletes the paused trigger groups matching a pattern produced by
+    /// <c>StdAdoDelegate.ToSqlLikeClause</c>.
+    /// </summary>
     public static readonly string SqlDeletePausedTriggerGroup =
-        Invariant($"DELETE FROM {TablePrefixSubst}{TablePausedTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} LIKE @triggerGroup");
+        Invariant($"DELETE FROM {TablePrefixSubst}{TablePausedTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} LIKE @triggerGroup{SqlLikeEscapeClause}");
 
     public static readonly string SqlDeletePausedTriggerGroups =
         Invariant($"DELETE FROM {TablePrefixSubst}{TablePausedTriggers} WHERE {ColumnSchedulerName} = @schedulerName");
@@ -176,7 +211,7 @@ public class StdAdoConstants : AdoConstants
         Invariant($"SELECT DISTINCT({ColumnJobGroup}) FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName");
 
     public static readonly string SqlSelectJobsInGroupLike =
-        Invariant($"SELECT {ColumnJobName}, {ColumnJobGroup} FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobGroup} LIKE @jobGroup");
+        Invariant($"SELECT {ColumnJobName}, {ColumnJobGroup} FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobGroup} LIKE @jobGroup{SqlLikeEscapeClause}");
 
     public static readonly string SqlSelectJobsInGroup =
         Invariant($"SELECT {ColumnJobName}, {ColumnJobGroup} FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobGroup} = @jobGroup");
@@ -281,8 +316,15 @@ public class StdAdoConstants : AdoConstants
     public static readonly string SqlSelectTriggerGroups =
         Invariant($"SELECT DISTINCT({ColumnTriggerGroup}) FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName");
 
+    /// <summary>
+    /// Selects the trigger group named literally; the equality form of
+    /// <see cref="SqlSelectTriggerGroupsFiltered" />.
+    /// </summary>
+    public static readonly string SqlSelectTriggerGroupsEquals =
+        Invariant($"SELECT DISTINCT({ColumnTriggerGroup}) FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} = @triggerGroup");
+
     public static readonly string SqlSelectTriggerGroupsFiltered =
-        Invariant($"SELECT DISTINCT({ColumnTriggerGroup}) FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} LIKE @triggerGroup");
+        Invariant($"SELECT DISTINCT({ColumnTriggerGroup}) FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} LIKE @triggerGroup{SqlLikeEscapeClause}");
 
     public static readonly string SqlSelectTriggerState =
         Invariant($"SELECT {ColumnTriggerState} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
@@ -297,7 +339,7 @@ public class StdAdoConstants : AdoConstants
         Invariant($"SELECT {ColumnTriggerName}, {ColumnTriggerGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup");
 
     public static readonly string SqlSelectTriggersInGroupLike =
-        Invariant($"SELECT {ColumnTriggerName}, {ColumnTriggerGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} LIKE @triggerGroup");
+        Invariant($"SELECT {ColumnTriggerName}, {ColumnTriggerGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} LIKE @triggerGroup{SqlLikeEscapeClause}");
 
     public static readonly string SqlSelectTriggersInGroup =
         Invariant($"SELECT {ColumnTriggerName}, {ColumnTriggerGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} = @triggerGroup");
@@ -344,11 +386,23 @@ public class StdAdoConstants : AdoConstants
 
     public static readonly string SqlUpdateFiredTrigger = Invariant($"UPDATE {TablePrefixSubst}{TableFiredTriggers} SET {ColumnInstanceName} = @instanceName, {ColumnFiredTime} = @firedTime, {ColumnScheduledTime} = @scheduledTime, {ColumnEntryState} = @entryState, {ColumnJobName} = @jobName, {ColumnJobGroup} = @jobGroup, {ColumnIsNonConcurrent} = @isNonConcurrent, {ColumnRequestsRecovery} = @requestsRecover WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnEntryId} = @entryId");
 
+    /// <summary>
+    /// Equality form of <see cref="SqlUpdateTriggerGroupStateFromState" />.
+    /// </summary>
+    public static readonly string SqlUpdateTriggerGroupStateFromStateEquals =
+        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnTriggerState} = @newState WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} = @triggerGroup AND {ColumnTriggerState} = @oldState");
+
     public static readonly string SqlUpdateTriggerGroupStateFromState =
-        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnTriggerState} = @newState WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} LIKE @triggerGroup AND {ColumnTriggerState} = @oldState");
+        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnTriggerState} = @newState WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} LIKE @triggerGroup{SqlLikeEscapeClause} AND {ColumnTriggerState} = @oldState");
+
+    /// <summary>
+    /// Equality form of <see cref="SqlUpdateTriggerGroupStateFromStates" />.
+    /// </summary>
+    public static readonly string SqlUpdateTriggerGroupStateFromStatesEquals =
+        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnTriggerState} = @newState WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} = @groupName AND ({ColumnTriggerState} = @oldState1 OR {ColumnTriggerState} = @oldState2 OR {ColumnTriggerState} = @oldState3)");
 
     public static readonly string SqlUpdateTriggerGroupStateFromStates =
-        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnTriggerState} = @newState WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} LIKE @groupName AND ({ColumnTriggerState} = @oldState1 OR {ColumnTriggerState} = @oldState2 OR {ColumnTriggerState} = @oldState3)");
+        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnTriggerState} = @newState WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} LIKE @groupName{SqlLikeEscapeClause} AND ({ColumnTriggerState} = @oldState1 OR {ColumnTriggerState} = @oldState2 OR {ColumnTriggerState} = @oldState3)");
 
     public static readonly string SqlUpdateTriggerSkipData =
         Invariant($@"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnJobName} = @triggerJobName, {ColumnJobGroup} = @triggerJobGroup, {ColumnDescription} = @triggerDescription, {ColumnNextFireTime} = @triggerNextFireTime, {ColumnPreviousFireTime} = @triggerPreviousFireTime, 
