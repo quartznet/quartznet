@@ -178,12 +178,10 @@ CREATE TABLE qrtz_locks
     PRIMARY KEY (sched_name, lock_name)
 );
 
-CREATE INDEX idx_qrtz_j_req_recovery ON qrtz_job_details (sched_name, requests_recovery);
 CREATE INDEX idx_qrtz_j_g_n ON qrtz_job_details (sched_name, job_group, job_name);
 CREATE INDEX idx_qrtz_t_j ON qrtz_triggers (sched_name, job_name, job_group);
 CREATE INDEX idx_qrtz_t_c ON qrtz_triggers (sched_name, calendar_name);
 CREATE INDEX idx_qrtz_t_g_n ON qrtz_triggers (sched_name, trigger_group, trigger_name);
-CREATE INDEX idx_qrtz_t_next_fire_time ON qrtz_triggers (sched_name, next_fire_time);
 CREATE INDEX idx_qrtz_t_nft_st ON qrtz_triggers (sched_name, trigger_state, next_fire_time);
 CREATE INDEX idx_qrtz_ft_inst_job_req_rcvry ON qrtz_fired_triggers (sched_name, instance_name, requests_recovery);
 CREATE INDEX idx_qrtz_ft_j_g ON qrtz_fired_triggers (sched_name, job_name, job_group);
