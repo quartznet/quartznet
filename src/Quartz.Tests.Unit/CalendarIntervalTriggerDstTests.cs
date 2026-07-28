@@ -409,6 +409,60 @@ public class CalendarIntervalTriggerDstTests
         AssertConstantUtcSpacing(sydneyFires, TimeSpan.FromHours(24));
     }
 
+    /// <summary>
+    /// Lord Howe Island's daylight delta is 30 minutes, so preserving only the hour of day is not
+    /// enough: a daily 02:01 schedule must stay at 02:01 across the fall-back transition
+    /// (02:00 +11:00 becomes 01:30 +10:30), not drift to 02:31. On the spring-forward day the
+    /// 02:00-02:30 gap swallows 02:01 and the fire moves to the gap end.
+    /// </summary>
+    [Test]
+    public void PreserveHour_LordHoweHalfHourDelta_KeepsScheduledTimeOfDay()
+    {
+        TimeZoneInfo zone = TestTimeZones.LordHowe;
+        TestTimeZones.AssumeAmbiguousLocalTime(zone, new DateTime(2024, 4, 7, 1, 45, 0));
+        TestTimeZones.AssumeInvalidLocalTime(zone, new DateTime(2024, 10, 6, 2, 1, 0));
+
+        CalendarIntervalTriggerImpl fallBackTrigger = CreateTrigger(
+            zone,
+            IntervalUnit.Day,
+            interval: 1,
+            TestTimeZones.Local("2024-04-05 02:01 +11:00"),
+            preserveHourOfDay: true,
+            skipDayIfHourDoesNotExist: false);
+
+        List<DateTimeOffset> fallBackFires = WalkFrom(
+            fallBackTrigger,
+            TestTimeZones.Local("2024-04-05 02:01 +11:00"),
+            TestTimeZones.Local("2024-04-10 00:00 +10:30"));
+
+        fallBackFires.Should().Equal(
+            TestTimeZones.Local("2024-04-05 02:01 +11:00"),
+            TestTimeZones.Local("2024-04-06 02:01 +11:00"),
+            TestTimeZones.Local("2024-04-07 02:01 +10:30"),
+            TestTimeZones.Local("2024-04-08 02:01 +10:30"),
+            TestTimeZones.Local("2024-04-09 02:01 +10:30"));
+
+        CalendarIntervalTriggerImpl springTrigger = CreateTrigger(
+            zone,
+            IntervalUnit.Day,
+            interval: 1,
+            TestTimeZones.Local("2024-10-04 02:01 +10:30"),
+            preserveHourOfDay: true,
+            skipDayIfHourDoesNotExist: false);
+
+        List<DateTimeOffset> springFires = WalkFrom(
+            springTrigger,
+            TestTimeZones.Local("2024-10-04 02:01 +10:30"),
+            TestTimeZones.Local("2024-10-09 00:00 +11:00"));
+
+        springFires.Should().Equal(
+            TestTimeZones.Local("2024-10-04 02:01 +10:30"),
+            TestTimeZones.Local("2024-10-05 02:01 +10:30"),
+            TestTimeZones.Local("2024-10-06 02:30 +11:00"),
+            TestTimeZones.Local("2024-10-07 02:01 +11:00"),
+            TestTimeZones.Local("2024-10-08 02:01 +11:00"));
+    }
+
     private static void AssertConstantUtcSpacing(List<DateTimeOffset> fires, TimeSpan expectedInterval)
     {
         for (int i = 1; i < fires.Count; i++)
