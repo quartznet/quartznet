@@ -88,6 +88,114 @@ public class TimeZoneUtilTest
         TimeZoneUtil.GetUtcOffset(standardPassInstant.DateTime, eastern).Should().Be(TimeSpan.FromHours(-4));
     }
 
+    // ResolveLocal must agree with the wall-clock GetUtcOffset policy for every time that exists
+    [TestCase("Eastern", "2024-11-03 01:30")]
+    [TestCase("CentralEuropean", "2018-10-28 02:30")]
+    [TestCase("LordHowe", "2019-04-07 01:45")]
+    [TestCase("Santiago", "2019-04-06 23:30")]
+    public void ResolveLocal_AmbiguousLocalTime_MatchesDaylightPolicy(string zoneKey, string localTime)
+    {
+        TimeZoneInfo zone = ResolveZone(zoneKey);
+        DateTime local = DateTime.Parse(localTime, CultureInfo.InvariantCulture);
+        TestTimeZones.AssumeAmbiguousLocalTime(zone, local);
+
+        DateTimeOffset resolved = TimeZoneUtil.ResolveLocal(local, zone);
+
+        resolved.DateTime.Should().Be(local, "the wall clock must be kept as given");
+        resolved.Offset.Should().Be(TimeZoneUtil.GetUtcOffset(local, zone), "an ambiguous time resolves to the daylight/first occurrence");
+    }
+
+    // An in-gap time pairs with the pre-transition offset, which renders in the zone as the same
+    // wall clock shifted forward by the transition delta
+    [TestCase("Eastern", "2024-03-10 02:30", -5.0, "2024-03-10 03:30")]
+    [TestCase("LordHowe", "2019-10-06 02:15", 10.5, "2019-10-06 02:45")]
+    [TestCase("Santiago", "2019-09-08 00:30", -4.0, "2019-09-08 01:30")]
+    public void ResolveLocal_InvalidLocalTime_ShiftsForwardByTransitionDelta(string zoneKey, string localTime, double expectedOffsetHours, string expectedRenderedLocal)
+    {
+        TimeZoneInfo zone = ResolveZone(zoneKey);
+        DateTime local = DateTime.Parse(localTime, CultureInfo.InvariantCulture);
+        TestTimeZones.AssumeInvalidLocalTime(zone, local);
+
+        DateTimeOffset resolved = TimeZoneUtil.ResolveLocal(local, zone);
+
+        resolved.Offset.Should().Be(TimeSpan.FromHours(expectedOffsetHours), "an in-gap time pairs with the offset in effect just before the gap");
+        TimeZoneInfo.ConvertTime(resolved, zone).DateTime
+            .Should().Be(DateTime.Parse(expectedRenderedLocal, CultureInfo.InvariantCulture), "the instant renders in the zone at the delta-shifted wall clock");
+    }
+
+    // Differential guard: for every wall-clock minute around each transition of the test zones,
+    // ResolveLocal must produce exactly the instant the trigger code produced before it existed
+    // (pairing the local time with the wall-clock GetUtcOffset policy). Positive-daylight-delta
+    // zones must be bit-identical, gaps included.
+    [TestCase("Eastern", "2024-03-10 02:00")]
+    [TestCase("Eastern", "2024-11-03 01:30")]
+    [TestCase("CentralEuropean", "2018-03-25 02:30")]
+    [TestCase("CentralEuropean", "2018-10-28 02:30")]
+    [TestCase("Santiago", "2019-09-08 00:30")]
+    [TestCase("Santiago", "2019-04-06 23:30")]
+    [TestCase("LordHowe", "2019-10-06 02:15")]
+    [TestCase("LordHowe", "2019-04-07 01:45")]
+    public void ResolveLocal_MatchesLegacyResolution_AroundTransition(string zoneKey, string transitionLocal)
+    {
+        TimeZoneInfo zone = ResolveZone(zoneKey);
+        DateTime center = DateTime.Parse(transitionLocal, CultureInfo.InvariantCulture);
+
+        for (int minute = -180; minute <= 180; minute++)
+        {
+            DateTime probe = center.AddMinutes(minute);
+            DateTimeOffset legacy = new DateTimeOffset(probe, TimeZoneUtil.GetUtcOffset(probe, zone));
+            TimeZoneUtil.ResolveLocal(probe, zone).Should().Be(legacy, $"probe {probe:yyyy-MM-dd HH:mm} must resolve exactly as the previous inline logic did");
+        }
+    }
+
+    [TestCase("Eastern", "2024-03-10 02:30", "2024-03-10 03:00")]
+    [TestCase("LordHowe", "2019-10-06 02:15", "2019-10-06 02:30")]
+    [TestCase("Santiago", "2019-09-08 00:30", "2019-09-08 01:00")]
+    public void WalkToGapEnd_ReturnsFirstValidWallClockTime(string zoneKey, string invalidLocal, string expectedGapEnd)
+    {
+        TimeZoneInfo zone = ResolveZone(zoneKey);
+        DateTime local = DateTime.Parse(invalidLocal, CultureInfo.InvariantCulture);
+        TestTimeZones.AssumeInvalidLocalTime(zone, local);
+
+        TimeZoneUtil.WalkToGapEnd(local, zone).Should().Be(DateTime.Parse(expectedGapEnd, CultureInfo.InvariantCulture));
+
+        // noon, not midnight - in a midnight-gap zone like Santiago the date's own 00:00 is invalid
+        DateTime alreadyValid = local.Date.AddHours(12);
+        TimeZoneUtil.WalkToGapEnd(alreadyValid, zone).Should().Be(alreadyValid, "a valid time is returned unchanged");
+    }
+
+    [Test]
+    public void ResolveLocal_NegativeDaylightDeltaZone_DoesNotMoveBackwards()
+    {
+        // Europe/Dublin as modeled by TZif data (Linux/macOS) flags WINTER as the daylight period
+        // with a negative delta, so TimeZoneInfo.GetUtcOffset for an in-gap time returns the
+        // POST-gap offset there; pairing with it would produce an instant before the gap. On
+        // Windows the zone is modeled with a positive delta and this test self-skips.
+        TimeZoneInfo dublin;
+        try
+        {
+            dublin = TimeZoneUtil.FindTimeZoneById("Europe/Dublin");
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            Assert.Ignore("Europe/Dublin is not available on this system");
+            return;
+        }
+
+        DateTime inGap = new DateTime(2024, 3, 31, 1, 30, 0);
+        Assume.That(dublin.IsInvalidTime(inGap), "test premise: 2024-03-31 01:30 should not exist in Europe/Dublin");
+
+        bool negativeDelta = dublin.GetAdjustmentRules()
+            .Any(rule => rule.DateStart <= inGap && inGap <= rule.DateEnd && rule.DaylightDelta < TimeSpan.Zero);
+        Assume.That(negativeDelta, "test premise: the zone data models Dublin with a negative daylight delta (TZif); on Windows this is positive and the hazard does not exist");
+
+        DateTimeOffset justBeforeGap = new DateTimeOffset(new DateTime(2024, 3, 31, 0, 59, 0), dublin.GetUtcOffset(new DateTime(2024, 3, 31, 0, 59, 0)));
+        DateTimeOffset resolved = TimeZoneUtil.ResolveLocal(inGap, dublin);
+
+        resolved.Should().BeAfter(justBeforeGap, "an in-gap time must resolve forward across the gap, never backwards");
+        TimeZoneInfo.ConvertTime(resolved, dublin).DateTime.Should().Be(new DateTime(2024, 3, 31, 2, 30, 0), "the instant renders at the delta-shifted wall clock after the gap");
+    }
+
     [TestCase("US/Eastern", "Eastern Standard Time")]
     [TestCase("CET", "Central European Standard Time")]
     public void FindTimeZoneById_ResolvesAliasPairsOnAnyPlatform(string first, string second)

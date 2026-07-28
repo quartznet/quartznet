@@ -2324,6 +2324,13 @@ public sealed class CronExpression : ISerializable
     /// <summary>
     /// Gets the next fire time after the given time.
     /// </summary>
+    /// <remarks>
+    /// Daylight saving time transitions in the configured <see cref="TimeZone"/> are handled as
+    /// follows: a scheduled wall-clock time that does not exist (spring-forward gap) fires exactly
+    /// once, shifted forward by the transition delta — a daily 02:30 schedule over a 02:00-03:00
+    /// gap fires at 03:30. This matches Java Quartz. A wall-clock time that occurs twice
+    /// (fall-back overlap) fires at its first occurrence.
+    /// </remarks>
     /// <param name="afterTimeUtc">The UTC time to start searching from.</param>
     /// <returns></returns>
     public DateTimeOffset? GetTimeAfter(DateTimeOffset afterTimeUtc)
@@ -2334,6 +2341,10 @@ public sealed class CronExpression : ISerializable
 
         // CronTrigger does not deal with milliseconds
         var d = CreateDateTimeWithoutMilliseconds(afterTimeUtc);
+
+        // the whole-second floor the search starts from; sub-second ticks on afterTimeUtc must not
+        // influence the fall-back demotion below or the result stops being monotonic in the input
+        var afterTimeUtcFloor = d;
 
         // change to specified time zone
         d = TimeZoneUtil.ConvertTime(d, TimeZone);
@@ -2361,20 +2372,22 @@ public sealed class CronExpression : ISerializable
 
             // apply the proper offset for this date
             var localDateTime = nextFireTimeCursor.Date.Value.DateTime;
-            d = new DateTimeOffset(localDateTime, TimeZoneUtil.GetUtcOffset(localDateTime, TimeZone));
+            d = TimeZoneUtil.ResolveLocal(localDateTime, TimeZone);
             foundNextFireTime = true;
 
-            // During DST fall-back transitions, an ambiguous local time may have been
-            // assigned the DST (summer) offset by GetUtcOffset, which picks the first
-            // (DST) occurrence. This can result in a UTC time that is before afterTimeUtc,
-            // causing infinite trigger fires. In that case, use the standard (non-DST)
-            // offset instead, which corresponds to the second occurrence of the local time.
-            // DST always shifts the offset by +1 hour, so the standard offset is always
-            // Min() and the DST offset is always Max() of the two ambiguous offsets.
-            if (d.ToUniversalTime() < afterTimeUtc && TimeZone.IsAmbiguousTime(localDateTime))
+            // During DST fall-back transitions an ambiguous local time resolves to its first
+            // occurrence. When the search started inside the repeated interval, that occurrence
+            // can precede the search floor, which would make the trigger fire endlessly. In that
+            // case use the other occurrence of the same wall-clock time: the earlier occurrence
+            // always carries the greater offset, so the later one is Min() of the two ambiguous
+            // offsets, whatever the size or sign of the zone's daylight delta. Compare against
+            // the whole-second floor the search actually started from - comparing against a
+            // sub-second afterTimeUtc would demote a valid fire, making the result non-monotonic
+            // in the input and breaking GetTimeBefore's binary search.
+            if (d.ToUniversalTime() < afterTimeUtcFloor && TimeZone.IsAmbiguousTime(localDateTime))
             {
-                TimeSpan standardOffset = TimeZone.GetAmbiguousTimeOffsets(localDateTime).Min();
-                d = new DateTimeOffset(localDateTime, standardOffset);
+                TimeSpan laterOccurrenceOffset = TimeZone.GetAmbiguousTimeOffsets(localDateTime).Min();
+                d = new DateTimeOffset(localDateTime, laterOccurrenceOffset);
             }
         }
 

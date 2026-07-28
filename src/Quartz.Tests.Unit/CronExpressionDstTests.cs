@@ -206,20 +206,18 @@ public class CronExpressionDstTests
     /// and asking for the next fire from it makes progress rather than wedging.
     /// </summary>
     /// <remarks>
-    /// The probe set is per case rather than a fixed grid because the -5 minute probe on a
-    /// FALL-BACK transition currently breaks the round trip: see
-    /// <see cref="GetTimeBefore_ProbeJustAfterFireTimeInRepeatedHour_CurrentlyReturnsNonFireTime" />
-    /// in the pins region below, and the root cause pinned next to it. Restore -5 to those two
-    /// cases once that is fixed.
+    /// The -5 minute probes on the fall-back transitions land just after a fire inside the repeated
+    /// hour; they used to break the round trip until the sub-second demotion defect was fixed (see
+    /// <see cref="GetTimeBefore_ProbeJustAfterFireTimeInRepeatedHour_ReturnsRealPrecedingFire" />).
     /// </remarks>
     [TestCase("0 * * * * ?", "Eastern", "2024-03-10 07:00 +00:00", new int[] { -60, -5, 5, 60 })]
     [TestCase("0 0 * * * ?", "Eastern", "2024-03-10 07:00 +00:00", new int[] { -60, -5, 5, 60 })]
-    [TestCase("0 * * * * ?", "Eastern", "2024-11-03 06:00 +00:00", new int[] { -60, 5, 60 })]
-    [TestCase("0 0 * * * ?", "Eastern", "2024-11-03 06:00 +00:00", new int[] { -60, 5, 60 })]
+    [TestCase("0 * * * * ?", "Eastern", "2024-11-03 06:00 +00:00", new int[] { -60, -5, 5, 60 })]
+    [TestCase("0 0 * * * ?", "Eastern", "2024-11-03 06:00 +00:00", new int[] { -60, -5, 5, 60 })]
     [TestCase("0 * * * * ?", "CentralEuropean", "2018-03-25 01:00 +00:00", new int[] { -60, -5, 5, 60 })]
     [TestCase("0 0 * * * ?", "CentralEuropean", "2018-03-25 01:00 +00:00", new int[] { -60, -5, 5, 60 })]
-    [TestCase("0 * * * * ?", "CentralEuropean", "2018-10-28 01:00 +00:00", new int[] { -60, 5, 60 })]
-    [TestCase("0 0 * * * ?", "CentralEuropean", "2018-10-28 01:00 +00:00", new int[] { -60, 5, 60 })]
+    [TestCase("0 * * * * ?", "CentralEuropean", "2018-10-28 01:00 +00:00", new int[] { -60, -5, 5, 60 })]
+    [TestCase("0 0 * * * ?", "CentralEuropean", "2018-10-28 01:00 +00:00", new int[] { -60, -5, 5, 60 })]
     public void GetTimeBefore_RoundTripsWithGetTimeAfter_AroundTransitions(
         string cronExpression,
         string zoneKey,
@@ -393,29 +391,22 @@ public class CronExpressionDstTests
         cron.IsSatisfiedBy(fire.Value).Should().BeFalse("the fire instant reads as local 03:30, and the expression asks for hour 02");
     }
 
+    #endregion
+
     /// <summary>
-    /// CURRENT BEHAVIOR PIN — this one looks like a plain defect rather than a semantic choice.
+    /// Regression test: a sub-second after-time inside the repeated fall-back hour must return the
+    /// same fire as its whole-second floor.
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// <see cref="CronExpression.GetTimeAfter" /> starts by adding one second to the requested
-    /// instant KEEPING its sub-second ticks, then truncates a separate copy to whole seconds for
-    /// the search. At the very end the fall-back demotion asks whether the resolved fire is before
-    /// the requested instant, and compares the truncated fire against the UNTRUNCATED copy
-    /// (<c>CronExpression.cs</c>: <c>if (d.ToUniversalTime() &lt; afterTimeUtc &amp;&amp;
-    /// TimeZone.IsAmbiguousTime(localDateTime))</c>). Any sub-second remainder therefore makes a
-    /// perfectly good fire look "too early" while the local time is ambiguous, and the result is
-    /// demoted a whole hour forward to the standard pass.
-    /// </para>
-    /// <para>
-    /// The effect: asking for the next fire after 05:53:59.000Z gives 05:54:00Z, but asking after
-    /// 05:53:59.500Z — half a second LATER — skips that fire entirely and gives 06:54:00Z. The
-    /// comparison should use the truncated instant, at which point both answers are 05:54:00Z.
-    /// Flip target: both assertions below expect 05:54:00Z.
-    /// </para>
+    /// The fall-back demotion in <see cref="CronExpression.GetTimeAfter" /> used to compare the
+    /// truncated candidate fire against the UNTRUNCATED after-time, so any sub-second remainder made
+    /// a perfectly good fire look "too early" while the local time was ambiguous and demoted it a
+    /// whole hour forward: the next fire after 05:53:59.000Z was 05:54:00Z, but after 05:53:59.500Z
+    /// — half a second later — it was 06:54:00Z, making the result non-monotonic in the input. The
+    /// comparison now uses the whole-second floor the search starts from.
     /// </remarks>
     [Test]
-    public void GetTimeAfter_SubSecondInstantInsideRepeatedHour_CurrentlySkipsAnHourToStandardPass()
+    public void GetTimeAfter_SubSecondInstantInsideRepeatedHour_ReturnsSameFireAsWholeSecond()
     {
         TimeZoneInfo zone = TestTimeZones.Eastern;
         TestTimeZones.AssumeAmbiguousLocalTime(zone, WallClock("2024-11-03 01:30"));
@@ -425,43 +416,32 @@ public class CronExpressionDstTests
         DateTimeOffset wholeSecond = new DateTimeOffset(2024, 11, 3, 5, 53, 59, 0, TimeSpan.Zero);
         DateTimeOffset withMilliseconds = new DateTimeOffset(2024, 11, 3, 5, 53, 59, 500, TimeSpan.Zero);
 
-        cron.GetTimeAfter(wholeSecond)
-            .Should().Be(TestTimeZones.Local("2024-11-03 05:54 +00:00"), "local 01:54 -04:00 is the very next minute");
+        DateTimeOffset expected = TestTimeZones.Local("2024-11-03 05:54 +00:00");
 
-        cron.GetTimeAfter(withMilliseconds)
-            .Should().Be(TestTimeZones.Local("2024-11-03 06:54 +00:00"), "the sub-second remainder currently forces the demotion to local 01:54 -05:00");
+        cron.GetTimeAfter(wholeSecond).Should().Be(expected, "local 01:54 -04:00 is the very next minute");
+        cron.GetTimeAfter(withMilliseconds).Should().Be(expected, "sub-second ticks on the after-time must not demote the fire to the standard pass");
     }
 
     /// <summary>
-    /// CURRENT BEHAVIOR PIN — the user-visible consequence of the sub-second defect above.
+    /// Regression test: <see cref="CronExpression.GetTimeBefore" /> must return a real fire time
+    /// for probes just after a fire inside the repeated fall-back hour.
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// <see cref="CronExpression.GetTimeBefore" /> binary searches on "does the next fire after this
-    /// probe land before the end time", over arbitrary tick values. The sub-second demotion makes
-    /// that predicate NON-MONOTONIC in the second immediately preceding a fire whose local time is
-    /// ambiguous: it holds at the whole second, then flips false a fraction later. The search
-    /// converges on that false crossover instead of the real one, and the result — truncated to a
-    /// whole second — comes out one second early, on a value the expression never fires at.
-    /// </para>
-    /// <para>
-    /// So <c>GetTimeBefore</c> can return a NON-FIRE time: the pinned results below all end in
-    /// :59 for expressions that only ever fire at second 0. Flip target: the expected value becomes
-    /// the real preceding fire time (the third argument), and the -5 minute probe can be restored
-    /// to the fall-back cases of
-    /// <see cref="GetTimeBefore_RoundTripsWithGetTimeAfter_AroundTransitions" />.
-    /// </para>
+    /// Its binary search probes arbitrary tick values, and the sub-second demotion described in
+    /// <see cref="GetTimeAfter_SubSecondInstantInsideRepeatedHour_ReturnsSameFireAsWholeSecond" />
+    /// used to make the search predicate non-monotonic in the second preceding such a fire, so the
+    /// search converged one second early on a value the expression never fires at (:59 results for
+    /// expressions that only fire at second 0).
     /// </remarks>
-    [TestCase("0 * * * * ?", "Eastern", "2024-11-03 05:55 +00:00", "2024-11-03 05:54:00 +00:00", "2024-11-03 05:53:59 +00:00")]
-    [TestCase("0 0 * * * ?", "Eastern", "2024-11-03 05:55 +00:00", "2024-11-03 05:00:00 +00:00", "2024-11-03 04:59:59 +00:00")]
-    [TestCase("0 * * * * ?", "CentralEuropean", "2018-10-28 00:55 +00:00", "2018-10-28 00:54:00 +00:00", "2018-10-28 00:53:59 +00:00")]
-    [TestCase("0 0 * * * ?", "CentralEuropean", "2018-10-28 00:55 +00:00", "2018-10-28 00:00:00 +00:00", "2018-10-27 23:59:59 +00:00")]
-    public void GetTimeBefore_ProbeJustAfterFireTimeInRepeatedHour_CurrentlyReturnsNonFireTime(
+    [TestCase("0 * * * * ?", "Eastern", "2024-11-03 05:55 +00:00", "2024-11-03 05:54:00 +00:00")]
+    [TestCase("0 0 * * * ?", "Eastern", "2024-11-03 05:55 +00:00", "2024-11-03 05:00:00 +00:00")]
+    [TestCase("0 * * * * ?", "CentralEuropean", "2018-10-28 00:55 +00:00", "2018-10-28 00:54:00 +00:00")]
+    [TestCase("0 0 * * * ?", "CentralEuropean", "2018-10-28 00:55 +00:00", "2018-10-28 00:00:00 +00:00")]
+    public void GetTimeBefore_ProbeJustAfterFireTimeInRepeatedHour_ReturnsRealPrecedingFire(
         string cronExpression,
         string zoneKey,
         string probeUtc,
-        string realPrecedingFire,
-        string currentlyReturned)
+        string realPrecedingFire)
     {
         TimeZoneInfo zone = ResolveZone(zoneKey);
         CronExpression cron = CronIn(cronExpression, zone);
@@ -476,9 +456,7 @@ public class CronExpressionDstTests
         DateTimeOffset? previous = cron.GetTimeBefore(probe);
 
         previous.Should().NotBeNull();
-        previous!.Value.Should().Be(TestTimeZones.Local(currentlyReturned), "the binary search converges on the sub-second demotion crossover");
-        cron.IsSatisfiedBy(previous.Value).Should().BeFalse("the returned time is not a time the expression ever fires at");
+        previous!.Value.Should().Be(expectedFire);
+        cron.IsSatisfiedBy(previous.Value).Should().BeTrue("GetTimeBefore must return a time the expression fires at");
     }
-
-    #endregion
 }
