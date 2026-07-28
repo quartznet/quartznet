@@ -236,3 +236,75 @@ GO
 -- Firebird
 -- ALTER TABLE QRTZ_TRIGGERS ADD PREFERRED_NODE VARCHAR(200);
 -- ALTER TABLE QRTZ_TRIGGERS ADD PREFERRED_NODE_AUTO SMALLINT DEFAULT 0 NOT NULL;
+
+--
+-- Adds the IDX_QRTZ_J_G_N and IDX_QRTZ_T_G_N indexes to the QRTZ_JOB_DETAILS and
+-- QRTZ_TRIGGERS tables. The 4.x job and trigger listing queries page with
+-- ORDER BY JOB_GROUP, JOB_NAME and ORDER BY TRIGGER_GROUP, TRIGGER_NAME; the primary
+-- keys are name-before-group, so no existing index serves those ordered scans.
+--
+-- These indexes are OPTIONAL: the queries work without them, but each page becomes a
+-- scan plus a sort. Add them if you list jobs or triggers from a large schema.
+--
+
+-- SQL Server
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IDX_QRTZ_J_G_N' AND object_id = OBJECT_ID('dbo.QRTZ_JOB_DETAILS'))
+BEGIN
+  CREATE INDEX [IDX_QRTZ_J_G_N] ON [dbo].[QRTZ_JOB_DETAILS](SCHED_NAME, JOB_GROUP, JOB_NAME);
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IDX_QRTZ_T_G_N' AND object_id = OBJECT_ID('dbo.QRTZ_TRIGGERS'))
+BEGIN
+  CREATE INDEX [IDX_QRTZ_T_G_N] ON [dbo].[QRTZ_TRIGGERS](SCHED_NAME, TRIGGER_GROUP, TRIGGER_NAME);
+END
+GO
+
+-- PostgreSQL
+-- CREATE INDEX IF NOT EXISTS idx_qrtz_j_g_n ON qrtz_job_details (sched_name, job_group, job_name);
+-- CREATE INDEX IF NOT EXISTS idx_qrtz_t_g_n ON qrtz_triggers (sched_name, trigger_group, trigger_name);
+
+-- MySQL (check existence before adding)
+-- SET @dbname = DATABASE();
+-- SET @preparedStatement = (SELECT IF(
+--   (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+--    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'QRTZ_JOB_DETAILS' AND INDEX_NAME = 'IDX_QRTZ_J_G_N') > 0,
+--   'SELECT 1',
+--   'CREATE INDEX IDX_QRTZ_J_G_N ON QRTZ_JOB_DETAILS(SCHED_NAME,JOB_GROUP,JOB_NAME)'
+-- ));
+-- PREPARE createIfNotExists FROM @preparedStatement;
+-- EXECUTE createIfNotExists;
+-- DEALLOCATE PREPARE createIfNotExists;
+--
+-- SET @preparedStatement = (SELECT IF(
+--   (SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+--    WHERE TABLE_SCHEMA = @dbname AND TABLE_NAME = 'QRTZ_TRIGGERS' AND INDEX_NAME = 'IDX_QRTZ_T_G_N') > 0,
+--   'SELECT 1',
+--   'CREATE INDEX IDX_QRTZ_T_G_N ON QRTZ_TRIGGERS(SCHED_NAME,TRIGGER_GROUP,TRIGGER_NAME)'
+-- ));
+-- PREPARE createIfNotExists FROM @preparedStatement;
+-- EXECUTE createIfNotExists;
+-- DEALLOCATE PREPARE createIfNotExists;
+
+-- SQLite
+-- CREATE INDEX IF NOT EXISTS IDX_QRTZ_J_G_N ON QRTZ_JOB_DETAILS(SCHED_NAME,JOB_GROUP,JOB_NAME);
+-- CREATE INDEX IF NOT EXISTS IDX_QRTZ_T_G_N ON QRTZ_TRIGGERS(SCHED_NAME,TRIGGER_GROUP,TRIGGER_NAME);
+
+-- Oracle (check existence before adding)
+-- DECLARE
+--   index_exists NUMBER;
+-- BEGIN
+--   SELECT COUNT(*) INTO index_exists FROM user_indexes WHERE index_name = 'IDX_QRTZ_J_G_N';
+--   IF index_exists = 0 THEN
+--     EXECUTE IMMEDIATE 'CREATE INDEX IDX_QRTZ_J_G_N ON QRTZ_JOB_DETAILS(SCHED_NAME,JOB_GROUP,JOB_NAME)';
+--   END IF;
+--   SELECT COUNT(*) INTO index_exists FROM user_indexes WHERE index_name = 'IDX_QRTZ_T_G_N';
+--   IF index_exists = 0 THEN
+--     EXECUTE IMMEDIATE 'CREATE INDEX IDX_QRTZ_T_G_N ON QRTZ_TRIGGERS(SCHED_NAME,TRIGGER_GROUP,TRIGGER_NAME)';
+--   END IF;
+-- END;
+-- /
+
+-- Firebird
+-- CREATE INDEX IDX_QRTZ_J_G_N ON QRTZ_JOB_DETAILS(SCHED_NAME,JOB_GROUP,JOB_NAME);
+-- CREATE INDEX IDX_QRTZ_T_G_N ON QRTZ_TRIGGERS(SCHED_NAME,TRIGGER_GROUP,TRIGGER_NAME);

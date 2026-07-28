@@ -109,6 +109,22 @@ internal sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelega
         return default;
     }
 
+    public ValueTask<Dictionary<TriggerKey, TriggerPropertyBundle>> LoadExtendedTriggerProperties(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default)
+    {
+        return AdoUtil.LoadTriggerPropertyBundles(
+            DbAccessor,
+            conn,
+            StdAdoConstants.SqlSelectCronTriggersByKeysPrefix,
+            TablePrefix,
+            SchedulerName,
+            triggerKeys,
+            ReadTriggerPropertyBundle,
+            cancellationToken);
+    }
+
     public TriggerPropertyBundle ReadTriggerPropertyBundle(DbDataReader rs)
     {
         var cronExpr = rs.GetString(AdoConstants.ColumnCronExpression)!;

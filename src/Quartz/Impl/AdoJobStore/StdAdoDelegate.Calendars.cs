@@ -108,32 +108,4 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "calendarName", calendarName);
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
-
-    /// <inheritdoc />
-    public virtual async ValueTask<int> SelectNumCalendars(
-        ConnectionAndTransactionHolder conn,
-        CancellationToken cancellationToken = default)
-    {
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectNumCalendars));
-        AddCommandParameter(cmd, "schedulerName", schedulerName);
-
-        int count = Convert.ToInt32(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
-        return count;
-    }
-
-    /// <inheritdoc />
-    public virtual async ValueTask<List<string>> SelectCalendars(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default)
-    {
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectCalendars));
-        AddCommandParameter(cmd, "schedulerName", schedulerName);
-
-        using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        List<string> list = [];
-        while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
-        {
-            list.Add(rs.GetString(0));
-        }
-
-        return list;
-    }
 }

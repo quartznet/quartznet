@@ -178,14 +178,16 @@ CREATE TABLE qrtz_locks
     PRIMARY KEY (sched_name, lock_name)
 );
 
-CREATE INDEX idx_qrtz_j_req_recovery ON qrtz_job_details (requests_recovery);
-CREATE INDEX idx_qrtz_t_next_fire_time ON qrtz_triggers (next_fire_time);
-CREATE INDEX idx_qrtz_t_state ON qrtz_triggers (trigger_state);
-CREATE INDEX idx_qrtz_t_nft_st ON qrtz_triggers (next_fire_time, trigger_state);
+CREATE INDEX idx_qrtz_j_req_recovery ON qrtz_job_details (sched_name, requests_recovery);
+CREATE INDEX idx_qrtz_j_g_n ON qrtz_job_details (sched_name, job_group, job_name);
+CREATE INDEX idx_qrtz_t_next_fire_time ON qrtz_triggers (sched_name, next_fire_time);
+CREATE INDEX idx_qrtz_t_state ON qrtz_triggers (sched_name, trigger_state);
+CREATE INDEX idx_qrtz_t_nft_st ON qrtz_triggers (sched_name, trigger_state, next_fire_time);
+CREATE INDEX idx_qrtz_t_g_n ON qrtz_triggers (sched_name, trigger_group, trigger_name);
 CREATE INDEX idx_qrtz_ft_trig_name ON qrtz_fired_triggers (trigger_name);
 CREATE INDEX idx_qrtz_ft_trig_group ON qrtz_fired_triggers (trigger_group);
 CREATE INDEX idx_qrtz_ft_trig_nm_gp ON qrtz_fired_triggers (sched_name, trigger_name, trigger_group);
-CREATE INDEX idx_qrtz_ft_trig_inst_name ON qrtz_fired_triggers (instance_name);
+CREATE INDEX idx_qrtz_ft_trig_inst_name ON qrtz_fired_triggers (sched_name, instance_name);
 CREATE INDEX idx_qrtz_ft_job_name ON qrtz_fired_triggers (job_name);
 CREATE INDEX idx_qrtz_ft_job_group ON qrtz_fired_triggers (job_group);
 CREATE INDEX idx_qrtz_ft_job_req_recovery ON qrtz_fired_triggers (requests_recovery);

@@ -68,47 +68,6 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get the names of all the triggers that have misfired - according to
-    /// the given timestamp.
-    /// </summary>
-    /// <returns>An array of <see cref="TriggerKey" /> objects</returns>
-    ValueTask<List<TriggerKey>> SelectMisfiredTriggers(
-        ConnectionAndTransactionHolder conn,
-        DateTimeOffset timestamp,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Get the names of all the triggers in the given state that have
-    /// misfired - according to the given timestamp.
-    /// </summary>
-    /// <param name="conn">The DB Connection</param>
-    /// <param name="state">The state.</param>
-    /// <param name="ts">The time stamp.</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>An array of <see cref="TriggerKey" /> objects</returns>
-    ValueTask<List<TriggerKey>> HasMisfiredTriggersInState(
-        ConnectionAndTransactionHolder conn,
-        string state,
-        DateTimeOffset ts,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Get the names of all the triggers in the given group and state that
-    /// have misfired - according to the given timestamp.
-    /// </summary>
-    /// <param name="conn">The DB Connection</param>
-    /// <param name="groupName">Name of the group.</param>
-    /// <param name="state">The state.</param>
-    /// <param name="ts">The timestamp.</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>An array of <see cref="TriggerKey" /> objects</returns>
-    ValueTask<List<TriggerKey>> SelectMisfiredTriggersInGroupInState(ConnectionAndTransactionHolder conn,
-        string groupName,
-        string state,
-        DateTimeOffset ts,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Select all of the triggers for jobs that are requesting recovery. The
     /// returned trigger objects will have unique "recoverXXX" trigger names and
     /// will be in the <see cref="SchedulerConstants.DefaultRecoveryGroup" /> trigger group.
@@ -126,39 +85,16 @@ public interface IDriverDelegate
     ValueTask<List<IOperableTrigger>> SelectTriggersForRecoveringJobs(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Delete all fired triggers.
+    /// Deletes the fired triggers the query selects. A query with no filter set deletes all of them.
     /// </summary>
     /// <param name="conn">The DB Connection</param>
+    /// <param name="query">Which fired triggers to delete.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>The number of rows deleted</returns>
-    ValueTask<int> DeleteFiredTriggers(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Delete all fired triggers of the given instance.
-    /// </summary>
-    /// <param name="conn">The DB Connection</param>
-    /// <param name="instanceId">The instance id.</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>The number of rows deleted</returns>
-    ValueTask<int> DeleteFiredTriggers(ConnectionAndTransactionHolder conn, string instanceId, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Delete all fired triggers for the given trigger.
-    /// </summary>
-    /// <param name="conn">The DB Connection</param>
-    /// <param name="triggerKey">The trigger key.</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>The number of rows deleted</returns>
-    ValueTask<int> DeleteFiredTriggers(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Delete all fired triggers for the given job.
-    /// </summary>
-    /// <param name="conn">The DB Connection</param>
-    /// <param name="jobKey">The job key.</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>The number of rows deleted</returns>
-    ValueTask<int> DeleteFiredTriggers(ConnectionAndTransactionHolder conn, JobKey jobKey, CancellationToken cancellationToken = default);
+    ValueTask<int> DeleteFiredTriggers(
+        ConnectionAndTransactionHolder conn,
+        FiredTriggerQuery query,
+        CancellationToken cancellationToken = default);
 
     //---------------------------------------------------------------------------
     // jobs
@@ -248,24 +184,6 @@ public interface IDriverDelegate
         JobKey jobKey,
         ITypeLoadHelper classLoadHelper,
         CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Select the total number of jobs stored.
-    /// </summary>
-    /// <param name="conn">The DB Connection</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns> the total number of jobs stored</returns>
-    ValueTask<int> SelectNumJobs(
-        ConnectionAndTransactionHolder conn,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Select all the job group names that are stored.
-    /// </summary>
-    /// <param name="conn">The DB Connection.</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns> an array of <see cref="String" /> group names</returns>
-    ValueTask<List<string>> SelectJobGroups(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Select all the jobs contained in a given group.
@@ -529,19 +447,19 @@ public interface IDriverDelegate
     /// <summary>
     /// Select the job to which the trigger is associated.
     /// </summary>
+    /// <param name="conn">The DB Connection</param>
+    /// <param name="triggerKey">The key identifying the trigger.</param>
+    /// <param name="loadHelper">The type load helper.</param>
+    /// <param name="loadJobType">
+    /// Whether to load the job's actual type. Removal does not need it, and in many cases the type no
+    /// longer exists by then, so removal passes <c>false</c> and gets a job detail carrying only the
+    /// recorded type name.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask<IJobDetail?> SelectJobForTrigger(ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         ITypeLoadHelper loadHelper,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Select the job to which the trigger is associated. Allow option to load actual job class or not. When case of
-    /// remove, we do not need to load the type, which in many cases, it's no longer exists.
-    /// </summary>
-    ValueTask<IJobDetail?> SelectJobForTrigger(ConnectionAndTransactionHolder conn,
-        TriggerKey triggerKey,
-        ITypeLoadHelper loadHelper,
-        bool loadJobType,
+        bool loadJobType = true,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -602,23 +520,8 @@ public interface IDriverDelegate
     ValueTask<TriggerStatus?> SelectTriggerStatus(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Select the total number of triggers stored.
-    /// </summary>
-    /// <param name="conn">The DB Connection.</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>The total number of triggers stored.</returns>
-    ValueTask<int> SelectNumTriggers(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Select all the trigger group names that are stored.
-    /// </summary>
-    /// <param name="conn">The DB Connection.</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>An array of <see cref="String" /> group names.</returns>
-    ValueTask<List<string>> SelectTriggerGroups(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Select all trigger group names that match the criteria.
+    /// Select all trigger group names that match the criteria. Pass
+    /// <see cref="GroupMatcher{TKey}.AnyGroup" /> for every group.
     /// </summary>
     /// <param name="conn">The DB Connection.</param>
     /// <param name="matcher">The matcher to apply for searching.</param>
@@ -657,19 +560,8 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Deletes the paused trigger group.
-    /// </summary>
-    /// <param name="conn">The database connection.</param>
-    /// <param name="groupName">Name of the group.</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns></returns>
-    ValueTask<int> DeletePausedTriggerGroup(
-        ConnectionAndTransactionHolder conn,
-        string groupName,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Deletes the paused trigger group.
+    /// Deletes the paused trigger groups the matcher selects. A single group is
+    /// <see cref="GroupMatcher{TKey}.GroupEquals" />.
     /// </summary>
     /// <param name="conn">The database connection.</param>
     /// <param name="matcher">Criteria for matching groups.</param>
@@ -678,16 +570,6 @@ public interface IDriverDelegate
     ValueTask<int> DeletePausedTriggerGroup(
         ConnectionAndTransactionHolder conn,
         GroupMatcher<TriggerKey> matcher,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Deletes all paused trigger groups.
-    /// </summary>
-    /// <param name="conn">The conn.</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns></returns>
-    ValueTask<int> DeleteAllPausedTriggerGroups(
-        ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -700,28 +582,6 @@ public interface IDriverDelegate
     /// 	<c>true</c> if trigger group is paused; otherwise, <c>false</c>.
     /// </returns>
     ValueTask<bool> IsTriggerGroupPaused(
-        ConnectionAndTransactionHolder conn,
-        string groupName,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Selects the paused trigger groups.
-    /// </summary>
-    /// <param name="conn">The DB Connection.</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns></returns>
-    ValueTask<List<string>> SelectPausedTriggerGroups(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Determines whether given trigger group already exists.
-    /// </summary>
-    /// <param name="conn">The conn.</param>
-    /// <param name="groupName">Name of the group.</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>
-    /// 	<c>true</c> if trigger group exists; otherwise, <c>false</c>.
-    /// </returns>
-    ValueTask<bool> IsExistingTriggerGroup(
         ConnectionAndTransactionHolder conn,
         string groupName,
         CancellationToken cancellationToken = default);
@@ -805,42 +665,9 @@ public interface IDriverDelegate
         string calendarName,
         CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Select the total number of calendars stored.
-    /// </summary>
-    /// <param name="conn">The DB Connection</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>The total number of calendars stored.</returns>
-    ValueTask<int> SelectNumCalendars(
-        ConnectionAndTransactionHolder conn,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Select all the stored calendars.
-    /// </summary>
-    /// <param name="conn">The DB Connection</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>An array of <see cref="String" /> calendar names.</returns>
-    ValueTask<List<string>> SelectCalendars(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default);
-
     //---------------------------------------------------------------------------
     // trigger firing
     //---------------------------------------------------------------------------
-
-    /// <summary>
-    /// Select the trigger that will be fired at the given fire time.
-    /// </summary>
-    /// <param name="conn">The DB Connection</param>
-    /// <param name="fireTime">The time that the trigger will be fired.</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>
-    /// A <see cref="TriggerKey" /> representing the
-    /// trigger that will be fired at the given fire time, or null if no
-    /// trigger will be fired at that time
-    /// </returns>
-    ValueTask<TriggerKey?> SelectTriggerForFireTime(ConnectionAndTransactionHolder conn,
-        DateTimeOffset fireTime,
-        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Insert a fired trigger.
@@ -859,33 +686,16 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Select the states of all fired-trigger records for a given trigger, or
-    /// trigger group if trigger name is <see langword="null" />.
+    /// Selects the states of the fired-trigger records the query selects. A query with no filter set
+    /// selects all of them.
     /// </summary>
     /// <param name="conn">The DB Connection</param>
-    /// <param name="triggerName">Name of the trigger.</param>
-    /// <param name="groupName">Name of the group.</param>
+    /// <param name="query">Which fired triggers to select.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>A list of FiredTriggerRecord objects.</returns>
     ValueTask<List<FiredTriggerRecord>> SelectFiredTriggerRecords(
         ConnectionAndTransactionHolder conn,
-        string triggerName,
-        string groupName,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Select the states of all fired-trigger records for a given job, or job
-    /// group if job name is <see langword="null" />.
-    /// </summary>
-    /// <param name="conn">The DB Connection</param>
-    /// <param name="jobName">Name of the job.</param>
-    /// <param name="groupName">Name of the group.</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>A List of FiredTriggerRecord objects.</returns>
-    ValueTask<List<FiredTriggerRecord>> SelectFiredTriggerRecordsByJob(
-        ConnectionAndTransactionHolder conn,
-        string jobName,
-        string groupName,
+        FiredTriggerQuery query,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -909,19 +719,6 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Select the states of all fired-trigger records for a given scheduler
-    /// instance.
-    /// </summary>
-    /// <param name="conn">The DB Connection</param>
-    /// <param name="instanceName">Name of the instance.</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>A list of FiredTriggerRecord objects.</returns>
-    ValueTask<List<FiredTriggerRecord>> SelectInstancesFiredTriggerRecords(
-        ConnectionAndTransactionHolder conn,
-        string instanceName,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Delete a fired trigger.
     /// </summary>
     /// <param name="conn">The DB Connection</param>
@@ -931,20 +728,6 @@ public interface IDriverDelegate
     ValueTask<int> DeleteFiredTrigger(
         ConnectionAndTransactionHolder conn,
         string entryId,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Get the number instances of the identified job currently executing.
-    /// </summary>
-    /// <param name="conn">The DB Connection</param>
-    /// <param name="jobKey">The key identifying the job.</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>
-    /// The number instances of the identified job currently executing.
-    /// </returns>
-    ValueTask<int> SelectJobExecutionCount(
-        ConnectionAndTransactionHolder conn,
-        JobKey jobKey,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -1006,23 +789,16 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Select the next trigger which will fire to fire between the two given timestamps
-    /// in ascending order of fire time, and then descending by priority.
+    /// Selects the next triggers to fire, in ascending order of fire time and then descending by
+    /// priority.
     /// </summary>
-    /// <param name="conn">The conn.</param>
-    /// <param name="noLaterThan">highest value of <see cref="ITrigger.NextFireTimeUtc" /> of the triggers (exclusive)</param>
-    /// <param name="noEarlierThan">lowest value of <see cref="ITrigger.NextFireTimeUtc" /> of the triggers (inclusive)</param>
-    /// <param name="maxCount">maximum number of trigger keys allow to acquired in the returning list.</param>
-    /// <param name="liveNodeCutoff">Tick value below which a node's last check-in is considered
-    /// stale, releasing its pinned triggers to other nodes (preferred node / node affinity).</param>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="criteria">What to acquire, and how much of it.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>A (never null, possibly empty) list of the identifiers (Key objects) of the next triggers to be fired.</returns>
-    ValueTask<List<TriggerAcquireResult>> SelectTriggerToAcquire(
+    /// <returns>A (never null, possibly empty) list of the next triggers to be fired.</returns>
+    ValueTask<List<TriggerAcquireResult>> SelectTriggersToAcquire(
         ConnectionAndTransactionHolder conn,
-        DateTimeOffset noLaterThan,
-        DateTimeOffset noEarlierThan,
-        int maxCount,
-        long liveNodeCutoff,
+        TriggerAcquisitionCriteria criteria,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -1051,24 +827,6 @@ public interface IDriverDelegate
         ConnectionAndTransactionHolder conn,
         string state1,
         DateTimeOffset ts,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Selects the misfired triggers in states.
-    /// </summary>
-    /// <param name="conn">The conn.</param>
-    /// <param name="state1">The state1.</param>
-    /// <param name="ts">The ts.</param>
-    /// <param name="count">The count.</param>
-    /// <param name="resultList">The result list.</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns></returns>
-    ValueTask<bool> HasMisfiredTriggersInState(
-        ConnectionAndTransactionHolder conn,
-        string state1,
-        DateTimeOffset ts,
-        int count,
-        ICollection<TriggerKey> resultList,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -1138,8 +896,8 @@ public interface IDriverDelegate
 
     /// <summary>
     /// Selects the misfired triggers to recover as fully populated triggers, rather than as keys that the
-    /// caller then has to read back one at a time. Same predicate, ordering and limit semantics as
-    /// <see cref="HasMisfiredTriggersInState(ConnectionAndTransactionHolder,string,DateTimeOffset,int,ICollection{TriggerKey},CancellationToken)" />.
+    /// caller then has to read back one at a time. Same predicate and ordering as
+    /// <see cref="CountMisfiredTriggersInState" />.
     /// </summary>
     /// <param name="conn">The DB connection.</param>
     /// <param name="state">The trigger state to scan (WAITING).</param>
@@ -1167,27 +925,6 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Selects the next triggers to acquire, filtering by execution group constraints.
-    /// </summary>
-    /// <param name="conn">The DB connection.</param>
-    /// <param name="noLaterThan">Upper bound for next fire time.</param>
-    /// <param name="noEarlierThan">Lower bound for next fire time (typically misfire time).</param>
-    /// <param name="maxCount">Maximum number of triggers to return.</param>
-    /// <param name="executionLimits">Execution group available slots. Implementations must create
-    /// their own working copy before mutating — the caller may reuse this instance across retries.</param>
-    /// <param name="liveNodeCutoff">Tick value below which a node's last check-in is considered
-    /// stale, releasing its pinned triggers to other nodes (preferred node / node affinity).</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    ValueTask<List<TriggerAcquireResult>> SelectTriggerToAcquire(
-        ConnectionAndTransactionHolder conn,
-        DateTimeOffset noLaterThan,
-        DateTimeOffset noEarlierThan,
-        int maxCount,
-        IReadOnlyDictionary<string, int?> executionLimits,
-        long liveNodeCutoff,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Updates the preferred node columns for a trigger only when they still hold the expected
     /// values (compare-and-swap). Used by the auto-pin claim/steal in TriggerFired so a concurrent
     /// re-pin or clear (e.g. via UpdateTriggerDetails between acquisition and firing) wins over the
@@ -1212,6 +949,106 @@ public interface IDriverDelegate
         ConnectionAndTransactionHolder conn,
         string oldPreferredNode,
         string newPreferredNode,
+        CancellationToken cancellationToken = default);
+
+    //---------------------------------------------------------------------------
+    // paged listings and batch reads
+    //---------------------------------------------------------------------------
+
+    /// <summary>
+    /// Selects one page of job listing entries, ordered by group and then name.
+    /// </summary>
+    /// <remarks>
+    /// The listing does not read or deserialize JOB_DATA, and does not load the job type — the header
+    /// carries the recorded type name as a string.
+    /// </remarks>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="query">What to select and which page of it to return.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<PagedResult<JobHeader>> SelectJobHeaders(
+        ConnectionAndTransactionHolder conn,
+        JobQuery query,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Selects one page of trigger listing entries, ordered by group and then name.
+    /// </summary>
+    /// <remarks>
+    /// The listing reads the TRIGGERS row only: no type table, no BLOB, no JOB_DATA.
+    /// </remarks>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="query">What to select and which page of it to return.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<PagedResult<TriggerHeader>> SelectTriggerHeaders(
+        ConnectionAndTransactionHolder conn,
+        TriggerQuery query,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Selects one page of job groups, ordered by name.
+    /// </summary>
+    /// <remarks>
+    /// The ADO store does not persist job group pause state, so every group is reported as not paused
+    /// and a query for paused job groups only is empty.
+    /// </remarks>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="query">What to select and which page of it to return.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<PagedResult<JobGroup>> SelectJobGroups(
+        ConnectionAndTransactionHolder conn,
+        JobGroupQuery query,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Selects one page of trigger groups, ordered by name.
+    /// </summary>
+    /// <remarks>
+    /// A query for paused groups only reads PAUSED_TRIGGER_GRPS, so it reports a paused group that
+    /// currently has no triggers as well.
+    /// </remarks>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="query">What to select and which page of it to return.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<PagedResult<TriggerGroup>> SelectTriggerGroups(
+        ConnectionAndTransactionHolder conn,
+        TriggerGroupQuery query,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Selects one page of calendar names, ordered by name.
+    /// </summary>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="query">Which page to return.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<PagedResult<string>> SelectCalendarNames(
+        ConnectionAndTransactionHolder conn,
+        CalendarQuery query,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Selects several jobs at once, chunking the keys into as few statements as the provider's
+    /// parameter ceiling allows. Keys that have no row are simply absent from the result.
+    /// </summary>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="jobKeys">The keys of the jobs to select.</param>
+    /// <param name="loadHelper">The type load helper.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<List<IJobDetail>> SelectJobDetails(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<JobKey> jobKeys,
+        ITypeLoadHelper loadHelper,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Selects several triggers at once, chunking the keys into as few statements as the provider's
+    /// parameter ceiling allows. Keys that have no row are simply absent from the result.
+    /// </summary>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="triggerKeys">The keys of the triggers to select.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<List<IOperableTrigger>> SelectTriggers(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default);
 }
 

@@ -1,8 +1,11 @@
 
+using System.Collections.Specialized;
+
 using Microsoft.Extensions.Logging.Abstractions;
 
 using Quartz.Plugin.Json;
 using Quartz.Impl;
+using Quartz.Impl.Matchers;
 
 namespace Quartz.Tests.Unit.Plugin.Json;
 
@@ -281,5 +284,61 @@ public class JsonSchedulingDataProcessorTest
         processor.ProcessJsonContent("""{ "Schedule": { "Jobs": [], "Triggers": [] } }""");
         processor.ParsedJobs.Should().BeEmpty();
         processor.ParsedTriggers.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task DeleteInAllGroups_SkipsProtectedGroups()
+    {
+        NameValueCollection properties = new()
+        {
+            ["quartz.scheduler.instanceName"] = "JsonDeleteAllGroups_" + Guid.NewGuid().ToString("N"),
+            ["quartz.threadPool.threadCount"] = "1"
+        };
+        IScheduler scheduler = await new StdSchedulerFactory(properties).GetScheduler();
+        try
+        {
+            foreach (string group in new[] { "keep", "drop" })
+            {
+                JobKey jobKey = new("job1", group);
+                await scheduler.ScheduleJob(
+                    JobBuilder.Create<NoOpJob>().WithIdentity(jobKey).StoreDurably().Build(),
+                    TriggerBuilder.Create().WithIdentity("trigger1", group).ForJob(jobKey).WithCronSchedule("0 0 1 * * ?").Build());
+            }
+
+            var processor = CreateProcessor();
+            processor.ProtectJobGroup("keep");
+            processor.ProtectTriggerGroup("keep");
+
+            string fileName = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N") + ".json");
+            await File.WriteAllTextAsync(
+                fileName,
+                """{ "PreProcessingCommands": { "DeleteJobsInGroup": ["*"], "DeleteTriggersInGroup": ["*"] } }""");
+            try
+            {
+                await processor.ProcessJsonFileAndScheduleJobs(fileName, scheduler);
+            }
+            finally
+            {
+                File.Delete(fileName);
+            }
+
+            List<JobKey> jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.AnyGroup());
+            jobKeys.Should().Equal([new JobKey("job1", "keep")], "only the unprotected group is deleted");
+
+            List<TriggerKey> triggerKeys = await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.AnyGroup());
+            triggerKeys.Should().Equal([new TriggerKey("trigger1", "keep")], "the protected trigger group survives too");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    private sealed class NoOpJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            return ValueTask.CompletedTask;
+        }
     }
 }

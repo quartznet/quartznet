@@ -167,6 +167,16 @@ fallback in `SimpleTypeLoadHelper`, with a warning.
 | `IListenerManager.GetSchedulerListeners()` → `IReadOnlyCollection<T>` | `ISchedulerListener[]` |
 | `IJobStore.EstimatedTimeToReleaseAndAcquireTrigger` (`long` ms) | `TimeSpan` |
 | two `IJobStore.AcquireNextTriggers` overloads | one, with optional `executionLimits` |
+| `IScheduler`/`IJobStore` `GetJobKeys` / `GetTriggerKeys` | `QueryJobs` / `QueryTriggers` → `PagedResult<JobHeader\|TriggerHeader>` |
+| `Get{Job,Trigger}GroupNames`, `GetPausedTriggerGroups`, `Is{Job,Trigger}GroupPaused` | `Query{Job,Trigger}Groups` with `JobGroupQuery`/`TriggerGroupQuery.Paused` |
+| `GetCalendarNames` | `QueryCalendarNames(CalendarQuery)` |
+| `IJobStore.GetNumberOf{Jobs,Triggers,Calendars}`, `CalendarExists` | a query with `Take = 0, IncludeTotalCount = true`; `RetrieveCalendar` non-null |
+| the eight removed `IScheduler` listing members | back as extension methods on `SchedulerQueryExtensions` — old call shapes still compile, but a null matcher now throws |
+| (new) | `IScheduler`/`IJobStore.GetJobDetails(keys)` / `GetTriggers(keys)` — bulk fetch by key |
+| `IDriverDelegate.Select{Calendars,JobGroups(conn,ct),PausedTriggerGroups,Num*}` | `Select{CalendarNames,JobHeaders,TriggerHeaders,JobGroups,TriggerGroups}` taking a query record |
+| three `SelectFiredTriggerRecords*` + four `DeleteFiredTriggers` overloads | one of each, taking `FiredTriggerQuery` |
+| two `IDriverDelegate.SelectTriggerToAcquire` overloads | `SelectTriggersToAcquire(conn, TriggerAcquisitionCriteria, ct)` |
+| `GetSelectNextMisfiredTriggersInStateToAcquireSql` + dialect overrides | gone; dialect paging is `ApplyPaging` / `AddPagingParameters` |
 | `JobRunShell`, `IJobRunShellFactory` (public) | `internal` |
 
 ### Configuration

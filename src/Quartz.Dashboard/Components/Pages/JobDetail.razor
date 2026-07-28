@@ -83,13 +83,13 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (object trigger in _triggers)
+                    @foreach (TriggerHeaderDto trigger in _triggers)
                     {
-                        string triggerGroup = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
-                        string triggerName = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
-                        string triggerType = DisplayValueHelper.GetString(trigger, "TriggerType");
-                        string triggerSchedule = DisplayValueHelper.GetString(trigger, "ScheduleSummary");
-                        string triggerState = GetTriggerState(triggerGroup, triggerName);
+                        string triggerGroup = trigger.Group;
+                        string triggerName = trigger.Name;
+                        string triggerType = trigger.TriggerType ?? string.Empty;
+                        string triggerSchedule = trigger.ScheduleSummary ?? string.Empty;
+                        string triggerState = trigger.State ?? "Unknown";
                         <tr>
                             <td>
                                 <a href="@GetTriggerPath(triggerGroup, triggerName)">
@@ -121,8 +121,7 @@
     private bool _isLoading = true;
     private string? _error;
     private object? _job;
-    private readonly List<object> _triggers = [];
-    private readonly Dictionary<string, string> _triggerStates = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<TriggerHeaderDto> _triggers = [];
     private bool _showDeleteConfirm;
     private JobDataMap _triggerDataMap = new();
 
@@ -162,7 +161,6 @@
         {
             _job = null;
             _triggers.Clear();
-            _triggerStates.Clear();
 
             string? schedulerName = Scheduler.ActiveSchedulerName;
             if (string.IsNullOrWhiteSpace(schedulerName))
@@ -172,17 +170,7 @@
 
             _job = await Api.GetJob(schedulerName, Group, Name);
             _triggerDataMap = CloneJobDataMap(JobDataMap);
-            IReadOnlyList<object> triggers = DisplayValueHelper.ToObjectList(await Api.GetJobTriggers(schedulerName, Group, Name));
-            _triggers.AddRange(triggers);
-
-            foreach (object trigger in _triggers)
-            {
-                string triggerGroup = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
-                string triggerName = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
-                string state = await Api.GetTriggerState(schedulerName, triggerGroup, triggerName);
-                string key = DisplayValueHelper.FormatKey(triggerGroup, triggerName);
-                _triggerStates[key] = state;
-            }
+            _triggers.AddRange(await Api.GetJobTriggers(schedulerName, Group, Name));
         }
         catch (Exception ex)
         {
@@ -192,12 +180,6 @@
         {
             _isLoading = false;
         }
-    }
-
-    private string GetTriggerState(string group, string name)
-    {
-        string key = DisplayValueHelper.FormatKey(group, name);
-        return _triggerStates.TryGetValue(key, out string? state) ? state : "Unknown";
     }
 
     private string GetTriggerPath(string group, string name)

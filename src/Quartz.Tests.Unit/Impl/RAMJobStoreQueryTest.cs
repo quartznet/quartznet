@@ -1,0 +1,622 @@
+#region License
+
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ */
+
+#endregion
+
+using Quartz.Extensibility;
+using Quartz.Impl;
+using Quartz.Impl.Calendar;
+using Quartz.Impl.Matchers;
+using Quartz.Impl.Triggers;
+using Quartz.Job;
+using Quartz.Util;
+
+namespace Quartz.Tests.Unit.Impl;
+
+/// <summary>
+/// Covers the listing and bulk-fetch part of the <see cref="IJobStore" /> contract, as implemented
+/// by <see cref="RAMJobStore" />.
+/// </summary>
+public class RAMJobStoreQueryTest
+{
+    private static readonly DateTimeOffset startTime = new DateTimeOffset(2030, 1, 1, 12, 0, 0, TimeSpan.Zero);
+
+    private RAMJobStore store;
+
+    [SetUp]
+    public async Task SetUp()
+    {
+        store = TestJobStores.Ram();
+        await store.Initialize();
+        await store.SchedulerStarted();
+    }
+
+    [Test]
+    public async Task QueryJobs_OrdersByGroupThenNameOrdinally()
+    {
+        await StoreJob("j2", "alpha");
+        await StoreJob("j1", "alpha");
+        await StoreJob("j1", "Beta");
+        await StoreJob("j1", "DEFAULT");
+
+        PagedResult<JobHeader> result = await store.QueryJobs(new JobQuery());
+
+        result.Items.Select(x => x.Key).Should().Equal(
+            [new JobKey("j1", "Beta"), new JobKey("j1", "DEFAULT"), new JobKey("j1", "alpha"), new JobKey("j2", "alpha")],
+            "listings order by group and then name with ordinal comparison, so the default group is not sorted first the way Key.CompareTo would");
+        result.HasMore.Should().BeFalse("the whole match set fit on the page");
+        result.TotalCount.Should().BeNull("the total is only computed when the query asks for it");
+    }
+
+    [Test]
+    public async Task QueryJobs_WithoutGroupMatcherSelectsEveryGroup()
+    {
+        await StoreJob("j1", "g1");
+        await StoreJob("j1", "g2");
+
+        PagedResult<JobHeader> result = await store.QueryJobs(new JobQuery { Group = null });
+
+        result.Items.Should().HaveCount(2, "a null group matcher matches every group");
+    }
+
+    [Test]
+    public async Task QueryJobs_TakesTheRequestedPage()
+    {
+        await StoreJobs("g", "j1", "j2", "j3", "j4", "j5");
+
+        PagedResult<JobHeader> exactlyFull = await store.QueryJobs(new JobQuery { Take = 5 });
+        exactlyFull.Items.Should().HaveCount(5);
+        exactlyFull.HasMore.Should().BeFalse("a page that ends exactly at the last match has nothing beyond it");
+
+        PagedResult<JobHeader> oneShort = await store.QueryJobs(new JobQuery { Take = 4 });
+        oneShort.Items.Should().HaveCount(4);
+        oneShort.HasMore.Should().BeTrue("one more match exists past the page");
+
+        PagedResult<JobHeader> lastPage = await store.QueryJobs(new JobQuery { Skip = 3, Take = 2 });
+        lastPage.Items.Select(x => x.Key.Name).Should().Equal(["j4", "j5"], "Skip is an offset into the ordering");
+        lastPage.HasMore.Should().BeFalse();
+
+        PagedResult<JobHeader> justPastTheEnd = await store.QueryJobs(new JobQuery { Skip = 5, Take = 2 });
+        justPastTheEnd.Items.Should().BeEmpty();
+        justPastTheEnd.HasMore.Should().BeFalse();
+
+        PagedResult<JobHeader> farPastTheEnd = await store.QueryJobs(new JobQuery { Skip = 99, Take = 2 });
+        farPastTheEnd.Items.Should().BeEmpty("skipping beyond the last match returns nothing");
+        farPastTheEnd.HasMore.Should().BeFalse("there is nothing past a page that starts past the end");
+    }
+
+    [Test]
+    public async Task QueryJobs_TakeZeroWithTotalCountIsACount()
+    {
+        await StoreJobs("g", "j1", "j2", "j3", "j4", "j5");
+
+        PagedResult<JobHeader> result = await store.QueryJobs(new JobQuery { Take = 0, IncludeTotalCount = true });
+
+        result.Items.Should().BeEmpty("Take of zero returns no items");
+        result.TotalCount.Should().Be(5, "a count-only query still counts every match");
+        result.HasMore.Should().BeTrue("every match lies beyond a page of zero items");
+    }
+
+    [Test]
+    public async Task QueryJobs_TotalCountIgnoresPaging()
+    {
+        await StoreJobs("g", "j1", "j2", "j3", "j4", "j5");
+
+        PagedResult<JobHeader> result = await store.QueryJobs(new JobQuery { Skip = 1, Take = 2, IncludeTotalCount = true });
+
+        result.Items.Select(x => x.Key.Name).Should().Equal(["j2", "j3"]);
+        result.TotalCount.Should().Be(5, "the total counts every match regardless of Skip and Take");
+        result.HasMore.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task QueryJobs_TotalCountIsCountedWithinTheFilterOnly()
+    {
+        await StoreJobs("g1", "j1", "j2");
+        await StoreJobs("g2", "j1");
+
+        PagedResult<JobHeader> result = await store.QueryJobs(new JobQuery
+        {
+            Group = GroupMatcher<JobKey>.GroupEquals("g1"),
+            IncludeTotalCount = true
+        });
+
+        result.TotalCount.Should().Be(2, "the total counts the matches of the query, not everything in the store");
+    }
+
+    [Test]
+    public async Task QueryJobs_EqualityMatcherSelectsOneGroup()
+    {
+        await StoreJobs("reports", "daily", "weekly");
+        await StoreJobs("reportsArchive", "old");
+
+        PagedResult<JobHeader> result = await store.QueryJobs(new JobQuery { Group = GroupMatcher<JobKey>.GroupEquals("reports") });
+
+        result.Items.Select(x => x.Key.Group).Should().AllBe("reports", "an equality matcher must not spill into groups that merely start with the value");
+        result.Items.Should().HaveCount(2);
+    }
+
+    [Test]
+    public async Task QueryJobs_StartsWithMatcherSelectsSeveralGroups()
+    {
+        await StoreJobs("reports", "daily");
+        await StoreJobs("reportsArchive", "old");
+        await StoreJobs("other", "x");
+
+        PagedResult<JobHeader> result = await store.QueryJobs(new JobQuery { Group = GroupMatcher<JobKey>.GroupStartsWith("reports") });
+
+        result.Items.Select(x => x.Key).Should().Equal(
+            [new JobKey("daily", "reports"), new JobKey("old", "reportsArchive")],
+            "a prefix matcher spans groups and the result stays ordered by group then name");
+    }
+
+    [Test]
+    public async Task QueryJobs_HeaderCarriesTheStoredJobMetadata()
+    {
+        IJobDetail job = JobBuilder.Create()
+            .OfType<StatefulTestJob>()
+            .WithIdentity("fidelity", "g")
+            .WithDescription("the one job")
+            .RequestRecovery()
+            .StoreDurably()
+            .UsingJobData("secret", "value")
+            .Build();
+
+        await store.StoreJob(job, replaceExisting: false);
+
+        PagedResult<JobHeader> result = await store.QueryJobs(new JobQuery());
+        JobHeader header = result.Items.Single();
+
+        header.Key.Should().Be(new JobKey("fidelity", "g"));
+        header.Description.Should().Be("the one job");
+        header.JobTypeName.Should().Be(
+            typeof(StatefulTestJob).AssemblyQualifiedNameWithoutVersion(),
+            "a listing reports the same job type string the ADO store persists");
+        header.JobTypeName.Should().NotContain("Version=", "the persisted type name is version independent");
+        header.Durable.Should().BeTrue();
+        header.RequestsRecovery.Should().BeTrue();
+        header.ConcurrentExecutionDisallowed.Should().BeTrue("the job type carries DisallowConcurrentExecution");
+        header.PersistJobDataAfterExecution.Should().BeTrue("the job type carries PersistJobDataAfterExecution");
+    }
+
+    [Test]
+    public void Headers_DoNotCarryJobData()
+    {
+        typeof(JobHeader).GetProperties().Select(x => x.PropertyType.Name).Should().NotContain(
+            nameof(JobDataMap),
+            "listing jobs must never load or deserialize job data");
+
+        typeof(TriggerHeader).GetProperties().Select(x => x.PropertyType.Name).Should().NotContain(
+            nameof(JobDataMap),
+            "listing triggers must never load or deserialize job data");
+    }
+
+    [Test]
+    public async Task QueryTriggers_OrdersByGroupThenNameOrdinally()
+    {
+        IJobDetail job = await StoreJob("job", "g");
+        await StoreTrigger("t2", "alpha", job.Key);
+        await StoreTrigger("t1", "alpha", job.Key);
+        await StoreTrigger("t1", "Beta", job.Key);
+        await StoreTrigger("t1", "DEFAULT", job.Key);
+
+        PagedResult<TriggerHeader> result = await store.QueryTriggers(new TriggerQuery());
+
+        result.Items.Select(x => x.Key).Should().Equal(
+            [new TriggerKey("t1", "Beta"), new TriggerKey("t1", "DEFAULT"), new TriggerKey("t1", "alpha"), new TriggerKey("t2", "alpha")],
+            "listings order by group and then name with ordinal comparison");
+    }
+
+    [Test]
+    public async Task QueryTriggers_HeaderCarriesTheStoredTriggerMetadata()
+    {
+        IJobDetail job = await StoreJob("job", "g");
+        await store.StoreCalendar("holidays", new HolidayCalendar(), replaceExisting: false, updateTriggers: false);
+
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity("nightly", "reports")
+            .ForJob(job)
+            .WithDescription("the nightly run")
+            .StartAt(startTime)
+            .EndAt(startTime.AddDays(30))
+            .WithPriority(7)
+            .WithExecutionGroup("batch")
+            .ModifiedByCalendar("holidays")
+            .WithCronSchedule("0 0 12 * * ?")
+            .Build();
+
+        trigger.ComputeFirstFireTimeUtc(null);
+        await store.StoreTrigger(trigger, replaceExisting: false);
+
+        PagedResult<TriggerHeader> result = await store.QueryTriggers(new TriggerQuery());
+        TriggerHeader header = result.Items.Single();
+
+        header.Key.Should().Be(new TriggerKey("nightly", "reports"));
+        header.JobKey.Should().Be(job.Key);
+        header.Description.Should().Be("the nightly run");
+        header.TriggerType.Should().Be("CRON", "the header uses the same discriminator the ADO store persists");
+        header.State.Should().Be(TriggerState.Normal);
+        header.StartTimeUtc.Should().Be(trigger.StartTimeUtc);
+        header.EndTimeUtc.Should().Be(trigger.EndTimeUtc);
+        header.NextFireTimeUtc.Should().Be(trigger.NextFireTimeUtc);
+        header.PreviousFireTimeUtc.Should().BeNull("the trigger has not fired");
+        header.CalendarName.Should().Be("holidays");
+        header.Priority.Should().Be(7);
+        header.ExecutionGroup.Should().Be("batch");
+    }
+
+    [Test]
+    public async Task QueryTriggers_MapsTriggerTypesToTheAdoDiscriminators()
+    {
+        IJobDetail job = await StoreJob("job", "g");
+
+        await StoreBuiltTrigger(TriggerBuilder.Create().WithIdentity("a", "g").ForJob(job).StartAt(startTime).WithSimpleSchedule());
+        await StoreBuiltTrigger(TriggerBuilder.Create().WithIdentity("b", "g").ForJob(job).StartAt(startTime).WithCronSchedule("0 0 12 * * ?"));
+        await StoreBuiltTrigger(TriggerBuilder.Create().WithIdentity("c", "g").ForJob(job).StartAt(startTime).WithCalendarIntervalSchedule());
+        await StoreBuiltTrigger(TriggerBuilder.Create().WithIdentity("d", "g").ForJob(job).StartAt(startTime).WithDailyTimeIntervalSchedule());
+
+        TriggerWithAdditionalProperties custom = new TriggerWithAdditionalProperties
+        {
+            Key = new TriggerKey("e", "g"),
+            JobKey = job.Key,
+            StartTimeUtc = startTime
+        };
+
+        custom.ComputeFirstFireTimeUtc(null);
+        await store.StoreTrigger(custom, replaceExisting: false);
+
+        PagedResult<TriggerHeader> result = await store.QueryTriggers(new TriggerQuery());
+
+        result.Items.Select(x => x.TriggerType).Should().Equal(
+            ["SIMPLE", "CRON", "CAL_INT", "DAILY_I", "BLOB"],
+            "the discriminators are the AdoConstants.TriggerType* values, and a trigger no persistence delegate handles is a blob");
+    }
+
+    [Test]
+    public async Task QueryTriggers_FiltersByJob()
+    {
+        IJobDetail first = await StoreJob("j1", "g");
+        IJobDetail second = await StoreJob("j2", "g");
+        await StoreTrigger("t1", "g", first.Key);
+        await StoreTrigger("t2", "g", second.Key);
+
+        PagedResult<TriggerHeader> result = await store.QueryTriggers(new TriggerQuery { Job = second.Key });
+
+        result.Items.Select(x => x.Key.Name).Should().Equal(["t2"], "the job filter selects only the triggers of that job");
+    }
+
+    [Test]
+    public async Task QueryTriggers_FiltersByCalendarName()
+    {
+        IJobDetail job = await StoreJob("job", "g");
+        await store.StoreCalendar("holidays", new HolidayCalendar(), replaceExisting: false, updateTriggers: false);
+        await StoreTrigger("with", "g", job.Key, calendarName: "holidays");
+        await StoreTrigger("without", "g", job.Key);
+
+        PagedResult<TriggerHeader> result = await store.QueryTriggers(new TriggerQuery { CalendarName = "holidays" });
+
+        result.Items.Select(x => x.Key.Name).Should().Equal(["with"], "the calendar filter compares names ordinally");
+
+        PagedResult<TriggerHeader> wrongCase = await store.QueryTriggers(new TriggerQuery { CalendarName = "HOLIDAYS" });
+
+        wrongCase.Items.Should().BeEmpty("the calendar name comparison is ordinal, not case insensitive");
+    }
+
+    [Test]
+    public async Task QueryTriggers_FiltersByState()
+    {
+        IJobDetail job = await StoreJob("job", "g");
+        IOperableTrigger paused = await StoreTrigger("paused", "g", job.Key);
+        await StoreTrigger("running", "g", job.Key);
+
+        await store.PauseTrigger(paused.Key);
+
+        PagedResult<TriggerHeader> pausedOnly = await store.QueryTriggers(new TriggerQuery { State = TriggerState.Paused });
+        pausedOnly.Items.Select(x => x.Key.Name).Should().Equal(["paused"], "the state filter reads the store's own trigger state");
+        pausedOnly.Items.Single().State.Should().Be(TriggerState.Paused, "the reported state is the state that matched");
+
+        PagedResult<TriggerHeader> normalOnly = await store.QueryTriggers(new TriggerQuery { State = TriggerState.Normal });
+        normalOnly.Items.Select(x => x.Key.Name).Should().Equal(["running"]);
+
+        PagedResult<TriggerHeader> errored = await store.QueryTriggers(new TriggerQuery { State = TriggerState.Error, IncludeTotalCount = true });
+        errored.Items.Should().BeEmpty();
+        errored.TotalCount.Should().Be(0, "counting failed triggers is a listing with a state filter");
+    }
+
+    [Test]
+    public async Task QueryTriggers_CombinesFiltersWithAnd()
+    {
+        IJobDetail first = await StoreJob("j1", "g");
+        IJobDetail second = await StoreJob("j2", "g");
+        await store.StoreCalendar("holidays", new HolidayCalendar(), replaceExisting: false, updateTriggers: false);
+
+        await StoreTrigger("t1", "wanted", first.Key, calendarName: "holidays");
+        await StoreTrigger("t2", "wanted", second.Key, calendarName: "holidays");
+        await StoreTrigger("t3", "wanted", first.Key);
+        await StoreTrigger("t4", "other", first.Key, calendarName: "holidays");
+
+        IOperableTrigger pausedOne = await StoreTrigger("t5", "wanted", first.Key, calendarName: "holidays");
+        await store.PauseTrigger(pausedOne.Key);
+
+        PagedResult<TriggerHeader> result = await store.QueryTriggers(new TriggerQuery
+        {
+            Group = GroupMatcher<TriggerKey>.GroupEquals("wanted"),
+            Job = first.Key,
+            CalendarName = "holidays",
+            State = TriggerState.Normal
+        });
+
+        result.Items.Select(x => x.Key.Name).Should().Equal(["t1"], "every filter has to hold at once");
+    }
+
+    [Test]
+    public async Task QueryTriggers_PagesWithinAGroupMatcher()
+    {
+        IJobDetail job = await StoreJob("job", "g");
+        await StoreTrigger("t1", "wanted", job.Key);
+        await StoreTrigger("t2", "wanted", job.Key);
+        await StoreTrigger("t3", "wanted", job.Key);
+        await StoreTrigger("t1", "other", job.Key);
+
+        PagedResult<TriggerHeader> result = await store.QueryTriggers(new TriggerQuery
+        {
+            Group = GroupMatcher<TriggerKey>.GroupEquals("wanted"),
+            Skip = 1,
+            Take = 1,
+            IncludeTotalCount = true
+        });
+
+        result.Items.Select(x => x.Key.Name).Should().Equal(["t2"]);
+        result.HasMore.Should().BeTrue("t3 still matches beyond the page");
+        result.TotalCount.Should().Be(3, "the total counts the matches of the group filter only");
+    }
+
+    [Test]
+    public async Task QueryJobGroups_ListsGroupsThatHaveJobsWithTheirPausedFlag()
+    {
+        await StoreJobs("g1", "j1");
+        await StoreJobs("g2", "j1");
+        await StoreJobs("g3", "j1");
+        await store.PauseJobs(GroupMatcher<JobKey>.GroupEquals("g2"));
+        await store.PauseJobs(GroupMatcher<JobKey>.GroupEquals("ghost"));
+
+        PagedResult<JobGroup> result = await store.QueryJobGroups(new JobGroupQuery());
+
+        result.Items.Should().Equal(
+            [new JobGroup("g1", false), new JobGroup("g2", true), new JobGroup("g3", false)],
+            "an unfiltered listing reports the groups that currently have jobs, ordered by name, with their paused flag");
+    }
+
+    [Test]
+    public async Task QueryJobGroups_PausedTrueIncludesAGroupWithNoJobs()
+    {
+        await StoreJobs("g1", "j1");
+        await StoreJobs("g2", "j1");
+        await store.PauseJobs(GroupMatcher<JobKey>.GroupEquals("g2"));
+        await store.PauseJobs(GroupMatcher<JobKey>.GroupEquals("ghost"));
+
+        PagedResult<JobGroup> result = await store.QueryJobGroups(new JobGroupQuery { Paused = true });
+
+        result.Items.Should().Equal(
+            [new JobGroup("g2", true), new JobGroup("ghost", true)],
+            "a group stays paused while it holds no jobs, and the paused listing has to report it");
+    }
+
+    [Test]
+    public async Task QueryJobGroups_PausedFalseExcludesPausedGroups()
+    {
+        await StoreJobs("g1", "j1");
+        await StoreJobs("g2", "j1");
+        await store.PauseJobs(GroupMatcher<JobKey>.GroupEquals("g2"));
+        await store.PauseJobs(GroupMatcher<JobKey>.GroupEquals("ghost"));
+
+        PagedResult<JobGroup> result = await store.QueryJobGroups(new JobGroupQuery { Paused = false, IncludeTotalCount = true });
+
+        result.Items.Should().Equal([new JobGroup("g1", false)], "only groups that have jobs and are not paused match");
+        result.TotalCount.Should().Be(1);
+    }
+
+    [Test]
+    public async Task QueryTriggerGroups_ListsGroupsThatHaveTriggersWithTheirPausedFlag()
+    {
+        IJobDetail job = await StoreJob("job", "g");
+        await StoreTrigger("t1", "g1", job.Key);
+        await StoreTrigger("t1", "g2", job.Key);
+        await StoreTrigger("t1", "g3", job.Key);
+        await store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("g2"));
+        await store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("ghost"));
+
+        PagedResult<TriggerGroup> result = await store.QueryTriggerGroups(new TriggerGroupQuery());
+
+        result.Items.Should().Equal(
+            [new TriggerGroup("g1", false), new TriggerGroup("g2", true), new TriggerGroup("g3", false)],
+            "an unfiltered listing reports the groups that currently have triggers, ordered by name, with their paused flag");
+
+        PagedResult<TriggerGroup> page = await store.QueryTriggerGroups(new TriggerGroupQuery { Skip = 1, Take = 1, IncludeTotalCount = true });
+
+        page.Items.Select(x => x.Name).Should().Equal(["g2"], "group listings page over the same ordering");
+        page.HasMore.Should().BeTrue();
+        page.TotalCount.Should().Be(3);
+    }
+
+    [Test]
+    public async Task QueryTriggerGroups_PausedTrueIncludesAGroupWithNoTriggers()
+    {
+        IJobDetail job = await StoreJob("job", "g");
+        await StoreTrigger("t1", "g1", job.Key);
+        await StoreTrigger("t1", "g2", job.Key);
+        await store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("g2"));
+        await store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("ghost"));
+
+        PagedResult<TriggerGroup> result = await store.QueryTriggerGroups(new TriggerGroupQuery { Paused = true });
+
+        result.Items.Should().Equal(
+            [new TriggerGroup("g2", true), new TriggerGroup("ghost", true)],
+            "the paused listing reports every paused group, including one that has no triggers");
+    }
+
+    [Test]
+    public async Task QueryTriggerGroups_PausedFalseExcludesPausedGroups()
+    {
+        IJobDetail job = await StoreJob("job", "g");
+        await StoreTrigger("t1", "g1", job.Key);
+        await StoreTrigger("t1", "g2", job.Key);
+        await StoreTrigger("t1", "g3", job.Key);
+        await store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("g2"));
+        await store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("ghost"));
+
+        PagedResult<TriggerGroup> result = await store.QueryTriggerGroups(new TriggerGroupQuery { Paused = false });
+
+        result.Items.Select(x => x.Name).Should().Equal(["g1", "g3"], "only groups that have triggers and are not paused match");
+    }
+
+    [Test]
+    public async Task QueryCalendarNames_OrdersOrdinallyAndPages()
+    {
+        await store.StoreCalendar("b", new HolidayCalendar(), replaceExisting: false, updateTriggers: false);
+        await store.StoreCalendar("a", new HolidayCalendar(), replaceExisting: false, updateTriggers: false);
+        await store.StoreCalendar("C", new HolidayCalendar(), replaceExisting: false, updateTriggers: false);
+
+        PagedResult<string> all = await store.QueryCalendarNames(new CalendarQuery());
+        all.Items.Should().Equal(["C", "a", "b"], "calendar names are ordered ordinally, which puts upper case first");
+
+        PagedResult<string> page = await store.QueryCalendarNames(new CalendarQuery { Skip = 1, Take = 1, IncludeTotalCount = true });
+        page.Items.Should().Equal(["a"]);
+        page.HasMore.Should().BeTrue();
+        page.TotalCount.Should().Be(3);
+    }
+
+    [Test]
+    public async Task GetJobDetails_SkipsMissingKeysAndDeduplicates()
+    {
+        IJobDetail first = await StoreJob("j1", "g");
+        IJobDetail second = await StoreJob("j2", "g");
+
+        List<IJobDetail> jobs = await store.GetJobDetails([second.Key, new JobKey("missing", "g"), second.Key, first.Key]);
+
+        jobs.Select(x => x.Key).Should().Equal(
+            [second.Key, first.Key],
+            "the result follows the order of the keys asked for, keeps the first of a duplicate and simply omits what does not exist");
+    }
+
+    [Test]
+    public async Task GetJobDetails_ReturnsCopiesOfTheStoredJobs()
+    {
+        IJobDetail job = await StoreJob("j1", "g");
+
+        List<IJobDetail> first = await store.GetJobDetails([job.Key]);
+        List<IJobDetail> second = await store.GetJobDetails([job.Key]);
+
+        first.Single().Should().NotBeSameAs(second.Single(), "callers must not get a handle on the store's own job detail");
+        first.Single().Key.Should().Be(job.Key);
+    }
+
+    [Test]
+    public async Task GetTriggers_SkipsMissingKeysAndDeduplicates()
+    {
+        IJobDetail job = await StoreJob("job", "g");
+        IOperableTrigger first = await StoreTrigger("t1", "g", job.Key);
+        IOperableTrigger second = await StoreTrigger("t2", "g", job.Key);
+
+        List<IOperableTrigger> triggers = await store.GetTriggers([second.Key, new TriggerKey("missing", "g"), second.Key, first.Key]);
+
+        triggers.Select(x => x.Key).Should().Equal(
+            [second.Key, first.Key],
+            "the result follows the order of the keys asked for, keeps the first of a duplicate and simply omits what does not exist");
+    }
+
+    [Test]
+    public async Task GetTriggers_ReturnsClonesThatCannotMutateTheStore()
+    {
+        IJobDetail job = await StoreJob("job", "g");
+        IOperableTrigger trigger = await StoreTrigger("t1", "g", job.Key);
+
+        List<IOperableTrigger> fetched = await store.GetTriggers([trigger.Key]);
+        fetched.Single().Description = "mutated";
+
+        List<IOperableTrigger> refetched = await store.GetTriggers([trigger.Key]);
+        refetched.Single().Description.Should().BeNull("a bulk fetch hands out clones, so mutating one must not reach the store");
+
+        PagedResult<TriggerHeader> listed = await store.QueryTriggers(new TriggerQuery());
+        listed.Items.Single().Description.Should().BeNull("the listing reads the store's own trigger, which was never mutated");
+    }
+
+    [Test]
+    public async Task BulkFetches_TolerateAnEmptyRequest()
+    {
+        List<IJobDetail> jobs = await store.GetJobDetails([]);
+        List<IOperableTrigger> triggers = await store.GetTriggers([]);
+
+        jobs.Should().BeEmpty();
+        triggers.Should().BeEmpty();
+    }
+
+    private async ValueTask<IJobDetail> StoreJob(string name, string group)
+    {
+        IJobDetail job = JobBuilder.Create()
+            .OfType<NoOpJob>()
+            .WithIdentity(name, group)
+            .StoreDurably()
+            .Build();
+
+        await store.StoreJob(job, replaceExisting: false);
+        return job;
+    }
+
+    private async ValueTask StoreJobs(string group, params string[] names)
+    {
+        foreach (string name in names)
+        {
+            await StoreJob(name, group);
+        }
+    }
+
+    private async ValueTask<IOperableTrigger> StoreTrigger(string name, string group, JobKey jobKey, string calendarName = null)
+    {
+        return await StoreBuiltTrigger(TriggerBuilder.Create()
+            .WithIdentity(name, group)
+            .ForJob(jobKey)
+            .StartAt(startTime)
+            .ModifiedByCalendar(calendarName)
+            .WithCronSchedule("0 0 12 * * ?"));
+    }
+
+    private async ValueTask<IOperableTrigger> StoreBuiltTrigger(TriggerBuilder builder)
+    {
+        IOperableTrigger trigger = (IOperableTrigger) builder.Build();
+        trigger.ComputeFirstFireTimeUtc(null);
+        await store.StoreTrigger(trigger, replaceExisting: false);
+        return trigger;
+    }
+
+    [DisallowConcurrentExecution]
+    [PersistJobDataAfterExecution]
+    private sealed class StatefulTestJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
+    }
+
+    /// <summary>
+    /// A trigger no persistence delegate can handle, which the ADO store would therefore store as a blob.
+    /// </summary>
+    private sealed class TriggerWithAdditionalProperties : SimpleTriggerImpl
+    {
+        public override bool HasAdditionalProperties => true;
+    }
+}

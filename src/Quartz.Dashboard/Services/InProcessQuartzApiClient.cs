@@ -24,6 +24,7 @@ using Microsoft.Extensions.Options;
 using Quartz.Impl.Matchers;
 using Quartz.Serialization.Json;
 using Quartz.Extensibility;
+using Quartz.Util;
 
 namespace Quartz.Dashboard.Services;
 
@@ -119,16 +120,37 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return scheduler.ResumeAll(cancellationToken);
     }
 
-    public async ValueTask<List<JobKeyDto>> GetJobKeys(string schedulerName, string? groupFilter = null, CancellationToken cancellationToken = default)
+    public async ValueTask<JobPageDto> GetJobs(string schedulerName, string? groupFilter, int page, int pageSize, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        GroupMatcher<JobKey> matcher = groupFilter is null ? GroupMatcher<JobKey>.AnyGroup() : GroupMatcher<JobKey>.GroupContains(groupFilter);
-        List<JobKey> jobKeys = await scheduler.GetJobKeys(matcher, cancellationToken).ConfigureAwait(false);
-
-        List<JobKeyDto> result = [];
-        foreach (JobKey jobKey in jobKeys)
+        JobQuery query = new()
         {
-            result.Add(new JobKeyDto(jobKey.Group, jobKey.Name));
+            Group = BuildGroupMatcher<JobKey>(groupFilter),
+            Skip = GetSkip(page, pageSize),
+            Take = pageSize,
+            IncludeTotalCount = true
+        };
+
+        PagedResult<JobHeader> jobs = await scheduler.QueryJobs(query, cancellationToken).ConfigureAwait(false);
+
+        List<JobKeyDto> items = new(jobs.Items.Count);
+        foreach (JobHeader job in jobs.Items)
+        {
+            items.Add(new JobKeyDto(job.Key.Group, job.Key.Name));
+        }
+
+        return new JobPageDto(page, pageSize, jobs.TotalCount ?? items.Count, jobs.HasMore, items);
+    }
+
+    public async ValueTask<List<JobGroupDto>> GetJobGroups(string schedulerName, CancellationToken cancellationToken = default)
+    {
+        IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
+        PagedResult<JobGroup> groups = await scheduler.QueryJobGroups(new JobGroupQuery(), cancellationToken).ConfigureAwait(false);
+
+        List<JobGroupDto> result = new(groups.Items.Count);
+        foreach (JobGroup group in groups.Items)
+        {
+            result.Add(new JobGroupDto(group.Name, group.Paused));
         }
 
         return result;
@@ -157,19 +179,33 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
             JobDataMap: jobDataMap);
     }
 
+    /// <remarks>
+    /// The triggers themselves are needed for the schedule summary, and their states come from a single
+    /// query rather than one <see cref="IScheduler.GetTriggerState"/> call per trigger.
+    /// </remarks>
     public async ValueTask<List<TriggerHeaderDto>> GetJobTriggers(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         JobKey jobKey = new(name, group);
         List<ITrigger> triggers = await scheduler.GetTriggersOfJob(jobKey, cancellationToken).ConfigureAwait(false);
+        PagedResult<TriggerHeader> headers = await scheduler
+            .QueryTriggers(new TriggerQuery { Job = jobKey }, cancellationToken)
+            .ConfigureAwait(false);
 
-        List<TriggerHeaderDto> result = [];
+        Dictionary<TriggerKey, TriggerState> states = new(headers.Items.Count);
+        foreach (TriggerHeader header in headers.Items)
+        {
+            states[header.Key] = header.State;
+        }
+
+        List<TriggerHeaderDto> result = new(triggers.Count);
         foreach (ITrigger trigger in triggers)
         {
             result.Add(new TriggerHeaderDto(trigger.Key.Group, trigger.Key.Name, trigger.ExecutionGroup)
             {
                 TriggerType = GetTriggerTypeName(trigger),
-                ScheduleSummary = DescribeSchedule(trigger)
+                ScheduleSummary = DescribeSchedule(trigger),
+                State = states.TryGetValue(trigger.Key, out TriggerState state) ? state.ToString() : null
             });
         }
 
@@ -229,12 +265,6 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return scheduler.TriggerJob(jobKey, triggerDataMap, cancellationToken);
     }
 
-    public ValueTask<bool> IsJobGroupPaused(string schedulerName, string group, CancellationToken cancellationToken = default)
-    {
-        IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        return scheduler.IsJobGroupPaused(group, cancellationToken);
-    }
-
     public async ValueTask InterruptJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
@@ -265,20 +295,36 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return scheduler.AddJob(jobDetail, request.Replace, cancellationToken);
     }
 
-    public async ValueTask<List<TriggerHeaderDto>> GetTriggerKeys(string schedulerName, string? groupFilter = null, CancellationToken cancellationToken = default)
+    public async ValueTask<TriggerPageDto> GetTriggers(
+        string schedulerName,
+        string? groupFilter,
+        TriggerState? state,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        GroupMatcher<TriggerKey> matcher = groupFilter is null ? GroupMatcher<TriggerKey>.AnyGroup() : GroupMatcher<TriggerKey>.GroupContains(groupFilter);
-        List<TriggerKey> triggerKeys = await scheduler.GetTriggerKeys(matcher, cancellationToken).ConfigureAwait(false);
-
-        List<TriggerHeaderDto> result = [];
-        foreach (TriggerKey triggerKey in triggerKeys)
+        TriggerQuery query = new()
         {
-            ITrigger? trigger = await scheduler.GetTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
-            result.Add(new TriggerHeaderDto(triggerKey.Group, triggerKey.Name, trigger?.ExecutionGroup));
+            Group = BuildGroupMatcher<TriggerKey>(groupFilter),
+            State = state,
+            Skip = GetSkip(page, pageSize),
+            Take = pageSize,
+            IncludeTotalCount = true
+        };
+
+        PagedResult<TriggerHeader> triggers = await scheduler.QueryTriggers(query, cancellationToken).ConfigureAwait(false);
+
+        List<TriggerHeaderDto> items = new(triggers.Items.Count);
+        foreach (TriggerHeader trigger in triggers.Items)
+        {
+            items.Add(new TriggerHeaderDto(trigger.Key.Group, trigger.Key.Name, trigger.ExecutionGroup)
+            {
+                State = trigger.State.ToString()
+            });
         }
 
-        return result;
+        return new TriggerPageDto(page, pageSize, triggers.TotalCount ?? items.Count, triggers.HasMore, items);
     }
 
     public async ValueTask<TriggerDetailDto> GetTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
@@ -362,8 +408,8 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     public async ValueTask<List<string>> GetCalendarNames(string schedulerName, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        List<string> names = await scheduler.GetCalendarNames(cancellationToken).ConfigureAwait(false);
-        return names;
+        PagedResult<string> names = await scheduler.QueryCalendarNames(new CalendarQuery(), cancellationToken).ConfigureAwait(false);
+        return names.Items;
     }
 
     public async ValueTask<CalendarDetailDto> GetCalendar(string schedulerName, string calendarName, CancellationToken cancellationToken = default)
@@ -439,6 +485,22 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
             // reflection serialization so the detail page still renders.
             return JsonSerializer.SerializeToElement<object>(trigger, serializerOptions);
         }
+    }
+
+    private static GroupMatcher<TKey>? BuildGroupMatcher<TKey>(string? groupFilter) where TKey : Key<TKey>
+    {
+        return string.IsNullOrWhiteSpace(groupFilter) ? null : GroupMatcher<TKey>.GroupContains(groupFilter);
+    }
+
+    private static int GetSkip(int page, int pageSize)
+    {
+        if (page <= 1 || pageSize <= 0)
+        {
+            return 0;
+        }
+
+        long skip = (long) (page - 1) * pageSize;
+        return skip > int.MaxValue ? int.MaxValue : (int) skip;
     }
 
     private static string GetTriggerTypeName(ITrigger trigger)

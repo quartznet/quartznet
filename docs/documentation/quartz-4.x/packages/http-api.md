@@ -48,9 +48,51 @@ By default, API endpoints are exposed under `/quartz-api`.
 ## Endpoint groups
 
 - **Schedulers**: list schedulers, read metadata/context, start, stand-by, shutdown, clear, pause-all, resume-all
-- **Jobs**: list keys/details, check existence, list currently executing, pause/resume, trigger, interrupt, add, delete
-- **Triggers**: list keys/details/state, pause/resume, reset from error state, schedule/unschedule/reschedule
-- **Calendars**: list names, get details, add/replace, delete
+- **Jobs**: query jobs, fetch details by key, check existence, list currently executing, pause/resume, trigger, interrupt, add, delete
+- **Triggers**: query triggers, fetch by key, read state, pause/resume, reset from error state, schedule/unschedule/reschedule
+- **Calendars**: query names, get details, add/replace, delete
+
+## Listing endpoints are paged
+
+Every listing endpoint — jobs, triggers, calendars, and the two group listings — takes `skip`, `take` and
+`includeTotalCount` query parameters and returns a paged envelope:
+
+```json
+{
+  "items": [ /* ... */ ],
+  "hasMore": true,
+  "totalCount": 4213
+}
+```
+
+`take` defaults to no limit, `hasMore` is exact, and `totalCount` is `null` unless `includeTotalCount=true`
+was asked for — computing it costs a second database query. A count with no rows is
+`?take=0&includeTotalCount=true`.
+
+| Endpoint | Returns | Filters (besides paging) |
+|---|---|---|
+| `GET {ApiPath}/schedulers/{name}/jobs` | Job headers: key, description, job type name, durable, concurrent-execution-disallowed, persist-job-data, requests-recovery | `groupEquals`, `groupContains`, `groupStartsWith`, `groupEndsWith` |
+| `GET {ApiPath}/schedulers/{name}/jobs/groups` | Job groups: `name`, `paused` | `paused` |
+| `GET {ApiPath}/schedulers/{name}/triggers` | Trigger headers: key, job key, description, trigger type, state, start/end/next/previous fire times, calendar name, priority, execution group | the four `group*` filters, plus `jobName` + `jobGroup` (give both or neither), `calendarName`, `state` |
+| `GET {ApiPath}/schedulers/{name}/triggers/groups` | Trigger groups: `name`, `paused` | `paused` |
+| `GET {ApiPath}/schedulers/{name}/calendars` | Calendar names | — |
+
+Results are ordered by group and then name, and every page uses the same ordering, so paging through a
+result is consistent.
+
+A listing gives you headers, not whole objects. To get the full detail for a page, post the keys back:
+
+- `POST {ApiPath}/schedulers/{name}/jobs/fetch` — body is an array of `{ "name": …, "group": … }`, response is the job details
+- `POST {ApiPath}/schedulers/{name}/triggers/fetch` — the same, returning triggers
+
+Keys that do not exist are simply absent from the response, and at most 1000 keys can be fetched per call.
+
+::: warning Changed in 4.x
+These endpoints previously returned bare arrays of keys, or a `{ "names": [ … ] }` object for the group and
+calendar listings. Both shapes are gone; every listing returns the paged envelope above.
+`GET {ApiPath}/schedulers/{name}/triggers/groups/paused` was removed — use
+`GET {ApiPath}/schedulers/{name}/triggers/groups?paused=true`.
+:::
 
 ## Configuration options
 

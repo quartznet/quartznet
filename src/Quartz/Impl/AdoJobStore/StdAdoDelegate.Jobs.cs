@@ -128,70 +128,98 @@ public partial class StdAdoDelegate
 
         if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            // Due to CommandBehavior.SequentialAccess, columns must be read in order.
-
-            var jobBuilder = JobBuilder.Create()
-                .WithIdentity(new JobKey(rs.GetString(ColumnJobName)!, rs.GetString(ColumnJobGroup)!))
-                .WithDescription(rs.GetString(ColumnDescription))
-                .OfType(rs.GetString(ColumnJobClass)!)
-                .StoreDurably(GetBooleanFromDbValue(rs[ColumnIsDurable]))
-                .RequestRecovery(GetBooleanFromDbValue(rs[ColumnRequestsRecovery]));
-
-            var map = await ReadMapFromReader(rs, 6).ConfigureAwait(false);
-
-            if (map is not null)
-            {
-                jobBuilder.SetJobData(new(map));
-            }
-
-            jobBuilder.DisallowConcurrentExecution(GetBooleanFromDbValue(rs[ColumnIsNonConcurrent]))
-                .PersistJobDataAfterExecution(GetBooleanFromDbValue(rs[ColumnIsUpdateData]));
-
-            job = jobBuilder.Build();
+            job = await ReadJobDetail(rs).ConfigureAwait(false);
         }
 
         return job;
     }
 
     /// <inheritdoc />
-    public virtual async ValueTask<int> SelectNumJobs(
+    public virtual async ValueTask<List<IJobDetail>> SelectJobDetails(
         ConnectionAndTransactionHolder conn,
-        CancellationToken cancellationToken = default)
-    {
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectNumJobs));
-        AddCommandParameter(cmd, "schedulerName", schedulerName);
-        var o = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-        if (o is not null)
-        {
-            return (int) o;
-        }
-
-        return 0;
-    }
-
-    /// <inheritdoc />
-    public virtual async ValueTask<List<string>> SelectJobGroups(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default)
-    {
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobGroups));
-        AddCommandParameter(cmd, "schedulerName", schedulerName);
-        using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        List<string> list = [];
-        while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
-        {
-            list.Add(rs.GetString(0));
-        }
-
-        return list;
-    }
-
-    /// <inheritdoc />
-    public virtual ValueTask<IJobDetail?> SelectJobForTrigger(
-        ConnectionAndTransactionHolder conn,
-        TriggerKey triggerKey,
+        IReadOnlyCollection<JobKey> jobKeys,
         ITypeLoadHelper loadHelper,
         CancellationToken cancellationToken = default)
     {
-        return SelectJobForTrigger(conn, triggerKey, loadHelper, true, cancellationToken);
+        List<IJobDetail> jobs = new(jobKeys.Count);
+        if (jobKeys.Count == 0)
+        {
+            return jobs;
+        }
+
+        // A repeated key would come back as a repeated row, and the predicate is a disjunction that
+        // cannot tell the difference, so fold duplicates away before building it.
+        List<JobKey> keys = Deduplicate(jobKeys);
+
+        for (int offset = 0; offset < keys.Count; offset += AdoUtil.MaxJobKeysPerPredicate)
+        {
+            int length = Math.Min(AdoUtil.MaxJobKeysPerPredicate, keys.Count - offset);
+
+            using DbCommand cmd = PrepareJobKeySetCommand(conn, SqlSelectJobDetailsByKeysPrefix, keys, offset, length);
+            using DbDataReader rs = await cmd.ExecuteReaderAsync(System.Data.CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
+            while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                jobs.Add(await ReadJobDetail(rs).ConfigureAwait(false));
+            }
+        }
+
+        SortByRequestedOrder(jobs, keys, static job => job.Key);
+        return jobs;
+    }
+
+    /// <summary>
+    /// Prepares a statement matching a chunk of job keys, by appending the parameterized key-set
+    /// predicate to <paramref name="sqlPrefix" />.
+    /// </summary>
+    private DbCommand PrepareJobKeySetCommand(
+        ConnectionAndTransactionHolder conn,
+        string sqlPrefix,
+        List<JobKey> keys,
+        int offset,
+        int length)
+    {
+        int paddedCount = AdoUtil.RoundUpJobKeyCount(length);
+        DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(sqlPrefix + AdoUtil.BuildJobKeyPredicate(paddedCount)));
+        AddCommandParameter(cmd, "schedulerName", schedulerName);
+
+        for (int i = 0; i < paddedCount; i++)
+        {
+            // Pad up to the bucket size by repeating the chunk's last key. The predicate is a
+            // disjunction, so a repeated term cannot change which rows match.
+            JobKey key = keys[offset + Math.Min(i, length - 1)];
+            AddCommandParameter(cmd, AdoUtil.JobKeyNameParameter(i), key.Name);
+            AddCommandParameter(cmd, AdoUtil.JobKeyGroupParameter(i), key.Group);
+        }
+
+        return cmd;
+    }
+
+    /// <summary>
+    /// Reads the current row of a job detail select. Shared by the single-job and batch read paths so
+    /// the two cannot drift apart.
+    /// </summary>
+    private async ValueTask<IJobDetail> ReadJobDetail(DbDataReader rs)
+    {
+        // Due to CommandBehavior.SequentialAccess, columns must be read in order.
+
+        var jobBuilder = JobBuilder.Create()
+            .WithIdentity(new JobKey(rs.GetString(ColumnJobName)!, rs.GetString(ColumnJobGroup)!))
+            .WithDescription(rs.GetString(ColumnDescription))
+            .OfType(rs.GetString(ColumnJobClass)!)
+            .StoreDurably(GetBooleanFromDbValue(rs[ColumnIsDurable]))
+            .RequestRecovery(GetBooleanFromDbValue(rs[ColumnRequestsRecovery]));
+
+        var map = await ReadMapFromReader(rs, 6).ConfigureAwait(false);
+
+        if (map is not null)
+        {
+            jobBuilder.SetJobData(new(map));
+        }
+
+        jobBuilder.DisallowConcurrentExecution(GetBooleanFromDbValue(rs[ColumnIsNonConcurrent]))
+            .PersistJobDataAfterExecution(GetBooleanFromDbValue(rs[ColumnIsUpdateData]));
+
+        return jobBuilder.Build();
     }
 
     /// <inheritdoc />
@@ -199,7 +227,7 @@ public partial class StdAdoDelegate
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         ITypeLoadHelper loadHelper,
-        bool loadJobType,
+        bool loadJobType = true,
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobForTrigger));
@@ -229,20 +257,6 @@ public partial class StdAdoDelegate
         }
 
         return null;
-    }
-
-    /// <inheritdoc />
-    public virtual async ValueTask<int> SelectJobExecutionCount(
-        ConnectionAndTransactionHolder conn,
-        JobKey jobKey,
-        CancellationToken cancellationToken = default)
-    {
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobExecutionCount));
-        AddCommandParameter(cmd, "schedulerName", schedulerName);
-        AddCommandParameter(cmd, "jobName", jobKey.Name);
-        AddCommandParameter(cmd, "jobGroup", jobKey.Group);
-
-        return Convert.ToInt32(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
     }
 
     /// <summary>

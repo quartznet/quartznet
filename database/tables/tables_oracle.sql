@@ -175,11 +175,13 @@ CREATE TABLE qrtz_locks
 
 create index idx_qrtz_j_req_recovery on qrtz_job_details(SCHED_NAME,REQUESTS_RECOVERY);
 create index idx_qrtz_j_grp on qrtz_job_details(SCHED_NAME,JOB_GROUP);
+create index idx_qrtz_j_g_n on qrtz_job_details(SCHED_NAME,JOB_GROUP,JOB_NAME);
 
 create index idx_qrtz_t_j on qrtz_triggers(SCHED_NAME,JOB_NAME,JOB_GROUP);
 create index idx_qrtz_t_jg on qrtz_triggers(SCHED_NAME,JOB_GROUP);
 create index idx_qrtz_t_c on qrtz_triggers(SCHED_NAME,CALENDAR_NAME);
 create index idx_qrtz_t_g on qrtz_triggers(SCHED_NAME,TRIGGER_GROUP);
+create index idx_qrtz_t_g_n on qrtz_triggers(SCHED_NAME,TRIGGER_GROUP,TRIGGER_NAME);
 create index idx_qrtz_t_state on qrtz_triggers(SCHED_NAME,TRIGGER_STATE);
 create index idx_qrtz_t_n_state on qrtz_triggers(SCHED_NAME,TRIGGER_NAME,TRIGGER_GROUP,TRIGGER_STATE);
 create index idx_qrtz_t_n_g_state on qrtz_triggers(SCHED_NAME,TRIGGER_GROUP,TRIGGER_STATE);

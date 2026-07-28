@@ -24,6 +24,7 @@ using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
+using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Extensibility;
@@ -225,42 +226,6 @@ public class RAMJobStore : IJobStore
     {
         await StoreJob(job, replaceExisting: false, cancellationToken).ConfigureAwait(false);
         await StoreTrigger(trigger, replaceExisting: false, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Returns true if the given job group is paused.
-    /// </summary>
-    /// <param name="group">Job group name</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns></returns>
-    public virtual async ValueTask<bool> IsJobGroupPaused(string group, CancellationToken cancellationToken = default)
-    {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            return pausedJobGroups.Contains(group);
-        }
-        finally
-        {
-            lockObject.Release();
-        }
-    }
-
-    /// <summary>
-    /// Returns true if the given TriggerGroup is paused.
-    /// </summary>
-    /// <returns></returns>
-    public virtual async ValueTask<bool> IsTriggerGroupPaused(string group, CancellationToken cancellationToken = default)
-    {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            return pausedTriggerGroups.Contains(group);
-        }
-        finally
-        {
-            lockObject.Release();
-        }
     }
 
     /// <summary>
@@ -778,28 +743,6 @@ public class RAMJobStore : IJobStore
     }
 
     /// <summary>
-    /// Determine whether a <see cref="ICalendar" /> with the given identifier already
-    /// exists within the scheduler.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <param name="calendarName">the identifier to check for</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>true if a calendar exists with the given identifier</returns>
-    public async ValueTask<bool> CalendarExists(string calendarName, CancellationToken cancellationToken = default)
-    {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            return calendarsByName.ContainsKey(calendarName);
-        }
-        finally
-        {
-            lockObject.Release();
-        }
-    }
-
-    /// <summary>
     /// Determine whether a <see cref="IJob"/> with the given identifier already
     /// exists within the scheduler.
     /// </summary>
@@ -866,7 +809,12 @@ public class RAMJobStore : IJobStore
             return TriggerState.None;
         }
 
-        return tw.state switch
+        return ToTriggerState(tw.state);
+    }
+
+    private static TriggerState ToTriggerState(InternalTriggerState state)
+    {
+        return state switch
         {
             InternalTriggerState.Complete => TriggerState.Complete,
             InternalTriggerState.Paused => TriggerState.Paused,
@@ -1039,74 +987,6 @@ public class RAMJobStore : IJobStore
         }
     }
 
-    /// <summary>
-    /// Get the number of <see cref="IJobDetail" /> s that are
-    /// stored in the <see cref="IJobStore" />.
-    /// </summary>
-    public virtual async ValueTask<int> GetNumberOfJobs(CancellationToken cancellationToken = default)
-    {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            return jobsByKey.Count;
-        }
-        finally
-        {
-            lockObject.Release();
-        }
-    }
-
-    /// <summary>
-    /// Get the number of <see cref="ITrigger" /> s that are
-    /// stored in the <see cref="IJobStore" />.
-    /// </summary>
-    public virtual async ValueTask<int> GetNumberOfTriggers(CancellationToken cancellationToken = default)
-    {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            return triggersByKey.Count;
-        }
-        finally
-        {
-            lockObject.Release();
-        }
-    }
-
-    /// <summary>
-    /// Get the number of <see cref="ICalendar" /> s that are
-    /// stored in the <see cref="IJobStore" />.
-    /// </summary>
-    public virtual async ValueTask<int> GetNumberOfCalendars(CancellationToken cancellationToken = default)
-    {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            return calendarsByName.Count;
-        }
-        finally
-        {
-            lockObject.Release();
-        }
-    }
-
-    /// <summary>
-    /// Get the names of all of the <see cref="IJob" /> s that
-    /// match the given group matcher.
-    /// </summary>
-    public virtual async ValueTask<List<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
-    {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            return GetJobKeysNoLock(matcher);
-        }
-        finally
-        {
-            lockObject.Release();
-        }
-    }
-
     private List<JobKey> GetJobKeysNoLock(GroupMatcher<JobKey> matcher)
     {
         HashSet<JobKey> outList = [];
@@ -1138,44 +1018,6 @@ public class RAMJobStore : IJobStore
         }
 
         return [.. outList];
-    }
-
-    /// <summary>
-    /// Get the names of all of the <see cref="ICalendar" /> s
-    /// in the <see cref="IJobStore" />.
-    /// <para>
-    /// If there are no ICalendars in the given group name, the result should be
-    /// a zero-length array (not <see langword="null" />).
-    /// </para>
-    /// </summary>
-    public virtual async ValueTask<List<string>> GetCalendarNames(CancellationToken cancellationToken = default)
-    {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            return [..calendarsByName.Keys];
-        }
-        finally
-        {
-            lockObject.Release();
-        }
-    }
-
-    /// <summary>
-    /// Get the names of all of the <see cref="ITrigger" /> s
-    /// that have the given group name.
-    /// </summary>
-    public virtual async ValueTask<List<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
-    {
-        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        try
-        {
-            return GetTriggerKeysNoLock(matcher);
-        }
-        finally
-        {
-            lockObject.Release();
-        }
     }
 
     private List<TriggerKey> GetTriggerKeysNoLock(GroupMatcher<TriggerKey> matcher)
@@ -1217,38 +1059,359 @@ public class RAMJobStore : IJobStore
         return outList;
     }
 
-    /// <summary>
-    /// Get the names of all of the <see cref="IJob" />
-    /// groups.
-    /// </summary>
-    public virtual async ValueTask<List<string>> GetJobGroupNames(CancellationToken cancellationToken = default)
+    /// <inheritdoc />
+    public virtual async ValueTask<PagedResult<JobHeader>> QueryJobs(JobQuery query, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(query);
+
+        List<IJobDetail> matches = [];
+
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return [..jobsByGroup.Keys];
+            GroupMatcher<JobKey>? matcher = query.Group;
+            if (matcher is not null && StringOperator.Equality.Equals(matcher.CompareWithOperator))
+            {
+                if (jobsByGroup.TryGetValue(matcher.CompareToValue, out Dictionary<JobKey, JobWrapper>? groupMap))
+                {
+                    foreach (JobWrapper jobWrapper in groupMap.Values)
+                    {
+                        matches.Add(jobWrapper.JobDetail);
+                    }
+                }
+            }
+            else
+            {
+                foreach (KeyValuePair<string, Dictionary<JobKey, JobWrapper>> entry in jobsByGroup)
+                {
+                    if (matcher is not null && !matcher.CompareWithOperator.Evaluate(entry.Key, matcher.CompareToValue))
+                    {
+                        continue;
+                    }
+
+                    foreach (JobWrapper jobWrapper in entry.Value.Values)
+                    {
+                        matches.Add(jobWrapper.JobDetail);
+                    }
+                }
+            }
         }
         finally
         {
             lockObject.Release();
+        }
+
+        matches.Sort(static (left, right) => CompareByGroupThenName(left.Key.Group, left.Key.Name, right.Key.Group, right.Key.Name));
+
+        return Page(matches, query, static job => new JobHeader(
+            job.Key,
+            job.Description,
+            // the ADO store persists JobType.FullName, so a listing has to report the same string
+            job.JobType.FullName,
+            job.Durable,
+            job.ConcurrentExecutionDisallowed,
+            job.PersistJobDataAfterExecution,
+            job.RequestsRecovery));
+    }
+
+    /// <inheritdoc />
+    public virtual async ValueTask<PagedResult<TriggerHeader>> QueryTriggers(TriggerQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        List<TriggerMatch> matches = [];
+
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            GroupMatcher<TriggerKey>? matcher = query.Group;
+            if (matcher is not null && StringOperator.Equality.Equals(matcher.CompareWithOperator))
+            {
+                if (triggersByGroup.TryGetValue(matcher.CompareToValue, out Dictionary<TriggerKey, TriggerWrapper>? groupMap))
+                {
+                    CollectMatchingTriggersNoLock(groupMap, query, matches);
+                }
+            }
+            else
+            {
+                foreach (KeyValuePair<string, Dictionary<TriggerKey, TriggerWrapper>> entry in triggersByGroup)
+                {
+                    if (matcher is not null && !matcher.CompareWithOperator.Evaluate(entry.Key, matcher.CompareToValue))
+                    {
+                        continue;
+                    }
+
+                    CollectMatchingTriggersNoLock(entry.Value, query, matches);
+                }
+            }
+        }
+        finally
+        {
+            lockObject.Release();
+        }
+
+        matches.Sort(static (left, right) => CompareByGroupThenName(
+            left.Trigger.Key.Group,
+            left.Trigger.Key.Name,
+            right.Trigger.Key.Group,
+            right.Trigger.Key.Name));
+
+        return Page(matches, query, static match => new TriggerHeader(
+            match.Trigger.Key,
+            match.Trigger.JobKey,
+            match.Trigger.Description,
+            GetTriggerTypeDiscriminator(match.Trigger),
+            match.State,
+            match.Trigger.StartTimeUtc,
+            match.Trigger.EndTimeUtc,
+            match.Trigger.NextFireTimeUtc,
+            match.Trigger.PreviousFireTimeUtc,
+            match.Trigger.CalendarName,
+            match.Trigger.Priority,
+            match.Trigger.ExecutionGroup));
+    }
+
+    private static void CollectMatchingTriggersNoLock(
+        Dictionary<TriggerKey, TriggerWrapper> groupMap,
+        TriggerQuery query,
+        List<TriggerMatch> matches)
+    {
+        foreach (TriggerWrapper triggerWrapper in groupMap.Values)
+        {
+            if (query.Job is not null && !query.Job.Equals(triggerWrapper.JobKey))
+            {
+                continue;
+            }
+
+            if (query.CalendarName is not null
+                && !string.Equals(triggerWrapper.Trigger.CalendarName, query.CalendarName, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            TriggerState state = ToTriggerState(triggerWrapper.state);
+            if (query.State is not null && state != query.State.Value)
+            {
+                continue;
+            }
+
+            matches.Add(new TriggerMatch(triggerWrapper.Trigger, state));
         }
     }
 
-    /// <summary>
-    /// Get the names of all of the <see cref="ITrigger" /> groups.
-    /// </summary>
-    public virtual async ValueTask<List<string>> GetTriggerGroupNames(CancellationToken cancellationToken = default)
+    /// <inheritdoc />
+    public virtual async ValueTask<PagedResult<JobGroup>> QueryJobGroups(JobGroupQuery query, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(query);
+
+        List<JobGroup> groups = [];
+
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return [..triggersByGroup.Keys];
+            if (query.Paused == true)
+            {
+                // a group can be paused while holding no jobs, and a listing of paused groups has to report it
+                foreach (string group in pausedJobGroups)
+                {
+                    groups.Add(new JobGroup(group, Paused: true));
+                }
+            }
+            else
+            {
+                foreach (string group in jobsByGroup.Keys)
+                {
+                    bool paused = pausedJobGroups.Contains(group);
+                    if (query.Paused is null || !paused)
+                    {
+                        groups.Add(new JobGroup(group, paused));
+                    }
+                }
+            }
         }
         finally
         {
             lockObject.Release();
         }
+
+        groups.Sort(static (left, right) => StringComparer.Ordinal.Compare(left.Name, right.Name));
+
+        return Page(groups, query, static group => group);
     }
+
+    /// <inheritdoc />
+    public virtual async ValueTask<PagedResult<TriggerGroup>> QueryTriggerGroups(TriggerGroupQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        List<TriggerGroup> groups = [];
+
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (query.Paused == true)
+            {
+                // a group can be paused while holding no triggers, and a listing of paused groups has to report it
+                foreach (string group in pausedTriggerGroups)
+                {
+                    groups.Add(new TriggerGroup(group, Paused: true));
+                }
+            }
+            else
+            {
+                foreach (string group in triggersByGroup.Keys)
+                {
+                    bool paused = pausedTriggerGroups.Contains(group);
+                    if (query.Paused is null || !paused)
+                    {
+                        groups.Add(new TriggerGroup(group, paused));
+                    }
+                }
+            }
+        }
+        finally
+        {
+            lockObject.Release();
+        }
+
+        groups.Sort(static (left, right) => StringComparer.Ordinal.Compare(left.Name, right.Name));
+
+        return Page(groups, query, static group => group);
+    }
+
+    /// <inheritdoc />
+    public virtual async ValueTask<PagedResult<string>> QueryCalendarNames(CalendarQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        List<string> names;
+
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            names = [..calendarsByName.Keys];
+        }
+        finally
+        {
+            lockObject.Release();
+        }
+
+        names.Sort(StringComparer.Ordinal);
+
+        return Page(names, query, static name => name);
+    }
+
+    /// <inheritdoc />
+    public virtual async ValueTask<List<IJobDetail>> GetJobDetails(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(jobKeys);
+
+        List<IJobDetail> jobs = new(jobKeys.Count);
+        HashSet<JobKey> seen = new(jobKeys.Count);
+
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            foreach (JobKey jobKey in jobKeys)
+            {
+                if (seen.Add(jobKey) && jobsByKey.TryGetValue(jobKey, out JobWrapper? jobWrapper))
+                {
+                    jobs.Add(jobWrapper.JobDetail.Clone());
+                }
+            }
+        }
+        finally
+        {
+            lockObject.Release();
+        }
+
+        return jobs;
+    }
+
+    /// <inheritdoc />
+    public virtual async ValueTask<List<IOperableTrigger>> GetTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(triggerKeys);
+
+        List<IOperableTrigger> triggers = new(triggerKeys.Count);
+        HashSet<TriggerKey> seen = new(triggerKeys.Count);
+
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            foreach (TriggerKey triggerKey in triggerKeys)
+            {
+                if (seen.Add(triggerKey) && triggersByKey.TryGetValue(triggerKey, out TriggerWrapper? triggerWrapper))
+                {
+                    triggers.Add((IOperableTrigger) triggerWrapper.Trigger.Clone());
+                }
+            }
+        }
+        finally
+        {
+            lockObject.Release();
+        }
+
+        return triggers;
+    }
+
+    /// <summary>
+    /// Maps a trigger to the type discriminator the ADO job store would persist for it.
+    /// </summary>
+    /// <remarks>
+    /// This has to agree with the persistence delegate <c>StdAdoDelegate.FindTriggerPersistenceDelegate</c>
+    /// would pick, in the order the delegates are registered; a trigger no delegate handles is stored
+    /// as a blob there.
+    /// </remarks>
+    private static string GetTriggerTypeDiscriminator(IOperableTrigger trigger)
+    {
+        return trigger switch
+        {
+            SimpleTriggerImpl { HasAdditionalProperties: false } => AdoConstants.TriggerTypeSimple,
+            CronTriggerImpl { HasAdditionalProperties: false } => AdoConstants.TriggerTypeCron,
+            CalendarIntervalTriggerImpl { HasAdditionalProperties: false } => AdoConstants.TriggerTypeCalendarInterval,
+            DailyTimeIntervalTriggerImpl { HasAdditionalProperties: false } => AdoConstants.TriggerTypeDailyTimeInterval,
+            RecurrenceTriggerImpl => AdoConstants.TriggerTypeRecurrence,
+            _ => AdoConstants.TriggerTypeBlob
+        };
+    }
+
+    private static int CompareByGroupThenName(string leftGroup, string leftName, string rightGroup, string rightName)
+    {
+        int byGroup = StringComparer.Ordinal.Compare(leftGroup, rightGroup);
+        return byGroup != 0 ? byGroup : StringComparer.Ordinal.Compare(leftName, rightName);
+    }
+
+    /// <summary>
+    /// Returns the requested page of an already ordered set of matches.
+    /// </summary>
+    /// <remarks>
+    /// The whole match set is known here, so <see cref="PagedResult{T}.HasMore" /> is computed exactly
+    /// rather than by reading one item past the page.
+    /// </remarks>
+    private static PagedResult<TResult> Page<TSource, TResult>(List<TSource> ordered, PagedQuery query, Func<TSource, TResult> selector)
+    {
+        int total = ordered.Count;
+        List<TResult> items = [];
+
+        if (query.Take > 0 && query.Skip < total)
+        {
+            int end = (int) Math.Min((long) query.Skip + query.Take, total);
+            items.Capacity = end - query.Skip;
+            for (int i = query.Skip; i < end; i++)
+            {
+                items.Add(selector(ordered[i]));
+            }
+        }
+
+        bool hasMore = query.Skip + (long) items.Count < total;
+        return new PagedResult<TResult>(items, hasMore, query.IncludeTotalCount ? total : null);
+    }
+
+    /// <summary>
+    /// A trigger that matched a query, with the state it had when it matched.
+    /// </summary>
+    private readonly record struct TriggerMatch(IOperableTrigger Trigger, TriggerState State);
 
     /// <summary>
     /// Get all the Triggers that are associated to the given Job.
@@ -2293,11 +2456,5 @@ public class RAMJobStore : IJobStore
         }
 
         return str.ToString();
-    }
-
-    /// <seealso cref="IJobStore.GetPausedTriggerGroups" />
-    public virtual ValueTask<List<string>> GetPausedTriggerGroups(CancellationToken cancellationToken = default)
-    {
-        return new ValueTask<List<string>>([..pausedTriggerGroups]);
     }
 }

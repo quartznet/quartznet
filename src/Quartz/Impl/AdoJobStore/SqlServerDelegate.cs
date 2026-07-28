@@ -44,20 +44,6 @@ public class SqlServerDelegate : StdAdoDelegate
         return sqlSelectNextTriggerToAcquire;
     }
 
-    protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
-    {
-        if (count != -1)
-        {
-            var sqlSelectHasMisfiredTriggersInState = SqlSelectHasMisfiredTriggersInState;
-
-            // add limit clause to correct place
-            sqlSelectHasMisfiredTriggersInState = "SELECT TOP " + count + " " + sqlSelectHasMisfiredTriggersInState.Substring(6);
-
-            return sqlSelectHasMisfiredTriggersInState;
-        }
-        return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
-    }
-
     protected override string GetSelectMisfiredTriggersToRecoverSql(int count)
     {
         if (count != -1)

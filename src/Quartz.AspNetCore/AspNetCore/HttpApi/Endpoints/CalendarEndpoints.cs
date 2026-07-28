@@ -15,8 +15,8 @@ internal static class CalendarEndpoints
     {
         var patternPrefix = $"{options.TrimmedApiPath}/schedulers/{{schedulerName}}/calendars";
 
-        yield return builder.MapGet(patternPrefix, GetCalendarNames)
-            .WithQuartzDefaults(nameof(GetCalendarNames), "Get calendar names");
+        yield return builder.MapGet(patternPrefix, QueryCalendarNames)
+            .WithQuartzDefaults(nameof(QueryCalendarNames), "Query calendar names");
 
         yield return builder.MapGet(patternPrefix + "/{calendarName}", GetCalendar)
             .WithQuartzDefaults(nameof(GetCalendar), "Get calendar details");
@@ -28,17 +28,28 @@ internal static class CalendarEndpoints
             .WithQuartzDefaults(nameof(DeleteCalendar), "Delete calendar");
     }
 
-    [ProducesResponseType(typeof(NamesDto), StatusCodes.Status200OK)]
-    private static Task<IResult> GetCalendarNames(
+    [ProducesResponseType(typeof(PagedResultDto<string>), StatusCodes.Status200OK)]
+    private static Task<IResult> QueryCalendarNames(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        int skip = 0,
+        int take = int.MaxValue,
+        bool includeTotalCount = false,
         CancellationToken cancellationToken = default)
     {
+        EndpointHelper.AssertPaging(skip, take);
         return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
-            var calendarNames = await scheduler.GetCalendarNames(cancellationToken).ConfigureAwait(false);
-            return new NamesDto(calendarNames);
+            CalendarQuery query = new()
+            {
+                Skip = skip,
+                Take = take,
+                IncludeTotalCount = includeTotalCount
+            };
+
+            PagedResult<string> page = await scheduler.QueryCalendarNames(query, cancellationToken).ConfigureAwait(false);
+            return new PagedResultDto<string>(page.Items.ToArray(), page.HasMore, page.TotalCount);
         });
     }
 

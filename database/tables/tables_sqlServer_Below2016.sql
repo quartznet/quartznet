@@ -14,6 +14,11 @@ BEGIN
 
   -- drop indexes if they exist and rebuild if current ones
 
+  IF EXISTS (SELECT 1 from sys.indexes WHERE name ='IDX_QRTZ_J_G_N' AND object_id = OBJECT_ID('dbo.QRTZ_JOB_DETAILS'))
+  BEGIN
+      DROP INDEX [IDX_QRTZ_J_G_N] on [dbo].[QRTZ_JOB_DETAILS]
+  END
+    
   IF EXISTS (SELECT 1 from sys.indexes WHERE name ='IDX_QRTZ_T_J' AND object_id = OBJECT_ID('dbo.QRTZ_TRIGGERS')) 
   BEGIN
       DROP INDEX [IDX_QRTZ_T_J] on [dbo].[QRTZ_TRIGGERS]
@@ -37,6 +42,11 @@ BEGIN
   IF EXISTS (SELECT 1 from sys.indexes WHERE name ='IDX_QRTZ_T_G_J' AND object_id = OBJECT_ID('dbo.QRTZ_TRIGGERS'))
   BEGIN
       DROP INDEX [IDX_QRTZ_T_G_J] on [dbo].[QRTZ_TRIGGERS]
+  END
+    
+  IF EXISTS (SELECT 1 from sys.indexes WHERE name ='IDX_QRTZ_T_G_N' AND object_id = OBJECT_ID('dbo.QRTZ_TRIGGERS'))
+  BEGIN
+      DROP INDEX [IDX_QRTZ_T_G_N] on [dbo].[QRTZ_TRIGGERS]
   END
     
   IF EXISTS (SELECT 1 from sys.indexes WHERE name ='IDX_QRTZ_T_STATE' AND object_id = OBJECT_ID('dbo.QRTZ_TRIGGERS'))
@@ -443,7 +453,10 @@ ALTER TABLE [dbo].[QRTZ_TRIGGERS] ADD
   );
 GO
 
+CREATE INDEX [IDX_QRTZ_J_G_N]                 ON [dbo].[QRTZ_JOB_DETAILS](SCHED_NAME, JOB_GROUP, JOB_NAME);
+
 CREATE INDEX [IDX_QRTZ_T_G_J]                 ON [dbo].[QRTZ_TRIGGERS](SCHED_NAME, JOB_GROUP, JOB_NAME);
+CREATE INDEX [IDX_QRTZ_T_G_N]                 ON [dbo].[QRTZ_TRIGGERS](SCHED_NAME, TRIGGER_GROUP, TRIGGER_NAME);
 CREATE INDEX [IDX_QRTZ_T_C]                   ON [dbo].[QRTZ_TRIGGERS](SCHED_NAME, CALENDAR_NAME);
 
 CREATE INDEX [IDX_QRTZ_T_N_G_STATE]           ON [dbo].[QRTZ_TRIGGERS](SCHED_NAME, TRIGGER_GROUP, TRIGGER_STATE);

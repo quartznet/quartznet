@@ -1,3 +1,6 @@
+using System.Net;
+using System.Net.Http.Json;
+
 using AwesomeAssertions.Execution;
 
 using FakeItEasy;
@@ -16,8 +19,8 @@ public class JobEndpointsTest : WebApiTest
     [Test]
     public async Task GetJobKeysShouldWork()
     {
-        A.CallTo(() => FakeScheduler.GetJobKeys(A<GroupMatcher<JobKey>>._, A<CancellationToken>._))
-            .Returns([jobKeyOne, jobKeyTwo]);
+        A.CallTo(() => FakeScheduler.QueryJobs(A<JobQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<JobHeader>([HeaderFor(jobKeyOne), HeaderFor(jobKeyTwo)], HasMore: false));
 
         var jobKeys = await HttpScheduler.GetJobKeys(GroupMatcher<JobKey>.AnyGroup());
 
@@ -41,8 +44,76 @@ public class JobEndpointsTest : WebApiTest
         {
             Fake.ClearRecordedCalls(FakeScheduler);
             await HttpScheduler.GetJobKeys(matcher);
-            A.CallTo(() => FakeScheduler.GetJobKeys(matcher, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+            A.CallTo(() => FakeScheduler.QueryJobs(new JobQuery { Group = matcher }, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
         }
+    }
+
+    [Test]
+    public async Task QueryJobsShouldPassPagingAndReturnHeaders()
+    {
+        A.CallTo(() => FakeScheduler.QueryJobs(A<JobQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<JobHeader>([HeaderFor(jobKeyOne)], HasMore: true, TotalCount: 5));
+
+        var query = new JobQuery
+        {
+            Group = GroupMatcher<JobKey>.GroupEquals("group1"),
+            Skip = 2,
+            Take = 1,
+            IncludeTotalCount = true
+        };
+
+        var result = await HttpScheduler.QueryJobs(query);
+
+        using (new AssertionScope())
+        {
+            result.Items.Should().ContainSingle().Which.Should().BeEquivalentTo(HeaderFor(jobKeyOne));
+            result.HasMore.Should().BeTrue();
+            result.TotalCount.Should().Be(5);
+        }
+
+        A.CallTo(() => FakeScheduler.QueryJobs(query, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
+    public async Task FetchJobsShouldWork()
+    {
+        var missing = new JobKey("missing", "missing_group");
+
+        A.CallTo(() => FakeScheduler.GetJobDetails(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._))
+            .Returns([TestData.JobDetail, TestData.JobDetail2]);
+
+        var jobDetails = await HttpScheduler.GetJobDetails([TestData.JobDetail.Key, TestData.JobDetail2.Key, missing]);
+
+        jobDetails.Count.Should().Be(2);
+        jobDetails.Single(x => x.Key.Equals(TestData.JobDetail.Key)).Should().BeEquivalentTo(TestData.JobDetail);
+        jobDetails.Single(x => x.Key.Equals(TestData.JobDetail2.Key)).Should().BeEquivalentTo(TestData.JobDetail2);
+
+        A.CallTo(() => FakeScheduler.GetJobDetails(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._))
+            .WhenArgumentsMatch((IReadOnlyCollection<JobKey> keys, CancellationToken _) =>
+                keys.Count == 3 && keys.Contains(TestData.JobDetail.Key) && keys.Contains(TestData.JobDetail2.Key) && keys.Contains(missing))
+            .MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
+    public async Task FetchJobsShouldNotCallSchedulerWithoutKeys()
+    {
+        var jobDetails = await HttpScheduler.GetJobDetails([]);
+
+        jobDetails.Should().BeEmpty();
+        A.CallTo(() => FakeScheduler.GetJobDetails(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._)).MustNotHaveHappened();
+    }
+
+    [Test]
+    public async Task FetchJobsShouldRejectTooManyKeys()
+    {
+        using var httpClient = WebApplicationFactory.CreateClient();
+
+        var keys = Enumerable.Range(0, 1001).Select(x => new { name = "job" + x, group = "group" }).ToArray();
+        var response = await httpClient.PostAsJsonAsync($"schedulers/{HttpScheduler.SchedulerName}/jobs/fetch", keys);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await response.Content.ReadAsStringAsync()).Should().ContainEquivalentOf("at most 1000");
+        A.CallTo(() => FakeScheduler.GetJobDetails(A<IReadOnlyCollection<JobKey>>._, A<CancellationToken>._)).MustNotHaveHappened();
     }
 
     [Test]
@@ -272,25 +343,58 @@ public class JobEndpointsTest : WebApiTest
     [Test]
     public async Task GetJobGroupNamesShouldWork()
     {
-        A.CallTo(() => FakeScheduler.GetJobGroupNames(A<CancellationToken>._)).Returns(["group1", "group2"]);
+        A.CallTo(() => FakeScheduler.QueryJobGroups(A<JobGroupQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<JobGroup>([new JobGroup("group1", Paused: false), new JobGroup("group2", Paused: true)], HasMore: false));
 
         var jobGroupNames = await HttpScheduler.GetJobGroupNames();
 
         jobGroupNames.Count.Should().Be(2);
         jobGroupNames.Should().ContainSingle(x => x == "group1");
         jobGroupNames.Should().ContainSingle(x => x == "group2");
+
+        A.CallTo(() => FakeScheduler.QueryJobGroups(new JobGroupQuery(), A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
+    public async Task QueryJobGroupsShouldPassPausedFilter()
+    {
+        A.CallTo(() => FakeScheduler.QueryJobGroups(A<JobGroupQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<JobGroup>([new JobGroup("group2", Paused: true)], HasMore: false, TotalCount: 1));
+
+        var result = await HttpScheduler.QueryJobGroups(new JobGroupQuery { Paused = true, IncludeTotalCount = true });
+
+        using (new AssertionScope())
+        {
+            result.Items.Should().ContainSingle().Which.Should().Be(new JobGroup("group2", Paused: true));
+            result.HasMore.Should().BeFalse();
+            result.TotalCount.Should().Be(1);
+        }
+
+        A.CallTo(() => FakeScheduler.QueryJobGroups(new JobGroupQuery { Paused = true, IncludeTotalCount = true }, A<CancellationToken>._))
+            .MustHaveHappened(1, Times.Exactly);
     }
 
     [Test]
     public async Task IsJobGroupPausedShouldWork()
     {
-        A.CallTo(() => FakeScheduler.IsJobGroupPaused("group1", A<CancellationToken>._)).Returns(true);
-        A.CallTo(() => FakeScheduler.IsJobGroupPaused("group2", A<CancellationToken>._)).Returns(false);
+        A.CallTo(() => FakeScheduler.QueryJobGroups(A<JobGroupQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<JobGroup>([new JobGroup("group1", Paused: true)], HasMore: false));
 
         var paused = await HttpScheduler.IsJobGroupPaused("group1");
         paused.Should().BeTrue();
 
         paused = await HttpScheduler.IsJobGroupPaused("group2");
         paused.Should().BeFalse();
+
+        A.CallTo(() => FakeScheduler.QueryJobGroups(new JobGroupQuery { Paused = true }, A<CancellationToken>._)).MustHaveHappened(2, Times.Exactly);
     }
+
+    private static JobHeader HeaderFor(JobKey jobKey) => new(
+        jobKey,
+        Description: "description of " + jobKey,
+        JobTypeName: typeof(DummyJob).FullName!,
+        Durable: true,
+        ConcurrentExecutionDisallowed: false,
+        PersistJobDataAfterExecution: false,
+        RequestsRecovery: true);
 }

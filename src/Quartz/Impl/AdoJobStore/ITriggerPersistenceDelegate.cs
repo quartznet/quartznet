@@ -84,6 +84,39 @@ public interface ITriggerPersistenceDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Loads the special properties of several triggers of this delegate's type in as few round trips
+    /// as the delegate can manage.
+    /// </summary>
+    /// <remarks>
+    /// The default implementation loops the single-key overload, so a delegate that does not override
+    /// this keeps working unchanged. Keys whose row is missing — the trigger was deleted concurrently,
+    /// QTZ-386 — are simply absent from the result rather than failing the whole batch.
+    /// </remarks>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="triggerKeys">The keys of the triggers to load properties for.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    async ValueTask<Dictionary<TriggerKey, TriggerPropertyBundle>> LoadExtendedTriggerProperties(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default)
+    {
+        Dictionary<TriggerKey, TriggerPropertyBundle> bundles = new(triggerKeys.Count);
+        foreach (TriggerKey triggerKey in triggerKeys)
+        {
+            try
+            {
+                bundles[triggerKey] = await LoadExtendedTriggerProperties(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+            }
+            catch (InvalidOperationException)
+            {
+                // No row for this trigger: it was deleted concurrently. Leave it out of the result.
+            }
+        }
+
+        return bundles;
+    }
+
+    /// <summary>
     /// Read trigger state data from open data reader.
     /// </summary>
     TriggerPropertyBundle ReadTriggerPropertyBundle(DbDataReader rs);

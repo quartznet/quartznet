@@ -48,28 +48,6 @@ internal sealed class StdScheduler : IScheduler
     }
 
     /// <summary>
-    /// returns true if the given JobGroup
-    /// is paused
-    /// </summary>
-    public ValueTask<bool> IsJobGroupPaused(
-        string groupName,
-        CancellationToken cancellationToken = default)
-    {
-        return scheduler.IsJobGroupPaused(groupName, cancellationToken);
-    }
-
-    /// <summary>
-    /// returns true if the given TriggerGroup
-    /// is paused
-    /// </summary>
-    public ValueTask<bool> IsTriggerGroupPaused(
-        string groupName,
-        CancellationToken cancellationToken = default)
-    {
-        return scheduler.IsTriggerGroupPaused(groupName, cancellationToken);
-    }
-
-    /// <summary>
     /// Returns the name of the <see cref="IScheduler" />.
     /// </summary>
     public string SchedulerName => scheduler.SchedulerName;
@@ -157,31 +135,7 @@ internal sealed class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public ValueTask<List<string>> GetPausedTriggerGroups(CancellationToken cancellationToken = default)
-    {
-        return scheduler.GetPausedTriggerGroups(cancellationToken);
-    }
-
-    /// <summary>
-    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-    /// </summary>
     public IListenerManager ListenerManager => scheduler.ListenerManager;
-
-    /// <summary>
-    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-    /// </summary>
-    public ValueTask<List<string>> GetJobGroupNames(CancellationToken cancellationToken = default)
-    {
-        return scheduler.GetJobGroupNames(cancellationToken);
-    }
-
-    /// <summary>
-    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-    /// </summary>
-    public ValueTask<List<string>> GetTriggerGroupNames(CancellationToken cancellationToken = default)
-    {
-        return scheduler.GetTriggerGroupNames(cancellationToken);
-    }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
@@ -509,17 +463,57 @@ internal sealed class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public ValueTask<List<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    public ValueTask<PagedResult<JobHeader>> QueryJobs(JobQuery query, CancellationToken cancellationToken = default)
     {
-        return scheduler.GetJobKeys(matcher, cancellationToken);
+        return scheduler.QueryJobs(query, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public ValueTask<List<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    public ValueTask<PagedResult<TriggerHeader>> QueryTriggers(TriggerQuery query, CancellationToken cancellationToken = default)
     {
-        return scheduler.GetTriggerKeys(matcher, cancellationToken);
+        return scheduler.QueryTriggers(query, cancellationToken);
+    }
+
+    /// <summary>
+    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+    /// </summary>
+    public ValueTask<PagedResult<JobGroup>> QueryJobGroups(JobGroupQuery query, CancellationToken cancellationToken = default)
+    {
+        return scheduler.QueryJobGroups(query, cancellationToken);
+    }
+
+    /// <summary>
+    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+    /// </summary>
+    public ValueTask<PagedResult<TriggerGroup>> QueryTriggerGroups(TriggerGroupQuery query, CancellationToken cancellationToken = default)
+    {
+        return scheduler.QueryTriggerGroups(query, cancellationToken);
+    }
+
+    /// <summary>
+    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+    /// </summary>
+    public ValueTask<PagedResult<string>> QueryCalendarNames(CalendarQuery query, CancellationToken cancellationToken = default)
+    {
+        return scheduler.QueryCalendarNames(query, cancellationToken);
+    }
+
+    /// <summary>
+    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+    /// </summary>
+    public ValueTask<List<IJobDetail>> GetJobDetails(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+    {
+        return scheduler.GetJobDetails(jobKeys, cancellationToken);
+    }
+
+    /// <summary>
+    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+    /// </summary>
+    public ValueTask<List<ITrigger>> GetTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+    {
+        return scheduler.GetTriggers(triggerKeys, cancellationToken);
     }
 
     /// <summary>
@@ -587,15 +581,6 @@ internal sealed class StdScheduler : IScheduler
     public ValueTask<ICalendar?> GetCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
         return scheduler.GetCalendar(calendarName, cancellationToken);
-    }
-
-    /// <summary>
-    /// Get the names of all registered <see cref="ICalendar"/>.
-    /// </summary>
-    /// <returns></returns>
-    public ValueTask<List<string>> GetCalendarNames(CancellationToken cancellationToken = default)
-    {
-        return scheduler.GetCalendarNames(cancellationToken);
     }
 
     /// <summary>

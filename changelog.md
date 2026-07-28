@@ -180,6 +180,98 @@
     override. `CronTriggerImpl.CronExpression` also gained a getter (it was setter-only) and is nullable, which is
     what it always was underneath.
 
+  * **Job store listings became queries: paged, projected, and fetched in bulk.** Listing jobs or triggers used
+    to mean reading every key and then spending one round trip per key on anything more than the key — a job's
+    type, a trigger's state or next fire time. Nothing could ask for a page, nothing could ask for a count
+    without materializing the thing being counted, and a UI over a large schema paid for the whole schema to
+    draw one screen (#1273, #206, #3008). The listing members are replaced by query members that take a query
+    record and hand back one page of projected results.
+
+    **The new types**, all in the `Quartz` namespace:
+
+    * **`PagedQuery`** is the base every query derives from: `Skip`, `Take` (defaults to `int.MaxValue`, so a
+      query that sets neither returns everything) and `IncludeTotalCount` (off by default, because on a
+      persistent store it costs a second query).
+    * **`PagedResult<T>`** carries `Items`, `HasMore` and a nullable `TotalCount`. `HasMore` is exact and
+      free: stores read one item past `Take` rather than running a second query to find out.
+    * **`JobQuery`** filters on `Group`; **`TriggerQuery`** on `Group`, `Job`, `CalendarName` and `State`,
+      combined with AND; **`JobGroupQuery`** and **`TriggerGroupQuery`** on `Paused`; **`CalendarQuery`**
+      only pages. A null `Group` matches every group.
+    * **`JobHeader`** and **`TriggerHeader`** are what listings return instead of bare keys. `JobHeader` is a
+      job's metadata without its `JobDataMap`, so listing jobs never loads or deserializes job data.
+      `TriggerHeader` carries the state, fire times, priority, calendar name and execution group that
+      previously cost one extra round trip per trigger each.
+    * **`JobGroup`** and **`TriggerGroup`** are `(Name, Paused)` pairs. Note that the ADO job store does not
+      persist job group pause state and reports every job group as unpaused — which is exactly what the
+      removed `IsJobGroupPaused` always did there.
+
+    **`IScheduler`** loses eight members — `GetJobKeys`, `GetTriggerKeys`, `GetJobGroupNames`,
+    `GetTriggerGroupNames`, `GetPausedTriggerGroups`, `GetCalendarNames`, `IsJobGroupPaused` and
+    `IsTriggerGroupPaused` — and gains `QueryJobs`, `QueryTriggers`, `QueryJobGroups`, `QueryTriggerGroups`
+    and `QueryCalendarNames`, plus **`GetJobDetails`** and **`GetTriggers`**, which retrieve many jobs or
+    triggers by key in one round trip. Keys that do not exist are simply absent from the result, duplicates
+    fold away, and the result comes back in the order the keys were asked for.
+
+    **Existing calling code keeps compiling.** All eight removed members return as extension methods on
+    **`SchedulerQueryExtensions`**, with the same names and signatures, each implemented over the query member
+    it replaced. They enumerate the whole result, which is the semantics the old members had, so they are the
+    right thing for a small schema and the wrong thing for a large one; their doc comments point at the query
+    member to use instead. One behavior did change: `GetJobKeys(null)` and `GetTriggerKeys(null)` now throw
+    `ArgumentNullException` rather than silently narrowing the listing to `GroupEquals(DefaultGroup)`, which
+    was a surprising thing for a null to mean.
+
+    **`IJobStore`** loses twelve members and gains seven. Gone are `GetJobKeys`, `GetTriggerKeys`,
+    `GetJobGroupNames`, `GetTriggerGroupNames`, `GetPausedTriggerGroups`, `GetCalendarNames`,
+    `IsJobGroupPaused`, `IsTriggerGroupPaused`, `CalendarExists`, `GetNumberOfJobs`, `GetNumberOfTriggers` and
+    `GetNumberOfCalendars`; added are the five `Query*` members plus `GetJobDetails` and `GetTriggers`.
+    **Counting is now a query with `Take = 0` and `IncludeTotalCount = true`**, which reads no rows and
+    returns the count in `TotalCount` — one shape instead of a separate member per counted thing, and it
+    counts what a filter selects rather than only whole tables.
+
+    **The ordering contract is group first, then name**, and every page of a query uses the same ordering, so
+    paging through a result is consistent. `RAMJobStore` compares ordinal. The ADO job store sorts in the
+    database, so both the group order and the order within a group follow **the server's collation** — which
+    for most collations differs from ordinal only in case and accent handling, but is the database's business
+    rather than Quartz's. Code that needs one specific culture's ordering has to sort the page itself.
+
+    Implementations follow: **`JobStoreSupport`** and **`RAMJobStore`** replace the removed members with the
+    query members and, on `JobStoreSupport`, the matching `protected virtual` connection-taking overloads that
+    a subclass can override; **`QuartzScheduler`**, `StdScheduler`, `DelegatingScheduler` and
+    `Quartz.HttpClient`'s `HttpScheduler` track the `IScheduler` change. `IDriverDelegate`'s side of this —
+    `SelectJobHeaders`, `SelectTriggerHeaders`, `SelectJobGroups`, `SelectTriggerGroups`,
+    `SelectCalendarNames`, `SelectJobDetails`, `SelectTriggers`, and the `ApplyPaging` / `AddPagingParameters`
+    seam that lets a dialect express its own row-limiting syntax — is in the `IDriverDelegate` entry below.
+
+    **`ITriggerPersistenceDelegate`** gains a batch `LoadExtendedTriggerProperties` taking several trigger
+    keys. It is a **default interface method** that loops the single-key overload, so a third-party trigger
+    persistence delegate keeps working untouched and only needs overriding to make a batch read one round trip.
+
+    **The HTTP API's wire contract changed** where it exposed these listings. `GET .../jobs`,
+    `GET .../triggers`, `GET .../calendars`, `GET .../jobs/groups` and `GET .../triggers/groups` all take
+    `skip`, `take` and `includeTotalCount` query parameters and return a paged envelope
+    (`{ items, hasMore, totalCount }`) rather than a bare array or a `{ names: [...] }` object — the
+    `NamesDto` and `TriggerHeaderKeyDto` shapes are gone. Jobs and triggers come back as headers rather than
+    keys, `GET .../triggers` additionally filters on `jobName` + `jobGroup` (both or neither),
+    `calendarName` and `state`, and the group listings take `paused` to filter by pause state.
+    **`GET .../triggers/groups/paused` was removed**: it is `GET .../triggers/groups?paused=true`. Two routes
+    are new — `POST .../jobs/fetch` and `POST .../triggers/fetch` — each taking an array of keys and
+    returning the full details in one call, which is what the paged headers are meant to be followed by.
+
+    **Quartz.Dashboard**'s `IQuartzApiClient` follows: `GetJobKeys` and `GetTriggerKeys` become `GetJobs` and
+    `GetTriggers`, which take a 1-based `page` and a `pageSize` and return `JobPageDto` / `TriggerPageDto`;
+    `IsJobGroupPaused` is gone in favor of a new `GetJobGroups` returning `JobGroupDto` (`Name`, `Paused`);
+    and `TriggerHeaderDto` gained `State`, which the trigger list no longer fetches per row.
+
+    **Schema change (optional but recommended).** The ADO listings page with `ORDER BY JOB_GROUP, JOB_NAME`
+    and `ORDER BY TRIGGER_GROUP, TRIGGER_NAME`, and the existing primary keys are name-before-group, so no
+    index served those ordered scans. Two indexes were added to every dialect's table script —
+    **`IDX_QRTZ_J_G_N`** on `QRTZ_JOB_DETAILS(SCHED_NAME, JOB_GROUP, JOB_NAME)` and **`IDX_QRTZ_T_G_N`** on
+    `QRTZ_TRIGGERS(SCHED_NAME, TRIGGER_GROUP, TRIGGER_NAME)` — and to `database/schema_30_to_40_upgrade.sql`
+    for existing schemas. The queries work without them; each page is a scan plus a sort instead. The
+    PostgreSQL script was also corrected while it was open: several of its indexes omitted `SCHED_NAME`, which
+    is the leading column of every predicate Quartz issues, so they could not be used for a single-scheduler
+    lookup at all.
+
   * `IJobStore.EstimatedTimeToReleaseAndAcquireTrigger` is a **`TimeSpan`** rather than a `long` count of
     milliseconds. The same interface already returned `TimeSpan` from `GetAcquireRetryDelay`, so it carried two
     ways of saying the same kind of thing.
@@ -187,8 +279,50 @@
   * The two `IJobStore.AcquireNextTriggers` overloads are one method with an optional `executionLimits` argument.
     Neither had a default implementation, so every job store had to write both, and the shorter one always just
     called the longer one with null. The parameter is now `IReadOnlyDictionary<string, int?>?` rather than a
-    mutable `Dictionary<string, int?>?`; the `executionLimits` parameter of `IDriverDelegate.SelectTriggerToAcquire`
-    changed the same way, though that member keeps its two overloads.
+    mutable `Dictionary<string, int?>?`. The driver delegate's own acquisition member went further — see the
+    `IDriverDelegate` entry below.
+
+  * **`IDriverDelegate` lost its dead members and its overload pairs.** The interface had accumulated members that
+    nothing called — four of them carried parameter-name bugs that proved they had never run — and pairs of
+    overloads that differed only in how much of one query they expressed.
+
+    Deleted outright, having had no caller: `SelectMisfiredTriggers`, both `HasMisfiredTriggersInState` overloads,
+    `SelectMisfiredTriggersInGroupInState`, `IsExistingTriggerGroup`, `SelectJobExecutionCount`,
+    `SelectTriggerForFireTime`, `SelectNumJobs`, `SelectNumTriggers`, `SelectNumCalendars`, `SelectCalendars`,
+    `SelectPausedTriggerGroups`, `SelectJobGroups(conn, ct)` and `DeleteAllPausedTriggerGroups`. The listing and
+    counting they used to do is what the paged query members now do, and misfire handling is served by
+    `CountMisfiredTriggersInState` plus `SelectMisfiredTriggersToRecover`. The
+    `GetSelectNextMisfiredTriggersInStateToAcquireSql` hook and its six dialect overrides went with them, as did
+    the statement constants only they used.
+
+    Consolidated:
+
+    * The three `SelectFiredTriggerRecords` / `SelectFiredTriggerRecordsByJob` /
+      `SelectInstancesFiredTriggerRecords` members, and the four `DeleteFiredTriggers` overloads, are one
+      `SelectFiredTriggerRecords(conn, FiredTriggerQuery, ct)` and one `DeleteFiredTriggers(conn, FiredTriggerQuery, ct)`.
+      **`FiredTriggerQuery`** carries an optional `Trigger`, `Job` and `InstanceName`, combined with AND; all null
+      selects — or deletes — every fired trigger.
+    * The two `SelectTriggerToAcquire` overloads are one **`SelectTriggersToAcquire(conn, TriggerAcquisitionCriteria, ct)`**
+      (plural, because it returns many). **`TriggerAcquisitionCriteria`** is the extension point for future
+      acquisition filtering (#2238): another way of narrowing what a node picks up is another optional property on
+      the record, not another overload.
+    * The two `SelectJobForTrigger` overloads are one, with `bool loadJobType = true`.
+    * `DeletePausedTriggerGroup(conn, string, ct)` is gone; the matcher overload covers it, since a single group is
+      `GroupMatcher<TriggerKey>.GroupEquals(name)`. `SelectTriggerGroups(conn, ct)` went the same way, with
+      `GroupMatcher<TriggerKey>.AnyGroup()` for every group.
+
+  * **Group matchers now translate to SQL correctly.** `SelectTriggerGroups`, `DeletePausedTriggerGroup` and both
+    `UpdateTriggerGroupStateFromOtherState(s)` members always built a LIKE, even for an equality matcher; they now
+    take the `=` path that the other group queries already did, which is both exact and index-friendly. The LIKE
+    patterns themselves escape `%`, `_` and the escape character in the matcher's own text, with an explicit
+    `ESCAPE` clause in the statement, so a group literally named `50%` matches itself rather than acting as a
+    wildcard. The escape character is `!` rather than the conventional backslash, because MySQL applies C-style
+    escaping inside string literals and `ESCAPE '\'` is a syntax error there.
+
+    Several statement constants on **StdAdoConstants** were split or renamed to match:
+    `SqlDeletePausedTriggerGroup`, `SqlSelectTriggerGroupsFiltered`, `SqlUpdateTriggerGroupStateFromState` and
+    `SqlUpdateTriggerGroupStateFromStates` are now `...Equals` / `...Like` pairs, and the FIRED_TRIGGERS statements
+    are one `SqlSelectFiredTriggers` / `SqlDeleteFiredTriggers` base plus the `SqlFiredTrigger*Predicate` fragments.
 
   * `ISchedulerFactory.GetAllSchedulers` returns `ValueTask<List<IScheduler>>`. Quartz returns concrete collection
     types from its query members for the sake of allocation and enumeration cost, and this was the one that did not.
@@ -488,6 +622,14 @@
   * A `quartz.config` that 4.x no longer reads is reported as an ignored file rather than passed over in silence
   * The dashboard builds its `JsonSerializerOptions` once rather than per request or Blazor circuit, and
     `new DbProvider(name, connectionString)` no longer re-parses the embedded provider descriptions on every construction
+  * `ResumeAll` on the ADO job store no longer risks unpausing real trigger groups. It deleted the
+    all-groups-paused sentinel row with a `LIKE`, and the sentinel is `_$_ALL_GROUPS_PAUSED_$_` — whose four
+    underscores are single-character wildcards, so the statement also matched any paused group name of the same
+    length differing only in those positions. It compares with `=` now
+  * Recovery triggers created during cluster failover keep the failed trigger's priority. `ClusterRecover` read the
+    dead node's fired triggers through a reader that never populated `FiredTriggerRecord.Priority`, so
+    `recoveryTrigger.Priority = firedTrigger.Priority` always assigned zero and recovered work was acquired last.
+    The three fired-trigger readers are one reader now, and it reads the column
 
 
 ## Release 3.14.0, Mar 8 2025

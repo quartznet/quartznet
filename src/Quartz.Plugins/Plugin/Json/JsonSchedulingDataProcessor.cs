@@ -181,13 +181,11 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
             if (group.Equals("*", StringComparison.Ordinal))
             {
                 logger.LogInformation("Deleting all jobs in ALL groups");
-                foreach (var groupName in await scheduler.GetJobGroupNames(cancellationToken).ConfigureAwait(false))
+                PagedResult<JobHeader> allJobs = await scheduler.QueryJobs(new JobQuery(), cancellationToken).ConfigureAwait(false);
+                foreach (JobHeader job in allJobs.Items)
                 {
-                    if (protectedJobGroups.Contains(groupName)) continue;
-                    foreach (var key in await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(groupName), cancellationToken).ConfigureAwait(false))
-                    {
-                        await scheduler.DeleteJob(key, cancellationToken).ConfigureAwait(false);
-                    }
+                    if (protectedJobGroups.Contains(job.Key.Group)) continue;
+                    await scheduler.DeleteJob(job.Key, cancellationToken).ConfigureAwait(false);
                 }
             }
             else if (!protectedJobGroups.Contains(group))
@@ -205,13 +203,11 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
             if (group.Equals("*", StringComparison.Ordinal))
             {
                 logger.LogInformation("Deleting all triggers in ALL groups");
-                foreach (var groupName in await scheduler.GetTriggerGroupNames(cancellationToken).ConfigureAwait(false))
+                PagedResult<TriggerHeader> allTriggers = await scheduler.QueryTriggers(new TriggerQuery(), cancellationToken).ConfigureAwait(false);
+                foreach (TriggerHeader trigger in allTriggers.Items)
                 {
-                    if (protectedTriggerGroups.Contains(groupName)) continue;
-                    foreach (var key in await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(groupName), cancellationToken).ConfigureAwait(false))
-                    {
-                        await scheduler.UnscheduleJob(key, cancellationToken).ConfigureAwait(false);
-                    }
+                    if (protectedTriggerGroups.Contains(trigger.Key.Group)) continue;
+                    await scheduler.UnscheduleJob(trigger.Key, cancellationToken).ConfigureAwait(false);
                 }
             }
             else if (!protectedTriggerGroups.Contains(group))

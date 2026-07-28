@@ -1,3 +1,5 @@
+using System.Net;
+
 using AwesomeAssertions.Execution;
 
 using FakeItEasy;
@@ -16,7 +18,8 @@ public class TriggerEndpointsTest : WebApiTest
     [Test]
     public async Task GetTriggerKeysShouldWork()
     {
-        A.CallTo(() => FakeScheduler.GetTriggerKeys(A<GroupMatcher<TriggerKey>>._, A<CancellationToken>._)).Returns([triggerKeyOne, triggerKeyTwo]);
+        A.CallTo(() => FakeScheduler.QueryTriggers(A<TriggerQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<TriggerHeader>([HeaderFor(triggerKeyOne), HeaderFor(triggerKeyTwo)], HasMore: false));
 
         var triggerKeys = await HttpScheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.AnyGroup());
         using (new AssertionScope())
@@ -39,8 +42,76 @@ public class TriggerEndpointsTest : WebApiTest
         {
             Fake.ClearRecordedCalls(FakeScheduler);
             await HttpScheduler.GetTriggerKeys(matcher);
-            A.CallTo(() => FakeScheduler.GetTriggerKeys(matcher, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+            A.CallTo(() => FakeScheduler.QueryTriggers(new TriggerQuery { Group = matcher }, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
         }
+    }
+
+    [Test]
+    public async Task QueryTriggersShouldPassEveryFilterAndReturnHeaders()
+    {
+        var header = HeaderFor(triggerKeyOne);
+        A.CallTo(() => FakeScheduler.QueryTriggers(A<TriggerQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<TriggerHeader>([header], HasMore: true, TotalCount: 12));
+
+        var query = new TriggerQuery
+        {
+            Group = GroupMatcher<TriggerKey>.GroupEquals("group1"),
+            Job = new JobKey("job1", "jobgroup1"),
+            CalendarName = "SomeCalendar",
+            State = TriggerState.Error,
+            Skip = 5,
+            Take = 1,
+            IncludeTotalCount = true
+        };
+
+        var result = await HttpScheduler.QueryTriggers(query);
+
+        using (new AssertionScope())
+        {
+            result.Items.Should().ContainSingle().Which.Should().Be(header);
+            result.HasMore.Should().BeTrue();
+            result.TotalCount.Should().Be(12);
+        }
+
+        A.CallTo(() => FakeScheduler.QueryTriggers(query, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
+    public async Task QueryTriggersShouldRejectJobNameWithoutJobGroup()
+    {
+        using var httpClient = WebApplicationFactory.CreateClient();
+
+        var response = await httpClient.GetAsync($"schedulers/{HttpScheduler.SchedulerName}/triggers?jobName=job1");
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await response.Content.ReadAsStringAsync()).Should().ContainEquivalentOf("jobName and jobGroup");
+    }
+
+    [Test]
+    public async Task FetchTriggersShouldWork()
+    {
+        A.CallTo(() => FakeScheduler.GetTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
+            .Returns([TestData.CronTrigger, TestData.SimpleTrigger]);
+
+        var triggers = await HttpScheduler.GetTriggers([TestData.CronTrigger.Key, TestData.SimpleTrigger.Key, triggerKeyOne]);
+
+        triggers.Count.Should().Be(2);
+        triggers.Single(x => x.Key.Equals(TestData.CronTrigger.Key)).Should().BeEquivalentTo(TestData.CronTrigger);
+        triggers.Single(x => x.Key.Equals(TestData.SimpleTrigger.Key)).Should().BeEquivalentTo(TestData.SimpleTrigger);
+
+        A.CallTo(() => FakeScheduler.GetTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
+            .WhenArgumentsMatch((IReadOnlyCollection<TriggerKey> keys, CancellationToken _) =>
+                keys.Count == 3 && keys.Contains(TestData.CronTrigger.Key) && keys.Contains(TestData.SimpleTrigger.Key) && keys.Contains(triggerKeyOne))
+            .MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
+    public async Task FetchTriggersShouldNotCallSchedulerWithoutKeys()
+    {
+        var triggers = await HttpScheduler.GetTriggers([]);
+
+        triggers.Should().BeEmpty();
+        A.CallTo(() => FakeScheduler.GetTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._)).MustNotHaveHappened();
     }
 
     [Test]
@@ -151,37 +222,64 @@ public class TriggerEndpointsTest : WebApiTest
     [Test]
     public async Task GetTriggerGroupNamesShouldWork()
     {
-        A.CallTo(() => FakeScheduler.GetTriggerGroupNames(A<CancellationToken>._)).Returns(["group1", "group2"]);
+        A.CallTo(() => FakeScheduler.QueryTriggerGroups(A<TriggerGroupQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<TriggerGroup>([new TriggerGroup("group1", Paused: false), new TriggerGroup("group2", Paused: true)], HasMore: false));
 
         var triggerGroupNames = await HttpScheduler.GetTriggerGroupNames();
 
         triggerGroupNames.Count.Should().Be(2);
         triggerGroupNames.Should().ContainSingle(x => x == "group1");
         triggerGroupNames.Should().ContainSingle(x => x == "group2");
+
+        A.CallTo(() => FakeScheduler.QueryTriggerGroups(new TriggerGroupQuery(), A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
     }
 
     [Test]
     public async Task GetPausedTriggerGroupsShouldWork()
     {
-        A.CallTo(() => FakeScheduler.GetPausedTriggerGroups(A<CancellationToken>._)).Returns(["group1"]);
+        A.CallTo(() => FakeScheduler.QueryTriggerGroups(A<TriggerGroupQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<TriggerGroup>([new TriggerGroup("group1", Paused: true)], HasMore: false));
 
         var triggerGroupNames = await HttpScheduler.GetPausedTriggerGroups();
 
         triggerGroupNames.Count.Should().Be(1);
         triggerGroupNames.Should().ContainSingle(x => x == "group1");
+
+        A.CallTo(() => FakeScheduler.QueryTriggerGroups(new TriggerGroupQuery { Paused = true }, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
+    public async Task QueryTriggerGroupsShouldPassPagingAndPausedFilter()
+    {
+        A.CallTo(() => FakeScheduler.QueryTriggerGroups(A<TriggerGroupQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<TriggerGroup>([new TriggerGroup("group2", Paused: false)], HasMore: true, TotalCount: 7));
+
+        var query = new TriggerGroupQuery { Paused = false, Skip = 1, Take = 1, IncludeTotalCount = true };
+        var result = await HttpScheduler.QueryTriggerGroups(query);
+
+        using (new AssertionScope())
+        {
+            result.Items.Should().ContainSingle().Which.Should().Be(new TriggerGroup("group2", Paused: false));
+            result.HasMore.Should().BeTrue();
+            result.TotalCount.Should().Be(7);
+        }
+
+        A.CallTo(() => FakeScheduler.QueryTriggerGroups(query, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
     }
 
     [Test]
     public async Task IsTriggerGroupPausedShouldWork()
     {
-        A.CallTo(() => FakeScheduler.IsTriggerGroupPaused("group1", A<CancellationToken>._)).Returns(true);
-        A.CallTo(() => FakeScheduler.IsTriggerGroupPaused("group2", A<CancellationToken>._)).Returns(false);
+        A.CallTo(() => FakeScheduler.QueryTriggerGroups(A<TriggerGroupQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<TriggerGroup>([new TriggerGroup("group1", Paused: true)], HasMore: false));
 
         var paused = await HttpScheduler.IsTriggerGroupPaused("group1");
         paused.Should().BeTrue();
 
         paused = await HttpScheduler.IsTriggerGroupPaused("group2");
         paused.Should().BeFalse();
+
+        A.CallTo(() => FakeScheduler.QueryTriggerGroups(new TriggerGroupQuery { Paused = true }, A<CancellationToken>._)).MustHaveHappened(2, Times.Exactly);
     }
 
     [Test]
@@ -349,4 +447,18 @@ public class TriggerEndpointsTest : WebApiTest
             .WhenArgumentsMatch((TriggerKey key, CancellationToken _) => key.Equals(triggerKeyOne))
             .MustHaveHappened(1, Times.Exactly);
     }
+
+    private static TriggerHeader HeaderFor(TriggerKey triggerKey) => new(
+        triggerKey,
+        JobKey: new JobKey("job_of_" + triggerKey.Name, triggerKey.Group),
+        Description: "description of " + triggerKey,
+        TriggerType: "SIMPLE",
+        State: TriggerState.Normal,
+        StartTimeUtc: new DateTimeOffset(2026, 1, 1, 10, 0, 0, TimeSpan.Zero),
+        EndTimeUtc: new DateTimeOffset(2026, 2, 1, 10, 0, 0, TimeSpan.Zero),
+        NextFireTimeUtc: new DateTimeOffset(2026, 1, 2, 10, 0, 0, TimeSpan.Zero),
+        PreviousFireTimeUtc: null,
+        CalendarName: "SomeCalendar",
+        Priority: 7,
+        ExecutionGroup: "imports");
 }

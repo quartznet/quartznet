@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Routing;
 using Quartz.AspNetCore.HttpApi.Util;
 using Quartz.HttpApiContract;
 using Quartz.Extensibility;
+using Quartz.Impl.Matchers;
 
 namespace Quartz.AspNetCore.HttpApi.Endpoints;
 
@@ -15,8 +16,11 @@ internal static class TriggerEndpoints
     {
         var patternPrefix = $"{options.TrimmedApiPath}/schedulers/{{schedulerName}}/triggers";
 
-        yield return builder.MapGet(patternPrefix, GetTriggerKeys)
-            .WithQuartzDefaults(nameof(GetTriggerKeys), "Get all trigger keys");
+        yield return builder.MapGet(patternPrefix, QueryTriggers)
+            .WithQuartzDefaults(nameof(QueryTriggers), "Query triggers");
+
+        yield return builder.MapPost(patternPrefix + "/fetch", FetchTriggers)
+            .WithQuartzDefaults(nameof(FetchTriggers), "Fetch triggers by key");
 
         yield return builder.MapGet(patternPrefix + "/{triggerGroup}/{triggerName}", GetTrigger)
             .WithQuartzDefaults(nameof(GetTrigger), "Get trigger details");
@@ -42,11 +46,8 @@ internal static class TriggerEndpoints
         yield return builder.MapPost(patternPrefix + "/resume", ResumeTriggers)
             .WithQuartzDefaults(nameof(ResumeTriggers), "Resume triggers");
 
-        yield return builder.MapGet(patternPrefix + "/groups", GetTriggerGroupNames)
-            .WithQuartzDefaults(nameof(GetTriggerGroupNames), "Get all trigger group names");
-
-        yield return builder.MapGet(patternPrefix + "/groups/paused", GetPausedTriggerGroups)
-            .WithQuartzDefaults(nameof(GetPausedTriggerGroups), "Get all paused trigger group names");
+        yield return builder.MapGet(patternPrefix + "/groups", QueryTriggerGroups)
+            .WithQuartzDefaults(nameof(QueryTriggerGroups), "Query trigger groups");
 
         yield return builder.MapGet(patternPrefix + "/groups/{triggerGroup}/paused", IsTriggerGroupPaused)
             .WithQuartzDefaults(nameof(IsTriggerGroupPaused), "Is trigger group paused");
@@ -67,30 +68,66 @@ internal static class TriggerEndpoints
             .WithQuartzDefaults(nameof(RescheduleJob), "Reschedule job");
     }
 
-    [ProducesResponseType(typeof(TriggerHeaderKeyDto[]), StatusCodes.Status200OK)]
-    private static Task<IResult> GetTriggerKeys(
+    [ProducesResponseType(typeof(PagedResultDto<TriggerHeaderDto>), StatusCodes.Status200OK)]
+    private static Task<IResult> QueryTriggers(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        int skip = 0,
+        int take = int.MaxValue,
+        bool includeTotalCount = false,
         string? groupContains = null,
         string? groupEndsWith = null,
         string? groupStartsWith = null,
         string? groupEquals = null,
+        string? jobName = null,
+        string? jobGroup = null,
+        string? calendarName = null,
+        TriggerState? state = null,
         CancellationToken cancellationToken = default)
     {
+        EndpointHelper.AssertPaging(skip, take);
+
+        bool hasJobName = !string.IsNullOrWhiteSpace(jobName);
+        bool hasJobGroup = !string.IsNullOrWhiteSpace(jobGroup);
+        if (hasJobName != hasJobGroup)
+        {
+            throw new BadHttpRequestException("Both jobName and jobGroup must be given to filter by job");
+        }
+
         return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
-            var matcher = EndpointHelper.GetGroupMatcher<TriggerKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
-            var triggerKeys = await scheduler.GetTriggerKeys(matcher, cancellationToken).ConfigureAwait(false);
-
-            var result = new TriggerHeaderKeyDto[triggerKeys.Count];
-            for (int i = 0; i < triggerKeys.Count; i++)
+            GroupMatcher<TriggerKey> matcher = EndpointHelper.GetGroupMatcher<TriggerKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
+            TriggerQuery query = new()
             {
-                ITrigger? trigger = await scheduler.GetTrigger(triggerKeys[i], cancellationToken).ConfigureAwait(false);
-                result[i] = TriggerHeaderKeyDto.Create(triggerKeys[i], trigger?.ExecutionGroup);
-            }
+                Group = matcher,
+                Job = hasJobName ? new JobKey(jobName!, jobGroup!) : null,
+                CalendarName = calendarName,
+                State = state,
+                Skip = skip,
+                Take = take,
+                IncludeTotalCount = includeTotalCount
+            };
 
-            return result;
+            PagedResult<TriggerHeader> page = await scheduler.QueryTriggers(query, cancellationToken).ConfigureAwait(false);
+            return new PagedResultDto<TriggerHeaderDto>(page.Items.Select(TriggerHeaderDto.Create).ToArray(), page.HasMore, page.TotalCount);
+        });
+    }
+
+    [ProducesResponseType(typeof(OpenApi.Trigger[]), StatusCodes.Status200OK)]
+    private static Task<IResult> FetchTriggers(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        string schedulerName,
+        KeyDto[] request,
+        CancellationToken cancellationToken = default)
+    {
+        EndpointHelper.AssertKeysToFetch(request);
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        {
+            TriggerKey[] triggerKeys = request.Select(x => x.AsTriggerKey()).ToArray();
+            List<ITrigger> triggers = await scheduler.GetTriggers(triggerKeys, cancellationToken).ConfigureAwait(false);
+            return triggers;
         });
     }
 
@@ -214,31 +251,30 @@ internal static class TriggerEndpoints
         });
     }
 
-    [ProducesResponseType(typeof(NamesDto), StatusCodes.Status200OK)]
-    private static Task<IResult> GetTriggerGroupNames(
+    [ProducesResponseType(typeof(PagedResultDto<TriggerGroupDto>), StatusCodes.Status200OK)]
+    private static Task<IResult> QueryTriggerGroups(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        int skip = 0,
+        int take = int.MaxValue,
+        bool includeTotalCount = false,
+        bool? paused = null,
         CancellationToken cancellationToken = default)
     {
+        EndpointHelper.AssertPaging(skip, take);
         return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
-            var groupNames = await scheduler.GetTriggerGroupNames(cancellationToken).ConfigureAwait(false);
-            return new NamesDto(groupNames);
-        });
-    }
+            TriggerGroupQuery query = new()
+            {
+                Paused = paused,
+                Skip = skip,
+                Take = take,
+                IncludeTotalCount = includeTotalCount
+            };
 
-    [ProducesResponseType(typeof(NamesDto), StatusCodes.Status200OK)]
-    private static Task<IResult> GetPausedTriggerGroups(
-        EndpointHelper endpointHelper,
-        ISchedulerRepository schedulerRepository,
-        string schedulerName,
-        CancellationToken cancellationToken = default)
-    {
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
-        {
-            var result = await scheduler.GetPausedTriggerGroups(cancellationToken).ConfigureAwait(false);
-            return new NamesDto(result);
+            PagedResult<TriggerGroup> page = await scheduler.QueryTriggerGroups(query, cancellationToken).ConfigureAwait(false);
+            return new PagedResultDto<TriggerGroupDto>(page.Items.Select(TriggerGroupDto.Create).ToArray(), page.HasMore, page.TotalCount);
         });
     }
 
@@ -252,8 +288,8 @@ internal static class TriggerEndpoints
     {
         return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
-            var paused = await scheduler.IsTriggerGroupPaused(triggerGroup, cancellationToken).ConfigureAwait(false);
-            return new GroupPausedResponse(paused);
+            PagedResult<TriggerGroup> page = await scheduler.QueryTriggerGroups(new TriggerGroupQuery { Paused = true }, cancellationToken).ConfigureAwait(false);
+            return new GroupPausedResponse(page.Items.Any(x => string.Equals(x.Name, triggerGroup, StringComparison.Ordinal)));
         });
     }
 

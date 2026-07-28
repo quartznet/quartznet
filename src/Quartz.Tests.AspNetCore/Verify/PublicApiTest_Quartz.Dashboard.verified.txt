@@ -479,15 +479,15 @@ namespace Quartz.Dashboard.Services
         System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.ExecutionLimitsDto?> GetExecutionLimits(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.JobHistoryPageDto?> GetHistory(Quartz.Dashboard.Services.JobHistoryQueryDto query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.JobDetailDto> GetJob(string schedulerName, string group, string name, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Dashboard.Services.JobKeyDto>> GetJobKeys(string schedulerName, string? groupFilter = null, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Dashboard.Services.JobGroupDto>> GetJobGroups(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Dashboard.Services.TriggerHeaderDto>> GetJobTriggers(string schedulerName, string group, string name, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.JobPageDto> GetJobs(string schedulerName, string? groupFilter, int page, int pageSize, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.SchedulerDetailDto> GetScheduler(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Dashboard.Services.SchedulerHeaderDto>> GetSchedulers(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.TriggerDetailDto> GetTrigger(string schedulerName, string group, string name, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Dashboard.Services.TriggerHeaderDto>> GetTriggerKeys(string schedulerName, string? groupFilter = null, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<string> GetTriggerState(string schedulerName, string group, string name, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<Quartz.Dashboard.Services.TriggerPageDto> GetTriggers(string schedulerName, string? groupFilter, Quartz.TriggerState? state, int page, int pageSize, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask InterruptJob(string schedulerName, string group, string name, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<bool> IsJobGroupPaused(string schedulerName, string group, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask PauseAll(string schedulerName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask PauseJob(string schedulerName, string group, string name, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask PauseTrigger(string schedulerName, string group, string name, System.Threading.CancellationToken cancellationToken = default);
@@ -517,6 +517,12 @@ namespace Quartz.Dashboard.Services
         public bool PersistJobDataAfterExecution { get; init; }
         public bool RequestsRecovery { get; init; }
     }
+    public sealed class JobGroupDto : System.IEquatable<Quartz.Dashboard.Services.JobGroupDto>
+    {
+        public JobGroupDto(string Name, bool Paused) { }
+        public string Name { get; init; }
+        public bool Paused { get; init; }
+    }
     public sealed class JobHistoryPageDto : System.IEquatable<Quartz.Dashboard.Services.JobHistoryPageDto>
     {
         public JobHistoryPageDto(System.Text.Json.JsonElement Value) { }
@@ -536,6 +542,15 @@ namespace Quartz.Dashboard.Services
         public JobKeyDto(string Group, string Name) { }
         public string Group { get; init; }
         public string Name { get; init; }
+    }
+    public sealed class JobPageDto : System.IEquatable<Quartz.Dashboard.Services.JobPageDto>
+    {
+        public JobPageDto(int Page, int PageSize, int TotalCount, bool HasMore, System.Collections.Generic.List<Quartz.Dashboard.Services.JobKeyDto> Items) { }
+        public bool HasMore { get; init; }
+        public System.Collections.Generic.List<Quartz.Dashboard.Services.JobKeyDto> Items { get; init; }
+        public int Page { get; init; }
+        public int PageSize { get; init; }
+        public int TotalCount { get; init; }
     }
     public sealed class RescheduleRequest : System.IEquatable<Quartz.Dashboard.Services.RescheduleRequest>
     {
@@ -574,6 +589,7 @@ namespace Quartz.Dashboard.Services
         public string Group { get; init; }
         public string Name { get; init; }
         public string? ScheduleSummary { get; init; }
+        public string? State { get; init; }
         public string? TriggerType { get; init; }
     }
     public sealed class TriggerKeyDto : System.IEquatable<Quartz.Dashboard.Services.TriggerKeyDto>
@@ -581,6 +597,15 @@ namespace Quartz.Dashboard.Services
         public TriggerKeyDto(string Group, string Name) { }
         public string Group { get; init; }
         public string Name { get; init; }
+    }
+    public sealed class TriggerPageDto : System.IEquatable<Quartz.Dashboard.Services.TriggerPageDto>
+    {
+        public TriggerPageDto(int Page, int PageSize, int TotalCount, bool HasMore, System.Collections.Generic.List<Quartz.Dashboard.Services.TriggerHeaderDto> Items) { }
+        public bool HasMore { get; init; }
+        public System.Collections.Generic.List<Quartz.Dashboard.Services.TriggerHeaderDto> Items { get; init; }
+        public int Page { get; init; }
+        public int PageSize { get; init; }
+        public int TotalCount { get; init; }
     }
 }
 namespace Quartz

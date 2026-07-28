@@ -88,6 +88,29 @@ public class StdAdoDelegateTest
     private sealed class NonSerializableTestClass;
 
     [Test]
+    public async Task SelectJobGroups_PausedTrue_IsAlwaysEmpty()
+    {
+        var adoDelegate = new StdAdoDelegate();
+        adoDelegate.Initialize(new DelegateInitializationArgs
+        {
+            TablePrefix = "QRTZ_",
+            InstanceId = "INSTANCE",
+            InstanceName = "TESTSCHED",
+            TypeLoadHelper = new SimpleTypeLoadHelper(),
+            DbProvider = new DbProvider(TestConstants.DefaultSqlServerProvider, ""),
+            ObjectSerializer = serializer
+        });
+
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+
+        PagedResult<JobGroup> result = await adoDelegate.SelectJobGroups(conn, new JobGroupQuery { Paused = true, IncludeTotalCount = true });
+
+        result.Items.Should().BeEmpty("the ADO store does not persist job group pause state, so no job group ever reads as paused");
+        result.HasMore.Should().BeFalse();
+        result.TotalCount.Should().Be(0);
+    }
+
+    [Test]
     public async Task TestSelectBlobTriggerWithNoBlobContent()
     {
         var dbProvider = A.Fake<IDbProvider>();

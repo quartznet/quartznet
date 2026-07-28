@@ -43,6 +43,42 @@ internal sealed class EndpointHelper
         return GroupMatcher<T>.AnyGroup();
     }
 
+    /// <summary>
+    /// The most keys one bulk fetch request may carry.
+    /// </summary>
+    public const int MaxKeysToFetch = 1000;
+
+    public static void AssertPaging(int skip, int take)
+    {
+        if (skip < 0)
+        {
+            throw new BadHttpRequestException("skip must not be negative");
+        }
+
+        if (take < 0)
+        {
+            throw new BadHttpRequestException("take must not be negative");
+        }
+    }
+
+    public static void AssertKeysToFetch(KeyDto[] keys)
+    {
+        if (keys is null)
+        {
+            throw new BadHttpRequestException("Keys to fetch are required");
+        }
+
+        if (keys.Length > MaxKeysToFetch)
+        {
+            throw new BadHttpRequestException($"Too many keys given, at most {MaxKeysToFetch} can be fetched at once");
+        }
+
+        foreach (KeyDto key in keys)
+        {
+            AssertIsValid(key);
+        }
+    }
+
     public static void AssertIsValid(IValidatable toValidate)
     {
         var errors = toValidate.Validate().Distinct().ToArray();
