@@ -370,7 +370,9 @@ END
 GO
 
 -- PostgreSQL
--- Only idx_qrtz_t_state applies; the 3.x PostgreSQL schema had no equivalent of the others.
+-- Only idx_qrtz_t_state applies here; the 3.x PostgreSQL schema had no equivalent of the rest,
+-- except idx_qrtz_ft_trig_inst_name -- that one is dropped by the PostgreSQL index realignment
+-- section at the end of this file, which first creates the index that covers it.
 -- CAUTION: it is covered only by the 4.x idx_qrtz_t_nft_st. The 3.x index of that name was
 -- (next_fire_time, trigger_state), which does not lead with trigger_state and so does not
 -- cover it. Check yours with \d qrtz_triggers, and if it is still the 3.x shape, rebuild it
@@ -423,3 +425,48 @@ GO
 -- DROP INDEX IDX_QRTZ_T_STATE;
 -- DROP INDEX IDX_QRTZ_T_NFT_MISFIRE;
 -- DROP INDEX IDX_QRTZ_FT_TRIG_INST_NAME;
+
+--
+-- Realigns the PostgreSQL index set with the statements 4.x actually issues. This section is
+-- PostgreSQL only -- the other dialect scripts already carry these indexes.
+--
+-- The PostgreSQL script has long carried five fired-trigger indexes on a single column that is
+-- not sched_name. No Quartz statement can drive a scan from one: every query against
+-- QRTZ_FIRED_TRIGGERS filters SCHED_NAME first and then a whole key, so the planner's best case
+-- is bitmap-ANDing such an index with another. They are replaced below by the composite forms
+-- the other dialects carry, together with the two QRTZ_TRIGGERS indexes PostgreSQL never had.
+--
+-- These changes are OPTIONAL: 4.x runs unchanged without them. The creates matter once a schema
+-- holds a non-trivial number of triggers; the drops only reclaim write cost and storage.
+--
+-- Run the creates before the drops. Replace 'qrtz_' with your configured table prefix if
+-- different. CREATE INDEX blocks writes to the table while it builds, so use
+-- CREATE INDEX CONCURRENTLY (outside a transaction block) against a live scheduler.
+--
+
+-- PostgreSQL
+-- Serves SelectTriggersForJob, SelectNumTriggersForJob, both UpdateJobTriggerStates statements and the trigger listing's job filter.
+-- CREATE INDEX IF NOT EXISTS idx_qrtz_t_j ON qrtz_triggers (sched_name, job_name, job_group);
+--
+-- Serves SelectTriggersForCalendar and SelectReferencedCalendar, which otherwise scan every trigger on each calendar store and remove.
+-- CREATE INDEX IF NOT EXISTS idx_qrtz_t_c ON qrtz_triggers (sched_name, calendar_name);
+--
+-- Serves SelectInstancesRecoverableFiredTriggers, the instance-name filter of the fired-trigger select and delete, and SelectFiredTriggerInstanceNames.
+-- CREATE INDEX IF NOT EXISTS idx_qrtz_ft_inst_job_req_rcvry ON qrtz_fired_triggers (sched_name, instance_name, requests_recovery);
+--
+-- Serves the job filter of the fired-trigger select and delete, and IsJobCurrentlyExecuting, which runs on every fire of a non-concurrent job.
+-- CREATE INDEX IF NOT EXISTS idx_qrtz_ft_j_g ON qrtz_fired_triggers (sched_name, job_name, job_group);
+--
+-- The existing idx_qrtz_ft_trig_nm_gp is the 4.x idx_qrtz_ft_t_g under PostgreSQL's own older name; renaming is metadata only, and optional -- nothing in Quartz names an index.
+-- ALTER INDEX IF EXISTS idx_qrtz_ft_trig_nm_gp RENAME TO idx_qrtz_ft_t_g;
+--
+-- The five that lead with something other than sched_name, and so serve no Quartz query at all; the composite indexes above replace them.
+-- DROP INDEX IF EXISTS idx_qrtz_ft_trig_name;
+-- DROP INDEX IF EXISTS idx_qrtz_ft_trig_group;
+-- DROP INDEX IF EXISTS idx_qrtz_ft_job_name;
+-- DROP INDEX IF EXISTS idx_qrtz_ft_job_group;
+-- DROP INDEX IF EXISTS idx_qrtz_ft_job_req_recovery;
+--
+-- CAUTION: (sched_name, instance_name) is a leading prefix of idx_qrtz_ft_inst_job_req_rcvry and
+-- of nothing else, so drop it only once that CREATE INDEX above has succeeded.
+-- DROP INDEX IF EXISTS idx_qrtz_ft_trig_inst_name;
