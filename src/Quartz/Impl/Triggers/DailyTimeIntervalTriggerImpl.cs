@@ -849,8 +849,12 @@ public class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalT
                 if (daysOfWeek.Contains(dayOfWeekOfFireTime))
                 {
                     fireTime = fireTimeStartDateCal;
-                    // apply timezone for this date & time
-                    fireTime = new DateTimeOffset(fireTime.DateTime, TimeZoneUtil.GetUtcOffset(fireTime, TimeZone));
+                    // apply timezone for this date & time; resolve from the wall-clock time, not the
+                    // carried instant - the offset inherited through AddDays is stale when the walk
+                    // crosses a DST transition, and the instant-based overload would resolve an
+                    // in-gap start-of-day one transition delta too early, before the EndTimeUtc
+                    // check below sees it
+                    fireTime = new DateTimeOffset(fireTime.DateTime, TimeZoneUtil.GetUtcOffset(fireTime.DateTime, TimeZone));
                     break;
                 }
             }
