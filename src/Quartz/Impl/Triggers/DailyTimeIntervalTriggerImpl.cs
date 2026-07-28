@@ -669,13 +669,13 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
         }
 
         // apply the proper offset for the end date
-        fireTimeEndDate = new DateTimeOffset(fireTimeEndDate.DateTime, TimeZoneUtil.GetUtcOffset(fireTimeEndDate.DateTime, TimeZone));
+        fireTimeEndDate = TimeZoneUtil.ResolveLocal(fireTimeEndDate.DateTime, TimeZone);
 
         // e. Check fireTime against startTime or startTimeOfDay to see which go first.
         DateTimeOffset fireTimeStartDate = startTimeOfDay.GetTimeOfDayForDate(fireTime.Value);
 
         // apply the proper offset for the start date
-        fireTimeStartDate = new DateTimeOffset(fireTimeStartDate.DateTime, TimeZoneUtil.GetUtcOffset(fireTimeStartDate.DateTime, TimeZone));
+        fireTimeStartDate = TimeZoneUtil.ResolveLocal(fireTimeStartDate.DateTime, TimeZone);
 
         if (fireTime < fireTimeStartDate)
         {
@@ -753,7 +753,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
 
             if (expectedLocalTime.Date != fireTime.Value.DateTime.Date)
             {
-                DateTimeOffset corrected = new DateTimeOffset(expectedLocalTime, TimeZoneUtil.GetUtcOffset(expectedLocalTime, TimeZone));
+                DateTimeOffset corrected = TimeZoneUtil.ResolveLocal(expectedLocalTime, TimeZone);
 
                 // GetFireTimeAfter must never move backwards
                 if (corrected > fireTime.Value)
@@ -797,8 +797,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
 
         // For a local time that does not exist (skipped by a spring-forward transition) the resolved
         // offset is the one from before the transition, which lands on the first instant that does exist.
-        DateTime localTime = startOfDay.Value.DateTime;
-        return new DateTimeOffset(localTime, TimeZoneUtil.GetUtcOffset(localTime, TimeZone));
+        return TimeZoneUtil.ResolveLocal(startOfDay.Value.DateTime, TimeZone);
     }
 
     /// <summary>
@@ -850,8 +849,12 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
                 if (daysOfWeek.Contains(dayOfWeekOfFireTime))
                 {
                     fireTime = fireTimeStartDateCal;
-                    // apply timezone for this date & time
-                    fireTime = new DateTimeOffset(fireTime.DateTime, TimeZoneUtil.GetUtcOffset(fireTime, TimeZone));
+                    // apply timezone for this date & time; resolve from the wall-clock time, not the
+                    // carried instant - the offset inherited through AddDays is stale when the walk
+                    // crosses a DST transition, and an instant-based resolution would place an
+                    // in-gap start-of-day one transition delta too early, before the EndTimeUtc
+                    // check below sees it
+                    fireTime = TimeZoneUtil.ResolveLocal(fireTime.DateTime, TimeZone);
                     break;
                 }
             }

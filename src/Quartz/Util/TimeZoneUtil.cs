@@ -92,6 +92,100 @@ public static class TimeZoneUtil
     }
 
     /// <summary>
+    /// Transition scans are bounded so that a pathological time zone cannot loop forever;
+    /// no real transition gap or overlap is anywhere near this wide.
+    /// </summary>
+    private const int MaxTransitionScanMinutes = 48 * 60;
+
+    /// <summary>
+    /// Resolves a wall-clock time in the given zone to a <see cref="DateTimeOffset"/> using the
+    /// scheduler-wide daylight saving policy:
+    /// an ambiguous local time (fall-back overlap) resolves to the daylight offset — the first of
+    /// the two occurrences; a local time that does not exist (spring-forward gap) is paired with
+    /// the offset in effect just before the gap, which places the instant at the first wall-clock
+    /// time after the gap, shifted forward by the transition delta.
+    /// </summary>
+    /// <remarks>
+    /// For an in-gap time this differs from pairing with <see cref="TimeZoneInfo.GetUtcOffset(DateTime)"/>
+    /// only in zones whose daylight delta is negative (for example Europe/Dublin as modeled by TZif
+    /// data, where winter time is the daylight-flagged period): there the base offset is the
+    /// post-gap offset and pairing with it would produce an instant before the gap, moving time
+    /// backwards. The offset just before the gap is found by scanning backwards a minute at a time,
+    /// which also handles transition deltas that are not whole hours.
+    /// </remarks>
+    internal static DateTimeOffset ResolveLocal(DateTime dateTime, TimeZoneInfo timeZoneInfo)
+    {
+        if (timeZoneInfo.IsInvalidTime(dateTime))
+        {
+            DateTime probe = dateTime;
+            int guard = 0;
+            do
+            {
+                probe = probe.AddMinutes(-1);
+            } while (timeZoneInfo.IsInvalidTime(probe) && ++guard < MaxTransitionScanMinutes);
+
+            return new DateTimeOffset(dateTime, timeZoneInfo.GetUtcOffset(probe));
+        }
+
+        return new DateTimeOffset(dateTime, GetUtcOffset(dateTime, timeZoneInfo));
+    }
+
+    /// <summary>
+    /// Determines the wall-clock window that occurs twice around a fall-back transition. Returns
+    /// false when the given time is not ambiguous. On success <paramref name="windowStart"/> is the
+    /// first ambiguous wall-clock minute (pairing it with the standard offset yields the transition
+    /// instant, i.e. the first instant of the second pass) and <paramref name="windowEnd"/> is the
+    /// first wall-clock minute after the window. Boundaries are found by scanning a minute at a
+    /// time, which handles transition deltas that are not whole hours.
+    /// </summary>
+    internal static bool TryGetAmbiguousWindow(DateTime dateTime, TimeZoneInfo timeZoneInfo, out DateTime windowStart, out DateTime windowEnd)
+    {
+        if (!timeZoneInfo.IsAmbiguousTime(dateTime))
+        {
+            windowStart = default;
+            windowEnd = default;
+            return false;
+        }
+
+        DateTime minute = new DateTime(dateTime.Year, dateTime.Month, dateTime.Day, dateTime.Hour, dateTime.Minute, 0, dateTime.Kind);
+
+        DateTime start = minute;
+        int guard = 0;
+        while (timeZoneInfo.IsAmbiguousTime(start.AddMinutes(-1)) && guard++ < MaxTransitionScanMinutes)
+        {
+            start = start.AddMinutes(-1);
+        }
+
+        DateTime end = minute;
+        guard = 0;
+        while (timeZoneInfo.IsAmbiguousTime(end) && guard++ < MaxTransitionScanMinutes)
+        {
+            end = end.AddMinutes(1);
+        }
+
+        windowStart = start;
+        windowEnd = end;
+        return true;
+    }
+
+    /// <summary>
+    /// Walks forward from a wall-clock time inside a spring-forward gap to the first wall-clock
+    /// time that exists in the given zone (the end of the gap). Returns the input unchanged when it
+    /// is already valid.
+    /// </summary>
+    internal static DateTime WalkToGapEnd(DateTime dateTime, TimeZoneInfo timeZoneInfo)
+    {
+        DateTime probe = dateTime;
+        int guard = 0;
+        while (timeZoneInfo.IsInvalidTime(probe) && guard++ < MaxTransitionScanMinutes)
+        {
+            probe = probe.AddMinutes(1);
+        }
+
+        return probe;
+    }
+
+    /// <summary>
     /// Tries to find time zone with given id, has ability do some fallbacks when necessary.
     /// </summary>
     /// <param name="id">System id of the time zone.</param>

@@ -222,6 +222,15 @@ public sealed class CronExpression : ISerializable
     [NonSerialized] private readonly CronField years = [];
 
     /// <summary>
+    /// True when a second, minute or hour field uses a wildcard, step or range - the expression
+    /// means "fire every interval" rather than "fire at this time of day". Set during parsing,
+    /// never serialized (deserialization re-parses the expression string).
+    /// </summary>
+    [NonSerialized] private bool hasIntervalSemantics;
+
+    internal bool HasIntervalSemantics => hasIntervalSemantics;
+
+    /// <summary>
     /// Last day of week.
     /// </summary>
     [NonSerialized] private bool lastDayOfWeek;
@@ -820,6 +829,17 @@ public sealed class CronExpression : ISerializable
                     Throw.FormatException("Support for specifying multiple \"nth\" days is not implemented.");
                 }
 
+                // A second, minute or hour field written as a wildcard, step or range expresses an
+                // interval ("keep firing every ...") rather than a fixed time of day. The
+                // distinction drives the fall-back behavior in GetTimeAfter: interval expressions
+                // fire through both occurrences of the repeated wall-clock window, fixed times only
+                // through the first. Plain values and comma lists of plain values stay fixed-time.
+                if (exprOn <= CronExpressionConstants.Hour
+                    && (expr.IndexOf('*') != -1 || expr.IndexOf('/') != -1 || expr.IndexOf('-') != -1))
+                {
+                    hasIntervalSemantics = true;
+                }
+
                 if (expr.IndexOf(',') != -1)
                 {
                     foreach (var v in expr.SpanSplit(','))
@@ -867,6 +887,7 @@ public sealed class CronExpression : ISerializable
         years.Clear();
         lastDaySpecs = null;
         nearestWeekdays = null;
+        hasIntervalSemantics = false;
     }
 
     private void StoreExpressionQuestionMark(int type, ReadOnlySpan<char> s, int i)
@@ -2324,6 +2345,13 @@ public sealed class CronExpression : ISerializable
     /// <summary>
     /// Gets the next fire time after the given time.
     /// </summary>
+    /// <remarks>
+    /// Daylight saving time transitions in the configured <see cref="TimeZone"/> are handled as
+    /// follows: a scheduled wall-clock time that does not exist (spring-forward gap) fires exactly
+    /// once, shifted forward by the transition delta — a daily 02:30 schedule over a 02:00-03:00
+    /// gap fires at 03:30. This matches Java Quartz. A wall-clock time that occurs twice
+    /// (fall-back overlap) fires at its first occurrence.
+    /// </remarks>
     /// <param name="afterTimeUtc">The UTC time to start searching from.</param>
     /// <returns></returns>
     public DateTimeOffset? GetTimeAfter(DateTimeOffset afterTimeUtc)
@@ -2334,6 +2362,10 @@ public sealed class CronExpression : ISerializable
 
         // CronTrigger does not deal with milliseconds
         var d = CreateDateTimeWithoutMilliseconds(afterTimeUtc);
+
+        // the whole-second floor the search starts from; sub-second ticks on afterTimeUtc must not
+        // influence the fall-back demotion below or the result stops being monotonic in the input
+        var afterTimeUtcFloor = d;
 
         // change to specified time zone
         d = TimeZoneUtil.ConvertTime(d, TimeZone);
@@ -2361,24 +2393,83 @@ public sealed class CronExpression : ISerializable
 
             // apply the proper offset for this date
             var localDateTime = nextFireTimeCursor.Date.Value.DateTime;
-            d = new DateTimeOffset(localDateTime, TimeZoneUtil.GetUtcOffset(localDateTime, TimeZone));
+            d = TimeZoneUtil.ResolveLocal(localDateTime, TimeZone);
             foundNextFireTime = true;
 
-            // During DST fall-back transitions, an ambiguous local time may have been
-            // assigned the DST (summer) offset by GetUtcOffset, which picks the first
-            // (DST) occurrence. This can result in a UTC time that is before afterTimeUtc,
-            // causing infinite trigger fires. In that case, use the standard (non-DST)
-            // offset instead, which corresponds to the second occurrence of the local time.
-            // DST always shifts the offset by +1 hour, so the standard offset is always
-            // Min() and the DST offset is always Max() of the two ambiguous offsets.
-            if (d.ToUniversalTime() < afterTimeUtc && TimeZone.IsAmbiguousTime(localDateTime))
+            // During DST fall-back transitions an ambiguous local time resolves to its first
+            // occurrence. When the search started inside the repeated interval, that occurrence
+            // can precede the search floor, which would make the trigger fire endlessly. In that
+            // case use the other occurrence of the same wall-clock time: the earlier occurrence
+            // always carries the greater offset, so the later one is Min() of the two ambiguous
+            // offsets, whatever the size or sign of the zone's daylight delta. Compare against
+            // the whole-second floor the search actually started from - comparing against a
+            // sub-second afterTimeUtc would demote a valid fire, making the result non-monotonic
+            // in the input and breaking GetTimeBefore's binary search.
+            if (d.ToUniversalTime() < afterTimeUtcFloor && TimeZone.IsAmbiguousTime(localDateTime))
             {
-                TimeSpan standardOffset = TimeZone.GetAmbiguousTimeOffsets(localDateTime).Min();
-                d = new DateTimeOffset(localDateTime, standardOffset);
+                TimeSpan laterOccurrenceOffset = TimeZone.GetAmbiguousTimeOffsets(localDateTime).Min();
+                d = new DateTimeOffset(localDateTime, laterOccurrenceOffset);
             }
         }
 
+        if (hasIntervalSemantics && TimeZone.SupportsDaylightSavingTime)
+        {
+            d = ApplySecondAmbiguousPassIfNeeded(d, afterTimeUtcFloor);
+        }
+
         return d.ToUniversalTime();
+    }
+
+    /// <summary>
+    /// Makes interval expressions fire through both occurrences of the repeated fall-back window.
+    /// </summary>
+    /// <remarks>
+    /// The wall-clock walk in <see cref="GetTimeAfter"/> steps straight from the last wall-clock
+    /// minute of the ambiguous window to the first one after it, so when the search starts inside
+    /// the window's first (daylight) pass the entire second (standard) pass would be skipped - an
+    /// "every minute" schedule would silently not fire for a whole hour of real time. When that
+    /// happens, this re-runs the search from the transition instant: inside that call the
+    /// fall-back demotion resolves the found wall-clock time to its second occurrence, and the
+    /// recursion terminates because the restarted search no longer begins in the daylight pass.
+    /// Fixed-time expressions keep the fire-once-at-first-occurrence rule.
+    /// </remarks>
+    private DateTimeOffset ApplySecondAmbiguousPassIfNeeded(DateTimeOffset candidate, DateTimeOffset afterTimeUtcFloor)
+    {
+        var afterLocal = TimeZoneUtil.ConvertTime(afterTimeUtcFloor, TimeZone);
+        DateTime afterWallClock = afterLocal.DateTime;
+
+        if (!TimeZone.IsAmbiguousTime(afterWallClock))
+        {
+            return candidate;
+        }
+
+        TimeSpan[] offsets = TimeZone.GetAmbiguousTimeOffsets(afterWallClock);
+        TimeSpan daylightOffset = offsets.Max();
+        if (afterLocal.Offset != daylightOffset)
+        {
+            // already inside the second (standard) pass; the demotion in GetTimeAfter walks it
+            return candidate;
+        }
+
+        if (!TimeZoneUtil.TryGetAmbiguousWindow(afterWallClock, TimeZone, out DateTime windowStart, out _))
+        {
+            return candidate;
+        }
+
+        var secondPassStart = new DateTimeOffset(windowStart, offsets.Min());
+        if (candidate.ToUniversalTime() < secondPassStart.ToUniversalTime())
+        {
+            // the next fire is still inside the first pass; nothing was skipped yet
+            return candidate;
+        }
+
+        DateTimeOffset? secondPassFire = GetTimeAfter(secondPassStart.AddSeconds(-1));
+        if (secondPassFire is not null && secondPassFire.Value < candidate.ToUniversalTime())
+        {
+            return secondPassFire.Value;
+        }
+
+        return candidate;
     }
 
     /// <summary>
