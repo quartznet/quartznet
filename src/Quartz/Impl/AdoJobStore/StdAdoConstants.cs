@@ -34,6 +34,29 @@ public class StdAdoConstants : AdoConstants
 {
     public const string TablePrefixSubst = "{0}";
 
+    /// <summary>
+    /// Escape character for the group-name patterns <c>StdAdoDelegate.ToSqlLikeClause</c> produces, so
+    /// that a group literally named <c>50%</c> or <c>a_b</c> matches itself instead of acting as a
+    /// wildcard.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately not the conventional backslash: MySQL applies C-style escaping inside string
+    /// literals, where <c>ESCAPE '\'</c> is a syntax error (it would need <c>ESCAPE '\\'</c>, which in
+    /// turn is wrong everywhere else). <c>!</c> is an ordinary character in a string literal on every
+    /// supported dialect, so one statement text serves them all.
+    /// </remarks>
+    public const char SqlLikeEscapeCharacter = '!';
+
+    /// <summary>
+    /// The ANSI <c>ESCAPE</c> clause naming <see cref="SqlLikeEscapeCharacter" />. Every statement that
+    /// binds a pattern from <c>StdAdoDelegate.ToSqlLikeClause</c> ends its LIKE with this.
+    /// </summary>
+    /// <remarks>
+    /// <c>ESCAPE</c> is ANSI SQL and is accepted by SQL Server, PostgreSQL, MySQL, SQLite, Oracle and
+    /// Firebird alike.
+    /// </remarks>
+    public static readonly string SqlLikeEscapeClause = Invariant($" ESCAPE '{SqlLikeEscapeCharacter}'");
+
     // DELETE
     public static readonly string SqlDeleteBlobTrigger =
         Invariant($"DELETE FROM {TablePrefixSubst}{TableBlobTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
@@ -47,26 +70,21 @@ public class StdAdoConstants : AdoConstants
     public static readonly string SqlDeleteFiredTrigger =
         Invariant($"DELETE FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnEntryId} = @triggerEntryId");
 
+    /// <summary>
+    /// Deletes every fired trigger of the scheduler; the caller appends the predicates of a
+    /// <see cref="FiredTriggerQuery" /> to narrow it.
+    /// </summary>
     public static readonly string SqlDeleteFiredTriggers =
         Invariant($"DELETE FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName");
-
-    public static readonly string SqlDeleteInstancesFiredTriggers =
-        Invariant($"DELETE FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnInstanceName} = @instanceName");
-
-    public static readonly string SqlDeleteFiredTriggersForTrigger =
-        Invariant($"DELETE FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
-
-    public static readonly string SqlDeleteFiredTriggersForJob =
-        Invariant($"DELETE FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup");
 
     public static readonly string SqlDeleteJobDetail =
         Invariant($"DELETE FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup");
 
-    public static readonly string SqlDeletePausedTriggerGroup =
-        Invariant($"DELETE FROM {TablePrefixSubst}{TablePausedTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} LIKE @triggerGroup");
+    public static readonly string SqlDeletePausedTriggerGroupEquals =
+        Invariant($"DELETE FROM {TablePrefixSubst}{TablePausedTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} = @triggerGroup");
 
-    public static readonly string SqlDeletePausedTriggerGroups =
-        Invariant($"DELETE FROM {TablePrefixSubst}{TablePausedTriggers} WHERE {ColumnSchedulerName} = @schedulerName");
+    public static readonly string SqlDeletePausedTriggerGroupLike =
+        Invariant($"DELETE FROM {TablePrefixSubst}{TablePausedTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} LIKE @triggerGroup{SqlLikeEscapeClause}");
 
     public static readonly string SqlDeleteSchedulerState =
         Invariant($"DELETE FROM {TablePrefixSubst}{TableSchedulerState} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnInstanceName} = @instanceName");
@@ -144,23 +162,31 @@ public class StdAdoConstants : AdoConstants
     public static readonly string SqlSelectCalendarExistence =
         Invariant($"SELECT 1 FROM {TablePrefixSubst}{TableCalendars} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnCalendarName} = @calendarName");
 
-    public static readonly string SqlSelectCalendars =
-        Invariant($"SELECT {ColumnCalendarName} FROM {TablePrefixSubst}{TableCalendars} WHERE {ColumnSchedulerName} = @schedulerName");
-
     public static readonly string SqlSelectCronTriggers =
         Invariant($"SELECT * FROM {TablePrefixSubst}{TableCronTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
 
-    public static readonly string SqlSelectFiredTrigger =
-        Invariant($"SELECT * FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
+    /// <summary>
+    /// Selects every fired trigger of the scheduler; the caller appends the predicates of a
+    /// <see cref="FiredTriggerQuery" /> to narrow it.
+    /// </summary>
+    public static readonly string SqlSelectFiredTriggers =
+        Invariant($"SELECT * FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName");
 
-    public static readonly string SqlSelectFiredTriggerGroup =
-        Invariant($"SELECT * FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} = @triggerGroup");
+    // FIRED_TRIGGERS predicates, shared by the select and the delete so the two cannot filter
+    // differently. They are appended — and their parameters bound — in the order declared here,
+    // because providers with bindByName = false adapt named parameters positionally.
+
+    public static readonly string SqlFiredTriggerTriggerPredicate =
+        Invariant($" AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
+
+    public static readonly string SqlFiredTriggerJobPredicate =
+        Invariant($" AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup");
+
+    public static readonly string SqlFiredTriggerInstancePredicate =
+        Invariant($" AND {ColumnInstanceName} = @instanceName");
 
     public static readonly string SqlSelectFiredTriggerInstanceNames =
         Invariant($"SELECT DISTINCT {ColumnInstanceName} FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName");
-
-    public static readonly string SqlSelectFiredTriggersOfJob =
-        Invariant($"SELECT * FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup");
 
     public static readonly string SqlSelectCountExecutingFiredTriggersOfJob =
         Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup AND {ColumnEntryState} = @executingState");
@@ -168,20 +194,29 @@ public class StdAdoConstants : AdoConstants
     public static readonly string SqlSelectCountExecutingFiredTriggersOfTrigger =
         Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup AND {ColumnEntryState} = @executingState");
 
-    public static readonly string SqlSelectFiredTriggersOfJobGroup =
-        Invariant($"SELECT * FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobGroup} = @jobGroup");
-
-    public static readonly string SqlSelectInstancesFiredTriggers =
-        Invariant($"SELECT * FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnInstanceName} = @instanceName");
-
     public static readonly string SqlSelectInstancesRecoverableFiredTriggers =
         Invariant($"SELECT * FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnInstanceName} = @instanceName AND {ColumnRequestsRecovery} = @requestsRecovery");
 
-    public static readonly string SqlSelectJobDetail =
-        Invariant($"SELECT {ColumnJobName},{ColumnJobGroup},{ColumnDescription},{ColumnJobClass},{ColumnIsDurable},{ColumnRequestsRecovery},{ColumnJobDataMap},{ColumnIsNonConcurrent},{ColumnIsUpdateData} FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup");
+    /// <summary>
+    /// Column list shared by <see cref="SqlSelectJobDetail" /> and <see cref="SqlSelectJobDetailsByKeysPrefix" />,
+    /// so the single-job and batch read paths cannot drift apart.
+    /// </summary>
+    /// <remarks>
+    /// Ordinals matter here: the row reader reads JOB_DATA positionally at index 6, and the reader runs in
+    /// sequential-access mode. Append new columns to the end of this list, never insert into the middle.
+    /// </remarks>
+    private const string JobDetailSelectColumns =
+        $"{ColumnJobName},{ColumnJobGroup},{ColumnDescription},{ColumnJobClass},{ColumnIsDurable},{ColumnRequestsRecovery},{ColumnJobDataMap},{ColumnIsNonConcurrent},{ColumnIsUpdateData}";
 
-    public static readonly string SqlSelectJobExecutionCount =
-        Invariant($"SELECT COUNT({ColumnTriggerName}) FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup");
+    public static readonly string SqlSelectJobDetail =
+        Invariant($"SELECT {JobDetailSelectColumns} FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup");
+
+    /// <summary>
+    /// Prefix of the batch job lookup; the caller appends a key-set predicate built by
+    /// <c>AdoUtil.BuildJobKeyPredicate</c>.
+    /// </summary>
+    public static readonly string SqlSelectJobDetailsByKeysPrefix =
+        Invariant($"SELECT {JobDetailSelectColumns} FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName AND ");
 
     public static readonly string SqlSelectJobExistence =
         Invariant($"SELECT 1 FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup");
@@ -189,29 +224,14 @@ public class StdAdoConstants : AdoConstants
     public static readonly string SqlSelectJobForTrigger =
         Invariant($"SELECT J.{ColumnJobName}, J.{ColumnJobGroup}, J.{ColumnIsDurable}, J.{ColumnJobClass}, J.{ColumnRequestsRecovery} FROM {TablePrefixSubst}{TableTriggers} T, {TablePrefixSubst}{TableJobDetails} J WHERE T.{ColumnSchedulerName} = @schedulerName AND T.{ColumnSchedulerName} = J.{ColumnSchedulerName} AND T.{ColumnTriggerName} = @triggerName AND T.{ColumnTriggerGroup} = @triggerGroup AND T.{ColumnJobName} = J.{ColumnJobName} AND T.{ColumnJobGroup} = J.{ColumnJobGroup}");
 
-    public static readonly string SqlSelectJobGroups =
-        Invariant($"SELECT DISTINCT({ColumnJobGroup}) FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName");
-
     public static readonly string SqlSelectJobsInGroupLike =
-        Invariant($"SELECT {ColumnJobName}, {ColumnJobGroup} FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobGroup} LIKE @jobGroup");
+        Invariant($"SELECT {ColumnJobName}, {ColumnJobGroup} FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobGroup} LIKE @jobGroup{SqlLikeEscapeClause}");
 
     public static readonly string SqlSelectJobsInGroup =
         Invariant($"SELECT {ColumnJobName}, {ColumnJobGroup} FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobGroup} = @jobGroup");
 
-    public static readonly string SqlSelectMisfiredTriggers =
-        Invariant($"SELECT * FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND {ColumnNextFireTime} < @nextFireTime ORDER BY {ColumnNextFireTime} ASC, {ColumnPriority} DESC");
-
-    public static readonly string SqlSelectMisfiredTriggersInGroupInState =
-        Invariant($"SELECT {ColumnTriggerName} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND {ColumnNextFireTime} < @nextFireTime AND {ColumnTriggerGroup} = @triggerGroup AND {ColumnTriggerState} = @state ORDER BY {ColumnNextFireTime} ASC, {ColumnPriority} DESC");
-
-    public static readonly string SqlSelectMisfiredTriggersInState =
-        Invariant($"SELECT {ColumnTriggerName}, {ColumnTriggerGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND {ColumnNextFireTime} < @nextFireTime AND {ColumnTriggerState} = @state ORDER BY {ColumnNextFireTime} ASC, {ColumnPriority} DESC");
-
     public static readonly string SqlCountMisfiredTriggersInStates =
         Invariant($"SELECT COUNT({ColumnTriggerName}) FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND {ColumnNextFireTime} < @nextFireTime AND {ColumnTriggerState} = @state1");
-
-    public static readonly string SqlSelectHasMisfiredTriggersInState =
-        Invariant($"SELECT {ColumnTriggerName}, {ColumnTriggerGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND {ColumnNextFireTime} < @nextFireTime AND {ColumnTriggerState} = @state1 ORDER BY {ColumnNextFireTime} ASC, {ColumnPriority} DESC");
 
     /// <summary>
     /// Sentinel stored in PREFERRED_NODE to request auto-pin that has not yet been claimed by
@@ -257,26 +277,11 @@ public class StdAdoConstants : AdoConstants
               ORDER BY
                 {ColumnNextFireTime} ASC, {ColumnPriority} DESC");
 
-    public static readonly string SqlSelectNumCalendars =
-        Invariant($"SELECT COUNT({ColumnCalendarName})  FROM {TablePrefixSubst}{TableCalendars} WHERE {ColumnSchedulerName} = @schedulerName");
-
-    public static readonly string SqlSelectNumJobs =
-        Invariant($"SELECT COUNT({ColumnJobName})  FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName");
-
-    public static readonly string SqlSelectNumTriggers =
-        Invariant($"SELECT COUNT({ColumnTriggerName})  FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName");
-
     public static readonly string SqlSelectNumTriggersForJob =
         Invariant($"SELECT COUNT({ColumnTriggerName}) FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup");
 
-    public static readonly string SqlSelectNumTriggersInGroup =
-        Invariant($"SELECT COUNT({ColumnTriggerName})  FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} = @triggerGroup");
-
     public static readonly string SqlSelectPausedTriggerGroup =
         Invariant($"SELECT {ColumnTriggerGroup} FROM {TablePrefixSubst}{TablePausedTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} = @triggerGroup");
-
-    public static readonly string SqlSelectPausedTriggerGroups =
-        Invariant($"SELECT {ColumnTriggerGroup} FROM {TablePrefixSubst}{TablePausedTriggers} WHERE {ColumnSchedulerName} = @schedulerName");
 
     public static readonly string SqlSelectReferencedCalendar =
         Invariant($"SELECT 1 FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnCalendarName} = @calendarName");
@@ -340,8 +345,8 @@ public class StdAdoConstants : AdoConstants
 
     /// <summary>
     /// Selects the misfired triggers to recover as fully populated rows, so a whole misfire recovery
-    /// batch costs one round-trip instead of one per trigger. Same predicate and ordering as
-    /// <see cref="SqlSelectHasMisfiredTriggersInState" />, same columns as <see cref="SqlSelectTrigger" />
+    /// batch costs one round-trip instead of one per trigger. Same predicate as
+    /// <see cref="SqlCountMisfiredTriggersInStates" />, same columns as <see cref="SqlSelectTrigger" />
     /// with the key columns appended (they are ambiguous across the joined tables, hence the alias).
     /// </summary>
     /// <remarks>
@@ -356,20 +361,44 @@ public class StdAdoConstants : AdoConstants
                 t.{ColumnSchedulerName} = @schedulerName AND t.{ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND t.{ColumnNextFireTime} < @nextFireTime AND t.{ColumnTriggerState} = @state1
             ORDER BY t.{ColumnNextFireTime} ASC, t.{ColumnPriority} DESC");
 
+    /// <summary>
+    /// Prefix of the batch trigger lookup; the caller appends a key-set predicate built by
+    /// <c>AdoUtil.BuildTriggerKeyPredicate</c> with qualified key columns. Same columns as
+    /// <see cref="SqlSelectTrigger" /> with the key columns appended (they are ambiguous across the
+    /// joined tables, hence the alias).
+    /// </summary>
+    public static readonly string SqlSelectTriggersByKeysPrefix =
+        Invariant($@"SELECT {TriggerSelectColumns},
+                t.{ColumnTriggerName},
+                t.{ColumnTriggerGroup}{TriggerSelectFastPathFrom}
+            WHERE
+                t.{ColumnSchedulerName} = @schedulerName AND ");
+
+    /// <summary>
+    /// Prefix of the batch simple-trigger lookup; the caller appends a key-set predicate built by
+    /// <c>AdoUtil.BuildTriggerKeyPredicate</c>.
+    /// </summary>
+    public static readonly string SqlSelectSimpleTriggersByKeysPrefix =
+        Invariant($"SELECT * FROM {TablePrefixSubst}{TableSimpleTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND ");
+
+    /// <summary>
+    /// Prefix of the batch cron-trigger lookup; the caller appends a key-set predicate built by
+    /// <c>AdoUtil.BuildTriggerKeyPredicate</c>.
+    /// </summary>
+    public static readonly string SqlSelectCronTriggersByKeysPrefix =
+        Invariant($"SELECT * FROM {TablePrefixSubst}{TableCronTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND ");
+
     public static readonly string SqlSelectTriggerData =
         Invariant($"SELECT {ColumnJobDataMap} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
 
     public static readonly string SqlSelectTriggerExistence =
         Invariant($"SELECT 1 FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
 
-    public static readonly string SqlSelectTriggerForFireTime =
-        Invariant($"SELECT {ColumnTriggerName}, {ColumnTriggerGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerState} = @state AND {ColumnNextFireTime} = @nextFireTime");
+    public static readonly string SqlSelectTriggerGroupsEquals =
+        Invariant($"SELECT DISTINCT({ColumnTriggerGroup}) FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} = @triggerGroup");
 
-    public static readonly string SqlSelectTriggerGroups =
-        Invariant($"SELECT DISTINCT({ColumnTriggerGroup}) FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName");
-
-    public static readonly string SqlSelectTriggerGroupsFiltered =
-        Invariant($"SELECT DISTINCT({ColumnTriggerGroup}) FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} LIKE @triggerGroup");
+    public static readonly string SqlSelectTriggerGroupsLike =
+        Invariant($"SELECT DISTINCT({ColumnTriggerGroup}) FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} LIKE @triggerGroup{SqlLikeEscapeClause}");
 
     public static readonly string SqlSelectTriggerState =
         Invariant($"SELECT {ColumnTriggerState} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
@@ -384,7 +413,7 @@ public class StdAdoConstants : AdoConstants
         Invariant($"SELECT {ColumnTriggerName}, {ColumnTriggerGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup");
 
     public static readonly string SqlSelectTriggersInGroupLike =
-        Invariant($"SELECT {ColumnTriggerName}, {ColumnTriggerGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} LIKE @triggerGroup");
+        Invariant($"SELECT {ColumnTriggerName}, {ColumnTriggerGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} LIKE @triggerGroup{SqlLikeEscapeClause}");
 
     public static readonly string SqlSelectTriggersInGroup =
         Invariant($"SELECT {ColumnTriggerName}, {ColumnTriggerGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} = @triggerGroup");
@@ -394,6 +423,83 @@ public class StdAdoConstants : AdoConstants
 
     public static readonly string SqlSelectTriggerType =
         Invariant($"SELECT {ColumnTriggerType} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
+
+    // PAGED LISTINGS
+    //
+    // Each listing is composed as: statement + optional predicates + ORDER BY + the dialect's paging
+    // clause. The ORDER BY is part of the generated statement rather than something the caller adds,
+    // because a page without one is not deterministic (see QTZ-413). The optional predicates append
+    // to the count statement too, so a total count sees exactly the same WHERE.
+
+    public static readonly string SqlSelectJobHeaders =
+        Invariant($"SELECT {ColumnJobName}, {ColumnJobGroup}, {ColumnDescription}, {ColumnJobClass}, {ColumnIsDurable}, {ColumnIsNonConcurrent}, {ColumnIsUpdateData}, {ColumnRequestsRecovery} FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName");
+
+    public static readonly string SqlCountJobHeaders =
+        Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName");
+
+    public static readonly string SqlJobGroupEqualsPredicate = Invariant($" AND {ColumnJobGroup} = @jobGroup");
+
+    public static readonly string SqlJobGroupLikePredicate = Invariant($" AND {ColumnJobGroup} LIKE @jobGroup{SqlLikeEscapeClause}");
+
+    public static readonly string SqlOrderByJobGroupAndName = Invariant($" ORDER BY {ColumnJobGroup}, {ColumnJobName}");
+
+    public static readonly string SqlSelectTriggerHeaders =
+        Invariant($"SELECT {ColumnTriggerName}, {ColumnTriggerGroup}, {ColumnJobName}, {ColumnJobGroup}, {ColumnDescription}, {ColumnTriggerType}, {ColumnTriggerState}, {ColumnStartTime}, {ColumnEndTime}, {ColumnNextFireTime}, {ColumnPreviousFireTime}, {ColumnCalendarName}, {ColumnPriority}, {ColumnExecutionGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName");
+
+    public static readonly string SqlCountTriggerHeaders =
+        Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName");
+
+    public static readonly string SqlTriggerGroupEqualsPredicate = Invariant($" AND {ColumnTriggerGroup} = @triggerGroup");
+
+    public static readonly string SqlTriggerGroupLikePredicate = Invariant($" AND {ColumnTriggerGroup} LIKE @triggerGroup{SqlLikeEscapeClause}");
+
+    public static readonly string SqlTriggerJobPredicate = Invariant($" AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup");
+
+    public static readonly string SqlTriggerCalendarPredicate = Invariant($" AND {ColumnCalendarName} = @calendarName");
+
+    /// <summary>
+    /// Opening of the trigger state filter; the caller appends <c>@state0[, @state1...])</c> for the
+    /// internal states the requested <see cref="TriggerState" /> maps to.
+    /// </summary>
+    public static readonly string SqlTriggerStateInPredicateStart = Invariant($" AND {ColumnTriggerState} IN (");
+
+    public static readonly string SqlOrderByTriggerGroupAndName = Invariant($" ORDER BY {ColumnTriggerGroup}, {ColumnTriggerName}");
+
+    public static readonly string SqlSelectJobGroupsOrdered =
+        Invariant($"SELECT DISTINCT {ColumnJobGroup} FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName ORDER BY {ColumnJobGroup}");
+
+    public static readonly string SqlCountJobGroups =
+        Invariant($"SELECT COUNT(DISTINCT {ColumnJobGroup}) FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName");
+
+    // Correlates on t.SCHED_NAME instead of reusing @schedulerName: each named parameter must be
+    // referenced exactly once in the statement, because providers with bindByName=false adapt named
+    // parameters positionally and a reused name would produce more placeholders than bound parameters.
+    private static readonly string PausedTriggerGroupExists =
+        Invariant($"SELECT 1 FROM {TablePrefixSubst}{TablePausedTriggers} pg WHERE pg.{ColumnSchedulerName} = t.{ColumnSchedulerName} AND pg.{ColumnTriggerGroup} = t.{ColumnTriggerGroup}");
+
+    public static readonly string SqlSelectTriggerGroupsWithPausedFlag =
+        Invariant($"SELECT DISTINCT t.{ColumnTriggerGroup}, CASE WHEN EXISTS ({PausedTriggerGroupExists}) THEN 1 ELSE 0 END AS IS_PAUSED FROM {TablePrefixSubst}{TableTriggers} t WHERE t.{ColumnSchedulerName} = @schedulerName ORDER BY t.{ColumnTriggerGroup}");
+
+    public static readonly string SqlCountTriggerGroups =
+        Invariant($"SELECT COUNT(DISTINCT {ColumnTriggerGroup}) FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName");
+
+    public static readonly string SqlSelectPausedTriggerGroupsOrdered =
+        Invariant($"SELECT {ColumnTriggerGroup} FROM {TablePrefixSubst}{TablePausedTriggers} WHERE {ColumnSchedulerName} = @schedulerName ORDER BY {ColumnTriggerGroup}");
+
+    public static readonly string SqlCountPausedTriggerGroups =
+        Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{TablePausedTriggers} WHERE {ColumnSchedulerName} = @schedulerName");
+
+    public static readonly string SqlSelectUnpausedTriggerGroupsOrdered =
+        Invariant($"SELECT DISTINCT t.{ColumnTriggerGroup} FROM {TablePrefixSubst}{TableTriggers} t WHERE t.{ColumnSchedulerName} = @schedulerName AND NOT EXISTS ({PausedTriggerGroupExists}) ORDER BY t.{ColumnTriggerGroup}");
+
+    public static readonly string SqlCountUnpausedTriggerGroups =
+        Invariant($"SELECT COUNT(DISTINCT t.{ColumnTriggerGroup}) FROM {TablePrefixSubst}{TableTriggers} t WHERE t.{ColumnSchedulerName} = @schedulerName AND NOT EXISTS ({PausedTriggerGroupExists})");
+
+    public static readonly string SqlSelectCalendarNamesOrdered =
+        Invariant($"SELECT {ColumnCalendarName} FROM {TablePrefixSubst}{TableCalendars} WHERE {ColumnSchedulerName} = @schedulerName ORDER BY {ColumnCalendarName}");
+
+    public static readonly string SqlCountCalendarNames =
+        Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{TableCalendars} WHERE {ColumnSchedulerName} = @schedulerName");
 
     // UPDATE
 
@@ -444,11 +550,17 @@ public class StdAdoConstants : AdoConstants
 
     public static readonly string SqlUpdateFiredTrigger = Invariant($"UPDATE {TablePrefixSubst}{TableFiredTriggers} SET {ColumnInstanceName} = @instanceName, {ColumnFiredTime} = @firedTime, {ColumnScheduledTime} = @scheduledTime, {ColumnEntryState} = @entryState, {ColumnJobName} = @jobName, {ColumnJobGroup} = @jobGroup, {ColumnIsNonConcurrent} = @isNonConcurrent, {ColumnRequestsRecovery} = @requestsRecover WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnEntryId} = @entryId");
 
-    public static readonly string SqlUpdateTriggerGroupStateFromState =
-        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnTriggerState} = @newState WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} LIKE @triggerGroup AND {ColumnTriggerState} = @oldState");
+    public static readonly string SqlUpdateTriggerGroupStateFromStateEquals =
+        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnTriggerState} = @newState WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} = @triggerGroup AND {ColumnTriggerState} = @oldState");
 
-    public static readonly string SqlUpdateTriggerGroupStateFromStates =
-        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnTriggerState} = @newState WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} LIKE @groupName AND ({ColumnTriggerState} = @oldState1 OR {ColumnTriggerState} = @oldState2 OR {ColumnTriggerState} = @oldState3)");
+    public static readonly string SqlUpdateTriggerGroupStateFromStateLike =
+        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnTriggerState} = @newState WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} LIKE @triggerGroup{SqlLikeEscapeClause} AND {ColumnTriggerState} = @oldState");
+
+    public static readonly string SqlUpdateTriggerGroupStateFromStatesEquals =
+        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnTriggerState} = @newState WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} = @groupName AND ({ColumnTriggerState} = @oldState1 OR {ColumnTriggerState} = @oldState2 OR {ColumnTriggerState} = @oldState3)");
+
+    public static readonly string SqlUpdateTriggerGroupStateFromStatesLike =
+        Invariant($"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnTriggerState} = @newState WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} LIKE @groupName{SqlLikeEscapeClause} AND ({ColumnTriggerState} = @oldState1 OR {ColumnTriggerState} = @oldState2 OR {ColumnTriggerState} = @oldState3)");
 
     public static readonly string SqlUpdateTriggerSkipData =
         Invariant($@"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnJobName} = @triggerJobName, {ColumnJobGroup} = @triggerJobGroup, {ColumnDescription} = @triggerDescription, {ColumnNextFireTime} = @triggerNextFireTime, {ColumnPreviousFireTime} = @triggerPreviousFireTime,

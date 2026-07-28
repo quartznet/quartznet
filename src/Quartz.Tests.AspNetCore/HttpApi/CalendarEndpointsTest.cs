@@ -11,7 +11,8 @@ public class CalendarEndpointsTest : WebApiTest
     [Test]
     public async Task GetCalendarNamesShouldWork()
     {
-        A.CallTo(() => FakeScheduler.GetCalendarNames(A<CancellationToken>._)).Returns(["Calendar 1", "Calendar 2"]);
+        A.CallTo(() => FakeScheduler.QueryCalendarNames(A<CalendarQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<string>(["Calendar 1", "Calendar 2"], HasMore: false));
 
         var calendarNames = await HttpScheduler.GetCalendarNames();
         using (new AssertionScope())
@@ -20,6 +21,27 @@ public class CalendarEndpointsTest : WebApiTest
             calendarNames.Should().ContainSingle(x => x == "Calendar 1");
             calendarNames.Should().ContainSingle(x => x == "Calendar 2");
         }
+
+        A.CallTo(() => FakeScheduler.QueryCalendarNames(new CalendarQuery(), A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
+    public async Task QueryCalendarNamesShouldPassPaging()
+    {
+        A.CallTo(() => FakeScheduler.QueryCalendarNames(A<CalendarQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<string>(["Calendar 2"], HasMore: true, TotalCount: 3));
+
+        var query = new CalendarQuery { Skip = 1, Take = 1, IncludeTotalCount = true };
+        var result = await HttpScheduler.QueryCalendarNames(query);
+
+        using (new AssertionScope())
+        {
+            result.Items.Should().ContainSingle().Which.Should().Be("Calendar 2");
+            result.HasMore.Should().BeTrue();
+            result.TotalCount.Should().Be(3);
+        }
+
+        A.CallTo(() => FakeScheduler.QueryCalendarNames(query, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
     }
 
     [Test]

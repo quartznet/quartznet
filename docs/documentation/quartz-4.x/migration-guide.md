@@ -314,6 +314,26 @@ END
 
 See the migration script for PostgreSQL, MySQL, Oracle, SQLite, and Firebird equivalents. Replace `QRTZ_` with your configured table prefix if different.
 
+### Listing indexes (optional)
+
+The same script adds two indexes that the [job and trigger listings](#job-store-listings-became-queries)
+benefit from:
+
+| Index | Table and columns |
+|---|---|
+| `IDX_QRTZ_J_G_N` | `QRTZ_JOB_DETAILS(SCHED_NAME, JOB_GROUP, JOB_NAME)` |
+| `IDX_QRTZ_T_G_N` | `QRTZ_TRIGGERS(SCHED_NAME, TRIGGER_GROUP, TRIGGER_NAME)` |
+
+Listings page with `ORDER BY JOB_GROUP, JOB_NAME` and `ORDER BY TRIGGER_GROUP, TRIGGER_NAME`, and the primary
+keys are name-before-group, so no existing index serves those ordered scans. **These are optional** — the
+queries work without them, but each page becomes a scan plus a sort. Add them if you list jobs or triggers
+from a large schema. They are in the fresh-install scripts for every dialect already.
+
+PostgreSQL users should also take the corrected index definitions from
+[database/tables/tables_postgres.sql](https://github.com/quartznet/quartznet/blob/main/database/tables/tables_postgres.sql).
+Several indexes in that script omitted `SCHED_NAME`, which is the leading column of every predicate Quartz
+issues, so they could not serve a single-scheduler lookup.
+
 Full table creation scripts for fresh installations are available in [database/tables/](https://github.com/quartznet/quartznet/tree/main/database/tables).
 
 ## Tasks Changed to ValueTask
@@ -559,6 +579,7 @@ The cron expression parser now supports additional syntax:
 * **[RecurrenceTrigger (RRULE)](tutorial/recurrencetrigger.md)** — schedule jobs using RFC 5545 recurrence rules for complex patterns like "every 2nd Monday of the month" or "last weekday of March each year"
 * **H (hash) token in cron expressions** — deterministic load distribution across triggers using the trigger identity as seed
 * **HTTP API** — optional REST API for managing the scheduler remotely (see [HTTP API](packages/http-api.md))
+* **Paged, projected job store queries** — list and count jobs, triggers, groups and calendars a page at a time, with the metadata a listing needs already in the row (see [Job store listings became queries](#job-store-listings-became-queries))
 
 ## Batched Misfire Recovery
 
@@ -575,13 +596,185 @@ This matters if you implement `IDriverDelegate` yourself, which now has two more
 | `UpdateMisfiredTriggers` | Applies a batch of misfire updates, batching the statements where supported |
 
 If you subclass `StdAdoDelegate` you get both for free. A driver delegate for a database with its own
-row-limiting syntax should also override `GetSelectMisfiredTriggersToRecoverSql`, alongside the existing
-`GetSelectNextMisfiredTriggersInStateToAcquireSql`.
+row-limiting syntax should also override `GetSelectMisfiredTriggersToRecoverSql`.
 
 One behavioral note: `ITriggerListener.TriggerMisfired` is now raised for every trigger in a batch before
 any of that batch's database updates are written, where previously the notification and the update were
 interleaved per trigger. Everything still happens inside the same transaction and under the same lock, so
 what other nodes observe is unchanged.
+
+## Job store listings became queries
+
+Listing jobs or triggers meant reading every key and then spending one round trip per key on anything more
+than the key — the job's type, the trigger's state or next fire time. Nothing could ask for a page, and
+nothing could ask for a count without materializing what it counted.
+
+Those members are replaced by query members that take a query record and return one page of projected
+results. **Existing code keeps compiling**: every removed `IScheduler` member comes back as an extension
+method in `SchedulerQueryExtensions`, with the same name and signature.
+
+### What replaced what
+
+`IScheduler` — the left column still works, now as an extension method:
+
+| Removed from `IScheduler` | Query member |
+|---|---|
+| `GetJobKeys(matcher)` | `QueryJobs(new JobQuery { Group = matcher })` |
+| `GetTriggerKeys(matcher)` | `QueryTriggers(new TriggerQuery { Group = matcher })` |
+| `GetJobGroupNames()` | `QueryJobGroups(new JobGroupQuery())` |
+| `GetTriggerGroupNames()` | `QueryTriggerGroups(new TriggerGroupQuery())` |
+| `GetPausedTriggerGroups()` | `QueryTriggerGroups(new TriggerGroupQuery { Paused = true })` |
+| `GetCalendarNames()` | `QueryCalendarNames(new CalendarQuery())` |
+| `IsJobGroupPaused(group)` | `QueryJobGroups(new JobGroupQuery { Paused = true })` |
+| `IsTriggerGroupPaused(group)` | `QueryTriggerGroups(new TriggerGroupQuery { Paused = true })` |
+
+`IJobStore` loses the same members plus the counting and existence ones, and has no extension methods to
+soften it — if you implement a job store, you implement the query members:
+
+| Removed from `IJobStore` | Use instead |
+|---|---|
+| `GetJobKeys`, `GetTriggerKeys` | `QueryJobs`, `QueryTriggers` |
+| `GetJobGroupNames`, `GetTriggerGroupNames`, `GetPausedTriggerGroups` | `QueryJobGroups`, `QueryTriggerGroups` |
+| `GetCalendarNames` | `QueryCalendarNames` |
+| `IsJobGroupPaused`, `IsTriggerGroupPaused` | the matching `Query*Groups` with `Paused = true` |
+| `GetNumberOfJobs`, `GetNumberOfTriggers`, `GetNumberOfCalendars` | the matching query with `Take = 0, IncludeTotalCount = true` |
+| `CalendarExists(name)` | `RetrieveCalendar(name)` returning non-null |
+
+Two members are new on both interfaces: **`GetJobDetails(jobKeys)`** and **`GetTriggers(triggerKeys)`**
+retrieve many by key in one round trip. Keys that do not exist are simply absent, duplicates fold away, and
+results come back in the order the keys were asked for.
+
+### Paging and projection
+
+Every query derives from `PagedQuery`, which carries `Skip`, `Take` (default `int.MaxValue` — a query that
+sets neither returns everything) and `IncludeTotalCount`. The result is a `PagedResult<T>` with `Items`,
+`HasMore` and a nullable `TotalCount`. `HasMore` is exact and costs nothing: stores read one item past
+`Take` rather than running a second query.
+
+Because the query types are records, walk a result by `with`-ing the next `Skip`:
+
+```csharp
+// Before
+IReadOnlyCollection<JobKey> keys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.AnyGroup());
+foreach (JobKey key in keys)
+{
+    IJobDetail? detail = await scheduler.GetJobDetail(key); // one round trip each
+    Console.WriteLine($"{key} -> {detail?.JobType.Name}");
+}
+```
+
+```csharp
+// After — one round trip per page, and the type name is already there
+JobQuery query = new() { Group = GroupMatcher<JobKey>.AnyGroup(), Take = 100 };
+while (true)
+{
+    PagedResult<JobHeader> page = await scheduler.QueryJobs(query);
+    foreach (JobHeader job in page.Items)
+    {
+        Console.WriteLine($"{job.Key} -> {job.JobTypeName}");
+    }
+
+    if (!page.HasMore)
+    {
+        break;
+    }
+
+    query = query with { Skip = query.Skip + page.Items.Count };
+}
+```
+
+`JobHeader` is a job's metadata *without* its `JobDataMap`, so listing never loads or deserializes job data.
+`TriggerHeader` carries the state, fire times, priority, calendar name and execution group that previously
+cost an extra round trip per trigger each. When you do need the whole thing, follow a page with one bulk
+fetch:
+
+```csharp
+List<IJobDetail> details = await scheduler.GetJobDetails(page.Items.ConvertAll(x => x.Key));
+```
+
+Counting is a query that reads no rows:
+
+```csharp
+// Before
+int total = await jobStore.GetNumberOfTriggers();
+
+// After
+PagedResult<TriggerHeader> count = await scheduler.QueryTriggers(
+    new TriggerQuery { Take = 0, IncludeTotalCount = true });
+int total = count.TotalCount!.Value;
+```
+
+Unlike the old counting members, this counts what a filter selects rather than a whole table — how many
+triggers are in the error state, for instance:
+
+```csharp
+PagedResult<TriggerHeader> failed = await scheduler.QueryTriggers(
+    new TriggerQuery { State = TriggerState.Error, Take = 0, IncludeTotalCount = true });
+Console.WriteLine($"{failed.TotalCount} triggers need attention");
+```
+
+`TriggerQuery` also filters on `Job`, `CalendarName` and `Group`; the filters combine with AND, and a null
+`Group` matches every group.
+
+### Behavior worth knowing
+
+* **Ordering is group first, then name**, and every page uses the same ordering, so paging is consistent.
+  `RAMJobStore` compares ordinal. The ADO job store sorts in the database, so both the group order and the
+  order within a group follow the **server's collation** — for most collations that differs from ordinal only
+  in case and accent handling, but it is the database's decision, not Quartz's. Sort the page yourself if you
+  need one specific culture's ordering.
+* **A null matcher now throws.** `scheduler.GetJobKeys(null)` and `GetTriggerKeys(null)` raise
+  `ArgumentNullException` instead of silently narrowing the listing to the `DEFAULT` group.
+* **The extension methods enumerate everything.** They preserve the old semantics — and the old cost. Use the
+  query member with `Skip`/`Take` wherever the result can be large.
+* **Job group pause state is not persisted by the ADO job store**, so `JobGroup.Paused` is always false
+  there. This is what `IsJobGroupPaused` always did on that store; the query type just makes it visible.
+* **Two indexes were added** to support the ordered scans — see [Database Schema Migration](#database-schema-migration).
+
+### If you implement `IDriverDelegate`
+
+Beyond the two batched-misfire members above, the query work adds, removes and consolidates a fair amount.
+New members to implement:
+
+| Member | Purpose |
+|--------|---------|
+| `SelectJobHeaders`, `SelectTriggerHeaders` | One page of projected job/trigger listing rows |
+| `SelectJobGroups(conn, JobGroupQuery, ct)`, `SelectTriggerGroups(conn, TriggerGroupQuery, ct)` | One page of groups, with pause state |
+| `SelectCalendarNames` | One page of calendar names |
+| `SelectJobDetails`, `SelectTriggers` | Bulk fetch by key set |
+
+Deleted, having had no caller: `SelectMisfiredTriggers`, both `HasMisfiredTriggersInState` overloads,
+`SelectMisfiredTriggersInGroupInState`, `IsExistingTriggerGroup`, `SelectJobExecutionCount`,
+`SelectTriggerForFireTime`, `SelectNumJobs`, `SelectNumTriggers`, `SelectNumCalendars`, `SelectCalendars`,
+`SelectPausedTriggerGroups`, `SelectJobGroups(conn, ct)` and `DeleteAllPausedTriggerGroups`. The
+`GetSelectNextMisfiredTriggersInStateToAcquireSql` hook went with them, so a dialect delegate that overrode
+it should delete that override.
+
+Consolidated into records rather than overload families:
+
+| Was | Is |
+|---|---|
+| `SelectFiredTriggerRecords`, `SelectFiredTriggerRecordsByJob`, `SelectInstancesFiredTriggerRecords` | `SelectFiredTriggerRecords(conn, FiredTriggerQuery, ct)` |
+| four `DeleteFiredTriggers` overloads | `DeleteFiredTriggers(conn, FiredTriggerQuery, ct)` |
+| two `SelectTriggerToAcquire` overloads | `SelectTriggersToAcquire(conn, TriggerAcquisitionCriteria, ct)` |
+| two `SelectJobForTrigger` overloads | one, with `bool loadJobType = true` |
+| `DeletePausedTriggerGroup(conn, string, ct)` | the `GroupMatcher<TriggerKey>` overload |
+
+`FiredTriggerQuery` carries an optional `Trigger`, `Job` and `InstanceName` combined with AND — all null
+selects or deletes every fired trigger. `TriggerAcquisitionCriteria` carries `NoLaterThan`, `NoEarlierThan`,
+`MaxCount`, `ExecutionLimits` and `LiveNodeCutoff`, and is the extension point for future acquisition
+filtering: another way of narrowing what a node picks up is another optional property, not another overload.
+
+Subclassing `StdAdoDelegate` gets you all of it. A database whose row-limiting syntax is not the ANSI
+`OFFSET … FETCH NEXT` should override the paging seam — **`ApplyPaging(sql, takeLimited)`** appends the
+clause and **`AddPagingParameters(cmd, skip, take, takeLimited)`** binds it. Override both together when your
+clause names the two parameters in the other order, because providers that bind positionally take parameters
+in the order the statement mentions them. `MySQLDelegate` and `SQLiteDelegate` do exactly this for
+`LIMIT … OFFSET`.
+
+Finally, `ITriggerPersistenceDelegate` gained a batch `LoadExtendedTriggerProperties` taking several trigger
+keys. It is a **default interface method** that loops the single-key overload, so a third-party trigger
+persistence delegate needs no change; override it only to turn a batch into one round trip.
 
 ## Jobs take a CancellationToken
 

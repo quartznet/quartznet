@@ -13,7 +13,7 @@
 <div class="qz-page">
     <h1>Triggers</h1>
 
-    <SearchFilter OnFilterChanged="OnFilterChangedAsync" />
+    <SearchFilter Placeholder="Filter by group" OnFilterChanged="OnFilterChangedAsync" />
     <div class="qz-actions qz-group-actions">
         <button type="button" class="qz-button @GetStateFilterButtonClass(false)" @onclick="ShowAllStates">All states</button>
         <button type="button" class="qz-button @GetStateFilterButtonClass(true)" @onclick="ShowErrorStateOnly">Error only</button>
@@ -27,13 +27,13 @@
     {
         <ErrorAlert Message="@_error" OnRetry="LoadDataAsync" />
     }
-    else if (_pagedTriggers.Count == 0)
+    else if (_triggers.Count == 0)
     {
         <p class="qz-muted">No triggers found.</p>
     }
     else
     {
-        @foreach (IGrouping<string, object> group in GroupedTriggers)
+        @foreach (IGrouping<string, TriggerHeaderDto> group in GroupedTriggers)
         {
             <section class="qz-section">
                 <h2>@group.Key</h2>
@@ -58,11 +58,10 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (object trigger in group)
+                        @foreach (TriggerHeaderDto trigger in group)
                         {
-                            string triggerGroup = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
-                            string triggerName = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
-                            string state = GetState(triggerGroup, triggerName);
+                            string triggerGroup = trigger.Group;
+                            string triggerName = trigger.Name;
                             <tr class="qz-row-link"
                                 tabindex="0"
                                 role="link"
@@ -72,15 +71,12 @@
                                     <KeyBadge GroupName="@triggerGroup" ItemName="@triggerName" />
                                 </td>
                                 <td class="qz-col-state">
-                                    <StateIndicator State="@state" />
+                                    <StateIndicator State="@(trigger.State ?? "Unknown")" />
                                 </td>
                                 <td>
-                                    @{
-                                        string execGroup = DisplayValueHelper.GetString(trigger, "ExecutionGroup");
-                                    }
-                                    @if (!string.IsNullOrEmpty(execGroup))
+                                    @if (!string.IsNullOrEmpty(trigger.ExecutionGroup))
                                     {
-                                        <span class="qz-badge">@execGroup</span>
+                                        <span class="qz-badge">@trigger.ExecutionGroup</span>
                                     }
                                     else
                                     {
@@ -107,7 +103,7 @@
             </section>
         }
 
-        <Pagination TotalItems="@_filteredTriggers.Count"
+        <Pagination TotalItems="@_totalTriggers"
                     PageSize="@_pageSize"
                     CurrentPage="@_currentPage"
                     OnPageChanged="OnPageChangedAsync" />
@@ -121,14 +117,12 @@
                OnCancel="CancelUnscheduleAsync" />
 
 @code {
-    private readonly List<object> _allTriggers = [];
-    private readonly List<object> _filteredTriggers = [];
-    private readonly List<object> _pagedTriggers = [];
-    private readonly Dictionary<string, string> _states = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<TriggerHeaderDto> _triggers = [];
     private bool _isLoading = true;
     private string? _error;
     private string _filter = string.Empty;
     private int _currentPage = 1;
+    private int _totalTriggers;
     private readonly int _pageSize = 25;
     private bool _showUnscheduleConfirm;
     private string? _pendingGroup;
@@ -138,8 +132,7 @@
 
     private bool IsReadOnly => Options.Value.ReadOnly;
 
-    private IEnumerable<IGrouping<string, object>> GroupedTriggers =>
-        _pagedTriggers.GroupBy(trigger => DisplayValueHelper.GetString(trigger, "Group", "Key.Group"));
+    private IEnumerable<IGrouping<string, TriggerHeaderDto>> GroupedTriggers => _triggers.GroupBy(trigger => trigger.Group);
 
     protected override async Task OnInitializedAsync()
     {
@@ -160,50 +153,34 @@
 
         try
         {
-            _allTriggers.Clear();
-            _states.Clear();
+            _triggers.Clear();
+            _totalTriggers = 0;
 
             string? schedulerName = Scheduler.ActiveSchedulerName;
             if (string.IsNullOrWhiteSpace(schedulerName))
             {
-                ApplyFilterAndPaging();
                 return;
             }
 
-            IReadOnlyList<object> triggers = DisplayValueHelper.ToObjectList(await Api.GetTriggerKeys(schedulerName));
-            _allTriggers.AddRange(triggers);
+            string? groupFilter = string.IsNullOrWhiteSpace(_filter) ? null : _filter;
+            TriggerState? state = _showErrorOnly ? TriggerState.Error : null;
+            TriggerPageDto page = await Api.GetTriggers(schedulerName, groupFilter, state, _currentPage, _pageSize);
 
-            if (_showErrorOnly)
+            int totalPages = Math.Max(1, (int) Math.Ceiling((double) page.TotalCount / _pageSize));
+            if (_currentPage > totalPages)
             {
-                // When filtering by error state we need all trigger states upfront.
-                foreach (object trigger in _allTriggers)
-                {
-                    string group = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
-                    string name = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
-                    string state = await Api.GetTriggerState(schedulerName, group, name);
-                    _states[DisplayValueHelper.FormatKey(group, name)] = state;
-                }
+                _currentPage = totalPages;
+                page = await Api.GetTriggers(schedulerName, groupFilter, state, _currentPage, _pageSize);
             }
 
-            ApplyFilterAndPaging();
-
-            if (!_showErrorOnly)
-            {
-                // Only fetch states for the current page to avoid N+1 calls for all triggers.
-                foreach (object trigger in _pagedTriggers)
-                {
-                    string group = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
-                    string name = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
-                    string state = await Api.GetTriggerState(schedulerName, group, name);
-                    _states[DisplayValueHelper.FormatKey(group, name)] = state;
-                }
-            }
+            _triggers.AddRange(page.Items);
+            _totalTriggers = page.TotalCount;
         }
         catch (Exception ex)
         {
             _error = ex.Message;
-            _filteredTriggers.Clear();
-            _pagedTriggers.Clear();
+            _triggers.Clear();
+            _totalTriggers = 0;
         }
         finally
         {
@@ -211,87 +188,17 @@
         }
     }
 
-    private void ApplyFilterAndPaging()
-    {
-        IEnumerable<object> query = _allTriggers;
-        if (!string.IsNullOrWhiteSpace(_filter))
-        {
-            query = query.Where(trigger =>
-            {
-                string group = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
-                string name = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
-                string key = DisplayValueHelper.FormatKey(group, name);
-                return key.Contains(_filter, StringComparison.OrdinalIgnoreCase);
-            });
-        }
-
-        if (_showErrorOnly)
-        {
-            query = query.Where(trigger =>
-            {
-                string group = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
-                string name = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
-                string state = GetState(group, name);
-                return string.Equals(state, "Error", StringComparison.OrdinalIgnoreCase);
-            });
-        }
-
-        _filteredTriggers.Clear();
-        _filteredTriggers.AddRange(query);
-
-        int totalPages = Math.Max(1, (int) Math.Ceiling((double) _filteredTriggers.Count / _pageSize));
-        _currentPage = Math.Clamp(_currentPage, 1, totalPages);
-
-        _pagedTriggers.Clear();
-        IEnumerable<object> page = _filteredTriggers.Skip((_currentPage - 1) * _pageSize).Take(_pageSize);
-        _pagedTriggers.AddRange(page);
-    }
-
-    private string GetState(string group, string name)
-    {
-        string key = DisplayValueHelper.FormatKey(group, name);
-        return _states.TryGetValue(key, out string? state) ? state : "Unknown";
-    }
-
-    private async Task OnFilterChangedAsync(string filter)
+    private Task OnFilterChangedAsync(string filter)
     {
         _filter = filter;
         _currentPage = 1;
-        ApplyFilterAndPaging();
-        await LoadStatesForCurrentPageAsync();
+        return LoadDataAsync();
     }
 
-    private async Task OnPageChangedAsync(int page)
+    private Task OnPageChangedAsync(int page)
     {
         _currentPage = page;
-        ApplyFilterAndPaging();
-        await LoadStatesForCurrentPageAsync();
-    }
-
-    private async Task LoadStatesForCurrentPageAsync()
-    {
-        if (_showErrorOnly)
-        {
-            return;
-        }
-
-        string? schedulerName = Scheduler.ActiveSchedulerName;
-        if (string.IsNullOrWhiteSpace(schedulerName))
-        {
-            return;
-        }
-
-        foreach (object trigger in _pagedTriggers)
-        {
-            string group = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
-            string name = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
-            string key = DisplayValueHelper.FormatKey(group, name);
-            if (!_states.ContainsKey(key))
-            {
-                string state = await Api.GetTriggerState(schedulerName, group, name);
-                _states[key] = state;
-            }
-        }
+        return LoadDataAsync();
     }
 
     private string GetTriggerPath(string group, string name)
@@ -350,16 +257,14 @@
     {
         _showErrorOnly = false;
         _currentPage = 1;
-        ApplyFilterAndPaging();
-        return Task.CompletedTask;
+        return LoadDataAsync();
     }
 
     private Task ShowErrorStateOnly()
     {
         _showErrorOnly = true;
         _currentPage = 1;
-        ApplyFilterAndPaging();
-        return Task.CompletedTask;
+        return LoadDataAsync();
     }
 
     private string GetStateFilterButtonClass(bool errorOnly)
@@ -436,22 +341,20 @@
 
         try
         {
-            List<(string Group, string Name)> triggersInGroup = [];
-            foreach (object trigger in _allTriggers)
+            // The group filter matches groups that contain it, so the exact group is selected here.
+            TriggerPageDto groupPage = await Api.GetTriggers(schedulerName, group, state: null, page: 1, pageSize: int.MaxValue);
+            List<TriggerHeaderDto> triggersInGroup = [];
+            foreach (TriggerHeaderDto trigger in groupPage.Items)
             {
-                string triggerGroup = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
-                if (!string.Equals(triggerGroup, group, StringComparison.Ordinal))
+                if (string.Equals(trigger.Group, group, StringComparison.Ordinal))
                 {
-                    continue;
+                    triggersInGroup.Add(trigger);
                 }
-
-                string triggerName = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
-                triggersInGroup.Add((triggerGroup, triggerName));
             }
 
-            foreach ((string triggerGroup, string triggerName) trigger in triggersInGroup)
+            foreach (TriggerHeaderDto trigger in triggersInGroup)
             {
-                await operation(schedulerName, trigger.triggerGroup, trigger.triggerName);
+                await operation(schedulerName, trigger.Group, trigger.Name);
             }
 
             ActionLog.Record(

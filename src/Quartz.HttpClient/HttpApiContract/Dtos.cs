@@ -38,18 +38,6 @@ internal record KeyDto(string Name, string Group) : IValidatable
     public override string ToString() => Group + '.' + Name;
 }
 
-internal record TriggerHeaderKeyDto(string Name, string Group, string? ExecutionGroup = null)
-{
-    public static TriggerHeaderKeyDto Create(TriggerKey triggerKey, string? executionGroup)
-    {
-        ArgumentNullException.ThrowIfNull(triggerKey);
-
-        return new TriggerHeaderKeyDto(triggerKey.Name, triggerKey.Group, executionGroup);
-    }
-}
-
-internal record NamesDto(List<string> Names);
-
 internal record SchedulerContextDto(Dictionary<string, string?> Context)
 {
     public static SchedulerContextDto Create(SchedulerContext context)

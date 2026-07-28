@@ -99,28 +99,6 @@ namespace Quartz;
 public interface IScheduler
 {
     /// <summary>
-    /// returns true if the given JobGroup
-    /// is paused
-    /// </summary>
-    /// <param name="groupName"></param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns></returns>
-    ValueTask<bool> IsJobGroupPaused(
-        string groupName,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// returns true if the given TriggerGroup
-    /// is paused
-    /// </summary>
-    /// <param name="groupName"></param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns></returns>
-    ValueTask<bool> IsTriggerGroupPaused(
-        string groupName,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Returns the name of the <see cref="IScheduler" />.
     /// </summary>
     string SchedulerName { get; }
@@ -185,21 +163,6 @@ public interface IScheduler
     /// <seealso cref="ITriggerListener" />
     /// <seealso cref="ISchedulerListener" />
     IListenerManager ListenerManager { get; }
-
-    /// <summary>
-    /// Get the names of all known <see cref="IJobDetail" /> groups.
-    /// </summary>
-    ValueTask<List<string>> GetJobGroupNames(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Get the names of all known <see cref="ITrigger" /> groups.
-    /// </summary>
-    ValueTask<List<string>> GetTriggerGroupNames(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Get the names of all <see cref="ITrigger" /> groups that are paused.
-    /// </summary>
-    ValueTask<List<string>> GetPausedTriggerGroups(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Starts the <see cref="IScheduler" />'s threads that fire <see cref="ITrigger" />s.
@@ -634,9 +597,62 @@ public interface IScheduler
     ValueTask ResumeAll(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get the keys of all the <see cref="IJobDetail" />s in the matching groups.
+    /// Lists jobs matching the query, as <see cref="JobHeader" />s, ordered by group and
+    /// then name (ordinal). Listing never loads job data.
     /// </summary>
-    ValueTask<List<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default);
+    /// <param name="query">What to select and which page of it to return.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<PagedResult<JobHeader>> QueryJobs(JobQuery query, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lists triggers matching the query, as <see cref="TriggerHeader" />s, ordered by
+    /// group and then name (ordinal). The header carries the trigger's current state and
+    /// execution group, so listing callers need no further round trips.
+    /// </summary>
+    /// <param name="query">What to select and which page of it to return.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<PagedResult<TriggerHeader>> QueryTriggers(TriggerQuery query, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lists job groups matching the query, ordered by name (ordinal).
+    /// </summary>
+    /// <param name="query">What to select and which page of it to return.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<PagedResult<JobGroup>> QueryJobGroups(JobGroupQuery query, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lists trigger groups matching the query, ordered by name (ordinal).
+    /// </summary>
+    /// <param name="query">What to select and which page of it to return.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<PagedResult<TriggerGroup>> QueryTriggerGroups(TriggerGroupQuery query, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lists calendar names matching the query, ordered by name (ordinal).
+    /// </summary>
+    /// <param name="query">Which page to return.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<PagedResult<string>> QueryCalendarNames(CalendarQuery query, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retrieves the given jobs in one round trip. Keys that do not exist are simply
+    /// absent from the result.
+    /// </summary>
+    /// <param name="jobKeys">The keys of the jobs to retrieve.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<List<IJobDetail>> GetJobDetails(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retrieves the given triggers in one round trip. Keys that do not exist are simply
+    /// absent from the result.
+    /// </summary>
+    /// <remarks>
+    /// The returned triggers are snapshots of the stored ones, like
+    /// <see cref="GetTriggersOfJob" /> returns.
+    /// </remarks>
+    /// <param name="triggerKeys">The keys of the triggers to retrieve.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    ValueTask<List<ITrigger>> GetTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get all <see cref="ITrigger" /> s that are associated with the
@@ -648,12 +664,6 @@ public interface IScheduler
     /// trigger afterward (e.g. see <see cref="RescheduleJob(TriggerKey, ITrigger, CancellationToken)" />).
     /// </remarks>
     ValueTask<List<ITrigger>> GetTriggersOfJob(JobKey jobKey, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Get the names of all the <see cref="ITrigger" />s in the given
-    /// groups.
-    /// </summary>
-    ValueTask<List<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get the <see cref="IJobDetail" /> for the <see cref="IJob" />
@@ -740,11 +750,6 @@ public interface IScheduler
     /// Get the <see cref="ICalendar" /> instance with the given name.
     /// </summary>
     ValueTask<ICalendar?> GetCalendar(string calendarName, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Get the names of all registered <see cref="ICalendar" />.
-    /// </summary>
-    ValueTask<List<string>> GetCalendarNames(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Request the cancellation, within this Scheduler instance, of all

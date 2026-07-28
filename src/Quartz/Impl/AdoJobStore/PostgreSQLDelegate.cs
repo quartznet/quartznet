@@ -37,15 +37,6 @@ public class PostgreSQLDelegate : StdAdoDelegate
         return SqlSelectNextTriggerToAcquire + " LIMIT " + maxCount;
     }
 
-    protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
-    {
-        if (count != -1)
-        {
-            return SqlSelectHasMisfiredTriggersInState + " LIMIT " + count;
-        }
-        return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
-    }
-
     protected override string GetSelectMisfiredTriggersToRecoverSql(int count)
     {
         if (count != -1)

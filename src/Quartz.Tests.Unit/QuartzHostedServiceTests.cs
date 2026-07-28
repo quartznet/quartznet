@@ -114,11 +114,6 @@ public class QuartzHostedServiceTests
             throw new NotImplementedException();
         }
 
-        public ValueTask<List<string>> GetCalendarNames(CancellationToken cancellationToken = default)
-        {
-            throw new NotImplementedException();
-        }
-
         public ValueTask<List<IJobExecutionContext>> GetCurrentlyExecutingJobs(CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
@@ -129,12 +124,37 @@ public class QuartzHostedServiceTests
             throw new NotImplementedException();
         }
 
-        public ValueTask<List<string>> GetJobGroupNames(CancellationToken cancellationToken = default)
+        public ValueTask<PagedResult<JobHeader>> QueryJobs(JobQuery query, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
 
-        public ValueTask<List<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+        public ValueTask<PagedResult<TriggerHeader>> QueryTriggers(TriggerQuery query, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public ValueTask<PagedResult<JobGroup>> QueryJobGroups(JobGroupQuery query, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public ValueTask<PagedResult<TriggerGroup>> QueryTriggerGroups(TriggerGroupQuery query, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public ValueTask<PagedResult<string>> QueryCalendarNames(CalendarQuery query, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public ValueTask<List<IJobDetail>> GetJobDetails(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+        {
+            throw new NotImplementedException();
+        }
+
+        public ValueTask<List<ITrigger>> GetTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -144,22 +164,7 @@ public class QuartzHostedServiceTests
             throw new NotImplementedException();
         }
 
-        public ValueTask<List<string>> GetPausedTriggerGroups(CancellationToken cancellationToken = default)
-        {
-            throw new NotImplementedException();
-        }
-
         public ValueTask<ITrigger> GetTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
-        {
-            throw new NotImplementedException();
-        }
-
-        public ValueTask<List<string>> GetTriggerGroupNames(CancellationToken cancellationToken = default)
-        {
-            throw new NotImplementedException();
-        }
-
-        public ValueTask<List<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -185,16 +190,6 @@ public class QuartzHostedServiceTests
         }
 
         public ValueTask<bool> Interrupt(string fireInstanceId, CancellationToken cancellationToken = default)
-        {
-            throw new NotImplementedException();
-        }
-
-        public ValueTask<bool> IsJobGroupPaused(string groupName, CancellationToken cancellationToken = default)
-        {
-            throw new NotImplementedException();
-        }
-
-        public ValueTask<bool> IsTriggerGroupPaused(string groupName, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }

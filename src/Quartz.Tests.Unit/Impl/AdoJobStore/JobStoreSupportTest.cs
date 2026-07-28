@@ -181,7 +181,7 @@ public class JobStoreSupportTest
 
         A.CallTo(() => driverDelegate.DeleteFiredTriggers(
             A<ConnectionAndTransactionHolder>.Ignored,
-            jobKey,
+            A<FiredTriggerQuery>.That.Matches(x => x.Job == jobKey),
             A<CancellationToken>.Ignored)).Returns(new ValueTask<int>(0));
 
         A.CallTo(() => driverDelegate.DeleteJobDetail(
@@ -195,7 +195,7 @@ public class JobStoreSupportTest
         // Assert: fired triggers for this job key should be cleaned up
         A.CallTo(() => driverDelegate.DeleteFiredTriggers(
             A<ConnectionAndTransactionHolder>.Ignored,
-            jobKey,
+            A<FiredTriggerQuery>.That.Matches(x => x.Job == jobKey && x.Trigger == null && x.InstanceName == null),
             A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
@@ -614,9 +614,9 @@ public class JobStoreSupportTest
             SchedulerInstanceId = "TestInstanceId"
         };
 
-        A.CallTo(() => driverDelegate.SelectInstancesFiredTriggerRecords(
+        A.CallTo(() => driverDelegate.SelectFiredTriggerRecords(
             A<ConnectionAndTransactionHolder>.Ignored,
-            A<string>.Ignored,
+            A<FiredTriggerQuery>.Ignored,
             A<CancellationToken>.Ignored))
             .Returns(new ValueTask<List<FiredTriggerRecord>>(new List<FiredTriggerRecord> { staleRecord }));
 
@@ -678,9 +678,9 @@ public class JobStoreSupportTest
             },
         };
 
-        A.CallTo(() => driverDelegate.SelectInstancesFiredTriggerRecords(
+        A.CallTo(() => driverDelegate.SelectFiredTriggerRecords(
             A<ConnectionAndTransactionHolder>.Ignored,
-            A<string>.Ignored,
+            A<FiredTriggerQuery>.Ignored,
             A<CancellationToken>.Ignored))
             .Returns(new ValueTask<List<FiredTriggerRecord>>(new List<FiredTriggerRecord>(records)));
 
@@ -723,9 +723,9 @@ public class JobStoreSupportTest
             SchedulerInstanceId = "TestInstanceId"
         };
 
-        A.CallTo(() => driverDelegate.SelectInstancesFiredTriggerRecords(
+        A.CallTo(() => driverDelegate.SelectFiredTriggerRecords(
             A<ConnectionAndTransactionHolder>.Ignored,
-            A<string>.Ignored,
+            A<FiredTriggerQuery>.Ignored,
             A<CancellationToken>.Ignored))
             .Returns(new ValueTask<List<FiredTriggerRecord>>(new List<FiredTriggerRecord> { recentRecord }));
 
@@ -755,9 +755,9 @@ public class JobStoreSupportTest
             SchedulerInstanceId = "TestInstanceId"
         };
 
-        A.CallTo(() => driverDelegate.SelectInstancesFiredTriggerRecords(
+        A.CallTo(() => driverDelegate.SelectFiredTriggerRecords(
             A<ConnectionAndTransactionHolder>.Ignored,
-            A<string>.Ignored,
+            A<FiredTriggerQuery>.Ignored,
             A<CancellationToken>.Ignored))
             .Returns(new ValueTask<List<FiredTriggerRecord>>(new List<FiredTriggerRecord> { executingRecord }));
 
@@ -767,50 +767,48 @@ public class JobStoreSupportTest
     }
 
     [Test]
-    public async Task IsJobGroupPaused_ShouldReturnFalse()
+    public async Task QueryTriggerGroups_ShouldDelegateToDriverDelegate()
     {
-        bool result = await jobStoreSupport.IsJobGroupPaused("anyGroup");
-        result.Should().BeFalse();
+        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        TriggerGroupQuery query = new() { Paused = true };
+
+        A.CallTo(() => driverDelegate.SelectTriggerGroups(conn, query, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<PagedResult<TriggerGroup>>(new PagedResult<TriggerGroup>([new TriggerGroup("pausedGroup", true)], false)));
+
+        PagedResult<TriggerGroup> result = await jobStoreSupport.CallQueryTriggerGroups(conn, query);
+
+        result.Items.Select(x => x.Name).Should().Equal(["pausedGroup"]);
     }
 
     [Test]
-    public async Task IsTriggerGroupPaused_ShouldDelegateToDriverDelegate()
+    public async Task QueryTriggerGroups_ShouldReportNoGroups_WhenNoneArePaused()
     {
         var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        TriggerGroupQuery query = new() { Paused = true };
 
-        A.CallTo(() => driverDelegate.IsTriggerGroupPaused(conn, "pausedGroup", A<CancellationToken>.Ignored))
-            .Returns(new ValueTask<bool>(true));
+        A.CallTo(() => driverDelegate.SelectTriggerGroups(conn, query, A<CancellationToken>.Ignored))
+            .Returns(new ValueTask<PagedResult<TriggerGroup>>(new PagedResult<TriggerGroup>([], false)));
 
-        bool result = await jobStoreSupport.CallIsTriggerGroupPaused(conn, "pausedGroup");
+        PagedResult<TriggerGroup> result = await jobStoreSupport.CallQueryTriggerGroups(conn, query);
 
-        result.Should().BeTrue();
+        result.Items.Should().BeEmpty();
     }
 
     [Test]
-    public async Task IsTriggerGroupPaused_ShouldReturnFalse_WhenGroupNotPaused()
+    public async Task QueryTriggerGroups_ShouldWrapException_InJobPersistenceException()
     {
         var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        TriggerGroupQuery query = new() { Paused = true };
 
-        A.CallTo(() => driverDelegate.IsTriggerGroupPaused(conn, "activeGroup", A<CancellationToken>.Ignored))
-            .Returns(new ValueTask<bool>(false));
-
-        bool result = await jobStoreSupport.CallIsTriggerGroupPaused(conn, "activeGroup");
-
-        result.Should().BeFalse();
-    }
-
-    [Test]
-    public void IsTriggerGroupPaused_ShouldWrapException_InJobPersistenceException()
-    {
-        var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
-
-        A.CallTo(() => driverDelegate.IsTriggerGroupPaused(conn, "group", A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.SelectTriggerGroups(conn, query, A<CancellationToken>.Ignored))
             .Throws(new Exception("db error"));
 
-        Func<Task> act = async () => await jobStoreSupport.CallIsTriggerGroupPaused(conn, "group");
+        Func<Task> act = async () => await jobStoreSupport.CallQueryTriggerGroups(conn, query);
 
-        act.Should().ThrowAsync<JobPersistenceException>()
-            .WithMessage("*group*");
+        await act.Should().ThrowAsync<JobPersistenceException>()
+            .WithMessage("*trigger groups*")
+            .WithInnerException<JobPersistenceException, Exception>()
+            .WithMessage("db error");
     }
 
     private static RetryTestJobStoreSupport CreateRetryTestStore(int maxTransientRetries = 3)
@@ -899,9 +897,9 @@ public class JobStoreSupportTest
             return StoreCalendar(conn, calendarName, calendar, replaceExisting, updateTriggers, CancellationToken.None);
         }
 
-        internal ValueTask<bool> CallIsTriggerGroupPaused(ConnectionAndTransactionHolder conn, string group)
+        internal ValueTask<PagedResult<TriggerGroup>> CallQueryTriggerGroups(ConnectionAndTransactionHolder conn, TriggerGroupQuery query)
         {
-            return IsTriggerGroupPaused(conn, group, CancellationToken.None);
+            return QueryTriggerGroups(conn, query, CancellationToken.None);
         }
     }
 

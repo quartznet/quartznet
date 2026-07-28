@@ -37,7 +37,14 @@ public interface IQuartzApiClient
 
     ValueTask ResumeAll(string schedulerName, CancellationToken cancellationToken = default);
 
-    ValueTask<List<JobKeyDto>> GetJobKeys(string schedulerName, string? groupFilter = null, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Returns one page of jobs, ordered by group and then name. <paramref name="groupFilter"/> matches
+    /// groups that contain it, <paramref name="page"/> is 1-based, and a <paramref name="pageSize"/> of
+    /// zero returns no items but still counts them.
+    /// </summary>
+    ValueTask<JobPageDto> GetJobs(string schedulerName, string? groupFilter, int page, int pageSize, CancellationToken cancellationToken = default);
+
+    ValueTask<List<JobGroupDto>> GetJobGroups(string schedulerName, CancellationToken cancellationToken = default);
 
     ValueTask<JobDetailDto> GetJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
 
@@ -53,15 +60,19 @@ public interface IQuartzApiClient
 
     ValueTask TriggerJobWithData(string schedulerName, string group, string name, JsonElement jobDataMap, CancellationToken cancellationToken = default);
 
-    ValueTask<bool> IsJobGroupPaused(string schedulerName, string group, CancellationToken cancellationToken = default);
-
     ValueTask InterruptJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
 
     ValueTask DeleteJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
 
     ValueTask AddJob(string schedulerName, AddJobRequest request, CancellationToken cancellationToken = default);
 
-    ValueTask<List<TriggerHeaderDto>> GetTriggerKeys(string schedulerName, string? groupFilter = null, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Returns one page of triggers, ordered by group and then name, each carrying its state and
+    /// execution group. <paramref name="groupFilter"/> matches groups that contain it,
+    /// <paramref name="state"/> limits the result to one trigger state, <paramref name="page"/> is
+    /// 1-based, and a <paramref name="pageSize"/> of zero returns no items but still counts them.
+    /// </summary>
+    ValueTask<TriggerPageDto> GetTriggers(string schedulerName, string? groupFilter, TriggerState? state, int page, int pageSize, CancellationToken cancellationToken = default);
 
     ValueTask<TriggerDetailDto> GetTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
 
@@ -105,6 +116,8 @@ public sealed record SchedulerDetailDto(string SchedulerInstanceId, string Sched
 
 public sealed record JobKeyDto(string Group, string Name);
 
+public sealed record JobGroupDto(string Name, bool Paused);
+
 public sealed record TriggerKeyDto(string Group, string Name);
 
 public sealed record TriggerHeaderDto(string Group, string Name, string? ExecutionGroup = null)
@@ -112,7 +125,13 @@ public sealed record TriggerHeaderDto(string Group, string Name, string? Executi
     public string? TriggerType { get; init; }
 
     public string? ScheduleSummary { get; init; }
+
+    public string? State { get; init; }
 }
+
+public sealed record JobPageDto(int Page, int PageSize, int TotalCount, bool HasMore, List<JobKeyDto> Items);
+
+public sealed record TriggerPageDto(int Page, int PageSize, int TotalCount, bool HasMore, List<TriggerHeaderDto> Items);
 
 public sealed record JobDetailDto(
     string Name,

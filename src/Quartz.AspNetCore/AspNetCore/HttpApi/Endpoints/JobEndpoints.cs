@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Routing;
 using Quartz.AspNetCore.HttpApi.Util;
 using Quartz.HttpApiContract;
 using Quartz.Extensibility;
+using Quartz.Impl.Matchers;
 
 namespace Quartz.AspNetCore.HttpApi.Endpoints;
 
@@ -15,8 +16,11 @@ internal static class JobEndpoints
     {
         var patternPrefix = $"{options.TrimmedApiPath}/schedulers/{{schedulerName}}/jobs";
 
-        yield return builder.MapGet(patternPrefix, GetJobKeys)
-            .WithQuartzDefaults(nameof(GetJobKeys), "Get job keys");
+        yield return builder.MapGet(patternPrefix, QueryJobs)
+            .WithQuartzDefaults(nameof(QueryJobs), "Query jobs");
+
+        yield return builder.MapPost(patternPrefix + "/fetch", FetchJobs)
+            .WithQuartzDefaults(nameof(FetchJobs), "Fetch jobs by key");
 
         yield return builder.MapGet(patternPrefix + "/{jobGroup}/{jobName}", GetJobDetails)
             .WithQuartzDefaults(nameof(GetJobDetails), "Get job details");
@@ -60,31 +64,58 @@ internal static class JobEndpoints
         yield return builder.MapPost(patternPrefix, AddJob)
             .WithQuartzDefaults(nameof(AddJob), "Add job");
 
-        yield return builder.MapGet(patternPrefix + "/groups", GetJobGroupNames)
-            .WithQuartzDefaults(nameof(GetJobGroupNames), "Get all job group names");
+        yield return builder.MapGet(patternPrefix + "/groups", QueryJobGroups)
+            .WithQuartzDefaults(nameof(QueryJobGroups), "Query job groups");
 
         yield return builder.MapGet(patternPrefix + "/groups/{jobGroup}/paused", IsJobGroupPaused)
             .WithQuartzDefaults(nameof(IsJobGroupPaused), "Is job group paused");
     }
 
-    [ProducesResponseType(typeof(KeyDto[]), StatusCodes.Status200OK)]
-    private static Task<IResult> GetJobKeys(
+    [ProducesResponseType(typeof(PagedResultDto<JobHeaderDto>), StatusCodes.Status200OK)]
+    private static Task<IResult> QueryJobs(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        int skip = 0,
+        int take = int.MaxValue,
+        bool includeTotalCount = false,
         string? groupContains = null,
         string? groupEndsWith = null,
         string? groupStartsWith = null,
         string? groupEquals = null,
         CancellationToken cancellationToken = default)
     {
+        EndpointHelper.AssertPaging(skip, take);
         return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
-            var matcher = EndpointHelper.GetGroupMatcher<JobKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
-            var jobKeys = await scheduler.GetJobKeys(matcher, cancellationToken).ConfigureAwait(false);
+            GroupMatcher<JobKey> matcher = EndpointHelper.GetGroupMatcher<JobKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
+            JobQuery query = new()
+            {
+                Group = matcher,
+                Skip = skip,
+                Take = take,
+                IncludeTotalCount = includeTotalCount
+            };
 
-            var result = jobKeys.Select(KeyDto.Create).ToArray();
-            return result;
+            PagedResult<JobHeader> page = await scheduler.QueryJobs(query, cancellationToken).ConfigureAwait(false);
+            return new PagedResultDto<JobHeaderDto>(page.Items.Select(JobHeaderDto.Create).ToArray(), page.HasMore, page.TotalCount);
+        });
+    }
+
+    [ProducesResponseType(typeof(JobDetailDto[]), StatusCodes.Status200OK)]
+    private static Task<IResult> FetchJobs(
+        EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
+        string schedulerName,
+        KeyDto[] request,
+        CancellationToken cancellationToken = default)
+    {
+        EndpointHelper.AssertKeysToFetch(request);
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        {
+            JobKey[] jobKeys = request.Select(x => x.AsJobKey()).ToArray();
+            List<IJobDetail> jobDetails = await scheduler.GetJobDetails(jobKeys, cancellationToken).ConfigureAwait(false);
+            return jobDetails.Select(JobDetailDto.Create).ToArray();
         });
     }
 
@@ -317,17 +348,30 @@ internal static class JobEndpoints
         });
     }
 
-    [ProducesResponseType(typeof(NamesDto), StatusCodes.Status200OK)]
-    private static Task<IResult> GetJobGroupNames(
+    [ProducesResponseType(typeof(PagedResultDto<JobGroupDto>), StatusCodes.Status200OK)]
+    private static Task<IResult> QueryJobGroups(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
         string schedulerName,
+        int skip = 0,
+        int take = int.MaxValue,
+        bool includeTotalCount = false,
+        bool? paused = null,
         CancellationToken cancellationToken = default)
     {
+        EndpointHelper.AssertPaging(skip, take);
         return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
-            var groupNames = await scheduler.GetJobGroupNames(cancellationToken).ConfigureAwait(false);
-            return new NamesDto(groupNames);
+            JobGroupQuery query = new()
+            {
+                Paused = paused,
+                Skip = skip,
+                Take = take,
+                IncludeTotalCount = includeTotalCount
+            };
+
+            PagedResult<JobGroup> page = await scheduler.QueryJobGroups(query, cancellationToken).ConfigureAwait(false);
+            return new PagedResultDto<JobGroupDto>(page.Items.Select(JobGroupDto.Create).ToArray(), page.HasMore, page.TotalCount);
         });
     }
 
@@ -341,8 +385,8 @@ internal static class JobEndpoints
     {
         return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
-            var paused = await scheduler.IsJobGroupPaused(jobGroup, cancellationToken).ConfigureAwait(false);
-            return new GroupPausedResponse(paused);
+            PagedResult<JobGroup> page = await scheduler.QueryJobGroups(new JobGroupQuery { Paused = true }, cancellationToken).ConfigureAwait(false);
+            return new GroupPausedResponse(page.Items.Any(x => string.Equals(x.Name, jobGroup, StringComparison.Ordinal)));
         });
     }
 }

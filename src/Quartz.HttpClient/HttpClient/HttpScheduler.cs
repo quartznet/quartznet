@@ -72,28 +72,6 @@ public class HttpScheduler : IScheduler
         }
     }
 
-    public async ValueTask<bool> IsJobGroupPaused(string groupName, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(groupName))
-        {
-            throw new ArgumentException("Group name required", nameof(groupName));
-        }
-
-        var result = await httpClient.Get<GroupPausedResponse>($"{JobEndpointUrl()}/groups/{groupName}/paused", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
-        return result.Paused;
-    }
-
-    public async ValueTask<bool> IsTriggerGroupPaused(string groupName, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(groupName))
-        {
-            throw new ArgumentException("Group name required", nameof(groupName));
-        }
-
-        var result = await httpClient.Get<GroupPausedResponse>($"{TriggerEndpointUrl()}/groups/{groupName}/paused", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
-        return result.Paused;
-    }
-
     public async ValueTask<SchedulerMetaData> GetMetaData(CancellationToken cancellationToken = default)
     {
         var schedulerDto = await GetSchedulerDetails(cancellationToken).ConfigureAwait(false);
@@ -135,24 +113,6 @@ public class HttpScheduler : IScheduler
         }
 
         return result;
-    }
-
-    public async ValueTask<List<string>> GetJobGroupNames(CancellationToken cancellationToken = default)
-    {
-        var result = await httpClient.Get<NamesDto>($"{JobEndpointUrl()}/groups", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
-        return result.Names;
-    }
-
-    public async ValueTask<List<string>> GetTriggerGroupNames(CancellationToken cancellationToken = default)
-    {
-        var result = await httpClient.Get<NamesDto>($"{TriggerEndpointUrl()}/groups", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
-        return result.Names;
-    }
-
-    public async ValueTask<List<string>> GetPausedTriggerGroups(CancellationToken cancellationToken = default)
-    {
-        var result = await httpClient.Get<NamesDto>($"{TriggerEndpointUrl()}/groups/paused", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
-        return result.Names;
     }
 
     public ValueTask Start(CancellationToken cancellationToken = default)
@@ -439,24 +399,154 @@ public class HttpScheduler : IScheduler
         return httpClient.Post($"{SchedulerEndpointUrl()}/resume-all", jsonSerializerOptions, cancellationToken);
     }
 
-    public async ValueTask<List<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
-    {
-        var urlParams = matcher.ToUrlParameters();
-        var result = await httpClient.Get<KeyDto[]>($"{JobEndpointUrl()}?{urlParams}", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
-        return result.Select(x => x.AsJobKey()).ToList();
-    }
-
     public async ValueTask<List<ITrigger>> GetTriggersOfJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         var result = await httpClient.Get<List<ITrigger>>($"{JobEndpointUrl(jobKey)}/triggers", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
         return result;
     }
 
-    public async ValueTask<List<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    public async ValueTask<PagedResult<JobHeader>> QueryJobs(JobQuery query, CancellationToken cancellationToken = default)
     {
-        var urlParams = matcher.ToUrlParameters();
-        var result = await httpClient.Get<KeyDto[]>($"{TriggerEndpointUrl()}?{urlParams}", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
-        return result.Select(x => x.AsTriggerKey()).ToList();
+        ArgumentNullException.ThrowIfNull(query);
+
+        QueryStringBuilder parameters = new();
+        parameters.AddPaging(query);
+        parameters.AddGroupMatcher(query.Group);
+
+        PagedResultDto<JobHeaderDto> result = await httpClient
+            .Get<PagedResultDto<JobHeaderDto>>($"{JobEndpointUrl()}{parameters}", jsonSerializerOptions, cancellationToken)
+            .ConfigureAwait(false);
+
+        return new PagedResult<JobHeader>(result.Items.Select(x => x.AsJobHeader()).ToList(), result.HasMore, result.TotalCount);
+    }
+
+    public async ValueTask<PagedResult<TriggerHeader>> QueryTriggers(TriggerQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        QueryStringBuilder parameters = new();
+        parameters.AddPaging(query);
+        parameters.AddGroupMatcher(query.Group);
+
+        if (query.Job is not null)
+        {
+            parameters.Add("jobName", query.Job.Name);
+            parameters.Add("jobGroup", query.Job.Group);
+        }
+
+        if (query.CalendarName is not null)
+        {
+            parameters.Add("calendarName", query.CalendarName);
+        }
+
+        if (query.State is not null)
+        {
+            parameters.Add("state", query.State.Value.ToString());
+        }
+
+        PagedResultDto<TriggerHeaderDto> result = await httpClient
+            .Get<PagedResultDto<TriggerHeaderDto>>($"{TriggerEndpointUrl()}{parameters}", jsonSerializerOptions, cancellationToken)
+            .ConfigureAwait(false);
+
+        return new PagedResult<TriggerHeader>(result.Items.Select(x => x.AsTriggerHeader()).ToList(), result.HasMore, result.TotalCount);
+    }
+
+    public async ValueTask<PagedResult<JobGroup>> QueryJobGroups(JobGroupQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        QueryStringBuilder parameters = new();
+        parameters.AddPaging(query);
+        if (query.Paused is not null)
+        {
+            parameters.Add("paused", query.Paused.Value);
+        }
+
+        PagedResultDto<JobGroupDto> result = await httpClient
+            .Get<PagedResultDto<JobGroupDto>>($"{JobEndpointUrl()}/groups{parameters}", jsonSerializerOptions, cancellationToken)
+            .ConfigureAwait(false);
+
+        return new PagedResult<JobGroup>(result.Items.Select(x => x.AsJobGroup()).ToList(), result.HasMore, result.TotalCount);
+    }
+
+    public async ValueTask<PagedResult<TriggerGroup>> QueryTriggerGroups(TriggerGroupQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        QueryStringBuilder parameters = new();
+        parameters.AddPaging(query);
+        if (query.Paused is not null)
+        {
+            parameters.Add("paused", query.Paused.Value);
+        }
+
+        PagedResultDto<TriggerGroupDto> result = await httpClient
+            .Get<PagedResultDto<TriggerGroupDto>>($"{TriggerEndpointUrl()}/groups{parameters}", jsonSerializerOptions, cancellationToken)
+            .ConfigureAwait(false);
+
+        return new PagedResult<TriggerGroup>(result.Items.Select(x => x.AsTriggerGroup()).ToList(), result.HasMore, result.TotalCount);
+    }
+
+    public async ValueTask<PagedResult<string>> QueryCalendarNames(CalendarQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        QueryStringBuilder parameters = new();
+        parameters.AddPaging(query);
+
+        PagedResultDto<string> result = await httpClient
+            .Get<PagedResultDto<string>>($"{CalendarEndpointUrl()}{parameters}", jsonSerializerOptions, cancellationToken)
+            .ConfigureAwait(false);
+
+        return new PagedResult<string>([..result.Items], result.HasMore, result.TotalCount);
+    }
+
+    public async ValueTask<List<IJobDetail>> GetJobDetails(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(jobKeys);
+
+        if (jobKeys.Count == 0)
+        {
+            return [];
+        }
+
+        JobDetailDto[] dtos = await httpClient.PostWithResponse<KeyDto[], JobDetailDto[]>(
+            $"{JobEndpointUrl()}/fetch",
+            jobKeys.Select(KeyDto.Create).ToArray(),
+            jsonSerializerOptions,
+            cancellationToken
+        ).ConfigureAwait(false);
+
+        List<IJobDetail> result = new(dtos.Length);
+        foreach (JobDetailDto dto in dtos)
+        {
+            var (jobDetail, errorReason) = dto.AsIJobDetail();
+            if (jobDetail is null)
+            {
+                throw new HttpClientException("Could not create IJobDetail from JobDetailDto: " + errorReason);
+            }
+
+            result.Add(jobDetail);
+        }
+
+        return result;
+    }
+
+    public async ValueTask<List<ITrigger>> GetTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(triggerKeys);
+
+        if (triggerKeys.Count == 0)
+        {
+            return [];
+        }
+
+        return await httpClient.PostWithResponse<KeyDto[], List<ITrigger>>(
+            $"{TriggerEndpointUrl()}/fetch",
+            triggerKeys.Select(KeyDto.Create).ToArray(),
+            jsonSerializerOptions,
+            cancellationToken
+        ).ConfigureAwait(false);
     }
 
     public async ValueTask<IJobDetail?> GetJobDetail(JobKey jobKey, CancellationToken cancellationToken = default)
@@ -515,12 +605,6 @@ public class HttpScheduler : IScheduler
     public ValueTask<ICalendar?> GetCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
         return httpClient.GetWithNullForNotFound<ICalendar>(CalendarEndpointUrl(calendarName), jsonSerializerOptions, cancellationToken);
-    }
-
-    public async ValueTask<List<string>> GetCalendarNames(CancellationToken cancellationToken = default)
-    {
-        var result = await httpClient.Get<NamesDto>(CalendarEndpointUrl(), jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
-        return result.Names;
     }
 
     public async ValueTask<bool> Interrupt(JobKey jobKey, CancellationToken cancellationToken = default)

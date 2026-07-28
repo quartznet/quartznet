@@ -105,6 +105,22 @@ internal class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelegate
         return default;
     }
 
+    public ValueTask<Dictionary<TriggerKey, TriggerPropertyBundle>> LoadExtendedTriggerProperties(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default)
+    {
+        return AdoUtil.LoadTriggerPropertyBundles(
+            DbAccessor,
+            conn,
+            StdAdoConstants.SqlSelectSimpleTriggersByKeysPrefix,
+            TablePrefix,
+            SchedulerName,
+            triggerKeys,
+            ReadTriggerPropertyBundle,
+            cancellationToken);
+    }
+
     public TriggerPropertyBundle ReadTriggerPropertyBundle(DbDataReader rs)
     {
         int repeatCount = rs.GetInt32(AdoConstants.ColumnRepeatCount);

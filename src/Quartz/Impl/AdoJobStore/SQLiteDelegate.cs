@@ -15,6 +15,8 @@
 *
 */
 
+using System.Data.Common;
+
 namespace Quartz.Impl.AdoJobStore;
 
 /// <summary>
@@ -24,6 +26,31 @@ namespace Quartz.Impl.AdoJobStore;
 public class SQLiteDelegate : StdAdoDelegate
 {
     /// <summary>
+    /// SQLite pages with LIMIT/OFFSET rather than the ANSI clause. A negative LIMIT means no limit,
+    /// which is how SQLite writes an offset without one.
+    /// </summary>
+    protected override string ApplyPaging(string sql, bool takeLimited)
+    {
+        return takeLimited
+            ? sql + " LIMIT @pageTake OFFSET @pageSkip"
+            : sql + " LIMIT -1 OFFSET @pageSkip";
+    }
+
+    /// <summary>
+    /// Binds the LIMIT/OFFSET parameters in the order the clause names them, which is the reverse of
+    /// the ANSI clause's order and matters to providers that bind positionally.
+    /// </summary>
+    protected override void AddPagingParameters(DbCommand cmd, long skip, long take, bool takeLimited)
+    {
+        if (takeLimited)
+        {
+            AddCommandParameter(cmd, "pageTake", take);
+        }
+
+        AddCommandParameter(cmd, "pageSkip", skip);
+    }
+
+    /// <summary>
     /// Gets the select next trigger to acquire SQL clause.
     /// SQLite version with LIMIT support.
     /// </summary>
@@ -31,15 +58,6 @@ public class SQLiteDelegate : StdAdoDelegate
     protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
     {
         return SqlSelectNextTriggerToAcquire + " LIMIT " + maxCount;
-    }
-
-    protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
-    {
-        if (count != -1)
-        {
-            return SqlSelectHasMisfiredTriggersInState + " LIMIT " + count;
-        }
-        return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
     }
 
     protected override string GetSelectMisfiredTriggersToRecoverSql(int count)

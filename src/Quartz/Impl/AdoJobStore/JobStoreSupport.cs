@@ -823,7 +823,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             Logger.LogInformation("Removed  {Count} 'complete' triggers.", triggersInState.Count);
 
             // clean up any fired trigger entries
-            int n = await Delegate.DeleteFiredTriggers(conn, cancellationToken).ConfigureAwait(false);
+            int n = await Delegate.DeleteFiredTriggers(conn, new FiredTriggerQuery(), cancellationToken).ConfigureAwait(false);
             Logger.LogInformation("Removed {Count} stale fired job entries.", n);
         }
         catch (JobPersistenceException)
@@ -995,7 +995,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         TimeSpan staleThreshold = StaleAcquiredTriggerThreshold;
         DateTimeOffset staleCutoff = timeProvider.GetUtcNow() - staleThreshold;
 
-        IReadOnlyCollection<FiredTriggerRecord> firedTriggers = await Delegate.SelectInstancesFiredTriggerRecords(conn, InstanceId, cancellationToken).ConfigureAwait(false);
+        IReadOnlyCollection<FiredTriggerRecord> firedTriggers = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceName = InstanceId }, cancellationToken).ConfigureAwait(false);
 
         int recoveredCount = 0;
         foreach (FiredTriggerRecord rec in firedTriggers)
@@ -1052,7 +1052,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     {
         DateTimeOffset staleCutoff = timeProvider.GetUtcNow() - StaleAcquiredTriggerThreshold;
 
-        IReadOnlyCollection<FiredTriggerRecord> firedTriggers = await Delegate.SelectInstancesFiredTriggerRecords(conn, InstanceId, cancellationToken).ConfigureAwait(false);
+        IReadOnlyCollection<FiredTriggerRecord> firedTriggers = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceName = InstanceId }, cancellationToken).ConfigureAwait(false);
 
         foreach (FiredTriggerRecord rec in firedTriggers)
         {
@@ -1192,55 +1192,6 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 activity.SetTag(ActivityOptions.TriggerGroup, trigger.Key.Group);
                 activity.SetTag(ActivityOptions.TriggerName, trigger.Key.Name);
             }).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Returns true if the given JobGroup is paused.
-    /// </summary>
-    /// <param name="group"></param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns></returns>
-    public ValueTask<bool> IsJobGroupPaused(
-        string group,
-        CancellationToken cancellationToken = default)
-    {
-        // The ADO.NET store does not persist paused job group state.
-        // PauseJobs() only pauses individual triggers of jobs in the group
-        // without recording the job group itself as paused.
-        return new ValueTask<bool>(false);
-    }
-
-    /// <summary>
-    /// Returns true if the given TriggerGroup is paused.
-    /// </summary>
-    /// <param name="group"></param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns></returns>
-    public ValueTask<bool> IsTriggerGroupPaused(
-        string group,
-        CancellationToken cancellationToken = default)
-    {
-        // no locks necessary for read...
-        return ExecuteWithoutLock(conn => IsTriggerGroupPaused(conn, group, cancellationToken), cancellationToken);
-    }
-
-    /// <summary>
-    /// Returns true if the given TriggerGroup is paused.
-    /// </summary>
-    public virtual async ValueTask<bool> IsTriggerGroupPaused(
-        ConnectionAndTransactionHolder conn,
-        string group,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            return await Delegate.IsTriggerGroupPaused(conn, group, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't determine if trigger group '" + group + "' is paused: " + e.Message, e);
-            return default;
-        }
     }
 
     /// <summary>
@@ -1582,7 +1533,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     {
         // Clean up any fired trigger records referencing this job to prevent
         // orphaned EXECUTING rows that block re-creation of the same job (#1696)
-        await Delegate.DeleteFiredTriggers(conn, key, cancellationToken).ConfigureAwait(false);
+        await Delegate.DeleteFiredTriggers(conn, new FiredTriggerQuery { Job = key }, cancellationToken).ConfigureAwait(false);
 
         return await Delegate.DeleteJobDetail(conn, key, cancellationToken).ConfigureAwait(false) > 0;
     }
@@ -1603,7 +1554,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         // Also clean up any fired trigger records to prevent recovery triggers from being created
         if (deleted)
         {
-            await Delegate.DeleteFiredTriggers(conn, key, cancellationToken).ConfigureAwait(false);
+            await Delegate.DeleteFiredTriggers(conn, new FiredTriggerQuery { Trigger = key }, cancellationToken).ConfigureAwait(false);
         }
         
         return deleted;
@@ -1776,7 +1727,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         try
         {
             // this must be called before we delete the trigger, obviously
-            var job = await Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoadHelper, cancellationToken).ConfigureAwait(false);
+            var job = await Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoadHelper, cancellationToken: cancellationToken).ConfigureAwait(false);
 
             if (job is null)
             {
@@ -1890,7 +1841,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
 
             string state = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-            IJobDetail? job = await Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoadHelper, cancellationToken).ConfigureAwait(false);
+            IJobDetail? job = await Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoadHelper, cancellationToken: cancellationToken).ConfigureAwait(false);
 
             if (job is null)
             {
@@ -1970,47 +1921,18 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         try
         {
             string ts = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+            TriggerState state = TriggerStateMapping.ToTriggerState(ts);
 
-            if (ts is null)
-            {
-                return TriggerState.None;
-            }
-
-            if (ts == StateDeleted)
-            {
-                return TriggerState.None;
-            }
-
-            if (ts == (StateComplete))
-            {
-                if (await IsTriggerCurrentlyExecuting(conn, triggerKey, cancellationToken).ConfigureAwait(false))
-                {
-                    return TriggerState.Blocked;
-                }
-                return TriggerState.Complete;
-            }
-
-            if (ts == StatePaused)
-            {
-                return TriggerState.Paused;
-            }
-
-            if (ts == StatePausedBlocked)
-            {
-                return TriggerState.Paused;
-            }
-
-            if (ts == StateError)
-            {
-                return TriggerState.Error;
-            }
-
-            if (ts == StateBlocked)
+            // A trigger that has completed but is still executing reports as blocked. Establishing that
+            // costs a FIRED_TRIGGERS query, which is why the mapping does not do it and listings, which
+            // would pay it per row, do not either.
+            if (state == TriggerState.Complete
+                && await IsTriggerCurrentlyExecuting(conn, triggerKey, cancellationToken).ConfigureAwait(false))
             {
                 return TriggerState.Blocked;
             }
 
-            return TriggerState.Normal;
+            return state;
         }
         catch (Exception e)
         {
@@ -2268,95 +2190,6 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
     }
 
-    /// <summary>
-    /// Get the number of <see cref="IJob" /> s that are
-    /// stored in the <see cref="IJobStore" />.
-    /// </summary>
-    public ValueTask<int> GetNumberOfJobs(CancellationToken cancellationToken = default)
-    {
-        // no locks necessary for read...
-        return ExecuteWithoutLock(conn => GetNumberOfJobs(conn, cancellationToken), cancellationToken);
-    }
-
-    protected virtual async ValueTask<int> GetNumberOfJobs(
-        ConnectionAndTransactionHolder conn,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            return await Delegate.SelectNumJobs(conn, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't obtain number of jobs: " + e.Message, e);
-            return default;
-        }
-    }
-
-    /// <summary>
-    /// Get the number of <see cref="ITrigger" /> s that are
-    /// stored in the <see cref="IJobStore" />.
-    /// </summary>
-    public ValueTask<int> GetNumberOfTriggers(CancellationToken cancellationToken = default)
-    {
-        return ExecuteWithoutLock( // no locks necessary for read...
-            conn => GetNumberOfTriggers(conn, cancellationToken), cancellationToken);
-    }
-
-    protected virtual async ValueTask<int> GetNumberOfTriggers(
-        ConnectionAndTransactionHolder conn,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            return await Delegate.SelectNumTriggers(conn, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't obtain number of triggers: " + e.Message, e);
-            return default;
-        }
-    }
-
-    /// <summary>
-    /// Get the number of <see cref="ICalendar" /> s that are
-    /// stored in the <see cref="IJobStore" />.
-    /// </summary>
-    public ValueTask<int> GetNumberOfCalendars(CancellationToken cancellationToken = default)
-    {
-        // no locks necessary for read...
-        return ExecuteWithoutLock(conn => GetNumberOfCalendars(conn, cancellationToken), cancellationToken);
-    }
-
-    protected virtual async ValueTask<int> GetNumberOfCalendars(
-        ConnectionAndTransactionHolder conn,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            return await Delegate.SelectNumCalendars(conn, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't obtain number of calendars: " + e.Message, e);
-            return default;
-        }
-    }
-
-    /// <summary>
-    /// Get the names of all of the <see cref="IJob" /> s that
-    /// have the given group name.
-    /// </summary>
-    /// <remarks>
-    /// If there are no jobs in the given group name, the result should be a
-    /// zero-length array (not <see langword="null" />).
-    /// </remarks>
-    public ValueTask<List<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
-    {
-        // no locks necessary for read...
-        return ExecuteWithoutLock(conn => GetJobNames(conn, matcher, cancellationToken), cancellationToken);
-    }
-
     protected virtual async ValueTask<List<JobKey>> GetJobNames(ConnectionAndTransactionHolder conn, GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         try
@@ -2366,40 +2199,6 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         catch (Exception e)
         {
             Throw.JobPersistenceException("Couldn't obtain job names: " + e.Message, e);
-            return default;
-        }
-    }
-
-    /// <summary>
-    /// Determine whether a <see cref="ICalendar" /> with the given identifier already
-    /// exists within the scheduler.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <param name="calendarName">the identifier to check for</param>
-    /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>true if a calendar exists with the given identifier</returns>
-    public ValueTask<bool> CalendarExists(
-        string calendarName,
-        CancellationToken cancellationToken = default)
-    {
-        return ExecuteWithoutLock( // no locks necessary for read...
-            conn => CheckExists(conn, calendarName, cancellationToken),
-            cancellationToken);
-    }
-
-    protected async ValueTask<bool> CheckExists(
-        ConnectionAndTransactionHolder conn,
-        string calendarName,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            return await Delegate.CalendarExists(conn, calendarName, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't check for existence of job: " + e.Message, e);
             return default;
         }
     }
@@ -2497,79 +2296,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
     }
 
-    /// <summary>
-    /// Get the names of all of the <see cref="ITrigger" /> s
-    /// that have the given group name.
-    /// </summary>
-    /// <remarks>
-    /// If there are no triggers in the given group name, the result should be a
-    /// zero-length array (not <see langword="null" />).
-    /// </remarks>
-    public ValueTask<List<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
-    {
-        // no locks necessary for read...
-        return ExecuteWithoutLock(conn => GetTriggerNames(conn, matcher, cancellationToken), cancellationToken);
-    }
-
-    protected virtual async ValueTask<List<TriggerKey>> GetTriggerNames(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            return await Delegate.SelectTriggersInGroup(conn, matcher, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't obtain trigger names: " + e.Message, e);
-            return default;
-        }
-    }
-
-    /// <summary>
-    /// Get the names of all of the <see cref="IJob" />
-    /// groups.
-    /// </summary>
-    /// <remarks>
-    /// If there are no known group names, the result should be a zero-length array (not <see langword="null" />).
-    /// </remarks>
-    public ValueTask<List<string>> GetJobGroupNames(CancellationToken cancellationToken = default)
-    {
-        // no locks necessary for read...
-        return ExecuteWithoutLock(conn => GetJobGroupNames(conn, cancellationToken), cancellationToken);
-    }
-
-    protected virtual async ValueTask<List<string>> GetJobGroupNames(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            return await Delegate.SelectJobGroups(conn, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't obtain job groups: " + e.Message, e);
-            return default;
-        }
-    }
-
-    /// <summary>
-    /// Get the names of all of the <see cref="ITrigger" />
-    /// groups.
-    /// </summary>
-    ///
-    /// <remarks>
-    /// If there are no known group names, the result should be a zero-length
-    /// array (not <see langword="null" />).
-    /// </remarks>
-    public ValueTask<List<string>> GetTriggerGroupNames(CancellationToken cancellationToken = default)
-    {
-        // no locks necessary for read...
-        return ExecuteWithoutLock(conn => GetTriggerGroupNames(conn, cancellationToken), cancellationToken);
-    }
-
     protected virtual async ValueTask<List<string>> GetTriggerGroupNames(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default)
     {
         try
         {
-            return await Delegate.SelectTriggerGroups(conn, cancellationToken).ConfigureAwait(false);
+            return await Delegate.SelectTriggerGroups(conn, GroupMatcher<TriggerKey>.AnyGroup(), cancellationToken).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -2578,29 +2309,187 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
     }
 
-    /// <summary>
-    /// Get the names of all of the <see cref="ICalendar" /> s
-    /// in the <see cref="IJobStore" />.
-    /// </summary>
-    /// <remarks>
-    /// If there are no Calendars in the given group name, the result should be
-    /// a zero-length array (not <see langword="null" />).
-    /// </remarks>
-    public ValueTask<List<string>> GetCalendarNames(CancellationToken cancellationToken = default)
+    /// <inheritdoc />
+    public ValueTask<PagedResult<JobHeader>> QueryJobs(JobQuery query, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(query);
+
         // no locks necessary for read...
-        return ExecuteWithoutLock(conn => GetCalendarNames(conn, cancellationToken), cancellationToken);
+        return ExecuteWithoutLock(conn => QueryJobs(conn, query, cancellationToken), cancellationToken);
     }
 
-    protected virtual async ValueTask<List<string>> GetCalendarNames(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default)
+    protected virtual async ValueTask<PagedResult<JobHeader>> QueryJobs(
+        ConnectionAndTransactionHolder conn,
+        JobQuery query,
+        CancellationToken cancellationToken = default)
     {
         try
         {
-            return await Delegate.SelectCalendars(conn, cancellationToken).ConfigureAwait(false);
+            return await Delegate.SelectJobHeaders(conn, query, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception e)
         {
-            Throw.JobPersistenceException("Couldn't obtain trigger groups: " + e.Message, e);
+            Throw.JobPersistenceException("Couldn't query jobs: " + e.Message, e);
+            return default;
+        }
+    }
+
+    /// <inheritdoc />
+    public ValueTask<PagedResult<TriggerHeader>> QueryTriggers(TriggerQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        // no locks necessary for read...
+        return ExecuteWithoutLock(conn => QueryTriggers(conn, query, cancellationToken), cancellationToken);
+    }
+
+    protected virtual async ValueTask<PagedResult<TriggerHeader>> QueryTriggers(
+        ConnectionAndTransactionHolder conn,
+        TriggerQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await Delegate.SelectTriggerHeaders(conn, query, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception e)
+        {
+            Throw.JobPersistenceException("Couldn't query triggers: " + e.Message, e);
+            return default;
+        }
+    }
+
+    /// <inheritdoc />
+    public ValueTask<PagedResult<JobGroup>> QueryJobGroups(JobGroupQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        // no locks necessary for read...
+        return ExecuteWithoutLock(conn => QueryJobGroups(conn, query, cancellationToken), cancellationToken);
+    }
+
+    protected virtual async ValueTask<PagedResult<JobGroup>> QueryJobGroups(
+        ConnectionAndTransactionHolder conn,
+        JobGroupQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await Delegate.SelectJobGroups(conn, query, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception e)
+        {
+            Throw.JobPersistenceException("Couldn't query job groups: " + e.Message, e);
+            return default;
+        }
+    }
+
+    /// <inheritdoc />
+    public ValueTask<PagedResult<TriggerGroup>> QueryTriggerGroups(TriggerGroupQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        // no locks necessary for read...
+        return ExecuteWithoutLock(conn => QueryTriggerGroups(conn, query, cancellationToken), cancellationToken);
+    }
+
+    protected virtual async ValueTask<PagedResult<TriggerGroup>> QueryTriggerGroups(
+        ConnectionAndTransactionHolder conn,
+        TriggerGroupQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await Delegate.SelectTriggerGroups(conn, query, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception e)
+        {
+            Throw.JobPersistenceException("Couldn't query trigger groups: " + e.Message, e);
+            return default;
+        }
+    }
+
+    /// <inheritdoc />
+    public ValueTask<PagedResult<string>> QueryCalendarNames(CalendarQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        // no locks necessary for read...
+        return ExecuteWithoutLock(conn => QueryCalendarNames(conn, query, cancellationToken), cancellationToken);
+    }
+
+    protected virtual async ValueTask<PagedResult<string>> QueryCalendarNames(
+        ConnectionAndTransactionHolder conn,
+        CalendarQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await Delegate.SelectCalendarNames(conn, query, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception e)
+        {
+            Throw.JobPersistenceException("Couldn't query calendar names: " + e.Message, e);
+            return default;
+        }
+    }
+
+    /// <inheritdoc />
+    public ValueTask<List<IJobDetail>> GetJobDetails(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(jobKeys);
+
+        // no locks necessary for read...
+        return ExecuteWithoutLock(conn => GetJobDetails(conn, jobKeys, cancellationToken), cancellationToken);
+    }
+
+    protected virtual async ValueTask<List<IJobDetail>> GetJobDetails(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<JobKey> jobKeys,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await Delegate.SelectJobDetails(conn, jobKeys, TypeLoadHelper, cancellationToken).ConfigureAwait(false);
+        }
+        catch (TypeLoadException e)
+        {
+            Throw.JobPersistenceException("Couldn't retrieve jobs because a required type was not found: " + e.Message, e);
+            return default;
+        }
+        catch (IOException e)
+        {
+            Throw.JobPersistenceException("Couldn't retrieve jobs because the BLOB couldn't be deserialized: " + e.Message, e);
+            return default;
+        }
+        catch (Exception e)
+        {
+            Throw.JobPersistenceException("Couldn't retrieve jobs: " + e.Message, e);
+            return default;
+        }
+    }
+
+    /// <inheritdoc />
+    public ValueTask<List<IOperableTrigger>> GetTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(triggerKeys);
+
+        // no locks necessary for read...
+        return ExecuteWithoutLock(conn => GetTriggers(conn, triggerKeys, cancellationToken), cancellationToken);
+    }
+
+    protected virtual async ValueTask<List<IOperableTrigger>> GetTriggers(
+        ConnectionAndTransactionHolder conn,
+        IReadOnlyCollection<TriggerKey> triggerKeys,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await Delegate.SelectTriggers(conn, triggerKeys, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception e)
+        {
+            Throw.JobPersistenceException("Couldn't retrieve triggers: " + e.Message, e);
             return default;
         }
     }
@@ -2769,7 +2658,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
         try
         {
-            var lst = await Delegate.SelectFiredTriggerRecordsByJob(conn, jobKey.Name, jobKey.Group, cancellationToken).ConfigureAwait(false);
+            var lst = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { Job = jobKey }, cancellationToken).ConfigureAwait(false);
 
             if (lst.Count > 0)
             {
@@ -2969,31 +2858,6 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
     }
 
-    public ValueTask<List<string>> GetPausedTriggerGroups(CancellationToken cancellationToken = default)
-    {
-        // no locks necessary for read...
-        return ExecuteWithoutLock(conn => GetPausedTriggerGroups(conn, cancellationToken), cancellationToken);
-    }
-
-    /// <summary>
-    /// Pause all of the <see cref="ITrigger" />s in the
-    /// given group.
-    /// </summary>
-    public virtual async ValueTask<List<string>> GetPausedTriggerGroups(
-        ConnectionAndTransactionHolder conn,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            return await Delegate.SelectPausedTriggerGroups(conn, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            Throw.JobPersistenceException("Couldn't determine paused trigger groups: " + e.Message, e);
-            return default;
-        }
-    }
-
     public virtual ValueTask<List<string>> ResumeTriggers(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
@@ -3032,39 +2896,6 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
 
             return [..groups];
-
-            // TODO: find an efficient way to resume triggers (better than the
-            // above)... logic below is broken because of
-            // findTriggersToBeBlocked()
-            /*
-             * int res =
-             * getDelegate().UpdateTriggerGroupStateFromOtherState(conn,
-             * groupName, StateWaiting, StatePaused);
-             *
-             * if(res > 0) {
-             *
-             * long misfireTime = System.currentTimeMillis();
-             * if(getMisfireThreshold() > 0) misfireTime -=
-             * getMisfireThreshold();
-             *
-             * Key[] misfires =
-             * getDelegate().SelectMisfiredTriggersInGroupInState(conn,
-             * groupName, StateWaiting, misfireTime);
-             *
-             * List blockedTriggers = findTriggersToBeBlocked(conn,
-             * groupName);
-             *
-             * Iterator itr = blockedTriggers.iterator(); while(itr.hasNext()) {
-             * Key key = (Key)itr.next();
-             * getDelegate().UpdateTriggerState(conn, key.getName(),
-             * key.getGroup(), StateBlocked); }
-             *
-             * for(int i=0; i < misfires.length; i++) {               String
-             * newState = StateWaiting;
-             * if(blockedTriggers.contains(misfires[i])) newState =
-             * StateBlocked; UpdateMisfiredTrigger(conn,
-             * misfires[i].getName(), misfires[i].getGroup(), newState, true); } }
-             */
         }
         catch (Exception e)
         {
@@ -3151,7 +2982,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
         try
         {
-            await Delegate.DeletePausedTriggerGroup(conn, AllGroupsPaused, cancellationToken).ConfigureAwait(false);
+            await Delegate.DeletePausedTriggerGroup(conn, GroupMatcher<TriggerKey>.GroupEquals(AllGroupsPaused), cancellationToken).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -3192,7 +3023,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 {
                     try
                     {
-                        var acquired = await Delegate.SelectInstancesFiredTriggerRecords(conn, InstanceId, cancellationToken).ConfigureAwait(false);
+                        var acquired = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceName = InstanceId }, cancellationToken).ConfigureAwait(false);
                         var fireInstanceIds = new HashSet<string>();
                         foreach (FiredTriggerRecord ft in acquired)
                         {
@@ -3253,15 +3084,16 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 // to a dead node from being stuck when the surviving nodes are under load.
                 long liveNodeCutoff = (timeProvider.GetUtcNow() - ClusterCheckinMisfireThreshold).UtcTicks;
 
-                List<TriggerAcquireResult> results;
-                if (executionLimits is not null)
+                TriggerAcquisitionCriteria criteria = new()
                 {
-                    results = await Delegate.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, maxCount, executionLimits, liveNodeCutoff, cancellationToken).ConfigureAwait(false);
-                }
-                else
-                {
-                    results = await Delegate.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, maxCount, liveNodeCutoff, cancellationToken).ConfigureAwait(false);
-                }
+                    NoLaterThan = noLaterThan + timeWindow,
+                    NoEarlierThan = MisfireTime,
+                    MaxCount = maxCount,
+                    ExecutionLimits = executionLimits,
+                    LiveNodeCutoff = liveNodeCutoff,
+                };
+
+                List<TriggerAcquireResult> results = await Delegate.SelectTriggersToAcquire(conn, criteria, cancellationToken).ConfigureAwait(false);
 
                 // No trigger is ready to fire yet.
                 if (results.Count == 0)
@@ -3465,7 +3297,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                     try
                     {
                         var acquired = await Delegate
-                            .SelectInstancesFiredTriggerRecords(conn, InstanceId, cancellationToken)
+                            .SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceName = InstanceId }, cancellationToken)
                             .ConfigureAwait(false);
                         var executingTriggers = new HashSet<string>();
                         foreach (FiredTriggerRecord ft in acquired)
@@ -4163,7 +3995,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 {
                     Logger.LogInformation("ClusterManager: Scanning for instance {SchedulerInstanceId}'s failed in-progress jobs.", rec.SchedulerInstanceId);
 
-                    var firedTriggerRecs = await Delegate.SelectInstancesFiredTriggerRecords(conn, rec.SchedulerInstanceId, cancellationToken).ConfigureAwait(false);
+                    var firedTriggerRecs = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceName = rec.SchedulerInstanceId }, cancellationToken).ConfigureAwait(false);
 
                     int acquiredCount = 0;
                     int recoveredCount = 0;
@@ -4290,7 +4122,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                     }
                     else
                     {
-                        await Delegate.DeleteFiredTriggers(conn, rec.SchedulerInstanceId, cancellationToken).ConfigureAwait(false);
+                        await Delegate.DeleteFiredTriggers(conn, new FiredTriggerQuery { InstanceName = rec.SchedulerInstanceId }, cancellationToken).ConfigureAwait(false);
                     }
 
                     // Check if any of the fired triggers we just deleted were the last fired trigger
@@ -4300,7 +4132,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                     {
                         if (await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false) == StateComplete)
                         {
-                            var firedTriggers = await Delegate.SelectFiredTriggerRecords(conn, triggerKey.Name, triggerKey.Group, cancellationToken).ConfigureAwait(false);
+                            var firedTriggers = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { Trigger = triggerKey }, cancellationToken).ConfigureAwait(false);
                             if (firedTriggers.Count == 0)
                             {
                                 if (await RemoveTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false))

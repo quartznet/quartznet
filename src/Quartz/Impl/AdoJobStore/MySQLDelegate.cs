@@ -17,6 +17,8 @@
  */
 #endregion
 
+using System.Data.Common;
+
 namespace Quartz.Impl.AdoJobStore;
 
 /// <summary>
@@ -26,6 +28,34 @@ namespace Quartz.Impl.AdoJobStore;
 public class MySQLDelegate : StdAdoDelegate
 {
     /// <summary>
+    /// MySQL pages with LIMIT/OFFSET rather than the ANSI clause.
+    /// </summary>
+    /// <remarks>
+    /// MySQL has no OFFSET-only form: skipping without limiting is written as a LIMIT of the largest
+    /// BIGINT UNSIGNED value, which is what the manual prescribes.
+    /// </remarks>
+    protected override string ApplyPaging(string sql, bool takeLimited)
+    {
+        return takeLimited
+            ? sql + " LIMIT @pageTake OFFSET @pageSkip"
+            : sql + " LIMIT 18446744073709551615 OFFSET @pageSkip";
+    }
+
+    /// <summary>
+    /// Binds the LIMIT/OFFSET parameters in the order the clause names them, which is the reverse of
+    /// the ANSI clause's order and matters to providers that bind positionally.
+    /// </summary>
+    protected override void AddPagingParameters(DbCommand cmd, long skip, long take, bool takeLimited)
+    {
+        if (takeLimited)
+        {
+            AddCommandParameter(cmd, "pageTake", take);
+        }
+
+        AddCommandParameter(cmd, "pageSkip", skip);
+    }
+
+    /// <summary>
     /// Gets the select next trigger to acquire SQL clause.
     /// MySQL version with LIMIT support and a FORCE INDEX hint pointing at IDX_*_T_NFT_ST.
     /// </summary>
@@ -34,17 +64,6 @@ public class MySQLDelegate : StdAdoDelegate
         return SqlSelectNextTriggerToAcquire
             .Replace("{0}TRIGGERS t", "{0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST)")
             + " LIMIT " + maxCount;
-    }
-
-    protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
-    {
-        if (count != -1)
-        {
-            return SqlSelectHasMisfiredTriggersInState
-                .Replace("{0}TRIGGERS WHERE", "{0}TRIGGERS FORCE INDEX (IDX_{1}T_NFT_ST_MISFIRE) WHERE")
-                + " LIMIT " + count;
-        }
-        return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
     }
 
     /// <summary>

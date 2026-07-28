@@ -13,7 +13,7 @@
 <div class="qz-page">
     <h1>Jobs</h1>
 
-    <SearchFilter OnFilterChanged="OnFilterChangedAsync" />
+    <SearchFilter Placeholder="Filter by group" OnFilterChanged="OnFilterChangedAsync" />
 
     @if (_isLoading)
     {
@@ -23,13 +23,13 @@
     {
         <ErrorAlert Message="@_error" OnRetry="LoadDataAsync" />
     }
-    else if (_pagedJobs.Count == 0)
+    else if (_jobs.Count == 0)
     {
         <p class="qz-muted">No jobs found.</p>
     }
     else
     {
-        @foreach (IGrouping<string, object> group in GroupedJobs)
+        @foreach (IGrouping<string, JobKeyDto> group in GroupedJobs)
         {
             <section class="qz-section">
                 <div class="qz-row">
@@ -56,10 +56,10 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (object job in group)
+                        @foreach (JobKeyDto job in group)
                         {
-                            string jobGroup = DisplayValueHelper.GetString(job, "Group", "Key.Group");
-                            string jobName = DisplayValueHelper.GetString(job, "Name", "Key.Name");
+                            string jobGroup = job.Group;
+                            string jobName = job.Name;
                             <tr class="qz-row-link"
                                 tabindex="0"
                                 role="link"
@@ -89,7 +89,7 @@
             </section>
         }
 
-        <Pagination TotalItems="@_filteredJobs.Count"
+        <Pagination TotalItems="@_totalJobs"
                     PageSize="@_pageSize"
                     CurrentPage="@_currentPage"
                     OnPageChanged="OnPageChangedAsync" />
@@ -103,13 +103,12 @@
                OnCancel="CancelDeleteAsync" />
 
 @code {
-    private readonly List<object> _allJobs = [];
-    private readonly List<object> _filteredJobs = [];
-    private readonly List<object> _pagedJobs = [];
+    private readonly List<JobKeyDto> _jobs = [];
     private readonly Dictionary<string, string> _groupStates = new(StringComparer.OrdinalIgnoreCase);
     private bool _isLoading = true;
     private string? _error;
     private int _currentPage = 1;
+    private int _totalJobs;
     private readonly int _pageSize = 25;
     private string _filter = string.Empty;
     private bool _showDeleteConfirm;
@@ -119,8 +118,7 @@
 
     private bool IsReadOnly => Options.Value.ReadOnly;
 
-    private IEnumerable<IGrouping<string, object>> GroupedJobs =>
-        _pagedJobs.GroupBy(job => DisplayValueHelper.GetString(job, "Group", "Key.Group"));
+    private IEnumerable<IGrouping<string, JobKeyDto>> GroupedJobs => _jobs.GroupBy(job => job.Group);
 
     protected override async Task OnInitializedAsync()
     {
@@ -141,39 +139,41 @@
 
         try
         {
-            _allJobs.Clear();
+            _jobs.Clear();
             _groupStates.Clear();
+            _totalJobs = 0;
+
             string? schedulerName = Scheduler.ActiveSchedulerName;
-            if (!string.IsNullOrWhiteSpace(schedulerName))
+            if (string.IsNullOrWhiteSpace(schedulerName))
             {
-                IReadOnlyList<object> jobs = DisplayValueHelper.ToObjectList(await Api.GetJobKeys(schedulerName));
-                _allJobs.AddRange(jobs);
-
-                HashSet<string> groups = new(StringComparer.OrdinalIgnoreCase);
-                foreach (object job in _allJobs)
-                {
-                    string jobGroup = DisplayValueHelper.GetString(job, "Group", "Key.Group");
-                    if (!string.IsNullOrWhiteSpace(jobGroup))
-                    {
-                        groups.Add(jobGroup);
-                    }
-                }
-
-                foreach (string group in groups)
-                {
-                    bool isPaused = await Api.IsJobGroupPaused(schedulerName, group);
-                    _groupStates[group] = isPaused ? "Paused" : "Normal";
-                }
+                return;
             }
 
-            ApplyFilterAndPaging();
+            string? groupFilter = string.IsNullOrWhiteSpace(_filter) ? null : _filter;
+            JobPageDto page = await Api.GetJobs(schedulerName, groupFilter, _currentPage, _pageSize);
+
+            int totalPages = Math.Max(1, (int) Math.Ceiling((double) page.TotalCount / _pageSize));
+            if (_currentPage > totalPages)
+            {
+                _currentPage = totalPages;
+                page = await Api.GetJobs(schedulerName, groupFilter, _currentPage, _pageSize);
+            }
+
+            _jobs.AddRange(page.Items);
+            _totalJobs = page.TotalCount;
+
+            List<JobGroupDto> groups = await Api.GetJobGroups(schedulerName);
+            foreach (JobGroupDto group in groups)
+            {
+                _groupStates[group.Name] = group.Paused ? "Paused" : "Normal";
+            }
         }
         catch (Exception ex)
         {
             _error = ex.Message;
-            _filteredJobs.Clear();
-            _pagedJobs.Clear();
+            _jobs.Clear();
             _groupStates.Clear();
+            _totalJobs = 0;
         }
         finally
         {
@@ -181,44 +181,17 @@
         }
     }
 
-    private void ApplyFilterAndPaging()
-    {
-        IEnumerable<object> query = _allJobs;
-        if (!string.IsNullOrWhiteSpace(_filter))
-        {
-            query = query.Where(job =>
-            {
-                string group = DisplayValueHelper.GetString(job, "Group", "Key.Group");
-                string name = DisplayValueHelper.GetString(job, "Name", "Key.Name");
-                string key = DisplayValueHelper.FormatKey(group, name);
-                return key.Contains(_filter, StringComparison.OrdinalIgnoreCase);
-            });
-        }
-
-        _filteredJobs.Clear();
-        _filteredJobs.AddRange(query);
-
-        int totalPages = Math.Max(1, (int) Math.Ceiling((double) _filteredJobs.Count / _pageSize));
-        _currentPage = Math.Clamp(_currentPage, 1, totalPages);
-
-        _pagedJobs.Clear();
-        IEnumerable<object> page = _filteredJobs.Skip((_currentPage - 1) * _pageSize).Take(_pageSize);
-        _pagedJobs.AddRange(page);
-    }
-
     private Task OnFilterChangedAsync(string filter)
     {
         _filter = filter;
         _currentPage = 1;
-        ApplyFilterAndPaging();
-        return Task.CompletedTask;
+        return LoadDataAsync();
     }
 
     private Task OnPageChangedAsync(int page)
     {
         _currentPage = page;
-        ApplyFilterAndPaging();
-        return Task.CompletedTask;
+        return LoadDataAsync();
     }
 
     private string GetJobDetailPath(string group, string name)
@@ -380,22 +353,20 @@
 
         try
         {
-            List<(string Group, string Name)> jobsInGroup = [];
-            foreach (object job in _allJobs)
+            // The group filter matches groups that contain it, so the exact group is selected here.
+            JobPageDto groupPage = await Api.GetJobs(schedulerName, group, page: 1, pageSize: int.MaxValue);
+            List<JobKeyDto> jobsInGroup = [];
+            foreach (JobKeyDto job in groupPage.Items)
             {
-                string jobGroup = DisplayValueHelper.GetString(job, "Group", "Key.Group");
-                if (!string.Equals(jobGroup, group, StringComparison.Ordinal))
+                if (string.Equals(job.Group, group, StringComparison.Ordinal))
                 {
-                    continue;
+                    jobsInGroup.Add(job);
                 }
-
-                string jobName = DisplayValueHelper.GetString(job, "Name", "Key.Name");
-                jobsInGroup.Add((jobGroup, jobName));
             }
 
-            foreach ((string jobGroup, string jobName) in jobsInGroup)
+            foreach (JobKeyDto job in jobsInGroup)
             {
-                await operation(schedulerName, jobGroup, jobName);
+                await operation(schedulerName, job.Group, job.Name);
             }
 
             ActionLog.Record(

@@ -8,6 +8,7 @@ using Quartz.Dashboard.Components.Shared;
 using Quartz.Dashboard.Services;
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
+using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Serialization.Json;
 
@@ -213,6 +214,160 @@ public class InProcessQuartzApiClientTest
             TriggerHeaderDto cron = headers.Single(h => h.Name == "cron");
             cron.TriggerType.Should().Be("Cron");
             cron.ScheduleSummary.Should().Be("0 0 1 * * ?");
+
+            headers.Should().AllSatisfy(
+                header => header.State.Should().Be("Normal"),
+                "the states come from the single trigger query the associated triggers table used to make one call per trigger for");
+
+            await scheduler.PauseTrigger(new TriggerKey("cron", "group1"));
+            headers = await client.GetJobTriggers(scheduler.SchedulerName, jobKey.Group, jobKey.Name);
+
+            headers.Single(h => h.Name == "cron").State.Should().Be("Paused", "each header carries its own trigger's state");
+            headers.Single(h => h.Name == "simple").State.Should().Be("Normal");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    [Test]
+    public async Task GetJobsPagesServerSideAndCountsExactly()
+    {
+        // #3008 - the jobs page fetched every key and paged in the browser
+        IScheduler scheduler = await CreateScheduler("GetJobsPagingTest");
+        try
+        {
+            for (int i = 1; i <= 30; i++)
+            {
+                await scheduler.AddJob(
+                    JobBuilder.Create<NoOpJob>()
+                        .WithIdentity("job" + i.ToString("00"), "group1")
+                        .StoreDurably()
+                        .Build(),
+                    replace: true);
+            }
+
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+
+            JobPageDto firstPage = await client.GetJobs(scheduler.SchedulerName, groupFilter: null, page: 1, pageSize: 25);
+            firstPage.Items.Should().HaveCount(25, "the page size limits what the store returns");
+            firstPage.TotalCount.Should().Be(30, "the total is counted regardless of paging");
+            firstPage.HasMore.Should().BeTrue("30 jobs do not fit on one page of 25");
+            firstPage.Items[0].Name.Should().Be("job01", "results are ordered by group and then name");
+
+            JobPageDto secondPage = await client.GetJobs(scheduler.SchedulerName, groupFilter: null, page: 2, pageSize: 25);
+            secondPage.Items.Should().HaveCount(5, "the second page holds the remainder");
+            secondPage.Items.Select(x => x.Name).Should().Equal(["job26", "job27", "job28", "job29", "job30"],
+                "page 2 continues where page 1 ended");
+            secondPage.HasMore.Should().BeFalse("nothing matches beyond the second page");
+            secondPage.TotalCount.Should().Be(30);
+
+            JobPageDto countOnly = await client.GetJobs(scheduler.SchedulerName, groupFilter: null, page: 1, pageSize: 0);
+            countOnly.Items.Should().BeEmpty("a page size of zero fetches no items");
+            countOnly.TotalCount.Should().Be(30, "the dashboard total jobs tile is a count query, not a materialized list");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    [Test]
+    public async Task GetJobsFiltersByGroup()
+    {
+        IScheduler scheduler = await CreateScheduler("GetJobsGroupFilterTest");
+        try
+        {
+            await scheduler.AddJob(JobBuilder.Create<NoOpJob>().WithIdentity("job1", "imports").StoreDurably().Build(), replace: true);
+            await scheduler.AddJob(JobBuilder.Create<NoOpJob>().WithIdentity("job2", "reports").StoreDurably().Build(), replace: true);
+
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+
+            JobPageDto filtered = await client.GetJobs(scheduler.SchedulerName, groupFilter: "mpor", page: 1, pageSize: 25);
+
+            filtered.Items.Should().ContainSingle("the group filter matches groups that contain it")
+                .Which.Group.Should().Be("imports");
+            filtered.TotalCount.Should().Be(1, "the total counts the filtered set, not everything");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    [Test]
+    public async Task GetTriggersPagesServerSideAndCarriesStateAndExecutionGroup()
+    {
+        // #3008 - the triggers page fetched every key and then one state per trigger
+        IScheduler scheduler = await CreateScheduler("GetTriggersPagingTest");
+        try
+        {
+            JobKey jobKey = new("job1", "group1");
+            await scheduler.AddJob(JobBuilder.Create<NoOpJob>().WithIdentity(jobKey).StoreDurably().Build(), replace: true);
+
+            for (int i = 1; i <= 30; i++)
+            {
+                await scheduler.ScheduleJob(
+                    TriggerBuilder.Create()
+                        .WithIdentity("trigger" + i.ToString("00"), "group1")
+                        .ForJob(jobKey)
+                        .WithExecutionGroup("imports")
+                        .WithCronSchedule("0 0 1 * * ?")
+                        .Build());
+            }
+
+            for (int i = 1; i <= 26; i++)
+            {
+                await scheduler.PauseTrigger(new TriggerKey("trigger" + i.ToString("00"), "group1"));
+            }
+
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+
+            TriggerPageDto firstPage = await client.GetTriggers(scheduler.SchedulerName, groupFilter: null, state: null, page: 1, pageSize: 25);
+            firstPage.Items.Should().HaveCount(25);
+            firstPage.TotalCount.Should().Be(30);
+            firstPage.HasMore.Should().BeTrue("30 triggers do not fit on one page of 25");
+            firstPage.Items[0].State.Should().Be("Paused", "the header carries the state the listing used to fetch per trigger");
+            firstPage.Items[0].ExecutionGroup.Should().Be("imports", "the header carries the execution group without loading the trigger");
+
+            TriggerPageDto secondPage = await client.GetTriggers(scheduler.SchedulerName, groupFilter: null, state: null, page: 2, pageSize: 25);
+            secondPage.Items.Select(x => x.Name).Should().Equal(["trigger26", "trigger27", "trigger28", "trigger29", "trigger30"],
+                "page 2 continues where page 1 ended");
+            secondPage.HasMore.Should().BeFalse();
+            secondPage.Items.Last().State.Should().Be("Normal", "the last four triggers were never paused");
+
+            TriggerPageDto pausedCount = await client.GetTriggers(scheduler.SchedulerName, groupFilter: null, state: TriggerState.Paused, page: 1, pageSize: 0);
+            pausedCount.TotalCount.Should().Be(26,
+                "a state-filtered count is exact, where the dashboard tile used to count states over the first 25 items only");
+
+            TriggerPageDto errorCount = await client.GetTriggers(scheduler.SchedulerName, groupFilter: null, state: TriggerState.Error, page: 1, pageSize: 0);
+            errorCount.Items.Should().BeEmpty();
+            errorCount.TotalCount.Should().Be(0, "no trigger has failed, and the error tile reports that exactly");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
+    [Test]
+    public async Task GetJobGroupsReportsPausedStateInOneCall()
+    {
+        // #3008 - the jobs page asked IsJobGroupPaused once per group
+        IScheduler scheduler = await CreateScheduler("GetJobGroupsTest");
+        try
+        {
+            await scheduler.AddJob(JobBuilder.Create<NoOpJob>().WithIdentity("job1", "paused").StoreDurably().Build(), replace: true);
+            await scheduler.AddJob(JobBuilder.Create<NoOpJob>().WithIdentity("job2", "running").StoreDurably().Build(), replace: true);
+            await scheduler.PauseJobs(GroupMatcher<JobKey>.GroupEquals("paused"));
+
+            InProcessQuartzApiClient client = CreateClient(scheduler);
+            List<JobGroupDto> groups = await client.GetJobGroups(scheduler.SchedulerName);
+
+            groups.Select(x => x.Name).Should().Contain(["paused", "running"], "every job group is listed");
+            groups.Single(x => x.Name == "paused").Paused.Should().BeTrue("the group was paused");
+            groups.Single(x => x.Name == "running").Paused.Should().BeFalse("the other group was not");
         }
         finally
         {

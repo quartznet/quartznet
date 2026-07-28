@@ -12,16 +12,6 @@ public class DelegatingScheduler : IScheduler
         this.scheduler = scheduler;
     }
 
-    public ValueTask<bool> IsJobGroupPaused(string groupName, CancellationToken cancellationToken = default)
-    {
-        return scheduler.IsJobGroupPaused(groupName, cancellationToken);
-    }
-
-    public ValueTask<bool> IsTriggerGroupPaused(string groupName, CancellationToken cancellationToken = default)
-    {
-        return scheduler.IsTriggerGroupPaused(groupName, cancellationToken);
-    }
-
     public string SchedulerName => scheduler.SchedulerName;
     public string SchedulerInstanceId => scheduler.SchedulerInstanceId;
     public SchedulerContext Context => scheduler.Context;
@@ -39,21 +29,6 @@ public class DelegatingScheduler : IScheduler
     }
 
     public IListenerManager ListenerManager => scheduler.ListenerManager;
-
-    public ValueTask<List<string>> GetJobGroupNames(CancellationToken cancellationToken = default)
-    {
-        return scheduler.GetJobGroupNames(cancellationToken);
-    }
-
-    public ValueTask<List<string>> GetTriggerGroupNames(CancellationToken cancellationToken = default)
-    {
-        return scheduler.GetTriggerGroupNames(cancellationToken);
-    }
-
-    public ValueTask<List<string>> GetPausedTriggerGroups(CancellationToken cancellationToken = default)
-    {
-        return scheduler.GetPausedTriggerGroups(cancellationToken);
-    }
 
     public ValueTask Start(CancellationToken cancellationToken = default)
     {
@@ -212,19 +187,44 @@ public class DelegatingScheduler : IScheduler
         return scheduler.ResumeAll(cancellationToken);
     }
 
-    public ValueTask<List<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    public ValueTask<PagedResult<JobHeader>> QueryJobs(JobQuery query, CancellationToken cancellationToken = default)
     {
-        return scheduler.GetJobKeys(matcher, cancellationToken);
+        return scheduler.QueryJobs(query, cancellationToken);
+    }
+
+    public ValueTask<PagedResult<TriggerHeader>> QueryTriggers(TriggerQuery query, CancellationToken cancellationToken = default)
+    {
+        return scheduler.QueryTriggers(query, cancellationToken);
+    }
+
+    public ValueTask<PagedResult<JobGroup>> QueryJobGroups(JobGroupQuery query, CancellationToken cancellationToken = default)
+    {
+        return scheduler.QueryJobGroups(query, cancellationToken);
+    }
+
+    public ValueTask<PagedResult<TriggerGroup>> QueryTriggerGroups(TriggerGroupQuery query, CancellationToken cancellationToken = default)
+    {
+        return scheduler.QueryTriggerGroups(query, cancellationToken);
+    }
+
+    public ValueTask<PagedResult<string>> QueryCalendarNames(CalendarQuery query, CancellationToken cancellationToken = default)
+    {
+        return scheduler.QueryCalendarNames(query, cancellationToken);
+    }
+
+    public ValueTask<List<IJobDetail>> GetJobDetails(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+    {
+        return scheduler.GetJobDetails(jobKeys, cancellationToken);
+    }
+
+    public ValueTask<List<ITrigger>> GetTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+    {
+        return scheduler.GetTriggers(triggerKeys, cancellationToken);
     }
 
     public ValueTask<List<ITrigger>> GetTriggersOfJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         return scheduler.GetTriggersOfJob(jobKey, cancellationToken);
-    }
-
-    public ValueTask<List<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
-    {
-        return scheduler.GetTriggerKeys(matcher, cancellationToken);
     }
 
     public ValueTask<IJobDetail?> GetJobDetail(JobKey jobKey, CancellationToken cancellationToken = default)
@@ -260,11 +260,6 @@ public class DelegatingScheduler : IScheduler
     public ValueTask<ICalendar?> GetCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
         return scheduler.GetCalendar(calendarName, cancellationToken);
-    }
-
-    public ValueTask<List<string>> GetCalendarNames(CancellationToken cancellationToken = default)
-    {
-        return scheduler.GetCalendarNames(cancellationToken);
     }
 
     public ValueTask<bool> Interrupt(JobKey jobKey, CancellationToken cancellationToken = default)

@@ -788,7 +788,7 @@ public class XMLSchedulingDataProcessor
                         detail.Key);
                 }
 
-                if (dupeJ.Durable && (await scheduler.GetTriggersOfJob(detail.Key, cancellationToken).ConfigureAwait(false)).Count == 0)
+                if (dupeJ.Durable && await JobHasNoTriggers(scheduler, detail.Key, cancellationToken).ConfigureAwait(false))
                 {
                     Throw.SchedulerException(
                         "Can't change existing durable job without triggers to non-durable: " +
@@ -987,6 +987,17 @@ public class XMLSchedulingDataProcessor
         return triggersByFQJobName;
     }
 
+    private static async ValueTask<bool> JobHasNoTriggers(
+        IScheduler scheduler,
+        JobKey jobKey,
+        CancellationToken cancellationToken)
+    {
+        PagedResult<TriggerHeader> triggers = await scheduler
+            .QueryTriggers(new TriggerQuery { Job = jobKey, Take = 0, IncludeTotalCount = true }, cancellationToken)
+            .ConfigureAwait(false);
+        return triggers.TotalCount == 0;
+    }
+
     protected async ValueTask ExecutePreProcessCommands(
         IScheduler scheduler,
         CancellationToken cancellationToken = default)
@@ -996,14 +1007,12 @@ public class XMLSchedulingDataProcessor
             if (group == "*")
             {
                 logger.LogInformation("Deleting all jobs in ALL groups.");
-                foreach (string groupName in await scheduler.GetJobGroupNames(cancellationToken).ConfigureAwait(false))
+                PagedResult<JobHeader> allJobs = await scheduler.QueryJobs(new JobQuery(), cancellationToken).ConfigureAwait(false);
+                foreach (JobHeader job in allJobs.Items)
                 {
-                    if (!jobGroupsToNeverDelete.Contains(groupName))
+                    if (!jobGroupsToNeverDelete.Contains(job.Key.Group))
                     {
-                        foreach (JobKey key in await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(groupName), cancellationToken).ConfigureAwait(false))
-                        {
-                            await scheduler.DeleteJob(key, cancellationToken).ConfigureAwait(false);
-                        }
+                        await scheduler.DeleteJob(job.Key, cancellationToken).ConfigureAwait(false);
                     }
                 }
             }
@@ -1025,14 +1034,12 @@ public class XMLSchedulingDataProcessor
             if (group == "*")
             {
                 logger.LogInformation("Deleting all triggers in ALL groups.");
-                foreach (string groupName in await scheduler.GetTriggerGroupNames(cancellationToken).ConfigureAwait(false))
+                PagedResult<TriggerHeader> allTriggers = await scheduler.QueryTriggers(new TriggerQuery(), cancellationToken).ConfigureAwait(false);
+                foreach (TriggerHeader trigger in allTriggers.Items)
                 {
-                    if (!triggerGroupsToNeverDelete.Contains(groupName))
+                    if (!triggerGroupsToNeverDelete.Contains(trigger.Key.Group))
                     {
-                        foreach (TriggerKey key in await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(groupName), cancellationToken).ConfigureAwait(false))
-                        {
-                            await scheduler.UnscheduleJob(key, cancellationToken).ConfigureAwait(false);
-                        }
+                        await scheduler.UnscheduleJob(trigger.Key, cancellationToken).ConfigureAwait(false);
                     }
                 }
             }

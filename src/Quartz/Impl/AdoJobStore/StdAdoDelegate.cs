@@ -25,6 +25,7 @@ using System.Collections.Specialized;
 using System.Data;
 using System.Data.Common;
 using System.Globalization;
+using System.Text;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
 using Quartz.Impl.AdoJobStore.Common;
@@ -369,20 +370,9 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
         GroupMatcher<JobKey> matcher,
         CancellationToken cancellationToken = default)
     {
-        string sql;
-        string parameter;
-        if (IsMatcherEquals(matcher))
-        {
-            sql = ReplaceTablePrefix(SqlSelectJobsInGroup);
-            parameter = StdAdoDelegate.ToSqlEqualsClause(matcher);
-        }
-        else
-        {
-            sql = ReplaceTablePrefix(SqlSelectJobsInGroupLike);
-            parameter = ToSqlLikeClause(matcher);
-        }
+        (string sql, string parameter) = MatchGroup(matcher, SqlSelectJobsInGroup, SqlSelectJobsInGroupLike);
 
-        using var cmd = PrepareCommand(conn, sql);
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(sql));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
         AddCommandParameter(cmd, "jobGroup", parameter);
 
@@ -395,6 +385,25 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
         return list;
     }
 
+    /// <summary>
+    /// Picks the statement a group matcher should run and the value to bind for it: an equality
+    /// matcher gets the '=' form, everything else the LIKE form over the pattern the matcher
+    /// translates to.
+    /// </summary>
+    /// <remarks>
+    /// The equality form is not merely a shortcut — LIKE would treat a group whose name contains
+    /// '%' or '_' as a pattern, and it cannot use an index the way '=' can.
+    /// </remarks>
+    protected (string Sql, string Parameter) MatchGroup<T>(
+        GroupMatcher<T> matcher,
+        string equalsSql,
+        string likeSql) where T : Key<T>
+    {
+        return IsMatcherEquals(matcher)
+            ? (equalsSql, ToSqlEqualsClause(matcher))
+            : (likeSql, ToSqlLikeClause(matcher));
+    }
+
     protected static bool IsMatcherEquals<T>(GroupMatcher<T> matcher) where T : Key<T>
     {
         return matcher.CompareWithOperator.Equals(StringOperator.Equality);
@@ -405,35 +414,73 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
         return matcher.CompareToValue;
     }
 
+    /// <summary>
+    /// Translates a group matcher into a LIKE pattern.
+    /// </summary>
+    /// <remarks>
+    /// The matcher's own text is a literal, so its wildcard characters are escaped with
+    /// <see cref="StdAdoConstants.SqlLikeEscapeCharacter" />; the statements this feeds all name that
+    /// character in an ESCAPE clause. Only the '%' this method adds itself stays a wildcard, so a
+    /// group literally named "50%" is found by an exact match and by a "starts with 50" one, and not
+    /// by a "starts with 5" one.
+    /// </remarks>
     protected virtual string ToSqlLikeClause<T>(GroupMatcher<T> matcher) where T : Key<T>
     {
-        string groupName;
+        if (StringOperator.Anything.Equals(matcher.CompareWithOperator))
+        {
+            return "%";
+        }
+
+        string value = EscapeSqlLikeWildcards(matcher.CompareToValue);
+
         if (StringOperator.Equality.Equals(matcher.CompareWithOperator))
         {
-            groupName = matcher.CompareToValue;
+            return value;
         }
-        else if (StringOperator.Contains.Equals(matcher.CompareWithOperator))
+
+        if (StringOperator.Contains.Equals(matcher.CompareWithOperator))
         {
-            groupName = "%" + matcher.CompareToValue + "%";
+            return "%" + value + "%";
         }
-        else if (StringOperator.EndsWith.Equals(matcher.CompareWithOperator))
+
+        if (StringOperator.EndsWith.Equals(matcher.CompareWithOperator))
         {
-            groupName = "%" + matcher.CompareToValue;
+            return "%" + value;
         }
-        else if (StringOperator.StartsWith.Equals(matcher.CompareWithOperator))
+
+        if (StringOperator.StartsWith.Equals(matcher.CompareWithOperator))
         {
-            groupName = matcher.CompareToValue + "%";
+            return value + "%";
         }
-        else if (StringOperator.Anything.Equals(matcher.CompareWithOperator))
+
+        Throw.ArgumentOutOfRangeException("Don't know how to translate " + matcher.CompareWithOperator + " into SQL");
+        return default;
+    }
+
+    /// <summary>
+    /// Escapes the LIKE wildcards '%' and '_', and
+    /// <see cref="StdAdoConstants.SqlLikeEscapeCharacter" /> itself, so that the value matches
+    /// literally.
+    /// </summary>
+    protected static string EscapeSqlLikeWildcards(string value)
+    {
+        if (value.AsSpan().IndexOfAny(SqlLikeEscapeCharacter, '%', '_') < 0)
         {
-            groupName = "%";
+            return value;
         }
-        else
+
+        StringBuilder builder = new(value.Length + 8);
+        foreach (char c in value)
         {
-            Throw.ArgumentOutOfRangeException("Don't know how to translate " + matcher.CompareWithOperator + " into SQL");
-            return default;
+            if (c is SqlLikeEscapeCharacter or '%' or '_')
+            {
+                builder.Append(SqlLikeEscapeCharacter);
+            }
+
+            builder.Append(c);
         }
-        return groupName;
+
+        return builder.ToString();
     }
 
     //---------------------------------------------------------------------------

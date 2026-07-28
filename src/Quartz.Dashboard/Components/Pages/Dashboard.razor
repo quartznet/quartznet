@@ -1,5 +1,6 @@
 @page "/quartz"
 @using Microsoft.Extensions.Options
+@using Quartz
 @using Quartz.Dashboard.Components.Shared
 @implements IDisposable
 @inject IQuartzApiClient Api
@@ -134,29 +135,19 @@
                 return;
             }
 
-            object scheduler = await Api.GetScheduler(schedulerName);
-            _schedulerStatus = DisplayValueHelper.GetString(scheduler, "Status");
+            SchedulerDetailDto scheduler = await Api.GetScheduler(schedulerName);
+            _schedulerStatus = scheduler.Status;
 
-            IReadOnlyList<object> jobs = DisplayValueHelper.ToObjectList(await Api.GetJobKeys(schedulerName));
-            IReadOnlyList<object> triggers = DisplayValueHelper.ToObjectList(await Api.GetTriggerKeys(schedulerName));
-            IReadOnlyList<object> executing = DisplayValueHelper.ToObjectList(await Api.GetCurrentlyExecutingJobs(schedulerName));
+            // Counting queries: no items are fetched, only the exact totals the tiles show.
+            JobPageDto jobs = await Api.GetJobs(schedulerName, groupFilter: null, page: 1, pageSize: 0);
+            TriggerPageDto triggers = await Api.GetTriggers(schedulerName, groupFilter: null, state: null, page: 1, pageSize: 0);
+            TriggerPageDto errorTriggers = await Api.GetTriggers(schedulerName, groupFilter: null, state: TriggerState.Error, page: 1, pageSize: 0);
+            List<CurrentlyExecutingJobDto> executing = await Api.GetCurrentlyExecutingJobs(schedulerName);
 
-            _totalJobs = jobs.Count;
-            _totalTriggers = triggers.Count;
+            _totalJobs = jobs.TotalCount;
+            _totalTriggers = triggers.TotalCount;
             _currentlyExecuting = executing.Count;
-
-            // Limit state queries to the first page of triggers to avoid N+1 calls on large schedulers.
-            const int maxTriggersForErrorCount = 25;
-            foreach (object trigger in triggers.Take(maxTriggersForErrorCount))
-            {
-                string group = DisplayValueHelper.GetString(trigger, "Group", "Key.Group");
-                string name = DisplayValueHelper.GetString(trigger, "Name", "Key.Name");
-                string triggerState = await Api.GetTriggerState(schedulerName, group, name);
-                if (string.Equals(triggerState, "Error", StringComparison.OrdinalIgnoreCase))
-                {
-                    _errorTriggers++;
-                }
-            }
+            _errorTriggers = errorTriggers.TotalCount;
 
             RefreshRecentActions(schedulerName);
         }
@@ -231,7 +222,7 @@
                 return;
             }
 
-            IReadOnlyList<object> executing = DisplayValueHelper.ToObjectList(await Api.GetCurrentlyExecutingJobs(schedulerName));
+            List<CurrentlyExecutingJobDto> executing = await Api.GetCurrentlyExecutingJobs(schedulerName);
             _currentlyExecuting = executing.Count;
         }
         catch (Exception ex)

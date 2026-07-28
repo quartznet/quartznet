@@ -12,9 +12,9 @@ public class StdAdoConstantsTest
     {
         Thread.CurrentThread.CurrentCulture = new CultureInfo("lt-LT");
 
-        var sql = StdAdoConstants.SqlSelectMisfiredTriggers;
+        var sql = StdAdoConstants.SqlCountMisfiredTriggersInStates;
 
-        sql.Should().Be("SELECT * FROM {0}TRIGGERS WHERE SCHED_NAME = @schedulerName AND MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME < @nextFireTime ORDER BY NEXT_FIRE_TIME ASC, PRIORITY DESC");
+        sql.Should().Be("SELECT COUNT(TRIGGER_NAME) FROM {0}TRIGGERS WHERE SCHED_NAME = @schedulerName AND MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME < @nextFireTime AND TRIGGER_STATE = @state1");
     }
 
     /// <summary>

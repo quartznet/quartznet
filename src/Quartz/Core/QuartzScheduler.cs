@@ -1162,15 +1162,6 @@ public sealed class QuartzScheduler
     }
 
     /// <summary>
-    /// Gets the paused trigger groups.
-    /// </summary>
-    /// <returns></returns>
-    public ValueTask<List<string>> GetPausedTriggerGroups(CancellationToken cancellationToken = default)
-    {
-        return resources.JobStore.GetPausedTriggerGroups(cancellationToken);
-    }
-
-    /// <summary>
     /// Resume (un-pause) the <see cref="IJobDetail" /> with
     /// the given name.
     /// <para>
@@ -1251,32 +1242,6 @@ public sealed class QuartzScheduler
     }
 
     /// <summary>
-    /// Get the names of all known <see cref="IJob" /> groups.
-    /// </summary>
-    public ValueTask<List<string>> GetJobGroupNames(CancellationToken cancellationToken = default)
-    {
-        ValidateState();
-
-        return resources.JobStore.GetJobGroupNames(cancellationToken);
-    }
-
-    /// <summary>
-    /// Get the names of all the <see cref="IJob" />s in the
-    /// given group.
-    /// </summary>
-    public ValueTask<List<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
-    {
-        ValidateState();
-
-        if (matcher is null)
-        {
-            matcher = GroupMatcher<JobKey>.GroupEquals(SchedulerConstants.DefaultGroup);
-        }
-
-        return resources.JobStore.GetJobKeys(matcher, cancellationToken);
-    }
-
-    /// <summary>
     /// Get all <see cref="ITrigger" /> s that are associated with the
     /// identified <see cref="IJobDetail" />.
     /// </summary>
@@ -1295,30 +1260,87 @@ public sealed class QuartzScheduler
     }
 
     /// <summary>
-    /// Get the names of all known <see cref="ITrigger" />
-    /// groups.
+    /// Lists jobs matching the query, as <see cref="JobHeader" />s.
     /// </summary>
-    public ValueTask<List<string>> GetTriggerGroupNames(
-        CancellationToken cancellationToken = default)
+    public ValueTask<PagedResult<JobHeader>> QueryJobs(JobQuery query, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(query);
         ValidateState();
-        return resources.JobStore.GetTriggerGroupNames(cancellationToken);
+
+        return resources.JobStore.QueryJobs(query, cancellationToken);
     }
 
     /// <summary>
-    /// Get the names of all the <see cref="ITrigger" />s in
-    /// the matching groups.
+    /// Lists triggers matching the query, as <see cref="TriggerHeader" />s.
     /// </summary>
-    public ValueTask<List<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    public ValueTask<PagedResult<TriggerHeader>> QueryTriggers(TriggerQuery query, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(query);
         ValidateState();
 
-        if (matcher is null)
-        {
-            matcher = GroupMatcher<TriggerKey>.GroupEquals(SchedulerConstants.DefaultGroup);
-        }
+        return resources.JobStore.QueryTriggers(query, cancellationToken);
+    }
 
-        return resources.JobStore.GetTriggerKeys(matcher, cancellationToken);
+    /// <summary>
+    /// Lists job groups matching the query.
+    /// </summary>
+    public ValueTask<PagedResult<JobGroup>> QueryJobGroups(JobGroupQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        ValidateState();
+
+        return resources.JobStore.QueryJobGroups(query, cancellationToken);
+    }
+
+    /// <summary>
+    /// Lists trigger groups matching the query.
+    /// </summary>
+    public ValueTask<PagedResult<TriggerGroup>> QueryTriggerGroups(TriggerGroupQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        ValidateState();
+
+        return resources.JobStore.QueryTriggerGroups(query, cancellationToken);
+    }
+
+    /// <summary>
+    /// Lists calendar names matching the query.
+    /// </summary>
+    public ValueTask<PagedResult<string>> QueryCalendarNames(CalendarQuery query, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        ValidateState();
+
+        return resources.JobStore.QueryCalendarNames(query, cancellationToken);
+    }
+
+    /// <summary>
+    /// Retrieves the given jobs in one round trip.
+    /// </summary>
+    public ValueTask<List<IJobDetail>> GetJobDetails(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(jobKeys);
+        ValidateState();
+
+        return resources.JobStore.GetJobDetails(jobKeys, cancellationToken);
+    }
+
+    /// <summary>
+    /// Retrieves the given triggers in one round trip.
+    /// </summary>
+    public async ValueTask<List<ITrigger>> GetTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(triggerKeys);
+        ValidateState();
+
+        var triggers = await resources.JobStore.GetTriggers(triggerKeys, cancellationToken).ConfigureAwait(false);
+
+        var retValue = new List<ITrigger>(triggers.Count);
+        foreach (var trigger in triggers)
+        {
+            retValue.Add(trigger);
+        }
+        return retValue;
     }
 
     /// <summary>
@@ -1448,15 +1470,6 @@ public sealed class QuartzScheduler
     {
         ValidateState();
         return resources.JobStore.RetrieveCalendar(calendarName, cancellationToken);
-    }
-
-    /// <summary>
-    /// Get the names of all registered <see cref="ICalendar" />s.
-    /// </summary>
-    public ValueTask<List<string>> GetCalendarNames(CancellationToken cancellationToken = default)
-    {
-        ValidateState();
-        return resources.JobStore.GetCalendarNames(cancellationToken);
     }
 
     public IListenerManager ListenerManager { get; } = new ListenerManagerImpl();
@@ -2187,17 +2200,4 @@ public sealed class QuartzScheduler
         }
     }
 
-    public ValueTask<bool> IsJobGroupPaused(
-        string groupName,
-        CancellationToken cancellationToken = default)
-    {
-        return resources.JobStore.IsJobGroupPaused(groupName, cancellationToken);
-    }
-
-    public ValueTask<bool> IsTriggerGroupPaused(
-        string groupName,
-        CancellationToken cancellationToken = default)
-    {
-        return resources.JobStore.IsTriggerGroupPaused(groupName, cancellationToken);
-    }
 }
