@@ -1,0 +1,484 @@
+#region License
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ */
+#endregion
+
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+
+namespace Quartz.Tests.Unit;
+
+/// <summary>
+/// Daylight saving time corner cases for <see cref="CronExpression" /> itself, exercised through
+/// <see cref="CronExpression.GetTimeAfter" />, <see cref="CronExpression.GetTimeBefore" /> and
+/// <see cref="CronExpression.IsSatisfiedBy" /> across zones with differing transition shapes
+/// (northern and southern hemisphere, a midnight gap, and a 30 minute delta).
+/// </summary>
+/// <remarks>
+/// <para>
+/// The mechanics being pinned live at the end of <see cref="CronExpression.GetTimeAfter" />: the
+/// search converts the "after" instant into the target zone once, then advances purely in wall
+/// clock terms with the offset frozen, and only at the very end re-resolves the offset for the
+/// resulting local date and time. That re-resolution prefers the DAYLIGHT (first) occurrence of an
+/// ambiguous local time, and demotes to the standard offset only when the daylight interpretation
+/// would land at or before the "after" instant. Local times that fall inside a spring-forward gap
+/// do not exist, so the re-resolution yields the pre-transition offset and the fire lands shifted
+/// forward in real time by the transition delta.
+/// </para>
+/// <para>
+/// These tests never touch <c>SystemTime</c>, so they are safe to run in parallel with the rest of
+/// the suite.
+/// </para>
+/// </remarks>
+public class CronExpressionDstTests
+{
+    /// <summary>
+    /// Attributes cannot carry a <see cref="TimeZoneInfo" />, so test case grids name the zone and
+    /// resolve it here. Zones that may be missing from an old OS install ignore the test from
+    /// inside <see cref="TestTimeZones" /> rather than failing it.
+    /// </summary>
+    private static TimeZoneInfo ResolveZone(string zoneKey)
+    {
+        switch (zoneKey)
+        {
+            case "Eastern":
+                return TestTimeZones.Eastern;
+            case "CentralEuropean":
+                return TestTimeZones.CentralEuropean;
+            case "Santiago":
+                return TestTimeZones.Santiago;
+            case "Sydney":
+                return TestTimeZones.Sydney;
+            case "LordHowe":
+                return TestTimeZones.LordHowe;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(zoneKey), zoneKey, "unknown test time zone key");
+        }
+    }
+
+    private static CronExpression CronIn(string expression, TimeZoneInfo zone)
+    {
+        CronExpression cron = new CronExpression(expression);
+        cron.TimeZone = zone;
+        return cron;
+    }
+
+    /// <summary>
+    /// Parses a wall clock time with no offset, for stating an invalid or ambiguous premise.
+    /// </summary>
+    private static DateTime WallClock(string value)
+    {
+        return DateTime.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.None);
+    }
+
+    /// <summary>
+    /// A daily trigger whose fire time falls inside the spring-forward gap still fires exactly once
+    /// on the transition day, but shifted forward in real time by the transition delta: the
+    /// non-existent local time is resolved with the pre-transition offset, so 02:30 -05:00 becomes
+    /// the instant that reads 03:30 -04:00. The following day is back to the nominal wall clock
+    /// time, which shows the shift is confined to the transition day.
+    /// </summary>
+    /// <remarks>
+    /// This is a deliberate deviation from Cronos-style semantics, which fire such a trigger at the
+    /// END of the gap (03:00 in the Eastern case, i.e. the moment the skipped wall clock time would
+    /// have been reached). Quartz.NET instead fires delta-shifted (03:30) to keep parity with Java
+    /// Quartz, whose <c>CronExpression</c> performs the same "advance in wall clock, resolve the
+    /// offset last" walk. The Lord Howe case is the one that tells the two rules apart beyond
+    /// doubt: its delta is 30 minutes, so a gap-END rule would fire at 02:30 while the delta-shift
+    /// rule fires at 02:45.
+    /// </remarks>
+    [TestCase("0 30 2 * * ?", "Eastern", "2024-03-10 02:30", "2024-03-10 00:00 -05:00", "2024-03-10 03:30 -04:00", "2024-03-11 02:30 -04:00")]
+    [TestCase("0 15 2 * * ?", "LordHowe", "2019-10-06 02:15", "2019-10-06 00:00 +10:30", "2019-10-06 02:45 +11:00", "2019-10-07 02:15 +11:00")]
+    [TestCase("0 0 0 * * ?", "Santiago", "2019-09-08 00:00", "2019-09-07 12:00 -04:00", "2019-09-08 01:00 -03:00", "2019-09-09 00:00 -03:00")]
+    public void GetTimeAfter_FixedTimeInsideGap_FiresOnceShiftedByTransitionDelta(
+        string cronExpression,
+        string zoneKey,
+        string gapLocalTime,
+        string fromLocal,
+        string expectedFire,
+        string expectedNextDayFire)
+    {
+        TimeZoneInfo zone = ResolveZone(zoneKey);
+        TestTimeZones.AssumeInvalidLocalTime(zone, WallClock(gapLocalTime));
+
+        CronExpression cron = CronIn(cronExpression, zone);
+
+        DateTimeOffset? fire = cron.GetTimeAfter(TestTimeZones.Local(fromLocal));
+
+        fire.Should().NotBeNull();
+        fire!.Value.Should().Be(TestTimeZones.Local(expectedFire));
+
+        DateTimeOffset? nextFire = cron.GetTimeAfter(fire.Value);
+
+        nextFire.Should().NotBeNull();
+        nextFire!.Value.Should().Be(TestTimeZones.Local(expectedNextDayFire), "the trigger fires only once on the transition day");
+    }
+
+    /// <summary>
+    /// A daily trigger whose fire time is repeated by the fall-back transition fires once, at the
+    /// FIRST (daylight) occurrence, and not again at the second (standard) occurrence of the same
+    /// wall clock time. Southern hemisphere zones and a transition that crosses backwards over the
+    /// date boundary behave the same way.
+    /// </summary>
+    [TestCase("0 30 1 * * ?", "Eastern", "2024-11-03 01:30", "2024-11-03 00:00 -04:00", "2024-11-03 01:30 -04:00", "2024-11-04 01:30 -05:00")]
+    [TestCase("0 30 2 * * ?", "CentralEuropean", "2018-10-28 02:30", "2018-10-28 00:00 +02:00", "2018-10-28 02:30 +02:00", "2018-10-29 02:30 +01:00")]
+    [TestCase("0 30 2 * * ?", "Sydney", "2024-04-07 02:30", "2024-04-07 00:00 +11:00", "2024-04-07 02:30 +11:00", "2024-04-08 02:30 +10:00")]
+    [TestCase("0 30 23 * * ?", "Santiago", "2019-04-06 23:30", "2019-04-06 00:00 -03:00", "2019-04-06 23:30 -03:00", "2019-04-07 23:30 -04:00")]
+    public void GetTimeAfter_DailyFixedTime_FallBackDay_FiresOnlyOnce_AtDaylightOccurrence(
+        string cronExpression,
+        string zoneKey,
+        string ambiguousLocalTime,
+        string fromLocal,
+        string expectedFire,
+        string expectedNextDayFire)
+    {
+        TimeZoneInfo zone = ResolveZone(zoneKey);
+        TestTimeZones.AssumeAmbiguousLocalTime(zone, WallClock(ambiguousLocalTime));
+
+        CronExpression cron = CronIn(cronExpression, zone);
+
+        DateTimeOffset? fire = cron.GetTimeAfter(TestTimeZones.Local(fromLocal));
+
+        fire.Should().NotBeNull();
+        fire!.Value.Should().Be(TestTimeZones.Local(expectedFire), "the daylight occurrence comes first and time moves forward");
+
+        DateTimeOffset? nextFire = cron.GetTimeAfter(fire.Value);
+
+        nextFire.Should().NotBeNull();
+        nextFire!.Value.Should().Be(TestTimeZones.Local(expectedNextDayFire), "the repeated wall clock time must not fire a second time");
+    }
+
+    /// <summary>
+    /// Real time never stops, so a minutely trigger keeps firing every minute right through the
+    /// spring-forward transition. What disappears is the local hour 02, not the fires: the walk
+    /// produces an unbroken minutely sequence whose local reading jumps from 01:59 straight to
+    /// 03:00, and the UTC hour that contains the transition is fully populated.
+    /// </summary>
+    [Test]
+    public void SequentialWalk_MinutelyCron_SpringForwardDay_FireCountAndNoLocalGapHour()
+    {
+        TimeZoneInfo zone = TestTimeZones.Eastern;
+        TestTimeZones.AssumeInvalidLocalTime(zone, WallClock("2024-03-10 02:30"));
+
+        CronExpression cron = CronIn("0 * * * * ?", zone);
+
+        DateTimeOffset dayStart = TestTimeZones.Local("2024-03-10 00:00 -05:00");
+        DateTimeOffset dayEnd = TestTimeZones.Local("2024-03-11 00:00 -04:00");
+
+        List<DateTimeOffset> fireTimes = TestTimeZones.Walk(cron.GetTimeAfter, dayStart, dayEnd);
+
+        // The spring-forward day is 23 real hours long; the walk excludes both boundary instants,
+        // so a fire on every minute boundary in between is 23 * 60 - 1.
+        fireTimes.Should().HaveCount(1379, "the day is 23 real hours long and every minute boundary fires");
+
+        fireTimes.Should().NotContain(
+            fire => TimeZoneInfo.ConvertTime(fire, zone).Hour == 2,
+            "local hour 02 does not exist on the spring-forward day");
+
+        DateTimeOffset gapHourStart = TestTimeZones.Local("2024-03-10 07:00 +00:00");
+        DateTimeOffset gapHourEnd = TestTimeZones.Local("2024-03-10 08:00 +00:00");
+
+        fireTimes.Should().Contain(
+            fire => fire >= gapHourStart && fire < gapHourEnd,
+            "real time does not stop during the gap; those fires simply read as local 03:xx");
+    }
+
+    /// <summary>
+    /// <see cref="CronExpression.GetTimeBefore" /> is a binary search layered on top of
+    /// <see cref="CronExpression.GetTimeAfter" />, so it must agree with it around transitions.
+    /// Asserted as properties rather than pinned instants: the returned time is strictly before the
+    /// probe, it is a genuine fire time (asking for the next fire one second earlier reproduces it),
+    /// and asking for the next fire from it makes progress rather than wedging.
+    /// </summary>
+    /// <remarks>
+    /// The probe set is per case rather than a fixed grid because the -5 minute probe on a
+    /// FALL-BACK transition currently breaks the round trip: see
+    /// <see cref="GetTimeBefore_ProbeJustAfterFireTimeInRepeatedHour_CurrentlyReturnsNonFireTime" />
+    /// in the pins region below, and the root cause pinned next to it. Restore -5 to those two
+    /// cases once that is fixed.
+    /// </remarks>
+    [TestCase("0 * * * * ?", "Eastern", "2024-03-10 07:00 +00:00", new int[] { -60, -5, 5, 60 })]
+    [TestCase("0 0 * * * ?", "Eastern", "2024-03-10 07:00 +00:00", new int[] { -60, -5, 5, 60 })]
+    [TestCase("0 * * * * ?", "Eastern", "2024-11-03 06:00 +00:00", new int[] { -60, 5, 60 })]
+    [TestCase("0 0 * * * ?", "Eastern", "2024-11-03 06:00 +00:00", new int[] { -60, 5, 60 })]
+    [TestCase("0 * * * * ?", "CentralEuropean", "2018-03-25 01:00 +00:00", new int[] { -60, -5, 5, 60 })]
+    [TestCase("0 0 * * * ?", "CentralEuropean", "2018-03-25 01:00 +00:00", new int[] { -60, -5, 5, 60 })]
+    [TestCase("0 * * * * ?", "CentralEuropean", "2018-10-28 01:00 +00:00", new int[] { -60, 5, 60 })]
+    [TestCase("0 0 * * * ?", "CentralEuropean", "2018-10-28 01:00 +00:00", new int[] { -60, 5, 60 })]
+    public void GetTimeBefore_RoundTripsWithGetTimeAfter_AroundTransitions(
+        string cronExpression,
+        string zoneKey,
+        string transitionUtc,
+        int[] probeOffsetsInMinutes)
+    {
+        TimeZoneInfo zone = ResolveZone(zoneKey);
+        CronExpression cron = CronIn(cronExpression, zone);
+
+        DateTimeOffset transition = TestTimeZones.Local(transitionUtc);
+
+        foreach (int probeOffsetInMinutes in probeOffsetsInMinutes)
+        {
+            DateTimeOffset probe = transition.AddMinutes(probeOffsetInMinutes);
+            string context = $"probe {probe:O} ({probeOffsetInMinutes:+#;-#;0} min from the transition)";
+
+            DateTimeOffset? previous = cron.GetTimeBefore(probe);
+
+            previous.Should().NotBeNull(context);
+            previous!.Value.Should().BeBefore(probe, "GetTimeBefore must return a time strictly before the probe; " + context);
+
+            cron.GetTimeAfter(previous.Value.AddSeconds(-1))
+                .Should().Be(previous.Value, "the time before must itself be a fire time; " + context);
+
+            cron.GetTimeAfter(previous.Value)
+                .Should().BeAfter(previous.Value, "asking again from a fire time must make progress; " + context);
+        }
+    }
+
+    /// <summary>
+    /// Spring-forward counterpart to the fall-back <c>IsSatisfiedBy</c> coverage: the instants that
+    /// make up the "missing" hour are ordinary instants that read as local 03:xx, and a minutely
+    /// expression matches them.
+    /// </summary>
+    [Test]
+    public void IsSatisfiedBy_MinutelyCron_TrueForInstantsInsideGapHourUtc()
+    {
+        TimeZoneInfo zone = TestTimeZones.Eastern;
+        TestTimeZones.AssumeInvalidLocalTime(zone, WallClock("2024-03-10 02:30"));
+
+        CronExpression cron = CronIn("0 * * * * ?", zone);
+
+        DateTimeOffset insideGapHour = TestTimeZones.Local("2024-03-10 07:15 +00:00");
+
+        cron.IsSatisfiedBy(insideGapHour).Should().BeTrue("07:15Z is local 03:15 -04:00, an ordinary matching minute");
+    }
+
+    #region Current-behavior pins (decision points)
+
+    /// <summary>
+    /// CURRENT BEHAVIOR PIN — known deviation, expected to change on main/4.0.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A sequential walk of an interval (minutely) expression across a fall-back transition
+    /// currently SKIPS the entire repeated standard-pass hour. After the last daylight-pass fire at
+    /// 02:59 +02:00 (00:59Z) the next fire produced is 03:00 +01:00 (02:00Z), so the whole UTC hour
+    /// [01:00Z, 02:00Z) — local 02:00-02:59 +01:00 — never fires. The cause is that the wall clock
+    /// walk advances 02:59 to 03:00 and only then resolves the offset; 03:00 is unambiguous, so the
+    /// standard-offset repeat of 02:xx is never visited.
+    /// </para>
+    /// <para>
+    /// This violates the rule that interval expressions should fire in BOTH fall-back passes (the
+    /// Cronos invariant, and what an "every minute" schedule means to a user: 25 fires per hour-of
+    /// -day on this date, 1500 minute fires in a 25 hour day). The flip target is 1499 fires
+    /// (25 * 60 - 1, the walk excluding both boundary instants) plus PRESENCE of fires inside
+    /// [01:00Z, 02:00Z), replacing the 1439 and the emptiness assertion pinned here.
+    /// </para>
+    /// </remarks>
+    [Test]
+    public void SequentialWalk_MinutelyCron_FallBackDay_CurrentlySkipsRepeatedStandardHour()
+    {
+        TimeZoneInfo zone = TestTimeZones.CentralEuropean;
+        TestTimeZones.AssumeAmbiguousLocalTime(zone, WallClock("2018-10-28 02:30"));
+
+        CronExpression cron = CronIn("0 * * * * ?", zone);
+
+        DateTimeOffset dayStart = TestTimeZones.Local("2018-10-28 00:00 +02:00");
+        DateTimeOffset dayEnd = TestTimeZones.Local("2018-10-29 00:00 +01:00");
+
+        List<DateTimeOffset> fireTimes = TestTimeZones.Walk(cron.GetTimeAfter, dayStart, dayEnd);
+
+        // 25 real hours, minus both excluded boundary instants, would be 1499 fires. 60 of them —
+        // the standard pass over local 02:00-02:59 — are currently skipped.
+        fireTimes.Should().HaveCount(1439, "the repeated standard-pass hour is currently skipped entirely");
+
+        DateTimeOffset repeatedHourStart = TestTimeZones.Local("2018-10-28 01:00 +00:00");
+        DateTimeOffset repeatedHourEnd = TestTimeZones.Local("2018-10-28 02:00 +00:00");
+
+        fireTimes.Should().NotContain(
+            fire => fire >= repeatedHourStart && fire < repeatedHourEnd,
+            "the sequential walk currently jumps from 02:59 +02:00 straight to 03:00 +01:00");
+    }
+
+    /// <summary>
+    /// CURRENT BEHAVIOR PIN — known internal inconsistency, expected to change on main/4.0.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="CronExpression.IsSatisfiedBy" /> answers TRUE for instants inside the repeated
+    /// standard-pass hour that the sequential walk never produces. It is implemented as
+    /// <c>GetTimeAfter(instant - 1s) == instant</c>, and starting the search from just inside that
+    /// hour makes the daylight interpretation land before the "after" instant, which triggers the
+    /// demotion to the standard offset and reproduces the instant exactly. Starting the search from
+    /// BEFORE the transition never reaches it.
+    /// </para>
+    /// <para>
+    /// So the same expression both matches and does not schedule the same instant, depending only
+    /// on where the question is asked from. Pinned here in one place. Once the walk fires in both
+    /// passes this test becomes redundant with the walk simply containing the hour, and the
+    /// emptiness assertion below should be deleted.
+    /// </para>
+    /// </remarks>
+    [Test]
+    public void IsSatisfiedBy_RepeatedHourStandardPass_TrueButNeverProducedByWalk()
+    {
+        TimeZoneInfo zone = TestTimeZones.CentralEuropean;
+        TestTimeZones.AssumeAmbiguousLocalTime(zone, WallClock("2018-10-28 02:30"));
+
+        CronExpression cron = CronIn("0 * * * * ?", zone);
+
+        DateTimeOffset standardPassInstant = TestTimeZones.Local("2018-10-28 01:30 +00:00");
+
+        cron.IsSatisfiedBy(standardPassInstant).Should().BeTrue("01:30Z is local 02:30 +01:00, which the expression matches");
+
+        List<DateTimeOffset> fireTimes = TestTimeZones.Walk(
+            cron.GetTimeAfter,
+            TestTimeZones.Local("2018-10-28 00:55 +02:00"),
+            TestTimeZones.Local("2018-10-28 04:00 +01:00"));
+
+        DateTimeOffset repeatedHourStart = TestTimeZones.Local("2018-10-28 01:00 +00:00");
+        DateTimeOffset repeatedHourEnd = TestTimeZones.Local("2018-10-28 02:00 +00:00");
+
+        fireTimes.Should().NotBeEmpty();
+        fireTimes.Should().NotContain(
+            fire => fire >= repeatedHourStart && fire < repeatedHourEnd,
+            "a walk across the transition never schedules the instant IsSatisfiedBy just accepted");
+    }
+
+    /// <summary>
+    /// CURRENT BEHAVIOR PIN — known internal inconsistency, expected to change on main/4.0.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The mirror image of the fall-back inconsistency, on the spring-forward side. For a fixed
+    /// time inside the gap, <see cref="CronExpression.GetTimeAfter" /> returns the delta-shifted
+    /// instant 03:30 -04:00 (07:30Z), yet <see cref="CronExpression.IsSatisfiedBy" /> returns FALSE
+    /// for that very instant, because its local reading is hour 03 and the expression asks for hour
+    /// 02. The trigger therefore fires at an instant its own expression does not match.
+    /// </para>
+    /// <para>
+    /// Whatever rule replaces the delta shift on main/4.0 should make these two agree: either the
+    /// fire moves to the gap END (03:00, which the expression still does not match literally, so
+    /// <c>IsSatisfiedBy</c> would need to special-case the gap), or <c>IsSatisfiedBy</c> learns to
+    /// accept the shifted instant. Flip target: this assertion becomes <c>BeTrue</c>.
+    /// </para>
+    /// </remarks>
+    [Test]
+    public void IsSatisfiedBy_InstantReturnedForInGapFixedTime_IsCurrentlyFalse()
+    {
+        TimeZoneInfo zone = TestTimeZones.Eastern;
+        TestTimeZones.AssumeInvalidLocalTime(zone, WallClock("2024-03-10 02:30"));
+
+        CronExpression cron = CronIn("0 30 2 * * ?", zone);
+
+        DateTimeOffset? fire = cron.GetTimeAfter(TestTimeZones.Local("2024-03-10 00:00 -05:00"));
+
+        fire.Should().NotBeNull();
+        fire!.Value.Should().Be(TestTimeZones.Local("2024-03-10 03:30 -04:00"));
+
+        cron.IsSatisfiedBy(fire.Value).Should().BeFalse("the fire instant reads as local 03:30, and the expression asks for hour 02");
+    }
+
+    /// <summary>
+    /// CURRENT BEHAVIOR PIN — this one looks like a plain defect rather than a semantic choice.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="CronExpression.GetTimeAfter" /> starts by adding one second to the requested
+    /// instant KEEPING its sub-second ticks, then truncates a separate copy to whole seconds for
+    /// the search. At the very end the fall-back demotion asks whether the resolved fire is before
+    /// the requested instant, and compares the truncated fire against the UNTRUNCATED copy
+    /// (<c>CronExpression.cs</c>: <c>if (d.ToUniversalTime() &lt; afterTimeUtc &amp;&amp;
+    /// TimeZone.IsAmbiguousTime(localDateTime))</c>). Any sub-second remainder therefore makes a
+    /// perfectly good fire look "too early" while the local time is ambiguous, and the result is
+    /// demoted a whole hour forward to the standard pass.
+    /// </para>
+    /// <para>
+    /// The effect: asking for the next fire after 05:53:59.000Z gives 05:54:00Z, but asking after
+    /// 05:53:59.500Z — half a second LATER — skips that fire entirely and gives 06:54:00Z. The
+    /// comparison should use the truncated instant, at which point both answers are 05:54:00Z.
+    /// Flip target: both assertions below expect 05:54:00Z.
+    /// </para>
+    /// </remarks>
+    [Test]
+    public void GetTimeAfter_SubSecondInstantInsideRepeatedHour_CurrentlySkipsAnHourToStandardPass()
+    {
+        TimeZoneInfo zone = TestTimeZones.Eastern;
+        TestTimeZones.AssumeAmbiguousLocalTime(zone, WallClock("2024-11-03 01:30"));
+
+        CronExpression cron = CronIn("0 * * * * ?", zone);
+
+        DateTimeOffset wholeSecond = new DateTimeOffset(2024, 11, 3, 5, 53, 59, 0, TimeSpan.Zero);
+        DateTimeOffset withMilliseconds = new DateTimeOffset(2024, 11, 3, 5, 53, 59, 500, TimeSpan.Zero);
+
+        cron.GetTimeAfter(wholeSecond)
+            .Should().Be(TestTimeZones.Local("2024-11-03 05:54 +00:00"), "local 01:54 -04:00 is the very next minute");
+
+        cron.GetTimeAfter(withMilliseconds)
+            .Should().Be(TestTimeZones.Local("2024-11-03 06:54 +00:00"), "the sub-second remainder currently forces the demotion to local 01:54 -05:00");
+    }
+
+    /// <summary>
+    /// CURRENT BEHAVIOR PIN — the user-visible consequence of the sub-second defect above.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see cref="CronExpression.GetTimeBefore" /> binary searches on "does the next fire after this
+    /// probe land before the end time", over arbitrary tick values. The sub-second demotion makes
+    /// that predicate NON-MONOTONIC in the second immediately preceding a fire whose local time is
+    /// ambiguous: it holds at the whole second, then flips false a fraction later. The search
+    /// converges on that false crossover instead of the real one, and the result — truncated to a
+    /// whole second — comes out one second early, on a value the expression never fires at.
+    /// </para>
+    /// <para>
+    /// So <c>GetTimeBefore</c> can return a NON-FIRE time: the pinned results below all end in
+    /// :59 for expressions that only ever fire at second 0. Flip target: the expected value becomes
+    /// the real preceding fire time (the third argument), and the -5 minute probe can be restored
+    /// to the fall-back cases of
+    /// <see cref="GetTimeBefore_RoundTripsWithGetTimeAfter_AroundTransitions" />.
+    /// </para>
+    /// </remarks>
+    [TestCase("0 * * * * ?", "Eastern", "2024-11-03 05:55 +00:00", "2024-11-03 05:54:00 +00:00", "2024-11-03 05:53:59 +00:00")]
+    [TestCase("0 0 * * * ?", "Eastern", "2024-11-03 05:55 +00:00", "2024-11-03 05:00:00 +00:00", "2024-11-03 04:59:59 +00:00")]
+    [TestCase("0 * * * * ?", "CentralEuropean", "2018-10-28 00:55 +00:00", "2018-10-28 00:54:00 +00:00", "2018-10-28 00:53:59 +00:00")]
+    [TestCase("0 0 * * * ?", "CentralEuropean", "2018-10-28 00:55 +00:00", "2018-10-28 00:00:00 +00:00", "2018-10-27 23:59:59 +00:00")]
+    public void GetTimeBefore_ProbeJustAfterFireTimeInRepeatedHour_CurrentlyReturnsNonFireTime(
+        string cronExpression,
+        string zoneKey,
+        string probeUtc,
+        string realPrecedingFire,
+        string currentlyReturned)
+    {
+        TimeZoneInfo zone = ResolveZone(zoneKey);
+        CronExpression cron = CronIn(cronExpression, zone);
+
+        DateTimeOffset probe = TestTimeZones.Local(probeUtc);
+
+        // The real preceding fire is what a forward walk produces, and it is a genuine fire time.
+        DateTimeOffset expectedFire = TestTimeZones.Local(realPrecedingFire);
+        cron.GetTimeAfter(expectedFire.AddSeconds(-1)).Should().Be(expectedFire);
+        cron.IsSatisfiedBy(expectedFire).Should().BeTrue();
+
+        DateTimeOffset? previous = cron.GetTimeBefore(probe);
+
+        previous.Should().NotBeNull();
+        previous!.Value.Should().Be(TestTimeZones.Local(currentlyReturned), "the binary search converges on the sub-second demotion crossover");
+        cron.IsSatisfiedBy(previous.Value).Should().BeFalse("the returned time is not a time the expression ever fires at");
+    }
+
+    #endregion
+}

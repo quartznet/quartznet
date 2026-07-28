@@ -1,4 +1,5 @@
-﻿
+﻿using System.Globalization;
+
 using Quartz.Impl.Calendar;
 using Quartz.Util;
 
@@ -40,5 +41,77 @@ public class TimeZoneUtilTest
 
         var d = holidayCalendar.GetNextIncludedTimeUtc(time);
         d.Should().Be(expected);
+    }
+
+    // The wall-clock overload GetUtcOffset(DateTime, ..) implements the trigger-wide DST policy:
+    // an ambiguous local time resolves to the DAYLIGHT offset, i.e. the first of the two occurrences.
+    [TestCase("Eastern", "2024-11-03 01:30", -4.0)]
+    [TestCase("CentralEuropean", "2018-10-28 02:30", 2.0)]
+    [TestCase("LordHowe", "2019-04-07 01:45", 11.0)]
+    [TestCase("Santiago", "2019-04-06 23:30", -3.0)]
+    public void GetUtcOffset_AmbiguousLocalTime_ReturnsDaylightOffset(string zoneKey, string localTime, double expectedOffsetHours)
+    {
+        TimeZoneInfo zone = ResolveZone(zoneKey);
+        DateTime local = DateTime.Parse(localTime, CultureInfo.InvariantCulture);
+        TestTimeZones.AssumeAmbiguousLocalTime(zone, local);
+
+        TimeZoneUtil.GetUtcOffset(local, zone).Should().Be(TimeSpan.FromHours(expectedOffsetHours));
+    }
+
+    // An invalid (spring-forward gap) local time is not special-cased: it resolves to the
+    // pre-transition offset, which places the resulting instant at the first wall-clock time that
+    // does exist, shifted forward by the transition delta. Every trigger type inherits this rule.
+    [TestCase("Eastern", "2024-03-10 02:30", -5.0)]
+    [TestCase("LordHowe", "2019-10-06 02:15", 10.5)]
+    [TestCase("Santiago", "2019-09-08 00:30", -4.0)]
+    public void GetUtcOffset_InvalidLocalTime_ReturnsPreTransitionOffset(string zoneKey, string localTime, double expectedOffsetHours)
+    {
+        TimeZoneInfo zone = ResolveZone(zoneKey);
+        DateTime local = DateTime.Parse(localTime, CultureInfo.InvariantCulture);
+        TestTimeZones.AssumeInvalidLocalTime(zone, local);
+
+        TimeZoneUtil.GetUtcOffset(local, zone).Should().Be(TimeSpan.FromHours(expectedOffsetHours));
+    }
+
+    [Test]
+    public void GetUtcOffset_InstantOverload_AppliesNoAmbiguityPolicy()
+    {
+        // The DateTimeOffset overload resolves from the instant and never consults the ambiguity
+        // policy, so for the second (standard) occurrence of an ambiguous wall-clock time the two
+        // overloads disagree. Call sites that mean "resolve this wall-clock time" must pass
+        // .DateTime explicitly or they silently lose the policy.
+        TimeZoneInfo eastern = TestTimeZones.Eastern;
+        DateTimeOffset standardPassInstant = TestTimeZones.Local("2024-11-03 01:30 -05:00");
+        TestTimeZones.AssumeAmbiguousLocalTime(eastern, standardPassInstant.DateTime);
+
+        TimeZoneUtil.GetUtcOffset(standardPassInstant, eastern).Should().Be(TimeSpan.FromHours(-5));
+        TimeZoneUtil.GetUtcOffset(standardPassInstant.DateTime, eastern).Should().Be(TimeSpan.FromHours(-4));
+    }
+
+    [TestCase("US/Eastern", "Eastern Standard Time")]
+    [TestCase("CET", "Central European Standard Time")]
+    public void FindTimeZoneById_ResolvesAliasPairsOnAnyPlatform(string first, string second)
+    {
+        TimeZoneInfo firstZone = TimeZoneUtil.FindTimeZoneById(first);
+        TimeZoneInfo secondZone = TimeZoneUtil.FindTimeZoneById(second);
+
+        firstZone.BaseUtcOffset.Should().Be(secondZone.BaseUtcOffset);
+    }
+
+    private static TimeZoneInfo ResolveZone(string zoneKey)
+    {
+        switch (zoneKey)
+        {
+            case "Eastern":
+                return TestTimeZones.Eastern;
+            case "CentralEuropean":
+                return TestTimeZones.CentralEuropean;
+            case "Santiago":
+                return TestTimeZones.Santiago;
+            case "LordHowe":
+                return TestTimeZones.LordHowe;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(zoneKey), zoneKey, "unknown test zone");
+        }
     }
 }
