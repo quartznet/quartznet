@@ -254,6 +254,121 @@ public class DailyTimeIntervalTriggerDstTests
         fallBackDay.Should().OnlyContain(t => t.Offset == TimeSpan.FromHours(-3), "the standard-time pass of the day is never reached");
     }
 
+    /// <summary>
+    /// Regression test for the offset resolution in <c>AdvanceToNextDayOfWeekIfNecessary</c>: when
+    /// the day-of-week walk crosses a spring-forward transition, the advanced day's start-of-day
+    /// must resolve through the wall-clock policy before it is compared against
+    /// <see cref="ITrigger.EndTimeUtc" />.
+    /// </summary>
+    /// <remarks>
+    /// On Sunday 2018-03-25 the local start-of-day 02:30 does not exist; the wall-clock policy
+    /// resolves it to 02:30 +01:00 = 01:30 UTC. Resolving the offset from the walked instant instead
+    /// yields 02:30 +02:00 = 00:30 UTC — one transition delta too early — and an EndTimeUtc between
+    /// the two instants lets the trigger fire once past its configured end.
+    /// </remarks>
+    [Test]
+    [Category("windowstimezoneid")]
+    public void AdvanceAcrossSpringForwardGap_RespectsEndTimeUtc()
+    {
+        TimeZoneInfo timeZone = TestTimeZones.CentralEuropean;
+        TestTimeZones.AssumeInvalidLocalTime(timeZone, new DateTime(2018, 3, 25, 2, 30, 0));
+
+        IOperableTrigger trigger = (IOperableTrigger) DailyTimeIntervalScheduleBuilder.Create()
+            .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(2, 30))
+            .EndingDailyAt(TimeOfDay.HourAndMinuteOfDay(3, 30))
+            .OnDaysOfTheWeek(DayOfWeek.Saturday, DayOfWeek.Sunday)
+            .WithIntervalInHours(1)
+            .InTimeZone(timeZone)
+            .Build();
+
+        // Friday 2018-03-23 22:00 UTC, before the Saturday window opens
+        trigger.StartTimeUtc = new DateTimeOffset(2018, 3, 23, 22, 0, 0, TimeSpan.Zero);
+        // between the mis-resolved Sunday window start (00:30 UTC) and the correctly resolved one (01:30 UTC)
+        trigger.EndTimeUtc = new DateTimeOffset(2018, 3, 25, 1, 0, 0, TimeSpan.Zero);
+        trigger.ComputeFirstFireTimeUtc(null);
+
+        DateTimeOffset? saturdayFirst = trigger.GetFireTimeAfter(trigger.StartTimeUtc);
+        saturdayFirst.Should().Be(TestTimeZones.Local("2018-03-24 02:30 +01:00"));
+
+        DateTimeOffset? saturdayLast = trigger.GetFireTimeAfter(saturdayFirst);
+        saturdayLast.Should().Be(TestTimeZones.Local("2018-03-24 03:30 +01:00"));
+
+        DateTimeOffset? afterSaturday = trigger.GetFireTimeAfter(saturdayLast);
+        afterSaturday.Should().BeNull("Sunday's window start resolves to 01:30 UTC, which is past EndTimeUtc 01:00 UTC");
+    }
+
+    /// <summary>
+    /// A trigger that only runs on Sundays advances six days at a time through
+    /// <c>AdvanceToNextDayOfWeekIfNecessary</c>, so every transition Sunday exercises the day-of-week
+    /// walk landing directly on a gap or an ambiguous window start.
+    /// </summary>
+    [Test]
+    [Category("windowstimezoneid")]
+    [TestCase("CentralEuropean", "2018-03-25 02:30", true, 2, 30, "2018-03-25 03:30 +02:00", "2018-04-01 02:30 +02:00")]
+    [TestCase("Eastern", "2024-03-10 02:30", true, 2, 30, "2024-03-10 03:30 -04:00", "2024-03-17 02:30 -04:00")]
+    [TestCase("Eastern", "2024-11-03 01:30", false, 1, 30, "2024-11-03 01:30 -04:00", "2024-11-10 01:30 -05:00")]
+    [TestCase("Santiago", "2019-09-08 00:00", true, 0, 0, "2019-09-08 01:00 -03:00", "2019-09-15 00:00 -03:00")]
+    public void SundayOnlyTrigger_TransitionSunday_FiresAtResolvedTime(
+        string zoneKey,
+        string premiseLocal,
+        bool premiseIsGap,
+        int startHour,
+        int startMinute,
+        string expectedTransitionSundayFire,
+        string expectedNextSundayFire)
+    {
+        TimeZoneInfo timeZone = ResolveZone(zoneKey);
+        DateTime premise = DateTime.Parse(premiseLocal, System.Globalization.CultureInfo.InvariantCulture);
+        if (premiseIsGap)
+        {
+            TestTimeZones.AssumeInvalidLocalTime(timeZone, premise);
+        }
+        else
+        {
+            TestTimeZones.AssumeAmbiguousLocalTime(timeZone, premise);
+        }
+
+        IOperableTrigger trigger = (IOperableTrigger) DailyTimeIntervalScheduleBuilder.Create()
+            .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(startHour, startMinute))
+            .EndingDailyAt(TimeOfDay.HourAndMinuteOfDay(startHour + 2, startMinute))
+            .OnDaysOfTheWeek(DayOfWeek.Sunday)
+            .WithIntervalInHours(1)
+            .InTimeZone(timeZone)
+            .Build();
+
+        DateTime transitionSunday = premise.Date;
+        trigger.StartTimeUtc = new DateTimeOffset(transitionSunday.AddDays(-3), TimeSpan.Zero).AddHours(12);
+        trigger.ComputeFirstFireTimeUtc(null);
+
+        List<DateTimeOffset> local = TestTimeZones
+            .Walk(after => trigger.GetFireTimeAfter(after),
+                trigger.StartTimeUtc,
+                new DateTimeOffset(transitionSunday.AddDays(8), TimeSpan.Zero).AddHours(12))
+            .Select(t => TimeZoneInfo.ConvertTime(t, timeZone))
+            .ToList();
+
+        local[0].Should().Be(TestTimeZones.Local(expectedTransitionSundayFire));
+        local.Should().OnlyContain(t => t.DayOfWeek == DayOfWeek.Sunday);
+
+        DateTimeOffset firstOnNextSunday = local.First(t => t.Date == transitionSunday.AddDays(7));
+        firstOnNextSunday.Should().Be(TestTimeZones.Local(expectedNextSundayFire));
+    }
+
+    private static TimeZoneInfo ResolveZone(string zoneKey)
+    {
+        switch (zoneKey)
+        {
+            case "Eastern":
+                return TestTimeZones.Eastern;
+            case "CentralEuropean":
+                return TestTimeZones.CentralEuropean;
+            case "Santiago":
+                return TestTimeZones.Santiago;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(zoneKey), zoneKey, "unknown test zone");
+        }
+    }
+
     private static IOperableTrigger CreateHalfHourlyTrigger(TimeZoneInfo timeZone, DateTimeOffset startTimeUtc)
     {
         IOperableTrigger trigger = (IOperableTrigger) DailyTimeIntervalScheduleBuilder.Create()
