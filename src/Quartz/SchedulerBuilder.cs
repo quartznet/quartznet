@@ -415,6 +415,31 @@ public class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationRoot
         }
 
         /// <summary>
+        /// Let the job store take part in a transaction the application already owns, instead of
+        /// always managing an ADO.NET transaction of its own, so that scheduling commits together
+        /// with the rest of the application's work.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The job store then uses a connection enlisted with
+        /// <see cref="SchedulerEnlistmentExtensions.EnlistTransaction" /> or
+        /// <see cref="SchedulerEnlistmentExtensions.EnlistConnection" />. Handing over a connection
+        /// is the only way to take part, and the one that works on every provider: a connection the
+        /// job store opens for itself stays out of any ambient
+        /// <see cref="System.Transactions.TransactionScope" />, since a second connection in that
+        /// transaction would require it to be promoted to a distributed one.
+        /// </para>
+        /// <para>
+        /// Locks are held until the application commits, so keep such transactions short. This also
+        /// switches locking to database locks unless an explicit lock handler was configured.
+        /// </para>
+        /// </remarks>
+        public void AcceptEnlistedTransactions()
+        {
+            SetProperty("quartz.jobStore.acceptEnlistedTransactions", "true");
+        }
+
+        /// <summary>
         /// Sets the database retry interval.
         /// </summary>
         /// <remarks>

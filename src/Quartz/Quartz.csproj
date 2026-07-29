@@ -18,6 +18,7 @@
   <ItemGroup Condition=" '$(FullFramework)' == 'true' ">
     <Reference Include="System.Configuration" />
     <Reference Include="System.Runtime.Remoting" />
+    <Reference Include="System.Transactions" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="ConfigureAwaitChecker.Analyzer" Version="5.0.0.1" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers" />

@@ -37,6 +37,7 @@ public class ConnectionAndTransactionHolder : IDisposable
 
     private readonly DbConnection connection;
     private DbTransaction? transaction;
+    private readonly bool ownsResources;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ConnectionAndTransactionHolder"/> class.
@@ -44,14 +45,52 @@ public class ConnectionAndTransactionHolder : IDisposable
     /// <param name="connection">The connection.</param>
     /// <param name="transaction">The transaction.</param>
     public ConnectionAndTransactionHolder(DbConnection connection, DbTransaction? transaction)
+        : this(connection, transaction, ownsResources: true)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ConnectionAndTransactionHolder"/> class.
+    /// </summary>
+    /// <param name="connection">The connection.</param>
+    /// <param name="transaction">The transaction.</param>
+    /// <param name="ownsResources">
+    /// Whether this unit of work owns the connection and transaction. When <see langword="false" />
+    /// they belong to the caller, who enlisted them via
+    /// <see cref="SchedulerEnlistmentExtensions.EnlistTransaction" />, and this holder will neither
+    /// commit, roll back, close nor dispose them.
+    /// </param>
+    /// <param name="borrowedFrom">
+    /// The enlistment the connection was borrowed from, so its single-use claim can be returned to
+    /// that exact entry when this unit of work is cleaned up.
+    /// </param>
+    internal ConnectionAndTransactionHolder(
+        DbConnection connection,
+        DbTransaction? transaction,
+        bool ownsResources,
+        EnlistedConnection? borrowedFrom = null)
     {
         this.connection = connection;
         this.transaction = transaction;
+        this.ownsResources = ownsResources;
+        BorrowedFrom = borrowedFrom;
     }
+
+    /// <summary>
+    /// The enlistment this unit of work borrowed its connection from, so that the claim is returned
+    /// to that exact entry rather than to whatever is enlisted by the time cleanup runs.
+    /// </summary>
+    internal EnlistedConnection? BorrowedFrom { get; }
 
     public DbConnection Connection => connection;
 
     public DbTransaction? Transaction => transaction;
+
+    /// <summary>
+    /// Whether this unit of work owns the connection and the transaction. When it does not, the
+    /// application enlisted them and is responsible for committing, rolling back and disposing them.
+    /// </summary>
+    internal bool OwnsResources => ownsResources;
 
     public void Attach(DbCommand cmd)
     {
@@ -61,6 +100,12 @@ public class ConnectionAndTransactionHolder : IDisposable
 
     public void Commit(bool openNewTransaction)
     {
+        if (!ownsResources)
+        {
+            // The application owns the transaction and decides when it commits.
+            return;
+        }
+
         if (transaction != null)
         {
             try
@@ -83,6 +128,12 @@ public class ConnectionAndTransactionHolder : IDisposable
 
     public void Close()
     {
+        if (!ownsResources)
+        {
+            // Borrowed connection, the application keeps using it after we are done.
+            return;
+        }
+
         try
         {
             connection.Close();
@@ -99,6 +150,14 @@ public class ConnectionAndTransactionHolder : IDisposable
 
     public void Dispose()
     {
+        if (!ownsResources)
+        {
+            // Hand the enlistment back even when disposed directly rather than through
+            // CleanupConnection, or its single-use claim would stay held for the rest of the scope.
+            BorrowedFrom?.Release();
+            return;
+        }
+
         try
         {
             connection?.Dispose();
@@ -139,6 +198,13 @@ public class ConnectionAndTransactionHolder : IDisposable
 
     public void Rollback(bool transientError)
     {
+        if (!ownsResources)
+        {
+            // The application owns the transaction; the failure propagates to it and it decides
+            // whether to roll back. Rolling back here would silently discard its work as well.
+            return;
+        }
+
         if (transaction != null)
         {
             if (transaction.Connection == null)
