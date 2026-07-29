@@ -38,6 +38,8 @@
     --qz-color-danger-hover: #b91c1c;
     --qz-color-info: #2563eb;
     --qz-color-info-bg: #dbeafe;
+    --qz-color-executing: #7c3aed;
+    --qz-color-executing-bg: #ede9fe;
 
     /* --- Spacing (4px increments) --- */
     --qz-space-xs: 4px;
@@ -118,6 +120,8 @@
         --qz-color-danger-hover: #f87171;
         --qz-color-info: #3b82f6;
         --qz-color-info-bg: #1e3a5f;
+        --qz-color-executing: #a78bfa;
+        --qz-color-executing-bg: #3b0764;
 
         --qz-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
         --qz-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4),
@@ -156,6 +160,8 @@
     --qz-color-danger-hover: #b91c1c;
     --qz-color-info: #2563eb;
     --qz-color-info-bg: #dbeafe;
+    --qz-color-executing: #7c3aed;
+    --qz-color-executing-bg: #ede9fe;
 
     --qz-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
     --qz-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
@@ -192,6 +198,8 @@
     --qz-color-danger-hover: #f87171;
     --qz-color-info: #3b82f6;
     --qz-color-info-bg: #1e3a5f;
+    --qz-color-executing: #a78bfa;
+    --qz-color-executing-bg: #3b0764;
 
     --qz-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
     --qz-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4),
@@ -770,6 +778,15 @@
 .qz-state-dot.qz-state-normal {
     background-color: var(--qz-color-success);
     box-shadow: 0 0 0 3px var(--qz-color-success-bg);
+}
+
+/*
+ * Violet rather than the info blue: blue is the fallback for a state the dashboard cannot classify, and
+ * executing has to stay distinguishable from "unrecognised" as well as from normal, paused and error.
+ */
+.qz-state-indicator.qz-state-executing .qz-state-dot {
+    background-color: var(--qz-color-executing);
+    box-shadow: 0 0 0 3px var(--qz-color-executing-bg);
 }
 
 .qz-state-label {

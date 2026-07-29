@@ -581,6 +581,7 @@ The cron expression parser now supports additional syntax:
 * **HTTP API** — optional REST API for managing the scheduler remotely (see [HTTP API](packages/http-api.md))
 * **Paged, projected job store queries** — list and count jobs, triggers, groups and calendars a page at a time, with the metadata a listing needs already in the row (see [Job store listings became queries](#job-store-listings-became-queries))
 * **Job data by property name** — bind job data to the job property it is meant for instead of spelling its key (see [Job data can name the property](#job-data-can-name-the-property))
+* **`TriggerState.Executing`** — tell whether a trigger's job is running, across the whole cluster (see [Executing is a trigger state](#executing-is-a-trigger-state))
 
 ## Job data can name the property
 
@@ -690,6 +691,85 @@ needs the same annotation:
 + public static void Register<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] TJob>(IQuartzBuilder q) where TJob : IJob
       => q.ScheduleJob<TJob>(t => t.StartNow());
 ```
+
+## Executing is a trigger state
+
+There was no way to ask whether a trigger's job is running right now.
+`IScheduler.GetCurrentlyExecutingJobs` only ever sees the node it is called on, so a process that schedules
+and observes triggers but does not execute them — a dashboard, an admin UI, a separate control
+application — could not answer the question at all.
+
+`TriggerState` now has an `Executing` member, reported by both `IScheduler.GetTriggerState` and trigger
+listings. With a persistent job store it is visible from every node, because it is established from the
+fired-triggers table rather than from process-local state.
+
+### What changed in what you get back
+
+A trigger with an execution in flight previously reported `Normal`, `Complete`, or `Blocked` depending on
+its schedule; it now reports `Executing`. States are resolved in this order:
+
+```
+None > Error > Paused > Executing > Blocked > Complete > Normal
+```
+
+So a trigger that is paused, or in the error state, still reports that even while its job runs — those are
+the facts an operator has to act on. Two consequences worth calling out:
+
+* `Blocked` now means a **different** trigger of the same `[DisallowConcurrentExecution]` job is running,
+  so this one cannot fire. The trigger that is actually running reports `Executing`. Previously both
+  reported `Blocked` and nothing could tell them apart.
+* A trigger with no fire times left whose final execution is still running reports `Executing` rather than
+  `Complete`. In 3.x this case reported `Blocked`, which was a stand-in for a state that did not exist yet.
+
+Note that executing is not exclusive with being scheduled: a trigger whose job allows concurrent execution
+can be running several jobs and still be due to fire again. It reports `Executing` until the last of them
+finishes.
+
+### What to check in your own code
+
+* **Health checks and guards of the form `if (state == TriggerState.Normal)`** will now see `Executing` for
+  a trigger that is simply busy. Treat `Executing` as healthy.
+* **Watchdogs of the form `if (state != TriggerState.Normal) await ResumeTrigger(key)`** deserve a closer
+  look. `ResumeTrigger` applies the trigger's misfire policy to any trigger whose next fire time has
+  passed, regardless of the state it is currently in — and for a long-running job on a short interval, the
+  next fire time is in the past for the whole execution. Such a watchdog can therefore alter the schedule
+  of a perfectly healthy trigger. This is not new in 4.x, but `Executing` routes more triggers into it, so
+  gate the watchdog on the states you actually mean to repair (`Error`, `Paused`).
+* **Alerting that treats `Blocked` as "a job is running"** should move to `Executing`.
+
+### Filtering a listing by state
+
+`TriggerQuery.State` accepts `Executing` like any other state. Because the filter and the reported state
+are derived together, a listing filtered by `Normal` no longer returns triggers it would then report as
+`Executing`.
+
+### A note on stale executions
+
+Executing is established from the fired-triggers table, which is the only durable record that a job is
+running. If a node dies mid-execution, its rows stay behind until another node's cluster recovery clears
+them, so during that window a trigger reports `Executing` although nothing is running — and, because the
+filter and the reported state agree by construction, it is also absent from a listing filtered by
+`Normal`. The same window already existed for `Blocked`; it is now visible for more states.
+
+How long that lasts depends on the job. For an ordinary job the rows are cleared as soon as another node
+detects the failure, roughly `clusterCheckinInterval` + `clusterCheckinMisfireThreshold`. For a
+`[DisallowConcurrentExecution]` job, cluster recovery deliberately *preserves* the executing rows on first
+detection — the node may still be alive and running the job, and reviving it elsewhere would break the
+concurrency guarantee — and only cleans them up on a later pass, once the elapsed time exceeds
+`2 × clusterCheckinInterval + clusterCheckinMisfireThreshold`. So with a 15-second interval and a
+60-second threshold, expect up to about 90 seconds plus one more check-in cycle before such a trigger
+stops reporting `Executing`.
+
+### If you implement IDriverDelegate
+
+`IsTriggerCurrentlyExecuting` was replaced by `SelectTriggerStateWithExecuting`, which returns the stored
+state and whether an execution is in flight from a single statement, so reporting a trigger's state stays
+one round trip. Subclasses of `StdAdoDelegate` get it for free. There is no schema change.
+
+Note that `GetTriggerState` now calls this method instead of `SelectTriggerState`. If you override
+`SelectTriggerState` to handle a vendor quirk or a legacy state value, override
+`SelectTriggerStateWithExecuting` as well — the compiler cannot tell you, because the old method is still
+on the interface and still used elsewhere.
 
 ## Batched Misfire Recovery
 
@@ -1106,3 +1186,7 @@ called out.
 | `TimeSpanParseRuleAttribute` is public | It says how a bare number in configuration is read as a `TimeSpan`, which a component configured by the same keys needs to be able to say |
 | `TimeZoneUtil.CustomResolver` is a property | It was a public mutable field |
 | Setter-only members gained getters | `DbMetadata.DbBinaryTypeName` (now nullable) and `.ParameterDbTypePropertyName`, `HttpSchedulerProxyFactory.Address` |
+| `TriggerState.Executing` added | Reported where `Normal`, `Complete` or `Blocked` used to be, and `Blocked` narrowed to mean a sibling trigger is running (see [Executing is a trigger state](#executing-is-a-trigger-state)) |
+| `IDriverDelegate.IsTriggerCurrentlyExecuting` removed | Replaced by `SelectTriggerStateWithExecuting`, which reads the state and the execution in one statement and returns `TriggerExecutionState` |
+| `StdAdoConstants.SqlSelectCountExecutingFiredTriggersOfTrigger` removed | Removed with the method that used it; the per-job `SqlSelectCountExecutingFiredTriggersOfJob` remains |
+| `InternalTriggerState.Executing` removed | It was never assigned or read; RAMJobStore counts executions separately from the state that drives scheduling |

@@ -1,9 +1,14 @@
 namespace Quartz.Impl;
 
 /// <summary>
-/// Possible internal trigger states 
-/// in RAMJobStore
+/// The stored trigger states, normalized across job stores. The in-memory store holds one of these
+/// directly; the ADO store maps its persisted state strings onto them, so that both can resolve a
+/// reported <see cref="TriggerState" /> through <see cref="TriggerStateResolver" />.
 /// </summary>
+/// <remarks>
+/// There is deliberately no "executing" state: this drives scheduling decisions, and a trigger stays
+/// schedulable while its job runs. Executions are tracked separately by each store.
+/// </remarks>
 internal enum InternalTriggerState
 {
     /// <summary>
@@ -15,11 +20,6 @@ internal enum InternalTriggerState
     /// Acquired
     /// </summary>
     Acquired,
-
-    /// <summary>
-    /// Executing
-    /// </summary>
-    Executing,
 
     /// <summary>
     /// Complete

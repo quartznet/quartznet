@@ -15,8 +15,9 @@
 
     <SearchFilter Placeholder="Filter by group" OnFilterChanged="OnFilterChangedAsync" />
     <div class="qz-actions qz-group-actions">
-        <button type="button" class="qz-button @GetStateFilterButtonClass(false)" @onclick="ShowAllStates">All states</button>
-        <button type="button" class="qz-button @GetStateFilterButtonClass(true)" @onclick="ShowErrorStateOnly">Error only</button>
+        <button type="button" class="qz-button @GetStateFilterButtonClass(null)" @onclick="ShowAllStates">All states</button>
+        <button type="button" class="qz-button @GetStateFilterButtonClass(TriggerState.Error)" @onclick="ShowErrorStateOnly">Error only</button>
+        <button type="button" class="qz-button @GetStateFilterButtonClass(TriggerState.Executing)" @onclick="ShowExecutingStateOnly">Executing only</button>
     </div>
 
     @if (_isLoading)
@@ -128,7 +129,7 @@
     private string? _pendingGroup;
     private string? _pendingName;
     private string _pendingTriggerKey = string.Empty;
-    private bool _showErrorOnly;
+    private TriggerState? _stateFilter;
 
     private bool IsReadOnly => Options.Value.ReadOnly;
 
@@ -163,7 +164,7 @@
             }
 
             string? groupFilter = string.IsNullOrWhiteSpace(_filter) ? null : _filter;
-            TriggerState? state = _showErrorOnly ? TriggerState.Error : null;
+            TriggerState? state = _stateFilter;
             TriggerPageDto page = await Api.GetTriggers(schedulerName, groupFilter, state, _currentPage, _pageSize);
 
             int totalPages = Math.Max(1, (int) Math.Ceiling((double) page.TotalCount / _pageSize));
@@ -253,23 +254,22 @@
             "Resumed");
     }
 
-    private Task ShowAllStates()
+    private Task ShowAllStates() => ApplyStateFilter(null);
+
+    private Task ShowErrorStateOnly() => ApplyStateFilter(TriggerState.Error);
+
+    private Task ShowExecutingStateOnly() => ApplyStateFilter(TriggerState.Executing);
+
+    private Task ApplyStateFilter(TriggerState? state)
     {
-        _showErrorOnly = false;
+        _stateFilter = state;
         _currentPage = 1;
         return LoadDataAsync();
     }
 
-    private Task ShowErrorStateOnly()
+    private string GetStateFilterButtonClass(TriggerState? state)
     {
-        _showErrorOnly = true;
-        _currentPage = 1;
-        return LoadDataAsync();
-    }
-
-    private string GetStateFilterButtonClass(bool errorOnly)
-    {
-        return _showErrorOnly == errorOnly ? "qz-button-primary" : string.Empty;
+        return _stateFilter == state ? "qz-button-primary" : string.Empty;
     }
 
     private void PromptUnschedule(string group, string name)

@@ -59,6 +59,17 @@ public class RAMJobStore : IJobStore
     private readonly HashSet<string> pausedJobGroups = [];
     private readonly HashSet<JobKey> blockedJobs = [];
     private readonly HashSet<JobKey> resumedJobsInPausedGroups = new HashSet<JobKey>();
+
+    /// <summary>
+    /// Fire instance ids of the executions each trigger has started that are still running.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately keyed by <see cref="TriggerKey" /> rather than held on the wrapper: rescheduling a
+    /// trigger replaces its wrapper, and an execution already in flight has to survive that. Keying by
+    /// fire instance makes a late or duplicated completion a no-op instead of a miscount. This mirrors the
+    /// ADO store, where the answer comes from FIRED_TRIGGERS rows that likewise outlive a trigger update.
+    /// </remarks>
+    private readonly Dictionary<TriggerKey, HashSet<string>> executingFireInstances = [];
     private TimeSpan misfireThreshold = TimeSpan.FromSeconds(5);
     private readonly ISchedulerSignaler signaler;
     private readonly TimeProvider timeProvider;
@@ -188,7 +199,7 @@ public class RAMJobStore : IJobStore
                 var keys = GetTriggerKeysNoLock(GroupMatcher<TriggerKey>.GroupEquals(group));
                 foreach (TriggerKey key in keys)
                 {
-                    await RemoveTriggerNoLock(key, removeOrphanedJob: true, cancellationToken).ConfigureAwait(false);
+                    await RemoveTriggerNoLock(key, removeOrphanedJob: true, keepExecutions: false, cancellationToken).ConfigureAwait(false);
                 }
             }
 
@@ -209,6 +220,7 @@ public class RAMJobStore : IJobStore
             }
 
             resumedJobsInPausedGroups.Clear();
+            executingFireInstances.Clear();
         }
         finally
         {
@@ -309,7 +321,7 @@ public class RAMJobStore : IJobStore
         var triggersForJob = GetTriggerKeysForJobNoLock(jobKey);
         foreach (var key in triggersForJob)
         {
-            await RemoveTriggerNoLock(key, removeOrphanedJob: true, cancellationToken).ConfigureAwait(false);
+            await RemoveTriggerNoLock(key, removeOrphanedJob: true, keepExecutions: false, cancellationToken).ConfigureAwait(false);
             found = true;
         }
 
@@ -357,7 +369,7 @@ public class RAMJobStore : IJobStore
             bool allFound = true;
             foreach (TriggerKey key in triggerKeys)
             {
-                allFound = await RemoveTriggerNoLock(key, removeOrphanedJob: true, cancellationToken).ConfigureAwait(false) && allFound;
+                allFound = await RemoveTriggerNoLock(key, removeOrphanedJob: true, keepExecutions: false, cancellationToken).ConfigureAwait(false) && allFound;
             }
 
             return allFound;
@@ -456,7 +468,7 @@ public class RAMJobStore : IJobStore
             }
 
             // don't delete orphaned job, this trigger has the job anyways
-            await RemoveTriggerNoLock(tw.TriggerKey, removeOrphanedJob: false, cancellationToken).ConfigureAwait(false);
+            await RemoveTriggerNoLock(tw.TriggerKey, removeOrphanedJob: false, keepExecutions: true, cancellationToken).ConfigureAwait(false);
         }
 
         if (!jobsByKey.ContainsKey(tw.JobKey))
@@ -520,7 +532,7 @@ public class RAMJobStore : IJobStore
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return await RemoveTriggerNoLock(key, removeOrphanedJob, cancellationToken).ConfigureAwait(false);
+            return await RemoveTriggerNoLock(key, removeOrphanedJob, keepExecutions: false, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -528,8 +540,16 @@ public class RAMJobStore : IJobStore
         }
     }
 
-    private async Task<bool> RemoveTriggerNoLock(TriggerKey key, bool removeOrphanedJob, CancellationToken cancellationToken)
+    // keepExecutions: whether executions already started under this key survive. Only a trigger being
+    // replaced in place keeps them, matching the ADO store, where updating a trigger leaves its
+    // fired-trigger rows alone but deleting one removes them. There is no default: every caller says which.
+    private async Task<bool> RemoveTriggerNoLock(TriggerKey key, bool removeOrphanedJob, bool keepExecutions, CancellationToken cancellationToken)
     {
+        if (!keepExecutions)
+        {
+            executingFireInstances.Remove(key);
+        }
+
         // remove from triggers by FQN map
         var found = triggersByKey.TryRemove(key, out var tw);
         if (tw is not null)
@@ -581,36 +601,25 @@ public class RAMJobStore : IJobStore
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            // remove from triggers by FQN map
-            triggersByKey.TryRemove(triggerKey, out var tw);
-            found = tw is not null;
+            found = triggersByKey.TryGetValue(triggerKey, out var tw);
 
             if (found)
             {
+                // Validated before anything is removed, so a rejected replacement leaves the store exactly
+                // as it was rather than half-deleting the trigger it refused to replace.
                 if (!tw!.JobKey.Equals(trigger.JobKey))
                 {
                     Throw.JobPersistenceException("New trigger is not related to the same job as the old trigger.");
                 }
 
-                // remove from triggers by group
-                if (triggersByGroup.TryGetValue(triggerKey.Group, out var grpMap))
-                {
-                    if (grpMap.Remove(triggerKey) && grpMap.Count == 0)
-                    {
-                        triggersByGroup.Remove(triggerKey.Group);
-                    }
-                }
+                // Kept so the rollback below can put them back: the old trigger is still the one running
+                // them until the replacement actually succeeds.
+                executingFireInstances.TryGetValue(triggerKey, out var fireInstances);
 
-                // remove from triggers by job
-                if (triggersByJob.TryGetValue(tw.JobKey, out var jobList))
-                {
-                    if (jobList.Remove(tw) && jobList.Count == 0)
-                    {
-                        triggersByJob.Remove(tw.JobKey);
-                    }
-                }
-
-                timeTriggers.Remove(tw);
+                // The old trigger is deleted rather than updated, so its executions go with it, as they do
+                // in the ADO store where ReplaceTrigger deletes the fired-trigger rows. Removing through
+                // the shared path means anything kept per trigger is cleaned up here too.
+                await RemoveTriggerNoLock(triggerKey, removeOrphanedJob: false, keepExecutions: false, cancellationToken).ConfigureAwait(false);
 
                 try
                 {
@@ -620,6 +629,13 @@ public class RAMJobStore : IJobStore
                 {
                     // put previous trigger back...
                     await StoreTriggerNoLock(tw.Trigger, replaceExisting: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+
+                    // ...along with the executions it never stopped running.
+                    if (fireInstances is not null)
+                    {
+                        executingFireInstances[triggerKey] = fireInstances;
+                    }
+
                     throw;
                 }
             }
@@ -791,38 +807,43 @@ public class RAMJobStore : IJobStore
     /// <seealso cref="TriggerState.Error" />
     /// <seealso cref="TriggerState.Blocked" />
     /// <seealso cref="TriggerState.None"/>
+    /// <seealso cref="TriggerState.Executing" />
     public virtual async ValueTask<TriggerState> GetTriggerState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
-        TriggerWrapper? tw;
         try
         {
-            triggersByKey.TryGetValue(triggerKey, out tw);
+            // Both facts have to be read under the same lock, or a fire landing between the two reads
+            // would produce a state that was never actually true.
+            return triggersByKey.TryGetValue(triggerKey, out var tw) ? ToTriggerStateNoLock(tw) : TriggerState.None;
         }
         finally
         {
             lockObject.Release();
         }
-
-        if (tw is null)
-        {
-            return TriggerState.None;
-        }
-
-        return ToTriggerState(tw.state);
     }
 
-    private static TriggerState ToTriggerState(InternalTriggerState state)
+    /// <summary>
+    /// Maps a wrapper to the state callers see. The precedence lives in <see cref="TriggerStateResolver" />,
+    /// shared with the ADO store.
+    /// </summary>
+    private TriggerState ToTriggerStateNoLock(TriggerWrapper tw)
     {
-        return state switch
+        return TriggerStateResolver.Resolve(tw.state, executingFireInstances.ContainsKey(tw.TriggerKey));
+    }
+
+    /// <summary>
+    /// Records that an execution of the trigger has finished, forgetting the trigger entirely once its
+    /// last one has. An unknown fire instance is a no-op, so a repeated completion cannot miscount.
+    /// </summary>
+    private void ReleaseExecutionNoLock(TriggerKey triggerKey, string fireInstanceId)
+    {
+        if (executingFireInstances.TryGetValue(triggerKey, out var fireInstances)
+            && fireInstances.Remove(fireInstanceId)
+            && fireInstances.Count == 0)
         {
-            InternalTriggerState.Complete => TriggerState.Complete,
-            InternalTriggerState.Paused => TriggerState.Paused,
-            InternalTriggerState.PausedAndBlocked => TriggerState.Paused,
-            InternalTriggerState.Blocked => TriggerState.Blocked,
-            InternalTriggerState.Error => TriggerState.Error,
-            _ => TriggerState.Normal
-        };
+            executingFireInstances.Remove(triggerKey);
+        }
     }
 
     public async ValueTask ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
@@ -1171,7 +1192,7 @@ public class RAMJobStore : IJobStore
             match.Trigger.ExecutionGroup));
     }
 
-    private static void CollectMatchingTriggersNoLock(
+    private void CollectMatchingTriggersNoLock(
         Dictionary<TriggerKey, TriggerWrapper> groupMap,
         TriggerQuery query,
         List<TriggerMatch> matches)
@@ -1189,7 +1210,7 @@ public class RAMJobStore : IJobStore
                 continue;
             }
 
-            TriggerState state = ToTriggerState(triggerWrapper.state);
+            TriggerState state = ToTriggerStateNoLock(triggerWrapper);
             if (query.State is not null && state != query.State.Value)
             {
                 continue;
@@ -2077,7 +2098,17 @@ public class RAMJobStore : IJobStore
                 }
 
                 JobKey jobKey = tw.JobKey;
-                IJobDetail job = jobsByKey[jobKey].JobDetail;
+
+                // A trigger whose job is gone cannot be fired. Skipping it leaves it out of timeTriggers,
+                // where it stays until something stores or resumes it again; throwing here would instead
+                // take down the acquisition loop and stop every other trigger from firing.
+                if (!jobsByKey.TryGetValue(jobKey, out var jobWrapper))
+                {
+                    logger.LogWarning("Skipping trigger {TriggerKey}: its job {JobKey} no longer exists", tw.TriggerKey, jobKey);
+                    continue;
+                }
+
+                IJobDetail job = jobWrapper.JobDetail;
 
                 // If trigger's job disallows concurrent execution and the job was already added to the result,
                 // then we'll add the trigger to the list of excluded triggers (which we'll add back to the set
@@ -2153,6 +2184,14 @@ public class RAMJobStore : IJobStore
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            // Releasing means the scheduler is not going to run this fire after all, so anything recorded
+            // for it has to go: the scheduler releases the whole batch when TriggersFired fails part-way,
+            // and no completion will ever arrive for the fires it had already recorded. Note this does not
+            // undo the blocking fan-out TriggersFired applies for a non-concurrent job — only
+            // TriggeredJobComplete does that, which is why the scheduler uses it on every path where a job
+            // actually started.
+            ReleaseExecutionNoLock(trigger.Key, trigger.FireInstanceId);
+
             if (triggersByKey.TryGetValue(trigger.Key, out var tw) && tw.state == InternalTriggerState.Acquired)
             {
                 tw.state = InternalTriggerState.Waiting;
@@ -2204,6 +2243,16 @@ public class RAMJobStore : IJobStore
                     }
                 }
 
+                // Was the job deleted since the trigger was acquired? Checked here, with the other
+                // bail-outs, because everything below mutates the trigger: once it has left timeTriggers
+                // and been moved off Acquired, ReleaseAcquiredTrigger can no longer re-arm it and the
+                // trigger would stop firing altogether.
+                if (!jobsByKey.TryGetValue(trigger.JobKey, out var jobWrapper))
+                {
+                    results.Add(new TriggerFiredResult((TriggerFiredBundle?) null));
+                    continue;
+                }
+
                 DateTimeOffset? prevFireTime = trigger.PreviousFireTimeUtc;
 
                 // Read saved original fire time (set during ApplyMisfireNoLock if a misfire occurred)
@@ -2223,10 +2272,13 @@ public class RAMJobStore : IJobStore
                 // call triggered on our copy, and the scheduler's copy
                 tw.Trigger.Triggered(calendar);
                 trigger.Triggered(calendar);
-                //tw.state = TriggerWrapper.STATE_EXECUTING;
+                // Deliberately not an "executing" state: this field decides whether the trigger can be
+                // acquired and fired again, and TriggersFired/ReleaseAcquiredTrigger/the blocking fan-out
+                // below all depend on it being Waiting or Blocked here. Executions are tracked separately,
+                // in executingFireInstances.
                 tw.state = InternalTriggerState.Waiting;
 
-                var jobDetail = jobsByKey[trigger.JobKey].JobDetail.Clone();
+                var jobDetail = jobWrapper.JobDetail.Clone();
                 TriggerFiredBundle bndle = new TriggerFiredBundle(
                     jobDetail,
                     trigger,
@@ -2266,6 +2318,16 @@ public class RAMJobStore : IJobStore
                 {
                     timeTriggers.Add(tw);
                 }
+
+                // Recorded only once the bundle is guaranteed, so nothing above can leave an execution
+                // behind that no completion will ever clear. Released in TriggeredJobComplete.
+                if (!executingFireInstances.TryGetValue(tw.TriggerKey, out var fireInstances))
+                {
+                    fireInstances = [];
+                    executingFireInstances[tw.TriggerKey] = fireInstances;
+                }
+
+                fireInstances.Add(trigger.FireInstanceId);
 
                 results.Add(new TriggerFiredResult(bndle));
             }
@@ -2339,6 +2401,10 @@ public class RAMJobStore : IJobStore
                 blockedJobs.Remove(jobDetail.Key);
             }
 
+            // Releases what TriggersFired recorded. Done before the trigger-deleted check below, and
+            // unconditionally, so that an execution outliving its trigger still clears its entry.
+            ReleaseExecutionNoLock(trigger.Key, trigger.FireInstanceId);
+
             // check for trigger deleted during execution...
             if (triggersByKey.TryGetValue(trigger.Key, out var tw))
             {
@@ -2353,7 +2419,7 @@ public class RAMJobStore : IJobStore
                         d = tw.Trigger.NextFireTimeUtc;
                         if (!d.HasValue)
                         {
-                            await RemoveTriggerNoLock(trigger.Key, removeOrphanedJob: true, cancellationToken).ConfigureAwait(false);
+                            await RemoveTriggerNoLock(trigger.Key, removeOrphanedJob: true, keepExecutions: false, cancellationToken).ConfigureAwait(false);
                         }
                         else
                         {
@@ -2362,7 +2428,7 @@ public class RAMJobStore : IJobStore
                     }
                     else
                     {
-                        await RemoveTriggerNoLock(trigger.Key, removeOrphanedJob: true, cancellationToken).ConfigureAwait(false);
+                        await RemoveTriggerNoLock(trigger.Key, removeOrphanedJob: true, keepExecutions: false, cancellationToken).ConfigureAwait(false);
                         await signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc: null, cancellationToken).ConfigureAwait(false);
                     }
                 }

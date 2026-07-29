@@ -30,6 +30,12 @@
                 return "paused";
             }
 
+            // Checked before "running", which is a scheduler status and has to keep reading as success.
+            if (normalized.Contains("executing"))
+            {
+                return "executing";
+            }
+
             if (normalized.Contains("normal") || normalized.Contains("running") || normalized.Contains("complete"))
             {
                 return "success";

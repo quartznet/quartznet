@@ -1898,6 +1898,8 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <seealso cref="TriggerState.Complete" />
     /// <seealso cref="TriggerState.Error" />
     /// <seealso cref="TriggerState.None" />
+    /// <seealso cref="TriggerState.Blocked" />
+    /// <seealso cref="TriggerState.Executing" />
     public ValueTask<TriggerState> GetTriggerState(
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
@@ -1920,19 +1922,10 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     {
         try
         {
-            string ts = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-            TriggerState state = TriggerStateMapping.ToTriggerState(ts);
+            TriggerExecutionState stored = await Delegate
+                .SelectTriggerStateWithExecuting(conn, triggerKey, cancellationToken).ConfigureAwait(false);
 
-            // A trigger that has completed but is still executing reports as blocked. Establishing that
-            // costs a FIRED_TRIGGERS query, which is why the mapping does not do it and listings, which
-            // would pay it per row, do not either.
-            if (state == TriggerState.Complete
-                && await IsTriggerCurrentlyExecuting(conn, triggerKey, cancellationToken).ConfigureAwait(false))
-            {
-                return TriggerState.Blocked;
-            }
-
-            return state;
+            return TriggerStateMapping.ToTriggerState(stored.State, stored.IsExecuting);
         }
         catch (Exception e)
         {
@@ -2625,17 +2618,6 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         CancellationToken cancellationToken = default)
     {
         return Delegate.IsJobCurrentlyExecuting(conn, jobKey.Name, jobKey.Group, cancellationToken);
-    }
-
-    /// <summary>
-    /// Checks whether the given trigger currently has a fired trigger in EXECUTING state.
-    /// </summary>
-    private ValueTask<bool> IsTriggerCurrentlyExecuting(
-        ConnectionAndTransactionHolder conn,
-        TriggerKey triggerKey,
-        CancellationToken cancellationToken = default)
-    {
-        return Delegate.IsTriggerCurrentlyExecuting(conn, triggerKey.Name, triggerKey.Group, cancellationToken);
     }
 
     /// <summary>

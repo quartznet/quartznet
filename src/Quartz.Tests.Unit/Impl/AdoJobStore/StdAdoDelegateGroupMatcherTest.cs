@@ -34,9 +34,9 @@ using Quartz.Impl.Matchers;
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 
 /// <summary>
-/// How <see cref="StdAdoDelegate" /> translates a <see cref="GroupMatcher{TKey}" /> into SQL: an
-/// equality matcher must compare with '=', and anything that does become a LIKE has to have the
-/// matcher's own text escaped, so a group literally named "50%" is not a wildcard.
+/// The SQL <see cref="StdAdoDelegate" /> generates, asserted against the command text rather than a
+/// database: how a <see cref="GroupMatcher{TKey}" /> becomes an '=' or an escaped LIKE, so a group
+/// literally named "50%" is not a wildcard, and how a trigger state becomes a filter.
 /// </summary>
 public class StdAdoDelegateGroupMatcherTest
 {
@@ -48,15 +48,6 @@ public class StdAdoDelegateGroupMatcherTest
     [SetUp]
     public void SetUp()
     {
-        IDbProvider dbProvider = A.Fake<IDbProvider>();
-        DbMetadata metadata = new()
-        {
-            BindByName = true,
-            ParameterNamePrefix = "@"
-        };
-        metadata.Initialize();
-        A.CallTo(() => dbProvider.Metadata).Returns(metadata);
-
         parameters = new RecordingParameterCollection();
         command = A.Fake<StubCommand>();
 
@@ -75,10 +66,29 @@ public class StdAdoDelegateGroupMatcherTest
             .WithReturnType<Task<DbDataReader>>()
             .Returns(Task.FromResult(reader));
 
+        adoDelegate = CreateDelegate(bindByName: true, parameterNamePrefix: "@");
+
+        conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+    }
+
+    /// <summary>
+    /// Builds a delegate whose commands are this fixture's stub, so the generated SQL can be inspected.
+    /// Providers differ in how they name parameters, which changes how the statement is rewritten.
+    /// </summary>
+    private StdAdoDelegate CreateDelegate(bool bindByName, string parameterNamePrefix)
+    {
+        IDbProvider dbProvider = A.Fake<IDbProvider>();
+        DbMetadata metadata = new()
+        {
+            BindByName = bindByName,
+            ParameterNamePrefix = parameterNamePrefix
+        };
+        metadata.Initialize();
+        A.CallTo(() => dbProvider.Metadata).Returns(metadata);
         A.CallTo(() => dbProvider.CreateCommand()).Returns(command);
 
-        adoDelegate = new StdAdoDelegate();
-        adoDelegate.Initialize(new DelegateInitializationArgs
+        StdAdoDelegate result = new();
+        result.Initialize(new DelegateInitializationArgs
         {
             TablePrefix = "QRTZ_",
             InstanceName = "TESTSCHED",
@@ -87,7 +97,7 @@ public class StdAdoDelegateGroupMatcherTest
             DbProvider = dbProvider
         });
 
-        conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+        return result;
     }
 
     [TearDown]
@@ -241,6 +251,172 @@ public class StdAdoDelegateGroupMatcherTest
 
         command.CommandText.Should().Contain("TRIGGER_GROUP LIKE @triggerGroup ESCAPE '!'");
         parameters.Value("@triggerGroup").Should().Be("50!%%");
+    }
+
+    [Test]
+    public async Task SelectTriggerStateWithExecuting_BuildsExpectedSql()
+    {
+        await adoDelegate.SelectTriggerStateWithExecuting(conn, new TriggerKey("trigger1", "group1"));
+
+        string expectedCommandText = "SELECT TRIGGER_STATE, "
+                                     + "CASE WHEN EXISTS ("
+                                     + "SELECT 1 FROM QRTZ_FIRED_TRIGGERS FT "
+                                     + "WHERE FT.SCHED_NAME = QRTZ_TRIGGERS.SCHED_NAME "
+                                     + "AND FT.TRIGGER_NAME = QRTZ_TRIGGERS.TRIGGER_NAME "
+                                     + "AND FT.TRIGGER_GROUP = QRTZ_TRIGGERS.TRIGGER_GROUP "
+                                     + "AND FT.STATE = 'EXECUTING') "
+                                     + "THEN 1 ELSE 0 END "
+                                     + "FROM QRTZ_TRIGGERS "
+                                     + "WHERE SCHED_NAME = @schedulerName "
+                                     + "AND TRIGGER_NAME = @triggerName "
+                                     + "AND TRIGGER_GROUP = @triggerGroup";
+        command.CommandText.Should().Be(expectedCommandText);
+    }
+
+    /// <summary>
+    /// Providers that bind positionally have their parameter names rewritten by a plain substring
+    /// replace, so a statement mentioning one name twice would end up with more placeholders than bound
+    /// parameters. The executing state is embedded as a literal precisely to avoid that.
+    /// </summary>
+    [Test]
+    public async Task SelectTriggerStateWithExecuting_BindsPositionallyWithoutDuplicateParameters()
+    {
+        StdAdoDelegate positional = CreateDelegate(bindByName: false, parameterNamePrefix: "?");
+
+        await positional.SelectTriggerStateWithExecuting(conn, new TriggerKey("trigger1", "group1"));
+
+        command.CommandText.Should().NotContain("@", "every named parameter must have been rewritten");
+        command.CommandText.Count(c => c == '?')
+            .Should().Be(3, "exactly the scheduler name, trigger name and trigger group are bound");
+        command.CommandText.Should().Contain("'EXECUTING'", "the state is a literal, not a parameter");
+    }
+
+    [Test]
+    public async Task SelectTriggerHeaders_FilteringByExecuting_RequiresAFiredTriggerRow()
+    {
+        await adoDelegate.SelectTriggerHeaders(conn, new TriggerQuery { State = TriggerState.Executing });
+
+        // Executing is not a stored state, so the filter has to reach into FIRED_TRIGGERS.
+        command.CommandText.Should().Contain("AND EXISTS (SELECT 1 FROM QRTZ_FIRED_TRIGGERS FT");
+        command.CommandText.Should().NotContain("AND NOT EXISTS");
+
+        // Executing is also what an unrecognised stored state reports as while it is running, and those
+        // values cannot be listed, so the filter excludes the states that outrank executing instead.
+        command.CommandText.Should().Contain("AND TRIGGER_STATE NOT IN (");
+        BoundStates().Should().BeEquivalentTo([
+            AdoConstants.StatePaused,
+            AdoConstants.StatePausedBlocked,
+            AdoConstants.StateError,
+            AdoConstants.StateDeleted
+        ]);
+    }
+
+    [Test]
+    public async Task SelectTriggerHeaders_FilteringByNormal_ExcludesExecutingTriggers()
+    {
+        await adoDelegate.SelectTriggerHeaders(conn, new TriggerQuery { State = TriggerState.Normal });
+
+        // Otherwise the listing would return a row here and then report it as executing.
+        command.CommandText.Should().Contain("AND NOT EXISTS (SELECT 1 FROM QRTZ_FIRED_TRIGGERS FT");
+
+        // Normal is what an unrecognised stored state reports as, and those values cannot be listed, so
+        // the filter excludes the states that report as something else instead of listing its own.
+        command.CommandText.Should().Contain("AND TRIGGER_STATE NOT IN (");
+        BoundStates().Should().BeEquivalentTo([
+            AdoConstants.StateComplete,
+            AdoConstants.StateBlocked,
+            AdoConstants.StatePaused,
+            AdoConstants.StatePausedBlocked,
+            AdoConstants.StateError,
+            AdoConstants.StateDeleted
+        ]);
+    }
+
+    [Test]
+    public async Task SelectTriggerHeaders_FilteringByPaused_IgnoresExecution()
+    {
+        await adoDelegate.SelectTriggerHeaders(conn, new TriggerQuery { State = TriggerState.Paused });
+
+        // Paused outranks executing, so execution cannot change the answer and needs no predicate.
+        command.CommandText.Should().NotContain("AND EXISTS");
+        command.CommandText.Should().NotContain("AND NOT EXISTS");
+        BoundStates().Should().BeEquivalentTo([AdoConstants.StatePaused, AdoConstants.StatePausedBlocked]);
+    }
+
+    /// <summary>
+    /// The listing projection and <c>ReadTriggerHeader</c> agree on where the executing flag is: the
+    /// reader takes it from a fixed ordinal, so a column added to the SELECT list ahead of it would make
+    /// every listing read the wrong value. Only exercised here — the paging tests need a database.
+    /// </summary>
+    [TestCase(0, TriggerState.Normal)]
+    [TestCase(1, TriggerState.Executing)]
+    public async Task SelectTriggerHeaders_ReadsTheExecutingFlagFromTheProjection(int executingFlag, TriggerState expected)
+    {
+        InstallSingleRowReader(AdoConstants.StateWaiting, executingFlag);
+
+        PagedResult<TriggerHeader> result = await adoDelegate.SelectTriggerHeaders(conn, new TriggerQuery());
+
+        TriggerHeader header = result.Items.Should().ContainSingle().Subject;
+        header.Key.Should().Be(new TriggerKey("trigger1", "group1"));
+        header.State.Should().Be(expected);
+    }
+
+    /// <summary>
+    /// Fakes one listing row. The values are positional on purpose: this is what pins the projection's
+    /// column order to the reader's ordinals.
+    /// </summary>
+    private void InstallSingleRowReader(string triggerState, int executingFlag)
+    {
+        var strings = new Dictionary<int, string>
+        {
+            [0] = "trigger1",
+            [1] = "group1",
+            [2] = "job1",
+            [3] = "jobGroup1",
+            [4] = "description",
+            [5] = "SIMPLE",
+            [6] = triggerState,
+            [11] = "calendar",
+            [13] = "executionGroup"
+        };
+
+        DbDataReader reader = A.Fake<DbDataReader>();
+        bool read = false;
+        A.CallTo(() => reader.ReadAsync(A<CancellationToken>._)).ReturnsLazily(() =>
+        {
+            bool first = !read;
+            read = true;
+            return first;
+        });
+
+        A.CallTo(() => reader.GetString(A<int>._)).ReturnsLazily((int i) => strings[i]);
+        A.CallTo(() => reader.IsDBNull(A<int>._)).ReturnsLazily((int i) => !strings.ContainsKey(i));
+
+        // Date columns come back as DBNull so the reader's own null handling applies; priority and the
+        // executing flag are the two the reader converts.
+        A.CallTo(() => reader.GetValue(A<int>._)).ReturnsLazily((int i) => i switch
+        {
+            12 => 5,
+            14 => executingFlag,
+            _ => DBNull.Value
+        });
+
+        A.CallTo(command)
+            .Where(x => x.Method.Name == "ExecuteDbDataReaderAsync")
+            .WithReturnType<Task<DbDataReader>>()
+            .Returns(Task.FromResult(reader));
+    }
+
+    /// <summary>
+    /// The stored states the trigger-state filter bound, in no particular order.
+    /// </summary>
+    private List<object> BoundStates()
+    {
+        return parameters
+            .Cast<DbParameter>()
+            .Where(x => x.ParameterName.StartsWith("@state", StringComparison.Ordinal))
+            .Select(x => x.Value)
+            .ToList();
     }
 
     [Test]

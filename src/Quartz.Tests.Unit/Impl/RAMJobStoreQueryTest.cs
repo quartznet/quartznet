@@ -224,6 +224,38 @@ public class RAMJobStoreQueryTest
     }
 
     [Test]
+    public async Task QueryTriggers_ReportsAndFiltersExecutingConsistently()
+    {
+        IJobDetail job = await StoreJob("job", "g");
+
+        // Has to be firable now, unlike the far-future triggers the other listing tests use.
+        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
+            .WithIdentity("running", "g")
+            .ForJob(job)
+            .StartAt(d.AddSeconds(1))
+            .WithSimpleSchedule(x => x.WithIntervalInSeconds(5).RepeatForever())
+            .Build();
+        trigger.ComputeFirstFireTimeUtc(null);
+        await store.StoreTrigger(trigger, replaceExisting: false);
+
+        var acquired = await store.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        acquired.Should().HaveCount(1);
+        (await store.TriggersFired(acquired)).Should().HaveCount(1);
+
+        PagedResult<TriggerHeader> all = await store.QueryTriggers(new TriggerQuery());
+        all.Items.Single().State.Should().Be(TriggerState.Executing,
+            "a listing reports the same state GetTriggerState would");
+
+        PagedResult<TriggerHeader> executing = await store.QueryTriggers(new TriggerQuery { State = TriggerState.Executing });
+        executing.Items.Select(x => x.Key).Should().Equal([trigger.Key]);
+
+        PagedResult<TriggerHeader> normal = await store.QueryTriggers(new TriggerQuery { State = TriggerState.Normal });
+        normal.Items.Should().BeEmpty(
+            "filtering by normal must not return a trigger the same listing reports as executing");
+    }
+
+    [Test]
     public async Task QueryTriggers_HeaderCarriesTheStoredTriggerMetadata()
     {
         IJobDetail job = await StoreJob("job", "g");
