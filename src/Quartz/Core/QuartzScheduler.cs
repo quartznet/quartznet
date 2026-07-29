@@ -307,8 +307,21 @@ public sealed class QuartzScheduler
         if (!initialStart.HasValue)
         {
             initialStart = this.resources.TimeProvider.GetUtcNow();
-            await resources.JobStore.SchedulerStarted(cancellationToken).ConfigureAwait(false);
-            await StartPlugins(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await resources.JobStore.SchedulerStarted(cancellationToken).ConfigureAwait(false);
+                await StartPlugins(cancellationToken).ConfigureAwait(false);
+            }
+            catch (SchedulerStartRefusedException)
+            {
+                // Refused before the job store set anything up, so starting again is safe once the
+                // caller has fixed the cause. Leaving the marker latched would send the retry down the
+                // "already started" path, skipping job recovery, the misfire handler and cluster
+                // check-in while still starting the acquire loop. Only this one exception un-latches: a
+                // failure further in may already have created those, and re-running would orphan them.
+                initialStart = null;
+                throw;
+            }
         }
         else
         {

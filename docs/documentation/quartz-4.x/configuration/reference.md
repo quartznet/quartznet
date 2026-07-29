@@ -121,6 +121,7 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 | `LockOnInsert` | bool | `true` | Takes a lock when inserting rows. |
 | `AcquireTriggersWithinLock` | bool | `false` | Acquires triggers inside the database lock. |
 | `TxIsolationLevelSerializable` | bool | `false` | Uses the serializable isolation level. |
+| `AcceptEnlistedTransactions` | bool | `false` | Lets the job store use a connection the application enlisted with `SchedulerEnlistmentExtensions.EnlistTransaction`, so scheduling commits with the application's own work. See [Joining an existing transaction](../tutorial/job-stores.md#joining-an-existing-transaction). |
 | `DoubleCheckLockMisfireHandler` | bool | `true` | Re-checks the lock before handling misfires. |
 | `MakeThreadsDaemons` | bool | `false` | Runs the store's background threads as background threads. |
 | `PerformSchemaValidation` | bool | `true` | Verifies the expected tables exist at startup. |
@@ -392,6 +393,7 @@ Two differences are worth knowing:
 | `quartz.jobStore.tablePrefix` | `JobStore:TablePrefix` |
 | `quartz.jobStore.useProperties` | `JobStore:UseProperties` |
 | `quartz.jobStore.clustered` | `JobStore:Clustered`, or `UseClustering()` |
+| `quartz.jobStore.acceptEnlistedTransactions` | `JobStore:AcceptEnlistedTransactions`, or `AcceptEnlistedTransactions()` |
 | `quartz.jobStore.clusterCheckinInterval` | `JobStore:ClusterCheckinInterval` |
 | `quartz.jobStore.dataSource` | set for you by the database methods |
 | `quartz.dataSource.NAME.provider` | `DataSource:NAME:Provider` |

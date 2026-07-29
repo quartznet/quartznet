@@ -108,6 +108,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         LockOnInsert = options.LockOnInsert;
         AcquireTriggersWithinLock = options.AcquireTriggersWithinLock;
         TxIsolationLevelSerializable = options.TxIsolationLevelSerializable;
+        AcceptEnlistedTransactions = options.AcceptEnlistedTransactions;
         DoubleCheckLockMisfireHandler = options.DoubleCheckLockMisfireHandler;
         MakeThreadsDaemons = options.MakeThreadsDaemons;
         PerformSchemaValidation = options.PerformSchemaValidation;
@@ -249,6 +250,35 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     public bool UseDbLocks { get; set; }
 
     /// <summary>
+    /// Whether this instance may take part in a transaction the application owns, rather than always
+    /// managing an ADO.NET transaction of its own. Defaults to <see langword="false" />.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// When enabled, the job store uses the connection the application enlisted with
+    /// <see cref="SchedulerEnlistmentExtensions.EnlistTransaction" /> or
+    /// <see cref="SchedulerEnlistmentExtensions.EnlistConnection" /> for operations on that
+    /// asynchronous flow. The application owns the commit, so the job store neither commits nor rolls
+    /// back, and scheduling either happens together with the rest of the work or not at all.
+    /// </para>
+    /// <para>
+    /// Taking part always means handing over a connection. Operations with nothing enlisted keep using
+    /// a connection of the job store own, and for <see cref="JobStoreTX" /> that connection is
+    /// deliberately kept out of any ambient <see cref="System.Transactions.Transaction" />: joining a
+    /// scope whose outcome the job store does not control would also put a second connection in that
+    /// transaction, which needs a distributed transaction and is not available on every provider.
+    /// <see cref="JobStoreCMT" /> is the exception - running inside a transaction its container manages
+    /// is that store contract, so its connections enlist as they always have.
+    /// </para>
+    /// <para>
+    /// Because locks taken during an application-owned transaction are only released when that
+    /// transaction completes, enabling this switches locking to database locks
+    /// (<see cref="UseDbLocks" />) unless an explicit lock handler was configured.
+    /// </para>
+    /// </remarks>
+    public bool AcceptEnlistedTransactions { get; set; }
+
+    /// <summary>
     /// Whether or not to obtain locks when inserting new jobs/triggers.
     /// </summary>
     /// <remarks>
@@ -386,17 +416,148 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     protected abstract ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Returns the connection the application enlisted for this scheduler on the current
+    /// asynchronous flow, or <see langword="null" /> when enlisted transactions are not accepted or
+    /// nothing is enlisted. The returned holder does not own the connection or the transaction.
+    /// </summary>
+    private protected async ValueTask<ConnectionAndTransactionHolder?> GetEnlistedConnection(CancellationToken cancellationToken = default)
+    {
+        var enlisted = AmbientConnection.Get(InstanceName);
+        if (enlisted is null)
+        {
+            return null;
+        }
+
+        // Refused rather than ignored. Ignoring it would commit the scheduling in a transaction of the
+        // store own while the caller believes it is part of theirs, and that only shows up later as a
+        // job firing for an entity the caller rolled back. This is also what covers schedulers the
+        // enlistment call site could not inspect, such as a decorator around the real one.
+        if (!AcceptEnlistedTransactions)
+        {
+            Throw.JobPersistenceException(
+                $"A connection is enlisted for scheduler '{InstanceName}', but it is not configured to take part in "
+                + "transactions the application owns, so this operation would commit on its own. Call "
+                + "AcceptEnlistedTransactions() when configuring the persistent store, or set "
+                + "'quartz.jobStore.acceptEnlistedTransactions' to true.");
+        }
+
+        // The enlisted transaction may have finished while its scope was still open - the application
+        // committed or rolled back, or its TransactionScope ended. Carrying on would run this
+        // operation in autocommit, where a half-finished write can no longer be rolled back, so refuse
+        // rather than quietly drop the transactional guarantee the caller asked for.
+        if (enlisted.Transaction is not null && enlisted.Transaction.Connection is null)
+        {
+            Throw.JobPersistenceException(
+                $"The transaction enlisted for scheduler '{InstanceName}' has already been committed or rolled back, "
+                + "so this operation would run with no transaction at all. Dispose the enlistment scope once the "
+                + "transaction completes, and enlist a new one for any further scheduling.");
+        }
+
+        // Compared with == rather than by reference: a dependent clone is a different object standing
+        // for the same transaction, and refusing those would break legitimate fan-out.
+        if (enlisted.Ambient is not null && enlisted.Ambient != System.Transactions.Transaction.Current)
+        {
+            Throw.JobPersistenceException(
+                $"The transaction the connection enlisted for scheduler '{InstanceName}' belongs to is no longer the "
+                + "current one, so this operation would run with no transaction at all. Keep the enlistment scope inside "
+                + "the transaction scope it was created in, and dispose it before that scope ends.");
+        }
+
+        var expected = DbProvider.Metadata.ConnectionType;
+        if (expected is not null && !expected.IsInstanceOfType(enlisted.Connection))
+        {
+            Throw.JobPersistenceException(
+                $"The connection enlisted for scheduler '{InstanceName}' is {enlisted.Connection.GetType().FullName}, but "
+                + $"this job store is configured for {expected.FullName}. A connection from a different provider cannot "
+                + "carry its commands - configure both against the same one.");
+        }
+
+        if (!enlisted.TryClaim())
+        {
+            Throw.JobPersistenceException(
+                $"The connection enlisted for scheduler '{InstanceName}' is already serving another job store operation. "
+                + "An enlisted connection carries a single transaction and cannot be used concurrently, so scheduler calls "
+                + "made inside an enlistment scope must be awaited one at a time.");
+        }
+
+        try
+        {
+            // Anything that is not open needs opening - Broken and Connecting are their own states, and
+            // handing a broken connection to the delegate produces a provider error instead of any of
+            // the diagnostics above.
+            if (enlisted.Connection.State != ConnectionState.Open)
+            {
+                if (enlisted.Connection.State != ConnectionState.Closed)
+                {
+                    await enlisted.Connection.CloseAsync().ConfigureAwait(false);
+                }
+
+                await enlisted.Connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Cancellation is not a persistence failure, and callers match on it.
+            enlisted.Release();
+            throw;
+        }
+        catch (Exception e)
+        {
+            enlisted.Release();
+            Throw.JobPersistenceException($"Failed to open the connection enlisted for scheduler '{InstanceName}': {e}", e);
+        }
+
+        return new ConnectionAndTransactionHolder(enlisted.Connection, enlisted.Transaction, ownsResources: false, borrowedFrom: enlisted);
+    }
+
+    /// <summary>
+    /// Whether the current operation runs inside a transaction the application owns. That is the case
+    /// only when the application enlisted a connection: a connection the job store opens for itself
+    /// deliberately stays outside whatever the caller has in flight.
+    /// </summary>
+    private bool InApplicationOwnedTransaction =>
+        AcceptEnlistedTransactions && AmbientConnection.Get(InstanceName) is not null;
+
+    /// <summary>
+    /// Opens a connection that belongs to the job store.
+    /// </summary>
+    /// <remarks>
+    /// While <see cref="AcceptEnlistedTransactions" /> is on, such a connection is kept out of any
+    /// ambient <see cref="System.Transactions.Transaction" />. The application takes part by enlisting
+    /// a connection, not by the job store quietly joining a scope whose outcome it does not control;
+    /// letting it enlist would also put a second connection in that transaction, which needs a
+    /// distributed transaction and is not available on every provider.
+    /// </remarks>
+    private async ValueTask<DbConnection> OpenOwnConnection(CancellationToken cancellationToken)
+    {
+        using var ambientSuppression = AcceptEnlistedTransactions && System.Transactions.Transaction.Current is not null
+            ? new System.Transactions.TransactionScope(
+                System.Transactions.TransactionScopeOption.Suppress,
+                System.Transactions.TransactionScopeAsyncFlowOption.Enabled)
+            : null;
+
+        var conn = DbProvider.CreateConnection();
+        await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+        return conn;
+    }
+
+    /// <summary>
     /// Gets the connection and starts a new transaction.
     /// </summary>
     /// <returns></returns>
     protected virtual async ValueTask<ConnectionAndTransactionHolder> GetConnection(CancellationToken cancellationToken = default)
     {
+        var enlisted = await GetEnlistedConnection(cancellationToken).ConfigureAwait(false);
+        if (enlisted is not null)
+        {
+            return enlisted;
+        }
+
         DbConnection conn;
         DbTransaction tx;
         try
         {
-            conn = DbProvider.CreateConnection();
-            await conn.OpenAsync(cancellationToken).ConfigureAwait(false);
+            conn = await OpenOwnConnection(cancellationToken).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -542,6 +703,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
         }
 
+        // The job store own connections still honour this; a connection the application enlisted was
+        // begun at whatever level the application chose, and cannot be changed after the fact.
+        if (AcceptEnlistedTransactions && TxIsolationLevelSerializable && Delegate is not SQLiteDelegate)
+        {
+            Logger.LogWarning("'quartz.jobStore.txIsolationLevelSerializable' applies only to connections the job store opens itself: an operation running on a connection enlisted by the application uses that transaction isolation level instead.");
+        }
+
         // If the user hasn't specified an explicit lock handler, then
         // choose one based on CMT/Clustered/UseDbLocks.
         if (LockHandler is null)
@@ -549,6 +717,14 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             // If the user hasn't specified an explicit lock handler,
             // then we *must* use DB locks with clustering
             if (Clustered)
+            {
+                UseDbLocks = true;
+            }
+
+            // The same applies when the application owns the transaction: SimpleSemaphore releases its
+            // in-process lock as soon as our work is done, which is before the application has
+            // committed, so another caller could act on scheduling data that is not visible yet.
+            if (AcceptEnlistedTransactions)
             {
                 UseDbLocks = true;
             }
@@ -584,6 +760,22 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         else
         {
+            // be ready to give a friendly warning if locks would be released before the application commits
+            if (AcceptEnlistedTransactions && !LockHandler.RequiresConnection)
+            {
+                if (LockHandler is SQLiteSemaphore)
+                {
+                    // SQLite gets this handler unconditionally, before the upgrade to database locks
+                    // can be applied, and it cannot be swapped for one - so this is a property of the
+                    // combination rather than something to reconfigure away.
+                    Logger.LogWarning("Accepting enlisted transactions with SQLite keeps in-process locking: SQLiteSemaphore releases the lock when the scheduling call returns, while the application transaction still holds the SQLite writer lock, so a concurrent scheduler operation can fail with 'database is locked' until that transaction completes. Keep enlisted transactions short, or use a database that supports row locking.");
+                }
+                else
+                {
+                    Logger.LogWarning("Accepting enlisted transactions with lock handler {LockHandlerType}, which does not lock in the database. Its locks are released before the application commits its transaction, so concurrent callers can act on scheduling data that is not visible to them yet.", LockHandler.GetType().Name);
+                }
+            }
+
             // A lock handler built by the container knows nothing about the store it locks for, so it
             // has to be told which tables to look in and whose rows they are. Without this it queries
             // QRTZ_LOCKS with a null scheduler name, whatever the store is actually configured with.
@@ -668,6 +860,24 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     public virtual async ValueTask SchedulerStarted(
         CancellationToken cancellationToken = default)
     {
+        // Recovery below competes for the same TRIGGER_ACCESS lock that a scheduling call made earlier
+        // in this scope is still holding on the caller uncommitted transaction, and the caller cannot
+        // commit while awaiting Start(). That deadlock has no diagnostic of its own, so refuse the call
+        // instead of hanging. Nothing has been created yet, so the scheduler stays startable.
+        if (AcceptEnlistedTransactions && AmbientConnection.Get(InstanceName) is not null)
+        {
+            throw new Core.SchedulerStartRefusedException(
+                $"The scheduler '{InstanceName}' cannot be started from inside an enlistment scope: startup work waits for "
+                + "locks the enlisted transaction holds until the application commits, which it cannot do while starting. "
+                + "Start the scheduler outside the scope.");
+        }
+
+        // Everything below belongs to the scheduler, not to whoever called Start(). Suppressing here
+        // keeps job recovery and the first cluster check-in off an enlisted connection, and - because
+        // the misfire handler and cluster manager loops capture the execution context when they are
+        // started - keeps those loops from ever seeing an enlistment either.
+        using var suppression = AmbientConnection.Suppress();
+
         if (Clustered)
         {
             clusterManager = new ClusterManager(this);
@@ -3492,6 +3702,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// </summary>
     public virtual async ValueTask TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default)
     {
+        // Completion bookkeeping belongs to the scheduler, not to the job, and it retries a failing
+        // JobPersistenceException until it succeeds. If a job body left an enlistment behind, this
+        // would borrow a connection whose transaction is long gone and retry against it forever,
+        // leaving the fired trigger uncleaned and its DisallowConcurrentExecution siblings blocked.
+        using var suppression = AmbientConnection.Suppress();
+
         await activityTracer.Trace(
             OperationName.JobStore.TriggeredJobComplete,
             () => RetryExecuteInNonManagedTXLock(
@@ -3633,6 +3849,10 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         Guid requestorId,
         CancellationToken cancellationToken = default)
     {
+        // Misfire recovery is the scheduler own work and commits on its own schedule, so it must not
+        // run inside a transaction the application owns.
+        using var suppression = AmbientConnection.Suppress();
+
         bool transOwner = false;
         ConnectionAndTransactionHolder? conn = null;
         try
@@ -3726,6 +3946,70 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         return schedSignaler.SignalSchedulingChange(candidateNewNextFireTime, cancellationToken);
     }
 
+    /// <summary>
+    /// Holds back a scheduling change signal until the transaction the application owns has completed.
+    /// Signalling while our rows are still uncommitted would send the scheduler thread looking for a
+    /// trigger it cannot see yet, and it would then wait out the idle interval before looking again.
+    /// </summary>
+    internal void SignalSchedulingChangeOnApplicationCommit(
+        ConnectionAndTransactionHolder conn,
+        DateTimeOffset? candidateNewNextFireTime,
+        CancellationToken cancellationToken)
+    {
+        void Signal(DateTimeOffset? signalTime)
+        {
+            // Fire and forget: the signaler only wakes the scheduler thread, and this runs from a
+            // transaction completion callback that has nothing to await it.
+            _ = SignalSchedulingChangeImmediately(signalTime, cancellationToken).AsTask();
+        }
+
+        var enlisted = conn.BorrowedFrom;
+        if (enlisted is null)
+        {
+            Signal(candidateNewNextFireTime);
+            return;
+        }
+
+        // Accumulate on the enlistment rather than in the handler, so every operation in the scope
+        // contributes and the earliest candidate wins. Capturing one operation time in a closure would
+        // let a later, sooner trigger go unannounced until the idle wait expired.
+        enlisted.DeferSignal(candidateNewNextFireTime, Signal);
+
+        // The transaction the enlistment was made under, not whatever is ambient now: an unrelated outer
+        // scope governs nothing here, and handing it the signal would drop it when that scope aborts.
+        var ambient = enlisted.Ambient;
+        if (ambient is null)
+        {
+            // A bare DbTransaction reports no outcome, so the enlistment scope disposal is the only
+            // moment we have; the caller is documented to dispose it after committing.
+            return;
+        }
+
+        // An ambient transaction does report its outcome, and reports it after the enlistment scope is
+        // disposed, so let it own the signal: nothing is raised when the application rolls back. Hooked
+        // once per enlistment - a scope that schedules hundreds of jobs would otherwise accumulate that
+        // many handlers and fire them all back to back, each able to knock the scheduler off its
+        // acquired triggers.
+        if (enlisted.AmbientSignalHooked)
+        {
+            return;
+        }
+
+        // Subscribe first: the add accessor throws once the transaction has been disposed, and latching
+        // the flags before that would leave neither the ambient flush nor the scope fallback able to
+        // raise the signal at all.
+        ambient.TransactionCompleted += (_, e) =>
+        {
+            if (e.Transaction?.TransactionInformation.Status == System.Transactions.TransactionStatus.Committed)
+            {
+                enlisted.FlushSignal();
+            }
+        };
+
+        enlisted.AmbientSignalHooked = true;
+        enlisted.SignalOwnedByAmbient = true;
+    }
+
     //---------------------------------------------------------------------------
     // Cluster management methods
     //---------------------------------------------------------------------------
@@ -3738,6 +4022,10 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         Guid requestorId,
         CancellationToken cancellationToken = default)
     {
+        // Cluster check-in has to run in a transaction of its own to avoid deadlocking under recovery,
+        // so it must never borrow a connection the application enlisted.
+        using var suppression = AmbientConnection.Suppress();
+
         int maxRetries = MaxTransientRetries;
         int totalAttempts = maxRetries + 1;
         for (int attempt = 1; attempt <= totalAttempts; attempt++)
@@ -4205,6 +4493,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     {
         if (conn is not null)
         {
+            // Hand the enlisted connection back so the next operation on this flow can claim it.
+            // Released through the holder rather than by looking the enlistment up again, which with
+            // nested scopes can resolve to a different entry than the one that was claimed.
+            conn.BorrowedFrom?.Release();
+
             await CloseConnection(conn, cancellationToken).ConfigureAwait(false);
         }
     }
@@ -4624,7 +4917,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
         }
 
-        int maxRetries = MaxTransientRetries;
+        // Retrying inside a transaction the application owns is pointless and harmful: the first failure
+        // has already doomed that transaction on most providers, so a second attempt would only pile
+        // another error on top of it. Let the caller decide what to do instead.
+        bool applicationOwnedTransaction = InApplicationOwnedTransaction;
+        int maxRetries = applicationOwnedTransaction ? 0 : MaxTransientRetries;
         int totalAttempts = maxRetries + 1;
         for (int attempt = 1; attempt <= totalAttempts; attempt++)
         {
@@ -4672,7 +4969,23 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 }
 
                 DateTimeOffset? sigTime = conn.SignalSchedulingChangeOnTxCompletion;
-                if (sigTime is not null)
+
+                // Arrange a signal for after the commit even when the job store did not ask for one:
+                // QuartzScheduler notifies the scheduler thread as soon as the store call returns, which
+                // here is still before the application commits, so that notification finds nothing and
+                // the thread settles down for a whole idle interval. Taking the lock stands in for "this
+                // may have changed the schedule" - doing it for reads as well would signal an unknown
+                // earlier time on every query and keep bouncing acquired triggers back to waiting. That
+                // proxy does not hold once LockAllOperations routes reads through the lock too, so there
+                // we fall back to an explicit request only.
+                // Asked of the holder rather than the registry: a subclass overriding GetConnection can
+                // return one it opened itself even while an enlistment exists on this flow.
+                if (conn.BorrowedFrom is not null
+                    && (sigTime is not null || lockName is not null && !LockAllOperations))
+                {
+                    SignalSchedulingChangeOnApplicationCommit(conn, sigTime, cancellationToken);
+                }
+                else if (sigTime is not null)
                 {
                     await SignalSchedulingChangeImmediately(sigTime, cancellationToken).ConfigureAwait(false);
                 }

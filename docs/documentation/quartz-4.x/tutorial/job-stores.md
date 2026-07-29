@@ -49,9 +49,9 @@ One thing to note is that in these scripts, all the the tables start with the pr
 what the prefix is (in your Quartz.NET properties). Using different prefixes may be useful for creating multiple sets of tables,
 for multiple scheduler instances, within the same database.
 
-Currently the only option for the internal implementation of job store is `JobStoreTX`which creates transactions by itself.
-This is different from Java version of Quartz where there is also option to choose `JobStoreCMT` which uses J2EE container
-managed transactions.
+`JobStoreTX` creates transactions by itself and is the implementation you normally want. If you need scheduling to
+commit together with your application's own database work, `JobStoreTX` can also be told to use a connection you
+own - see [Joining an existing transaction](#joining-an-existing-transaction) below.
 
 The last piece of the puzzle is setting up a data source from which AdoJobStore can get connections to your database.
 Data sources are defined in your Quartz.NET properties. Data source information contains the connection string
@@ -189,3 +189,97 @@ ISchedulerFactory schedulerFactory = config.Build();
     // "newtonsoft" is alias for "Quartz.Impl.NewtonsoftJsonObjectSerializer, Quartz.Serialization.Newtonsoft"
     quartz.serializer.type = stj
 ```
+
+### Joining an existing transaction
+
+Normally AdoJobStore opens a connection of its own and commits as soon as the scheduling operation is done. That means
+saving your own data and scheduling the job that acts on it are two separate transactions, and one can succeed while the
+other fails.
+
+Telling the store to accept enlisted transactions lets it use a connection your application already owns instead, so
+scheduling commits with the rest of your work or not at all.
+
+```csharp
+builder.Services.AddQuartz(q =>
+{
+    q.UsePersistentStore(store =>
+    {
+        store.UsePostgres(connectionString);
+        store.AcceptEnlistedTransactions();
+    });
+});
+```
+
+You then hand your connection and transaction to the scheduler for the duration of a scope:
+
+```csharp
+await using var tx = await dbContext.Database.BeginTransactionAsync();
+
+dbContext.Add(entity);
+await dbContext.SaveChangesAsync();
+
+using (scheduler.EnlistTransaction(tx.GetDbTransaction()))
+{
+    await scheduler.ScheduleJob(job, trigger);
+    await tx.CommitAsync();
+}
+```
+
+Nothing about this is specific to Entity Framework Core - any `DbConnection` and `DbTransaction` will do, whether they
+come from EF Core, Dapper or plain ADO.NET.
+
+::: warning
+Handing over a connection is the only way to take part. An ambient `TransactionScope` on its own is **not** enough: a
+connection the job store opens for itself is deliberately kept out of it, so that scheduling would commit separately.
+Open the connection inside the scope and enlist that one.
+:::
+
+Inside a `TransactionScope` the shape is the same, except that the connection carries the transaction for you:
+
+```csharp
+var options = new TransactionOptions { IsolationLevel = IsolationLevel.ReadCommitted };
+using var scope = new TransactionScope(TransactionScopeOption.Required, options, TransactionScopeAsyncFlowOption.Enabled);
+
+using var connection = new NpgsqlConnection(connectionString);
+await connection.OpenAsync();
+
+// ... your own work on this connection ...
+
+using (scheduler.EnlistConnection(connection))
+{
+    await scheduler.ScheduleJob(job, trigger);
+}
+
+scope.Complete();
+```
+
+Sharing the one connection is also what keeps the transaction from having to be promoted to a distributed one, which is
+unavailable outside Windows and unsupported by providers such as Npgsql.
+
+Things worth knowing before you enable this:
+
+* The enlistment flows with the current asynchronous context, so establish it in the same scope as the scheduler calls it
+  should cover. This is the same rule that makes `TransactionScope` need `TransactionScopeAsyncFlowOption.Enabled`. In
+  particular, enlisting inside an `async` helper does not carry the enlistment back out to the caller.
+* The job store takes its locks in your transaction, so they are only released once you commit or roll back. Keep enlisted
+  transactions short - a long running one blocks trigger acquisition, the misfire handler and cluster check-in. For the
+  same reason starting a scheduler for the first time from inside an enlistment scope is refused, and says so; resuming
+  one that was in standby is not, so avoid that too.
+* With a `DbTransaction` of your own, dispose the enlistment scope after committing: that is when a pending scheduling
+  change is signalled to the scheduler, and doing it earlier would point it at rows it cannot see yet. Under a
+  `TransactionScope` the scope itself reports the outcome, so the enlistment can close first - as in the sample above -
+  and nothing is signalled if the transaction rolls back.
+* Await scheduler calls one at a time inside a scope. A connection carries a single transaction and cannot serve two
+  operations at once.
+* Automatic retries of transient database errors are skipped inside your transaction. On most providers the first failure
+  has already doomed it, so the error is yours to handle - including any of your own work in that transaction.
+* Because your transaction outlives the scheduling operation, this mode uses database locks even when the scheduler is not
+  clustered - an in-process lock would be released before you commit. SQLite is the exception: it always locks in
+  process, so a concurrent scheduler operation there can fail with "database is locked" until your transaction
+  completes. Quartz logs a warning about it at startup.
+* An operation that fails halfway leaves its statements in your transaction; there is no savepoint to roll back to.
+* Work the scheduler does on its own - acquiring triggers, handling misfires, cluster check-in - always uses its own
+  connections and is unaffected.
+* `JobStoreCMT` is the exception to the previous point: running inside a transaction its container manages is that
+  store's whole contract, so its own connections enlist in an ambient transaction as they always have.
+

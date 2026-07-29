@@ -607,6 +607,34 @@
     If the calculated day would cross a month boundary it will be reset to the 1st of the month. (e.g. LW-30 in Feb will be 1st Feb)
   * Add cron parser support for day-of-month and day-of-week together. (#1543)
 
+#### Transactional scheduling
+
+  * AdoJobStore can now take part in a transaction the application owns, so saving your own data and scheduling
+    the job that acts on it commit together or not at all (#2038). Turn it on with
+    `AcceptEnlistedTransactions()` on the persistent store builder, `JobStore:AcceptEnlistedTransactions`, or
+    `quartz.jobStore.acceptEnlistedTransactions`, then hand the store a connection for the duration of a scope:
+
+    ```csharp
+    await using var tx = await dbContext.Database.BeginTransactionAsync();
+    await dbContext.SaveChangesAsync();
+
+    using (scheduler.EnlistTransaction(tx.GetDbTransaction()))
+    {
+        await scheduler.ScheduleJob(job, trigger);
+        await tx.CommitAsync();
+    }
+    ```
+
+    Handing over a connection is the only way to take part: a connection the job store opens for itself is
+    deliberately kept out of any ambient `TransactionScope`, since a second connection in that transaction would
+    require promoting it to a distributed one. New public API: the `SchedulerEnlistmentExtensions` static class with
+    `EnlistTransaction` and `EnlistConnection` extension methods on `IScheduler`,
+    `AdoJobStoreOptions.AcceptEnlistedTransactions`,
+    `IPersistentStoreBuilder.AcceptEnlistedTransactions()` — the last of which is a breaking addition for anyone
+    implementing `IPersistentStoreBuilder` themselves — and `DelegatingScheduler.InnerScheduler`, so a decorated
+    scheduler can still be resolved to the real one. See
+    [Joining an existing transaction](https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/job-stores.html#joining-an-existing-transaction).
+
 ### FIXES
 
   * Fix for deserializing CronExpression using Json Serializer throwing error calling `GetNextValidTimeAfter`.  (#1996)
