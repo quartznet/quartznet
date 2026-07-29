@@ -54,6 +54,7 @@
   </ItemGroup>
   <ItemGroup Condition=" '$(TargetFramework)' == 'net472' ">
     <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Transactions" />
     <PackageReference Include="Oracle.ManagedDataAccess" Version="23.26.100" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">

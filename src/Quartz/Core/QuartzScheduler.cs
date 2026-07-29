@@ -157,6 +157,11 @@ public class QuartzScheduler :
     public virtual Type JobStoreClass => resources.JobStore.GetType();
 
     /// <summary>
+    /// The job store backing this scheduler.
+    /// </summary>
+    internal IJobStore JobStore => resources.JobStore;
+
+    /// <summary>
     /// Gets the thread pool class.
     /// </summary>
     /// <value>The thread pool class.</value>
@@ -363,8 +368,23 @@ public class QuartzScheduler :
         if (!initialStart.HasValue)
         {
             initialStart = SystemTime.UtcNow();
-            await resources.JobStore.SchedulerStarted(cancellationToken).ConfigureAwait(false);
-            await StartPlugins(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await resources.JobStore.SchedulerStarted(cancellationToken).ConfigureAwait(false);
+                await StartPlugins(cancellationToken).ConfigureAwait(false);
+            }
+            catch (SchedulerStartRefusedException)
+            {
+                // Refused before the job store set anything up, so starting again is safe once the
+                // caller has fixed the cause. Leaving the marker latched would send the retry down
+                // the "already started" path, skipping job recovery, the misfire handler and cluster
+                // check-in while still starting the acquire loop. Only this one exception un-latches:
+                // a failure further in may already have created those, and re-running would orphan
+                // them - the abandoned misfire handler owns a foreground thread that outlives
+                // Shutdown and keeps the process alive.
+                initialStart = null;
+                throw;
+            }
         }
         else
         {
