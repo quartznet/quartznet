@@ -108,7 +108,7 @@ public interface IJobDetail
     /// Get a <see cref="JobBuilder" /> that is configured to produce a 
     /// <see cref="IJobDetail" /> identical to this one.
     /// </summary>
-    JobBuilder GetJobBuilder();
+    JobBuilder<IJob> GetJobBuilder();
 
     IJobDetail Clone();
 }

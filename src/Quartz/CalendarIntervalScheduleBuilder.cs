@@ -302,7 +302,7 @@ public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarI
     ///</remarks>
     /// <seealso cref="SkipDayIfHourDoesNotExist"/>
     /// <seealso cref="InTimeZone"/>
-    /// <seealso cref="TriggerBuilder.StartAt"/>
+    /// <seealso cref="TriggerBuilder{TJob}.StartAt"/>
     public CalendarIntervalScheduleBuilder PreserveHourOfDayAcrossDaylightSavings(bool preserveHourOfDay)
     {
         preserveHourOfDayAcrossDaylightSavings = preserveHourOfDay;
@@ -354,16 +354,21 @@ public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarI
 /// </summary>
 public static class CalendarIntervalTriggerBuilderExtensions
 {
-    public static TriggerBuilder WithCalendarIntervalSchedule(this TriggerBuilder triggerBuilder)
+    public static TriggerBuilder<TJob> WithCalendarIntervalSchedule<TJob>(this TriggerBuilder<TJob> triggerBuilder) where TJob : IJob
     {
         CalendarIntervalScheduleBuilder builder = CalendarIntervalScheduleBuilder.Create();
         return triggerBuilder.WithSchedule(builder);
     }
 
-    public static TriggerBuilder WithCalendarIntervalSchedule(this TriggerBuilder triggerBuilder, Action<CalendarIntervalScheduleBuilder> action)
+    public static TriggerBuilder<TJob> WithCalendarIntervalSchedule<TJob>(this TriggerBuilder<TJob> triggerBuilder, Action<CalendarIntervalScheduleBuilder> action) where TJob : IJob
     {
         CalendarIntervalScheduleBuilder builder = CalendarIntervalScheduleBuilder.Create();
         action(builder);
         return triggerBuilder.WithSchedule(builder);
+    }
+
+    public static TriggerBuilder<TJob> WithCalendarIntervalSchedule<TJob>(this TriggerBuilder<TJob> triggerBuilder, CalendarIntervalScheduleBuilder schedule) where TJob : IJob
+    {
+        return triggerBuilder.WithSchedule(schedule);
     }
 }

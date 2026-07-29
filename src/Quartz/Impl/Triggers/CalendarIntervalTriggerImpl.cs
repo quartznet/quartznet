@@ -316,7 +316,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
     ///</remarks>
     /// <seealso cref="ICalendarIntervalTrigger.SkipDayIfHourDoesNotExist"/>
     /// <seealso cref="ICalendarIntervalTrigger.TimeZone"/>
-    /// <seealso cref="TriggerBuilder.StartAt"/>
+    /// <seealso cref="TriggerBuilder{TJob}.StartAt"/>
     public bool PreserveHourOfDayAcrossDaylightSavings { get; set; }
 
     /// <summary>

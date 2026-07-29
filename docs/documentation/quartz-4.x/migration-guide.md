@@ -580,6 +580,116 @@ The cron expression parser now supports additional syntax:
 * **H (hash) token in cron expressions** — deterministic load distribution across triggers using the trigger identity as seed
 * **HTTP API** — optional REST API for managing the scheduler remotely (see [HTTP API](packages/http-api.md))
 * **Paged, projected job store queries** — list and count jobs, triggers, groups and calendars a page at a time, with the metadata a listing needs already in the row (see [Job store listings became queries](#job-store-listings-became-queries))
+* **Job data by property name** — bind job data to the job property it is meant for instead of spelling its key (see [Job data can name the property](#job-data-can-name-the-property))
+
+## Job data can name the property
+
+`UsingJobData` has an overload that takes the job property rather than its key:
+
+```diff
+  q.AddJob<ExampleJob>(jobKey, j => j
+-     .UsingJobData(nameof(ExampleJob.InjectedString), "Hello")
+-     .UsingJobData(nameof(ExampleJob.InjectedBool), true)
++     .UsingJobData(x => x.InjectedString, "Hello")
++     .UsingJobData(x => x.InjectedBool, true)
+  );
+```
+
+The key is the property's name and the value has to be of the property's type, so a value that would have
+been silently coerced — an `int` written to a `string` property, say — no longer compiles, and neither does
+a property of an unrelated job.
+
+Everything the compiler cannot rule out is rejected where the job data is written, by asking the job
+factory's own lookup whether the key this property's name becomes leads back to this same property:
+
+- a property with no public setter, or a nested path;
+- one reached by casting the lambda parameter to another job;
+- one the factory cannot find — a name starting with a lowercase letter (keys are looked up upper-cased),
+  or a property that implements an interface explicitly, which is not public on the job class;
+- one whose name resolves to a *different* property of another type, which is what a `new` member that
+  hides a base property does;
+- a value that will not convert to the property's type, or that would lose information doing so — a
+  `double` rounded into an `int`, or saturated into a `float`;
+- `null` for a property that cannot hold one. Type inference widens `TValue` to the nullable form, so
+  `int? retries = …; UsingJobData(j => j.RetryCount, retries)` compiles and is rejected here rather than
+  quietly becoming `0` when the job runs.
+
+Enums are stored by name. Nothing is instantiated: the expression is read, never run.
+
+Existing string-keyed `UsingJobData` calls are unaffected.
+
+### The builders carry the job type
+
+Inferring `x` needs the builder to know the job type, so the builders and the configurator interfaces are
+generic in it. `JobBuilder` and `TriggerBuilder` are now static classes holding the `Create` methods, and
+the builder itself is `JobBuilder<TJob>` / `TriggerBuilder<TJob>`:
+
+| 4.0 preview | 4.0 |
+|---|---|
+| `JobBuilder` | `JobBuilder<TJob>`, from `JobBuilder.Create<TJob>()` — `JobBuilder.Create()` gives `JobBuilder<IJob>` |
+| `TriggerBuilder` | `TriggerBuilder<TJob>`, from `TriggerBuilder.Create<TJob>()` — `TriggerBuilder.Create()` gives `TriggerBuilder<IJob>` |
+| `IJobConfigurator` | `IJobConfigurator<TJob>` |
+| `ITriggerConfigurator` | `ITriggerConfigurator<TJob>` |
+| `IJobDetail.GetJobBuilder()` | returns `JobBuilder<IJob>` |
+| `ITrigger.GetTriggerBuilder()` | returns `TriggerBuilder<IJob>` |
+
+Chained code is unaffected — `JobBuilder.Create<MyJob>().WithIdentity("x").Build()` reads the same, and so
+do the `AddJob<T>` / `ScheduleJob<T>` lambdas, whose parameter type is now inferred as the generic
+configurator. What breaks is naming the builder as a type:
+
+```diff
+- TriggerBuilder builder = trigger.GetTriggerBuilder();
++ var builder = trigger.GetTriggerBuilder();
+```
+
+The configurator interfaces are **invariant** in `TJob`, so a configuration delegate shared across job
+types no longer type-checks. `TJob` appears both as an input (`Expression<Func<TJob, TValue>>`) and in the
+returned interface, so no variance annotation can recover it — make the helper generic instead:
+
+```diff
+- Action<ITriggerConfigurator> common = t => t.StartNow().WithSimpleSchedule();
+- q.ScheduleJob<JobA>(common);
+- q.ScheduleJob<JobB>(common);
++ static void Common<TJob>(ITriggerConfigurator<TJob> t) where TJob : IJob => t.StartNow().WithSimpleSchedule();
++ q.ScheduleJob<JobA>(Common);
++ q.ScheduleJob<JobB>(Common);
+```
+
+`AddTrigger` gained an `AddTrigger<TJob>` overload, because a trigger added on its own has no job type to
+infer from otherwise. The internal `TriggerConfigurator` is gone: `TriggerBuilder<TJob>` implements
+`ITriggerConfigurator<TJob>` itself, which also gets `WithExecutionGroup` and `WithPreferredNode` onto the
+DI configurator for the first time.
+
+That deletion also changed which clock a DI-registered trigger is born with. `TriggerConfigurator` always
+built with `TimeProvider.System`; `AddTrigger` and `ScheduleJob` now use the container's registered
+`TimeProvider`. If you register a non-system one — a `FakeTimeProvider` in a test, say — a trigger without
+an explicit `StartAt` now starts at that provider's now rather than at wall clock, which is almost
+certainly what you wanted, but it does change when such triggers first fire.
+
+Three runtime checks come with the type parameter, all only on a builder whose `TJob` is not `IJob`:
+
+* `JobBuilder.Create<TJob>().OfType(type)` and `OfType<T>()` throw `ArgumentException` **at the `OfType`
+  call** when the type is not a `TJob`. If you resolve a job type at runtime — from configuration, or a
+  decorator type — build it with `JobBuilder.Create(type)` rather than the generic overload.
+* `JobBuilder.Create<TJob>().OfType(typeName)` throws `InvalidOperationException` on `Build()` instead,
+  because a type named by string is only known once it resolves.
+* `TriggerBuilder.Create<TJob>().ForJob(jobDetail)` throws `ArgumentException` when the detail is not for a
+  `TJob`. `ForJob(JobKey)` carries no type, and a detail whose type name does not resolve in this process
+  cannot be checked either — both are accepted.
+
+## Trimming annotations
+
+`ScheduleJob<T>`, `AddTrigger<TJob>` and `TriggerBuilder.Create<TJob>()` gained
+`[DynamicallyAccessedMembers]` on their type parameter, matching `AddJob<T>` and `JobBuilder.Create<T>()` —
+they build job details or bind job data now, so the job type's members have to survive trimming. If you
+wrap them in your own generic method and build with the trim analyzer on, the forwarding type parameter
+needs the same annotation:
+
+```diff
+- public static void Register<TJob>(IQuartzBuilder q) where TJob : IJob
++ public static void Register<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] TJob>(IQuartzBuilder q) where TJob : IJob
+      => q.ScheduleJob<TJob>(t => t.StartNow());
+```
 
 ## Batched Misfire Recovery
 
@@ -989,8 +1099,8 @@ called out.
 | `JobStoreSupport.UseProperties` `string` setter removed | The `bool` `AdoJobStoreOptions.UseProperties` option and the read-only `CanUseProperties` remain; the property bridge parses the key |
 | Protected `JobStoreSupport` / `StdAdoDelegate` members take a `CancellationToken` | Overrides have to add the parameter; callers do not |
 | `ConnectionAndTransactionHolder.Close`, `.Commit`, `.Rollback` take a `CancellationToken` | Same |
-| `IJobConfigurator` members return `IJobConfigurator` | `JobBuilder` implements them explicitly and keeps its own `JobBuilder`-returning members, so `JobBuilder.Create()…` chains are unaffected |
-| `IJobConfigurator` / `JobBuilder` gained `UsingJobData(string, decimal)` | And `UsingJobData(string, string?)` accepts null |
+| `IJobConfigurator<TJob>` members return `IJobConfigurator<TJob>` | `JobBuilder<TJob>` implements them explicitly and keeps its own `JobBuilder<TJob>`-returning members, so `JobBuilder.Create()…` chains are unaffected — see [Job data can name the property](#job-data-can-name-the-property) for the type parameter |
+| `IJobConfigurator<TJob>` / `JobBuilder<TJob>` gained `UsingJobData(string, decimal)` | And `UsingJobData(string, string?)` accepts null |
 | `IDirectoryScanListener` is asynchronous | `FilesUpdatedOrAdded` and `FilesDeleted` return `ValueTask` and take a `CancellationToken` |
 | `LoggingJobHistoryPlugin.Name`, `LoggingTriggerHistoryPlugin.Name` are get-only | The name is handed to a plugin by `Initialize`; writing it afterwards did nothing |
 | `TimeSpanParseRuleAttribute` is public | It says how a bare number in configuration is read as a `TimeSpan`, which a component configured by the same keys needs to be able to say |

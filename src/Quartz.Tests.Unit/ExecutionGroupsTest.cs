@@ -39,7 +39,7 @@ public sealed class ExecutionGroupsTest
             .WithExecutionGroup("cpu-intensive")
             .Build();
 
-        TriggerBuilder builder = trigger.GetTriggerBuilder();
+        var builder = trigger.GetTriggerBuilder();
         ITrigger rebuilt = builder.Build();
 
         AbstractTrigger at = (AbstractTrigger) rebuilt;

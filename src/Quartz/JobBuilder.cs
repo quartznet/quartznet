@@ -20,8 +20,10 @@
 #endregion
 
 using System.Diagnostics.CodeAnalysis;
+using System.Linq.Expressions;
 
 using Quartz.Impl;
+using Quartz.Util;
 
 namespace Quartz;
 
@@ -63,7 +65,55 @@ namespace Quartz;
 /// <seealso cref="TriggerBuilder" />
 /// <seealso cref="DateBuilder" />
 /// <seealso cref="IJobDetail" />
-public sealed class JobBuilder : IJobConfigurator
+public static class JobBuilder
+{
+    /// <summary>
+    /// Create a JobBuilder with which to define a <see cref="IJobDetail" />.
+    /// </summary>
+    /// <returns>a new JobBuilder</returns>
+    public static JobBuilder<IJob> Create()
+    {
+        return new JobBuilder<IJob>();
+    }
+
+    /// <summary>
+    /// Create a JobBuilder with which to define a <see cref="IJobDetail" />,
+    /// and set the class name of the job to be executed.
+    /// </summary>
+    /// <returns>a new JobBuilder</returns>
+    public static JobBuilder<IJob> Create([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)] Type jobType)
+    {
+        var b = new JobBuilder<IJob>();
+        b.OfType(jobType);
+        return b;
+    }
+
+    /// <summary>
+    /// Create a JobBuilder for a known job type, with which to define a <see cref="IJobDetail" />.
+    /// </summary>
+    /// <remarks>
+    /// The job type stays with the builder, so job data can name the job's properties rather than spell
+    /// their keys.
+    /// </remarks>
+    /// <returns>a new JobBuilder</returns>
+    public static JobBuilder<T> Create<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)] T>() where T : IJob
+    {
+        var b = new JobBuilder<T>();
+        b.OfType<T>();
+        return b;
+    }
+}
+
+/// <summary>
+/// JobBuilder is used to instantiate <see cref="IJobDetail" />s for a known job type.
+/// </summary>
+/// <remarks>
+/// Knowing the job type is what lets <see cref="UsingJobData{TValue}" /> take the job's property instead of
+/// its key. <c>JobBuilder.Create()</c> gives a builder for <see cref="IJob" />, which has no properties to
+/// name; <c>JobBuilder.Create&lt;TJob&gt;()</c> gives one that does.
+/// </remarks>
+/// <seealso cref="JobBuilder" />
+public sealed class JobBuilder<TJob> : IJobConfigurator<TJob> where TJob : IJob
 {
     private JobKey? _key;
     private string? _description;
@@ -80,41 +130,8 @@ public sealed class JobBuilder : IJobConfigurator
     /// </summary>
     internal JobKey? Key => _key;
 
-    private JobBuilder()
+    internal JobBuilder()
     {
-    }
-
-    /// <summary>
-    /// Create a JobBuilder with which to define a <see cref="IJobDetail" />.
-    /// </summary>
-    /// <returns>a new JobBuilder</returns>
-    public static JobBuilder Create()
-    {
-        return new JobBuilder();
-    }
-
-    /// <summary>
-    /// Create a JobBuilder with which to define a <see cref="IJobDetail" />,
-    /// and set the class name of the job to be executed.
-    /// </summary>
-    /// <returns>a new JobBuilder</returns>
-    public static JobBuilder Create([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] Type jobType)
-    {
-        JobBuilder b = new JobBuilder();
-        b.OfType(jobType);
-        return b;
-    }
-
-    /// <summary>
-    /// Create a JobBuilder with which to define a <see cref="IJobDetail" />,
-    /// and set the class name of the job to be executed.
-    /// </summary>
-    /// <returns>a new JobBuilder</returns>
-    public static JobBuilder Create<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>() where T : IJob
-    {
-        JobBuilder b = new JobBuilder();
-        b.OfType<T>();
-        return b;
     }
 
     /// <summary>
@@ -133,10 +150,18 @@ public sealed class JobBuilder : IJobConfigurator
 
         // When the user specified a job type, we can deduce the values for
         // ConcurrentExecutionDisallowed and PersistJobDataAfterExecution if
-        // no explicit values were specified
-        var resolvedJobType = Type.GetType(_jobType.FullName);
-        if (resolvedJobType is not null)
+        // no explicit values were specified. The JobType resolves itself, so a type it was given directly
+        // is the one we get back rather than whatever its name happens to bind to.
+        if (_jobType.TryResolve(out var resolvedJobType))
         {
+            // A typed builder that was pointed at some other job through OfType would hand its job data to
+            // a job that has no such properties. Nothing else can make these disagree, and a builder for
+            // IJob names no properties, so it has nothing to protect.
+            if (typeof(TJob) != typeof(IJob) && !typeof(TJob).IsAssignableFrom(resolvedJobType))
+            {
+                Throw.InvalidOperationException($"This builder configures a {typeof(TJob)}, but the job being built is a {resolvedJobType}.");
+            }
+
             if (!_concurrentExecutionDisallowed.HasValue)
             {
                 concurrentExecutionDisallowed = JobTypeInformation.GetOrCreate(resolvedJobType).ConcurrentExecutionDisallowed;
@@ -171,7 +196,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// one of its ancestors or one of the interfaces that it implements, is annotated with <see cref="DisallowConcurrentExecutionAttribute"/>.
     /// </remarks>
     /// <seealso cref="DisallowConcurrentExecutionAttribute"/>
-    public JobBuilder DisallowConcurrentExecution(bool concurrentExecutionDisallowed = true)
+    public JobBuilder<TJob> DisallowConcurrentExecution(bool concurrentExecutionDisallowed = true)
     {
         _concurrentExecutionDisallowed = concurrentExecutionDisallowed;
         return this;
@@ -189,7 +214,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// its ancestors or one of the interfaces that it implements, is annotated with <see cref="PersistJobDataAfterExecutionAttribute"/>.
     /// </remarks>
     /// <seealso cref="PersistJobDataAfterExecutionAttribute"/>
-    public JobBuilder PersistJobDataAfterExecution(bool persistJobDataAfterExecution = true)
+    public JobBuilder<TJob> PersistJobDataAfterExecution(bool persistJobDataAfterExecution = true)
     {
         _persistJobDataAfterExecution = persistJobDataAfterExecution;
         return this;
@@ -207,7 +232,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// <returns>the updated JobBuilder</returns>
     /// <seealso cref="JobKey" />
     /// <seealso cref="IJobDetail.Key" />
-    public JobBuilder WithIdentity(string name)
+    public JobBuilder<TJob> WithIdentity(string name)
     {
         _key = new JobKey(name);
         return this;
@@ -226,7 +251,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// <returns>the updated JobBuilder</returns>
     /// <seealso cref="JobKey" />
     /// <seealso cref="IJobDetail.Key" />
-    public JobBuilder WithIdentity(string name, string group)
+    public JobBuilder<TJob> WithIdentity(string name, string group)
     {
         _key = new JobKey(name, group);
         return this;
@@ -243,7 +268,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// <returns>the updated JobBuilder</returns>
     /// <seealso cref="JobKey" />
     /// <seealso cref="IJobDetail.Key" />
-    public JobBuilder WithIdentity(JobKey key)
+    public JobBuilder<TJob> WithIdentity(JobKey key)
     {
         this._key = key;
         return this;
@@ -255,7 +280,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// <param name="description"> the description for the Job</param>
     /// <returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.Description" />
-    public JobBuilder WithDescription(string? description)
+    public JobBuilder<TJob> WithDescription(string? description)
     {
         this._description = description;
         return this;
@@ -266,7 +291,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// </summary>
     /// <param name="typeName">the Type name</param>
     /// <returns>the updated JobBuilder</returns>
-    public JobBuilder OfType(string typeName)
+    public JobBuilder<TJob> OfType(string typeName)
     {
         _jobType = typeName;
         return this;
@@ -278,7 +303,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// </summary>
     /// <returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobType" />
-    public JobBuilder OfType<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
+    public JobBuilder<TJob> OfType<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)] T>() where T : TJob
     {
         return OfType(typeof(T));
     }
@@ -289,8 +314,15 @@ public sealed class JobBuilder : IJobConfigurator
     /// </summary>
     /// <returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobType" />
-    public JobBuilder OfType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] Type type)
+    public JobBuilder<TJob> OfType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)] Type type)
     {
+        // The type is known here, so the mismatch is reported at the call that caused it rather than at
+        // the build - which, configured through the container, happens somewhere else entirely.
+        if (typeof(TJob) != typeof(IJob) && !typeof(TJob).IsAssignableFrom(type))
+        {
+            Throw.ArgumentException($"This builder configures a {typeof(TJob)}, but {type} is not one.", nameof(type));
+        }
+
         _jobType = new JobType(type);
         return this;
     }
@@ -305,7 +337,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// </remarks>
     /// <param name="shouldRecover"></param>
     /// <returns>the updated JobBuilder</returns>
-    public JobBuilder RequestRecovery(bool shouldRecover = true)
+    public JobBuilder<TJob> RequestRecovery(bool shouldRecover = true)
     {
         this._shouldRecover = shouldRecover;
         return this;
@@ -321,7 +353,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// <param name="durability">the value to set for the durability property.</param>
     ///<returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.Durable" />
-    public JobBuilder StoreDurably(bool durability = true)
+    public JobBuilder<TJob> StoreDurably(bool durability = true)
     {
         this._durability = durability;
         return this;
@@ -332,7 +364,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// </summary>
     ///<returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobDataMap" />
-    public JobBuilder UsingJobData(string key, string? value)
+    public JobBuilder<TJob> UsingJobData(string key, string? value)
     {
         jobDataMap[key] = value;
         return this;
@@ -343,7 +375,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// </summary>
     ///<returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobDataMap" />
-    public JobBuilder UsingJobData(string key, int value)
+    public JobBuilder<TJob> UsingJobData(string key, int value)
     {
         jobDataMap[key] = value;
         return this;
@@ -354,7 +386,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// </summary>
     ///<returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobDataMap" />
-    public JobBuilder UsingJobData(string key, long value)
+    public JobBuilder<TJob> UsingJobData(string key, long value)
     {
         jobDataMap[key] = value;
         return this;
@@ -365,7 +397,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// </summary>
     ///<returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobDataMap" />
-    public JobBuilder UsingJobData(string key, float value)
+    public JobBuilder<TJob> UsingJobData(string key, float value)
     {
         jobDataMap[key] = value;
         return this;
@@ -376,7 +408,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// </summary>
     ///<returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobDataMap" />
-    public JobBuilder UsingJobData(string key, double value)
+    public JobBuilder<TJob> UsingJobData(string key, double value)
     {
         jobDataMap[key] = value;
         return this;
@@ -387,7 +419,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// </summary>
     ///<returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobDataMap" />
-    public JobBuilder UsingJobData(string key, decimal value)
+    public JobBuilder<TJob> UsingJobData(string key, decimal value)
     {
         jobDataMap[key] = value;
         return this;
@@ -398,7 +430,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// </summary>
     ///<returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobDataMap" />
-    public JobBuilder UsingJobData(string key, bool value)
+    public JobBuilder<TJob> UsingJobData(string key, bool value)
     {
         jobDataMap[key] = value;
         return this;
@@ -409,7 +441,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// </summary>
     ///<returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobDataMap" />
-    public JobBuilder UsingJobData(string key, Guid value)
+    public JobBuilder<TJob> UsingJobData(string key, Guid value)
     {
         jobDataMap[key] = value;
         return this;
@@ -420,9 +452,42 @@ public sealed class JobBuilder : IJobConfigurator
     /// </summary>
     ///<returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobDataMap" />
-    public JobBuilder UsingJobData(string key, char value)
+    public JobBuilder<TJob> UsingJobData(string key, char value)
     {
         jobDataMap[key] = value;
+        return this;
+    }
+
+    /// <summary>
+    /// Add a value to the JobDetail's <see cref="JobDataMap" /> under the name of the job property it is
+    /// meant to end up on.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The property is named rather than spelled, so the key cannot be mistyped and the value cannot be of
+    /// the wrong type. It has to be a public settable property read directly off the job - a path through
+    /// another property has nowhere to land, since the job factory sets properties on the job instance
+    /// itself - and it is rejected here rather than dropped silently when the job runs. Properties
+    /// inherited from a base job are fine.
+    /// </para>
+    /// <para>
+    /// The value is stored in the property's own type, so an implicit widening at the call site is undone
+    /// and a value that does not fit is rejected here. An enum property takes the enum's name.
+    /// </para>
+    /// <para>
+    /// The same care applies as to any other job data: a persistent job store can only hold what its
+    /// serializer round-trips, and AdoJobStore's <c>UseProperties</c> mode only strings. Nothing beyond
+    /// enums is converted for you.
+    /// </para>
+    /// </remarks>
+    /// <param name="jobProperty">an expression naming the job property, such as <c>job =&gt; job.Parameter</c></param>
+    /// <param name="value">the value to bind to that property</param>
+    ///<returns>the updated JobBuilder</returns>
+    /// <seealso cref="IJobDetail.JobDataMap" />
+    public JobBuilder<TJob> UsingJobData<TValue>(Expression<Func<TJob, TValue>> jobProperty, TValue value)
+    {
+        var property = JobDataExpression.GetProperty(jobProperty);
+        jobDataMap[property.Name] = JobDataExpression.NormalizeValue(property, value);
         return this;
     }
 
@@ -432,7 +497,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// </summary>
     ///<returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobDataMap" />
-    public JobBuilder UsingJobData(JobDataMap newJobDataMap)
+    public JobBuilder<TJob> UsingJobData(JobDataMap newJobDataMap)
     {
         if (newJobDataMap is null)
         {
@@ -451,7 +516,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// </summary>
     /// <param name="newJobDataMap"></param>
     /// <returns></returns>
-    public JobBuilder SetJobData(JobDataMap newJobDataMap)
+    public JobBuilder<TJob> SetJobData(JobDataMap newJobDataMap)
     {
         if (newJobDataMap is null)
         {
@@ -461,41 +526,43 @@ public sealed class JobBuilder : IJobConfigurator
         return this;
     }
 
-    IJobConfigurator IJobConfigurator.WithIdentity(string name) => WithIdentity(name);
+    IJobConfigurator<TJob> IJobConfigurator<TJob>.WithIdentity(string name) => WithIdentity(name);
 
-    IJobConfigurator IJobConfigurator.WithIdentity(string name, string group) => WithIdentity(name, group);
+    IJobConfigurator<TJob> IJobConfigurator<TJob>.WithIdentity(string name, string group) => WithIdentity(name, group);
 
-    IJobConfigurator IJobConfigurator.WithIdentity(JobKey key) => WithIdentity(key);
+    IJobConfigurator<TJob> IJobConfigurator<TJob>.WithIdentity(JobKey key) => WithIdentity(key);
 
-    IJobConfigurator IJobConfigurator.WithDescription(string? description) => WithDescription(description);
+    IJobConfigurator<TJob> IJobConfigurator<TJob>.WithDescription(string? description) => WithDescription(description);
 
-    IJobConfigurator IJobConfigurator.RequestRecovery(bool shouldRecover) => RequestRecovery(shouldRecover);
+    IJobConfigurator<TJob> IJobConfigurator<TJob>.RequestRecovery(bool shouldRecover) => RequestRecovery(shouldRecover);
 
-    IJobConfigurator IJobConfigurator.StoreDurably(bool durability) => StoreDurably(durability);
+    IJobConfigurator<TJob> IJobConfigurator<TJob>.StoreDurably(bool durability) => StoreDurably(durability);
 
-    IJobConfigurator IJobConfigurator.UsingJobData(string key, string? value) => UsingJobData(key, value);
+    IJobConfigurator<TJob> IJobConfigurator<TJob>.UsingJobData(string key, string? value) => UsingJobData(key, value);
 
-    IJobConfigurator IJobConfigurator.UsingJobData(string key, int value) => UsingJobData(key, value);
+    IJobConfigurator<TJob> IJobConfigurator<TJob>.UsingJobData(string key, int value) => UsingJobData(key, value);
 
-    IJobConfigurator IJobConfigurator.UsingJobData(string key, long value) => UsingJobData(key, value);
+    IJobConfigurator<TJob> IJobConfigurator<TJob>.UsingJobData(string key, long value) => UsingJobData(key, value);
 
-    IJobConfigurator IJobConfigurator.UsingJobData(string key, float value) => UsingJobData(key, value);
+    IJobConfigurator<TJob> IJobConfigurator<TJob>.UsingJobData(string key, float value) => UsingJobData(key, value);
 
-    IJobConfigurator IJobConfigurator.UsingJobData(string key, double value) => UsingJobData(key, value);
+    IJobConfigurator<TJob> IJobConfigurator<TJob>.UsingJobData(string key, double value) => UsingJobData(key, value);
 
-    IJobConfigurator IJobConfigurator.UsingJobData(string key, decimal value) => UsingJobData(key, value);
+    IJobConfigurator<TJob> IJobConfigurator<TJob>.UsingJobData(string key, decimal value) => UsingJobData(key, value);
 
-    IJobConfigurator IJobConfigurator.UsingJobData(string key, bool value) => UsingJobData(key, value);
+    IJobConfigurator<TJob> IJobConfigurator<TJob>.UsingJobData(string key, bool value) => UsingJobData(key, value);
 
-    IJobConfigurator IJobConfigurator.UsingJobData(string key, Guid value) => UsingJobData(key, value);
+    IJobConfigurator<TJob> IJobConfigurator<TJob>.UsingJobData(string key, Guid value) => UsingJobData(key, value);
 
-    IJobConfigurator IJobConfigurator.UsingJobData(string key, char value) => UsingJobData(key, value);
+    IJobConfigurator<TJob> IJobConfigurator<TJob>.UsingJobData(string key, char value) => UsingJobData(key, value);
 
-    IJobConfigurator IJobConfigurator.UsingJobData(JobDataMap newJobDataMap) => UsingJobData(newJobDataMap);
+    IJobConfigurator<TJob> IJobConfigurator<TJob>.UsingJobData<TValue>(Expression<Func<TJob, TValue>> jobProperty, TValue value) => UsingJobData(jobProperty, value);
 
-    IJobConfigurator IJobConfigurator.SetJobData(JobDataMap newJobDataMap) => SetJobData(newJobDataMap);
+    IJobConfigurator<TJob> IJobConfigurator<TJob>.UsingJobData(JobDataMap newJobDataMap) => UsingJobData(newJobDataMap);
 
-    IJobConfigurator IJobConfigurator.DisallowConcurrentExecution(bool concurrentExecutionDisallowed) => DisallowConcurrentExecution(concurrentExecutionDisallowed);
+    IJobConfigurator<TJob> IJobConfigurator<TJob>.SetJobData(JobDataMap newJobDataMap) => SetJobData(newJobDataMap);
 
-    IJobConfigurator IJobConfigurator.PersistJobDataAfterExecution(bool persistJobDataAfterExecution) => PersistJobDataAfterExecution(persistJobDataAfterExecution);
+    IJobConfigurator<TJob> IJobConfigurator<TJob>.DisallowConcurrentExecution(bool concurrentExecutionDisallowed) => DisallowConcurrentExecution(concurrentExecutionDisallowed);
+
+    IJobConfigurator<TJob> IJobConfigurator<TJob>.PersistJobDataAfterExecution(bool persistJobDataAfterExecution) => PersistJobDataAfterExecution(persistJobDataAfterExecution);
 }

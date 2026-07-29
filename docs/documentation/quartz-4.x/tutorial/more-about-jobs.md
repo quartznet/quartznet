@@ -113,6 +113,84 @@ then Quartz's default JobFactory implementation will automatically call those se
 thus preventing the need to explicitly get the values out of the map within your execute method. Note this
 functionality is not maintained by default when using a custom JobFactory.
 
+### Naming the property instead of the key
+
+When the value is meant for one of those properties, you can name the property rather than spell its key.
+The key is then the property's own name, and the value has to be of the property's own type:
+
+```csharp
+public class DumbJob : IJob
+{
+ public string JobSays { get; set; }
+ public float FloatValue { get; set; }
+ // ...
+}
+
+IJobDetail job = JobBuilder.Create<DumbJob>()
+ .WithIdentity("myJob", "group1")
+ .UsingJobData(j => j.JobSays, "Hello World!")
+ .UsingJobData(j => j.FloatValue, 3.141f)
+ .Build();
+```
+
+`JobBuilder.Create<DumbJob>()` returns a `JobBuilder<DumbJob>`, and it is that job type which lets `j` be
+inferred. `JobBuilder.Create()` builds for `IJob`, which has no properties to name, so use the generic
+overload when you want to configure a job this way. Nothing is instantiated - the expression is only read,
+never run.
+
+The property has to be readable as well as publicly settable for this to work, so a property declared
+`{ private get; set; }` cannot be named this way. Give it an ordinary getter if you want to configure it by
+name.
+
+A mistake is caught rather than swallowed. A property of an unrelated job does not compile at all, and
+everything the compiler cannot rule out is rejected on the spot: a property with no public setter, a nested
+path such as `j => j.Something.Nested`, a property reached by casting the job to another type, a value that
+will not convert to the property's type or would lose information doing so, and a `null` for a property
+that cannot hold one. Compare that to a mistyped string key, which binds to nothing and leaves the job
+running with its defaults, or a wrong-typed value, which is silently coerced.
+
+The remaining rules all follow from one thing: only a *name* reaches the map, and the job factory turns
+that name back into a property by its own lookup. So the check is simply to run that lookup and insist it
+arrives back at the property you named. A property whose name starts with a lower-case letter fails it,
+because keys are only ever looked up with the first character upper-cased; so does one that implements an
+interface explicitly, because it is not public on the job class; and so does one whose name resolves to a
+different property of another type, which is what a `new` member hiding a base property does.
+
+An enum is stored as its name, so it survives a persistent store and still reads sensibly in the map itself.
+Otherwise the same care applies as to any other job data: the store has to be able to serialize the value.
+
+Triggers work the same way through `TriggerBuilder.Create<DumbJob>()`, which is how one job takes different
+inputs per trigger:
+
+```csharp
+ITrigger trigger = TriggerBuilder.Create<DumbJob>()
+ .WithIdentity("myTrigger", "group1")
+ .ForJob(job)
+ .UsingJobData(j => j.JobSays, "Good evening!")
+ .Build();
+```
+
+`ForJob(IJobDetail)` also checks that the job really is a `DumbJob`, since that is the one overload that
+knows the job's type.
+
+The same applies to the configurators in the
+[Microsoft DI integration](../packages/microsoft-di-integration.md), where the job type comes from the call
+itself:
+
+```csharp
+q.AddJob<DumbJob>(j => j.UsingJobData(x => x.JobSays, "Hello World!"));
+
+q.ScheduleJob<DumbJob>(
+ t => t.StartNow().UsingJobData(x => x.JobSays, "Good evening!"),
+ j => j.WithIdentity("myJob"));
+
+// a trigger added on its own names the job type it fires
+q.AddTrigger<DumbJob>(t => t.ForJob(jobKey).UsingJobData(x => x.JobSays, "Good evening!"));
+```
+
+Plain `AddTrigger` has no job type to infer from — it configures an `ITriggerConfigurator<IJob>`, which has
+no properties to name — so use `AddTrigger<TJob>` when you want typed trigger data.
+
 Triggers can also have JobDataMaps associated with them. This can be useful in the case where you have a Job that is stored in the scheduler
 for regular/repeated use by multiple Triggers, yet with each independent triggering, you want to supply the Job with different data inputs.
 

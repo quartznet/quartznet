@@ -476,12 +476,12 @@ public class ServiceCollectionExtensionsTests
         {
             quartz.AddJob<DummyJob>(new JobKey("job1", "group1"));
 
-            // Explicit Action<ITriggerConfigurator> — must not be ambiguous
+            // Explicit Action<ITriggerConfigurator<IJob>> — must not be ambiguous
             quartz.AddTrigger(t => t
                 .ForJob(new JobKey("job1", "group1"))
                 .WithSimpleSchedule(s => s.WithRepeatCount(0)));
 
-            // Explicit Action<IServiceProvider, ITriggerConfigurator> — must not be ambiguous
+            // Explicit Action<IServiceProvider, ITriggerConfigurator<IJob>> — must not be ambiguous
             quartz.AddTrigger((sp, t) => t
                 .ForJob(new JobKey("job1", "group1"))
                 .WithSimpleSchedule(s => s.WithRepeatCount(0)));

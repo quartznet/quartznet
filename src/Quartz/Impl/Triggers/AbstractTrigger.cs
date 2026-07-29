@@ -158,7 +158,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
         }
     }
 
-    public TriggerBuilder GetTriggerBuilder()
+    public TriggerBuilder<IJob> GetTriggerBuilder()
     {
         return TriggerBuilder.Create()
             .ForJob(JobKey)

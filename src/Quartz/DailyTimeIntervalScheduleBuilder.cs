@@ -499,16 +499,39 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
 /// </summary>
 public static class DailyTimeIntervalTriggerBuilderExtensions
 {
-    public static TriggerBuilder WithDailyTimeIntervalSchedule(this TriggerBuilder triggerBuilder)
+    public static TriggerBuilder<TJob> WithDailyTimeIntervalSchedule<TJob>(this TriggerBuilder<TJob> triggerBuilder) where TJob : IJob
     {
         DailyTimeIntervalScheduleBuilder builder = DailyTimeIntervalScheduleBuilder.Create();
         return triggerBuilder.WithSchedule(builder);
     }
 
-    public static TriggerBuilder WithDailyTimeIntervalSchedule(this TriggerBuilder triggerBuilder, Action<DailyTimeIntervalScheduleBuilder> action)
+    public static TriggerBuilder<TJob> WithDailyTimeIntervalSchedule<TJob>(this TriggerBuilder<TJob> triggerBuilder, Action<DailyTimeIntervalScheduleBuilder> action) where TJob : IJob
     {
         DailyTimeIntervalScheduleBuilder builder = DailyTimeIntervalScheduleBuilder.Create();
         action(builder);
+        return triggerBuilder.WithSchedule(builder);
+    }
+
+    public static TriggerBuilder<TJob> WithDailyTimeIntervalSchedule<TJob>(this TriggerBuilder<TJob> triggerBuilder, DailyTimeIntervalScheduleBuilder schedule) where TJob : IJob
+    {
+        return triggerBuilder.WithSchedule(schedule);
+    }
+
+    /// <summary>
+    /// Sets up a trigger schedule for one or more occurrences every day.
+    /// </summary>
+    /// <param name="triggerBuilder">The trigger builder.</param>
+    /// <param name="interval">The interval count to configure on the builder initially, e.g. 12*hours</param>
+    /// <param name="intervalUnit">The unit for the interval count.</param>
+    /// <param name="action">Ability to further configure the scheduling.</param>
+    public static TriggerBuilder<TJob> WithDailyTimeIntervalSchedule<TJob>(
+        this TriggerBuilder<TJob> triggerBuilder,
+        int interval,
+        IntervalUnit intervalUnit,
+        Action<DailyTimeIntervalScheduleBuilder>? action = null) where TJob : IJob
+    {
+        DailyTimeIntervalScheduleBuilder builder = DailyTimeIntervalScheduleBuilder.Create().WithInterval(interval, intervalUnit);
+        action?.Invoke(builder);
         return triggerBuilder.WithSchedule(builder);
     }
 }

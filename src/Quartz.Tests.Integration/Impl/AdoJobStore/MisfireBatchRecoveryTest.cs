@@ -175,7 +175,7 @@ public class MisfireBatchRecoveryTest
     /// Stores a job and a trigger whose start time is well in the past, which is what puts it in the
     /// WAITING state with an overdue next fire time — exactly what misfire recovery looks for.
     /// </summary>
-    private static async Task StoreMisfiredTrigger(TestJobStoreTX jobStore, string name, TriggerBuilder builder)
+    private static async Task StoreMisfiredTrigger(TestJobStoreTX jobStore, string name, TriggerBuilder<IJob> builder)
     {
         IJobDetail job = JobBuilder.Create<MisfireTestJob>()
             .WithIdentity(name, "misfire-test")

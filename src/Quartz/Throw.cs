@@ -54,6 +54,20 @@ internal static class Throw
 #pragma warning restore MA0015
     }
 
+    [DoesNotReturn]
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    internal static T ArgumentException<T>(string message, string paramName)
+    {
+        throw new ArgumentException(message, paramName);
+    }
+
+    [DoesNotReturn]
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    internal static T ArgumentException<T>(string message, string paramName, Exception innerException)
+    {
+        throw new ArgumentException(message, paramName, innerException);
+    }
+
 
     [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]

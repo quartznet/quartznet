@@ -144,8 +144,10 @@ public class Startup
             var jobKey = new JobKey("awesome job", "awesome group");
             q.AddJob<ExampleJob>(jobKey, j => j
                 .WithDescription("my awesome job")
-                .UsingJobData(nameof(ExampleJob.InjectedString), "Hello")
-                .UsingJobData(nameof(ExampleJob.InjectedBool), true)
+                // naming the property binds the value to it: the key cannot be mistyped and the value
+                // cannot be of the wrong type
+                .UsingJobData(j2 => j2.InjectedString, "Hello")
+                .UsingJobData(j2 => j2.InjectedBool, true)
             );
 
             q.AddTrigger(t => t
