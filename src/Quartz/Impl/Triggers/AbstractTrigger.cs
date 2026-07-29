@@ -357,14 +357,6 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// </remarks>
     public abstract DateTimeOffset? PreviousFireTimeUtc { get; set; }
 
-    /// <inheritdoc cref="ITrigger.PreviousFireTimeUtc" />
-    /// <remarks>
-    /// Kept as a method as well as a property so that code holding a concrete trigger type — where
-    /// the interface's default implementation is not reachable — still compiles.
-    /// </remarks>
-    [Obsolete("Use the PreviousFireTimeUtc property instead.")]
-    public DateTimeOffset? GetPreviousFireTimeUtc() => PreviousFireTimeUtc;
-
     /// <summary>
     /// Gets and sets the date/time on which the trigger must stop firing. This
     /// defines the final boundary for trigger firings &#x8212; the trigger will
@@ -596,14 +588,6 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// </summary>
     public abstract bool MayFireAgain { get; }
 
-    /// <inheritdoc cref="ITrigger.MayFireAgain" />
-    /// <remarks>
-    /// Kept as a method as well as a property so that code holding a concrete trigger type — where
-    /// the interface's default implementation is not reachable — still compiles.
-    /// </remarks>
-    [Obsolete("Use the MayFireAgain property instead.")]
-    public bool GetMayFireAgain() => MayFireAgain;
-
     /// <summary>
     /// Returns the next time at which the <see cref="ITrigger" /> is scheduled to fire. If
     /// the trigger will not fire again, <see langword="null" /> will be returned.  Note that
@@ -621,14 +605,6 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// </para>
     /// </remarks>
     public abstract DateTimeOffset? NextFireTimeUtc { get; set; }
-
-    /// <inheritdoc cref="ITrigger.NextFireTimeUtc" />
-    /// <remarks>
-    /// Kept as a method as well as a property so that code holding a concrete trigger type — where
-    /// the interface's default implementation is not reachable — still compiles.
-    /// </remarks>
-    [Obsolete("Use the NextFireTimeUtc property instead.")]
-    public DateTimeOffset? GetNextFireTimeUtc() => NextFireTimeUtc;
 
     /// <summary>
     /// Returns the next time at which the <see cref="ITrigger" /> will fire,

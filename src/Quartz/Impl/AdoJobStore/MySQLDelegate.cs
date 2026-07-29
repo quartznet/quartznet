@@ -61,7 +61,7 @@ public class MySQLDelegate : StdAdoDelegate
     /// </summary>
     protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
     {
-        return SqlSelectNextTriggerToAcquire
+        return StdAdoConstants.SqlSelectNextTriggerToAcquire
             .Replace("{0}TRIGGERS t", "{0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST)")
             + " LIMIT " + maxCount;
     }
@@ -75,7 +75,7 @@ public class MySQLDelegate : StdAdoDelegate
     {
         if (count != -1)
         {
-            return SqlSelectMisfiredTriggersToRecover
+            return StdAdoConstants.SqlSelectMisfiredTriggersToRecover
                 .Replace("{0}TRIGGERS t", "{0}TRIGGERS t FORCE INDEX (IDX_{1}T_NFT_ST_MISFIRE)")
                 + " LIMIT " + count;
         }
@@ -84,7 +84,7 @@ public class MySQLDelegate : StdAdoDelegate
 
     protected override string GetCountMisfiredTriggersInStateSql()
     {
-        return SqlCountMisfiredTriggersInStates
+        return StdAdoConstants.SqlCountMisfiredTriggersInStates
             .Replace("{0}TRIGGERS WHERE", "{0}TRIGGERS FORCE INDEX (IDX_{1}T_NFT_ST_MISFIRE) WHERE");
     }
 }

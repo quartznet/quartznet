@@ -40,13 +40,13 @@ namespace Quartz.Impl.AdoJobStore;
 /// implementations. Subclasses should override only those methods that need
 /// special handling for the DBMS driver in question.
 /// </summary>
-public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAccessor
+public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
 {
     private const string FileScanListenerName = "FILE_SCAN_LISTENER_NAME";
     private const string DirectoryScanListenerName = "DIRECTORY_SCAN_LISTENER_NAME";
 
     private ILogger<StdAdoDelegate> logger = null!;
-    private string tablePrefix = DefaultTablePrefix;
+    private string tablePrefix = AdoConstants.DefaultTablePrefix;
     private string instanceId = null!;
     private string schedulerName = null!;
     private bool useProperties;
@@ -166,31 +166,31 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
         ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default)
     {
-        DbCommand ps = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteAllSimpleTriggers));
+        DbCommand ps = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlDeleteAllSimpleTriggers));
         AddCommandParameter(ps, "schedulerName", schedulerName);
         await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        ps = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteAllSimpropTriggers));
+        ps = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlDeleteAllSimpropTriggers));
         AddCommandParameter(ps, "schedulerName", schedulerName);
         await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        ps = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteAllCronTriggers));
+        ps = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlDeleteAllCronTriggers));
         AddCommandParameter(ps, "schedulerName", schedulerName);
         await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        ps = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteAllBlobTriggers));
+        ps = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlDeleteAllBlobTriggers));
         AddCommandParameter(ps, "schedulerName", schedulerName);
         await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        ps = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteAllTriggers));
+        ps = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlDeleteAllTriggers));
         AddCommandParameter(ps, "schedulerName", schedulerName);
         await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        ps = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteAllJobDetails));
+        ps = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlDeleteAllJobDetails));
         AddCommandParameter(ps, "schedulerName", schedulerName);
         await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        ps = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteAllCalendars));
+        ps = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlDeleteAllCalendars));
         AddCommandParameter(ps, "schedulerName", schedulerName);
         await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        ps = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteAllPausedTriggerGrps));
+        ps = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlDeleteAllPausedTriggerGrps));
         AddCommandParameter(ps, "schedulerName", schedulerName);
         await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        ps = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteFiredTriggers));
+        ps = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlDeleteFiredTriggers));
         AddCommandParameter(ps, "schedulerName", schedulerName);
         await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -370,7 +370,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
         GroupMatcher<JobKey> matcher,
         CancellationToken cancellationToken = default)
     {
-        (string sql, string parameter) = MatchGroup(matcher, SqlSelectJobsInGroup, SqlSelectJobsInGroupLike);
+        (string sql, string parameter) = MatchGroup(matcher, StdAdoConstants.SqlSelectJobsInGroup, StdAdoConstants.SqlSelectJobsInGroupLike);
 
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(sql));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
@@ -464,7 +464,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
     /// </summary>
     protected static string EscapeSqlLikeWildcards(string value)
     {
-        if (value.AsSpan().IndexOfAny(SqlLikeEscapeCharacter, '%', '_') < 0)
+        if (value.AsSpan().IndexOfAny(StdAdoConstants.SqlLikeEscapeCharacter, '%', '_') < 0)
         {
             return value;
         }
@@ -472,9 +472,9 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
         StringBuilder builder = new(value.Length + 8);
         foreach (char c in value)
         {
-            if (c is SqlLikeEscapeCharacter or '%' or '_')
+            if (c is StdAdoConstants.SqlLikeEscapeCharacter or '%' or '_')
             {
-                builder.Append(SqlLikeEscapeCharacter);
+                builder.Append(StdAdoConstants.SqlLikeEscapeCharacter);
             }
 
             builder.Append(c);
@@ -652,7 +652,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
     /// </summary>
     public virtual async ValueTask<int> ValidateSchema(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default)
     {
-        foreach (var tableName in AllTableNames)
+        foreach (var tableName in AdoConstants.AllTableNames)
         {
             var targetTable = $"{tablePrefix}{tableName}";
             var sql = $"SELECT 1 FROM {targetTable}";
@@ -668,6 +668,6 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
             }
         }
 
-        return AllTableNames.Length;
+        return AdoConstants.AllTableNames.Length;
     }
 }

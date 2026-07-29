@@ -1,6 +1,6 @@
 namespace Quartz;
 
-public class QuartzHostedServiceOptions
+public sealed class QuartzHostedServiceOptions
 {
     /// <summary>
     /// If <see langword="true" /> the scheduler will not allow shutdown process

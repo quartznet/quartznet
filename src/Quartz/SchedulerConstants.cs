@@ -27,7 +27,7 @@ namespace Quartz;
 /// Scheduler constants.
 /// </summary>
 /// <author>Marko Lahma (.NET)</author>
-public struct SchedulerConstants
+public static class SchedulerConstants
 {
     /// <summary>
     /// A (possibly) useful constant that can be used for specifying the group

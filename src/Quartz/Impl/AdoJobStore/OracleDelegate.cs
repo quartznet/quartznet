@@ -32,14 +32,14 @@ public class OracleDelegate : StdAdoDelegate
     /// </summary>
     protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
     {
-        return "SELECT * FROM (" + SqlSelectNextTriggerToAcquire + ") WHERE rownum <= " + maxCount;
+        return "SELECT * FROM (" + StdAdoConstants.SqlSelectNextTriggerToAcquire + ") WHERE rownum <= " + maxCount;
     }
 
     protected override string GetSelectMisfiredTriggersToRecoverSql(int count)
     {
         if (count != -1)
         {
-            return "SELECT * FROM (" + SqlSelectMisfiredTriggersToRecover + ") WHERE rownum <= " + count;
+            return "SELECT * FROM (" + StdAdoConstants.SqlSelectMisfiredTriggersToRecover + ") WHERE rownum <= " + count;
         }
         return base.GetSelectMisfiredTriggersToRecoverSql(count);
     }

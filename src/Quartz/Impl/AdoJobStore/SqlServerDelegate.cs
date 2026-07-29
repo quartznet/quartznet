@@ -36,7 +36,7 @@ public class SqlServerDelegate : StdAdoDelegate
     /// <returns></returns>
     protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
     {
-        string sqlSelectNextTriggerToAcquire = SqlSelectNextTriggerToAcquire;
+        string sqlSelectNextTriggerToAcquire = StdAdoConstants.SqlSelectNextTriggerToAcquire;
 
         // add limit clause to correct place
         sqlSelectNextTriggerToAcquire = "SELECT TOP " + maxCount + " " + sqlSelectNextTriggerToAcquire.Substring(6);
@@ -49,7 +49,7 @@ public class SqlServerDelegate : StdAdoDelegate
         if (count != -1)
         {
             // add limit clause to correct place
-            return "SELECT TOP " + count + " " + SqlSelectMisfiredTriggersToRecover.Substring(6);
+            return "SELECT TOP " + count + " " + StdAdoConstants.SqlSelectMisfiredTriggersToRecover.Substring(6);
         }
         return base.GetSelectMisfiredTriggersToRecoverSql(count);
     }

@@ -1,5 +1,7 @@
 using System.Reflection;
 
+using Microsoft.AspNetCore.Components;
+
 using PublicApiGenerator;
 
 namespace Quartz.Tests.AspNetCore;
@@ -49,6 +51,16 @@ public class PublicApiTest
                 "System.Runtime.CompilerServices.RefSafetyRulesAttribute",
                 "System.Runtime.Versioning.TargetFrameworkAttribute",
             ],
+
+            // Blazor components are the dashboard's UI, not API anyone calls. The .razor compiler
+            // emits the class — so it cannot be made internal — along with a BuildRenderTree
+            // override whose body is the markup, which means every markup edit would otherwise land
+            // in this baseline as if it were a contract change. What the dashboard actually offers
+            // its consumers (options, extension methods, the model types) is not a component and
+            // stays snapshotted.
+            ExcludeTypes = assembly.GetExportedTypes()
+                .Where(static type => typeof(ComponentBase).IsAssignableFrom(type))
+                .ToArray(),
         };
 
         var publicApi = assembly.GeneratePublicApi(options);

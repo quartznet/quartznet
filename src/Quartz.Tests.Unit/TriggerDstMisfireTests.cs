@@ -145,7 +145,7 @@ public class TriggerDstMisfireTests
     private static DateTimeOffset? Misfire(IOperableTrigger trigger)
     {
         trigger.UpdateAfterMisfire(null);
-        return trigger.GetNextFireTimeUtc();
+        return trigger.NextFireTimeUtc;
     }
 
     /// <summary>

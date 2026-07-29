@@ -27,13 +27,16 @@ using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore;
 
-internal class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelegate
+/// <summary>
+/// Persists the extended properties of an <see cref="ISimpleTrigger" />.
+/// </summary>
+public sealed class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelegate
 {
-    protected IDbAccessor DbAccessor { get; private set; } = null!;
+    private IDbAccessor DbAccessor { get; set; } = null!;
 
-    protected string TablePrefix { get; private set; } = null!;
+    private string TablePrefix { get; set; } = null!;
 
-    protected string SchedulerName { get; private set; } = null!;
+    private string SchedulerName { get; set; } = null!;
 
     public void Initialize(string tablePrefix, string schedulerName, IDbAccessor dbAccessor)
     {

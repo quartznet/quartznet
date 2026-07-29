@@ -25,7 +25,7 @@ namespace Quartz;
 /// Misfire instructions.
 ///</summary>
 /// <author>Marko Lahma (.NET)</author>
-public struct MisfireInstruction
+public static class MisfireInstruction
 {
     /// <summary>
     /// Instruction not set (yet).
@@ -56,7 +56,7 @@ public struct MisfireInstruction
     /// <summary>
     /// Misfire policy settings for SimpleTrigger.
     /// </summary>
-    public struct SimpleTrigger
+    public static class SimpleTrigger
     {
         /// <summary>
         /// Instructs the <see cref="IScheduler" /> that upon a mis-fire
@@ -148,7 +148,7 @@ public struct MisfireInstruction
     /// <summary>
     /// misfire instructions for CronTrigger
     /// </summary>
-    public struct CronTrigger
+    public static class CronTrigger
     {
         /// <summary>
         /// Instructs the <see cref="IScheduler" /> that upon a mis-fire
@@ -170,7 +170,7 @@ public struct MisfireInstruction
     /// <summary>
     /// Misfire instructions for DateIntervalTrigger
     /// </summary>
-    public struct CalendarIntervalTrigger
+    public static class CalendarIntervalTrigger
     {
         /// <summary>
         /// Instructs the <see cref="IScheduler" /> that upon a mis-fire
@@ -192,7 +192,7 @@ public struct MisfireInstruction
     /// <summary>
     /// Misfire instructions for DailyTimeIntervalTrigger
     /// </summary>
-    public struct DailyTimeIntervalTrigger
+    public static class DailyTimeIntervalTrigger
     {
         /// <summary>
         /// Instructs the <see cref="IScheduler" /> that upon a mis-fire
@@ -214,7 +214,7 @@ public struct MisfireInstruction
     /// <summary>
     /// Misfire instructions for RecurrenceTrigger.
     /// </summary>
-    public struct RecurrenceTrigger
+    public static class RecurrenceTrigger
     {
         /// <summary>
         /// Instructs the <see cref="IScheduler" /> that upon a mis-fire

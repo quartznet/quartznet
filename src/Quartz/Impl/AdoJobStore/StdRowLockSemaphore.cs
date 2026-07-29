@@ -36,10 +36,10 @@ namespace Quartz.Impl.AdoJobStore;
 public class StdRowLockSemaphore : DBSemaphore
 {
     public static readonly string SelectForLock =
-        $"SELECT * FROM {TablePrefixSubst}{TableLocks} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnLockName} = @lockName FOR UPDATE";
+        $"SELECT * FROM {StdAdoConstants.TablePrefixSubst}{AdoConstants.TableLocks} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnLockName} = @lockName FOR UPDATE";
 
     public static readonly string InsertLock =
-        $"INSERT INTO {TablePrefixSubst}{TableLocks}({ColumnSchedulerName}, {ColumnLockName}) VALUES (@schedulerName, @lockName)";
+        $"INSERT INTO {StdAdoConstants.TablePrefixSubst}{AdoConstants.TableLocks}({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnLockName}) VALUES (@schedulerName, @lockName)";
 
     /// <summary>
     /// Initializes a new instance of the <see cref="StdRowLockSemaphore"/> class.
@@ -50,7 +50,7 @@ public class StdRowLockSemaphore : DBSemaphore
     /// </remarks>
     [ActivatorUtilitiesConstructor]
     public StdRowLockSemaphore(IDbProvider dbProvider)
-        : base(DefaultTablePrefix, null, SelectForLock, InsertLock, dbProvider)
+        : base(AdoConstants.DefaultTablePrefix, null, SelectForLock, InsertLock, dbProvider)
     {
 
     }
@@ -142,7 +142,7 @@ public class StdRowLockSemaphore : DBSemaphore
                             continue;
                         }
                         Throw.InvalidOperationException(AdoJobStoreUtil.ReplaceTablePrefix(
-                            "No row exists, and one could not be inserted in table " + TablePrefixSubst + TableLocks +
+                            "No row exists, and one could not be inserted in table " + StdAdoConstants.TablePrefixSubst + AdoConstants.TableLocks +
                             " for lock named: " + lockName, TablePrefix));
                     }
                 }

@@ -33,7 +33,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// same time.
 /// </summary>
 /// <author>Marko Lahma (.NET)</author>
-public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAware
+public abstract class DBSemaphore : ISemaphore, ITablePrefixAware
 {
     private readonly ConcurrentDictionary<ThreadLockKey, object?> locks = new();
 
@@ -226,7 +226,11 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
         }
     }
 
-    protected IAdoUtil AdoUtil { get; }
+    /// <remarks>
+    /// <c>private protected</c> because <see cref="IAdoUtil" /> is an implementation detail: command
+    /// preparation and parameter naming are not something an out-of-assembly semaphore should reach into.
+    /// </remarks>
+    private protected IAdoUtil AdoUtil { get; }
 
     private readonly struct ThreadLockKey : IEquatable<ThreadLockKey>
     {
