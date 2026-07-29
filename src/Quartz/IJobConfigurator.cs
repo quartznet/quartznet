@@ -1,6 +1,8 @@
+using System.Linq.Expressions;
+
 namespace Quartz;
 
-public interface IJobConfigurator
+public interface IJobConfigurator<TJob> where TJob : IJob
 {
     /// <summary>
     /// Use a <see cref="JobKey" /> with the given name and default group to
@@ -14,7 +16,7 @@ public interface IJobConfigurator
     /// <returns>the updated JobBuilder</returns>
     /// <seealso cref="JobKey" />
     /// <seealso cref="IJobDetail.Key" />
-    IJobConfigurator WithIdentity(string name);
+    IJobConfigurator<TJob> WithIdentity(string name);
 
     /// <summary>
     /// Use a <see cref="JobKey" /> with the given name and group to
@@ -29,7 +31,7 @@ public interface IJobConfigurator
     /// <returns>the updated JobBuilder</returns>
     /// <seealso cref="JobKey" />
     /// <seealso cref="IJobDetail.Key" />
-    IJobConfigurator WithIdentity(string name, string group);
+    IJobConfigurator<TJob> WithIdentity(string name, string group);
 
     /// <summary>
     /// Use a <see cref="JobKey" /> to identify the JobDetail.
@@ -42,7 +44,7 @@ public interface IJobConfigurator
     /// <returns>the updated JobBuilder</returns>
     /// <seealso cref="JobKey" />
     /// <seealso cref="IJobDetail.Key" />
-    IJobConfigurator WithIdentity(JobKey key);
+    IJobConfigurator<TJob> WithIdentity(JobKey key);
 
     /// <summary>
     /// Set the given (human-meaningful) description of the Job.
@@ -50,7 +52,7 @@ public interface IJobConfigurator
     /// <param name="description"> the description for the Job</param>
     /// <returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.Description" />
-    IJobConfigurator WithDescription(string? description);
+    IJobConfigurator<TJob> WithDescription(string? description);
 
     /// <summary>
     /// Instructs the <see cref="IScheduler" /> whether or not the job
@@ -62,7 +64,7 @@ public interface IJobConfigurator
     /// </remarks>
     /// <param name="shouldRecover"></param>
     /// <returns>the updated JobBuilder</returns>
-    IJobConfigurator RequestRecovery(bool shouldRecover = true);
+    IJobConfigurator<TJob> RequestRecovery(bool shouldRecover = true);
 
     /// <summary>
     /// Whether or not the job should remain stored after it is
@@ -74,70 +76,98 @@ public interface IJobConfigurator
     /// <param name="durability">the value to set for the durability property.</param>
     ///<returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.Durable" />
-    IJobConfigurator StoreDurably(bool durability = true);
+    IJobConfigurator<TJob> StoreDurably(bool durability = true);
 
     /// <summary>
     /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
     /// </summary>
     ///<returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobDataMap" />
-    IJobConfigurator UsingJobData(string key, string? value);
+    IJobConfigurator<TJob> UsingJobData(string key, string? value);
 
     /// <summary>
     /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
     /// </summary>
     ///<returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobDataMap" />
-    IJobConfigurator UsingJobData(string key, int value);
+    IJobConfigurator<TJob> UsingJobData(string key, int value);
 
     /// <summary>
     /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
     /// </summary>
     ///<returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobDataMap" />
-    IJobConfigurator UsingJobData(string key, long value);
+    IJobConfigurator<TJob> UsingJobData(string key, long value);
 
     /// <summary>
     /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
     /// </summary>
     ///<returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobDataMap" />
-    IJobConfigurator UsingJobData(string key, float value);
+    IJobConfigurator<TJob> UsingJobData(string key, float value);
 
     /// <summary>
     /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
     /// </summary>
     ///<returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobDataMap" />
-    IJobConfigurator UsingJobData(string key, double value);
+    IJobConfigurator<TJob> UsingJobData(string key, double value);
 
     /// <summary>
     /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
     /// </summary>
     ///<returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobDataMap" />
-    IJobConfigurator UsingJobData(string key, decimal value);
+    IJobConfigurator<TJob> UsingJobData(string key, decimal value);
 
     /// <summary>
     /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
     /// </summary>
     ///<returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobDataMap" />
-    IJobConfigurator UsingJobData(string key, bool value);
+    IJobConfigurator<TJob> UsingJobData(string key, bool value);
 
     /// <summary>
     /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
     /// </summary>
     ///<returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobDataMap" />
-    IJobConfigurator UsingJobData(string key, Guid value);
+    IJobConfigurator<TJob> UsingJobData(string key, Guid value);
 
     /// <summary>
     /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
     /// </summary>
     ///<returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobDataMap" />
-    IJobConfigurator UsingJobData(string key, char value);
+    IJobConfigurator<TJob> UsingJobData(string key, char value);
+
+    /// <summary>
+    /// Add a value to the JobDetail's <see cref="JobDataMap" /> under the name of the job property it is
+    /// meant to end up on.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The property is named rather than spelled, so the key cannot be mistyped and the value cannot be of
+    /// the wrong type. It has to be a public settable property read directly off the job - a path through
+    /// another property has nowhere to land, since the job factory sets properties on the job instance
+    /// itself - and it is rejected here rather than dropped silently when the job runs. Properties
+    /// inherited from a base job are fine.
+    /// </para>
+    /// <para>
+    /// The value is stored in the property's own type, so an implicit widening at the call site is undone
+    /// and a value that does not fit is rejected here. An enum property takes the enum's name.
+    /// </para>
+    /// <para>
+    /// The same care applies as to any other job data: a persistent job store can only hold what its
+    /// serializer round-trips, and AdoJobStore's <c>UseProperties</c> mode only strings. Nothing beyond
+    /// enums is converted for you.
+    /// </para>
+    /// </remarks>
+    /// <param name="jobProperty">an expression naming the job property, such as <c>job =&gt; job.Parameter</c></param>
+    /// <param name="value">the value to bind to that property</param>
+    ///<returns>the updated JobBuilder</returns>
+    /// <seealso cref="IJobDetail.JobDataMap" />
+    IJobConfigurator<TJob> UsingJobData<TValue>(Expression<Func<TJob, TValue>> jobProperty, TValue value);
 
     /// <summary>
     /// Add all the data from the given <see cref="JobDataMap" /> to the
@@ -145,7 +175,7 @@ public interface IJobConfigurator
     /// </summary>
     ///<returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobDataMap" />
-    IJobConfigurator UsingJobData(JobDataMap newJobDataMap);
+    IJobConfigurator<TJob> UsingJobData(JobDataMap newJobDataMap);
 
     /// <summary>
     /// Replace the <see cref="IJobDetail" />'s <see cref="JobDataMap" /> with the
@@ -153,33 +183,33 @@ public interface IJobConfigurator
     /// </summary>
     /// <param name="newJobDataMap"></param>
     /// <returns></returns>
-    IJobConfigurator SetJobData(JobDataMap newJobDataMap);
+    IJobConfigurator<TJob> SetJobData(JobDataMap newJobDataMap);
 
     /// <summary>
     /// Instructs the <see cref="IScheduler" /> whether or not concurrent execution of the job should be disallowed.
     /// </summary>
     /// <param name="concurrentExecutionDisallowed">Indicates whether or not concurrent execution of the job should be disallowed.</param>
     /// <returns>
-    /// The updated <see cref="IJobConfigurator"/>.
+    /// The updated <see cref="IJobConfigurator{TJob}"/>.
     /// </returns>
     /// <remarks>
     /// If not explicitly set, concurrent execution of a job is only disallowed if either the <see cref="IJobDetail.JobType"/> itself,
     /// one of its ancestors or one of the interfaces that it implements, is annotated with <see cref="DisallowConcurrentExecutionAttribute"/>.
     /// </remarks>
     /// <seealso cref="DisallowConcurrentExecutionAttribute"/>
-    IJobConfigurator DisallowConcurrentExecution(bool concurrentExecutionDisallowed = true);
+    IJobConfigurator<TJob> DisallowConcurrentExecution(bool concurrentExecutionDisallowed = true);
 
     /// <summary>
     /// Instructs the <see cref="IScheduler" /> whether or not job data should be re-stored when execution of the job completes.
     /// </summary>
     /// <param name="persistJobDataAfterExecution">Indicates whether or not job data should be re-stored when execution of the job completes.</param>
     /// <returns>
-    /// The updated <see cref="IJobConfigurator"/>.
+    /// The updated <see cref="IJobConfigurator{TJob}"/>.
     /// </returns>
     /// <remarks>
     /// If not explicitly set, job data is only re-stored if either the <see cref="IJobDetail.JobType"/> itself, one of
     /// its ancestors or one of the interfaces that it implements, is annotated with <see cref="PersistJobDataAfterExecutionAttribute"/>.
     /// </remarks>
     /// <seealso cref="PersistJobDataAfterExecutionAttribute"/>
-    IJobConfigurator PersistJobDataAfterExecution(bool persistJobDataAfterExecution = true);
+    IJobConfigurator<TJob> PersistJobDataAfterExecution(bool persistJobDataAfterExecution = true);
 }

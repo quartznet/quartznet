@@ -597,7 +597,7 @@ public class RAMJobStoreQueryTest
             .WithCronSchedule("0 0 12 * * ?"));
     }
 
-    private async ValueTask<IOperableTrigger> StoreBuiltTrigger(TriggerBuilder builder)
+    private async ValueTask<IOperableTrigger> StoreBuiltTrigger(TriggerBuilder<IJob> builder)
     {
         IOperableTrigger trigger = (IOperableTrigger) builder.Build();
         trigger.ComputeFirstFireTimeUtc(null);

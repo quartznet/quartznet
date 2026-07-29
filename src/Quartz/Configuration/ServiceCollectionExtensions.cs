@@ -252,10 +252,10 @@ public static class ServiceCollectionExtensions
     /// Add job to underlying service collection. This API maybe change!
     /// </summary>
     public static IQuartzBuilder AddJob<
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)]
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)]
     T>(
         this IQuartzBuilder options,
-        Action<IJobConfigurator> configure) where T : IJob
+        Action<IJobConfigurator<T>> configure) where T : IJob
     {
         return options.AddJob<T>((_, jobConfigurator) => configure.Invoke(jobConfigurator));
     }
@@ -264,23 +264,23 @@ public static class ServiceCollectionExtensions
     /// Add job to underlying service collection. This API maybe change!
     /// </summary>
     public static IQuartzBuilder AddJob<
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)]
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)]
     T>(
         this IQuartzBuilder options,
-        Action<IServiceProvider, IJobConfigurator> configure) where T : IJob
+        Action<IServiceProvider, IJobConfigurator<T>> configure) where T : IJob
     {
-        return options.AddJob(typeof(T), null, configure);
+        return options.AddJob<T>(null, configure);
     }
 
     /// <summary>
     /// Add job to underlying service collection. This API maybe change!
     /// </summary>
     public static IQuartzBuilder AddJob<
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)]
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)]
     T>(
         this IQuartzBuilder options,
         JobKey? jobKey,
-        Action<IJobConfigurator> configure) where T : IJob
+        Action<IJobConfigurator<T>> configure) where T : IJob
     {
         return options.AddJob<T>(jobKey, (_, jobConfigurator) => configure.Invoke(jobConfigurator));
     }
@@ -289,13 +289,17 @@ public static class ServiceCollectionExtensions
     /// Add job to underlying service collection. This API maybe change!
     /// </summary>
     public static IQuartzBuilder AddJob<
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)]
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)]
     T>(
         this IQuartzBuilder options,
         JobKey? jobKey = null,
-        Action<IServiceProvider, IJobConfigurator>? configure = null) where T : IJob
+        Action<IServiceProvider, IJobConfigurator<T>>? configure = null) where T : IJob
     {
-        return options.AddJob(typeof(T), jobKey, configure);
+        SchedulerContent.Register(options.Services, options.SchedulerName, serviceProvider =>
+            new SchedulerContent().Add(
+                ConfigureAndBuildJobDetail(serviceProvider, JobBuilder.Create<T>(), jobKey, configure, hasCustomKey: out _)));
+
+        return options;
     }
 
     /// <summary>
@@ -303,10 +307,10 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IQuartzBuilder AddJob(
         this IQuartzBuilder options,
-           [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)]
+           [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)]
         Type jobType,
         JobKey? jobKey,
-        Action<IJobConfigurator> configure)
+        Action<IJobConfigurator<IJob>> configure)
     {
         return options.AddJob(jobType, jobKey, (_, jobConfigurator) => configure.Invoke(jobConfigurator));
     }
@@ -316,24 +320,19 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IQuartzBuilder AddJob(
         this IQuartzBuilder options,
-           [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)]
+           [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)]
         Type jobType,
         JobKey? jobKey = null,
-        Action<IServiceProvider, IJobConfigurator>? configure = null)
+        Action<IServiceProvider, IJobConfigurator<IJob>>? configure = null)
     {
         if (!typeof(IJob).IsAssignableFrom(jobType))
         {
             Throw.ArgumentException("jobType must implement the IJob interface", nameof(jobType));
         }
-        var c = JobBuilder.Create();
-        if (jobKey is not null)
-        {
-            c.WithIdentity(jobKey);
-        }
 
         SchedulerContent.Register(options.Services, options.SchedulerName, serviceProvider =>
             new SchedulerContent().Add(
-                ConfigureAndBuildJobDetail(serviceProvider, jobType, c, configure, hasCustomKey: out _)));
+                ConfigureAndBuildJobDetail(serviceProvider, JobBuilder.Create(jobType), jobKey, configure, hasCustomKey: out _)));
 
         return options;
     }
@@ -343,7 +342,7 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IQuartzBuilder AddTrigger(
         this IQuartzBuilder options,
-        Action<ITriggerConfigurator> configure)
+        Action<ITriggerConfigurator<IJob>> configure)
     {
         return options.AddTrigger((_, triggerConfigurator) => configure.Invoke(triggerConfigurator));
     }
@@ -353,11 +352,43 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IQuartzBuilder AddTrigger(
         this IQuartzBuilder options,
-        Action<IServiceProvider, ITriggerConfigurator> configure)
+        Action<IServiceProvider, ITriggerConfigurator<IJob>> configure)
+    {
+        return options.AddTrigger<IJob>(configure);
+    }
+
+    /// <summary>
+    /// Add a trigger for a known job type to the underlying service collection. This API maybe change!
+    /// </summary>
+    /// <remarks>
+    /// Naming the job type is what lets the trigger's job data name the job's properties. The trigger still
+    /// has to be pointed at a job with <c>ForJob</c>, and since that is done by key here, nothing checks
+    /// that the key resolves to a <typeparamref name="TJob" /> - the type names the properties, it does not
+    /// pick the job.
+    /// </remarks>
+    public static IQuartzBuilder AddTrigger<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)] TJob>(
+        this IQuartzBuilder options,
+        Action<ITriggerConfigurator<TJob>> configure) where TJob : IJob
+    {
+        return options.AddTrigger<TJob>((_, triggerConfigurator) => configure.Invoke(triggerConfigurator));
+    }
+
+    /// <summary>
+    /// Add a trigger for a known job type to the underlying service collection. This API maybe change!
+    /// </summary>
+    /// <remarks>
+    /// Naming the job type is what lets the trigger's job data name the job's properties. The trigger still
+    /// has to be pointed at a job with <c>ForJob</c>, and since that is done by key here, nothing checks
+    /// that the key resolves to a <typeparamref name="TJob" /> - the type names the properties, it does not
+    /// pick the job.
+    /// </remarks>
+    public static IQuartzBuilder AddTrigger<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)] TJob>(
+        this IQuartzBuilder options,
+        Action<IServiceProvider, ITriggerConfigurator<TJob>> configure) where TJob : IJob
     {
         SchedulerContent.Register(options.Services, options.SchedulerName, serviceProvider =>
         {
-            var c = new TriggerConfigurator();
+            var c = TriggerBuilder.Create<TJob>(serviceProvider.GetService<TimeProvider>());
             configure.Invoke(serviceProvider, c);
             var trigger = c.Build();
 
@@ -375,10 +406,12 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// Schedule job with trigger to underlying service collection. This API maybe change!
     /// </summary>
-    public static IQuartzBuilder ScheduleJob<T>(
+    public static IQuartzBuilder ScheduleJob<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)]
+    T>(
         this IQuartzBuilder options,
-        Action<ITriggerConfigurator> trigger,
-        Action<IJobConfigurator>? job = null) where T : IJob
+        Action<ITriggerConfigurator<T>> trigger,
+        Action<IJobConfigurator<T>>? job = null) where T : IJob
     {
         return options.ScheduleJob<T>((_, triggerConfigurator) => trigger(triggerConfigurator), (_, jobConfigurator) => job?.Invoke(jobConfigurator));
     }
@@ -386,10 +419,12 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// Schedule job with trigger to underlying service collection. This API maybe change!
     /// </summary>
-    public static IQuartzBuilder ScheduleJob<T>(
+    public static IQuartzBuilder ScheduleJob<
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)]
+    T>(
         this IQuartzBuilder options,
-        Action<IServiceProvider, ITriggerConfigurator> trigger,
-        Action<IServiceProvider, IJobConfigurator>? job = null) where T : IJob
+        Action<IServiceProvider, ITriggerConfigurator<T>> trigger,
+        Action<IServiceProvider, IJobConfigurator<T>>? job = null) where T : IJob
     {
         ArgumentNullException.ThrowIfNull(trigger);
 
@@ -397,10 +432,9 @@ public static class ServiceCollectionExtensions
         // as two independent registrations they could not agree on it.
         SchedulerContent.Register(options.Services, options.SchedulerName, serviceProvider =>
         {
-            var jobConfigurator = JobBuilder.Create();
-            var jobDetail = ConfigureAndBuildJobDetail(serviceProvider, typeof(T), jobConfigurator, job, out var jobHasCustomKey);
+            var jobDetail = ConfigureAndBuildJobDetail(serviceProvider, JobBuilder.Create<T>(), jobKey: null, job, out var jobHasCustomKey);
 
-            var triggerConfigurator = new TriggerConfigurator();
+            var triggerConfigurator = TriggerBuilder.Create<T>(serviceProvider.GetService<TimeProvider>());
             triggerConfigurator.ForJob(jobDetail);
 
             trigger.Invoke(serviceProvider, triggerConfigurator);
@@ -427,15 +461,18 @@ public static class ServiceCollectionExtensions
         return options;
     }
 
-    private static IJobDetail ConfigureAndBuildJobDetail(
+    private static IJobDetail ConfigureAndBuildJobDetail<TJob>(
         IServiceProvider serviceProvider,
-        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)]
-        Type type,
-        JobBuilder builder,
-        Action<IServiceProvider, IJobConfigurator>? configure,
-        out bool hasCustomKey)
+        JobBuilder<TJob> builder,
+        JobKey? jobKey,
+        Action<IServiceProvider, IJobConfigurator<TJob>>? configure,
+        out bool hasCustomKey) where TJob : IJob
     {
-        builder.OfType(type);
+        if (jobKey is not null)
+        {
+            builder.WithIdentity(jobKey);
+        }
+
         configure?.Invoke(serviceProvider, builder);
         hasCustomKey = builder.Key is not null;
         var jobDetail = builder.Build();

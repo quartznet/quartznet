@@ -55,7 +55,7 @@ public interface ICalendarIntervalTrigger : ITrigger
     ///</remarks>
     /// <seealso cref="SkipDayIfHourDoesNotExist"/>
     /// <seealso cref="TimeZone"/>
-    /// <seealso cref="TriggerBuilder.StartAt"/>
+    /// <seealso cref="TriggerBuilder{TJob}.StartAt"/>
     bool PreserveHourOfDayAcrossDaylightSavings { get; }
 
     /// <summary>

@@ -311,7 +311,7 @@ public sealed class SimpleScheduleBuilder : ScheduleBuilder<ISimpleTrigger>
     /// </summary>
     /// <remarks>
     /// </remarks>
-    /// <seealso cref="TriggerBuilder.WithSchedule(IScheduleBuilder)" />
+    /// <seealso cref="TriggerBuilder{TJob}.WithSchedule(IScheduleBuilder)" />
     public override IMutableTrigger Build()
     {
         SimpleTriggerImpl st = new SimpleTriggerImpl();
@@ -489,16 +489,21 @@ public sealed class SimpleScheduleBuilder : ScheduleBuilder<ISimpleTrigger>
 /// </summary>
 public static class SimpleScheduleTriggerBuilderExtensions
 {
-    public static TriggerBuilder WithSimpleSchedule(this TriggerBuilder triggerBuilder)
+    public static TriggerBuilder<TJob> WithSimpleSchedule<TJob>(this TriggerBuilder<TJob> triggerBuilder) where TJob : IJob
     {
         SimpleScheduleBuilder builder = SimpleScheduleBuilder.Create();
         return triggerBuilder.WithSchedule(builder);
     }
 
-    public static TriggerBuilder WithSimpleSchedule(this TriggerBuilder triggerBuilder, Action<SimpleScheduleBuilder> action)
+    public static TriggerBuilder<TJob> WithSimpleSchedule<TJob>(this TriggerBuilder<TJob> triggerBuilder, Action<SimpleScheduleBuilder> action) where TJob : IJob
     {
         SimpleScheduleBuilder builder = SimpleScheduleBuilder.Create();
         action(builder);
         return triggerBuilder.WithSchedule(builder);
+    }
+
+    public static TriggerBuilder<TJob> WithSimpleSchedule<TJob>(this TriggerBuilder<TJob> triggerBuilder, SimpleScheduleBuilder schedule) where TJob : IJob
+    {
+        return triggerBuilder.WithSchedule(schedule);
     }
 }

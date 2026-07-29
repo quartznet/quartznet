@@ -750,7 +750,7 @@ public partial class StdAdoDelegate
     /// </summary>
     private static IOperableTrigger BuildTrigger(TriggerKey triggerKey, TriggerRow row, TriggerPropertyBundle triggerProps)
     {
-        TriggerBuilder tb = TriggerBuilder.Create()
+        var tb = TriggerBuilder.Create()
             .WithDescription(row.Description)
             .WithPriority(row.Priority)
             .StartAt(row.StartTimeUtc)

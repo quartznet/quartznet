@@ -99,7 +99,7 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>, IHashKe
     /// but will rather be invoked by a TriggerBuilder which this
     /// ScheduleBuilder is given to.
     /// </summary>
-    /// <seealso cref="TriggerBuilder.WithSchedule" />
+    /// <seealso cref="TriggerBuilder{TJob}.WithSchedule" />
     public override IMutableTrigger Build()
     {
         if (cronExpression is null)
@@ -419,13 +419,13 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>, IHashKe
 /// </summary>
 public static class CronScheduleTriggerBuilderExtensions
 {
-    public static TriggerBuilder WithCronSchedule(this TriggerBuilder triggerBuilder, string cronExpression)
+    public static TriggerBuilder<TJob> WithCronSchedule<TJob>(this TriggerBuilder<TJob> triggerBuilder, string cronExpression) where TJob : IJob
     {
         CronScheduleBuilder builder = CronScheduleBuilder.CronSchedule(cronExpression);
         return triggerBuilder.WithSchedule(builder);
     }
 
-    public static TriggerBuilder WithCronSchedule(this TriggerBuilder triggerBuilder, string cronExpression, Action<CronScheduleBuilder> action)
+    public static TriggerBuilder<TJob> WithCronSchedule<TJob>(this TriggerBuilder<TJob> triggerBuilder, string cronExpression, Action<CronScheduleBuilder> action) where TJob : IJob
     {
         CronScheduleBuilder builder = CronScheduleBuilder.CronSchedule(cronExpression);
         action(builder);
@@ -436,7 +436,7 @@ public static class CronScheduleTriggerBuilderExtensions
     /// Set the trigger's schedule to a cron expression with H (hash) tokens
     /// resolved using the given hash key.
     /// </summary>
-    public static TriggerBuilder WithCronSchedule(this TriggerBuilder triggerBuilder, string cronExpression, string hashKey)
+    public static TriggerBuilder<TJob> WithCronSchedule<TJob>(this TriggerBuilder<TJob> triggerBuilder, string cronExpression, string hashKey) where TJob : IJob
     {
         CronScheduleBuilder builder = CronScheduleBuilder.CronScheduleWithHash(cronExpression, hashKey);
         return triggerBuilder.WithSchedule(builder);
@@ -446,10 +446,15 @@ public static class CronScheduleTriggerBuilderExtensions
     /// Set the trigger's schedule to a cron expression with H (hash) tokens
     /// resolved using the given hash key, with additional schedule configuration.
     /// </summary>
-    public static TriggerBuilder WithCronSchedule(this TriggerBuilder triggerBuilder, string cronExpression, string hashKey, Action<CronScheduleBuilder> action)
+    public static TriggerBuilder<TJob> WithCronSchedule<TJob>(this TriggerBuilder<TJob> triggerBuilder, string cronExpression, string hashKey, Action<CronScheduleBuilder> action) where TJob : IJob
     {
         CronScheduleBuilder builder = CronScheduleBuilder.CronScheduleWithHash(cronExpression, hashKey);
         action(builder);
         return triggerBuilder.WithSchedule(builder);
+    }
+
+    public static TriggerBuilder<TJob> WithCronSchedule<TJob>(this TriggerBuilder<TJob> triggerBuilder, CronScheduleBuilder schedule) where TJob : IJob
+    {
+        return triggerBuilder.WithSchedule(schedule);
     }
 }

@@ -469,7 +469,7 @@ internal sealed class JobDetailImpl : IJobDetail
         return FullName.GetHashCode();
     }
 
-    public JobBuilder GetJobBuilder()
+    public JobBuilder<IJob> GetJobBuilder()
     {
         return JobBuilder.Create()
             .OfType(JobType)

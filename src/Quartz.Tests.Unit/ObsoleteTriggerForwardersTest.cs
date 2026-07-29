@@ -121,7 +121,7 @@ public class ObsoleteTriggerForwardersTest
 
         public JobKey JobKey { get; } = new JobKey("job", "group");
 
-        public TriggerBuilder GetTriggerBuilder() => throw new NotSupportedException();
+        public TriggerBuilder<IJob> GetTriggerBuilder() => throw new NotSupportedException();
 
         public IScheduleBuilder GetScheduleBuilder() => throw new NotSupportedException();
 

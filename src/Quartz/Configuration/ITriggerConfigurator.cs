@@ -1,6 +1,8 @@
+using System.Linq.Expressions;
+
 namespace Quartz;
 
-public interface ITriggerConfigurator
+public interface ITriggerConfigurator<TJob> where TJob : IJob
 {
     /// <summary>
     /// Use a <see cref="TriggerKey" /> with the given name and default group to
@@ -14,7 +16,7 @@ public interface ITriggerConfigurator
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="TriggerKey" />
     /// <seealso cref="ITrigger.Key" />
-    ITriggerConfigurator WithIdentity(string name);
+    ITriggerConfigurator<TJob> WithIdentity(string name);
 
     /// <summary>
     /// Use a TriggerKey with the given name and group to
@@ -29,7 +31,7 @@ public interface ITriggerConfigurator
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="TriggerKey" />
     /// <seealso cref="ITrigger.Key" />
-    ITriggerConfigurator WithIdentity(string name, string group);
+    ITriggerConfigurator<TJob> WithIdentity(string name, string group);
 
     /// <summary>
     /// Use the given TriggerKey to identify the Trigger.
@@ -42,7 +44,7 @@ public interface ITriggerConfigurator
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="TriggerKey" />
     /// <seealso cref="ITrigger.Key" />
-    ITriggerConfigurator WithIdentity(TriggerKey key);
+    ITriggerConfigurator<TJob> WithIdentity(TriggerKey key);
 
     /// <summary>
     /// Set the given (human-meaningful) description of the Trigger.
@@ -52,7 +54,7 @@ public interface ITriggerConfigurator
     /// <param name="description">the description for the Trigger</param>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.Description" />
-    ITriggerConfigurator WithDescription(string? description);
+    ITriggerConfigurator<TJob> WithDescription(string? description);
 
     /// <summary>
     /// Set the Trigger's priority.  When more than one Trigger have the same
@@ -65,7 +67,28 @@ public interface ITriggerConfigurator
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="TriggerConstants.DefaultPriority" />
     /// <seealso cref="ITrigger.Priority" />
-    ITriggerConfigurator WithPriority(int priority);
+    ITriggerConfigurator<TJob> WithPriority(int priority);
+
+    /// <summary>
+    /// Set the execution group for the Trigger. Execution groups allow per-node
+    /// thread limits to be configured so that resource-intensive jobs do not
+    /// saturate all available threads.
+    /// </summary>
+    /// <param name="executionGroup">the execution group name, or <see langword="null"/> to clear</param>
+    /// <returns>the updated TriggerBuilder</returns>
+    /// <seealso cref="ITrigger.ExecutionGroup" />
+    ITriggerConfigurator<TJob> WithExecutionGroup(string? executionGroup);
+
+    /// <summary>
+    /// Pin the Trigger to a specific scheduler node, or to the node that first fires it.
+    /// </summary>
+    /// <param name="preferredNode">
+    /// The scheduler instance id of the target node (matching <c>quartz.scheduler.instanceId</c>),
+    /// <c>"*"</c> for automatic first-fire pinning, or <see langword="null"/> to clear.
+    /// </param>
+    /// <returns>the updated TriggerBuilder</returns>
+    /// <seealso cref="ITrigger.PreferredNode" />
+    ITriggerConfigurator<TJob> WithPreferredNode(string? preferredNode);
 
     /// <summary>
     /// Set the name of the <see cref="ICalendar" /> that should be applied to this
@@ -77,7 +100,7 @@ public interface ITriggerConfigurator
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ICalendar" />
     /// <seealso cref="ITrigger.CalendarName" />
-    ITriggerConfigurator ModifiedByCalendar(string? calendarName);
+    ITriggerConfigurator<TJob> ModifiedByCalendar(string? calendarName);
 
     /// <summary>
     /// Set the time the Trigger should start at - the trigger may or may
@@ -91,7 +114,7 @@ public interface ITriggerConfigurator
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.StartTimeUtc" />
     /// <seealso cref="DateBuilder" />
-    ITriggerConfigurator StartAt(DateTimeOffset startTimeUtc);
+    ITriggerConfigurator<TJob> StartAt(DateTimeOffset startTimeUtc);
 
     /// <summary>
     /// Set the time the Trigger should start at to the current moment -
@@ -102,7 +125,7 @@ public interface ITriggerConfigurator
     /// </remarks>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.StartTimeUtc" />
-    ITriggerConfigurator StartNow();
+    ITriggerConfigurator<TJob> StartNow();
 
     /// <summary>
     /// Set the time at which the Trigger will no longer fire - even if it's
@@ -114,7 +137,7 @@ public interface ITriggerConfigurator
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.EndTimeUtc" />
     /// <seealso cref="DateBuilder" />
-    ITriggerConfigurator EndAt(DateTimeOffset? endTimeUtc);
+    ITriggerConfigurator<TJob> EndAt(DateTimeOffset? endTimeUtc);
 
     /// <summary>
     /// Set the <see cref="IScheduleBuilder" /> that will be used to define the
@@ -130,7 +153,7 @@ public interface ITriggerConfigurator
     /// <seealso cref="SimpleScheduleBuilder" />
     /// <seealso cref="CronScheduleBuilder" />
     /// <seealso cref="CalendarIntervalScheduleBuilder" />
-    ITriggerConfigurator WithSchedule(IScheduleBuilder scheduleBuilder);
+    ITriggerConfigurator<TJob> WithSchedule(IScheduleBuilder scheduleBuilder);
 
     /// <summary>
     /// Set the identity of the Job which should be fired by the produced
@@ -141,7 +164,7 @@ public interface ITriggerConfigurator
     /// <param name="jobKey">the identity of the Job to fire.</param>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.JobKey" />
-    ITriggerConfigurator ForJob(JobKey jobKey);
+    ITriggerConfigurator<TJob> ForJob(JobKey jobKey);
 
     /// <summary>
     /// Set the identity of the Job which should be fired by the produced
@@ -153,7 +176,7 @@ public interface ITriggerConfigurator
     /// <param name="jobName">the name of the job (in default group) to fire.</param>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.JobKey" />
-    ITriggerConfigurator ForJob(string jobName);
+    ITriggerConfigurator<TJob> ForJob(string jobName);
 
     /// <summary>
     /// Set the identity of the Job which should be fired by the produced
@@ -166,7 +189,7 @@ public interface ITriggerConfigurator
     /// <param name="jobGroup">the group of the job to fire.</param>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.JobKey" />
-    ITriggerConfigurator ForJob(string jobName, string jobGroup);
+    ITriggerConfigurator<TJob> ForJob(string jobName, string jobGroup);
 
     /// <summary>
     /// Set the identity of the Job which should be fired by the produced
@@ -177,7 +200,40 @@ public interface ITriggerConfigurator
     /// <param name="jobDetail">the Job to fire.</param>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.JobKey" />
-    ITriggerConfigurator ForJob(IJobDetail jobDetail);
+    ITriggerConfigurator<TJob> ForJob(IJobDetail jobDetail);
+
+    /// <summary>
+    /// Add a value to the Trigger's <see cref="JobDataMap" /> under the name of the job property it is
+    /// meant to end up on.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is how one job is given different inputs per trigger without spelling its property names:
+    /// trigger data overrides job data in the map the job finally sees.
+    /// </para>
+    /// <para>
+    /// It has to be a public settable property read directly off the job - a path through another property
+    /// has nowhere to land, since the job factory sets properties on the job instance itself. Properties
+    /// inherited from a base job are fine. Whether the property belongs to the job this trigger actually
+    /// fires can only be checked when the trigger was pointed at the job with
+    /// <see cref="ForJob(IJobDetail)" /> and that job's type resolves; pointed at a key, or at a job named
+    /// by a type this process cannot load, the job type only names the properties.
+    /// </para>
+    /// <para>
+    /// The value is stored in the property's own type, so an implicit widening at the call site is undone
+    /// and a value that does not fit is rejected here. An enum property takes the enum's name.
+    /// </para>
+    /// <para>
+    /// The same care applies as to any other job data: a persistent job store can only hold what its
+    /// serializer round-trips, and AdoJobStore's <c>UseProperties</c> mode only strings. Nothing beyond
+    /// enums is converted for you.
+    /// </para>
+    /// </remarks>
+    /// <param name="jobProperty">an expression naming the job property, such as <c>job =&gt; job.Parameter</c></param>
+    /// <param name="value">the value to bind to that property</param>
+    /// <returns>the updated TriggerBuilder</returns>
+    /// <seealso cref="ITrigger.JobDataMap" />
+    ITriggerConfigurator<TJob> UsingJobData<TValue>(Expression<Func<TJob, TValue>> jobProperty, TValue value);
 
     /// <summary>
     /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
@@ -186,7 +242,7 @@ public interface ITriggerConfigurator
     /// </remarks>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.JobDataMap" />
-    ITriggerConfigurator UsingJobData(JobDataMap newJobDataMap);
+    ITriggerConfigurator<TJob> UsingJobData(JobDataMap newJobDataMap);
 
     /// <summary>
     /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
@@ -195,7 +251,7 @@ public interface ITriggerConfigurator
     /// </remarks>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.JobDataMap" />
-    ITriggerConfigurator UsingJobData(string key, string value);
+    ITriggerConfigurator<TJob> UsingJobData(string key, string value);
 
     /// <summary>
     /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
@@ -204,7 +260,7 @@ public interface ITriggerConfigurator
     /// </remarks>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.JobDataMap" />
-    ITriggerConfigurator UsingJobData(string key, int value);
+    ITriggerConfigurator<TJob> UsingJobData(string key, int value);
 
     /// <summary>
     /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
@@ -213,7 +269,7 @@ public interface ITriggerConfigurator
     /// </remarks>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.JobDataMap" />
-    ITriggerConfigurator UsingJobData(string key, long value);
+    ITriggerConfigurator<TJob> UsingJobData(string key, long value);
 
     /// <summary>
     /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
@@ -222,7 +278,7 @@ public interface ITriggerConfigurator
     /// </remarks>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.JobDataMap" />
-    ITriggerConfigurator UsingJobData(string key, float value);
+    ITriggerConfigurator<TJob> UsingJobData(string key, float value);
 
     /// <summary>
     /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
@@ -231,7 +287,7 @@ public interface ITriggerConfigurator
     /// </remarks>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.JobDataMap" />
-    ITriggerConfigurator UsingJobData(string key, double value);
+    ITriggerConfigurator<TJob> UsingJobData(string key, double value);
 
     /// <summary>
     /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
@@ -240,7 +296,7 @@ public interface ITriggerConfigurator
     /// </remarks>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.JobDataMap" />
-    ITriggerConfigurator UsingJobData(string key, decimal value);
+    ITriggerConfigurator<TJob> UsingJobData(string key, decimal value);
 
     /// <summary>
     /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
@@ -249,7 +305,7 @@ public interface ITriggerConfigurator
     /// </remarks>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.JobDataMap" />
-    ITriggerConfigurator UsingJobData(string key, bool value);
+    ITriggerConfigurator<TJob> UsingJobData(string key, bool value);
 
     /// <summary>
     /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
@@ -258,7 +314,7 @@ public interface ITriggerConfigurator
     /// </remarks>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.JobDataMap" />
-    ITriggerConfigurator UsingJobData(string key, Guid value);
+    ITriggerConfigurator<TJob> UsingJobData(string key, Guid value);
 
     /// <summary>
     /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
@@ -267,5 +323,5 @@ public interface ITriggerConfigurator
     /// </remarks>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.JobDataMap" />
-    ITriggerConfigurator UsingJobData(string key, char value);
+    ITriggerConfigurator<TJob> UsingJobData(string key, char value);
 }

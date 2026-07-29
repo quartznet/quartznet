@@ -25,7 +25,7 @@ public class RAMJobStoreBenchmark
     private IJobDetail? _noOpJob;
     private IJobDetail? _noOpJobNoConcurrent1;
     private IJobDetail? _noOpJobNoConcurrent2;
-    private TriggerBuilder? _triggerBuilder;
+    private TriggerBuilder<IJob>? _triggerBuilder;
     private IOperableTrigger? _triggerForRamJobStore9;
 
     [GlobalSetup]

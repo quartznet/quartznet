@@ -64,7 +64,7 @@ public interface ITrigger
     /// </summary>
     /// <seealso cref="GetScheduleBuilder"/>
     /// <returns></returns>
-    TriggerBuilder GetTriggerBuilder();
+    TriggerBuilder<IJob> GetTriggerBuilder();
 
     /// <summary>
     /// Get a <see cref="IScheduleBuilder" /> that is configured to produce a

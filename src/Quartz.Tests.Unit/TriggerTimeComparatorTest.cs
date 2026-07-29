@@ -206,7 +206,7 @@ public class TriggerTimeComparatorTest
             throw new NotImplementedException();
         }
 
-        public TriggerBuilder GetTriggerBuilder()
+        public TriggerBuilder<IJob> GetTriggerBuilder()
         {
             throw new NotImplementedException();
         }

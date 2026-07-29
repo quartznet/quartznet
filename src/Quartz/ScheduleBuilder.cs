@@ -32,6 +32,6 @@ public abstract class ScheduleBuilder<T> : IScheduleBuilder where T : ITrigger
     /// but will rather be invoked by a TriggerBuilder which this
     /// ScheduleBuilder is given to.
     /// </summary>
-    /// <seealso cref="TriggerBuilder.WithSchedule" />
+    /// <seealso cref="TriggerBuilder{TJob}.WithSchedule" />
     public abstract IMutableTrigger Build();
 }

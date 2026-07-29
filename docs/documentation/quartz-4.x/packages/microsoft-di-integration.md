@@ -111,6 +111,10 @@ public void ConfigureServices(IServiceCollection services)
         var jobKey = new JobKey("awesome job", "awesome group");
         q.AddJob<ExampleJob>(jobKey, j => j
             .WithDescription("my awesome job")
+            // job data can name the job property it is meant for instead of spelling its key,
+            // which makes a mistyped key or a wrong-typed value a compile error
+            .UsingJobData(j2 => j2.InjectedString, "Hello")
+            .UsingJobData(j2 => j2.InjectedBool, true)
         );
 
         q.AddTrigger(t => t
