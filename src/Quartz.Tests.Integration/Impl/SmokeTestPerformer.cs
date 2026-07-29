@@ -372,7 +372,7 @@ public class SmokeTestPerformer
 
                 await TestExecutionGroups(scheduler);
                 await TestMatchers(scheduler);
-                await TestGetTriggerStateBlockedWhileExecuting(scheduler);
+                await TestGetTriggerStateExecutingWhileJobRuns(scheduler);
             }
         }
         finally
@@ -514,10 +514,14 @@ public class SmokeTestPerformer
     }
 
     /// <summary>
-    /// Regression test for #2255: GetTriggerState should return Blocked (not Complete)
-    /// when a trigger's last fire is currently executing.
+    /// Regression test for #2255 and #1416: GetTriggerState should report Executing (not Complete)
+    /// while a trigger's last fire is still running.
     /// </summary>
-    private async Task TestGetTriggerStateBlockedWhileExecuting(IScheduler scheduler)
+    /// <remarks>
+    /// #2255 was originally fixed by reporting Blocked here, because there was no state for "still
+    /// executing". #1416 gave that case its own state, so the answer is now Executing.
+    /// </remarks>
+    private async Task TestGetTriggerStateExecutingWhileJobRuns(IScheduler scheduler)
     {
         await scheduler.Clear();
         await scheduler.Start();
@@ -544,18 +548,18 @@ public class SmokeTestPerformer
         try
         {
             // Wait for the job to start executing
-            Assert.That(await jobStarted.WaitAsync(TimeSpan.FromSeconds(10)), Is.True, "Job should have started within 10 seconds");
+            (await jobStarted.WaitAsync(TimeSpan.FromSeconds(10))).Should().BeTrue("the job should have started within 10 seconds");
 
-            // While the job is executing, GetTriggerState should return Blocked, not Complete
+            // While the job is executing, GetTriggerState should return Executing, not Complete
             var state = await scheduler.GetTriggerState(trigger.Key);
-            Assert.That(state, Is.EqualTo(TriggerState.Blocked),
-                "GetTriggerState should return Blocked while the trigger's job is executing, not Complete (#2255)");
+            state.Should().Be(TriggerState.Executing,
+                "GetTriggerState should return Executing while the trigger's job is running, not Complete (#2255, #1416)");
 
             // Let the job finish
             jobCanFinish.Release();
 
             // Wait for the scheduler to process completion by polling deterministically
-            TriggerState finalState = TriggerState.Blocked;
+            TriggerState finalState = TriggerState.Executing;
             DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(30);
             while (DateTimeOffset.UtcNow < deadline)
             {
@@ -569,7 +573,7 @@ public class SmokeTestPerformer
             }
 
             // After job completes, single-fire trigger is removed (DeleteTrigger instruction)
-            Assert.That(finalState, Is.EqualTo(TriggerState.None),
+            finalState.Should().Be(TriggerState.None,
                 "Single-fire trigger should be removed after the job finishes executing (#2255)");
         }
         finally

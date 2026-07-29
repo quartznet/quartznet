@@ -629,20 +629,24 @@ public class RAMJobStoreTest
         var firedResults = await fJobStore.TriggersFired(acquiredTriggers);
         Assert.That(firedResults, Has.Count.EqualTo(1));
 
-        // Both triggers should be blocked now (DisallowConcurrentExecution)
-        Assert.That(await fJobStore.GetTriggerState(trigger1.Key), Is.EqualTo(TriggerState.Blocked));
-        Assert.That(await fJobStore.GetTriggerState(trigger2.Key), Is.EqualTo(TriggerState.Blocked));
+        // The trigger that fired is running the job, so it reports Executing. Its sibling is merely
+        // gated behind the DisallowConcurrentExecution job, which is what Blocked means.
+        var firedResult = firedResults.First();
+        TriggerKey firedKey = firedResult.TriggerFiredBundle.Trigger.Key;
+        TriggerKey siblingKey = firedKey.Equals(trigger1.Key) ? trigger2.Key : trigger1.Key;
+
+        (await fJobStore.GetTriggerState(firedKey)).Should().Be(TriggerState.Executing);
+        (await fJobStore.GetTriggerState(siblingKey)).Should().Be(TriggerState.Blocked);
 
         // Simulate job completion with NoInstruction (graceful shutdown scenario)
-        var firedResult = firedResults.First();
         await fJobStore.TriggeredJobComplete(
             firedResult.TriggerFiredBundle.Trigger,
             firedResult.TriggerFiredBundle.JobDetail,
             SchedulerInstruction.NoInstruction);
 
         // Both triggers should be unblocked (Normal = Waiting)
-        Assert.That(await fJobStore.GetTriggerState(trigger1.Key), Is.EqualTo(TriggerState.Normal));
-        Assert.That(await fJobStore.GetTriggerState(trigger2.Key), Is.EqualTo(TriggerState.Normal));
+        (await fJobStore.GetTriggerState(trigger1.Key)).Should().Be(TriggerState.Normal);
+        (await fJobStore.GetTriggerState(trigger2.Key)).Should().Be(TriggerState.Normal);
     }
 
     [Test]
@@ -676,25 +680,332 @@ public class RAMJobStoreTest
         var firedResults = await fJobStore.TriggersFired(acquiredTriggers);
         Assert.That(firedResults, Has.Count.EqualTo(1));
 
-        // Both triggers should be blocked
-        Assert.That(await fJobStore.GetTriggerState(trigger1.Key), Is.EqualTo(TriggerState.Blocked));
-        Assert.That(await fJobStore.GetTriggerState(trigger2.Key), Is.EqualTo(TriggerState.Blocked));
+        // The trigger that fired is running the job; its sibling is gated behind it.
+        TriggerKey siblingKey = firedTrigger.Key.Equals(trigger1.Key) ? trigger2.Key : trigger1.Key;
+
+        (await fJobStore.GetTriggerState(firedTrigger.Key)).Should().Be(TriggerState.Executing);
+        (await fJobStore.GetTriggerState(siblingKey)).Should().Be(TriggerState.Blocked);
 
         // ReleaseAcquiredTrigger only handles the specific trigger's Acquired state,
         // it does NOT unblock other triggers since it doesn't know about job concurrency
         await fJobStore.ReleaseAcquiredTrigger(firedTrigger);
 
-        // The other trigger remains blocked - this is the bug scenario
-        // that was fixed by using TriggeredJobComplete instead
-        var trigger1State = await fJobStore.GetTriggerState(trigger1.Key);
-        var trigger2State = await fJobStore.GetTriggerState(trigger2.Key);
-
-        // At least one trigger should still be blocked since ReleaseAcquiredTrigger
-        // does not handle the unblocking of all triggers for the job
-        Assert.That(
-            trigger1State == TriggerState.Blocked || trigger2State == TriggerState.Blocked,
-            Is.True,
+        // Releasing means the fire is not going to run after all, so the execution is dropped and the
+        // trigger is no longer executing - but it stays blocked, along with its sibling, because
+        // ReleaseAcquiredTrigger knows nothing about job concurrency. That is the bug scenario this
+        // documents: only TriggeredJobComplete unblocks the job's triggers.
+        (await fJobStore.GetTriggerState(firedTrigger.Key)).Should().Be(TriggerState.Blocked,
+            "releasing drops the execution but does not unblock the job");
+        (await fJobStore.GetTriggerState(siblingKey)).Should().Be(TriggerState.Blocked,
             "ReleaseAcquiredTrigger should not unblock all triggers for DisallowConcurrentExecution jobs");
+    }
+
+    /// <summary>
+    /// Builds a repeating trigger for the concurrency-allowed job the fixture stores.
+    /// </summary>
+    private static SimpleTriggerImpl ExecutingTestTrigger(string name, DateTimeOffset d)
+    {
+        var trigger = new SimpleTriggerImpl(name, "triggerGroup1", "job1", "jobGroup1",
+            d.AddSeconds(1), d.AddSeconds(200), 10, TimeSpan.FromSeconds(5));
+        trigger.ComputeFirstFireTimeUtc(null);
+        return trigger;
+    }
+
+    [Test]
+    public async Task GetTriggerState_ReturnsExecuting_WhileConcurrencyAllowedJobRuns()
+    {
+        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        var trigger = ExecutingTestTrigger("executingTrigger", d);
+        await fJobStore.StoreTrigger(trigger, false);
+
+        var acquired = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        acquired.Should().HaveCount(1);
+
+        // Nothing is running yet, so an acquired trigger still reads as normal.
+        (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Normal);
+
+        var fired = await fJobStore.TriggersFired(acquired);
+        fired.Should().HaveCount(1);
+
+        (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Executing);
+
+        var bundle = fired[0].TriggerFiredBundle;
+        await fJobStore.TriggeredJobComplete(bundle.Trigger, bundle.JobDetail, SchedulerInstruction.NoInstruction);
+
+        (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Normal);
+    }
+
+    [Test]
+    public async Task GetTriggerState_ReturnsExecuting_UntilLastOfSeveralConcurrentFiresCompletes()
+    {
+        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        var trigger = ExecutingTestTrigger("concurrentTrigger", d);
+        await fJobStore.StoreTrigger(trigger, false);
+
+        // The job allows concurrent execution, so the trigger is re-armed as soon as it fires and can be
+        // acquired again while the first execution is still in flight.
+        var firstAcquired = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        firstAcquired.Should().HaveCount(1);
+        var firstFired = await fJobStore.TriggersFired(firstAcquired);
+        firstFired.Should().HaveCount(1);
+
+        var secondAcquired = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        secondAcquired.Should().HaveCount(1);
+        var secondFired = await fJobStore.TriggersFired(secondAcquired);
+        secondFired.Should().HaveCount(1);
+
+        (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Executing);
+
+        var firstBundle = firstFired[0].TriggerFiredBundle;
+        await fJobStore.TriggeredJobComplete(firstBundle.Trigger, firstBundle.JobDetail, SchedulerInstruction.NoInstruction);
+
+        (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Executing,
+            "one of the two executions is still running");
+
+        var secondBundle = secondFired[0].TriggerFiredBundle;
+        await fJobStore.TriggeredJobComplete(secondBundle.Trigger, secondBundle.JobDetail, SchedulerInstruction.NoInstruction);
+
+        (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Normal);
+    }
+
+    [Test]
+    public async Task GetTriggerState_ReturnsPaused_WhenTriggerPausedWhileJobExecuting()
+    {
+        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        var trigger = ExecutingTestTrigger("pausedWhileExecutingTrigger", d);
+        await fJobStore.StoreTrigger(trigger, false);
+
+        var acquired = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        var fired = await fJobStore.TriggersFired(acquired);
+        fired.Should().HaveCount(1);
+
+        await fJobStore.PauseTrigger(trigger.Key);
+
+        // The pause is the actionable fact, so it outranks the execution still in flight.
+        (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Paused);
+
+        var bundle = fired[0].TriggerFiredBundle;
+        await fJobStore.TriggeredJobComplete(bundle.Trigger, bundle.JobDetail, SchedulerInstruction.NoInstruction);
+
+        (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Paused);
+    }
+
+    [Test]
+    public async Task GetTriggerState_ReturnsNone_WhenTriggerRemovedWhileExecuting()
+    {
+        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        var trigger = ExecutingTestTrigger("removedWhileExecutingTrigger", d);
+        await fJobStore.StoreTrigger(trigger, false);
+
+        var acquired = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        var fired = await fJobStore.TriggersFired(acquired);
+        fired.Should().HaveCount(1);
+
+        (await fJobStore.RemoveTrigger(trigger.Key)).Should().BeTrue();
+        (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.None);
+
+        // The completion arrives for a trigger that no longer exists and must not throw.
+        var bundle = fired[0].TriggerFiredBundle;
+        await fJobStore.TriggeredJobComplete(bundle.Trigger, bundle.JobDetail, SchedulerInstruction.NoInstruction);
+
+        // Once the execution has been accounted for, a trigger re-stored under the same key is idle.
+        var replacement = ExecutingTestTrigger("removedWhileExecutingTrigger", d);
+        await fJobStore.StoreTrigger(replacement, false);
+
+        (await fJobStore.GetTriggerState(replacement.Key)).Should().Be(TriggerState.Normal);
+    }
+
+    /// <summary>
+    /// The other half of the rule the reschedule test pins: deleting a trigger takes its executions with
+    /// it, so a trigger later created under the same key is a different trigger and starts idle. Asserted
+    /// while the original execution is still in flight — after its completion the entry would have been
+    /// released anyway, and the test would pass whether or not removal forgets it.
+    /// </summary>
+    [Test]
+    public async Task GetTriggerState_ForgetsExecutions_WhenTriggerIsRemovedAndRecreatedMidExecution()
+    {
+        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        var trigger = ExecutingTestTrigger("recreatedWhileExecutingTrigger", d);
+        await fJobStore.StoreTrigger(trigger, false);
+
+        var acquired = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        var fired = await fJobStore.TriggersFired(acquired);
+        fired.Should().HaveCount(1);
+
+        (await fJobStore.RemoveTrigger(trigger.Key)).Should().BeTrue();
+
+        var replacement = ExecutingTestTrigger("recreatedWhileExecutingTrigger", d);
+        await fJobStore.StoreTrigger(replacement, false);
+
+        (await fJobStore.GetTriggerState(replacement.Key)).Should().Be(TriggerState.Normal,
+            "the new trigger never fired, so it cannot inherit the deleted trigger's execution");
+
+        // The orphaned completion still arrives and must not disturb the new trigger.
+        var bundle = fired[0].TriggerFiredBundle;
+        await fJobStore.TriggeredJobComplete(bundle.Trigger, bundle.JobDetail, SchedulerInstruction.NoInstruction);
+
+        (await fJobStore.GetTriggerState(replacement.Key)).Should().Be(TriggerState.Normal);
+    }
+
+    /// <summary>
+    /// ReplaceTrigger deletes rather than updates, so unlike StoreTrigger(replaceExisting: true) it does
+    /// not carry the executions over — matching the ADO store, where ReplaceTrigger removes the
+    /// fired-trigger rows and an in-place update leaves them.
+    /// </summary>
+    [Test]
+    public async Task GetTriggerState_ForgetsExecutions_WhenTriggerIsReplacedMidExecution()
+    {
+        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        var trigger = ExecutingTestTrigger("replacedWhileExecutingTrigger", d);
+        await fJobStore.StoreTrigger(trigger, false);
+
+        var acquired = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        var fired = await fJobStore.TriggersFired(acquired);
+        fired.Should().HaveCount(1);
+
+        var replacement = ExecutingTestTrigger("replacedWhileExecutingTrigger", d);
+        (await fJobStore.ReplaceTrigger(trigger.Key, replacement)).Should().BeTrue();
+
+        (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Normal,
+            "the replaced trigger was deleted, so its execution went with it");
+    }
+
+    /// <summary>
+    /// Clearing the store forgets everything, executions included.
+    /// </summary>
+    [Test]
+    public async Task GetTriggerState_ForgetsExecutions_WhenSchedulingDataIsClearedMidExecution()
+    {
+        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        var trigger = ExecutingTestTrigger("clearedWhileExecutingTrigger", d);
+        await fJobStore.StoreTrigger(trigger, false);
+
+        var acquired = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        (await fJobStore.TriggersFired(acquired)).Should().HaveCount(1);
+
+        await fJobStore.ClearAllSchedulingData();
+
+        await fJobStore.StoreJob(fJobDetail, true);
+        var replacement = ExecutingTestTrigger("clearedWhileExecutingTrigger", d);
+        await fJobStore.StoreTrigger(replacement, false);
+
+        (await fJobStore.GetTriggerState(replacement.Key)).Should().Be(TriggerState.Normal);
+    }
+
+    /// <summary>
+    /// A rejected replacement must leave the store exactly as it was, rather than half-deleting the
+    /// trigger it refused to replace.
+    /// </summary>
+    [Test]
+    public async Task ReplaceTrigger_LeavesTriggerIntact_WhenReplacementNamesADifferentJob()
+    {
+        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        var trigger = ExecutingTestTrigger("mismatchedReplacementTrigger", d);
+        await fJobStore.StoreTrigger(trigger, false);
+
+        var otherJob = JobBuilder.Create<NoOpJob>().WithIdentity("otherJob", "jobGroup1").StoreDurably().Build();
+        await fJobStore.StoreJob(otherJob, true);
+
+        var replacement = new SimpleTriggerImpl("mismatchedReplacementTrigger", "triggerGroup1",
+            otherJob.Key.Name, otherJob.Key.Group, d.AddSeconds(1), d.AddSeconds(200), 10, TimeSpan.FromSeconds(5));
+        replacement.ComputeFirstFireTimeUtc(null);
+
+        Func<Task> act = async () => await fJobStore.ReplaceTrigger(trigger.Key, replacement);
+        await act.Should().ThrowAsync<JobPersistenceException>();
+
+        (await fJobStore.CheckExists(trigger.Key)).Should().BeTrue("a rejected replacement must not remove the trigger");
+        (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Normal);
+        (await fJobStore.RetrieveTrigger(trigger.Key)).Should().NotBeNull();
+        (await fJobStore.RemoveTrigger(trigger.Key)).Should().BeTrue("the trigger must still be removable");
+    }
+
+    [Test]
+    public async Task GetTriggerState_KeepsReportingExecuting_WhenTriggerIsRescheduledMidExecution()
+    {
+        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        var trigger = ExecutingTestTrigger("rescheduledWhileExecutingTrigger", d);
+        await fJobStore.StoreTrigger(trigger, false);
+
+        var acquired = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        var fired = await fJobStore.TriggersFired(acquired);
+        fired.Should().HaveCount(1);
+
+        // Replacing the trigger builds a new wrapper; the execution it already started is unaffected and
+        // has to stay visible, which is also what the ADO store reports since its fired-trigger row
+        // survives the update.
+        var replacement = ExecutingTestTrigger("rescheduledWhileExecutingTrigger", d);
+        await fJobStore.StoreTrigger(replacement, replaceExisting: true);
+
+        (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Executing);
+
+        var bundle = fired[0].TriggerFiredBundle;
+        await fJobStore.TriggeredJobComplete(bundle.Trigger, bundle.JobDetail, SchedulerInstruction.NoInstruction);
+
+        (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Normal);
+    }
+
+    /// <summary>
+    /// A fire that bails out records nothing, so the trigger must not be left looking like it is running
+    /// with no completion coming to clear it.
+    /// </summary>
+    [Test]
+    public async Task GetTriggerState_RecordsNoExecution_WhenFiringBailsOut()
+    {
+        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        var trigger = ExecutingTestTrigger("missingCalendarTrigger", d);
+        trigger.CalendarName = "noSuchCalendar";
+        await fJobStore.StoreTrigger(trigger, false);
+
+        var acquired = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        acquired.Should().HaveCount(1);
+
+        // The calendar the trigger names does not exist, so no bundle is produced.
+        var fired = await fJobStore.TriggersFired(acquired);
+        fired.Should().HaveCount(1);
+        fired[0].TriggerFiredBundle.Should().BeNull();
+
+        (await fJobStore.GetTriggerState(trigger.Key)).Should().NotBe(TriggerState.Executing,
+            "nothing started, so nothing may be recorded as running");
+    }
+
+    /// <summary>
+    /// Releasing after the fire was recorded has to drop the record: the scheduler releases the whole
+    /// batch when <c>TriggersFired</c> fails part-way, and no completion will arrive for the fires it had
+    /// already recorded. Uses a concurrency-allowed job so the answer is not masked by the blocking
+    /// fan-out.
+    /// </summary>
+    [Test]
+    public async Task GetTriggerState_DropsExecution_WhenTriggerIsReleasedAfterFiring()
+    {
+        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        var trigger = ExecutingTestTrigger("releasedAfterFiringTrigger", d);
+        await fJobStore.StoreTrigger(trigger, false);
+
+        var acquired = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        var fired = await fJobStore.TriggersFired(acquired);
+        fired.Should().HaveCount(1);
+        (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Executing);
+
+        await fJobStore.ReleaseAcquiredTrigger(fired[0].TriggerFiredBundle.Trigger);
+
+        (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Normal,
+            "releasing means the fire is not going to run, so nothing may still be recorded for it");
+    }
+
+    [Test]
+    public async Task GetTriggerState_ReturnsNormal_WhenAcquiredTriggerReleasedWithoutFiring()
+    {
+        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        var trigger = ExecutingTestTrigger("releasedTrigger", d);
+        await fJobStore.StoreTrigger(trigger, false);
+
+        var acquired = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        acquired.Should().HaveCount(1);
+
+        // Released before it ever fired, so no execution was ever counted.
+        await fJobStore.ReleaseAcquiredTrigger(acquired[0]);
+
+        (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Normal);
     }
 
     [Test]

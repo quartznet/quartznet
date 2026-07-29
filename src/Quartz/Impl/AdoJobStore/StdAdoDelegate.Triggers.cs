@@ -213,23 +213,6 @@ public partial class StdAdoDelegate
     }
 
     /// <inheritdoc />
-    public virtual async ValueTask<bool> IsTriggerCurrentlyExecuting(
-        ConnectionAndTransactionHolder conn,
-        string triggerName,
-        string triggerGroup,
-        CancellationToken cancellationToken = default)
-    {
-        using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectCountExecutingFiredTriggersOfTrigger));
-        AddCommandParameter(cmd, "schedulerName", schedulerName);
-        AddCommandParameter(cmd, "triggerName", triggerName);
-        AddCommandParameter(cmd, "triggerGroup", triggerGroup);
-        AddCommandParameter(cmd, "executingState", AdoConstants.StateExecuting);
-
-        object? result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-        return Convert.ToInt32(result) > 0;
-    }
-
-    /// <inheritdoc />
     public virtual async ValueTask<int> InsertTrigger(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
@@ -919,6 +902,28 @@ public partial class StdAdoDelegate
         var state = (string?) await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
 
         return state ?? StateDeleted;
+    }
+
+    /// <inheritdoc />
+    public virtual async ValueTask<TriggerExecutionState> SelectTriggerStateWithExecuting(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default)
+    {
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerStateWithExecuting));
+
+        AddCommandParameter(cmd, "schedulerName", schedulerName);
+        AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+        AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+
+        using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        if (!await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return TriggerExecutionState.NotFound;
+        }
+
+        // Providers disagree on the CLR type of a CASE expression, so go through Convert.
+        return new TriggerExecutionState(rs.GetString(0), Convert.ToInt32(rs.GetValue(1), CultureInfo.InvariantCulture) != 0);
     }
 
     /// <inheritdoc />

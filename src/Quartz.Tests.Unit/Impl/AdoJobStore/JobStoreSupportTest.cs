@@ -953,6 +953,49 @@ public class JobStoreSupportTest
         }
     }
 
+    #region GetTriggerState precedence
+
+    /// <summary>
+    /// Pins the whole stored-state/executing matrix, including the cases that only differ once a trigger
+    /// is executing. The reported precedence is None &gt; Error &gt; Paused &gt; Executing &gt; Blocked &gt;
+    /// Complete &gt; Normal.
+    /// </summary>
+    [TestCase(AdoConstants.StateWaiting, false, TriggerState.Normal)]
+    [TestCase(AdoConstants.StateWaiting, true, TriggerState.Executing)]
+    [TestCase(AdoConstants.StateAcquired, false, TriggerState.Normal)]
+    [TestCase(AdoConstants.StateAcquired, true, TriggerState.Executing)]
+    [TestCase(AdoConstants.StateComplete, false, TriggerState.Complete)]
+    [TestCase(AdoConstants.StateComplete, true, TriggerState.Executing)]
+    [TestCase(AdoConstants.StateBlocked, false, TriggerState.Blocked)]
+    [TestCase(AdoConstants.StateBlocked, true, TriggerState.Executing)]
+    [TestCase(AdoConstants.StatePaused, false, TriggerState.Paused)]
+    [TestCase(AdoConstants.StatePaused, true, TriggerState.Paused)]
+    [TestCase(AdoConstants.StatePausedBlocked, false, TriggerState.Paused)]
+    [TestCase(AdoConstants.StatePausedBlocked, true, TriggerState.Paused)]
+    [TestCase(AdoConstants.StateError, false, TriggerState.Error)]
+    [TestCase(AdoConstants.StateError, true, TriggerState.Error)]
+    [TestCase(AdoConstants.StateDeleted, false, TriggerState.None)]
+    [TestCase(AdoConstants.StateDeleted, true, TriggerState.None)]
+    public async Task GetTriggerState_MapsStoredStateAndExecutionToReportedState(
+        string storedState,
+        bool isExecuting,
+        TriggerState expected)
+    {
+        TransientTriggersFiredTestStore store = CreateTransientTriggersFiredTestStore();
+        IDriverDelegate del = A.Fake<IDriverDelegate>();
+        store.DirectDelegate = del;
+
+        var triggerKey = new TriggerKey("trigger1", "group1");
+        A.CallTo(() => del.SelectTriggerStateWithExecuting(A<ConnectionAndTransactionHolder>.Ignored, triggerKey, A<CancellationToken>.Ignored))
+            .Returns(new TriggerExecutionState(storedState, isExecuting));
+
+        TriggerState state = await store.GetTriggerState(triggerKey);
+
+        state.Should().Be(expected);
+    }
+
+    #endregion
+
     #region TriggersFired transient retry tests
 
     [Test]

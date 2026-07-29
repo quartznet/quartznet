@@ -1276,6 +1276,7 @@ namespace Quartz
         Error = 3,
         Blocked = 4,
         None = 5,
+        Executing = 6,
     }
     public static class TriggerUtils
     {
@@ -1867,7 +1868,6 @@ namespace Quartz.Impl.AdoJobStore
         System.Threading.Tasks.ValueTask<int> InsertSchedulerState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string instanceId, System.DateTimeOffset checkInTime, System.TimeSpan interval, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> InsertTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.IOperableTrigger trigger, string state, Quartz.IJobDetail jobDetail, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> IsJobCurrentlyExecuting(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string jobName, string jobGroup, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<bool> IsTriggerCurrentlyExecuting(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string triggerName, string triggerGroup, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> IsTriggerGroupPaused(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string groupName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> JobExists(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> RepinTriggersFromDeadNode(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string oldPreferredNode, string newPreferredNode, System.Threading.CancellationToken cancellationToken = default);
@@ -1891,6 +1891,7 @@ namespace Quartz.Impl.AdoJobStore
         System.Threading.Tasks.ValueTask<Quartz.JobDataMap> SelectTriggerJobDataMap(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.TriggerKey>> SelectTriggerNamesForJob(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<string> SelectTriggerState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<Quartz.Impl.AdoJobStore.TriggerExecutionState> SelectTriggerStateWithExecuting(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.Impl.AdoJobStore.TriggerStatus?> SelectTriggerStatus(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> SelectTriggers(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Collections.Generic.IReadOnlyCollection<Quartz.TriggerKey> triggerKeys, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> SelectTriggersForCalendar(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default);
@@ -2332,7 +2333,6 @@ namespace Quartz.Impl.AdoJobStore
         public static readonly string SqlSelectCalendarExistence;
         public static readonly string SqlSelectCalendarNamesOrdered;
         public static readonly string SqlSelectCountExecutingFiredTriggersOfJob;
-        public static readonly string SqlSelectCountExecutingFiredTriggersOfTrigger;
         public static readonly string SqlSelectCronTriggers;
         public static readonly string SqlSelectCronTriggersByKeysPrefix;
         public static readonly string SqlSelectFiredTriggerInstanceNames;
@@ -2365,6 +2365,7 @@ namespace Quartz.Impl.AdoJobStore
         public static readonly string SqlSelectTriggerGroupsWithPausedFlag;
         public static readonly string SqlSelectTriggerHeaders;
         public static readonly string SqlSelectTriggerState;
+        public static readonly string SqlSelectTriggerStateWithExecuting;
         public static readonly string SqlSelectTriggerStatus;
         public static readonly string SqlSelectTriggerType;
         public static readonly string SqlSelectTriggersByKeysPrefix;
@@ -2375,10 +2376,13 @@ namespace Quartz.Impl.AdoJobStore
         public static readonly string SqlSelectTriggersInState;
         public static readonly string SqlSelectUnpausedTriggerGroupsOrdered;
         public static readonly string SqlTriggerCalendarPredicate;
+        public static readonly string SqlTriggerExecutingPredicate;
         public static readonly string SqlTriggerGroupEqualsPredicate;
         public static readonly string SqlTriggerGroupLikePredicate;
         public static readonly string SqlTriggerJobPredicate;
+        public static readonly string SqlTriggerNotExecutingPredicate;
         public static readonly string SqlTriggerStateInPredicateStart;
+        public static readonly string SqlTriggerStateNotInPredicateStart;
         public static readonly string SqlUpdateBlobTrigger;
         public static readonly string SqlUpdateCalendar;
         public static readonly string SqlUpdateCronTrigger;
@@ -2460,7 +2464,6 @@ namespace Quartz.Impl.AdoJobStore
         public virtual System.Threading.Tasks.ValueTask<int> InsertSchedulerState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string instanceName, System.DateTimeOffset checkInTime, System.TimeSpan interval, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> InsertTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.IOperableTrigger trigger, string state, Quartz.IJobDetail jobDetail, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<bool> IsJobCurrentlyExecuting(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string jobName, string jobGroup, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask<bool> IsTriggerCurrentlyExecuting(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string triggerName, string triggerGroup, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<bool> IsTriggerGroupPaused(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string groupName, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<bool> JobExists(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         [return: System.Runtime.CompilerServices.TupleElementNames(new string[] {
@@ -2492,6 +2495,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual System.Threading.Tasks.ValueTask<Quartz.JobDataMap> SelectTriggerJobDataMap(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.TriggerKey>> SelectTriggerNamesForJob(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<string> SelectTriggerState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<Quartz.Impl.AdoJobStore.TriggerExecutionState> SelectTriggerStateWithExecuting(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.Impl.AdoJobStore.TriggerStatus?> SelectTriggerStatus(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> SelectTriggers(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Collections.Generic.IReadOnlyCollection<Quartz.TriggerKey> triggerKeys, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> SelectTriggersForCalendar(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
@@ -2560,6 +2564,13 @@ namespace Quartz.Impl.AdoJobStore
         public required int MaxCount { get; init; }
         public required System.DateTimeOffset NoEarlierThan { get; init; }
         public required System.DateTimeOffset NoLaterThan { get; init; }
+    }
+    public readonly struct TriggerExecutionState : System.IEquatable<Quartz.Impl.AdoJobStore.TriggerExecutionState>
+    {
+        public TriggerExecutionState(string state, bool isExecuting) { }
+        public bool IsExecuting { get; }
+        public string State { get; }
+        public static Quartz.Impl.AdoJobStore.TriggerExecutionState NotFound { get; }
     }
     public sealed class TriggerPropertyBundle
     {

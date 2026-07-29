@@ -269,9 +269,9 @@ public partial class StdAdoDelegate
 
         if (query.State is not null)
         {
-            string[] states = TriggerStateMapping.ToStoredStates(query.State.Value);
-            predicateBuilder.Append(SqlTriggerStateInPredicateStart);
-            for (int i = 0; i < states.Length; i++)
+            TriggerStateFilter filter = TriggerStateMapping.ToFilter(query.State.Value);
+            predicateBuilder.Append(filter.Negated ? SqlTriggerStateNotInPredicateStart : SqlTriggerStateInPredicateStart);
+            for (int i = 0; i < filter.States.Length; i++)
             {
                 if (i > 0)
                 {
@@ -281,10 +281,18 @@ public partial class StdAdoDelegate
                 // Single digit, so no state parameter name is a prefix of another one.
                 string parameterName = "state" + i.ToString(CultureInfo.InvariantCulture);
                 predicateBuilder.Append('@').Append(parameterName);
-                parameters.Add(new KeyValuePair<string, object?>(parameterName, states[i]));
+                parameters.Add(new KeyValuePair<string, object?>(parameterName, filter.States[i]));
             }
 
             predicateBuilder.Append(')');
+
+            // Executing is not a stored state, so it cannot be part of the list above; it has to be
+            // established against FIRED_TRIGGERS. Requiring its absence for the states executing outranks
+            // is what keeps this filter in step with what ReadTriggerHeader will report.
+            if (filter.Executing is not null)
+            {
+                predicateBuilder.Append(filter.Executing.Value ? SqlTriggerExecutingPredicate : SqlTriggerNotExecutingPredicate);
+            }
         }
 
         string predicate = predicateBuilder.ToString();
@@ -325,10 +333,9 @@ public partial class StdAdoDelegate
     /// Reads one trigger listing row.
     /// </summary>
     /// <remarks>
-    /// The state comes straight from TRIGGER_STATE. <c>JobStoreSupport.GetTriggerState</c> refines a
-    /// COMPLETE trigger to <see cref="TriggerState.Blocked" /> when it is currently executing, at the
-    /// cost of a FIRED_TRIGGERS query per trigger; a listing does not pay that per row, so a trigger
-    /// in that (pre-existing, narrow) window is listed as <see cref="TriggerState.Complete" />.
+    /// The last column is the executing flag the statement computes per row, so a listing reports the
+    /// same state <c>JobStoreSupport.GetTriggerState</c> would for the same trigger. It costs one
+    /// correlated subquery per row within the single listing statement rather than a query per trigger.
     /// </remarks>
     private TriggerHeader ReadTriggerHeader(DbDataReader rs)
     {
@@ -337,7 +344,7 @@ public partial class StdAdoDelegate
             new JobKey(rs.GetString(2), rs.GetString(3)),
             rs.IsDBNull(4) ? null : rs.GetString(4),
             rs.GetString(5),
-            TriggerStateMapping.ToTriggerState(rs.GetString(6)),
+            TriggerStateMapping.ToTriggerState(rs.GetString(6), Convert.ToInt32(rs.GetValue(14), CultureInfo.InvariantCulture) != 0),
             GetDateTimeFromDbValue(rs.GetValue(7)) ?? DateTimeOffset.MinValue,
             GetDateTimeFromDbValue(rs.GetValue(8)),
             GetDateTimeFromDbValue(rs.GetValue(9)),

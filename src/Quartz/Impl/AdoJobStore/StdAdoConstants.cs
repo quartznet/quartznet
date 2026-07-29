@@ -191,9 +191,6 @@ public class StdAdoConstants : AdoConstants
     public static readonly string SqlSelectCountExecutingFiredTriggersOfJob =
         Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup AND {ColumnEntryState} = @executingState");
 
-    public static readonly string SqlSelectCountExecutingFiredTriggersOfTrigger =
-        Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup AND {ColumnEntryState} = @executingState");
-
     public static readonly string SqlSelectInstancesRecoverableFiredTriggers =
         Invariant($"SELECT * FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnInstanceName} = @instanceName AND {ColumnRequestsRecovery} = @requestsRecovery");
 
@@ -403,6 +400,24 @@ public class StdAdoConstants : AdoConstants
     public static readonly string SqlSelectTriggerState =
         Invariant($"SELECT {ColumnTriggerState} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
 
+    /// <summary>
+    /// Whether the trigger of the surrounding TRIGGERS row has an execution in flight. EXECUTING is only
+    /// ever a FIRED_TRIGGERS state, never a TRIGGER_STATE, so this is the only way to establish it.
+    /// </summary>
+    /// <remarks>
+    /// Correlates on the trigger table's full name rather than an alias, so that statements embedding it
+    /// keep the shape callers append their own predicates to. The state value is embedded rather than
+    /// passed as a parameter because a listing mentions this fragment twice in one statement — once in
+    /// the projection, once in the state filter — and <see cref="AdoUtil" /> rewrites parameters by plain
+    /// substring replace, which cannot cope with the same name occurring twice. The embedded value is a
+    /// compile-time constant, not input.
+    /// </remarks>
+    internal static readonly string SqlExecutingFiredTriggerExists =
+        Invariant($"EXISTS (SELECT 1 FROM {TablePrefixSubst}{TableFiredTriggers} FT WHERE FT.{ColumnSchedulerName} = {TablePrefixSubst}{TableTriggers}.{ColumnSchedulerName} AND FT.{ColumnTriggerName} = {TablePrefixSubst}{TableTriggers}.{ColumnTriggerName} AND FT.{ColumnTriggerGroup} = {TablePrefixSubst}{TableTriggers}.{ColumnTriggerGroup} AND FT.{ColumnEntryState} = '{StateExecuting}')");
+
+    public static readonly string SqlSelectTriggerStateWithExecuting =
+        Invariant($"SELECT {ColumnTriggerState}, CASE WHEN {SqlExecutingFiredTriggerExists} THEN 1 ELSE 0 END FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
+
     public static readonly string SqlSelectTriggerStatus =
         Invariant($"SELECT {ColumnTriggerState}, {ColumnNextFireTime}, {ColumnJobName}, {ColumnJobGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup");
 
@@ -444,7 +459,7 @@ public class StdAdoConstants : AdoConstants
     public static readonly string SqlOrderByJobGroupAndName = Invariant($" ORDER BY {ColumnJobGroup}, {ColumnJobName}");
 
     public static readonly string SqlSelectTriggerHeaders =
-        Invariant($"SELECT {ColumnTriggerName}, {ColumnTriggerGroup}, {ColumnJobName}, {ColumnJobGroup}, {ColumnDescription}, {ColumnTriggerType}, {ColumnTriggerState}, {ColumnStartTime}, {ColumnEndTime}, {ColumnNextFireTime}, {ColumnPreviousFireTime}, {ColumnCalendarName}, {ColumnPriority}, {ColumnExecutionGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName");
+        Invariant($"SELECT {ColumnTriggerName}, {ColumnTriggerGroup}, {ColumnJobName}, {ColumnJobGroup}, {ColumnDescription}, {ColumnTriggerType}, {ColumnTriggerState}, {ColumnStartTime}, {ColumnEndTime}, {ColumnNextFireTime}, {ColumnPreviousFireTime}, {ColumnCalendarName}, {ColumnPriority}, {ColumnExecutionGroup}, CASE WHEN {SqlExecutingFiredTriggerExists} THEN 1 ELSE 0 END FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName");
 
     public static readonly string SqlCountTriggerHeaders =
         Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName");
@@ -462,6 +477,23 @@ public class StdAdoConstants : AdoConstants
     /// internal states the requested <see cref="TriggerState" /> maps to.
     /// </summary>
     public static readonly string SqlTriggerStateInPredicateStart = Invariant($" AND {ColumnTriggerState} IN (");
+
+    /// <summary>
+    /// Opening of the negated trigger state filter, for the state an unrecognised stored value reports
+    /// as: the values it has to cover cannot be listed, so the others are excluded instead.
+    /// </summary>
+    public static readonly string SqlTriggerStateNotInPredicateStart = Invariant($" AND {ColumnTriggerState} NOT IN (");
+
+    /// <summary>
+    /// Narrows a state filter to triggers that are currently executing.
+    /// </summary>
+    public static readonly string SqlTriggerExecutingPredicate = Invariant($" AND {SqlExecutingFiredTriggerExists}");
+
+    /// <summary>
+    /// Narrows a state filter to triggers that are not currently executing, so that a listing filtered by
+    /// a state which executing outranks does not return rows it would then report as executing.
+    /// </summary>
+    public static readonly string SqlTriggerNotExecutingPredicate = Invariant($" AND NOT {SqlExecutingFiredTriggerExists}");
 
     public static readonly string SqlOrderByTriggerGroupAndName = Invariant($" ORDER BY {ColumnTriggerGroup}, {ColumnTriggerName}");
 

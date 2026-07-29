@@ -166,6 +166,42 @@ public class TriggerEndpointsTest : WebApiTest
     }
 
     [Test]
+    public async Task GetTriggerStateShouldWorkForExecuting()
+    {
+        A.CallTo(() => FakeScheduler.GetTriggerState(triggerKeyOne, A<CancellationToken>._)).Returns(TriggerState.Executing);
+
+        var state = await HttpScheduler.GetTriggerState(triggerKeyOne);
+        state.Should().Be(TriggerState.Executing);
+    }
+
+    /// <summary>
+    /// The enum crosses the wire as its numeric value, so the ordinals are a contract with clients built
+    /// against a different version. Both ends of the round trip above share the same enum, so only the
+    /// literal values can catch a renumbering.
+    /// </summary>
+    [Test]
+    public void TriggerStateOrdinalsAreTheWireContract()
+    {
+        ((int) TriggerState.Normal).Should().Be(0);
+        ((int) TriggerState.Paused).Should().Be(1);
+        ((int) TriggerState.Complete).Should().Be(2);
+        ((int) TriggerState.Error).Should().Be(3);
+        ((int) TriggerState.Blocked).Should().Be(4);
+        ((int) TriggerState.None).Should().Be(5);
+        ((int) TriggerState.Executing).Should().Be(6);
+    }
+
+    /// <summary>
+    /// The state filter is sent by member name, so the names are a contract too.
+    /// </summary>
+    [Test]
+    public void TriggerStateNamesAreTheWireContract()
+    {
+        Enum.GetNames<TriggerState>().Should().Equal(
+            "Normal", "Paused", "Complete", "Error", "Blocked", "None", "Executing");
+    }
+
+    [Test]
     public async Task PauseTriggerShouldWork()
     {
         await HttpScheduler.PauseTrigger(triggerKeyOne);

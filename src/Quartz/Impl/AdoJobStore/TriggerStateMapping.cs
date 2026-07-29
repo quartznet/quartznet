@@ -19,86 +19,158 @@
 
 #endregion
 
+using System.Diagnostics;
+
 namespace Quartz.Impl.AdoJobStore;
 
 /// <summary>
 /// Translates between the state strings the ADO job store persists in TRIGGER_STATE and the public
-/// <see cref="TriggerState" />. Both directions live here so that a listing's state filter and the
-/// state it reports back cannot disagree.
+/// <see cref="TriggerState" />. Both directions live here, and the filter direction is derived from the
+/// reporting one, so a listing's state filter and the state it reports back cannot disagree.
 /// </summary>
+/// <remarks>
+/// The precedence itself belongs to <see cref="TriggerStateResolver" />, which the in-memory store shares.
+/// </remarks>
 internal static class TriggerStateMapping
 {
-    private static readonly string[] normalStates = [AdoConstants.StateWaiting, AdoConstants.StateAcquired, AdoConstants.StateExecuting];
-    private static readonly string[] pausedStates = [AdoConstants.StatePaused, AdoConstants.StatePausedBlocked];
-    private static readonly string[] completeStates = [AdoConstants.StateComplete];
-    private static readonly string[] errorStates = [AdoConstants.StateError];
-    private static readonly string[] blockedStates = [AdoConstants.StateBlocked];
+    // Every state string the column can hold, including the ones this store never writes there: EXECUTING
+    // is only a FIRED_TRIGGERS state and DELETED is only what a read of a missing row reports, but a
+    // third-party delegate, migrated data or a hand-repaired row can leave either in the column, and each
+    // has to filter as whatever it reports as. Anything not listed here is covered by the negated filters.
+    private static readonly string[] storedStates =
+    [
+        AdoConstants.StateWaiting, AdoConstants.StateAcquired, AdoConstants.StateExecuting,
+        AdoConstants.StateComplete, AdoConstants.StateBlocked, AdoConstants.StatePaused,
+        AdoConstants.StatePausedBlocked, AdoConstants.StateError, AdoConstants.StateDeleted
+    ];
 
-    // DELETED is never written to TRIGGER_STATE — it is what a read of a missing row reports — so a
-    // filter on it matches no row, which is exactly what "None" means for a stored trigger.
-    private static readonly string[] noneStates = [AdoConstants.StateDeleted];
+    private static readonly Dictionary<TriggerState, TriggerStateFilter> filters = BuildFilters();
 
     /// <summary>
-    /// Maps a stored state string to the state callers see.
+    /// Maps a stored state string, plus whether the trigger has an execution in flight, to the state
+    /// callers see.
     /// </summary>
-    /// <remarks>
-    /// <see cref="AdoConstants.StateComplete" /> maps to <see cref="TriggerState.Complete" /> here.
-    /// <c>JobStoreSupport.GetTriggerState</c> refines that one case to <see cref="TriggerState.Blocked" />
-    /// when the trigger is currently executing, which costs an extra query per trigger; a listing takes
-    /// the unrefined answer rather than paying that per row.
-    /// </remarks>
-    internal static TriggerState ToTriggerState(string? state)
+    internal static TriggerState ToTriggerState(string? state, bool isExecuting)
     {
-        if (state is null || state == AdoConstants.StateDeleted)
-        {
-            return TriggerState.None;
-        }
-
-        if (state == AdoConstants.StateComplete)
-        {
-            return TriggerState.Complete;
-        }
-
-        if (state == AdoConstants.StatePaused || state == AdoConstants.StatePausedBlocked)
-        {
-            return TriggerState.Paused;
-        }
-
-        if (state == AdoConstants.StateError)
-        {
-            return TriggerState.Error;
-        }
-
-        if (state == AdoConstants.StateBlocked)
-        {
-            return TriggerState.Blocked;
-        }
-
-        return TriggerState.Normal;
+        InternalTriggerState? stored = ToInternalState(state);
+        return stored is null ? TriggerState.None : TriggerStateResolver.Resolve(stored.Value, isExecuting);
     }
 
     /// <summary>
-    /// The stored state strings a public state covers, for a <c>TRIGGER_STATE IN (...)</c> filter.
+    /// The predicate that selects exactly the rows a listing would report as the given state.
     /// </summary>
-    internal static string[] ToStoredStates(TriggerState state)
+    internal static TriggerStateFilter ToFilter(TriggerState state)
     {
-        switch (state)
+        if (!filters.TryGetValue(state, out TriggerStateFilter filter))
         {
-            case TriggerState.Normal:
-                return normalStates;
-            case TriggerState.Paused:
-                return pausedStates;
-            case TriggerState.Complete:
-                return completeStates;
-            case TriggerState.Error:
-                return errorStates;
-            case TriggerState.Blocked:
-                return blockedStates;
-            case TriggerState.None:
-                return noneStates;
-            default:
-                Throw.ArgumentOutOfRangeException(nameof(state), "Unknown trigger state: " + state);
-                return default;
+            Throw.ArgumentOutOfRangeException(nameof(state), "Unknown trigger state: " + state);
         }
+
+        return filter;
+    }
+
+    /// <summary>
+    /// Normalizes a stored state string to the state shared with the in-memory store.
+    /// </summary>
+    /// <returns><see langword="null" /> when the row does not exist.</returns>
+    private static InternalTriggerState? ToInternalState(string? state)
+    {
+        return state switch
+        {
+            null => null,
+            AdoConstants.StateDeleted => null,
+            AdoConstants.StateComplete => InternalTriggerState.Complete,
+            AdoConstants.StateBlocked => InternalTriggerState.Blocked,
+            AdoConstants.StatePaused => InternalTriggerState.Paused,
+            AdoConstants.StatePausedBlocked => InternalTriggerState.PausedAndBlocked,
+            AdoConstants.StateError => InternalTriggerState.Error,
+            AdoConstants.StateAcquired => InternalTriggerState.Acquired,
+
+            // WAITING, the EXECUTING value this store never writes to TRIGGER_STATE, and anything a
+            // foreign delegate may have put there: all schedulable, all report as normal.
+            _ => InternalTriggerState.Waiting
+        };
+    }
+
+    /// <summary>
+    /// Derives every listing filter from <see cref="TriggerStateResolver" />, so that a filter cannot
+    /// select rows the listing would then report as some other state. Changing the precedence changes
+    /// both directions at once.
+    /// </summary>
+    private static Dictionary<TriggerState, TriggerStateFilter> BuildFilters()
+    {
+        // The values an unrecognised state string can take cannot be enumerated, so whatever it reports as
+        // has to match by exclusion instead. It reports one thing while idle and another while executing,
+        // so both sides need their own catch-all; everything else matches by inclusion.
+        InternalTriggerState unrecognised = ToInternalState("~unrecognised~")!.Value;
+        TriggerState catchAllIdle = TriggerStateResolver.Resolve(unrecognised, isExecuting: false);
+        TriggerState catchAllExecuting = TriggerStateResolver.Resolve(unrecognised, isExecuting: true);
+
+        var result = new Dictionary<TriggerState, TriggerStateFilter>();
+
+        foreach (TriggerState reported in Enum.GetValues<TriggerState>())
+        {
+            string[] whenIdle = Matching(reported, isExecuting: false);
+            string[] whenExecuting = Matching(reported, isExecuting: true);
+
+            // A state executing outranks is only reported while nothing is running, and vice versa; a
+            // state that outranks executing reports the same either way and needs no extra predicate. A
+            // state no stored value reports as gets no entry at all, so asking to filter by it fails
+            // loudly rather than quietly matching the wrong rows.
+            if (whenIdle.Length == 0 && whenExecuting.Length == 0)
+            {
+                continue;
+            }
+
+            result[reported] = (whenIdle.Length, whenExecuting.Length) switch
+            {
+                (0, _) => Build(whenExecuting, reported == catchAllExecuting, executing: true),
+                (_, 0) => Build(whenIdle, reported == catchAllIdle, executing: false),
+                _ => BuildUnconditional(whenIdle, whenExecuting, reported == catchAllIdle)
+            };
+        }
+
+        return result;
+
+        static TriggerStateFilter Build(string[] states, bool isCatchAll, bool? executing)
+        {
+            // Excluding what reports as something else also covers the values that cannot be listed.
+            return isCatchAll
+                ? new TriggerStateFilter(Array.FindAll(storedStates, x => !states.Contains(x)), Negated: true, executing)
+                : new TriggerStateFilter(states, Negated: false, executing);
+        }
+
+        static TriggerStateFilter BuildUnconditional(string[] whenIdle, string[] whenExecuting, bool isCatchAll)
+        {
+            // Reported either way, so no executing predicate — which is only expressible because the two
+            // sides agree. A precedence change that broke that would need a different predicate shape.
+            Debug.Assert(
+                whenIdle.SequenceEqual(whenExecuting),
+                "a state reported both while idle and while executing must cover the same stored states");
+
+            return Build(whenIdle, isCatchAll, executing: null);
+        }
+    }
+
+    /// <summary>
+    /// The stored states that report as <paramref name="reported" /> under the given execution.
+    /// </summary>
+    private static string[] Matching(TriggerState reported, bool isExecuting)
+    {
+        return Array.FindAll(storedStates, stored => ToTriggerState(stored, isExecuting) == reported);
     }
 }
+
+/// <summary>
+/// The predicate that selects the rows a listing reports as one particular <see cref="TriggerState" />.
+/// </summary>
+/// <param name="States">The stored state strings to match.</param>
+/// <param name="Negated">
+/// Whether <paramref name="States" /> is the set to exclude rather than the set to match. Needed for the
+/// state an unrecognised stored value reports as, since those values cannot be listed.
+/// </param>
+/// <param name="Executing">
+/// <see langword="true" /> when the rows must also have an execution in flight, <see langword="false" />
+/// when they must not, and <see langword="null" /> when execution cannot change the reported state.
+/// </param>
+internal readonly record struct TriggerStateFilter(string[] States, bool Negated, bool? Executing);

@@ -695,6 +695,7 @@ public interface IScheduler
     /// <seealso cref="TriggerState.Blocked" />
     /// <seealso cref="TriggerState.Error" />
     /// <seealso cref="TriggerState.None" />
+    /// <seealso cref="TriggerState.Executing" />
     ValueTask<TriggerState> GetTriggerState(
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default);
