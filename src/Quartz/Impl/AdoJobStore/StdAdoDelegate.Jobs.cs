@@ -227,7 +227,7 @@ public partial class StdAdoDelegate
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         ITypeLoadHelper loadHelper,
-        bool loadJobType = true,
+        bool loadJobType,
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectJobForTrigger));

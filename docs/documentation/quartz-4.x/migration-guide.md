@@ -1173,10 +1173,10 @@ Consolidated into records rather than overload families:
 | `SelectFiredTriggerRecords`, `SelectFiredTriggerRecordsByJob`, `SelectInstancesFiredTriggerRecords` | `SelectFiredTriggerRecords(conn, FiredTriggerQuery, ct)` |
 | four `DeleteFiredTriggers` overloads | `DeleteFiredTriggers(conn, FiredTriggerQuery, ct)` |
 | two `SelectTriggerToAcquire` overloads | `SelectTriggersToAcquire(conn, TriggerAcquisitionCriteria, ct)` |
-| two `SelectJobForTrigger` overloads | one, with `bool loadJobType = true` |
+| two `SelectJobForTrigger` overloads | one, with a required `bool loadJobType` |
 | `DeletePausedTriggerGroup(conn, string, ct)` | the `GroupMatcher<TriggerKey>` overload |
 
-`FiredTriggerQuery` carries an optional `Trigger`, `Job` and `InstanceName` combined with AND — all null
+`FiredTriggerQuery` carries an optional `Trigger`, `Job` and `InstanceId` combined with AND — all null
 selects or deletes every fired trigger. `TriggerAcquisitionCriteria` carries `NoLaterThan`, `NoEarlierThan`,
 `MaxCount`, `ExecutionLimits` and `LiveNodeCutoff`, and is the extension point for future acquisition
 filtering: another way of narrowing what a node picks up is another optional property, not another overload.
@@ -1191,6 +1191,120 @@ in the order the statement mentions them. `MySQLDelegate` and `SQLiteDelegate` d
 Finally, `ITriggerPersistenceDelegate` gained a batch `LoadExtendedTriggerProperties` taking several trigger
 keys. It is a **default interface method** that loops the single-key overload, so a third-party trigger
 persistence delegate needs no change; override it only to turn a batch into one round trip.
+
+## Trigger states are typed on the driver delegate
+
+Eighteen members of `IDriverDelegate` took a trigger state as a `string` whose only legal values were the
+`AdoConstants.State*` constants. A typo, a stale spelling, or a transposed `newState`/`oldState` pair
+compiled and then quietly matched no row. `Quartz.Impl.AdoJobStore.StoredTriggerState` is now that type.
+
+**Nothing changes in the database.** The columns still hold the same strings; the conversion happens at the
+delegate boundary, and `AdoConstants.State*` stays public because the strings are the schema contract. A 4.0
+scheduler reads and writes rows a 3.x one wrote, and the two can share a cluster.
+
+| `AdoConstants` constant | Stored value | `StoredTriggerState` member |
+|---|---|---|
+| `StateWaiting` | `WAITING` | `StoredTriggerState.Waiting` |
+| `StateAcquired` | `ACQUIRED` | `StoredTriggerState.Acquired` |
+| `StateExecuting` | `EXECUTING` | `StoredTriggerState.Executing` |
+| `StateComplete` | `COMPLETE` | `StoredTriggerState.Complete` |
+| `StateBlocked` | `BLOCKED` | `StoredTriggerState.Blocked` |
+| `StateError` | `ERROR` | `StoredTriggerState.Error` |
+| `StatePaused` | `PAUSED` | `StoredTriggerState.Paused` |
+| `StatePausedBlocked` | `PAUSED_BLOCKED` | `StoredTriggerState.PausedBlocked` |
+| `StateDeleted` | `DELETED` | `StoredTriggerState.Deleted` |
+
+Both directions are public, because a custom delegate binds the string into its own statements:
+
+```csharp
+string stored = StoredTriggerState.PausedBlocked.ToStoredValue();   // "PAUSED_BLOCKED"
+StoredTriggerState state = StoredTriggerStates.FromStoredValue(stored);
+```
+
+`FromStoredValue` is deliberately lenient in exactly the way the store always was: a value this version does
+not recognise — left by a third-party delegate, a migration, or a hand-repaired row — reads as `Waiting`
+(schedulable, reported as a normal trigger), and a `null` column value reads as `Deleted`, the sentinel a
+missing trigger already reported. `SelectTriggerState` returns `StoredTriggerState` for the same reason its
+result flows straight into `AddTrigger` and `UpdateTrigger`.
+
+One behavior follows from that, and only for a row whose stored state no Quartz version writes: the
+mutation side now agrees with the listing side about it. A listing has always reported such a trigger as
+`Normal`, while `PauseTrigger` matched neither `WAITING` nor `ACQUIRED` and silently did nothing; now it
+pauses it. Storing such a trigger back writes `WAITING` rather than preserving the unrecognised value.
+
+`MisfiredTriggerUpdate.NewState` and `TriggerExecutionState.State` (and its constructor) carry the enum too.
+On `JobStoreSupport`, the protected members that pass a state through follow: `AddTrigger`,
+`UpdateMisfiredTrigger` and `CheckBlockedState`, the last of which now returns
+`ValueTask<StoredTriggerState>`.
+
+### The `…FromOtherStates` members take a collection
+
+Three members hard-coded two or three old states. A caller that wanted one repeated a value; one that wanted
+four could not say so. The predicate is now generated for the length of the set, with duplicates folded away.
+
+| 3.x / earlier 4.0 preview | 4.0 |
+|---|---|
+| `UpdateTriggerStatesFromOtherStates(conn, newState, oldState1, oldState2, ct)` | `(conn, StoredTriggerState newState, IReadOnlyCollection<StoredTriggerState> oldStates, ct)` |
+| `UpdateTriggerStateFromOtherStates(conn, key, newState, oldState1, oldState2, oldState3, ct)` | `(conn, key, StoredTriggerState newState, IReadOnlyCollection<StoredTriggerState> oldStates, ct)` |
+| `UpdateTriggerGroupStateFromOtherStates(conn, matcher, newState, oldState1, oldState2, oldState3, ct)` | `(conn, matcher, StoredTriggerState newState, IReadOnlyCollection<StoredTriggerState> oldStates, ct)` |
+
+```diff
+- await Delegate.UpdateTriggerStatesFromOtherStates(conn, AdoConstants.StateWaiting,
+-     AdoConstants.StateAcquired, AdoConstants.StateBlocked, cancellationToken);
++ await Delegate.UpdateTriggerStatesFromOtherStates(conn, StoredTriggerState.Waiting,
++     [StoredTriggerState.Acquired, StoredTriggerState.Blocked], cancellationToken);
+```
+
+An empty set throws `ArgumentException` rather than building a statement that matches nothing. The parameter
+is a plain collection rather than a `params` one because every async member of this codebase ends with its
+cancellation token, and a `params` parameter has to come last.
+
+### One term for a scheduler instance
+
+The value these members carry has always been the scheduler *instance id*
+(`quartz.scheduler.instanceId`), not the scheduler name — `SchedulerStateRecord.SchedulerInstanceId` already
+said so, and the interface said `instanceId` while the implementation said `instanceName`.
+
+| 3.x / earlier 4.0 preview | 4.0 |
+|---|---|
+| `FiredTriggerQuery.InstanceName` | `FiredTriggerQuery.InstanceId` |
+| `InsertSchedulerState(conn, string instanceName, …)` | `instanceId` |
+| `UpdateSchedulerState(conn, string instanceName, …)` | `instanceId` |
+| `DeleteSchedulerState(conn, string instanceName, …)` | `instanceId` |
+| `SelectSchedulerStateRecords(conn, string? instanceName, …)` | `instanceId` |
+
+**Column names are unchanged**: `SCHED_NAME` still holds the scheduler name and `INSTANCE_NAME` the
+instance id. `ITriggerPersistenceDelegate.Initialize`'s `schedulerName` keeps its name — that one really is
+the scheduler name.
+
+### Three parameter shapes were fixed
+
+* **`IsJobCurrentlyExecuting(conn, JobKey jobKey, ct)`** — it took `(string jobName, string jobGroup)`, the
+  last member of the interface splitting a key into two transposable strings.
+* **`SelectJobForTrigger(conn, key, loadHelper, bool loadJobType, ct)`** — `loadJobType` defaulted to `true`
+  while sitting in front of the cancellation token, so a call passing a token positionally bound it to the
+  wrong parameter. Both values are genuinely used, so the parameter stays; pass `loadJobType: true` for the
+  previous default.
+* **`UpdateTriggerPreferredNodeConditional(conn, key, PreferredNodeTransition transition, ct)`** — the
+  compare-and-swap took `(node, auto, expectedNode, expectedAuto)`, four loose values in two pairs that are
+  trivial to transpose and impossible for the compiler to check. The record names both sides and carries
+  [`PreferredNode`](#the-preferred-node-is-a-value) values rather than the raw column pair:
+
+  ```csharp
+  await Delegate.UpdateTriggerPreferredNodeConditional(conn, trigger.Key, new PreferredNodeTransition
+  {
+      Expected = PreferredNode.Auto,
+      New = PreferredNode.For(InstanceId)
+  }, cancellationToken);
+  ```
+
+### The matcher-based selects stay, deliberately
+
+`SelectTriggerGroups(matcher)`, `SelectJobsInGroup`, `SelectTriggersInGroup` and `SelectTriggerNamesForJob`
+look like leftovers next to the paged `SelectJobHeaders` / `SelectTriggerHeaders` / `SelectTriggerGroups(query)`
+members, and they are not. They are not listings: they serve the pause/resume and removal mutation paths,
+which have to move every matching row under one lock and therefore must not be paged. Their doc comments now
+say so, and they are not going away.
 
 ## Jobs take a CancellationToken
 
@@ -2276,3 +2390,9 @@ read back the way every other primitive can.
 | `IDashboardAuthorizationFilter` and `QuartzDashboardOptions.AuthorizationFilter` removed | Nothing ever invoked the filter, so setting it bought a false sense of security. Use `AuthorizationPolicy`, which is enforced |
 | `IDashboardHistoryStore` is asynchronous | `ValueTask Add`, `ValueTask<DashboardHistoryPage> GetPage`, so a store can talk to a database. `SearchFilter.DebounceMilliseconds` is a `TimeSpan Debounce`, and `QuartzApiClient` / `InProcessQuartzApiClient` are internal — resolve `IQuartzApiClient` |
 | Serializers outside a scheduler read a container-wide registry | Because the serializer maps are per-serializer, the HTTP API, the dashboard and `Quartz.HttpClient` read a `SystemTextJsonSerializerRegistry` registered in the container. Register it as a singleton to make a custom serializer visible to them |
+| `IDriverDelegate` trigger states are `StoredTriggerState` | Eighteen members took the state as a `string`; the database still stores the same values — see [Trigger states are typed on the driver delegate](#trigger-states-are-typed-on-the-driver-delegate) |
+| The `…FromOtherStates` members take a state collection | Two or three fixed old-state parameters became one `IReadOnlyCollection<StoredTriggerState>` |
+| `FiredTriggerQuery.InstanceName` is `InstanceId` | With the `instanceName` parameters of the scheduler-state members; the `INSTANCE_NAME` column is unchanged |
+| `IDriverDelegate.IsJobCurrentlyExecuting` takes a `JobKey` | It took `(string jobName, string jobGroup)` |
+| `IDriverDelegate.SelectJobForTrigger`'s `loadJobType` is required | It defaulted in front of the cancellation token; pass `loadJobType: true` for the old default |
+| `IDriverDelegate.UpdateTriggerPreferredNodeConditional` takes a `PreferredNodeTransition` | Four loose compare-and-swap parameters became one record naming `Expected` and `New` |

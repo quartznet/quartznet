@@ -131,7 +131,7 @@ public class UpdateTriggerTest
         cronTriggerImpl.JobDataMap = jobDataMap;
 
         //Act
-        await adoDelegate.UpdateTrigger(conn, cronTriggerImpl, "state", jobDetail);
+        await adoDelegate.UpdateTrigger(conn, cronTriggerImpl, StoredTriggerState.Waiting, jobDetail);
 
         //Assert
         var resultDataParameters = dataParameterCollectionOutputs.Select(x => x as IDataParameter).Where(x => x.ParameterName == "triggerType").FirstOrDefault();
@@ -216,7 +216,7 @@ public class UpdateTriggerTest
         cronTriggerImpl.JobDataMap = jobDataMap;
 
         //Act
-        await adoDelegate.UpdateTrigger(conn, cronTriggerImpl, "state", jobDetail);
+        await adoDelegate.UpdateTrigger(conn, cronTriggerImpl, StoredTriggerState.Waiting, jobDetail);
 
         //Assert: trigger type in base update should be CRON
         var triggerTypeParam = dataParameterCollectionOutputs

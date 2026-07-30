@@ -34,7 +34,7 @@ public class TriggerExecutionStateTest
     {
         TriggerExecutionState state = default;
 
-        state.State.Should().Be(AdoConstants.StateDeleted,
+        state.State.Should().Be(StoredTriggerState.Deleted,
             "the declared non-nullable State must not surface as null for a default struct");
         state.IsExecuting.Should().BeFalse();
         state.Should().Be(TriggerExecutionState.NotFound);
@@ -44,7 +44,7 @@ public class TriggerExecutionStateTest
     public void SpellingOutDeletedEqualsNotFound()
     {
         // The constructor doc offers these as alternatives, so they have to compare equal.
-        TriggerExecutionState spelledOut = new(AdoConstants.StateDeleted, isExecuting: false);
+        TriggerExecutionState spelledOut = new(StoredTriggerState.Deleted, isExecuting: false);
 
         spelledOut.Should().Be(TriggerExecutionState.NotFound);
         (spelledOut == TriggerExecutionState.NotFound).Should().BeTrue();
@@ -54,9 +54,9 @@ public class TriggerExecutionStateTest
     [Test]
     public void CarriesTheStateAndExecutionItWasGiven()
     {
-        TriggerExecutionState state = new(AdoConstants.StateWaiting, isExecuting: true);
+        TriggerExecutionState state = new(StoredTriggerState.Waiting, isExecuting: true);
 
-        state.State.Should().Be(AdoConstants.StateWaiting);
+        state.State.Should().Be(StoredTriggerState.Waiting);
         state.IsExecuting.Should().BeTrue();
         state.Should().NotBe(TriggerExecutionState.NotFound);
     }
@@ -64,10 +64,10 @@ public class TriggerExecutionStateTest
     [Test]
     public void ValuesWithTheSameStateAndExecutionAreEqual()
     {
-        new TriggerExecutionState(AdoConstants.StateBlocked, isExecuting: true)
-            .Should().Be(new TriggerExecutionState(AdoConstants.StateBlocked, isExecuting: true));
+        new TriggerExecutionState(StoredTriggerState.Blocked, isExecuting: true)
+            .Should().Be(new TriggerExecutionState(StoredTriggerState.Blocked, isExecuting: true));
 
-        new TriggerExecutionState(AdoConstants.StateBlocked, isExecuting: true)
-            .Should().NotBe(new TriggerExecutionState(AdoConstants.StateBlocked, isExecuting: false));
+        new TriggerExecutionState(StoredTriggerState.Blocked, isExecuting: true)
+            .Should().NotBe(new TriggerExecutionState(StoredTriggerState.Blocked, isExecuting: false));
     }
 }

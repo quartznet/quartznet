@@ -9,14 +9,14 @@ public partial class StdAdoDelegate
     /// <inheritdoc />
     public virtual async ValueTask<int> InsertSchedulerState(
         ConnectionAndTransactionHolder conn,
-        string instanceName,
+        string instanceId,
         DateTimeOffset checkInTime,
         TimeSpan interval,
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlInsertSchedulerState));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
-        AddCommandParameter(cmd, "instanceName", instanceName);
+        AddCommandParameter(cmd, "instanceName", instanceId);
         AddCommandParameter(cmd, "lastCheckinTime", GetDbDateTimeValue(checkInTime));
         AddCommandParameter(cmd, "checkinInterval", GetDbTimeSpanValue(interval));
 
@@ -26,12 +26,12 @@ public partial class StdAdoDelegate
     /// <inheritdoc />
     public virtual async ValueTask<int> DeleteSchedulerState(
         ConnectionAndTransactionHolder conn,
-        string instanceName,
+        string instanceId,
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlDeleteSchedulerState));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
-        AddCommandParameter(cmd, "instanceName", instanceName);
+        AddCommandParameter(cmd, "instanceName", instanceId);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -39,28 +39,28 @@ public partial class StdAdoDelegate
     /// <inheritdoc />
     public virtual async ValueTask<int> UpdateSchedulerState(
         ConnectionAndTransactionHolder conn,
-        string instanceName,
+        string instanceId,
         DateTimeOffset checkInTime,
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlUpdateSchedulerState));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
         AddCommandParameter(cmd, "lastCheckinTime", GetDbDateTimeValue(checkInTime));
-        AddCommandParameter(cmd, "instanceName", instanceName);
+        AddCommandParameter(cmd, "instanceName", instanceId);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public virtual async ValueTask<List<SchedulerStateRecord>> SelectSchedulerStateRecords(ConnectionAndTransactionHolder conn, string? instanceName, CancellationToken cancellationToken = default)
+    public virtual async ValueTask<List<SchedulerStateRecord>> SelectSchedulerStateRecords(ConnectionAndTransactionHolder conn, string? instanceId, CancellationToken cancellationToken = default)
     {
         DbCommand cmd;
         List<SchedulerStateRecord> list = [];
 
-        if (instanceName is not null)
+        if (instanceId is not null)
         {
             cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectSchedulerState));
-            AddCommandParameter(cmd, "instanceName", instanceName);
+            AddCommandParameter(cmd, "instanceName", instanceId);
         }
         else
         {

@@ -51,20 +51,17 @@ public interface IDriverDelegate
     void Initialize(DelegateInitializationArgs args);
 
     /// <summary>
-    /// Update all triggers having one of the two given states, to the given new
-    /// state.
+    /// Update all triggers having one of the given states, to the given new state.
     /// </summary>
     /// <param name="conn">The DB Connection</param>
     /// <param name="newState">The new state for the triggers</param>
-    /// <param name="oldState1">The first old state to update</param>
-    /// <param name="oldState2">The second old state to update</param>
+    /// <param name="oldStates">The states a trigger must be in to be updated. Must not be empty.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>Number of rows updated</returns>
     ValueTask<int> UpdateTriggerStatesFromOtherStates(
         ConnectionAndTransactionHolder conn,
-        string newState,
-        string oldState1,
-        string oldState2,
+        StoredTriggerState newState,
+        IReadOnlyCollection<StoredTriggerState> oldStates,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -125,8 +122,13 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get the names of all the triggers associated with the given job.
+    /// Get the keys of all the triggers associated with the given job.
     /// </summary>
+    /// <remarks>
+    /// Not a listing — <see cref="SelectTriggerHeaders" /> with a job filter is. This one serves the
+    /// pause/resume and removal mutation paths, which need every key of the job in one go so that they
+    /// can update them under the same lock, and which therefore must not be paged.
+    /// </remarks>
     /// <param name="conn">The DB Connection</param>
     /// <param name="jobKey">The key identifying the job.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
@@ -186,12 +188,17 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Select all the jobs contained in a given group.
+    /// Select the keys of all the jobs a group matcher selects.
     /// </summary>
+    /// <remarks>
+    /// Not a listing — <see cref="SelectJobHeaders" /> is. This one serves the mutation paths, which
+    /// need every matching key in one go so that they can update them under the same lock, and which
+    /// therefore must not be paged.
+    /// </remarks>
     /// <param name="conn">The DB Connection </param>
-    /// <param name="matcher"></param>
+    /// <param name="matcher">Criteria for matching groups.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns> an array of <see cref="String" /> job names</returns>
+    /// <returns>The keys of the matching jobs.</returns>
     ValueTask<List<JobKey>> SelectJobsInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default);
 
     //---------------------------------------------------------------------------
@@ -210,7 +217,7 @@ public interface IDriverDelegate
     ValueTask<int> InsertTrigger(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
-        string state,
+        StoredTriggerState state,
         IJobDetail jobDetail,
         CancellationToken cancellationToken = default);
 
@@ -238,7 +245,7 @@ public interface IDriverDelegate
     ValueTask<int> UpdateTrigger(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
-        string state,
+        StoredTriggerState state,
         IJobDetail jobDetail,
         CancellationToken cancellationToken = default);
 
@@ -277,7 +284,7 @@ public interface IDriverDelegate
     ValueTask<int> UpdateTriggerState(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
-        string state,
+        StoredTriggerState state,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -293,8 +300,8 @@ public interface IDriverDelegate
     ValueTask<int> UpdateTriggerStateFromOtherState(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
-        string newState,
-        string oldState,
+        StoredTriggerState newState,
+        StoredTriggerState oldState,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -304,20 +311,15 @@ public interface IDriverDelegate
     /// <param name="conn">The DB connection</param>
     /// <param name="triggerKey">The key identifying the trigger.</param>
     /// <param name="newState">The new state for the trigger</param>
-    /// <param name="oldState1">One of the old state the trigger must be in</param>
-    /// <param name="oldState2">One of the old state the trigger must be in</param>
-    /// <param name="oldState3">One of the old state the trigger must be in</param>
+    /// <param name="oldStates">The states the trigger must be in to be updated. Must not be empty.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns> int the number of rows updated
     /// </returns>
-    /// <throws>  SQLException </throws>
     ValueTask<int> UpdateTriggerStateFromOtherStates(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
-        string newState,
-        string oldState1,
-        string oldState2,
-        string oldState3,
+        StoredTriggerState newState,
+        IReadOnlyCollection<StoredTriggerState> oldStates,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -334,38 +336,42 @@ public interface IDriverDelegate
     ValueTask<int> UpdateTriggerStateFromOtherStateWithNextFireTime(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
-        string newState,
-        string oldState,
+        StoredTriggerState newState,
+        StoredTriggerState oldState,
         DateTimeOffset nextFireTime,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Update all triggers in the given group to the given new state, if they
-    /// are in one of the given old states.
+    /// Update all triggers the group matcher selects to the given new state, if they are in one of the
+    /// given old states.
     /// </summary>
+    /// <remarks>
+    /// Matcher-based rather than query-based on purpose: this is the pause/resume mutation path, which
+    /// has to move every matching trigger under one lock and therefore cannot be paged.
+    /// </remarks>
     /// <param name="conn">The DB connection</param>
-    /// <param name="matcher"></param>
+    /// <param name="matcher">Criteria for matching groups.</param>
     /// <param name="newState">The new state for the trigger</param>
-    /// <param name="oldState1">One of the old state the trigger must be in</param>
-    /// <param name="oldState2">One of the old state the trigger must be in</param>
-    /// <param name="oldState3">One of the old state the trigger must be in</param>
+    /// <param name="oldStates">The states a trigger must be in to be updated. Must not be empty.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>The number of rows updated</returns>
     ValueTask<int> UpdateTriggerGroupStateFromOtherStates(
         ConnectionAndTransactionHolder conn,
         GroupMatcher<TriggerKey> matcher,
-        string newState,
-        string oldState1,
-        string oldState2,
-        string oldState3,
+        StoredTriggerState newState,
+        IReadOnlyCollection<StoredTriggerState> oldStates,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Update all of the triggers of the given group to the given new state, if
-    /// they are in the given old state.
+    /// Update all of the triggers the group matcher selects to the given new state, if they are in the
+    /// given old state.
     /// </summary>
+    /// <remarks>
+    /// Matcher-based rather than query-based on purpose: this is the pause/resume mutation path, which
+    /// has to move every matching trigger under one lock and therefore cannot be paged.
+    /// </remarks>
     /// <param name="conn">The DB connection</param>
-    /// <param name="matcher"></param>
+    /// <param name="matcher">Criteria for matching groups.</param>
     /// <param name="newState">The new state for the trigger group</param>
     /// <param name="oldState">The old state the triggers must be in.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
@@ -373,8 +379,8 @@ public interface IDriverDelegate
     ValueTask<int> UpdateTriggerGroupStateFromOtherState(
         ConnectionAndTransactionHolder conn,
         GroupMatcher<TriggerKey> matcher,
-        string newState,
-        string oldState,
+        StoredTriggerState newState,
+        StoredTriggerState oldState,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -388,7 +394,7 @@ public interface IDriverDelegate
     ValueTask<int> UpdateTriggerStatesForJob(
         ConnectionAndTransactionHolder conn,
         JobKey jobKey,
-        string state,
+        StoredTriggerState state,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -397,15 +403,15 @@ public interface IDriverDelegate
     /// </summary>
     /// <param name="conn">The DB Connection</param>
     /// <param name="jobKey">The key identifying the job.</param>
-    /// <param name="state">The new state for the triggers</param>
+    /// <param name="newState">The new state for the triggers</param>
     /// <param name="oldState">The old state of the triggers</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns> the number of rows updated</returns>
     ValueTask<int> UpdateTriggerStatesForJobFromOtherState(
         ConnectionAndTransactionHolder conn,
         JobKey jobKey,
-        string state,
-        string oldState,
+        StoredTriggerState newState,
+        StoredTriggerState oldState,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -459,7 +465,7 @@ public interface IDriverDelegate
     ValueTask<IJobDetail?> SelectJobForTrigger(ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         ITypeLoadHelper loadHelper,
-        bool loadJobType = true,
+        bool loadJobType,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -507,8 +513,11 @@ public interface IDriverDelegate
     /// <param name="conn">The DB Connection.</param>
     /// <param name="triggerKey">The key identifying the trigger.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>The <see cref="ITrigger" /> object.</returns>
-    ValueTask<string> SelectTriggerState(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, CancellationToken cancellationToken = default);
+    /// <returns>
+    /// The trigger's stored state, or <see cref="StoredTriggerState.Deleted" /> when no such trigger
+    /// exists.
+    /// </returns>
+    ValueTask<StoredTriggerState> SelectTriggerState(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Select a triggers status (state and next fire time).
@@ -520,22 +529,32 @@ public interface IDriverDelegate
     ValueTask<TriggerStatus?> SelectTriggerStatus(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Select all trigger group names that match the criteria. Pass
+    /// Select all trigger group names a group matcher selects. Pass
     /// <see cref="GroupMatcher{TKey}.AnyGroup" /> for every group.
     /// </summary>
+    /// <remarks>
+    /// Not a listing — the <see cref="TriggerGroupQuery" /> overload is. This one serves the
+    /// pause/resume mutation paths, which need every matching group in one go so that they can update
+    /// them under the same lock, and which therefore must not be paged.
+    /// </remarks>
     /// <param name="conn">The DB Connection.</param>
     /// <param name="matcher">The matcher to apply for searching.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>An array of <see cref="String" /> group names.</returns>
+    /// <returns>The names of the matching groups.</returns>
     ValueTask<List<string>> SelectTriggerGroups(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Select all the triggers contained in a given group.
+    /// Select the keys of all the triggers a group matcher selects.
     /// </summary>
+    /// <remarks>
+    /// Not a listing — <see cref="SelectTriggerHeaders" /> is. This one serves the pause/resume
+    /// mutation paths, which need every matching key in one go so that they can update them under the
+    /// same lock, and which therefore must not be paged.
+    /// </remarks>
     /// <param name="conn">The DB Connection.</param>
-    /// <param name="matcher"></param>
+    /// <param name="matcher">Criteria for matching groups.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>An array of <see cref="String" /> trigger names.</returns>
+    /// <returns>The keys of the matching triggers.</returns>
     ValueTask<List<TriggerKey>> SelectTriggersInGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -545,7 +564,7 @@ public interface IDriverDelegate
     /// <param name="state">The state the triggers must be in.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>An array of trigger <see cref="TriggerKey" />s.</returns>
-    ValueTask<List<TriggerKey>> SelectTriggersInState(ConnectionAndTransactionHolder conn, string state, CancellationToken cancellationToken = default);
+    ValueTask<List<TriggerKey>> SelectTriggersInState(ConnectionAndTransactionHolder conn, StoredTriggerState state, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Inserts the paused trigger group.
@@ -681,7 +700,7 @@ public interface IDriverDelegate
     ValueTask<int> InsertFiredTrigger(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
-        string state,
+        StoredTriggerState state,
         IJobDetail? jobDetail,
         CancellationToken cancellationToken = default);
 
@@ -702,10 +721,12 @@ public interface IDriverDelegate
     /// Checks whether a job is currently being executed (has a fired trigger in EXECUTING state).
     /// Used to enforce <see cref="DisallowConcurrentExecutionAttribute"/> across cluster nodes.
     /// </summary>
+    /// <param name="conn">The DB Connection</param>
+    /// <param name="jobKey">The key identifying the job.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask<bool> IsJobCurrentlyExecuting(
         ConnectionAndTransactionHolder conn,
-        string jobName,
-        string jobGroup,
+        JobKey jobKey,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -782,12 +803,12 @@ public interface IDriverDelegate
     /// </para>
     /// </summary>
     /// <param name="conn">The DB Connection</param>
-    /// <param name="instanceName">The instance id.</param>
+    /// <param name="instanceId">The instance id, or <see langword="null" /> for every instance.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns></returns>
     ValueTask<List<SchedulerStateRecord>> SelectSchedulerStateRecords(
         ConnectionAndTransactionHolder conn,
-        string? instanceName,
+        string? instanceId,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -818,16 +839,16 @@ public interface IDriverDelegate
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Counts the misfired triggers in states.
+    /// Counts the triggers in the given state that missed their scheduled fire time.
     /// </summary>
-    /// <param name="conn">The conn.</param>
-    /// <param name="state1">The state1.</param>
-    /// <param name="ts">The ts.</param>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="state">The trigger state to scan.</param>
+    /// <param name="ts">Triggers whose next fire time is before this are misfired.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns></returns>
     ValueTask<int> CountMisfiredTriggersInState(
         ConnectionAndTransactionHolder conn,
-        string state1,
+        StoredTriggerState state,
         DateTimeOffset ts,
         CancellationToken cancellationToken = default);
 
@@ -843,7 +864,7 @@ public interface IDriverDelegate
     ValueTask<int> UpdateFiredTrigger(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
-        string state,
+        StoredTriggerState state,
         IJobDetail job,
         CancellationToken cancellationToken = default);
 
@@ -892,7 +913,7 @@ public interface IDriverDelegate
     ValueTask UpdateMisfiredTrigger(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
-        string newState,
+        StoredTriggerState newState,
         DateTimeOffset? misfireOriginalFireTime,
         CancellationToken cancellationToken = default);
 
@@ -902,13 +923,13 @@ public interface IDriverDelegate
     /// <see cref="CountMisfiredTriggersInState" />.
     /// </summary>
     /// <param name="conn">The DB connection.</param>
-    /// <param name="state">The trigger state to scan (WAITING).</param>
+    /// <param name="state">The trigger state to scan (<see cref="StoredTriggerState.Waiting" />).</param>
     /// <param name="ts">Triggers whose next fire time is before this are misfired.</param>
     /// <param name="count">Maximum number of triggers to return, or -1 for all of them.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask<MisfiredTriggerBatch> SelectMisfiredTriggersToRecover(
         ConnectionAndTransactionHolder conn,
-        string state,
+        StoredTriggerState state,
         DateTimeOffset ts,
         int count,
         CancellationToken cancellationToken = default);
@@ -932,14 +953,15 @@ public interface IDriverDelegate
     /// re-pin or clear (e.g. via UpdateTriggerDetails between acquisition and firing) wins over the
     /// claim instead of being clobbered by it.
     /// </summary>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="triggerKey">The key identifying the trigger.</param>
+    /// <param name="transition">The pin the row must still hold, and the one to put in its place.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>Number of rows updated: 1 when the claim succeeded, 0 when the value changed concurrently.</returns>
     ValueTask<int> UpdateTriggerPreferredNodeConditional(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
-        string preferredNode,
-        bool preferredNodeAuto,
-        string expectedPreferredNode,
-        bool expectedPreferredNodeAuto,
+        PreferredNodeTransition transition,
         CancellationToken cancellationToken = default);
 
     /// <summary>

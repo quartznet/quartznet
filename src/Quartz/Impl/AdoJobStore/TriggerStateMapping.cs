@@ -37,12 +37,9 @@ internal static class TriggerStateMapping
     // is only a FIRED_TRIGGERS state and DELETED is only what a read of a missing row reports, but a
     // third-party delegate, migrated data or a hand-repaired row can leave either in the column, and each
     // has to filter as whatever it reports as. Anything not listed here is covered by the negated filters.
+    // Derived from the enum so that a state added there is automatically covered here.
     private static readonly string[] storedStates =
-    [
-        AdoConstants.StateWaiting, AdoConstants.StateAcquired, AdoConstants.StateExecuting,
-        AdoConstants.StateComplete, AdoConstants.StateBlocked, AdoConstants.StatePaused,
-        AdoConstants.StatePausedBlocked, AdoConstants.StateError, AdoConstants.StateDeleted
-    ];
+        [.. Enum.GetValues<StoredTriggerState>().Select(StoredTriggerStates.ToStoredValue)];
 
     private static readonly Dictionary<TriggerState, TriggerStateFilter> filters = BuildFilters();
 
@@ -51,6 +48,15 @@ internal static class TriggerStateMapping
     /// callers see.
     /// </summary>
     internal static TriggerState ToTriggerState(string? state, bool isExecuting)
+    {
+        return ToTriggerState(StoredTriggerStates.FromStoredValue(state), isExecuting);
+    }
+
+    /// <summary>
+    /// Maps a stored state, plus whether the trigger has an execution in flight, to the state callers
+    /// see.
+    /// </summary>
+    internal static TriggerState ToTriggerState(StoredTriggerState state, bool isExecuting)
     {
         InternalTriggerState? stored = ToInternalState(state);
         return stored is null ? TriggerState.None : TriggerStateResolver.Resolve(stored.Value, isExecuting);
@@ -70,24 +76,24 @@ internal static class TriggerStateMapping
     }
 
     /// <summary>
-    /// Normalizes a stored state string to the state shared with the in-memory store.
+    /// Normalizes a stored state to the state shared with the in-memory store.
     /// </summary>
     /// <returns><see langword="null" /> when the row does not exist.</returns>
-    private static InternalTriggerState? ToInternalState(string? state)
+    private static InternalTriggerState? ToInternalState(StoredTriggerState state)
     {
         return state switch
         {
-            null => null,
-            AdoConstants.StateDeleted => null,
-            AdoConstants.StateComplete => InternalTriggerState.Complete,
-            AdoConstants.StateBlocked => InternalTriggerState.Blocked,
-            AdoConstants.StatePaused => InternalTriggerState.Paused,
-            AdoConstants.StatePausedBlocked => InternalTriggerState.PausedAndBlocked,
-            AdoConstants.StateError => InternalTriggerState.Error,
-            AdoConstants.StateAcquired => InternalTriggerState.Acquired,
+            StoredTriggerState.Deleted => null,
+            StoredTriggerState.Complete => InternalTriggerState.Complete,
+            StoredTriggerState.Blocked => InternalTriggerState.Blocked,
+            StoredTriggerState.Paused => InternalTriggerState.Paused,
+            StoredTriggerState.PausedBlocked => InternalTriggerState.PausedAndBlocked,
+            StoredTriggerState.Error => InternalTriggerState.Error,
+            StoredTriggerState.Acquired => InternalTriggerState.Acquired,
 
             // WAITING, the EXECUTING value this store never writes to TRIGGER_STATE, and anything a
-            // foreign delegate may have put there: all schedulable, all report as normal.
+            // foreign delegate may have put there (which reads back as WAITING): all schedulable, all
+            // report as normal.
             _ => InternalTriggerState.Waiting
         };
     }
@@ -102,7 +108,7 @@ internal static class TriggerStateMapping
         // The values an unrecognised state string can take cannot be enumerated, so whatever it reports as
         // has to match by exclusion instead. It reports one thing while idle and another while executing,
         // so both sides need their own catch-all; everything else matches by inclusion.
-        InternalTriggerState unrecognised = ToInternalState("~unrecognised~")!.Value;
+        InternalTriggerState unrecognised = ToInternalState(StoredTriggerStates.FromStoredValue("~unrecognised~"))!.Value;
         TriggerState catchAllIdle = TriggerStateResolver.Resolve(unrecognised, isExecuting: false);
         TriggerState catchAllExecuting = TriggerStateResolver.Resolve(unrecognised, isExecuting: true);
 

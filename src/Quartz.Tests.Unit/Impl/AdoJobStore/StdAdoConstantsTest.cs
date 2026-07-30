@@ -14,7 +14,7 @@ public class StdAdoConstantsTest
 
         var sql = StdAdoConstants.SqlCountMisfiredTriggersInStates;
 
-        sql.Should().Be("SELECT COUNT(TRIGGER_NAME) FROM {0}TRIGGERS WHERE SCHED_NAME = @schedulerName AND MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME < @nextFireTime AND TRIGGER_STATE = @state1");
+        sql.Should().Be("SELECT COUNT(TRIGGER_NAME) FROM {0}TRIGGERS WHERE SCHED_NAME = @schedulerName AND MISFIRE_INSTR <> -1 AND NEXT_FIRE_TIME < @nextFireTime AND TRIGGER_STATE = @state");
     }
 
     /// <summary>
@@ -55,7 +55,7 @@ public class StdAdoConstantsTest
 
         sql.Should().Contain("t.MISFIRE_INSTR <> -1");
         sql.Should().Contain("t.NEXT_FIRE_TIME < @nextFireTime");
-        sql.Should().Contain("t.TRIGGER_STATE = @state1");
+        sql.Should().Contain("t.TRIGGER_STATE = @state");
         sql.Should().Contain("ORDER BY t.NEXT_FIRE_TIME ASC, t.PRIORITY DESC");
     }
 

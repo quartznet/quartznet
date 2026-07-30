@@ -128,7 +128,7 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateSupport : ITrigg
     public async ValueTask<int> InsertExtendedTriggerProperties(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
-        string state,
+        StoredTriggerState state,
         IJobDetail jobDetail,
         CancellationToken cancellationToken = default)
     {
@@ -198,7 +198,7 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateSupport : ITrigg
     public async ValueTask<int> UpdateExtendedTriggerProperties(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
-        string state,
+        StoredTriggerState state,
         IJobDetail jobDetail,
         CancellationToken cancellationToken = default)
     {

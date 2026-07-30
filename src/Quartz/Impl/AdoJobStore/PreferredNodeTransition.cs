@@ -22,29 +22,23 @@
 namespace Quartz.Impl.AdoJobStore;
 
 /// <summary>
-/// Selects rows of the FIRED_TRIGGERS table, for both
-/// <see cref="IDriverDelegate.SelectFiredTriggerRecords" /> and
-/// <see cref="IDriverDelegate.DeleteFiredTriggers" />.
+/// The compare-and-swap <see cref="IDriverDelegate.UpdateTriggerPreferredNodeConditional" /> attempts:
+/// the pin the caller observed, and the pin it wants to put in its place.
 /// </summary>
 /// <remarks>
-/// The filters combine with AND, and each one that is left null drops out of the statement entirely.
-/// A query with every filter null therefore selects — or deletes — every fired trigger of the scheduler.
+/// Keeping the two pins as one value is what makes the operation readable as a CAS — the alternative,
+/// four loose parameters in expected/new pairs, is trivial to transpose and the compiler cannot tell.
 /// </remarks>
-public sealed record FiredTriggerQuery
+public sealed record PreferredNodeTransition
 {
     /// <summary>
-    /// Limits the result to the fired triggers of one trigger.
+    /// The pin the row must still hold for the swap to happen. Read at acquisition time; if anything
+    /// re-pinned the trigger since, no row matches and the swap reports zero rows updated.
     /// </summary>
-    public TriggerKey? Trigger { get; init; }
+    public required PreferredNode Expected { get; init; }
 
     /// <summary>
-    /// Limits the result to the fired triggers of one job.
+    /// The pin to write when the row still holds <see cref="Expected" />.
     /// </summary>
-    public JobKey? Job { get; init; }
-
-    /// <summary>
-    /// Limits the result to the fired triggers owned by one scheduler instance, named by its
-    /// instance id.
-    /// </summary>
-    public string? InstanceId { get; init; }
+    public required PreferredNode New { get; init; }
 }

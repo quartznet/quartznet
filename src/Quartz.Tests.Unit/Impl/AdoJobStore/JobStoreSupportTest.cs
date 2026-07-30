@@ -32,7 +32,7 @@ public class JobStoreSupportTest
     {
         A.CallTo(() => driverDelegate.SelectMisfiredTriggersToRecover(
                 A<ConnectionAndTransactionHolder>.Ignored,
-                A<string>.Ignored,
+                A<StoredTriggerState>.Ignored,
                 A<DateTimeOffset>.Ignored,
                 A<int>.Ignored,
                 A<CancellationToken>.Ignored))
@@ -55,7 +55,7 @@ public class JobStoreSupportTest
 
         A.CallTo(() => driverDelegate.SelectMisfiredTriggersToRecover(
             A<ConnectionAndTransactionHolder>.Ignored,
-            A<string>.That.IsEqualTo(AdoConstants.StateWaiting),
+            A<StoredTriggerState>.That.IsEqualTo(StoredTriggerState.Waiting),
             A<DateTimeOffset>.Ignored,
             A<int>.Ignored,
             CancellationToken.None)).MustHaveHappened();
@@ -71,7 +71,7 @@ public class JobStoreSupportTest
         // Assert: the batch read replaces the per-trigger reads entirely
         A.CallTo(() => driverDelegate.SelectMisfiredTriggersToRecover(
             A<ConnectionAndTransactionHolder>.Ignored,
-            A<string>.Ignored,
+            A<StoredTriggerState>.Ignored,
             A<DateTimeOffset>.Ignored,
             A<int>.Ignored,
             A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
@@ -113,13 +113,13 @@ public class JobStoreSupportTest
         captured.Should().NotBeNull();
         captured.Should().HaveCount(2);
         captured.Select(x => x.Trigger.Key.Name).Should().BeEquivalentTo(["misfired1", "misfired2"]);
-        captured.Should().OnlyContain(x => x.NewState == AdoConstants.StateWaiting);
+        captured.Should().OnlyContain(x => x.NewState == StoredTriggerState.Waiting);
 
         // Assert: the single-trigger write path is not used for batch recovery
         A.CallTo(() => driverDelegate.UpdateMisfiredTrigger(
             A<ConnectionAndTransactionHolder>.Ignored,
             A<IOperableTrigger>.Ignored,
-            A<string>.Ignored,
+            A<StoredTriggerState>.Ignored,
             A<DateTimeOffset?>.Ignored,
             A<CancellationToken>.Ignored)).MustNotHaveHappened();
     }
@@ -195,7 +195,7 @@ public class JobStoreSupportTest
         // Assert: fired triggers for this job key should be cleaned up
         A.CallTo(() => driverDelegate.DeleteFiredTriggers(
             A<ConnectionAndTransactionHolder>.Ignored,
-            A<FiredTriggerQuery>.That.Matches(x => x.Job == jobKey && x.Trigger == null && x.InstanceName == null),
+            A<FiredTriggerQuery>.That.Matches(x => x.Job == jobKey && x.Trigger == null && x.InstanceId == null),
             A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
     }
 
@@ -280,10 +280,10 @@ public class JobStoreSupportTest
         IJobDetail job = CreateDisallowConcurrentJob();
 
         A.CallTo(() => driverDelegate.SelectTriggerState(conn, trigger.Key, A<CancellationToken>.Ignored))
-            .Returns(new ValueTask<string>(AdoConstants.StateAcquired));
+            .Returns(new ValueTask<StoredTriggerState>(StoredTriggerState.Acquired));
         A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Extensibility.ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
-        A.CallTo(() => driverDelegate.IsJobCurrentlyExecuting(conn, trigger.JobKey.Name, trigger.JobKey.Group, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.IsJobCurrentlyExecuting(conn, trigger.JobKey, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(true));
 
         TriggerFiredBundle result = await jobStoreSupport.CallTriggerFired(conn, trigger);
@@ -292,7 +292,7 @@ public class JobStoreSupportTest
         A.CallTo(() => driverDelegate.UpdateFiredTrigger(
             A<ConnectionAndTransactionHolder>.Ignored,
             A<IOperableTrigger>.Ignored,
-            A<string>.Ignored,
+            A<StoredTriggerState>.Ignored,
             A<IJobDetail>.Ignored,
             A<CancellationToken>.Ignored)).MustNotHaveHappened();
     }
@@ -305,15 +305,15 @@ public class JobStoreSupportTest
         IJobDetail job = CreateDisallowConcurrentJob();
 
         A.CallTo(() => driverDelegate.SelectTriggerState(conn, trigger.Key, A<CancellationToken>.Ignored))
-            .Returns(new ValueTask<string>(AdoConstants.StateAcquired));
+            .Returns(new ValueTask<StoredTriggerState>(StoredTriggerState.Acquired));
         A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Extensibility.ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
-        A.CallTo(() => driverDelegate.IsJobCurrentlyExecuting(conn, trigger.JobKey.Name, trigger.JobKey.Group, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.IsJobCurrentlyExecuting(conn, trigger.JobKey, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(false));
 
         TriggerFiredBundle result = await jobStoreSupport.CallTriggerFired(conn, trigger);
 
-        A.CallTo(() => driverDelegate.UpdateFiredTrigger(conn, trigger, AdoConstants.StateExecuting, job, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.UpdateFiredTrigger(conn, trigger, StoredTriggerState.Executing, job, A<CancellationToken>.Ignored))
             .MustHaveHappenedOnceExactly();
     }
 
@@ -325,7 +325,7 @@ public class JobStoreSupportTest
         IJobDetail job = CreateConcurrentJob();
 
         A.CallTo(() => driverDelegate.SelectTriggerState(conn, trigger.Key, A<CancellationToken>.Ignored))
-            .Returns(new ValueTask<string>(AdoConstants.StateAcquired));
+            .Returns(new ValueTask<StoredTriggerState>(StoredTriggerState.Acquired));
         A.CallTo(() => driverDelegate.SelectJobDetail(conn, trigger.JobKey, A<Extensibility.ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
 
@@ -333,18 +333,17 @@ public class JobStoreSupportTest
 
         A.CallTo(() => driverDelegate.IsJobCurrentlyExecuting(
             A<ConnectionAndTransactionHolder>.Ignored,
-            A<string>.Ignored,
-            A<string>.Ignored,
+            A<JobKey>.Ignored,
             A<CancellationToken>.Ignored)).MustNotHaveHappened();
     }
 
-    [TestCase(AdoConstants.StatePaused)]
-    [TestCase(AdoConstants.StateBlocked)]
-    [TestCase(AdoConstants.StatePausedBlocked)]
-    [TestCase(AdoConstants.StateWaiting)]
-    [TestCase(AdoConstants.StateComplete)]
-    [TestCase(AdoConstants.StateError)]
-    public async Task StoreCalendar_PreservesTriggerState_WhenUpdatingTriggers(string originalState)
+    [TestCase(StoredTriggerState.Paused)]
+    [TestCase(StoredTriggerState.Blocked)]
+    [TestCase(StoredTriggerState.PausedBlocked)]
+    [TestCase(StoredTriggerState.Waiting)]
+    [TestCase(StoredTriggerState.Complete)]
+    [TestCase(StoredTriggerState.Error)]
+    public async Task StoreCalendar_PreservesTriggerState_WhenUpdatingTriggers(StoredTriggerState originalState)
     {
         // Arrange
         var conn = new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
@@ -371,7 +370,7 @@ public class JobStoreSupportTest
         A.CallTo(() => driverDelegate.SelectTriggersForCalendar(conn, calendarName, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<List<IOperableTrigger>>(new List<IOperableTrigger> { trigger }));
         A.CallTo(() => driverDelegate.SelectTriggerState(conn, triggerKey, A<CancellationToken>.Ignored))
-            .Returns(new ValueTask<string>(originalState));
+            .Returns(new ValueTask<StoredTriggerState>(originalState));
         A.CallTo(() => driverDelegate.TriggerExists(conn, triggerKey, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(true));
         A.CallTo(() => driverDelegate.SelectJobDetail(conn, jobKey, A<ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
@@ -409,7 +408,7 @@ public class JobStoreSupportTest
         A.CallTo(() => driverDelegate.SelectTriggersForCalendar(conn, calendarName, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<List<IOperableTrigger>>(new List<IOperableTrigger> { trigger }));
         A.CallTo(() => driverDelegate.SelectTriggerState(conn, triggerKey, A<CancellationToken>.Ignored))
-            .Returns(new ValueTask<string>(AdoConstants.StateDeleted));
+            .Returns(new ValueTask<StoredTriggerState>(StoredTriggerState.Deleted));
 
         // Act
         await jobStoreSupport.CallAddCalendar(conn, calendarName, calendar, replace: true, updateTriggers: true);
@@ -418,7 +417,7 @@ public class JobStoreSupportTest
         A.CallTo(() => driverDelegate.UpdateTrigger(
             A<ConnectionAndTransactionHolder>.Ignored,
             A<IOperableTrigger>.Ignored,
-            A<string>.Ignored,
+            A<StoredTriggerState>.Ignored,
             A<IJobDetail>.Ignored,
             A<CancellationToken>.Ignored)).MustNotHaveHappened();
         A.CallTo(() => driverDelegate.TriggerExists(
@@ -464,9 +463,9 @@ public class JobStoreSupportTest
             .Returns(new ValueTask<List<IOperableTrigger>>(new List<IOperableTrigger> { pausedTrigger, waitingTrigger }));
 
         A.CallTo(() => driverDelegate.SelectTriggerState(conn, pausedTriggerKey, A<CancellationToken>.Ignored))
-            .Returns(new ValueTask<string>(AdoConstants.StatePaused));
+            .Returns(new ValueTask<StoredTriggerState>(StoredTriggerState.Paused));
         A.CallTo(() => driverDelegate.SelectTriggerState(conn, waitingTriggerKey, A<CancellationToken>.Ignored))
-            .Returns(new ValueTask<string>(AdoConstants.StateWaiting));
+            .Returns(new ValueTask<StoredTriggerState>(StoredTriggerState.Waiting));
 
         A.CallTo(() => driverDelegate.TriggerExists(conn, A<TriggerKey>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(true));
@@ -477,9 +476,9 @@ public class JobStoreSupportTest
         await jobStoreSupport.CallAddCalendar(conn, calendarName, calendar, replace: true, updateTriggers: true);
 
         // Assert: each trigger should be stored with its own original state
-        A.CallTo(() => driverDelegate.UpdateTrigger(conn, pausedTrigger, AdoConstants.StatePaused, job, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.UpdateTrigger(conn, pausedTrigger, StoredTriggerState.Paused, job, A<CancellationToken>.Ignored))
             .MustHaveHappenedOnceExactly();
-        A.CallTo(() => driverDelegate.UpdateTrigger(conn, waitingTrigger, AdoConstants.StateWaiting, job, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.UpdateTrigger(conn, waitingTrigger, StoredTriggerState.Waiting, job, A<CancellationToken>.Ignored))
             .MustHaveHappenedOnceExactly();
     }
 
@@ -550,7 +549,7 @@ public class JobStoreSupportTest
         newTrigger.PreviousFireTimeUtc.Should().Be(previousFireTime,
             "PreviousFireTimeUtc should be preserved from the existing trigger when replacing (#1834)");
 
-        A.CallTo(() => driverDelegate.UpdateTrigger(conn, newTrigger, A<string>.Ignored, job, A<CancellationToken>.Ignored))
+        A.CallTo(() => driverDelegate.UpdateTrigger(conn, newTrigger, A<StoredTriggerState>.Ignored, job, A<CancellationToken>.Ignored))
             .MustHaveHappenedOnceExactly();
     }
 
@@ -627,16 +626,16 @@ public class JobStoreSupportTest
         A.CallTo(() => driverDelegate.UpdateTriggerStateFromOtherState(
             A<ConnectionAndTransactionHolder>.Ignored,
             triggerKey,
-            AdoConstants.StateWaiting,
-            AdoConstants.StateAcquired,
+            StoredTriggerState.Waiting,
+            StoredTriggerState.Acquired,
             A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
 
         // Should also update from BLOCKED→WAITING to mirror ReleaseAcquiredTrigger
         A.CallTo(() => driverDelegate.UpdateTriggerStateFromOtherState(
             A<ConnectionAndTransactionHolder>.Ignored,
             triggerKey,
-            AdoConstants.StateWaiting,
-            AdoConstants.StateBlocked,
+            StoredTriggerState.Waiting,
+            StoredTriggerState.Blocked,
             A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
 
         A.CallTo(() => driverDelegate.DeleteFiredTrigger(
@@ -691,16 +690,16 @@ public class JobStoreSupportTest
         A.CallTo(() => driverDelegate.UpdateTriggerStateFromOtherState(
             A<ConnectionAndTransactionHolder>.Ignored,
             staleTrigger,
-            AdoConstants.StateWaiting,
-            AdoConstants.StateAcquired,
+            StoredTriggerState.Waiting,
+            StoredTriggerState.Acquired,
             A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
 
         // Should also update from BLOCKED→WAITING to mirror ReleaseAcquiredTrigger
         A.CallTo(() => driverDelegate.UpdateTriggerStateFromOtherState(
             A<ConnectionAndTransactionHolder>.Ignored,
             staleTrigger,
-            AdoConstants.StateWaiting,
-            AdoConstants.StateBlocked,
+            StoredTriggerState.Waiting,
+            StoredTriggerState.Blocked,
             A<CancellationToken>.Ignored)).MustHaveHappenedOnceExactly();
 
         A.CallTo(() => driverDelegate.DeleteFiredTrigger(
@@ -736,8 +735,8 @@ public class JobStoreSupportTest
         A.CallTo(() => driverDelegate.UpdateTriggerStateFromOtherState(
             A<ConnectionAndTransactionHolder>.Ignored,
             A<TriggerKey>.Ignored,
-            A<string>.Ignored,
-            A<string>.Ignored,
+            A<StoredTriggerState>.Ignored,
+            A<StoredTriggerState>.Ignored,
             A<CancellationToken>.Ignored)).MustNotHaveHappened();
     }
 
@@ -879,7 +878,7 @@ public class JobStoreSupportTest
             IJobDetail job,
             bool replace)
         {
-            return AddTrigger(conn, newTrigger, job, replace, AdoConstants.StateWaiting, false, false, CancellationToken.None);
+            return AddTrigger(conn, newTrigger, job, replace, StoredTriggerState.Waiting, false, false, CancellationToken.None);
         }
 
         internal ValueTask<int> CallRecoverStaleAcquiredTriggers(ConnectionAndTransactionHolder conn)
@@ -965,24 +964,24 @@ public class JobStoreSupportTest
     /// is executing. The reported precedence is None &gt; Error &gt; Paused &gt; Executing &gt; Blocked &gt;
     /// Complete &gt; Normal.
     /// </summary>
-    [TestCase(AdoConstants.StateWaiting, false, TriggerState.Normal)]
-    [TestCase(AdoConstants.StateWaiting, true, TriggerState.Executing)]
-    [TestCase(AdoConstants.StateAcquired, false, TriggerState.Normal)]
-    [TestCase(AdoConstants.StateAcquired, true, TriggerState.Executing)]
-    [TestCase(AdoConstants.StateComplete, false, TriggerState.Complete)]
-    [TestCase(AdoConstants.StateComplete, true, TriggerState.Executing)]
-    [TestCase(AdoConstants.StateBlocked, false, TriggerState.Blocked)]
-    [TestCase(AdoConstants.StateBlocked, true, TriggerState.Executing)]
-    [TestCase(AdoConstants.StatePaused, false, TriggerState.Paused)]
-    [TestCase(AdoConstants.StatePaused, true, TriggerState.Paused)]
-    [TestCase(AdoConstants.StatePausedBlocked, false, TriggerState.Paused)]
-    [TestCase(AdoConstants.StatePausedBlocked, true, TriggerState.Paused)]
-    [TestCase(AdoConstants.StateError, false, TriggerState.Error)]
-    [TestCase(AdoConstants.StateError, true, TriggerState.Error)]
-    [TestCase(AdoConstants.StateDeleted, false, TriggerState.None)]
-    [TestCase(AdoConstants.StateDeleted, true, TriggerState.None)]
+    [TestCase(StoredTriggerState.Waiting, false, TriggerState.Normal)]
+    [TestCase(StoredTriggerState.Waiting, true, TriggerState.Executing)]
+    [TestCase(StoredTriggerState.Acquired, false, TriggerState.Normal)]
+    [TestCase(StoredTriggerState.Acquired, true, TriggerState.Executing)]
+    [TestCase(StoredTriggerState.Complete, false, TriggerState.Complete)]
+    [TestCase(StoredTriggerState.Complete, true, TriggerState.Executing)]
+    [TestCase(StoredTriggerState.Blocked, false, TriggerState.Blocked)]
+    [TestCase(StoredTriggerState.Blocked, true, TriggerState.Executing)]
+    [TestCase(StoredTriggerState.Paused, false, TriggerState.Paused)]
+    [TestCase(StoredTriggerState.Paused, true, TriggerState.Paused)]
+    [TestCase(StoredTriggerState.PausedBlocked, false, TriggerState.Paused)]
+    [TestCase(StoredTriggerState.PausedBlocked, true, TriggerState.Paused)]
+    [TestCase(StoredTriggerState.Error, false, TriggerState.Error)]
+    [TestCase(StoredTriggerState.Error, true, TriggerState.Error)]
+    [TestCase(StoredTriggerState.Deleted, false, TriggerState.None)]
+    [TestCase(StoredTriggerState.Deleted, true, TriggerState.None)]
     public async Task GetTriggerState_MapsStoredStateAndExecutionToReportedState(
-        string storedState,
+        StoredTriggerState storedState,
         bool isExecuting,
         TriggerState expected)
     {
@@ -1025,7 +1024,7 @@ public class JobStoreSupportTest
                 {
                     throw new TransientTestException();
                 }
-                return new ValueTask<string>(AdoConstants.StateAcquired);
+                return new ValueTask<StoredTriggerState>(StoredTriggerState.Acquired);
             });
         A.CallTo(() => del.SelectJobDetail(A<ConnectionAndTransactionHolder>.Ignored, trigger.JobKey, A<ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IJobDetail>(job));
@@ -1100,7 +1099,7 @@ public class JobStoreSupportTest
 
         // Trigger A always succeeds — but its work is rolled back when B fails
         A.CallTo(() => del.SelectTriggerState(A<ConnectionAndTransactionHolder>.Ignored, triggerA.Key, A<CancellationToken>.Ignored))
-            .Returns(new ValueTask<string>(AdoConstants.StateAcquired));
+            .Returns(new ValueTask<StoredTriggerState>(StoredTriggerState.Acquired));
 
         // Trigger B throws transient on first call, succeeds on retry
         A.CallTo(() => del.SelectTriggerState(A<ConnectionAndTransactionHolder>.Ignored, triggerB.Key, A<CancellationToken>.Ignored))
@@ -1111,7 +1110,7 @@ public class JobStoreSupportTest
                 {
                     throw new TransientTestException();
                 }
-                return new ValueTask<string>(AdoConstants.StateAcquired);
+                return new ValueTask<StoredTriggerState>(StoredTriggerState.Acquired);
             });
 
         A.CallTo(() => del.SelectJobDetail(A<ConnectionAndTransactionHolder>.Ignored, A<JobKey>.Ignored, A<ITypeLoadHelper>.Ignored, A<CancellationToken>.Ignored))
