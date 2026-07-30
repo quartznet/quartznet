@@ -87,7 +87,7 @@ public class SimpleJobFactory : IJobFactory
         }
         catch (Exception e)
         {
-            SchedulerException se = new SchedulerException($"Problem instantiating class '{jobDetail.JobType.FullName}: {e.Message}'", e);
+            SchedulerException se = new SchedulerException($"Problem instantiating class '{jobDetail.JobType.FullName}': {e.Message}", e);
             throw se;
         }
     }
