@@ -41,12 +41,12 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public abstract class JobStoreSupport : AdoConstants, IJobStore
+public abstract class JobStoreSupport : IJobStore
 {
     protected internal const string LockTriggerAccess = "TRIGGER_ACCESS";
     protected internal const string LockStateAccess = "STATE_ACCESS";
 
-    private string tablePrefix = DefaultTablePrefix;
+    private string tablePrefix = AdoConstants.DefaultTablePrefix;
     private bool useProperties;
     private readonly Dictionary<string, ICalendar?> calendarCache = [];
     private IDriverDelegate driverDelegate = null!;
@@ -735,7 +735,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 {
                     if (SelectWithLockSql is null)
                     {
-                        const string DefaultLockSql = "SELECT * FROM {0}LOCKS WITH (UPDLOCK,ROWLOCK) WHERE " + ColumnSchedulerName + " = @schedulerName AND LOCK_NAME = @lockName";
+                        const string DefaultLockSql = "SELECT * FROM {0}LOCKS WITH (UPDLOCK,ROWLOCK) WHERE " + AdoConstants.ColumnSchedulerName + " = @schedulerName AND LOCK_NAME = @lockName";
                         Logger.LogInformation("Detected usage of SqlServerDelegate - defaulting 'selectWithLockSQL' to '{DefaultLockSql}'.", DefaultLockSql);
                         SelectWithLockSql = DefaultLockSql;
                     }
@@ -999,11 +999,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         try
         {
             // update inconsistent job states
-            int rows = await Delegate.UpdateTriggerStatesFromOtherStates(conn, StateWaiting, StateAcquired, StateBlocked, cancellationToken).ConfigureAwait(false);
+            int rows = await Delegate.UpdateTriggerStatesFromOtherStates(conn, AdoConstants.StateWaiting, AdoConstants.StateAcquired, AdoConstants.StateBlocked, cancellationToken).ConfigureAwait(false);
 
-            rows += await Delegate.UpdateTriggerStatesFromOtherStates(conn, StatePaused,
-                StatePausedBlocked,
-                StatePausedBlocked, cancellationToken).ConfigureAwait(false);
+            rows += await Delegate.UpdateTriggerStatesFromOtherStates(conn, AdoConstants.StatePaused,
+                AdoConstants.StatePausedBlocked,
+                AdoConstants.StatePausedBlocked, cancellationToken).ConfigureAwait(false);
 
             Logger.LogInformation("Freed {Count} triggers from 'acquired' / 'blocked' state.", rows);
 
@@ -1019,13 +1019,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 if (await JobExists(conn, trigger.JobKey, cancellationToken).ConfigureAwait(false))
                 {
                     trigger.ComputeFirstFireTimeUtc(null);
-                    await StoreTrigger(conn, trigger, null, false, StateWaiting, false, true, cancellationToken).ConfigureAwait(false);
+                    await StoreTrigger(conn, trigger, null, false, AdoConstants.StateWaiting, false, true, cancellationToken).ConfigureAwait(false);
                 }
             }
             Logger.LogInformation("Recovery complete.");
 
             // remove lingering 'complete' triggers...
-            var triggersInState = await Delegate.SelectTriggersInState(conn, StateComplete, cancellationToken).ConfigureAwait(false);
+            var triggersInState = await Delegate.SelectTriggersInState(conn, AdoConstants.StateComplete, cancellationToken).ConfigureAwait(false);
             foreach (var trigger in triggersInState)
             {
                 await RemoveTrigger(conn, trigger, cancellationToken).ConfigureAwait(false);
@@ -1062,7 +1062,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         // Read the whole batch as fully populated triggers in one round-trip, rather than reading keys
         // and then reading each trigger back individually.
         MisfiredTriggerBatch batch =
-            await Delegate.SelectMisfiredTriggersToRecover(conn, StateWaiting, MisfireTime, maxMisfiresToHandleAtATime, cancellationToken).ConfigureAwait(false);
+            await Delegate.SelectMisfiredTriggersToRecover(conn, AdoConstants.StateWaiting, MisfireTime, maxMisfiresToHandleAtATime, cancellationToken).ConfigureAwait(false);
 
         List<IOperableTrigger> misfiredTriggers = batch.Triggers;
         bool hasMoreMisfiredTriggers = batch.HasMore;
@@ -1096,7 +1096,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         {
             try
             {
-                updates.Add(await PrepareMisfiredTriggerUpdate(conn, trig, StateWaiting, batchCalendarCache, cancellationToken).ConfigureAwait(false));
+                updates.Add(await PrepareMisfiredTriggerUpdate(conn, trig, AdoConstants.StateWaiting, batchCalendarCache, cancellationToken).ConfigureAwait(false));
             }
             catch (Exception e)
             {
@@ -1178,7 +1178,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
         // Determine new state.
         DateTimeOffset? newFireTime = trig.NextFireTimeUtc;
-        string newState = newFireTime.HasValue ? newStateIfNotComplete : StateComplete;
+        string newState = newFireTime.HasValue ? newStateIfNotComplete : AdoConstants.StateComplete;
 
         // Compute misfire-original-fire-time for "fire now" policies (folded into the single UPDATE).
         DateTimeOffset? misfireOrigFireTime = null;
@@ -1217,7 +1217,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 ? rec.ScheduleTimestamp
                 : rec.FireTimestamp;
 
-            if (rec.FireInstanceState == StateAcquired && effectiveTimestamp < staleCutoff)
+            if (rec.FireInstanceState == AdoConstants.StateAcquired && effectiveTimestamp < staleCutoff)
             {
                 if (rec.TriggerKey is null || rec.FireInstanceId is null)
                 {
@@ -1230,8 +1230,8 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                     // Mirror ReleaseAcquiredTrigger: update from both ACQUIRED and BLOCKED,
                     // because TriggersFired may have moved the trigger to BLOCKED state (for
                     // DisallowConcurrentExecution jobs) while the fired record is still ACQUIRED.
-                    await Delegate.UpdateTriggerStateFromOtherState(conn, rec.TriggerKey, StateWaiting, StateAcquired, cancellationToken).ConfigureAwait(false);
-                    await Delegate.UpdateTriggerStateFromOtherState(conn, rec.TriggerKey, StateWaiting, StateBlocked, cancellationToken).ConfigureAwait(false);
+                    await Delegate.UpdateTriggerStateFromOtherState(conn, rec.TriggerKey, AdoConstants.StateWaiting, AdoConstants.StateAcquired, cancellationToken).ConfigureAwait(false);
+                    await Delegate.UpdateTriggerStateFromOtherState(conn, rec.TriggerKey, AdoConstants.StateWaiting, AdoConstants.StateBlocked, cancellationToken).ConfigureAwait(false);
                     await Delegate.DeleteFiredTrigger(conn, rec.FireInstanceId, cancellationToken).ConfigureAwait(false);
                     recoveredCount++;
                 }
@@ -1270,7 +1270,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 ? rec.ScheduleTimestamp
                 : rec.FireTimestamp;
 
-            if (rec.FireInstanceState == StateAcquired && effectiveTimestamp < staleCutoff)
+            if (rec.FireInstanceState == AdoConstants.StateAcquired && effectiveTimestamp < staleCutoff)
             {
                 return true;
             }
@@ -1330,7 +1330,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
         if (!trig.NextFireTimeUtc.HasValue)
         {
-            await StoreTrigger(conn, trig, null, true, StateComplete, forceState, recovering).ConfigureAwait(false);
+            await StoreTrigger(conn, trig, null, true, AdoConstants.StateComplete, forceState, recovering).ConfigureAwait(false);
             await schedSignaler.NotifySchedulerListenersFinalized(trig).ConfigureAwait(false);
         }
         else
@@ -1392,7 +1392,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             () => ExecuteInLock<object?>(LockOnInsert ? LockTriggerAccess : null, async conn =>
             {
                 await StoreJob(conn, job, false, cancellationToken).ConfigureAwait(false);
-                await StoreTrigger(conn, trigger, job, false, StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
+                await StoreTrigger(conn, trigger, job, false, AdoConstants.StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
                 return null;
             }, cancellationToken),
             activity =>
@@ -1506,7 +1506,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             OperationName.JobStore.StoreTrigger,
             () => ExecuteInLock(
                 LockOnInsert || replaceExisting ? LockTriggerAccess : null,
-                conn => StoreTrigger(conn, trigger, null, replaceExisting, StateWaiting, false, false, cancellationToken),
+                conn => StoreTrigger(conn, trigger, null, replaceExisting, AdoConstants.StateWaiting, false, false, cancellationToken),
                 cancellationToken),
             activity =>
             {
@@ -1543,7 +1543,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
                 if (!shouldBepaused)
                 {
-                    shouldBepaused = await Delegate.IsTriggerGroupPaused(conn, AllGroupsPaused, cancellationToken).ConfigureAwait(false);
+                    shouldBepaused = await Delegate.IsTriggerGroupPaused(conn, AdoConstants.AllGroupsPaused, cancellationToken).ConfigureAwait(false);
 
                     if (shouldBepaused)
                     {
@@ -1551,9 +1551,9 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                     }
                 }
 
-                if (shouldBepaused && state is StateWaiting or StateAcquired)
+                if (shouldBepaused && state is AdoConstants.StateWaiting or AdoConstants.StateAcquired)
                 {
-                    state = StatePaused;
+                    state = AdoConstants.StatePaused;
                 }
             }
 
@@ -1725,7 +1725,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                         await StoreJob(conn, job, replace, cancellationToken).ConfigureAwait(false);
                         foreach (var trigger in triggers)
                         {
-                            await StoreTrigger(conn, (IOperableTrigger) trigger, job, replace, StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
+                            await StoreTrigger(conn, (IOperableTrigger) trigger, job, replace, AdoConstants.StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
                         }
                     }
                 }, cancellationToken)).ConfigureAwait(false);
@@ -1951,7 +1951,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
             bool removedTrigger = await DeleteTriggerAndChildren(conn, triggerKey, cancellationToken).ConfigureAwait(false);
 
-            await StoreTrigger(conn, newTrigger, job, false, StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
+            await StoreTrigger(conn, newTrigger, job, false, AdoConstants.StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
 
             return removedTrigger;
         }
@@ -2166,14 +2166,14 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     {
         try
         {
-            var newState = StateWaiting;
+            var newState = AdoConstants.StateWaiting;
 
             if (await Delegate.IsTriggerGroupPaused(conn, triggerKey.Group, cancellationToken).ConfigureAwait(false))
             {
-                newState = StatePaused;
+                newState = AdoConstants.StatePaused;
             }
 
-            await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, StateError, cancellationToken).ConfigureAwait(false);
+            await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, AdoConstants.StateError, cancellationToken).ConfigureAwait(false);
 
             Logger.LogInformation("Trigger {TriggerKey} reset from ERROR state to: {NewState}", triggerKey, newState);
         }
@@ -2245,7 +2245,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                     {
                         trigger.UpdateWithNewCalendar(calendar, MisfireThreshold);
                         string triggerState = await Delegate.SelectTriggerState(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
-                        if (string.Equals(triggerState, StateDeleted, StringComparison.Ordinal))
+                        if (string.Equals(triggerState, AdoConstants.StateDeleted, StringComparison.Ordinal))
                         {
                             continue;
                         }
@@ -2751,13 +2751,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         {
             string oldState = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);
 
-            if (oldState is StateWaiting or StateAcquired)
+            if (oldState is AdoConstants.StateWaiting or AdoConstants.StateAcquired)
             {
-                await Delegate.UpdateTriggerState(conn, triggerKey, StatePaused, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerState(conn, triggerKey, AdoConstants.StatePaused, cancellationToken).ConfigureAwait(false);
             }
-            else if (oldState == StateBlocked)
+            else if (oldState == AdoConstants.StateBlocked)
             {
-                await Delegate.UpdateTriggerState(conn, triggerKey, StatePausedBlocked, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerState(conn, triggerKey, AdoConstants.StatePausedBlocked, cancellationToken).ConfigureAwait(false);
             }
         }
         catch (Exception e)
@@ -2843,7 +2843,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         CancellationToken cancellationToken = default)
     {
         // State can only transition to BLOCKED from PAUSED or WAITING.
-        if (currentState != StateWaiting && currentState != StatePaused)
+        if (currentState != AdoConstants.StateWaiting && currentState != AdoConstants.StatePaused)
         {
             return currentState;
         }
@@ -2857,7 +2857,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 FiredTriggerRecord rec = lst[0];
                 if (rec.JobDisallowsConcurrentExecution) // TODO: worry about failed/recovering/volatile job  states?
                 {
-                    return StatePaused == currentState ? StatePausedBlocked : StateBlocked;
+                    return AdoConstants.StatePaused == currentState ? AdoConstants.StatePausedBlocked : AdoConstants.StateBlocked;
                 }
             }
 
@@ -2904,9 +2904,9 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 return;
             }
 
-            bool blocked = StatePausedBlocked == status.Status;
+            bool blocked = AdoConstants.StatePausedBlocked == status.Status;
 
-            string newState = await CheckBlockedState(conn, status.JobKey, StateWaiting, cancellationToken).ConfigureAwait(false);
+            string newState = await CheckBlockedState(conn, status.JobKey, AdoConstants.StateWaiting, cancellationToken).ConfigureAwait(false);
 
             bool misfired = false;
 
@@ -2919,11 +2919,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             {
                 if (blocked)
                 {
-                    await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, StatePausedBlocked, cancellationToken).ConfigureAwait(false);
+                    await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, AdoConstants.StatePausedBlocked, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
-                    await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, StatePaused, cancellationToken).ConfigureAwait(false);
+                    await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, AdoConstants.StatePaused, cancellationToken).ConfigureAwait(false);
                 }
             }
         }
@@ -3017,12 +3017,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     {
         try
         {
-            await Delegate.UpdateTriggerGroupStateFromOtherStates(conn, matcher, StatePaused,
-                StateAcquired, StateWaiting,
-                StateWaiting, cancellationToken).ConfigureAwait(false);
+            await Delegate.UpdateTriggerGroupStateFromOtherStates(conn, matcher, AdoConstants.StatePaused,
+                AdoConstants.StateAcquired, AdoConstants.StateWaiting,
+                AdoConstants.StateWaiting, cancellationToken).ConfigureAwait(false);
 
-            await Delegate.UpdateTriggerGroupStateFromOtherState(conn, matcher, StatePausedBlocked,
-                StateBlocked, cancellationToken).ConfigureAwait(false);
+            await Delegate.UpdateTriggerGroupStateFromOtherState(conn, matcher, AdoConstants.StatePausedBlocked,
+                AdoConstants.StateBlocked, cancellationToken).ConfigureAwait(false);
 
             var groups = new List<string>(await Delegate.SelectTriggerGroups(conn, matcher, cancellationToken).ConfigureAwait(false));
 
@@ -3125,9 +3125,9 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
         try
         {
-            if (!await Delegate.IsTriggerGroupPaused(conn, AllGroupsPaused, cancellationToken).ConfigureAwait(false))
+            if (!await Delegate.IsTriggerGroupPaused(conn, AdoConstants.AllGroupsPaused, cancellationToken).ConfigureAwait(false))
             {
-                await Delegate.InsertPausedTriggerGroup(conn, AllGroupsPaused, cancellationToken).ConfigureAwait(false);
+                await Delegate.InsertPausedTriggerGroup(conn, AdoConstants.AllGroupsPaused, cancellationToken).ConfigureAwait(false);
             }
         }
         catch (Exception e)
@@ -3174,7 +3174,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
         try
         {
-            await Delegate.DeletePausedTriggerGroup(conn, GroupMatcher<TriggerKey>.GroupEquals(AllGroupsPaused), cancellationToken).ConfigureAwait(false);
+            await Delegate.DeletePausedTriggerGroup(conn, GroupMatcher<TriggerKey>.GroupEquals(AdoConstants.AllGroupsPaused), cancellationToken).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -3318,7 +3318,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                         try
                         {
                             Logger.LogError(e, "Error retrieving job, setting trigger state to ERROR.");
-                            await Delegate.UpdateTriggerState(conn, triggerKey, StateError, cancellationToken).ConfigureAwait(false);
+                            await Delegate.UpdateTriggerState(conn, triggerKey, AdoConstants.StateError, cancellationToken).ConfigureAwait(false);
                         }
                         catch (Exception ex)
                         {
@@ -3361,14 +3361,14 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
                     // We now have a acquired trigger, let's add to return list.
                     // If our trigger was no longer in the expected state, try a new one.
-                    int rowsUpdated = await Delegate.UpdateTriggerStateFromOtherStateWithNextFireTime(conn, triggerKey, StateAcquired, StateWaiting, nextFireTimeUtc.Value, cancellationToken).ConfigureAwait(false);
+                    int rowsUpdated = await Delegate.UpdateTriggerStateFromOtherStateWithNextFireTime(conn, triggerKey, AdoConstants.StateAcquired, AdoConstants.StateWaiting, nextFireTimeUtc.Value, cancellationToken).ConfigureAwait(false);
                     if (rowsUpdated <= 0)
                     {
                         // TODO: Hum... shouldn't we log a warning here?
                         continue; // next trigger
                     }
                     nextTrigger.FireInstanceId = GetFiredTriggerRecordId();
-                    await Delegate.InsertFiredTrigger(conn, nextTrigger, StateAcquired, null, cancellationToken).ConfigureAwait(false);
+                    await Delegate.InsertFiredTrigger(conn, nextTrigger, AdoConstants.StateAcquired, null, cancellationToken).ConfigureAwait(false);
 
                     if (acquiredTriggers.Count == 0)
                     {
@@ -3429,8 +3429,8 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     {
         try
         {
-            await Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Key, StateWaiting, StateAcquired, cancellationToken).ConfigureAwait(false);
-            await Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Key, StateWaiting, StateBlocked, cancellationToken).ConfigureAwait(false);
+            await Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Key, AdoConstants.StateWaiting, AdoConstants.StateAcquired, cancellationToken).ConfigureAwait(false);
+            await Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Key, AdoConstants.StateWaiting, AdoConstants.StateBlocked, cancellationToken).ConfigureAwait(false);
             await Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception e)
@@ -3494,7 +3494,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                         var executingTriggers = new HashSet<string>();
                         foreach (FiredTriggerRecord ft in acquired)
                         {
-                            if (StateExecuting == ft.FireInstanceState)
+                            if (AdoConstants.StateExecuting == ft.FireInstanceState)
                             {
                                 executingTriggers.Add(ft.FireInstanceId!);
                             }
@@ -3534,7 +3534,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         {
             // if trigger was deleted, state will be StateDeleted
             string state = await Delegate.SelectTriggerState(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
-            if (state != StateAcquired)
+            if (state != AdoConstants.StateAcquired)
             {
                 return null;
             }
@@ -3557,7 +3557,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             try
             {
                 Logger.LogError(jpe, "Error retrieving job, setting trigger state to ERROR.");
-                await Delegate.UpdateTriggerState(conn, trigger.Key, StateError, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerState(conn, trigger.Key, AdoConstants.StateError, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception sqle)
             {
@@ -3599,7 +3599,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
         try
         {
-            await Delegate.UpdateFiredTrigger(conn, trigger, StateExecuting, job, cancellationToken).ConfigureAwait(false);
+            await Delegate.UpdateFiredTrigger(conn, trigger, AdoConstants.StateExecuting, job, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -3653,18 +3653,18 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         // call triggered - to update the trigger's next-fire-time state...
         trigger.Triggered(calendar);
 
-        string state2 = StateWaiting;
+        string state2 = AdoConstants.StateWaiting;
         bool force = true;
 
         if (job.ConcurrentExecutionDisallowed)
         {
-            state2 = StateBlocked;
+            state2 = AdoConstants.StateBlocked;
             force = false;
             try
             {
-                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Key, StateBlocked, StateWaiting, cancellationToken).ConfigureAwait(false);
-                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Key, StateBlocked, StateAcquired, cancellationToken).ConfigureAwait(false);
-                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Key, StatePausedBlocked, StatePaused, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Key, AdoConstants.StateBlocked, AdoConstants.StateWaiting, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Key, AdoConstants.StateBlocked, AdoConstants.StateAcquired, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Key, AdoConstants.StatePausedBlocked, AdoConstants.StatePaused, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -3674,7 +3674,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
         if (!trigger.NextFireTimeUtc.HasValue)
         {
-            state2 = StateComplete;
+            state2 = AdoConstants.StateComplete;
             force = true;
         }
 
@@ -3752,31 +3752,31 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
             else if (triggerInstructionCode == SchedulerInstruction.SetTriggerComplete)
             {
-                await Delegate.UpdateTriggerState(conn, trigger.Key, StateComplete, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerState(conn, trigger.Key, AdoConstants.StateComplete, cancellationToken).ConfigureAwait(false);
                 conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
             }
             else if (triggerInstructionCode == SchedulerInstruction.SetTriggerError)
             {
                 Logger.LogInformation("Trigger {Trigger} set to ERROR state.", trigger.Key);
-                await Delegate.UpdateTriggerState(conn, trigger.Key, StateError, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerState(conn, trigger.Key, AdoConstants.StateError, cancellationToken).ConfigureAwait(false);
                 conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
             }
             else if (triggerInstructionCode == SchedulerInstruction.SetAllJobTriggersComplete)
             {
-                await Delegate.UpdateTriggerStatesForJob(conn, trigger.JobKey, StateComplete, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerStatesForJob(conn, trigger.JobKey, AdoConstants.StateComplete, cancellationToken).ConfigureAwait(false);
                 conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
             }
             else if (triggerInstructionCode == SchedulerInstruction.SetAllJobTriggersError)
             {
                 Logger.LogInformation("All triggers of Job {Job} set to ERROR state.", trigger.JobKey);
-                await Delegate.UpdateTriggerStatesForJob(conn, trigger.JobKey, StateError, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerStatesForJob(conn, trigger.JobKey, AdoConstants.StateError, cancellationToken).ConfigureAwait(false);
                 conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
             }
 
             if (jobDetail.ConcurrentExecutionDisallowed)
             {
-                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StateWaiting, StateBlocked, cancellationToken).ConfigureAwait(false);
-                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StatePaused, StatePausedBlocked, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, AdoConstants.StateWaiting, AdoConstants.StateBlocked, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, AdoConstants.StatePaused, AdoConstants.StatePausedBlocked, cancellationToken).ConfigureAwait(false);
                 conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
 
                 // Check for misfired triggers that were just unblocked
@@ -3790,16 +3790,16 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 {
                     // Only check triggers in WAITING state (those that were just unblocked)
                     var state = await Delegate.SelectTriggerState(conn, trig.Key, cancellationToken).ConfigureAwait(false);
-                    if (state == StateWaiting)
+                    if (state == AdoConstants.StateWaiting)
                     {
-                        var misfired = await UpdateMisfiredTrigger(conn, trig.Key, StateWaiting, false, cancellationToken).ConfigureAwait(false);
+                        var misfired = await UpdateMisfiredTrigger(conn, trig.Key, AdoConstants.StateWaiting, false, cancellationToken).ConfigureAwait(false);
                         if (misfired)
                         {
                             // If the trigger was misfired and has no more fire times (e.g., fire-once triggers),
                             // it was stored as COMPLETE. We need to remove it entirely so that GetTrigger
                             // returns null and the trigger doesn't linger in the database.
                             var newState = await Delegate.SelectTriggerState(conn, trig.Key, cancellationToken).ConfigureAwait(false);
-                            if (newState == StateComplete)
+                            if (newState == AdoConstants.StateComplete)
                             {
                                 await RemoveTrigger(conn, trig.Key, cancellationToken).ConfigureAwait(false);
                             }
@@ -3878,7 +3878,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 // trigger lock, peek ahead to see if it is likely we would find
                 // misfired triggers requiring recovery.
                 int misfireCount = DoubleCheckLockMisfireHandler
-                    ? await Delegate.CountMisfiredTriggersInState(conn, StateWaiting, MisfireTime, cancellationToken).ConfigureAwait(false)
+                    ? await Delegate.CountMisfiredTriggersInState(conn, AdoConstants.StateWaiting, MisfireTime, cancellationToken).ConfigureAwait(false)
                     : int.MaxValue;
 
                 if (Logger.IsEnabled(LogLevel.Debug))
@@ -4306,7 +4306,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                         // still be alive and running the job. If it truly died, on the second
                         // detection (after the grace period) full cleanup will be performed.
                         if (canDeferRecovery
-                            && ftRec.FireInstanceState == StateExecuting
+                            && ftRec.FireInstanceState == AdoConstants.StateExecuting
                             && ftRec.JobDisallowsConcurrentExecution)
                         {
                             preservedFireInstanceIds ??= [];
@@ -4320,19 +4320,19 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                         }
 
                         // release blocked triggers..
-                        if (ftRec.FireInstanceState == StateBlocked)
+                        if (ftRec.FireInstanceState == AdoConstants.StateBlocked)
                         {
-                            await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, StateWaiting, StateBlocked, cancellationToken).ConfigureAwait(false);
+                            await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, AdoConstants.StateWaiting, AdoConstants.StateBlocked, cancellationToken).ConfigureAwait(false);
                         }
-                        else if (ftRec.FireInstanceState == StatePausedBlocked)
+                        else if (ftRec.FireInstanceState == AdoConstants.StatePausedBlocked)
                         {
-                            await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, StatePaused, StatePausedBlocked, cancellationToken).ConfigureAwait(false);
+                            await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, AdoConstants.StatePaused, AdoConstants.StatePausedBlocked, cancellationToken).ConfigureAwait(false);
                         }
 
                         // release acquired triggers..
-                        if (ftRec.FireInstanceState == StateAcquired)
+                        if (ftRec.FireInstanceState == AdoConstants.StateAcquired)
                         {
-                            await Delegate.UpdateTriggerStateFromOtherState(conn, tKey, StateWaiting, StateAcquired, cancellationToken).ConfigureAwait(false);
+                            await Delegate.UpdateTriggerStateFromOtherState(conn, tKey, AdoConstants.StateWaiting, AdoConstants.StateAcquired, cancellationToken).ConfigureAwait(false);
                             acquiredCount++;
                         }
                         else if (ftRec.JobRequestsRecovery)
@@ -4356,7 +4356,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                                 rcvryTrig.JobDataMap = jd;
 
                                 rcvryTrig.ComputeFirstFireTimeUtc(null);
-                                await StoreTrigger(conn, rcvryTrig, null, false, StateWaiting, false, true, cancellationToken).ConfigureAwait(false);
+                                await StoreTrigger(conn, rcvryTrig, null, false, AdoConstants.StateWaiting, false, true, cancellationToken).ConfigureAwait(false);
                                 recoveredCount++;
                             }
                             else
@@ -4373,8 +4373,8 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                         // free up stateful job's triggers
                         if (ftRec.JobDisallowsConcurrentExecution)
                         {
-                            await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, StateWaiting, StateBlocked, cancellationToken).ConfigureAwait(false);
-                            await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, StatePaused, StatePausedBlocked, cancellationToken).ConfigureAwait(false);
+                            await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, AdoConstants.StateWaiting, AdoConstants.StateBlocked, cancellationToken).ConfigureAwait(false);
+                            await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, AdoConstants.StatePaused, AdoConstants.StatePausedBlocked, cancellationToken).ConfigureAwait(false);
                         }
                     }
 
@@ -4400,7 +4400,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                     int completeCount = 0;
                     foreach (TriggerKey triggerKey in triggerKeys)
                     {
-                        if (await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false) == StateComplete)
+                        if (await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false) == AdoConstants.StateComplete)
                         {
                             var firedTriggers = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { Trigger = triggerKey }, cancellationToken).ConfigureAwait(false);
                             if (firedTriggers.Count == 0)

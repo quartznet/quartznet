@@ -12,14 +12,14 @@ public class FirebirdDelegate : StdAdoDelegate
     /// <returns></returns>
     protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
     {
-        return SqlSelectNextTriggerToAcquire + " ROWS " + maxCount;
+        return StdAdoConstants.SqlSelectNextTriggerToAcquire + " ROWS " + maxCount;
     }
 
     protected override string GetSelectMisfiredTriggersToRecoverSql(int count)
     {
         if (count != -1)
         {
-            return SqlSelectMisfiredTriggersToRecover + " ROWS " + count;
+            return StdAdoConstants.SqlSelectMisfiredTriggersToRecover + " ROWS " + count;
         }
         return base.GetSelectMisfiredTriggersToRecoverSql(count);
     }

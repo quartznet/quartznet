@@ -57,14 +57,14 @@ public class SQLiteDelegate : StdAdoDelegate
     /// <returns></returns>
     protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
     {
-        return SqlSelectNextTriggerToAcquire + " LIMIT " + maxCount;
+        return StdAdoConstants.SqlSelectNextTriggerToAcquire + " LIMIT " + maxCount;
     }
 
     protected override string GetSelectMisfiredTriggersToRecoverSql(int count)
     {
         if (count != -1)
         {
-            return SqlSelectMisfiredTriggersToRecover + " LIMIT " + count;
+            return StdAdoConstants.SqlSelectMisfiredTriggersToRecover + " LIMIT " + count;
         }
         return base.GetSelectMisfiredTriggersToRecoverSql(count);
     }

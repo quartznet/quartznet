@@ -28,7 +28,14 @@ using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace Quartz.Impl.AdoJobStore;
 
-public interface IAdoUtil
+/// <summary>
+/// Command preparation and parameter binding for the ADO job store.
+/// </summary>
+/// <remarks>
+/// Internal: how a command gets its parameters — including the driver-specific parameter prefix
+/// rewriting in <see cref="AdoUtil" /> — is not a contract anyone outside this assembly implements.
+/// </remarks>
+internal interface IAdoUtil
 {
     void AddCommandParameter(IDbCommand cmd, string paramName, object? paramValue);
 

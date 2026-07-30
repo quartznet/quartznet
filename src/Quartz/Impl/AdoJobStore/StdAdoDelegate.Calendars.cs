@@ -13,7 +13,7 @@ public partial class StdAdoDelegate
     {
         byte[]? baos = SerializeObject(calendar);
 
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertCalendar));
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlInsertCalendar));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
         AddCommandParameter(cmd, "calendarName", calendarName);
         AddCommandParameter(cmd, "calendar", baos, DbProvider.Metadata.DbBinaryType);
@@ -30,7 +30,7 @@ public partial class StdAdoDelegate
     {
         byte[]? baos = SerializeObject(calendar);
 
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateCalendar));
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlUpdateCalendar));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
         AddCommandParameter(cmd, "calendar", baos, DbProvider.Metadata.DbBinaryType);
         AddCommandParameter(cmd, "calendarName", calendarName);
@@ -44,7 +44,7 @@ public partial class StdAdoDelegate
         string calendarName,
         CancellationToken cancellationToken = default)
     {
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectCalendarExistence));
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectCalendarExistence));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
         AddCommandParameter(cmd, "calendarName", calendarName);
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
@@ -61,7 +61,7 @@ public partial class StdAdoDelegate
         string calendarName,
         CancellationToken cancellationToken = default)
     {
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectCalendar));
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectCalendar));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
         AddCommandParameter(cmd, "calendarName", calendarName);
         using var rs = await cmd.ExecuteReaderAsync(System.Data.CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
@@ -85,7 +85,7 @@ public partial class StdAdoDelegate
         string calendarName,
         CancellationToken cancellationToken = default)
     {
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectReferencedCalendar));
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectReferencedCalendar));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
         AddCommandParameter(cmd, "calendarName", calendarName);
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
@@ -103,7 +103,7 @@ public partial class StdAdoDelegate
         string calendarName,
         CancellationToken cancellationToken = default)
     {
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteCalendar));
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlDeleteCalendar));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
         AddCommandParameter(cmd, "calendarName", calendarName);
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);

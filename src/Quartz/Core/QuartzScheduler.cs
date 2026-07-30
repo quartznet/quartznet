@@ -43,7 +43,7 @@ namespace Quartz.Core;
 /// <seealso cref="IThreadPool" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public sealed class QuartzScheduler
+internal sealed class QuartzScheduler
 {
     private readonly ILogger<QuartzScheduler> logger;
     private static readonly Version version;

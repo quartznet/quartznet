@@ -170,17 +170,15 @@
 
   * **JobRunShell**, **IJobRunShellFactory**, `QuartzSchedulerResources.JobRunShellFactory` and the
     `InternalTriggerState` enum are now `internal`. None had an implementer or caller outside Quartz itself, and a
-    public enum named `Internal*` was self-refuting. `ZeroSizeThreadPool`, `ISchedulerProxyFactory` and
-    `QuartzScheduler` were considered and **left public**: the first two can still reasonably be named by
-    configuration or implemented by someone outside the repository, and `QuartzScheduler` is exposed by
-    `StdScheduler`'s public constructor.
+    public enum named `Internal*` was self-refuting. `ZeroSizeThreadPool` and `ISchedulerProxyFactory` were
+    considered and **left public**: both can still reasonably be named by configuration or implemented by someone
+    outside the repository. `QuartzScheduler` was left public at the time because `StdScheduler`'s public
+    constructor exposed it; `StdScheduler` is internal now, and so is `QuartzScheduler` — see below.
 
   * **ITrigger** exposes the fire times as properties — `NextFireTimeUtc` and `PreviousFireTimeUtc` — rather than
     only as `GetNextFireTimeUtc()` / `GetPreviousFireTimeUtc()` methods, which were a direct port of Java's
-    accessor style. **Existing calling code keeps compiling**: the two methods remain as `[Obsolete]` default
-    interface implementations that forward to the properties, and `AbstractTrigger` keeps concrete `[Obsolete]`
-    forwarders as well, so code holding a concrete trigger type — where a default implementation is not reachable —
-    is unaffected too. You will get an obsolescence warning and can fix it by deleting `Get` and `()`.
+    accessor style. The methods survived a while as `[Obsolete]` forwarders and are now **removed**: drop `Get`
+    and `()` from the call.
 
     `IMutableTrigger` re-declares both properties with setters, which let **`IOperableTrigger.SetNextFireTimeUtc`**
     and **`SetPreviousFireTimeUtc` be removed**: `trigger.SetNextFireTimeUtc(value)` becomes
@@ -188,12 +186,10 @@
     cannot coexist under one name. `IMutableTrigger` also lost its stray `{ set; get; }` accessor ordering and a
     doc comment that had leaked a fragment of code into the summary text.
 
-    **`GetMayFireAgain()` became the `MayFireAgain` property** the same way, with an `[Obsolete]` forwarder on both
-    `ITrigger` and `AbstractTrigger`. On `AbstractTrigger` the property is the abstract member the trigger
-    implementations override, so a custom trigger deriving from it overrides `MayFireAgain` rather than
-    `GetMayFireAgain` — that one is a compile error rather than a warning, because there is nothing left to
-    override. `CronTriggerImpl.CronExpression` also gained a getter (it was setter-only) and is nullable, which is
-    what it always was underneath.
+    **`GetMayFireAgain()` became the `MayFireAgain` property** the same way, and is likewise gone. On
+    `AbstractTrigger` the property is the abstract member the trigger implementations override, so a custom trigger
+    deriving from it overrides `MayFireAgain`. `CronTriggerImpl.CronExpression` also gained a getter (it was
+    setter-only) and is nullable, which is what it always was underneath.
 
   * **Job store listings became queries: paged, projected, and fetched in bulk.** Listing jobs or triggers used
     to mean reading every key and then spending one round trip per key on anything more than the key — a job's
@@ -599,6 +595,53 @@
     `TimeZoneUtil.CustomResolver` is a property rather than a public mutable field, and
     `LoggingJobHistoryPlugin.Name` and `LoggingTriggerHistoryPlugin.Name` are get-only — a plugin's name is
     handed to it by `Initialize`, and writing to it afterwards did nothing.
+
+  * **The scheduler core is `internal`: `QuartzScheduler` and `QuartzSchedulerResources`.** `QuartzScheduler`
+    is the implementation behind `IScheduler`, and it was only ever reachable because `StdScheduler` — itself
+    internal since the container took over construction — had a public constructor taking one. Its surface is a
+    superset of `IScheduler` plus the notification plumbing `JobRunShell` calls, none of which is meaningful to
+    call from outside. `QuartzSchedulerResources` follows it, being nothing but that type's constructor argument.
+    **Resolve `IScheduler`** (or `ISchedulerFactory`) from the container; scheduler-wide settings that used to be
+    set on the resources object are `QuartzSchedulerOptions`.
+
+  * **The ADO job store's SQL is `internal`, and its constants are no longer inherited.**
+    **`StdAdoConstants`** — 128 raw statement templates — is `internal`: the exact text of a statement is not a
+    contract, and pinning it as one is what makes every query fix a breaking change. **`AdoConstants` stays
+    public** but is a `static class` rather than a base class with a constructor: table, column and state names
+    *are* a genuine contract for anyone writing an `ITriggerPersistenceDelegate` or a dialect delegate.
+    Consequently **`JobStoreSupport`, `StdAdoDelegate` and `DBSemaphore` no longer derive from either**, so a
+    subclass of theirs that referred to `ColumnJobName` or `TableTriggers` unqualified must now write
+    `AdoConstants.ColumnJobName`, and one that referred to a `Sql*` template can no longer see it at all —
+    override the `GetSelect*Sql` hooks or build the statement in your own type. Inheriting a constant bag also
+    burned the single base class of every type that wanted to name a column, which is why it goes.
+    **`IAdoUtil` is `internal`** for the same reason — command preparation and parameter-prefix rewriting are not
+    a contract anyone outside implements — and `DBSemaphore.AdoUtil` is therefore `private protected`: a semaphore
+    written outside this assembly no longer has it. Derive from `DBSemaphore` and use `ISemaphore`/`IDbProvider`,
+    or implement `ISemaphore` directly.
+
+  * **`CronTriggerPersistenceDelegate`, `SimpleTriggerPersistenceDelegate` and
+    `DailyTimeIntervalTriggerPersistenceDelegate` are `public sealed`**, matching
+    `CalendarIntervalTriggerPersistenceDelegate` and `RecurrenceTriggerPersistenceDelegate`, which always were.
+    Half the built-in set being invisible made it impossible to compose a delegate list that mixes a custom
+    delegate with the built-ins. `SimpleTriggerPersistenceDelegate` was the one of the five that could be
+    subclassed; it is sealed like the others now, and the extension point for a trigger of your own is
+    `SimplePropertiesTriggerPersistenceDelegateSupport` or `ITriggerPersistenceDelegate`.
+
+  * **`SchedulerConstants` and `MisfireInstruction` (with its five nested trigger groups) are `static class`es
+    rather than `struct`s.** They hold nothing but `const`s; being structs meant `new MisfireInstruction()` was
+    legal and produced a meaningless zero-byte value. Every existing `MisfireInstruction.SimpleTrigger.FireNow`
+    style reference is unchanged.
+
+  * **`QuartzOptions`, `SchedulingOptions` and `QuartzHostedServiceOptions` are `sealed`.** They are
+    configuration records the container binds; nothing derived from them. `QuartzHostedService` stays open,
+    because `AddQuartzHostedService<T>` exists to derive from it.
+
+  * **Quartz.Dashboard's Blazor components are no longer treated as public API.** The dashboard's public-API
+    baseline used to snapshot every `.razor`-generated component class, including the compiler-emitted
+    `BuildRenderTree` whose body is the markup, so editing a page's HTML showed up as an API change. The
+    components are still `public` — the Razor compiler decides that, not us — but they are UI, not a contract:
+    do not build against them. `QuartzDashboardOptions`, the service-collection extensions and the model types
+    are what the dashboard offers, and those are still tracked.
 
 #### Cron Parser
 

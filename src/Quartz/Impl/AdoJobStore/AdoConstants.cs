@@ -20,13 +20,20 @@
 namespace Quartz.Impl.AdoJobStore;
 
 /// <summary>
-/// This interface can be implemented by any <see cref="IDriverDelegate" />
-/// class that needs to use the constants contained herein.
+/// The table, column and state names of the standard Quartz database schema, for
+/// <see cref="IDriverDelegate" /> and <see cref="ITriggerPersistenceDelegate" /> implementations
+/// that read and write it.
 /// </summary>
+/// <remarks>
+/// These used to be inherited: a delegate declared <c>: AdoConstants</c> and referred to the names
+/// unqualified. Inheritance is not how a constant container is consumed — it burns the single base
+/// class of every type that wants to name a column — so this is a static class now, named explicitly
+/// at the use site.
+/// </remarks>
 /// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
 /// <author>James House</author>
 /// <author>Marko Lahma(.NET)</author>
-public class AdoConstants
+public static class AdoConstants
 {
     internal static readonly string[] AllTableNames =
     [

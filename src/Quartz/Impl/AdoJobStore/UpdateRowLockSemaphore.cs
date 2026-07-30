@@ -46,10 +46,10 @@ namespace Quartz.Impl.AdoJobStore;
 public class UpdateLockRowSemaphore : DBSemaphore
 {
     public static readonly string SqlUpdateForLock =
-        $"UPDATE {TablePrefixSubst}{TableLocks} SET {ColumnLockName} = {ColumnLockName} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnLockName} = @lockName";
+        $"UPDATE {StdAdoConstants.TablePrefixSubst}{AdoConstants.TableLocks} SET {AdoConstants.ColumnLockName} = {AdoConstants.ColumnLockName} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnLockName} = @lockName";
 
     public static readonly string SqlInsertLock =
-        $"INSERT INTO {TablePrefixSubst}{TableLocks}({ColumnSchedulerName}, {ColumnLockName}) VALUES (@schedulerName, @lockName)";
+        $"INSERT INTO {StdAdoConstants.TablePrefixSubst}{AdoConstants.TableLocks}({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnLockName}) VALUES (@schedulerName, @lockName)";
 
     protected virtual int RetryCount => 2;
 
@@ -57,7 +57,7 @@ public class UpdateLockRowSemaphore : DBSemaphore
     /// Initializes a new instance of the <see cref="UpdateLockRowSemaphore"/> class.
     /// </summary>
     public UpdateLockRowSemaphore(IDbProvider provider)
-        : base(DefaultTablePrefix, null, SqlUpdateForLock, SqlInsertLock, provider)
+        : base(AdoConstants.DefaultTablePrefix, null, SqlUpdateForLock, SqlInsertLock, provider)
     {
     }
 
@@ -161,7 +161,7 @@ public class UpdateLockRowSemaphore : DBSemaphore
         if (await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) != 1)
         {
             Throw.InvalidOperationException(
-                AdoJobStoreUtil.ReplaceTablePrefix("No row exists, and one could not be inserted in table " + TablePrefixSubst + TableLocks + " for lock named: " + lockName, TablePrefix));
+                AdoJobStoreUtil.ReplaceTablePrefix("No row exists, and one could not be inserted in table " + StdAdoConstants.TablePrefixSubst + AdoConstants.TableLocks + " for lock named: " + lockName, TablePrefix));
         }
     }
 }

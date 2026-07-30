@@ -1,6 +1,6 @@
 namespace Quartz;
 
-public class SchedulingOptions
+public sealed class SchedulingOptions
 {
     /// <summary>
     /// Whether the existing scheduling data (with same identifiers) will be

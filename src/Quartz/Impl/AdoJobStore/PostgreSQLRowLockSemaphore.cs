@@ -37,7 +37,7 @@ public class PostgreSQLRowLockSemaphore : StdRowLockSemaphore
     // PostgreSQL-specific INSERT statement that uses ON CONFLICT DO NOTHING to prevent
     // transaction aborts when multiple threads try to insert the same lock row
     private static readonly string PostgreSQLInsertLock =
-        $"INSERT INTO {TablePrefixSubst}{TableLocks}({ColumnSchedulerName}, {ColumnLockName}) VALUES (@schedulerName, @lockName) ON CONFLICT DO NOTHING";
+        $"INSERT INTO {StdAdoConstants.TablePrefixSubst}{AdoConstants.TableLocks}({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnLockName}) VALUES (@schedulerName, @lockName) ON CONFLICT DO NOTHING";
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PostgreSQLRowLockSemaphore"/> class.

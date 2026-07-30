@@ -14,7 +14,7 @@ public partial class StdAdoDelegate
         TimeSpan interval,
         CancellationToken cancellationToken = default)
     {
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertSchedulerState));
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlInsertSchedulerState));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
         AddCommandParameter(cmd, "instanceName", instanceName);
         AddCommandParameter(cmd, "lastCheckinTime", GetDbDateTimeValue(checkInTime));
@@ -29,7 +29,7 @@ public partial class StdAdoDelegate
         string instanceName,
         CancellationToken cancellationToken = default)
     {
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteSchedulerState));
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlDeleteSchedulerState));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
         AddCommandParameter(cmd, "instanceName", instanceName);
 
@@ -43,7 +43,7 @@ public partial class StdAdoDelegate
         DateTimeOffset checkInTime,
         CancellationToken cancellationToken = default)
     {
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateSchedulerState));
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlUpdateSchedulerState));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
         AddCommandParameter(cmd, "lastCheckinTime", GetDbDateTimeValue(checkInTime));
         AddCommandParameter(cmd, "instanceName", instanceName);
@@ -59,12 +59,12 @@ public partial class StdAdoDelegate
 
         if (instanceName is not null)
         {
-            cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectSchedulerState));
+            cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectSchedulerState));
             AddCommandParameter(cmd, "instanceName", instanceName);
         }
         else
         {
-            cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectSchedulerStates));
+            cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectSchedulerStates));
         }
 
         AddCommandParameter(cmd, "schedulerName", schedulerName);
@@ -73,9 +73,9 @@ public partial class StdAdoDelegate
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             SchedulerStateRecord rec = new(
-                rs.GetString(ColumnInstanceName)!,
-                GetDateTimeFromDbValue(rs[ColumnLastCheckinTime]) ?? DateTimeOffset.MinValue,
-                GetTimeSpanFromDbValue(rs[ColumnCheckinInterval]) ?? TimeSpan.Zero);
+                rs.GetString(AdoConstants.ColumnInstanceName)!,
+                GetDateTimeFromDbValue(rs[AdoConstants.ColumnLastCheckinTime]) ?? DateTimeOffset.MinValue,
+                GetTimeSpanFromDbValue(rs[AdoConstants.ColumnCheckinInterval]) ?? TimeSpan.Zero);
 
             list.Add(rec);
         }

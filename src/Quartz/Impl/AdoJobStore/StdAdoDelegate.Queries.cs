@@ -192,12 +192,12 @@ public partial class StdAdoDelegate
         JobQuery query,
         CancellationToken cancellationToken = default)
     {
-        (string predicate, string? groupParameter) = BuildGroupPredicate(query.Group, SqlJobGroupEqualsPredicate, SqlJobGroupLikePredicate);
+        (string predicate, string? groupParameter) = BuildGroupPredicate(query.Group, StdAdoConstants.SqlJobGroupEqualsPredicate, StdAdoConstants.SqlJobGroupLikePredicate);
 
         List<JobHeader> items;
         bool hasMore;
 
-        using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(SqlSelectJobHeaders + predicate + SqlOrderByJobGroupAndName, query))))
+        using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(StdAdoConstants.SqlSelectJobHeaders + predicate + StdAdoConstants.SqlOrderByJobGroupAndName, query))))
         {
             AddCommandParameter(cmd, "schedulerName", schedulerName);
             if (groupParameter is not null)
@@ -213,7 +213,7 @@ public partial class StdAdoDelegate
         int? totalCount = null;
         if (query.IncludeTotalCount)
         {
-            using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlCountJobHeaders + predicate));
+            using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlCountJobHeaders + predicate));
             AddCommandParameter(cmd, "schedulerName", schedulerName);
             if (groupParameter is not null)
             {
@@ -247,7 +247,7 @@ public partial class StdAdoDelegate
         StringBuilder predicateBuilder = new();
         List<KeyValuePair<string, object?>> parameters = [];
 
-        (string groupPredicate, string? groupParameter) = BuildGroupPredicate(query.Group, SqlTriggerGroupEqualsPredicate, SqlTriggerGroupLikePredicate);
+        (string groupPredicate, string? groupParameter) = BuildGroupPredicate(query.Group, StdAdoConstants.SqlTriggerGroupEqualsPredicate, StdAdoConstants.SqlTriggerGroupLikePredicate);
         predicateBuilder.Append(groupPredicate);
         if (groupParameter is not null)
         {
@@ -256,21 +256,21 @@ public partial class StdAdoDelegate
 
         if (query.Job is not null)
         {
-            predicateBuilder.Append(SqlTriggerJobPredicate);
+            predicateBuilder.Append(StdAdoConstants.SqlTriggerJobPredicate);
             parameters.Add(new KeyValuePair<string, object?>("jobName", query.Job.Name));
             parameters.Add(new KeyValuePair<string, object?>("jobGroup", query.Job.Group));
         }
 
         if (query.CalendarName is not null)
         {
-            predicateBuilder.Append(SqlTriggerCalendarPredicate);
+            predicateBuilder.Append(StdAdoConstants.SqlTriggerCalendarPredicate);
             parameters.Add(new KeyValuePair<string, object?>("calendarName", query.CalendarName));
         }
 
         if (query.State is not null)
         {
             TriggerStateFilter filter = TriggerStateMapping.ToFilter(query.State.Value);
-            predicateBuilder.Append(filter.Negated ? SqlTriggerStateNotInPredicateStart : SqlTriggerStateInPredicateStart);
+            predicateBuilder.Append(filter.Negated ? StdAdoConstants.SqlTriggerStateNotInPredicateStart : StdAdoConstants.SqlTriggerStateInPredicateStart);
             for (int i = 0; i < filter.States.Length; i++)
             {
                 if (i > 0)
@@ -291,7 +291,7 @@ public partial class StdAdoDelegate
             // is what keeps this filter in step with what ReadTriggerHeader will report.
             if (filter.Executing is not null)
             {
-                predicateBuilder.Append(filter.Executing.Value ? SqlTriggerExecutingPredicate : SqlTriggerNotExecutingPredicate);
+                predicateBuilder.Append(filter.Executing.Value ? StdAdoConstants.SqlTriggerExecutingPredicate : StdAdoConstants.SqlTriggerNotExecutingPredicate);
             }
         }
 
@@ -300,7 +300,7 @@ public partial class StdAdoDelegate
         List<TriggerHeader> items;
         bool hasMore;
 
-        using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(SqlSelectTriggerHeaders + predicate + SqlOrderByTriggerGroupAndName, query))))
+        using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(StdAdoConstants.SqlSelectTriggerHeaders + predicate + StdAdoConstants.SqlOrderByTriggerGroupAndName, query))))
         {
             AddCommandParameter(cmd, "schedulerName", schedulerName);
             foreach (KeyValuePair<string, object?> parameter in parameters)
@@ -316,7 +316,7 @@ public partial class StdAdoDelegate
         int? totalCount = null;
         if (query.IncludeTotalCount)
         {
-            using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlCountTriggerHeaders + predicate));
+            using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlCountTriggerHeaders + predicate));
             AddCommandParameter(cmd, "schedulerName", schedulerName);
             foreach (KeyValuePair<string, object?> parameter in parameters)
             {
@@ -370,7 +370,7 @@ public partial class StdAdoDelegate
         List<JobGroup> items;
         bool hasMore;
 
-        using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(SqlSelectJobGroupsOrdered, query))))
+        using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(StdAdoConstants.SqlSelectJobGroupsOrdered, query))))
         {
             AddCommandParameter(cmd, "schedulerName", schedulerName);
             BindPaging(cmd, query);
@@ -381,7 +381,7 @@ public partial class StdAdoDelegate
         int? totalCount = null;
         if (query.IncludeTotalCount)
         {
-            using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlCountJobGroups));
+            using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlCountJobGroups));
             AddCommandParameter(cmd, "schedulerName", schedulerName);
             totalCount = await SelectCount(cmd, cancellationToken).ConfigureAwait(false);
         }
@@ -401,18 +401,18 @@ public partial class StdAdoDelegate
         {
             // Read from PAUSED_TRIGGER_GRPS rather than TRIGGERS, so a group that is paused but has no
             // triggers is still reported — same set the paused trigger group listing has always had.
-            sql = SqlSelectPausedTriggerGroupsOrdered;
-            countSql = SqlCountPausedTriggerGroups;
+            sql = StdAdoConstants.SqlSelectPausedTriggerGroupsOrdered;
+            countSql = StdAdoConstants.SqlCountPausedTriggerGroups;
         }
         else if (query.Paused == false)
         {
-            sql = SqlSelectUnpausedTriggerGroupsOrdered;
-            countSql = SqlCountUnpausedTriggerGroups;
+            sql = StdAdoConstants.SqlSelectUnpausedTriggerGroupsOrdered;
+            countSql = StdAdoConstants.SqlCountUnpausedTriggerGroups;
         }
         else
         {
-            sql = SqlSelectTriggerGroupsWithPausedFlag;
-            countSql = SqlCountTriggerGroups;
+            sql = StdAdoConstants.SqlSelectTriggerGroupsWithPausedFlag;
+            countSql = StdAdoConstants.SqlCountTriggerGroups;
         }
 
         bool? paused = query.Paused;
@@ -452,7 +452,7 @@ public partial class StdAdoDelegate
         List<string> items;
         bool hasMore;
 
-        using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(SqlSelectCalendarNamesOrdered, query))))
+        using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(StdAdoConstants.SqlSelectCalendarNamesOrdered, query))))
         {
             AddCommandParameter(cmd, "schedulerName", schedulerName);
             BindPaging(cmd, query);
@@ -463,7 +463,7 @@ public partial class StdAdoDelegate
         int? totalCount = null;
         if (query.IncludeTotalCount)
         {
-            using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlCountCalendarNames));
+            using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlCountCalendarNames));
             AddCommandParameter(cmd, "schedulerName", schedulerName);
             totalCount = await SelectCount(cmd, cancellationToken).ConfigureAwait(false);
         }

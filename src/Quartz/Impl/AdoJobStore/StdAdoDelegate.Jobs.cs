@@ -22,7 +22,7 @@ public partial class StdAdoDelegate
     {
         var jobData = SerializeJobData(job.JobDataMap);
 
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateJobDetail));
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlUpdateJobDetail));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
         AddCommandParameter(cmd, "jobDescription", job.Description);
         AddCommandParameter(cmd, "jobType", job.JobType.FullName);
@@ -42,7 +42,7 @@ public partial class StdAdoDelegate
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggersForJob));
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectTriggersForJob));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
         AddCommandParameter(cmd, "jobName", jobKey.Name);
         AddCommandParameter(cmd, "jobGroup", jobKey.Group);
@@ -50,8 +50,8 @@ public partial class StdAdoDelegate
         List<TriggerKey> list = [];
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            string trigName = rs.GetString(ColumnTriggerName)!;
-            string trigGroup = rs.GetString(ColumnTriggerGroup)!;
+            string trigName = rs.GetString(AdoConstants.ColumnTriggerName)!;
+            string trigGroup = rs.GetString(AdoConstants.ColumnTriggerGroup)!;
             list.Add(new(trigName, trigGroup));
         }
 
@@ -64,7 +64,7 @@ public partial class StdAdoDelegate
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteJobDetail));
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlDeleteJobDetail));
         if (logger.IsEnabled(LogLevel.Debug))
         {
             logger.LogDebug("Deleting job: {JobKey}", jobKey);
@@ -82,7 +82,7 @@ public partial class StdAdoDelegate
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobExistence));
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectJobExistence));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
         AddCommandParameter(cmd, "jobName", jobKey.Name);
         AddCommandParameter(cmd, "jobGroup", jobKey.Group);
@@ -103,7 +103,7 @@ public partial class StdAdoDelegate
     {
         var jobData = SerializeJobData(job.JobDataMap);
 
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateJobData));
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlUpdateJobData));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
         AddCommandParameter(cmd, "jobDataMap", jobData, DbProvider.Metadata.DbBinaryType);
         AddCommandParameter(cmd, "jobName", job.Key.Name);
@@ -119,7 +119,7 @@ public partial class StdAdoDelegate
         ITypeLoadHelper loadHelper,
         CancellationToken cancellationToken = default)
     {
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobDetail));
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectJobDetail));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
         AddCommandParameter(cmd, "jobName", jobKey.Name);
         AddCommandParameter(cmd, "jobGroup", jobKey.Group);
@@ -155,7 +155,7 @@ public partial class StdAdoDelegate
         {
             int length = Math.Min(AdoUtil.MaxJobKeysPerPredicate, keys.Count - offset);
 
-            using DbCommand cmd = PrepareJobKeySetCommand(conn, SqlSelectJobDetailsByKeysPrefix, keys, offset, length);
+            using DbCommand cmd = PrepareJobKeySetCommand(conn, StdAdoConstants.SqlSelectJobDetailsByKeysPrefix, keys, offset, length);
             using DbDataReader rs = await cmd.ExecuteReaderAsync(System.Data.CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
             while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
@@ -203,11 +203,11 @@ public partial class StdAdoDelegate
         // Due to CommandBehavior.SequentialAccess, columns must be read in order.
 
         var jobBuilder = JobBuilder.Create()
-            .WithIdentity(new JobKey(rs.GetString(ColumnJobName)!, rs.GetString(ColumnJobGroup)!))
-            .WithDescription(rs.GetString(ColumnDescription))
-            .OfType(rs.GetString(ColumnJobClass)!)
-            .StoreDurably(GetBooleanFromDbValue(rs[ColumnIsDurable]))
-            .RequestRecovery(GetBooleanFromDbValue(rs[ColumnRequestsRecovery]));
+            .WithIdentity(new JobKey(rs.GetString(AdoConstants.ColumnJobName)!, rs.GetString(AdoConstants.ColumnJobGroup)!))
+            .WithDescription(rs.GetString(AdoConstants.ColumnDescription))
+            .OfType(rs.GetString(AdoConstants.ColumnJobClass)!)
+            .StoreDurably(GetBooleanFromDbValue(rs[AdoConstants.ColumnIsDurable]))
+            .RequestRecovery(GetBooleanFromDbValue(rs[AdoConstants.ColumnRequestsRecovery]));
 
         var map = await ReadMapFromReader(rs, 6).ConfigureAwait(false);
 
@@ -216,8 +216,8 @@ public partial class StdAdoDelegate
             jobBuilder.SetJobData(new(map));
         }
 
-        jobBuilder.DisallowConcurrentExecution(GetBooleanFromDbValue(rs[ColumnIsNonConcurrent]))
-            .PersistJobDataAfterExecution(GetBooleanFromDbValue(rs[ColumnIsUpdateData]));
+        jobBuilder.DisallowConcurrentExecution(GetBooleanFromDbValue(rs[AdoConstants.ColumnIsNonConcurrent]))
+            .PersistJobDataAfterExecution(GetBooleanFromDbValue(rs[AdoConstants.ColumnIsUpdateData]));
 
         return jobBuilder.Build();
     }
@@ -230,7 +230,7 @@ public partial class StdAdoDelegate
         bool loadJobType = true,
         CancellationToken cancellationToken = default)
     {
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobForTrigger));
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectJobForTrigger));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
         AddCommandParameter(cmd, "triggerName", triggerKey.Name);
         AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
@@ -238,14 +238,14 @@ public partial class StdAdoDelegate
         if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             var jobBuilder = JobBuilder.Create()
-                .WithIdentity(new JobKey(rs.GetString(ColumnJobName)!, rs.GetString(ColumnJobGroup)!))
-                .RequestRecovery(GetBooleanFromDbValue(rs[ColumnRequestsRecovery]))
-                .OfType(rs.GetString(ColumnJobClass)!)
-                .StoreDurably(GetBooleanFromDbValue(rs[ColumnIsDurable]));
+                .WithIdentity(new JobKey(rs.GetString(AdoConstants.ColumnJobName)!, rs.GetString(AdoConstants.ColumnJobGroup)!))
+                .RequestRecovery(GetBooleanFromDbValue(rs[AdoConstants.ColumnRequestsRecovery]))
+                .OfType(rs.GetString(AdoConstants.ColumnJobClass)!)
+                .StoreDurably(GetBooleanFromDbValue(rs[AdoConstants.ColumnIsDurable]));
 
             if (loadJobType)
             {
-                jobBuilder.OfType(loadHelper.LoadType(rs.GetString(ColumnJobClass)!)!);
+                jobBuilder.OfType(loadHelper.LoadType(rs.GetString(AdoConstants.ColumnJobClass)!)!);
             }
 
             return jobBuilder.Build();
@@ -327,7 +327,7 @@ public partial class StdAdoDelegate
     {
         var jobData = SerializeJobData(job.JobDataMap);
 
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertJobDetail));
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlInsertJobDetail));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
         AddCommandParameter(cmd, "jobName", job.Key.Name);
         AddCommandParameter(cmd, "jobGroup", job.Key.Group);

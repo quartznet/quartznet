@@ -218,24 +218,6 @@ public interface ITrigger
     DateTimeOffset? PreviousFireTimeUtc { get; }
 
     /// <summary>
-    /// Returns whether it is possible for the <see cref="ITrigger" /> to fire again.
-    /// </summary>
-    [Obsolete("Use the MayFireAgain property instead.")]
-    bool GetMayFireAgain() => MayFireAgain;
-
-    /// <summary>
-    /// Returns the next time at which the <see cref="ITrigger" /> is scheduled to fire.
-    /// </summary>
-    [Obsolete("Use the NextFireTimeUtc property instead.")]
-    DateTimeOffset? GetNextFireTimeUtc() => NextFireTimeUtc;
-
-    /// <summary>
-    /// Returns the previous time at which the <see cref="ITrigger" /> fired.
-    /// </summary>
-    [Obsolete("Use the PreviousFireTimeUtc property instead.")]
-    DateTimeOffset? GetPreviousFireTimeUtc() => PreviousFireTimeUtc;
-
-    /// <summary>
     /// Returns the next time at which the <see cref="ITrigger" /> will fire,
     /// after the given time. If the trigger will not fire after the given time,
     /// <see langword="null" /> will be returned.

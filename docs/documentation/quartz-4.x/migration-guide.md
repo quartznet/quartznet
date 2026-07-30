@@ -498,6 +498,47 @@ passed something else was never going to work at runtime.
 
 Many types have been sealed and/or internalized to minimize the API surface that needs to be maintained. If you were extending a type that is now sealed or internal, file an issue to request it be reopened.
 
+The ones most likely to be visible in existing code:
+
+**`QuartzScheduler` and `QuartzSchedulerResources` are internal.** `QuartzScheduler` is the implementation
+behind `IScheduler` and was only reachable through `StdScheduler`'s constructor, which is internal too now that
+the container builds the scheduler. Resolve `IScheduler` or `ISchedulerFactory`; the settings that used to live
+on `QuartzSchedulerResources` are `QuartzSchedulerOptions`.
+
+**`StdAdoConstants` and `IAdoUtil` are internal, and constants are no longer inherited.** `AdoConstants` stays
+public — table, column and state names are a real contract for delegate authors — but it is a `static class`
+now, and `JobStoreSupport`, `StdAdoDelegate` and `DBSemaphore` no longer derive from it or from
+`StdAdoConstants`:
+
+```diff
+  public class MyDelegate : StdAdoDelegate
+  {
+-     private string CountRows() => $"SELECT COUNT(*) FROM {TablePrefixSubst}{TableTriggers}";
++     private string CountRows() => $"SELECT COUNT(*) FROM {{0}}{AdoConstants.TableTriggers}";
+  }
+```
+
+The `Sql*` statement templates on `StdAdoConstants` are not visible at all any more — the exact text of a
+statement is not a contract. Build the statement your dialect needs, or override the `GetSelect*Sql` hooks,
+which are unchanged.
+
+`DBSemaphore.AdoUtil` is `private protected` for the same reason, so a semaphore written outside Quartz no
+longer sees it — derive from `DBSemaphore` and use `IDbProvider`, or implement `ISemaphore` directly.
+
+**Three trigger persistence delegates became public**, so a custom delegate list can name all five built-ins:
+`CronTriggerPersistenceDelegate`, `SimpleTriggerPersistenceDelegate` and
+`DailyTimeIntervalTriggerPersistenceDelegate` join `CalendarIntervalTriggerPersistenceDelegate` and
+`RecurrenceTriggerPersistenceDelegate`. All five are `sealed`; write your own against
+`SimplePropertiesTriggerPersistenceDelegateSupport` or `ITriggerPersistenceDelegate`.
+
+**`SchedulerConstants` and `MisfireInstruction` are static classes** rather than structs, and `QuartzOptions`,
+`SchedulingOptions` and `QuartzHostedServiceOptions` are `sealed`. Referring to the constants is unchanged;
+only `new MisfireInstruction()`, which never meant anything, stops compiling.
+
+**Quartz.Dashboard's Blazor components are not API.** They are `public` because the Razor compiler makes them
+so, but they are UI and are excluded from the dashboard's public-API baseline. Build against
+`QuartzDashboardOptions`, `AddQuartzDashboard` and the model types.
+
 ## AbstractTrigger Property Removals
 
 The following properties have been removed from `AbstractTrigger` as they are redundant with the `Key` and `JobKey` properties:
@@ -1066,7 +1107,8 @@ var scheduler = await QuartzSchedulerBuilder.Create()
     .BuildScheduler();
 ```
 
-If you build a `QuartzScheduler` by hand, its `JobFactory` property is still settable.
+There is no by-hand path left: `QuartzScheduler` is internal, so the job factory is always configured through
+the builder or the container.
 
 ## Trigger fire times are properties
 
@@ -1081,13 +1123,12 @@ If you build a `QuartzScheduler` by hand, its `JobFactory` property is still set
 + if (trigger.MayFireAgain) { … }
 ```
 
-The three `Get` methods still work — they are `[Obsolete]` forwarders on both `ITrigger` and `AbstractTrigger` — so
-this shows up as a warning rather than an error and you can fix it by deleting `Get` and `()`. The `Set` methods
-have no stand-in, because a method and a property setter cannot share a name; those are a compile error.
+The three `Get` methods are gone — they spent a while as `[Obsolete]` forwarders on both `ITrigger` and
+`AbstractTrigger` and have now been removed — so fix the call by deleting `Get` and `()`. The `Set` methods
+likewise have no stand-in, because a method and a property setter cannot share a name.
 
-One case is an error rather than a warning: a **custom trigger deriving from `AbstractTrigger`** overrides the
-`MayFireAgain` property now, because that is the abstract member. `GetMayFireAgain` is a non-virtual forwarder,
-so there is nothing left to override:
+A **custom trigger deriving from `AbstractTrigger`** overrides the `MayFireAgain` property now, because that
+is the abstract member:
 
 ```diff
 - public override bool GetMayFireAgain() => NextFireTimeUtc is not null;
@@ -1154,8 +1195,8 @@ called out.
 
 | 3.x | 4.x |
 |---|---|
-| `QuartzScheduler.NumJobsExecuted` | `NumberOfJobsExecuted` |
-| `QuartzScheduler.JobStoreClass`, `.ThreadPoolClass` | `JobStoreType`, `ThreadPoolType` (they return a `Type`) |
+| `QuartzScheduler.NumJobsExecuted` | `NumberOfJobsExecuted` (the type is internal now — read `IScheduler.GetMetaData()`) |
+| `QuartzScheduler.JobStoreClass`, `.ThreadPoolClass` | `JobStoreType`, `ThreadPoolType` (they return a `Type`; the type is internal now) |
 | `JobStoreSupport.UseDBLocks`, `.SelectWithLockSQL` | `UseDbLocks`, `SelectWithLockSql` |
 | `DBSemaphore.SQL`, `.InsertSQL`, `.ExecuteSQL` | `Sql`, `InsertSql` (both readable now), `ExecuteSql` |
 | `Quartz.Util.DBConnectionManager` | `DbConnectionManager` |
@@ -1171,7 +1212,7 @@ called out.
 | Change | Details |
 |--------|---------|
 | `SimpleTriggerImpl` `endUtc` no longer nullable | The constructor argument is now required |
-| `QuartzScheduler` ctor change | No longer takes `idleWaitTime`; use `QuartzSchedulerResources.IdleWaitTime` |
+| `QuartzScheduler` and `QuartzSchedulerResources` are internal | Resolve `IScheduler` / `ISchedulerFactory`; scheduler-wide settings are `QuartzSchedulerOptions` |
 | `JobType` introduced | Stores job type info without requiring an actual `Type` instance |
 | `RecoveringTriggerKey` behavior | `IJobExecutionContext.RecoveringTriggerKey` now returns `null` when not recovering instead of throwing |
 | `DictionaryExtensions` removed | `Quartz.Util.DictionaryExtensions` type was removed |
@@ -1188,5 +1229,9 @@ called out.
 | Setter-only members gained getters | `DbMetadata.DbBinaryTypeName` (now nullable) and `.ParameterDbTypePropertyName`, `HttpSchedulerProxyFactory.Address` |
 | `TriggerState.Executing` added | Reported where `Normal`, `Complete` or `Blocked` used to be, and `Blocked` narrowed to mean a sibling trigger is running (see [Executing is a trigger state](#executing-is-a-trigger-state)) |
 | `IDriverDelegate.IsTriggerCurrentlyExecuting` removed | Replaced by `SelectTriggerStateWithExecuting`, which reads the state and the execution in one statement and returns `TriggerExecutionState` |
-| `StdAdoConstants.SqlSelectCountExecutingFiredTriggersOfTrigger` removed | Removed with the method that used it; the per-job `SqlSelectCountExecutingFiredTriggersOfJob` remains |
+| `StdAdoConstants.SqlSelectCountExecutingFiredTriggersOfTrigger` removed | Removed with the method that used it; the per-job `SqlSelectCountExecutingFiredTriggersOfJob` remains — both on what is now an internal type |
+| `StdAdoConstants` and `IAdoUtil` are internal | Statement text is not a contract; the schema names stay public on `AdoConstants`, which is a static class rather than a base class |
+| Trigger persistence delegates are all public and `sealed` | `CronTriggerPersistenceDelegate`, `SimpleTriggerPersistenceDelegate` and `DailyTimeIntervalTriggerPersistenceDelegate` were internal; derive from `SimplePropertiesTriggerPersistenceDelegateSupport` for a delegate of your own |
+| `SchedulerConstants` and `MisfireInstruction` are `static class`es | They were `struct`s holding only `const`s; constant references are unchanged |
+| `QuartzOptions`, `SchedulingOptions`, `QuartzHostedServiceOptions` are `sealed` | `QuartzHostedService` itself stays open for `AddQuartzHostedService<T>` |
 | `InternalTriggerState.Executing` removed | It was never assigned or read; RAMJobStore counts executions separately from the state that drives scheduling |

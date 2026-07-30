@@ -32,7 +32,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// </summary>
 /// <see cref="CronScheduleBuilder"/>
 /// <see cref="ICronTrigger"/>
-internal sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
+public sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
 {
     public void Initialize(string tablePrefix, string schedulerName, IDbAccessor dbAccessor)
     {

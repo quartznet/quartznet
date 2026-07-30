@@ -712,4 +712,24 @@ public class StubParameterCollection : DbParameterCollection
     }
 }
 
-internal sealed class TestTriggerPersistenceDelegate : SimpleTriggerPersistenceDelegate;
+/// <summary>
+/// A user-authored persistence delegate, only ever named by assembly-qualified name and never
+/// invoked — the built-in delegates are sealed, so the shape a real extension would take is a
+/// subclass of the public support base.
+/// </summary>
+internal sealed class TestTriggerPersistenceDelegate : SimplePropertiesTriggerPersistenceDelegateSupport
+{
+    public override bool CanHandleTriggerType(IOperableTrigger trigger) => false;
+
+    public override string GetHandledTriggerTypeDiscriminator() => "TEST";
+
+    protected override SimplePropertiesTriggerProperties GetTriggerProperties(IOperableTrigger trigger)
+    {
+        throw new NotSupportedException();
+    }
+
+    protected override TriggerPropertyBundle GetTriggerPropertyBundle(SimplePropertiesTriggerProperties properties)
+    {
+        throw new NotSupportedException();
+    }
+}

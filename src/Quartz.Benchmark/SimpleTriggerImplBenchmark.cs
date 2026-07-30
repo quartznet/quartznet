@@ -837,13 +837,13 @@ public class SimpleTriggerImplBenchmark
         /// added to the scheduler, in order to have the <see cref="ITrigger" />
         /// compute its first fire time, based on any associated calendar.
         /// <para>
-        /// After this method has been called, <see cref="GetNextFireTimeUtc" />
+        /// After this method has been called, <see cref="NextFireTimeUtc" />
         /// should return a valid answer.
         /// </para>
         /// </summary>
         /// <returns>
         /// The first time at which the <see cref="ITrigger" /> will be fired
-        /// by the scheduler, which is also the same value <see cref="GetNextFireTimeUtc" />
+        /// by the scheduler, which is also the same value <see cref="NextFireTimeUtc" />
         /// will return (until after the first firing of the <see cref="ITrigger" />).
         /// </returns>
         public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? calendar)

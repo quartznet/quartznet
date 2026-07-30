@@ -23,7 +23,7 @@ namespace Quartz;
 /// <c>QuartzPropertyBridge</c> is the only thing that reads them.
 /// </para>
 /// </remarks>
-public class QuartzOptions
+public sealed class QuartzOptions
 {
     /// <summary>
     /// The flat <c>quartz.*</c> keys, exactly as they were given.

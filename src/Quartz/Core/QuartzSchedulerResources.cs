@@ -28,7 +28,7 @@ namespace Quartz.Core;
 /// <seealso cref="QuartzScheduler" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public sealed class QuartzSchedulerResources
+internal sealed class QuartzSchedulerResources
 {
     internal static readonly TimeSpan DefaultIdleWaitTime = TimeSpan.FromSeconds(30);
     internal const int DefaultMaxBatchSize = 1;
