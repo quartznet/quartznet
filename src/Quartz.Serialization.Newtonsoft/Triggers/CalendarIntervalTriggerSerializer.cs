@@ -3,9 +3,11 @@ using Newtonsoft.Json.Linq;
 
 using Quartz.Util;
 
+using Quartz.Impl.Triggers;
+
 namespace Quartz.Serialization.Newtonsoft.Triggers;
 
-public class CalendarIntervalTriggerSerializer : TriggerSerializer<ICalendarIntervalTrigger>
+public class CalendarIntervalTriggerSerializer : TriggerSerializer<CalendarIntervalTriggerImpl>
 {
     public override string TriggerTypeForJson => "CalendarIntervalTrigger";
 
@@ -24,7 +26,7 @@ public class CalendarIntervalTriggerSerializer : TriggerSerializer<ICalendarInte
             .SkipDayIfHourDoesNotExist(skipDayIfHourDoesNotExist);
     }
 
-    protected override void SerializeFields(JsonWriter writer, ICalendarIntervalTrigger trigger)
+    protected override void SerializeFields(JsonWriter writer, CalendarIntervalTriggerImpl trigger)
     {
         writer.WritePropertyName("RepeatInterval");
         writer.WriteValue(trigger.RepeatInterval);
@@ -45,7 +47,7 @@ public class CalendarIntervalTriggerSerializer : TriggerSerializer<ICalendarInte
         writer.WriteValue(trigger.TimesTriggered);
     }
 
-    protected override void DeserializeFields(ICalendarIntervalTrigger trigger, JObject source)
+    protected override void DeserializeFields(CalendarIntervalTriggerImpl trigger, JObject source)
     {
         // This properties might not exist in the JSON if trigger was serialized with older version
         var timesTriggered = source.Value<int?>("TimesTriggered");

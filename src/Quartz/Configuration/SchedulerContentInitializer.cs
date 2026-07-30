@@ -3,7 +3,7 @@ using System.Collections.Specialized;
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Impl;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 
 namespace Quartz.Configuration;
 
@@ -188,7 +188,10 @@ internal sealed class SchedulerContentInitializer
         foreach (var configuration in Registrations<CalendarConfiguration>())
         {
             await scheduler.AddCalendar(
-                configuration.Name, configuration.Calendar, configuration.Replace, configuration.UpdateTriggers, cancellationToken)
+                configuration.Name,
+                configuration.Calendar,
+                new AddCalendarOptions { Replace = configuration.Replace, UpdateTriggers = configuration.UpdateTriggers },
+                cancellationToken)
                 .ConfigureAwait(false);
         }
     }

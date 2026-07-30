@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Routing;
 using Quartz.AspNetCore.HttpApi.Util;
 using Quartz.HttpApiContract;
 using Quartz.Extensibility;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 
 namespace Quartz.AspNetCore.HttpApi.Endpoints;
 
@@ -80,6 +80,10 @@ internal static class TriggerEndpoints
         string? groupEndsWith = null,
         string? groupStartsWith = null,
         string? groupEquals = null,
+        string? nameContains = null,
+        string? nameEndsWith = null,
+        string? nameStartsWith = null,
+        string? nameEquals = null,
         string? jobName = null,
         string? jobGroup = null,
         string? calendarName = null,
@@ -101,6 +105,7 @@ internal static class TriggerEndpoints
             TriggerQuery query = new()
             {
                 Group = matcher,
+                Name = EndpointHelper.GetNameMatcher<TriggerKey>(nameContains, nameEndsWith, nameStartsWith, nameEquals),
                 Job = hasJobName ? new JobKey(jobName!, jobGroup!) : null,
                 CalendarName = calendarName,
                 State = state,
@@ -260,6 +265,7 @@ internal static class TriggerEndpoints
         int take = int.MaxValue,
         bool includeTotalCount = false,
         bool? paused = null,
+        string? name = null,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertPaging(skip, take);
@@ -267,6 +273,7 @@ internal static class TriggerEndpoints
         {
             TriggerGroupQuery query = new()
             {
+                Name = name,
                 Paused = paused,
                 Skip = skip,
                 Take = take,
@@ -288,8 +295,8 @@ internal static class TriggerEndpoints
     {
         return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
-            PagedResult<TriggerGroup> page = await scheduler.QueryTriggerGroups(new TriggerGroupQuery { Paused = true }, cancellationToken).ConfigureAwait(false);
-            return new GroupPausedResponse(page.Items.Any(x => string.Equals(x.Name, triggerGroup, StringComparison.Ordinal)));
+            bool paused = await scheduler.IsTriggerGroupPaused(triggerGroup, cancellationToken).ConfigureAwait(false);
+            return new GroupPausedResponse(paused);
         });
     }
 

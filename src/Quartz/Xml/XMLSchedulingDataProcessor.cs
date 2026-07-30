@@ -23,7 +23,7 @@ using System.Xml.Serialization;
 
 using Microsoft.Extensions.Logging;
 
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Extensibility;
 using Quartz.Util;
 using Quartz.Xml.JobSchedulingData20;
@@ -800,11 +800,13 @@ public class XMLSchedulingDataProcessor
             {
                 if (triggersOfJob is not null && triggersOfJob.Count > 0)
                 {
-                    await scheduler.AddJob(detail, true, true, cancellationToken).ConfigureAwait(false); // add the job regardless is durable or not b/c we have trigger to add
+                    // add the job regardless is durable or not b/c we have trigger to add
+                    await scheduler.AddJob(detail, new AddJobOptions { Replace = true, StoreNonDurableWhileAwaitingScheduling = true }, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
-                    await scheduler.AddJob(detail, true, false, cancellationToken).ConfigureAwait(false); // add the job only if a replacement or durable, else exception will throw!
+                    // add the job only if a replacement or durable, else exception will throw!
+                    await scheduler.AddJob(detail, new AddJobOptions { Replace = true }, cancellationToken).ConfigureAwait(false);
                 }
             }
             else

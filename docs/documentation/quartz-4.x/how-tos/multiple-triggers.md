@@ -35,7 +35,7 @@ public Task DoSomething(IScheduler schedule, CancellationToken ct)
                         .WithIdentity(HelloJob.Key)
                         .Build();
     
-    await schedule.AddJob(job, replace: true, storeNonDurableWhileAwaitingScheduling: true, ct);
+    await schedule.AddJob(job, new AddJobOptions { Replace = true, StoreNonDurableWhileAwaitingScheduling = true }, ct);
 
     // Trigger 1
     var jobData1 = new JobDataMap { { "CustomerId", "1" } };
@@ -67,7 +67,7 @@ public Task DoSomething(IScheduler schedule, CancellationToken ct)
                         .UsingJobData("batch-size", "50")
                         .Build();
     
-    await schedule.AddJob(job, replace: true, storeNonDurableWhileAwaitingScheduling: true, ct);
+    await schedule.AddJob(job, new AddJobOptions { Replace = true, StoreNonDurableWhileAwaitingScheduling = true }, ct);
 
     // Trigger 1
     var jobData1 = new JobDataMap { { "CustomerId", 1 } };

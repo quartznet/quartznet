@@ -29,7 +29,7 @@ using Microsoft.Data.SqlClient;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 
@@ -426,6 +426,59 @@ public class StdAdoDelegateGroupMatcherTest
 
         command.CommandText.Should().Contain("JOB_GROUP LIKE @jobGroup ESCAPE '!'");
         parameters.Value("@jobGroup").Should().Be("50!%%");
+    }
+
+    [Test]
+    public async Task SelectJobHeaders_WithNameMatcher_ShouldEscapeTheNameToo()
+    {
+        await adoDelegate.SelectJobHeaders(conn, new JobQuery
+        {
+            Group = GroupMatcher<JobKey>.GroupEquals("g"),
+            Name = NameMatcher<JobKey>.NameStartsWith("50%")
+        });
+
+        command.CommandText.Should().Contain("JOB_GROUP = @jobGroup");
+        command.CommandText.Should().Contain("JOB_NAME LIKE @jobName ESCAPE '!'");
+        parameters.Value("@jobName").Should().Be("50!%%", "the matcher's own text is a literal, so its wildcards are escaped");
+    }
+
+    [Test]
+    public async Task SelectTriggerHeaders_WithNameMatcher_ShouldCompareWithEqualsForAnEqualityMatcher()
+    {
+        await adoDelegate.SelectTriggerHeaders(conn, new TriggerQuery { Name = NameMatcher<TriggerKey>.NameEquals("nightly") });
+
+        command.CommandText.Should().Contain("TRIGGER_NAME = @triggerName");
+        command.CommandText.Should().NotContain("TRIGGER_NAME LIKE", "an equality matcher must not fall back to LIKE");
+        parameters.Value("@triggerName").Should().Be("nightly");
+    }
+
+    [Test]
+    public async Task SelectJobGroups_WithName_ShouldFilterInSql()
+    {
+        await adoDelegate.SelectJobGroups(conn, new JobGroupQuery { Name = "reports" });
+
+        command.CommandText.Should().Contain("JOB_GROUP = @groupName");
+        command.CommandText.Should().Contain("ORDER BY JOB_GROUP", "the listing keeps its deterministic order after the filter");
+        parameters.Value("@groupName").Should().Be("reports");
+    }
+
+    [Test]
+    public async Task SelectTriggerGroups_WithNameAndPaused_ShouldFilterThePausedGroupsTable()
+    {
+        await adoDelegate.SelectTriggerGroups(conn, new TriggerGroupQuery { Name = "reports", Paused = true });
+
+        command.CommandText.Should().Contain("PAUSED_TRIGGER_GRPS", "a paused listing reads the paused groups table");
+        command.CommandText.Should().Contain("TRIGGER_GROUP = @groupName");
+        parameters.Value("@groupName").Should().Be("reports");
+    }
+
+    [Test]
+    public async Task SelectTriggerGroups_WithNameAndNoPausedFilter_ShouldFilterTheAliasedTriggersTable()
+    {
+        await adoDelegate.SelectTriggerGroups(conn, new TriggerGroupQuery { Name = "reports" });
+
+        command.CommandText.Should().Contain("t.TRIGGER_GROUP = @groupName", "the unfiltered listing reads TRIGGERS under the alias 't'");
+        parameters.Value("@groupName").Should().Be("reports");
     }
 
     /// <summary>

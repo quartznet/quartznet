@@ -22,7 +22,7 @@
 using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Extensibility;
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 

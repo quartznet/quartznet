@@ -128,6 +128,9 @@ public class QuartzSchedulerTest
         SimpleTriggerImpl jobTrigger = new SimpleTriggerImpl(TriggerName, TriggerGroup, JobName, JobGroup, startTimeUtc, null, 1, TimeSpan.FromMilliseconds(1000));
 
         ISchedulerListener listener = A.Fake<ISchedulerListener>();
+        // a fake does not run the interface's default Name implementation, and the manager identifies
+        // scheduler listeners by name
+        A.CallTo(() => listener.Name).Returns("rescheduleListener");
 
         await scheduler.ScheduleJob(jobDetail, jobTrigger);
         // add listener after scheduled

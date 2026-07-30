@@ -55,7 +55,7 @@ public sealed class ExecutingTriggerStateClusteredPostgresTest : ClusteredPostgr
                 .WithIdentity("executingStateJob", "clusteredTest")
                 .StoreDurably()
                 .Build();
-            await executingNode.AddJob(job, true);
+            await executingNode.AddJob(job, new AddJobOptions { Replace = true });
 
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity(triggerKey)
@@ -137,7 +137,7 @@ public sealed class ExecutingTriggerStateClusteredPostgresTest : ClusteredPostgr
                 .WithIdentity("nonConcurrentJob", "clusteredTest")
                 .StoreDurably()
                 .Build();
-            await scheduler.AddJob(job, true);
+            await scheduler.AddJob(job, new AddJobOptions { Replace = true });
 
             foreach (TriggerKey key in (TriggerKey[]) [firstKey, secondKey])
             {

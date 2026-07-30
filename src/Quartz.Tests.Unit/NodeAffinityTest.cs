@@ -203,12 +203,12 @@ public sealed class NodeAffinityTest
             .Build();
         trigger.ComputeFirstFireTimeUtc(null);
 
-        await store.StoreJobAndTrigger(job, trigger);
+        await store.ScheduleJob(job, trigger);
 
-        var retrieved = await store.RetrieveTrigger(trigger.Key);
+        var retrieved = await store.GetTrigger(trigger.Key);
         Assert.That(retrieved!.PreferredNode, Is.EqualTo("some-other-node"), "the pin round-trips as metadata");
 
-        var acquired = await store.AcquireNextTriggers(DateTimeOffset.UtcNow.AddSeconds(10), 1, TimeSpan.Zero);
+        var acquired = await store.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = DateTimeOffset.UtcNow.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero });
         Assert.That(acquired, Has.Count.EqualTo(1), "RAMJobStore must ignore the pin when acquiring");
     }
 

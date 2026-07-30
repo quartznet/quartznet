@@ -1,5 +1,3 @@
-using Quartz.Util;
-
 namespace Quartz;
 
 ///<summary>
@@ -40,10 +38,6 @@ namespace Quartz;
 [Serializable]
 public sealed class TriggerKey : Key<TriggerKey>
 {
-    private TriggerKey()
-    {
-    }
-
     public TriggerKey(string name) : base(name)
     {
     }

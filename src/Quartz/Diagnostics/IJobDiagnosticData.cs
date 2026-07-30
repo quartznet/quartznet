@@ -97,7 +97,7 @@ public interface IJobDiagnosticData
     /// JobExecutionContext instance as well.
     /// </summary>
     ///  <returns>the unique fire instance id</returns>
-    /// <seealso cref="IScheduler.Interrupt(System.String, System.Threading.CancellationToken)" />
+    /// <seealso cref="IScheduler.InterruptFireInstance(System.String, System.Threading.CancellationToken)" />
     string FireInstanceId { get; }
 
     /// <summary>

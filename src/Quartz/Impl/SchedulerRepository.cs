@@ -34,8 +34,8 @@ namespace Quartz.Impl;
 /// </para>
 /// <para>
 /// Schedulers are indexed by name. Multiple schedulers with the same name but different instance IDs
-/// can coexist (e.g., remote proxies to different cluster nodes). Use <see cref="Lookup(string, string)"/>
-/// to disambiguate by instance ID.
+/// can coexist (e.g., remote proxies to different cluster nodes). Pass an instance ID to
+/// <see cref="Lookup"/> to disambiguate between them.
 /// </para>
 /// </remarks>
 /// <author>Marko Lahma (.NET)</author>
@@ -46,34 +46,28 @@ public sealed class SchedulerRepository : ISchedulerRepository
 
     /// <inheritdoc />
     /// <remarks>
-    /// This overload reads <see cref="IScheduler.SchedulerInstanceId"/> which is always available
-    /// for local schedulers. For remote schedulers (e.g., <c>HttpScheduler</c>) where
-    /// <see cref="IScheduler.SchedulerInstanceId"/> may require a network call,
-    /// use <see cref="Bind(IScheduler, string)"/> with an explicit instance ID instead.
-    /// If <see cref="IScheduler.SchedulerInstanceId"/> cannot be resolved, the scheduler name
-    /// is used as a fallback, preserving single-scheduler-per-name semantics.
+    /// Without an explicit instance ID this reads <see cref="IScheduler.SchedulerInstanceId"/>, which is
+    /// always available for a local scheduler. For a remote one (e.g., <c>HttpScheduler</c>) reading it may
+    /// cost a network call, so pass the instance ID instead. If it cannot be resolved at all, the scheduler
+    /// name is used as a fallback, preserving single-scheduler-per-name semantics.
     /// </remarks>
-    public void Bind(IScheduler scheduler)
+    public void Bind(IScheduler scheduler, string? instanceId = null)
     {
-        string instanceId;
-        try
+        if (instanceId is null)
         {
-            instanceId = scheduler.SchedulerInstanceId;
-        }
-        catch
-        {
-            // Remote schedulers may not be reachable during bind.
-            // Fall back to scheduler name, preserving single-per-name semantics.
-            // Callers needing instance-aware operations should use Bind(scheduler, instanceId).
-            instanceId = scheduler.SchedulerName;
+            try
+            {
+                instanceId = scheduler.SchedulerInstanceId;
+            }
+            catch
+            {
+                // Remote schedulers may not be reachable during bind.
+                // Fall back to scheduler name, preserving single-per-name semantics.
+                // Callers needing instance-aware operations should pass an instance ID.
+                instanceId = scheduler.SchedulerName;
+            }
         }
 
-        Bind(scheduler, instanceId);
-    }
-
-    /// <inheritdoc />
-    public void Bind(IScheduler scheduler, string instanceId)
-    {
         lock (syncRoot)
         {
             if (schedulers.TryGetValue(scheduler.SchedulerName, out List<SchedulerEntry>? list))
@@ -96,26 +90,7 @@ public sealed class SchedulerRepository : ISchedulerRepository
     }
 
     /// <inheritdoc />
-    public void Remove(string schedulerName)
-    {
-        lock (syncRoot)
-        {
-            if (schedulers.TryGetValue(schedulerName, out List<SchedulerEntry>? list))
-            {
-                if (list.Count <= 1)
-                {
-                    schedulers.Remove(schedulerName);
-                }
-                else
-                {
-                    list.RemoveAt(0);
-                }
-            }
-        }
-    }
-
-    /// <inheritdoc />
-    public bool Remove(string schedulerName, string instanceId)
+    public bool Remove(string schedulerName, string? instanceId = null)
     {
         lock (syncRoot)
         {
@@ -126,7 +101,7 @@ public sealed class SchedulerRepository : ISchedulerRepository
 
             for (int i = 0; i < list.Count; i++)
             {
-                if (string.Equals(list[i].InstanceId, instanceId, StringComparison.OrdinalIgnoreCase))
+                if (instanceId is null || string.Equals(list[i].InstanceId, instanceId, StringComparison.OrdinalIgnoreCase))
                 {
                     list.RemoveAt(i);
                     if (list.Count == 0)
@@ -143,21 +118,7 @@ public sealed class SchedulerRepository : ISchedulerRepository
     }
 
     /// <inheritdoc />
-    public IScheduler? Lookup(string schedulerName)
-    {
-        lock (syncRoot)
-        {
-            if (schedulers.TryGetValue(schedulerName, out List<SchedulerEntry>? list) && list.Count > 0)
-            {
-                return list[0].Scheduler;
-            }
-
-            return null;
-        }
-    }
-
-    /// <inheritdoc />
-    public IScheduler? Lookup(string schedulerName, string instanceId)
+    public IScheduler? Lookup(string schedulerName, string? instanceId = null)
     {
         lock (syncRoot)
         {
@@ -168,7 +129,7 @@ public sealed class SchedulerRepository : ISchedulerRepository
 
             foreach (SchedulerEntry entry in list)
             {
-                if (string.Equals(entry.InstanceId, instanceId, StringComparison.OrdinalIgnoreCase))
+                if (instanceId is null || string.Equals(entry.InstanceId, instanceId, StringComparison.OrdinalIgnoreCase))
                 {
                     return entry.Scheduler;
                 }

@@ -19,8 +19,6 @@
 
 #endregion
 
-using Quartz.Util;
-
 namespace Quartz;
 
 /// <summary>
@@ -58,25 +56,11 @@ namespace Quartz;
 [Serializable]
 public sealed class JobKey : Key<JobKey>
 {
-    private JobKey()
-    {
-    }
-
     public JobKey(string name) : base(name)
     {
     }
 
     public JobKey(string name, string group) : base(name, group)
     {
-    }
-
-    public static JobKey Create(string name)
-    {
-        return new JobKey(name);
-    }
-
-    public static JobKey Create(string name, string group)
-    {
-        return new JobKey(name, group);
     }
 }

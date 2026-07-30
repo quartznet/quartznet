@@ -25,7 +25,7 @@ public sealed class PreferredNodeClusteredPostgresTest : ClusteredPostgresTestBa
                 .WithIdentity("autoPinJob", "clusteredTest")
                 .StoreDurably()
                 .Build();
-            await scheduler.AddJob(job, true);
+            await scheduler.AddJob(job, new AddJobOptions { Replace = true });
 
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("autoPinTrigger", "clusteredTest")
@@ -76,7 +76,7 @@ public sealed class PreferredNodeClusteredPostgresTest : ClusteredPostgresTestBa
                 .WithIdentity("exclusionJob", "clusteredTest")
                 .StoreDurably()
                 .Build();
-            await nodeA.AddJob(job, true);
+            await nodeA.AddJob(job, new AddJobOptions { Replace = true });
 
             // Pin to nodeA, repeating so we can observe multiple fires
             ITrigger trigger = TriggerBuilder.Create()
@@ -124,7 +124,7 @@ public sealed class PreferredNodeClusteredPostgresTest : ClusteredPostgresTestBa
                 .WithIdentity("failoverJob", "clusteredTest")
                 .StoreDurably()
                 .Build();
-            await nodeA.AddJob(job, true);
+            await nodeA.AddJob(job, new AddJobOptions { Replace = true });
 
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("failoverTrigger", "clusteredTest")
@@ -204,7 +204,7 @@ public sealed class PreferredNodeClusteredPostgresTest : ClusteredPostgresTestBa
                 .WithIdentity("redirectJob", "clusteredTest")
                 .StoreDurably()
                 .Build();
-            await nodeA.AddJob(job, true);
+            await nodeA.AddJob(job, new AddJobOptions { Replace = true });
 
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("redirectTrigger", "clusteredTest")

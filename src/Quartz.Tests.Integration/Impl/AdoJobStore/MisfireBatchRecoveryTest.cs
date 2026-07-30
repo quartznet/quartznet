@@ -97,7 +97,7 @@ public class MisfireBatchRecoveryTest
         result.HasMoreMisfiredTriggers.Should().BeFalse();
 
         // The blob trigger round-tripped through serialization with its custom state intact.
-        var recoveredBlobTrigger = (CustomTrigger) await jobStore.RetrieveTrigger(new TriggerKey("blob", "misfire-test"));
+        var recoveredBlobTrigger = (CustomTrigger) await jobStore.GetTrigger(new TriggerKey("blob", "misfire-test"));
         recoveredBlobTrigger.Should().NotBeNull();
         recoveredBlobTrigger.SomeCustomProperty.Should().BeTrue();
 
@@ -108,7 +108,7 @@ public class MisfireBatchRecoveryTest
 
             (await jobStore.GetTriggerState(key)).Should().Be(TriggerState.Normal, "trigger '{0}' should be rescheduled, not left misfired", name);
 
-            IOperableTrigger trigger = await jobStore.RetrieveTrigger(key);
+            IOperableTrigger trigger = await jobStore.GetTrigger(key);
             trigger.Should().NotBeNull();
             trigger.NextFireTimeUtc.Should().NotBeNull("trigger '{0}' should have a next fire time", name);
             trigger.NextFireTimeUtc.Value.Should().BeAfter(DateTimeOffset.UtcNow.AddMinutes(-1), "trigger '{0}' should have moved forward", name);
@@ -135,7 +135,7 @@ public class MisfireBatchRecoveryTest
     private async Task<int> CountReadsRecovering(int triggerCount)
     {
         TestJobStoreTX jobStore = await CreateJobStore(maxMisfiresToHandleAtATime: triggerCount);
-        await jobStore.ClearAllSchedulingData();
+        await jobStore.Clear();
 
         for (var i = 0; i < triggerCount; i++)
         {
@@ -194,7 +194,7 @@ public class MisfireBatchRecoveryTest
         // that nobody got around to firing actually looks like.
         trigger.NextFireTimeUtc = DateTimeOffset.UtcNow.AddHours(-1);
 
-        await jobStore.StoreJobAndTrigger(job, trigger);
+        await jobStore.ScheduleJob(job, trigger);
     }
 
     /// <summary>
@@ -219,7 +219,7 @@ public class MisfireBatchRecoveryTest
         trigger.ComputeFirstFireTimeUtc(null);
         trigger.NextFireTimeUtc = DateTimeOffset.UtcNow.AddHours(-1);
 
-        await jobStore.StoreJobAndTrigger(job, trigger);
+        await jobStore.ScheduleJob(job, trigger);
     }
 
     private async Task<TestJobStoreTX> CreateJobStore(int maxMisfiresToHandleAtATime = 20)
@@ -237,7 +237,7 @@ public class MisfireBatchRecoveryTest
 
         await jobStore.Initialize();
         await jobStore.SchedulerStarted();
-        await jobStore.ClearAllSchedulingData();
+        await jobStore.Clear();
 
         return jobStore;
     }

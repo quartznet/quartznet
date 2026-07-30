@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Serialization.Json;
 using Quartz.Serialization.Json.Triggers;
@@ -91,7 +91,7 @@ public abstract class AbstractSchedulerTest
 
         Assert.That(await scheduler.CheckExists(new JobKey("j1")), Is.False, "Unexpected existence of job named 'j1'.");
 
-        await scheduler.AddJob(job, false);
+        await scheduler.AddJob(job);
 
         Assert.That(await scheduler.CheckExists(new JobKey("j1")), "Expected existence of job named 'j1' but checkExists return false.");
 
@@ -393,7 +393,7 @@ public abstract class AbstractSchedulerTest
         IJobDetail job1 = JobBuilder.Create<TestJobWithSync>()
             .WithIdentity("job1").
             StoreDurably().Build();
-        await scheduler.AddJob(job1, false);
+        await scheduler.AddJob(job1);
 
         DateTime sTime = DateTime.UtcNow;
 
@@ -482,7 +482,7 @@ public abstract class AbstractSchedulerTest
 
         Assert.That(await scheduler.CheckExists(new JobKey("j1")), Is.False, "Unexpected existence of job named 'j1'.");
 
-        await scheduler.AddJob(job, false);
+        await scheduler.AddJob(job);
 
         Assert.That(await scheduler.CheckExists(new JobKey("j1")), "Unexpected non-existence of job named 'j1'.");
 
@@ -492,7 +492,7 @@ public abstract class AbstractSchedulerTest
 
         try
         {
-            await scheduler.AddJob(nonDurableJob, false);
+            await scheduler.AddJob(nonDurableJob);
             Assert.Fail("Storage of non-durable job should not have succeeded.");
         }
         catch (SchedulerException)
@@ -500,7 +500,7 @@ public abstract class AbstractSchedulerTest
             Assert.That(await scheduler.CheckExists(new JobKey("j2")), Is.False, "Unexpected existence of job named 'j2'.");
         }
 
-        await scheduler.AddJob(nonDurableJob, false, true);
+        await scheduler.AddJob(nonDurableJob, new AddJobOptions { StoreNonDurableWhileAwaitingScheduling = true });
 
         Assert.That(await scheduler.CheckExists(new JobKey("j2")), "Unexpected non-existence of job named 'j2'.");
     }
@@ -517,7 +517,7 @@ public abstract class AbstractSchedulerTest
             scheduler.Context[DateStamps] = jobExecTimestamps;
             await scheduler.Start();
             string jobName = Guid.NewGuid().ToString();
-            await scheduler.AddJob(JobBuilder.Create<TestJobWithSync>().WithIdentity(jobName).StoreDurably().Build(), false);
+            await scheduler.AddJob(JobBuilder.Create<TestJobWithSync>().WithIdentity(jobName).StoreDurably().Build());
             await scheduler.ScheduleJob(TriggerBuilder.Create().ForJob(jobName).StartNow().Build());
             while ((await scheduler.GetCurrentlyExecutingJobs()).Count == 0)
             {
@@ -545,7 +545,7 @@ public abstract class AbstractSchedulerTest
             scheduler.Context[DateStamps] = jobExecTimestamps;
             await scheduler.Start();
             string jobName = Guid.NewGuid().ToString();
-            await scheduler.AddJob(JobBuilder.Create<TestJobWithSync>().WithIdentity(jobName).StoreDurably().Build(), false);
+            await scheduler.AddJob(JobBuilder.Create<TestJobWithSync>().WithIdentity(jobName).StoreDurably().Build());
             await scheduler.ScheduleJob(TriggerBuilder.Create().ForJob(jobName).StartNow().Build());
             while ((await scheduler.GetCurrentlyExecutingJobs()).Count == 0)
             {

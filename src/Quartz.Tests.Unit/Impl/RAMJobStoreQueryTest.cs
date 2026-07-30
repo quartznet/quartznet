@@ -22,7 +22,7 @@
 using Quartz.Extensibility;
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Util;
@@ -50,10 +50,10 @@ public class RAMJobStoreQueryTest
     [Test]
     public async Task QueryJobs_OrdersByGroupThenNameOrdinally()
     {
-        await StoreJob("j2", "alpha");
-        await StoreJob("j1", "alpha");
-        await StoreJob("j1", "Beta");
-        await StoreJob("j1", "DEFAULT");
+        await AddJob("j2", "alpha");
+        await AddJob("j1", "alpha");
+        await AddJob("j1", "Beta");
+        await AddJob("j1", "DEFAULT");
 
         PagedResult<JobHeader> result = await store.QueryJobs(new JobQuery());
 
@@ -67,8 +67,8 @@ public class RAMJobStoreQueryTest
     [Test]
     public async Task QueryJobs_WithoutGroupMatcherSelectsEveryGroup()
     {
-        await StoreJob("j1", "g1");
-        await StoreJob("j1", "g2");
+        await AddJob("j1", "g1");
+        await AddJob("j1", "g2");
 
         PagedResult<JobHeader> result = await store.QueryJobs(new JobQuery { Group = null });
 
@@ -178,7 +178,7 @@ public class RAMJobStoreQueryTest
             .UsingJobData("secret", "value")
             .Build();
 
-        await store.StoreJob(job, replaceExisting: false);
+        await store.AddJob(job, replace: false);
 
         PagedResult<JobHeader> result = await store.QueryJobs(new JobQuery());
         JobHeader header = result.Items.Single();
@@ -210,11 +210,11 @@ public class RAMJobStoreQueryTest
     [Test]
     public async Task QueryTriggers_OrdersByGroupThenNameOrdinally()
     {
-        IJobDetail job = await StoreJob("job", "g");
-        await StoreTrigger("t2", "alpha", job.Key);
-        await StoreTrigger("t1", "alpha", job.Key);
-        await StoreTrigger("t1", "Beta", job.Key);
-        await StoreTrigger("t1", "DEFAULT", job.Key);
+        IJobDetail job = await AddJob("job", "g");
+        await AddTrigger("t2", "alpha", job.Key);
+        await AddTrigger("t1", "alpha", job.Key);
+        await AddTrigger("t1", "Beta", job.Key);
+        await AddTrigger("t1", "DEFAULT", job.Key);
 
         PagedResult<TriggerHeader> result = await store.QueryTriggers(new TriggerQuery());
 
@@ -226,7 +226,7 @@ public class RAMJobStoreQueryTest
     [Test]
     public async Task QueryTriggers_ReportsAndFiltersExecutingConsistently()
     {
-        IJobDetail job = await StoreJob("job", "g");
+        IJobDetail job = await AddJob("job", "g");
 
         // Has to be firable now, unlike the far-future triggers the other listing tests use.
         DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
@@ -237,9 +237,9 @@ public class RAMJobStoreQueryTest
             .WithSimpleSchedule(x => x.WithIntervalInSeconds(5).RepeatForever())
             .Build();
         trigger.ComputeFirstFireTimeUtc(null);
-        await store.StoreTrigger(trigger, replaceExisting: false);
+        await store.AddTrigger(trigger, replace: false);
 
-        var acquired = await store.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        var acquired = await store.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = d.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero });
         acquired.Should().HaveCount(1);
         (await store.TriggersFired(acquired)).Should().HaveCount(1);
 
@@ -258,8 +258,8 @@ public class RAMJobStoreQueryTest
     [Test]
     public async Task QueryTriggers_HeaderCarriesTheStoredTriggerMetadata()
     {
-        IJobDetail job = await StoreJob("job", "g");
-        await store.StoreCalendar("holidays", new HolidayCalendar(), replaceExisting: false, updateTriggers: false);
+        IJobDetail job = await AddJob("job", "g");
+        await store.AddCalendar("holidays", new HolidayCalendar());
 
         IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
             .WithIdentity("nightly", "reports")
@@ -274,7 +274,7 @@ public class RAMJobStoreQueryTest
             .Build();
 
         trigger.ComputeFirstFireTimeUtc(null);
-        await store.StoreTrigger(trigger, replaceExisting: false);
+        await store.AddTrigger(trigger, replace: false);
 
         PagedResult<TriggerHeader> result = await store.QueryTriggers(new TriggerQuery());
         TriggerHeader header = result.Items.Single();
@@ -296,7 +296,7 @@ public class RAMJobStoreQueryTest
     [Test]
     public async Task QueryTriggers_MapsTriggerTypesToTheAdoDiscriminators()
     {
-        IJobDetail job = await StoreJob("job", "g");
+        IJobDetail job = await AddJob("job", "g");
 
         await StoreBuiltTrigger(TriggerBuilder.Create().WithIdentity("a", "g").ForJob(job).StartAt(startTime).WithSimpleSchedule());
         await StoreBuiltTrigger(TriggerBuilder.Create().WithIdentity("b", "g").ForJob(job).StartAt(startTime).WithCronSchedule("0 0 12 * * ?"));
@@ -311,7 +311,7 @@ public class RAMJobStoreQueryTest
         };
 
         custom.ComputeFirstFireTimeUtc(null);
-        await store.StoreTrigger(custom, replaceExisting: false);
+        await store.AddTrigger(custom, replace: false);
 
         PagedResult<TriggerHeader> result = await store.QueryTriggers(new TriggerQuery());
 
@@ -323,10 +323,10 @@ public class RAMJobStoreQueryTest
     [Test]
     public async Task QueryTriggers_FiltersByJob()
     {
-        IJobDetail first = await StoreJob("j1", "g");
-        IJobDetail second = await StoreJob("j2", "g");
-        await StoreTrigger("t1", "g", first.Key);
-        await StoreTrigger("t2", "g", second.Key);
+        IJobDetail first = await AddJob("j1", "g");
+        IJobDetail second = await AddJob("j2", "g");
+        await AddTrigger("t1", "g", first.Key);
+        await AddTrigger("t2", "g", second.Key);
 
         PagedResult<TriggerHeader> result = await store.QueryTriggers(new TriggerQuery { Job = second.Key });
 
@@ -336,10 +336,10 @@ public class RAMJobStoreQueryTest
     [Test]
     public async Task QueryTriggers_FiltersByCalendarName()
     {
-        IJobDetail job = await StoreJob("job", "g");
-        await store.StoreCalendar("holidays", new HolidayCalendar(), replaceExisting: false, updateTriggers: false);
-        await StoreTrigger("with", "g", job.Key, calendarName: "holidays");
-        await StoreTrigger("without", "g", job.Key);
+        IJobDetail job = await AddJob("job", "g");
+        await store.AddCalendar("holidays", new HolidayCalendar());
+        await AddTrigger("with", "g", job.Key, calendarName: "holidays");
+        await AddTrigger("without", "g", job.Key);
 
         PagedResult<TriggerHeader> result = await store.QueryTriggers(new TriggerQuery { CalendarName = "holidays" });
 
@@ -353,9 +353,9 @@ public class RAMJobStoreQueryTest
     [Test]
     public async Task QueryTriggers_FiltersByState()
     {
-        IJobDetail job = await StoreJob("job", "g");
-        IOperableTrigger paused = await StoreTrigger("paused", "g", job.Key);
-        await StoreTrigger("running", "g", job.Key);
+        IJobDetail job = await AddJob("job", "g");
+        IOperableTrigger paused = await AddTrigger("paused", "g", job.Key);
+        await AddTrigger("running", "g", job.Key);
 
         await store.PauseTrigger(paused.Key);
 
@@ -374,16 +374,16 @@ public class RAMJobStoreQueryTest
     [Test]
     public async Task QueryTriggers_CombinesFiltersWithAnd()
     {
-        IJobDetail first = await StoreJob("j1", "g");
-        IJobDetail second = await StoreJob("j2", "g");
-        await store.StoreCalendar("holidays", new HolidayCalendar(), replaceExisting: false, updateTriggers: false);
+        IJobDetail first = await AddJob("j1", "g");
+        IJobDetail second = await AddJob("j2", "g");
+        await store.AddCalendar("holidays", new HolidayCalendar());
 
-        await StoreTrigger("t1", "wanted", first.Key, calendarName: "holidays");
-        await StoreTrigger("t2", "wanted", second.Key, calendarName: "holidays");
-        await StoreTrigger("t3", "wanted", first.Key);
-        await StoreTrigger("t4", "other", first.Key, calendarName: "holidays");
+        await AddTrigger("t1", "wanted", first.Key, calendarName: "holidays");
+        await AddTrigger("t2", "wanted", second.Key, calendarName: "holidays");
+        await AddTrigger("t3", "wanted", first.Key);
+        await AddTrigger("t4", "other", first.Key, calendarName: "holidays");
 
-        IOperableTrigger pausedOne = await StoreTrigger("t5", "wanted", first.Key, calendarName: "holidays");
+        IOperableTrigger pausedOne = await AddTrigger("t5", "wanted", first.Key, calendarName: "holidays");
         await store.PauseTrigger(pausedOne.Key);
 
         PagedResult<TriggerHeader> result = await store.QueryTriggers(new TriggerQuery
@@ -400,11 +400,11 @@ public class RAMJobStoreQueryTest
     [Test]
     public async Task QueryTriggers_PagesWithinAGroupMatcher()
     {
-        IJobDetail job = await StoreJob("job", "g");
-        await StoreTrigger("t1", "wanted", job.Key);
-        await StoreTrigger("t2", "wanted", job.Key);
-        await StoreTrigger("t3", "wanted", job.Key);
-        await StoreTrigger("t1", "other", job.Key);
+        IJobDetail job = await AddJob("job", "g");
+        await AddTrigger("t1", "wanted", job.Key);
+        await AddTrigger("t2", "wanted", job.Key);
+        await AddTrigger("t3", "wanted", job.Key);
+        await AddTrigger("t1", "other", job.Key);
 
         PagedResult<TriggerHeader> result = await store.QueryTriggers(new TriggerQuery
         {
@@ -467,10 +467,10 @@ public class RAMJobStoreQueryTest
     [Test]
     public async Task QueryTriggerGroups_ListsGroupsThatHaveTriggersWithTheirPausedFlag()
     {
-        IJobDetail job = await StoreJob("job", "g");
-        await StoreTrigger("t1", "g1", job.Key);
-        await StoreTrigger("t1", "g2", job.Key);
-        await StoreTrigger("t1", "g3", job.Key);
+        IJobDetail job = await AddJob("job", "g");
+        await AddTrigger("t1", "g1", job.Key);
+        await AddTrigger("t1", "g2", job.Key);
+        await AddTrigger("t1", "g3", job.Key);
         await store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("g2"));
         await store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("ghost"));
 
@@ -490,9 +490,9 @@ public class RAMJobStoreQueryTest
     [Test]
     public async Task QueryTriggerGroups_PausedTrueIncludesAGroupWithNoTriggers()
     {
-        IJobDetail job = await StoreJob("job", "g");
-        await StoreTrigger("t1", "g1", job.Key);
-        await StoreTrigger("t1", "g2", job.Key);
+        IJobDetail job = await AddJob("job", "g");
+        await AddTrigger("t1", "g1", job.Key);
+        await AddTrigger("t1", "g2", job.Key);
         await store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("g2"));
         await store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("ghost"));
 
@@ -506,10 +506,10 @@ public class RAMJobStoreQueryTest
     [Test]
     public async Task QueryTriggerGroups_PausedFalseExcludesPausedGroups()
     {
-        IJobDetail job = await StoreJob("job", "g");
-        await StoreTrigger("t1", "g1", job.Key);
-        await StoreTrigger("t1", "g2", job.Key);
-        await StoreTrigger("t1", "g3", job.Key);
+        IJobDetail job = await AddJob("job", "g");
+        await AddTrigger("t1", "g1", job.Key);
+        await AddTrigger("t1", "g2", job.Key);
+        await AddTrigger("t1", "g3", job.Key);
         await store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("g2"));
         await store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("ghost"));
 
@@ -521,9 +521,9 @@ public class RAMJobStoreQueryTest
     [Test]
     public async Task QueryCalendarNames_OrdersOrdinallyAndPages()
     {
-        await store.StoreCalendar("b", new HolidayCalendar(), replaceExisting: false, updateTriggers: false);
-        await store.StoreCalendar("a", new HolidayCalendar(), replaceExisting: false, updateTriggers: false);
-        await store.StoreCalendar("C", new HolidayCalendar(), replaceExisting: false, updateTriggers: false);
+        await store.AddCalendar("b", new HolidayCalendar());
+        await store.AddCalendar("a", new HolidayCalendar());
+        await store.AddCalendar("C", new HolidayCalendar());
 
         PagedResult<string> all = await store.QueryCalendarNames(new CalendarQuery());
         all.Items.Should().Equal(["C", "a", "b"], "calendar names are ordered ordinally, which puts upper case first");
@@ -537,8 +537,8 @@ public class RAMJobStoreQueryTest
     [Test]
     public async Task GetJobDetails_SkipsMissingKeysAndDeduplicates()
     {
-        IJobDetail first = await StoreJob("j1", "g");
-        IJobDetail second = await StoreJob("j2", "g");
+        IJobDetail first = await AddJob("j1", "g");
+        IJobDetail second = await AddJob("j2", "g");
 
         List<IJobDetail> jobs = await store.GetJobDetails([second.Key, new JobKey("missing", "g"), second.Key, first.Key]);
 
@@ -550,7 +550,7 @@ public class RAMJobStoreQueryTest
     [Test]
     public async Task GetJobDetails_ReturnsCopiesOfTheStoredJobs()
     {
-        IJobDetail job = await StoreJob("j1", "g");
+        IJobDetail job = await AddJob("j1", "g");
 
         List<IJobDetail> first = await store.GetJobDetails([job.Key]);
         List<IJobDetail> second = await store.GetJobDetails([job.Key]);
@@ -562,9 +562,9 @@ public class RAMJobStoreQueryTest
     [Test]
     public async Task GetTriggers_SkipsMissingKeysAndDeduplicates()
     {
-        IJobDetail job = await StoreJob("job", "g");
-        IOperableTrigger first = await StoreTrigger("t1", "g", job.Key);
-        IOperableTrigger second = await StoreTrigger("t2", "g", job.Key);
+        IJobDetail job = await AddJob("job", "g");
+        IOperableTrigger first = await AddTrigger("t1", "g", job.Key);
+        IOperableTrigger second = await AddTrigger("t2", "g", job.Key);
 
         List<IOperableTrigger> triggers = await store.GetTriggers([second.Key, new TriggerKey("missing", "g"), second.Key, first.Key]);
 
@@ -576,8 +576,8 @@ public class RAMJobStoreQueryTest
     [Test]
     public async Task GetTriggers_ReturnsClonesThatCannotMutateTheStore()
     {
-        IJobDetail job = await StoreJob("job", "g");
-        IOperableTrigger trigger = await StoreTrigger("t1", "g", job.Key);
+        IJobDetail job = await AddJob("job", "g");
+        IOperableTrigger trigger = await AddTrigger("t1", "g", job.Key);
 
         List<IOperableTrigger> fetched = await store.GetTriggers([trigger.Key]);
         fetched.Single().Description = "mutated";
@@ -599,7 +599,82 @@ public class RAMJobStoreQueryTest
         triggers.Should().BeEmpty();
     }
 
-    private async ValueTask<IJobDetail> StoreJob(string name, string group)
+    [Test]
+    public async Task QueryJobs_NameMatcherSelectsAcrossGroups()
+    {
+        await StoreJobs("g1", "report-daily", "report-weekly", "other");
+        await StoreJobs("g2", "report-daily");
+
+        PagedResult<JobHeader> result = await store.QueryJobs(new JobQuery { Name = NameMatcher<JobKey>.NameStartsWith("report") });
+
+        result.Items.Select(x => x.Key).Should().Equal(
+            [new JobKey("report-daily", "g1"), new JobKey("report-weekly", "g1"), new JobKey("report-daily", "g2")],
+            "a name filter is independent of the group, and the result stays ordered by group then name");
+    }
+
+    [Test]
+    public async Task QueryJobs_NameAndGroupFiltersCombineWithAnd()
+    {
+        await StoreJobs("g1", "report-daily", "other");
+        await StoreJobs("g2", "report-daily");
+
+        PagedResult<JobHeader> result = await store.QueryJobs(new JobQuery
+        {
+            Group = GroupMatcher<JobKey>.GroupEquals("g1"),
+            Name = NameMatcher<JobKey>.NameEquals("report-daily"),
+            IncludeTotalCount = true
+        });
+
+        result.Items.Select(x => x.Key).Should().Equal([new JobKey("report-daily", "g1")]);
+        result.TotalCount.Should().Be(1, "the total counts the matches of both filters");
+    }
+
+    [Test]
+    public async Task QueryTriggers_NameMatcherSelectsByTriggerName()
+    {
+        IJobDetail job = await AddJob("job", "g");
+        await AddTrigger("nightly-a", "tg", job.Key);
+        await AddTrigger("nightly-b", "tg", job.Key);
+        await AddTrigger("hourly", "tg", job.Key);
+
+        PagedResult<TriggerHeader> result = await store.QueryTriggers(new TriggerQuery { Name = NameMatcher<TriggerKey>.NameStartsWith("nightly") });
+
+        result.Items.Select(x => x.Key.Name).Should().Equal(["nightly-a", "nightly-b"]);
+    }
+
+    [Test]
+    public async Task QueryJobGroups_NameSelectsTheOneGroup()
+    {
+        await StoreJobs("g1", "j1");
+        await StoreJobs("g2", "j1");
+        await store.PauseJobs(GroupMatcher<JobKey>.GroupEquals("g2"));
+
+        PagedResult<JobGroup> named = await store.QueryJobGroups(new JobGroupQuery { Name = "g2" });
+        named.Items.Should().Equal([new JobGroup("g2", true)], "an exact name filter selects one group and no other");
+
+        PagedResult<JobGroup> unpaused = await store.QueryJobGroups(new JobGroupQuery { Name = "g2", Paused = false });
+        unpaused.Items.Should().BeEmpty("the name and paused filters combine, and g2 is paused");
+
+        PagedResult<JobGroup> missing = await store.QueryJobGroups(new JobGroupQuery { Name = "nope", Paused = true });
+        missing.Items.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task QueryTriggerGroups_NameSelectsTheOneGroup()
+    {
+        IJobDetail job = await AddJob("job", "g");
+        await AddTrigger("t1", "tg1", job.Key);
+        await AddTrigger("t1", "tg2", job.Key);
+        await store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("tg2"));
+
+        PagedResult<TriggerGroup> named = await store.QueryTriggerGroups(new TriggerGroupQuery { Name = "tg2" });
+        named.Items.Should().Equal([new TriggerGroup("tg2", true)]);
+
+        PagedResult<TriggerGroup> paused = await store.QueryTriggerGroups(new TriggerGroupQuery { Name = "tg1", Paused = true });
+        paused.Items.Should().BeEmpty("tg1 is not paused");
+    }
+
+    private async ValueTask<IJobDetail> AddJob(string name, string group)
     {
         IJobDetail job = JobBuilder.Create()
             .OfType<NoOpJob>()
@@ -607,7 +682,7 @@ public class RAMJobStoreQueryTest
             .StoreDurably()
             .Build();
 
-        await store.StoreJob(job, replaceExisting: false);
+        await store.AddJob(job, replace: false);
         return job;
     }
 
@@ -615,11 +690,11 @@ public class RAMJobStoreQueryTest
     {
         foreach (string name in names)
         {
-            await StoreJob(name, group);
+            await AddJob(name, group);
         }
     }
 
-    private async ValueTask<IOperableTrigger> StoreTrigger(string name, string group, JobKey jobKey, string calendarName = null)
+    private async ValueTask<IOperableTrigger> AddTrigger(string name, string group, JobKey jobKey, string calendarName = null)
     {
         return await StoreBuiltTrigger(TriggerBuilder.Create()
             .WithIdentity(name, group)
@@ -633,7 +708,7 @@ public class RAMJobStoreQueryTest
     {
         IOperableTrigger trigger = (IOperableTrigger) builder.Build();
         trigger.ComputeFirstFireTimeUtc(null);
-        await store.StoreTrigger(trigger, replaceExisting: false);
+        await store.AddTrigger(trigger, replace: false);
         return trigger;
     }
 

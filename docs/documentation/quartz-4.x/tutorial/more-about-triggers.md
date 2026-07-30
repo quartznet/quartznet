@@ -116,7 +116,7 @@ __Calendar Example__
     HolidayCalendar cal = new HolidayCalendar();
     cal.AddExcludedDate(someDate);
     
-    await sched.AddCalendar("myHolidays", cal, false);
+    await sched.AddCalendar("myHolidays", cal);
     
  ITrigger t = TriggerBuilder.Create()
   .WithIdentity("myTrigger")

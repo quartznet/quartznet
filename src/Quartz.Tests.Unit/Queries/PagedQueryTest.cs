@@ -1,4 +1,4 @@
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 
 namespace Quartz.Tests.Unit.Queries;
 

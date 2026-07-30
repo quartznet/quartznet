@@ -81,7 +81,7 @@ public sealed class JobStoreActivityTracerTest : IDisposable
 
         Activity capturedActivity = null;
         await tracer.Trace(
-            OperationName.JobStore.StoreJob,
+            OperationName.JobStore.AddJob,
             () =>
             {
                 capturedActivity = Activity.Current;
@@ -140,12 +140,12 @@ public sealed class JobStoreActivityTracerTest : IDisposable
         tracer.SetSchedulerContext("Test", "1");
 
         Func<Task> act = async () => await tracer.Trace<int>(
-            OperationName.JobStore.RemoveJob,
+            OperationName.JobStore.DeleteJob,
             () => throw new InvalidOperationException("test error"));
 
         await act.Should().ThrowExactlyAsync<InvalidOperationException>();
 
-        var activity = stoppedActivities.Single(a => a.OperationName == OperationName.JobStore.RemoveJob);
+        var activity = stoppedActivities.Single(a => a.OperationName == OperationName.JobStore.DeleteJob);
         activity.Status.Should().Be(ActivityStatusCode.Error);
         activity.StatusDescription.Should().Be("test error");
         activity.Events.Should().ContainSingle(e => e.Name == "exception");
@@ -158,12 +158,12 @@ public sealed class JobStoreActivityTracerTest : IDisposable
         tracer.SetSchedulerContext("Test", "1");
 
         Func<Task> act = async () => await tracer.Trace(
-            OperationName.JobStore.ClearAllSchedulingData,
+            OperationName.JobStore.Clear,
             new Func<ValueTask>(() => throw new InvalidOperationException("test error")));
 
         await act.Should().ThrowExactlyAsync<InvalidOperationException>();
 
-        var activity = stoppedActivities.Single(a => a.OperationName == OperationName.JobStore.ClearAllSchedulingData);
+        var activity = stoppedActivities.Single(a => a.OperationName == OperationName.JobStore.Clear);
         activity.Status.Should().Be(ActivityStatusCode.Error);
     }
 

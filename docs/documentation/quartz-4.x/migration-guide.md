@@ -573,14 +573,85 @@ The following properties are now explicit interface implementations and cannot b
 
 ## Listener API Changes
 
-`IListenerManager.GetJobListeners()` and `GetTriggerListeners()` now return arrays instead of `IReadOnlyCollection<T>` for improved performance and reduced allocations.
+The three kinds of listener are managed identically now: a listener is registered under a name, registering the
+same name again replaces it, and it is removed by that name.
 
-`IListenerManager.GetSchedulerListeners()` returns an array, like its job and trigger counterparts.
+| 3.x | 4.x |
+|---|---|
+| `AddJobListener(l, params IMatcher<JobKey>[])` and `AddJobListener(l, IReadOnlyCollection<…>)` | one `AddJobListener(l, params IReadOnlyCollection<IMatcher<JobKey>>)` |
+| `AddTriggerListener(l, params IMatcher<TriggerKey>[])` and the collection overload | one `AddTriggerListener(l, params IReadOnlyCollection<IMatcher<TriggerKey>>)` |
+| `GetJobListeners()`, `GetTriggerListeners()`, `GetSchedulerListeners()` → arrays | → `IReadOnlyList<T>` |
+| `GetJobListenerMatchers(name)`, `GetTriggerListenerMatchers(name)` → array or `null` | → `IReadOnlyList<…>`, empty and never null |
+| `GetJobListener(name)`, `GetTriggerListener(name)` throw `KeyNotFoundException` | return null |
+| `RemoveSchedulerListener(ISchedulerListener)` | `RemoveSchedulerListener(string name)` |
+| — | `GetSchedulerListener(string name)` → `ISchedulerListener?` |
 
-`GetJobListenerMatchers()` and `GetTriggerListenerMatchers()` return arrays too, and still return `null` for a
-listener that is not registered.
+C# 13 params collections turn the two `Add*Listener` overloads into a single member that accepts both call
+shapes, so existing calls compile unchanged:
 
-Two members were renamed:
+```csharp
+// both still work
+scheduler.ListenerManager.AddJobListener(myJobListener, matcherA, matcherB);
+scheduler.ListenerManager.AddJobListener(myJobListener, listOfMatchers);
+```
+
+The matcher listings returned `null` both for "this listener registered no matchers" and for "there is no such
+listener". Both mean the same thing to the scheduler — no matchers means every event matches — so they are
+empty lists now:
+
+```diff
+- var matchers = listenerManager.GetJobListenerMatchers(name);
+- if (matchers is null) { /* matches everything */ }
++ var matchers = listenerManager.GetJobListenerMatchers(name);
++ if (matchers.Count == 0) { /* matches everything */ }
+```
+
+Asking for a listener that is not registered returns null instead of throwing, so checking is no longer an
+exception:
+
+```diff
+- try { var listener = listenerManager.GetJobListener(name); } catch (KeyNotFoundException) { }
++ IJobListener? listener = listenerManager.GetJobListener(name);
+```
+
+### Scheduler listeners are identified by name
+
+`ISchedulerListener` has a `Name`, a default interface member returning `GetType().Name`. Registering two
+scheduler listeners whose `Name` matches replaces the first, exactly as it has always worked for job and
+trigger listeners. Override `Name` if you register several instances of one type with the same scheduler:
+
+```diff
+- scheduler.ListenerManager.RemoveSchedulerListener(mySchedulerListener);
++ scheduler.ListenerManager.RemoveSchedulerListener(mySchedulerListener.Name);
+```
+
+`SchedulerListenerSupport` implements `Name` as a `virtual` property, so a listener deriving from it can read
+and override it. A test double does not run a default interface member, so a faked `ISchedulerListener` needs
+its `Name` configured before `AddSchedulerListener` will accept it:
+
+```csharp
+ISchedulerListener listener = A.Fake<ISchedulerListener>();
+A.CallTo(() => listener.Name).Returns("myListener");
+```
+
+### `JobsPaused` and `JobsResumed` take a nullable group
+
+```diff
+- ValueTask JobsPaused(string jobGroup, CancellationToken cancellationToken = default);
+- ValueTask JobsResumed(string jobGroup, CancellationToken cancellationToken = default);
++ ValueTask JobsPaused(string? jobGroup, CancellationToken cancellationToken = default);
++ ValueTask JobsResumed(string? jobGroup, CancellationToken cancellationToken = default);
+```
+
+Null means every group, matching `TriggersPaused` and `TriggersResumed`, which were already nullable. The
+scheduler's own pause-all path still raises the job events once per group; the signature simply stops claiming
+a group name is guaranteed where the trigger twins admit it is not. Implementations with a non-nullable
+parameter produce a nullability warning (an error under `TreatWarningsAsErrors`) until the `?` is added.
+
+`JobScheduled(ITrigger)` and `JobUnscheduled(TriggerKey)` remain asymmetric on purpose: once a trigger is
+unscheduled there is no trigger left to hand out.
+
+### Two members were renamed
 
 ```diff
 - ValueTask SchedulerShuttingdown(CancellationToken cancellationToken = default);
@@ -590,9 +661,22 @@ Two members were renamed:
 + ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default);
 ```
 
-The broadcast listeners line up with each other: `BroadcastSchedulerListener.GetListeners()` is a `Listeners`
-property, matching `BroadcastJobListener` and `BroadcastTriggerListener`, and all three constructors take an
-`IReadOnlyCollection<T>`.
+### The broadcast listeners have one shape
+
+`BroadcastSchedulerListener.GetListeners()` is a `Listeners` property, matching `BroadcastJobListener` and
+`BroadcastTriggerListener`, and all three constructors take an `IReadOnlyCollection<T>`. All three now take the
+same arguments: a name, and optionally the listeners to start with. `BroadcastJobListener` no longer asks for
+an `ILogger` — it resolves its own, as the other two always did — and `BroadcastSchedulerListener` takes a name,
+which it needs now that scheduler listeners are name-identified.
+
+| 3.x | 4.x |
+|---|---|
+| `new BroadcastJobListener(logger, name)` | `new BroadcastJobListener(name)` |
+| `new BroadcastJobListener(logger, name, listeners)` | `new BroadcastJobListener(name, listeners)` |
+| `new BroadcastSchedulerListener()` | `new BroadcastSchedulerListener(name)` |
+| `new BroadcastSchedulerListener(listeners)` | `new BroadcastSchedulerListener(name, listeners)` |
+
+`BroadcastSchedulerListener` also gained `RemoveListener(string)`, which the job and trigger ones already had.
 
 An `IJobStore` that implements `IJobListener` no longer automatically receives all events. Register it explicitly as a job listener using `ListenerManager`:
 
@@ -856,8 +940,8 @@ method in `SchedulerQueryExtensions`, with the same name and signature.
 | `GetTriggerGroupNames()` | `QueryTriggerGroups(new TriggerGroupQuery())` |
 | `GetPausedTriggerGroups()` | `QueryTriggerGroups(new TriggerGroupQuery { Paused = true })` |
 | `GetCalendarNames()` | `QueryCalendarNames(new CalendarQuery())` |
-| `IsJobGroupPaused(group)` | `QueryJobGroups(new JobGroupQuery { Paused = true })` |
-| `IsTriggerGroupPaused(group)` | `QueryTriggerGroups(new TriggerGroupQuery { Paused = true })` |
+| `IsJobGroupPaused(group)` | `QueryJobGroups(new JobGroupQuery { Name = group, Paused = true, Take = 1 })` |
+| `IsTriggerGroupPaused(group)` | `QueryTriggerGroups(new TriggerGroupQuery { Name = group, Paused = true, Take = 1 })` |
 
 `IJobStore` loses the same members plus the counting and existence ones, and has no extension methods to
 soften it — if you implement a job store, you implement the query members:
@@ -867,9 +951,9 @@ soften it — if you implement a job store, you implement the query members:
 | `GetJobKeys`, `GetTriggerKeys` | `QueryJobs`, `QueryTriggers` |
 | `GetJobGroupNames`, `GetTriggerGroupNames`, `GetPausedTriggerGroups` | `QueryJobGroups`, `QueryTriggerGroups` |
 | `GetCalendarNames` | `QueryCalendarNames` |
-| `IsJobGroupPaused`, `IsTriggerGroupPaused` | the matching `Query*Groups` with `Paused = true` |
+| `IsJobGroupPaused`, `IsTriggerGroupPaused` | the matching `Query*Groups` with `Name` and `Paused = true` |
 | `GetNumberOfJobs`, `GetNumberOfTriggers`, `GetNumberOfCalendars` | the matching query with `Take = 0, IncludeTotalCount = true` |
-| `CalendarExists(name)` | `RetrieveCalendar(name)` returning non-null |
+| `CalendarExists(name)` | `GetCalendar(name)` returning non-null |
 
 Two members are new on both interfaces: **`GetJobDetails(jobKeys)`** and **`GetTriggers(triggerKeys)`**
 retrieve many by key in one round trip. Keys that do not exist are simply absent, duplicates fold away, and
@@ -920,7 +1004,7 @@ cost an extra round trip per trigger each. When you do need the whole thing, fol
 fetch:
 
 ```csharp
-List<IJobDetail> details = await scheduler.GetJobDetails(page.Items.ConvertAll(x => x.Key));
+List<IJobDetail> details = await scheduler.GetJobDetails(page.Items.Select(x => x.Key).ToList());
 ```
 
 Counting is a query that reads no rows:
@@ -1188,6 +1272,120 @@ rename, so a string naming both still resolves:
 + quartz.serializer.type = Quartz.Impl.SystemTextJsonObjectSerializer, Quartz
 ```
 
+## The scheduler and the job store speak the same verbs
+
+`IJobStore` had its own vocabulary — Store/Remove/Retrieve — for the operations `IScheduler` calls
+Schedule/Add/Delete/Get, so the two halves of one operation had different names, and a stack trace had to be
+translated on the way down. The store now uses the scheduler's words. If you implement a job store, rename;
+if you only call `IScheduler`, nothing here affects you.
+
+| `IJobStore` in 3.x | `IJobStore` in 4.x |
+|---|---|
+| `StoreJobAndTrigger(job, trigger)` | `ScheduleJob(job, trigger)` |
+| `StoreJobsAndTriggers(triggersAndJobs, replace)` | `ScheduleJobs(triggersAndJobs, replace)` |
+| `StoreJob(job, replaceExisting)` | `AddJob(job, replace)` |
+| `StoreTrigger(trigger, replaceExisting)` | `AddTrigger(trigger, replace)` |
+| `RemoveJob(key)`, `RemoveJobs(keys)` | `DeleteJob(key)`, `DeleteJobs(keys)` |
+| `RemoveTrigger(key)`, `RemoveTriggers(keys)` | `DeleteTrigger(key)`, `DeleteTriggers(keys)` |
+| `RetrieveJob(key)` | `GetJob(key)` |
+| `RetrieveTrigger(key)` | `GetTrigger(key)` |
+| `StoreCalendar(name, cal, replaceExisting, updateTriggers)` | `AddCalendar(name, cal, AddCalendarOptions?)` |
+| `RemoveCalendar(name)` | `DeleteCalendar(name)` |
+| `RetrieveCalendar(name)` | `GetCalendar(name)` |
+| `ClearAllSchedulingData()` | `Clear()` |
+| `AcquireNextTriggers(noLaterThan, maxCount, timeWindow, executionLimits)` | `AcquireNextTriggers(TriggerAcquisitionRequest)` |
+
+The `bool` that decides whether an existing item is over-written is called `replace` on every member; it was
+`replaceExisting` on some. The `protected` `JobStoreSupport` members that mirror these — the
+`ConnectionAndTransactionHolder` overloads, and `AcquireNextTrigger` — were renamed with them.
+
+The activity names in `Quartz.Diagnostics.OperationName.JobStore` follow the methods they name, so a trace
+filter matching `"Quartz.JobStore.StoreJob"` now needs `"Quartz.JobStore.AddJob"`, and so on for every row
+above.
+
+### Acquisition takes a request record
+
+```diff
+- await store.AcquireNextTriggers(noLaterThan, maxCount, timeWindow, executionLimits, ct);
++ await store.AcquireNextTriggers(new TriggerAcquisitionRequest
++ {
++     NoLaterThan = noLaterThan,
++     MaxCount = maxCount,
++     TimeWindow = timeWindow,
++     ExecutionLimits = executionLimits,
++ }, ct);
+```
+
+`TriggerAcquisitionRequest` lives in `Quartz.Extensibility`. Acquisition keeps growing dimensions — the
+batching window, per-execution-group limits, node affinity — and each one used to be another parameter on the
+hot path of every store. As a record, the next one is an added optional property a store can ignore. It is the
+store-level counterpart of the delegate-level `TriggerAcquisitionCriteria`, which is unchanged. `TimeWindow`
+rejects a negative value at construction, where `JobStoreSupport` used to throw from inside acquisition.
+
+## Options records replace boolean parameters
+
+`AddJob` and `AddCalendar` took bare booleans that say nothing at the call site about which is which, and
+`AddJob` had a second overload only because its second boolean was added later. Both are one member now,
+taking an optional record whose defaults are the conservative choice (`Replace = false`,
+`StoreNonDurableWhileAwaitingScheduling = false`, `UpdateTriggers = false`).
+
+| 3.x | 4.x |
+|---|---|
+| `AddJob(job, replace: false)` | `AddJob(job)` |
+| `AddJob(job, replace: true)` | `AddJob(job, new AddJobOptions { Replace = true })` |
+| `AddJob(job, true, true)` | `AddJob(job, new AddJobOptions { Replace = true, StoreNonDurableWhileAwaitingScheduling = true })` |
+| `AddCalendar(name, cal, false, false)` | `AddCalendar(name, cal)` |
+| `AddCalendar(name, cal, true, true)` | `AddCalendar(name, cal, new AddCalendarOptions { Replace = true, UpdateTriggers = true })` |
+
+`AddJobOptions` and `AddCalendarOptions` are both in the `Quartz` namespace. `IJobStore.AddCalendar` takes
+`AddCalendarOptions` too; `IJobStore.AddJob` keeps its single `bool replace`, because durability is a
+scheduler-level rule the store never sees.
+
+The DI-time builders — `q.AddJob<T>(…)` and `q.AddCalendar<T>(…)` on `IQuartzBuilder` — are unchanged.
+
+## Overloads that differed only by a default
+
+| 3.x | 4.x |
+|---|---|
+| `Shutdown()`, `Shutdown(bool waitForJobsToComplete)` | `Shutdown(bool waitForJobsToComplete = false, …)` |
+| `TriggerJob(jobKey)`, `TriggerJob(jobKey, data)` | `TriggerJob(JobKey jobKey, JobDataMap? data = null, …)` |
+| `Interrupt(string fireInstanceId)` | `InterruptFireInstance(string fireInstanceId)` |
+| `GetMetaData()` | `GetMetadata()`, returning `SchedulerMetadata` |
+| `GetTriggersOfJob(jobKey)` | extension method over `QueryTriggers(new TriggerQuery { Job = jobKey })` |
+
+Calls to `Shutdown` and `TriggerJob` compile unchanged unless they passed a `CancellationToken` positionally
+into the short overload, which now needs to be named:
+
+```diff
+- await scheduler.Shutdown(cancellationToken);
++ await scheduler.Shutdown(cancellationToken: cancellationToken);
+```
+
+`Interrupt` overloaded on `JobKey` versus `string` hid two different operations behind one name — cancel every
+execution of a job, versus cancel one specific fire — so picking the wrong one was a silent, type-driven
+mistake. `Interrupt(JobKey)` keeps its name.
+
+`GetTriggersOfJob` is an extension method on `SchedulerQueryExtensions` now, so existing call sites still
+compile. It runs `QueryTriggers` and then `GetTriggers` on the keys it found; when the state and fire times a
+listing needs are enough, call `QueryTriggers` with `TriggerQuery.Job` yourself and save the second round trip.
+
+### `SchedulerMetadata` replaces `SchedulerMetaData`
+
+```diff
+- SchedulerMetaData metaData = await scheduler.GetMetaData();
+- Console.WriteLine($"Executed {metaData.NumberOfJobsExecuted} jobs.");
+- Console.WriteLine(metaData.GetSummary());
++ SchedulerMetadata metadata = await scheduler.GetMetadata();
++ Console.WriteLine($"Executed {metadata.JobsExecuted} jobs.");
++ Console.WriteLine(metadata);
+```
+
+The old type was built through a fifteen-parameter constructor of which six were adjacent booleans. It is a
+`sealed record` with `init` properties now, so a snapshot is built and read by name. Two properties were
+renamed: `SchedulerRemote` → `IsRemote` and `NumberOfJobsExecuted` → `JobsExecuted`. `GetSummary()` is gone —
+the record's `ToString()` prints every value, which is what the hand-written summary was for. Over HTTP,
+`SchedulerStatisticsDto.NumberOfJobsExecuted` is `JobsExecuted` to match.
+
 ## Names that were normalized
 
 Renames only — the behavior behind each is unchanged, and a rename that also changes a configuration key is
@@ -1195,7 +1393,7 @@ called out.
 
 | 3.x | 4.x |
 |---|---|
-| `QuartzScheduler.NumJobsExecuted` | `NumberOfJobsExecuted` (the type is internal now — read `IScheduler.GetMetaData()`) |
+| `QuartzScheduler.NumJobsExecuted` | `NumberOfJobsExecuted` (the type is internal now — read `IScheduler.GetMetadata()`) |
 | `QuartzScheduler.JobStoreClass`, `.ThreadPoolClass` | `JobStoreType`, `ThreadPoolType` (they return a `Type`; the type is internal now) |
 | `JobStoreSupport.UseDBLocks`, `.SelectWithLockSQL` | `UseDbLocks`, `SelectWithLockSql` |
 | `DBSemaphore.SQL`, `.InsertSQL`, `.ExecuteSQL` | `Sql`, `InsertSql` (both readable now), `ExecuteSql` |
@@ -1206,6 +1404,134 @@ called out.
 | `XMLSchedulingDataProcessor.OverWriteExistingData`, `SchedulingOptions.OverWriteExistingData` | `OverwriteExistingData`. The configuration key is spelled `Quartz:Scheduling:OverwriteExistingData` now; keys are matched case-insensitively, so an existing file keeps binding, but code assigning the property has to change |
 | `XMLSchedulingDataProcessor.PrepForProcessing`, `.BuildTriggersByFQJobNameMap` | `PrepareForProcessing`, `BuildTriggersByFullyQualifiedJobNameMap` |
 | `RedisSemaphore.LockTtlMilliseconds`, `.LockRetryIntervalMilliseconds` | `LockTimeToLive`, `LockRetryInterval`, both `TimeSpan` — **also the config keys `lockTtlMilliseconds` → `lockTimeToLive` and `lockRetryIntervalMilliseconds` → `lockRetryInterval`** |
+
+## Matchers moved to `Quartz.Matchers`
+
+A matcher is something you hand to `IScheduler`, not an implementation detail of one, so the whole namespace
+moved out of `Impl`:
+
+```diff
+- using Quartz.Impl.Matchers;
++ using Quartz.Matchers;
+```
+
+`GroupMatcher<T>`, `NameMatcher<T>`, `KeyMatcher<T>`, `EverythingMatcher<T>`, `AndMatcher<T>`, `OrMatcher<T>`,
+`NotMatcher<T>`, `StringMatcher<T>` and `StringOperator` all moved; every factory method keeps its name
+(`GroupEquals`, `NameStartsWith`, `KeyEquals`, `AnyGroup`, …).
+
+`IMatcher<T>` no longer redeclares `Equals(object)` and `GetHashCode()`. They are `object`'s own members, so
+declaring them on the interface added no requirement and told an implementer nothing — but a matcher is still
+expected to behave as a value, because `RemoveJobListenerMatcher` finds the matcher to remove by equality.
+
+`NameMatcher<TKey>.AnyName()` is new, the counterpart of `GroupMatcher<TKey>.AnyGroup()`.
+
+## `Key<T>` moved to `Quartz` and is immutable
+
+`JobKey` and `TriggerKey` are part of the public model, and their base type sat in a utility namespace:
+
+```diff
+- using Quartz.Util;   // for Key<T>
++ // Key<T> is in Quartz, alongside JobKey and TriggerKey
+```
+
+The `Name` and `Group` setters are gone. A key is a value, and it is a dictionary key throughout the job
+stores — mutating one in place could move an entry out of reach of its own hash bucket. Build a new key
+instead:
+
+```diff
+- jobKey.Group = "reports";
++ jobKey = new JobKey(jobKey.Name, "reports");
+```
+
+`JobKey.Create` is gone too; use the constructors, which is what `TriggerKey` always offered:
+
+```diff
+- JobKey key = JobKey.Create("myJob", "reports");
++ JobKey key = new JobKey("myJob", "reports");
+```
+
+Payloads written by earlier versions still read: both serializers build a key through its
+`(name, group)` constructor now, and the JSON itself is unchanged.
+
+`JobType`, the type of `IJobDetail.JobType`, moved from `Quartz.Impl` to `Quartz` for the same reason.
+
+## Listing queries can filter by name
+
+| Query | New property |
+|---|---|
+| `JobQuery` | `NameMatcher<JobKey>? Name` |
+| `TriggerQuery` | `NameMatcher<TriggerKey>? Name` |
+| `JobGroupQuery` | `string? Name` — one group, matched exactly |
+| `TriggerGroupQuery` | `string? Name` — one group, matched exactly |
+
+```csharp
+PagedResult<JobHeader> nightly = await scheduler.QueryJobs(new JobQuery
+{
+    Group = GroupMatcher<JobKey>.GroupEquals("reports"),
+    Name = NameMatcher<JobKey>.NameStartsWith("nightly")
+});
+```
+
+The filters combine with AND. `RAMJobStore` and `StdAdoDelegate` both honor them; the ADO store escapes the
+matcher's own wildcards in the LIKE it generates, so a job literally named `50%` is matched literally and is
+not a pattern. Over HTTP the job and trigger listings take `nameEquals`, `nameStartsWith`, `nameEndsWith` or
+`nameContains` (at most one), and the group listings take `name`.
+
+`IsJobGroupPaused` and `IsTriggerGroupPaused` are built on the group-name filter now, so they ask the store
+about the one group instead of listing every paused group and searching it.
+
+`PagedResult<T>.Items` is an `IReadOnlyList<T>` rather than a `List<T>` — a page is a result to read, not a
+list to mutate. The two `List<T>` members a caller is most likely to have used:
+
+```diff
+- IReadOnlyList<JobKey> keys = result.Items.ConvertAll(x => x.Key);
++ List<JobKey> keys = result.Items.Select(x => x.Key).ToList();
+
+- bool found = result.Items.Exists(x => x.Name == group);
++ bool found = result.Items.Any(x => x.Name == group);
+```
+
+## `ISchedulerRepository` overloads collapsed
+
+| 3.x | 4.x |
+|---|---|
+| `Bind(scheduler)`, `Bind(scheduler, instanceId)` | `Bind(IScheduler scheduler, string? instanceId = null)` |
+| `Lookup(name)`, `Lookup(name, instanceId)` | `Lookup(string schedulerName, string? instanceId = null)` |
+| `Remove(name)` → `void`, `Remove(name, instanceId)` → `bool` | `Remove(string schedulerName, string? instanceId = null)` → `bool` |
+
+Existing calls compile unchanged. A null instance ID means the same as the old one-argument overload: bind
+under the scheduler's own `SchedulerInstanceId`, and look up or remove the first scheduler registered under the
+name. `Remove` returns `bool` in both shapes now, where the one-argument form used to return nothing.
+`LookupAll` and `LookupByName` are unchanged — cluster scenarios disambiguate through them.
+
+## Trigger fire state is read-only on the interfaces
+
+```diff
+- int Priority { get; set; }   // ITrigger
++ int Priority { get; }
+
+- int TimesTriggered { get; set; }   // ISimpleTrigger, ICalendarIntervalTrigger,
++ int TimesTriggered { get; }        // IDailyTimeIntervalTrigger, IRecurrenceTrigger
+```
+
+`IMutableTrigger.Priority` still has its setter, which is what `TriggerBuilder.WithPriority` and the job stores
+go through. `TimesTriggered` is fire-count state the scheduler maintains; the concrete `SimpleTriggerImpl`,
+`CalendarIntervalTriggerImpl`, `DailyTimeIntervalTriggerImpl` and `RecurrenceTriggerImpl` keep their settable
+property. A trigger handed back by `IScheduler.GetTrigger` is a snapshot, so writing to either never reached
+the store to begin with — to change a stored trigger, build a new one and reschedule.
+
+The built-in JSON trigger serializers are typed on the concrete triggers now, because they restore
+`TimesTriggered` when deserializing. A custom serializer deriving from one of them has to follow:
+
+```diff
+- public class MySimpleTriggerSerializer : TriggerSerializer<ISimpleTrigger>
++ public class MySimpleTriggerSerializer : TriggerSerializer<SimpleTriggerImpl>
+```
+
+This applies to `SimpleTriggerSerializer`, `CalendarIntervalTriggerSerializer`,
+`DailyTimeIntervalTriggerSerializer` and `RecurrenceTriggerSerializer`, in both
+`Quartz.Serialization.Json.Triggers` and `Quartz.Serialization.Newtonsoft.Triggers`. `CronTriggerSerializer`
+is unchanged — it has no fire-count state to restore.
 
 ## Other Breaking Changes
 

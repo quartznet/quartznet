@@ -22,7 +22,7 @@
 using Microsoft.Extensions.Time.Testing;
 
 using Quartz.Impl.Calendar;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Impl;
@@ -55,7 +55,7 @@ public class RAMJobStoreTest
             .StoreDurably(true)
             .Build();
 
-        fJobStore.StoreJob(fJobDetail, false);
+        fJobStore.AddJob(fJobDetail, false);
     }
 
     [Test]
@@ -69,24 +69,24 @@ public class RAMJobStoreTest
         trigger1.ComputeFirstFireTimeUtc(null);
         trigger2.ComputeFirstFireTimeUtc(null);
         trigger3.ComputeFirstFireTimeUtc(null);
-        await fJobStore.StoreTrigger(trigger1, false);
-        await fJobStore.StoreTrigger(trigger2, false);
-        await fJobStore.StoreTrigger(trigger3, false);
+        await fJobStore.AddTrigger(trigger1, false);
+        await fJobStore.AddTrigger(trigger2, false);
+        await fJobStore.AddTrigger(trigger3, false);
 
         DateTimeOffset firstFireTime = trigger1.NextFireTimeUtc.Value;
 
         await Assert.MultipleAsync(async () =>
         {
-            Assert.That((await fJobStore.AcquireNextTriggers(d.AddMilliseconds(10), 1, TimeSpan.Zero)), Is.Empty);
-            Assert.That((await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 1, TimeSpan.Zero)).First(), Is.EqualTo(trigger2));
-            Assert.That((await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 1, TimeSpan.Zero)).First(), Is.EqualTo(trigger3));
-            Assert.That((await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 1, TimeSpan.Zero)).First(), Is.EqualTo(trigger1));
-            Assert.That((await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 1, TimeSpan.Zero)), Is.Empty);
+            Assert.That((await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = d.AddMilliseconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero })), Is.Empty);
+            Assert.That((await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = firstFireTime.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero })).First(), Is.EqualTo(trigger2));
+            Assert.That((await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = firstFireTime.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero })).First(), Is.EqualTo(trigger3));
+            Assert.That((await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = firstFireTime.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero })).First(), Is.EqualTo(trigger1));
+            Assert.That((await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = firstFireTime.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero })), Is.Empty);
         });
 
         // release trigger3
         await fJobStore.ReleaseAcquiredTrigger(trigger3);
-        Assert.That((await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 1, TimeSpan.FromMilliseconds(1))).First(), Is.EqualTo(trigger3));
+        Assert.That((await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = firstFireTime.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.FromMilliseconds(1) })).First(), Is.EqualTo(trigger3));
     }
 
     [Test]
@@ -109,16 +109,16 @@ public class RAMJobStoreTest
         trigger3.ComputeFirstFireTimeUtc(null);
         trigger4.ComputeFirstFireTimeUtc(null);
         trigger10.ComputeFirstFireTimeUtc(null);
-        await fJobStore.StoreTrigger(early, false);
-        await fJobStore.StoreTrigger(trigger1, false);
-        await fJobStore.StoreTrigger(trigger2, false);
-        await fJobStore.StoreTrigger(trigger3, false);
-        await fJobStore.StoreTrigger(trigger4, false);
-        await fJobStore.StoreTrigger(trigger10, false);
+        await fJobStore.AddTrigger(early, false);
+        await fJobStore.AddTrigger(trigger1, false);
+        await fJobStore.AddTrigger(trigger2, false);
+        await fJobStore.AddTrigger(trigger3, false);
+        await fJobStore.AddTrigger(trigger4, false);
+        await fJobStore.AddTrigger(trigger10, false);
 
         DateTimeOffset firstFireTime = trigger1.NextFireTimeUtc.Value;
 
-        List<IOperableTrigger> acquiredTriggers = (await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 4, TimeSpan.FromSeconds(1))).ToList();
+        List<IOperableTrigger> acquiredTriggers = (await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = firstFireTime.AddSeconds(10), MaxCount = 4, TimeWindow = TimeSpan.FromSeconds(1) })).ToList();
         Assert.Multiple(() =>
         {
             Assert.That(acquiredTriggers, Has.Count.EqualTo(1));
@@ -126,7 +126,7 @@ public class RAMJobStoreTest
         });
         await fJobStore.ReleaseAcquiredTrigger(early);
 
-        acquiredTriggers = (await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 4, TimeSpan.FromMilliseconds(205000))).ToList();
+        acquiredTriggers = (await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = firstFireTime.AddSeconds(10), MaxCount = 4, TimeWindow = TimeSpan.FromMilliseconds(205000) })).ToList();
         Assert.Multiple(() =>
         {
             Assert.That(acquiredTriggers, Has.Count.EqualTo(2));
@@ -136,9 +136,9 @@ public class RAMJobStoreTest
         await fJobStore.ReleaseAcquiredTrigger(early);
         await fJobStore.ReleaseAcquiredTrigger(trigger1);
 
-        await fJobStore.RemoveTrigger(early.Key);
+        await fJobStore.DeleteTrigger(early.Key);
 
-        acquiredTriggers = (await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 5, TimeSpan.FromMilliseconds(100000))).ToList();
+        acquiredTriggers = (await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = firstFireTime.AddSeconds(10), MaxCount = 5, TimeWindow = TimeSpan.FromMilliseconds(100000) })).ToList();
         Assert.Multiple(() =>
         {
             Assert.That(acquiredTriggers, Has.Count.EqualTo(4));
@@ -152,7 +152,7 @@ public class RAMJobStoreTest
         await fJobStore.ReleaseAcquiredTrigger(trigger3);
         await fJobStore.ReleaseAcquiredTrigger(trigger4);
 
-        acquiredTriggers = (await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 6, TimeSpan.FromMilliseconds(100000))).ToList();
+        acquiredTriggers = (await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = firstFireTime.AddSeconds(10), MaxCount = 6, TimeWindow = TimeSpan.FromMilliseconds(100000) })).ToList();
         Assert.Multiple(() =>
         {
             Assert.That(acquiredTriggers, Has.Count.EqualTo(4));
@@ -167,7 +167,7 @@ public class RAMJobStoreTest
         await fJobStore.ReleaseAcquiredTrigger(trigger3);
         await fJobStore.ReleaseAcquiredTrigger(trigger4);
 
-        acquiredTriggers = (await fJobStore.AcquireNextTriggers(firstFireTime.AddMilliseconds(1), 5, TimeSpan.Zero)).ToList();
+        acquiredTriggers = (await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = firstFireTime.AddMilliseconds(1), MaxCount = 5, TimeWindow = TimeSpan.Zero })).ToList();
         Assert.Multiple(() =>{
         Assert.That(acquiredTriggers, Has.Count.EqualTo(1));
         Assert.That(acquiredTriggers[0].Key, Is.EqualTo(trigger1.Key));
@@ -175,7 +175,7 @@ public class RAMJobStoreTest
 
         await fJobStore.ReleaseAcquiredTrigger(trigger1);
 
-        acquiredTriggers = (await fJobStore.AcquireNextTriggers(firstFireTime.AddMilliseconds(250), 5, TimeSpan.FromMilliseconds(19999L))).ToList();
+        acquiredTriggers = (await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = firstFireTime.AddMilliseconds(250), MaxCount = 5, TimeWindow = TimeSpan.FromMilliseconds(19999L) })).ToList();
         Assert.Multiple(() =>{
         Assert.That(acquiredTriggers, Has.Count.EqualTo(2));
         Assert.That(acquiredTriggers[0].Key, Is.EqualTo(trigger1.Key));
@@ -187,7 +187,7 @@ public class RAMJobStoreTest
         await fJobStore.ReleaseAcquiredTrigger(trigger2);
         await fJobStore.ReleaseAcquiredTrigger(trigger3);
 
-        acquiredTriggers = (await fJobStore.AcquireNextTriggers(firstFireTime.AddMilliseconds(150), 5, TimeSpan.FromMilliseconds(5000L))).ToList();
+        acquiredTriggers = (await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = firstFireTime.AddMilliseconds(150), MaxCount = 5, TimeWindow = TimeSpan.FromMilliseconds(5000L) })).ToList();
         Assert.Multiple(() =>{
         Assert.That(acquiredTriggers, Has.Count.EqualTo(1));
         Assert.That(acquiredTriggers[0].Key, Is.EqualTo(trigger1.Key));
@@ -201,7 +201,7 @@ public class RAMJobStoreTest
         IOperableTrigger trigger = new SimpleTriggerImpl("trigger1", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group, DateTimeOffset.Now.AddSeconds(100), DateTimeOffset.Now.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
         trigger.ComputeFirstFireTimeUtc(null);
         Assert.That(await fJobStore.GetTriggerState(trigger.Key), Is.EqualTo(TriggerState.None));
-        await fJobStore.StoreTrigger(trigger, false);
+        await fJobStore.AddTrigger(trigger, false);
         Assert.That(await fJobStore.GetTriggerState(trigger.Key), Is.EqualTo(TriggerState.Normal));
 
         await fJobStore.PauseTrigger(trigger.Key);
@@ -210,14 +210,14 @@ public class RAMJobStoreTest
         await fJobStore.ResumeTrigger(trigger.Key);
         Assert.That(await fJobStore.GetTriggerState(trigger.Key), Is.EqualTo(TriggerState.Normal));
 
-        trigger = (await fJobStore.AcquireNextTriggers(trigger.NextFireTimeUtc.Value.AddSeconds(10), 1, TimeSpan.FromMilliseconds(1))).First();
+        trigger = (await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = trigger.NextFireTimeUtc.Value.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.FromMilliseconds(1) })).First();
         Assert.That(trigger, Is.Not.Null);
         await fJobStore.ReleaseAcquiredTrigger(trigger);
-        trigger = (await fJobStore.AcquireNextTriggers(trigger.NextFireTimeUtc.Value.AddSeconds(10), 1, TimeSpan.FromMilliseconds(1))).First();
+        trigger = (await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = trigger.NextFireTimeUtc.Value.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.FromMilliseconds(1) })).First();
         Assert.Multiple(async () =>
         {
             Assert.That(trigger, Is.Not.Null);
-            Assert.That((await fJobStore.AcquireNextTriggers(trigger.NextFireTimeUtc.Value.AddSeconds(10), 1, TimeSpan.FromMilliseconds(1))), Is.Empty);
+            Assert.That((await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = trigger.NextFireTimeUtc.Value.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.FromMilliseconds(1) })), Is.Empty);
         });
     }
 
@@ -229,10 +229,10 @@ public class RAMJobStoreTest
         IOperableTrigger trigger = new SimpleTriggerImpl("trigger1", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group, DateTimeOffset.Now.AddSeconds(100), DateTimeOffset.Now.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
         trigger.ComputeFirstFireTimeUtc(null);
         ICalendar calendar = new MonthlyCalendar();
-        fJobStore.StoreTrigger(trigger, false);
-        fJobStore.StoreCalendar("cal", calendar, false, true);
+        fJobStore.AddTrigger(trigger, false);
+        fJobStore.AddCalendar("cal", calendar, new AddCalendarOptions { UpdateTriggers = true });
 
-        fJobStore.RemoveCalendar("cal");
+        fJobStore.DeleteCalendar("cal");
     }
 
     [Test]
@@ -243,7 +243,7 @@ public class RAMJobStoreTest
         var detail = JobBuilder.Create<NoOpJob>()
             .WithIdentity(new JobKey(jobName, jobGroup))
             .Build();
-        await fJobStore.StoreJob(detail, false);
+        await fJobStore.AddJob(detail, false);
 
         string trName = "StoreTriggerReplacesTrigger";
         string trGroup = "StoreTriggerReplacesTriggerGroup";
@@ -251,19 +251,19 @@ public class RAMJobStoreTest
         tr.JobKey = new JobKey(jobName, jobGroup);
         tr.CalendarName = null;
 
-        await fJobStore.StoreTrigger(tr, false);
-        Assert.That(await fJobStore.RetrieveTrigger(new TriggerKey(trName, trGroup)), Is.EqualTo(tr));
+        await fJobStore.AddTrigger(tr, false);
+        Assert.That(await fJobStore.GetTrigger(new TriggerKey(trName, trGroup)), Is.EqualTo(tr));
 
         tr.CalendarName = "NonExistingCalendar";
-        await fJobStore.StoreTrigger(tr, true);
-        Assert.That(await fJobStore.RetrieveTrigger(new TriggerKey(trName, trGroup)), Is.EqualTo(tr));
-        var trigger = await fJobStore.RetrieveTrigger(new TriggerKey(trName, trGroup));
-        Assert.That(trigger.CalendarName, Is.EqualTo(tr.CalendarName), "StoreJob doesn't replace triggers");
+        await fJobStore.AddTrigger(tr, true);
+        Assert.That(await fJobStore.GetTrigger(new TriggerKey(trName, trGroup)), Is.EqualTo(tr));
+        var trigger = await fJobStore.GetTrigger(new TriggerKey(trName, trGroup));
+        Assert.That(trigger.CalendarName, Is.EqualTo(tr.CalendarName), "AddJob doesn't replace triggers");
 
         bool exceptionRaised = false;
         try
         {
-            await fJobStore.StoreTrigger(tr, false);
+            await fJobStore.AddTrigger(tr, false);
         }
         catch (ObjectAlreadyExistsException)
         {
@@ -283,20 +283,20 @@ public class RAMJobStoreTest
             .WithIdentity(new JobKey(jobName1, jobGroup))
             .StoreDurably(true)
             .Build();
-        await fJobStore.StoreJob(detail, false);
+        await fJobStore.AddJob(detail, false);
         await fJobStore.PauseJobs(GroupMatcher<JobKey>.GroupEquals(jobGroup));
 
         detail = JobBuilder.Create<NoOpJob>()
             .WithIdentity(new JobKey(jobName2, jobGroup))
             .StoreDurably(true)
             .Build();
-        await fJobStore.StoreJob(detail, false);
+        await fJobStore.AddJob(detail, false);
 
         string trName = "PauseJobGroupPausesNewJobTrigger";
         string trGroup = "PauseJobGroupPausesNewJobTriggerGroup";
         IOperableTrigger tr = new SimpleTriggerImpl(trName, trGroup, DateTimeOffset.UtcNow);
         tr.JobKey = new JobKey(jobName2, jobGroup);
-        await fJobStore.StoreTrigger(tr, false);
+        await fJobStore.AddTrigger(tr, false);
         Assert.That(await fJobStore.GetTriggerState(tr.Key), Is.EqualTo(TriggerState.Paused));
     }
 
@@ -308,14 +308,14 @@ public class RAMJobStoreTest
             .WithIdentity(new JobKey("job1", jobGroup))
             .StoreDurably(true)
             .Build();
-        await fJobStore.StoreJob(job, false);
+        await fJobStore.AddJob(job, false);
 
         await fJobStore.PauseJobs(GroupMatcher<JobKey>.GroupEquals(jobGroup));
         await fJobStore.ResumeJob(job.Key);
 
         IOperableTrigger tr = new SimpleTriggerImpl("newTrigger", "triggerGroup", DateTimeOffset.UtcNow);
         tr.JobKey = job.Key;
-        await fJobStore.StoreTrigger(tr, false);
+        await fJobStore.AddTrigger(tr, false);
 
         Assert.That(await fJobStore.GetTriggerState(tr.Key), Is.EqualTo(TriggerState.Normal));
     }
@@ -332,19 +332,19 @@ public class RAMJobStoreTest
             .WithIdentity(new JobKey("job2", jobGroup))
             .StoreDurably(true)
             .Build();
-        await fJobStore.StoreJob(job1, false);
-        await fJobStore.StoreJob(job2, false);
+        await fJobStore.AddJob(job1, false);
+        await fJobStore.AddJob(job2, false);
 
         await fJobStore.PauseJobs(GroupMatcher<JobKey>.GroupEquals(jobGroup));
         await fJobStore.ResumeJob(job1.Key);
 
         IOperableTrigger tr1 = new SimpleTriggerImpl("trigger1", "triggerGroup", DateTimeOffset.UtcNow);
         tr1.JobKey = job1.Key;
-        await fJobStore.StoreTrigger(tr1, false);
+        await fJobStore.AddTrigger(tr1, false);
 
         IOperableTrigger tr2 = new SimpleTriggerImpl("trigger2", "triggerGroup", DateTimeOffset.UtcNow);
         tr2.JobKey = job2.Key;
-        await fJobStore.StoreTrigger(tr2, false);
+        await fJobStore.AddTrigger(tr2, false);
 
         Assert.That(await fJobStore.GetTriggerState(tr1.Key), Is.EqualTo(TriggerState.Normal));
         Assert.That(await fJobStore.GetTriggerState(tr2.Key), Is.EqualTo(TriggerState.Paused));
@@ -358,7 +358,7 @@ public class RAMJobStoreTest
             .WithIdentity(new JobKey("job1", jobGroup))
             .StoreDurably(true)
             .Build();
-        await fJobStore.StoreJob(job, false);
+        await fJobStore.AddJob(job, false);
 
         await fJobStore.PauseJobs(GroupMatcher<JobKey>.GroupEquals(jobGroup));
         await fJobStore.ResumeJob(job.Key);
@@ -366,7 +366,7 @@ public class RAMJobStoreTest
 
         IOperableTrigger tr = new SimpleTriggerImpl("newTrigger", "triggerGroup", DateTimeOffset.UtcNow);
         tr.JobKey = job.Key;
-        await fJobStore.StoreTrigger(tr, false);
+        await fJobStore.AddTrigger(tr, false);
 
         Assert.That(await fJobStore.GetTriggerState(tr.Key), Is.EqualTo(TriggerState.Paused));
     }
@@ -379,7 +379,7 @@ public class RAMJobStoreTest
             .WithIdentity(new JobKey("job1", jobGroup))
             .StoreDurably(true)
             .Build();
-        await fJobStore.StoreJob(job, false);
+        await fJobStore.AddJob(job, false);
 
         await fJobStore.PauseJobs(GroupMatcher<JobKey>.GroupEquals(jobGroup));
 
@@ -391,11 +391,11 @@ public class RAMJobStoreTest
             .WithIdentity(new JobKey("nonexistent", jobGroup))
             .StoreDurably(true)
             .Build();
-        await fJobStore.StoreJob(laterJob, false);
+        await fJobStore.AddJob(laterJob, false);
 
         IOperableTrigger tr = new SimpleTriggerImpl("newTrigger", "triggerGroup", DateTimeOffset.UtcNow);
         tr.JobKey = laterJob.Key;
-        await fJobStore.StoreTrigger(tr, false);
+        await fJobStore.AddTrigger(tr, false);
 
         Assert.That(await fJobStore.GetTriggerState(tr.Key), Is.EqualTo(TriggerState.Paused));
     }
@@ -404,7 +404,7 @@ public class RAMJobStoreTest
     public async Task TestRetrieveJob_NoJobFound()
     {
         RAMJobStore store = TestJobStores.Ram();
-        IJobDetail job = await store.RetrieveJob(new JobKey("not", "existing"));
+        IJobDetail job = await store.GetJob(new JobKey("not", "existing"));
         Assert.That(job, Is.Null);
     }
 
@@ -412,7 +412,7 @@ public class RAMJobStoreTest
     public async Task TestRetrieveTrigger_NoTriggerFound()
     {
         RAMJobStore store = TestJobStores.Ram();
-        IOperableTrigger trigger = await store.RetrieveTrigger(new TriggerKey("not", "existing"));
+        IOperableTrigger trigger = await store.GetTrigger(new TriggerKey("not", "existing"));
         Assert.That(trigger, Is.Null);
     }
 
@@ -425,13 +425,13 @@ public class RAMJobStoreTest
         for (int i = 0; i < 10; i++)
         {
             IJobDetail job = JobBuilder.Create<NoOpJob>().WithIdentity("job" + i).Build();
-            await store.StoreJob(job, false);
+            await store.AddJob(job, false);
         }
         // Retrieve jobs.
         for (int i = 0; i < 10; i++)
         {
-            JobKey jobKey = JobKey.Create("job" + i);
-            IJobDetail storedJob = await store.RetrieveJob(jobKey);
+            JobKey jobKey = new JobKey("job" + i);
+            IJobDetail storedJob = await store.GetJob(jobKey);
             Assert.That(storedJob.Key, Is.EqualTo(jobKey));
         }
     }
@@ -445,20 +445,20 @@ public class RAMJobStoreTest
         for (int i = 0; i < 10; i++)
         {
             IJobDetail job = JobBuilder.Create<NoOpJob>().WithIdentity("job" + i).Build();
-            await store.StoreJob(job, true);
+            await store.AddJob(job, true);
             SimpleScheduleBuilder schedule = SimpleScheduleBuilder.Create();
             ITrigger trigger = TriggerBuilder.Create().WithIdentity("job" + i).WithSchedule(schedule).ForJob(job).Build();
-            await store.StoreTrigger((IOperableTrigger) trigger, true);
+            await store.AddTrigger((IOperableTrigger) trigger, true);
         }
         // Retrieve job and trigger.
         for (int i = 0; i < 10; i++)
         {
-            JobKey jobKey = JobKey.Create("job" + i);
-            IJobDetail storedJob = await store.RetrieveJob(jobKey);
+            JobKey jobKey = new JobKey("job" + i);
+            IJobDetail storedJob = await store.GetJob(jobKey);
             Assert.That(storedJob.Key, Is.EqualTo(jobKey));
 
             TriggerKey triggerKey = new TriggerKey("job" + i);
-            ITrigger storedTrigger = await store.RetrieveTrigger(triggerKey);
+            ITrigger storedTrigger = await store.GetTrigger(triggerKey);
             Assert.That(storedTrigger.Key, Is.EqualTo(triggerKey));
         }
     }
@@ -486,7 +486,7 @@ public class RAMJobStoreTest
             DateTimeOffset? fireTime = trigger.ComputeFirstFireTimeUtc(null);
             Assert.That(fireTime is not null, Is.EqualTo(true));
 
-            await store.StoreJobAndTrigger(job, trigger);
+            await store.ScheduleJob(job, trigger);
         }
 
         // Test acquire one trigger at a time
@@ -495,13 +495,13 @@ public class RAMJobStoreTest
             DateTimeOffset noLaterThan = startTime0.AddMinutes(i);
             int maxCount = 1;
             TimeSpan timeWindow = TimeSpan.Zero;
-            var triggers = await store.AcquireNextTriggers(noLaterThan, maxCount, timeWindow);
+            var triggers = await store.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = noLaterThan, MaxCount = maxCount, TimeWindow = timeWindow });
             Assert.That(triggers, Has.Count.EqualTo(1));
             var trigger = triggers.First();
             Assert.That(trigger.Key.Name, Is.EqualTo("job" + i));
 
             // Let's remove the trigger now.
-            await store.RemoveJob(trigger.JobKey);
+            await store.DeleteJob(trigger.JobKey);
         }
     }
 
@@ -528,14 +528,14 @@ public class RAMJobStoreTest
             DateTimeOffset? fireTime = trigger.ComputeFirstFireTimeUtc(null);
             Assert.That(fireTime is not null, Is.EqualTo(true));
 
-            await store.StoreJobAndTrigger(job, trigger);
+            await store.ScheduleJob(job, trigger);
         }
 
         // Test acquire batch of triggers at a time
         DateTimeOffset noLaterThan = startTime0.AddMinutes(10);
         int maxCount = 7;
         TimeSpan timeWindow = TimeSpan.FromMinutes(8);
-        var triggers = (await store.AcquireNextTriggers(noLaterThan, maxCount, timeWindow)).ToList();
+        var triggers = (await store.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = noLaterThan, MaxCount = maxCount, TimeWindow = timeWindow })).ToList();
         Assert.That(triggers, Has.Count.EqualTo(7));
         for (int i = 0; i < 7; i++)
         {
@@ -560,12 +560,12 @@ public class RAMJobStoreTest
             TimeSpan.FromMilliseconds(2000));
 
         trigger1.ComputeFirstFireTimeUtc(null);
-        await fJobStore.StoreTrigger(trigger1, false);
+        await fJobStore.AddTrigger(trigger1, false);
 
         var firstFireTime = trigger1.NextFireTimeUtc.Value;
 
         // pretend to fire it
-        var aqTs = await fJobStore.AcquireNextTriggers(firstFireTime.AddMilliseconds(10000), 1, TimeSpan.Zero);
+        var aqTs = await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = firstFireTime.AddMilliseconds(10000), MaxCount = 1, TimeWindow = TimeSpan.Zero });
         Assert.That(aqTs.First().Key, Is.EqualTo(trigger1.Key));
 
         var fTs = await fJobStore.TriggersFired(aqTs);
@@ -592,13 +592,13 @@ public class RAMJobStoreTest
             .Build();
 
         var store = TestJobStores.Ram();
-        await store.StoreJob(job, false);
+        await store.AddJob(job, false);
 
-        var deleteSuccess = await store.RemoveJob(new JobKey("job0"));
-        Assert.That(deleteSuccess, Is.True, "Expected RemoveJob to return True when deleting an existing job");
+        var deleteSuccess = await store.DeleteJob(new JobKey("job0"));
+        Assert.That(deleteSuccess, Is.True, "Expected DeleteJob to return True when deleting an existing job");
 
-        deleteSuccess = await store.RemoveJob(new JobKey("job0"));
-        Assert.That(deleteSuccess, Is.False, "Expected RemoveJob to return False when deleting an non-existing job");
+        deleteSuccess = await store.DeleteJob(new JobKey("job0"));
+        Assert.That(deleteSuccess, Is.False, "Expected DeleteJob to return False when deleting an non-existing job");
     }
 
     [Test]
@@ -609,7 +609,7 @@ public class RAMJobStoreTest
             .WithIdentity(new JobKey("blockedJob", "group1"))
             .StoreDurably(true)
             .Build();
-        await fJobStore.StoreJob(job, true);
+        await fJobStore.AddJob(job, true);
 
         var d = DateBuilder.EvenMinuteDateAfterNow();
         var trigger1 = new SimpleTriggerImpl("trigger1", "group1", job.Key.Name, job.Key.Group,
@@ -619,11 +619,11 @@ public class RAMJobStoreTest
 
         trigger1.ComputeFirstFireTimeUtc(null);
         trigger2.ComputeFirstFireTimeUtc(null);
-        await fJobStore.StoreTrigger(trigger1, false);
-        await fJobStore.StoreTrigger(trigger2, false);
+        await fJobStore.AddTrigger(trigger1, false);
+        await fJobStore.AddTrigger(trigger2, false);
 
         // Acquire and fire one trigger
-        var acquiredTriggers = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        var acquiredTriggers = await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = d.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero });
         Assert.That(acquiredTriggers, Has.Count.EqualTo(1));
 
         var firedResults = await fJobStore.TriggersFired(acquiredTriggers);
@@ -659,7 +659,7 @@ public class RAMJobStoreTest
             .WithIdentity(new JobKey("blockedJob", "group1"))
             .StoreDurably(true)
             .Build();
-        await fJobStore.StoreJob(job, true);
+        await fJobStore.AddJob(job, true);
 
         var d = DateBuilder.EvenMinuteDateAfterNow();
         var trigger1 = new SimpleTriggerImpl("trigger1", "group1", job.Key.Name, job.Key.Group,
@@ -669,11 +669,11 @@ public class RAMJobStoreTest
 
         trigger1.ComputeFirstFireTimeUtc(null);
         trigger2.ComputeFirstFireTimeUtc(null);
-        await fJobStore.StoreTrigger(trigger1, false);
-        await fJobStore.StoreTrigger(trigger2, false);
+        await fJobStore.AddTrigger(trigger1, false);
+        await fJobStore.AddTrigger(trigger2, false);
 
         // Acquire and fire one trigger
-        var acquiredTriggers = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        var acquiredTriggers = await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = d.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero });
         Assert.That(acquiredTriggers, Has.Count.EqualTo(1));
         var firedTrigger = acquiredTriggers.First();
 
@@ -716,9 +716,9 @@ public class RAMJobStoreTest
     {
         DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
         var trigger = ExecutingTestTrigger("executingTrigger", d);
-        await fJobStore.StoreTrigger(trigger, false);
+        await fJobStore.AddTrigger(trigger, false);
 
-        var acquired = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        var acquired = await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = d.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero });
         acquired.Should().HaveCount(1);
 
         // Nothing is running yet, so an acquired trigger still reads as normal.
@@ -740,16 +740,16 @@ public class RAMJobStoreTest
     {
         DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
         var trigger = ExecutingTestTrigger("concurrentTrigger", d);
-        await fJobStore.StoreTrigger(trigger, false);
+        await fJobStore.AddTrigger(trigger, false);
 
         // The job allows concurrent execution, so the trigger is re-armed as soon as it fires and can be
         // acquired again while the first execution is still in flight.
-        var firstAcquired = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        var firstAcquired = await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = d.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero });
         firstAcquired.Should().HaveCount(1);
         var firstFired = await fJobStore.TriggersFired(firstAcquired);
         firstFired.Should().HaveCount(1);
 
-        var secondAcquired = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        var secondAcquired = await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = d.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero });
         secondAcquired.Should().HaveCount(1);
         var secondFired = await fJobStore.TriggersFired(secondAcquired);
         secondFired.Should().HaveCount(1);
@@ -773,9 +773,9 @@ public class RAMJobStoreTest
     {
         DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
         var trigger = ExecutingTestTrigger("pausedWhileExecutingTrigger", d);
-        await fJobStore.StoreTrigger(trigger, false);
+        await fJobStore.AddTrigger(trigger, false);
 
-        var acquired = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        var acquired = await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = d.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero });
         var fired = await fJobStore.TriggersFired(acquired);
         fired.Should().HaveCount(1);
 
@@ -795,13 +795,13 @@ public class RAMJobStoreTest
     {
         DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
         var trigger = ExecutingTestTrigger("removedWhileExecutingTrigger", d);
-        await fJobStore.StoreTrigger(trigger, false);
+        await fJobStore.AddTrigger(trigger, false);
 
-        var acquired = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        var acquired = await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = d.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero });
         var fired = await fJobStore.TriggersFired(acquired);
         fired.Should().HaveCount(1);
 
-        (await fJobStore.RemoveTrigger(trigger.Key)).Should().BeTrue();
+        (await fJobStore.DeleteTrigger(trigger.Key)).Should().BeTrue();
         (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.None);
 
         // The completion arrives for a trigger that no longer exists and must not throw.
@@ -810,7 +810,7 @@ public class RAMJobStoreTest
 
         // Once the execution has been accounted for, a trigger re-stored under the same key is idle.
         var replacement = ExecutingTestTrigger("removedWhileExecutingTrigger", d);
-        await fJobStore.StoreTrigger(replacement, false);
+        await fJobStore.AddTrigger(replacement, false);
 
         (await fJobStore.GetTriggerState(replacement.Key)).Should().Be(TriggerState.Normal);
     }
@@ -826,16 +826,16 @@ public class RAMJobStoreTest
     {
         DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
         var trigger = ExecutingTestTrigger("recreatedWhileExecutingTrigger", d);
-        await fJobStore.StoreTrigger(trigger, false);
+        await fJobStore.AddTrigger(trigger, false);
 
-        var acquired = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        var acquired = await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = d.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero });
         var fired = await fJobStore.TriggersFired(acquired);
         fired.Should().HaveCount(1);
 
-        (await fJobStore.RemoveTrigger(trigger.Key)).Should().BeTrue();
+        (await fJobStore.DeleteTrigger(trigger.Key)).Should().BeTrue();
 
         var replacement = ExecutingTestTrigger("recreatedWhileExecutingTrigger", d);
-        await fJobStore.StoreTrigger(replacement, false);
+        await fJobStore.AddTrigger(replacement, false);
 
         (await fJobStore.GetTriggerState(replacement.Key)).Should().Be(TriggerState.Normal,
             "the new trigger never fired, so it cannot inherit the deleted trigger's execution");
@@ -848,7 +848,7 @@ public class RAMJobStoreTest
     }
 
     /// <summary>
-    /// ReplaceTrigger deletes rather than updates, so unlike StoreTrigger(replaceExisting: true) it does
+    /// ReplaceTrigger deletes rather than updates, so unlike AddTrigger(replace: true) it does
     /// not carry the executions over — matching the ADO store, where ReplaceTrigger removes the
     /// fired-trigger rows and an in-place update leaves them.
     /// </summary>
@@ -857,9 +857,9 @@ public class RAMJobStoreTest
     {
         DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
         var trigger = ExecutingTestTrigger("replacedWhileExecutingTrigger", d);
-        await fJobStore.StoreTrigger(trigger, false);
+        await fJobStore.AddTrigger(trigger, false);
 
-        var acquired = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        var acquired = await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = d.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero });
         var fired = await fJobStore.TriggersFired(acquired);
         fired.Should().HaveCount(1);
 
@@ -878,16 +878,16 @@ public class RAMJobStoreTest
     {
         DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
         var trigger = ExecutingTestTrigger("clearedWhileExecutingTrigger", d);
-        await fJobStore.StoreTrigger(trigger, false);
+        await fJobStore.AddTrigger(trigger, false);
 
-        var acquired = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        var acquired = await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = d.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero });
         (await fJobStore.TriggersFired(acquired)).Should().HaveCount(1);
 
-        await fJobStore.ClearAllSchedulingData();
+        await fJobStore.Clear();
 
-        await fJobStore.StoreJob(fJobDetail, true);
+        await fJobStore.AddJob(fJobDetail, true);
         var replacement = ExecutingTestTrigger("clearedWhileExecutingTrigger", d);
-        await fJobStore.StoreTrigger(replacement, false);
+        await fJobStore.AddTrigger(replacement, false);
 
         (await fJobStore.GetTriggerState(replacement.Key)).Should().Be(TriggerState.Normal);
     }
@@ -901,10 +901,10 @@ public class RAMJobStoreTest
     {
         DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
         var trigger = ExecutingTestTrigger("mismatchedReplacementTrigger", d);
-        await fJobStore.StoreTrigger(trigger, false);
+        await fJobStore.AddTrigger(trigger, false);
 
         var otherJob = JobBuilder.Create<NoOpJob>().WithIdentity("otherJob", "jobGroup1").StoreDurably().Build();
-        await fJobStore.StoreJob(otherJob, true);
+        await fJobStore.AddJob(otherJob, true);
 
         var replacement = new SimpleTriggerImpl("mismatchedReplacementTrigger", "triggerGroup1",
             otherJob.Key.Name, otherJob.Key.Group, d.AddSeconds(1), d.AddSeconds(200), 10, TimeSpan.FromSeconds(5));
@@ -915,8 +915,8 @@ public class RAMJobStoreTest
 
         (await fJobStore.CheckExists(trigger.Key)).Should().BeTrue("a rejected replacement must not remove the trigger");
         (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Normal);
-        (await fJobStore.RetrieveTrigger(trigger.Key)).Should().NotBeNull();
-        (await fJobStore.RemoveTrigger(trigger.Key)).Should().BeTrue("the trigger must still be removable");
+        (await fJobStore.GetTrigger(trigger.Key)).Should().NotBeNull();
+        (await fJobStore.DeleteTrigger(trigger.Key)).Should().BeTrue("the trigger must still be removable");
     }
 
     [Test]
@@ -924,9 +924,9 @@ public class RAMJobStoreTest
     {
         DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
         var trigger = ExecutingTestTrigger("rescheduledWhileExecutingTrigger", d);
-        await fJobStore.StoreTrigger(trigger, false);
+        await fJobStore.AddTrigger(trigger, false);
 
-        var acquired = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        var acquired = await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = d.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero });
         var fired = await fJobStore.TriggersFired(acquired);
         fired.Should().HaveCount(1);
 
@@ -934,7 +934,7 @@ public class RAMJobStoreTest
         // has to stay visible, which is also what the ADO store reports since its fired-trigger row
         // survives the update.
         var replacement = ExecutingTestTrigger("rescheduledWhileExecutingTrigger", d);
-        await fJobStore.StoreTrigger(replacement, replaceExisting: true);
+        await fJobStore.AddTrigger(replacement, replace: true);
 
         (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Executing);
 
@@ -954,9 +954,9 @@ public class RAMJobStoreTest
         DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
         var trigger = ExecutingTestTrigger("missingCalendarTrigger", d);
         trigger.CalendarName = "noSuchCalendar";
-        await fJobStore.StoreTrigger(trigger, false);
+        await fJobStore.AddTrigger(trigger, false);
 
-        var acquired = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        var acquired = await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = d.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero });
         acquired.Should().HaveCount(1);
 
         // The calendar the trigger names does not exist, so no bundle is produced.
@@ -979,9 +979,9 @@ public class RAMJobStoreTest
     {
         DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
         var trigger = ExecutingTestTrigger("releasedAfterFiringTrigger", d);
-        await fJobStore.StoreTrigger(trigger, false);
+        await fJobStore.AddTrigger(trigger, false);
 
-        var acquired = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        var acquired = await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = d.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero });
         var fired = await fJobStore.TriggersFired(acquired);
         fired.Should().HaveCount(1);
         (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Executing);
@@ -997,9 +997,9 @@ public class RAMJobStoreTest
     {
         DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
         var trigger = ExecutingTestTrigger("releasedTrigger", d);
-        await fJobStore.StoreTrigger(trigger, false);
+        await fJobStore.AddTrigger(trigger, false);
 
-        var acquired = await fJobStore.AcquireNextTriggers(d.AddSeconds(10), 1, TimeSpan.Zero);
+        var acquired = await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = d.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero });
         acquired.Should().HaveCount(1);
 
         // Released before it ever fired, so no execution was ever counted.
@@ -1024,7 +1024,7 @@ public class RAMJobStoreTest
 
         var job = JobBuilder.Create().OfType<NoOpJob>()
             .WithIdentity("testJob", "testGroup").StoreDurably(true).Build();
-        await store.StoreJob(job, false);
+        await store.AddJob(job, false);
 
         var trigger = new CronTriggerImpl("testTrigger", "testGroup", "0 * * * * ?", fakeTime)
         {
@@ -1033,9 +1033,9 @@ public class RAMJobStoreTest
         };
         trigger.PreviousFireTimeUtc = previousFireTime;
         trigger.NextFireTimeUtc = originalScheduledTime;
-        await store.StoreTrigger(trigger, false);
+        await store.AddTrigger(trigger, false);
 
-        var acquired = await store.AcquireNextTriggers(now.AddMinutes(1), 1, TimeSpan.Zero);
+        var acquired = await store.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = now.AddMinutes(1), MaxCount = 1, TimeWindow = TimeSpan.Zero });
         Assert.That(acquired, Has.Count.EqualTo(1));
 
         var firedResults = await store.TriggersFired(acquired);
@@ -1069,7 +1069,7 @@ public class RAMJobStoreTest
 
         var job = JobBuilder.Create().OfType<NoOpJob>()
             .WithIdentity("testJob", "testGroup").StoreDurably(true).Build();
-        await store.StoreJob(job, false);
+        await store.AddJob(job, false);
 
         var trigger = new SimpleTriggerImpl(fakeTime)
         {
@@ -1081,16 +1081,16 @@ public class RAMJobStoreTest
             MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount
         };
         trigger.ComputeFirstFireTimeUtc(null);
-        await store.StoreTrigger(trigger, false);
+        await store.AddTrigger(trigger, false);
 
         // Act: acquiring triggers due by 'now' applies the misfire handling
-        var acquired = await store.AcquireNextTriggers(now, 1, TimeSpan.Zero);
+        var acquired = await store.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = now, MaxCount = 1, TimeWindow = TimeSpan.Zero });
 
         // Assert: nothing is due now; the trigger was rescheduled to 10:35:00
         Assert.That(acquired, Is.Empty,
             "Trigger must not fire immediately after misfire handling (#3096)");
 
-        var stored = await store.RetrieveTrigger(trigger.Key);
+        var stored = await store.GetTrigger(trigger.Key);
         Assert.That(stored, Is.Not.Null);
         Assert.That(stored!.NextFireTimeUtc, Is.EqualTo(new DateTimeOffset(2025, 6, 15, 10, 35, 0, TimeSpan.Zero)),
             "Trigger should be rescheduled to the next scheduled time strictly after now");
@@ -1104,9 +1104,9 @@ public class RAMJobStoreTest
         var trigger = new SimpleTriggerImpl("trigger1", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group,
             scheduledTime, scheduledTime.AddHours(1), 2, TimeSpan.FromMinutes(30));
         trigger.ComputeFirstFireTimeUtc(null);
-        await fJobStore.StoreTrigger(trigger, false);
+        await fJobStore.AddTrigger(trigger, false);
 
-        var acquired = await fJobStore.AcquireNextTriggers(scheduledTime.AddSeconds(1), 1, TimeSpan.Zero);
+        var acquired = await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = scheduledTime.AddSeconds(1), MaxCount = 1, TimeWindow = TimeSpan.Zero });
         Assert.That(acquired, Has.Count.EqualTo(1));
 
         var firedResults = await fJobStore.TriggersFired(acquired);
@@ -1136,17 +1136,17 @@ public class RAMJobStoreTest
         trigger2.ComputeFirstFireTimeUtc(null);
         trigger3.ComputeFirstFireTimeUtc(null);
 
-        await fJobStore.StoreTrigger(trigger1, false);
-        await fJobStore.StoreTrigger(trigger2, false);
-        await fJobStore.StoreTrigger(trigger3, false);
+        await fJobStore.AddTrigger(trigger1, false);
+        await fJobStore.AddTrigger(trigger2, false);
+        await fJobStore.AddTrigger(trigger3, false);
 
         // Acquire all three triggers
         DateTimeOffset firstFireTime = trigger1.NextFireTimeUtc!.Value;
-        var acquired = await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 3, TimeSpan.Zero);
+        var acquired = await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = firstFireTime.AddSeconds(10), MaxCount = 3, TimeWindow = TimeSpan.Zero });
         Assert.That(acquired, Has.Count.EqualTo(3), "Should acquire all 3 triggers");
 
         // Delete trigger2 between acquire and fire — simulates the race condition
-        Assert.That(await fJobStore.RemoveTrigger(trigger2.Key), Is.True, "trigger2 should be removed");
+        Assert.That(await fJobStore.DeleteTrigger(trigger2.Key), Is.True, "trigger2 should be removed");
 
         // Fire all acquired triggers
         var results = await fJobStore.TriggersFired(acquired);
@@ -1179,12 +1179,12 @@ public class RAMJobStoreTest
         trigger1.ComputeFirstFireTimeUtc(null);
         trigger2.ComputeFirstFireTimeUtc(null);
 
-        await fJobStore.StoreTrigger(trigger1, false);
-        await fJobStore.StoreTrigger(trigger2, false);
+        await fJobStore.AddTrigger(trigger1, false);
+        await fJobStore.AddTrigger(trigger2, false);
 
         // Acquire both triggers
         DateTimeOffset firstFireTime = trigger1.NextFireTimeUtc!.Value;
-        var acquired = await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 2, TimeSpan.Zero);
+        var acquired = await fJobStore.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = firstFireTime.AddSeconds(10), MaxCount = 2, TimeWindow = TimeSpan.Zero });
         Assert.That(acquired, Has.Count.EqualTo(2));
 
         // Pause trigger group between acquire and fire
@@ -1211,9 +1211,9 @@ public class RAMJobStoreTest
         IOperableTrigger simpleTrigger = new SimpleTriggerImpl("trigger-switch", "group1", job.Key.Name, job.Key.Group, DateTimeOffset.UtcNow.AddSeconds(30), null, -1, TimeSpan.FromSeconds(30));
         simpleTrigger.ComputeFirstFireTimeUtc(null);
 
-        await fJobStore.StoreJobAndTrigger(job, simpleTrigger);
+        await fJobStore.ScheduleJob(job, simpleTrigger);
 
-        var stored = await fJobStore.RetrieveTrigger(new TriggerKey("trigger-switch", "group1"));
+        var stored = await fJobStore.GetTrigger(new TriggerKey("trigger-switch", "group1"));
         Assert.That(stored, Is.InstanceOf<ISimpleTrigger>(), "Initial trigger should be a SimpleTrigger");
 
         // Now replace with a cron trigger using the same trigger key
@@ -1225,9 +1225,9 @@ public class RAMJobStoreTest
             [job] = new[] { (ITrigger) cronTrigger }
         };
 
-        await fJobStore.StoreJobsAndTriggers(triggersAndJobs, replace: true);
+        await fJobStore.ScheduleJobs(triggersAndJobs, replace: true);
 
-        var updated = await fJobStore.RetrieveTrigger(new TriggerKey("trigger-switch", "group1"));
+        var updated = await fJobStore.GetTrigger(new TriggerKey("trigger-switch", "group1"));
         Assert.That(updated, Is.InstanceOf<ICronTrigger>(), "Trigger should have been replaced with a CronTrigger");
     }
 

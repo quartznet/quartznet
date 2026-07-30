@@ -31,6 +31,11 @@ namespace Quartz.Listener;
 /// <seealso cref="ISchedulerListener" />
 public abstract class SchedulerListenerSupport : ISchedulerListener
 {
+    /// <summary>
+    /// The name this listener is registered and removed under; the type's name unless overridden.
+    /// </summary>
+    public virtual string Name => GetType().Name;
+
     public virtual ValueTask JobScheduled(
         ITrigger trigger,
         CancellationToken cancellationToken = default)
@@ -102,7 +107,7 @@ public abstract class SchedulerListenerSupport : ISchedulerListener
     }
 
     public virtual ValueTask JobsPaused(
-        string jobGroup,
+        string? jobGroup,
         CancellationToken cancellationToken = default)
     {
         return default;
@@ -116,7 +121,7 @@ public abstract class SchedulerListenerSupport : ISchedulerListener
     }
 
     public virtual ValueTask JobsResumed(
-        string jobGroup,
+        string? jobGroup,
         CancellationToken cancellationToken = default)
     {
         return default;

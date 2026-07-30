@@ -27,7 +27,7 @@ using FakeItEasy;
 using Microsoft.Extensions.Logging;
 
 using Quartz.Impl;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Extensibility;
@@ -94,7 +94,10 @@ public class XMLSchedulingDataProcessorTest
     {
         Stream s = ReadJobXmlFromEmbeddedResource("QRTZNET250.xml");
         await processor.ProcessStreamAndScheduleJobs(s, mockScheduler);
-        A.CallTo(() => mockScheduler.AddJob(A<IJobDetail>.That.Not.IsNull(), A<bool>.Ignored, A<bool>.That.IsEqualTo(true), A<CancellationToken>._)).MustHaveHappened(2, Times.Exactly);
+        A.CallTo(() => mockScheduler.AddJob(
+            A<IJobDetail>.That.Not.IsNull(),
+            A<AddJobOptions>.That.Matches(o => o.StoreNonDurableWhileAwaitingScheduling),
+            A<CancellationToken>._)).MustHaveHappened(2, Times.Exactly);
         A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Not.IsNull(), A<CancellationToken>._)).MustHaveHappened(2, Times.Exactly);
     }
 
@@ -190,7 +193,7 @@ public class XMLSchedulingDataProcessorTest
             var triggerKeys = await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("DEFAULT"));
             Assert.That(triggerKeys.Count, Is.EqualTo(1));
 
-            job = await scheduler.GetJobDetail(JobKey.Create("job1"));
+            job = await scheduler.GetJobDetail(new JobKey("job1"));
             string fooValue = job.JobDataMap.GetString("foo");
             Assert.That(fooValue, Is.EqualTo("dont_chg_me"));
         }

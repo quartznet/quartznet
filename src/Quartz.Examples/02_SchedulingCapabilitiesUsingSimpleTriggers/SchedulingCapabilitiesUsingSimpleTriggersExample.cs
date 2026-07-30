@@ -197,7 +197,7 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
             .StoreDurably()
             .Build();
 
-        await scheduler.AddJob(job, true);
+        await scheduler.AddJob(job, new AddJobOptions { Replace = true });
 
         Console.WriteLine("'Manually' triggering job8...");
         await scheduler.TriggerJob(new JobKey("job8", "group1"));
@@ -238,7 +238,7 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
         Console.WriteLine("------- Shutdown Complete -----------------");
 
         // display some stats about the schedule that just ran
-        SchedulerMetaData metaData = await scheduler.GetMetaData();
-        Console.WriteLine($"Executed {metaData.NumberOfJobsExecuted} jobs.");
+        SchedulerMetadata metadata = await scheduler.GetMetadata();
+        Console.WriteLine($"Executed {metadata.JobsExecuted} jobs.");
     }
 }

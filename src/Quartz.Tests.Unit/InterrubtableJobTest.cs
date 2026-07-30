@@ -113,7 +113,7 @@ public class InterruptableJobTest
 
         IJobExecutionContext context = executingJobs.First();
 
-        bool interruptResult = await scheduler.Interrupt(context.FireInstanceId);
+        bool interruptResult = await scheduler.InterruptFireInstance(context.FireInstanceId);
 
         ended.WaitOne(); // wait for the job to terminate
 

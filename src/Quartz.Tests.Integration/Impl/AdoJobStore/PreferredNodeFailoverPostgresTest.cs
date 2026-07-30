@@ -26,7 +26,7 @@ public sealed class PreferredNodeFailoverPostgresTest : ClusteredPostgresTestBas
                 .WithIdentity("explicitPinJob", "failoverTest")
                 .StoreDurably()
                 .Build();
-            await nodeA.AddJob(job, true);
+            await nodeA.AddJob(job, new AddJobOptions { Replace = true });
 
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("explicitPinTrigger", "failoverTest")
@@ -89,7 +89,7 @@ public sealed class PreferredNodeFailoverPostgresTest : ClusteredPostgresTestBas
                 .WithIdentity("autoPinFailoverJob", "failoverTest")
                 .StoreDurably()
                 .Build();
-            await nodeA.AddJob(job, true);
+            await nodeA.AddJob(job, new AddJobOptions { Replace = true });
 
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("autoPinFailoverTrigger", "failoverTest")
@@ -181,7 +181,7 @@ public sealed class PreferredNodeFailoverPostgresTest : ClusteredPostgresTestBas
                 .WithIdentity("threeNodeJob", "failoverTest")
                 .StoreDurably()
                 .Build();
-            await nodeA.AddJob(job, true);
+            await nodeA.AddJob(job, new AddJobOptions { Replace = true });
 
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("threeNodeTrigger", "failoverTest")
@@ -285,7 +285,7 @@ public sealed class PreferredNodeFailoverPostgresTest : ClusteredPostgresTestBas
                 .WithIdentity("saturationJob", "failoverTest")
                 .StoreDurably()
                 .Build();
-            await nodeA.AddJob(job, true);
+            await nodeA.AddJob(job, new AddJobOptions { Replace = true });
 
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("saturationTrigger", "failoverTest")

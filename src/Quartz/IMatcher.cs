@@ -19,21 +19,21 @@
 
 #endregion
 
-using Quartz.Util;
-
 namespace Quartz;
 
 /// <summary>
 /// Matchers can be used in various <see cref="IScheduler" /> API methods to
 /// select the entities that should be operated upon.
 /// </summary>
+/// <remarks>
+/// An implementation is expected to be a value: two matchers built the same way must be
+/// <see cref="object.Equals(object)" />-equal, because the listener manager identifies a
+/// registered matcher by equality when removing it. The members that say so are
+/// <see cref="object" />'s own, so this interface does not redeclare them.
+/// </remarks>
 /// <author>James House</author>
 /// <typeparam name="T"></typeparam>
 public interface IMatcher<T> where T : Key<T>
 {
     bool IsMatch(T key);
-
-    int GetHashCode();
-
-    bool Equals(object obj);
 }

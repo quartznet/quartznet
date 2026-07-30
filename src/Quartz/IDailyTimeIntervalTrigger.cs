@@ -93,7 +93,7 @@ public interface IDailyTimeIntervalTrigger : ITrigger
     /// <summary>
     /// Get the number of times the <see cref="IDailyTimeIntervalTrigger" /> has already fired.
     /// </summary>
-    int TimesTriggered { get; set; }
+    int TimesTriggered { get; }
 
     /// <summary>
     /// Gets the time zone within which time calculations related to this trigger will be performed.

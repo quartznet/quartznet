@@ -1,6 +1,6 @@
 using System.Globalization;
 
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Util;
 
 namespace Quartz.HttpClient;
@@ -36,6 +36,20 @@ internal sealed class QueryStringBuilder
     }
 
     public void AddGroupMatcher<T>(GroupMatcher<T>? matcher) where T : Key<T>
+    {
+        if (matcher is null)
+        {
+            return;
+        }
+
+        string urlParameters = matcher.ToUrlParameters();
+        if (urlParameters.Length > 0)
+        {
+            parameters.Add(urlParameters);
+        }
+    }
+
+    public void AddNameMatcher<T>(NameMatcher<T>? matcher) where T : Key<T>
     {
         if (matcher is null)
         {

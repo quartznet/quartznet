@@ -23,15 +23,15 @@ public class TriggerTimeComparatorTest
         _triggerKeyA = new TriggerKey("A");
         _triggerKeyB = new TriggerKey("B");
 
-        _triggerAPrio1NextFireTimeMinValueInstance1 = new MutableTrigger(_triggerKeyA, JobKey.Create("B"), 1, DateTimeOffset.MinValue);
-        _triggerAPrio1NextFireTimeMinValueInstance2 = new MutableTrigger(_triggerKeyA, JobKey.Create("B"), 1, DateTimeOffset.MinValue);
-        _triggerAPrio1NextFireTimeMaxValue = new MutableTrigger(_triggerKeyA, JobKey.Create("B"), 1, DateTimeOffset.MaxValue);
-        _triggerAPrio1NextFireTimeNullInstance1 = new MutableTrigger(_triggerKeyA, JobKey.Create("B"), 1, null);
-        _triggerAPrio1NextFireTimeNullInstance2 = new MutableTrigger(_triggerKeyA, JobKey.Create("B"), 1, null);
-        _triggerBPrio1NextFireTimeNull = new MutableTrigger(_triggerKeyB, JobKey.Create("B"), 1, null);
-        _triggerBPrio2NextFireTimeNull = new MutableTrigger(_triggerKeyB, JobKey.Create("B"), 2, null);
-        _triggerBPrio1NextFireTimeMinValue = new MutableTrigger(_triggerKeyB, JobKey.Create("B"), 1, DateTimeOffset.MinValue);
-        _triggerBPrio2NextFireTimeMinValue = new MutableTrigger(_triggerKeyB, JobKey.Create("B"), 2, DateTimeOffset.MinValue);
+        _triggerAPrio1NextFireTimeMinValueInstance1 = new MutableTrigger(_triggerKeyA, new JobKey("B"), 1, DateTimeOffset.MinValue);
+        _triggerAPrio1NextFireTimeMinValueInstance2 = new MutableTrigger(_triggerKeyA, new JobKey("B"), 1, DateTimeOffset.MinValue);
+        _triggerAPrio1NextFireTimeMaxValue = new MutableTrigger(_triggerKeyA, new JobKey("B"), 1, DateTimeOffset.MaxValue);
+        _triggerAPrio1NextFireTimeNullInstance1 = new MutableTrigger(_triggerKeyA, new JobKey("B"), 1, null);
+        _triggerAPrio1NextFireTimeNullInstance2 = new MutableTrigger(_triggerKeyA, new JobKey("B"), 1, null);
+        _triggerBPrio1NextFireTimeNull = new MutableTrigger(_triggerKeyB, new JobKey("B"), 1, null);
+        _triggerBPrio2NextFireTimeNull = new MutableTrigger(_triggerKeyB, new JobKey("B"), 2, null);
+        _triggerBPrio1NextFireTimeMinValue = new MutableTrigger(_triggerKeyB, new JobKey("B"), 1, DateTimeOffset.MinValue);
+        _triggerBPrio2NextFireTimeMinValue = new MutableTrigger(_triggerKeyB, new JobKey("B"), 2, DateTimeOffset.MinValue);
 
         _comparer = new TriggerTimeComparator();
     }

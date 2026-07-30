@@ -3,9 +3,11 @@ using System.Globalization;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
+using Quartz.Impl.Triggers;
+
 namespace Quartz.Serialization.Newtonsoft.Triggers;
 
-public class SimpleTriggerSerializer : TriggerSerializer<ISimpleTrigger>
+public class SimpleTriggerSerializer : TriggerSerializer<SimpleTriggerImpl>
 {
     public override string TriggerTypeForJson => "SimpleTrigger";
 
@@ -19,7 +21,7 @@ public class SimpleTriggerSerializer : TriggerSerializer<ISimpleTrigger>
             .WithRepeatCount(repeatCount);
     }
 
-    protected override void SerializeFields(JsonWriter writer, ISimpleTrigger trigger)
+    protected override void SerializeFields(JsonWriter writer, SimpleTriggerImpl trigger)
     {
         writer.WritePropertyName("RepeatCount");
         writer.WriteValue(trigger.RepeatCount);
@@ -31,7 +33,7 @@ public class SimpleTriggerSerializer : TriggerSerializer<ISimpleTrigger>
         writer.WriteValue(trigger.TimesTriggered);
     }
 
-    protected override void DeserializeFields(ISimpleTrigger trigger, JObject source)
+    protected override void DeserializeFields(SimpleTriggerImpl trigger, JObject source)
     {
         // This properties might not exist in the JSON if trigger was serialized with older version
         var timesTriggered = source.Value<int?>("TimesTriggered");

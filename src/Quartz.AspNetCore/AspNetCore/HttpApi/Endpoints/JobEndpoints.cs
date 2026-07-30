@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Routing;
 using Quartz.AspNetCore.HttpApi.Util;
 using Quartz.HttpApiContract;
 using Quartz.Extensibility;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 
 namespace Quartz.AspNetCore.HttpApi.Endpoints;
 
@@ -83,6 +83,10 @@ internal static class JobEndpoints
         string? groupEndsWith = null,
         string? groupStartsWith = null,
         string? groupEquals = null,
+        string? nameContains = null,
+        string? nameEndsWith = null,
+        string? nameStartsWith = null,
+        string? nameEquals = null,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertPaging(skip, take);
@@ -92,6 +96,7 @@ internal static class JobEndpoints
             JobQuery query = new()
             {
                 Group = matcher,
+                Name = EndpointHelper.GetNameMatcher<JobKey>(nameContains, nameEndsWith, nameStartsWith, nameEquals),
                 Skip = skip,
                 Take = take,
                 IncludeTotalCount = includeTotalCount
@@ -254,12 +259,7 @@ internal static class JobEndpoints
         TriggerJobRequest? request = null,
         CancellationToken cancellationToken = default)
     {
-        if (request?.JobData is not null)
-        {
-            return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler => scheduler.TriggerJob(new JobKey(jobName, jobGroup), request.JobData, cancellationToken).AsTask());
-        }
-
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler => scheduler.TriggerJob(new JobKey(jobName, jobGroup), cancellationToken).AsTask());
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler => scheduler.TriggerJob(new JobKey(jobName, jobGroup), request?.JobData, cancellationToken).AsTask());
     }
 
     [ProducesResponseType(typeof(InterruptResponse), StatusCodes.Status200OK)]
@@ -288,7 +288,7 @@ internal static class JobEndpoints
     {
         return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
-            var interrupted = await scheduler.Interrupt(fireInstanceId, cancellationToken).ConfigureAwait(false);
+            var interrupted = await scheduler.InterruptFireInstance(fireInstanceId, cancellationToken).ConfigureAwait(false);
             return new InterruptResponse(interrupted);
         });
     }
@@ -338,13 +338,13 @@ internal static class JobEndpoints
         return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var newJob = request.Job.AsIJobDetail().JobDetail!;
-            if (!request.StoreNonDurableWhileAwaitingScheduling.HasValue)
+            var options = new AddJobOptions
             {
-                await scheduler.AddJob(newJob, request.Replace, cancellationToken).ConfigureAwait(false);
-                return;
-            }
+                Replace = request.Replace,
+                StoreNonDurableWhileAwaitingScheduling = request.StoreNonDurableWhileAwaitingScheduling.GetValueOrDefault(),
+            };
 
-            await scheduler.AddJob(newJob, request.Replace, request.StoreNonDurableWhileAwaitingScheduling.Value, cancellationToken).ConfigureAwait(false);
+            await scheduler.AddJob(newJob, options, cancellationToken).ConfigureAwait(false);
         });
     }
 
@@ -357,6 +357,7 @@ internal static class JobEndpoints
         int take = int.MaxValue,
         bool includeTotalCount = false,
         bool? paused = null,
+        string? name = null,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertPaging(skip, take);
@@ -364,6 +365,7 @@ internal static class JobEndpoints
         {
             JobGroupQuery query = new()
             {
+                Name = name,
                 Paused = paused,
                 Skip = skip,
                 Take = take,
@@ -385,8 +387,8 @@ internal static class JobEndpoints
     {
         return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
-            PagedResult<JobGroup> page = await scheduler.QueryJobGroups(new JobGroupQuery { Paused = true }, cancellationToken).ConfigureAwait(false);
-            return new GroupPausedResponse(page.Items.Any(x => string.Equals(x.Name, jobGroup, StringComparison.Ordinal)));
+            bool paused = await scheduler.IsJobGroupPaused(jobGroup, cancellationToken).ConfigureAwait(false);
+            return new GroupPausedResponse(paused);
         });
     }
 }

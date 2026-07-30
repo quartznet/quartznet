@@ -325,10 +325,15 @@ internal sealed class QuartzSchedulerThread
                     ClearSignaledSchedulingChange();
                     try
                     {
-                        var noLaterThan = now + qsRsrcs.IdleWaitTime;
-                        var maxCount = Math.Min(availThreadCount, qsRsrcs.MaxBatchSize);
                         Dictionary<string, int?>? availableLimits = ComputeAvailableExecutionGroupLimits();
-                        triggers = new List<IOperableTrigger>(await qsRsrcs.JobStore.AcquireNextTriggers(noLaterThan, maxCount, qsRsrcs.BatchTimeWindow, availableLimits, CancellationToken.None).ConfigureAwait(false));
+                        TriggerAcquisitionRequest request = new()
+                        {
+                            NoLaterThan = now + qsRsrcs.IdleWaitTime,
+                            MaxCount = Math.Min(availThreadCount, qsRsrcs.MaxBatchSize),
+                            TimeWindow = qsRsrcs.BatchTimeWindow,
+                            ExecutionLimits = availableLimits,
+                        };
+                        triggers = new List<IOperableTrigger>(await qsRsrcs.JobStore.AcquireNextTriggers(request, CancellationToken.None).ConfigureAwait(false));
                         acquiresFailed = 0;
                         if (logger.IsEnabled(LogLevel.Debug))
                         {

@@ -1,8 +1,10 @@
 using System.Text.Json;
 
+using Quartz.Impl.Triggers;
+
 namespace Quartz.Serialization.Json.Triggers;
 
-public sealed class RecurrenceTriggerSerializer : TriggerSerializer<IRecurrenceTrigger>
+public sealed class RecurrenceTriggerSerializer : TriggerSerializer<RecurrenceTriggerImpl>
 {
     public override string TriggerTypeForJson => "RecurrenceTrigger";
 
@@ -15,14 +17,14 @@ public sealed class RecurrenceTriggerSerializer : TriggerSerializer<IRecurrenceT
             .InTimeZone(timeZone);
     }
 
-    protected override void SerializeFields(Utf8JsonWriter writer, IRecurrenceTrigger trigger, JsonSerializerOptions options)
+    protected override void SerializeFields(Utf8JsonWriter writer, RecurrenceTriggerImpl trigger, JsonSerializerOptions options)
     {
         writer.WriteString(options.GetPropertyName("RecurrenceRule"), trigger.RecurrenceRule);
         writer.WriteTimeZoneInfo(options.GetPropertyName("TimeZone"), trigger.TimeZone);
         writer.WriteNumber(options.GetPropertyName("TimesTriggered"), trigger.TimesTriggered);
     }
 
-    protected override void DeserializeFields(IRecurrenceTrigger trigger, JsonElement jsonElement, JsonSerializerOptions options)
+    protected override void DeserializeFields(RecurrenceTriggerImpl trigger, JsonElement jsonElement, JsonSerializerOptions options)
     {
         var timesTriggered = jsonElement.GetPropertyOrNull(options.GetPropertyName("TimesTriggered"))?.GetInt32();
         trigger.TimesTriggered = timesTriggered ?? 0;

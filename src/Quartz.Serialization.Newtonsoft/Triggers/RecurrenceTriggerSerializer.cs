@@ -3,9 +3,11 @@ using Newtonsoft.Json.Linq;
 
 using Quartz.Util;
 
+using Quartz.Impl.Triggers;
+
 namespace Quartz.Serialization.Newtonsoft.Triggers;
 
-public sealed class RecurrenceTriggerSerializer : TriggerSerializer<IRecurrenceTrigger>
+public sealed class RecurrenceTriggerSerializer : TriggerSerializer<RecurrenceTriggerImpl>
 {
     public override string TriggerTypeForJson => "RecurrenceTrigger";
 
@@ -18,7 +20,7 @@ public sealed class RecurrenceTriggerSerializer : TriggerSerializer<IRecurrenceT
             .InTimeZone(timeZone);
     }
 
-    protected override void SerializeFields(JsonWriter writer, IRecurrenceTrigger trigger)
+    protected override void SerializeFields(JsonWriter writer, RecurrenceTriggerImpl trigger)
     {
         writer.WritePropertyName("RecurrenceRule");
         writer.WriteValue(trigger.RecurrenceRule);
@@ -30,7 +32,7 @@ public sealed class RecurrenceTriggerSerializer : TriggerSerializer<IRecurrenceT
         writer.WriteValue(trigger.TimesTriggered);
     }
 
-    protected override void DeserializeFields(IRecurrenceTrigger trigger, JObject source)
+    protected override void DeserializeFields(RecurrenceTriggerImpl trigger, JObject source)
     {
         var timesTriggered = source.Value<int?>("TimesTriggered");
         trigger.TimesTriggered = timesTriggered ?? 0;

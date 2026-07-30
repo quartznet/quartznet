@@ -21,7 +21,7 @@
 
 using Quartz.Util;
 
-namespace Quartz.Impl.Matchers;
+namespace Quartz.Matchers;
 
 /// <summary>
 /// Matches on name (ignores group) property of Keys.
@@ -73,6 +73,14 @@ public sealed class NameMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TKe
     public static NameMatcher<TKey> NameContains(string compareTo)
     {
         return new NameMatcher<TKey>(compareTo, StringOperator.Contains);
+    }
+
+    /// <summary>
+    /// Create a NameMatcher that matches all names.
+    /// </summary>
+    public static NameMatcher<TKey> AnyName()
+    {
+        return new NameMatcher<TKey>("", StringOperator.Anything);
     }
 
     protected override string GetValue(TKey key)

@@ -9,7 +9,7 @@ using System.Diagnostics;
 using Microsoft.Data.Sqlite;
 
 using Quartz.Impl.Calendar;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Extensibility;
@@ -409,7 +409,7 @@ public class AdoJobStoreSmokeTest
         properties.Add(StdSchedulerFactory.PropertySchedulerTypeLoadHelperType, typeof(SpecialClassLoadHelper).AssemblyQualifiedName);
         var scheduler = await CreateScheduler(properties);
 
-        await scheduler.DeleteJobs([JobKey.Create("bad"), JobKey.Create("good")]);
+        await scheduler.DeleteJobs([new JobKey("bad"), new JobKey("good")]);
 
         await scheduler.Start();
 
@@ -503,8 +503,8 @@ public class AdoJobStoreSmokeTest
                 .RequestRecovery(true)
                 .Build();
 
-            await scheduler.AddJob(lonelyJob, false);
-            await scheduler.AddJob(lonelyJob, true);
+            await scheduler.AddJob(lonelyJob);
+            await scheduler.AddJob(lonelyJob, new AddJobOptions { Replace = true });
 
             string schedId = scheduler.SchedulerInstanceId;
 
@@ -599,7 +599,7 @@ public class AdoJobStoreSmokeTest
     {
         foreach (var scheduler in createdSchedulers)
         {
-            await scheduler.Shutdown(CancellationToken.None);
+            await scheduler.Shutdown();
         }
 
         createdSchedulers.Clear();

@@ -11,7 +11,7 @@ public static class TestData
     public const string SchedulerName = "TestScheduler";
     public const string SchedulerInstanceId = "TEST_NON_CLUSTERED";
 
-    public static readonly SchedulerMetaData Metadata;
+    public static readonly SchedulerMetadata Metadata;
 
     public static readonly BaseCalendar BaseCalendar;
     public static readonly AnnualCalendar AnnualCalendar;
@@ -34,23 +34,24 @@ public static class TestData
 
     static TestData()
     {
-        Metadata = new SchedulerMetaData(
-            schedulerName: SchedulerName,
-            schedulerInstanceId: SchedulerInstanceId,
-            schedulerType: typeof(IScheduler),
-            isRemote: false,
-            started: true,
-            isInStandbyMode: false,
-            shutdown: false,
-            startTime: DateTimeOffset.Now.AddDays(-1),
-            numberOfJobsExecuted: 1_000_000,
-            jobStoreType: typeof(RAMJobStore),
-            jobStoreSupportsPersistence: false,
-            jobStoreClustered: false,
-            threadPoolType: typeof(DefaultThreadPool),
-            threadPoolSize: 10,
-            version: "1.2.3"
-        );
+        Metadata = new SchedulerMetadata
+        {
+            SchedulerName = SchedulerName,
+            SchedulerInstanceId = SchedulerInstanceId,
+            SchedulerType = typeof(IScheduler),
+            IsRemote = false,
+            Started = true,
+            InStandbyMode = false,
+            Shutdown = false,
+            RunningSince = DateTimeOffset.Now.AddDays(-1),
+            JobsExecuted = 1_000_000,
+            JobStoreType = typeof(RAMJobStore),
+            JobStoreSupportsPersistence = false,
+            JobStoreClustered = false,
+            ThreadPoolType = typeof(DefaultThreadPool),
+            ThreadPoolSize = 10,
+            Version = "1.2.3",
+        };
 
         BaseCalendar = new BaseCalendar
         {

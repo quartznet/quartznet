@@ -2,7 +2,7 @@
 
 using Microsoft.Extensions.DependencyInjection;
 
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Listener;
 
 namespace Quartz.Tests.Unit.Configuration;

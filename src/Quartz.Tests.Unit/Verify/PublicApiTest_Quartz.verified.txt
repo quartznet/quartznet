@@ -1,6 +1,18 @@
 ﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
 namespace Quartz
 {
+    public sealed class AddCalendarOptions : System.IEquatable<Quartz.AddCalendarOptions>
+    {
+        public AddCalendarOptions() { }
+        public bool Replace { get; init; }
+        public bool UpdateTriggers { get; init; }
+    }
+    public sealed class AddJobOptions : System.IEquatable<Quartz.AddJobOptions>
+    {
+        public AddJobOptions() { }
+        public bool Replace { get; init; }
+        public bool StoreNonDurableWhileAwaitingScheduling { get; init; }
+    }
     public sealed class AdoJobStoreOptions
     {
         public const string DefaultTablePrefix = "QRTZ_";
@@ -277,7 +289,7 @@ namespace Quartz
         Quartz.IntervalUnit RepeatIntervalUnit { get; set; }
         bool SkipDayIfHourDoesNotExist { get; }
         System.TimeZoneInfo TimeZone { get; }
-        int TimesTriggered { get; set; }
+        int TimesTriggered { get; }
     }
     public interface ICancellableJobExecutionContext : Quartz.IJobExecutionContext
     {
@@ -298,7 +310,7 @@ namespace Quartz
         Quartz.IntervalUnit RepeatIntervalUnit { get; }
         Quartz.TimeOfDay StartTimeOfDay { get; }
         System.TimeZoneInfo TimeZone { get; }
-        int TimesTriggered { get; set; }
+        int TimesTriggered { get; }
     }
     public interface IJob
     {
@@ -334,7 +346,7 @@ namespace Quartz
         string? Description { get; }
         bool Durable { get; }
         Quartz.JobDataMap JobDataMap { get; }
-        Quartz.Impl.JobType JobType { get; }
+        Quartz.JobType JobType { get; }
         Quartz.JobKey Key { get; }
         bool PersistJobDataAfterExecution { get; }
         bool RequestsRecovery { get; }
@@ -372,33 +384,30 @@ namespace Quartz
     }
     public interface IListenerManager
     {
-        void AddJobListener(Quartz.IJobListener jobListener, params Quartz.IMatcher<Quartz.JobKey>[] matchers);
-        void AddJobListener(Quartz.IJobListener jobListener, System.Collections.Generic.IReadOnlyCollection<Quartz.IMatcher<Quartz.JobKey>> matchers);
+        void AddJobListener(Quartz.IJobListener jobListener, [System.Runtime.CompilerServices.ParamCollection] System.Collections.Generic.IReadOnlyCollection<Quartz.IMatcher<Quartz.JobKey>> matchers);
         bool AddJobListenerMatcher(string listenerName, Quartz.IMatcher<Quartz.JobKey> matcher);
         void AddSchedulerListener(Quartz.ISchedulerListener schedulerListener);
-        void AddTriggerListener(Quartz.ITriggerListener triggerListener, params Quartz.IMatcher<Quartz.TriggerKey>[] matchers);
-        void AddTriggerListener(Quartz.ITriggerListener triggerListener, System.Collections.Generic.IReadOnlyCollection<Quartz.IMatcher<Quartz.TriggerKey>> matchers);
+        void AddTriggerListener(Quartz.ITriggerListener triggerListener, [System.Runtime.CompilerServices.ParamCollection] System.Collections.Generic.IReadOnlyCollection<Quartz.IMatcher<Quartz.TriggerKey>> matchers);
         bool AddTriggerListenerMatcher(string listenerName, Quartz.IMatcher<Quartz.TriggerKey> matcher);
-        Quartz.IJobListener GetJobListener(string name);
-        Quartz.IMatcher<Quartz.JobKey>[]? GetJobListenerMatchers(string listenerName);
-        Quartz.IJobListener[] GetJobListeners();
-        Quartz.ISchedulerListener[] GetSchedulerListeners();
-        Quartz.ITriggerListener GetTriggerListener(string name);
-        Quartz.IMatcher<Quartz.TriggerKey>[]? GetTriggerListenerMatchers(string listenerName);
-        Quartz.ITriggerListener[] GetTriggerListeners();
+        Quartz.IJobListener? GetJobListener(string name);
+        System.Collections.Generic.IReadOnlyList<Quartz.IMatcher<Quartz.JobKey>> GetJobListenerMatchers(string listenerName);
+        System.Collections.Generic.IReadOnlyList<Quartz.IJobListener> GetJobListeners();
+        Quartz.ISchedulerListener? GetSchedulerListener(string name);
+        System.Collections.Generic.IReadOnlyList<Quartz.ISchedulerListener> GetSchedulerListeners();
+        Quartz.ITriggerListener? GetTriggerListener(string name);
+        System.Collections.Generic.IReadOnlyList<Quartz.IMatcher<Quartz.TriggerKey>> GetTriggerListenerMatchers(string listenerName);
+        System.Collections.Generic.IReadOnlyList<Quartz.ITriggerListener> GetTriggerListeners();
         bool RemoveJobListener(string name);
         bool RemoveJobListenerMatcher(string listenerName, Quartz.IMatcher<Quartz.JobKey> matcher);
-        bool RemoveSchedulerListener(Quartz.ISchedulerListener schedulerListener);
+        bool RemoveSchedulerListener(string name);
         bool RemoveTriggerListener(string name);
         bool RemoveTriggerListenerMatcher(string listenerName, Quartz.IMatcher<Quartz.TriggerKey> matcher);
         bool SetJobListenerMatchers(string listenerName, System.Collections.Generic.IReadOnlyCollection<Quartz.IMatcher<Quartz.JobKey>> matchers);
         bool SetTriggerListenerMatchers(string listenerName, System.Collections.Generic.IReadOnlyCollection<Quartz.IMatcher<Quartz.TriggerKey>> matchers);
     }
     public interface IMatcher<T>
-        where T : Quartz.Util.Key<T>
+        where T : Quartz.Key<T>
     {
-        bool Equals(object obj);
-        int GetHashCode();
         bool IsMatch(T key);
     }
     public interface IPersistentStoreBuilder
@@ -471,7 +480,7 @@ namespace Quartz
     {
         string RecurrenceRule { get; set; }
         System.TimeZoneInfo TimeZone { get; set; }
-        int TimesTriggered { get; set; }
+        int TimesTriggered { get; }
     }
     public interface IScheduleBuilder
     {
@@ -486,9 +495,8 @@ namespace Quartz
         Quartz.IListenerManager ListenerManager { get; }
         string SchedulerInstanceId { get; }
         string SchedulerName { get; }
-        System.Threading.Tasks.ValueTask AddCalendar(string calendarName, Quartz.ICalendar calendar, bool replace, bool updateTriggers, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask AddJob(Quartz.IJobDetail jobDetail, bool replace, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask AddJob(Quartz.IJobDetail jobDetail, bool replace, bool storeNonDurableWhileAwaitingScheduling, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask AddCalendar(string calendarName, Quartz.ICalendar calendar, Quartz.AddCalendarOptions? options = null, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask AddJob(Quartz.IJobDetail jobDetail, Quartz.AddJobOptions? options = null, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> CheckExists(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> CheckExists(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask Clear(System.Threading.CancellationToken cancellationToken = default);
@@ -500,18 +508,17 @@ namespace Quartz
         System.Threading.Tasks.ValueTask<Quartz.ExecutionLimits?> GetExecutionLimits(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.IJobDetail?> GetJobDetail(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.IJobDetail>> GetJobDetails(System.Collections.Generic.IReadOnlyCollection<Quartz.JobKey> jobKeys, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<Quartz.SchedulerMetaData> GetMetaData(System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<Quartz.SchedulerMetadata> GetMetadata(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.ITrigger?> GetTrigger(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.TriggerState> GetTriggerState(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.ITrigger>> GetTriggers(System.Collections.Generic.IReadOnlyCollection<Quartz.TriggerKey> triggerKeys, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.ITrigger>> GetTriggersOfJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> Interrupt(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<bool> Interrupt(string fireInstanceId, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<bool> InterruptFireInstance(string fireInstanceId, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask PauseAll(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask PauseJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask PauseJobs(Quartz.Impl.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask PauseJobs(Quartz.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask PauseTrigger(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask PauseTriggers(Quartz.Impl.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask PauseTriggers(Quartz.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<string>> QueryCalendarNames(Quartz.CalendarQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.JobGroup>> QueryJobGroups(Quartz.JobGroupQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.JobHeader>> QueryJobs(Quartz.JobQuery query, System.Threading.CancellationToken cancellationToken = default);
@@ -521,21 +528,19 @@ namespace Quartz
         System.Threading.Tasks.ValueTask ResetTriggerFromErrorState(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask ResumeAll(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask ResumeJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask ResumeJobs(Quartz.Impl.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask ResumeJobs(Quartz.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask ResumeTrigger(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask ResumeTriggers(Quartz.Impl.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask ResumeTriggers(Quartz.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.DateTimeOffset> ScheduleJob(Quartz.ITrigger trigger, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.DateTimeOffset> ScheduleJob(Quartz.IJobDetail jobDetail, Quartz.ITrigger trigger, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask ScheduleJob(Quartz.IJobDetail jobDetail, System.Collections.Generic.IReadOnlyCollection<Quartz.ITrigger> triggersForJob, bool replace, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask ScheduleJobs(System.Collections.Generic.IReadOnlyDictionary<Quartz.IJobDetail, System.Collections.Generic.IReadOnlyCollection<Quartz.ITrigger>> triggersAndJobs, bool replace, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask SetExecutionLimits(Quartz.ExecutionLimits? limits, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask Shutdown(System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask Shutdown(bool waitForJobsToComplete, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask Shutdown(bool waitForJobsToComplete = false, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask Standby(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask Start(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask StartDelayed(System.TimeSpan delay, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask TriggerJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask TriggerJob(Quartz.JobKey jobKey, Quartz.JobDataMap data, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask TriggerJob(Quartz.JobKey jobKey, Quartz.JobDataMap? data = null, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> UnscheduleJob(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> UnscheduleJobs(System.Collections.Generic.IReadOnlyCollection<Quartz.TriggerKey> triggerKeys, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> UpdateTriggerDetails(Quartz.TriggerKey triggerKey, Quartz.TriggerDetailsUpdate update, System.Threading.CancellationToken cancellationToken = default);
@@ -548,6 +553,7 @@ namespace Quartz
     }
     public interface ISchedulerListener
     {
+        string Name { get; }
         System.Threading.Tasks.ValueTask JobAdded(Quartz.IJobDetail jobDetail, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask JobDeleted(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask JobInterrupted(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
@@ -555,8 +561,8 @@ namespace Quartz
         System.Threading.Tasks.ValueTask JobResumed(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask JobScheduled(Quartz.ITrigger trigger, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask JobUnscheduled(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask JobsPaused(string jobGroup, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask JobsResumed(string jobGroup, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask JobsPaused(string? jobGroup, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask JobsResumed(string? jobGroup, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask SchedulerError(string message, Quartz.SchedulerException exception, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask SchedulerInStandbyMode(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask SchedulerShutdown(System.Threading.CancellationToken cancellationToken = default);
@@ -574,7 +580,7 @@ namespace Quartz
     {
         int RepeatCount { get; set; }
         System.TimeSpan RepeatInterval { get; set; }
-        int TimesTriggered { get; set; }
+        int TimesTriggered { get; }
     }
     public interface ITrigger
     {
@@ -593,7 +599,7 @@ namespace Quartz
         System.DateTimeOffset? NextFireTimeUtc { get; }
         string? PreferredNode { get; }
         System.DateTimeOffset? PreviousFireTimeUtc { get; }
-        int Priority { get; set; }
+        int Priority { get; }
         System.DateTimeOffset StartTimeUtc { get; }
         Quartz.ITrigger Clone();
         System.DateTimeOffset? GetFireTimeAfter(System.DateTimeOffset? afterTime);
@@ -730,6 +736,7 @@ namespace Quartz
     public sealed class JobGroupQuery : Quartz.PagedQuery, System.IEquatable<Quartz.JobGroupQuery>
     {
         public JobGroupQuery() { }
+        public string? Name { get; init; }
         public bool? Paused { get; init; }
     }
     public sealed class JobHeader : System.IEquatable<Quartz.JobHeader>
@@ -744,12 +751,10 @@ namespace Quartz
         public bool RequestsRecovery { get; init; }
     }
     [System.Serializable]
-    public sealed class JobKey : Quartz.Util.Key<Quartz.JobKey>
+    public sealed class JobKey : Quartz.Key<Quartz.JobKey>
     {
         public JobKey(string name) { }
         public JobKey(string name, string group) { }
-        public static Quartz.JobKey Create(string name) { }
-        public static Quartz.JobKey Create(string name, string group) { }
     }
     [System.Serializable]
     public class JobPersistenceException : Quartz.SchedulerException
@@ -761,7 +766,21 @@ namespace Quartz
     public sealed class JobQuery : Quartz.PagedQuery, System.IEquatable<Quartz.JobQuery>
     {
         public JobQuery() { }
-        public Quartz.Impl.Matchers.GroupMatcher<Quartz.JobKey>? Group { get; init; }
+        public Quartz.Matchers.GroupMatcher<Quartz.JobKey>? Group { get; init; }
+        public Quartz.Matchers.NameMatcher<Quartz.JobKey>? Name { get; init; }
+    }
+    [System.Serializable]
+    public sealed class JobType
+    {
+        public JobType(System.Type type) { }
+        public JobType(string fullName) { }
+        public string FullName { get; }
+        public System.Type Type { get; }
+        public override bool Equals(object? obj) { }
+        public override int GetHashCode() { }
+        public override string ToString() { }
+        public static System.Type op_Implicit(Quartz.JobType jobType) { }
+        public static Quartz.JobType op_Implicit(string fullName) { }
     }
     public static class JsonConfigurationExtensions
     {
@@ -772,6 +791,25 @@ namespace Quartz
     {
         public JsonSerializationException(string message) { }
         public JsonSerializationException(string message, System.Exception? innerException) { }
+    }
+    [System.Serializable]
+    public class Key<T> : System.IComparable<Quartz.Key<T>>
+    {
+        public const string DefaultGroup = "DEFAULT";
+        public Key(string name) { }
+        public Key(string name, string group) { }
+        public string Group { get; }
+        public string Name { get; }
+        public int CompareTo(Quartz.Key<T>? other) { }
+        public override bool Equals(object? obj) { }
+        public override int GetHashCode() { }
+        public override string ToString() { }
+        public static bool operator !=(Quartz.Key<T>? left, Quartz.Key<T>? right) { }
+        public static bool operator <(Quartz.Key<T> left, Quartz.Key<T> right) { }
+        public static bool operator <=(Quartz.Key<T> left, Quartz.Key<T> right) { }
+        public static bool operator ==(Quartz.Key<T>? left, Quartz.Key<T>? right) { }
+        public static bool operator >(Quartz.Key<T> left, Quartz.Key<T> right) { }
+        public static bool operator >=(Quartz.Key<T> left, Quartz.Key<T> right) { }
     }
     public static class MisfireInstruction
     {
@@ -823,9 +861,9 @@ namespace Quartz
     }
     public sealed class PagedResult<T> : System.IEquatable<Quartz.PagedResult<T>>
     {
-        public PagedResult(System.Collections.Generic.List<T> Items, bool HasMore, int? TotalCount = default) { }
+        public PagedResult(System.Collections.Generic.IReadOnlyList<T> Items, bool HasMore, int? TotalCount = default) { }
         public bool HasMore { get; init; }
-        public System.Collections.Generic.List<T> Items { get; init; }
+        public System.Collections.Generic.IReadOnlyList<T> Items { get; init; }
         public int? TotalCount { get; init; }
     }
     [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Interface)]
@@ -994,36 +1032,34 @@ namespace Quartz
         SetAllJobTriggersError = 5,
         SetTriggerError = 6,
     }
-    [System.Serializable]
-    public sealed class SchedulerMetaData
+    public sealed class SchedulerMetadata : System.IEquatable<Quartz.SchedulerMetadata>
     {
-        public SchedulerMetaData(string schedulerName, string schedulerInstanceId, System.Type schedulerType, bool isRemote, bool started, bool isInStandbyMode, bool shutdown, System.DateTimeOffset? startTime, int numberOfJobsExecuted, System.Type jobStoreType, bool jobStoreSupportsPersistence, bool jobStoreClustered, System.Type threadPoolType, int threadPoolSize, string version) { }
-        public bool InStandbyMode { get; }
-        public bool JobStoreClustered { get; }
-        public bool JobStoreSupportsPersistence { get; }
-        public System.Type JobStoreType { get; }
-        public int NumberOfJobsExecuted { get; }
-        public System.DateTimeOffset? RunningSince { get; }
-        public string SchedulerInstanceId { get; }
-        public string SchedulerName { get; }
-        public bool SchedulerRemote { get; }
-        public System.Type SchedulerType { get; }
-        public bool Shutdown { get; }
-        public bool Started { get; }
-        public int ThreadPoolSize { get; }
-        public System.Type ThreadPoolType { get; }
-        public string Version { get; }
-        public string GetSummary() { }
-        public override string ToString() { }
+        public SchedulerMetadata() { }
+        public bool InStandbyMode { get; init; }
+        public bool IsRemote { get; init; }
+        public bool JobStoreClustered { get; init; }
+        public bool JobStoreSupportsPersistence { get; init; }
+        public required System.Type JobStoreType { get; init; }
+        public int JobsExecuted { get; init; }
+        public System.DateTimeOffset? RunningSince { get; init; }
+        public required string SchedulerInstanceId { get; init; }
+        public required string SchedulerName { get; init; }
+        public required System.Type SchedulerType { get; init; }
+        public bool Shutdown { get; init; }
+        public bool Started { get; init; }
+        public int ThreadPoolSize { get; init; }
+        public required System.Type ThreadPoolType { get; init; }
+        public required string Version { get; init; }
     }
     public static class SchedulerQueryExtensions
     {
         public static System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> GetCalendarNames(this Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
         public static System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> GetJobGroupNames(this Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
-        public static System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.JobKey>> GetJobKeys(this Quartz.IScheduler scheduler, Quartz.Impl.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
+        public static System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.JobKey>> GetJobKeys(this Quartz.IScheduler scheduler, Quartz.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
         public static System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> GetPausedTriggerGroups(this Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
         public static System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> GetTriggerGroupNames(this Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
-        public static System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.TriggerKey>> GetTriggerKeys(this Quartz.IScheduler scheduler, Quartz.Impl.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
+        public static System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.TriggerKey>> GetTriggerKeys(this Quartz.IScheduler scheduler, Quartz.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
+        public static System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.ITrigger>> GetTriggersOfJob(this Quartz.IScheduler scheduler, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         public static System.Threading.Tasks.ValueTask<bool> IsJobGroupPaused(this Quartz.IScheduler scheduler, string groupName, System.Threading.CancellationToken cancellationToken = default) { }
         public static System.Threading.Tasks.ValueTask<bool> IsTriggerGroupPaused(this Quartz.IScheduler scheduler, string groupName, System.Threading.CancellationToken cancellationToken = default) { }
     }
@@ -1237,6 +1273,7 @@ namespace Quartz
     public sealed class TriggerGroupQuery : Quartz.PagedQuery, System.IEquatable<Quartz.TriggerGroupQuery>
     {
         public TriggerGroupQuery() { }
+        public string? Name { get; init; }
         public bool? Paused { get; init; }
     }
     public sealed class TriggerHeader : System.IEquatable<Quartz.TriggerHeader>
@@ -1256,7 +1293,7 @@ namespace Quartz
         public string TriggerType { get; init; }
     }
     [System.Serializable]
-    public sealed class TriggerKey : Quartz.Util.Key<Quartz.TriggerKey>
+    public sealed class TriggerKey : Quartz.Key<Quartz.TriggerKey>
     {
         public TriggerKey(string name) { }
         public TriggerKey(string name, string group) { }
@@ -1265,8 +1302,9 @@ namespace Quartz
     {
         public TriggerQuery() { }
         public string? CalendarName { get; init; }
-        public Quartz.Impl.Matchers.GroupMatcher<Quartz.TriggerKey>? Group { get; init; }
+        public Quartz.Matchers.GroupMatcher<Quartz.TriggerKey>? Group { get; init; }
         public Quartz.JobKey? Job { get; init; }
+        public Quartz.Matchers.NameMatcher<Quartz.TriggerKey>? Name { get; init; }
         public Quartz.TriggerState? State { get; init; }
     }
     public enum TriggerState
@@ -1354,18 +1392,21 @@ namespace Quartz.Diagnostics
         public static class JobStore
         {
             public const string AcquireNextTriggers = "Quartz.JobStore.AcquireNextTriggers";
-            public const string ClearAllSchedulingData = "Quartz.JobStore.ClearAllSchedulingData";
+            public const string AddCalendar = "Quartz.JobStore.AddCalendar";
+            public const string AddJob = "Quartz.JobStore.AddJob";
+            public const string AddTrigger = "Quartz.JobStore.AddTrigger";
+            public const string Clear = "Quartz.JobStore.Clear";
+            public const string DeleteCalendar = "Quartz.JobStore.DeleteCalendar";
+            public const string DeleteJob = "Quartz.JobStore.DeleteJob";
+            public const string DeleteJobs = "Quartz.JobStore.DeleteJobs";
+            public const string DeleteTrigger = "Quartz.JobStore.DeleteTrigger";
+            public const string DeleteTriggers = "Quartz.JobStore.DeleteTriggers";
             public const string PauseAll = "Quartz.JobStore.PauseAll";
             public const string PauseJob = "Quartz.JobStore.PauseJob";
             public const string PauseJobs = "Quartz.JobStore.PauseJobs";
             public const string PauseTrigger = "Quartz.JobStore.PauseTrigger";
             public const string PauseTriggers = "Quartz.JobStore.PauseTriggers";
             public const string ReleaseAcquiredTrigger = "Quartz.JobStore.ReleaseAcquiredTrigger";
-            public const string RemoveCalendar = "Quartz.JobStore.RemoveCalendar";
-            public const string RemoveJob = "Quartz.JobStore.RemoveJob";
-            public const string RemoveJobs = "Quartz.JobStore.RemoveJobs";
-            public const string RemoveTrigger = "Quartz.JobStore.RemoveTrigger";
-            public const string RemoveTriggers = "Quartz.JobStore.RemoveTriggers";
             public const string ReplaceTrigger = "Quartz.JobStore.ReplaceTrigger";
             public const string ResetTriggerFromErrorState = "Quartz.JobStore.ResetTriggerFromErrorState";
             public const string ResumeAll = "Quartz.JobStore.ResumeAll";
@@ -1373,11 +1414,8 @@ namespace Quartz.Diagnostics
             public const string ResumeJobs = "Quartz.JobStore.ResumeJobs";
             public const string ResumeTrigger = "Quartz.JobStore.ResumeTrigger";
             public const string ResumeTriggers = "Quartz.JobStore.ResumeTriggers";
-            public const string StoreCalendar = "Quartz.JobStore.StoreCalendar";
-            public const string StoreJob = "Quartz.JobStore.StoreJob";
-            public const string StoreJobAndTrigger = "Quartz.JobStore.StoreJobAndTrigger";
-            public const string StoreJobsAndTriggers = "Quartz.JobStore.StoreJobsAndTriggers";
-            public const string StoreTrigger = "Quartz.JobStore.StoreTrigger";
+            public const string ScheduleJob = "Quartz.JobStore.ScheduleJob";
+            public const string ScheduleJobs = "Quartz.JobStore.ScheduleJobs";
             public const string TriggeredJobComplete = "Quartz.JobStore.TriggeredJobComplete";
             public const string TriggersFired = "Quartz.JobStore.TriggersFired";
             public const string UpdateTriggerDetails = "Quartz.JobStore.UpdateTriggerDetails";
@@ -1400,51 +1438,51 @@ namespace Quartz.Extensibility
         bool Clustered { get; }
         System.TimeSpan EstimatedTimeToReleaseAndAcquireTrigger { get; }
         bool SupportsPersistence { get; }
-        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> AcquireNextTriggers(System.DateTimeOffset noLaterThan, int maxCount, System.TimeSpan timeWindow, System.Collections.Generic.IReadOnlyDictionary<string, int?>? executionLimits = null, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> AcquireNextTriggers(Quartz.Extensibility.TriggerAcquisitionRequest request, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask AddCalendar(string calendarName, Quartz.ICalendar calendar, Quartz.AddCalendarOptions? options = null, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask AddJob(Quartz.IJobDetail job, bool replace, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask AddTrigger(Quartz.Extensibility.IOperableTrigger trigger, bool replace, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> CheckExists(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> CheckExists(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask ClearAllSchedulingData(System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask Clear(System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<bool> DeleteCalendar(string calendarName, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<bool> DeleteJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<bool> DeleteJobs(System.Collections.Generic.IReadOnlyCollection<Quartz.JobKey> jobKeys, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<bool> DeleteTrigger(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<bool> DeleteTriggers(System.Collections.Generic.IReadOnlyCollection<Quartz.TriggerKey> triggerKeys, System.Threading.CancellationToken cancellationToken = default);
         System.TimeSpan GetAcquireRetryDelay(int failureCount);
+        System.Threading.Tasks.ValueTask<Quartz.ICalendar?> GetCalendar(string calendarName, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<Quartz.IJobDetail?> GetJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.IJobDetail>> GetJobDetails(System.Collections.Generic.IReadOnlyCollection<Quartz.JobKey> jobKeys, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<Quartz.Extensibility.IOperableTrigger?> GetTrigger(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.TriggerState> GetTriggerState(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> GetTriggers(System.Collections.Generic.IReadOnlyCollection<Quartz.TriggerKey> triggerKeys, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> GetTriggersForJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask Initialize(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask PauseAll(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask PauseJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> PauseJobs(Quartz.Impl.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> PauseJobs(Quartz.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask PauseTrigger(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> PauseTriggers(Quartz.Impl.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> PauseTriggers(Quartz.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<string>> QueryCalendarNames(Quartz.CalendarQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.JobGroup>> QueryJobGroups(Quartz.JobGroupQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.JobHeader>> QueryJobs(Quartz.JobQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.TriggerGroup>> QueryTriggerGroups(Quartz.TriggerGroupQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.TriggerHeader>> QueryTriggers(Quartz.TriggerQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask ReleaseAcquiredTrigger(Quartz.Extensibility.IOperableTrigger trigger, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<bool> RemoveCalendar(string calendarName, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<bool> RemoveJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<bool> RemoveJobs(System.Collections.Generic.IReadOnlyCollection<Quartz.JobKey> jobKeys, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<bool> RemoveTrigger(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<bool> RemoveTriggers(System.Collections.Generic.IReadOnlyCollection<Quartz.TriggerKey> triggerKeys, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> ReplaceTrigger(Quartz.TriggerKey triggerKey, Quartz.Extensibility.IOperableTrigger trigger, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask ResetTriggerFromErrorState(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask ResumeAll(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask ResumeJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> ResumeJobs(Quartz.Impl.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> ResumeJobs(Quartz.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask ResumeTrigger(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> ResumeTriggers(Quartz.Impl.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<Quartz.ICalendar?> RetrieveCalendar(string calendarName, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<Quartz.IJobDetail?> RetrieveJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<Quartz.Extensibility.IOperableTrigger?> RetrieveTrigger(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> ResumeTriggers(Quartz.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask ScheduleJob(Quartz.IJobDetail job, Quartz.Extensibility.IOperableTrigger trigger, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask ScheduleJobs(System.Collections.Generic.IReadOnlyDictionary<Quartz.IJobDetail, System.Collections.Generic.IReadOnlyCollection<Quartz.ITrigger>> triggersAndJobs, bool replace, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask SchedulerPaused(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask SchedulerResumed(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask SchedulerStarted(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask Shutdown(System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask StoreCalendar(string calendarName, Quartz.ICalendar calendar, bool replaceExisting, bool updateTriggers, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask StoreJob(Quartz.IJobDetail job, bool replaceExisting, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask StoreJobAndTrigger(Quartz.IJobDetail job, Quartz.Extensibility.IOperableTrigger trigger, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask StoreJobsAndTriggers(System.Collections.Generic.IReadOnlyDictionary<Quartz.IJobDetail, System.Collections.Generic.IReadOnlyCollection<Quartz.ITrigger>> triggersAndJobs, bool replace, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask StoreTrigger(Quartz.Extensibility.IOperableTrigger trigger, bool replaceExisting, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask TriggeredJobComplete(Quartz.Extensibility.IOperableTrigger trigger, Quartz.IJobDetail jobDetail, Quartz.SchedulerInstruction triggerInstructionCode, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.TriggerFiredResult>> TriggersFired(System.Collections.Generic.IReadOnlyCollection<Quartz.Extensibility.IOperableTrigger> triggers, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> UpdateTriggerDetails(Quartz.TriggerKey triggerKey, Quartz.TriggerDetailsUpdate update, System.Threading.CancellationToken cancellationToken = default);
@@ -1494,14 +1532,11 @@ namespace Quartz.Extensibility
     }
     public interface ISchedulerRepository
     {
-        void Bind(Quartz.IScheduler scheduler);
-        void Bind(Quartz.IScheduler scheduler, string instanceId);
-        Quartz.IScheduler? Lookup(string schedulerName);
-        Quartz.IScheduler? Lookup(string schedulerName, string instanceId);
+        void Bind(Quartz.IScheduler scheduler, string? instanceId = null);
+        Quartz.IScheduler? Lookup(string schedulerName, string? instanceId = null);
         System.Collections.Generic.List<Quartz.IScheduler> LookupAll();
         System.Collections.Generic.List<Quartz.IScheduler> LookupByName(string schedulerName);
-        void Remove(string schedulerName);
-        bool Remove(string schedulerName, string instanceId);
+        bool Remove(string schedulerName, string? instanceId = null);
     }
     public interface ISchedulerSignaler
     {
@@ -1528,6 +1563,14 @@ namespace Quartz.Extensibility
         public JobScope(Quartz.IJob job, object? state = null) { }
         public Quartz.IJob Job { get; }
         public object? State { get; }
+    }
+    public sealed class TriggerAcquisitionRequest : System.IEquatable<Quartz.Extensibility.TriggerAcquisitionRequest>
+    {
+        public TriggerAcquisitionRequest() { }
+        public System.Collections.Generic.IReadOnlyDictionary<string, int?>? ExecutionLimits { get; init; }
+        public int MaxCount { get; init; }
+        public required System.DateTimeOffset NoLaterThan { get; init; }
+        public System.TimeSpan TimeWindow { get; init; }
     }
     public sealed class TriggerFiredBundle
     {
@@ -1740,7 +1783,7 @@ namespace Quartz.Impl.AdoJobStore
         System.Threading.Tasks.ValueTask<int> DeleteFiredTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string entryId, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> DeleteFiredTriggers(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.AdoJobStore.FiredTriggerQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> DeleteJobDetail(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<int> DeletePausedTriggerGroup(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<int> DeletePausedTriggerGroup(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> DeleteSchedulerState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string instanceId, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> DeleteTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
         void Initialize(Quartz.Impl.AdoJobStore.DelegateInitializationArgs args);
@@ -1764,12 +1807,12 @@ namespace Quartz.Impl.AdoJobStore
         System.Threading.Tasks.ValueTask<Quartz.IJobDetail?> SelectJobForTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, Quartz.Extensibility.ITypeLoadHelper loadHelper, bool loadJobType = true, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.JobGroup>> SelectJobGroups(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobGroupQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.JobHeader>> SelectJobHeaders(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobQuery query, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.JobKey>> SelectJobsInGroup(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.JobKey>> SelectJobsInGroup(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.Impl.AdoJobStore.MisfiredTriggerBatch> SelectMisfiredTriggersToRecover(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string state, System.DateTimeOffset ts, int count, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> SelectNumTriggersForJob(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Impl.AdoJobStore.SchedulerStateRecord>> SelectSchedulerStateRecords(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string? instanceName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.Extensibility.IOperableTrigger?> SelectTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> SelectTriggerGroups(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> SelectTriggerGroups(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.TriggerGroup>> SelectTriggerGroups(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerGroupQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.TriggerHeader>> SelectTriggerHeaders(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerQuery query, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<Quartz.JobDataMap> SelectTriggerJobDataMap(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
@@ -1781,7 +1824,7 @@ namespace Quartz.Impl.AdoJobStore
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> SelectTriggersForCalendar(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> SelectTriggersForJob(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> SelectTriggersForRecoveringJobs(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.TriggerKey>> SelectTriggersInGroup(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.TriggerKey>> SelectTriggersInGroup(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.TriggerKey>> SelectTriggersInState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string state, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Impl.AdoJobStore.TriggerAcquireResult>> SelectTriggersToAcquire(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.AdoJobStore.TriggerAcquisitionCriteria criteria, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<bool> TriggerExists(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default);
@@ -1795,8 +1838,8 @@ namespace Quartz.Impl.AdoJobStore
         System.Threading.Tasks.ValueTask UpdateMisfiredTriggers(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Collections.Generic.IReadOnlyList<Quartz.Impl.AdoJobStore.MisfiredTriggerUpdate> updates, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> UpdateSchedulerState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string instanceId, System.DateTimeOffset checkInTime, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> UpdateTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.IOperableTrigger trigger, string state, Quartz.IJobDetail jobDetail, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<int> UpdateTriggerGroupStateFromOtherState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, string newState, string oldState, System.Threading.CancellationToken cancellationToken = default);
-        System.Threading.Tasks.ValueTask<int> UpdateTriggerGroupStateFromOtherStates(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, string newState, string oldState1, string oldState2, string oldState3, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<int> UpdateTriggerGroupStateFromOtherState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, string newState, string oldState, System.Threading.CancellationToken cancellationToken = default);
+        System.Threading.Tasks.ValueTask<int> UpdateTriggerGroupStateFromOtherStates(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, string newState, string oldState1, string oldState2, string oldState3, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> UpdateTriggerPreferredNodeConditional(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, string preferredNode, bool preferredNodeAuto, string expectedPreferredNode, bool expectedPreferredNodeAuto, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> UpdateTriggerState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, string state, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask<int> UpdateTriggerStateFromOtherState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, string newState, string oldState, System.Threading.CancellationToken cancellationToken = default);
@@ -1892,8 +1935,14 @@ namespace Quartz.Impl.AdoJobStore
         public virtual bool TxIsolationLevelSerializable { get; set; }
         protected virtual Quartz.Extensibility.ITypeLoadHelper TypeLoadHelper { get; }
         public bool UseDbLocks { get; set; }
-        protected virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> AcquireNextTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.DateTimeOffset noLaterThan, int maxCount, System.TimeSpan timeWindow, System.Collections.Generic.IReadOnlyDictionary<string, int?>? executionLimits = null, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> AcquireNextTriggers(System.DateTimeOffset noLaterThan, int maxCount, System.TimeSpan timeWindow, System.Collections.Generic.IReadOnlyDictionary<string, int?>? executionLimits = null, System.Threading.CancellationToken cancellationToken = default) { }
+        protected virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> AcquireNextTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.TriggerAcquisitionRequest request, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> AcquireNextTriggers(Quartz.Extensibility.TriggerAcquisitionRequest request, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask AddCalendar(string calendarName, Quartz.ICalendar calendar, Quartz.AddCalendarOptions? options = null, System.Threading.CancellationToken cancellationToken = default) { }
+        protected virtual System.Threading.Tasks.ValueTask AddCalendar(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, Quartz.ICalendar calendar, Quartz.AddCalendarOptions options, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask AddJob(Quartz.IJobDetail job, bool replace, System.Threading.CancellationToken cancellationToken = default) { }
+        protected virtual System.Threading.Tasks.ValueTask AddJob(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.IJobDetail newJob, bool replace, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask AddTrigger(Quartz.Extensibility.IOperableTrigger trigger, bool replace, System.Threading.CancellationToken cancellationToken = default) { }
+        protected virtual System.Threading.Tasks.ValueTask AddTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.IOperableTrigger newTrigger, Quartz.IJobDetail? job, bool replace, string state, bool forceState, bool recovering, System.Threading.CancellationToken cancellationToken = default) { }
         protected System.DateTimeOffset CalcFailedIfAfter(Quartz.Impl.AdoJobStore.SchedulerStateRecord rec) { }
         protected virtual System.Threading.Tasks.ValueTask<bool> CalendarExists(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.Threading.Tasks.ValueTask<string> CheckBlockedState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, string currentState, System.Threading.CancellationToken cancellationToken = default) { }
@@ -1902,12 +1951,21 @@ namespace Quartz.Impl.AdoJobStore
         protected System.Threading.Tasks.ValueTask<bool> CheckExists(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         protected System.Threading.Tasks.ValueTask<bool> CheckExists(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.Threading.Tasks.ValueTask CleanupConnection(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder? conn, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask ClearAllSchedulingData(System.Threading.CancellationToken cancellationToken = default) { }
-        protected System.Threading.Tasks.ValueTask ClearAllSchedulingData(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask Clear(System.Threading.CancellationToken cancellationToken = default) { }
+        protected System.Threading.Tasks.ValueTask Clear(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.Threading.Tasks.ValueTask CloseConnection(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder cth, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Impl.AdoJobStore.SchedulerStateRecord>> ClusterCheckIn(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.Threading.Tasks.ValueTask ClusterRecover(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Collections.Generic.IReadOnlyCollection<Quartz.Impl.AdoJobStore.SchedulerStateRecord> failedInstances, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.Threading.Tasks.ValueTask CommitConnection(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder cth, bool openNewTransaction, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask<bool> DeleteCalendar(string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
+        protected virtual System.Threading.Tasks.ValueTask<bool> DeleteCalendar(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask<bool> DeleteJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
+        protected virtual System.Threading.Tasks.ValueTask<bool> DeleteJob(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, bool activeDeleteSafe, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask<bool> DeleteJobs(System.Collections.Generic.IReadOnlyCollection<Quartz.JobKey> jobKeys, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask<bool> DeleteTrigger(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
+        protected virtual System.Threading.Tasks.ValueTask<bool> DeleteTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
+        protected virtual System.Threading.Tasks.ValueTask<bool> DeleteTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, Quartz.IJobDetail? job, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask<bool> DeleteTriggers(System.Collections.Generic.IReadOnlyCollection<Quartz.TriggerKey> triggerKeys, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.Threading.Tasks.ValueTask<bool> DoCheckin(System.Guid requestorId, System.Threading.CancellationToken cancellationToken = default) { }
         protected System.Threading.Tasks.ValueTask<Quartz.Impl.AdoJobStore.RecoverMisfiredJobsResult> DoRecoverMisfires(System.Guid requestorId, System.Threading.CancellationToken cancellationToken = default) { }
         protected System.Threading.Tasks.ValueTask<object> ExecuteInLock(string? lockName, System.Func<Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder, System.Threading.Tasks.ValueTask> txCallback, System.Threading.CancellationToken cancellationToken = default) { }
@@ -1919,12 +1977,18 @@ namespace Quartz.Impl.AdoJobStore
         protected System.Threading.Tasks.ValueTask<T> ExecuteWithoutLock<T>(System.Func<Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder, System.Threading.Tasks.ValueTask<T>> txCallback, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Impl.AdoJobStore.SchedulerStateRecord>> FindFailedInstances(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.TimeSpan GetAcquireRetryDelay(int failureCount) { }
+        public System.Threading.Tasks.ValueTask<Quartz.ICalendar?> GetCalendar(string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
+        protected virtual System.Threading.Tasks.ValueTask<Quartz.ICalendar?> GetCalendar(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.Threading.Tasks.ValueTask<Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder> GetConnection(System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual string GetFiredTriggerRecordId() { }
+        public System.Threading.Tasks.ValueTask<Quartz.IJobDetail?> GetJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
+        protected virtual System.Threading.Tasks.ValueTask<Quartz.IJobDetail?> GetJob(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.IJobDetail>> GetJobDetails(System.Collections.Generic.IReadOnlyCollection<Quartz.JobKey> jobKeys, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.IJobDetail>> GetJobDetails(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Collections.Generic.IReadOnlyCollection<Quartz.JobKey> jobKeys, System.Threading.CancellationToken cancellationToken = default) { }
-        protected virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.JobKey>> GetJobNames(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
+        protected virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.JobKey>> GetJobNames(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
         protected abstract System.Threading.Tasks.ValueTask<Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder> GetNonManagedTXConnection(System.Threading.CancellationToken cancellationToken = default);
+        public System.Threading.Tasks.ValueTask<Quartz.Extensibility.IOperableTrigger?> GetTrigger(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
+        protected virtual System.Threading.Tasks.ValueTask<Quartz.Extensibility.IOperableTrigger?> GetTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> GetTriggerGroupNames(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<Quartz.TriggerState> GetTriggerState(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.Threading.Tasks.ValueTask<Quartz.TriggerState> GetTriggerState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
@@ -1939,11 +2003,11 @@ namespace Quartz.Impl.AdoJobStore
         public virtual System.Threading.Tasks.ValueTask PauseAll(System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask PauseAll(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask PauseJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> PauseJobs(Quartz.Impl.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> PauseJobs(Quartz.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask PauseTrigger(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask PauseTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> PauseTriggerGroup(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> PauseTriggers(Quartz.Impl.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> PauseTriggerGroup(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> PauseTriggers(Quartz.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<Quartz.PagedResult<string>> QueryCalendarNames(Quartz.CalendarQuery query, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.Threading.Tasks.ValueTask<Quartz.PagedResult<string>> QueryCalendarNames(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.CalendarQuery query, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.JobGroup>> QueryJobGroups(Quartz.JobGroupQuery query, System.Threading.CancellationToken cancellationToken = default) { }
@@ -1961,48 +2025,27 @@ namespace Quartz.Impl.AdoJobStore
         public System.Threading.Tasks.ValueTask ReleaseAcquiredTrigger(Quartz.Extensibility.IOperableTrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.Threading.Tasks.ValueTask ReleaseAcquiredTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.IOperableTrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.Threading.Tasks.ValueTask ReleaseLock(System.Guid requestorId, string lockName, bool doIt, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask<bool> RemoveCalendar(string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
-        protected virtual System.Threading.Tasks.ValueTask<bool> RemoveCalendar(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask<bool> RemoveJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
-        protected virtual System.Threading.Tasks.ValueTask<bool> RemoveJob(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, bool activeDeleteSafe, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask<bool> RemoveJobs(System.Collections.Generic.IReadOnlyCollection<Quartz.JobKey> jobKeys, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask<bool> RemoveTrigger(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
-        protected virtual System.Threading.Tasks.ValueTask<bool> RemoveTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
-        protected virtual System.Threading.Tasks.ValueTask<bool> RemoveTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, Quartz.IJobDetail? job, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask<bool> RemoveTriggers(System.Collections.Generic.IReadOnlyCollection<Quartz.TriggerKey> triggerKeys, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<bool> ReplaceTrigger(Quartz.TriggerKey triggerKey, Quartz.Extensibility.IOperableTrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.Threading.Tasks.ValueTask<bool> ReplaceTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, Quartz.Extensibility.IOperableTrigger newTrigger, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask ResetTriggerFromErrorState(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask ResumeAll(System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask ResumeAll(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask ResumeJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> ResumeJobs(Quartz.Impl.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> ResumeJobs(Quartz.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask ResumeTrigger(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask ResumeTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> ResumeTriggers(Quartz.Impl.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> ResumeTriggers(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask<Quartz.ICalendar?> RetrieveCalendar(string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
-        protected virtual System.Threading.Tasks.ValueTask<Quartz.ICalendar?> RetrieveCalendar(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask<Quartz.IJobDetail?> RetrieveJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
-        protected virtual System.Threading.Tasks.ValueTask<Quartz.IJobDetail?> RetrieveJob(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask<Quartz.Extensibility.IOperableTrigger?> RetrieveTrigger(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
-        protected virtual System.Threading.Tasks.ValueTask<Quartz.Extensibility.IOperableTrigger?> RetrieveTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> ResumeTriggers(Quartz.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> ResumeTriggers(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.Threading.Tasks.ValueTask<object> RetryExecuteInNonManagedTXLock(string? lockName, System.Func<Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder, System.Threading.Tasks.ValueTask> txCallback, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.Threading.Tasks.ValueTask<T> RetryExecuteInNonManagedTXLock<T>(string? lockName, System.Func<Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder, System.Threading.Tasks.ValueTask<T>> txCallback, System.Guid? requestorId, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.Threading.Tasks.ValueTask RollbackConnection(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder? cth, System.Exception cause, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask ScheduleJob(Quartz.IJobDetail job, Quartz.Extensibility.IOperableTrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask ScheduleJobs(System.Collections.Generic.IReadOnlyDictionary<Quartz.IJobDetail, System.Collections.Generic.IReadOnlyCollection<Quartz.ITrigger>> triggersAndJobs, bool replace, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask SchedulerPaused(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask SchedulerResumed(System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask SchedulerStarted(System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask Shutdown(System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.Threading.Tasks.ValueTask SignalSchedulingChangeImmediately(System.DateTimeOffset? candidateNewNextFireTime, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask StoreCalendar(string calendarName, Quartz.ICalendar calendar, bool replaceExisting, bool updateTriggers, System.Threading.CancellationToken cancellationToken = default) { }
-        protected virtual System.Threading.Tasks.ValueTask StoreCalendar(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, Quartz.ICalendar calendar, bool replaceExisting, bool updateTriggers, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask StoreJob(Quartz.IJobDetail job, bool replaceExisting, System.Threading.CancellationToken cancellationToken = default) { }
-        protected virtual System.Threading.Tasks.ValueTask StoreJob(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.IJobDetail newJob, bool replaceExisting, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask StoreJobAndTrigger(Quartz.IJobDetail job, Quartz.Extensibility.IOperableTrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask StoreJobsAndTriggers(System.Collections.Generic.IReadOnlyDictionary<Quartz.IJobDetail, System.Collections.Generic.IReadOnlyCollection<Quartz.ITrigger>> triggersAndJobs, bool replace, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask StoreTrigger(Quartz.Extensibility.IOperableTrigger trigger, bool replaceExisting, System.Threading.CancellationToken cancellationToken = default) { }
-        protected virtual System.Threading.Tasks.ValueTask StoreTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.IOperableTrigger newTrigger, Quartz.IJobDetail? job, bool replaceExisting, string state, bool forceState, bool recovering, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.Threading.Tasks.ValueTask<bool> TriggerExists(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.Threading.Tasks.ValueTask<Quartz.Extensibility.TriggerFiredBundle?> TriggerFired(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.IOperableTrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask TriggeredJobComplete(Quartz.Extensibility.IOperableTrigger trigger, Quartz.IJobDetail jobDetail, Quartz.SchedulerInstruction triggerInstructionCode, System.Threading.CancellationToken cancellationToken = default) { }
@@ -2198,7 +2241,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual System.Threading.Tasks.ValueTask<int> DeleteFiredTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string entryId, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> DeleteFiredTriggers(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.AdoJobStore.FiredTriggerQuery query, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> DeleteJobDetail(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask<int> DeletePausedTriggerGroup(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<int> DeletePausedTriggerGroup(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> DeleteSchedulerState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string instanceName, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> DeleteTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.Threading.Tasks.ValueTask DeleteTriggerExtension(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
@@ -2232,8 +2275,8 @@ namespace Quartz.Impl.AdoJobStore
         [return: System.Runtime.CompilerServices.TupleElementNames(new string[] {
                 "Sql",
                 "Parameter"})]
-        protected System.ValueTuple<string, string> MatchGroup<T>(Quartz.Impl.Matchers.GroupMatcher<T> matcher, string equalsSql, string likeSql)
-            where T : Quartz.Util.Key<T> { }
+        protected System.ValueTuple<string, string> MatchGroup<T>(Quartz.Matchers.GroupMatcher<T> matcher, string equalsSql, string likeSql)
+            where T : Quartz.Key<T> { }
         public virtual System.Data.Common.DbCommand PrepareCommand(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder cth, string commandText) { }
         protected virtual System.Threading.Tasks.ValueTask<byte[]?> ReadBytesFromBlob(System.Data.IDataReader dr, int colIndex, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> RepinTriggersFromDeadNode(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string oldPreferredNode, string newPreferredNode, System.Threading.CancellationToken cancellationToken = default) { }
@@ -2247,12 +2290,12 @@ namespace Quartz.Impl.AdoJobStore
         public virtual System.Threading.Tasks.ValueTask<Quartz.IJobDetail?> SelectJobForTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, Quartz.Extensibility.ITypeLoadHelper loadHelper, bool loadJobType = true, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.JobGroup>> SelectJobGroups(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobGroupQuery query, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.JobHeader>> SelectJobHeaders(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobQuery query, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.JobKey>> SelectJobsInGroup(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.JobKey>> SelectJobsInGroup(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.Impl.AdoJobStore.MisfiredTriggerBatch> SelectMisfiredTriggersToRecover(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string state, System.DateTimeOffset ts, int count, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> SelectNumTriggersForJob(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Impl.AdoJobStore.SchedulerStateRecord>> SelectSchedulerStateRecords(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string? instanceName, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.Extensibility.IOperableTrigger?> SelectTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> SelectTriggerGroups(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> SelectTriggerGroups(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.TriggerGroup>> SelectTriggerGroups(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerGroupQuery query, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.TriggerHeader>> SelectTriggerHeaders(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerQuery query, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.JobDataMap> SelectTriggerJobDataMap(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
@@ -2264,13 +2307,13 @@ namespace Quartz.Impl.AdoJobStore
         public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> SelectTriggersForCalendar(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> SelectTriggersForJob(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> SelectTriggersForRecoveringJobs(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.TriggerKey>> SelectTriggersInGroup(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.TriggerKey>> SelectTriggersInGroup(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.TriggerKey>> SelectTriggersInState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string state, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Impl.AdoJobStore.TriggerAcquireResult>> SelectTriggersToAcquire(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.AdoJobStore.TriggerAcquisitionCriteria criteria, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual byte[]? SerializeJobData(Quartz.JobDataMap data) { }
         protected virtual byte[]? SerializeObject(object? obj) { }
-        protected virtual string ToSqlLikeClause<T>(Quartz.Impl.Matchers.GroupMatcher<T> matcher)
-            where T : Quartz.Util.Key<T> { }
+        protected virtual string ToSqlLikeClause<T>(Quartz.Matchers.StringMatcher<T> matcher)
+            where T : Quartz.Key<T> { }
         public virtual System.Threading.Tasks.ValueTask<bool> TriggerExists(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> UpdateBlobTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.IOperableTrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> UpdateCalendar(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string calendarName, Quartz.ICalendar calendar, System.Threading.CancellationToken cancellationToken = default) { }
@@ -2282,8 +2325,8 @@ namespace Quartz.Impl.AdoJobStore
         public virtual System.Threading.Tasks.ValueTask UpdateMisfiredTriggers(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Collections.Generic.IReadOnlyList<Quartz.Impl.AdoJobStore.MisfiredTriggerUpdate> updates, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> UpdateSchedulerState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string instanceName, System.DateTimeOffset checkInTime, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> UpdateTrigger(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Extensibility.IOperableTrigger trigger, string state, Quartz.IJobDetail jobDetail, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask<int> UpdateTriggerGroupStateFromOtherState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, string newState, string oldState, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask<int> UpdateTriggerGroupStateFromOtherStates(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Impl.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, string newState, string oldState1, string oldState2, string oldState3, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<int> UpdateTriggerGroupStateFromOtherState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, string newState, string oldState, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<int> UpdateTriggerGroupStateFromOtherStates(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, string newState, string oldState1, string oldState2, string oldState3, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> UpdateTriggerPreferredNodeConditional(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, string preferredNode, bool preferredNodeAuto, string expectedPreferredNode, bool expectedPreferredNodeAuto, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> UpdateTriggerState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, string state, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> UpdateTriggerStateFromOtherState(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, Quartz.TriggerKey triggerKey, string newState, string oldState, System.Threading.CancellationToken cancellationToken = default) { }
@@ -2294,10 +2337,10 @@ namespace Quartz.Impl.AdoJobStore
         public virtual System.Threading.Tasks.ValueTask<int> UpdateTriggerStatesFromOtherStates(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string newState, string oldState1, string oldState2, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<int> ValidateSchema(Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, System.Threading.CancellationToken cancellationToken = default) { }
         protected static string EscapeSqlLikeWildcards(string value) { }
-        protected static bool IsMatcherEquals<T>(Quartz.Impl.Matchers.GroupMatcher<T> matcher)
-            where T : Quartz.Util.Key<T> { }
-        protected static string ToSqlEqualsClause<T>(Quartz.Impl.Matchers.GroupMatcher<T> matcher)
-            where T : Quartz.Util.Key<T> { }
+        protected static bool IsMatcherEquals<T>(Quartz.Matchers.StringMatcher<T> matcher)
+            where T : Quartz.Key<T> { }
+        protected static string ToSqlEqualsClause<T>(Quartz.Matchers.StringMatcher<T> matcher)
+            where T : Quartz.Key<T> { }
     }
     public class StdRowLockSemaphore : Quartz.Impl.AdoJobStore.DBSemaphore
     {
@@ -2580,9 +2623,8 @@ namespace Quartz.Impl
         public Quartz.IListenerManager ListenerManager { get; }
         public string SchedulerInstanceId { get; }
         public string SchedulerName { get; }
-        public System.Threading.Tasks.ValueTask AddCalendar(string calendarName, Quartz.ICalendar calendar, bool replace, bool updateTriggers, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask AddJob(Quartz.IJobDetail jobDetail, bool replace, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask AddJob(Quartz.IJobDetail jobDetail, bool replace, bool storeNonDurableWhileAwaitingScheduling, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask AddCalendar(string calendarName, Quartz.ICalendar calendar, Quartz.AddCalendarOptions? options = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask AddJob(Quartz.IJobDetail jobDetail, Quartz.AddJobOptions? options = null, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<bool> CheckExists(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<bool> CheckExists(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask Clear(System.Threading.CancellationToken cancellationToken = default) { }
@@ -2594,18 +2636,17 @@ namespace Quartz.Impl
         public System.Threading.Tasks.ValueTask<Quartz.ExecutionLimits?> GetExecutionLimits(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<Quartz.IJobDetail?> GetJobDetail(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.IJobDetail>> GetJobDetails(System.Collections.Generic.IReadOnlyCollection<Quartz.JobKey> jobKeys, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask<Quartz.SchedulerMetaData> GetMetaData(System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask<Quartz.SchedulerMetadata> GetMetadata(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<Quartz.ITrigger?> GetTrigger(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<Quartz.TriggerState> GetTriggerState(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.ITrigger>> GetTriggers(System.Collections.Generic.IReadOnlyCollection<Quartz.TriggerKey> triggerKeys, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.ITrigger>> GetTriggersOfJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<bool> Interrupt(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask<bool> Interrupt(string fireInstanceId, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask<bool> InterruptFireInstance(string fireInstanceId, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask PauseAll(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask PauseJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask PauseJobs(Quartz.Impl.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask PauseJobs(Quartz.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask PauseTrigger(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask PauseTriggers(Quartz.Impl.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask PauseTriggers(Quartz.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<Quartz.PagedResult<string>> QueryCalendarNames(Quartz.CalendarQuery query, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.JobGroup>> QueryJobGroups(Quartz.JobGroupQuery query, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.JobHeader>> QueryJobs(Quartz.JobQuery query, System.Threading.CancellationToken cancellationToken = default) { }
@@ -2615,21 +2656,19 @@ namespace Quartz.Impl
         public System.Threading.Tasks.ValueTask ResetTriggerFromErrorState(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask ResumeAll(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask ResumeJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask ResumeJobs(Quartz.Impl.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask ResumeJobs(Quartz.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask ResumeTrigger(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask ResumeTriggers(Quartz.Impl.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask ResumeTriggers(Quartz.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<System.DateTimeOffset> ScheduleJob(Quartz.ITrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<System.DateTimeOffset> ScheduleJob(Quartz.IJobDetail jobDetail, Quartz.ITrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask ScheduleJob(Quartz.IJobDetail jobDetail, System.Collections.Generic.IReadOnlyCollection<Quartz.ITrigger> triggersForJob, bool replace, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask ScheduleJobs(System.Collections.Generic.IReadOnlyDictionary<Quartz.IJobDetail, System.Collections.Generic.IReadOnlyCollection<Quartz.ITrigger>> triggersAndJobs, bool replace, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask SetExecutionLimits(Quartz.ExecutionLimits? limits, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask Shutdown(System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask Shutdown(bool waitForJobsToComplete, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask Shutdown(bool waitForJobsToComplete = false, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask Standby(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask Start(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask StartDelayed(System.TimeSpan delay, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask TriggerJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask TriggerJob(Quartz.JobKey jobKey, Quartz.JobDataMap data, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask TriggerJob(Quartz.JobKey jobKey, Quartz.JobDataMap? data = null, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<bool> UnscheduleJob(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<bool> UnscheduleJobs(System.Collections.Generic.IReadOnlyCollection<Quartz.TriggerKey> triggerKeys, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<bool> UpdateTriggerDetails(Quartz.TriggerKey triggerKey, Quartz.TriggerDetailsUpdate update, System.Threading.CancellationToken cancellationToken = default) { }
@@ -2670,19 +2709,6 @@ namespace Quartz.Impl
         public void Put(object key, object objectValue) { }
         public override string ToString() { }
     }
-    [System.Serializable]
-    public sealed class JobType
-    {
-        public JobType(System.Type type) { }
-        public JobType(string fullName) { }
-        public string FullName { get; }
-        public System.Type Type { get; }
-        public override bool Equals(object? obj) { }
-        public override int GetHashCode() { }
-        public override string ToString() { }
-        public static System.Type op_Implicit(Quartz.Impl.JobType jobType) { }
-        public static Quartz.Impl.JobType op_Implicit(string fullName) { }
-    }
     public class MicrosoftDependencyInjectionJobFactory : Quartz.Impl.PropertySettingJobFactory
     {
         public MicrosoftDependencyInjectionJobFactory(System.IServiceProvider serviceProvider) { }
@@ -2710,53 +2736,53 @@ namespace Quartz.Impl
         [Quartz.TimeSpanParseRule(Quartz.TimeSpanParseRule.Milliseconds)]
         public virtual System.TimeSpan MisfireThreshold { get; set; }
         public virtual bool SupportsPersistence { get; }
-        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> AcquireNextTriggers(System.DateTimeOffset noLaterThan, int maxCount, System.TimeSpan timeWindow, System.Collections.Generic.IReadOnlyDictionary<string, int?>? executionLimits = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> AcquireNextTriggers(Quartz.Extensibility.TriggerAcquisitionRequest request, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask AddCalendar(string calendarName, Quartz.ICalendar calendar, Quartz.AddCalendarOptions? options = null, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask AddJob(Quartz.IJobDetail job, bool replace, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask AddTrigger(Quartz.Extensibility.IOperableTrigger trigger, bool replace, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<bool> CheckExists(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<bool> CheckExists(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask ClearAllSchedulingData(System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask Clear(System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<bool> DeleteCalendar(string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<bool> DeleteJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask<bool> DeleteJobs(System.Collections.Generic.IReadOnlyCollection<Quartz.JobKey> jobKeys, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<bool> DeleteTrigger(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
+        protected virtual System.Threading.Tasks.ValueTask<bool> DeleteTrigger(Quartz.TriggerKey key, bool removeOrphanedJob, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask<bool> DeleteTriggers(System.Collections.Generic.IReadOnlyCollection<Quartz.TriggerKey> triggerKeys, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.TimeSpan GetAcquireRetryDelay(int failureCount) { }
+        public virtual System.Threading.Tasks.ValueTask<Quartz.ICalendar?> GetCalendar(string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual string GetFiredTriggerRecordId() { }
+        public virtual System.Threading.Tasks.ValueTask<Quartz.IJobDetail?> GetJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.IJobDetail>> GetJobDetails(System.Collections.Generic.IReadOnlyCollection<Quartz.JobKey> jobKeys, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<Quartz.Extensibility.IOperableTrigger?> GetTrigger(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.TriggerState> GetTriggerState(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> GetTriggers(System.Collections.Generic.IReadOnlyCollection<Quartz.TriggerKey> triggerKeys, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.IOperableTrigger>> GetTriggersForJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask Initialize(System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask PauseAll(System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask PauseJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> PauseJobs(Quartz.Impl.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> PauseJobs(Quartz.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask PauseTrigger(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> PauseTriggers(Quartz.Impl.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> PauseTriggers(Quartz.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.PagedResult<string>> QueryCalendarNames(Quartz.CalendarQuery query, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.JobGroup>> QueryJobGroups(Quartz.JobGroupQuery query, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.JobHeader>> QueryJobs(Quartz.JobQuery query, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.TriggerGroup>> QueryTriggerGroups(Quartz.TriggerGroupQuery query, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<Quartz.PagedResult<Quartz.TriggerHeader>> QueryTriggers(Quartz.TriggerQuery query, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask ReleaseAcquiredTrigger(Quartz.Extensibility.IOperableTrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask<bool> RemoveCalendar(string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask<bool> RemoveJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask<bool> RemoveJobs(System.Collections.Generic.IReadOnlyCollection<Quartz.JobKey> jobKeys, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask<bool> RemoveTrigger(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
-        protected virtual System.Threading.Tasks.ValueTask<bool> RemoveTrigger(Quartz.TriggerKey key, bool removeOrphanedJob, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask<bool> RemoveTriggers(System.Collections.Generic.IReadOnlyCollection<Quartz.TriggerKey> triggerKeys, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<bool> ReplaceTrigger(Quartz.TriggerKey triggerKey, Quartz.Extensibility.IOperableTrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask ResetTriggerFromErrorState(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask ResumeAll(System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask ResumeJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> ResumeJobs(Quartz.Impl.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> ResumeJobs(Quartz.Matchers.GroupMatcher<Quartz.JobKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask ResumeTrigger(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> ResumeTriggers(Quartz.Impl.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask<Quartz.ICalendar?> RetrieveCalendar(string calendarName, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask<Quartz.IJobDetail?> RetrieveJob(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask<Quartz.Extensibility.IOperableTrigger?> RetrieveTrigger(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<string>> ResumeTriggers(Quartz.Matchers.GroupMatcher<Quartz.TriggerKey> matcher, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask ScheduleJob(Quartz.IJobDetail job, Quartz.Extensibility.IOperableTrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask ScheduleJobs(System.Collections.Generic.IReadOnlyDictionary<Quartz.IJobDetail, System.Collections.Generic.IReadOnlyCollection<Quartz.ITrigger>> triggersAndJobs, bool replace, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask SchedulerPaused(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask SchedulerResumed(System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask SchedulerStarted(System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask Shutdown(System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask StoreCalendar(string calendarName, Quartz.ICalendar calendar, bool replaceExisting, bool updateTriggers, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask StoreJob(Quartz.IJobDetail job, bool replaceExisting, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask StoreJobAndTrigger(Quartz.IJobDetail job, Quartz.Extensibility.IOperableTrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask StoreJobsAndTriggers(System.Collections.Generic.IReadOnlyDictionary<Quartz.IJobDetail, System.Collections.Generic.IReadOnlyCollection<Quartz.ITrigger>> triggersAndJobs, bool replace, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask StoreTrigger(Quartz.Extensibility.IOperableTrigger trigger, bool replaceExisting, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask TriggeredJobComplete(Quartz.Extensibility.IOperableTrigger trigger, Quartz.IJobDetail jobDetail, Quartz.SchedulerInstruction triggerInstructionCode, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.Extensibility.TriggerFiredResult>> TriggersFired(System.Collections.Generic.IReadOnlyCollection<Quartz.Extensibility.IOperableTrigger> triggers, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<bool> UpdateTriggerDetails(Quartz.TriggerKey triggerKey, Quartz.TriggerDetailsUpdate update, System.Threading.CancellationToken cancellationToken = default) { }
@@ -2764,14 +2790,11 @@ namespace Quartz.Impl
     public sealed class SchedulerRepository : Quartz.Extensibility.ISchedulerRepository
     {
         public SchedulerRepository() { }
-        public void Bind(Quartz.IScheduler scheduler) { }
-        public void Bind(Quartz.IScheduler scheduler, string instanceId) { }
-        public Quartz.IScheduler? Lookup(string schedulerName) { }
-        public Quartz.IScheduler? Lookup(string schedulerName, string instanceId) { }
+        public void Bind(Quartz.IScheduler scheduler, string? instanceId = null) { }
+        public Quartz.IScheduler? Lookup(string schedulerName, string? instanceId = null) { }
         public System.Collections.Generic.List<Quartz.IScheduler> LookupAll() { }
         public System.Collections.Generic.List<Quartz.IScheduler> LookupByName(string schedulerName) { }
-        public void Remove(string schedulerName) { }
-        public bool Remove(string schedulerName, string instanceId) { }
+        public bool Remove(string schedulerName, string? instanceId = null) { }
     }
     public class SimpleJobFactory : Quartz.Extensibility.IJobFactory
     {
@@ -2878,112 +2901,6 @@ namespace Quartz.Impl
         public System.Threading.Tasks.ValueTask Shutdown(bool waitForJobsToComplete = true, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<bool> TryRun(System.Func<System.Threading.Tasks.Task> action, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<int> WaitForAvailableThreads(System.Threading.CancellationToken cancellationToken = default) { }
-    }
-}
-namespace Quartz.Impl.Matchers
-{
-    [System.Serializable]
-    public sealed class AndMatcher<TKey> : Quartz.IMatcher<TKey>
-        where TKey : Quartz.Util.Key<TKey>
-    {
-        public Quartz.IMatcher<TKey> LeftOperand { get; }
-        public Quartz.IMatcher<TKey> RightOperand { get; }
-        public override bool Equals(object? obj) { }
-        public override int GetHashCode() { }
-        public bool IsMatch(TKey key) { }
-        public static Quartz.Impl.Matchers.AndMatcher<T> And<T>(Quartz.IMatcher<T> leftOperand, Quartz.IMatcher<T> rightOperand)
-            where T : Quartz.Util.Key<T> { }
-    }
-    public sealed class EverythingMatcher<TKey> : Quartz.IMatcher<TKey>
-        where TKey : Quartz.Util.Key<TKey>
-    {
-        public override bool Equals(object? obj) { }
-        public override int GetHashCode() { }
-        public bool IsMatch(TKey key) { }
-        public static Quartz.Impl.Matchers.EverythingMatcher<Quartz.JobKey> AllJobs() { }
-        public static Quartz.Impl.Matchers.EverythingMatcher<Quartz.TriggerKey> AllTriggers() { }
-    }
-    [System.Serializable]
-    public sealed class GroupMatcher<TKey> : Quartz.Impl.Matchers.StringMatcher<TKey>
-        where TKey : Quartz.Util.Key<TKey>
-    {
-        protected override string GetValue(TKey key) { }
-        public static Quartz.Impl.Matchers.GroupMatcher<TKey> AnyGroup() { }
-        public static Quartz.Impl.Matchers.GroupMatcher<TKey> GroupContains(string compareTo) { }
-        public static Quartz.Impl.Matchers.GroupMatcher<TKey> GroupEndsWith(string compareTo) { }
-        public static Quartz.Impl.Matchers.GroupMatcher<TKey> GroupEquals(string compareTo) { }
-        public static Quartz.Impl.Matchers.GroupMatcher<TKey> GroupStartsWith(string compareTo) { }
-    }
-    [System.Serializable]
-    public sealed class KeyMatcher<TKey> : Quartz.IMatcher<TKey>
-        where TKey : Quartz.Util.Key<TKey>
-    {
-        public TKey CompareToValue { get; }
-        public override bool Equals(object? obj) { }
-        public override int GetHashCode() { }
-        public bool IsMatch(TKey key) { }
-        public static Quartz.Impl.Matchers.KeyMatcher<T> KeyEquals<T>(T compareTo)
-            where T : Quartz.Util.Key<T> { }
-    }
-    [System.Serializable]
-    public sealed class NameMatcher<TKey> : Quartz.Impl.Matchers.StringMatcher<TKey>
-        where TKey : Quartz.Util.Key<TKey>
-    {
-        protected override string GetValue(TKey key) { }
-        public static Quartz.Impl.Matchers.NameMatcher<TKey> NameContains(string compareTo) { }
-        public static Quartz.Impl.Matchers.NameMatcher<TKey> NameEndsWith(string compareTo) { }
-        public static Quartz.Impl.Matchers.NameMatcher<TKey> NameEquals(string compareTo) { }
-        public static Quartz.Impl.Matchers.NameMatcher<TKey> NameStartsWith(string compareTo) { }
-    }
-    [System.Serializable]
-    public sealed class NotMatcher<TKey> : Quartz.IMatcher<TKey>
-        where TKey : Quartz.Util.Key<TKey>
-    {
-        public Quartz.IMatcher<TKey> Operand { get; }
-        public override bool Equals(object? obj) { }
-        public override int GetHashCode() { }
-        public bool IsMatch(TKey key) { }
-        public static Quartz.Impl.Matchers.NotMatcher<T> Not<T>(Quartz.IMatcher<T> operand)
-            where T : Quartz.Util.Key<T> { }
-    }
-    [System.Serializable]
-    public sealed class OrMatcher<TKey> : Quartz.IMatcher<TKey>
-        where TKey : Quartz.Util.Key<TKey>
-    {
-        public Quartz.IMatcher<TKey> LeftOperand { get; }
-        public Quartz.IMatcher<TKey> RightOperand { get; }
-        public override bool Equals(object? obj) { }
-        public override int GetHashCode() { }
-        public bool IsMatch(TKey key) { }
-        public static Quartz.Impl.Matchers.OrMatcher<T> Or<T>(Quartz.IMatcher<T> leftOperand, Quartz.IMatcher<T> rightOperand)
-            where T : Quartz.Util.Key<T> { }
-    }
-    [System.Serializable]
-    public abstract class StringMatcher<TKey> : Quartz.IMatcher<TKey>
-        where TKey : Quartz.Util.Key<TKey>
-    {
-        protected StringMatcher(string compareTo, Quartz.Impl.Matchers.StringOperator compareWith) { }
-        public string CompareToValue { get; }
-        public Quartz.Impl.Matchers.StringOperator CompareWithOperator { get; }
-        public override bool Equals(object? obj) { }
-        public override int GetHashCode() { }
-        protected abstract string GetValue(TKey key);
-        public bool IsMatch(TKey key) { }
-        public override string ToString() { }
-    }
-    [System.Serializable]
-    public abstract class StringOperator : System.IEquatable<Quartz.Impl.Matchers.StringOperator>
-    {
-        public static readonly Quartz.Impl.Matchers.StringOperator Anything;
-        public static readonly Quartz.Impl.Matchers.StringOperator Contains;
-        public static readonly Quartz.Impl.Matchers.StringOperator EndsWith;
-        public static readonly Quartz.Impl.Matchers.StringOperator Equality;
-        public static readonly Quartz.Impl.Matchers.StringOperator StartsWith;
-        protected StringOperator() { }
-        public virtual bool Equals(Quartz.Impl.Matchers.StringOperator? other) { }
-        public override bool Equals(object? obj) { }
-        public abstract bool Evaluate(string value, string compareTo);
-        public override int GetHashCode() { }
     }
 }
 namespace Quartz.Impl.Triggers
@@ -3194,8 +3111,8 @@ namespace Quartz.Listener
 {
     public sealed class BroadcastJobListener : Quartz.IJobListener
     {
-        public BroadcastJobListener(Microsoft.Extensions.Logging.ILogger<Quartz.Listener.BroadcastJobListener> logger, string name) { }
-        public BroadcastJobListener(Microsoft.Extensions.Logging.ILogger<Quartz.Listener.BroadcastJobListener> logger, string name, System.Collections.Generic.IReadOnlyCollection<Quartz.IJobListener> listeners) { }
+        public BroadcastJobListener(string name) { }
+        public BroadcastJobListener(string name, System.Collections.Generic.IReadOnlyCollection<Quartz.IJobListener> listeners) { }
         public System.Collections.Generic.IReadOnlyList<Quartz.IJobListener> Listeners { get; }
         public string Name { get; }
         public void AddListener(Quartz.IJobListener listener) { }
@@ -3207,9 +3124,10 @@ namespace Quartz.Listener
     }
     public sealed class BroadcastSchedulerListener : Quartz.ISchedulerListener
     {
-        public BroadcastSchedulerListener() { }
-        public BroadcastSchedulerListener(System.Collections.Generic.IReadOnlyCollection<Quartz.ISchedulerListener> listeners) { }
+        public BroadcastSchedulerListener(string name) { }
+        public BroadcastSchedulerListener(string name, System.Collections.Generic.IReadOnlyCollection<Quartz.ISchedulerListener> listeners) { }
         public System.Collections.Generic.IReadOnlyList<Quartz.ISchedulerListener> Listeners { get; }
+        public string Name { get; }
         public void AddListener(Quartz.ISchedulerListener listener) { }
         public System.Threading.Tasks.ValueTask JobAdded(Quartz.IJobDetail jobDetail, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask JobDeleted(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
@@ -3218,9 +3136,10 @@ namespace Quartz.Listener
         public System.Threading.Tasks.ValueTask JobResumed(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask JobScheduled(Quartz.ITrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask JobUnscheduled(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask JobsPaused(string jobGroup, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask JobsResumed(string jobGroup, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask JobsPaused(string? jobGroup, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask JobsResumed(string? jobGroup, System.Threading.CancellationToken cancellationToken = default) { }
         public bool RemoveListener(Quartz.ISchedulerListener listener) { }
+        public bool RemoveListener(string listenerName) { }
         public System.Threading.Tasks.ValueTask SchedulerError(string message, Quartz.SchedulerException exception, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask SchedulerInStandbyMode(System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask SchedulerShutdown(System.Threading.CancellationToken cancellationToken = default) { }
@@ -3266,6 +3185,7 @@ namespace Quartz.Listener
     public abstract class SchedulerListenerSupport : Quartz.ISchedulerListener
     {
         protected SchedulerListenerSupport() { }
+        public virtual string Name { get; }
         public virtual System.Threading.Tasks.ValueTask JobAdded(Quartz.IJobDetail jobDetail, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask JobDeleted(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask JobInterrupted(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
@@ -3273,8 +3193,8 @@ namespace Quartz.Listener
         public virtual System.Threading.Tasks.ValueTask JobResumed(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask JobScheduled(Quartz.ITrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask JobUnscheduled(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask JobsPaused(string jobGroup, System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask JobsResumed(string jobGroup, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask JobsPaused(string? jobGroup, System.Threading.CancellationToken cancellationToken = default) { }
+        public virtual System.Threading.Tasks.ValueTask JobsResumed(string? jobGroup, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask SchedulerError(string message, Quartz.SchedulerException exception, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask SchedulerInStandbyMode(System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask SchedulerShutdown(System.Threading.CancellationToken cancellationToken = default) { }
@@ -3296,6 +3216,113 @@ namespace Quartz.Listener
         public virtual System.Threading.Tasks.ValueTask TriggerFired(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask TriggerMisfired(Quartz.ITrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask<bool> VetoJobExecution(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+}
+namespace Quartz.Matchers
+{
+    [System.Serializable]
+    public sealed class AndMatcher<TKey> : Quartz.IMatcher<TKey>
+        where TKey : Quartz.Key<TKey>
+    {
+        public Quartz.IMatcher<TKey> LeftOperand { get; }
+        public Quartz.IMatcher<TKey> RightOperand { get; }
+        public override bool Equals(object? obj) { }
+        public override int GetHashCode() { }
+        public bool IsMatch(TKey key) { }
+        public static Quartz.Matchers.AndMatcher<T> And<T>(Quartz.IMatcher<T> leftOperand, Quartz.IMatcher<T> rightOperand)
+            where T : Quartz.Key<T> { }
+    }
+    public sealed class EverythingMatcher<TKey> : Quartz.IMatcher<TKey>
+        where TKey : Quartz.Key<TKey>
+    {
+        public override bool Equals(object? obj) { }
+        public override int GetHashCode() { }
+        public bool IsMatch(TKey key) { }
+        public static Quartz.Matchers.EverythingMatcher<Quartz.JobKey> AllJobs() { }
+        public static Quartz.Matchers.EverythingMatcher<Quartz.TriggerKey> AllTriggers() { }
+    }
+    [System.Serializable]
+    public sealed class GroupMatcher<TKey> : Quartz.Matchers.StringMatcher<TKey>
+        where TKey : Quartz.Key<TKey>
+    {
+        protected override string GetValue(TKey key) { }
+        public static Quartz.Matchers.GroupMatcher<TKey> AnyGroup() { }
+        public static Quartz.Matchers.GroupMatcher<TKey> GroupContains(string compareTo) { }
+        public static Quartz.Matchers.GroupMatcher<TKey> GroupEndsWith(string compareTo) { }
+        public static Quartz.Matchers.GroupMatcher<TKey> GroupEquals(string compareTo) { }
+        public static Quartz.Matchers.GroupMatcher<TKey> GroupStartsWith(string compareTo) { }
+    }
+    [System.Serializable]
+    public sealed class KeyMatcher<TKey> : Quartz.IMatcher<TKey>
+        where TKey : Quartz.Key<TKey>
+    {
+        public TKey CompareToValue { get; }
+        public override bool Equals(object? obj) { }
+        public override int GetHashCode() { }
+        public bool IsMatch(TKey key) { }
+        public static Quartz.Matchers.KeyMatcher<T> KeyEquals<T>(T compareTo)
+            where T : Quartz.Key<T> { }
+    }
+    [System.Serializable]
+    public sealed class NameMatcher<TKey> : Quartz.Matchers.StringMatcher<TKey>
+        where TKey : Quartz.Key<TKey>
+    {
+        protected override string GetValue(TKey key) { }
+        public static Quartz.Matchers.NameMatcher<TKey> AnyName() { }
+        public static Quartz.Matchers.NameMatcher<TKey> NameContains(string compareTo) { }
+        public static Quartz.Matchers.NameMatcher<TKey> NameEndsWith(string compareTo) { }
+        public static Quartz.Matchers.NameMatcher<TKey> NameEquals(string compareTo) { }
+        public static Quartz.Matchers.NameMatcher<TKey> NameStartsWith(string compareTo) { }
+    }
+    [System.Serializable]
+    public sealed class NotMatcher<TKey> : Quartz.IMatcher<TKey>
+        where TKey : Quartz.Key<TKey>
+    {
+        public Quartz.IMatcher<TKey> Operand { get; }
+        public override bool Equals(object? obj) { }
+        public override int GetHashCode() { }
+        public bool IsMatch(TKey key) { }
+        public static Quartz.Matchers.NotMatcher<T> Not<T>(Quartz.IMatcher<T> operand)
+            where T : Quartz.Key<T> { }
+    }
+    [System.Serializable]
+    public sealed class OrMatcher<TKey> : Quartz.IMatcher<TKey>
+        where TKey : Quartz.Key<TKey>
+    {
+        public Quartz.IMatcher<TKey> LeftOperand { get; }
+        public Quartz.IMatcher<TKey> RightOperand { get; }
+        public override bool Equals(object? obj) { }
+        public override int GetHashCode() { }
+        public bool IsMatch(TKey key) { }
+        public static Quartz.Matchers.OrMatcher<T> Or<T>(Quartz.IMatcher<T> leftOperand, Quartz.IMatcher<T> rightOperand)
+            where T : Quartz.Key<T> { }
+    }
+    [System.Serializable]
+    public abstract class StringMatcher<TKey> : Quartz.IMatcher<TKey>
+        where TKey : Quartz.Key<TKey>
+    {
+        protected StringMatcher(string compareTo, Quartz.Matchers.StringOperator compareWith) { }
+        public string CompareToValue { get; }
+        public Quartz.Matchers.StringOperator CompareWithOperator { get; }
+        public override bool Equals(object? obj) { }
+        public override int GetHashCode() { }
+        protected abstract string GetValue(TKey key);
+        public bool IsMatch(TKey key) { }
+        public override string ToString() { }
+    }
+    [System.Serializable]
+    public abstract class StringOperator : System.IEquatable<Quartz.Matchers.StringOperator>
+    {
+        public static readonly Quartz.Matchers.StringOperator Anything;
+        public static readonly Quartz.Matchers.StringOperator Contains;
+        public static readonly Quartz.Matchers.StringOperator EndsWith;
+        public static readonly Quartz.Matchers.StringOperator Equality;
+        public static readonly Quartz.Matchers.StringOperator StartsWith;
+        protected StringOperator() { }
+        public virtual bool Equals(Quartz.Matchers.StringOperator? other) { }
+        public override bool Equals(object? obj) { }
+        public abstract bool Evaluate(string value, string compareTo);
+        public override int GetHashCode() { }
     }
 }
 namespace Quartz.Serialization.Json.Calendars
@@ -3330,13 +3357,13 @@ namespace Quartz.Serialization.Json
 }
 namespace Quartz.Serialization.Json.Triggers
 {
-    public class CalendarIntervalTriggerSerializer : Quartz.Serialization.Json.Triggers.TriggerSerializer<Quartz.ICalendarIntervalTrigger>
+    public class CalendarIntervalTriggerSerializer : Quartz.Serialization.Json.Triggers.TriggerSerializer<Quartz.Impl.Triggers.CalendarIntervalTriggerImpl>
     {
         public CalendarIntervalTriggerSerializer() { }
         public override string TriggerTypeForJson { get; }
         public override Quartz.IScheduleBuilder CreateScheduleBuilder(System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
-        protected override void DeserializeFields(Quartz.ICalendarIntervalTrigger trigger, System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
-        protected override void SerializeFields(System.Text.Json.Utf8JsonWriter writer, Quartz.ICalendarIntervalTrigger trigger, System.Text.Json.JsonSerializerOptions options) { }
+        protected override void DeserializeFields(Quartz.Impl.Triggers.CalendarIntervalTriggerImpl trigger, System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
+        protected override void SerializeFields(System.Text.Json.Utf8JsonWriter writer, Quartz.Impl.Triggers.CalendarIntervalTriggerImpl trigger, System.Text.Json.JsonSerializerOptions options) { }
     }
     public class CronTriggerSerializer : Quartz.Serialization.Json.Triggers.TriggerSerializer<Quartz.ICronTrigger>
     {
@@ -3345,13 +3372,13 @@ namespace Quartz.Serialization.Json.Triggers
         public override Quartz.IScheduleBuilder CreateScheduleBuilder(System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
         protected override void SerializeFields(System.Text.Json.Utf8JsonWriter writer, Quartz.ICronTrigger trigger, System.Text.Json.JsonSerializerOptions options) { }
     }
-    public class DailyTimeIntervalTriggerSerializer : Quartz.Serialization.Json.Triggers.TriggerSerializer<Quartz.IDailyTimeIntervalTrigger>
+    public class DailyTimeIntervalTriggerSerializer : Quartz.Serialization.Json.Triggers.TriggerSerializer<Quartz.Impl.Triggers.DailyTimeIntervalTriggerImpl>
     {
         public DailyTimeIntervalTriggerSerializer() { }
         public override string TriggerTypeForJson { get; }
         public override Quartz.IScheduleBuilder CreateScheduleBuilder(System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
-        protected override void DeserializeFields(Quartz.IDailyTimeIntervalTrigger trigger, System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
-        protected override void SerializeFields(System.Text.Json.Utf8JsonWriter writer, Quartz.IDailyTimeIntervalTrigger trigger, System.Text.Json.JsonSerializerOptions options) { }
+        protected override void DeserializeFields(Quartz.Impl.Triggers.DailyTimeIntervalTriggerImpl trigger, System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
+        protected override void SerializeFields(System.Text.Json.Utf8JsonWriter writer, Quartz.Impl.Triggers.DailyTimeIntervalTriggerImpl trigger, System.Text.Json.JsonSerializerOptions options) { }
     }
     public interface ITriggerSerializer
     {
@@ -3360,21 +3387,21 @@ namespace Quartz.Serialization.Json.Triggers
         void DeserializeFields(Quartz.ITrigger trigger, System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options);
         void SerializeFields(System.Text.Json.Utf8JsonWriter writer, Quartz.ITrigger trigger, System.Text.Json.JsonSerializerOptions options);
     }
-    public sealed class RecurrenceTriggerSerializer : Quartz.Serialization.Json.Triggers.TriggerSerializer<Quartz.IRecurrenceTrigger>
+    public sealed class RecurrenceTriggerSerializer : Quartz.Serialization.Json.Triggers.TriggerSerializer<Quartz.Impl.Triggers.RecurrenceTriggerImpl>
     {
         public RecurrenceTriggerSerializer() { }
         public override string TriggerTypeForJson { get; }
         public override Quartz.IScheduleBuilder CreateScheduleBuilder(System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
-        protected override void DeserializeFields(Quartz.IRecurrenceTrigger trigger, System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
-        protected override void SerializeFields(System.Text.Json.Utf8JsonWriter writer, Quartz.IRecurrenceTrigger trigger, System.Text.Json.JsonSerializerOptions options) { }
+        protected override void DeserializeFields(Quartz.Impl.Triggers.RecurrenceTriggerImpl trigger, System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
+        protected override void SerializeFields(System.Text.Json.Utf8JsonWriter writer, Quartz.Impl.Triggers.RecurrenceTriggerImpl trigger, System.Text.Json.JsonSerializerOptions options) { }
     }
-    public class SimpleTriggerSerializer : Quartz.Serialization.Json.Triggers.TriggerSerializer<Quartz.ISimpleTrigger>
+    public class SimpleTriggerSerializer : Quartz.Serialization.Json.Triggers.TriggerSerializer<Quartz.Impl.Triggers.SimpleTriggerImpl>
     {
         public SimpleTriggerSerializer() { }
         public override string TriggerTypeForJson { get; }
         public override Quartz.IScheduleBuilder CreateScheduleBuilder(System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
-        protected override void DeserializeFields(Quartz.ISimpleTrigger trigger, System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
-        protected override void SerializeFields(System.Text.Json.Utf8JsonWriter writer, Quartz.ISimpleTrigger trigger, System.Text.Json.JsonSerializerOptions options) { }
+        protected override void DeserializeFields(Quartz.Impl.Triggers.SimpleTriggerImpl trigger, System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
+        protected override void SerializeFields(System.Text.Json.Utf8JsonWriter writer, Quartz.Impl.Triggers.SimpleTriggerImpl trigger, System.Text.Json.JsonSerializerOptions options) { }
     }
     public abstract class TriggerSerializer<TTrigger> : Quartz.Serialization.Json.Triggers.ITriggerSerializer
         where TTrigger : Quartz.ITrigger
@@ -3432,26 +3459,6 @@ namespace Quartz.Util
         Quartz.Impl.AdoJobStore.Common.DbMetadata GetDbMetadata(string dataSourceName);
         Quartz.Impl.AdoJobStore.Common.IDbProvider GetDbProvider(string dataSourceName);
         void Shutdown(string dataSourceName);
-    }
-    [System.Serializable]
-    public class Key<T> : System.IComparable<Quartz.Util.Key<T>>
-    {
-        public const string DefaultGroup = "DEFAULT";
-        protected Key() { }
-        public Key(string name) { }
-        public Key(string name, string group) { }
-        public virtual string Group { get; set; }
-        public virtual string Name { get; set; }
-        public int CompareTo(Quartz.Util.Key<T>? other) { }
-        public override bool Equals(object? obj) { }
-        public override int GetHashCode() { }
-        public override string ToString() { }
-        public static bool operator !=(Quartz.Util.Key<T>? left, Quartz.Util.Key<T>? right) { }
-        public static bool operator <(Quartz.Util.Key<T> left, Quartz.Util.Key<T> right) { }
-        public static bool operator <=(Quartz.Util.Key<T> left, Quartz.Util.Key<T> right) { }
-        public static bool operator ==(Quartz.Util.Key<T>? left, Quartz.Util.Key<T>? right) { }
-        public static bool operator >(Quartz.Util.Key<T> left, Quartz.Util.Key<T> right) { }
-        public static bool operator >=(Quartz.Util.Key<T> left, Quartz.Util.Key<T> right) { }
     }
     public static class ObjectExtensions
     {

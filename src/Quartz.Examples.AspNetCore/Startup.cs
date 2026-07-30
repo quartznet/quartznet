@@ -18,7 +18,7 @@ using OpenTelemetry.Trace;
 using Quartz.AspNetCore;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Calendar;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Plugin.History;
 using Quartz.Plugin.Interrupt;
 

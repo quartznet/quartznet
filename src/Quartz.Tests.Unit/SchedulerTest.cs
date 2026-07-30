@@ -2,7 +2,7 @@ using System.Collections.Specialized;
 using System.Diagnostics;
 
 using Quartz.Impl;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Job;
 using Quartz.Extensibility;
 
@@ -121,7 +121,7 @@ public class SchedulerTest
         var exists = await scheduler.CheckExists(new JobKey("j1"));
         Assert.That(exists, Is.False, "Unexpected existence of job named 'j1'.");
 
-        await scheduler.AddJob(job, false);
+        await scheduler.AddJob(job);
 
         exists = await scheduler.CheckExists(new JobKey("j1"));
         Assert.That(exists, Is.True, "Expected existence of job named 'j1' but checkExists return false.");

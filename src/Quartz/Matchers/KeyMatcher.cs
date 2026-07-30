@@ -21,53 +21,49 @@
 
 using Quartz.Util;
 
-namespace Quartz.Impl.Matchers;
+namespace Quartz.Matchers;
 
 /// <summary>
-/// Matches using an NOT operator on another Matcher.
+/// Matches on the complete key being equal (both name and group).
 /// </summary>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public sealed class NotMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
+public sealed class KeyMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
 {
     // ReSharper disable once UnusedMember.Local
-    private NotMatcher()
+    private KeyMatcher()
     {
     }
 
-    private NotMatcher(IMatcher<TKey> operand)
+    private KeyMatcher(TKey compareTo)
     {
-        if (operand is null)
-        {
-            Throw.ArgumentNullException(nameof(operand), "Non-null operand required!");
-        }
-        Operand = operand;
+        CompareToValue = compareTo;
     }
 
     /// <summary>
-    /// Create a NotMatcher that reverses the result of the given matcher.
+    /// Create a KeyMatcher that matches Keys that equal the given key.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    /// <param name="operand"></param>
+    /// <param name="compareTo"></param>
     /// <returns></returns>
-    public static NotMatcher<T> Not<T>(IMatcher<T> operand) where T : Key<T>
+    public static KeyMatcher<T> KeyEquals<T>(T compareTo) where T : Key<T>
     {
-        return new NotMatcher<T>(operand);
+        return new KeyMatcher<T>(compareTo);
     }
 
     public bool IsMatch(TKey key)
     {
-        return !Operand.IsMatch(key);
+        return CompareToValue.Equals(key);
     }
 
-    public IMatcher<TKey> Operand { get; private set; } = null!;
+    public TKey CompareToValue { get; private set; } = null!;
 
     public override int GetHashCode()
     {
         const int Prime = 31;
         int result = 1;
-        result = Prime * result + (Operand is null ? 0 : Operand.GetHashCode());
+        result = Prime * result + (CompareToValue is null ? 0 : CompareToValue.GetHashCode());
         return result;
     }
 
@@ -85,15 +81,15 @@ public sealed class NotMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
         {
             return false;
         }
-        NotMatcher<TKey> other = (NotMatcher<TKey>) obj;
-        if (Operand is null)
+        KeyMatcher<TKey> other = (KeyMatcher<TKey>) obj;
+        if (CompareToValue is null)
         {
-            if (other.Operand is not null)
+            if (other.CompareToValue is not null)
             {
                 return false;
             }
         }
-        else if (!Operand.Equals(other.Operand))
+        else if (!CompareToValue.Equals(other.CompareToValue))
         {
             return false;
         }

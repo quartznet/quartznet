@@ -21,7 +21,7 @@
 
 using Quartz.Util;
 
-namespace Quartz.Impl.Matchers;
+namespace Quartz.Matchers;
 
 /// <summary>
 /// Matches on group (ignores name) property of Keys.

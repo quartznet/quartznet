@@ -25,7 +25,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Job;
 using Quartz.Util;
 
@@ -468,7 +468,7 @@ public class AdoJobStorePagingTest
     {
         foreach (IScheduler scheduler in createdSchedulers)
         {
-            await scheduler.Shutdown(CancellationToken.None);
+            await scheduler.Shutdown();
         }
 
         createdSchedulers.Clear();

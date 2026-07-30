@@ -1,8 +1,10 @@
 using System.Text.Json;
 
+using Quartz.Impl.Triggers;
+
 namespace Quartz.Serialization.Json.Triggers;
 
-public class CalendarIntervalTriggerSerializer : TriggerSerializer<ICalendarIntervalTrigger>
+public class CalendarIntervalTriggerSerializer : TriggerSerializer<CalendarIntervalTriggerImpl>
 {
     public override string TriggerTypeForJson => "CalendarIntervalTrigger";
 
@@ -21,7 +23,7 @@ public class CalendarIntervalTriggerSerializer : TriggerSerializer<ICalendarInte
             .SkipDayIfHourDoesNotExist(skipDayIfHourDoesNotExist);
     }
 
-    protected override void SerializeFields(Utf8JsonWriter writer, ICalendarIntervalTrigger trigger, JsonSerializerOptions options)
+    protected override void SerializeFields(Utf8JsonWriter writer, CalendarIntervalTriggerImpl trigger, JsonSerializerOptions options)
     {
         writer.WriteNumber(options.GetPropertyName("RepeatInterval"), trigger.RepeatInterval);
         writer.WriteEnum(options.GetPropertyName("RepeatIntervalUnit"), trigger.RepeatIntervalUnit);
@@ -31,7 +33,7 @@ public class CalendarIntervalTriggerSerializer : TriggerSerializer<ICalendarInte
         writer.WriteNumber(options.GetPropertyName("TimesTriggered"), trigger.TimesTriggered);
     }
 
-    protected override void DeserializeFields(ICalendarIntervalTrigger trigger, JsonElement jsonElement, JsonSerializerOptions options)
+    protected override void DeserializeFields(CalendarIntervalTriggerImpl trigger, JsonElement jsonElement, JsonSerializerOptions options)
     {
         // This property might not exist in the JSON if trigger was serialized with older version
         var timesTriggered = jsonElement.GetPropertyOrNull(options.GetPropertyName("TimesTriggered"))?.GetInt32();

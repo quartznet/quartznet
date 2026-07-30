@@ -3,7 +3,7 @@ using System.Reflection;
 
 using Quartz.Util;
 
-namespace Quartz.Impl;
+namespace Quartz;
 
 /// <summary>
 /// Store the Job Type and FullName for serialization
@@ -46,7 +46,7 @@ public sealed class JobType
     /// Job Type declaration
     /// </summary>
     /// <param name="type">The Job Type</param>
-    /// <exception cref="ArgumentException"><paramref name="type"/> is not assignable from  <see cref="Quartz.IJob"/></exception>
+    /// <exception cref="ArgumentException"><paramref name="type"/> is not assignable from  <see cref="IJob"/></exception>
     /// <exception cref="ArgumentNullException"><paramref name="type"/> is <see langword="null" /></exception>
     public JobType(Type type)
     {

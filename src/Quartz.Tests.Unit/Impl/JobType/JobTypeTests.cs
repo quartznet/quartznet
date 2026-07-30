@@ -6,7 +6,7 @@ public class JobTypeTests
     [Test]
     public void JobTypeMustImplementIJob()
     {
-        Action act = () => new Quartz.Impl.JobType(typeof(ClassDoesNotImplementIJob));
+        Action act = () => new global::Quartz.JobType(typeof(ClassDoesNotImplementIJob));
 
         act.Should().Throw<ArgumentException>().WithMessage("Job type must implement Quartz.IJob interface*");
     }
@@ -15,7 +15,7 @@ public class JobTypeTests
     public void ConstructUnknownJobTypeName()
     {
         const string jobTypeFullName = "Library.UnknownType";
-        var jobType = new Quartz.Impl.JobType(jobTypeFullName);
+        var jobType = new global::Quartz.JobType(jobTypeFullName);
         jobType.FullName.Should().Be(jobTypeFullName);
     }
 
@@ -23,7 +23,7 @@ public class JobTypeTests
     public void ConstructUnknownJobTypeByName_WillThrowOnTypeResolve()
     {
         const string jobTypeFullName = "Library.UnknownType";
-        var jobType = new Quartz.Impl.JobType(jobTypeFullName);
+        var jobType = new global::Quartz.JobType(jobTypeFullName);
         jobType.FullName.Should().Be(jobTypeFullName);
 
         jobType.Invoking(jt => jt.Type)
@@ -34,7 +34,7 @@ public class JobTypeTests
     public void ConstructWithNameWillReturnType()
     {
         var typeFullName = typeof(LoggerJob).AssemblyQualifiedName;
-        var jobType = new Quartz.Impl.JobType(typeFullName);
+        var jobType = new global::Quartz.JobType(typeFullName);
         jobType.Type.FullName.Should().Be(typeof(LoggerJob).FullName);
     }
 

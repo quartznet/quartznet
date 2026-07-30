@@ -1,0 +1,49 @@
+#region License
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ */
+#endregion
+
+using Quartz.Extensibility;
+
+namespace Quartz;
+
+/// <summary>
+/// How a job is added to the scheduler when it is stored without a trigger.
+/// </summary>
+/// <remarks>
+/// Defaults are the conservative ones: nothing is replaced, and a non-durable job is rejected.
+/// </remarks>
+/// <seealso cref="IScheduler.AddJob" />
+public sealed record AddJobOptions
+{
+    /// <summary>
+    /// Whether an already stored job with the same key is over-written. When false, storing a job
+    /// whose key already exists throws <see cref="ObjectAlreadyExistsException" />.
+    /// </summary>
+    public bool Replace { get; init; }
+
+    /// <summary>
+    /// Whether a job that is not durable may be stored while it is still awaiting a trigger.
+    /// Once such a job is scheduled it resumes normal non-durable behaviour, i.e. it is deleted
+    /// as soon as it has no remaining triggers.
+    /// </summary>
+    /// <remarks>
+    /// This is a scheduler-level concern only: <see cref="IJobStore.AddJob" /> stores whatever it
+    /// is given, and the durability rule is enforced by <see cref="IScheduler" /> above it.
+    /// </remarks>
+    public bool StoreNonDurableWhileAwaitingScheduling { get; init; }
+}

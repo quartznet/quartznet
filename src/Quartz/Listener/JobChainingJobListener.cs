@@ -102,7 +102,7 @@ public sealed class JobChainingJobListener : JobListenerSupport
 
         try
         {
-            await context.Scheduler.TriggerJob(sj, cancellationToken).ConfigureAwait(false);
+            await context.Scheduler.TriggerJob(sj, cancellationToken: cancellationToken).ConfigureAwait(false);
         }
         catch (SchedulerException se)
         {

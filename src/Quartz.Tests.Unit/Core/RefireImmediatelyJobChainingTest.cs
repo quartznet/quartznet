@@ -53,7 +53,7 @@ public sealed class RefireImmediatelyJobChainingTest
                 .StoreDurably()
                 .Build();
 
-            await scheduler.AddJob(chainedJob, true);
+            await scheduler.AddJob(chainedJob, new AddJobOptions { Replace = true });
             await scheduler.ScheduleJob(refireJob, refireTrigger);
 
             await scheduler.Start();

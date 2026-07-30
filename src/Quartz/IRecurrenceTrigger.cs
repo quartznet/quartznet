@@ -32,5 +32,5 @@ public interface IRecurrenceTrigger : ITrigger
     /// <summary>
     /// The number of times this trigger has already fired.
     /// </summary>
-    int TimesTriggered { get; set; }
+    int TimesTriggered { get; }
 }

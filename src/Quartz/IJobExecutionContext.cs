@@ -125,7 +125,7 @@ public interface IJobExecutionContext
     /// JobExecutionContext instance as well.
     /// </summary>
     ///  <returns>the unique fire instance id</returns>
-    /// <seealso cref="IScheduler.Interrupt(System.String, System.Threading.CancellationToken)" />
+    /// <seealso cref="IScheduler.InterruptFireInstance(System.String, System.Threading.CancellationToken)" />
     string FireInstanceId { get; }
 
     /// <summary>
@@ -188,7 +188,7 @@ public interface IJobExecutionContext
     /// <summary>
     /// Returns the cancellation token which will be cancelled when the job cancellation has been requested via
     /// <see cref="IScheduler.Interrupt(Quartz.JobKey, System.Threading.CancellationToken)"/>
-    /// or <see cref="IScheduler.Interrupt(System.String, System.Threading.CancellationToken)"/>.
+    /// or <see cref="IScheduler.InterruptFireInstance(System.String, System.Threading.CancellationToken)"/>.
     /// </summary>
     CancellationToken CancellationToken { get; }
 }

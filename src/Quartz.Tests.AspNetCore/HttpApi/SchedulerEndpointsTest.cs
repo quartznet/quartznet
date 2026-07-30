@@ -36,7 +36,7 @@ public class SchedulerEndpointsTest : WebApiTest
     [Test]
     public async Task GetSchedulerDetailsShouldWork()
     {
-        A.CallTo(() => FakeScheduler.GetMetaData(A<CancellationToken>._)).Returns(TestData.Metadata);
+        A.CallTo(() => FakeScheduler.GetMetadata(A<CancellationToken>._)).Returns(TestData.Metadata);
         A.CallTo(() => FakeScheduler.IsStarted).Returns(TestData.Metadata.Started);
         A.CallTo(() => FakeScheduler.InStandbyMode).Returns(TestData.Metadata.InStandbyMode);
         A.CallTo(() => FakeScheduler.IsShutdown).Returns(TestData.Metadata.Shutdown);
@@ -47,9 +47,9 @@ public class SchedulerEndpointsTest : WebApiTest
         HttpScheduler.IsShutdown.Should().BeFalse();
         HttpScheduler.IsStarted.Should().BeTrue();
 
-        var metadata = await HttpScheduler.GetMetaData();
-        metadata.Should().BeEquivalentTo(TestData.Metadata, x => x.Excluding(y => y.SchedulerRemote).Excluding(x => x.SchedulerType));
-        metadata.SchedulerRemote.Should().BeTrue();
+        var metadata = await HttpScheduler.GetMetadata();
+        metadata.Should().BeEquivalentTo(TestData.Metadata, x => x.Excluding(y => y.IsRemote).Excluding(x => x.SchedulerType));
+        metadata.IsRemote.Should().BeTrue();
         metadata.SchedulerType.Should().Be<HttpScheduler>();
     }
 

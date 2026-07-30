@@ -8,7 +8,7 @@ using Quartz.Extensibility;
 using Quartz.HttpClient;
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Tests.AspNetCore.Support;
 
 namespace Quartz.Tests.AspNetCore.HttpApi;
@@ -65,7 +65,7 @@ public class QueryEndpointsTest : WebApiTest
         PagedResult<JobHeader> all = await client.QueryJobs(new JobQuery());
         using (new AssertionScope())
         {
-            all.Items.ConvertAll(x => x.Key).Should().Equal(alphaJobOne, alphaJobTwo, alphaJobThree, betaJobOne, betaJobTwo);
+            all.Items.Select(x => x.Key).Should().Equal(alphaJobOne, alphaJobTwo, alphaJobThree, betaJobOne, betaJobTwo);
             all.HasMore.Should().BeFalse();
             all.TotalCount.Should().BeNull("total count costs an extra query and is opt-in");
         }
@@ -73,14 +73,14 @@ public class QueryEndpointsTest : WebApiTest
         PagedResult<JobHeader> firstPage = await client.QueryJobs(new JobQuery { Take = 2 });
         using (new AssertionScope())
         {
-            firstPage.Items.ConvertAll(x => x.Key).Should().Equal(alphaJobOne, alphaJobTwo);
+            firstPage.Items.Select(x => x.Key).Should().Equal(alphaJobOne, alphaJobTwo);
             firstPage.HasMore.Should().BeTrue();
         }
 
         PagedResult<JobHeader> middlePage = await client.QueryJobs(new JobQuery { Skip = 2, Take = 2, IncludeTotalCount = true });
         using (new AssertionScope())
         {
-            middlePage.Items.ConvertAll(x => x.Key).Should().Equal(alphaJobThree, betaJobOne);
+            middlePage.Items.Select(x => x.Key).Should().Equal(alphaJobThree, betaJobOne);
             middlePage.HasMore.Should().BeTrue();
             middlePage.TotalCount.Should().Be(5);
         }
@@ -88,7 +88,7 @@ public class QueryEndpointsTest : WebApiTest
         PagedResult<JobHeader> lastPage = await client.QueryJobs(new JobQuery { Skip = 4, Take = 2, IncludeTotalCount = true });
         using (new AssertionScope())
         {
-            lastPage.Items.ConvertAll(x => x.Key).Should().Equal(betaJobTwo);
+            lastPage.Items.Select(x => x.Key).Should().Equal(betaJobTwo);
             lastPage.HasMore.Should().BeFalse();
             lastPage.TotalCount.Should().Be(5);
         }
@@ -130,7 +130,7 @@ public class QueryEndpointsTest : WebApiTest
         async Task AssertJobGroups(GroupMatcher<JobKey> matcher, params JobKey[] expected)
         {
             PagedResult<JobHeader> result = await client.QueryJobs(new JobQuery { Group = matcher });
-            result.Items.ConvertAll(x => x.Key).Should().Equal(expected);
+            result.Items.Select(x => x.Key).Should().Equal(expected);
         }
     }
 
@@ -140,7 +140,7 @@ public class QueryEndpointsTest : WebApiTest
         PagedResult<TriggerHeader> all = await client.QueryTriggers(new TriggerQuery { IncludeTotalCount = true });
         using (new AssertionScope())
         {
-            all.Items.ConvertAll(x => x.Key).Should().Equal(alphaTriggerOne, alphaTriggerTwo, alphaTriggerThree, alphaTriggerFour, betaTriggerOne, betaTriggerTwo);
+            all.Items.Select(x => x.Key).Should().Equal(alphaTriggerOne, alphaTriggerTwo, alphaTriggerThree, alphaTriggerFour, betaTriggerOne, betaTriggerTwo);
             all.HasMore.Should().BeFalse();
             all.TotalCount.Should().Be(6);
         }
@@ -148,7 +148,7 @@ public class QueryEndpointsTest : WebApiTest
         PagedResult<TriggerHeader> page = await client.QueryTriggers(new TriggerQuery { Skip = 4, Take = 1, IncludeTotalCount = true });
         using (new AssertionScope())
         {
-            page.Items.ConvertAll(x => x.Key).Should().Equal(betaTriggerOne);
+            page.Items.Select(x => x.Key).Should().Equal(betaTriggerOne);
             page.HasMore.Should().BeTrue();
             page.TotalCount.Should().Be(6);
         }
@@ -172,7 +172,7 @@ public class QueryEndpointsTest : WebApiTest
     public async Task QueryTriggersShouldFilterByJob()
     {
         PagedResult<TriggerHeader> result = await client.QueryTriggers(new TriggerQuery { Job = alphaJobOne });
-        result.Items.ConvertAll(x => x.Key).Should().Equal(alphaTriggerOne, alphaTriggerTwo);
+        result.Items.Select(x => x.Key).Should().Equal(alphaTriggerOne, alphaTriggerTwo);
 
         PagedResult<TriggerHeader> none = await client.QueryTriggers(new TriggerQuery { Job = new JobKey("nope", "alpha") });
         none.Items.Should().BeEmpty();
@@ -182,7 +182,7 @@ public class QueryEndpointsTest : WebApiTest
     public async Task QueryTriggersShouldFilterByCalendar()
     {
         PagedResult<TriggerHeader> result = await client.QueryTriggers(new TriggerQuery { CalendarName = "cal-a" });
-        result.Items.ConvertAll(x => x.Key).Should().Equal(alphaTriggerTwo);
+        result.Items.Select(x => x.Key).Should().Equal(alphaTriggerTwo);
     }
 
     [Test]
@@ -191,13 +191,13 @@ public class QueryEndpointsTest : WebApiTest
         PagedResult<TriggerHeader> paused = await client.QueryTriggers(new TriggerQuery { State = TriggerState.Paused, IncludeTotalCount = true });
         using (new AssertionScope())
         {
-            paused.Items.ConvertAll(x => x.Key).Should().Equal(betaTriggerOne, betaTriggerTwo);
+            paused.Items.Select(x => x.Key).Should().Equal(betaTriggerOne, betaTriggerTwo);
             paused.Items.Should().AllSatisfy(x => x.State.Should().Be(TriggerState.Paused));
             paused.TotalCount.Should().Be(2);
         }
 
         PagedResult<TriggerHeader> normal = await client.QueryTriggers(new TriggerQuery { State = TriggerState.Normal });
-        normal.Items.ConvertAll(x => x.Key).Should().Equal(alphaTriggerOne, alphaTriggerTwo, alphaTriggerThree, alphaTriggerFour);
+        normal.Items.Select(x => x.Key).Should().Equal(alphaTriggerOne, alphaTriggerTwo, alphaTriggerThree, alphaTriggerFour);
 
         PagedResult<TriggerHeader> error = await client.QueryTriggers(new TriggerQuery { State = TriggerState.Error });
         error.Items.Should().BeEmpty();
@@ -214,7 +214,7 @@ public class QueryEndpointsTest : WebApiTest
             State = TriggerState.Normal
         });
 
-        result.Items.ConvertAll(x => x.Key).Should().Equal(alphaTriggerTwo);
+        result.Items.Select(x => x.Key).Should().Equal(alphaTriggerTwo);
     }
 
     [Test]
@@ -228,10 +228,10 @@ public class QueryEndpointsTest : WebApiTest
         }
 
         PagedResult<JobGroup> paused = await client.QueryJobGroups(new JobGroupQuery { Paused = true });
-        paused.Items.ConvertAll(x => x.Name).Should().Equal("beta");
+        paused.Items.Select(x => x.Name).Should().Equal("beta");
 
         PagedResult<JobGroup> notPaused = await client.QueryJobGroups(new JobGroupQuery { Paused = false });
-        notPaused.Items.ConvertAll(x => x.Name).Should().Equal("alpha");
+        notPaused.Items.Select(x => x.Name).Should().Equal("alpha");
 
         (await client.IsJobGroupPaused("beta")).Should().BeTrue();
         (await client.IsJobGroupPaused("alpha")).Should().BeFalse();
@@ -248,10 +248,10 @@ public class QueryEndpointsTest : WebApiTest
         }
 
         PagedResult<TriggerGroup> paused = await client.QueryTriggerGroups(new TriggerGroupQuery { Paused = true });
-        paused.Items.ConvertAll(x => x.Name).Should().Equal("beta");
+        paused.Items.Select(x => x.Name).Should().Equal("beta");
 
         PagedResult<TriggerGroup> notPaused = await client.QueryTriggerGroups(new TriggerGroupQuery { Paused = false });
-        notPaused.Items.ConvertAll(x => x.Name).Should().Equal("alpha");
+        notPaused.Items.Select(x => x.Name).Should().Equal("alpha");
 
         (await client.IsTriggerGroupPaused("beta")).Should().BeTrue();
         (await client.IsTriggerGroupPaused("alpha")).Should().BeFalse();
@@ -328,9 +328,9 @@ public class QueryEndpointsTest : WebApiTest
 
     private async Task Seed()
     {
-        await scheduler.AddCalendar("cal-a", new HolidayCalendar(), replace: true, updateTriggers: false);
-        await scheduler.AddCalendar("cal-b", new HolidayCalendar(), replace: true, updateTriggers: false);
-        await scheduler.AddCalendar("cal-c", new HolidayCalendar(), replace: true, updateTriggers: false);
+        await scheduler.AddCalendar("cal-a", new HolidayCalendar(), new AddCalendarOptions { Replace = true });
+        await scheduler.AddCalendar("cal-b", new HolidayCalendar(), new AddCalendarOptions { Replace = true });
+        await scheduler.AddCalendar("cal-c", new HolidayCalendar(), new AddCalendarOptions { Replace = true });
 
         await scheduler.ScheduleJob(Job(alphaJobOne), [Trigger(alphaTriggerOne, alphaJobOne), Trigger(alphaTriggerTwo, alphaJobOne, calendarName: "cal-a")], replace: true);
         await scheduler.ScheduleJob(Job(alphaJobTwo), [Trigger(alphaTriggerThree, alphaJobTwo)], replace: true);

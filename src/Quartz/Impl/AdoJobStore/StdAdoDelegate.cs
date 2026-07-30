@@ -29,7 +29,7 @@ using System.Text;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
 using Quartz.Impl.AdoJobStore.Common;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Extensibility;
 using Quartz.Util;
 
@@ -404,18 +404,18 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
             : (likeSql, ToSqlLikeClause(matcher));
     }
 
-    protected static bool IsMatcherEquals<T>(GroupMatcher<T> matcher) where T : Key<T>
+    protected static bool IsMatcherEquals<T>(StringMatcher<T> matcher) where T : Key<T>
     {
         return matcher.CompareWithOperator.Equals(StringOperator.Equality);
     }
 
-    protected static string ToSqlEqualsClause<T>(GroupMatcher<T> matcher) where T : Key<T>
+    protected static string ToSqlEqualsClause<T>(StringMatcher<T> matcher) where T : Key<T>
     {
         return matcher.CompareToValue;
     }
 
     /// <summary>
-    /// Translates a group matcher into a LIKE pattern.
+    /// Translates a group or name matcher into a LIKE pattern.
     /// </summary>
     /// <remarks>
     /// The matcher's own text is a literal, so its wildcard characters are escaped with
@@ -424,7 +424,7 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     /// group literally named "50%" is found by an exact match and by a "starts with 50" one, and not
     /// by a "starts with 5" one.
     /// </remarks>
-    protected virtual string ToSqlLikeClause<T>(GroupMatcher<T> matcher) where T : Key<T>
+    protected virtual string ToSqlLikeClause<T>(StringMatcher<T> matcher) where T : Key<T>
     {
         if (StringOperator.Anything.Equals(matcher.CompareWithOperator))
         {

@@ -17,7 +17,7 @@
  */
 #endregion
 
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 
 namespace Quartz;
 
@@ -30,4 +30,13 @@ public sealed record JobQuery : PagedQuery
     /// Limits the result to jobs whose group matches. Null matches every group.
     /// </summary>
     public GroupMatcher<JobKey>? Group { get; init; }
+
+    /// <summary>
+    /// Limits the result to jobs whose name matches. Null matches every name.
+    /// </summary>
+    /// <remarks>
+    /// Combines with <see cref="Group" /> by AND, so the two together select a name pattern
+    /// within a group pattern.
+    /// </remarks>
+    public NameMatcher<JobKey>? Name { get; init; }
 }

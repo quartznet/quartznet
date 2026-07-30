@@ -1,4 +1,4 @@
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Extensibility;
 
 namespace Quartz.Impl;
@@ -24,9 +24,9 @@ public class DelegatingScheduler : IScheduler
     public bool InStandbyMode => scheduler.InStandbyMode;
     public bool IsShutdown => scheduler.IsShutdown;
 
-    public ValueTask<SchedulerMetaData> GetMetaData(CancellationToken cancellationToken = default)
+    public ValueTask<SchedulerMetadata> GetMetadata(CancellationToken cancellationToken = default)
     {
-        return scheduler.GetMetaData(cancellationToken);
+        return scheduler.GetMetadata(cancellationToken);
     }
 
     public ValueTask<List<IJobExecutionContext>> GetCurrentlyExecutingJobs(CancellationToken cancellationToken = default)
@@ -53,12 +53,7 @@ public class DelegatingScheduler : IScheduler
         return scheduler.Standby(cancellationToken);
     }
 
-    public ValueTask Shutdown(CancellationToken cancellationToken = default)
-    {
-        return scheduler.Shutdown(cancellationToken);
-    }
-
-    public ValueTask Shutdown(bool waitForJobsToComplete, CancellationToken cancellationToken = default)
+    public ValueTask Shutdown(bool waitForJobsToComplete = false, CancellationToken cancellationToken = default)
     {
         return scheduler.Shutdown(waitForJobsToComplete, cancellationToken);
     }
@@ -113,14 +108,9 @@ public class DelegatingScheduler : IScheduler
         return scheduler.GetExecutionLimits(cancellationToken);
     }
 
-    public ValueTask AddJob(IJobDetail jobDetail, bool replace, CancellationToken cancellationToken = default)
+    public ValueTask AddJob(IJobDetail jobDetail, AddJobOptions? options = null, CancellationToken cancellationToken = default)
     {
-        return scheduler.AddJob(jobDetail, replace, cancellationToken);
-    }
-
-    public ValueTask AddJob(IJobDetail jobDetail, bool replace, bool storeNonDurableWhileAwaitingScheduling, CancellationToken cancellationToken = default)
-    {
-        return scheduler.AddJob(jobDetail, replace, storeNonDurableWhileAwaitingScheduling, cancellationToken);
+        return scheduler.AddJob(jobDetail, options, cancellationToken);
     }
 
     public ValueTask<bool> DeleteJob(JobKey jobKey, CancellationToken cancellationToken = default)
@@ -133,12 +123,7 @@ public class DelegatingScheduler : IScheduler
         return scheduler.DeleteJobs(jobKeys, cancellationToken);
     }
 
-    public ValueTask TriggerJob(JobKey jobKey, CancellationToken cancellationToken = default)
-    {
-        return scheduler.TriggerJob(jobKey, cancellationToken);
-    }
-
-    public ValueTask TriggerJob(JobKey jobKey, JobDataMap data, CancellationToken cancellationToken = default)
+    public ValueTask TriggerJob(JobKey jobKey, JobDataMap? data = null, CancellationToken cancellationToken = default)
     {
         return scheduler.TriggerJob(jobKey, data, cancellationToken);
     }
@@ -228,11 +213,6 @@ public class DelegatingScheduler : IScheduler
         return scheduler.GetTriggers(triggerKeys, cancellationToken);
     }
 
-    public ValueTask<List<ITrigger>> GetTriggersOfJob(JobKey jobKey, CancellationToken cancellationToken = default)
-    {
-        return scheduler.GetTriggersOfJob(jobKey, cancellationToken);
-    }
-
     public ValueTask<IJobDetail?> GetJobDetail(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         return scheduler.GetJobDetail(jobKey, cancellationToken);
@@ -253,9 +233,9 @@ public class DelegatingScheduler : IScheduler
         return scheduler.ResetTriggerFromErrorState(triggerKey, cancellationToken);
     }
 
-    public ValueTask AddCalendar(string calendarName, ICalendar calendar, bool replace, bool updateTriggers, CancellationToken cancellationToken = default)
+    public ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions? options = null, CancellationToken cancellationToken = default)
     {
-        return scheduler.AddCalendar(calendarName, calendar, replace, updateTriggers, cancellationToken);
+        return scheduler.AddCalendar(calendarName, calendar, options, cancellationToken);
     }
 
     public ValueTask<bool> DeleteCalendar(string calendarName, CancellationToken cancellationToken = default)
@@ -273,9 +253,9 @@ public class DelegatingScheduler : IScheduler
         return scheduler.Interrupt(jobKey, cancellationToken);
     }
 
-    public ValueTask<bool> Interrupt(string fireInstanceId, CancellationToken cancellationToken = default)
+    public ValueTask<bool> InterruptFireInstance(string fireInstanceId, CancellationToken cancellationToken = default)
     {
-        return scheduler.Interrupt(fireInstanceId, cancellationToken);
+        return scheduler.InterruptFireInstance(fireInstanceId, cancellationToken);
     }
 
     public ValueTask<bool> CheckExists(JobKey jobKey, CancellationToken cancellationToken = default)

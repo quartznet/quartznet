@@ -85,7 +85,7 @@ public class RunningLargeNumberOfJobsExample : IExample
         await scheduler.Shutdown(true);
         Console.WriteLine("------- Shutdown Complete -----------------");
 
-        SchedulerMetaData metaData = await scheduler.GetMetaData();
-        Console.WriteLine("Executed " + metaData.NumberOfJobsExecuted + " jobs.");
+        SchedulerMetadata metadata = await scheduler.GetMetadata();
+        Console.WriteLine("Executed " + metadata.JobsExecuted + " jobs.");
     }
 }

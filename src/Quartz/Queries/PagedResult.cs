@@ -27,4 +27,4 @@ namespace Quartz;
 /// reading one item past <see cref="PagedQuery.Take" />, so it is exact and costs nothing extra.</param>
 /// <param name="TotalCount">The total number of matching items regardless of paging; populated
 /// only when the query set <see cref="PagedQuery.IncludeTotalCount" />.</param>
-public sealed record PagedResult<T>(List<T> Items, bool HasMore, int? TotalCount = null);
+public sealed record PagedResult<T>(IReadOnlyList<T> Items, bool HasMore, int? TotalCount = null);
