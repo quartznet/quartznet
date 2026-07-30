@@ -110,9 +110,18 @@ public class JobStoreCMT : JobStoreSupport
     /// <returns></returns>
     protected override async ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection(CancellationToken cancellationToken = default)
     {
+        var enlisted = await GetEnlistedConnection(cancellationToken).ConfigureAwait(false);
+        if (enlisted is not null)
+        {
+            return enlisted;
+        }
+
         DbConnection conn;
         try
         {
+            // Deliberately not kept out of an ambient transaction the way JobStoreSupport does it: this
+            // store exists precisely to run inside a transaction its container manages, so the
+            // connection auto-enlisting is the contract rather than an accident.
             conn = DbProvider.CreateConnection();
             if (OpenConnection)
             {
@@ -172,7 +181,24 @@ public class JobStoreCMT : JobStoreSupport
                 conn = await GetNonManagedTXConnection(cancellationToken).ConfigureAwait(false);
             }
 
-            return await txCallback(conn).ConfigureAwait(false);
+            var result = await txCallback(conn).ConfigureAwait(false);
+
+            // Only for a connection the application enlisted, and only for operations that took the
+            // lock - those are the ones that can have changed the schedule. There the change becomes
+            // visible when its owner commits, and the scheduler is otherwise notified solely before
+            // that - by QuartzScheduler, as soon as the store call returns - finds nothing, and waits
+            // out a whole idle interval. Signalling for reads as well would announce an unknown earlier
+            // time on every query and keep bouncing acquired triggers back to waiting, and deployments
+            // that never opted in must keep the behaviour they had, which for this store is no signal
+            // from here at all.
+            var sigTime = conn.SignalSchedulingChangeOnTxCompletion;
+            if (conn.BorrowedFrom is not null
+                && (sigTime is not null || lockName is not null && !LockAllOperations))
+            {
+                SignalSchedulingChangeOnApplicationCommit(conn, sigTime, cancellationToken);
+            }
+
+            return result;
         }
         finally
         {

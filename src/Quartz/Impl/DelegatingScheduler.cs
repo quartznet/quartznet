@@ -12,6 +12,12 @@ public class DelegatingScheduler : IScheduler
         this.scheduler = scheduler;
     }
 
+    /// <summary>
+    /// The scheduler this one forwards to, so that code which needs the real scheduler - rather than
+    /// the behaviour a decorator adds - can reach it through however many layers are in the way.
+    /// </summary>
+    protected internal IScheduler InnerScheduler => scheduler;
+
     public string SchedulerName => scheduler.SchedulerName;
     public string SchedulerInstanceId => scheduler.SchedulerInstanceId;
     public SchedulerContext Context => scheduler.Context;

@@ -363,6 +363,7 @@ JobStoreTX can be tuned with the following properties:
 | quartz.jobStore.maxMisfiresToHandleAtATime   | no       | int     | 20                                                                           |
 | quartz.jobStore.selectWithLockSQL            | no       | string  | "SELECT * FROM {0}LOCKS WHERE SCHED_NAME = {1} AND LOCK_NAME = ? FOR UPDATE" |
 | quartz.jobStore.txIsolationLevelSerializable | no       | boolean | false                                                                        |
+| quartz.jobStore.acceptEnlistedTransactions        | no       | boolean | false                                                                        |
 | quartz.jobStore.acquireTriggersWithinLock    | no       | boolean | false (or true - see doc below)                                              |
 | quartz.jobStore.lockHandler.type             | no       | string  | null                                                                         |
 | quartz.jobStore.driverDelegateInitString     | no       | string  | null                                                                         |
@@ -432,6 +433,23 @@ The "{1}" is replaced with the scheduler’s name.
 
 A value of "true" tells Quartz (when using JobStoreTX or CMT) to set transaction level to serialize on ADO.NET connections.
 This can be helpful to prevent lock timeouts with some databases under high load, and "long-lasting" transactions.
+
+### `quartz.jobStore.acceptEnlistedTransactions`
+
+A value of "true" lets the job store take part in a transaction your application already owns, rather than always managing
+an ADO.NET transaction of its own. It then uses the connection you enlisted with `IScheduler.EnlistTransaction` or
+`IScheduler.EnlistConnection` for operations on that asynchronous flow, so your application owns the commit and scheduling
+happens together with the rest of its work or not at all.
+
+Handing over a connection is the only way to take part. Operations with nothing enlisted keep using a connection of the
+job store's own, and while this setting is on that connection is deliberately kept out of any ambient
+`System.Transactions.TransactionScope`.
+
+Because locks are then held until your transaction completes, enabling this also switches locking to database locks unless
+`quartz.jobStore.lockHandler.type` was set explicitly.
+
+See [Joining an existing transaction](../tutorial/job-stores.md#joining-an-existing-transaction) for what this means in
+practice and what to watch out for.
 
 ### `quartz.jobStore.acquireTriggersWithinLock`
 

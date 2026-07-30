@@ -5,6 +5,7 @@ namespace Quartz
     {
         public const string DefaultTablePrefix = "QRTZ_";
         public AdoJobStoreOptions() { }
+        public bool AcceptEnlistedTransactions { get; set; }
         public bool AcquireTriggersWithinLock { get; set; }
         public System.TimeSpan ClusterCheckinInterval { get; set; }
         public System.TimeSpan ClusterCheckinMisfireThreshold { get; set; }
@@ -404,6 +405,7 @@ namespace Quartz
     {
         string SchedulerName { get; }
         Microsoft.Extensions.DependencyInjection.IServiceCollection Services { get; }
+        Quartz.IPersistentStoreBuilder AcceptEnlistedTransactions();
         Quartz.IPersistentStoreBuilder Configure(System.Action<Quartz.AdoJobStoreOptions> configure);
         Quartz.IPersistentStoreBuilder UseClustering(System.Action<Quartz.ClusteringOptions>? configure = null);
         Quartz.IPersistentStoreBuilder UseDataSource(System.Action<Quartz.DataSourceOptions> configure);
@@ -972,6 +974,11 @@ namespace Quartz
     {
         public SchedulerContext() { }
         public SchedulerContext(System.Collections.Generic.IDictionary<string, object?> map) { }
+    }
+    public static class SchedulerEnlistmentExtensions
+    {
+        public static System.IDisposable EnlistConnection(this Quartz.IScheduler scheduler, System.Data.Common.DbConnection connection, System.Data.Common.DbTransaction? transaction = null) { }
+        public static System.IDisposable EnlistTransaction(this Quartz.IScheduler scheduler, System.Data.Common.DbTransaction transaction) { }
     }
     [System.Serializable]
     public class SchedulerException : System.Exception
@@ -1963,6 +1970,7 @@ namespace Quartz.Impl.AdoJobStore
         protected const string LockStateAccess = "STATE_ACCESS";
         protected const string LockTriggerAccess = "TRIGGER_ACCESS";
         protected JobStoreSupport(Quartz.Extensibility.ISchedulerSignaler schedulerSignaler, Quartz.Extensibility.ITypeLoadHelper typeLoadHelper, System.TimeProvider timeProvider, Microsoft.Extensions.Options.IOptions<Quartz.QuartzSchedulerOptions> schedulerOptions, Microsoft.Extensions.Options.IOptions<Quartz.AdoJobStoreOptions> storeOptions, Quartz.Extensibility.IObjectSerializer objectSerializer, Quartz.Util.IDbConnectionManager connectionManager, Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider, Quartz.Impl.AdoJobStore.IDriverDelegate driverDelegate, Quartz.Impl.AdoJobStore.ISemaphore? lockHandler = null) { }
+        public bool AcceptEnlistedTransactions { get; set; }
         public bool AcquireTriggersWithinLock { get; set; }
         public virtual bool CanUseProperties { get; }
         [Quartz.TimeSpanParseRule(Quartz.TimeSpanParseRule.Milliseconds)]
@@ -2811,6 +2819,7 @@ namespace Quartz.Impl
         public DelegatingScheduler(Quartz.IScheduler scheduler) { }
         public Quartz.SchedulerContext Context { get; }
         public bool InStandbyMode { get; }
+        protected Quartz.IScheduler InnerScheduler { get; }
         public bool IsShutdown { get; }
         public bool IsStarted { get; }
         public Quartz.IListenerManager ListenerManager { get; }

@@ -103,6 +103,28 @@ public sealed class AdoJobStoreOptions
     public bool TxIsolationLevelSerializable { get; set; }
 
     /// <summary>
+    /// Whether the job store may take part in a transaction the application owns, rather than
+    /// always managing an ADO.NET transaction of its own.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// When enabled, the job store uses the connection the application enlisted with
+    /// <see cref="SchedulerEnlistmentExtensions.EnlistTransaction" /> or
+    /// <see cref="SchedulerEnlistmentExtensions.EnlistConnection" /> for operations on that
+    /// asynchronous flow, so scheduling either commits with the rest of the application's work or
+    /// not at all.
+    /// </para>
+    /// <para>
+    /// Taking part always means handing over a connection. Operations with nothing enlisted keep
+    /// using a connection of the job store's own, and for <see cref="Quartz.Impl.AdoJobStore.JobStoreTX" />
+    /// that connection is deliberately kept out of any ambient
+    /// <see cref="System.Transactions.Transaction" />. <see cref="Quartz.Impl.AdoJobStore.JobStoreCMT" />
+    /// is the exception, since running inside a container-managed transaction is that store's contract.
+    /// </para>
+    /// </remarks>
+    public bool AcceptEnlistedTransactions { get; set; }
+
+    /// <summary>
     /// Whether the job store leaves auto-commit alone rather than disabling it.
     /// </summary>
     public bool DontSetAutoCommitFalse { get; set; }

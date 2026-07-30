@@ -511,6 +511,7 @@ internal static class QuartzPropertyBridge
         parser.Bool("quartz.jobStore.useDBLocks", value => options.UseDbLocks = value);
         parser.Bool("quartz.jobStore.lockOnInsert", value => options.LockOnInsert = value);
         parser.Bool("quartz.jobStore.acquireTriggersWithinLock", value => options.AcquireTriggersWithinLock = value);
+        parser.Bool("quartz.jobStore.acceptEnlistedTransactions", value => options.AcceptEnlistedTransactions = value);
         parser.Bool("quartz.jobStore.txIsolationLevelSerializable", value => options.TxIsolationLevelSerializable = value);
         parser.Bool("quartz.jobStore.doubleCheckLockMisfireHandler", value => options.DoubleCheckLockMisfireHandler = value);
         parser.Bool("quartz.jobStore.performSchemaValidation", value => options.PerformSchemaValidation = value);
