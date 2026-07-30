@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc.RazorPages;
 
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 
 namespace Quartz.Examples.AspNetCore.Pages;
 

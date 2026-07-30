@@ -21,39 +21,53 @@
 
 using Quartz.Util;
 
-namespace Quartz.Impl.Matchers;
+namespace Quartz.Matchers;
 
 /// <summary>
-/// An abstract base class for some types of matchers.
+/// Matches using an NOT operator on another Matcher.
 /// </summary>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public abstract class StringMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
+public sealed class NotMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
 {
-    protected StringMatcher(string compareTo, StringOperator compareWith)
+    // ReSharper disable once UnusedMember.Local
+    private NotMatcher()
     {
-        if (compareTo is null)
-        {
-            Throw.ArgumentNullException(nameof(compareTo), "CompareTo value cannot be null!");
-        }
-        CompareToValue = compareTo;
-        CompareWithOperator = compareWith;
     }
 
-    protected abstract string GetValue(TKey key);
+    private NotMatcher(IMatcher<TKey> operand)
+    {
+        if (operand is null)
+        {
+            Throw.ArgumentNullException(nameof(operand), "Non-null operand required!");
+        }
+        Operand = operand;
+    }
+
+    /// <summary>
+    /// Create a NotMatcher that reverses the result of the given matcher.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    /// <param name="operand"></param>
+    /// <returns></returns>
+    public static NotMatcher<T> Not<T>(IMatcher<T> operand) where T : Key<T>
+    {
+        return new NotMatcher<T>(operand);
+    }
 
     public bool IsMatch(TKey key)
     {
-        return CompareWithOperator.Evaluate(GetValue(key), CompareToValue);
+        return !Operand.IsMatch(key);
     }
+
+    public IMatcher<TKey> Operand { get; private set; } = null!;
 
     public override int GetHashCode()
     {
         const int Prime = 31;
         int result = 1;
-        result = Prime * result + (CompareToValue?.GetHashCode() ?? 0);
-        result = Prime * result + CompareWithOperator.GetHashCode();
+        result = Prime * result + (Operand is null ? 0 : Operand.GetHashCode());
         return result;
     }
 
@@ -71,30 +85,18 @@ public abstract class StringMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey
         {
             return false;
         }
-        StringMatcher<TKey> other = (StringMatcher<TKey>) obj;
-        if (CompareToValue is null)
+        NotMatcher<TKey> other = (NotMatcher<TKey>) obj;
+        if (Operand is null)
         {
-            if (other.CompareToValue is not null)
+            if (other.Operand is not null)
             {
                 return false;
             }
         }
-        else if (CompareToValue != other.CompareToValue)
-        {
-            return false;
-        }
-        if (!CompareWithOperator.Equals(other.CompareWithOperator))
+        else if (!Operand.Equals(other.Operand))
         {
             return false;
         }
         return true;
-    }
-
-    public string CompareToValue { get; }
-    public StringOperator CompareWithOperator { get; }
-
-    public override string ToString()
-    {
-        return $"{CompareWithOperator}({CompareToValue})";
     }
 }

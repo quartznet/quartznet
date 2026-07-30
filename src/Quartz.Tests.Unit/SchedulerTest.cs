@@ -2,7 +2,7 @@ using System.Collections.Specialized;
 using System.Diagnostics;
 
 using Quartz.Impl;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Job;
 using Quartz.Extensibility;
 

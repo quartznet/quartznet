@@ -26,8 +26,8 @@ public interface ISimpleTrigger : ITrigger
     TimeSpan RepeatInterval { get; set; }
 
     /// <summary>
-    /// Get or set the number of times the <see cref="ISimpleTrigger" /> has already
+    /// Get the number of times the <see cref="ISimpleTrigger" /> has already
     /// fired.
     /// </summary>
-    int TimesTriggered { get; set; }
+    int TimesTriggered { get; }
 }

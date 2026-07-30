@@ -6,7 +6,7 @@ using AwesomeAssertions.Execution;
 using FakeItEasy;
 
 using Quartz.HttpClient;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Tests.AspNetCore.Support;
 
 namespace Quartz.Tests.AspNetCore.HttpApi;
@@ -170,6 +170,50 @@ public class JobEndpointsTest : WebApiTest
 
         triggers = await HttpScheduler.GetTriggersOfJob(jobKeyTwo);
         triggers.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task GetJobTriggersEndpointShouldReturnTheJobsTriggers()
+    {
+        // The client reaches a job's triggers through the trigger query, so this is the only cover the
+        // jobs/{group}/{name}/triggers route itself gets.
+        A.CallTo(() => FakeScheduler.QueryTriggers(A<TriggerQuery>.That.Matches(query => jobKeyOne.Equals(query.Job)), A<CancellationToken>._))
+            .Returns(new PagedResult<TriggerHeader>([HeaderFor(TestData.SimpleTrigger), HeaderFor(TestData.CronTrigger)], HasMore: false));
+        A.CallTo(() => FakeScheduler.GetTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
+            .Returns(new List<ITrigger> { TestData.SimpleTrigger, TestData.CronTrigger });
+
+        using System.Net.Http.HttpClient httpClient = WebApplicationFactory.CreateClient();
+
+        HttpResponseMessage response = await httpClient.GetAsync($"schedulers/{HttpScheduler.SchedulerName}/jobs/{jobKeyOne.Group}/{jobKeyOne.Name}/triggers");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        string body = await response.Content.ReadAsStringAsync();
+        using (new AssertionScope())
+        {
+            body.Should().Contain(TestData.SimpleTrigger.Key.Name);
+            body.Should().Contain(TestData.CronTrigger.Key.Name);
+        }
+
+        A.CallTo(() => FakeScheduler.QueryTriggers(A<TriggerQuery>.That.Matches(query => jobKeyOne.Equals(query.Job)), A<CancellationToken>._))
+            .MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
+    public async Task GetJobTriggersEndpointShouldReturnEmptyForAJobWithoutTriggers()
+    {
+        A.CallTo(() => FakeScheduler.QueryTriggers(A<TriggerQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<TriggerHeader>([], HasMore: false));
+
+        using System.Net.Http.HttpClient httpClient = WebApplicationFactory.CreateClient();
+
+        HttpResponseMessage response = await httpClient.GetAsync($"schedulers/{HttpScheduler.SchedulerName}/jobs/{jobKeyTwo.Group}/{jobKeyTwo.Name}/triggers");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await response.Content.ReadAsStringAsync()).Trim().Should().Be("[]");
+
+        // no keys came back, so the bulk fetch must not have been asked for anything
+        A.CallTo(() => FakeScheduler.GetTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._)).MustNotHaveHappened();
     }
 
     [Test]
@@ -382,16 +426,22 @@ public class JobEndpointsTest : WebApiTest
     [Test]
     public async Task IsJobGroupPausedShouldWork()
     {
-        A.CallTo(() => FakeScheduler.QueryJobGroups(A<JobGroupQuery>._, A<CancellationToken>._))
+        // the check asks the store for the one named group rather than listing every paused one
+        A.CallTo(() => FakeScheduler.QueryJobGroups(A<JobGroupQuery>.That.Matches(query => query.Name == "group1"), A<CancellationToken>._))
             .Returns(new PagedResult<JobGroup>([new JobGroup("group1", Paused: true)], HasMore: false));
+        A.CallTo(() => FakeScheduler.QueryJobGroups(A<JobGroupQuery>.That.Matches(query => query.Name != "group1"), A<CancellationToken>._))
+            .Returns(new PagedResult<JobGroup>([], HasMore: false));
 
-        var paused = await HttpScheduler.IsJobGroupPaused("group1");
+        bool paused = await HttpScheduler.IsJobGroupPaused("group1");
         paused.Should().BeTrue();
 
         paused = await HttpScheduler.IsJobGroupPaused("group2");
         paused.Should().BeFalse();
 
-        A.CallTo(() => FakeScheduler.QueryJobGroups(new JobGroupQuery { Paused = true }, A<CancellationToken>._)).MustHaveHappened(2, Times.Exactly);
+        A.CallTo(() => FakeScheduler.QueryJobGroups(new JobGroupQuery { Name = "group1", Paused = true, Take = 1 }, A<CancellationToken>._))
+            .MustHaveHappened(1, Times.Exactly);
+        A.CallTo(() => FakeScheduler.QueryJobGroups(new JobGroupQuery { Name = "group2", Paused = true, Take = 1 }, A<CancellationToken>._))
+            .MustHaveHappened(1, Times.Exactly);
     }
 
     private static TriggerHeader HeaderFor(ITrigger trigger) => new(

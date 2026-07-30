@@ -5,7 +5,7 @@ using AwesomeAssertions.Execution;
 using FakeItEasy;
 
 using Quartz.HttpClient;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Tests.AspNetCore.Support;
 
 namespace Quartz.Tests.AspNetCore.HttpApi;
@@ -306,16 +306,22 @@ public class TriggerEndpointsTest : WebApiTest
     [Test]
     public async Task IsTriggerGroupPausedShouldWork()
     {
-        A.CallTo(() => FakeScheduler.QueryTriggerGroups(A<TriggerGroupQuery>._, A<CancellationToken>._))
+        // the check asks the store for the one named group rather than listing every paused one
+        A.CallTo(() => FakeScheduler.QueryTriggerGroups(A<TriggerGroupQuery>.That.Matches(query => query.Name == "group1"), A<CancellationToken>._))
             .Returns(new PagedResult<TriggerGroup>([new TriggerGroup("group1", Paused: true)], HasMore: false));
+        A.CallTo(() => FakeScheduler.QueryTriggerGroups(A<TriggerGroupQuery>.That.Matches(query => query.Name != "group1"), A<CancellationToken>._))
+            .Returns(new PagedResult<TriggerGroup>([], HasMore: false));
 
-        var paused = await HttpScheduler.IsTriggerGroupPaused("group1");
+        bool paused = await HttpScheduler.IsTriggerGroupPaused("group1");
         paused.Should().BeTrue();
 
         paused = await HttpScheduler.IsTriggerGroupPaused("group2");
         paused.Should().BeFalse();
 
-        A.CallTo(() => FakeScheduler.QueryTriggerGroups(new TriggerGroupQuery { Paused = true }, A<CancellationToken>._)).MustHaveHappened(2, Times.Exactly);
+        A.CallTo(() => FakeScheduler.QueryTriggerGroups(new TriggerGroupQuery { Name = "group1", Paused = true, Take = 1 }, A<CancellationToken>._))
+            .MustHaveHappened(1, Times.Exactly);
+        A.CallTo(() => FakeScheduler.QueryTriggerGroups(new TriggerGroupQuery { Name = "group2", Paused = true, Take = 1 }, A<CancellationToken>._))
+            .MustHaveHappened(1, Times.Exactly);
     }
 
     [Test]

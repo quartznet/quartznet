@@ -19,7 +19,7 @@
 
 #endregion
 
-namespace Quartz.Util;
+namespace Quartz;
 
 /// <summary>
 /// Object representing a job or trigger key.
@@ -34,12 +34,8 @@ public class Key<T> : IComparable<Key<T>>
     /// </summary>
     public const string DefaultGroup = "DEFAULT";
 
-    private string name = null!;
-    private string group = null!;
-
-    protected Key()
-    {
-    }
+    private readonly string name;
+    private readonly string group;
 
     /// <summary>
     /// Construct a new key with the given name and <see cref="DefaultGroup"/> as group.
@@ -72,18 +68,7 @@ public class Key<T> : IComparable<Key<T>>
     /// </summary>
     /// <returns> the name
     /// </returns>
-    /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
-    public virtual string Name
-    {
-        get { return name; }
-        set
-        {
-            if (value is null)
-                Throw.ArgumentNullException(nameof(value));
-
-            name = value;
-        }
-    }
+    public string Name => name;
 
     /// <summary> <para>
     /// Get the group portion of the key.
@@ -91,18 +76,7 @@ public class Key<T> : IComparable<Key<T>>
     /// </summary>
     /// <returns> the group
     /// </returns>
-    /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
-    public virtual string Group
-    {
-        get { return group; }
-        set
-        {
-            if (value is null)
-                Throw.ArgumentNullException(nameof(value));
-
-            group = value;
-        }
-    }
+    public string Group => group;
 
     /// <summary> <para>
     /// Return the string representation of the key. The format will be:
@@ -121,8 +95,8 @@ public class Key<T> : IComparable<Key<T>>
     {
         const int Prime = 31;
         int result = 1;
-        result = Prime * result + (@group is null ? 0 : group.GetHashCode());
-        result = Prime * result + (name is null ? 0 : name.GetHashCode());
+        result = Prime * result + group.GetHashCode();
+        result = Prime * result + name.GetHashCode();
         return result;
     }
 

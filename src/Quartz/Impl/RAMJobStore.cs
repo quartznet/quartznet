@@ -25,7 +25,7 @@ using System.Text;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
 using Quartz.Impl.AdoJobStore;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Extensibility;
 
@@ -1086,13 +1086,17 @@ public class RAMJobStore : IJobStore
         try
         {
             GroupMatcher<JobKey>? matcher = query.Group;
+            NameMatcher<JobKey>? nameMatcher = query.Name;
             if (matcher is not null && StringOperator.Equality.Equals(matcher.CompareWithOperator))
             {
                 if (jobsByGroup.TryGetValue(matcher.CompareToValue, out Dictionary<JobKey, JobWrapper>? groupMap))
                 {
                     foreach (JobWrapper jobWrapper in groupMap.Values)
                     {
-                        matches.Add(jobWrapper.JobDetail);
+                        if (nameMatcher is null || nameMatcher.IsMatch(jobWrapper.JobDetail.Key))
+                        {
+                            matches.Add(jobWrapper.JobDetail);
+                        }
                     }
                 }
             }
@@ -1107,7 +1111,10 @@ public class RAMJobStore : IJobStore
 
                     foreach (JobWrapper jobWrapper in entry.Value.Values)
                     {
-                        matches.Add(jobWrapper.JobDetail);
+                        if (nameMatcher is null || nameMatcher.IsMatch(jobWrapper.JobDetail.Key))
+                        {
+                            matches.Add(jobWrapper.JobDetail);
+                        }
                     }
                 }
             }
@@ -1194,6 +1201,11 @@ public class RAMJobStore : IJobStore
     {
         foreach (TriggerWrapper triggerWrapper in groupMap.Values)
         {
+            if (query.Name is not null && !query.Name.IsMatch(triggerWrapper.TriggerKey))
+            {
+                continue;
+            }
+
             if (query.Job is not null && !query.Job.Equals(triggerWrapper.JobKey))
             {
                 continue;
@@ -1230,13 +1242,21 @@ public class RAMJobStore : IJobStore
                 // a group can be paused while holding no jobs, and a listing of paused groups has to report it
                 foreach (string group in pausedJobGroups)
                 {
-                    groups.Add(new JobGroup(group, Paused: true));
+                    if (MatchesName(query.Name, group))
+                    {
+                        groups.Add(new JobGroup(group, Paused: true));
+                    }
                 }
             }
             else
             {
                 foreach (string group in jobsByGroup.Keys)
                 {
+                    if (!MatchesName(query.Name, group))
+                    {
+                        continue;
+                    }
+
                     bool paused = pausedJobGroups.Contains(group);
                     if (query.Paused is null || !paused)
                     {
@@ -1270,13 +1290,21 @@ public class RAMJobStore : IJobStore
                 // a group can be paused while holding no triggers, and a listing of paused groups has to report it
                 foreach (string group in pausedTriggerGroups)
                 {
-                    groups.Add(new TriggerGroup(group, Paused: true));
+                    if (MatchesName(query.Name, group))
+                    {
+                        groups.Add(new TriggerGroup(group, Paused: true));
+                    }
                 }
             }
             else
             {
                 foreach (string group in triggersByGroup.Keys)
                 {
+                    if (!MatchesName(query.Name, group))
+                    {
+                        continue;
+                    }
+
                     bool paused = pausedTriggerGroups.Contains(group);
                     if (query.Paused is null || !paused)
                     {
@@ -1293,6 +1321,14 @@ public class RAMJobStore : IJobStore
         groups.Sort(static (left, right) => StringComparer.Ordinal.Compare(left.Name, right.Name));
 
         return Page(groups, query, static group => group);
+    }
+
+    /// <summary>
+    /// Whether a group name passes a group query's exact-name filter; a null filter passes everything.
+    /// </summary>
+    private static bool MatchesName(string? filter, string group)
+    {
+        return filter is null || string.Equals(filter, group, StringComparison.Ordinal);
     }
 
     /// <inheritdoc />

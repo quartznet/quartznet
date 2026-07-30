@@ -5,45 +5,43 @@ namespace Quartz.Extensibility;
 /// </summary>
 /// <remarks>
 /// Schedulers are indexed by name. Multiple schedulers with the same name but different instance IDs
-/// can coexist (e.g., remote proxies to different cluster nodes). Use <see cref="Lookup(string, string)"/>
-/// to disambiguate by instance ID.
+/// can coexist (e.g., remote proxies to different cluster nodes). Pass an instance ID to
+/// <see cref="Lookup"/> to disambiguate between them.
 /// </remarks>
 /// <author>Marko Lahma (.NET)</author>
 public interface ISchedulerRepository
 {
     /// <summary>
-    /// Binds scheduler to registry using its <see cref="IScheduler.SchedulerInstanceId"/> as the instance key.
-    /// For remote schedulers where <see cref="IScheduler.SchedulerInstanceId"/> may require a network call,
-    /// use <see cref="Bind(IScheduler, string)"/> with an explicit instance ID instead.
+    /// Binds a scheduler to the registry.
     /// </summary>
-    void Bind(IScheduler scheduler);
+    /// <param name="scheduler">The scheduler to bind.</param>
+    /// <param name="instanceId">
+    /// The instance ID to index the scheduler under. When null, <see cref="IScheduler.SchedulerInstanceId"/>
+    /// supplies it; pass it explicitly for a remote scheduler, where reading that property may cost a
+    /// network call.
+    /// </param>
+    void Bind(IScheduler scheduler, string? instanceId = null);
 
     /// <summary>
-    /// Binds scheduler to registry with an explicit instance ID, avoiding remote calls
-    /// to resolve <see cref="IScheduler.SchedulerInstanceId"/>.
+    /// Removes a scheduler from the registry.
     /// </summary>
-    void Bind(IScheduler scheduler, string instanceId);
+    /// <param name="schedulerName">The name of the scheduler to remove.</param>
+    /// <param name="instanceId">
+    /// The instance ID of the scheduler to remove. When null, the first scheduler registered under
+    /// the name is removed.
+    /// </param>
+    /// <returns><see langword="true"/> if a scheduler was found and removed.</returns>
+    bool Remove(string schedulerName, string? instanceId = null);
 
     /// <summary>
-    /// Removes the first scheduler with the given name.
+    /// Looks up a scheduler by name, and by instance ID when one is given.
     /// </summary>
-    void Remove(string schedulerName);
-
-    /// <summary>
-    /// Removes a specific scheduler by name and instance ID.
-    /// </summary>
-    /// <returns><see langword="true"/> if the scheduler was found and removed.</returns>
-    bool Remove(string schedulerName, string instanceId);
-
-    /// <summary>
-    /// Looks up the first scheduler with the given name.
-    /// </summary>
-    IScheduler? Lookup(string schedulerName);
-
-    /// <summary>
-    /// Looks up a scheduler by name and instance ID.
-    /// </summary>
-    IScheduler? Lookup(string schedulerName, string instanceId);
+    /// <param name="schedulerName">The name of the scheduler to look up.</param>
+    /// <param name="instanceId">
+    /// The instance ID to disambiguate by. When null, the first scheduler registered under the name
+    /// is returned.
+    /// </param>
+    IScheduler? Lookup(string schedulerName, string? instanceId = null);
 
     /// <summary>
     /// Returns all schedulers with the given name.

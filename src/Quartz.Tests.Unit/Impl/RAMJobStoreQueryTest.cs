@@ -22,7 +22,7 @@
 using Quartz.Extensibility;
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Util;
@@ -597,6 +597,81 @@ public class RAMJobStoreQueryTest
 
         jobs.Should().BeEmpty();
         triggers.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task QueryJobs_NameMatcherSelectsAcrossGroups()
+    {
+        await StoreJobs("g1", "report-daily", "report-weekly", "other");
+        await StoreJobs("g2", "report-daily");
+
+        PagedResult<JobHeader> result = await store.QueryJobs(new JobQuery { Name = NameMatcher<JobKey>.NameStartsWith("report") });
+
+        result.Items.Select(x => x.Key).Should().Equal(
+            [new JobKey("report-daily", "g1"), new JobKey("report-weekly", "g1"), new JobKey("report-daily", "g2")],
+            "a name filter is independent of the group, and the result stays ordered by group then name");
+    }
+
+    [Test]
+    public async Task QueryJobs_NameAndGroupFiltersCombineWithAnd()
+    {
+        await StoreJobs("g1", "report-daily", "other");
+        await StoreJobs("g2", "report-daily");
+
+        PagedResult<JobHeader> result = await store.QueryJobs(new JobQuery
+        {
+            Group = GroupMatcher<JobKey>.GroupEquals("g1"),
+            Name = NameMatcher<JobKey>.NameEquals("report-daily"),
+            IncludeTotalCount = true
+        });
+
+        result.Items.Select(x => x.Key).Should().Equal([new JobKey("report-daily", "g1")]);
+        result.TotalCount.Should().Be(1, "the total counts the matches of both filters");
+    }
+
+    [Test]
+    public async Task QueryTriggers_NameMatcherSelectsByTriggerName()
+    {
+        IJobDetail job = await AddJob("job", "g");
+        await AddTrigger("nightly-a", "tg", job.Key);
+        await AddTrigger("nightly-b", "tg", job.Key);
+        await AddTrigger("hourly", "tg", job.Key);
+
+        PagedResult<TriggerHeader> result = await store.QueryTriggers(new TriggerQuery { Name = NameMatcher<TriggerKey>.NameStartsWith("nightly") });
+
+        result.Items.Select(x => x.Key.Name).Should().Equal(["nightly-a", "nightly-b"]);
+    }
+
+    [Test]
+    public async Task QueryJobGroups_NameSelectsTheOneGroup()
+    {
+        await StoreJobs("g1", "j1");
+        await StoreJobs("g2", "j1");
+        await store.PauseJobs(GroupMatcher<JobKey>.GroupEquals("g2"));
+
+        PagedResult<JobGroup> named = await store.QueryJobGroups(new JobGroupQuery { Name = "g2" });
+        named.Items.Should().Equal([new JobGroup("g2", true)], "an exact name filter selects one group and no other");
+
+        PagedResult<JobGroup> unpaused = await store.QueryJobGroups(new JobGroupQuery { Name = "g2", Paused = false });
+        unpaused.Items.Should().BeEmpty("the name and paused filters combine, and g2 is paused");
+
+        PagedResult<JobGroup> missing = await store.QueryJobGroups(new JobGroupQuery { Name = "nope", Paused = true });
+        missing.Items.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task QueryTriggerGroups_NameSelectsTheOneGroup()
+    {
+        IJobDetail job = await AddJob("job", "g");
+        await AddTrigger("t1", "tg1", job.Key);
+        await AddTrigger("t1", "tg2", job.Key);
+        await store.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("tg2"));
+
+        PagedResult<TriggerGroup> named = await store.QueryTriggerGroups(new TriggerGroupQuery { Name = "tg2" });
+        named.Items.Should().Equal([new TriggerGroup("tg2", true)]);
+
+        PagedResult<TriggerGroup> paused = await store.QueryTriggerGroups(new TriggerGroupQuery { Name = "tg1", Paused = true });
+        paused.Items.Should().BeEmpty("tg1 is not paused");
     }
 
     private async ValueTask<IJobDetail> AddJob(string name, string group)

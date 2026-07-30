@@ -185,7 +185,7 @@ public interface ITrigger
     /// </remarks>
     /// <returns></returns>
     /// <see cref="TriggerConstants.DefaultPriority" />
-    int Priority { get; set; }
+    int Priority { get; }
 
     /// <summary>
     /// Used by the <see cref="IScheduler" /> to determine whether or not

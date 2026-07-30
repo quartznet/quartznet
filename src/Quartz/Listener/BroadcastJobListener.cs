@@ -21,6 +21,9 @@
 
 using Microsoft.Extensions.Logging;
 
+using Quartz.Diagnostics;
+
+using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace Quartz.Listener;
 
@@ -49,9 +52,8 @@ public sealed class BroadcastJobListener : IJobListener
     /// <remarks>
     /// (Remember to add some delegate listeners!)
     /// </remarks>
-    /// <param name="logger">Logger</param>
     /// <param name="name">the name of this instance</param>
-    public BroadcastJobListener(ILogger<BroadcastJobListener> logger, string name)
+    public BroadcastJobListener(string name)
     {
         if (name is null)
         {
@@ -59,7 +61,7 @@ public sealed class BroadcastJobListener : IJobListener
         }
         Name = name;
         listeners = new List<IJobListener>();
-        this.logger = logger;
+        logger = LogProvider.CreateLogger<BroadcastJobListener>();
     }
 
     /// <summary>
@@ -67,10 +69,9 @@ public sealed class BroadcastJobListener : IJobListener
     /// </summary>
     /// <remarks>
     /// </remarks>
-    /// <param name="logger">logger</param>
     /// <param name="name">the name of this instance</param>
     /// <param name="listeners">the initial List of JobListeners to broadcast to.</param>
-    public BroadcastJobListener(ILogger<BroadcastJobListener> logger, string name, IReadOnlyCollection<IJobListener> listeners) : this(logger, name)
+    public BroadcastJobListener(string name, IReadOnlyCollection<IJobListener> listeners) : this(name)
     {
         this.listeners.AddRange(listeners);
     }
@@ -131,8 +132,11 @@ public sealed class BroadcastJobListener : IJobListener
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Listener {ListenerName} - method {MethodName} raised an exception: {Message}",
-                    listener.Name, methodName, e.Message);
+                if (logger.IsEnabled(LogLevel.Error))
+                {
+                    logger.LogError(e, "Listener {ListenerName} - method {MethodName} raised an exception: {ExceptionMessage}",
+                        listener.Name, methodName, e.Message);
+                }
             }
         }
     }

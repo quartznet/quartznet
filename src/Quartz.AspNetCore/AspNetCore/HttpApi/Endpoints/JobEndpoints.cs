@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Routing;
 using Quartz.AspNetCore.HttpApi.Util;
 using Quartz.HttpApiContract;
 using Quartz.Extensibility;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 
 namespace Quartz.AspNetCore.HttpApi.Endpoints;
 
@@ -83,6 +83,10 @@ internal static class JobEndpoints
         string? groupEndsWith = null,
         string? groupStartsWith = null,
         string? groupEquals = null,
+        string? nameContains = null,
+        string? nameEndsWith = null,
+        string? nameStartsWith = null,
+        string? nameEquals = null,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertPaging(skip, take);
@@ -92,6 +96,7 @@ internal static class JobEndpoints
             JobQuery query = new()
             {
                 Group = matcher,
+                Name = EndpointHelper.GetNameMatcher<JobKey>(nameContains, nameEndsWith, nameStartsWith, nameEquals),
                 Skip = skip,
                 Take = take,
                 IncludeTotalCount = includeTotalCount
@@ -352,6 +357,7 @@ internal static class JobEndpoints
         int take = int.MaxValue,
         bool includeTotalCount = false,
         bool? paused = null,
+        string? name = null,
         CancellationToken cancellationToken = default)
     {
         EndpointHelper.AssertPaging(skip, take);
@@ -359,6 +365,7 @@ internal static class JobEndpoints
         {
             JobGroupQuery query = new()
             {
+                Name = name,
                 Paused = paused,
                 Skip = skip,
                 Take = take,
@@ -380,8 +387,8 @@ internal static class JobEndpoints
     {
         return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
-            PagedResult<JobGroup> page = await scheduler.QueryJobGroups(new JobGroupQuery { Paused = true }, cancellationToken).ConfigureAwait(false);
-            return new GroupPausedResponse(page.Items.Any(x => string.Equals(x.Name, jobGroup, StringComparison.Ordinal)));
+            bool paused = await scheduler.IsJobGroupPaused(jobGroup, cancellationToken).ConfigureAwait(false);
+            return new GroupPausedResponse(paused);
         });
     }
 }

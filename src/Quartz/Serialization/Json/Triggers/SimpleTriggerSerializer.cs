@@ -1,8 +1,10 @@
 using System.Text.Json;
 
+using Quartz.Impl.Triggers;
+
 namespace Quartz.Serialization.Json.Triggers;
 
-public class SimpleTriggerSerializer : TriggerSerializer<ISimpleTrigger>
+public class SimpleTriggerSerializer : TriggerSerializer<SimpleTriggerImpl>
 {
     public override string TriggerTypeForJson => "SimpleTrigger";
 
@@ -16,14 +18,14 @@ public class SimpleTriggerSerializer : TriggerSerializer<ISimpleTrigger>
             .WithRepeatCount(repeatCount);
     }
 
-    protected override void SerializeFields(Utf8JsonWriter writer, ISimpleTrigger trigger, JsonSerializerOptions options)
+    protected override void SerializeFields(Utf8JsonWriter writer, SimpleTriggerImpl trigger, JsonSerializerOptions options)
     {
         writer.WriteNumber(options.GetPropertyName("RepeatCount"), trigger.RepeatCount);
         writer.WriteString(options.GetPropertyName("RepeatIntervalTimeSpan"), trigger.RepeatInterval);
         writer.WriteNumber(options.GetPropertyName("TimesTriggered"), trigger.TimesTriggered);
     }
 
-    protected override void DeserializeFields(ISimpleTrigger trigger, JsonElement jsonElement, JsonSerializerOptions options)
+    protected override void DeserializeFields(SimpleTriggerImpl trigger, JsonElement jsonElement, JsonSerializerOptions options)
     {
         // This property might not exist in the JSON if trigger was serialized with older version
         var timesTriggered = jsonElement.GetPropertyOrNull(options.GetPropertyName("TimesTriggered"))?.GetInt32();

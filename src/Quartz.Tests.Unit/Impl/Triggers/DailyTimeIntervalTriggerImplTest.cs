@@ -101,7 +101,7 @@ public class DailyTimeIntervalTriggerImplTest
         var trigger = new DailyTimeIntervalTriggerImpl
         {
             Key = new TriggerKey("test", "test"),
-            JobKey = JobKey.Create("test"),
+            JobKey = new JobKey("test"),
             RepeatIntervalUnit = IntervalUnit.Hour,
             RepeatInterval = 25
         };

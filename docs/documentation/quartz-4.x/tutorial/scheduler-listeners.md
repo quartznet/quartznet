@@ -21,28 +21,38 @@ __The ISchedulerListener Interface__
 ```csharp
 public interface ISchedulerListener
 {
- ValueTask JobScheduled(Trigger trigger);
+    string Name => GetType().Name;
 
- ValueTask JobUnscheduled(string triggerName, string triggerGroup);
+    ValueTask JobScheduled(ITrigger trigger, CancellationToken cancellationToken = default);
 
- ValueTask TriggerFinalized(Trigger trigger);
+    ValueTask JobUnscheduled(TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
- ValueTask TriggersPaused(string triggerName, string triggerGroup);
+    ValueTask TriggerFinalized(ITrigger trigger, CancellationToken cancellationToken = default);
 
- ValueTask TriggersResumed(string triggerName, string triggerGroup);
+    ValueTask TriggersPaused(string? triggerGroup, CancellationToken cancellationToken = default);
 
- ValueTask JobsPaused(string jobName, string jobGroup);
+    ValueTask TriggersResumed(string? triggerGroup, CancellationToken cancellationToken = default);
 
- ValueTask JobsResumed(string jobName, string jobGroup);
+    ValueTask JobsPaused(string? jobGroup, CancellationToken cancellationToken = default);
 
- ValueTask SchedulerError(string msg, SchedulerException cause);
+    ValueTask JobsResumed(string? jobGroup, CancellationToken cancellationToken = default);
 
- ValueTask SchedulerShutdown();
-} 
+    ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default);
+
+    ValueTask SchedulerShutdown(CancellationToken cancellationToken = default);
+
+    // ...and the rest; derive from SchedulerListenerSupport to implement only what you care about
+}
 ```
+
+A null group in `JobsPaused`, `JobsResumed`, `TriggersPaused` or `TriggersResumed` means every group.
 
 SchedulerListeners are registered with the scheduler's `ListenerManager`.
 SchedulerListeners can be virtually any object that implements the `ISchedulerListener` interface.
+
+A scheduler listener is identified by its `Name`, which defaults to the type's name. Registering a second
+listener under a name that is already taken replaces the first, so override `Name` if you register several
+instances of one type with the same scheduler.
 
 __Adding a SchedulerListener:__
 
@@ -53,5 +63,5 @@ scheduler.ListenerManager.AddSchedulerListener(mySchedListener);
 __Removing a SchedulerListener:__
 
 ```csharp
-scheduler.ListenerManager.RemoveSchedulerListener(mySchedListener);
+scheduler.ListenerManager.RemoveSchedulerListener(mySchedListener.Name);
 ```

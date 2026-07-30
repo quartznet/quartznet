@@ -21,7 +21,7 @@ using System.Text.Json;
 
 using Microsoft.Extensions.Options;
 
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Serialization.Json;
 using Quartz.Extensibility;
 using Quartz.Util;
@@ -410,7 +410,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     {
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         PagedResult<string> names = await scheduler.QueryCalendarNames(new CalendarQuery(), cancellationToken).ConfigureAwait(false);
-        return names.Items;
+        return [.. names.Items];
     }
 
     public async ValueTask<CalendarDetailDto> GetCalendar(string schedulerName, string calendarName, CancellationToken cancellationToken = default)

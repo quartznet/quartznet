@@ -1,7 +1,7 @@
 using System.Text.Json;
 
 using Quartz.HttpApiContract;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Serialization.Json;
 using Quartz.Extensibility;
 
@@ -388,6 +388,7 @@ public class HttpScheduler : IScheduler
         QueryStringBuilder parameters = new();
         parameters.AddPaging(query);
         parameters.AddGroupMatcher(query.Group);
+        parameters.AddNameMatcher(query.Name);
 
         PagedResultDto<JobHeaderDto> result = await httpClient
             .Get<PagedResultDto<JobHeaderDto>>($"{JobEndpointUrl()}{parameters}", jsonSerializerOptions, cancellationToken)
@@ -403,6 +404,7 @@ public class HttpScheduler : IScheduler
         QueryStringBuilder parameters = new();
         parameters.AddPaging(query);
         parameters.AddGroupMatcher(query.Group);
+        parameters.AddNameMatcher(query.Name);
 
         if (query.Job is not null)
         {
@@ -433,6 +435,11 @@ public class HttpScheduler : IScheduler
 
         QueryStringBuilder parameters = new();
         parameters.AddPaging(query);
+        if (query.Name is not null)
+        {
+            parameters.Add("name", query.Name);
+        }
+
         if (query.Paused is not null)
         {
             parameters.Add("paused", query.Paused.Value);
@@ -451,6 +458,11 @@ public class HttpScheduler : IScheduler
 
         QueryStringBuilder parameters = new();
         parameters.AddPaging(query);
+        if (query.Name is not null)
+        {
+            parameters.Add("name", query.Name);
+        }
+
         if (query.Paused is not null)
         {
             parameters.Add("paused", query.Paused.Value);

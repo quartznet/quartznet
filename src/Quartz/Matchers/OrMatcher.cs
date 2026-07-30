@@ -21,22 +21,22 @@
 
 using Quartz.Util;
 
-namespace Quartz.Impl.Matchers;
+namespace Quartz.Matchers;
 
 /// <summary>
-/// Matches using an AND operator on two Matcher operands.
+/// Matches using an OR operator on two Matcher operands.
 /// </summary>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public sealed class AndMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
+public sealed class OrMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
 {
     // ReSharper disable once UnusedMember.Local
-    private AndMatcher()
+    private OrMatcher()
     {
     }
 
-    private AndMatcher(IMatcher<TKey> leftOperand, IMatcher<TKey> rightOperand)
+    private OrMatcher(IMatcher<TKey> leftOperand, IMatcher<TKey> rightOperand)
     {
         if (leftOperand is null || rightOperand is null)
         {
@@ -48,31 +48,32 @@ public sealed class AndMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     }
 
     /// <summary>
-    /// Create an AndMatcher that depends upon the result of both of the given matchers.
+    /// Create an OrMatcher that depends upon the result of at least one of the given matchers.
     /// </summary>
     /// <typeparam name="T"></typeparam>
     /// <param name="leftOperand"></param>
     /// <param name="rightOperand"></param>
     /// <returns></returns>
-    public static AndMatcher<T> And<T>(IMatcher<T> leftOperand, IMatcher<T> rightOperand) where T : Key<T>
+    public static OrMatcher<T> Or<T>(IMatcher<T> leftOperand, IMatcher<T> rightOperand) where T : Key<T>
     {
-        return new AndMatcher<T>(leftOperand, rightOperand);
+        return new OrMatcher<T>(leftOperand, rightOperand);
     }
 
     public bool IsMatch(TKey key)
     {
-        return LeftOperand.IsMatch(key) && RightOperand.IsMatch(key);
+        return LeftOperand.IsMatch(key) || RightOperand.IsMatch(key);
     }
 
     public IMatcher<TKey> LeftOperand { get; private set; } = null!;
+
     public IMatcher<TKey> RightOperand { get; private set; } = null!;
 
     public override int GetHashCode()
     {
-        const int Prime = 31;
+        const int prime = 31;
         int result = 1;
-        result = Prime * result + (LeftOperand is null ? 0 : LeftOperand.GetHashCode());
-        result = Prime * result + (RightOperand is null ? 0 : RightOperand.GetHashCode());
+        result = prime * result + (LeftOperand?.GetHashCode() ?? 0);
+        result = prime * result + (RightOperand?.GetHashCode() ?? 0);
         return result;
     }
 
@@ -90,7 +91,7 @@ public sealed class AndMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
         {
             return false;
         }
-        AndMatcher<TKey> other = (AndMatcher<TKey>) obj;
+        OrMatcher<TKey> other = (OrMatcher<TKey>) obj;
         if (LeftOperand is null)
         {
             if (other.LeftOperand is not null)

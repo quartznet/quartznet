@@ -17,7 +17,7 @@
  */
 #endregion
 
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 
 namespace Quartz;
 
@@ -52,7 +52,7 @@ public static class SchedulerQueryExtensions
         ArgumentNullException.ThrowIfNull(matcher);
 
         PagedResult<JobHeader> result = await scheduler.QueryJobs(new JobQuery { Group = matcher }, cancellationToken).ConfigureAwait(false);
-        return result.Items.ConvertAll(static header => header.Key);
+        return Project(result.Items, static header => header.Key);
     }
 
     /// <summary>
@@ -74,7 +74,7 @@ public static class SchedulerQueryExtensions
         ArgumentNullException.ThrowIfNull(matcher);
 
         PagedResult<TriggerHeader> result = await scheduler.QueryTriggers(new TriggerQuery { Group = matcher }, cancellationToken).ConfigureAwait(false);
-        return result.Items.ConvertAll(static header => header.Key);
+        return Project(result.Items, static header => header.Key);
     }
 
     /// <summary>
@@ -106,7 +106,7 @@ public static class SchedulerQueryExtensions
             return [];
         }
 
-        return await scheduler.GetTriggers(result.Items.ConvertAll(static header => header.Key), cancellationToken).ConfigureAwait(false);
+        return await scheduler.GetTriggers(Project(result.Items, static header => header.Key), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -125,7 +125,7 @@ public static class SchedulerQueryExtensions
         ArgumentNullException.ThrowIfNull(scheduler);
 
         PagedResult<JobGroup> result = await scheduler.QueryJobGroups(new JobGroupQuery(), cancellationToken).ConfigureAwait(false);
-        return result.Items.ConvertAll(static group => group.Name);
+        return Project(result.Items, static group => group.Name);
     }
 
     /// <summary>
@@ -144,7 +144,7 @@ public static class SchedulerQueryExtensions
         ArgumentNullException.ThrowIfNull(scheduler);
 
         PagedResult<TriggerGroup> result = await scheduler.QueryTriggerGroups(new TriggerGroupQuery(), cancellationToken).ConfigureAwait(false);
-        return result.Items.ConvertAll(static group => group.Name);
+        return Project(result.Items, static group => group.Name);
     }
 
     /// <summary>
@@ -164,7 +164,7 @@ public static class SchedulerQueryExtensions
         ArgumentNullException.ThrowIfNull(scheduler);
 
         PagedResult<TriggerGroup> result = await scheduler.QueryTriggerGroups(new TriggerGroupQuery { Paused = true }, cancellationToken).ConfigureAwait(false);
-        return result.Items.ConvertAll(static group => group.Name);
+        return Project(result.Items, static group => group.Name);
     }
 
     /// <summary>
@@ -183,15 +183,15 @@ public static class SchedulerQueryExtensions
         ArgumentNullException.ThrowIfNull(scheduler);
 
         PagedResult<string> result = await scheduler.QueryCalendarNames(new CalendarQuery(), cancellationToken).ConfigureAwait(false);
-        return result.Items;
+        return Project(result.Items, static name => name);
     }
 
     /// <summary>
     /// Returns true if the given job group is paused.
     /// </summary>
     /// <remarks>
-    /// Enumerates every paused job group. For paged access use
-    /// <see cref="IScheduler.QueryJobGroups" /> with <see cref="JobGroupQuery.Paused" /> set.
+    /// Asks for the one named group rather than listing every paused one, so the cost does not
+    /// grow with the number of groups.
     /// </remarks>
     /// <param name="scheduler">The scheduler to query.</param>
     /// <param name="groupName">The group to check.</param>
@@ -204,17 +204,17 @@ public static class SchedulerQueryExtensions
         ArgumentNullException.ThrowIfNull(scheduler);
         ArgumentException.ThrowIfNullOrWhiteSpace(groupName);
 
-        PagedResult<JobGroup> result = await scheduler.QueryJobGroups(new JobGroupQuery { Paused = true }, cancellationToken).ConfigureAwait(false);
-        return result.Items.Exists(group => string.Equals(group.Name, groupName, StringComparison.Ordinal));
+        JobGroupQuery query = new() { Name = groupName, Paused = true, Take = 1 };
+        PagedResult<JobGroup> result = await scheduler.QueryJobGroups(query, cancellationToken).ConfigureAwait(false);
+        return result.Items.Count > 0;
     }
 
     /// <summary>
     /// Returns true if the given trigger group is paused.
     /// </summary>
     /// <remarks>
-    /// Enumerates every paused trigger group. For paged access use
-    /// <see cref="IScheduler.QueryTriggerGroups" /> with
-    /// <see cref="TriggerGroupQuery.Paused" /> set.
+    /// Asks for the one named group rather than listing every paused one, so the cost does not
+    /// grow with the number of groups.
     /// </remarks>
     /// <param name="scheduler">The scheduler to query.</param>
     /// <param name="groupName">The group to check.</param>
@@ -227,7 +227,22 @@ public static class SchedulerQueryExtensions
         ArgumentNullException.ThrowIfNull(scheduler);
         ArgumentException.ThrowIfNullOrWhiteSpace(groupName);
 
-        PagedResult<TriggerGroup> result = await scheduler.QueryTriggerGroups(new TriggerGroupQuery { Paused = true }, cancellationToken).ConfigureAwait(false);
-        return result.Items.Exists(group => string.Equals(group.Name, groupName, StringComparison.Ordinal));
+        TriggerGroupQuery query = new() { Name = groupName, Paused = true, Take = 1 };
+        PagedResult<TriggerGroup> result = await scheduler.QueryTriggerGroups(query, cancellationToken).ConfigureAwait(false);
+        return result.Items.Count > 0;
+    }
+
+    /// <summary>
+    /// Maps one page of results into a list, without assuming what list type the store handed back.
+    /// </summary>
+    private static List<TResult> Project<TItem, TResult>(IReadOnlyList<TItem> items, Func<TItem, TResult> selector)
+    {
+        List<TResult> projected = new(items.Count);
+        for (int i = 0; i < items.Count; i++)
+        {
+            projected.Add(selector(items[i]));
+        }
+
+        return projected;
     }
 }

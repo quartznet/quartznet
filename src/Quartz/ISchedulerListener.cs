@@ -35,6 +35,17 @@ namespace Quartz;
 public interface ISchedulerListener
 {
     /// <summary>
+    /// The name this listener is registered and removed under.
+    /// </summary>
+    /// <remarks>
+    /// Defaults to the implementing type's name, which is the right answer whenever a scheduler
+    /// has at most one listener of a given type. Override it when several instances of one type
+    /// are registered with the same scheduler, because the later registration would otherwise
+    /// replace the earlier one.
+    /// </remarks>
+    string Name => GetType().Name;
+
+    /// <summary>
     /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
     /// is scheduled.
     /// </summary>
@@ -63,10 +74,9 @@ public interface ISchedulerListener
     /// <see cref="ITrigger"/>s has been paused.
     /// </summary>
     /// <remarks>
-    /// If a all groups were paused, then the <see param="triggerName"/> parameter
-    /// will be null.
+    /// A null <paramref name="triggerGroup" /> means every group.
     /// </remarks>
-    /// <param name="triggerGroup">The trigger group.</param>
+    /// <param name="triggerGroup">The trigger group, or null for all groups.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask TriggersPaused(string? triggerGroup, CancellationToken cancellationToken = default);
 
@@ -81,10 +91,9 @@ public interface ISchedulerListener
     /// group of <see cref="ITrigger"/>s has been un-paused.
     /// </summary>
     /// <remarks>
-    /// If all groups were resumed, then the <see param="triggerName"/> parameter
-    /// will be null.
+    /// A null <paramref name="triggerGroup" /> means every group.
     /// </remarks>
-    /// <param name="triggerGroup">The trigger group.</param>
+    /// <param name="triggerGroup">The trigger group, or null for all groups.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask TriggersResumed(string? triggerGroup, CancellationToken cancellationToken = default);
 
@@ -115,14 +124,16 @@ public interface ISchedulerListener
     /// <summary>
     /// Called by the <see cref="IScheduler"/> when a
     /// group of <see cref="IJobDetail"/>s has been  paused.
-    /// <para>
-    /// Pausing every group raises <see cref="JobsPaused" /> once per group rather than a single
-    /// call with no group, so this is always a group name.
-    /// </para>
     /// </summary>
-    /// <param name="jobGroup">The job group.</param>
+    /// <remarks>
+    /// A null <paramref name="jobGroup" /> means every group, matching
+    /// <see cref="TriggersPaused" />. The scheduler's own pause-all path raises this once per
+    /// group rather than once with no group, but a job store or a caller raising the event itself
+    /// may report all groups that way.
+    /// </remarks>
+    /// <param name="jobGroup">The job group, or null for all groups.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    ValueTask JobsPaused(string jobGroup, CancellationToken cancellationToken = default);
+    ValueTask JobsPaused(string? jobGroup, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
@@ -131,12 +142,16 @@ public interface ISchedulerListener
     ValueTask JobResumed(JobKey jobKey, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
-    /// has been  un-paused.
+    /// Called by the <see cref="IScheduler" /> when a group of <see cref="IJobDetail" />s has
+    /// been un-paused.
     /// </summary>
-    /// <param name="jobGroup">The job group.</param>
+    /// <remarks>
+    /// A null <paramref name="jobGroup" /> means every group, matching
+    /// <see cref="TriggersResumed" />.
+    /// </remarks>
+    /// <param name="jobGroup">The job group, or null for all groups.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    ValueTask JobsResumed(string jobGroup, CancellationToken cancellationToken = default);
+    ValueTask JobsResumed(string? jobGroup, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> when a serious error has

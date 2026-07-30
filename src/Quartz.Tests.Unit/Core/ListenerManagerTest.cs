@@ -1,5 +1,5 @@
 using Quartz.Core;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Listener;
 
 namespace Quartz.Tests.Unit.Core;
@@ -119,12 +119,12 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(jobListeners, Is.Not.Null);
-            Assert.That(jobListeners, Has.Length.EqualTo(1));
+            Assert.That(jobListeners, Has.Count.EqualTo(1));
             Assert.That(jobListeners[0], Is.SameAs(tl1b));
         });
 
         var matchers = _manager.GetJobListenerMatchers(tl1b.Name);
-        Assert.That(matchers, Is.Null);
+        Assert.That(matchers, Is.Empty);
     }
 
     [Test]
@@ -139,12 +139,12 @@ public class ListenerManagerTest
         var jobListeners = _manager.GetJobListeners();
         Assert.Multiple(() =>{
             Assert.That(jobListeners, Is.Not.Null);
-            Assert.That(jobListeners, Has.Length.EqualTo(1));
+            Assert.That(jobListeners, Has.Count.EqualTo(1));
             Assert.That(jobListeners[0], Is.SameAs(tl1));
         });
 
         var matchers = _manager.GetJobListenerMatchers(tl1.Name);
-        Assert.That(matchers, Is.Null);
+        Assert.That(matchers, Is.Empty);
     }
 
     [Test]
@@ -162,12 +162,12 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(jobListeners, Is.Not.Null);
-            Assert.That(jobListeners, Has.Length.EqualTo(1));
+            Assert.That(jobListeners, Has.Count.EqualTo(1));
             Assert.That(jobListeners[0], Is.SameAs(tl1b));
         });
 
         var matchers = _manager.GetJobListenerMatchers(tl1b.Name);
-        Assert.That(matchers, Is.Null);
+        Assert.That(matchers, Is.Empty);
     }
 
     [Test]
@@ -182,12 +182,12 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(jobListeners, Is.Not.Null);
-            Assert.That(jobListeners, Has.Length.EqualTo(1));
+            Assert.That(jobListeners, Has.Count.EqualTo(1));
             Assert.That(jobListeners[0], Is.SameAs(tl1));
         });
 
         var matchers = _manager.GetJobListenerMatchers(tl1.Name);
-        Assert.That(matchers, Is.Null);
+        Assert.That(matchers, Is.Empty);
     }
 
     [Test]
@@ -208,7 +208,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(jobListeners, Is.Not.Null);
-            Assert.That(jobListeners, Has.Length.EqualTo(1));
+            Assert.That(jobListeners, Has.Count.EqualTo(1));
             Assert.That(jobListeners[0], Is.SameAs(tl1b));
         });
 
@@ -216,7 +216,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Length.EqualTo(1));
+            Assert.That(matchers, Has.Count.EqualTo(1));
             Assert.That(matchers.SequenceEqual([nameMatcher]), Is.True);
         });
     }
@@ -234,7 +234,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(jobListeners, Is.Not.Null);
-            Assert.That(jobListeners, Has.Length.EqualTo(1));
+            Assert.That(jobListeners, Has.Count.EqualTo(1));
             Assert.That(jobListeners[0], Is.SameAs(tl1));
         });
 
@@ -242,7 +242,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Length.EqualTo(1));
+            Assert.That(matchers, Has.Count.EqualTo(1));
             Assert.That(matchers.SequenceEqual([nameMatcher]), Is.True);
         });
     }
@@ -326,12 +326,12 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(jobListeners, Is.Not.Null);
-            Assert.That(jobListeners, Has.Length.EqualTo(1));
+            Assert.That(jobListeners, Has.Count.EqualTo(1));
             Assert.That(jobListeners[0], Is.SameAs(tl1b));
         });
 
         var matchers = _manager.GetJobListenerMatchers(tl1b.Name);
-        Assert.That(matchers, Is.Null);
+        Assert.That(matchers, Is.Empty);
     }
 
     [Test]
@@ -351,12 +351,12 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(jobListeners, Is.Not.Null);
-            Assert.That(jobListeners, Has.Length.EqualTo(1));
+            Assert.That(jobListeners, Has.Count.EqualTo(1));
             Assert.That(jobListeners[0], Is.SameAs(tl1b));
         });
 
         var matchers = _manager.GetJobListenerMatchers(tl1b.Name);
-        Assert.That(matchers, Is.Null);
+        Assert.That(matchers, Is.Empty);
     }
 
     [Test]
@@ -377,7 +377,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(jobListeners, Is.Not.Null);
-            Assert.That(jobListeners, Has.Length.EqualTo(1));
+            Assert.That(jobListeners, Has.Count.EqualTo(1));
             Assert.That(jobListeners[0], Is.SameAs(tl1b));
         });
 
@@ -385,7 +385,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Length.EqualTo(1));
+            Assert.That(matchers, Has.Count.EqualTo(1));
             Assert.That(matchers.SequenceEqual([nameMatcher]), Is.True);
         });
     }
@@ -450,7 +450,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Length.EqualTo(2));
+            Assert.That(matchers, Has.Count.EqualTo(2));
             Assert.That(matchers.SequenceEqual([groupMatcher, nameMatcher]), Is.True);
         });
     }
@@ -469,21 +469,21 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Length.EqualTo(2));
+            Assert.That(matchers, Has.Count.EqualTo(2));
             Assert.That(matchers.SequenceEqual([nameMatcher, groupMatcher]), Is.True);
         });
     }
 
     [Test]
-    public void GetJobListener_ShouldThrowKeyNotFoundExceptionWhenNoJobListenerExistsWithSpecifiedName()
+    public void GetJobListener_ShouldReturnNullWhenNoJobListenerExistsWithSpecifiedName()
     {
         const string name = "A";
 
-        Assert.Throws<KeyNotFoundException>(() => _manager.GetJobListener(name));
+        _manager.GetJobListener(name).Should().BeNull();
 
         _manager.AddJobListener(new TestJobListener("B"));
 
-        Assert.Throws<KeyNotFoundException>(() => _manager.GetJobListener(name));
+        _manager.GetJobListener(name).Should().BeNull("another listener's presence is not this listener's");
     }
 
     [Test]
@@ -523,30 +523,21 @@ public class ListenerManagerTest
     }
 
     [Test]
-    public void GetJobListeners_ShouldReturnShallowClone()
+    public void GetJobListeners_ShouldReturnSnapshot()
     {
-        var tl1 = new TestJobListener("tl1");
-        var tl2 = new TestJobListener("tl2");
+        TestJobListener tl1 = new("tl1");
+        TestJobListener tl2 = new("tl2");
 
         _manager.AddJobListener(tl1);
 
-        var jobListeners = _manager.GetJobListeners();
-        Assert.Multiple(() =>
-        {
-            Assert.That(jobListeners, Is.Not.Null);
-            Assert.That(jobListeners, Has.Length.EqualTo(1));
-            Assert.That(jobListeners[0], Is.SameAs(tl1));
-        });
+        IReadOnlyList<IJobListener> jobListeners = _manager.GetJobListeners();
+        jobListeners.Should().ContainSingle().Which.Should().BeSameAs(tl1);
 
-        jobListeners[0] = tl2;
+        _manager.AddJobListener(tl2);
 
-        jobListeners = _manager.GetJobListeners();
-        Assert.Multiple(() =>
-        {
-            Assert.That(jobListeners, Is.Not.Null);
-            Assert.That(jobListeners, Has.Length.EqualTo(1));
-            Assert.That(jobListeners[0], Is.SameAs(tl1));
-        });
+        jobListeners.Should().ContainSingle("the returned list is a snapshot, not a live view of the manager")
+            .Which.Should().BeSameAs(tl1);
+        _manager.GetJobListeners().Should().HaveCount(2);
     }
 
     [Test]
@@ -609,11 +600,11 @@ public class ListenerManagerTest
         Assert.That(_manager.RemoveJobListener(tl2.Name), Is.True);
         var jobListeners = _manager.GetJobListeners();
         Assert.That(jobListeners, Is.Not.Null);
-        Assert.That(jobListeners, Has.Length.EqualTo(1));
+        Assert.That(jobListeners, Has.Count.EqualTo(1));
         Assert.That(jobListeners[0], Is.SameAs(tl1));
 
         var matchersTl2 = _manager.GetJobListenerMatchers(tl2.Name);
-        Assert.That(matchersTl2, Is.Null);
+        Assert.That(matchersTl2, Is.Empty);
 
         var matchersTl1 = _manager.GetJobListenerMatchers(tl1.Name);
         Assert.That(matchersTl1, Is.Not.Null);
@@ -637,12 +628,12 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(jobListeners, Is.Not.Null);
-            Assert.That(jobListeners, Has.Length.EqualTo(1));
+            Assert.That(jobListeners, Has.Count.EqualTo(1));
             Assert.That(jobListeners[0], Is.SameAs(tl1));
         });
 
         var matchersTl2 = _manager.GetJobListenerMatchers(tl2.Name);
-        Assert.That(matchersTl2, Is.Null);
+        Assert.That(matchersTl2, Is.Empty);
 
         var matchersTl1 = _manager.GetJobListenerMatchers(tl1.Name);
         Assert.Multiple(() =>
@@ -659,13 +650,13 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(jobListeners, Is.Not.Null);
-            Assert.That(jobListeners, Has.Length.EqualTo(2));
+            Assert.That(jobListeners, Has.Count.EqualTo(2));
             Assert.That(jobListeners[0], Is.SameAs(tl1));
             Assert.That(jobListeners[1], Is.SameAs(tl2));
         });
 
         matchersTl2 = _manager.GetJobListenerMatchers(tl2.Name);
-        Assert.That(matchersTl2, Is.Null);
+        Assert.That(matchersTl2, Is.Empty);
     }
 
     [Test]
@@ -683,7 +674,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(jobListeners, Is.Not.Null);
-            Assert.That(jobListeners, Has.Length.EqualTo(1));
+            Assert.That(jobListeners, Has.Count.EqualTo(1));
             Assert.That(jobListeners[0], Is.SameAs(tl1));
         });
     }
@@ -745,11 +736,11 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Length.EqualTo(1));
+            Assert.That(matchers, Has.Count.EqualTo(1));
             Assert.That(matchers.SequenceEqual([nameMatcher]), Is.True);
 
             Assert.That(_manager.RemoveJobListenerMatcher(tl1.Name, nameMatcher), Is.True);
-            Assert.That(_manager.GetJobListenerMatchers(tl1.Name), Is.Null);
+            Assert.That(_manager.GetJobListenerMatchers(tl1.Name), Is.Empty);
         });
     }
 
@@ -765,7 +756,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(_manager.RemoveJobListenerMatcher(tl1.Name, groupMatcher), Is.False);
-            Assert.That(_manager.GetJobListenerMatchers(tl1.Name), Is.Null);
+            Assert.That(_manager.GetJobListenerMatchers(tl1.Name), Is.Empty);
         });
 
         _manager.AddJobListenerMatcher(tl1.Name, nameMatcher);
@@ -776,7 +767,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Length.EqualTo(1));
+            Assert.That(matchers, Has.Count.EqualTo(1));
             Assert.That(matchers.SequenceEqual([nameMatcher]), Is.True);
         });
     }
@@ -791,7 +782,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(_manager.RemoveJobListenerMatcher(listenerName, groupMatcher), Is.False);
-            Assert.That(_manager.GetJobListenerMatchers(listenerName), Is.Null);
+            Assert.That(_manager.GetJobListenerMatchers(listenerName), Is.Empty);
         });
     }
 
@@ -846,7 +837,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(_manager.SetJobListenerMatchers(tl1.Name, setMatchers), Is.False);
-            Assert.That(_manager.GetJobListenerMatchers(tl1.Name), Is.Null);
+            Assert.That(_manager.GetJobListenerMatchers(tl1.Name), Is.Empty);
         });
     }
 
@@ -861,7 +852,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(_manager.SetJobListenerMatchers(tl1.Name, setMatchers), Is.True);
-            Assert.That(_manager.GetJobListenerMatchers(tl1.Name), Is.Null);
+            Assert.That(_manager.GetJobListenerMatchers(tl1.Name), Is.Empty);
         });
     }
 
@@ -878,7 +869,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(_manager.SetJobListenerMatchers(tl1.Name, setMatchers), Is.True);
-            Assert.That(_manager.GetJobListenerMatchers(tl1.Name), Is.Null);
+            Assert.That(_manager.GetJobListenerMatchers(tl1.Name), Is.Empty);
         });
     }
 
@@ -894,7 +885,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(_manager.SetJobListenerMatchers(tl1.Name, setMatchers), Is.False);
-            Assert.That(_manager.GetJobListenerMatchers(tl1.Name), Is.Null);
+            Assert.That(_manager.GetJobListenerMatchers(tl1.Name), Is.Empty);
         });
     }
 
@@ -914,7 +905,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Length.EqualTo(setMatchers.Length));
+            Assert.That(matchers, Has.Count.EqualTo(setMatchers.Length));
             Assert.That(matchers.SequenceEqual(setMatchers), Is.True);
         });
     }
@@ -936,7 +927,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Length.EqualTo(setMatchers.Length));
+            Assert.That(matchers, Has.Count.EqualTo(setMatchers.Length));
             Assert.That(matchers.SequenceEqual(setMatchers), Is.True);
         });
     }
@@ -1018,11 +1009,11 @@ public class ListenerManagerTest
 
         var jobListeners = _manager.GetTriggerListeners();
         Assert.That(jobListeners, Is.Not.Null);
-        Assert.That(jobListeners, Has.Length.EqualTo(1));
+        Assert.That(jobListeners, Has.Count.EqualTo(1));
         Assert.That(jobListeners[0], Is.SameAs(tl1b));
 
         var matchers = _manager.GetTriggerListenerMatchers(tl1b.Name);
-        Assert.That(matchers, Is.Null);
+        Assert.That(matchers, Is.Empty);
     }
 
     [Test]
@@ -1036,11 +1027,11 @@ public class ListenerManagerTest
 
         var jobListeners = _manager.GetTriggerListeners();
         Assert.That(jobListeners, Is.Not.Null);
-        Assert.That(jobListeners, Has.Length.EqualTo(1));
+        Assert.That(jobListeners, Has.Count.EqualTo(1));
         Assert.That(jobListeners[0], Is.SameAs(tl1));
 
         var matchers = _manager.GetTriggerListenerMatchers(tl1.Name);
-        Assert.That(matchers, Is.Null);
+        Assert.That(matchers, Is.Empty);
     }
 
     [Test]
@@ -1056,11 +1047,11 @@ public class ListenerManagerTest
 
         var jobListeners = _manager.GetTriggerListeners();
         Assert.That(jobListeners, Is.Not.Null);
-        Assert.That(jobListeners, Has.Length.EqualTo(1));
+        Assert.That(jobListeners, Has.Count.EqualTo(1));
         Assert.That(jobListeners[0], Is.SameAs(tl1b));
 
         var matchers = _manager.GetTriggerListenerMatchers(tl1b.Name);
-        Assert.That(matchers, Is.Null);
+        Assert.That(matchers, Is.Empty);
     }
 
     [Test]
@@ -1073,11 +1064,11 @@ public class ListenerManagerTest
 
         var jobListeners = _manager.GetTriggerListeners();
         Assert.That(jobListeners, Is.Not.Null);
-        Assert.That(jobListeners, Has.Length.EqualTo(1));
+        Assert.That(jobListeners, Has.Count.EqualTo(1));
         Assert.That(jobListeners[0], Is.SameAs(tl1));
 
         var matchers = _manager.GetTriggerListenerMatchers(tl1.Name);
-        Assert.That(matchers, Is.Null);
+        Assert.That(matchers, Is.Empty);
     }
 
     [Test]
@@ -1098,7 +1089,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(jobListeners, Is.Not.Null);
-            Assert.That(jobListeners, Has.Length.EqualTo(1));
+            Assert.That(jobListeners, Has.Count.EqualTo(1));
             Assert.That(jobListeners[0], Is.SameAs(tl1b));
         });
 
@@ -1106,7 +1097,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Length.EqualTo(1));
+            Assert.That(matchers, Has.Count.EqualTo(1));
             Assert.That(matchers.SequenceEqual([nameMatcher]), Is.True);
         });
     }
@@ -1124,7 +1115,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(jobListeners, Is.Not.Null);
-            Assert.That(jobListeners, Has.Length.EqualTo(1));
+            Assert.That(jobListeners, Has.Count.EqualTo(1));
             Assert.That(jobListeners[0], Is.SameAs(tl1));
         });
 
@@ -1132,7 +1123,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Length.EqualTo(1));
+            Assert.That(matchers, Has.Count.EqualTo(1));
             Assert.That(matchers.SequenceEqual([nameMatcher]), Is.True);
         });
     }
@@ -1216,12 +1207,12 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(jobListeners, Is.Not.Null);
-            Assert.That(jobListeners, Has.Length.EqualTo(1));
+            Assert.That(jobListeners, Has.Count.EqualTo(1));
             Assert.That(jobListeners[0], Is.SameAs(tl1b));
         });
 
         var matchers = _manager.GetTriggerListenerMatchers(tl1b.Name);
-        Assert.That(matchers, Is.Null);
+        Assert.That(matchers, Is.Empty);
     }
 
     [Test]
@@ -1241,12 +1232,12 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(jobListeners, Is.Not.Null);
-            Assert.That(jobListeners, Has.Length.EqualTo(1));
+            Assert.That(jobListeners, Has.Count.EqualTo(1));
             Assert.That(jobListeners[0], Is.SameAs(tl1b));
         });
 
         var matchers = _manager.GetTriggerListenerMatchers(tl1b.Name);
-        Assert.That(matchers, Is.Null);
+        Assert.That(matchers, Is.Empty);
     }
 
     [Test]
@@ -1267,7 +1258,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(jobListeners, Is.Not.Null);
-            Assert.That(jobListeners, Has.Length.EqualTo(1));
+            Assert.That(jobListeners, Has.Count.EqualTo(1));
             Assert.That(jobListeners[0], Is.SameAs(tl1b));
         });
 
@@ -1275,7 +1266,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Length.EqualTo(1));
+            Assert.That(matchers, Has.Count.EqualTo(1));
             Assert.That(matchers.SequenceEqual([nameMatcher]), Is.True);
         });
     }
@@ -1340,7 +1331,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Length.EqualTo(2));
+            Assert.That(matchers, Has.Count.EqualTo(2));
             Assert.That(matchers.SequenceEqual([groupMatcher, nameMatcher]), Is.True);
         });
     }
@@ -1359,21 +1350,21 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Length.EqualTo(2));
+            Assert.That(matchers, Has.Count.EqualTo(2));
             Assert.That(matchers.SequenceEqual([nameMatcher, groupMatcher]), Is.True);
         });
     }
 
     [Test]
-    public void GetTriggerListener_ShouldThrowKeyNotFoundExceptionWhenNoTriggerListenerExistsWithSpecifiedName()
+    public void GetTriggerListener_ShouldReturnNullWhenNoTriggerListenerExistsWithSpecifiedName()
     {
         const string name = "A";
 
-        Assert.Throws<KeyNotFoundException>(() => _manager.GetTriggerListener(name));
+        _manager.GetTriggerListener(name).Should().BeNull();
 
         _manager.AddTriggerListener(new TestTriggerListener("B"));
 
-        Assert.Throws<KeyNotFoundException>(() => _manager.GetTriggerListener(name));
+        _manager.GetTriggerListener(name).Should().BeNull("another listener's presence is not this listener's");
     }
 
     [Test]
@@ -1413,30 +1404,21 @@ public class ListenerManagerTest
     }
 
     [Test]
-    public void GetTriggerListeners_ShouldReturnShallowClone()
+    public void GetTriggerListeners_ShouldReturnSnapshot()
     {
-        var tl1 = new TestTriggerListener("tl1");
-        var tl2 = new TestTriggerListener("tl2");
+        TestTriggerListener tl1 = new("tl1");
+        TestTriggerListener tl2 = new("tl2");
 
         _manager.AddTriggerListener(tl1);
 
-        var jobListeners = _manager.GetTriggerListeners();
-        Assert.Multiple(() =>
-        {
-            Assert.That(jobListeners, Is.Not.Null);
-            Assert.That(jobListeners, Has.Length.EqualTo(1));
-            Assert.That(jobListeners[0], Is.SameAs(tl1));
-        });
+        IReadOnlyList<ITriggerListener> triggerListeners = _manager.GetTriggerListeners();
+        triggerListeners.Should().ContainSingle().Which.Should().BeSameAs(tl1);
 
-        jobListeners[0] = tl2;
+        _manager.AddTriggerListener(tl2);
 
-        jobListeners = _manager.GetTriggerListeners();
-        Assert.Multiple(() =>
-        {
-            Assert.That(jobListeners, Is.Not.Null);
-            Assert.That(jobListeners, Has.Length.EqualTo(1));
-            Assert.That(jobListeners[0], Is.SameAs(tl1));
-        });
+        triggerListeners.Should().ContainSingle("the returned list is a snapshot, not a live view of the manager")
+            .Which.Should().BeSameAs(tl1);
+        _manager.GetTriggerListeners().Should().HaveCount(2);
     }
 
     [Test]
@@ -1501,12 +1483,12 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(jobListeners, Is.Not.Null);
-            Assert.That(jobListeners, Has.Length.EqualTo(1));
+            Assert.That(jobListeners, Has.Count.EqualTo(1));
             Assert.That(jobListeners[0], Is.SameAs(tl1));
         });
 
         var matchersTl2 = _manager.GetTriggerListenerMatchers(tl2.Name);
-        Assert.That(matchersTl2, Is.Null);
+        Assert.That(matchersTl2, Is.Empty);
 
         var matchersTl1 = _manager.GetTriggerListenerMatchers(tl1.Name);
         Assert.Multiple(() =>
@@ -1533,12 +1515,12 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(jobListeners, Is.Not.Null);
-            Assert.That(jobListeners, Has.Length.EqualTo(1));
+            Assert.That(jobListeners, Has.Count.EqualTo(1));
             Assert.That(jobListeners[0], Is.SameAs(tl1));
         });
 
         var matchersTl2 = _manager.GetTriggerListenerMatchers(tl2.Name);
-        Assert.That(matchersTl2, Is.Null);
+        Assert.That(matchersTl2, Is.Empty);
 
         var matchersTl1 = _manager.GetTriggerListenerMatchers(tl1.Name);
         Assert.Multiple(() =>
@@ -1555,13 +1537,13 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(jobListeners, Is.Not.Null);
-            Assert.That(jobListeners, Has.Length.EqualTo(2));
+            Assert.That(jobListeners, Has.Count.EqualTo(2));
             Assert.That(jobListeners[0], Is.SameAs(tl1));
             Assert.That(jobListeners[1], Is.SameAs(tl2));
         });
 
         matchersTl2 = _manager.GetTriggerListenerMatchers(tl2.Name);
-        Assert.That(matchersTl2, Is.Null);
+        Assert.That(matchersTl2, Is.Empty);
     }
 
     [Test]
@@ -1579,7 +1561,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(jobListeners, Is.Not.Null);
-            Assert.That(jobListeners, Has.Length.EqualTo(1));
+            Assert.That(jobListeners, Has.Count.EqualTo(1));
             Assert.That(jobListeners[0], Is.SameAs(tl1));
         });
     }
@@ -1641,11 +1623,11 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Length.EqualTo(1));
+            Assert.That(matchers, Has.Count.EqualTo(1));
             Assert.That(matchers.SequenceEqual([nameMatcher]), Is.True);
 
             Assert.That(_manager.RemoveTriggerListenerMatcher(tl1.Name, nameMatcher), Is.True);
-            Assert.That(_manager.GetTriggerListenerMatchers(tl1.Name), Is.Null);
+            Assert.That(_manager.GetTriggerListenerMatchers(tl1.Name), Is.Empty);
         });
     }
 
@@ -1661,7 +1643,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(_manager.RemoveTriggerListenerMatcher(tl1.Name, groupMatcher), Is.False);
-            Assert.That(_manager.GetTriggerListenerMatchers(tl1.Name), Is.Null);
+            Assert.That(_manager.GetTriggerListenerMatchers(tl1.Name), Is.Empty);
         });
 
         _manager.AddTriggerListenerMatcher(tl1.Name, nameMatcher);
@@ -1672,7 +1654,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Length.EqualTo(1));
+            Assert.That(matchers, Has.Count.EqualTo(1));
             Assert.That(matchers.SequenceEqual([nameMatcher]), Is.True);
         });
     }
@@ -1687,7 +1669,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(_manager.RemoveTriggerListenerMatcher(listenerName, groupMatcher), Is.False);
-            Assert.That(_manager.GetTriggerListenerMatchers(listenerName), Is.Null);
+            Assert.That(_manager.GetTriggerListenerMatchers(listenerName), Is.Empty);
         });
     }
 
@@ -1742,7 +1724,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(_manager.SetTriggerListenerMatchers(tl1.Name, setMatchers), Is.False);
-            Assert.That(_manager.GetTriggerListenerMatchers(tl1.Name), Is.Null);
+            Assert.That(_manager.GetTriggerListenerMatchers(tl1.Name), Is.Empty);
         });
     }
 
@@ -1757,7 +1739,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(_manager.SetTriggerListenerMatchers(tl1.Name, setMatchers), Is.True);
-            Assert.That(_manager.GetTriggerListenerMatchers(tl1.Name), Is.Null);
+            Assert.That(_manager.GetTriggerListenerMatchers(tl1.Name), Is.Empty);
         });
     }
 
@@ -1774,7 +1756,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(_manager.SetTriggerListenerMatchers(tl1.Name, setMatchers), Is.True);
-            Assert.That(_manager.GetTriggerListenerMatchers(tl1.Name), Is.Null);
+            Assert.That(_manager.GetTriggerListenerMatchers(tl1.Name), Is.Empty);
         });
     }
 
@@ -1790,7 +1772,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(_manager.SetTriggerListenerMatchers(tl1.Name, setMatchers), Is.False);
-            Assert.That(_manager.GetTriggerListenerMatchers(tl1.Name), Is.Null);
+            Assert.That(_manager.GetTriggerListenerMatchers(tl1.Name), Is.Empty);
         });
     }
 
@@ -1810,7 +1792,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Length.EqualTo(setMatchers.Length));
+            Assert.That(matchers, Has.Count.EqualTo(setMatchers.Length));
             Assert.That(matchers.SequenceEqual(setMatchers), Is.True);
         });
     }
@@ -1832,7 +1814,7 @@ public class ListenerManagerTest
         Assert.Multiple(() =>
         {
             Assert.That(matchers, Is.Not.Null);
-            Assert.That(matchers, Has.Length.EqualTo(setMatchers.Length));
+            Assert.That(matchers, Has.Count.EqualTo(setMatchers.Length));
             Assert.That(matchers.SequenceEqual(setMatchers), Is.True);
         });
     }
@@ -1849,7 +1831,7 @@ public class ListenerManagerTest
         _manager.AddSchedulerListener(tl2);
         _manager.GetSchedulerListeners().Should().HaveCount(2, "Unexpected size of listener list");
 
-        _manager.RemoveSchedulerListener(tl1);
+        _manager.RemoveSchedulerListener(tl1.Name);
         _manager.GetSchedulerListeners().Should().ContainSingle("Unexpected size of listener list");
     }
 

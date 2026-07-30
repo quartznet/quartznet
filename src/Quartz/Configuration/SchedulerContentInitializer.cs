@@ -3,7 +3,7 @@ using System.Collections.Specialized;
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Impl;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 
 namespace Quartz.Configuration;
 

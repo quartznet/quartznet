@@ -21,49 +21,39 @@
 
 using Quartz.Util;
 
-namespace Quartz.Impl.Matchers;
+namespace Quartz.Matchers;
 
 /// <summary>
-/// Matches on the complete key being equal (both name and group).
+/// An abstract base class for some types of matchers.
 /// </summary>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public sealed class KeyMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
+public abstract class StringMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
 {
-    // ReSharper disable once UnusedMember.Local
-    private KeyMatcher()
+    protected StringMatcher(string compareTo, StringOperator compareWith)
     {
-    }
-
-    private KeyMatcher(TKey compareTo)
-    {
+        if (compareTo is null)
+        {
+            Throw.ArgumentNullException(nameof(compareTo), "CompareTo value cannot be null!");
+        }
         CompareToValue = compareTo;
+        CompareWithOperator = compareWith;
     }
 
-    /// <summary>
-    /// Create a KeyMatcher that matches Keys that equal the given key.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="compareTo"></param>
-    /// <returns></returns>
-    public static KeyMatcher<T> KeyEquals<T>(T compareTo) where T : Key<T>
-    {
-        return new KeyMatcher<T>(compareTo);
-    }
+    protected abstract string GetValue(TKey key);
 
     public bool IsMatch(TKey key)
     {
-        return CompareToValue.Equals(key);
+        return CompareWithOperator.Evaluate(GetValue(key), CompareToValue);
     }
-
-    public TKey CompareToValue { get; private set; } = null!;
 
     public override int GetHashCode()
     {
         const int Prime = 31;
         int result = 1;
-        result = Prime * result + (CompareToValue is null ? 0 : CompareToValue.GetHashCode());
+        result = Prime * result + (CompareToValue?.GetHashCode() ?? 0);
+        result = Prime * result + CompareWithOperator.GetHashCode();
         return result;
     }
 
@@ -81,7 +71,7 @@ public sealed class KeyMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
         {
             return false;
         }
-        KeyMatcher<TKey> other = (KeyMatcher<TKey>) obj;
+        StringMatcher<TKey> other = (StringMatcher<TKey>) obj;
         if (CompareToValue is null)
         {
             if (other.CompareToValue is not null)
@@ -89,10 +79,22 @@ public sealed class KeyMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
                 return false;
             }
         }
-        else if (!CompareToValue.Equals(other.CompareToValue))
+        else if (CompareToValue != other.CompareToValue)
+        {
+            return false;
+        }
+        if (!CompareWithOperator.Equals(other.CompareWithOperator))
         {
             return false;
         }
         return true;
+    }
+
+    public string CompareToValue { get; }
+    public StringOperator CompareWithOperator { get; }
+
+    public override string ToString()
+    {
+        return $"{CompareWithOperator}({CompareToValue})";
     }
 }

@@ -17,7 +17,7 @@
  */
 #endregion
 
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 
 namespace Quartz;
 
@@ -30,6 +30,11 @@ public sealed record TriggerQuery : PagedQuery
     /// Limits the result to triggers whose group matches. Null matches every group.
     /// </summary>
     public GroupMatcher<TriggerKey>? Group { get; init; }
+
+    /// <summary>
+    /// Limits the result to triggers whose name matches. Null matches every name.
+    /// </summary>
+    public NameMatcher<TriggerKey>? Name { get; init; }
 
     /// <summary>
     /// Limits the result to the triggers of one job.

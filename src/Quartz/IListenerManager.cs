@@ -19,7 +19,7 @@
 
 #endregion
 
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 
 namespace Quartz;
 
@@ -34,6 +34,9 @@ namespace Quartz;
 /// <see cref="IListenerManager" /> interface.
 /// </summary>
 /// <remarks>
+/// All three kinds of listener are managed the same way: a listener is identified by its name,
+/// registering one under a name that is already taken replaces it, and it is removed by that
+/// same name.
 /// </remarks>
 /// <author>jhouse</author>
 /// <since>2.0 - previously listeners were managed directly on the Scheduler interface.</since>
@@ -55,19 +58,7 @@ public interface IListenerManager
     /// </remarks>
     /// <seealso cref="IMatcher{T}" />
     /// <seealso cref="EverythingMatcher{T}" />
-    void AddJobListener(IJobListener jobListener, params IMatcher<JobKey>[] matchers);
-
-    /// <summary>
-    /// Add the given <see cref="IJobListener" /> to the <see cref="IScheduler" />,
-    /// and register it to receive events for Jobs that are matched by ANY of the
-    /// given Matchers.
-    /// </summary>
-    /// <remarks>
-    /// If no matchers are provided, the <see cref="EverythingMatcher{TKey}" /> will be used.
-    /// </remarks>
-    /// <seealso cref="IMatcher{T}" />
-    /// <seealso cref="EverythingMatcher{T}" />
-    void AddJobListener(IJobListener jobListener, IReadOnlyCollection<IMatcher<JobKey>> matchers);
+    void AddJobListener(IJobListener jobListener, params IReadOnlyCollection<IMatcher<JobKey>> matchers);
 
     /// <summary>
     /// Add the given Matcher to the set of matchers for which the listener
@@ -120,8 +111,9 @@ public interface IListenerManager
     /// </summary>
     /// <param name="listenerName">The name of the listener to add the matcher to</param>
     /// <returns>
-    /// The matchers registered for selecting events for the identified listener, or <see langword="null"/> if
-    /// no matcher where registered for the <see cref="IJobListener"/>.
+    /// The matchers registered for selecting events for the identified listener. Empty when the
+    /// listener has no matchers, and when no such listener is registered — "matches everything" and
+    /// "there is nothing to match" are both the absence of a restriction, so neither is a null.
     /// </returns>
     /// <exception cref="ArgumentNullException"><paramref name="listenerName"/> is <see langword="null"/>.</exception>
     /// <remarks>
@@ -129,14 +121,14 @@ public interface IListenerManager
     /// listener or the event matches ANY of the matchers that were registered for that
     /// <see cref="IJobListener"/>.
     /// </remarks>
-    IMatcher<JobKey>[]? GetJobListenerMatchers(string listenerName);
+    IReadOnlyList<IMatcher<JobKey>> GetJobListenerMatchers(string listenerName);
 
     /// <summary>
     /// Remove the identified <see cref="IJobListener" /> from the <see cref="IScheduler" />.
     /// </summary>
     /// <returns>
     /// <see langword="true"/> if the identified listener was found in the list, and removed;
-    /// otherwise, <see langword="true"/>.
+    /// otherwise, <see langword="false"/>.
     /// </returns>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
     bool RemoveJobListener(string name);
@@ -147,18 +139,18 @@ public interface IListenerManager
     /// <returns>
     /// A shallow copy of all <see cref="IJobListener" /> instances that are registered.
     /// </returns>
-    IJobListener[] GetJobListeners();
+    IReadOnlyList<IJobListener> GetJobListeners();
 
     /// <summary>
     /// Get the <see cref="IJobListener" /> that has the given name.
     /// </summary>
     /// <param name="name">The name of the <see cref="IJobListener" /> to retrieve.</param>
     /// <returns>
-    /// The <see cref="IJobListener" /> with the specified name.
+    /// The <see cref="IJobListener" /> registered under the name, or <see langword="null"/> when
+    /// there is none.
     /// </returns>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
-    /// <exception cref="KeyNotFoundException">No <see cref="IJobListener"/> was found with the specified name.</exception>
-    IJobListener GetJobListener(string name);
+    IJobListener? GetJobListener(string name);
 
     /// <summary>
     /// Add the given <see cref="ITriggerListener" /> to the <see cref="IScheduler" />,
@@ -166,23 +158,17 @@ public interface IListenerManager
     /// given Matchers.
     /// </summary>
     /// <remarks>
-    /// If no matcher is provided, the <see cref="EverythingMatcher{TKey}" /> will be used.
+    /// <para>
+    /// If no matchers are provided, the <see cref="ITriggerListener" /> will receive all events.
+    /// </para>
+    /// <para>
+    /// If a <see cref="ITriggerListener" /> with the same name is already registered, that listener
+    /// and the associated matchers will be replaced.
+    /// </para>
     /// </remarks>
     /// <seealso cref="IMatcher{T}" />
     /// <seealso cref="EverythingMatcher{T}" />
-    void AddTriggerListener(ITriggerListener triggerListener, params IMatcher<TriggerKey>[] matchers);
-
-    /// <summary>
-    /// Add the given <see cref="ITriggerListener" /> to the <see cref="IScheduler" />,
-    /// and register it to receive events for Triggers that are matched by ANY of the
-    /// given Matchers.
-    /// </summary>
-    /// <remarks>
-    /// If no matcher is provided, the <see cref="EverythingMatcher{TKey}" /> will be used.
-    /// </remarks>
-    /// <seealso cref="IMatcher{T}" />
-    /// <seealso cref="EverythingMatcher{T}" />
-    void AddTriggerListener(ITriggerListener triggerListener, IReadOnlyCollection<IMatcher<TriggerKey>> matchers);
+    void AddTriggerListener(ITriggerListener triggerListener, params IReadOnlyCollection<IMatcher<TriggerKey>> matchers);
 
     /// <summary>
     /// Add the given Matcher to the set of matchers for which the listener
@@ -225,8 +211,11 @@ public interface IListenerManager
     /// <remarks>
     /// </remarks>
     /// <param name="listenerName">the name of the listener to add the matcher to</param>
-    /// <returns>the matchers registered for selecting events for the identified listener</returns>
-    IMatcher<TriggerKey>[]? GetTriggerListenerMatchers(string listenerName);
+    /// <returns>
+    /// The matchers registered for selecting events for the identified listener. Empty when the
+    /// listener has no matchers, and when no such listener is registered.
+    /// </returns>
+    IReadOnlyList<IMatcher<TriggerKey>> GetTriggerListenerMatchers(string listenerName);
 
     /// <summary>
     /// Removes the identified <see cref="ITriggerListener" /> from the <see cref="IScheduler" />.
@@ -242,25 +231,32 @@ public interface IListenerManager
     /// <returns>
     /// A shallow copy of all <see cref="ITriggerListener" /> instances that are registered.
     /// </returns>
-    ITriggerListener[] GetTriggerListeners();
+    IReadOnlyList<ITriggerListener> GetTriggerListeners();
 
     /// <summary>
-    /// Get the <see cref="ITriggerListener" /> that has the given name.
+    /// Get the <see cref="ITriggerListener" /> registered under the given name, or
+    /// <see langword="null"/> when there is none.
     /// </summary>
-    ITriggerListener GetTriggerListener(string name);
+    ITriggerListener? GetTriggerListener(string name);
 
     /// <summary>
     /// Register the given <see cref="ISchedulerListener" /> with the
-    ///<see cref="IScheduler" />.
+    /// <see cref="IScheduler" />.
     /// </summary>
+    /// <remarks>
+    /// If a <see cref="ISchedulerListener" /> with the same <see cref="ISchedulerListener.Name" />
+    /// is already registered, that listener will be replaced.
+    /// </remarks>
     void AddSchedulerListener(ISchedulerListener schedulerListener);
 
     /// <summary>
-    /// Remove the given <see cref="ISchedulerListener" /> from the
-    ///<see cref="IScheduler" />.
+    /// Remove the identified <see cref="ISchedulerListener" /> from the
+    /// <see cref="IScheduler" />.
     /// </summary>
+    /// <param name="name">The <see cref="ISchedulerListener.Name" /> of the listener to remove.</param>
     /// <returns>true if the identified listener was found in the list, and removed.</returns>
-    bool RemoveSchedulerListener(ISchedulerListener schedulerListener);
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
+    bool RemoveSchedulerListener(string name);
 
     /// <summary>
     /// Gets all of the <see cref="ISchedulerListener" /> instances in the <see cref="IScheduler" />.
@@ -268,6 +264,12 @@ public interface IListenerManager
     /// <returns>
     /// A shallow copy of all <see cref="ISchedulerListener" /> instances that are registered.
     /// </returns>
-    ISchedulerListener[] GetSchedulerListeners();
+    IReadOnlyList<ISchedulerListener> GetSchedulerListeners();
 
+    /// <summary>
+    /// Get the <see cref="ISchedulerListener" /> registered under the given name, or
+    /// <see langword="null"/> when there is none.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
+    ISchedulerListener? GetSchedulerListener(string name);
 }

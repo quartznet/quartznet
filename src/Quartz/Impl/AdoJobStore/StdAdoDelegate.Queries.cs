@@ -23,7 +23,7 @@ using System.Data.Common;
 using System.Globalization;
 using System.Text;
 
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore;
@@ -168,11 +168,11 @@ public partial class StdAdoDelegate
     }
 
     /// <summary>
-    /// Translates a group matcher into a predicate and the value to bind for it: equality matchers
-    /// compare with '=', everything else with LIKE over the pattern the matcher translates to.
+    /// Translates a group or name matcher into a predicate and the value to bind for it: equality
+    /// matchers compare with '=', everything else with LIKE over the pattern the matcher translates to.
     /// </summary>
-    private (string Predicate, string? Parameter) BuildGroupPredicate<T>(
-        GroupMatcher<T>? matcher,
+    private (string Predicate, string? Parameter) BuildMatcherPredicate<T>(
+        StringMatcher<T>? matcher,
         string equalsPredicate,
         string likePredicate) where T : Key<T>
     {
@@ -192,7 +192,9 @@ public partial class StdAdoDelegate
         JobQuery query,
         CancellationToken cancellationToken = default)
     {
-        (string predicate, string? groupParameter) = BuildGroupPredicate(query.Group, StdAdoConstants.SqlJobGroupEqualsPredicate, StdAdoConstants.SqlJobGroupLikePredicate);
+        (string groupPredicate, string? groupParameter) = BuildMatcherPredicate(query.Group, StdAdoConstants.SqlJobGroupEqualsPredicate, StdAdoConstants.SqlJobGroupLikePredicate);
+        (string namePredicate, string? nameParameter) = BuildMatcherPredicate(query.Name, StdAdoConstants.SqlJobNameEqualsPredicate, StdAdoConstants.SqlJobNameLikePredicate);
+        string predicate = groupPredicate + namePredicate;
 
         List<JobHeader> items;
         bool hasMore;
@@ -200,11 +202,7 @@ public partial class StdAdoDelegate
         using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(StdAdoConstants.SqlSelectJobHeaders + predicate + StdAdoConstants.SqlOrderByJobGroupAndName, query))))
         {
             AddCommandParameter(cmd, "schedulerName", schedulerName);
-            if (groupParameter is not null)
-            {
-                AddCommandParameter(cmd, "jobGroup", groupParameter);
-            }
-
+            BindJobHeaderFilters(cmd, groupParameter, nameParameter);
             BindPaging(cmd, query);
 
             (items, hasMore) = await ReadPage(cmd, query, ReadJobHeader, cancellationToken).ConfigureAwait(false);
@@ -215,15 +213,29 @@ public partial class StdAdoDelegate
         {
             using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlCountJobHeaders + predicate));
             AddCommandParameter(cmd, "schedulerName", schedulerName);
-            if (groupParameter is not null)
-            {
-                AddCommandParameter(cmd, "jobGroup", groupParameter);
-            }
+            BindJobHeaderFilters(cmd, groupParameter, nameParameter);
 
             totalCount = await SelectCount(cmd, cancellationToken).ConfigureAwait(false);
         }
 
         return new PagedResult<JobHeader>(items, hasMore, totalCount);
+    }
+
+    /// <summary>
+    /// Binds whichever of the job listing's optional filters are in play, in the order the statement
+    /// names them: providers that adapt named parameters positionally depend on that order.
+    /// </summary>
+    private void BindJobHeaderFilters(DbCommand cmd, string? groupParameter, string? nameParameter)
+    {
+        if (groupParameter is not null)
+        {
+            AddCommandParameter(cmd, "jobGroup", groupParameter);
+        }
+
+        if (nameParameter is not null)
+        {
+            AddCommandParameter(cmd, "jobName", nameParameter);
+        }
     }
 
     private JobHeader ReadJobHeader(DbDataReader rs)
@@ -247,11 +259,18 @@ public partial class StdAdoDelegate
         StringBuilder predicateBuilder = new();
         List<KeyValuePair<string, object?>> parameters = [];
 
-        (string groupPredicate, string? groupParameter) = BuildGroupPredicate(query.Group, StdAdoConstants.SqlTriggerGroupEqualsPredicate, StdAdoConstants.SqlTriggerGroupLikePredicate);
+        (string groupPredicate, string? groupParameter) = BuildMatcherPredicate(query.Group, StdAdoConstants.SqlTriggerGroupEqualsPredicate, StdAdoConstants.SqlTriggerGroupLikePredicate);
         predicateBuilder.Append(groupPredicate);
         if (groupParameter is not null)
         {
             parameters.Add(new KeyValuePair<string, object?>("triggerGroup", groupParameter));
+        }
+
+        (string namePredicate, string? nameParameter) = BuildMatcherPredicate(query.Name, StdAdoConstants.SqlTriggerNameEqualsPredicate, StdAdoConstants.SqlTriggerNameLikePredicate);
+        predicateBuilder.Append(namePredicate);
+        if (nameParameter is not null)
+        {
+            parameters.Add(new KeyValuePair<string, object?>("triggerName", nameParameter));
         }
 
         if (query.Job is not null)
@@ -367,12 +386,15 @@ public partial class StdAdoDelegate
             return new PagedResult<JobGroup>([], false, query.IncludeTotalCount ? 0 : null);
         }
 
+        string predicate = query.Name is null ? "" : StdAdoConstants.SqlJobGroupNamePredicate;
+
         List<JobGroup> items;
         bool hasMore;
 
-        using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(StdAdoConstants.SqlSelectJobGroupsOrdered, query))))
+        using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(StdAdoConstants.SqlSelectJobGroups + predicate + StdAdoConstants.SqlOrderByJobGroup, query))))
         {
             AddCommandParameter(cmd, "schedulerName", schedulerName);
+            BindGroupName(cmd, query.Name);
             BindPaging(cmd, query);
 
             (items, hasMore) = await ReadPage(cmd, query, static rs => new JobGroup(rs.GetString(0), Paused: false), cancellationToken).ConfigureAwait(false);
@@ -381,8 +403,9 @@ public partial class StdAdoDelegate
         int? totalCount = null;
         if (query.IncludeTotalCount)
         {
-            using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlCountJobGroups));
+            using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlCountJobGroups + predicate));
             AddCommandParameter(cmd, "schedulerName", schedulerName);
+            BindGroupName(cmd, query.Name);
             totalCount = await SelectCount(cmd, cancellationToken).ConfigureAwait(false);
         }
 
@@ -397,22 +420,30 @@ public partial class StdAdoDelegate
     {
         string sql;
         string countSql;
+        string orderBy;
+        string predicate;
         if (query.Paused == true)
         {
             // Read from PAUSED_TRIGGER_GRPS rather than TRIGGERS, so a group that is paused but has no
             // triggers is still reported — same set the paused trigger group listing has always had.
-            sql = StdAdoConstants.SqlSelectPausedTriggerGroupsOrdered;
+            sql = StdAdoConstants.SqlSelectPausedTriggerGroups;
             countSql = StdAdoConstants.SqlCountPausedTriggerGroups;
+            orderBy = StdAdoConstants.SqlOrderByTriggerGroup;
+            predicate = query.Name is null ? "" : StdAdoConstants.SqlTriggerGroupNamePredicate;
         }
         else if (query.Paused == false)
         {
-            sql = StdAdoConstants.SqlSelectUnpausedTriggerGroupsOrdered;
+            sql = StdAdoConstants.SqlSelectUnpausedTriggerGroups;
             countSql = StdAdoConstants.SqlCountUnpausedTriggerGroups;
+            orderBy = StdAdoConstants.SqlOrderByAliasedTriggerGroup;
+            predicate = query.Name is null ? "" : StdAdoConstants.SqlAliasedTriggerGroupNamePredicate;
         }
         else
         {
             sql = StdAdoConstants.SqlSelectTriggerGroupsWithPausedFlag;
             countSql = StdAdoConstants.SqlCountTriggerGroups;
+            orderBy = StdAdoConstants.SqlOrderByAliasedTriggerGroup;
+            predicate = query.Name is null ? "" : StdAdoConstants.SqlAliasedTriggerGroupNamePredicate;
         }
 
         bool? paused = query.Paused;
@@ -420,9 +451,10 @@ public partial class StdAdoDelegate
         List<TriggerGroup> items;
         bool hasMore;
 
-        using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(sql, query))))
+        using (DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(BuildPagedSql(sql + predicate + orderBy, query))))
         {
             AddCommandParameter(cmd, "schedulerName", schedulerName);
+            BindGroupName(cmd, query.Name);
             BindPaging(cmd, query);
 
             (items, hasMore) = await ReadPage(
@@ -435,12 +467,24 @@ public partial class StdAdoDelegate
         int? totalCount = null;
         if (query.IncludeTotalCount)
         {
-            using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(countSql));
+            using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(countSql + predicate));
             AddCommandParameter(cmd, "schedulerName", schedulerName);
+            BindGroupName(cmd, query.Name);
             totalCount = await SelectCount(cmd, cancellationToken).ConfigureAwait(false);
         }
 
         return new PagedResult<TriggerGroup>(items, hasMore, totalCount);
+    }
+
+    /// <summary>
+    /// Binds a group listing's exact-name filter when it has one.
+    /// </summary>
+    private void BindGroupName(DbCommand cmd, string? groupName)
+    {
+        if (groupName is not null)
+        {
+            AddCommandParameter(cmd, "groupName", groupName);
+        }
     }
 
     /// <inheritdoc />

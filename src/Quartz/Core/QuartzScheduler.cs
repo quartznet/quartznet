@@ -25,7 +25,7 @@ using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Impl;
 using Quartz.Extensibility;
@@ -1507,7 +1507,7 @@ internal sealed class QuartzScheduler
     private static bool MatchJobListener(IListenerManager listenerManager, IJobListener listener, JobKey key)
     {
         var matchers = listenerManager.GetJobListenerMatchers(listener.Name);
-        if (matchers is null)
+        if (matchers.Count == 0)
         {
             return true;
         }
@@ -1524,7 +1524,7 @@ internal sealed class QuartzScheduler
     private static bool MatchTriggerListener(IListenerManager listenerManager, ITriggerListener listener, TriggerKey key)
     {
         var matchers = listenerManager.GetTriggerListenerMatchers(listener.Name);
-        if (matchers is null)
+        if (matchers.Count == 0)
         {
             return true;
         }
@@ -1545,11 +1545,11 @@ internal sealed class QuartzScheduler
     {
         var listeners = ListenerManager.GetTriggerListeners();
 
-        return listeners.Length == 0 ? new ValueTask<bool>(false)
+        return listeners.Count == 0 ? new ValueTask<bool>(false)
             : NotifyAwaited(ListenerManager, listeners, context, cancellationToken);
 
         static async ValueTask<bool> NotifyAwaited(IListenerManager listenerManager,
-            ITriggerListener[] listeners,
+            IReadOnlyList<ITriggerListener> listeners,
             IJobExecutionContext context,
             CancellationToken cancellationToken)
         {
@@ -1591,12 +1591,12 @@ internal sealed class QuartzScheduler
     {
         var listeners = ListenerManager.GetTriggerListeners();
 
-        return listeners.Length == 0 ? default
+        return listeners.Count == 0 ? default
             : NotifyAwaited(ListenerManager, listeners, trigger, cancellationToken);
 
         static async ValueTask NotifyAwaited(
             IListenerManager listenerManager,
-            ITriggerListener[] listeners,
+            IReadOnlyList<ITriggerListener> listeners,
             ITrigger trigger,
             CancellationToken cancellationToken)
         {
@@ -1632,11 +1632,11 @@ internal sealed class QuartzScheduler
     {
         var listeners = ListenerManager.GetTriggerListeners();
 
-        return listeners.Length == 0 ? default
+        return listeners.Count == 0 ? default
             : NotifyAwaited(ListenerManager, listeners, context, instructionCode, cancellationToken);
 
         static async ValueTask NotifyAwaited(IListenerManager listenerManager,
-            ITriggerListener[] listeners,
+            IReadOnlyList<ITriggerListener> listeners,
             IJobExecutionContext context,
             SchedulerInstruction instructionCode,
             CancellationToken cancellationToken)
@@ -1715,7 +1715,7 @@ internal sealed class QuartzScheduler
         CancellationToken cancellationToken)
     {
         var listeners = ListenerManager.GetJobListeners();
-        if (listeners.Length == 0)
+        if (listeners.Count == 0)
         {
             return NotifyExecutingJobManager(notifyAction, context, jobExecutionException, cancellationToken, jobMgr);
         }
@@ -1734,7 +1734,7 @@ internal sealed class QuartzScheduler
 
         static ValueTask NotifyAllJobListeners(IListenerManager listenerManager,
             ExecutingJobsManager jobManager,
-            IJobListener[] listeners,
+            IReadOnlyList<IJobListener> listeners,
             Func<IJobListener, IJobExecutionContext, JobExecutionException?, CancellationToken, ValueTask> notifyAction,
             IJobExecutionContext context,
             JobExecutionException? jobExecutionException,
@@ -1745,7 +1745,7 @@ internal sealed class QuartzScheduler
 
         static async ValueTask NotifyAwaited(IListenerManager listenerManager,
             ExecutingJobsManager jobManager,
-            IJobListener[] listeners,
+            IReadOnlyList<IJobListener> listeners,
             Func<IJobListener, IJobExecutionContext, JobExecutionException?, CancellationToken, ValueTask> notifyAction,
             IJobExecutionContext context,
             JobExecutionException? jobExecutionException,

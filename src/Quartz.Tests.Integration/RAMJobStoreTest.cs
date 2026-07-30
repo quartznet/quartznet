@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Serialization.Json;
 using Quartz.Serialization.Json.Triggers;

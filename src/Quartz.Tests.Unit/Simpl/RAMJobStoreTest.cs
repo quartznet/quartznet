@@ -22,7 +22,7 @@
 using Microsoft.Extensions.Time.Testing;
 
 using Quartz.Impl.Calendar;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Impl;
@@ -430,7 +430,7 @@ public class RAMJobStoreTest
         // Retrieve jobs.
         for (int i = 0; i < 10; i++)
         {
-            JobKey jobKey = JobKey.Create("job" + i);
+            JobKey jobKey = new JobKey("job" + i);
             IJobDetail storedJob = await store.GetJob(jobKey);
             Assert.That(storedJob.Key, Is.EqualTo(jobKey));
         }
@@ -453,7 +453,7 @@ public class RAMJobStoreTest
         // Retrieve job and trigger.
         for (int i = 0; i < 10; i++)
         {
-            JobKey jobKey = JobKey.Create("job" + i);
+            JobKey jobKey = new JobKey("job" + i);
             IJobDetail storedJob = await store.GetJob(jobKey);
             Assert.That(storedJob.Key, Is.EqualTo(jobKey));
 

@@ -458,6 +458,10 @@ internal static class StdAdoConstants
 
     public static readonly string SqlJobGroupLikePredicate = Invariant($" AND {AdoConstants.ColumnJobGroup} LIKE @jobGroup{SqlLikeEscapeClause}");
 
+    public static readonly string SqlJobNameEqualsPredicate = Invariant($" AND {AdoConstants.ColumnJobName} = @jobName");
+
+    public static readonly string SqlJobNameLikePredicate = Invariant($" AND {AdoConstants.ColumnJobName} LIKE @jobName{SqlLikeEscapeClause}");
+
     public static readonly string SqlOrderByJobGroupAndName = Invariant($" ORDER BY {AdoConstants.ColumnJobGroup}, {AdoConstants.ColumnJobName}");
 
     public static readonly string SqlSelectTriggerHeaders =
@@ -469,6 +473,10 @@ internal static class StdAdoConstants
     public static readonly string SqlTriggerGroupEqualsPredicate = Invariant($" AND {AdoConstants.ColumnTriggerGroup} = @triggerGroup");
 
     public static readonly string SqlTriggerGroupLikePredicate = Invariant($" AND {AdoConstants.ColumnTriggerGroup} LIKE @triggerGroup{SqlLikeEscapeClause}");
+
+    public static readonly string SqlTriggerNameEqualsPredicate = Invariant($" AND {AdoConstants.ColumnTriggerName} = @triggerName");
+
+    public static readonly string SqlTriggerNameLikePredicate = Invariant($" AND {AdoConstants.ColumnTriggerName} LIKE @triggerName{SqlLikeEscapeClause}");
 
     public static readonly string SqlTriggerJobPredicate = Invariant($" AND {AdoConstants.ColumnJobName} = @jobName AND {AdoConstants.ColumnJobGroup} = @jobGroup");
 
@@ -499,8 +507,12 @@ internal static class StdAdoConstants
 
     public static readonly string SqlOrderByTriggerGroupAndName = Invariant($" ORDER BY {AdoConstants.ColumnTriggerGroup}, {AdoConstants.ColumnTriggerName}");
 
-    public static readonly string SqlSelectJobGroupsOrdered =
-        Invariant($"SELECT DISTINCT {AdoConstants.ColumnJobGroup} FROM {TablePrefixSubst}{AdoConstants.TableJobDetails} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName ORDER BY {AdoConstants.ColumnJobGroup}");
+    public static readonly string SqlSelectJobGroups =
+        Invariant($"SELECT DISTINCT {AdoConstants.ColumnJobGroup} FROM {TablePrefixSubst}{AdoConstants.TableJobDetails} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName");
+
+    public static readonly string SqlJobGroupNamePredicate = Invariant($" AND {AdoConstants.ColumnJobGroup} = @groupName");
+
+    public static readonly string SqlOrderByJobGroup = Invariant($" ORDER BY {AdoConstants.ColumnJobGroup}");
 
     public static readonly string SqlCountJobGroups =
         Invariant($"SELECT COUNT(DISTINCT {AdoConstants.ColumnJobGroup}) FROM {TablePrefixSubst}{AdoConstants.TableJobDetails} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName");
@@ -512,22 +524,36 @@ internal static class StdAdoConstants
         Invariant($"SELECT 1 FROM {TablePrefixSubst}{AdoConstants.TablePausedTriggers} pg WHERE pg.{AdoConstants.ColumnSchedulerName} = t.{AdoConstants.ColumnSchedulerName} AND pg.{AdoConstants.ColumnTriggerGroup} = t.{AdoConstants.ColumnTriggerGroup}");
 
     public static readonly string SqlSelectTriggerGroupsWithPausedFlag =
-        Invariant($"SELECT DISTINCT t.{AdoConstants.ColumnTriggerGroup}, CASE WHEN EXISTS ({PausedTriggerGroupExists}) THEN 1 ELSE 0 END AS IS_PAUSED FROM {TablePrefixSubst}{AdoConstants.TableTriggers} t WHERE t.{AdoConstants.ColumnSchedulerName} = @schedulerName ORDER BY t.{AdoConstants.ColumnTriggerGroup}");
+        Invariant($"SELECT DISTINCT t.{AdoConstants.ColumnTriggerGroup}, CASE WHEN EXISTS ({PausedTriggerGroupExists}) THEN 1 ELSE 0 END AS IS_PAUSED FROM {TablePrefixSubst}{AdoConstants.TableTriggers} t WHERE t.{AdoConstants.ColumnSchedulerName} = @schedulerName");
 
     public static readonly string SqlCountTriggerGroups =
-        Invariant($"SELECT COUNT(DISTINCT {AdoConstants.ColumnTriggerGroup}) FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName");
+        Invariant($"SELECT COUNT(DISTINCT t.{AdoConstants.ColumnTriggerGroup}) FROM {TablePrefixSubst}{AdoConstants.TableTriggers} t WHERE t.{AdoConstants.ColumnSchedulerName} = @schedulerName");
 
-    public static readonly string SqlSelectPausedTriggerGroupsOrdered =
-        Invariant($"SELECT {AdoConstants.ColumnTriggerGroup} FROM {TablePrefixSubst}{AdoConstants.TablePausedTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName ORDER BY {AdoConstants.ColumnTriggerGroup}");
+    public static readonly string SqlSelectPausedTriggerGroups =
+        Invariant($"SELECT {AdoConstants.ColumnTriggerGroup} FROM {TablePrefixSubst}{AdoConstants.TablePausedTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName");
 
     public static readonly string SqlCountPausedTriggerGroups =
         Invariant($"SELECT COUNT(*) FROM {TablePrefixSubst}{AdoConstants.TablePausedTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName");
 
-    public static readonly string SqlSelectUnpausedTriggerGroupsOrdered =
-        Invariant($"SELECT DISTINCT t.{AdoConstants.ColumnTriggerGroup} FROM {TablePrefixSubst}{AdoConstants.TableTriggers} t WHERE t.{AdoConstants.ColumnSchedulerName} = @schedulerName AND NOT EXISTS ({PausedTriggerGroupExists}) ORDER BY t.{AdoConstants.ColumnTriggerGroup}");
+    public static readonly string SqlSelectUnpausedTriggerGroups =
+        Invariant($"SELECT DISTINCT t.{AdoConstants.ColumnTriggerGroup} FROM {TablePrefixSubst}{AdoConstants.TableTriggers} t WHERE t.{AdoConstants.ColumnSchedulerName} = @schedulerName AND NOT EXISTS ({PausedTriggerGroupExists})");
 
     public static readonly string SqlCountUnpausedTriggerGroups =
         Invariant($"SELECT COUNT(DISTINCT t.{AdoConstants.ColumnTriggerGroup}) FROM {TablePrefixSubst}{AdoConstants.TableTriggers} t WHERE t.{AdoConstants.ColumnSchedulerName} = @schedulerName AND NOT EXISTS ({PausedTriggerGroupExists})");
+
+    /// <summary>
+    /// Exact-name filter for the trigger group listing read straight from PAUSED_TRIGGER_GRPS.
+    /// </summary>
+    public static readonly string SqlTriggerGroupNamePredicate = Invariant($" AND {AdoConstants.ColumnTriggerGroup} = @groupName");
+
+    /// <summary>
+    /// Exact-name filter for the trigger group listings that read from TRIGGERS under the alias 't'.
+    /// </summary>
+    public static readonly string SqlAliasedTriggerGroupNamePredicate = Invariant($" AND t.{AdoConstants.ColumnTriggerGroup} = @groupName");
+
+    public static readonly string SqlOrderByTriggerGroup = Invariant($" ORDER BY {AdoConstants.ColumnTriggerGroup}");
+
+    public static readonly string SqlOrderByAliasedTriggerGroup = Invariant($" ORDER BY t.{AdoConstants.ColumnTriggerGroup}");
 
     public static readonly string SqlSelectCalendarNamesOrdered =
         Invariant($"SELECT {AdoConstants.ColumnCalendarName} FROM {TablePrefixSubst}{AdoConstants.TableCalendars} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName ORDER BY {AdoConstants.ColumnCalendarName}");

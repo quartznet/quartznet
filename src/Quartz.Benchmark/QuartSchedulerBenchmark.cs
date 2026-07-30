@@ -2,7 +2,7 @@ using Quartz.Tests;
 using BenchmarkDotNet.Attributes;
 using Quartz.Core;
 using Quartz.Impl;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Extensibility;
 
 namespace Quartz.Benchmark;
@@ -622,12 +622,12 @@ public class QuartSchedulerBenchmark
             return default;
         }
 
-        public ValueTask JobsPaused(string jobGroup, CancellationToken cancellationToken = default)
+        public ValueTask JobsPaused(string? jobGroup, CancellationToken cancellationToken = default)
         {
             return default;
         }
 
-        public ValueTask JobsResumed(string jobGroup, CancellationToken cancellationToken = default)
+        public ValueTask JobsResumed(string? jobGroup, CancellationToken cancellationToken = default)
         {
             return default;
         }

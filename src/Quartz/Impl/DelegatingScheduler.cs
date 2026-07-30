@@ -1,4 +1,4 @@
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Extensibility;
 
 namespace Quartz.Impl;

@@ -3,9 +3,11 @@ using Newtonsoft.Json.Linq;
 
 using Quartz.Util;
 
+using Quartz.Impl.Triggers;
+
 namespace Quartz.Serialization.Newtonsoft.Triggers;
 
-public class DailyTimeIntervalTriggerSerializer : TriggerSerializer<IDailyTimeIntervalTrigger>
+public class DailyTimeIntervalTriggerSerializer : TriggerSerializer<DailyTimeIntervalTriggerImpl>
 {
     public override string TriggerTypeForJson => "DailyTimeIntervalTrigger";
 
@@ -28,7 +30,7 @@ public class DailyTimeIntervalTriggerSerializer : TriggerSerializer<IDailyTimeIn
             .InTimeZone(timeZone);
     }
 
-    protected override void SerializeFields(JsonWriter writer, IDailyTimeIntervalTrigger trigger)
+    protected override void SerializeFields(JsonWriter writer, DailyTimeIntervalTriggerImpl trigger)
     {
         writer.WritePropertyName("RepeatCount");
         writer.WriteValue(trigger.RepeatCount);
@@ -50,7 +52,7 @@ public class DailyTimeIntervalTriggerSerializer : TriggerSerializer<IDailyTimeIn
         writer.WriteValue(trigger.TimesTriggered);
     }
 
-    protected override void DeserializeFields(IDailyTimeIntervalTrigger trigger, JObject source)
+    protected override void DeserializeFields(DailyTimeIntervalTriggerImpl trigger, JObject source)
     {
         // This properties might not exist in the JSON if trigger was serialized with older version
         var timesTriggered = source.Value<int?>("TimesTriggered");

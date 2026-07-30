@@ -15,16 +15,10 @@ internal sealed class ListenerManagerImpl : IListenerManager
     private OrderedDictionary<string, ITriggerListener>? globalTriggerListeners;
     private Dictionary<string, List<IMatcher<TriggerKey>>>? globalTriggerListenersMatchers;
 
-    private readonly List<ISchedulerListener> schedulerListeners = new(10);
+    private readonly Lock schedulerListenerLock = new();
+    private OrderedDictionary<string, ISchedulerListener>? schedulerListeners;
 
-    public void AddJobListener(IJobListener jobListener, params IMatcher<JobKey>[] matchers)
-    {
-        IReadOnlyCollection<IMatcher<JobKey>> matchersCollection = matchers;
-
-        AddJobListener(jobListener, matchersCollection);
-    }
-
-    public void AddJobListener(IJobListener jobListener, IReadOnlyCollection<IMatcher<JobKey>> matchers)
+    public void AddJobListener(IJobListener jobListener, params IReadOnlyCollection<IMatcher<JobKey>> matchers)
     {
         if (jobListener is null)
         {
@@ -127,7 +121,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
         }
     }
 
-    public IMatcher<JobKey>[]? GetJobListenerMatchers(string listenerName)
+    public IReadOnlyList<IMatcher<JobKey>> GetJobListenerMatchers(string listenerName)
     {
         if (listenerName is null)
         {
@@ -136,14 +130,14 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
         if (globalJobListenersMatchers is null)
         {
-            return null;
+            return [];
         }
 
         lock (globalJobListenerLock)
         {
             if (globalJobListenersMatchers is null || !globalJobListenersMatchers.TryGetValue(listenerName, out var matchers))
             {
-                return null;
+                return [];
             }
 
             return matchers.ToArray();
@@ -220,7 +214,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
         }
     }
 
-    public IJobListener[] GetJobListeners()
+    public IReadOnlyList<IJobListener> GetJobListeners()
     {
         if (globalJobListeners is null)
         {
@@ -234,7 +228,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
         }
     }
 
-    public IJobListener GetJobListener(string name)
+    public IJobListener? GetJobListener(string name)
     {
         if (name is null)
         {
@@ -246,22 +240,14 @@ internal sealed class ListenerManagerImpl : IListenerManager
             // Avoid initializing globalJobListeners when no job listeners have been added
             if (globalJobListeners is null || !globalJobListeners.TryGetValue(name, out var jobListener))
             {
-                Throw.KeyNotFoundException();
-                return default;
+                return null;
             }
 
             return jobListener;
         }
     }
 
-    public void AddTriggerListener(ITriggerListener triggerListener, params IMatcher<TriggerKey>[] matchers)
-    {
-        IReadOnlyCollection<IMatcher<TriggerKey>> matchersCollection = matchers;
-
-        AddTriggerListener(triggerListener, matchersCollection);
-    }
-
-    public void AddTriggerListener(ITriggerListener triggerListener, IReadOnlyCollection<IMatcher<TriggerKey>> matchers)
+    public void AddTriggerListener(ITriggerListener triggerListener, params IReadOnlyCollection<IMatcher<TriggerKey>> matchers)
     {
         if (triggerListener is null)
         {
@@ -290,35 +276,6 @@ internal sealed class ListenerManagerImpl : IListenerManager
                 // Remove any registered matchers for the trigger listener
                 RemoveTriggerListenerMatchers(triggerListener.Name);
             }
-        }
-    }
-
-    public void AddTriggerListener(ITriggerListener triggerListener, IMatcher<TriggerKey> matcher)
-    {
-        if (triggerListener is null)
-        {
-            Throw.ArgumentNullException(nameof(triggerListener));
-        }
-
-        if (matcher is null)
-        {
-            Throw.ArgumentNullException(nameof(matcher));
-        }
-
-        if (string.IsNullOrEmpty(triggerListener.Name))
-        {
-            Throw.ArgumentException($"{nameof(triggerListener.Name)} cannot be null or empty.", nameof(triggerListener));
-        }
-
-        lock (globalTriggerListenerLock)
-        {
-            // Add or replace the trigger listener
-            globalTriggerListeners ??= new OrderedDictionary<string, ITriggerListener>();
-            globalTriggerListeners[triggerListener.Name] = triggerListener;
-
-            // Add or replace the matchers for the trigger listener
-            globalTriggerListenersMatchers ??= new Dictionary<string, List<IMatcher<TriggerKey>>>();
-            globalTriggerListenersMatchers[triggerListener.Name] = [matcher];
         }
     }
 
@@ -393,7 +350,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
         }
     }
 
-    public IMatcher<TriggerKey>[]? GetTriggerListenerMatchers(string listenerName)
+    public IReadOnlyList<IMatcher<TriggerKey>> GetTriggerListenerMatchers(string listenerName)
     {
         if (listenerName is null)
         {
@@ -402,14 +359,14 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
         if (globalTriggerListenersMatchers is null)
         {
-            return null;
+            return [];
         }
 
         lock (globalTriggerListenerLock)
         {
             if (globalTriggerListenersMatchers is null || !globalTriggerListenersMatchers.TryGetValue(listenerName, out var matchers))
             {
-                return null;
+                return [];
             }
 
             return matchers.ToArray();
@@ -487,7 +444,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
         }
     }
 
-    public ITriggerListener[] GetTriggerListeners()
+    public IReadOnlyList<ITriggerListener> GetTriggerListeners()
     {
         if (globalTriggerListeners is null)
         {
@@ -502,7 +459,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
         }
     }
 
-    public ITriggerListener GetTriggerListener(string name)
+    public ITriggerListener? GetTriggerListener(string name)
     {
         if (name is null)
         {
@@ -514,8 +471,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
             // Avoid initializing globalTriggerListeners when no trigger listeners have been added
             if (globalTriggerListeners is null || !globalTriggerListeners.TryGetValue(name, out var triggerListener))
             {
-                Throw.KeyNotFoundException();
-                return default;
+                return null;
             }
 
             return triggerListener;
@@ -524,27 +480,83 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
     public void AddSchedulerListener(ISchedulerListener schedulerListener)
     {
-        lock (schedulerListeners)
+        if (schedulerListener is null)
         {
-            schedulerListeners.Add(schedulerListener);
+            Throw.ArgumentNullException(nameof(schedulerListener));
+        }
+
+        if (string.IsNullOrEmpty(schedulerListener.Name))
+        {
+            Throw.ArgumentException($"{nameof(schedulerListener.Name)} cannot be null or empty.", nameof(schedulerListener));
+        }
+
+        lock (schedulerListenerLock)
+        {
+            schedulerListeners ??= new OrderedDictionary<string, ISchedulerListener>();
+            schedulerListeners[schedulerListener.Name] = schedulerListener;
         }
     }
 
-    public bool RemoveSchedulerListener(ISchedulerListener schedulerListener)
+    public bool RemoveSchedulerListener(string name)
     {
-        lock (schedulerListeners)
+        if (name is null)
         {
-            return schedulerListeners.Remove(schedulerListener);
+            Throw.ArgumentNullException(nameof(name));
+        }
+
+        if (schedulerListeners is null)
+        {
+            return false;
+        }
+
+        lock (schedulerListenerLock)
+        {
+            if (schedulerListeners is null)
+            {
+                return false;
+            }
+
+            bool removed = schedulerListeners.Remove(name);
+
+            if (removed && schedulerListeners.Count == 0)
+            {
+                schedulerListeners = null;
+            }
+
+            return removed;
         }
     }
 
-    public ISchedulerListener[] GetSchedulerListeners()
+    public IReadOnlyList<ISchedulerListener> GetSchedulerListeners()
     {
-        lock (schedulerListeners)
+        if (schedulerListeners is null)
         {
-            return schedulerListeners.Count > 0
-                ? schedulerListeners.ToArray()
+            return [];
+        }
+
+        lock (schedulerListenerLock)
+        {
+            return schedulerListeners is not null
+                ? [.. schedulerListeners.Values]
                 : [];
+        }
+    }
+
+    public ISchedulerListener? GetSchedulerListener(string name)
+    {
+        if (name is null)
+        {
+            Throw.ArgumentNullException(nameof(name));
+        }
+
+        lock (schedulerListenerLock)
+        {
+            if (schedulerListeners is null || !schedulerListeners.TryGetValue(name, out ISchedulerListener? schedulerListener))
+            {
+                return null;
+            }
+
+            return schedulerListener;
         }
     }
 
@@ -579,5 +591,4 @@ internal sealed class ListenerManagerImpl : IListenerManager
             globalTriggerListenersMatchers = null;
         }
     }
-
 }

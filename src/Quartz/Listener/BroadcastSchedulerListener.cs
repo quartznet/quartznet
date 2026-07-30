@@ -36,8 +36,9 @@ namespace Quartz.Listener;
 /// directly with the Scheduler, and provides the flexibility of easily changing
 /// which listeners get notified.
 /// </remarks>
-/// <see cref="AddListener" />
-/// <see cref="RemoveListener" />
+/// <seealso cref="AddListener(ISchedulerListener)" />
+/// <seealso cref="RemoveListener(ISchedulerListener)" />
+/// <seealso cref="RemoveListener(string)" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 public sealed class BroadcastSchedulerListener : ISchedulerListener
@@ -45,20 +46,35 @@ public sealed class BroadcastSchedulerListener : ISchedulerListener
     private readonly List<ISchedulerListener> listeners;
     private readonly ILogger<BroadcastSchedulerListener> logger;
 
-    public BroadcastSchedulerListener()
+    /// <summary>
+    /// Construct an instance with the given name.
+    /// </summary>
+    /// <remarks>
+    /// (Remember to add some delegate listeners!)
+    /// </remarks>
+    /// <param name="name">the name of this instance</param>
+    public BroadcastSchedulerListener(string name)
     {
+        if (name is null)
+        {
+            Throw.ArgumentNullException(nameof(name), "Listener name cannot be null!");
+        }
+        Name = name;
         listeners = new List<ISchedulerListener>();
         logger = LogProvider.CreateLogger<BroadcastSchedulerListener>();
     }
 
     /// <summary>
-    /// Construct an instance with the given List of listeners.
+    /// Construct an instance with the given name, and List of listeners.
     /// </summary>
+    /// <param name="name">the name of this instance</param>
     /// <param name="listeners">The initial List of SchedulerListeners to broadcast to.</param>
-    public BroadcastSchedulerListener(IReadOnlyCollection<ISchedulerListener> listeners) : this()
+    public BroadcastSchedulerListener(string name, IReadOnlyCollection<ISchedulerListener> listeners) : this(name)
     {
         this.listeners.AddRange(listeners);
     }
+
+    public string Name { get; }
 
     public void AddListener(ISchedulerListener listener)
     {
@@ -68,6 +84,17 @@ public sealed class BroadcastSchedulerListener : ISchedulerListener
     public bool RemoveListener(ISchedulerListener listener)
     {
         return listeners.Remove(listener);
+    }
+
+    public bool RemoveListener(string listenerName)
+    {
+        ISchedulerListener? listener = listeners.Find(x => x.Name == listenerName);
+        if (listener is not null)
+        {
+            listeners.Remove(listener);
+            return true;
+        }
+        return false;
     }
 
     public IReadOnlyList<ISchedulerListener> Listeners => listeners;
@@ -127,7 +154,7 @@ public sealed class BroadcastSchedulerListener : ISchedulerListener
         return IterateListenersInGuard(l => l.JobInterrupted(jobKey, cancellationToken), nameof(JobInterrupted));
     }
 
-    public ValueTask JobsPaused(string jobGroup, CancellationToken cancellationToken = default)
+    public ValueTask JobsPaused(string? jobGroup, CancellationToken cancellationToken = default)
     {
         return IterateListenersInGuard(l => l.JobsPaused(jobGroup, cancellationToken), nameof(JobsPaused));
     }
@@ -137,7 +164,7 @@ public sealed class BroadcastSchedulerListener : ISchedulerListener
         return IterateListenersInGuard(l => l.JobPaused(jobKey, cancellationToken), nameof(JobPaused));
     }
 
-    public ValueTask JobsResumed(string jobGroup, CancellationToken cancellationToken = default)
+    public ValueTask JobsResumed(string? jobGroup, CancellationToken cancellationToken = default)
     {
         return IterateListenersInGuard(l => l.JobsResumed(jobGroup, cancellationToken), nameof(JobsResumed));
     }

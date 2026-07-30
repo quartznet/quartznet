@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Http;
 
 using Quartz.HttpApiContract;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Extensibility;
 using Quartz.Util;
 
@@ -41,6 +41,42 @@ internal sealed class EndpointHelper
         }
 
         return GroupMatcher<T>.AnyGroup();
+    }
+
+    /// <summary>
+    /// Builds the name filter a listing request asked for, or null when it asked for none — a name
+    /// filter is optional, where the group filter always ends up as "any group".
+    /// </summary>
+    public static NameMatcher<T>? GetNameMatcher<T>(string? nameContains, string? nameEndsWith, string? nameStartsWith, string? nameEquals) where T : Key<T>
+    {
+        // Allow only single value to be given
+        var givenValueCount = new[] { nameContains, nameEndsWith, nameStartsWith, nameEquals }.Count(x => !string.IsNullOrWhiteSpace(x));
+        if (givenValueCount > 1)
+        {
+            throw new BadHttpRequestException("Only single match rule can be given");
+        }
+
+        if (!string.IsNullOrWhiteSpace(nameContains))
+        {
+            return NameMatcher<T>.NameContains(nameContains);
+        }
+
+        if (!string.IsNullOrWhiteSpace(nameEndsWith))
+        {
+            return NameMatcher<T>.NameEndsWith(nameEndsWith);
+        }
+
+        if (!string.IsNullOrWhiteSpace(nameStartsWith))
+        {
+            return NameMatcher<T>.NameStartsWith(nameStartsWith);
+        }
+
+        if (!string.IsNullOrWhiteSpace(nameEquals))
+        {
+            return NameMatcher<T>.NameEquals(nameEquals);
+        }
+
+        return null;
     }
 
     /// <summary>

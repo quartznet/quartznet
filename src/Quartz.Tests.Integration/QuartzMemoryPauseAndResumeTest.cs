@@ -1,5 +1,5 @@
 using Quartz.Impl;
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 using Quartz.Job;
 
 namespace Quartz.Tests.Integration;

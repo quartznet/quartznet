@@ -25,6 +25,15 @@ namespace Quartz;
 public sealed record JobGroupQuery : PagedQuery
 {
     /// <summary>
+    /// Limits the result to the one group with this exact name. Null matches every group.
+    /// </summary>
+    /// <remarks>
+    /// Combined with <c>Take = 1</c> this answers "is this group paused?" without listing
+    /// every group.
+    /// </remarks>
+    public string? Name { get; init; }
+
+    /// <summary>
     /// Limits the result by paused state: true for paused groups only, false for
     /// unpaused only, null for all groups.
     /// </summary>

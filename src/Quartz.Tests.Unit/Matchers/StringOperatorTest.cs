@@ -1,8 +1,8 @@
 // ReSharper disable SuspiciousTypeConversion.Global
 
-using Quartz.Impl.Matchers;
+using Quartz.Matchers;
 
-namespace Quartz.Tests.Unit.Impl.Matchers;
+namespace Quartz.Tests.Unit.Matchers;
 
 [TestFixture]
 public class StringOperatorTest
