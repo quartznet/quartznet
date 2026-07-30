@@ -42,33 +42,22 @@ namespace Quartz
         public bool UseDbLocks { get; set; }
         public bool UseProperties { get; set; }
     }
-    public sealed class CalendarIntervalScheduleBuilder : Quartz.ScheduleBuilder<Quartz.ICalendarIntervalTrigger>
+    public sealed class CalendarIntervalScheduleBuilder : Quartz.IScheduleBuilder
     {
-        public override Quartz.Extensibility.IMutableTrigger Build() { }
+        public Quartz.Extensibility.IMutableTrigger Build() { }
         public Quartz.CalendarIntervalScheduleBuilder InTimeZone(System.TimeZoneInfo? timeZone) { }
-        public Quartz.CalendarIntervalScheduleBuilder PreserveHourOfDayAcrossDaylightSavings(bool preserveHourOfDay) { }
-        public Quartz.CalendarIntervalScheduleBuilder SkipDayIfHourDoesNotExist(bool skipDay) { }
+        public Quartz.CalendarIntervalScheduleBuilder PreserveHourOfDayAcrossDaylightSavings(bool preserveHourOfDay = true) { }
+        public Quartz.CalendarIntervalScheduleBuilder SkipDayIfHourDoesNotExist(bool skipDay = true) { }
         public Quartz.CalendarIntervalScheduleBuilder WithInterval(int interval, Quartz.IntervalUnit unit) { }
-        public Quartz.CalendarIntervalScheduleBuilder WithIntervalInDays(int intervalInDays) { }
-        public Quartz.CalendarIntervalScheduleBuilder WithIntervalInHours(int intervalInHours) { }
-        public Quartz.CalendarIntervalScheduleBuilder WithIntervalInMinutes(int intervalInMinutes) { }
-        public Quartz.CalendarIntervalScheduleBuilder WithIntervalInMonths(int intervalInMonths) { }
-        public Quartz.CalendarIntervalScheduleBuilder WithIntervalInSeconds(int intervalInSeconds) { }
-        public Quartz.CalendarIntervalScheduleBuilder WithIntervalInWeeks(int intervalInWeeks) { }
-        public Quartz.CalendarIntervalScheduleBuilder WithIntervalInYears(int intervalInYears) { }
-        public Quartz.CalendarIntervalScheduleBuilder WithMisfireHandlingInstructionDoNothing() { }
-        public Quartz.CalendarIntervalScheduleBuilder WithMisfireHandlingInstructionFireAndProceed() { }
-        public Quartz.CalendarIntervalScheduleBuilder WithMisfireHandlingInstructionIgnoreMisfires() { }
+        public Quartz.CalendarIntervalScheduleBuilder WithMisfireHandlingInstruction(Quartz.CalendarIntervalTriggerMisfireInstruction instruction) { }
         public static Quartz.CalendarIntervalScheduleBuilder Create() { }
     }
-    public static class CalendarIntervalTriggerBuilderExtensions
+    public enum CalendarIntervalTriggerMisfireInstruction
     {
-        public static Quartz.TriggerBuilder<TJob> WithCalendarIntervalSchedule<TJob>(this Quartz.TriggerBuilder<TJob> triggerBuilder)
-            where TJob : Quartz.IJob { }
-        public static Quartz.TriggerBuilder<TJob> WithCalendarIntervalSchedule<TJob>(this Quartz.TriggerBuilder<TJob> triggerBuilder, Quartz.CalendarIntervalScheduleBuilder schedule)
-            where TJob : Quartz.IJob { }
-        public static Quartz.TriggerBuilder<TJob> WithCalendarIntervalSchedule<TJob>(this Quartz.TriggerBuilder<TJob> triggerBuilder, System.Action<Quartz.CalendarIntervalScheduleBuilder> action)
-            where TJob : Quartz.IJob { }
+        SmartPolicy = 0,
+        IgnoreMisfires = -1,
+        FireAndProceed = 1,
+        DoNothing = 2,
     }
     public sealed class CalendarQuery : Quartz.PagedQuery, System.IEquatable<Quartz.CalendarQuery>
     {
@@ -148,70 +137,43 @@ namespace Quartz
         public Quartz.CronExpressionBuilder WithYears(params int[] years) { }
         public static Quartz.CronExpressionBuilder Create() { }
     }
-    public sealed class CronScheduleBuilder : Quartz.ScheduleBuilder<Quartz.ICronTrigger>
+    public sealed class CronScheduleBuilder : Quartz.IScheduleBuilder
     {
-        public override Quartz.Extensibility.IMutableTrigger Build() { }
-        public Quartz.CronScheduleBuilder InTimeZone(System.TimeZoneInfo timeZone) { }
-        public Quartz.CronScheduleBuilder WithMisfireHandlingInstructionDoNothing() { }
-        public Quartz.CronScheduleBuilder WithMisfireHandlingInstructionFireAndProceed() { }
-        public Quartz.CronScheduleBuilder WithMisfireHandlingInstructionIgnoreMisfires() { }
-        public static Quartz.CronScheduleBuilder AtHourAndMinuteOnGivenDaysOfWeek(int hour, int minute, params System.DayOfWeek[] daysOfWeek) { }
+        public Quartz.Extensibility.IMutableTrigger Build() { }
+        public Quartz.CronScheduleBuilder InTimeZone(System.TimeZoneInfo? timeZone) { }
+        public Quartz.CronScheduleBuilder WithMisfireHandlingInstruction(Quartz.CronTriggerMisfireInstruction instruction) { }
         public static Quartz.CronScheduleBuilder CronSchedule(Quartz.CronExpression cronExpression) { }
         public static Quartz.CronScheduleBuilder CronSchedule(string cronExpression) { }
-        public static Quartz.CronScheduleBuilder CronScheduleWithHash(string cronExpression, int hashSeed) { }
-        public static Quartz.CronScheduleBuilder CronScheduleWithHash(string cronExpression, string hashKey) { }
-        public static Quartz.CronScheduleBuilder DailyAtHourAndMinute(int hour, int minute) { }
-        public static Quartz.CronScheduleBuilder MonthlyOnDayAndHourAndMinute(int dayOfMonth, int hour, int minute) { }
-        public static Quartz.CronScheduleBuilder WeeklyOnDayAndHourAndMinute(System.DayOfWeek dayOfWeek, int hour, int minute) { }
     }
-    public static class CronScheduleTriggerBuilderExtensions
+    public enum CronTriggerMisfireInstruction
     {
-        public static Quartz.TriggerBuilder<TJob> WithCronSchedule<TJob>(this Quartz.TriggerBuilder<TJob> triggerBuilder, Quartz.CronScheduleBuilder schedule)
-            where TJob : Quartz.IJob { }
-        public static Quartz.TriggerBuilder<TJob> WithCronSchedule<TJob>(this Quartz.TriggerBuilder<TJob> triggerBuilder, string cronExpression)
-            where TJob : Quartz.IJob { }
-        public static Quartz.TriggerBuilder<TJob> WithCronSchedule<TJob>(this Quartz.TriggerBuilder<TJob> triggerBuilder, string cronExpression, System.Action<Quartz.CronScheduleBuilder> action)
-            where TJob : Quartz.IJob { }
-        public static Quartz.TriggerBuilder<TJob> WithCronSchedule<TJob>(this Quartz.TriggerBuilder<TJob> triggerBuilder, string cronExpression, string hashKey)
-            where TJob : Quartz.IJob { }
-        public static Quartz.TriggerBuilder<TJob> WithCronSchedule<TJob>(this Quartz.TriggerBuilder<TJob> triggerBuilder, string cronExpression, string hashKey, System.Action<Quartz.CronScheduleBuilder> action)
-            where TJob : Quartz.IJob { }
+        SmartPolicy = 0,
+        IgnoreMisfires = -1,
+        FireAndProceed = 1,
+        DoNothing = 2,
     }
-    public sealed class DailyTimeIntervalScheduleBuilder : Quartz.ScheduleBuilder<Quartz.IDailyTimeIntervalTrigger>
+    public sealed class DailyTimeIntervalScheduleBuilder : Quartz.IScheduleBuilder
     {
-        public static readonly System.Collections.Generic.IReadOnlyCollection<System.DayOfWeek> AllDaysOfTheWeek;
-        public static readonly System.Collections.Generic.IReadOnlyCollection<System.DayOfWeek> MondayThroughFriday;
-        public static readonly System.Collections.Generic.IReadOnlyCollection<System.DayOfWeek> SaturdayAndSunday;
-        public override Quartz.Extensibility.IMutableTrigger Build() { }
+        public Quartz.Extensibility.IMutableTrigger Build() { }
         public Quartz.DailyTimeIntervalScheduleBuilder EndingDailyAfterCount(int count) { }
-        public Quartz.DailyTimeIntervalScheduleBuilder EndingDailyAt(Quartz.TimeOfDay timeOfDayUtc) { }
-        public Quartz.DailyTimeIntervalScheduleBuilder InTimeZone(System.TimeZoneInfo timeZone) { }
-        public Quartz.DailyTimeIntervalScheduleBuilder OnDaysOfTheWeek(System.Collections.Generic.IReadOnlyCollection<System.DayOfWeek> onDaysOfWeek) { }
-        public Quartz.DailyTimeIntervalScheduleBuilder OnDaysOfTheWeek(params System.DayOfWeek[] onDaysOfWeek) { }
+        public Quartz.DailyTimeIntervalScheduleBuilder EndingDailyAt(System.TimeOnly timeOfDayUtc) { }
+        public Quartz.DailyTimeIntervalScheduleBuilder InTimeZone(System.TimeZoneInfo? timeZone) { }
+        public Quartz.DailyTimeIntervalScheduleBuilder OnDaysOfTheWeek([System.Runtime.CompilerServices.ParamCollection] System.Collections.Generic.IReadOnlyCollection<System.DayOfWeek> onDaysOfWeek) { }
         public Quartz.DailyTimeIntervalScheduleBuilder OnEveryDay() { }
         public Quartz.DailyTimeIntervalScheduleBuilder OnMondayThroughFriday() { }
         public Quartz.DailyTimeIntervalScheduleBuilder OnSaturdayAndSunday() { }
-        public Quartz.DailyTimeIntervalScheduleBuilder StartingDailyAt(Quartz.TimeOfDay timeOfDayUtc) { }
+        public Quartz.DailyTimeIntervalScheduleBuilder StartingDailyAt(System.TimeOnly timeOfDayUtc) { }
         public Quartz.DailyTimeIntervalScheduleBuilder WithInterval(int interval, Quartz.IntervalUnit unit) { }
-        public Quartz.DailyTimeIntervalScheduleBuilder WithIntervalInHours(int intervalInHours) { }
-        public Quartz.DailyTimeIntervalScheduleBuilder WithIntervalInMinutes(int intervalInMinutes) { }
-        public Quartz.DailyTimeIntervalScheduleBuilder WithIntervalInSeconds(int intervalInSeconds) { }
-        public Quartz.DailyTimeIntervalScheduleBuilder WithMisfireHandlingInstructionDoNothing() { }
-        public Quartz.DailyTimeIntervalScheduleBuilder WithMisfireHandlingInstructionFireAndProceed() { }
-        public Quartz.DailyTimeIntervalScheduleBuilder WithMisfireHandlingInstructionIgnoreMisfires() { }
+        public Quartz.DailyTimeIntervalScheduleBuilder WithMisfireHandlingInstruction(Quartz.DailyTimeIntervalTriggerMisfireInstruction instruction) { }
         public Quartz.DailyTimeIntervalScheduleBuilder WithRepeatCount(int repeatCount) { }
         public static Quartz.DailyTimeIntervalScheduleBuilder Create(System.TimeProvider? timeProvider = null) { }
     }
-    public static class DailyTimeIntervalTriggerBuilderExtensions
+    public enum DailyTimeIntervalTriggerMisfireInstruction
     {
-        public static Quartz.TriggerBuilder<TJob> WithDailyTimeIntervalSchedule<TJob>(this Quartz.TriggerBuilder<TJob> triggerBuilder)
-            where TJob : Quartz.IJob { }
-        public static Quartz.TriggerBuilder<TJob> WithDailyTimeIntervalSchedule<TJob>(this Quartz.TriggerBuilder<TJob> triggerBuilder, Quartz.DailyTimeIntervalScheduleBuilder schedule)
-            where TJob : Quartz.IJob { }
-        public static Quartz.TriggerBuilder<TJob> WithDailyTimeIntervalSchedule<TJob>(this Quartz.TriggerBuilder<TJob> triggerBuilder, System.Action<Quartz.DailyTimeIntervalScheduleBuilder> action)
-            where TJob : Quartz.IJob { }
-        public static Quartz.TriggerBuilder<TJob> WithDailyTimeIntervalSchedule<TJob>(this Quartz.TriggerBuilder<TJob> triggerBuilder, int interval, Quartz.IntervalUnit intervalUnit, System.Action<Quartz.DailyTimeIntervalScheduleBuilder>? action = null)
-            where TJob : Quartz.IJob { }
+        SmartPolicy = 0,
+        IgnoreMisfires = -1,
+        FireAndProceed = 1,
+        DoNothing = 2,
     }
     public sealed class DataSourceOptions
     {
@@ -230,28 +192,11 @@ namespace Quartz
         public System.DateTimeOffset Build() { }
         public Quartz.DateBuilder InMonth(int month) { }
         public Quartz.DateBuilder InMonthOnDay(int month, int day) { }
-        public Quartz.DateBuilder InTimeZone(System.TimeZoneInfo timeZone) { }
+        public Quartz.DateBuilder InTimeZone(System.TimeZoneInfo? timeZone) { }
         public Quartz.DateBuilder InYear(int year) { }
         public Quartz.DateBuilder OnDay(int day) { }
-        public static System.DateTimeOffset DateOf(int hour, int minute, int second, System.TimeProvider? timeProvider = null) { }
-        public static System.DateTimeOffset DateOf(int hour, int minute, int second, int dayOfMonth, int month, System.TimeProvider? timeProvider = null) { }
-        public static System.DateTimeOffset DateOf(int hour, int minute, int second, int dayOfMonth, int month, int year) { }
-        public static System.DateTimeOffset EvenHourDate(System.DateTimeOffset? date, System.TimeProvider? timeProvider = null) { }
-        public static System.DateTimeOffset EvenHourDateAfterNow(System.TimeProvider? timeProvider = null) { }
-        public static System.DateTimeOffset EvenHourDateBefore(System.DateTimeOffset? date, System.TimeProvider? timeProvider = null) { }
-        public static System.DateTimeOffset EvenMinuteDate(System.DateTimeOffset? date, System.TimeProvider? timeProvider = null) { }
-        public static System.DateTimeOffset EvenMinuteDateAfterNow(System.TimeProvider? timeProvider = null) { }
-        public static System.DateTimeOffset EvenMinuteDateBefore(System.DateTimeOffset? date, System.TimeProvider? timeProvider = null) { }
-        public static System.DateTimeOffset EvenSecondDate(System.DateTimeOffset date) { }
-        public static System.DateTimeOffset EvenSecondDateAfterNow(System.TimeProvider? timeProvider = null) { }
-        public static System.DateTimeOffset EvenSecondDateBefore(System.DateTimeOffset date) { }
-        public static System.DateTimeOffset FutureDate(int interval, Quartz.IntervalUnit unit, System.TimeProvider? timeProvider = null) { }
         public static Quartz.DateBuilder NewDate(System.TimeProvider? timeProvider = null) { }
         public static Quartz.DateBuilder NewDateInTimeZone(System.TimeZoneInfo timeZone, System.TimeProvider? timeProvider = null) { }
-        public static System.DateTimeOffset NextGivenMinuteDate(System.DateTimeOffset? date, int minuteBase, System.TimeProvider? timeProvider = null) { }
-        public static System.DateTimeOffset NextGivenSecondDate(System.DateTimeOffset? date, int secondBase, System.TimeProvider? timeProvider = null) { }
-        public static System.DateTimeOffset TodayAt(int hour, int minute, int second, System.TimeProvider? timeProvider = null) { }
-        public static System.DateTimeOffset TomorrowAt(int hour, int minute, int second, System.TimeProvider? timeProvider = null) { }
     }
     [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Interface)]
     public sealed class DisallowConcurrentExecutionAttribute : System.Attribute
@@ -304,11 +249,11 @@ namespace Quartz
     public interface IDailyTimeIntervalTrigger : Quartz.ITrigger
     {
         System.Collections.Generic.IReadOnlyCollection<System.DayOfWeek> DaysOfWeek { get; set; }
-        Quartz.TimeOfDay EndTimeOfDay { get; }
+        System.TimeOnly EndTimeOfDay { get; }
         int RepeatCount { get; }
         int RepeatInterval { get; }
         Quartz.IntervalUnit RepeatIntervalUnit { get; }
-        Quartz.TimeOfDay StartTimeOfDay { get; }
+        System.TimeOnly StartTimeOfDay { get; }
         System.TimeZoneInfo TimeZone { get; }
         int TimesTriggered { get; }
     }
@@ -322,18 +267,9 @@ namespace Quartz
         Quartz.IJobConfigurator<TJob> DisallowConcurrentExecution(bool concurrentExecutionDisallowed = true);
         Quartz.IJobConfigurator<TJob> PersistJobDataAfterExecution(bool persistJobDataAfterExecution = true);
         Quartz.IJobConfigurator<TJob> RequestRecovery(bool shouldRecover = true);
-        Quartz.IJobConfigurator<TJob> SetJobData(Quartz.JobDataMap newJobDataMap);
         Quartz.IJobConfigurator<TJob> StoreDurably(bool durability = true);
         Quartz.IJobConfigurator<TJob> UsingJobData(Quartz.JobDataMap newJobDataMap);
-        Quartz.IJobConfigurator<TJob> UsingJobData(string key, System.Guid value);
-        Quartz.IJobConfigurator<TJob> UsingJobData(string key, bool value);
-        Quartz.IJobConfigurator<TJob> UsingJobData(string key, char value);
-        Quartz.IJobConfigurator<TJob> UsingJobData(string key, decimal value);
-        Quartz.IJobConfigurator<TJob> UsingJobData(string key, double value);
-        Quartz.IJobConfigurator<TJob> UsingJobData(string key, float value);
-        Quartz.IJobConfigurator<TJob> UsingJobData(string key, int value);
-        Quartz.IJobConfigurator<TJob> UsingJobData(string key, long value);
-        Quartz.IJobConfigurator<TJob> UsingJobData(string key, string? value);
+        Quartz.IJobConfigurator<TJob> UsingJobData(string key, object? value);
         Quartz.IJobConfigurator<TJob> UsingJobData<TValue>(System.Linq.Expressions.Expression<System.Func<TJob, TValue>> jobProperty, TValue value);
         Quartz.IJobConfigurator<TJob> WithDescription(string? description);
         Quartz.IJobConfigurator<TJob> WithIdentity(Quartz.JobKey key);
@@ -590,14 +526,13 @@ namespace Quartz
         string? ExecutionGroup { get; }
         System.DateTimeOffset? FinalFireTimeUtc { get; }
         bool HasMillisecondPrecision { get; }
-        bool IsPreferredNodeAuto { get; }
         Quartz.JobDataMap JobDataMap { get; }
         Quartz.JobKey JobKey { get; }
         Quartz.TriggerKey Key { get; }
         bool MayFireAgain { get; }
         int MisfireInstruction { get; }
         System.DateTimeOffset? NextFireTimeUtc { get; }
-        string? PreferredNode { get; }
+        Quartz.PreferredNode PreferredNode { get; }
         System.DateTimeOffset? PreviousFireTimeUtc { get; }
         int Priority { get; }
         System.DateTimeOffset StartTimeUtc { get; }
@@ -606,7 +541,11 @@ namespace Quartz
         Quartz.IScheduleBuilder GetScheduleBuilder();
         Quartz.TriggerBuilder<Quartz.IJob> GetTriggerBuilder();
     }
-    public interface ITriggerConfigurator<TJob>
+    public interface ITriggerConfigurator
+    {
+        Quartz.ITriggerConfigurator WithSchedule(Quartz.IScheduleBuilder scheduleBuilder);
+    }
+    public interface ITriggerConfigurator<TJob> : Quartz.ITriggerConfigurator
         where TJob : Quartz.IJob
     {
         Quartz.ITriggerConfigurator<TJob> EndAt(System.DateTimeOffset? endTimeUtc);
@@ -614,26 +553,18 @@ namespace Quartz
         Quartz.ITriggerConfigurator<TJob> ForJob(Quartz.JobKey jobKey);
         Quartz.ITriggerConfigurator<TJob> ForJob(string jobName);
         Quartz.ITriggerConfigurator<TJob> ForJob(string jobName, string jobGroup);
-        Quartz.ITriggerConfigurator<TJob> ModifiedByCalendar(string? calendarName);
         Quartz.ITriggerConfigurator<TJob> StartAt(System.DateTimeOffset startTimeUtc);
         Quartz.ITriggerConfigurator<TJob> StartNow();
         Quartz.ITriggerConfigurator<TJob> UsingJobData(Quartz.JobDataMap newJobDataMap);
-        Quartz.ITriggerConfigurator<TJob> UsingJobData(string key, System.Guid value);
-        Quartz.ITriggerConfigurator<TJob> UsingJobData(string key, bool value);
-        Quartz.ITriggerConfigurator<TJob> UsingJobData(string key, char value);
-        Quartz.ITriggerConfigurator<TJob> UsingJobData(string key, decimal value);
-        Quartz.ITriggerConfigurator<TJob> UsingJobData(string key, double value);
-        Quartz.ITriggerConfigurator<TJob> UsingJobData(string key, float value);
-        Quartz.ITriggerConfigurator<TJob> UsingJobData(string key, int value);
-        Quartz.ITriggerConfigurator<TJob> UsingJobData(string key, long value);
-        Quartz.ITriggerConfigurator<TJob> UsingJobData(string key, string value);
+        Quartz.ITriggerConfigurator<TJob> UsingJobData(string key, object? value);
         Quartz.ITriggerConfigurator<TJob> UsingJobData<TValue>(System.Linq.Expressions.Expression<System.Func<TJob, TValue>> jobProperty, TValue value);
+        Quartz.ITriggerConfigurator<TJob> WithCalendarName(string? calendarName);
         Quartz.ITriggerConfigurator<TJob> WithDescription(string? description);
         Quartz.ITriggerConfigurator<TJob> WithExecutionGroup(string? executionGroup);
         Quartz.ITriggerConfigurator<TJob> WithIdentity(Quartz.TriggerKey key);
         Quartz.ITriggerConfigurator<TJob> WithIdentity(string name);
         Quartz.ITriggerConfigurator<TJob> WithIdentity(string name, string group);
-        Quartz.ITriggerConfigurator<TJob> WithPreferredNode(string? preferredNode);
+        Quartz.ITriggerConfigurator<TJob> WithPreferredNode(Quartz.PreferredNode preferredNode);
         Quartz.ITriggerConfigurator<TJob> WithPriority(int priority);
         Quartz.ITriggerConfigurator<TJob> WithSchedule(Quartz.IScheduleBuilder scheduleBuilder);
     }
@@ -679,18 +610,9 @@ namespace Quartz
             where T : TJob { }
         public Quartz.JobBuilder<TJob> PersistJobDataAfterExecution(bool persistJobDataAfterExecution = true) { }
         public Quartz.JobBuilder<TJob> RequestRecovery(bool shouldRecover = true) { }
-        public Quartz.JobBuilder<TJob> SetJobData(Quartz.JobDataMap newJobDataMap) { }
         public Quartz.JobBuilder<TJob> StoreDurably(bool durability = true) { }
         public Quartz.JobBuilder<TJob> UsingJobData(Quartz.JobDataMap newJobDataMap) { }
-        public Quartz.JobBuilder<TJob> UsingJobData(string key, System.Guid value) { }
-        public Quartz.JobBuilder<TJob> UsingJobData(string key, bool value) { }
-        public Quartz.JobBuilder<TJob> UsingJobData(string key, char value) { }
-        public Quartz.JobBuilder<TJob> UsingJobData(string key, decimal value) { }
-        public Quartz.JobBuilder<TJob> UsingJobData(string key, double value) { }
-        public Quartz.JobBuilder<TJob> UsingJobData(string key, float value) { }
-        public Quartz.JobBuilder<TJob> UsingJobData(string key, int value) { }
-        public Quartz.JobBuilder<TJob> UsingJobData(string key, long value) { }
-        public Quartz.JobBuilder<TJob> UsingJobData(string key, string? value) { }
+        public Quartz.JobBuilder<TJob> UsingJobData(string key, object? value) { }
         public Quartz.JobBuilder<TJob> UsingJobData<TValue>(System.Linq.Expressions.Expression<System.Func<TJob, TValue>> jobProperty, TValue value) { }
         public Quartz.JobBuilder<TJob> WithDescription(string? description) { }
         public Quartz.JobBuilder<TJob> WithIdentity(Quartz.JobKey key) { }
@@ -702,7 +624,6 @@ namespace Quartz
     {
         public JobDataMap() { }
         public JobDataMap(System.Collections.Generic.IDictionary<string, object?> map) { }
-        public JobDataMap(System.Collections.IDictionary map) { }
         public JobDataMap(int initialCapacity) { }
         public void PutAsString(string key, System.DateTimeOffset value) { }
         public void PutAsString(string key, System.Guid value) { }
@@ -894,6 +815,16 @@ namespace Quartz
         public static Quartz.IPersistentStoreBuilder UseSqlServer(this Quartz.IPersistentStoreBuilder builder, System.Action<Quartz.DataSourceOptions> configure) { }
         public static Quartz.IPersistentStoreBuilder UseSqlServer(this Quartz.IPersistentStoreBuilder builder, string connectionString) { }
     }
+    public readonly struct PreferredNode : System.IEquatable<Quartz.PreferredNode>
+    {
+        public bool IsAutomatic { get; }
+        public bool IsNone { get; }
+        public string? Node { get; }
+        public static Quartz.PreferredNode Auto { get; }
+        public static Quartz.PreferredNode None { get; }
+        public override string ToString() { }
+        public static Quartz.PreferredNode For(string node) { }
+    }
     public class QuartzHostedService : Microsoft.Extensions.Hosting.IHostedLifecycleService, Microsoft.Extensions.Hosting.IHostedService
     {
         public QuartzHostedService(Microsoft.Extensions.Hosting.IHostApplicationLifetime applicationLifetime, Quartz.ISchedulerFactory schedulerFactory, Microsoft.Extensions.Options.IOptions<Quartz.QuartzHostedServiceOptions> options) { }
@@ -959,29 +890,19 @@ namespace Quartz
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzHostedService<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)]  T>(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Quartz.QuartzHostedServiceOptions>? configure = null)
             where T : Quartz.QuartzHostedService { }
     }
-    public sealed class RecurrenceScheduleBuilder : Quartz.ScheduleBuilder<Quartz.IRecurrenceTrigger>
+    public sealed class RecurrenceScheduleBuilder : Quartz.IScheduleBuilder
     {
-        public override Quartz.Extensibility.IMutableTrigger Build() { }
+        public Quartz.Extensibility.IMutableTrigger Build() { }
         public Quartz.RecurrenceScheduleBuilder InTimeZone(System.TimeZoneInfo? timeZone) { }
-        public Quartz.RecurrenceScheduleBuilder WithMisfireHandlingInstructionDoNothing() { }
-        public Quartz.RecurrenceScheduleBuilder WithMisfireHandlingInstructionFireAndProceed() { }
-        public Quartz.RecurrenceScheduleBuilder WithMisfireHandlingInstructionIgnoreMisfires() { }
+        public Quartz.RecurrenceScheduleBuilder WithMisfireHandlingInstruction(Quartz.RecurrenceTriggerMisfireInstruction instruction) { }
         public static Quartz.RecurrenceScheduleBuilder Create(string recurrenceRule) { }
     }
-    public static class RecurrenceTriggerBuilderExtensions
+    public enum RecurrenceTriggerMisfireInstruction
     {
-        public static Quartz.TriggerBuilder<TJob> WithRecurrenceSchedule<TJob>(this Quartz.TriggerBuilder<TJob> triggerBuilder, Quartz.RecurrenceScheduleBuilder schedule)
-            where TJob : Quartz.IJob { }
-        public static Quartz.TriggerBuilder<TJob> WithRecurrenceSchedule<TJob>(this Quartz.TriggerBuilder<TJob> triggerBuilder, string recurrenceRule)
-            where TJob : Quartz.IJob { }
-        public static Quartz.TriggerBuilder<TJob> WithRecurrenceSchedule<TJob>(this Quartz.TriggerBuilder<TJob> triggerBuilder, string recurrenceRule, System.Action<Quartz.RecurrenceScheduleBuilder> action)
-            where TJob : Quartz.IJob { }
-    }
-    public abstract class ScheduleBuilder<T> : Quartz.IScheduleBuilder
-        where T : Quartz.ITrigger
-    {
-        protected ScheduleBuilder() { }
-        public abstract Quartz.Extensibility.IMutableTrigger Build();
+        SmartPolicy = 0,
+        IgnoreMisfires = -1,
+        FireAndProceed = 1,
+        DoNothing = 2,
     }
     [System.Serializable]
     public sealed class SchedulerConfigException : Quartz.SchedulerException
@@ -1105,43 +1026,24 @@ namespace Quartz
             where T : Quartz.IJob { }
         public static Quartz.IQuartzBuilder UseSimpleTypeLoader(this Quartz.IQuartzBuilder builder) { }
     }
-    public sealed class SimpleScheduleBuilder : Quartz.ScheduleBuilder<Quartz.ISimpleTrigger>
+    public sealed class SimpleScheduleBuilder : Quartz.IScheduleBuilder
     {
-        public override Quartz.Extensibility.IMutableTrigger Build() { }
+        public Quartz.Extensibility.IMutableTrigger Build() { }
         public Quartz.SimpleScheduleBuilder RepeatForever() { }
         public Quartz.SimpleScheduleBuilder WithInterval(System.TimeSpan timeSpan) { }
-        public Quartz.SimpleScheduleBuilder WithIntervalInHours(int hours) { }
-        public Quartz.SimpleScheduleBuilder WithIntervalInMinutes(int minutes) { }
-        public Quartz.SimpleScheduleBuilder WithIntervalInSeconds(int seconds) { }
-        public Quartz.SimpleScheduleBuilder WithMisfireHandlingInstructionFireNow() { }
-        public Quartz.SimpleScheduleBuilder WithMisfireHandlingInstructionIgnoreMisfires() { }
-        public Quartz.SimpleScheduleBuilder WithMisfireHandlingInstructionNextWithExistingCount() { }
-        public Quartz.SimpleScheduleBuilder WithMisfireHandlingInstructionNextWithRemainingCount() { }
-        public Quartz.SimpleScheduleBuilder WithMisfireHandlingInstructionNowWithExistingCount() { }
-        public Quartz.SimpleScheduleBuilder WithMisfireHandlingInstructionNowWithRemainingCount() { }
+        public Quartz.SimpleScheduleBuilder WithMisfireHandlingInstruction(Quartz.SimpleTriggerMisfireInstruction instruction) { }
         public Quartz.SimpleScheduleBuilder WithRepeatCount(int repeatCount) { }
         public static Quartz.SimpleScheduleBuilder Create() { }
-        public static Quartz.SimpleScheduleBuilder RepeatHourlyForTotalCount(int count) { }
-        public static Quartz.SimpleScheduleBuilder RepeatHourlyForTotalCount(int count, int hours) { }
-        public static Quartz.SimpleScheduleBuilder RepeatHourlyForever() { }
-        public static Quartz.SimpleScheduleBuilder RepeatHourlyForever(int hours) { }
-        public static Quartz.SimpleScheduleBuilder RepeatMinutelyForTotalCount(int count) { }
-        public static Quartz.SimpleScheduleBuilder RepeatMinutelyForTotalCount(int count, int minutes) { }
-        public static Quartz.SimpleScheduleBuilder RepeatMinutelyForever() { }
-        public static Quartz.SimpleScheduleBuilder RepeatMinutelyForever(int minutes) { }
-        public static Quartz.SimpleScheduleBuilder RepeatSecondlyForTotalCount(int count) { }
-        public static Quartz.SimpleScheduleBuilder RepeatSecondlyForTotalCount(int count, int seconds) { }
-        public static Quartz.SimpleScheduleBuilder RepeatSecondlyForever() { }
-        public static Quartz.SimpleScheduleBuilder RepeatSecondlyForever(int seconds) { }
     }
-    public static class SimpleScheduleTriggerBuilderExtensions
+    public enum SimpleTriggerMisfireInstruction
     {
-        public static Quartz.TriggerBuilder<TJob> WithSimpleSchedule<TJob>(this Quartz.TriggerBuilder<TJob> triggerBuilder)
-            where TJob : Quartz.IJob { }
-        public static Quartz.TriggerBuilder<TJob> WithSimpleSchedule<TJob>(this Quartz.TriggerBuilder<TJob> triggerBuilder, Quartz.SimpleScheduleBuilder schedule)
-            where TJob : Quartz.IJob { }
-        public static Quartz.TriggerBuilder<TJob> WithSimpleSchedule<TJob>(this Quartz.TriggerBuilder<TJob> triggerBuilder, System.Action<Quartz.SimpleScheduleBuilder> action)
-            where TJob : Quartz.IJob { }
+        SmartPolicy = 0,
+        IgnoreMisfires = -1,
+        FireNow = 1,
+        NowWithExistingCount = 2,
+        NowWithRemainingCount = 3,
+        NextWithRemainingCount = 4,
+        NextWithExistingCount = 5,
     }
     public class SystemTextJsonSerializerOptions
     {
@@ -1156,23 +1058,6 @@ namespace Quartz
         public const int DefaultMaxConcurrency = 10;
         public ThreadPoolOptions() { }
         public int MaxConcurrency { get; set; }
-    }
-    [System.Serializable]
-    public sealed class TimeOfDay
-    {
-        public TimeOfDay(int hour, int minute) { }
-        public TimeOfDay(int hour, int minute, int second) { }
-        public int Hour { get; }
-        public int Minute { get; }
-        public int Second { get; }
-        public bool Before(Quartz.TimeOfDay timeOfDay) { }
-        public override bool Equals(object? obj) { }
-        public override int GetHashCode() { }
-        public System.DateTimeOffset GetTimeOfDayForDate(System.DateTimeOffset dateTime) { }
-        public System.DateTimeOffset? GetTimeOfDayForDate(System.DateTimeOffset? dateTime) { }
-        public override string ToString() { }
-        public static Quartz.TimeOfDay HourAndMinuteOfDay(int hour, int minute) { }
-        public static Quartz.TimeOfDay HourMinuteAndSecondOfDay(int hour, int minute, int second) { }
     }
     public enum TimeSpanParseRule
     {
@@ -1193,7 +1078,7 @@ namespace Quartz
         public static Quartz.TriggerBuilder<TJob> Create<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  TJob>(System.TimeProvider? timeProvider = null)
             where TJob : Quartz.IJob { }
     }
-    public sealed class TriggerBuilder<TJob> : Quartz.ITriggerConfigurator<TJob>
+    public sealed class TriggerBuilder<TJob> : Quartz.ITriggerConfigurator, Quartz.ITriggerConfigurator<TJob>
         where TJob : Quartz.IJob
     {
         public Quartz.ITrigger Build() { }
@@ -1202,28 +1087,43 @@ namespace Quartz
         public Quartz.TriggerBuilder<TJob> ForJob(Quartz.JobKey jobKey) { }
         public Quartz.TriggerBuilder<TJob> ForJob(string jobName) { }
         public Quartz.TriggerBuilder<TJob> ForJob(string jobName, string jobGroup) { }
-        public Quartz.TriggerBuilder<TJob> ModifiedByCalendar(string? calendarName) { }
         public Quartz.TriggerBuilder<TJob> StartAt(System.DateTimeOffset startTimeUtc) { }
         public Quartz.TriggerBuilder<TJob> StartNow() { }
         public Quartz.TriggerBuilder<TJob> UsingJobData(Quartz.JobDataMap newJobDataMap) { }
-        public Quartz.TriggerBuilder<TJob> UsingJobData(string key, System.Guid value) { }
-        public Quartz.TriggerBuilder<TJob> UsingJobData(string key, bool value) { }
-        public Quartz.TriggerBuilder<TJob> UsingJobData(string key, char value) { }
-        public Quartz.TriggerBuilder<TJob> UsingJobData(string key, decimal value) { }
-        public Quartz.TriggerBuilder<TJob> UsingJobData(string key, double value) { }
-        public Quartz.TriggerBuilder<TJob> UsingJobData(string key, float value) { }
-        public Quartz.TriggerBuilder<TJob> UsingJobData(string key, int value) { }
-        public Quartz.TriggerBuilder<TJob> UsingJobData(string key, long value) { }
-        public Quartz.TriggerBuilder<TJob> UsingJobData(string key, string value) { }
+        public Quartz.TriggerBuilder<TJob> UsingJobData(string key, object? value) { }
         public Quartz.TriggerBuilder<TJob> UsingJobData<TValue>(System.Linq.Expressions.Expression<System.Func<TJob, TValue>> jobProperty, TValue value) { }
+        public Quartz.TriggerBuilder<TJob> WithCalendarName(string? calendarName) { }
         public Quartz.TriggerBuilder<TJob> WithDescription(string? description) { }
         public Quartz.TriggerBuilder<TJob> WithExecutionGroup(string? executionGroup) { }
         public Quartz.TriggerBuilder<TJob> WithIdentity(Quartz.TriggerKey key) { }
         public Quartz.TriggerBuilder<TJob> WithIdentity(string name) { }
         public Quartz.TriggerBuilder<TJob> WithIdentity(string name, string group) { }
-        public Quartz.TriggerBuilder<TJob> WithPreferredNode(string? preferredNode) { }
+        public Quartz.TriggerBuilder<TJob> WithPreferredNode(Quartz.PreferredNode preferredNode) { }
         public Quartz.TriggerBuilder<TJob> WithPriority(int priority) { }
         public Quartz.TriggerBuilder<TJob> WithSchedule(Quartz.IScheduleBuilder scheduleBuilder) { }
+    }
+    public static class TriggerConfiguratorExtensions
+    {
+        public static TConfigurator WithCalendarIntervalSchedule<TConfigurator>(this TConfigurator configurator, Quartz.CalendarIntervalScheduleBuilder schedule)
+            where TConfigurator : Quartz.ITriggerConfigurator { }
+        public static TConfigurator WithCalendarIntervalSchedule<TConfigurator>(this TConfigurator configurator, System.Action<Quartz.CalendarIntervalScheduleBuilder>? configure = null)
+            where TConfigurator : Quartz.ITriggerConfigurator { }
+        public static TConfigurator WithCronSchedule<TConfigurator>(this TConfigurator configurator, Quartz.CronScheduleBuilder schedule)
+            where TConfigurator : Quartz.ITriggerConfigurator { }
+        public static TConfigurator WithCronSchedule<TConfigurator>(this TConfigurator configurator, string cronExpression, System.Action<Quartz.CronScheduleBuilder>? configure = null)
+            where TConfigurator : Quartz.ITriggerConfigurator { }
+        public static TConfigurator WithDailyTimeIntervalSchedule<TConfigurator>(this TConfigurator configurator, Quartz.DailyTimeIntervalScheduleBuilder schedule)
+            where TConfigurator : Quartz.ITriggerConfigurator { }
+        public static TConfigurator WithDailyTimeIntervalSchedule<TConfigurator>(this TConfigurator configurator, System.Action<Quartz.DailyTimeIntervalScheduleBuilder>? configure = null)
+            where TConfigurator : Quartz.ITriggerConfigurator { }
+        public static TConfigurator WithRecurrenceSchedule<TConfigurator>(this TConfigurator configurator, Quartz.RecurrenceScheduleBuilder schedule)
+            where TConfigurator : Quartz.ITriggerConfigurator { }
+        public static TConfigurator WithRecurrenceSchedule<TConfigurator>(this TConfigurator configurator, string recurrenceRule, System.Action<Quartz.RecurrenceScheduleBuilder>? configure = null)
+            where TConfigurator : Quartz.ITriggerConfigurator { }
+        public static TConfigurator WithSimpleSchedule<TConfigurator>(this TConfigurator configurator, Quartz.SimpleScheduleBuilder schedule)
+            where TConfigurator : Quartz.ITriggerConfigurator { }
+        public static TConfigurator WithSimpleSchedule<TConfigurator>(this TConfigurator configurator, System.Action<Quartz.SimpleScheduleBuilder>? configure = null)
+            where TConfigurator : Quartz.ITriggerConfigurator { }
     }
     public static class TriggerConstants
     {
@@ -1236,33 +1136,8 @@ namespace Quartz
         public Quartz.TriggerDetailsUpdate WithDescription(string? description) { }
         public Quartz.TriggerDetailsUpdate WithJobDataMap(Quartz.JobDataMap jobDataMap) { }
         public Quartz.TriggerDetailsUpdate WithMisfireInstruction(int misfireInstruction) { }
-        public Quartz.TriggerDetailsUpdate WithPreferredNode(string? preferredNode) { }
+        public Quartz.TriggerDetailsUpdate WithPreferredNode(Quartz.PreferredNode preferredNode) { }
         public Quartz.TriggerDetailsUpdate WithPriority(int priority) { }
-    }
-    public static class TriggerExtensions
-    {
-        public static Quartz.ITriggerConfigurator<TJob> WithCalendarIntervalSchedule<TJob>(this Quartz.ITriggerConfigurator<TJob> triggerBuilder, Quartz.CalendarIntervalScheduleBuilder schedule)
-            where TJob : Quartz.IJob { }
-        public static Quartz.ITriggerConfigurator<TJob> WithCalendarIntervalSchedule<TJob>(this Quartz.ITriggerConfigurator<TJob> triggerBuilder, System.Action<Quartz.CalendarIntervalScheduleBuilder>? action = null)
-            where TJob : Quartz.IJob { }
-        public static Quartz.ITriggerConfigurator<TJob> WithCronSchedule<TJob>(this Quartz.ITriggerConfigurator<TJob> triggerBuilder, Quartz.CronScheduleBuilder schedule)
-            where TJob : Quartz.IJob { }
-        public static Quartz.ITriggerConfigurator<TJob> WithCronSchedule<TJob>(this Quartz.ITriggerConfigurator<TJob> triggerBuilder, string cronExpression, System.Action<Quartz.CronScheduleBuilder>? action = null)
-            where TJob : Quartz.IJob { }
-        public static Quartz.ITriggerConfigurator<TJob> WithDailyTimeIntervalSchedule<TJob>(this Quartz.ITriggerConfigurator<TJob> triggerBuilder, Quartz.DailyTimeIntervalScheduleBuilder schedule)
-            where TJob : Quartz.IJob { }
-        public static Quartz.ITriggerConfigurator<TJob> WithDailyTimeIntervalSchedule<TJob>(this Quartz.ITriggerConfigurator<TJob> triggerBuilder, System.Action<Quartz.DailyTimeIntervalScheduleBuilder> action)
-            where TJob : Quartz.IJob { }
-        public static Quartz.ITriggerConfigurator<TJob> WithDailyTimeIntervalSchedule<TJob>(this Quartz.ITriggerConfigurator<TJob> triggerBuilder, int interval, Quartz.IntervalUnit intervalUnit, System.Action<Quartz.DailyTimeIntervalScheduleBuilder>? action = null)
-            where TJob : Quartz.IJob { }
-        public static Quartz.ITriggerConfigurator<TJob> WithRecurrenceSchedule<TJob>(this Quartz.ITriggerConfigurator<TJob> triggerBuilder, Quartz.RecurrenceScheduleBuilder schedule)
-            where TJob : Quartz.IJob { }
-        public static Quartz.ITriggerConfigurator<TJob> WithRecurrenceSchedule<TJob>(this Quartz.ITriggerConfigurator<TJob> triggerBuilder, string recurrenceRule, System.Action<Quartz.RecurrenceScheduleBuilder>? action = null)
-            where TJob : Quartz.IJob { }
-        public static Quartz.ITriggerConfigurator<TJob> WithSimpleSchedule<TJob>(this Quartz.ITriggerConfigurator<TJob> triggerBuilder, Quartz.SimpleScheduleBuilder schedule)
-            where TJob : Quartz.IJob { }
-        public static Quartz.ITriggerConfigurator<TJob> WithSimpleSchedule<TJob>(this Quartz.ITriggerConfigurator<TJob> triggerBuilder, System.Action<Quartz.SimpleScheduleBuilder>? action = null)
-            where TJob : Quartz.IJob { }
     }
     public sealed class TriggerGroup : System.IEquatable<Quartz.TriggerGroup>
     {
@@ -1498,7 +1373,7 @@ namespace Quartz.Extensibility
         new Quartz.TriggerKey Key { get; set; }
         new int MisfireInstruction { get; set; }
         new System.DateTimeOffset? NextFireTimeUtc { get; set; }
-        new string? PreferredNode { get; set; }
+        new Quartz.PreferredNode PreferredNode { get; set; }
         new System.DateTimeOffset? PreviousFireTimeUtc { get; set; }
         new int Priority { get; set; }
         new System.DateTimeOffset StartTimeUtc { get; set; }
@@ -2469,7 +2344,8 @@ namespace Quartz.Impl.Calendar
     {
         public AnnualCalendar() { }
         public AnnualCalendar(Quartz.ICalendar baseCalendar) { }
-        public System.Collections.Generic.IReadOnlyCollection<System.DateTime> DaysExcluded { get; set; }
+        public System.Collections.Generic.IReadOnlySet<System.DateOnly> DaysExcluded { get; }
+        public bool AddExcludedDay(System.DateOnly day) { }
         public override Quartz.ICalendar Clone() { }
         public bool Equals(Quartz.Impl.Calendar.AnnualCalendar obj) { }
         public override bool Equals(object? obj) { }
@@ -2477,9 +2353,9 @@ namespace Quartz.Impl.Calendar
         public override System.DateTimeOffset GetNextIncludedTimeUtc(System.DateTimeOffset timeStampUtc) { }
         [System.Security.SecurityCritical]
         public override void GetObjectData(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
-        public bool IsDayExcluded(System.DateTimeOffset day) { }
+        public bool IsDayExcluded(System.DateOnly day) { }
         public override bool IsTimeIncluded(System.DateTimeOffset dateUtc) { }
-        public void SetDayExcluded(System.DateTimeOffset day, bool exclude) { }
+        public bool RemoveExcludedDay(System.DateOnly day) { }
     }
     [System.Serializable]
     public class BaseCalendar : Quartz.ICalendar, System.IEquatable<Quartz.Impl.Calendar.BaseCalendar>, System.Runtime.Serialization.ISerializable
@@ -2518,23 +2394,17 @@ namespace Quartz.Impl.Calendar
         [System.Security.SecurityCritical]
         public override void GetObjectData(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
         public override bool IsTimeIncluded(System.DateTimeOffset timeUtc) { }
-        public void SetCronExpressionString(string expression) { }
         public override string ToString() { }
     }
     [System.Serializable]
     public sealed class DailyCalendar : Quartz.Impl.Calendar.BaseCalendar
     {
-        public DailyCalendar(System.DateTime rangeStartingCalendarUtc, System.DateTime rangeEndingCalendarUtc, System.TimeProvider? timeProvider = null) { }
-        public DailyCalendar(long rangeStartingTimeInMillis, long rangeEndingTimeInMillis, System.TimeProvider? timeProvider = null) { }
-        public DailyCalendar(string rangeStartingTime, string rangeEndingTime, System.TimeProvider? timeProvider = null) { }
-        public DailyCalendar(Quartz.ICalendar baseCalendar, System.DateTime rangeStartingCalendarUtc, System.DateTime rangeEndingCalendarUtc, System.TimeProvider? timeProvider = null) { }
-        public DailyCalendar(Quartz.ICalendar baseCalendar, long rangeStartingTimeInMillis, long rangeEndingTimeInMillis, System.TimeProvider? timeProvider = null) { }
-        public DailyCalendar(Quartz.ICalendar? baseCalendar, string rangeStartingTime, string rangeEndingTime, System.TimeProvider? timeProvider = null) { }
-        public DailyCalendar(int rangeStartingHourOfDay, int rangeStartingMinute, int rangeStartingSecond, int rangeStartingMillis, int rangeEndingHourOfDay, int rangeEndingMinute, int rangeEndingSecond, int rangeEndingMillis, System.TimeProvider? timeProvider = null) { }
-        public DailyCalendar(Quartz.ICalendar baseCalendar, int rangeStartingHourOfDay, int rangeStartingMinute, int rangeStartingSecond, int rangeStartingMillis, int rangeEndingHourOfDay, int rangeEndingMinute, int rangeEndingSecond, int rangeEndingMillis, System.TimeProvider? timeProvider = null) { }
+        public DailyCalendar(System.TimeOnly rangeStart, System.TimeOnly rangeEnd, Quartz.ICalendar? baseCalendar = null) { }
         public bool InvertTimeRange { get; set; }
-        public string RangeEndingTime { get; }
-        public string RangeStartingTime { get; }
+        [System.Runtime.CompilerServices.TupleElementNames(new string[] {
+                "Start",
+                "End"})]
+        public System.ValueTuple<System.TimeOnly, System.TimeOnly> TimeRange { get; set; }
         public override Quartz.ICalendar Clone() { }
         public bool Equals(Quartz.Impl.Calendar.DailyCalendar obj) { }
         public override bool Equals(object? obj) { }
@@ -2545,10 +2415,6 @@ namespace Quartz.Impl.Calendar
         public System.DateTimeOffset GetTimeRangeEndingTimeUtc(System.DateTimeOffset timeUtc) { }
         public System.DateTimeOffset GetTimeRangeStartingTimeUtc(System.DateTimeOffset timeUtc) { }
         public override bool IsTimeIncluded(System.DateTimeOffset timeUtc) { }
-        public void SetTimeRange(System.DateTime rangeStartingCalendarUtc, System.DateTime rangeEndingCalendarUtc) { }
-        public void SetTimeRange(long rangeStartingTime, long rangeEndingTime) { }
-        public void SetTimeRange(string rangeStartingTimeString, string rangeEndingTimeString) { }
-        public void SetTimeRange(int rangeStartingHourOfDay, int rangeStartingMinute, int rangeStartingSecond, int rangeStartingMillis, int rangeEndingHourOfDay, int rangeEndingMinute, int rangeEndingSecond, int rangeEndingMillis) { }
         public override string ToString() { }
     }
     [System.Serializable]
@@ -2556,8 +2422,8 @@ namespace Quartz.Impl.Calendar
     {
         public HolidayCalendar() { }
         public HolidayCalendar(Quartz.ICalendar baseCalendar) { }
-        public System.Collections.Generic.List<System.DateTime> ExcludedDates { get; }
-        public void AddExcludedDate(System.DateTime excludedDateUtc) { }
+        public System.Collections.Generic.IReadOnlySet<System.DateOnly> DaysExcluded { get; }
+        public bool AddExcludedDay(System.DateOnly day) { }
         public override Quartz.ICalendar Clone() { }
         public bool Equals(Quartz.Impl.Calendar.HolidayCalendar obj) { }
         public override bool Equals(object? obj) { }
@@ -2565,15 +2431,17 @@ namespace Quartz.Impl.Calendar
         public override System.DateTimeOffset GetNextIncludedTimeUtc(System.DateTimeOffset timeUtc) { }
         [System.Security.SecurityCritical]
         public override void GetObjectData(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
+        public bool IsDayExcluded(System.DateOnly day) { }
         public override bool IsTimeIncluded(System.DateTimeOffset timeStampUtc) { }
-        public void RemoveExcludedDate(System.DateTime dateToRemoveUtc) { }
+        public bool RemoveExcludedDay(System.DateOnly day) { }
     }
     [System.Serializable]
     public sealed class MonthlyCalendar : Quartz.Impl.Calendar.BaseCalendar
     {
         public MonthlyCalendar() { }
         public MonthlyCalendar(Quartz.ICalendar baseCalendar) { }
-        public bool[] DaysExcluded { get; set; }
+        public System.Collections.Generic.IReadOnlySet<int> DaysExcluded { get; }
+        public bool AddExcludedDay(int day) { }
         public bool AreAllDaysExcluded() { }
         public override Quartz.ICalendar Clone() { }
         public bool Equals(Quartz.Impl.Calendar.MonthlyCalendar obj) { }
@@ -2584,14 +2452,15 @@ namespace Quartz.Impl.Calendar
         public override void GetObjectData(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
         public bool IsDayExcluded(int day) { }
         public override bool IsTimeIncluded(System.DateTimeOffset timeStampUtc) { }
-        public void SetDayExcluded(int day, bool exclude) { }
+        public bool RemoveExcludedDay(int day) { }
     }
     [System.Serializable]
     public sealed class WeeklyCalendar : Quartz.Impl.Calendar.BaseCalendar
     {
         public WeeklyCalendar() { }
         public WeeklyCalendar(Quartz.ICalendar baseCalendar) { }
-        public bool[] DaysExcluded { get; set; }
+        public System.Collections.Generic.IReadOnlySet<System.DayOfWeek> DaysExcluded { get; }
+        public bool AddExcludedDay(System.DayOfWeek day) { }
         public bool AreAllDaysExcluded() { }
         public override Quartz.ICalendar Clone() { }
         public bool Equals(Quartz.Impl.Calendar.WeeklyCalendar obj) { }
@@ -2600,9 +2469,9 @@ namespace Quartz.Impl.Calendar
         public override System.DateTimeOffset GetNextIncludedTimeUtc(System.DateTimeOffset timeUtc) { }
         [System.Security.SecurityCritical]
         public override void GetObjectData(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
-        public bool IsDayExcluded(System.DayOfWeek wday) { }
+        public bool IsDayExcluded(System.DayOfWeek day) { }
         public override bool IsTimeIncluded(System.DateTimeOffset timeUtc) { }
-        public void SetDayExcluded(System.DayOfWeek wday, bool exclude) { }
+        public bool RemoveExcludedDay(System.DayOfWeek day) { }
     }
 }
 namespace Quartz.Impl
@@ -2921,14 +2790,13 @@ namespace Quartz.Impl.Triggers
         public virtual string FireInstanceId { get; set; }
         public virtual bool HasAdditionalProperties { get; }
         public abstract bool HasMillisecondPrecision { get; }
-        public bool IsPreferredNodeAuto { get; }
         public virtual Quartz.JobDataMap JobDataMap { get; set; }
         public Quartz.JobKey JobKey { get; set; }
         public Quartz.TriggerKey Key { get; set; }
         public abstract bool MayFireAgain { get; }
         public virtual int MisfireInstruction { get; set; }
         public abstract System.DateTimeOffset? NextFireTimeUtc { get; set; }
-        public string? PreferredNode { get; set; }
+        public Quartz.PreferredNode PreferredNode { get; set; }
         public abstract System.DateTimeOffset? PreviousFireTimeUtc { get; set; }
         public virtual int Priority { get; set; }
         public virtual System.DateTimeOffset StartTimeUtc { get; set; }
@@ -3020,13 +2888,13 @@ namespace Quartz.Impl.Triggers
     {
         public const int RepeatIndefinitely = -1;
         public DailyTimeIntervalTriggerImpl(System.TimeProvider? timeProvider = null) { }
-        public DailyTimeIntervalTriggerImpl(string name, Quartz.TimeOfDay startTimeOfDayUtc, Quartz.TimeOfDay endTimeOfDayUtc, Quartz.IntervalUnit intervalUnit, int repeatInterval, System.TimeProvider? timeProvider = null) { }
-        public DailyTimeIntervalTriggerImpl(string name, string group, Quartz.TimeOfDay startTimeOfDayUtc, Quartz.TimeOfDay endTimeOfDayUtc, Quartz.IntervalUnit intervalUnit, int repeatInterval, System.TimeProvider? timeProvider = null) { }
-        public DailyTimeIntervalTriggerImpl(string name, System.DateTimeOffset startTimeUtc, System.DateTimeOffset? endTimeUtc, Quartz.TimeOfDay startTimeOfDayUtc, Quartz.TimeOfDay endTimeOfDayUtc, Quartz.IntervalUnit intervalUnit, int repeatInterval, System.TimeProvider? timeProvider = null) { }
-        public DailyTimeIntervalTriggerImpl(string name, string group, System.DateTimeOffset startTimeUtc, System.DateTimeOffset? endTimeUtc, Quartz.TimeOfDay startTimeOfDayUtc, Quartz.TimeOfDay endTimeOfDayUtc, Quartz.IntervalUnit intervalUnit, int repeatInterval, System.TimeProvider? timeProvider = null) { }
-        public DailyTimeIntervalTriggerImpl(string name, string group, string jobName, string jobGroup, System.DateTimeOffset startTimeUtc, System.DateTimeOffset? endTimeUtc, Quartz.TimeOfDay startTimeOfDayUtc, Quartz.TimeOfDay endTimeOfDayUtc, Quartz.IntervalUnit intervalUnit, int repeatInterval, System.TimeProvider? timeProvider = null) { }
+        public DailyTimeIntervalTriggerImpl(string name, System.TimeOnly startTimeOfDayUtc, System.TimeOnly endTimeOfDayUtc, Quartz.IntervalUnit intervalUnit, int repeatInterval, System.TimeProvider? timeProvider = null) { }
+        public DailyTimeIntervalTriggerImpl(string name, string group, System.TimeOnly startTimeOfDayUtc, System.TimeOnly endTimeOfDayUtc, Quartz.IntervalUnit intervalUnit, int repeatInterval, System.TimeProvider? timeProvider = null) { }
+        public DailyTimeIntervalTriggerImpl(string name, System.DateTimeOffset startTimeUtc, System.DateTimeOffset? endTimeUtc, System.TimeOnly startTimeOfDayUtc, System.TimeOnly endTimeOfDayUtc, Quartz.IntervalUnit intervalUnit, int repeatInterval, System.TimeProvider? timeProvider = null) { }
+        public DailyTimeIntervalTriggerImpl(string name, string group, System.DateTimeOffset startTimeUtc, System.DateTimeOffset? endTimeUtc, System.TimeOnly startTimeOfDayUtc, System.TimeOnly endTimeOfDayUtc, Quartz.IntervalUnit intervalUnit, int repeatInterval, System.TimeProvider? timeProvider = null) { }
+        public DailyTimeIntervalTriggerImpl(string name, string group, string jobName, string jobGroup, System.DateTimeOffset startTimeUtc, System.DateTimeOffset? endTimeUtc, System.TimeOnly startTimeOfDayUtc, System.TimeOnly endTimeOfDayUtc, Quartz.IntervalUnit intervalUnit, int repeatInterval, System.TimeProvider? timeProvider = null) { }
         public System.Collections.Generic.IReadOnlyCollection<System.DayOfWeek> DaysOfWeek { get; set; }
-        public Quartz.TimeOfDay EndTimeOfDay { get; set; }
+        public System.TimeOnly EndTimeOfDay { get; set; }
         public override System.DateTimeOffset? EndTimeUtc { get; set; }
         public override System.DateTimeOffset? FinalFireTimeUtc { get; }
         public override bool HasMillisecondPrecision { get; }
@@ -3036,7 +2904,7 @@ namespace Quartz.Impl.Triggers
         public int RepeatCount { get; set; }
         public int RepeatInterval { get; set; }
         public Quartz.IntervalUnit RepeatIntervalUnit { get; set; }
-        public Quartz.TimeOfDay StartTimeOfDay { get; set; }
+        public System.TimeOnly StartTimeOfDay { get; set; }
         public override System.DateTimeOffset StartTimeUtc { get; set; }
         public System.TimeZoneInfo TimeZone { get; set; }
         public int TimesTriggered { get; set; }
@@ -3425,7 +3293,7 @@ namespace Quartz.Util
         public void Shutdown(string dataSourceName) { }
     }
     [System.Serializable]
-    public class DirtyFlagMap<TKey, TValue> : System.Collections.Generic.ICollection<System.Collections.Generic.KeyValuePair<TKey, TValue?>>, System.Collections.Generic.IDictionary<TKey, TValue?>, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<TKey, TValue?>>, System.Collections.Generic.IReadOnlyCollection<System.Collections.Generic.KeyValuePair<TKey, TValue?>>, System.Collections.Generic.IReadOnlyDictionary<TKey, TValue?>, System.Collections.ICollection, System.Collections.IDictionary, System.Collections.IEnumerable, System.Runtime.Serialization.ISerializable
+    public class DirtyFlagMap<TKey, TValue> : System.Collections.Generic.ICollection<System.Collections.Generic.KeyValuePair<TKey, TValue?>>, System.Collections.Generic.IDictionary<TKey, TValue?>, System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<TKey, TValue?>>, System.Collections.Generic.IReadOnlyCollection<System.Collections.Generic.KeyValuePair<TKey, TValue?>>, System.Collections.Generic.IReadOnlyDictionary<TKey, TValue?>, System.Collections.IEnumerable, System.Runtime.Serialization.ISerializable
         where TKey :  notnull
     {
         public DirtyFlagMap() { }
@@ -3442,7 +3310,6 @@ namespace Quartz.Util
         public void ClearDirtyFlag() { }
         public bool ContainsKey(TKey key) { }
         public bool ContainsValue(TValue obj) { }
-        public void CopyTo(System.Array array, int index) { }
         public void CopyTo(System.Collections.Generic.KeyValuePair<TKey, TValue?>[] array, int arrayIndex) { }
         public override bool Equals(object? obj) { }
         public System.Collections.Generic.Dictionary<TKey, TValue?>.Enumerator GetEnumerator() { }
@@ -3474,6 +3341,7 @@ namespace Quartz.Util
         public virtual char GetChar(string key) { }
         public virtual System.DateTime GetDateTime(string key) { }
         public virtual System.DateTimeOffset GetDateTimeOffset(string key) { }
+        public virtual decimal GetDecimal(string key) { }
         public virtual double GetDouble(string key) { }
         public virtual float GetFloat(string key) { }
         public virtual System.Guid GetGuid(string key) { }
@@ -3485,6 +3353,7 @@ namespace Quartz.Util
         public virtual bool TryGetChar(string key, out char value) { }
         public virtual bool TryGetDateTime(string key, out System.DateTime value) { }
         public virtual bool TryGetDateTimeOffset(string key, out System.DateTimeOffset value) { }
+        public virtual bool TryGetDecimal(string key, out decimal value) { }
         public virtual bool TryGetDouble(string key, out double value) { }
         public virtual bool TryGetFloat(string key, out float value) { }
         public virtual bool TryGetGuid(string key, out System.Guid value) { }

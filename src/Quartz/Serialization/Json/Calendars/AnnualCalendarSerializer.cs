@@ -15,15 +15,16 @@ internal sealed class AnnualCalendarSerializer : CalendarSerializer<AnnualCalend
 
     protected override void SerializeFields(Utf8JsonWriter writer, AnnualCalendar calendar, JsonSerializerOptions options)
     {
-        writer.WriteDateTimeArray(options.GetPropertyName("ExcludedDays"), calendar.DaysExcluded);
+        writer.WriteDateOnlyArray(options.GetPropertyName("ExcludedDays"), calendar.DaysExcluded);
     }
 
     protected override void DeserializeFields(AnnualCalendar calendar, JsonElement jsonElement, JsonSerializerOptions options)
     {
-        var excludedDates = jsonElement.GetProperty(options.GetPropertyName("ExcludedDays")).GetDateTimeArray();
-        foreach (var date in excludedDates)
+        // Payloads written before 4.0 carry full timestamps here rather than dates.
+        var excludedDays = jsonElement.GetProperty(options.GetPropertyName("ExcludedDays")).GetDateOnlyArray();
+        foreach (var day in excludedDays)
         {
-            calendar.SetDayExcluded(date, exclude: true);
+            calendar.AddExcludedDay(day);
         }
     }
 }

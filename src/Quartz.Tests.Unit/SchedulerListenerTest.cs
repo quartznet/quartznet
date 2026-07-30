@@ -190,7 +190,7 @@ public class SchedulerListenerTest
         IJobDetail job = JobBuilder.Create<Qtz205Job>().WithIdentity("test").Build();
         ITrigger trigger = TriggerBuilder.Create()
             .WithIdentity("test")
-            .WithSchedule(SimpleScheduleBuilder.RepeatSecondlyForTotalCount(3))
+            .WithSchedule(SimpleScheduleBuilder.Create().WithInterval(TimeSpan.FromSeconds(1)).WithRepeatCount(2))
             .Build();
 
         await scheduler.ScheduleJob(job, trigger);

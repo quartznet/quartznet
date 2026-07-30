@@ -72,14 +72,20 @@ public interface IDailyTimeIntervalTrigger : ITrigger
     int RepeatInterval { get; }
 
     /// <summary>
-    /// The time of day to start firing at the given interval.
+    /// The time of day to start firing at the given interval. Defaults to <c>00:00:00</c>.
     /// </summary>
-    TimeOfDay StartTimeOfDay { get; }
+    /// <remarks>
+    /// The value is kept with one-second resolution, which is what the job store persists.
+    /// </remarks>
+    TimeOnly StartTimeOfDay { get; }
 
     /// <summary>
-    /// The time of day to complete firing at the given interval.
+    /// The time of day to complete firing at the given interval. Defaults to <c>23:59:59</c>.
     /// </summary>
-    TimeOfDay EndTimeOfDay { get; }
+    /// <remarks>
+    /// The value is kept with one-second resolution, which is what the job store persists.
+    /// </remarks>
+    TimeOnly EndTimeOfDay { get; }
 
     /// <summary>
     /// The days of the week upon which to fire.

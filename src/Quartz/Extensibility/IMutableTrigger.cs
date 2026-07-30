@@ -28,15 +28,14 @@ public interface IMutableTrigger : ITrigger
     new string? ExecutionGroup { get; set; }
 
     /// <summary>
-    /// Get or set the preferred node for this trigger. When set to a specific scheduler instance
-    /// id, only that node acquires the trigger in a cluster, with automatic failover while that
-    /// node is down. When set to <c>"*"</c>, the first node to fire the trigger claims it.
+    /// Get or set which cluster node this trigger prefers to run on. Only that node acquires the
+    /// trigger, with automatic failover while it is down.
     /// </summary>
     /// <remarks>
-    /// A <see langword="null"/> value means the trigger has no node preference (the default,
-    /// backward-compatible behavior). Assigning always records an <em>explicit</em> pin.
+    /// <see cref="Quartz.PreferredNode.None" /> means the trigger has no node preference. The
+    /// assigned value is recorded as given, automatic-pin flag included.
     /// </remarks>
-    new string? PreferredNode { get; set; }
+    new PreferredNode PreferredNode { get; set; }
 
     /// <summary>
     /// Associate the <see cref="ICalendar" /> with the given name with this Trigger.

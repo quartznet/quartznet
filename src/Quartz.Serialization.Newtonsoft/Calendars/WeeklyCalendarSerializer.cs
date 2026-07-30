@@ -3,6 +3,7 @@ using Newtonsoft.Json.Linq;
 
 using Quartz.Impl.Calendar;
 using Quartz.Serialization.Newtonsoft;
+using Quartz.Util;
 
 namespace Quartz.Calendars;
 
@@ -15,17 +16,19 @@ internal sealed class WeeklyCalendarSerializer : CalendarSerializer<WeeklyCalend
 
     protected override void SerializeFields(JsonWriter writer, WeeklyCalendar calendar)
     {
-        writer.WritePropertyName("ExcludedDays");
-        writer.WriteStartArray();
-        foreach (var day in calendar.DaysExcluded)
-        {
-            writer.WriteValue(day);
-        }
-        writer.WriteEndArray();
+        writer.WriteArray("ExcludedDays", calendar.DaysExcluded.Order(), static (w, v) => w.WriteValue(v.ToString()));
     }
 
     protected override void DeserializeFields(WeeklyCalendar calendar, JObject source)
     {
-        calendar.DaysExcluded = source["ExcludedDays"]!.Values<bool>().ToArray();
+        // A default WeeklyCalendar excludes the weekend, and the payload is the whole truth about
+        // what is excluded, so start from nothing.
+        calendar.RemoveExcludedDay(DayOfWeek.Saturday);
+        calendar.RemoveExcludedDay(DayOfWeek.Sunday);
+
+        foreach (DayOfWeek day in source["ExcludedDays"]!.GetDayOfWeekArray())
+        {
+            calendar.AddExcludedDay(day);
+        }
     }
 }

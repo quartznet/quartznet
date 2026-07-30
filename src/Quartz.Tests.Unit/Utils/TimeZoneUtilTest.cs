@@ -23,18 +23,18 @@ public class TimeZoneUtilTest
 
         var weeklyCalendar = new WeeklyCalendar() { TimeZone = timeZone, };
 
-        var dailyCalendar = new DailyCalendar(weeklyCalendar, "06:00", "22:00") { TimeZone = timeZone, InvertTimeRange = true, };
+        var dailyCalendar = new DailyCalendar(new TimeOnly(6, 0), new TimeOnly(22, 0), weeklyCalendar) { TimeZone = timeZone, InvertTimeRange = true, };
 
         var holidayCalendar = new HolidayCalendar(dailyCalendar) { TimeZone = timeZone, };
-        holidayCalendar.AddExcludedDate(new DateTime(2024, 2, 19));
-        holidayCalendar.AddExcludedDate(new DateTime(2024, 5, 27));
-        holidayCalendar.AddExcludedDate(new DateTime(2024, 6, 19));
-        holidayCalendar.AddExcludedDate(new DateTime(2024, 7, 4));
-        holidayCalendar.AddExcludedDate(new DateTime(2024, 9, 2));
-        holidayCalendar.AddExcludedDate(new DateTime(2024, 10, 14));
-        holidayCalendar.AddExcludedDate(new DateTime(2024, 11, 11));
-        holidayCalendar.AddExcludedDate(new DateTime(2024, 11, 28));
-        holidayCalendar.AddExcludedDate(new DateTime(2024, 12, 25));
+        holidayCalendar.AddExcludedDay(new DateOnly(2024, 2, 19));
+        holidayCalendar.AddExcludedDay(new DateOnly(2024, 5, 27));
+        holidayCalendar.AddExcludedDay(new DateOnly(2024, 6, 19));
+        holidayCalendar.AddExcludedDay(new DateOnly(2024, 7, 4));
+        holidayCalendar.AddExcludedDay(new DateOnly(2024, 9, 2));
+        holidayCalendar.AddExcludedDay(new DateOnly(2024, 10, 14));
+        holidayCalendar.AddExcludedDay(new DateOnly(2024, 11, 11));
+        holidayCalendar.AddExcludedDay(new DateOnly(2024, 11, 28));
+        holidayCalendar.AddExcludedDay(new DateOnly(2024, 12, 25));
 
         var time = new DateTime(2024, 2, 5, 10, 6, 0, DateTimeKind.Utc);
         var expected = new DateTime(2024, 2, 5, 14, 0, 0, DateTimeKind.Utc);

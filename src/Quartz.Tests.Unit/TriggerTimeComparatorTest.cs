@@ -149,8 +149,7 @@ public class TriggerTimeComparatorTest
         public JobKey JobKey { get; set; }
         public string Description { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public string ExecutionGroup { get => null; set { } }
-        public string PreferredNode { get => null; set { } }
-        public bool IsPreferredNodeAuto => false;
+        public PreferredNode PreferredNode { get => PreferredNode.None; set { } }
         public string CalendarName { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public JobDataMap JobDataMap { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public int Priority { get; set; }

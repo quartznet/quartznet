@@ -162,14 +162,14 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     {
         return TriggerBuilder.Create()
             .ForJob(JobKey)
-            .ModifiedByCalendar(CalendarName)
+            .WithCalendarName(CalendarName)
             .UsingJobData(JobDataMap)
             .WithDescription(Description)
             .WithExecutionGroup(ExecutionGroup)
             // The pin round-trips losslessly, auto-claim flag included: rebuilding an auto-pinned
-            // trigger keeps it auto-pinned (so it still resets to "*" if that node dies) instead
-            // of silently hardening into an explicit pin.
-            .WithPreferredNodeRaw(preferredNode, preferredNodeAuto)
+            // trigger keeps it auto-pinned (so it is still released if that node dies) instead of
+            // silently hardening into a pin the user named.
+            .WithPreferredNode(PreferredNode)
             .EndAt(EndTimeUtc)
             .WithIdentity(Key)
             .WithPriority(Priority)
@@ -226,33 +226,20 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     }
 
     /// <summary>
-    /// Gets or sets the preferred node for this trigger. When set to a specific scheduler
-    /// instance id (matching <c>quartz.scheduler.instanceId</c>), only that node acquires the
-    /// trigger in a cluster, with automatic failover while that node is down. When set to
-    /// <c>"*"</c>, the first node to fire the trigger claims it automatically.
+    /// Gets or sets which cluster node this trigger prefers to run on. Only that node acquires
+    /// the trigger, with automatic failover while it is down.
     /// </summary>
     /// <remarks>
-    /// <para>A <see langword="null"/> value means the trigger has no node preference
+    /// <para><see cref="Quartz.PreferredNode.None"/> means the trigger has no node preference
     /// (the default, backward-compatible behavior).</para>
-    /// <para>Assigning always records an <em>explicit</em> pin; see
-    /// <see cref="IsPreferredNodeAuto"/>.</para>
+    /// <para>The value is recorded as given, automatic-pin flag included, so a pin survives being
+    /// copied from one trigger to another as the pin it was.</para>
     /// </remarks>
-    public string? PreferredNode
+    public PreferredNode PreferredNode
     {
-        get => preferredNode;
-        set
-        {
-            preferredNode = string.IsNullOrWhiteSpace(value) ? null : value!.Trim();
-
-            // An explicit assignment is never an auto-claim: setting "*" requests auto-pin
-            // (still unclaimed), and setting a node name is an explicit pin.
-            preferredNodeAuto = false;
-            preferredNodeDirty = true;
-        }
+        get => Quartz.PreferredNode.FromStored(preferredNode, preferredNodeAuto);
+        set => SetPreferredNode(value, markDirty: true);
     }
-
-    /// <inheritdoc />
-    public bool IsPreferredNodeAuto => preferredNodeAuto;
 
     /// <summary>
     /// Whether the preferred node was changed on this trigger instance (by user code, a builder,
@@ -261,20 +248,18 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     internal bool PreferredNodeDirty => preferredNodeDirty;
 
     /// <summary>
-    /// Sets the preferred node and its auto-claim flag together. Used internally for auto-pin
-    /// claims and for populating a trigger from its database row.
+    /// Sets the preferred node, optionally without marking it changed.
     /// </summary>
-    /// <param name="value">The preferred node value (node name, <c>"*"</c>, or <see langword="null"/>).</param>
-    /// <param name="auto">Whether <paramref name="value"/> is an automatically claimed pin.</param>
+    /// <param name="value">The pin to record.</param>
     /// <param name="markDirty">
     /// Whether the write marks the value as changed. Pass <see langword="false"/> only when
     /// populating the trigger from its own database row, where the in-memory value mirrors
     /// persistent state — this also clears any earlier dirtiness.
     /// </param>
-    internal void SetPreferredNodeRaw(string? value, bool auto, bool markDirty = true)
+    internal void SetPreferredNode(PreferredNode value, bool markDirty)
     {
-        preferredNode = string.IsNullOrWhiteSpace(value) ? null : value!.Trim();
-        preferredNodeAuto = preferredNode != null && auto;
+        preferredNode = value.StoredNode;
+        preferredNodeAuto = value.StoredAutomatic;
         preferredNodeDirty = markDirty;
     }
 

@@ -233,7 +233,7 @@ internal static class JsonSchedulingHelper
                 .StartAt(startTime)
                 .EndAt(endTime)
                 .WithPriority(priority)
-                .ModifiedByCalendar(calendarName)
+                .WithCalendarName(calendarName)
                 .WithExecutionGroup(executionGroup)
                 .WithSchedule(schedule)
                 .Build();
@@ -301,7 +301,7 @@ internal static class JsonSchedulingHelper
         var misfireInstruction = section[nameof(JsonSimpleSchedule.MisfireInstruction)];
         if (misfireInstruction is not null)
         {
-            builder.WithMisfireHandlingInstruction(ParseMisfireInstruction(misfireInstruction));
+            builder.WithMisfireHandlingInstruction((SimpleTriggerMisfireInstruction) ParseMisfireInstruction(misfireInstruction));
         }
 
         return builder;
@@ -336,7 +336,7 @@ internal static class JsonSchedulingHelper
         var misfireInstruction = section[nameof(JsonCronSchedule.MisfireInstruction)];
         if (misfireInstruction is not null)
         {
-            builder.WithMisfireHandlingInstruction(ParseMisfireInstruction(misfireInstruction));
+            builder.WithMisfireHandlingInstruction((CronTriggerMisfireInstruction) ParseMisfireInstruction(misfireInstruction));
         }
 
         return builder;
@@ -355,7 +355,7 @@ internal static class JsonSchedulingHelper
         var misfireInstruction = section[nameof(JsonCalendarIntervalSchedule.MisfireInstruction)];
         if (misfireInstruction is not null)
         {
-            builder.WithMisfireHandlingInstruction(ParseMisfireInstruction(misfireInstruction));
+            builder.WithMisfireHandlingInstruction((CalendarIntervalTriggerMisfireInstruction) ParseMisfireInstruction(misfireInstruction));
         }
 
         return builder;
@@ -416,25 +416,17 @@ internal static class JsonSchedulingHelper
         var misfireInstruction = section[nameof(JsonDailyTimeIntervalSchedule.MisfireInstruction)];
         if (misfireInstruction is not null)
         {
-            var instruction = ParseMisfireInstruction(misfireInstruction);
-            if (instruction == MisfireInstruction.IgnoreMisfirePolicy)
+            var instruction = (DailyTimeIntervalTriggerMisfireInstruction) ParseMisfireInstruction(misfireInstruction);
+            if (Enum.IsDefined(instruction))
             {
-                builder.WithMisfireHandlingInstructionIgnoreMisfires();
-            }
-            else if (instruction == MisfireInstruction.DailyTimeIntervalTrigger.DoNothing)
-            {
-                builder.WithMisfireHandlingInstructionDoNothing();
-            }
-            else if (instruction == MisfireInstruction.DailyTimeIntervalTrigger.FireOnceNow)
-            {
-                builder.WithMisfireHandlingInstructionFireAndProceed();
+                builder.WithMisfireHandlingInstruction(instruction);
             }
         }
 
         return builder;
     }
 
-    private static TimeOfDay ParseTimeOfDay(string value)
+    private static TimeOnly ParseTimeOfDay(string value)
     {
         if (!TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out var timeSpan))
         {
@@ -449,7 +441,7 @@ internal static class JsonSchedulingHelper
         {
             throw new SchedulerConfigException($"TimeOfDay value '{value}' must not contain fractional seconds.");
         }
-        return new TimeOfDay(timeSpan.Hours, timeSpan.Minutes, timeSpan.Seconds);
+        return new TimeOnly(timeSpan.Hours, timeSpan.Minutes, timeSpan.Seconds);
     }
 
     private static int ParseMisfireInstruction(string value)

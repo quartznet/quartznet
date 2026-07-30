@@ -113,11 +113,12 @@ ITrigger trigger = TriggerBuilder.Create()
     .Build();
 ```
 
-You can also provide an explicit hash key, which does not require a trigger identity:
+You can also provide an explicit hash key, which does not require a trigger identity. The key rides on
+the `CronExpression`:
 
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
-    .WithCronSchedule("0 H H(0-7) * * ?", "nightly-cleanup")
+    .WithCronSchedule(CronScheduleBuilder.CronSchedule(new CronExpression("0 H H(0-7) * * ?", "nightly-cleanup")))
     .Build();
 ```
 

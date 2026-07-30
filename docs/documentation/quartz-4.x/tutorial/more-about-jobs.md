@@ -30,7 +30,7 @@ ITrigger trigger = TriggerBuilder.Create()
   .WithIdentity("myTrigger", "group1")
   .StartNow()
   .WithSimpleSchedule(x => x
-   .WithIntervalInSeconds(40)
+   .WithInterval(TimeSpan.FromSeconds(40))
    .RepeatForever())
   .Build();
   

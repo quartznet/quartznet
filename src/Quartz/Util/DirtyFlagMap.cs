@@ -23,21 +23,20 @@ using System.Security;
 namespace Quartz.Util;
 
 /// <summary>
-/// An implementation of <see cref="IDictionary" /> that wraps another <see cref="IDictionary" />
-/// and flags itself 'dirty' when it is modified.
+/// A dictionary that flags itself 'dirty' when it is modified.
 /// </summary>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
 #pragma warning disable CA1710
-public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionary, IReadOnlyDictionary<TKey, TValue?>, ISerializable where TKey : notnull
+public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IReadOnlyDictionary<TKey, TValue?>, ISerializable where TKey : notnull
 #pragma warning restore CA1710
 {
     private bool dirty;
     private readonly Dictionary<TKey, TValue?> map;
 
     /// <summary>
-    /// Create a DirtyFlagMap that 'wraps' a <see cref="Hashtable" />.
+    /// Create an empty <see cref="DirtyFlagMap{TKey,TValue}" />.
     /// </summary>
     public DirtyFlagMap()
     {
@@ -45,8 +44,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
     }
 
     /// <summary>
-    /// Create a DirtyFlagMap that 'wraps' a <see cref="Hashtable" /> that has the
-    /// given initial capacity.
+    /// Create a <see cref="DirtyFlagMap{TKey,TValue}" /> with the given initial capacity.
     /// </summary>
     public DirtyFlagMap(int initialCapacity)
     {
@@ -150,7 +148,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
     }
 
     /// <summary>
-    /// Determine whether the <see cref="IDictionary" /> is flagged dirty.
+    /// Determine whether the map is flagged dirty.
     /// </summary>
     public bool Dirty => dirty;
 
@@ -225,17 +223,9 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
     }
 
     /// <summary>
-    /// When implemented by a class, gets the number of
-    /// elements contained in the <see cref="System.Collections.ICollection"/>.
+    /// Gets the number of entries contained in the map.
     /// </summary>
-    /// <value></value>
     public int Count => map.Count;
-
-    /// <inheritdoc/>
-    ICollection IDictionary.Keys => map.Keys;
-
-    /// <inheritdoc/>
-    ICollection IDictionary.Values => map.Values;
 
     /// <inheritdoc/>
     IEnumerable<TKey> IReadOnlyDictionary<TKey, TValue?>.Keys => map.Keys.AsEnumerable<TKey>();
@@ -244,9 +234,8 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
     IEnumerable<TValue?> IReadOnlyDictionary<TKey, TValue?>.Values => map.Values.AsEnumerable<TValue?>();
 
     /// <summary>
-    /// When implemented by a class, gets an <see cref="System.Collections.ICollection"/> containing the values in the <see cref="System.Collections.IDictionary"/>.
+    /// Gets a collection containing the values in the map.
     /// </summary>
-    /// <value></value>
     public ICollection<TValue?> Values => map.Values;
 
     void ICollection<KeyValuePair<TKey, TValue?>>.Add(KeyValuePair<TKey, TValue?> item)
@@ -254,22 +243,9 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
         Add(item.Key, item.Value);
     }
 
-    void IDictionary.Add(object key, object? value)
-    {
-        Add((TKey) key, (TValue) value!);
-    }
-
-    bool IDictionary.Contains(object key)
-    {
-        return ((IDictionary) map).Contains(key);
-    }
-
     /// <summary>
-    /// When implemented by a class, removes all elements from the <see cref="System.Collections.IDictionary"/>.
+    /// Removes all entries from the map.
     /// </summary>
-    /// <exception cref="System.NotSupportedException">
-    /// The <see cref="System.Collections.IDictionary"/> is read-only.
-    /// </exception>
     public void Clear()
     {
         if (map.Count != 0)
@@ -278,17 +254,6 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
         }
 
         map.Clear();
-    }
-
-    void IDictionary.Remove(object key)
-    {
-        Remove((TKey) key);
-    }
-
-    object? IDictionary.this[object key]
-    {
-        get => this[(TKey) key];
-        set => this[(TKey) key] = (TValue) value!;
     }
 
     bool ICollection<KeyValuePair<TKey, TValue?>>.Contains(KeyValuePair<TKey, TValue?> item)
@@ -303,11 +268,11 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
     }
 
     /// <summary>
-    /// When implemented by a class, determines whether the <see cref="System.Collections.IDictionary"/> contains an element with the specified key.
+    /// Determines whether the map contains an entry with the specified key.
     /// </summary>
-    /// <param name="key">The key to locate in the <see cref="System.Collections.IDictionary"/>.</param>
+    /// <param name="key">The key to locate.</param>
     /// <returns>
-    /// 	<see langword="true"/> if the <see cref="System.Collections.IDictionary"/> contains an element with the key; otherwise, <see langword="false"/>.
+    /// 	<see langword="true"/> if the map contains an entry with the key; otherwise, <see langword="false"/>.
     /// </returns>
     /// <exception cref="System.ArgumentNullException">
     /// 	<paramref name="key "/>is <see langword="null"/>.</exception>
@@ -317,17 +282,11 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
     }
 
     /// <summary>
-    /// When implemented by a class, removes the element with the
-    /// specified key from the <see cref="System.Collections.IDictionary"/>.
+    /// Removes the entry with the specified key from the map.
     /// </summary>
-    /// <param name="key">The key of the element to remove.</param>
+    /// <param name="key">The key of the entry to remove.</param>
     /// <exception cref="System.ArgumentNullException">
     /// 	<paramref name="key "/> is <see langword="null"/>.</exception>
-    /// <exception cref="System.NotSupportedException">
-    /// 	<para>The <see cref="System.Collections.IDictionary"/> is read-only.</para>
-    /// 	<para>-or-</para>
-    /// 	<para>The <see cref="System.Collections.IDictionary"/> has a fixed size.</para>
-    /// </exception>
     public bool Remove(TKey key)
     {
         bool remove = map.Remove(key);
@@ -340,29 +299,19 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
         return map.GetEnumerator();
     }
 
-    IDictionaryEnumerator IDictionary.GetEnumerator()
-    {
-        return ((IDictionary) map).GetEnumerator();
-    }
-
     IEnumerator<KeyValuePair<TKey, TValue?>> IEnumerable<KeyValuePair<TKey, TValue?>>.GetEnumerator()
     {
         return ((IEnumerable<KeyValuePair<TKey, TValue?>>) map).GetEnumerator();
     }
 
     /// <summary>
-    /// When implemented by a class, adds an element with the provided key and value to the <see cref="System.Collections.IDictionary"/>.
+    /// Adds an entry with the provided key and value to the map.
     /// </summary>
-    /// <param name="key">The <see cref="System.Object"/> to use as the key of the element to add.</param>
-    /// <param name="value">The <see cref="System.Object"/> to use as the value of the element to add.</param>
+    /// <param name="key">The key of the entry to add.</param>
+    /// <param name="value">The value of the entry to add.</param>
     /// <exception cref="System.ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
     /// <exception cref="System.ArgumentException">
-    /// An element with the same key already exists in the <see cref="System.Collections.IDictionary"/>.
-    /// </exception>
-    /// <exception cref="System.NotSupportedException">
-    /// 	<para>The <see cref="System.Collections.IDictionary"/> is read-only.</para>
-    /// 	<para>-or-</para>
-    /// 	<para>The <see cref="System.Collections.IDictionary"/> has a fixed size.</para>
+    /// An entry with the same key already exists in the map.
     /// </exception>
     public void Add(TKey key, TValue? value)
     {
@@ -371,46 +320,8 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
     }
 
     /// <summary>
-    /// When implemented by a class, copies the elements of
-    /// the <see cref="System.Collections.ICollection"/> to an <see cref="System.Array"/>, starting at a particular <see cref="System.Array"/> index.
+    /// Gets a collection containing the keys of the map.
     /// </summary>
-    /// <param name="array">The one-dimensional <see cref="System.Array"/> that is the destination of the elements copied from <see cref="System.Collections.ICollection"/>. The <see cref="System.Array"/> must have zero-based indexing.</param>
-    /// <param name="index">The zero-based index in <paramref name="array"/> at which copying begins.</param>
-    /// <exception cref="System.ArgumentNullException">
-    /// 	<paramref name="array"/> is <see langword="null"/>.</exception>
-    /// <exception cref="System.ArgumentOutOfRangeException">
-    /// 	<paramref name="index"/> is less than zero.</exception>
-    /// <exception cref="System.ArgumentException">
-    /// 	<para>
-    /// 		<paramref name="array"/> is multidimensional.</para>
-    /// 	<para>-or-</para>
-    /// 	<para>
-    /// 		<paramref name="index"/> is equal to or greater than the length of <paramref name="array"/>.</para>
-    /// 	<para>-or-</para>
-    /// 	<para>The number of elements in the source <see cref="System.Collections.ICollection"/> is greater than the available space from <paramref name="index"/> to the end of the destination <paramref name="array"/>.</para>
-    /// </exception>
-    /// <exception cref="System.InvalidCastException">The type of the source <see cref="System.Collections.ICollection"/> cannot be cast automatically to the type of the destination <paramref name="array"/>.</exception>
-    public void CopyTo(Array array, int index)
-    {
-        TKey[] keys = new TKey[Count];
-        TValue[] values = new TValue[Count];
-
-        Keys.CopyTo(keys, index);
-        Values.CopyTo(values, index);
-
-        for (int i = index; i < Count; i++)
-        {
-            if (!Equals(keys[i], default(TKey)) || !Equals(values[i], default(TValue)))
-            {
-                array.SetValue(new DictionaryEntry(keys[i], values[i]), i);
-            }
-        }
-    }
-
-    /// <summary>
-    /// When implemented by a class, gets an <see cref="System.Collections.ICollection"/> containing the keys of the <see cref="System.Collections.IDictionary"/>.
-    /// </summary>
-    /// <value></value>
     public ICollection<TKey> Keys => map.Keys;
 
     /// <summary>
@@ -421,46 +332,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
     /// In the default implementation of <see cref="DirtyFlagMap{TKey,TValue}"/>, this property always returns
     /// <see langword="false"/>.
     /// </value>
-    bool IDictionary.IsReadOnly => false;
-
-    /// <summary>
-    /// Gets a value indicating whether the <see cref="DirtyFlagMap{TKey,TValue}"/> is read-only.
-    /// </summary>
-    /// <value>
-    /// <see langword="true"/> if the <see cref="DirtyFlagMap{TKey,TValue}"/> is read-only; otherwise, <see langword="false"/>.
-    /// In the default implementation of <see cref="DirtyFlagMap{TKey,TValue}"/>, this property always returns
-    /// <see langword="false"/>.
-    /// </value>
     bool ICollection<KeyValuePair<TKey, TValue?>>.IsReadOnly => false;
-
-    /// <summary>
-    /// Gets a value indicating whether the <see cref="DirtyFlagMap{TKey,TValue}"/> has a fixed size.
-    /// </summary>
-    /// <value>
-    /// <see langword="true"/> if the <see cref="DirtyFlagMap{TKey,TValue}"/> has a fixed size;
-    /// otherwise, <see langword="false"/>. In the default implementation of <see cref="DirtyFlagMap{TKey,TValue}"/>,
-    /// this property always returns <see langword="false"/>.
-    /// </value>
-    bool IDictionary.IsFixedSize => false;
-
-    /// <summary>
-    /// Gets an object that can be used to synchronize access to the <see cref="DirtyFlagMap{TKey,TValue}"/>.
-    /// </summary>
-    /// <value>
-    /// An object that can be used to synchronize access to the <see cref="DirtyFlagMap{TKey,TValue}"/>.
-    /// </value>
-    object ICollection.SyncRoot { get; } = new object();
-
-    /// <summary>
-    /// Gets a value indicating whether access to the <see cref="DirtyFlagMap{TKey,TValue}"/> is synchronized
-    /// (thread-safe).
-    /// </summary>
-    /// <value>
-    /// <see langword="true"/> if access to the <see cref="DirtyFlagMap{TKey,TValue}"/> is synchronized (thread safe);
-    /// otherwise, <see langword="false"/>. In the default implementation of <see cref="DirtyFlagMap{TKey,TValue}"/>,
-    /// this property always returns <see langword="false"/>.
-    /// </value>
-    bool ICollection.IsSynchronized => false;
 
     /// <summary>
     /// Clear the 'dirty' flag (set dirty flag to <see langword="false" />).
@@ -492,39 +364,25 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
     /// </returns>
     public override bool Equals(object? obj)
     {
-        if (obj is not DirtyFlagMap<TKey, TValue> values)
+        if (obj is not DirtyFlagMap<TKey, TValue> other)
         {
             return false;
         }
 
-        Hashtable targetAux = new Hashtable(values);
-
-        if (Count == targetAux.Count)
+        if (Count != other.Count)
         {
-            IEnumerator sourceEnum = Keys.GetEnumerator();
-            while (sourceEnum.MoveNext())
+            return false;
+        }
+
+        foreach (TKey key in map.Keys)
+        {
+            if (!other.map.ContainsKey(key))
             {
-                if (sourceEnum.Current is not null && targetAux.Contains(sourceEnum.Current))
-                {
-                    targetAux.Remove(sourceEnum.Current);
-                }
-                else
-                {
-                    return false;
-                }
+                return false;
             }
         }
-        else
-        {
-            return false;
-        }
 
-        if (targetAux.Count == 0)
-        {
-            return true;
-        }
-
-        return false;
+        return true;
     }
 
     /// <summary>

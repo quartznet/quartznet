@@ -43,7 +43,7 @@ public class CronCalendarTest : SerializationTestSupport<CronCalendar, ICalendar
         tst = new DateTime(tst.Year, tst.Month, tst.Day, tst.Hour, tst.Minute, 30);
         Assert.That(calendar.IsTimeIncluded(tst), Is.False, fault);
 
-        calendar.SetCronExpressionString("0/25 * * * * ?");
+        calendar.CronExpression = new CronExpression("0/25 * * * * ?");
         fault = "Time was not included as expected";
         Assert.That(calendar.IsTimeIncluded(tst), Is.True, fault);
     }

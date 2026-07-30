@@ -19,7 +19,6 @@
 
 #endregion
 
-using System.Globalization;
 using System.Runtime.Serialization;
 using System.Text;
 
@@ -35,10 +34,10 @@ namespace Quartz.Impl.Calendar;
 /// For example, you could use this calendar to
 /// exclude business hours (8AM - 5PM) every day. Each <see cref="DailyCalendar" />
 /// only allows a single time range to be specified, and that time range may not
-/// * cross daily boundaries (i.e. you cannot specify a time range from 8PM - 5AM).
+/// cross daily boundaries (i.e. you cannot specify a time range from 8PM - 5AM).
 /// If the property <see cref="InvertTimeRange" /> is <see langword="false" /> (default),
 /// the time range defines a range of times in which triggers are not allowed to
-/// * fire. If <see cref="InvertTimeRange" /> is <see langword="true" />, the time range
+/// fire. If <see cref="InvertTimeRange" /> is <see langword="true" />, the time range
 /// is inverted: that is, all times <i>outside</i> the defined time range
 /// are excluded.
 /// <para>
@@ -54,346 +53,36 @@ namespace Quartz.Impl.Calendar;
 [Serializable]
 public sealed class DailyCalendar : BaseCalendar
 {
-    private const string InvalidHourOfDay = "Invalid hour of day: ";
-    private const string InvalidMinute = "Invalid minute: ";
-    private const string InvalidSecond = "Invalid second: ";
-    private const string InvalidMillis = "Invalid millis: ";
-    private const string InvalidTimeRange = "Invalid time range: ";
-    private const string Separator = " - ";
     private const long OneMillis = 1;
-    private const char Colon = ':';
 
-    private const string TwoDigitFormat = "00";
-    private const string ThreeDigitFormat = "000";
-
-    private readonly TimeProvider timeProvider;
-
-    private int rangeStartingHourOfDay;
-    private int rangeStartingMinute;
-    private int rangeStartingSecond;
-    private int rangeStartingMillis;
-    private int rangeEndingHourOfDay;
-    private int rangeEndingMinute;
-    private int rangeEndingSecond;
-    private int rangeEndingMillis;
-
-    private DailyCalendar(TimeProvider timeProvider)
-    {
-        this.timeProvider = timeProvider;
-    }
+    private TimeOnly rangeStart;
+    private TimeOnly rangeEnd;
 
     /// <summary>
-    /// Create a <see cref="DailyCalendar" /> with a time range defined by the
-    /// specified strings and no baseCalendar.
-    ///	<paramref name="rangeStartingTime" /> and <paramref name="rangeEndingTime" />
-    /// must be in the format &quot;HH:MM[:SS[:mmm]]&quot; where:
-    /// <ul>
-    ///     <li>
-    ///         HH is the hour of the specified time. The hour should be
-    ///          specified using military (24-hour) time and must be in the range
-    ///          0 to 23.
-    ///     </li>
-    ///     <li>
-    ///         MM is the minute of the specified time and must be in the range
-    ///         0 to 59.
-    ///     </li>
-    ///     <li>
-    ///         SS is the second of the specified time and must be in the range
-    ///         0 to 59.
-    ///     </li>
-    ///     <li>
-    ///         mmm is the millisecond of the specified time and must be in the
-    ///         range 0 to 999.
-    ///     </li>
-    ///     <li>items enclosed in brackets ('[', ']') are optional.</li>
-    ///     <li>
-    ///         The time range starting time must be before the time range ending
-    ///         time. Note this means that a time range may not cross daily
-    ///         boundaries (10PM - 2AM)
-    ///     </li>
-    /// </ul>
+    /// Create a <see cref="DailyCalendar" /> excluding (or, with <see cref="InvertTimeRange" />,
+    /// including) the given time range of every day.
     /// </summary>
-    /// <param name="rangeStartingTime">The range starting time in millis.</param>
-    /// <param name="rangeEndingTime">The range ending time in millis.</param>
-    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
-    public DailyCalendar(string rangeStartingTime, string rangeEndingTime, TimeProvider? timeProvider = null)
-        : this(timeProvider ?? TimeProvider.System)
-    {
-        SetTimeRange(rangeStartingTime, rangeEndingTime);
-    }
-
-    /// <summary>
-    /// Create a <see cref="DailyCalendar"/> with a time range defined by the
-    /// specified strings and the specified baseCalendar.
-    /// <paramref name="rangeStartingTime"/> and <paramref name="rangeEndingTime"/>
-    /// must be in the format "HH:MM[:SS[:mmm]]" where:
-    /// <ul>
-    /// 		<li>
-    /// HH is the hour of the specified time. The hour should be
-    /// specified using military (24-hour) time and must be in the range
-    /// 0 to 23.
-    /// </li>
-    /// 		<li>
-    /// MM is the minute of the specified time and must be in the range
-    /// 0 to 59.
-    /// </li>
-    /// 		<li>
-    /// SS is the second of the specified time and must be in the range
-    /// 0 to 59.
-    /// </li>
-    /// 		<li>
-    /// mmm is the millisecond of the specified time and must be in the
-    /// range 0 to 999.
-    /// </li>
-    /// 		<li>
-    /// items enclosed in brackets ('[', ']') are optional.
-    /// </li>
-    /// 		<li>
-    /// The time range starting time must be before the time range ending
-    /// time. Note this means that a time range may not cross daily
-    /// boundaries (10PM - 2AM)
-    /// </li>
-    /// 	</ul>
-    /// </summary>
-    /// <param name="baseCalendar">The base calendar for this calendar instance see BaseCalendar for more
-    /// information on base calendar functionality.</param>
-    /// <param name="rangeStartingTime">The range starting time in millis.</param>
-    /// <param name="rangeEndingTime">The range ending time in millis.</param>
-    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
-    public DailyCalendar(ICalendar? baseCalendar, string rangeStartingTime, string rangeEndingTime, TimeProvider? timeProvider = null)
+    /// <remarks>
+    /// The range may not cross a daily boundary, so <paramref name="rangeStart" /> must come
+    /// before <paramref name="rangeEnd" />. Both are kept with one-millisecond resolution, which
+    /// is what the calendar's serialized form carries.
+    /// </remarks>
+    /// <param name="rangeStart">The time of day the range starts at.</param>
+    /// <param name="rangeEnd">The time of day the range ends at.</param>
+    /// <param name="baseCalendar">
+    /// The base calendar for this calendar instance, see <see cref="BaseCalendar" /> for more
+    /// information on base calendar functionality.
+    /// </param>
+    /// <exception cref="ArgumentException">
+    /// A bound carries precision finer than a whole millisecond, or the range does not start
+    /// before it ends.
+    /// </exception>
+    public DailyCalendar(TimeOnly rangeStart, TimeOnly rangeEnd, ICalendar? baseCalendar = null)
         : base(baseCalendar)
     {
-        this.timeProvider = timeProvider ?? TimeProvider.System;
-        SetTimeRange(rangeStartingTime, rangeEndingTime);
-    }
-
-    /// <summary>
-    /// Create a <see cref="DailyCalendar" /> with a time range defined by the
-    /// specified values and no baseCalendar. Values are subject to
-    /// the following validations:
-    /// <ul>
-    ///     <li>
-    ///         Hours must be in the range 0-23 and are expressed using military
-    ///		    (24-hour) time.
-    ///     </li>
-    ///		<li>Minutes must be in the range 0-59</li>
-    ///		<li>Seconds must be in the range 0-59</li>
-    ///		<li>Milliseconds must be in the range 0-999</li>
-    ///		<li>
-    ///         The time range starting time must be before the time range ending
-    ///		    time. Note this means that a time range may not cross daily
-    ///		    boundaries (10PM - 2AM)
-    ///     </li>
-    /// </ul>
-    /// </summary>
-    /// <param name="rangeStartingHourOfDay">The range starting hour of day.</param>
-    /// <param name="rangeStartingMinute">The range starting minute.</param>
-    /// <param name="rangeStartingSecond">The range starting second.</param>
-    /// <param name="rangeStartingMillis">The range starting millis.</param>
-    /// <param name="rangeEndingHourOfDay">The range ending hour of day.</param>
-    /// <param name="rangeEndingMinute">The range ending minute.</param>
-    /// <param name="rangeEndingSecond">The range ending second.</param>
-    /// <param name="rangeEndingMillis">The range ending millis.</param>
-    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
-    public DailyCalendar(
-        int rangeStartingHourOfDay,
-        int rangeStartingMinute,
-        int rangeStartingSecond,
-        int rangeStartingMillis,
-        int rangeEndingHourOfDay,
-        int rangeEndingMinute,
-        int rangeEndingSecond,
-        int rangeEndingMillis,
-        TimeProvider? timeProvider = null) : this(timeProvider ?? TimeProvider.System)
-    {
-        SetTimeRange(
-            rangeStartingHourOfDay,
-            rangeStartingMinute,
-            rangeStartingSecond,
-            rangeStartingMillis,
-            rangeEndingHourOfDay,
-            rangeEndingMinute,
-            rangeEndingSecond,
-            rangeEndingMillis);
-    }
-
-    /// <summary>
-    /// Create a <see cref="DailyCalendar"/> with a time range defined by the
-    /// specified values and the specified <paramref name="baseCalendar"/>. Values are
-    /// subject to the following validations:
-    /// <ul>
-    /// 		<li>
-    /// Hours must be in the range 0-23 and are expressed using military
-    /// (24-hour) time.
-    /// </li>
-    /// 		<li>Minutes must be in the range 0-59</li>
-    /// 		<li>Seconds must be in the range 0-59</li>
-    /// 		<li>Milliseconds must be in the range 0-999</li>
-    /// 		<li>
-    /// The time range starting time must be before the time range ending
-    /// time. Note this means that a time range may not cross daily
-    /// boundaries (10PM - 2AM)
-    /// </li>
-    /// 	</ul>
-    /// </summary>
-    /// <param name="baseCalendar">The base calendar for this calendar instance see BaseCalendar for more
-    /// information on base calendar functionality.</param>
-    /// <param name="rangeStartingHourOfDay">The range starting hour of day.</param>
-    /// <param name="rangeStartingMinute">The range starting minute.</param>
-    /// <param name="rangeStartingSecond">The range starting second.</param>
-    /// <param name="rangeStartingMillis">The range starting millis.</param>
-    /// <param name="rangeEndingHourOfDay">The range ending hour of day.</param>
-    /// <param name="rangeEndingMinute">The range ending minute.</param>
-    /// <param name="rangeEndingSecond">The range ending second.</param>
-    /// <param name="rangeEndingMillis">The range ending millis.</param>
-    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
-    public DailyCalendar(
-        ICalendar baseCalendar,
-        int rangeStartingHourOfDay,
-        int rangeStartingMinute,
-        int rangeStartingSecond,
-        int rangeStartingMillis,
-        int rangeEndingHourOfDay,
-        int rangeEndingMinute,
-        int rangeEndingSecond,
-        int rangeEndingMillis,
-        TimeProvider? timeProvider = null) : base(baseCalendar)
-    {
-        this.timeProvider = timeProvider ?? TimeProvider.System;
-        SetTimeRange(rangeStartingHourOfDay,
-            rangeStartingMinute,
-            rangeStartingSecond,
-            rangeStartingMillis,
-            rangeEndingHourOfDay,
-            rangeEndingMinute,
-            rangeEndingSecond,
-            rangeEndingMillis);
-    }
-
-    /// <summary>
-    /// Create a <see cref="DailyCalendar" /> with a time range defined by the
-    ///	specified <see cref="DateTime" />s and no
-    ///	baseCalendar. The Calendars are subject to the following
-    ///	considerations:
-    ///	<ul>
-    ///     <li>
-    ///         Only the time-of-day fields of the specified Calendars will be
-    ///		    used (the date fields will be ignored)
-    ///     </li>
-    ///		<li>
-    ///         The starting time must be before the ending time of the defined
-    ///		    time range. Note this means that a time range may not cross
-    ///		    daily boundaries (10PM - 2AM). <i>(because only time fields are
-    ///		    are used, it is possible for two Calendars to represent a valid
-    ///		    time range and
-    ///		    <c>rangeStartingCalendar.after(rangeEndingCalendar) ==  true</c>)
-    ///			</i>
-    ///     </li>
-    /// </ul>
-    /// </summary>
-    /// <param name="rangeStartingCalendarUtc">The range starting calendar.</param>
-    /// <param name="rangeEndingCalendarUtc">The range ending calendar.</param>
-    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
-    public DailyCalendar(
-        DateTime rangeStartingCalendarUtc,
-        DateTime rangeEndingCalendarUtc,
-        TimeProvider? timeProvider = null) : this(timeProvider ?? TimeProvider.System)
-    {
-        SetTimeRange(rangeStartingCalendarUtc, rangeEndingCalendarUtc);
-    }
-
-    /// <summary>
-    /// Create a <see cref="DailyCalendar"/> with a time range defined by the
-    /// specified <see cref="DateTime"/>s and the specified
-    /// <paramref name="baseCalendar"/>. The Calendars are subject to the following
-    /// considerations:
-    /// <ul>
-    /// 		<li>
-    /// Only the time-of-day fields of the specified Calendars will be
-    /// used (the date fields will be ignored)
-    /// </li>
-    /// 		<li>
-    /// The starting time must be before the ending time of the defined
-    /// time range. Note this means that a time range may not cross
-    /// daily boundaries (10PM - 2AM). <i>(because only time fields are
-    /// are used, it is possible for two Calendars to represent a valid
-    /// time range and
-    /// <c>rangeStartingCalendarUtc > rangeEndingCalendarUtc == true</c>)</i>
-    /// 		</li>
-    /// 	</ul>
-    /// </summary>
-    /// <param name="baseCalendar">The base calendar for this calendar instance see BaseCalendar for more
-    /// information on base calendar functionality.</param>
-    /// <param name="rangeStartingCalendarUtc">The range starting calendar.</param>
-    /// <param name="rangeEndingCalendarUtc">The range ending calendar.</param>
-    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
-    public DailyCalendar(
-        ICalendar baseCalendar,
-        DateTime rangeStartingCalendarUtc,
-        DateTime rangeEndingCalendarUtc,
-        TimeProvider? timeProvider = null) : base(baseCalendar)
-    {
-        this.timeProvider = timeProvider ?? TimeProvider.System;
-        SetTimeRange(rangeStartingCalendarUtc, rangeEndingCalendarUtc);
-    }
-
-    /// <summary>
-    /// Create a <see cref="DailyCalendar" /> with a time range defined by the
-    /// specified values and no baseCalendar. The values are
-    ///	subject to the following considerations:
-    ///	<ul>
-    ///     <li>
-    ///         Only the time-of-day portion of the specified values will be
-    ///		    used
-    ///     </li>
-    ///		<li>
-    ///         The starting time must be before the ending time of the defined
-    ///		    time range. Note this means that a time range may not cross
-    ///		    daily boundaries (10PM - 2AM). <i>(because only time value are
-    ///		    are used, it is possible for the two values to represent a valid
-    ///		    time range and <c>rangeStartingTime &gt; rangeEndingTime</c>)</i>
-    ///     </li>
-    /// </ul>
-    /// </summary>
-    /// <param name="rangeStartingTimeInMillis">The range starting time in millis.</param>
-    /// <param name="rangeEndingTimeInMillis">The range ending time in millis.</param>
-    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
-    public DailyCalendar(long rangeStartingTimeInMillis, long rangeEndingTimeInMillis, TimeProvider? timeProvider = null) : this(timeProvider ?? TimeProvider.System)
-    {
-        SetTimeRange(rangeStartingTimeInMillis, rangeEndingTimeInMillis);
-    }
-
-    /// <summary>
-    /// Create a <see cref="DailyCalendar"/> with a time range defined by the
-    /// specified values and the specified <paramref name="baseCalendar"/>. The values
-    /// are subject to the following considerations:
-    /// <ul>
-    /// 		<li>
-    /// Only the time-of-day portion of the specified values will be
-    /// used
-    /// </li>
-    /// 		<li>
-    /// The starting time must be before the ending time of the defined
-    /// time range. Note this means that a time range may not cross
-    /// daily boundaries (10PM - 2AM). <i>(because only time value are
-    /// are used, it is possible for the two values to represent a valid
-    /// time range and <c>rangeStartingTime &gt; rangeEndingTime</c>)</i>
-    /// 		</li>
-    /// 	</ul>
-    /// </summary>
-    /// <param name="baseCalendar">The base calendar for this calendar instance see BaseCalendar for more
-    /// information on base calendar functionality.</param>
-    /// <param name="rangeStartingTimeInMillis">The range starting time in millis.</param>
-    /// <param name="rangeEndingTimeInMillis">The range ending time in millis.</param>
-    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
-    public DailyCalendar(
-        ICalendar baseCalendar,
-        long rangeStartingTimeInMillis,
-        long rangeEndingTimeInMillis,
-        TimeProvider? timeProvider = null) : base(baseCalendar)
-    {
-        this.timeProvider = timeProvider ?? TimeProvider.System;
-        SetTimeRange(rangeStartingTimeInMillis, rangeEndingTimeInMillis);
+        ValidateRange(rangeStart, rangeEnd);
+        this.rangeStart = rangeStart;
+        this.rangeEnd = rangeEnd;
     }
 
     /// <summary>
@@ -403,7 +92,6 @@ public sealed class DailyCalendar : BaseCalendar
     /// <param name="context"></param>
     private DailyCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
     {
-        this.timeProvider = TimeProvider.System;
         int version;
         try
         {
@@ -418,15 +106,19 @@ public sealed class DailyCalendar : BaseCalendar
         {
             case 0:
             case 1:
-                rangeStartingHourOfDay = info.GetInt32("rangeStartingHourOfDay");
-                rangeStartingMinute = info.GetInt32("rangeStartingMinute");
-                rangeStartingSecond = info.GetInt32("rangeStartingSecond");
-                rangeStartingMillis = info.GetInt32("rangeStartingMillis");
+                // The range has always been stored as eight separate integer fields; keep reading
+                // them and fold them back into the two TimeOnly values.
+                rangeStart = new TimeOnly(
+                    info.GetInt32("rangeStartingHourOfDay"),
+                    info.GetInt32("rangeStartingMinute"),
+                    info.GetInt32("rangeStartingSecond"),
+                    info.GetInt32("rangeStartingMillis"));
 
-                rangeEndingHourOfDay = info.GetInt32("rangeEndingHourOfDay");
-                rangeEndingMinute = info.GetInt32("rangeEndingMinute");
-                rangeEndingSecond = info.GetInt32("rangeEndingSecond");
-                rangeEndingMillis = info.GetInt32("rangeEndingMillis");
+                rangeEnd = new TimeOnly(
+                    info.GetInt32("rangeEndingHourOfDay"),
+                    info.GetInt32("rangeEndingMinute"),
+                    info.GetInt32("rangeEndingSecond"),
+                    info.GetInt32("rangeEndingMillis"));
 
                 InvertTimeRange = info.GetBoolean("invertTimeRange");
                 break;
@@ -441,16 +133,18 @@ public sealed class DailyCalendar : BaseCalendar
     {
         base.GetObjectData(info, context);
 
+        // Keep the eight-integer field layout so a payload written here stays readable by the
+        // versions that only know that shape.
         info.AddValue("version", 1);
-        info.AddValue("rangeStartingHourOfDay", rangeStartingHourOfDay);
-        info.AddValue("rangeStartingMinute", rangeStartingMinute);
-        info.AddValue("rangeStartingSecond", rangeStartingSecond);
-        info.AddValue("rangeStartingMillis", rangeStartingMillis);
+        info.AddValue("rangeStartingHourOfDay", rangeStart.Hour);
+        info.AddValue("rangeStartingMinute", rangeStart.Minute);
+        info.AddValue("rangeStartingSecond", rangeStart.Second);
+        info.AddValue("rangeStartingMillis", rangeStart.Millisecond);
 
-        info.AddValue("rangeEndingHourOfDay", rangeEndingHourOfDay);
-        info.AddValue("rangeEndingMinute", rangeEndingMinute);
-        info.AddValue("rangeEndingSecond", rangeEndingSecond);
-        info.AddValue("rangeEndingMillis", rangeEndingMillis);
+        info.AddValue("rangeEndingHourOfDay", rangeEnd.Hour);
+        info.AddValue("rangeEndingMinute", rangeEnd.Minute);
+        info.AddValue("rangeEndingSecond", rangeEnd.Second);
+        info.AddValue("rangeEndingMillis", rangeEnd.Millisecond);
 
         info.AddValue("invertTimeRange", InvertTimeRange);
     }
@@ -575,7 +269,7 @@ public sealed class DailyCalendar : BaseCalendar
 
     public override ICalendar Clone()
     {
-        var clone = new DailyCalendar(CalendarBase, RangeStartingTime, RangeEndingTime)
+        var clone = new DailyCalendar(rangeStart, rangeEnd, CalendarBase)
         {
             InvertTimeRange = InvertTimeRange
         };
@@ -593,10 +287,7 @@ public sealed class DailyCalendar : BaseCalendar
     /// </returns>
     public DateTimeOffset GetTimeRangeStartingTimeUtc(DateTimeOffset timeUtc)
     {
-        DateTimeOffset rangeStartingTime = new DateTimeOffset(timeUtc.Year, timeUtc.Month, timeUtc.Day,
-            rangeStartingHourOfDay, rangeStartingMinute,
-            rangeStartingSecond, rangeStartingMillis, timeUtc.Offset);
-        return rangeStartingTime;
+        return rangeStart.OnDate(timeUtc);
     }
 
     /// <summary>
@@ -609,10 +300,7 @@ public sealed class DailyCalendar : BaseCalendar
     /// </returns>
     public DateTimeOffset GetTimeRangeEndingTimeUtc(DateTimeOffset timeUtc)
     {
-        DateTimeOffset rangeEndingTime = new DateTimeOffset(timeUtc.Year, timeUtc.Month, timeUtc.Day,
-            rangeEndingHourOfDay, rangeEndingMinute,
-            rangeEndingSecond, rangeEndingMillis, timeUtc.Offset);
-        return rangeEndingTime;
+        return rangeEnd.OnDate(timeUtc);
     }
 
     /// <summary>
@@ -622,12 +310,27 @@ public sealed class DailyCalendar : BaseCalendar
     /// <value><c>true</c> if invert time range; otherwise, <c>false</c>.</value>
     public bool InvertTimeRange { get; set; }
 
-    public string RangeStartingTime => FormatTimeRange(rangeStartingHourOfDay, rangeStartingMinute, rangeStartingSecond, rangeStartingMillis);
-    public string RangeEndingTime => FormatTimeRange(rangeEndingHourOfDay, rangeEndingMinute, rangeEndingSecond, rangeEndingMillis);
-
-    private static string FormatTimeRange(int hourOfDay, int minute, int seconds, int milliseconds)
+    /// <summary>
+    /// The time range this calendar excludes (or, with <see cref="InvertTimeRange" />, includes)
+    /// every day.
+    /// </summary>
+    /// <remarks>
+    /// The range may not cross a daily boundary, so <c>Start</c> must come before <c>End</c>.
+    /// Both bounds are kept with one-millisecond resolution.
+    /// </remarks>
+    /// <exception cref="ArgumentException">
+    /// A bound carries precision finer than a whole millisecond, or the range does not start
+    /// before it ends.
+    /// </exception>
+    public (TimeOnly Start, TimeOnly End) TimeRange
     {
-        return $"{hourOfDay.ToString(TwoDigitFormat, CultureInfo.InvariantCulture)}:{minute.ToString(TwoDigitFormat, CultureInfo.InvariantCulture)}:{seconds.ToString(TwoDigitFormat, CultureInfo.InvariantCulture)}:{milliseconds.ToString(ThreeDigitFormat, CultureInfo.InvariantCulture)}";
+        get => (rangeStart, rangeEnd);
+        set
+        {
+            ValidateRange(value.Start, value.End);
+            rangeStart = value.Start;
+            rangeEnd = value.End;
+        }
     }
 
     /// <summary>
@@ -650,177 +353,11 @@ public sealed class DailyCalendar : BaseCalendar
         }
 
         buffer.Append("], time range: '");
-        buffer.Append(RangeStartingTime);
+        buffer.Append(rangeStart.ToString("HH:mm:ss.fff"));
         buffer.Append(" - ");
-        buffer.Append(RangeEndingTime);
+        buffer.Append(rangeEnd.ToString("HH:mm:ss.fff"));
         buffer.AppendFormat("', inverted: {0}", InvertTimeRange);
         return buffer.ToString();
-    }
-
-    /// <summary>
-    /// Sets the time range for the <see cref="DailyCalendar" /> to the times
-    /// represented in the specified Strings.
-    /// </summary>
-    /// <param name="rangeStartingTimeString">The range starting time string.</param>
-    /// <param name="rangeEndingTimeString">The range ending time string.</param>
-    public void SetTimeRange(string rangeStartingTimeString, string rangeEndingTimeString)
-    {
-        int rangeStartingSecond;
-        int rangeStartingMillis;
-
-        int rangeEndingSecond;
-        int rangeEndingMillis;
-
-        var rangeStartingTime = rangeStartingTimeString.Split(Colon);
-
-        if (rangeStartingTime.Length < 2 || rangeStartingTime.Length > 4)
-        {
-            Throw.ArgumentException($"Invalid time string '{rangeStartingTimeString}'");
-        }
-
-        int rangeStartingHourOfDay = Convert.ToInt32(rangeStartingTime[0], CultureInfo.InvariantCulture);
-        int rangeStartingMinute = Convert.ToInt32(rangeStartingTime[1], CultureInfo.InvariantCulture);
-
-        if (rangeStartingTime.Length > 2)
-        {
-            rangeStartingSecond = Convert.ToInt32(rangeStartingTime[2], CultureInfo.InvariantCulture);
-        }
-        else
-        {
-            rangeStartingSecond = 0;
-        }
-        if (rangeStartingTime.Length == 4)
-        {
-            rangeStartingMillis = Convert.ToInt32(rangeStartingTime[3], CultureInfo.InvariantCulture);
-        }
-        else
-        {
-            rangeStartingMillis = 0;
-        }
-
-        var rangeEndingTime = rangeEndingTimeString.Split(Colon);
-
-        if (rangeEndingTime.Length < 2 || rangeEndingTime.Length > 4)
-        {
-            Throw.ArgumentException($"Invalid time string '{rangeEndingTimeString}'");
-        }
-
-        int rangeEndingHourOfDay = Convert.ToInt32(rangeEndingTime[0], CultureInfo.InvariantCulture);
-        int rangeEndingMinute = Convert.ToInt32(rangeEndingTime[1], CultureInfo.InvariantCulture);
-        if (rangeEndingTime.Length > 2)
-        {
-            rangeEndingSecond = Convert.ToInt32(rangeEndingTime[2], CultureInfo.InvariantCulture);
-        }
-        else
-        {
-            rangeEndingSecond = 0;
-        }
-        if (rangeEndingTime.Length == 4)
-        {
-            rangeEndingMillis = Convert.ToInt32(rangeEndingTime[3], CultureInfo.InvariantCulture);
-        }
-        else
-        {
-            rangeEndingMillis = 0;
-        }
-
-        SetTimeRange(rangeStartingHourOfDay,
-            rangeStartingMinute,
-            rangeStartingSecond,
-            rangeStartingMillis,
-            rangeEndingHourOfDay,
-            rangeEndingMinute,
-            rangeEndingSecond,
-            rangeEndingMillis);
-    }
-
-    /// <summary>
-    /// Sets the time range for the <see cref="DailyCalendar" /> to the times
-    /// represented in the specified values.
-    /// </summary>
-    /// <param name="rangeStartingHourOfDay">The range starting hour of day.</param>
-    /// <param name="rangeStartingMinute">The range starting minute.</param>
-    /// <param name="rangeStartingSecond">The range starting second.</param>
-    /// <param name="rangeStartingMillis">The range starting millis.</param>
-    /// <param name="rangeEndingHourOfDay">The range ending hour of day.</param>
-    /// <param name="rangeEndingMinute">The range ending minute.</param>
-    /// <param name="rangeEndingSecond">The range ending second.</param>
-    /// <param name="rangeEndingMillis">The range ending millis.</param>
-    public void SetTimeRange(
-        int rangeStartingHourOfDay,
-        int rangeStartingMinute,
-        int rangeStartingSecond,
-        int rangeStartingMillis,
-        int rangeEndingHourOfDay,
-        int rangeEndingMinute,
-        int rangeEndingSecond,
-        int rangeEndingMillis)
-    {
-        Validate(rangeStartingHourOfDay,
-            rangeStartingMinute,
-            rangeStartingSecond,
-            rangeStartingMillis);
-
-        Validate(rangeEndingHourOfDay,
-            rangeEndingMinute,
-            rangeEndingSecond,
-            rangeEndingMillis);
-
-        DateTimeOffset startCal = timeProvider.GetUtcNow();
-        startCal =
-            new DateTimeOffset(startCal.Year, startCal.Month, startCal.Day, rangeStartingHourOfDay, rangeStartingMinute,
-                rangeStartingSecond, rangeStartingMillis, TimeSpan.Zero);
-
-        DateTimeOffset endCal = timeProvider.GetUtcNow();
-        endCal =
-            new DateTimeOffset(endCal.Year, endCal.Month, endCal.Day, rangeEndingHourOfDay, rangeEndingMinute,
-                rangeEndingSecond, rangeEndingMillis, TimeSpan.Zero);
-
-        if (!(startCal < endCal))
-        {
-            Throw.ArgumentException($"{InvalidTimeRange}{rangeStartingHourOfDay}:{rangeStartingMinute}:{rangeStartingSecond}:{rangeStartingMillis}{Separator}{rangeEndingHourOfDay}:{rangeEndingMinute}:{rangeEndingSecond}:{rangeEndingMillis}");
-        }
-
-        this.rangeStartingHourOfDay = rangeStartingHourOfDay;
-        this.rangeStartingMinute = rangeStartingMinute;
-        this.rangeStartingSecond = rangeStartingSecond;
-        this.rangeStartingMillis = rangeStartingMillis;
-        this.rangeEndingHourOfDay = rangeEndingHourOfDay;
-        this.rangeEndingMinute = rangeEndingMinute;
-        this.rangeEndingSecond = rangeEndingSecond;
-        this.rangeEndingMillis = rangeEndingMillis;
-    }
-
-    /// <summary>
-    /// Sets the time range for the <see cref="DailyCalendar" /> to the times
-    /// represented in the specified <see cref="DateTime" />s.
-    /// </summary>
-    /// <param name="rangeStartingCalendarUtc">The range starting calendar.</param>
-    /// <param name="rangeEndingCalendarUtc">The range ending calendar.</param>
-    public void SetTimeRange(DateTime rangeStartingCalendarUtc,
-        DateTime rangeEndingCalendarUtc)
-    {
-        SetTimeRange(
-            rangeStartingCalendarUtc.Hour,
-            rangeStartingCalendarUtc.Minute,
-            rangeStartingCalendarUtc.Second,
-            rangeStartingCalendarUtc.Millisecond,
-            rangeEndingCalendarUtc.Hour,
-            rangeEndingCalendarUtc.Minute,
-            rangeEndingCalendarUtc.Second,
-            rangeEndingCalendarUtc.Millisecond);
-    }
-
-    /// <summary>
-    /// Sets the time range for the <see cref="DailyCalendar" /> to the times
-    /// represented in the specified values.
-    /// </summary>
-    /// <param name="rangeStartingTime">The range starting time.</param>
-    /// <param name="rangeEndingTime">The range ending time.</param>
-    public void SetTimeRange(long rangeStartingTime,
-        long rangeEndingTime)
-    {
-        SetTimeRange(new DateTime(rangeStartingTime), new DateTime(rangeEndingTime));
     }
 
     /// <summary>
@@ -843,30 +380,14 @@ public sealed class DailyCalendar : BaseCalendar
         return new DateTimeOffset(time.Date.AddDays(1).AddMilliseconds(-1), time.Offset);
     }
 
-    /// <summary>
-    /// Checks the specified values for validity as a set of time values.
-    /// </summary>
-    /// <param name="hourOfDay">The hour of day.</param>
-    /// <param name="minute">The minute.</param>
-    /// <param name="second">The second.</param>
-    /// <param name="millis">The millis.</param>
-    private static void Validate(int hourOfDay, int minute, int second, int millis)
+    private static void ValidateRange(TimeOnly rangeStart, TimeOnly rangeEnd)
     {
-        if (hourOfDay < 0 || hourOfDay > 23)
+        TimeOnlyExtensions.ValidateWholeMilliseconds(rangeStart, nameof(rangeStart));
+        TimeOnlyExtensions.ValidateWholeMilliseconds(rangeEnd, nameof(rangeEnd));
+
+        if (rangeStart >= rangeEnd)
         {
-            Throw.ArgumentException(InvalidHourOfDay + hourOfDay);
-        }
-        if (minute < 0 || minute > 59)
-        {
-            Throw.ArgumentException(InvalidMinute + minute);
-        }
-        if (second < 0 || second > 59)
-        {
-            Throw.ArgumentException(InvalidSecond + second);
-        }
-        if (millis < 0 || millis > 999)
-        {
-            Throw.ArgumentException(InvalidMillis + millis);
+            Throw.ArgumentException($"Invalid time range: {rangeStart:HH:mm:ss.fff} - {rangeEnd:HH:mm:ss.fff}; the range must start before it ends and may not cross a daily boundary.");
         }
     }
 
@@ -874,13 +395,11 @@ public sealed class DailyCalendar : BaseCalendar
     {
         int baseHash = 0;
         if (CalendarBase is not null)
+        {
             baseHash = CalendarBase.GetHashCode();
+        }
 
-        return rangeStartingHourOfDay.GetHashCode() + rangeEndingHourOfDay.GetHashCode() +
-               2 * (rangeStartingMinute.GetHashCode() + rangeEndingMinute.GetHashCode()) +
-               3 * (rangeStartingSecond.GetHashCode() + rangeEndingSecond.GetHashCode()) +
-               4 * (rangeStartingMillis.GetHashCode() + rangeEndingMillis.GetHashCode())
-               + 5 * baseHash;
+        return HashCode.Combine(rangeStart, rangeEnd, baseHash);
     }
 
     public bool Equals(DailyCalendar obj)
@@ -891,21 +410,19 @@ public sealed class DailyCalendar : BaseCalendar
         }
         bool baseEqual = CalendarBase is null || CalendarBase.Equals(obj.CalendarBase);
 
-        return baseEqual && InvertTimeRange == obj.InvertTimeRange &&
-               rangeStartingHourOfDay == obj.rangeStartingHourOfDay &&
-               rangeStartingMinute == obj.rangeStartingMinute &&
-               rangeStartingSecond == obj.rangeStartingSecond &&
-               rangeStartingMillis == obj.rangeStartingMillis &&
-               rangeEndingHourOfDay == obj.rangeEndingHourOfDay &&
-               rangeEndingMinute == obj.rangeEndingMinute &&
-               rangeEndingSecond == obj.rangeEndingSecond &&
-               rangeEndingMillis == obj.rangeEndingMillis;
+        return baseEqual
+               && InvertTimeRange == obj.InvertTimeRange
+               && rangeStart == obj.rangeStart
+               && rangeEnd == obj.rangeEnd;
     }
 
     public override bool Equals(object? obj)
     {
-        if (!(obj is DailyCalendar))
+        if (obj is not DailyCalendar other)
+        {
             return false;
-        return Equals((DailyCalendar) obj);
+        }
+
+        return Equals(other);
     }
 }

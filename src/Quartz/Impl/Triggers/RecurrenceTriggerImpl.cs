@@ -355,17 +355,10 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
         RecurrenceScheduleBuilder sb = RecurrenceScheduleBuilder.Create(recurrenceRuleString)
             .InTimeZone(TimeZone);
 
-        switch (MisfireInstruction)
+        RecurrenceTriggerMisfireInstruction instruction = (RecurrenceTriggerMisfireInstruction) MisfireInstruction;
+        if (Enum.IsDefined(instruction))
         {
-            case Quartz.MisfireInstruction.RecurrenceTrigger.DoNothing:
-                sb.WithMisfireHandlingInstructionDoNothing();
-                break;
-            case Quartz.MisfireInstruction.RecurrenceTrigger.FireOnceNow:
-                sb.WithMisfireHandlingInstructionFireAndProceed();
-                break;
-            case Quartz.MisfireInstruction.IgnoreMisfirePolicy:
-                sb.WithMisfireHandlingInstructionIgnoreMisfires();
-                break;
+            sb.WithMisfireHandlingInstruction(instruction);
         }
 
         return sb;

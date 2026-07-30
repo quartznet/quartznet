@@ -62,7 +62,7 @@ public sealed class ExecutingTriggerStateClusteredPostgresTest : ClusteredPostgr
                 .ForJob(job)
                 // Comfortably longer than every timeout below, so a slow run cannot start a second
                 // execution while the first is still parked waiting for its one permit.
-                .WithSimpleSchedule(s => s.WithIntervalInHours(1).RepeatForever())
+                .WithSimpleSchedule(s => s.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
                 .StartNow()
                 .Build();
             await executingNode.ScheduleJob(trigger);
@@ -144,7 +144,7 @@ public sealed class ExecutingTriggerStateClusteredPostgresTest : ClusteredPostgr
                 await scheduler.ScheduleJob(TriggerBuilder.Create()
                     .WithIdentity(key)
                     .ForJob(job)
-                    .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
+                    .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
                     .StartNow()
                     .Build());
             }

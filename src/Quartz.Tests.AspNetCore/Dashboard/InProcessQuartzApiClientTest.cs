@@ -166,7 +166,7 @@ public class InProcessQuartzApiClientTest
                 .WithIdentity(triggerKey)
                 .ForJob(jobKey)
                 .UsingJobData("Color", "red")
-                .WithSimpleSchedule(x => x.WithIntervalInSeconds(30).WithRepeatCount(3))
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(30)).WithRepeatCount(3))
                 .Build();
             await scheduler.ScheduleJob(job, trigger);
 
@@ -199,7 +199,7 @@ public class InProcessQuartzApiClientTest
             await scheduler.ScheduleJob(
                 job,
                 TriggerBuilder.Create().WithIdentity("simple", "group1").ForJob(jobKey)
-                    .WithSimpleSchedule(x => x.WithIntervalInSeconds(30).WithRepeatCount(2)).Build());
+                    .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(30)).WithRepeatCount(2)).Build());
             await scheduler.ScheduleJob(
                 TriggerBuilder.Create().WithIdentity("cron", "group1").ForJob(jobKey)
                     .WithCronSchedule("0 0 1 * * ?").Build());

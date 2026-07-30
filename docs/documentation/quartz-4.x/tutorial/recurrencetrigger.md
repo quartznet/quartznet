@@ -51,7 +51,7 @@ occurrence counting.
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("monthlyTrigger", "group1")
     .WithRecurrenceSchedule("FREQ=MONTHLY;BYDAY=2MO")
-    .StartAt(DateBuilder.DateOf(9, 0, 0, 1, 1, 2025))
+    .StartAt(DateBuilder.NewDate().InYear(2025).InMonthOnDay(1, 1).AtHourMinuteAndSecond(9, 0, 0).Build())
     .Build();
 ```
 
@@ -150,7 +150,7 @@ If the 'smart policy' instruction is used (the default), RecurrenceTrigger will 
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger1", "group1")
     .WithRecurrenceSchedule("FREQ=WEEKLY;BYDAY=MO", b => b
-        .WithMisfireHandlingInstructionDoNothing())
+        .WithMisfireHandlingInstruction(RecurrenceTriggerMisfireInstruction.DoNothing))
     .Build();
 ```
 

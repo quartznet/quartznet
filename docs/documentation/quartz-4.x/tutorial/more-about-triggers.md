@@ -107,22 +107,22 @@ Even though calendars can 'block out' sections of time as narrow as a millisecon
 'blocking-out' entire days. As a convenience, Quartz.NET includes the class HolidayCalendar, which does just that.
 
 Calendars must be instantiated and registered with the scheduler via the `AddCalendar(..)` method. If you use `HolidayCalendar`,
-after instantiating it, you should use its `AddExcludedDate(DateTime date)` method in order to populate it with the days you wish
+after instantiating it, you should use its `AddExcludedDay(DateOnly day)` method in order to populate it with the days you wish
 to have excluded from scheduling. The same calendar instance can be used with multiple triggers such as this:
 
 __Calendar Example__
 
 ```csharp
     HolidayCalendar cal = new HolidayCalendar();
-    cal.AddExcludedDate(someDate);
+    cal.AddExcludedDay(someDay);
     
     await sched.AddCalendar("myHolidays", cal);
     
  ITrigger t = TriggerBuilder.Create()
   .WithIdentity("myTrigger")
   .ForJob("myJob")
-  .WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(9, 30)) // execute job daily at 9:30
-  .ModifiedByCalendar("myHolidays") // but not on holidays
+  .WithCronSchedule("0 30 9 ? * *") // execute job daily at 9:30
+  .WithCalendarName("myHolidays") // but not on holidays
   .Build();
 
  // .. schedule job with trigger
@@ -130,8 +130,8 @@ __Calendar Example__
  ITrigger t2 = TriggerBuilder.Create()
   .WithIdentity("myTrigger2")
   .ForJob("myJob2")
-  .WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(11, 30)) // execute job daily at 11:30
-  .ModifiedByCalendar("myHolidays") // but not on holidays
+  .WithCronSchedule("0 30 11 ? * *") // execute job daily at 11:30
+  .WithCalendarName("myHolidays") // but not on holidays
   .Build();
 
 	// Use H (hash) to spread triggers across time instead of a fixed schedule.
@@ -140,7 +140,7 @@ __Calendar Example__
 		.WithIdentity("myTrigger3")
 		.ForJob("myJob3")
 		.WithCronSchedule("0 H H(9-17) * * ?") // execute at a hash-derived time during business hours
-		.ModifiedByCalendar("myHolidays")
+		.WithCalendarName("myHolidays")
 		.Build();
 
     // .. schedule jobs with triggers

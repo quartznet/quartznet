@@ -250,7 +250,7 @@ ITrigger trigger = TriggerBuilder.Create()
  .WithIdentity("trigger1", "group1")
  .StartNow()
  .WithSimpleSchedule(x => x
-  .WithIntervalInSeconds(10)
+  .WithInterval(TimeSpan.FromSeconds(10))
   .RepeatForever())
  .Build();
 
@@ -306,7 +306,7 @@ namespace QuartzSampleApp
                 .WithIdentity("trigger1", "group1")
                 .StartNow()
                 .WithSimpleSchedule(x => x
-                    .WithIntervalInSeconds(10)
+                    .WithInterval(TimeSpan.FromSeconds(10))
                     .RepeatForever())
                 .Build();
 

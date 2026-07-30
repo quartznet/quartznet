@@ -45,7 +45,7 @@ public class RunningAsynchronousJobsExample : IExample
         ITrigger trigger = TriggerBuilder.Create()
             .WithIdentity("triggerForAsyncJob")
             .StartAt(DateTimeOffset.UtcNow.AddSeconds(1))
-            .WithSimpleSchedule(x => x.WithIntervalInSeconds(20).RepeatForever())
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(20)).RepeatForever())
             .Build();
 
         await scheduler.ScheduleJob(job, trigger);

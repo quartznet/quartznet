@@ -65,7 +65,7 @@ public static class TestData
             Description = "Test AnnualCalendar",
             CalendarBase = BaseCalendar
         };
-        AnnualCalendar.SetDayExcluded(DateTime.Today, true);
+        AnnualCalendar.AddExcludedDay(DateOnly.FromDateTime(DateTime.Today));
 
         CronCalendar = new CronCalendar("0 0 * * * ?")
         {
@@ -74,7 +74,7 @@ public static class TestData
             CalendarBase = null
         };
 
-        DailyCalendar = new DailyCalendar(new DateTime(2000, 1, 1, 10, 0, 0), new DateTime(2000, 1, 1, 12, 30, 0))
+        DailyCalendar = new DailyCalendar(new TimeOnly(10, 0, 0), new TimeOnly(12, 30, 0))
         {
             TimeZone = TimeZoneInfo.Utc,
             Description = null,
@@ -88,7 +88,7 @@ public static class TestData
             Description = "Test HolidayCalendar",
             CalendarBase = BaseCalendar
         };
-        HolidayCalendar.AddExcludedDate(DateTime.Today);
+        HolidayCalendar.AddExcludedDay(DateOnly.FromDateTime(DateTime.Today));
 
         MonthlyCalendar = new MonthlyCalendar
         {
@@ -96,9 +96,9 @@ public static class TestData
             Description = "Test MonthlyCalendar",
             CalendarBase = BaseCalendar
         };
-        MonthlyCalendar.SetDayExcluded(10, true);
-        MonthlyCalendar.SetDayExcluded(20, true);
-        MonthlyCalendar.SetDayExcluded(30, true);
+        MonthlyCalendar.AddExcludedDay(10);
+        MonthlyCalendar.AddExcludedDay(20);
+        MonthlyCalendar.AddExcludedDay(30);
 
         WeeklyCalendar = new WeeklyCalendar
         {
@@ -106,9 +106,9 @@ public static class TestData
             Description = "Test WeeklyCalendar",
             CalendarBase = BaseCalendar
         };
-        WeeklyCalendar.SetDayExcluded(DayOfWeek.Wednesday, true);
-        WeeklyCalendar.SetDayExcluded(DayOfWeek.Thursday, true);
-        WeeklyCalendar.SetDayExcluded(DayOfWeek.Friday, true);
+        WeeklyCalendar.AddExcludedDay(DayOfWeek.Wednesday);
+        WeeklyCalendar.AddExcludedDay(DayOfWeek.Thursday);
+        WeeklyCalendar.AddExcludedDay(DayOfWeek.Friday);
 
         JobDetail = JobBuilder.Create<DummyJob>()
             .WithIdentity("DummyJob", "DummyGroup")
@@ -140,7 +140,7 @@ public static class TestData
             .WithIdentity("CalendarIntervalTriggerKey", "CalendarIntervalTriggerGroup")
             .ForJob("CalendarIntervalJobKey", "CalendarIntervalJobGroup")
             .WithDescription("CalendarIntervalTrigger description")
-            .ModifiedByCalendar("SomeCalendar")
+            .WithCalendarName("SomeCalendar")
             .UsingJobData("TestKey", "TestValue")
             .EndAt(null)
             .StartAt(DateTimeOffset.Now)
@@ -154,7 +154,7 @@ public static class TestData
             .WithIdentity("CronTriggerKey", "CronTriggerGroup")
             .ForJob("CronJobKey", "CronJobGroup")
             .WithDescription(null)
-            .ModifiedByCalendar(null)
+            .WithCalendarName(null)
             .EndAt(DateTimeOffset.Now.AddDays(5))
             .StartAt(DateTimeOffset.Now.AddDays(-5))
             .WithPriority(1)
@@ -164,14 +164,14 @@ public static class TestData
             .WithDailyTimeIntervalSchedule(builder => builder
                 .WithRepeatCount(1_000)
                 .WithInterval(5, IntervalUnit.Hour)
-                .StartingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(10, 0, 0))
-                .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(20, 0, 0))
+                .StartingDailyAt(new TimeOnly(10, 0, 0))
+                .EndingDailyAt(new TimeOnly(20, 0, 0))
                 .OnDaysOfTheWeek(DayOfWeek.Monday, DayOfWeek.Wednesday, DayOfWeek.Friday)
                 .InTimeZone(TimeZoneInfo.Utc)
             )
             .WithIdentity("DailyTimeIntervalTriggerKey", "DailyTimeIntervalTriggerGroup")
             .WithDescription("DailyTimeIntervalTrigger description")
-            .ModifiedByCalendar(null)
+            .WithCalendarName(null)
             .EndAt(null)
             .StartAt(DateTimeOffset.Now.AddDays(-5))
             .Build();
@@ -184,7 +184,7 @@ public static class TestData
             .WithIdentity("SimpleTriggerKey", "SimpleTriggerGroup")
             .ForJob("SimpleJobKey", "SimpleJobGroup")
             .WithDescription("SimpleTrigger description")
-            .ModifiedByCalendar("SomeOtherCalendar")
+            .WithCalendarName("SomeOtherCalendar")
             .UsingJobData("TestKey", "150")
             .EndAt(DateTimeOffset.Now.AddYears(1_000))
             .StartAt(DateTimeOffset.Now)

@@ -136,7 +136,7 @@ public class SchedulerTest
             .WithIdentity("t1")
             .ForJob(job)
             .StartNow()
-            .WithSimpleSchedule(x => x.RepeatForever().WithIntervalInSeconds(5))
+            .WithSimpleSchedule(x => x.RepeatForever().WithInterval(TimeSpan.FromSeconds(5)))
             .Build();
 
         exists = await scheduler.CheckExists(new TriggerKey("t1"));
@@ -164,7 +164,7 @@ public class SchedulerTest
             .WithIdentity("t2", "g1")
             .ForJob(job)
             .StartNow()
-            .WithSimpleSchedule(x => x.RepeatForever().WithIntervalInSeconds(5))
+            .WithSimpleSchedule(x => x.RepeatForever().WithInterval(TimeSpan.FromSeconds(5)))
             .Build();
 
         await scheduler.ScheduleJob(job, trigger);
@@ -178,7 +178,7 @@ public class SchedulerTest
             .WithIdentity("t3", "g1")
             .ForJob(job)
             .StartNow()
-            .WithSimpleSchedule(x => x.RepeatForever().WithIntervalInSeconds(5))
+            .WithSimpleSchedule(x => x.RepeatForever().WithInterval(TimeSpan.FromSeconds(5)))
             .Build();
 
         await scheduler.ScheduleJob(job, trigger);
@@ -236,7 +236,7 @@ public class SchedulerTest
             .WithIdentity("t4", "g1")
             .ForJob(job)
             .StartNow()
-            .WithSimpleSchedule(x => x.RepeatForever().WithIntervalInSeconds(5))
+            .WithSimpleSchedule(x => x.RepeatForever().WithInterval(TimeSpan.FromSeconds(5)))
             .Build();
 
         await scheduler.ScheduleJob(job, trigger);
@@ -392,7 +392,7 @@ public class SchedulerTest
 
         var job = JobBuilder.Create<NoOpJob>().Build();
         IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
-            .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
             .ForJob(job)
             .StartAt(triggerStartTime)
             .Build();
@@ -445,7 +445,7 @@ public class SchedulerTest
 
         ITrigger simpleTrigger = TriggerBuilder.Create()
             .WithIdentity(triggerKey)
-            .WithSimpleSchedule(x => x.WithIntervalInSeconds(30).RepeatForever())
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(30)).RepeatForever())
             .Build();
 
         await scheduler.ScheduleJob(job, simpleTrigger);

@@ -354,10 +354,10 @@ public class QueryEndpointsTest : WebApiTest
         .WithIdentity(triggerKey)
         .ForJob(jobKey)
         .WithDescription("trigger " + triggerKey.Name)
-        .ModifiedByCalendar(calendarName)
+        .WithCalendarName(calendarName)
         .StartAt(DateTimeOffset.UtcNow.AddDays(1))
         .WithPriority(7)
         .WithExecutionGroup("imports")
-        .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
+        .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
         .Build();
 }

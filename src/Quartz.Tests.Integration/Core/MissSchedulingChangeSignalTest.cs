@@ -32,9 +32,9 @@ public class MissSchedulingChangeSignalTest
             .WithIdentity("trigger1", "group1")
             .StartAt(DateTime.UtcNow.AddSeconds(1))
             .WithSimpleSchedule(x => x
-                .WithIntervalInSeconds(1)
+                .WithInterval(TimeSpan.FromSeconds(1))
                 .RepeatForever()
-                .WithMisfireHandlingInstructionIgnoreMisfires())
+                .WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.IgnoreMisfires))
             .Build();
 
         await scheduler.ScheduleJob(job, trigger);

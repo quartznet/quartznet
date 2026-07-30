@@ -56,9 +56,9 @@ namespace Quartz;
 /// ITrigger trigger = TriggerBuilder.Create()
 ///     .WithIdentity("myTrigger", "myTriggerGroup")
 ///     .WithSimpleSchedule(x => x
-///         .WithIntervalInHours(1)
+///         .WithInterval(TimeSpan.FromHours(1))
 ///         .RepeatForever())
-///     .StartAt(DateBuilder.FutureDate(10, IntervalUnit.Minute))
+///     .StartAt(DateTimeOffset.UtcNow.AddMinutes(10))
 ///     .Build();
 /// scheduler.scheduleJob(job, trigger);
 /// </code>
@@ -118,8 +118,7 @@ public sealed class TriggerBuilder<TJob> : ITriggerConfigurator<TJob> where TJob
     private JobKey? jobKey;
     private readonly JobDataMap jobDataMap = new JobDataMap();
     private string? executionGroup;
-    private string? preferredNode;
-    private bool preferredNodeAuto;
+    private PreferredNode preferredNode;
 
     private IScheduleBuilder? scheduleBuilder;
 
@@ -181,16 +180,9 @@ public sealed class TriggerBuilder<TJob> : ITriggerConfigurator<TJob> where TJob
 
         // Assign unconditionally: a builder-built trigger fully defines the pin, so a definition
         // without WithPreferredNode clears a previously stored value when it replaces an existing
-        // trigger (consistent with how ExecutionGroup is persisted). The raw setter carries the
-        // auto-claim flag so GetTriggerBuilder() round-trips an auto-pin faithfully.
-        if (trig is Impl.Triggers.AbstractTrigger abstractTrigger)
-        {
-            abstractTrigger.SetPreferredNodeRaw(preferredNode, preferredNodeAuto);
-        }
-        else
-        {
-            trig.PreferredNode = preferredNode;
-        }
+        // trigger (consistent with how ExecutionGroup is persisted). The value carries the
+        // auto-claim flag, so GetTriggerBuilder() round-trips an auto-pin faithfully.
+        trig.PreferredNode = preferredNode;
 
         return trig;
     }
@@ -294,34 +286,19 @@ public sealed class TriggerBuilder<TJob> : ITriggerConfigurator<TJob> where TJob
     }
 
     /// <summary>
-    /// Set the preferred node for the Trigger. When set, only the specified cluster node
-    /// executes this trigger, with automatic failover to other nodes while the preferred
-    /// node is down.
+    /// Set which cluster node the Trigger prefers to run on. When pinned, only that node executes
+    /// this trigger, with automatic failover to other nodes while the preferred node is down.
     /// </summary>
     /// <param name="preferredNode">
-    /// The scheduler instance id of the target node (matching <c>quartz.scheduler.instanceId</c>),
-    /// <c>"*"</c> for automatic first-fire pinning, or <see langword="null"/> to clear.
-    /// The value must match the instance id exactly — pin comparisons happen in SQL using the
-    /// database's string collation, so a value differing only in case is a different (and on
-    /// case-sensitive databases, never-matching) node.
+    /// The pin: <see cref="Quartz.PreferredNode.None" /> to clear,
+    /// <see cref="Quartz.PreferredNode.Auto" /> for automatic first-fire pinning, or
+    /// <see cref="Quartz.PreferredNode.For" /> to name a node.
     /// </param>
     /// <returns>the updated TriggerBuilder</returns>
-    public TriggerBuilder<TJob> WithPreferredNode(string? preferredNode)
+    /// <seealso cref="Quartz.PreferredNode" />
+    public TriggerBuilder<TJob> WithPreferredNode(PreferredNode preferredNode)
     {
-        // An explicitly supplied pin is never an auto-claim; "*" requests auto-pin but is
-        // still unclaimed until a node fires the trigger.
-        return WithPreferredNodeRaw(preferredNode, auto: false);
-    }
-
-    /// <summary>
-    /// Sets the preferred node together with its auto-claim flag. Used by
-    /// <c>AbstractTrigger.GetTriggerBuilder()</c> so rebuilding an auto-pinned trigger keeps it
-    /// auto-pinned instead of hardening it into an explicit pin.
-    /// </summary>
-    internal TriggerBuilder<TJob> WithPreferredNodeRaw(string? preferredNode, bool auto)
-    {
-        this.preferredNode = string.IsNullOrWhiteSpace(preferredNode) ? null : preferredNode!.Trim();
-        preferredNodeAuto = this.preferredNode is not null && auto;
+        this.preferredNode = preferredNode;
         return this;
     }
 
@@ -352,7 +329,7 @@ public sealed class TriggerBuilder<TJob> : ITriggerConfigurator<TJob> where TJob
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ICalendar" />
     /// <seealso cref="ITrigger.CalendarName" />
-    public TriggerBuilder<TJob> ModifiedByCalendar(string? calendarName)
+    public TriggerBuilder<TJob> WithCalendarName(string? calendarName)
     {
         this.calendarName = calendarName;
         return this;
@@ -512,117 +489,14 @@ public sealed class TriggerBuilder<TJob> : ITriggerConfigurator<TJob> where TJob
     /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
     /// </summary>
     /// <remarks>
+    /// The value is stored as given. A persistent job store can only hold what its serializer
+    /// round-trips, and AdoJobStore's <c>UseProperties</c> mode only strings.
     /// </remarks>
+    /// <param name="key">the key to store the value under</param>
+    /// <param name="value">the value to store</param>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.JobDataMap" />
-    public TriggerBuilder<TJob> UsingJobData(string key, string value)
-    {
-        jobDataMap[key] = value;
-        return this;
-    }
-
-    /// <summary>
-    /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <returns>the updated TriggerBuilder</returns>
-    /// <seealso cref="ITrigger.JobDataMap" />
-    public TriggerBuilder<TJob> UsingJobData(string key, int value)
-    {
-        jobDataMap[key] = value;
-        return this;
-    }
-
-    /// <summary>
-    /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <returns>the updated TriggerBuilder</returns>
-    /// <seealso cref="ITrigger.JobDataMap" />
-    public TriggerBuilder<TJob> UsingJobData(string key, long value)
-    {
-        jobDataMap[key] = value;
-        return this;
-    }
-
-
-    /// <summary>
-    /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <returns>the updated TriggerBuilder</returns>
-    /// <seealso cref="ITrigger.JobDataMap" />
-    public TriggerBuilder<TJob> UsingJobData(string key, float value)
-    {
-        jobDataMap[key] = value;
-        return this;
-    }
-
-
-    /// <summary>
-    /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <returns>the updated TriggerBuilder</returns>
-    /// <seealso cref="ITrigger.JobDataMap" />
-    public TriggerBuilder<TJob> UsingJobData(string key, double value)
-    {
-        jobDataMap[key] = value;
-        return this;
-    }
-
-
-    /// <summary>
-    /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <returns>the updated TriggerBuilder</returns>
-    /// <seealso cref="ITrigger.JobDataMap" />
-    public TriggerBuilder<TJob> UsingJobData(string key, decimal value)
-    {
-        jobDataMap[key] = value;
-        return this;
-    }
-
-    /// <summary>
-    /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <returns>the updated TriggerBuilder</returns>
-    /// <seealso cref="ITrigger.JobDataMap" />
-    public TriggerBuilder<TJob> UsingJobData(string key, bool value)
-    {
-        jobDataMap[key] = value;
-        return this;
-    }
-
-    /// <summary>
-    /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <returns>the updated TriggerBuilder</returns>
-    /// <seealso cref="ITrigger.JobDataMap" />
-    public TriggerBuilder<TJob> UsingJobData(string key, Guid value)
-    {
-        jobDataMap[key] = value;
-        return this;
-    }
-
-    /// <summary>
-    /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <returns>the updated TriggerBuilder</returns>
-    /// <seealso cref="ITrigger.JobDataMap" />
-    public TriggerBuilder<TJob> UsingJobData(string key, char value)
+    public TriggerBuilder<TJob> UsingJobData(string key, object? value)
     {
         jobDataMap[key] = value;
         return this;
@@ -701,15 +575,17 @@ public sealed class TriggerBuilder<TJob> : ITriggerConfigurator<TJob> where TJob
 
     ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.WithExecutionGroup(string? executionGroup) => WithExecutionGroup(executionGroup);
 
-    ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.WithPreferredNode(string? preferredNode) => WithPreferredNode(preferredNode);
+    ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.WithPreferredNode(PreferredNode preferredNode) => WithPreferredNode(preferredNode);
 
-    ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.ModifiedByCalendar(string? calendarName) => ModifiedByCalendar(calendarName);
+    ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.WithCalendarName(string? calendarName) => WithCalendarName(calendarName);
 
     ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.StartAt(DateTimeOffset startTimeUtc) => StartAt(startTimeUtc);
 
     ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.StartNow() => StartNow();
 
     ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.EndAt(DateTimeOffset? endTimeUtc) => EndAt(endTimeUtc);
+
+    ITriggerConfigurator ITriggerConfigurator.WithSchedule(IScheduleBuilder scheduleBuilder) => WithSchedule(scheduleBuilder);
 
     ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.WithSchedule(IScheduleBuilder scheduleBuilder) => WithSchedule(scheduleBuilder);
 
@@ -723,23 +599,7 @@ public sealed class TriggerBuilder<TJob> : ITriggerConfigurator<TJob> where TJob
 
     ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.UsingJobData(JobDataMap newJobDataMap) => UsingJobData(newJobDataMap);
 
-    ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.UsingJobData(string key, string value) => UsingJobData(key, value);
-
-    ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.UsingJobData(string key, int value) => UsingJobData(key, value);
-
-    ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.UsingJobData(string key, long value) => UsingJobData(key, value);
-
-    ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.UsingJobData(string key, float value) => UsingJobData(key, value);
-
-    ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.UsingJobData(string key, double value) => UsingJobData(key, value);
-
-    ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.UsingJobData(string key, decimal value) => UsingJobData(key, value);
-
-    ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.UsingJobData(string key, bool value) => UsingJobData(key, value);
-
-    ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.UsingJobData(string key, Guid value) => UsingJobData(key, value);
-
-    ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.UsingJobData(string key, char value) => UsingJobData(key, value);
+    ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.UsingJobData(string key, object? value) => UsingJobData(key, value);
 
     ITriggerConfigurator<TJob> ITriggerConfigurator<TJob>.UsingJobData<TValue>(Expression<Func<TJob, TValue>> jobProperty, TValue value) => UsingJobData(jobProperty, value);
 }

@@ -229,12 +229,12 @@ public class RAMJobStoreQueryTest
         IJobDetail job = await AddJob("job", "g");
 
         // Has to be firable now, unlike the far-future triggers the other listing tests use.
-        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        DateTimeOffset d = TestDates.EvenMinuteDateAfterNow();
         IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
             .WithIdentity("running", "g")
             .ForJob(job)
             .StartAt(d.AddSeconds(1))
-            .WithSimpleSchedule(x => x.WithIntervalInSeconds(5).RepeatForever())
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(5)).RepeatForever())
             .Build();
         trigger.ComputeFirstFireTimeUtc(null);
         await store.AddTrigger(trigger, replace: false);
@@ -269,7 +269,7 @@ public class RAMJobStoreQueryTest
             .EndAt(startTime.AddDays(30))
             .WithPriority(7)
             .WithExecutionGroup("batch")
-            .ModifiedByCalendar("holidays")
+            .WithCalendarName("holidays")
             .WithCronSchedule("0 0 12 * * ?")
             .Build();
 
@@ -700,7 +700,7 @@ public class RAMJobStoreQueryTest
             .WithIdentity(name, group)
             .ForJob(jobKey)
             .StartAt(startTime)
-            .ModifiedByCalendar(calendarName)
+            .WithCalendarName(calendarName)
             .WithCronSchedule("0 0 12 * * ?"));
     }
 

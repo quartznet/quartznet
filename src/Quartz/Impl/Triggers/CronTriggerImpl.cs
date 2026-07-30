@@ -608,24 +608,16 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     {
         CronScheduleBuilder cb = CronScheduleBuilder.CronSchedule(CronExpressionString!).InTimeZone(TimeZone);
 
-        switch (MisfireInstruction)
+        CronTriggerMisfireInstruction instruction = (CronTriggerMisfireInstruction) MisfireInstruction;
+        if (Enum.IsDefined(instruction))
         {
-            case Quartz.MisfireInstruction.SmartPolicy:
-                break;
-            case Quartz.MisfireInstruction.CronTrigger.DoNothing:
-                cb.WithMisfireHandlingInstructionDoNothing();
-                break;
-            case Quartz.MisfireInstruction.CronTrigger.FireOnceNow:
-                cb.WithMisfireHandlingInstructionFireAndProceed();
-                break;
-            case Quartz.MisfireInstruction.IgnoreMisfirePolicy:
-                cb.WithMisfireHandlingInstructionIgnoreMisfires();
-                break;
-            default:
-                var logger = LogProvider.CreateLogger<CronTriggerImpl>();
-                logger.LogWarning("Unrecognized misfire policy {MisfireInstruction}. Derived builder will use the default cron trigger behavior (FireOnceNow)",
-                    MisfireInstruction);
-                break;
+            cb.WithMisfireHandlingInstruction(instruction);
+        }
+        else
+        {
+            var logger = LogProvider.CreateLogger<CronTriggerImpl>();
+            logger.LogWarning("Unrecognized misfire policy {MisfireInstruction}. Derived builder will use the default cron trigger behavior (FireOnceNow)",
+                MisfireInstruction);
         }
 
         return cb;

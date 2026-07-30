@@ -40,19 +40,8 @@ namespace Quartz.Impl.Calendar;
 [Serializable]
 public sealed class HolidayCalendar : BaseCalendar
 {
-    /// <summary>
-    /// Returns a collection of dates representing the excluded
-    /// days. Only the month, day and year of the returned dates are
-    /// significant.
-    /// </summary>
-    public List<DateTime> ExcludedDates
-    {
-        get => new List<DateTime>(dates);
-        internal set => dates = new SortedSet<DateTime>(value);
-    }
-
     // A sorted set to store the holidays
-    private SortedSet<DateTime> dates = new SortedSet<DateTime>();
+    private SortedSet<DateOnly> dates = new SortedSet<DateOnly>();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="HolidayCalendar"/> class.
@@ -95,7 +84,9 @@ public sealed class HolidayCalendar : BaseCalendar
                 Throw.NotSupportedException("cannot deserialize old version, use latest Quartz 2.x version to re-serialize all HolidayCalendar instances in database");
                 break;
             case 2:
-                dates = new SortedSet<DateTime>((DateTime[]) info.GetValue("dates", typeof(DateTime[]))!);
+                // The dates have always been stored as a DateTime array; keep reading that shape.
+                var stored = (DateTime[]) info.GetValue("dates", typeof(DateTime[]))!;
+                dates = new SortedSet<DateOnly>(stored.Select(DateOnly.FromDateTime));
                 break;
             default:
                 Throw.NotSupportedException("Unknown serialization version");
@@ -108,8 +99,41 @@ public sealed class HolidayCalendar : BaseCalendar
     {
         base.GetObjectData(info, context);
 
+        // Keep writing the version 2 layout - an array of DateTime - so a payload written here
+        // stays readable by the versions that only know that shape.
         info.AddValue("version", 2);
-        info.AddValue("dates", dates.ToArray());
+        info.AddValue("dates", dates.Select(d => d.ToDateTime(TimeOnly.MinValue)).ToArray());
+    }
+
+    /// <summary>
+    /// The days excluded by this calendar.
+    /// </summary>
+    public IReadOnlySet<DateOnly> DaysExcluded => dates;
+
+    /// <summary>
+    /// Excludes the given day.
+    /// </summary>
+    /// <returns><see langword="true" /> if the day was not already excluded.</returns>
+    public bool AddExcludedDay(DateOnly day)
+    {
+        return dates.Add(day);
+    }
+
+    /// <summary>
+    /// Stops excluding the given day.
+    /// </summary>
+    /// <returns><see langword="true" /> if the day was excluded.</returns>
+    public bool RemoveExcludedDay(DateOnly day)
+    {
+        return dates.Remove(day);
+    }
+
+    /// <summary>
+    /// Returns <see langword="true" /> if the given day is excluded by this calendar.
+    /// </summary>
+    public bool IsDayExcluded(DateOnly day)
+    {
+        return dates.Contains(day);
     }
 
     /// <summary>
@@ -133,8 +157,7 @@ public sealed class HolidayCalendar : BaseCalendar
     {
         // apply the timezone
         timeStampUtc = TimeZoneUtil.ConvertTime(timeStampUtc, TimeZone);
-        var lookFor = timeStampUtc.Date;
-        return !dates.Contains(lookFor);
+        return !dates.Contains(DateOnly.FromDateTime(timeStampUtc.Date));
     }
 
     /// <summary>
@@ -180,28 +203,8 @@ public sealed class HolidayCalendar : BaseCalendar
     {
         HolidayCalendar clone = new HolidayCalendar();
         CloneFields(clone);
-        clone.dates = new SortedSet<DateTime>(dates);
+        clone.dates = new SortedSet<DateOnly>(dates);
         return clone;
-    }
-
-    /// <summary>
-    /// Add the given Date to the list of excluded days. Only the month, day and
-    /// year of the returned dates are significant.
-    /// </summary>
-    public void AddExcludedDate(DateTime excludedDateUtc)
-    {
-        DateTime date = excludedDateUtc.Date;
-        dates.Add(date);
-    }
-
-    /// <summary>
-    /// Removes the excluded date.
-    /// </summary>
-    /// <param name="dateToRemoveUtc">The date to remove.</param>
-    public void RemoveExcludedDate(DateTime dateToRemoveUtc)
-    {
-        DateTime date = dateToRemoveUtc.Date;
-        dates.Remove(date);
     }
 
     public override int GetHashCode()
@@ -212,7 +215,7 @@ public sealed class HolidayCalendar : BaseCalendar
             baseHash = CalendarBase.GetHashCode();
         }
 
-        return ExcludedDates.GetHashCode() + 5 * baseHash;
+        return dates.Count + 5 * baseHash;
     }
 
     public bool Equals(HolidayCalendar obj)
@@ -224,16 +227,16 @@ public sealed class HolidayCalendar : BaseCalendar
 
         bool baseEqual = CalendarBase is null || CalendarBase.Equals(obj.CalendarBase);
 
-        return baseEqual && ExcludedDates.SequenceEqual(obj.ExcludedDates);
+        return baseEqual && dates.SetEquals(obj.dates);
     }
 
     public override bool Equals(object? obj)
     {
-        if (!(obj is HolidayCalendar))
+        if (obj is not HolidayCalendar other)
         {
             return false;
         }
 
-        return Equals((HolidayCalendar) obj);
+        return Equals(other);
     }
 }

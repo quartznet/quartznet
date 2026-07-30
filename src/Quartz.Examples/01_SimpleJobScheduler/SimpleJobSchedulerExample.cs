@@ -41,8 +41,8 @@ public class SimpleJobSchedulerExample : IExample
         Console.WriteLine("------- Initialization Complete -----------");
 
 
-        // computer a time that is on the next round minute
-        DateTimeOffset runTime = DateBuilder.EvenMinuteDate(DateTimeOffset.UtcNow);
+        // a minute from now
+        DateTimeOffset runTime = DateTimeOffset.UtcNow.AddMinutes(1);
 
         Console.WriteLine("------- Scheduling Job  -------------------");
 

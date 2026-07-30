@@ -124,7 +124,7 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
     {
         SimpleTriggerImpl simpleTrigger = new SimpleTriggerImpl();
 
-        DateTimeOffset startTime = DateBuilder.EvenSecondDate(DateTime.UtcNow);
+        DateTimeOffset startTime = TestDates.EvenSecondDate(DateTime.UtcNow);
 
         simpleTrigger.StartTimeUtc = startTime;
         simpleTrigger.RepeatInterval = TimeSpan.FromMilliseconds(10);
@@ -171,14 +171,14 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
     [Test]
     public void TestGetFireTimeAfter_WithCalendar()
     {
-        DailyCalendar dailyCalendar = new DailyCalendar("1:20", "14:50");
+        DailyCalendar dailyCalendar = new DailyCalendar(new TimeOnly(1, 20), new TimeOnly(14, 50));
         SimpleTriggerImpl simpleTrigger = new SimpleTriggerImpl
         {
             RepeatInterval = TimeSpan.FromMilliseconds(10),
             RepeatCount = 1
         };
         var referenceDate = new DateTimeOffset(2025, 6, 15, 12, 0, 0, TimeSpan.Zero);
-        DateTimeOffset neverFireTime = DateBuilder.EvenMinuteDateBefore(dailyCalendar.GetTimeRangeStartingTimeUtc(referenceDate));
+        DateTimeOffset neverFireTime = TestDates.EvenMinuteDateBefore(dailyCalendar.GetTimeRangeStartingTimeUtc(referenceDate));
         simpleTrigger.StartTimeUtc = neverFireTime;
 
         simpleTrigger.ComputeFirstFireTimeUtc(dailyCalendar);
@@ -276,7 +276,7 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
                 .WithIdentity("testTrigger", "testGroup")
                 .StartAt(pastStart)
                 .WithSimpleSchedule(x => x
-                    .WithIntervalInMinutes(10)
+                    .WithInterval(TimeSpan.FromMinutes(10))
                     .RepeatForever())
                 .Build();
 
@@ -326,7 +326,7 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
                 .WithIdentity("testTrigger", "testGroup")
                 .StartAt(pastStart)
                 .WithSimpleSchedule(x => x
-                    .WithIntervalInMinutes(10)
+                    .WithInterval(TimeSpan.FromMinutes(10))
                     .WithRepeatCount(5))
                 .Build();
 
@@ -370,7 +370,7 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
                 .WithIdentity("testTrigger", "testGroup")
                 .StartAt(futureStart)
                 .WithSimpleSchedule(x => x
-                    .WithIntervalInMinutes(10)
+                    .WithInterval(TimeSpan.FromMinutes(10))
                     .RepeatForever())
                 .Build();
 

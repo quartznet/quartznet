@@ -3,85 +3,87 @@ namespace Quartz.Tests.Unit;
 public class CronScheduleBuilderTest
 {
     [Test]
-    public void TestAtHourAndMinuteOnGivenDaysOfWeek()
+    public void TakesACronExpressionAsAString()
     {
-        var trigger = (ICronTrigger) TriggerBuilder.Create()
+        ICronTrigger trigger = (ICronTrigger) TriggerBuilder.Create()
             .WithIdentity("test")
-            .WithSchedule(CronScheduleBuilder.AtHourAndMinuteOnGivenDaysOfWeek(10, 0, DayOfWeek.Monday, DayOfWeek.Thursday, DayOfWeek.Friday))
+            .WithSchedule(CronScheduleBuilder.CronSchedule("0 20 10 ? * *"))
             .Build();
 
-        Assert.That(trigger.CronExpressionString, Is.EqualTo("0 0 10 ? * MON,THU,FRI"));
-
-        trigger = (ICronTrigger) TriggerBuilder.Create().WithIdentity("test")
-            .WithSchedule(CronScheduleBuilder.AtHourAndMinuteOnGivenDaysOfWeek(10, 0, DayOfWeek.Wednesday))
-            .Build();
-
-        Assert.That(trigger.CronExpressionString, Is.EqualTo("0 0 10 ? * WED"));
+        trigger.CronExpressionString.Should().Be("0 20 10 ? * *");
     }
 
     [Test]
-    public void TestAtHourAndMinuteOnGivenDaysOfWeekRejectsInvalidArguments()
+    public void TakesACronExpressionBuiltElsewhere()
     {
-        Assert.Throws<ArgumentException>(() => CronScheduleBuilder.AtHourAndMinuteOnGivenDaysOfWeek(25, 0, DayOfWeek.Monday));
-        Assert.Throws<ArgumentException>(() => CronScheduleBuilder.AtHourAndMinuteOnGivenDaysOfWeek(13, 68, DayOfWeek.Monday));
-        Assert.Throws<ArgumentException>(() => CronScheduleBuilder.AtHourAndMinuteOnGivenDaysOfWeek(13, 25));
-    }
+        CronExpression expression = CronExpressionBuilder.Create()
+            .WithSecond(0)
+            .WithMinute(0)
+            .WithHour(10)
+            .OnDaysOfWeek(DayOfWeek.Monday, DayOfWeek.Thursday, DayOfWeek.Friday)
+            .Build();
 
-    [Test]
-    public void TestDailyAtHourAndMinute()
-    {
-        var trigger = (ICronTrigger) TriggerBuilder.Create()
+        ICronTrigger trigger = (ICronTrigger) TriggerBuilder.Create()
             .WithIdentity("test")
-            .WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(10, 20))
+            .WithSchedule(CronScheduleBuilder.CronSchedule(expression))
             .Build();
 
-        Assert.That(trigger.CronExpressionString, Is.EqualTo("0 20 10 ? * *"));
+        trigger.CronExpressionString.Should().Be("0 0 10 ? * MON,THU,FRI");
     }
 
     [Test]
-    public void TestDailyAtHourAndMinuteRejectsInvalidArguments()
+    public void RejectsAnExpressionItCannotParse()
     {
-        Assert.Throws<ArgumentException>(() => CronScheduleBuilder.DailyAtHourAndMinute(26, 23));
-        Assert.Throws<ArgumentException>(() => CronScheduleBuilder.DailyAtHourAndMinute(11, 78));
+        Action act = () => CronScheduleBuilder.CronSchedule("not a cron expression");
+
+        act.Should().Throw<FormatException>();
     }
 
     [Test]
-    public void TestWeeklyOnDayAndHourAndMinute()
+    public void CarriesTheTimeZoneOntoTheTrigger()
     {
-        var trigger = (ICronTrigger) TriggerBuilder.Create()
+        TimeZoneInfo timeZone = TestTimeZones.CentralEuropean;
+
+        ICronTrigger trigger = (ICronTrigger) TriggerBuilder.Create()
             .WithIdentity("test")
-            .WithSchedule(CronScheduleBuilder.WeeklyOnDayAndHourAndMinute(DayOfWeek.Saturday, 11, 41))
+            .WithSchedule(CronScheduleBuilder.CronSchedule("0 20 10 ? * *").InTimeZone(timeZone))
             .Build();
 
-        Assert.That(trigger.CronExpressionString, Is.EqualTo("0 41 11 ? * SAT"));
+        trigger.TimeZone.Should().Be(timeZone);
     }
 
     [Test]
-    public void TestWeeklyOnDayAndHourAndMinuteRejectsInvalidArguments()
+    public void FallsBackToTheLocalTimeZoneWhenGivenNull()
     {
-        Assert.Throws<ArgumentException>(() => CronScheduleBuilder.WeeklyOnDayAndHourAndMinute(DayOfWeek.Monday, 25, 2));
-        Assert.Throws<ArgumentException>(() => CronScheduleBuilder.WeeklyOnDayAndHourAndMinute(DayOfWeek.Monday, 2, 62));
-
-        var exception = Assert.Throws<ArgumentOutOfRangeException>(() => CronScheduleBuilder.WeeklyOnDayAndHourAndMinute((DayOfWeek) 8, 10, 0));
-        Assert.That(exception.ParamName, Is.EqualTo("dayOfWeek"));
-    }
-
-    [Test]
-    public void TestMonthlyOnDayAndHourAndMinute()
-    {
-        var trigger = (ICronTrigger) TriggerBuilder.Create()
+        ICronTrigger trigger = (ICronTrigger) TriggerBuilder.Create()
             .WithIdentity("test")
-            .WithSchedule(CronScheduleBuilder.MonthlyOnDayAndHourAndMinute(6, 18, 30))
+            .WithSchedule(CronScheduleBuilder.CronSchedule("0 20 10 ? * *").InTimeZone(null))
             .Build();
 
-        Assert.That(trigger.CronExpressionString, Is.EqualTo("0 30 18 6 * ?"));
+        trigger.TimeZone.Should().Be(TimeZoneInfo.Local);
     }
 
     [Test]
-    public void TestMonthlyOnDayAndHourAndMinuteRejectsInvalidArguments()
+    public void DefaultsToTheSmartMisfirePolicy()
     {
-        Assert.Throws<ArgumentException>(() => CronScheduleBuilder.MonthlyOnDayAndHourAndMinute(32, 18, 30));
-        Assert.Throws<ArgumentException>(() => CronScheduleBuilder.MonthlyOnDayAndHourAndMinute(18, 25, 1));
-        Assert.Throws<ArgumentException>(() => CronScheduleBuilder.MonthlyOnDayAndHourAndMinute(16, 19, 61));
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity("test")
+            .WithSchedule(CronScheduleBuilder.CronSchedule("0 20 10 ? * *"))
+            .Build();
+
+        trigger.MisfireInstruction.Should().Be(MisfireInstruction.SmartPolicy);
+    }
+
+    [TestCase(CronTriggerMisfireInstruction.IgnoreMisfires, MisfireInstruction.IgnoreMisfirePolicy)]
+    [TestCase(CronTriggerMisfireInstruction.DoNothing, MisfireInstruction.CronTrigger.DoNothing)]
+    [TestCase(CronTriggerMisfireInstruction.FireAndProceed, MisfireInstruction.CronTrigger.FireOnceNow)]
+    public void StoresTheMisfireInstructionAsItsConstant(CronTriggerMisfireInstruction instruction, int stored)
+    {
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity("test")
+            .WithCronSchedule("0 20 10 ? * *", x => x.WithMisfireHandlingInstruction(instruction))
+            .Build();
+
+        trigger.MisfireInstruction.Should().Be(stored);
     }
 }

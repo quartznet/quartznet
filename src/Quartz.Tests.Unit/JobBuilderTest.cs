@@ -91,4 +91,53 @@ public class JobBuilderTest
             Assert.That(job.PersistJobDataAfterExecution, Is.True, "Expected isPersistJobDataAfterExecution == true ");
         });
     }
+
+    [Test]
+    public void UsingJobData_StoresTheValueWithItsOwnType()
+    {
+        Guid guid = Guid.NewGuid();
+
+        IJobDetail job = JobBuilder.Create<TestJob>()
+            .UsingJobData("string", "text")
+            .UsingJobData("int", 1)
+            .UsingJobData("long", 2L)
+            .UsingJobData("float", 3.5f)
+            .UsingJobData("double", 4.5d)
+            .UsingJobData("decimal", 5.5m)
+            .UsingJobData("bool", true)
+            .UsingJobData("guid", guid)
+            .UsingJobData("char", 'c')
+            .UsingJobData("null", null)
+            .Build();
+
+        // The one object?-typed overload replaced nine primitive ones; what lands in the map has
+        // to be exactly what the primitive overloads stored, or every persisted map changes shape.
+        job.JobDataMap["string"].Should().Be("text");
+        job.JobDataMap["int"].Should().Be(1).And.BeOfType<int>();
+        job.JobDataMap["long"].Should().Be(2L).And.BeOfType<long>();
+        job.JobDataMap["float"].Should().Be(3.5f).And.BeOfType<float>();
+        job.JobDataMap["double"].Should().Be(4.5d).And.BeOfType<double>();
+        job.JobDataMap["decimal"].Should().Be(5.5m).And.BeOfType<decimal>();
+        job.JobDataMap["bool"].Should().Be(true).And.BeOfType<bool>();
+        job.JobDataMap["guid"].Should().Be(guid).And.BeOfType<Guid>();
+        job.JobDataMap["char"].Should().Be('c').And.BeOfType<char>();
+        job.JobDataMap["null"].Should().BeNull();
+    }
+
+    [Test]
+    public void UsingJobData_Map_MergesIntoWhatTheBuilderAlreadyHolds()
+    {
+        JobDataMap map = new JobDataMap { { "added", "from map" }, { "kept", "overwritten" } };
+
+        IJobDetail job = JobBuilder.Create<TestJob>()
+            .UsingJobData("existing", "kept")
+            .UsingJobData("kept", "original")
+            .UsingJobData(map)
+            .Build();
+
+        job.JobDataMap.Should().ContainKey("existing").WhoseValue.Should().Be("kept",
+            "merging must not discard what the builder already carried - that was SetJobData's job");
+        job.JobDataMap["added"].Should().Be("from map");
+        job.JobDataMap["kept"].Should().Be("overwritten");
+    }
 }

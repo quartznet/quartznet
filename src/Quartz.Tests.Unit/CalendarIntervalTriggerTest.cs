@@ -21,7 +21,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
     [Test]
     public void TestYearlyIntervalGetFireTimeAfter()
     {
-        DateTimeOffset startCalendar = DateBuilder.DateOf(9, 30, 17, 1, 6, 2005);
+        DateTimeOffset startCalendar = TestDates.DateOf(9, 30, 17, 1, 6, 2005);
 
         var yearlyTrigger = new CalendarIntervalTriggerImpl
         {
@@ -41,7 +41,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
     [Test]
     public void TestMonthlyIntervalGetFireTimeAfter()
     {
-        DateTimeOffset startCalendar = DateBuilder.DateOf(9, 30, 17, 1, 6, 2005);
+        DateTimeOffset startCalendar = TestDates.DateOf(9, 30, 17, 1, 6, 2005);
 
         var yearlyTrigger = new CalendarIntervalTriggerImpl
         {
@@ -61,7 +61,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
     [Test]
     public void TestWeeklyIntervalGetFireTimeAfter()
     {
-        DateTimeOffset startCalendar = DateBuilder.DateOf(9, 30, 17, 1, 6, 2005);
+        DateTimeOffset startCalendar = TestDates.DateOf(9, 30, 17, 1, 6, 2005);
 
         var yearlyTrigger = new CalendarIntervalTriggerImpl
         {
@@ -81,7 +81,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
     [Test]
     public void TestDailyIntervalGetFireTimeAfter()
     {
-        DateTimeOffset startCalendar = DateBuilder.DateOf(9, 30, 17, 1, 6, 2005);
+        DateTimeOffset startCalendar = TestDates.DateOf(9, 30, 17, 1, 6, 2005);
 
         var dailyTrigger = new CalendarIntervalTriggerImpl
         {
@@ -101,7 +101,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
     [Test]
     public void TestHourlyIntervalGetFireTimeAfter()
     {
-        DateTimeOffset startCalendar = DateBuilder.DateOf(9, 30, 17, 1, 6, 2005);
+        DateTimeOffset startCalendar = TestDates.DateOf(9, 30, 17, 1, 6, 2005);
 
         var yearlyTrigger = new CalendarIntervalTriggerImpl
         {
@@ -121,7 +121,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
     [Test]
     public void TestMinutelyIntervalGetFireTimeAfter()
     {
-        DateTimeOffset startCalendar = DateBuilder.DateOf(9, 30, 17, 1, 6, 2005);
+        DateTimeOffset startCalendar = TestDates.DateOf(9, 30, 17, 1, 6, 2005);
 
         var yearlyTrigger = new CalendarIntervalTriggerImpl
         {
@@ -141,7 +141,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
     [Test]
     public void TestSecondlyIntervalGetFireTimeAfter()
     {
-        DateTimeOffset startCalendar = DateBuilder.DateOf(9, 30, 17, 1, 6, 2005);
+        DateTimeOffset startCalendar = TestDates.DateOf(9, 30, 17, 1, 6, 2005);
 
         var yearlyTrigger = new CalendarIntervalTriggerImpl
         {
@@ -163,7 +163,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
     {
         // Pick a day before a spring daylight savings transition...
 
-        DateTimeOffset startCalendar = DateBuilder.DateOf(9, 30, 17, 12, 3, 2010);
+        DateTimeOffset startCalendar = TestDates.DateOf(9, 30, 17, 12, 3, 2010);
 
         var dailyTrigger = new CalendarIntervalTriggerImpl
         {
@@ -259,7 +259,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
     [Test]
     public void TestFinalFireTimes()
     {
-        DateTimeOffset startCalendar = DateBuilder.DateOf(9, 0, 0, 12, 3, 2010);
+        DateTimeOffset startCalendar = TestDates.DateOf(9, 0, 0, 12, 3, 2010);
         DateTimeOffset endCalendar = startCalendar.AddDays(10); // jump 10 days (2 intervals)
 
         var dailyTrigger = new CalendarIntervalTriggerImpl
@@ -688,10 +688,10 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         var tb = TriggerBuilder.Create();
         var schedBuilder = CalendarIntervalScheduleBuilder.Create();
 
-        schedBuilder.WithIntervalInWeeks(2);
+        schedBuilder.WithInterval(2, IntervalUnit.Week);
         schedBuilder
             .PreserveHourOfDayAcrossDaylightSavings(true)
-            .WithMisfireHandlingInstructionFireAndProceed();
+            .WithMisfireHandlingInstruction(CalendarIntervalTriggerMisfireInstruction.FireAndProceed);
 
         var trigger = tb.StartAt(new DateTimeOffset(new DateTime(2014, 2, 26, 23, 45, 0)))
             .WithSchedule(schedBuilder)
@@ -754,7 +754,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         var dailyTrigger = (IOperableTrigger) TriggerBuilder.Create()
             .StartAt(new DateTime(2017, 1, 4, 15, 0, 0, DateTimeKind.Utc))
             .WithCalendarIntervalSchedule(x => x
-                .WithIntervalInDays(2)
+                .WithInterval(2, IntervalUnit.Day)
                 .InTimeZone(tz))
             .Build();
 
@@ -767,7 +767,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
     {
         var trigger1 = TriggerBuilder.Create()
             .WithCalendarIntervalSchedule(x => x
-                .WithMisfireHandlingInstructionIgnoreMisfires()
+                .WithMisfireHandlingInstruction(CalendarIntervalTriggerMisfireInstruction.IgnoreMisfires)
             )
             .Build();
 

@@ -325,7 +325,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
                 .StartAt(startTime)
                 .EndAt(endTime)
                 .WithPriority(priority)
-                .ModifiedByCalendar(NormalizeEmpty(triggerDef.CalendarName))
+                .WithCalendarName(NormalizeEmpty(triggerDef.CalendarName))
                 .WithExecutionGroup(NormalizeEmpty(triggerDef.ExecutionGroup))
                 .WithSchedule(schedule)
                 .Build();
@@ -357,7 +357,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
     {
         var interval = TimeSpan.Parse(simple.Interval, CultureInfo.InvariantCulture);
         var builder = SimpleScheduleBuilder.Create().WithInterval(interval).WithRepeatCount(simple.RepeatCount);
-        if (simple.MisfireInstruction is not null) builder.WithMisfireHandlingInstruction(ParseMisfireInstruction(simple.MisfireInstruction));
+        if (simple.MisfireInstruction is not null) builder.WithMisfireHandlingInstruction((SimpleTriggerMisfireInstruction) ParseMisfireInstruction(simple.MisfireInstruction));
         return builder;
     }
 
@@ -377,7 +377,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
         }
 
         if (cron.TimeZone is not null) builder.InTimeZone(TimeZoneUtil.FindTimeZoneById(cron.TimeZone));
-        if (cron.MisfireInstruction is not null) builder.WithMisfireHandlingInstruction(ParseMisfireInstruction(cron.MisfireInstruction));
+        if (cron.MisfireInstruction is not null) builder.WithMisfireHandlingInstruction((CronTriggerMisfireInstruction) ParseMisfireInstruction(cron.MisfireInstruction));
         return builder;
     }
 
@@ -385,7 +385,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
     {
         var unit = SafeParseEnum<IntervalUnit>(calendar.RepeatIntervalUnit, "CalendarInterval.RepeatIntervalUnit");
         var builder = CalendarIntervalScheduleBuilder.Create().WithInterval(calendar.RepeatInterval, unit);
-        if (calendar.MisfireInstruction is not null) builder.WithMisfireHandlingInstruction(ParseMisfireInstruction(calendar.MisfireInstruction));
+        if (calendar.MisfireInstruction is not null) builder.WithMisfireHandlingInstruction((CalendarIntervalTriggerMisfireInstruction) ParseMisfireInstruction(calendar.MisfireInstruction));
         return builder;
     }
 
@@ -407,16 +407,14 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
 
         if (daily.MisfireInstruction is not null)
         {
-            var instruction = ParseMisfireInstruction(daily.MisfireInstruction);
-            if (instruction == MisfireInstruction.IgnoreMisfirePolicy) builder.WithMisfireHandlingInstructionIgnoreMisfires();
-            else if (instruction == MisfireInstruction.DailyTimeIntervalTrigger.DoNothing) builder.WithMisfireHandlingInstructionDoNothing();
-            else if (instruction == MisfireInstruction.DailyTimeIntervalTrigger.FireOnceNow) builder.WithMisfireHandlingInstructionFireAndProceed();
+            var instruction = (DailyTimeIntervalTriggerMisfireInstruction) ParseMisfireInstruction(daily.MisfireInstruction);
+            if (Enum.IsDefined(instruction)) builder.WithMisfireHandlingInstruction(instruction);
         }
 
         return builder;
     }
 
-    private static TimeOfDay ParseTimeOfDay(string value)
+    private static TimeOnly ParseTimeOfDay(string value)
     {
         if (!TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out var timeSpan))
         {
@@ -431,7 +429,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
         {
             throw new SchedulerConfigException($"TimeOfDay value '{value}' must not contain fractional seconds.");
         }
-        return new TimeOfDay(timeSpan.Hours, timeSpan.Minutes, timeSpan.Seconds);
+        return new TimeOnly(timeSpan.Hours, timeSpan.Minutes, timeSpan.Seconds);
     }
 
     private static int ParseMisfireInstruction(string value)

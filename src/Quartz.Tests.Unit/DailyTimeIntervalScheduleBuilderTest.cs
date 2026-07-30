@@ -54,7 +54,7 @@ public class DailyTimeIntervalScheduleBuilderTest
 
         ITrigger trigger = TriggerBuilder.Create()
             .WithIdentity("test")
-            .WithDailyTimeIntervalSchedule(x => x.WithIntervalInSeconds(3))
+            .WithDailyTimeIntervalSchedule(x => x.WithInterval(3, IntervalUnit.Second))
             .Build();
 
         await scheduler.ScheduleJob(job, trigger); //We are not verify anything other than just run through the scheduler.
@@ -83,8 +83,8 @@ public class DailyTimeIntervalScheduleBuilderTest
         IJobDetail job = JobBuilder.Create<NoOpJob>().Build();
         ITrigger trigger = TriggerBuilder.Create().WithIdentity("test")
             .WithDailyTimeIntervalSchedule(x => x
-                .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(2, 15))
-                .WithIntervalInMinutes(5))
+                .StartingDailyAt(new TimeOnly(2, 15))
+                .WithInterval(5, IntervalUnit.Minute))
             .StartAt(currTime)
             .Build();
 
@@ -96,14 +96,14 @@ public class DailyTimeIntervalScheduleBuilderTest
         Assert.That(nextFireTime, Is.Not.Null);
         Assert.That(nextFireTime, Is.GreaterThan(currTime));
 
-        DateTimeOffset startTime = DateBuilder.TodayAt(2, 15, 0);
+        DateTimeOffset startTime = TestDates.TodayAt(2, 15, 0);
 
         job = JobBuilder.Create<NoOpJob>().Build();
 
         trigger = TriggerBuilder.Create().WithIdentity("test2")
             .WithDailyTimeIntervalSchedule(x => x
-                .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(2, 15))
-                .WithIntervalInMinutes(5))
+                .StartingDailyAt(new TimeOnly(2, 15))
+                .WithInterval(5, IntervalUnit.Minute))
             .StartAt(startTime)
             .Build();
         await scheduler.ScheduleJob(job, trigger);
@@ -122,7 +122,7 @@ public class DailyTimeIntervalScheduleBuilderTest
     {
         IDailyTimeIntervalTrigger trigger = (IDailyTimeIntervalTrigger) TriggerBuilder.Create()
             .WithIdentity("test")
-            .WithDailyTimeIntervalSchedule(x => x.WithIntervalInHours(3))
+            .WithDailyTimeIntervalSchedule(x => x.WithInterval(3, IntervalUnit.Hour))
             .Build();
         Assert.Multiple(() =>
         {
@@ -141,9 +141,9 @@ public class DailyTimeIntervalScheduleBuilderTest
         IDailyTimeIntervalTrigger trigger = (IDailyTimeIntervalTrigger) TriggerBuilder.Create()
             .WithIdentity("test", "group")
             .WithDailyTimeIntervalSchedule(x =>
-                x.WithIntervalInMinutes(72)
-                    .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(8, 0))
-                    .EndingDailyAt(TimeOfDay.HourAndMinuteOfDay(17, 0))
+                x.WithInterval(72, IntervalUnit.Minute)
+                    .StartingDailyAt(new TimeOnly(8, 0))
+                    .EndingDailyAt(new TimeOnly(17, 0))
                     .OnMondayThroughFriday())
             .Build();
 
@@ -155,8 +155,8 @@ public class DailyTimeIntervalScheduleBuilderTest
             Assert.That(null == trigger.EndTimeUtc, Is.EqualTo(true));
             Assert.That(trigger.RepeatIntervalUnit, Is.EqualTo(IntervalUnit.Minute));
             Assert.That(trigger.RepeatInterval, Is.EqualTo(72));
-            Assert.That(trigger.StartTimeOfDay, Is.EqualTo(new TimeOfDay(8, 0)));
-            Assert.That(trigger.EndTimeOfDay, Is.EqualTo(new TimeOfDay(17, 0)));
+            Assert.That(trigger.StartTimeOfDay, Is.EqualTo(new TimeOnly(8, 0)));
+            Assert.That(trigger.EndTimeOfDay, Is.EqualTo(new TimeOnly(17, 0)));
         });
         var fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, null, 48);
         Assert.That(fireTimes, Has.Count.EqualTo(48));
@@ -165,14 +165,14 @@ public class DailyTimeIntervalScheduleBuilderTest
     [Test]
     public void TestSecondlyTriggerWithStartAndEndTime()
     {
-        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
-        DateTimeOffset endTime = DateBuilder.DateOf(0, 0, 0, 2, 1, 2011);
+        DateTimeOffset startTime = TestDates.DateOf(0, 0, 0, 1, 1, 2011);
+        DateTimeOffset endTime = TestDates.DateOf(0, 0, 0, 2, 1, 2011);
         IDailyTimeIntervalTrigger trigger = (IDailyTimeIntervalTrigger) TriggerBuilder.Create()
             .WithIdentity("test", "test")
             .WithDailyTimeIntervalSchedule(x =>
-                x.WithIntervalInSeconds(121)
-                    .StartingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(10, 0, 0))
-                    .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
+                x.WithInterval(121, IntervalUnit.Second)
+                    .StartingDailyAt(new TimeOnly(10, 0, 0))
+                    .EndingDailyAt(new TimeOnly(23, 59, 59))
                     .OnSaturdayAndSunday())
             .StartAt(startTime)
             .EndAt(endTime)
@@ -185,8 +185,8 @@ public class DailyTimeIntervalScheduleBuilderTest
             Assert.That(endTime == trigger.EndTimeUtc, Is.EqualTo(true));
             Assert.That(trigger.RepeatIntervalUnit, Is.EqualTo(IntervalUnit.Second));
             Assert.That(trigger.RepeatInterval, Is.EqualTo(121));
-            Assert.That(trigger.StartTimeOfDay, Is.EqualTo(new TimeOfDay(10, 0, 0)));
-            Assert.That(trigger.EndTimeOfDay, Is.EqualTo(new TimeOfDay(23, 59, 59)));
+            Assert.That(trigger.StartTimeOfDay, Is.EqualTo(new TimeOnly(10, 0, 0)));
+            Assert.That(trigger.EndTimeOfDay, Is.EqualTo(new TimeOnly(23, 59, 59)));
         });
         var fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, null, 48);
         Assert.That(fireTimes, Has.Count.EqualTo(48));
@@ -197,7 +197,7 @@ public class DailyTimeIntervalScheduleBuilderTest
     {
         IDailyTimeIntervalTrigger trigger = (IDailyTimeIntervalTrigger) TriggerBuilder.Create()
             .WithIdentity("test")
-            .WithDailyTimeIntervalSchedule(x => x.WithIntervalInHours(1).WithRepeatCount(9))
+            .WithDailyTimeIntervalSchedule(x => x.WithInterval(1, IntervalUnit.Hour).WithRepeatCount(9))
             .Build();
 
         Assert.Multiple(() =>
@@ -215,12 +215,12 @@ public class DailyTimeIntervalScheduleBuilderTest
     [Test]
     public void TestEndingAtAfterCount()
     {
-        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
+        DateTimeOffset startTime = TestDates.DateOf(0, 0, 0, 1, 1, 2011);
         IDailyTimeIntervalTrigger trigger = (IDailyTimeIntervalTrigger) TriggerBuilder.Create()
             .WithIdentity("test")
             .WithDailyTimeIntervalSchedule(x =>
-                x.WithIntervalInMinutes(15)
-                    .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(8, 0))
+                x.WithInterval(15, IntervalUnit.Minute)
+                    .StartingDailyAt(new TimeOnly(8, 0))
                     .EndingDailyAfterCount(12))
             .StartAt(startTime)
             .Build();
@@ -234,20 +234,20 @@ public class DailyTimeIntervalScheduleBuilderTest
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
-            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011)));
-            Assert.That(fireTimes[47], Is.EqualTo(DateBuilder.DateOf(10, 45, 0, 4, 1, 2011)));
-            Assert.That(trigger.EndTimeOfDay, Is.EqualTo(new TimeOfDay(10, 45)));
+            Assert.That(fireTimes[0], Is.EqualTo(TestDates.DateOf(8, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[47], Is.EqualTo(TestDates.DateOf(10, 45, 0, 4, 1, 2011)));
+            Assert.That(trigger.EndTimeOfDay, Is.EqualTo(new TimeOnly(10, 45)));
         });
     }
 
     [Test]
     public void TestEndingAtAfterCountOf1()
     {
-        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
+        DateTimeOffset startTime = TestDates.DateOf(0, 0, 0, 1, 1, 2011);
         IDailyTimeIntervalTrigger trigger = (IDailyTimeIntervalTrigger) TriggerBuilder.Create()
             .WithIdentity("test")
-            .WithDailyTimeIntervalSchedule(x => x.WithIntervalInMinutes(15)
-                .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(8, 0))
+            .WithDailyTimeIntervalSchedule(x => x.WithInterval(15, IntervalUnit.Minute)
+                .StartingDailyAt(new TimeOnly(8, 0))
                 .EndingDailyAfterCount(1))
             .StartAt(startTime)
             .ForJob("testJob", "testJobGroup")
@@ -263,9 +263,9 @@ public class DailyTimeIntervalScheduleBuilderTest
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
-            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011)));
-            Assert.That(fireTimes[47], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 17, 2, 2011)));
-            Assert.That(trigger.EndTimeOfDay, Is.EqualTo(new TimeOfDay(8, 0)));
+            Assert.That(fireTimes[0], Is.EqualTo(TestDates.DateOf(8, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[47], Is.EqualTo(TestDates.DateOf(8, 0, 0, 17, 2, 2011)));
+            Assert.That(trigger.EndTimeOfDay, Is.EqualTo(new TimeOnly(8, 0)));
         });
     }
 
@@ -274,12 +274,12 @@ public class DailyTimeIntervalScheduleBuilderTest
     {
         try
         {
-            DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
+            DateTimeOffset startTime = TestDates.DateOf(0, 0, 0, 1, 1, 2011);
             TriggerBuilder.Create()
                 .WithIdentity("test")
                 .WithDailyTimeIntervalSchedule(x =>
-                    x.WithIntervalInMinutes(15)
-                        .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(8, 0))
+                    x.WithInterval(15, IntervalUnit.Minute)
+                        .StartingDailyAt(new TimeOnly(8, 0))
                         .EndingDailyAfterCount(0))
                 .StartAt(startTime)
                 .Build();
@@ -292,11 +292,11 @@ public class DailyTimeIntervalScheduleBuilderTest
 
         try
         {
-            DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
+            DateTimeOffset startTime = TestDates.DateOf(0, 0, 0, 1, 1, 2011);
             TriggerBuilder.Create()
                 .WithIdentity("test")
                 .WithDailyTimeIntervalSchedule(x =>
-                    x.WithIntervalInMinutes(15)
+                    x.WithInterval(15, IntervalUnit.Minute)
                         .EndingDailyAfterCount(1))
                 .StartAt(startTime)
                 .Build();
@@ -315,7 +315,7 @@ public class DailyTimeIntervalScheduleBuilderTest
             .WithIdentity("testTrigger")
             .ForJob("testJob")
             .WithDailyTimeIntervalSchedule(x =>
-                x.StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(8, 0))
+                x.StartingDailyAt(new TimeOnly(8, 0))
                     .EndingDailyAfterCount(1))
             .Build();
         Assert.DoesNotThrow(trigger.Validate, "We should accept EndTimeOfDay specified by EndingDailyAfterCount(x).");
@@ -328,7 +328,7 @@ public class DailyTimeIntervalScheduleBuilderTest
             .WithIdentity("testTrigger")
             .ForJob("testJob")
             .WithDailyTimeIntervalSchedule(x =>
-                x.StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(23, 59))
+                x.StartingDailyAt(new TimeOnly(23, 59))
                     .EndingDailyAfterCount(1))
             .Build(), "We should accept if remaining time equals to the interval of 1 minute");
     }
@@ -340,10 +340,39 @@ public class DailyTimeIntervalScheduleBuilderTest
             .WithIdentity("testTrigger")
             .ForJob("testJob")
             .WithDailyTimeIntervalSchedule(x =>
-                x.StartingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
+                x.StartingDailyAt(new TimeOnly(23, 59, 59))
                     .WithInterval(1, IntervalUnit.Minute)
                     .EndingDailyAfterCount(1))
             .Build(), "We should not accept if remaining time less than the interval of 1 minute");
+    }
+
+    [Test]
+    public void StartingDailyAtRejectsSubSecondPrecision()
+    {
+        Action act = () => DailyTimeIntervalScheduleBuilder.Create()
+            .StartingDailyAt(new TimeOnly(8, 0).Add(TimeSpan.FromMilliseconds(1)));
+
+        act.Should().Throw<ArgumentException>("the window is persisted as hour, minute and second columns");
+    }
+
+    [Test]
+    public void EndingDailyAtRejectsSubSecondPrecision()
+    {
+        Action act = () => DailyTimeIntervalScheduleBuilder.Create()
+            .EndingDailyAt(new TimeOnly(17, 0).Add(TimeSpan.FromMilliseconds(1)));
+
+        act.Should().Throw<ArgumentException>("the window is persisted as hour, minute and second columns");
+    }
+
+    [Test]
+    public void TheDefaultWindowIsTheWholeDay()
+    {
+        IDailyTimeIntervalTrigger trigger = (IDailyTimeIntervalTrigger) TriggerBuilder.Create()
+            .WithDailyTimeIntervalSchedule(x => x.WithInterval(1, IntervalUnit.Hour))
+            .Build();
+
+        trigger.StartTimeOfDay.Should().Be(new TimeOnly(0, 0, 0));
+        trigger.EndTimeOfDay.Should().Be(new TimeOnly(23, 59, 59));
     }
 
     [Test]
@@ -352,7 +381,7 @@ public class DailyTimeIntervalScheduleBuilderTest
         TimeZoneInfo est = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
 
         IDailyTimeIntervalTrigger trigger = (IDailyTimeIntervalTrigger) TriggerBuilder.Create()
-            .WithDailyTimeIntervalSchedule(x => x.WithIntervalInHours(1)
+            .WithDailyTimeIntervalSchedule(x => x.WithInterval(1, IntervalUnit.Hour)
                 .InTimeZone(est))
             .Build();
 
@@ -403,8 +432,8 @@ public class DailyTimeIntervalScheduleBuilderTest
         var startDate = new DateTime(2015, 1, 1).ToUniversalTime();
         DailyTimeIntervalTriggerImpl trigger = (DailyTimeIntervalTriggerImpl) TriggerBuilder.Create()
             .WithDailyTimeIntervalSchedule(x => x
-                .StartingDailyAt(new TimeOfDay(9, 0, 0))
-                .WithIntervalInHours(1)
+                .StartingDailyAt(new TimeOnly(9, 0, 0))
+                .WithInterval(1, IntervalUnit.Hour)
                 .EndingDailyAfterCount(2))
             .StartAt(startDate)
             .Build();
@@ -422,7 +451,7 @@ public class DailyTimeIntervalScheduleBuilderTest
     {
         var trigger1 = TriggerBuilder.Create()
             .WithDailyTimeIntervalSchedule(x => x
-                .WithMisfireHandlingInstructionIgnoreMisfires()
+                .WithMisfireHandlingInstruction(DailyTimeIntervalTriggerMisfireInstruction.IgnoreMisfires)
             )
             .Build();
 

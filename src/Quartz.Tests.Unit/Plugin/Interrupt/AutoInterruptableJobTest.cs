@@ -92,7 +92,7 @@ public class AutoInterruptableJobTest
         jobDataMap.PutAsString(JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable, true);
         var job = JobBuilder.Create<T>()
             .WithIdentity("j1")
-            .SetJobData(jobDataMap)
+            .UsingJobData(jobDataMap)
             .Build();
 
         var trigger = TriggerBuilder.Create()

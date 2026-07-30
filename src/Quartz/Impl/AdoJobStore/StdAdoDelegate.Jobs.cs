@@ -213,7 +213,7 @@ public partial class StdAdoDelegate
 
         if (map is not null)
         {
-            jobBuilder.SetJobData(new(map));
+            jobBuilder.ReplaceJobData(new JobDataMap(map));
         }
 
         jobBuilder.DisallowConcurrentExecution(GetBooleanFromDbValue(rs[AdoConstants.ColumnIsNonConcurrent]))

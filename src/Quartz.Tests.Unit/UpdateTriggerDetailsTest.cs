@@ -33,7 +33,7 @@ public class UpdateTriggerDetailsTest
     [Test]
     public async Task UpdateDescription_PreservesFireTimes()
     {
-        DateTimeOffset start = DateBuilder.EvenMinuteDateAfterNow();
+        DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.ComputeFirstFireTimeUtc(null);
         await jobStore.AddTrigger(trigger, false);
@@ -55,7 +55,7 @@ public class UpdateTriggerDetailsTest
     [Test]
     public async Task UpdatePriority_PreservesFireTimes()
     {
-        DateTimeOffset start = DateBuilder.EvenMinuteDateAfterNow();
+        DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.ComputeFirstFireTimeUtc(null);
         await jobStore.AddTrigger(trigger, false);
@@ -76,7 +76,7 @@ public class UpdateTriggerDetailsTest
     [Test]
     public async Task UpdateJobDataMap_PreservesFireTimes()
     {
-        DateTimeOffset start = DateBuilder.EvenMinuteDateAfterNow();
+        DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.ComputeFirstFireTimeUtc(null);
         await jobStore.AddTrigger(trigger, false);
@@ -109,7 +109,7 @@ public class UpdateTriggerDetailsTest
     [Test]
     public async Task PreservesState_WhenPaused()
     {
-        DateTimeOffset start = DateBuilder.EvenMinuteDateAfterNow();
+        DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.ComputeFirstFireTimeUtc(null);
         await jobStore.AddTrigger(trigger, false);
@@ -126,7 +126,7 @@ public class UpdateTriggerDetailsTest
     [Test]
     public async Task PriorityChange_AffectsAcquisitionOrder()
     {
-        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        DateTimeOffset d = TestDates.EvenMinuteDateAfterNow();
 
         IOperableTrigger trigger1 = new SimpleTriggerImpl("t1", "g1", jobDetail.Key.Name, jobDetail.Key.Group, d.AddSeconds(100), d.AddSeconds(300), 2, TimeSpan.FromSeconds(2));
         IOperableTrigger trigger2 = new SimpleTriggerImpl("t2", "g1", jobDetail.Key.Name, jobDetail.Key.Group, d.AddSeconds(100), d.AddSeconds(300), 2, TimeSpan.FromSeconds(2));
@@ -149,7 +149,7 @@ public class UpdateTriggerDetailsTest
     [Test]
     public async Task CalendarName_ValidatesExistence()
     {
-        DateTimeOffset start = DateBuilder.EvenMinuteDateAfterNow();
+        DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.ComputeFirstFireTimeUtc(null);
         await jobStore.AddTrigger(trigger, false);
@@ -161,7 +161,7 @@ public class UpdateTriggerDetailsTest
     [Test]
     public async Task CalendarName_NullClearsCalendar()
     {
-        DateTimeOffset start = DateBuilder.EvenMinuteDateAfterNow();
+        DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.CalendarName = "myCal";
         trigger.ComputeFirstFireTimeUtc(null);
@@ -178,7 +178,7 @@ public class UpdateTriggerDetailsTest
     [Test]
     public async Task EmptyUpdate_ReturnsTrueForExistingTrigger()
     {
-        DateTimeOffset start = DateBuilder.EvenMinuteDateAfterNow();
+        DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.ComputeFirstFireTimeUtc(null);
         await jobStore.AddTrigger(trigger, false);
@@ -189,7 +189,7 @@ public class UpdateTriggerDetailsTest
     [Test]
     public async Task MultipleProperties_UpdatedAtOnce()
     {
-        DateTimeOffset start = DateBuilder.EvenMinuteDateAfterNow();
+        DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.ComputeFirstFireTimeUtc(null);
         await jobStore.AddTrigger(trigger, false);
@@ -214,7 +214,7 @@ public class UpdateTriggerDetailsTest
     [Test]
     public async Task MisfireInstruction_UpdatedWithoutReschedule()
     {
-        DateTimeOffset start = DateBuilder.EvenMinuteDateAfterNow();
+        DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
         trigger.MisfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
         trigger.ComputeFirstFireTimeUtc(null);

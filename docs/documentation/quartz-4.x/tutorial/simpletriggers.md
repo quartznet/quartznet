@@ -48,7 +48,7 @@ ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger3", "group1")
     .StartAt(myTimeToStartFiring) // if a start time is not given (if this line were omitted), "now" is implied
     .WithSimpleSchedule(x => x
-        .WithIntervalInSeconds(10)
+        .WithInterval(TimeSpan.FromSeconds(10))
         .WithRepeatCount(10)) // note that 10 repeats will give a total of 11 firings
     .ForJob(myJob) // identify job with handle to its JobDetail itself                   
     .Build();
@@ -60,7 +60,7 @@ __Build a trigger that will fire once, five minutes in the future:__
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger5", "group1")
-    .StartAt(DateBuilder.FutureDate(5, IntervalUnit.Minute)) // use DateBuilder to create a date in the future
+    .StartAt(DateTimeOffset.UtcNow.AddMinutes(5))
     .ForJob(myJobKey) // identify job with its JobKey
     .Build();
 ```
@@ -71,9 +71,9 @@ __Build a trigger that will fire now, then repeat every five minutes, until the 
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger7", "group1")
     .WithSimpleSchedule(x => x
-        .WithIntervalInMinutes(5)
+        .WithInterval(TimeSpan.FromMinutes(5))
         .RepeatForever())
-    .EndAt(DateBuilder.DateOf(22, 0, 0))
+    .EndAt(DateBuilder.NewDate().AtHourMinuteAndSecond(22, 0, 0).Build())
     .Build();
 ```
 
@@ -82,9 +82,9 @@ __Build a trigger that will fire at the top of the next hour, then repeat every 
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger8") // because group is not specified, "trigger8" will be in the default group
-    .StartAt(DateBuilder.EvenHourDate(null)) // get the next even-hour (minutes and seconds zero ("00:00"))
+    .StartAt(DateBuilder.NewDate().AtMinute(0).AtSecond(0).Build().AddHours(1)) // the next even hour
     .WithSimpleSchedule(x => x
-        .WithIntervalInHours(2)
+        .WithInterval(TimeSpan.FromHours(2))
         .RepeatForever())
     // note that in this example, 'forJob(..)' is not called 
     //  - which is valid if the trigger is passed to the scheduler along with the job  
@@ -100,19 +100,18 @@ so that you can be familiar with options available to you that may not have been
 
 SimpleTrigger has several instructions that can be used to inform Quartz.NET what it should do when a misfire occurs.
 (Misfire situations were introduced in the [More About Triggers](/documentation/quartz-4.x/tutorial/more-about-triggers.html) section of this tutorial).
-These instructions are defined as constants on `MisfirePolicy.SimpleTrigger` (including API documentation describing their behavior).
-The instructions include:
+The instructions live on the `SimpleTriggerMisfireInstruction` enum (whose API documentation describes each one's behavior):
 
-__Misfire Instruction Constants for SimpleTrigger__
+__Misfire instructions for SimpleTrigger__
 
-* `MisfireInstruction.IgnoreMisfirePolicy`
-* `MisfirePolicy.SimpleTrigger.FireNow`
-* `MisfirePolicy.SimpleTrigger.RescheduleNowWithExistingRepeatCount`
-* `MisfirePolicy.SimpleTrigger.RescheduleNowWithRemainingRepeatCount`
-* `MisfirePolicy.SimpleTrigger.RescheduleNextWithRemainingCount`
-* `MisfirePolicy.SimpleTrigger.RescheduleNextWithExistingCount`
+* `SimpleTriggerMisfireInstruction.IgnoreMisfires`
+* `SimpleTriggerMisfireInstruction.FireNow`
+* `SimpleTriggerMisfireInstruction.NowWithExistingCount`
+* `SimpleTriggerMisfireInstruction.NowWithRemainingCount`
+* `SimpleTriggerMisfireInstruction.NextWithRemainingCount`
+* `SimpleTriggerMisfireInstruction.NextWithExistingCount`
 
-You should recall from the earlier lessons that all triggers have the `MisfirePolicy.SmartPolicy` instruction available for use,
+You should recall from the earlier lessons that all triggers have the `SmartPolicy` instruction available for use,
 and this instruction is also the default for all trigger types.
 
 If the 'smart policy' instruction is used, SimpleTrigger dynamically chooses between its various MISFIRE instructions, based on the configuration
@@ -125,8 +124,8 @@ When building SimpleTriggers, you specify the misfire instruction as part of the
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger7", "group1")
     .WithSimpleSchedule(x => x
-        .WithIntervalInMinutes(5)
+        .WithInterval(TimeSpan.FromMinutes(5))
         .RepeatForever()
-        .WithMisfireHandlingInstructionNextWithExistingCount())
+        .WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.NextWithExistingCount))
     .Build();
 ```

@@ -357,7 +357,7 @@ public class JobStoreSupportTest
             .WithIdentity(triggerKey)
             .ForJob(jobKey)
             .StartNow()
-            .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
             .Build();
 
         IJobDetail job = JobBuilder.Create<ConcurrentTestJob>()
@@ -399,7 +399,7 @@ public class JobStoreSupportTest
             .WithIdentity(triggerKey)
             .ForJob(jobKey)
             .StartNow()
-            .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
             .Build();
 
         A.CallTo(() => driverDelegate.CalendarExists(conn, calendarName, A<CancellationToken>.Ignored))
@@ -441,7 +441,7 @@ public class JobStoreSupportTest
             .WithIdentity(pausedTriggerKey)
             .ForJob(jobKey)
             .StartNow()
-            .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
             .Build();
 
         var waitingTriggerKey = new TriggerKey("waiting", "g1");
@@ -449,7 +449,7 @@ public class JobStoreSupportTest
             .WithIdentity(waitingTriggerKey)
             .ForJob(jobKey)
             .StartNow()
-            .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
             .Build();
 
         IJobDetail job = JobBuilder.Create<ConcurrentTestJob>()
@@ -489,7 +489,7 @@ public class JobStoreSupportTest
             .WithIdentity(name, "g1")
             .ForJob("j1", "jg1")
             .StartNow()
-            .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
             .Build();
         trigger.FireInstanceId = fireInstanceId;
         return trigger;
@@ -525,14 +525,14 @@ public class JobStoreSupportTest
             .WithIdentity(triggerKey)
             .ForJob(jobKey)
             .StartNow()
-            .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
             .Build();
 
         IOperableTrigger existingTrigger = (IOperableTrigger) TriggerBuilder.Create()
             .WithIdentity(triggerKey)
             .ForJob(jobKey)
             .StartNow()
-            .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
             .Build();
         existingTrigger.PreviousFireTimeUtc = previousFireTime;
 
@@ -570,7 +570,7 @@ public class JobStoreSupportTest
             .WithIdentity(triggerKey)
             .ForJob(jobKey)
             .StartNow()
-            .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
             .Build();
         newTrigger.PreviousFireTimeUtc = newPreviousFireTime;
 

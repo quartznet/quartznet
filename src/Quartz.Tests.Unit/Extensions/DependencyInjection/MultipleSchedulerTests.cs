@@ -255,7 +255,7 @@ public sealed class MultipleSchedulerTests
                 trigger => trigger
                     .WithIdentity("scheduledTrigger")
                     .StartNow()
-                    .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).RepeatForever()),
+                    .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).RepeatForever()),
                 job => job.WithIdentity("scheduledJob"));
         });
 

@@ -109,8 +109,8 @@ public class TriggerDstMisfireTests
         {
             Key = new TriggerKey("test", "test"),
             StartTimeUtc = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero),
-            StartTimeOfDay = new TimeOfDay(0, 0, 0),
-            EndTimeOfDay = new TimeOfDay(23, 59, 59),
+            StartTimeOfDay = new TimeOnly(0, 0, 0),
+            EndTimeOfDay = new TimeOnly(23, 59, 59),
             RepeatInterval = 15,
             RepeatIntervalUnit = IntervalUnit.Minute,
             TimeZone = Eastern,

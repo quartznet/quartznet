@@ -55,82 +55,68 @@ namespace Quartz;
 ///             .Build();
 ///
 ///         ITrigger trigger = TriggerBuilder.Create()
-///             .WithIdentity(triggerKey("myTrigger", "myTriggerGroup"))
+///             .WithIdentity("myTrigger", "myTriggerGroup")
 ///             .WithDailyTimeIntervalSchedule(x =>
-///                        x.WithIntervalInMinutes(15)
-///                        .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(8, 0)))
+///                        x.WithInterval(15, IntervalUnit.Minute)
+///                        .StartingDailyAt(new TimeOnly(8, 0)))
 ///             .Build();
 ///
-///         scheduler.scheduleJob(job, trigger);
+///         await scheduler.ScheduleJob(job, trigger);
 /// </code>
 /// </remarks>
 /// <author>James House</author>
 /// <author>Zemian Deng saltnlight5@gmail.com</author>
 /// <author>Nuno Maia (.NET)</author>
-public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTimeIntervalTrigger>
+public sealed class DailyTimeIntervalScheduleBuilder : IScheduleBuilder
 {
     private readonly TimeProvider timeProvider;
 
     private int interval = 1;
     private IntervalUnit intervalUnit = IntervalUnit.Minute;
     private HashSet<DayOfWeek>? daysOfWeek;
-    private TimeOfDay? startTimeOfDayUtc;
-    private TimeOfDay? endTimeOfDayUtc;
+    private TimeOnly? startTimeOfDayUtc;
+    private TimeOnly? endTimeOfDayUtc;
     private int repeatCount = DailyTimeIntervalTriggerImpl.RepeatIndefinitely;
     private TimeZoneInfo? timeZone;
 
     private int misfireInstruction = MisfireInstruction.SmartPolicy;
 
     /// <summary>
-    /// A set of all days of the week.
+    /// Every day, <see cref="DayOfWeek.Sunday"/> through <see cref="DayOfWeek.Saturday"/>.
     /// </summary>
     /// <remarks>
-    /// The set contains all values between <see cref="DayOfWeek.Sunday"/> and <see cref="DayOfWeek.Saturday"/>
+    /// Callers reach this through <see cref="OnEveryDay" />, which is also the builder's default.
     /// </remarks>
-    public static readonly IReadOnlyCollection<DayOfWeek> AllDaysOfTheWeek;
+    internal static readonly IReadOnlySet<DayOfWeek> AllDaysOfTheWeek = new HashSet<DayOfWeek>(Enum.GetValues<DayOfWeek>());
 
     /// <summary>
-    /// A set of the business days of the week (for locales similar to the USA).
+    /// The business days of the week (for locales similar to the USA),
+    /// <see cref="DayOfWeek.Monday"/> through <see cref="DayOfWeek.Friday"/>.
     /// </summary>
     /// <remarks>
-    /// The set contains all values between <see cref="DayOfWeek.Monday"/> and <see cref="DayOfWeek.Friday"/>
+    /// Callers reach this through <see cref="OnMondayThroughFriday" />.
     /// </remarks>
-    public static readonly IReadOnlyCollection<DayOfWeek> MondayThroughFriday;
-
-    /// <summary>
-    /// A set of the weekend days of the week (for locales similar to the USA).
-    /// </summary>
-    /// <remarks>
-    /// The set contains <see cref="DayOfWeek.Saturday"/> and <see cref="DayOfWeek.Sunday"/>
-    /// </remarks>
-    public static readonly IReadOnlyCollection<DayOfWeek> SaturdayAndSunday;
-
-    static DailyTimeIntervalScheduleBuilder()
+    internal static readonly IReadOnlySet<DayOfWeek> MondayThroughFriday = new HashSet<DayOfWeek>
     {
-        var allDaysOfTheWeek = new HashSet<DayOfWeek>();
-        var mondayThroughFriday = new HashSet<DayOfWeek>();
-        foreach (var dayOfWeek in Enum.GetValues<DayOfWeek>())
-        {
-            allDaysOfTheWeek.Add(dayOfWeek);
+        DayOfWeek.Monday,
+        DayOfWeek.Tuesday,
+        DayOfWeek.Wednesday,
+        DayOfWeek.Thursday,
+        DayOfWeek.Friday
+    };
 
-            if (dayOfWeek >= DayOfWeek.Monday && dayOfWeek <= DayOfWeek.Friday)
-            {
-                mondayThroughFriday.Add(dayOfWeek);
-            }
-        }
-
-        SaturdayAndSunday = new HashSet<DayOfWeek>
-        {
-            DayOfWeek.Sunday,
-            DayOfWeek.Saturday
-        };
-
-        AllDaysOfTheWeek = allDaysOfTheWeek;
-        MondayThroughFriday = mondayThroughFriday;
-        AllDaysOfTheWeek = new HashSet<DayOfWeek>(AllDaysOfTheWeek);
-        MondayThroughFriday = new HashSet<DayOfWeek>(MondayThroughFriday);
-        SaturdayAndSunday = new HashSet<DayOfWeek>(SaturdayAndSunday);
-    }
+    /// <summary>
+    /// The weekend days of the week (for locales similar to the USA),
+    /// <see cref="DayOfWeek.Saturday"/> and <see cref="DayOfWeek.Sunday"/>.
+    /// </summary>
+    /// <remarks>
+    /// Callers reach this through <see cref="OnSaturdayAndSunday" />.
+    /// </remarks>
+    internal static readonly IReadOnlySet<DayOfWeek> SaturdayAndSunday = new HashSet<DayOfWeek>
+    {
+        DayOfWeek.Sunday,
+        DayOfWeek.Saturday
+    };
 
     private DailyTimeIntervalScheduleBuilder(TimeProvider timeProvider)
     {
@@ -153,7 +139,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
     /// ScheduleBuilder is given to.
     /// </summary>
     /// <returns></returns>
-    public override IMutableTrigger Build()
+    public IMutableTrigger Build()
     {
         DailyTimeIntervalTriggerImpl st = new DailyTimeIntervalTriggerImpl();
         st.RepeatInterval = interval;
@@ -171,23 +157,8 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
             st.DaysOfWeek = new HashSet<DayOfWeek>(AllDaysOfTheWeek);
         }
 
-        if (startTimeOfDayUtc is not null)
-        {
-            st.StartTimeOfDay = startTimeOfDayUtc;
-        }
-        else
-        {
-            st.StartTimeOfDay = TimeOfDay.HourAndMinuteOfDay(0, 0);
-        }
-
-        if (endTimeOfDayUtc is not null)
-        {
-            st.EndTimeOfDay = endTimeOfDayUtc;
-        }
-        else
-        {
-            st.EndTimeOfDay = TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59);
-        }
+        st.EndTimeOfDay = endTimeOfDayUtc ?? DailyTimeIntervalTriggerImpl.DefaultEndTimeOfDay;
+        st.StartTimeOfDay = startTimeOfDayUtc ?? DailyTimeIntervalTriggerImpl.DefaultStartTimeOfDay;
 
         return st;
     }
@@ -217,54 +188,12 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
     }
 
     /// <summary>
-    /// Specify an interval in the IntervalUnit.Second that the produced
-    /// Trigger will repeat at.
-    /// </summary>
-    /// <param name="intervalInSeconds">The number of seconds at which the trigger should repeat.</param>
-    /// <returns>the updated DailyTimeIntervalScheduleBuilder></returns>
-    /// <see cref="IDailyTimeIntervalTrigger.RepeatInterval"/>
-    /// <see cref="IDailyTimeIntervalTrigger.RepeatIntervalUnit"/>
-    public DailyTimeIntervalScheduleBuilder WithIntervalInSeconds(int intervalInSeconds)
-    {
-        WithInterval(intervalInSeconds, IntervalUnit.Second);
-        return this;
-    }
-
-    /// <summary>
-    /// Specify an interval in the IntervalUnit.Minute that the produced
-    /// Trigger will repeat at.
-    /// </summary>
-    /// <param name="intervalInMinutes">The number of minutes at which the trigger should repeat.</param>
-    /// <returns>the updated DailyTimeIntervalScheduleBuilder></returns>
-    /// <see cref="IDailyTimeIntervalTrigger.RepeatInterval"/>
-    /// <see cref="IDailyTimeIntervalTrigger.RepeatIntervalUnit"/>
-    public DailyTimeIntervalScheduleBuilder WithIntervalInMinutes(int intervalInMinutes)
-    {
-        WithInterval(intervalInMinutes, IntervalUnit.Minute);
-        return this;
-    }
-
-    /// <summary>
-    /// Specify an interval in the IntervalUnit.Hour that the produced
-    /// Trigger will repeat at.
-    /// </summary>
-    /// <param name="intervalInHours">The number of hours at which the trigger should repeat.</param>
-    /// <returns>the updated DailyTimeIntervalScheduleBuilder></returns>
-    /// <see cref="IDailyTimeIntervalTrigger.RepeatInterval"/>
-    /// <see cref="IDailyTimeIntervalTrigger.RepeatIntervalUnit"/>
-    public DailyTimeIntervalScheduleBuilder WithIntervalInHours(int intervalInHours)
-    {
-        WithInterval(intervalInHours, IntervalUnit.Hour);
-        return this;
-    }
-
-    /// <summary>
     /// Set the trigger to fire on the given days of the week.
     /// </summary>
-    /// <param name="onDaysOfWeek">a Set containing the integers representing the days of the week, defined by <see cref="DayOfWeek.Sunday"/> - <see cref="DayOfWeek.Saturday"/>.
-    /// </param>
+    /// <param name="onDaysOfWeek">the days of the week to fire on; pass them as separate arguments
+    /// or as any collection.</param>
     /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
-    public DailyTimeIntervalScheduleBuilder OnDaysOfTheWeek(IReadOnlyCollection<DayOfWeek> onDaysOfWeek)
+    public DailyTimeIntervalScheduleBuilder OnDaysOfTheWeek(params IReadOnlyCollection<DayOfWeek> onDaysOfWeek)
     {
         if (onDaysOfWeek is null || onDaysOfWeek.Count == 0)
         {
@@ -281,16 +210,6 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
 
         daysOfWeek = new HashSet<DayOfWeek>(onDaysOfWeek);
         return this;
-    }
-
-    /// <summary>
-    /// Set the trigger to fire on the given days of the week.
-    /// </summary>
-    /// <param name="onDaysOfWeek">a variable length list of week days representing the days of the week</param>
-    /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
-    public DailyTimeIntervalScheduleBuilder OnDaysOfTheWeek(params DayOfWeek[] onDaysOfWeek)
-    {
-        return OnDaysOfTheWeek((IReadOnlyCollection<DayOfWeek>) onDaysOfWeek);
     }
 
     /// <summary>
@@ -324,27 +243,31 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
     }
 
     /// <summary>
-    /// The TimeOfDay for this trigger to start firing each day.
+    /// The time of day for this trigger to start firing each day. Defaults to <c>00:00:00</c>.
     /// </summary>
-    /// <param name="timeOfDayUtc"></param>
+    /// <param name="timeOfDayUtc">the time of day, with one-second resolution.</param>
     /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
-    public DailyTimeIntervalScheduleBuilder StartingDailyAt(TimeOfDay timeOfDayUtc)
+    /// <exception cref="ArgumentException">
+    /// <paramref name="timeOfDayUtc" /> carries precision finer than a whole second.
+    /// </exception>
+    public DailyTimeIntervalScheduleBuilder StartingDailyAt(TimeOnly timeOfDayUtc)
     {
-        if (timeOfDayUtc is null)
-        {
-            Throw.ArgumentException("Start time of day cannot be null!", nameof(timeOfDayUtc));
-        }
+        TimeOnlyExtensions.ValidateWholeSeconds(timeOfDayUtc, nameof(timeOfDayUtc));
         startTimeOfDayUtc = timeOfDayUtc;
         return this;
     }
 
     /// <summary>
-    /// The TimeOfDay for this trigger to end firing each day.
+    /// The time of day for this trigger to end firing each day. Defaults to <c>23:59:59</c>.
     /// </summary>
-    /// <param name="timeOfDayUtc"></param>
+    /// <param name="timeOfDayUtc">the time of day, with one-second resolution.</param>
     /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
-    public DailyTimeIntervalScheduleBuilder EndingDailyAt(TimeOfDay timeOfDayUtc)
+    /// <exception cref="ArgumentException">
+    /// <paramref name="timeOfDayUtc" /> carries precision finer than a whole second.
+    /// </exception>
+    public DailyTimeIntervalScheduleBuilder EndingDailyAt(TimeOnly timeOfDayUtc)
     {
+        TimeOnlyExtensions.ValidateWholeSeconds(timeOfDayUtc, nameof(timeOfDayUtc));
         endTimeOfDayUtc = timeOfDayUtc;
         return this;
     }
@@ -368,7 +291,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
         }
 
         DateTimeOffset today = timeProvider.GetUtcNow();
-        DateTimeOffset startTimeOfDayDate = startTimeOfDayUtc.GetTimeOfDayForDate(today);
+        DateTimeOffset startTimeOfDayDate = startTimeOfDayUtc.Value.OnDate(today);
         DateTimeOffset tomorrow = startTimeOfDayDate.AddDays(1).UtcDateTime.Date;
 
         //apply proper offsets according to timezone
@@ -417,43 +340,20 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
 
         DateTime date = timeProvider.GetUtcNow().Date;
         date = date.Add(endTimeOfDayDate.TimeOfDay);
-        endTimeOfDayUtc = TimeOfDay.HourMinuteAndSecondOfDay(date.Hour, date.Minute, date.Second);
+        endTimeOfDayUtc = new TimeOnly(date.Hour, date.Minute, date.Second);
         return this;
     }
 
     /// <summary>
-    /// If the Trigger misfires, use the
-    /// <see cref="MisfireInstruction.IgnoreMisfirePolicy"/> instruction.
+    /// Say what the trigger should do when it misses a firing.
     /// </summary>
+    /// <param name="instruction">the policy to apply; defaults to
+    /// <see cref="DailyTimeIntervalTriggerMisfireInstruction.SmartPolicy" />.</param>
     /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
-    /// <seealso cref="MisfireInstruction.IgnoreMisfirePolicy"/>
-    public DailyTimeIntervalScheduleBuilder WithMisfireHandlingInstructionIgnoreMisfires()
+    /// <seealso cref="DailyTimeIntervalTriggerMisfireInstruction" />
+    public DailyTimeIntervalScheduleBuilder WithMisfireHandlingInstruction(DailyTimeIntervalTriggerMisfireInstruction instruction)
     {
-        misfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
-        return this;
-    }
-
-    /// <summary>
-    /// If the Trigger misfires, use the
-    /// <see cref="MisfireInstruction.DailyTimeIntervalTrigger.DoNothing"/> instruction.
-    /// </summary>
-    /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
-    /// <seealso cref="MisfireInstruction.DailyTimeIntervalTrigger.DoNothing"/>
-    public DailyTimeIntervalScheduleBuilder WithMisfireHandlingInstructionDoNothing()
-    {
-        misfireInstruction = MisfireInstruction.DailyTimeIntervalTrigger.DoNothing;
-        return this;
-    }
-
-    /// <summary>
-    /// If the Trigger misfires, use the
-    /// <see cref="MisfireInstruction.DailyTimeIntervalTrigger.FireOnceNow"/> instruction.
-    /// </summary>
-    /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
-    /// <seealso cref="MisfireInstruction.DailyTimeIntervalTrigger.FireOnceNow"/>
-    public DailyTimeIntervalScheduleBuilder WithMisfireHandlingInstructionFireAndProceed()
-    {
-        misfireInstruction = MisfireInstruction.DailyTimeIntervalTrigger.FireOnceNow;
+        misfireInstruction = (int) instruction;
         return this;
     }
 
@@ -475,10 +375,11 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
     /// <summary>
     /// TimeZone in which to base the schedule.
     /// </summary>
-    /// <param name="timeZone">the time-zone for the schedule</param>
-    /// <returns>the updated CalendarIntervalScheduleBuilder</returns>
-    /// <seealso cref="ICalendarIntervalTrigger.TimeZone" />
-    public DailyTimeIntervalScheduleBuilder InTimeZone(TimeZoneInfo timeZone)
+    /// <param name="timeZone">the time-zone for the schedule; <see langword="null" /> means the
+    /// system's local time zone.</param>
+    /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
+    /// <seealso cref="IDailyTimeIntervalTrigger.TimeZone" />
+    public DailyTimeIntervalScheduleBuilder InTimeZone(TimeZoneInfo? timeZone)
     {
         this.timeZone = timeZone;
         return this;
@@ -491,47 +392,5 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
         {
             Throw.ArgumentException("Interval must be a positive value.");
         }
-    }
-}
-
-/// <summary>
-/// Extension methods that attach <see cref="DailyTimeIntervalScheduleBuilder" /> to <see cref="TriggerBuilder" />.
-/// </summary>
-public static class DailyTimeIntervalTriggerBuilderExtensions
-{
-    public static TriggerBuilder<TJob> WithDailyTimeIntervalSchedule<TJob>(this TriggerBuilder<TJob> triggerBuilder) where TJob : IJob
-    {
-        DailyTimeIntervalScheduleBuilder builder = DailyTimeIntervalScheduleBuilder.Create();
-        return triggerBuilder.WithSchedule(builder);
-    }
-
-    public static TriggerBuilder<TJob> WithDailyTimeIntervalSchedule<TJob>(this TriggerBuilder<TJob> triggerBuilder, Action<DailyTimeIntervalScheduleBuilder> action) where TJob : IJob
-    {
-        DailyTimeIntervalScheduleBuilder builder = DailyTimeIntervalScheduleBuilder.Create();
-        action(builder);
-        return triggerBuilder.WithSchedule(builder);
-    }
-
-    public static TriggerBuilder<TJob> WithDailyTimeIntervalSchedule<TJob>(this TriggerBuilder<TJob> triggerBuilder, DailyTimeIntervalScheduleBuilder schedule) where TJob : IJob
-    {
-        return triggerBuilder.WithSchedule(schedule);
-    }
-
-    /// <summary>
-    /// Sets up a trigger schedule for one or more occurrences every day.
-    /// </summary>
-    /// <param name="triggerBuilder">The trigger builder.</param>
-    /// <param name="interval">The interval count to configure on the builder initially, e.g. 12*hours</param>
-    /// <param name="intervalUnit">The unit for the interval count.</param>
-    /// <param name="action">Ability to further configure the scheduling.</param>
-    public static TriggerBuilder<TJob> WithDailyTimeIntervalSchedule<TJob>(
-        this TriggerBuilder<TJob> triggerBuilder,
-        int interval,
-        IntervalUnit intervalUnit,
-        Action<DailyTimeIntervalScheduleBuilder>? action = null) where TJob : IJob
-    {
-        DailyTimeIntervalScheduleBuilder builder = DailyTimeIntervalScheduleBuilder.Create().WithInterval(interval, intervalUnit);
-        action?.Invoke(builder);
-        return triggerBuilder.WithSchedule(builder);
     }
 }

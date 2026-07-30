@@ -26,7 +26,7 @@ namespace Quartz;
 /// </remarks>
 /// <seealso cref="IRecurrenceTrigger"/>
 /// <seealso cref="TriggerBuilder"/>
-public sealed class RecurrenceScheduleBuilder : ScheduleBuilder<IRecurrenceTrigger>
+public sealed class RecurrenceScheduleBuilder : IScheduleBuilder
 {
     private string recurrenceRule;
     private int misfireInstruction = MisfireInstruction.SmartPolicy;
@@ -58,7 +58,7 @@ public sealed class RecurrenceScheduleBuilder : ScheduleBuilder<IRecurrenceTrigg
     /// but will rather be invoked by a <see cref="TriggerBuilder"/> which this
     /// <see cref="IScheduleBuilder"/> is given to.
     /// </summary>
-    public override IMutableTrigger Build()
+    public IMutableTrigger Build()
     {
         RecurrenceTriggerImpl trigger = new RecurrenceTriggerImpl();
         trigger.RecurrenceRule = recurrenceRule;
@@ -70,6 +70,8 @@ public sealed class RecurrenceScheduleBuilder : ScheduleBuilder<IRecurrenceTrigg
     /// <summary>
     /// Set the time zone for recurrence calculations.
     /// </summary>
+    /// <param name="timeZone">the time-zone for the schedule; <see langword="null" /> means the
+    /// system's local time zone.</param>
     public RecurrenceScheduleBuilder InTimeZone(TimeZoneInfo? timeZone)
     {
         this.timeZone = timeZone;
@@ -77,89 +79,15 @@ public sealed class RecurrenceScheduleBuilder : ScheduleBuilder<IRecurrenceTrigg
     }
 
     /// <summary>
-    /// If the trigger misfires, instruct the scheduler to ignore all misfire policies
-    /// and fire the trigger immediately.
+    /// Say what the trigger should do when it misses a firing.
     /// </summary>
-    public RecurrenceScheduleBuilder WithMisfireHandlingInstructionIgnoreMisfires()
+    /// <param name="instruction">the policy to apply; defaults to
+    /// <see cref="RecurrenceTriggerMisfireInstruction.SmartPolicy" />.</param>
+    /// <returns>the updated RecurrenceScheduleBuilder</returns>
+    /// <seealso cref="RecurrenceTriggerMisfireInstruction" />
+    public RecurrenceScheduleBuilder WithMisfireHandlingInstruction(RecurrenceTriggerMisfireInstruction instruction)
     {
-        misfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
+        misfireInstruction = (int) instruction;
         return this;
-    }
-
-    /// <summary>
-    /// If the trigger misfires, instruct the scheduler to fire the trigger now.
-    /// </summary>
-    public RecurrenceScheduleBuilder WithMisfireHandlingInstructionFireAndProceed()
-    {
-        misfireInstruction = MisfireInstruction.RecurrenceTrigger.FireOnceNow;
-        return this;
-    }
-
-    /// <summary>
-    /// If the trigger misfires, instruct the scheduler to not fire the trigger now
-    /// and instead wait for the next scheduled fire time.
-    /// </summary>
-    public RecurrenceScheduleBuilder WithMisfireHandlingInstructionDoNothing()
-    {
-        misfireInstruction = MisfireInstruction.RecurrenceTrigger.DoNothing;
-        return this;
-    }
-
-    /// <summary>
-    /// Set the misfire handling instruction directly.
-    /// </summary>
-    internal RecurrenceScheduleBuilder WithMisfireHandlingInstruction(int instruction)
-    {
-        misfireInstruction = instruction;
-        return this;
-    }
-}
-
-/// <summary>
-/// Extension methods for building recurrence schedule triggers via <see cref="TriggerBuilder"/>.
-/// </summary>
-public static class RecurrenceTriggerBuilderExtensions
-{
-    /// <summary>
-    /// Set the trigger to use an RFC 5545 RRULE-based schedule.
-    /// </summary>
-    /// <param name="triggerBuilder">The trigger builder.</param>
-    /// <param name="recurrenceRule">
-    /// An RFC 5545 RRULE string, e.g. "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR".
-    /// </param>
-    public static TriggerBuilder<TJob> WithRecurrenceSchedule<TJob>(
-        this TriggerBuilder<TJob> triggerBuilder,
-        string recurrenceRule) where TJob : IJob
-    {
-        RecurrenceScheduleBuilder builder = RecurrenceScheduleBuilder.Create(recurrenceRule);
-        return triggerBuilder.WithSchedule(builder);
-    }
-
-    /// <summary>
-    /// Set the trigger to use an RFC 5545 RRULE-based schedule with additional configuration.
-    /// </summary>
-    /// <param name="triggerBuilder">The trigger builder.</param>
-    /// <param name="recurrenceRule">
-    /// An RFC 5545 RRULE string, e.g. "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR".
-    /// </param>
-    /// <param name="action">Action to further configure the schedule builder.</param>
-    public static TriggerBuilder<TJob> WithRecurrenceSchedule<TJob>(
-        this TriggerBuilder<TJob> triggerBuilder,
-        string recurrenceRule,
-        Action<RecurrenceScheduleBuilder> action) where TJob : IJob
-    {
-        RecurrenceScheduleBuilder builder = RecurrenceScheduleBuilder.Create(recurrenceRule);
-        action(builder);
-        return triggerBuilder.WithSchedule(builder);
-    }
-
-    /// <summary>
-    /// Set the trigger to use the given RFC 5545 RRULE-based schedule.
-    /// </summary>
-    public static TriggerBuilder<TJob> WithRecurrenceSchedule<TJob>(
-        this TriggerBuilder<TJob> triggerBuilder,
-        RecurrenceScheduleBuilder schedule) where TJob : IJob
-    {
-        return triggerBuilder.WithSchedule(schedule);
     }
 }

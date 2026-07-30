@@ -46,17 +46,17 @@ public class MonthlyCalendarTest : SerializationTestSupport<MonthlyCalendar, ICa
     [Test]
     public void TestAddAndRemoveExclusion()
     {
-        calendar.SetDayExcluded(15, true);
-        Assert.That(calendar.IsDayExcluded(15), Is.True);
-        calendar.SetDayExcluded(15, false);
-        Assert.That(calendar.IsDayExcluded(15), Is.False);
+        calendar.AddExcludedDay(15).Should().BeTrue();
+        calendar.IsDayExcluded(15).Should().BeTrue();
+        calendar.RemoveExcludedDay(15).Should().BeTrue();
+        calendar.IsDayExcluded(15).Should().BeFalse();
     }
 
     [Test]
     public void TestMonthDayExclusion()
     {
         DateTime excluded = new DateTime(2007, 8, 3);
-        calendar.SetDayExcluded(3, true);
+        calendar.AddExcludedDay(3);
         Assert.That(calendar.GetNextIncludedTimeUtc(excluded).DateTime, Is.EqualTo(excluded.AddDays(1)));
     }
 
@@ -67,7 +67,7 @@ public class MonthlyCalendarTest : SerializationTestSupport<MonthlyCalendar, ICa
 
         for (int i = 1; i < 9; i++)
         {
-            monthlyCalendar.SetDayExcluded(i, true);
+            monthlyCalendar.AddExcludedDay(i);
         }
 
         DateTime d = new DateTime(2007, 11, 8, 12, 0, 0);
@@ -82,7 +82,7 @@ public class MonthlyCalendarTest : SerializationTestSupport<MonthlyCalendar, ICa
         MonthlyCalendar monthlyCalendar = new MonthlyCalendar();
         monthlyCalendar.TimeZone = tz;
 
-        monthlyCalendar.SetDayExcluded(4, true);
+        monthlyCalendar.AddExcludedDay(4);
 
         // 11/5/2012 12:00:00 AM -04:00  translate into 11/4/2012 11:00:00 PM -05:00 (EST)
         DateTimeOffset date = new DateTimeOffset(2012, 11, 5, 0, 0, 0, TimeSpan.FromHours(-4));
@@ -99,7 +99,7 @@ public class MonthlyCalendarTest : SerializationTestSupport<MonthlyCalendar, ICa
     {
         MonthlyCalendar c = new MonthlyCalendar();
         c.Description = "description";
-        c.SetDayExcluded(4, true);
+        c.AddExcludedDay(4);
         return c;
     }
 
@@ -109,7 +109,7 @@ public class MonthlyCalendarTest : SerializationTestSupport<MonthlyCalendar, ICa
         {
             Assert.That(deserialized, Is.Not.Null);
             Assert.That(deserialized.Description, Is.EqualTo(original.Description));
-            Assert.That(deserialized.DaysExcluded, Is.EqualTo(original.DaysExcluded));
+            Assert.That(deserialized.DaysExcluded, Is.EquivalentTo(original.DaysExcluded));
             Assert.That(deserialized.TimeZone, Is.EqualTo(original.TimeZone));
         });
     }

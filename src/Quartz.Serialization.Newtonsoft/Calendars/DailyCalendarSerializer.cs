@@ -3,6 +3,7 @@ using Newtonsoft.Json.Linq;
 
 using Quartz.Impl.Calendar;
 using Quartz.Serialization.Newtonsoft;
+using Quartz.Util;
 
 namespace Quartz.Calendars;
 
@@ -10,9 +11,8 @@ internal sealed class DailyCalendarSerializer : CalendarSerializer<DailyCalendar
 {
     protected override DailyCalendar Create(JObject source)
     {
-        var rangeStartingTime = source["RangeStartingTime"]!.Value<string>()!;
-        var rangeEndingTime = source["RangeEndingTime"]!.Value<string>()!;
-        return new DailyCalendar(null, rangeStartingTime, rangeEndingTime);
+        var (start, end) = source.GetDailyCalendarRange();
+        return new DailyCalendar(start, end);
     }
 
     protected override void SerializeFields(JsonWriter writer, DailyCalendar calendar)
@@ -20,11 +20,8 @@ internal sealed class DailyCalendarSerializer : CalendarSerializer<DailyCalendar
         writer.WritePropertyName("InvertTimeRange");
         writer.WriteValue(calendar.InvertTimeRange);
 
-        writer.WritePropertyName("RangeStartingTime");
-        writer.WriteValue(calendar.RangeStartingTime);
-
-        writer.WritePropertyName("RangeEndingTime");
-        writer.WriteValue(calendar.RangeEndingTime);
+        writer.WriteTimeOnly("RangeStart", calendar.TimeRange.Start);
+        writer.WriteTimeOnly("RangeEnd", calendar.TimeRange.End);
     }
 
     protected override void DeserializeFields(DailyCalendar calendar, JObject source)

@@ -257,9 +257,44 @@ public class JobDataMapTest : SerializationTestSupport<JobDataMap>
     }
 
     [Test]
+    public void GetDecimal_ReadsBackWhatTheMapWasGiven()
+    {
+        JobDataMap map = new JobDataMap
+        {
+            { "boxed", 12.34m },
+            { "text", "56.78" },
+            { "int", 9 }
+        };
+
+        map.GetDecimal("boxed").Should().Be(12.34m);
+        map.GetDecimal("text").Should().Be(56.78m, "a decimal written through PutAsString has to come back");
+        map.GetDecimal("int").Should().Be(9m);
+    }
+
+    [Test]
+    public void TryGetDecimal_ReportsFailureInsteadOfThrowing()
+    {
+        JobDataMap map = new JobDataMap { { "text", "not a number" } };
+
+        map.TryGetDecimal("text", out decimal value).Should().BeFalse();
+        value.Should().Be(0m);
+
+        map.TryGetDecimal("missing", out value).Should().BeFalse();
+    }
+
+    [Test]
+    public void GetDecimal_ThrowsWhenTheValueIsNotADecimal()
+    {
+        JobDataMap map = new JobDataMap { { "text", "not a number" } };
+
+        Action act = () => map.GetDecimal("text");
+        act.Should().Throw<InvalidCastException>();
+    }
+
+    [Test]
     public void CanKeepDirtyFlagWhenSerializing()
     {
-        IDictionary dictionary = new Dictionary<string, object>();
+        Dictionary<string, object> dictionary = new Dictionary<string, object>();
         dictionary.Add("key", "value");
 
         new JobDataMap(dictionary).Dirty.Should().BeFalse();

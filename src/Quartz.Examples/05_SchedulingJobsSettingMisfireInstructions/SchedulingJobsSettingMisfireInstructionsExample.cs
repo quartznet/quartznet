@@ -65,7 +65,7 @@ public class SchedulingJobsSettingMisfireInstructionsExample : IExample
 
         // get a "nice round" time a few seconds in the future...
 
-        DateTimeOffset startTime = DateBuilder.NextGivenSecondDate(null, 15);
+        DateTimeOffset startTime = DateTimeOffset.UtcNow.AddSeconds(15);
 
         // statefulJob1 will run every three seconds
         // (but it will delay for ten seconds)
@@ -77,7 +77,7 @@ public class SchedulingJobsSettingMisfireInstructionsExample : IExample
         ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
             .WithIdentity("trigger1", "group1")
             .StartAt(startTime)
-            .WithSimpleSchedule(x => x.WithIntervalInSeconds(3).RepeatForever())
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(3)).RepeatForever())
             .Build();
 
         DateTimeOffset ft = await scheduler.ScheduleJob(job, trigger);
@@ -94,9 +94,9 @@ public class SchedulingJobsSettingMisfireInstructionsExample : IExample
             .WithIdentity("trigger2", "group1")
             .StartAt(startTime)
             .WithSimpleSchedule(x => x
-                .WithIntervalInSeconds(3)
+                .WithInterval(TimeSpan.FromSeconds(3))
                 .RepeatForever()
-                .WithMisfireHandlingInstructionNowWithExistingCount()) // set misfire instructions
+                .WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.NowWithExistingCount)) // set misfire instructions
             .Build();
         ft = await scheduler.ScheduleJob(job, trigger);
 

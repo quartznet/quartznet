@@ -101,7 +101,7 @@ public class RecurrenceTriggerImplTest
 
         // Exclude Jan 2 via AnnualCalendar
         AnnualCalendar calendar = new AnnualCalendar();
-        calendar.SetDayExcluded(new DateTime(2025, 1, 2), true);
+        calendar.AddExcludedDay(new DateOnly(2025, 1, 2));
 
         trigger.ComputeFirstFireTimeUtc(calendar);
         // First fire = Jan 1
@@ -232,7 +232,7 @@ public class RecurrenceTriggerImplTest
             .WithIdentity("test", "group")
             .WithRecurrenceSchedule("FREQ=MONTHLY;BYDAY=2MO", b => b
                 .InTimeZone(TimeZoneInfo.Utc)
-                .WithMisfireHandlingInstructionDoNothing())
+                .WithMisfireHandlingInstruction(RecurrenceTriggerMisfireInstruction.DoNothing))
             .StartAt(new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero))
             .Build();
 

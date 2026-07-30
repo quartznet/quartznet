@@ -26,9 +26,9 @@ namespace Quartz;
 /// ITrigger trigger = TriggerBuilder.Create()
 ///     .WithIdentity("myTrigger", "myTriggerGroup")
 ///     .WithSimpleSchedule(x => x
-///         .WithIntervalInHours(1)
+///         .WithInterval(TimeSpan.FromHours(1))
 ///         .RepeatForever())
-///     .StartAt(DateBuilder.FutureDate(10, IntervalUnit.Minute))
+///     .StartAt(DateTimeOffset.UtcNow.AddMinutes(10))
 ///     .Build();
 /// scheduler.scheduleJob(job, trigger);
 /// </code>

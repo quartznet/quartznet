@@ -47,16 +47,16 @@ public class ExcludeTimePeriodsUsingCalendarsExample : IExample
         AnnualCalendar holidays = new AnnualCalendar();
 
         // fourth of July (July 4)
-        DateTime fourthOfJuly = new DateTime(DateTime.UtcNow.Year, 7, 4);
-        holidays.SetDayExcluded(fourthOfJuly, true);
+        DateOnly fourthOfJuly = new DateOnly(DateTime.UtcNow.Year, 7, 4);
+        holidays.AddExcludedDay(fourthOfJuly);
 
         // halloween (Oct 31)
-        DateTime halloween = new DateTime(DateTime.UtcNow.Year, 10, 31);
-        holidays.SetDayExcluded(halloween, true);
+        DateOnly halloween = new DateOnly(DateTime.UtcNow.Year, 10, 31);
+        holidays.AddExcludedDay(halloween);
 
         // christmas (Dec 25)
-        DateTime christmas = new DateTime(DateTime.UtcNow.Year, 12, 25);
-        holidays.SetDayExcluded(christmas, true);
+        DateOnly christmas = new DateOnly(DateTime.UtcNow.Year, 12, 25);
+        holidays.AddExcludedDay(christmas);
 
         // tell the schedule about our holiday calendar
         await scheduler.AddCalendar("holidays", holidays);
@@ -64,7 +64,7 @@ public class ExcludeTimePeriodsUsingCalendarsExample : IExample
         // schedule a job to run hourly, starting on halloween
         // at 10 am
 
-        DateTimeOffset runDate = DateBuilder.DateOf(0, 0, 10, 31, 10);
+        DateTimeOffset runDate = DateBuilder.NewDate().InMonthOnDay(10, 31).AtHourMinuteAndSecond(0, 0, 10).Build();
 
         IJobDetail job = JobBuilder.Create<SimpleJob>()
             .WithIdentity("job1", "group1")
@@ -73,8 +73,8 @@ public class ExcludeTimePeriodsUsingCalendarsExample : IExample
         ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
             .WithIdentity("trigger1", "group1")
             .StartAt(runDate)
-            .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
-            .ModifiedByCalendar("holidays")
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
+            .WithCalendarName("holidays")
             .Build();
 
         // schedule the job and print the first run date

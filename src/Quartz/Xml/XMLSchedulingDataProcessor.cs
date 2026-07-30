@@ -455,7 +455,7 @@ public class XMLSchedulingDataProcessor
 
                 if (!string.IsNullOrWhiteSpace(simpleTrigger.misfireinstruction))
                 {
-                    ((SimpleScheduleBuilder) scheduleBuilder).WithMisfireHandlingInstruction(ReadMisfireInstructionFromString(simpleTrigger.misfireinstruction));
+                    ((SimpleScheduleBuilder) scheduleBuilder).WithMisfireHandlingInstruction((SimpleTriggerMisfireInstruction) ReadMisfireInstructionFromString(simpleTrigger.misfireinstruction));
                 }
             }
             else if (triggerNode.Item is cronTriggerType cronTrigger)
@@ -465,11 +465,11 @@ public class XMLSchedulingDataProcessor
 
                 TimeZoneInfo? tz = timezoneString is not null ? TimeZoneUtil.FindTimeZoneById(timezoneString) : null;
                 scheduleBuilder = CronScheduleBuilder.CronSchedule(cronExpression!)
-                    .InTimeZone(tz!);
+                    .InTimeZone(tz);
 
                 if (!string.IsNullOrWhiteSpace(cronTrigger.misfireinstruction))
                 {
-                    ((CronScheduleBuilder) scheduleBuilder).WithMisfireHandlingInstruction(ReadMisfireInstructionFromString(cronTrigger.misfireinstruction));
+                    ((CronScheduleBuilder) scheduleBuilder).WithMisfireHandlingInstruction((CronTriggerMisfireInstruction) ReadMisfireInstructionFromString(cronTrigger.misfireinstruction));
                 }
             }
             else if (triggerNode.Item is calendarIntervalTriggerType)
@@ -485,7 +485,7 @@ public class XMLSchedulingDataProcessor
 
                 if (!string.IsNullOrWhiteSpace(calendarIntervalTrigger.misfireinstruction))
                 {
-                    ((CalendarIntervalScheduleBuilder) scheduleBuilder).WithMisfireHandlingInstruction(ReadMisfireInstructionFromString(calendarIntervalTrigger.misfireinstruction));
+                    ((CalendarIntervalScheduleBuilder) scheduleBuilder).WithMisfireHandlingInstruction((CalendarIntervalTriggerMisfireInstruction) ReadMisfireInstructionFromString(calendarIntervalTrigger.misfireinstruction));
                 }
             }
             else
@@ -501,7 +501,7 @@ public class XMLSchedulingDataProcessor
                 .StartAt(triggerStartTime)
                 .EndAt(triggerEndTime)
                 .WithPriority(triggerPriority)
-                .ModifiedByCalendar(triggerCalendarRef)
+                .WithCalendarName(triggerCalendarRef)
                 .WithSchedule(scheduleBuilder)
                 .Build();
 

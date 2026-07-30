@@ -43,7 +43,7 @@ public class JobParametersAndJobsStateMaintenanceExample : IExample
         Console.WriteLine("------- Scheduling Jobs ----------------");
 
         // get a "nice round" time a few seconds in the future....
-        DateTimeOffset startTime = DateBuilder.NextGivenSecondDate(null, 10);
+        DateTimeOffset startTime = DateTimeOffset.UtcNow.AddSeconds(10);
 
         // job1 will only run 5 times (at start time, plus 4 repeats), every 10 seconds
         IJobDetail job1 = JobBuilder.Create<ColorJob>()
@@ -53,7 +53,7 @@ public class JobParametersAndJobsStateMaintenanceExample : IExample
         ISimpleTrigger trigger1 = (ISimpleTrigger) TriggerBuilder.Create()
             .WithIdentity("trigger1", "group1")
             .StartAt(startTime)
-            .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).WithRepeatCount(4))
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).WithRepeatCount(4))
             .Build();
 
         // pass initialization parameters into the job
@@ -73,7 +73,7 @@ public class JobParametersAndJobsStateMaintenanceExample : IExample
         ISimpleTrigger trigger2 = (ISimpleTrigger) TriggerBuilder.Create()
             .WithIdentity("trigger2", "group1")
             .StartAt(startTime)
-            .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).WithRepeatCount(4))
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).WithRepeatCount(4))
             .Build();
 
         // pass initialization parameters into the job

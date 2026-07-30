@@ -107,7 +107,7 @@ public abstract class AbstractSchedulerTest
             .StartNow()
             .WithSimpleSchedule(x => x
                 .RepeatForever()
-                .WithIntervalInSeconds(5))
+                .WithInterval(TimeSpan.FromSeconds(5)))
             .Build();
 
         Assert.That(await scheduler.CheckExists(new TriggerKey("t1")), Is.False, "Unexpected existence of trigger named '11'.");
@@ -134,7 +134,7 @@ public abstract class AbstractSchedulerTest
             .StartNow()
             .WithSimpleSchedule(x => x
                 .RepeatForever()
-                .WithIntervalInSeconds(5))
+                .WithInterval(TimeSpan.FromSeconds(5)))
             .Build();
 
         await scheduler.ScheduleJob(job, trigger);
@@ -149,7 +149,7 @@ public abstract class AbstractSchedulerTest
             .StartNow()
             .WithSimpleSchedule(x => x
                 .RepeatForever()
-                .WithIntervalInSeconds(5))
+                .WithInterval(TimeSpan.FromSeconds(5)))
             .Build();
 
         await scheduler.ScheduleJob(job, trigger);
@@ -197,7 +197,7 @@ public abstract class AbstractSchedulerTest
             .WithIdentity("t4", "g1")
             .ForJob(job)
             .StartNow()
-            .WithSimpleSchedule(x => x.RepeatForever().WithIntervalInSeconds(5))
+            .WithSimpleSchedule(x => x.RepeatForever().WithInterval(TimeSpan.FromSeconds(5)))
             .Build();
 
         await scheduler.ScheduleJob(job, trigger);
@@ -258,7 +258,7 @@ public abstract class AbstractSchedulerTest
             .StartNow()
             .WithSimpleSchedule(x => x
                 .RepeatForever()
-                .WithIntervalInSeconds(5))
+                .WithInterval(TimeSpan.FromSeconds(5)))
             .Build();
 
         await scheduler.ScheduleJob(job, trigger);
@@ -444,12 +444,12 @@ public abstract class AbstractSchedulerTest
         ITrigger trigger1 = TriggerBuilder.Create()
             .WithIdentity("trigger1", "group1")
             .StartNow()
-            .WithSimpleSchedule(x => x.WithIntervalInSeconds(1).RepeatForever())
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(1)).RepeatForever())
             .Build();
         ITrigger trigger2 = TriggerBuilder.Create()
             .WithIdentity("trigger2", "group1")
             .StartNow()
-            .WithSimpleSchedule(x => x.WithIntervalInSeconds(1).RepeatForever())
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(1)).RepeatForever())
             .Build();
 
         var triggersForJob = new List<ITrigger>();

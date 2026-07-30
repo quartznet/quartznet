@@ -32,7 +32,7 @@ builder.Services.AddQuartz("FastScheduler", q =>
 
     q.ScheduleJob<NotificationJob>(trigger => trigger
         .WithIdentity("notify-trigger")
-        .WithSimpleSchedule(x => x.WithIntervalInSeconds(30).RepeatForever()));
+        .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(30)).RepeatForever()));
 });
 
 // Second scheduler: persistent database jobs
@@ -73,7 +73,7 @@ builder.Services.AddQuartz("Scheduler1", q =>
     q.AddTriggerListener<MetricsTriggerListener>();
 
     q.AddCalendar<HolidayCalendar>("holidays", replace: true, updateTriggers: true,
-        cal => cal.AddExcludedDate(new DateTime(2025, 12, 25)));
+        cal => cal.AddExcludedDay(new DateOnly(2025, 12, 25)));
     // These listeners and calendars only apply to Scheduler1
 });
 
@@ -149,7 +149,7 @@ builder.Services.AddQuartz(q =>
 {
     q.ScheduleJob<MainJob>(trigger => trigger
         .WithIdentity("main-trigger")
-        .WithSimpleSchedule(x => x.WithIntervalInMinutes(1).RepeatForever()));
+        .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(1)).RepeatForever()));
 });
 
 // Additional named scheduler

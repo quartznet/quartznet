@@ -9,7 +9,7 @@ public class SimpleScheduleBuilderTest
     {
         var trigger1 = TriggerBuilder.Create()
             .WithSimpleSchedule(x => x
-                .WithMisfireHandlingInstructionIgnoreMisfires()
+                .WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.IgnoreMisfires)
             )
             .Build();
 

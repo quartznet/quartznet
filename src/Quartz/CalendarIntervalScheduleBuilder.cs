@@ -19,17 +19,15 @@ namespace Quartz;
 /// </para>
 /// <para>Client code can then use the DSL to write code such as this:</para>
 /// <code>
-/// JobDetail job = JobBuilder.Create&lt;MyJob&gt;()
+/// IJobDetail job = JobBuilder.Create&lt;MyJob&gt;()
 ///     .WithIdentity("myJob")
 ///     .Build();
-/// Trigger trigger = TriggerBuilder.Create()
+/// ITrigger trigger = TriggerBuilder.Create()
 ///     .WithIdentity("myTrigger", "myTriggerGroup")
-///     .WithSimpleSchedule(x => x
-///         .WithIntervalInHours(1)
-///         .RepeatForever())
-///     .StartAt(DateBuilder.FutureDate(10, IntervalUnit.Minute))
+///     .WithCalendarIntervalSchedule(x => x
+///         .WithInterval(1, IntervalUnit.Month))
 ///     .Build();
-/// scheduler.scheduleJob(job, trigger);
+/// await scheduler.ScheduleJob(job, trigger);
 /// </code>
 /// </remarks>
 /// <seealso cref="ICalendarIntervalTrigger" />
@@ -37,7 +35,7 @@ namespace Quartz;
 /// <seealso cref="IScheduleBuilder" />
 /// <seealso cref="SimpleScheduleBuilder" />
 /// <seealso cref="TriggerBuilder" />
-public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarIntervalTrigger>
+public sealed class CalendarIntervalScheduleBuilder : IScheduleBuilder
 {
     private int interval = 1;
     private IntervalUnit intervalUnit = IntervalUnit.Day;
@@ -66,7 +64,7 @@ public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarI
     /// ScheduleBuilder is given to.
     /// </summary>
     /// <returns></returns>
-    public override IMutableTrigger Build()
+    public IMutableTrigger Build()
     {
         CalendarIntervalTriggerImpl st = new CalendarIntervalTriggerImpl();
         st.RepeatInterval = interval;
@@ -98,178 +96,23 @@ public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarI
     }
 
     /// <summary>
-    /// Specify an interval in the IntervalUnit.SECOND that the produced
-    /// Trigger will repeat at.
+    /// Say what the trigger should do when it misses a firing.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <param name="intervalInSeconds">the number of seconds at which the trigger should repeat.</param>
+    /// <param name="instruction">the policy to apply; defaults to
+    /// <see cref="CalendarIntervalTriggerMisfireInstruction.SmartPolicy" />.</param>
     /// <returns>the updated CalendarIntervalScheduleBuilder</returns>
-    /// <seealso cref="ICalendarIntervalTrigger.RepeatInterval" />
-    /// <seealso cref="ICalendarIntervalTrigger.RepeatIntervalUnit" />
-    public CalendarIntervalScheduleBuilder WithIntervalInSeconds(int intervalInSeconds)
+    /// <seealso cref="CalendarIntervalTriggerMisfireInstruction" />
+    public CalendarIntervalScheduleBuilder WithMisfireHandlingInstruction(CalendarIntervalTriggerMisfireInstruction instruction)
     {
-        ValidateInterval(intervalInSeconds);
-        interval = intervalInSeconds;
-        intervalUnit = IntervalUnit.Second;
-        return this;
-    }
-
-    /// <summary>
-    /// Specify an interval in the IntervalUnit.MINUTE that the produced
-    /// Trigger will repeat at.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <param name="intervalInMinutes">the number of minutes at which the trigger should repeat.</param>
-    /// <returns>the updated CalendarIntervalScheduleBuilder</returns>
-    /// <seealso cref="ICalendarIntervalTrigger.RepeatInterval" />
-    /// <seealso cref="ICalendarIntervalTrigger.RepeatIntervalUnit" />
-    public CalendarIntervalScheduleBuilder WithIntervalInMinutes(int intervalInMinutes)
-    {
-        ValidateInterval(intervalInMinutes);
-        interval = intervalInMinutes;
-        intervalUnit = IntervalUnit.Minute;
-        return this;
-    }
-
-    /// <summary>
-    /// Specify an interval in the IntervalUnit.HOUR that the produced
-    /// Trigger will repeat at.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <param name="intervalInHours">the number of hours at which the trigger should repeat.</param>
-    /// <returns>the updated CalendarIntervalScheduleBuilder</returns>
-    /// <seealso cref="ICalendarIntervalTrigger.RepeatInterval" />
-    /// <seealso cref="ICalendarIntervalTrigger.RepeatIntervalUnit" />
-    public CalendarIntervalScheduleBuilder WithIntervalInHours(int intervalInHours)
-    {
-        ValidateInterval(intervalInHours);
-        interval = intervalInHours;
-        intervalUnit = IntervalUnit.Hour;
-        return this;
-    }
-
-    /// <summary>
-    /// Specify an interval in the IntervalUnit.DAY that the produced
-    /// Trigger will repeat at.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <param name="intervalInDays">the number of days at which the trigger should repeat.</param>
-    /// <returns>the updated CalendarIntervalScheduleBuilder</returns>
-    /// <seealso cref="ICalendarIntervalTrigger.RepeatInterval" />
-    /// <seealso cref="ICalendarIntervalTrigger.RepeatIntervalUnit" />
-    public CalendarIntervalScheduleBuilder WithIntervalInDays(int intervalInDays)
-    {
-        ValidateInterval(intervalInDays);
-        interval = intervalInDays;
-        intervalUnit = IntervalUnit.Day;
-        return this;
-    }
-
-    /// <summary>
-    /// Specify an interval in the IntervalUnit.WEEK that the produced
-    /// Trigger will repeat at.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <param name="intervalInWeeks">the number of weeks at which the trigger should repeat.</param>
-    /// <returns>the updated CalendarIntervalScheduleBuilder</returns>
-    /// <seealso cref="ICalendarIntervalTrigger.RepeatInterval" />
-    /// <seealso cref="ICalendarIntervalTrigger.RepeatIntervalUnit" />
-    public CalendarIntervalScheduleBuilder WithIntervalInWeeks(int intervalInWeeks)
-    {
-        ValidateInterval(intervalInWeeks);
-        interval = intervalInWeeks;
-        intervalUnit = IntervalUnit.Week;
-        return this;
-    }
-
-    /// <summary>
-    /// Specify an interval in the IntervalUnit.MONTH that the produced
-    /// Trigger will repeat at.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <param name="intervalInMonths">the number of months at which the trigger should repeat.</param>
-    /// <returns>the updated CalendarIntervalScheduleBuilder</returns>
-    /// <seealso cref="ICalendarIntervalTrigger.RepeatInterval" />
-    /// <seealso cref="ICalendarIntervalTrigger.RepeatIntervalUnit" />
-    public CalendarIntervalScheduleBuilder WithIntervalInMonths(int intervalInMonths)
-    {
-        ValidateInterval(intervalInMonths);
-        interval = intervalInMonths;
-        intervalUnit = IntervalUnit.Month;
-        return this;
-    }
-
-    /// <summary>
-    /// Specify an interval in the IntervalUnit.YEAR that the produced
-    /// Trigger will repeat at.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <param name="intervalInYears">the number of years at which the trigger should repeat.</param>
-    /// <returns>the updated CalendarIntervalScheduleBuilder</returns>
-    /// <seealso cref="ICalendarIntervalTrigger.RepeatInterval" />
-    /// <seealso cref="ICalendarIntervalTrigger.RepeatIntervalUnit" />
-    public CalendarIntervalScheduleBuilder WithIntervalInYears(int intervalInYears)
-    {
-        ValidateInterval(intervalInYears);
-        interval = intervalInYears;
-        intervalUnit = IntervalUnit.Year;
-        return this;
-    }
-
-    /// <summary>
-    /// If the Trigger misfires, use the
-    /// <see cref="MisfireInstruction.IgnoreMisfirePolicy" /> instruction.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <returns>the updated CronScheduleBuilder</returns>
-    /// <seealso cref="MisfireInstruction.IgnoreMisfirePolicy" />
-    public CalendarIntervalScheduleBuilder WithMisfireHandlingInstructionIgnoreMisfires()
-    {
-        misfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
-        return this;
-    }
-
-
-    /// <summary>
-    /// If the Trigger misfires, use the
-    /// <see cref="MisfireInstruction.CalendarIntervalTrigger.DoNothing" /> instruction.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <returns>the updated CalendarIntervalScheduleBuilder</returns>
-    /// <seealso cref="MisfireInstruction.CalendarIntervalTrigger.DoNothing" />
-    public CalendarIntervalScheduleBuilder WithMisfireHandlingInstructionDoNothing()
-    {
-        misfireInstruction = MisfireInstruction.CalendarIntervalTrigger.DoNothing;
-        return this;
-    }
-
-    /// <summary>
-    /// If the Trigger misfires, use the
-    /// <see cref="MisfireInstruction.CalendarIntervalTrigger.FireOnceNow" /> instruction.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <returns>the updated CalendarIntervalScheduleBuilder</returns>
-    /// <seealso cref="MisfireInstruction.CalendarIntervalTrigger.FireOnceNow" />
-    public CalendarIntervalScheduleBuilder WithMisfireHandlingInstructionFireAndProceed()
-    {
-        misfireInstruction = MisfireInstruction.CalendarIntervalTrigger.FireOnceNow;
+        misfireInstruction = (int) instruction;
         return this;
     }
 
     /// <summary>
     /// TimeZone in which to base the schedule.
     /// </summary>
-    /// <param name="timeZone">the time-zone for the schedule</param>
+    /// <param name="timeZone">the time-zone for the schedule; <see langword="null" /> means the
+    /// system's local time zone.</param>
     /// <returns>the updated CalendarIntervalScheduleBuilder</returns>
     /// <seealso cref="ICalendarIntervalTrigger.TimeZone" />
     public CalendarIntervalScheduleBuilder InTimeZone(TimeZoneInfo? timeZone)
@@ -303,7 +146,7 @@ public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarI
     /// <seealso cref="SkipDayIfHourDoesNotExist"/>
     /// <seealso cref="InTimeZone"/>
     /// <seealso cref="TriggerBuilder{TJob}.StartAt"/>
-    public CalendarIntervalScheduleBuilder PreserveHourOfDayAcrossDaylightSavings(bool preserveHourOfDay)
+    public CalendarIntervalScheduleBuilder PreserveHourOfDayAcrossDaylightSavings(bool preserveHourOfDay = true)
     {
         preserveHourOfDayAcrossDaylightSavings = preserveHourOfDay;
         return this;
@@ -327,7 +170,7 @@ public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarI
     /// occur).
     /// </remarks>
     /// <seealso cref="PreserveHourOfDayAcrossDaylightSavings"/>
-    public CalendarIntervalScheduleBuilder SkipDayIfHourDoesNotExist(bool skipDay)
+    public CalendarIntervalScheduleBuilder SkipDayIfHourDoesNotExist(bool skipDay = true)
     {
         skipDayIfHourDoesNotExist = skipDay;
         return this;
@@ -340,35 +183,5 @@ public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarI
         {
             Throw.ArgumentException("Interval must be a positive value.");
         }
-    }
-
-    internal CalendarIntervalScheduleBuilder WithMisfireHandlingInstruction(int readMisfireInstructionFromString)
-    {
-        misfireInstruction = readMisfireInstructionFromString;
-        return this;
-    }
-}
-
-/// <summary>
-/// Extension methods that attach <see cref="CalendarIntervalScheduleBuilder" /> to <see cref="TriggerBuilder" />.
-/// </summary>
-public static class CalendarIntervalTriggerBuilderExtensions
-{
-    public static TriggerBuilder<TJob> WithCalendarIntervalSchedule<TJob>(this TriggerBuilder<TJob> triggerBuilder) where TJob : IJob
-    {
-        CalendarIntervalScheduleBuilder builder = CalendarIntervalScheduleBuilder.Create();
-        return triggerBuilder.WithSchedule(builder);
-    }
-
-    public static TriggerBuilder<TJob> WithCalendarIntervalSchedule<TJob>(this TriggerBuilder<TJob> triggerBuilder, Action<CalendarIntervalScheduleBuilder> action) where TJob : IJob
-    {
-        CalendarIntervalScheduleBuilder builder = CalendarIntervalScheduleBuilder.Create();
-        action(builder);
-        return triggerBuilder.WithSchedule(builder);
-    }
-
-    public static TriggerBuilder<TJob> WithCalendarIntervalSchedule<TJob>(this TriggerBuilder<TJob> triggerBuilder, CalendarIntervalScheduleBuilder schedule) where TJob : IJob
-    {
-        return triggerBuilder.WithSchedule(schedule);
     }
 }

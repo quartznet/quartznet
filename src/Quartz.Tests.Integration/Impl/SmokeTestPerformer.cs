@@ -37,7 +37,7 @@ public class SmokeTestPerformer
                 Assert.That(t, Is.Null);
 
                 AnnualCalendar calendar = new AnnualCalendar();
-                calendar.SetDayExcluded(new DateTime(2018, 7, 4), true);
+                calendar.AddExcludedDay(new DateOnly(2018, 7, 4));
                 await scheduler.AddCalendar("annualCalendar", calendar, new AddCalendarOptions { UpdateTriggers = true });
 
                 IOperableTrigger calendarsTrigger = new SimpleTriggerImpl("calendarsTrigger", "test", 20, TimeSpan.FromHours(2));
@@ -57,7 +57,7 @@ public class SmokeTestPerformer
 
                 await scheduler.AddCalendar("baseCalendar", new BaseCalendar(), new AddCalendarOptions { UpdateTriggers = true });
                 await scheduler.AddCalendar("cronCalendar", cronCalendar, new AddCalendarOptions { UpdateTriggers = true });
-                await scheduler.AddCalendar("dailyCalendar", new DailyCalendar(DateTime.Now.Date, DateTime.Now.AddMinutes(1)), new AddCalendarOptions { UpdateTriggers = true });
+                await scheduler.AddCalendar("dailyCalendar", new DailyCalendar(TimeOnly.MinValue, new TimeOnly(23, 59, 59)), new AddCalendarOptions { UpdateTriggers = true });
                 await scheduler.AddCalendar("holidayCalendar", holidayCalendar, new AddCalendarOptions { UpdateTriggers = true });
                 await scheduler.AddCalendar("monthlyCalendar", new MonthlyCalendar(), new AddCalendarOptions { UpdateTriggers = true });
                 await scheduler.AddCalendar("weeklyCalendar", new WeeklyCalendar(), new AddCalendarOptions { UpdateTriggers = true });
@@ -178,7 +178,7 @@ public class SmokeTestPerformer
                 var timeZone1 = TimeZoneUtil.FindTimeZoneById("Central European Standard Time");
                 var timeZone2 = TimeZoneUtil.FindTimeZoneById("Mountain Standard Time");
 
-                DailyTimeIntervalTriggerImpl nt = new DailyTimeIntervalTriggerImpl("nth_trig_" + count, schedId, new TimeOfDay(1, 1, 1), new TimeOfDay(23, 30, 0), IntervalUnit.Hour, 1);
+                DailyTimeIntervalTriggerImpl nt = new DailyTimeIntervalTriggerImpl("nth_trig_" + count, schedId, new TimeOnly(1, 1, 1), new TimeOnly(23, 30, 0), IntervalUnit.Hour, 1);
                 nt.StartTimeUtc = DateTime.Now.Date.AddMilliseconds(1000);
                 nt.TimeZone = timeZone1;
 
@@ -203,8 +203,8 @@ public class SmokeTestPerformer
                 await scheduler.GetTrigger(nt2.Key);
 
                 // GitHub issue #98
-                nt2.StartTimeOfDay = new TimeOfDay(1, 2, 3);
-                nt2.EndTimeOfDay = new TimeOfDay(2, 3, 4);
+                nt2.StartTimeOfDay = new TimeOnly(1, 2, 3);
+                nt2.EndTimeOfDay = new TimeOnly(2, 3, 4);
 
                 await scheduler.UnscheduleJob(nt2.Key);
                 await scheduler.ScheduleJob(nt2);
@@ -737,9 +737,9 @@ internal sealed class CustomNewtonsoftTriggerSerializer : CronTriggerSerializer
         ((CustomTrigger) trigger).SomeCustomProperty = source.Value<bool>("SomeCustomProperty");
     }
 
-    private sealed class CustomTriggerScheduleBuilder : ScheduleBuilder<CustomTrigger>
+    private sealed class CustomTriggerScheduleBuilder : IScheduleBuilder
     {
-        public override IMutableTrigger Build()
+        public IMutableTrigger Build()
         {
             return new CustomTrigger();
         }
@@ -769,9 +769,9 @@ internal sealed class CustomSystemTextJsonTriggerSerializer : Serialization.Json
         ((CustomTrigger) trigger).SomeCustomProperty = jsonElement.GetProperty("SomeCustomProperty").GetBoolean();
     }
 
-    private sealed class CustomTriggerScheduleBuilder : ScheduleBuilder<CustomTrigger>
+    private sealed class CustomTriggerScheduleBuilder : IScheduleBuilder
     {
-        public override IMutableTrigger Build()
+        public IMutableTrigger Build()
         {
             return new CustomTrigger();
         }

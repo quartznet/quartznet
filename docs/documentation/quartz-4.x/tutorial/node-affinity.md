@@ -17,10 +17,12 @@ acquire it. Because the setting lives on the trigger rather than the job, a job 
 could in principle have different preferred nodes — set the same value on all of a job's triggers if you
 want job-level affinity.
 
-- A specific scheduler instance id (e.g. `"node-1"`, matching `quartz.scheduler.instanceId`) pins the
-  trigger to that node.
-- The sentinel `"*"` requests **auto-pin**: the first node to fire the trigger claims it.
-- `null` (the default) means no preference — standard Quartz behavior.
+`ITrigger.PreferredNode` is a `PreferredNode` value with three ways to make one:
+
+- `PreferredNode.For("node-1")` pins the trigger to that scheduler instance id (matching
+  `quartz.scheduler.instanceId`).
+- `PreferredNode.Auto` requests **auto-pin**: the first node to fire the trigger claims it.
+- `PreferredNode.None` (the default) means no preference — standard Quartz behavior.
 
 Preferred node is a **strong preference with automatic failover**, not a hard constraint. Acquisition
 filters out triggers pinned to *live* nodes, but if the pinned node is not currently checking in, other
@@ -30,13 +32,14 @@ Two columns back this on `QRTZ_TRIGGERS`:
 
 | `PREFERRED_NODE` | `PREFERRED_NODE_AUTO` | Meaning |
 |---|---|---|
-| `NULL` | false | No affinity (default) |
-| `'*'` | false | Auto-pin requested, not yet claimed |
+| `NULL` | false | No affinity (`PreferredNode.None`, the default) |
+| `'*'` | false | Auto-pin requested, not yet claimed (`PreferredNode.Auto`) |
 | `'node-1'` | true | Auto-claimed by `node-1` |
-| `'node-1'` | false | Explicit pin to `node-1` |
+| `'node-1'` | false | Named pin to `node-1` (`PreferredNode.For("node-1")`) |
 
 The node name is stored verbatim and the auto-claim is recorded separately, so **no instance id is
-reserved** — a node may legitimately be called `auto:thing` or `*-west` without confusing Quartz.
+reserved** — a node may legitimately be called `auto:thing` or `*-west` without confusing Quartz. The
+protocol's own markers (`*`, `_`, `null`) are the only names `PreferredNode.For` refuses.
 
 ## Setting the preferred node
 
@@ -47,7 +50,7 @@ Use `TriggerBuilder.WithPreferredNode()`:
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("myTrigger")
     .ForJob(job)
-    .WithPreferredNode("production-node-1")
+    .WithPreferredNode(PreferredNode.For("production-node-1"))
     .WithCronSchedule("0 0/5 * * * ?")
     .Build();
 ```
@@ -57,7 +60,7 @@ ITrigger trigger = TriggerBuilder.Create()
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("myTrigger")
     .ForJob(job)
-    .WithPreferredNode("*")
+    .WithPreferredNode(PreferredNode.Auto)
     .WithCronSchedule("0 0/5 * * * ?")
     .Build();
 ```
@@ -66,8 +69,10 @@ Read it back from any `ITrigger`:
 
 ```csharp
 ITrigger t = await scheduler.GetTrigger(new TriggerKey("myTrigger"));
-string? node = t.PreferredNode;      // "production-node-1"
-bool auto = t.IsPreferredNodeAuto;   // false for an explicit pin
+PreferredNode pin = t.PreferredNode;
+string? node = pin.Node;         // "production-node-1"; null when unpinned or an unclaimed auto-pin
+bool auto = pin.IsAutomatic;     // false for a pin you named
+bool unpinned = pin.IsNone;
 ```
 
 ::: warning
@@ -78,7 +83,7 @@ database, one that never matches.
 
 ## Auto-pin mode
 
-When a trigger's preferred node is `"*"`:
+When a trigger's preferred node is `PreferredNode.Auto`:
 
 1. The trigger is acquirable by any node, as usual.
 2. The first node to fire it writes its own instance id to `PREFERRED_NODE` and sets
@@ -95,11 +100,12 @@ Rebuilding an auto-pinned trigger preserves the auto-claim:
 ITrigger rebuilt = trigger.GetTriggerBuilder().WithDescription("updated").Build();
 ```
 
-Assigning `PreferredNode` directly always records an **explicit** pin, since it expresses your intent
-rather than a claim Quartz made:
+The pin carries its own auto-claim flag, so assigning one to another trigger copies it as the pin it
+was. What you write is what you get back:
 
 ```csharp
-trigger.PreferredNode = "node-2";   // explicit pin; IsPreferredNodeAuto becomes false
+trigger.PreferredNode = PreferredNode.For("node-2");   // a pin you named; IsAutomatic is false
+trigger.PreferredNode = PreferredNode.None;            // no preference at all
 ```
 
 ## Failover behavior
@@ -112,9 +118,9 @@ When the preferred node stops checking in:
 2. **Steal on fire.** A node that fires a trigger still auto-claimed by another (stale) node takes the
    pin over via compare-and-swap. Affinity converges on a live node instead of bouncing.
 3. **Cluster recovery.** When recovery confirms a node dead, auto-claimed pins belonging to it are reset
-   to `"*"` before its state row is deleted, so any *eligible* node can claim them — which correctly
-   respects execution group limits.
-4. **Explicit pins are preserved.** They are never re-pinned. While the node is down other nodes run the
+   to an unclaimed auto-pin before its state row is deleted, so any *eligible* node can claim them —
+   which correctly respects execution group limits.
+4. **Named pins are preserved.** They are never re-pinned. While the node is down other nodes run the
    trigger; when it returns and checks in again, it naturally reclaims it.
 
 ## Updating the preferred node at runtime
@@ -124,15 +130,15 @@ You can re-pin without rescheduling:
 ```csharp
 await scheduler.UpdateTriggerDetails(
     new TriggerKey("myTrigger"),
-    new TriggerDetailsUpdate().WithPreferredNode("node-2"));
+    new TriggerDetailsUpdate().WithPreferredNode(PreferredNode.For("node-2")));
 ```
 
-Pass `null` to clear the preference entirely:
+Pass `PreferredNode.None` to clear the preference entirely:
 
 ```csharp
 await scheduler.UpdateTriggerDetails(
     new TriggerKey("myTrigger"),
-    new TriggerDetailsUpdate().WithPreferredNode(null));
+    new TriggerDetailsUpdate().WithPreferredNode(PreferredNode.None));
 ```
 
 ## Requirements and limitations

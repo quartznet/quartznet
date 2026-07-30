@@ -9,6 +9,6 @@
     "BaseCalendar": null
   },
   "InvertTimeRange": true,
-  "RangeStartingTime": "01:01:01:001",
-  "RangeEndingTime": "02:02:02:002"
+  "RangeStart": "01:01:01.001",
+  "RangeEnd": "02:02:02.002"
 }

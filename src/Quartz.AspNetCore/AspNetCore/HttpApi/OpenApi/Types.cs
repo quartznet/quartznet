@@ -20,9 +20,11 @@ internal interface Calendar
     string? TimeZoneId { get; }
 
     /// <summary>
-    /// Should be present when CalendarType is AnnualCalendar
+    /// Should be present when CalendarType is AnnualCalendar (dates as yyyy-MM-dd, only the month
+    /// and day are significant), MonthlyCalendar (days of the month, 1 through 31) or
+    /// WeeklyCalendar (day names)
     /// </summary>
-    DateTime[]? DaysExcluded { get; }
+    object[]? ExcludedDays { get; }
 
     /// <summary>
     /// Should be present when CalendarType is CronCalendar
@@ -30,14 +32,14 @@ internal interface Calendar
     string? CronExpressionString { get; }
 
     /// <summary>
-    /// Should be present when CalendarType is DailyCalendar
+    /// Should be present when CalendarType is DailyCalendar, as HH:mm:ss.fff
     /// </summary>
-    string? RangeStartingTime { get; }
+    string? RangeStart { get; }
 
     /// <summary>
-    /// Should be present when CalendarType is DailyCalendar
+    /// Should be present when CalendarType is DailyCalendar, as HH:mm:ss.fff
     /// </summary>
-    string? RangeEndingTime { get; }
+    string? RangeEnd { get; }
 
     /// <summary>
     /// Should be present when CalendarType is DailyCalendar
@@ -47,12 +49,17 @@ internal interface Calendar
     /// <summary>
     /// Should be present when CalendarType is HolidayCalendar
     /// </summary>
-    DateTime[]? ExcludedDates { get; }
+    DateOnly[]? ExcludedDates { get; }
+}
 
-    /// <summary>
-    /// Should be present when CalendarType is MonthlyCalendar or WeeklyCalendar
-    /// </summary>
-    bool[]? ExcludedDays { get; }
+/// <summary>
+/// A time of day, carried as its separate parts rather than as a string.
+/// </summary>
+internal interface TimeOfDay
+{
+    int Hour { get; }
+    int Minute { get; }
+    int Second { get; }
 }
 
 internal interface Trigger

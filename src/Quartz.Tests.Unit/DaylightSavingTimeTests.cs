@@ -43,7 +43,7 @@ public class DaylightSavingTimeTest
 
         ITrigger trigger = TriggerBuilder.Create(new TestTimeProvider(new DateTimeOffset(2016, 1, 1, 0, 0, 0, TimeSpan.Zero)))
             .WithIdentity("trigger1", "group1")
-            .WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(2, 30).InTimeZone(tz))
+            .WithSchedule(CronScheduleBuilder.CronSchedule("0 30 2 ? * *").InTimeZone(tz))
             .ForJob("job1", "group1")
             .Build();
 
@@ -69,7 +69,7 @@ public class DaylightSavingTimeTest
 
         ITrigger trigger = TriggerBuilder.Create(new TestTimeProvider(new DateTimeOffset(2016, 1, 1, 0, 0, 0, TimeSpan.Zero)))
             .WithIdentity("trigger1", "group1")
-            .WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(1, 30).InTimeZone(tz))
+            .WithSchedule(CronScheduleBuilder.CronSchedule("0 30 1 ? * *").InTimeZone(tz))
             .ForJob("job1", "group1")
             .Build();
 
@@ -95,7 +95,7 @@ public class DaylightSavingTimeTest
 
         ITrigger trigger = TriggerBuilder.Create(new TestTimeProvider(new DateTimeOffset(2016, 1, 1, 0, 0, 0, TimeSpan.Zero)))
             .WithIdentity("trigger1", "group1")
-            .WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(1, 30).InTimeZone(tz))
+            .WithSchedule(CronScheduleBuilder.CronSchedule("0 30 1 ? * *").InTimeZone(tz))
             .ForJob("job1", "group1")
             .Build();
 
