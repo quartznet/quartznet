@@ -2379,6 +2379,11 @@ public class RAMJobStore : IJobStore
     /// </summary>
     public virtual async ValueTask TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default)
     {
+        // Which error notification the state changes below earned, raised once the lock is gone.
+        // Listener code runs on this thread and may well call back into the store, which would
+        // deadlock on the semaphore we are holding.
+        ErrorNotification errorNotification = ErrorNotification.None;
+
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -2472,12 +2477,14 @@ public class RAMJobStore : IJobStore
                 {
                     logger.LogInformation("Trigger {TriggerKey} set to ERROR state.", trigger.Key);
                     tw.state = InternalTriggerState.Error;
+                    errorNotification = ErrorNotification.Trigger;
                     await signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc: null, cancellationToken).ConfigureAwait(false);
                 }
                 else if (triggerInstructionCode == SchedulerInstruction.SetAllJobTriggersError)
                 {
                     logger.LogInformation("All triggers of Job {JobKey} set to ERROR state.", trigger.JobKey);
                     SetAllTriggersOfJobToState(trigger.JobKey, InternalTriggerState.Error);
+                    errorNotification = ErrorNotification.JobTriggers;
                     await signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc: null, cancellationToken).ConfigureAwait(false);
                 }
                 else if (triggerInstructionCode == SchedulerInstruction.SetAllJobTriggersComplete)
@@ -2491,6 +2498,25 @@ public class RAMJobStore : IJobStore
         {
             lockObject.Release();
         }
+
+        if (errorNotification == ErrorNotification.Trigger)
+        {
+            await signaler.NotifySchedulerListenersTriggerInError(trigger.Key, cancellationToken).ConfigureAwait(false);
+        }
+        else if (errorNotification == ErrorNotification.JobTriggers)
+        {
+            await signaler.NotifySchedulerListenersTriggersInError(trigger.JobKey, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Which error notification a completed firing earned, deferred until the store's lock is released.
+    /// </summary>
+    private enum ErrorNotification
+    {
+        None,
+        Trigger,
+        JobTriggers
     }
 
     public TimeSpan EstimatedTimeToReleaseAndAcquireTrigger => TimeSpan.FromMilliseconds(5);

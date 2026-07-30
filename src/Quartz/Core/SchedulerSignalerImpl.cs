@@ -96,6 +96,20 @@ internal sealed class SchedulerSignalerImpl : ISchedulerSignaler
         return scheduler.NotifySchedulerListenersJobDeleted(jobKey, cancellationToken);
     }
 
+    public ValueTask NotifySchedulerListenersTriggerInError(
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default)
+    {
+        return scheduler.NotifySchedulerListenersTriggerInError(triggerKey, cancellationToken);
+    }
+
+    public ValueTask NotifySchedulerListenersTriggersInError(
+        JobKey jobKey,
+        CancellationToken cancellationToken = default)
+    {
+        return scheduler.NotifySchedulerListenersTriggersInError(jobKey, cancellationToken);
+    }
+
     public ValueTask NotifySchedulerListenersError(
         string message,
         SchedulerException exception,

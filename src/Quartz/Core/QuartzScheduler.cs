@@ -1890,6 +1890,50 @@ internal sealed class QuartzScheduler
     }
 
     /// <summary>
+    /// Notifies the scheduler listeners that a trigger has been parked in the error state.
+    /// </summary>
+    public async ValueTask NotifySchedulerListenersTriggerInError(
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default)
+    {
+        var schedListeners = BuildSchedulerListenerList();
+
+        foreach (var sl in schedListeners)
+        {
+            try
+            {
+                await sl.TriggerInError(triggerKey, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Error while notifying SchedulerListener of trigger in error state. Trigger={TriggerKey}", triggerKey);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Notifies the scheduler listeners that every trigger of a job has been parked in the error state.
+    /// </summary>
+    public async ValueTask NotifySchedulerListenersTriggersInError(
+        JobKey jobKey,
+        CancellationToken cancellationToken = default)
+    {
+        var schedListeners = BuildSchedulerListenerList();
+
+        foreach (var sl in schedListeners)
+        {
+            try
+            {
+                await sl.TriggersInError(jobKey, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Error while notifying SchedulerListener of job triggers in error state. Job={JobKey}", jobKey);
+            }
+        }
+    }
+
+    /// <summary>
     /// Notifies the scheduler listeners about paused trigger.
     /// </summary>
     public async ValueTask NotifySchedulerListenersPausedTrigger(

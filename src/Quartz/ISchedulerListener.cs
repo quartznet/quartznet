@@ -165,6 +165,37 @@ public interface ISchedulerListener
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" /> has moved into the
+    /// <see cref="TriggerState.Error" /> state and will not fire again until it is reset with
+    /// <see cref="IScheduler.ResetTriggerFromErrorState" />.
+    /// </summary>
+    /// <remarks>
+    /// This says what changed, not why. Where a cause exists it arrives separately through
+    /// <see cref="SchedulerError" /> — as a <see cref="Core.JobInstantiationException" />, for a job
+    /// that could not be built. Some transitions have no scheduler-side cause at all: the job store
+    /// also parks a trigger here when it cannot load the job's type or read the job back.
+    /// <para>
+    /// The default implementation does nothing.
+    /// </para>
+    /// </remarks>
+    ValueTask TriggerInError(TriggerKey triggerKey, CancellationToken cancellationToken = default) => default;
+
+    /// <summary>
+    /// Called by the <see cref="IScheduler" /> when every <see cref="ITrigger" /> of a job has moved
+    /// into the <see cref="TriggerState.Error" /> state, which is what a failure to instantiate the
+    /// job leads to.
+    /// </summary>
+    /// <remarks>
+    /// Keyed by job rather than by trigger because that is the shape of the underlying operation —
+    /// the persistent store updates the job's triggers in one statement and never enumerates them.
+    /// Call <see cref="SchedulerQueryExtensions.GetTriggersOfJob" /> if the individual keys matter.
+    /// <para>
+    /// The default implementation does nothing.
+    /// </para>
+    /// </remarks>
+    ValueTask TriggersInError(JobKey jobKey, CancellationToken cancellationToken = default) => default;
+
+    /// <summary>
     /// Called by the <see cref="IScheduler" /> to inform the listener
     /// that it has move to standby mode.
     /// </summary>

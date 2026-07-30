@@ -3307,6 +3307,11 @@ public abstract class JobStoreSupport : IJobStore
                         {
                             Logger.LogError(e, "Error retrieving job, setting trigger state to ERROR.");
                             await Delegate.UpdateTriggerState(conn, triggerKey, AdoConstants.StateError, cancellationToken).ConfigureAwait(false);
+
+                            // A trigger whose job type will not load stops firing here and is reported
+                            // nowhere else - not even through SchedulerError. Inline, as the misfire
+                            // notification in this store already is.
+                            await schedSignaler.NotifySchedulerListenersTriggerInError(triggerKey, cancellationToken).ConfigureAwait(false);
                         }
                         catch (Exception ex)
                         {
@@ -3546,6 +3551,9 @@ public abstract class JobStoreSupport : IJobStore
             {
                 Logger.LogError(jpe, "Error retrieving job, setting trigger state to ERROR.");
                 await Delegate.UpdateTriggerState(conn, trigger.Key, AdoConstants.StateError, cancellationToken).ConfigureAwait(false);
+
+                // Same as above: the trigger stops here and nothing else says so.
+                await schedSignaler.NotifySchedulerListenersTriggerInError(trigger.Key, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception sqle)
             {
@@ -3710,6 +3718,17 @@ public abstract class JobStoreSupport : IJobStore
                 activity.SetTag(ActivityOptions.JobGroup, jobDetail.Key.Group);
                 activity.SetTag(ActivityOptions.JobName, jobDetail.Key.Name);
             }).ConfigureAwait(false);
+
+        // Deliberately after the transaction, and only if it committed: these run listener code, which
+        // has no business executing inside the store's transaction or seeing a state that may roll back.
+        if (triggerInstructionCode == SchedulerInstruction.SetTriggerError)
+        {
+            await schedSignaler.NotifySchedulerListenersTriggerInError(trigger.Key, cancellationToken).ConfigureAwait(false);
+        }
+        else if (triggerInstructionCode == SchedulerInstruction.SetAllJobTriggersError)
+        {
+            await schedSignaler.NotifySchedulerListenersTriggersInError(trigger.JobKey, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     protected virtual async ValueTask TriggeredJobComplete(

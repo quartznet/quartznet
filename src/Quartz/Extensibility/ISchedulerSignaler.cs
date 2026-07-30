@@ -52,6 +52,30 @@ public interface ISchedulerSignaler
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Notifies the scheduler that a trigger has been parked in the <see cref="TriggerState.Error" />
+    /// state and will not fire again until it is reset.
+    /// </summary>
+    /// <remarks>
+    /// Default-implemented as a no-op so that an existing signaler keeps compiling; a job store that
+    /// calls it against one gets today's behaviour, which is no notification at all.
+    /// </remarks>
+    ValueTask NotifySchedulerListenersTriggerInError(
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default) => default;
+
+    /// <summary>
+    /// Notifies the scheduler that every trigger of a job has been parked in the
+    /// <see cref="TriggerState.Error" /> state.
+    /// </summary>
+    /// <remarks>
+    /// Default-implemented as a no-op, for the same reason as
+    /// <see cref="NotifySchedulerListenersTriggerInError" />.
+    /// </remarks>
+    ValueTask NotifySchedulerListenersTriggersInError(
+        JobKey jobKey,
+        CancellationToken cancellationToken = default) => default;
+
+    /// <summary>
     /// Signals the scheduling change.
     /// </summary>
     ValueTask SignalSchedulingChange(
