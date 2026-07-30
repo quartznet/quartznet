@@ -171,7 +171,7 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
     [Test]
     public void TestGetFireTimeAfter_WithCalendar()
     {
-        DailyCalendar dailyCalendar = new DailyCalendar("1:20", "14:50");
+        DailyCalendar dailyCalendar = new DailyCalendar(new TimeOnly(1, 20), new TimeOnly(14, 50));
         SimpleTriggerImpl simpleTrigger = new SimpleTriggerImpl
         {
             RepeatInterval = TimeSpan.FromMilliseconds(10),

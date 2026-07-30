@@ -632,7 +632,7 @@ public partial class StdAdoDelegate
         public string? CalendarName;
         public int MisfireInstruction;
         public int Priority;
-        public IDictionary? JobDataMap;
+        public JobDataMap? JobDataMap;
         public DateTimeOffset? NextFireTimeUtc;
         public DateTimeOffset? PreviousFireTimeUtc;
         public DateTimeOffset StartTimeUtc;
@@ -745,7 +745,7 @@ public partial class StdAdoDelegate
 
         if (row.JobDataMap is not null)
         {
-            bool clearDirtyFlag = !row.JobDataMap.Contains(SchedulerConstants.ForceJobDataMapDirty);
+            bool clearDirtyFlag = !row.JobDataMap.ContainsKey(SchedulerConstants.ForceJobDataMapDirty);
             tb.UsingJobData(new JobDataMap(row.JobDataMap));
             if (clearDirtyFlag)
             {
@@ -880,7 +880,7 @@ public partial class StdAdoDelegate
             var map = await ReadMapFromReader(rs, 0).ConfigureAwait(false);
             if (map is not null)
             {
-                return map as JobDataMap ?? new JobDataMap(map);
+                return map;
             }
         }
 

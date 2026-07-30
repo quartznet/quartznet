@@ -44,9 +44,9 @@ public class HolidayCalendarTest : SerializationTestSupport<HolidayCalendar, ICa
     [Test]
     public void TestAddAndRemoveExclusion()
     {
-        calendar.AddExcludedDate(new DateTime(2007, 10, 20, 12, 40, 22));
-        calendar.RemoveExcludedDate(new DateTime(2007, 10, 20, 2, 0, 0));
-        Assert.That(calendar.ExcludedDates, Is.Empty);
+        calendar.AddExcludedDay(new DateOnly(2007, 10, 20)).Should().BeTrue();
+        calendar.RemoveExcludedDay(new DateOnly(2007, 10, 20)).Should().BeTrue();
+        calendar.DaysExcluded.Should().BeEmpty();
     }
 
     [Test]
@@ -54,7 +54,7 @@ public class HolidayCalendarTest : SerializationTestSupport<HolidayCalendar, ICa
     {
         // use end of day to get by with utc offsets
         DateTime excluded = new DateTime(2007, 12, 31);
-        calendar.AddExcludedDate(excluded);
+        calendar.AddExcludedDay(DateOnly.FromDateTime(excluded));
 
         Assert.That(calendar.GetNextIncludedTimeUtc(excluded), Is.EqualTo(new DateTimeOffset(2008, 1, 1, 0, 0, 0, calendar.TimeZone.BaseUtcOffset)));
     }
@@ -68,8 +68,8 @@ public class HolidayCalendarTest : SerializationTestSupport<HolidayCalendar, ICa
     {
         HolidayCalendar c = new HolidayCalendar();
         c.Description = "description";
-        DateTime date = new DateTime(2005, 1, 20, 10, 5, 15);
-        c.AddExcludedDate(date);
+        DateOnly date = new DateOnly(2005, 1, 20);
+        c.AddExcludedDay(date);
         return c;
     }
 
@@ -81,7 +81,7 @@ public class HolidayCalendarTest : SerializationTestSupport<HolidayCalendar, ICa
         c.TimeZone = tz;
 
         DateTimeOffset excludedDay = new DateTimeOffset(2012, 11, 4, 0, 0, 0, TimeSpan.Zero);
-        c.AddExcludedDate(excludedDay.DateTime);
+        c.AddExcludedDay(DateOnly.FromDateTime(excludedDay.DateTime));
 
         // 11/5/2012 12:00:00 AM -04:00  translate into 11/4/2012 11:00:00 PM -05:00 (EST)
         DateTimeOffset date = new DateTimeOffset(2012, 11, 5, 0, 0, 0, TimeSpan.FromHours(-4));
@@ -103,7 +103,7 @@ public class HolidayCalendarTest : SerializationTestSupport<HolidayCalendar, ICa
         {
             Assert.That(deserialized, Is.Not.Null);
             Assert.That(deserialized.Description, Is.EqualTo(original.Description));
-            Assert.That(deserialized.ExcludedDates, Is.EqualTo(original.ExcludedDates));
+            Assert.That(deserialized.DaysExcluded, Is.EquivalentTo(original.DaysExcluded));
             Assert.That(deserialized.TimeZone, Is.EqualTo(original.TimeZone));
         });
     }

@@ -170,8 +170,8 @@ public class TriggerDstMonotonicityTests
                 {
                     Key = new TriggerKey(triggerKind, "dst"),
                     StartTimeUtc = windowStart,
-                    StartTimeOfDay = new TimeOfDay(0, 0, 0),
-                    EndTimeOfDay = new TimeOfDay(23, 59, 59),
+                    StartTimeOfDay = new TimeOnly(0, 0, 0),
+                    EndTimeOfDay = new TimeOnly(23, 59, 59),
                     RepeatInterval = 15,
                     RepeatIntervalUnit = IntervalUnit.Minute,
                     TimeZone = zone

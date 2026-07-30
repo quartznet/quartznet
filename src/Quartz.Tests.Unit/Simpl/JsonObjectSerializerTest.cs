@@ -63,7 +63,7 @@ public class JsonObjectSerializerTest
             }
         };
 
-        calendar.SetDayExcluded(timeProvider.GetUtcNow().Date, true);
+        calendar.AddExcludedDay(DateOnly.FromDateTime(timeProvider.GetUtcNow().Date));
 
         CompareSerialization(calendar);
         await VerifyCreatedJson(calendar);
@@ -101,8 +101,8 @@ public class JsonObjectSerializerTest
     {
         var timeProvider = CreateFakeTimeProvider();
 
-        var start = timeProvider.GetUtcNow().Date.AddHours(1).AddMinutes(1).AddSeconds(1).AddMilliseconds(1);
-        var calendar = new DailyCalendar(start, start.AddHours(1).AddMinutes(1).AddSeconds(1).AddMilliseconds(1))
+        var start = new TimeOnly(1, 1, 1, 1);
+        var calendar = new DailyCalendar(start, start.Add(TimeSpan.FromMilliseconds(1 * 3600_000 + 1 * 60_000 + 1_000 + 1)))
         {
             TimeZone = TimeZoneInfo.Utc,
             Description = null,
@@ -129,7 +129,7 @@ public class JsonObjectSerializerTest
             CalendarBase = null
         };
 
-        calendar.AddExcludedDate(timeProvider.GetUtcNow().Date);
+        calendar.AddExcludedDay(DateOnly.FromDateTime(timeProvider.GetUtcNow().Date));
 
         CompareSerialization(calendar);
         await VerifyCreatedJson(calendar);
@@ -148,10 +148,10 @@ public class JsonObjectSerializerTest
             }
         };
 
-        calendar.SetDayExcluded(10, true);
-        calendar.SetDayExcluded(20, true);
-        calendar.SetDayExcluded(23, true);
-        calendar.SetDayExcluded(30, true);
+        calendar.AddExcludedDay(10);
+        calendar.AddExcludedDay(20);
+        calendar.AddExcludedDay(23);
+        calendar.AddExcludedDay(30);
 
         CompareSerialization(calendar);
         await VerifyCreatedJson(calendar);
@@ -167,9 +167,9 @@ public class JsonObjectSerializerTest
             CalendarBase = null
         };
 
-        calendar.SetDayExcluded(DayOfWeek.Wednesday, true);
-        calendar.SetDayExcluded(DayOfWeek.Thursday, true);
-        calendar.SetDayExcluded(DayOfWeek.Friday, true);
+        calendar.AddExcludedDay(DayOfWeek.Wednesday);
+        calendar.AddExcludedDay(DayOfWeek.Thursday);
+        calendar.AddExcludedDay(DayOfWeek.Friday);
 
         CompareSerialization(calendar);
         await VerifyCreatedJson(calendar);
@@ -244,7 +244,7 @@ public class JsonObjectSerializerTest
 
         var annualCalendar = new AnnualCalendar();
         annualCalendar.Description = "description";
-        annualCalendar.SetDayExcluded(timeProvider.GetUtcNow().Date, true);
+        annualCalendar.AddExcludedDay(DateOnly.FromDateTime(timeProvider.GetUtcNow().Date));
         annualCalendar.TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Tokyo Standard Time");
 
         var cronCalendar = new CronCalendar("0/5 * * * * ?");
@@ -380,8 +380,8 @@ public class JsonObjectSerializerTest
             .WithDailyTimeIntervalSchedule(builder => builder
                 .WithRepeatCount(1_000)
                 .WithInterval(42, IntervalUnit.Second)
-                .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(3, 30))
-                .EndingDailyAt(TimeOfDay.HourAndMinuteOfDay(4, 40))
+                .StartingDailyAt(new TimeOnly(3, 30))
+                .EndingDailyAt(new TimeOnly(4, 40))
                 .OnDaysOfTheWeek(DayOfWeek.Monday, DayOfWeek.Wednesday, DayOfWeek.Friday)
                 .InTimeZone(TimeZoneInfo.Utc)
             )

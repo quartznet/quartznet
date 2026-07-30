@@ -15,15 +15,16 @@ internal sealed class HolidayCalendarSerializer : CalendarSerializer<HolidayCale
 
     protected override void SerializeFields(Utf8JsonWriter writer, HolidayCalendar calendar, JsonSerializerOptions options)
     {
-        writer.WriteDateTimeArray(options.GetPropertyName("ExcludedDates"), calendar.ExcludedDates);
+        writer.WriteDateOnlyArray(options.GetPropertyName("ExcludedDates"), calendar.DaysExcluded);
     }
 
     protected override void DeserializeFields(HolidayCalendar calendar, JsonElement jsonElement, JsonSerializerOptions options)
     {
-        var excludedDates = jsonElement.GetProperty(options.GetPropertyName("ExcludedDates")).GetDateTimeArray();
+        // Payloads written before 4.0 carry full timestamps here rather than dates.
+        var excludedDates = jsonElement.GetProperty(options.GetPropertyName("ExcludedDates")).GetDateOnlyArray();
         foreach (var date in excludedDates)
         {
-            calendar.AddExcludedDate(date);
+            calendar.AddExcludedDay(date);
         }
     }
 }

@@ -243,16 +243,6 @@ public sealed class CronCalendar : BaseCalendar
         }
     }
 
-    /// <summary>
-    /// Sets the cron expression for the calendar to a new value.
-    /// </summary>
-    /// <param name="expression">The expression.</param>
-    public void SetCronExpressionString(string expression)
-    {
-        CronExpression newExp = new CronExpression(expression);
-        cronExpression = newExp;
-    }
-
     public override int GetHashCode()
     {
         int baseHash = 0;

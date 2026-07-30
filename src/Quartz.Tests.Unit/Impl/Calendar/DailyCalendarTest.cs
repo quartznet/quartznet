@@ -42,15 +42,37 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
     }
 
     [Test]
-    public void TestStringStartEndTimes()
+    public void TestStartEndTimesInToString()
     {
-        DailyCalendar dailyCalendar = new DailyCalendar("1:20", "14:50");
-        var toString = dailyCalendar.ToString();
-        Assert.That(toString, Does.Contain("01:20:00:000 - 14:50:00:000"));
+        DailyCalendar dailyCalendar = new DailyCalendar(new TimeOnly(1, 20), new TimeOnly(14, 50));
+        dailyCalendar.ToString().Should().Contain("01:20:00.000 - 14:50:00.000");
 
-        dailyCalendar = new DailyCalendar("1:20:1:456", "14:50:15:2");
-        toString = dailyCalendar.ToString();
-        Assert.That(toString, Does.Contain("01:20:01:456 - 14:50:15:002"));
+        dailyCalendar = new DailyCalendar(new TimeOnly(1, 20, 1, 456), new TimeOnly(14, 50, 15, 2));
+        dailyCalendar.ToString().Should().Contain("01:20:01.456 - 14:50:15.002");
+    }
+
+    [Test]
+    public void TimeRangeRoundTripsThroughTheProperty()
+    {
+        DailyCalendar dailyCalendar = new DailyCalendar(new TimeOnly(1, 20), new TimeOnly(14, 50));
+        dailyCalendar.TimeRange.Should().Be((new TimeOnly(1, 20), new TimeOnly(14, 50)));
+
+        dailyCalendar.TimeRange = (new TimeOnly(8, 0), new TimeOnly(17, 0));
+        dailyCalendar.TimeRange.Should().Be((new TimeOnly(8, 0), new TimeOnly(17, 0)));
+    }
+
+    [Test]
+    public void ARangeThatDoesNotStartBeforeItEndsIsRejected()
+    {
+        Action act = () => new DailyCalendar(new TimeOnly(14, 50), new TimeOnly(1, 20));
+        act.Should().Throw<ArgumentException>("a time range may not cross a daily boundary");
+    }
+
+    [Test]
+    public void ARangeFinerThanAMillisecondIsRejected()
+    {
+        Action act = () => new DailyCalendar(new TimeOnly(1, 20).Add(TimeSpan.FromTicks(1)), new TimeOnly(14, 50));
+        act.Should().Throw<ArgumentException>("the range is persisted with one-millisecond resolution");
     }
 
     [Test]
@@ -59,7 +81,7 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
         // Grafit found a copy-paste problem from ending time, it was the same as starting time
 
         DateTime d = DateTime.Now;
-        DailyCalendar dailyCalendar = new DailyCalendar("1:20", "14:50");
+        DailyCalendar dailyCalendar = new DailyCalendar(new TimeOnly(1, 20), new TimeOnly(14, 50));
         DateTime expectedStartTime = new DateTime(d.Year, d.Month, d.Day, 1, 20, 0);
         DateTime expectedEndTime = new DateTime(d.Year, d.Month, d.Day, 14, 50, 0);
 
@@ -73,7 +95,7 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
     [Test]
     public void TestStringInvertTimeRange()
     {
-        DailyCalendar dailyCalendar = new DailyCalendar("1:20", "14:50")
+        DailyCalendar dailyCalendar = new DailyCalendar(new TimeOnly(1, 20), new TimeOnly(14, 50))
         {
             InvertTimeRange = true
         };
@@ -88,7 +110,7 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
     {
         TimeZoneInfo tz = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
 
-        DailyCalendar dailyCalendar = new DailyCalendar("12:00:00", "14:00:00")
+        DailyCalendar dailyCalendar = new DailyCalendar(new TimeOnly(12, 0, 0), new TimeOnly(14, 0, 0))
         {
             InvertTimeRange = true, //inclusive calendar
             TimeZone = tz
@@ -105,7 +127,7 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
     [Test]
     public void TestTimeZone2()
     {
-        DailyCalendar dailyCalendar = new DailyCalendar("00:00:00", "04:00:00");
+        DailyCalendar dailyCalendar = new DailyCalendar(new TimeOnly(0, 0, 0), new TimeOnly(4, 0, 0));
         dailyCalendar.TimeZone = TimeZoneInfo.Utc;
 
         var trigger = (IOperableTrigger)TriggerBuilder
@@ -142,7 +164,7 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
     [Test]
     public void ShouldAllowExactMidnight()
     {
-        var calendar = new DailyCalendar("01:00", "05:00");
+        var calendar = new DailyCalendar(new TimeOnly(1, 0), new TimeOnly(5, 0));
 
         var trigger = (CronTriggerImpl) TriggerBuilder.Create()
             .WithIdentity("TestJobTrigger", "group1")
@@ -157,7 +179,7 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
 
     protected override DailyCalendar GetTargetObject()
     {
-        DailyCalendar c = new DailyCalendar("01:20:01:456", "14:50:15:002");
+        DailyCalendar c = new DailyCalendar(new TimeOnly(1, 20, 1, 456), new TimeOnly(14, 50, 15, 2));
         c.Description = "description";
         c.InvertTimeRange = true;
         return c;

@@ -37,28 +37,26 @@ namespace Quartz.Impl.Calendar;
 [Serializable]
 public sealed class WeeklyCalendar : BaseCalendar
 {
-    // An array to store the week days which are to be excluded.
-    // DayOfWeek enumeration values are used as index.
-    private bool[] excludeDays = new bool[7];
+    private const int DaysInWeek = 7;
 
-    // Will be set to true, if all week days are excluded
-    private bool excludeAll;
+    // The week days which are to be excluded.
+    private HashSet<DayOfWeek> excludeDays = [DayOfWeek.Saturday, DayOfWeek.Sunday];
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="WeeklyCalendar"/> class.
+    /// Initializes a new instance of the <see cref="WeeklyCalendar"/> class, excluding
+    /// <see cref="DayOfWeek.Saturday" /> and <see cref="DayOfWeek.Sunday" />.
     /// </summary>
     public WeeklyCalendar()
     {
-        Init();
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="WeeklyCalendar"/> class.
+    /// Initializes a new instance of the <see cref="WeeklyCalendar"/> class, excluding
+    /// <see cref="DayOfWeek.Saturday" /> and <see cref="DayOfWeek.Sunday" />.
     /// </summary>
     /// <param name="baseCalendar">The base calendar.</param>
     public WeeklyCalendar(ICalendar baseCalendar) : base(baseCalendar)
     {
-        Init();
     }
 
     /// <summary>
@@ -82,8 +80,17 @@ public sealed class WeeklyCalendar : BaseCalendar
         {
             case 0:
             case 1:
-                excludeDays = (bool[]) info.GetValue("excludeDays", typeof(bool[]))!;
-                excludeAll = (bool) info.GetValue("excludeAll", typeof(bool))!;
+                // The days have always been stored as a bool array indexed by DayOfWeek; keep
+                // reading that shape and fold it into the set.
+                var stored = (bool[]) info.GetValue("excludeDays", typeof(bool[]))!;
+                excludeDays = new HashSet<DayOfWeek>();
+                for (int i = 0; i < stored.Length && i < DaysInWeek; i++)
+                {
+                    if (stored[i])
+                    {
+                        excludeDays.Add((DayOfWeek) i);
+                    }
+                }
                 break;
             default:
                 Throw.NotSupportedException("Unknown serialization version");
@@ -96,104 +103,56 @@ public sealed class WeeklyCalendar : BaseCalendar
     {
         base.GetObjectData(info, context);
 
-        info.AddValue("version", 1);
-        info.AddValue("excludeDays", excludeDays);
-        info.AddValue("excludeAll", excludeAll);
-    }
-
-    /// <summary>
-    /// Initialize internal variables
-    /// </summary>
-    private void Init()
-    {
-        excludeDays[(int) DayOfWeek.Sunday] = true;
-        excludeDays[(int) DayOfWeek.Saturday] = true;
-        excludeAll = AreAllDaysExcluded();
-    }
-
-    /// <summary>
-    /// Get the array with the week days.
-    /// Setting will redefine the array of days excluded. The array must of size greater or
-    /// equal 8. <see cref="DayOfWeek" /> enum values like <see cref="DayOfWeek.Monday" /> casted to int
-    /// should be used as index (Sunday is the 0).
-    /// A value of true is regarded as: exclude it.
-    /// </summary>
-    public bool[] DaysExcluded
-    {
-        get => excludeDays;
-
-        set
+        // Keep writing the bool-array layout so a payload written here stays readable by the
+        // versions that only know that shape.
+        bool[] stored = new bool[DaysInWeek];
+        foreach (DayOfWeek day in excludeDays)
         {
-            if (value is null)
-            {
-                return;
-            }
-
-            excludeDays = value;
-            excludeAll = AreAllDaysExcluded();
+            stored[(int) day] = true;
         }
+
+        info.AddValue("version", 1);
+        info.AddValue("excludeDays", stored);
+        info.AddValue("excludeAll", AreAllDaysExcluded());
     }
 
     /// <summary>
-    /// Return true, if wday is defined to be excluded. E. g.
-    /// saturday and sunday.
+    /// The days of the week excluded by this calendar.
     /// </summary>
-    public bool IsDayExcluded(DayOfWeek wday)
-    {
-        return excludeDays[(int) wday];
-    }
+    public IReadOnlySet<DayOfWeek> DaysExcluded => excludeDays;
 
     /// <summary>
-    /// Redefine a certain day of the week to be excluded (true) or included
-    /// (false). Use <see cref="DayOfWeek"/> enum to determine the weekday.
+    /// Excludes the given day of every week.
     /// </summary>
-    public void SetDayExcluded(DayOfWeek wday, bool exclude)
+    /// <returns><see langword="true" /> if the day was not already excluded.</returns>
+    public bool AddExcludedDay(DayOfWeek day)
     {
-        excludeDays[(int) wday] = exclude;
-        excludeAll = AreAllDaysExcluded();
+        return excludeDays.Add(day);
     }
 
     /// <summary>
-    /// Check if all week ays are excluded. That is no day is included.
+    /// Stops excluding the given day of the week.
+    /// </summary>
+    /// <returns><see langword="true" /> if the day was excluded.</returns>
+    public bool RemoveExcludedDay(DayOfWeek day)
+    {
+        return excludeDays.Remove(day);
+    }
+
+    /// <summary>
+    /// Return true, if the given day of the week is defined to be excluded.
+    /// </summary>
+    public bool IsDayExcluded(DayOfWeek day)
+    {
+        return excludeDays.Contains(day);
+    }
+
+    /// <summary>
+    /// Check if all week days are excluded. That is no day is included.
     /// </summary>
     public bool AreAllDaysExcluded()
     {
-        if (IsDayExcluded(DayOfWeek.Sunday) == false)
-        {
-            return false;
-        }
-
-        if (IsDayExcluded(DayOfWeek.Monday) == false)
-        {
-            return false;
-        }
-
-        if (IsDayExcluded(DayOfWeek.Tuesday) == false)
-        {
-            return false;
-        }
-
-        if (IsDayExcluded(DayOfWeek.Wednesday) == false)
-        {
-            return false;
-        }
-
-        if (IsDayExcluded(DayOfWeek.Thursday) == false)
-        {
-            return false;
-        }
-
-        if (IsDayExcluded(DayOfWeek.Friday) == false)
-        {
-            return false;
-        }
-
-        if (IsDayExcluded(DayOfWeek.Saturday) == false)
-        {
-            return false;
-        }
-
-        return true;
+        return excludeDays.Count == DaysInWeek;
     }
 
     /// <summary>
@@ -205,7 +164,7 @@ public sealed class WeeklyCalendar : BaseCalendar
     /// </summary>
     public override bool IsTimeIncluded(DateTimeOffset timeUtc)
     {
-        if (excludeAll)
+        if (AreAllDaysExcluded())
         {
             return false;
         }
@@ -218,7 +177,7 @@ public sealed class WeeklyCalendar : BaseCalendar
         }
 
         timeUtc = TimeZoneUtil.ConvertTime(timeUtc, TimeZone); //apply the timezone
-        return !IsDayExcluded(timeUtc.DayOfWeek);
+        return !excludeDays.Contains(timeUtc.DayOfWeek);
     }
 
     /// <summary>
@@ -231,7 +190,7 @@ public sealed class WeeklyCalendar : BaseCalendar
     /// </summary>
     public override DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc)
     {
-        if (excludeAll)
+        if (AreAllDaysExcluded())
         {
             return DateTimeOffset.MinValue;
         }
@@ -249,12 +208,7 @@ public sealed class WeeklyCalendar : BaseCalendar
         // Get timestamp for 00:00:00, in the correct timezone offset
         DateTimeOffset d = new DateTimeOffset(timeUtc.Date, timeUtc.Offset);
 
-        if (!IsDayExcluded(d.DayOfWeek))
-        {
-            return d;
-        } // return the original value with the correct offset time.
-
-        while (IsDayExcluded(d.DayOfWeek))
+        while (excludeDays.Contains(d.DayOfWeek))
         {
             d = d.AddDays(1);
         }
@@ -266,9 +220,7 @@ public sealed class WeeklyCalendar : BaseCalendar
     {
         WeeklyCalendar clone = new WeeklyCalendar();
         CloneFields(clone);
-        bool[] excludeCopy = new bool[excludeDays.Length];
-        Array.Copy(excludeDays, excludeCopy, excludeDays.Length);
-        clone.excludeDays = excludeCopy;
+        clone.excludeDays = new HashSet<DayOfWeek>(excludeDays);
         return clone;
     }
 
@@ -280,7 +232,7 @@ public sealed class WeeklyCalendar : BaseCalendar
             baseHash = CalendarBase.GetHashCode();
         }
 
-        return DaysExcluded.GetHashCode() + 5 * baseHash;
+        return excludeDays.Count + 5 * baseHash;
     }
 
     public bool Equals(WeeklyCalendar obj)
@@ -291,15 +243,16 @@ public sealed class WeeklyCalendar : BaseCalendar
         }
         bool baseEqual = CalendarBase is null || CalendarBase.Equals(obj.CalendarBase);
 
-        return baseEqual && obj.DaysExcluded.SequenceEqual(DaysExcluded);
+        return baseEqual && excludeDays.SetEquals(obj.excludeDays);
     }
 
     public override bool Equals(object? obj)
     {
-        if (!(obj is WeeklyCalendar))
+        if (obj is not WeeklyCalendar other)
         {
             return false;
         }
-        return Equals((WeeklyCalendar) obj);
+
+        return Equals(other);
     }
 }

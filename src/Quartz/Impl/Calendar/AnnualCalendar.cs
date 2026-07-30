@@ -37,7 +37,7 @@ namespace Quartz.Impl.Calendar;
 [Serializable]
 public sealed class AnnualCalendar : BaseCalendar
 {
-    private SortedSet<DateTime> excludeDays = new SortedSet<DateTime>();
+    private SortedSet<DateOnly> excludeDays = new SortedSet<DateOnly>();
 
     // year to use as fixed year
     private const int FixedYear = 2000;
@@ -85,29 +85,31 @@ public sealed class AnnualCalendar : BaseCalendar
                     foreach (DateTime dateTime in oldFormat)
 #pragma warning restore 8605
                     {
-                        excludeDays.Add(dateTime);
+                        excludeDays.Add(Normalize(DateOnly.FromDateTime(dateTime)));
                     }
                 }
                 else
                 {
                     // must be new..
-                    excludeDays = new SortedSet<DateTime>();
                     foreach (var offset in (List<DateTimeOffset>) o)
                     {
-                        excludeDays.Add(offset.Date);
+                        excludeDays.Add(Normalize(DateOnly.FromDateTime(offset.Date)));
                     }
                 }
                 break;
             case 1:
                 var dateTimeOffsets = (List<DateTimeOffset>) info.GetValue("excludeDays", typeof(List<DateTimeOffset>))!;
-                excludeDays = new SortedSet<DateTime>();
                 foreach (var offset in dateTimeOffsets)
                 {
-                    excludeDays.Add(offset.Date);
+                    excludeDays.Add(Normalize(DateOnly.FromDateTime(offset.Date)));
                 }
                 break;
             case 2:
-                excludeDays = (SortedSet<DateTime>) info.GetValue("excludeDays", typeof(SortedSet<DateTime>))!;
+                var dateTimes = (SortedSet<DateTime>) info.GetValue("excludeDays", typeof(SortedSet<DateTime>))!;
+                foreach (var dateTime in dateTimes)
+                {
+                    excludeDays.Add(Normalize(DateOnly.FromDateTime(dateTime)));
+                }
                 break;
             default:
                 Throw.NotSupportedException("Unknown serialization version");
@@ -120,26 +122,49 @@ public sealed class AnnualCalendar : BaseCalendar
     {
         base.GetObjectData(info, context);
 
+        // Keep writing the version 2 layout - a sorted set of DateTime - so a payload written here
+        // stays readable by the versions that only know that shape.
         info.AddValue("version", 2);
-        info.AddValue("excludeDays", excludeDays);
+        info.AddValue("excludeDays", new SortedSet<DateTime>(excludeDays.Select(d => d.ToDateTime(TimeOnly.MinValue))));
     }
 
     /// <summary>
-    /// Gets or sets the days to be excluded by this calendar.
+    /// The days excluded by this calendar.
     /// </summary>
-    public IReadOnlyCollection<DateTime> DaysExcluded
+    /// <remarks>
+    /// Only the month and the day of a value are significant - the calendar excludes the same
+    /// date every year - so the days come back normalized onto a single fixed year.
+    /// </remarks>
+    public IReadOnlySet<DateOnly> DaysExcluded => excludeDays;
+
+    /// <summary>
+    /// Excludes the given day of every year. Only the month and the day are significant.
+    /// </summary>
+    /// <returns><see langword="true" /> if the day was not already excluded.</returns>
+    public bool AddExcludedDay(DateOnly day)
     {
-        get => new HashSet<DateTime>(excludeDays);
-        set => excludeDays = value is null ? new SortedSet<DateTime>() : new SortedSet<DateTime>(value);
+        return excludeDays.Add(Normalize(day));
     }
 
     /// <summary>
-    /// Return true, if day is defined to be excluded.
+    /// Stops excluding the given day. Only the month and the day are significant.
     /// </summary>
-    public bool IsDayExcluded(DateTimeOffset day)
+    /// <returns><see langword="true" /> if the day was excluded.</returns>
+    public bool RemoveExcludedDay(DateOnly day)
     {
-        return IsDateTimeExcluded(day, true);
+        return excludeDays.Remove(Normalize(day));
     }
+
+    /// <summary>
+    /// Returns <see langword="true" /> if the given day is excluded by this calendar. Only the
+    /// month and the day are significant.
+    /// </summary>
+    public bool IsDayExcluded(DateOnly day)
+    {
+        return excludeDays.Contains(Normalize(day));
+    }
+
+    private static DateOnly Normalize(DateOnly day) => new DateOnly(FixedYear, day.Month, day.Day);
 
     private bool IsDateTimeExcluded(DateTimeOffset day, bool checkBaseCalendar)
     {
@@ -149,56 +174,7 @@ public sealed class AnnualCalendar : BaseCalendar
             return true;
         }
 
-        int dmonth = day.Month;
-        int dday = day.Day;
-
-        foreach (DateTime cl in excludeDays)
-        {
-            // remember, the list is sorted
-            if (dmonth < cl.Month)
-            {
-                return false;
-            }
-
-            if (dday != cl.Day)
-            {
-                continue;
-            }
-
-            if (dmonth != cl.Month)
-            {
-                continue;
-            }
-
-            return true;
-        }
-
-        // not found
-        return false;
-    }
-
-    /// <summary>
-    /// Redefine a certain day to be excluded (true) or included (false).
-    /// </summary>
-    public void SetDayExcluded(DateTimeOffset day, bool exclude)
-    {
-        DateTime d = new (FixedYear, day.Month, day.Day, 0, 0, 0);
-
-        if (exclude)
-        {
-            if (!IsDateTimeExcluded(day, false))
-            {
-                excludeDays.Add(d);
-            }
-        }
-        else
-        {
-            // include
-            if (IsDateTimeExcluded(day, false))
-            {
-                excludeDays.Remove(d);
-            }
-        }
+        return excludeDays.Contains(new DateOnly(FixedYear, day.Month, day.Day));
     }
 
     /// <summary>
@@ -220,7 +196,7 @@ public sealed class AnnualCalendar : BaseCalendar
         //apply the timezone
         dateUtc = TimeZoneUtil.ConvertTime(dateUtc, TimeZone);
 
-        return !IsDayExcluded(dateUtc);
+        return !IsDateTimeExcluded(dateUtc, checkBaseCalendar: true);
     }
 
     /// <summary>
@@ -246,13 +222,13 @@ public sealed class AnnualCalendar : BaseCalendar
         // Get timestamp for 00:00:00, in the correct timezone offset
         DateTimeOffset day = new DateTimeOffset(timeStampUtc.Date, timeStampUtc.Offset);
 
-        if (!IsDayExcluded(day))
+        if (!IsDateTimeExcluded(day, checkBaseCalendar: true))
         {
             // return the original value
             return timeStampUtc;
         }
 
-        while (IsDayExcluded(day))
+        while (IsDateTimeExcluded(day, checkBaseCalendar: true))
         {
             day = day.AddDays(1);
         }
@@ -268,7 +244,7 @@ public sealed class AnnualCalendar : BaseCalendar
             baseHash = CalendarBase.GetHashCode();
         }
 
-        return excludeDays.GetHashCode() + 5 * baseHash;
+        return excludeDays.Count + 5 * baseHash;
     }
 
     public bool Equals(AnnualCalendar obj)
@@ -280,32 +256,24 @@ public sealed class AnnualCalendar : BaseCalendar
 
         bool toReturn = CalendarBase is null || CalendarBase.Equals(obj.CalendarBase);
 
-        toReturn = toReturn && DaysExcluded.Count == obj.DaysExcluded.Count;
-        if (toReturn)
-        {
-            foreach (DateTime date in DaysExcluded)
-            {
-                toReturn = toReturn && obj.excludeDays.Contains(date);
-            }
-        }
-        return toReturn;
+        return toReturn && excludeDays.SetEquals(obj.excludeDays);
     }
 
     public override bool Equals(object? obj)
     {
-        if (!(obj is AnnualCalendar))
+        if (obj is not AnnualCalendar other)
         {
             return false;
         }
 
-        return Equals((AnnualCalendar) obj);
+        return Equals(other);
     }
 
     public override ICalendar Clone()
     {
         var clone = new AnnualCalendar();
         CloneFields(clone);
-        clone.excludeDays = new SortedSet<DateTime>(excludeDays);
+        clone.excludeDays = new SortedSet<DateOnly>(excludeDays);
         return clone;
     }
 }

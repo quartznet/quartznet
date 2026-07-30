@@ -569,7 +569,7 @@ var value = map["key"];
 if (map.TryGetValue("key", out var value)) { ... }
 ```
 
-The following properties are now explicit interface implementations and cannot be accessed directly on `DirtyFlagMap` instances: `IsReadOnly`, `IsFixedSize`, `SyncRoot`, `IsSynchronized`.
+`IsReadOnly` is an explicit interface implementation and cannot be accessed directly on a `DirtyFlagMap` instance. `IsFixedSize`, `SyncRoot` and `IsSynchronized` are gone with the non-generic interfaces — see [`DirtyFlagMap` dropped the non-generic collection interfaces](#dirtyflagmap-dropped-the-non-generic-collection-interfaces).
 
 ## Listener API Changes
 
@@ -1963,6 +1963,147 @@ every minute keeps the same schedule as one whose start was rounded up first —
 second earlier. Reach for rounding when you want the *displayed* times to be tidy, and write the line where
 you want it.
 
+## `TimeOfDay` became `TimeOnly`
+
+The hand-written `TimeOfDay` class predates `System.TimeOnly`. It is gone, and `IDailyTimeIntervalTrigger`
+and `DailyTimeIntervalScheduleBuilder` speak `TimeOnly`.
+
+| 3.x | 4.x |
+|---|---|
+| `TimeOfDay.HourAndMinuteOfDay(8, 0)` | `new TimeOnly(8, 0)` |
+| `TimeOfDay.HourMinuteAndSecondOfDay(8, 0, 30)` | `new TimeOnly(8, 0, 30)` |
+| `new TimeOfDay(8, 0)` / `new TimeOfDay(8, 0, 30)` | `new TimeOnly(8, 0)` / `new TimeOnly(8, 0, 30)` |
+| `IDailyTimeIntervalTrigger.StartTimeOfDay` returning `TimeOfDay` | returning `TimeOnly` |
+| `IDailyTimeIntervalTrigger.EndTimeOfDay` returning `TimeOfDay` | returning `TimeOnly` |
+| `StartingDailyAt(TimeOfDay)` / `EndingDailyAt(TimeOfDay)` | `StartingDailyAt(TimeOnly)` / `EndingDailyAt(TimeOnly)` |
+| `a.Before(b)` | `a < b` |
+| `timeOfDay.GetTimeOfDayForDate(date)` | `new DateTimeOffset(date.Date, date.Offset).Add(timeOfDay.ToTimeSpan())` |
+
+```csharp
+// 3.x
+.WithDailyTimeIntervalSchedule(x => x
+    .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(8, 0))
+    .EndingDailyAt(TimeOfDay.HourAndMinuteOfDay(17, 0)))
+
+// 4.x
+.WithDailyTimeIntervalSchedule(x => x
+    .StartingDailyAt(new TimeOnly(8, 0))
+    .EndingDailyAt(new TimeOnly(17, 0)))
+```
+
+Two things to know:
+
+* The two properties are non-nullable now. A `TimeOnly` is a struct, and the defaults are the ones the
+  builder always applied anyway — `00:00:00` and `23:59:59`.
+* A value with sub-second precision is rejected with an `ArgumentException`. The job store keeps the window
+  in hour, minute and second columns, so `TimeOnly.FromDateTime(DateTime.Now)` would lose its fractional part
+  the moment the trigger were persisted. Round it yourself if that is what you meant.
+
+Nothing about storage changed: the `SIMPROP_INT_PROP` columns are the same, and the JSON
+`StartTimeOfDay`/`EndTimeOfDay` objects keep their `{ Hour, Minute, Second }` shape, so existing triggers
+load unchanged.
+
+## `DailyCalendar` takes two `TimeOnly` values
+
+Eight constructors and four `SetTimeRange` overloads described one pair of times four different ways. One
+constructor and one property replace them.
+
+| 3.x | 4.x |
+|---|---|
+| `new DailyCalendar("08:00", "17:00")` | `new DailyCalendar(new TimeOnly(8, 0), new TimeOnly(17, 0))` |
+| `new DailyCalendar("08:00:00:500", "17:00:00:000")` | `new DailyCalendar(new TimeOnly(8, 0, 0, 500), new TimeOnly(17, 0))` |
+| `new DailyCalendar(baseCal, "08:00", "17:00")` | `new DailyCalendar(new TimeOnly(8, 0), new TimeOnly(17, 0), baseCal)` |
+| `new DailyCalendar(8, 0, 0, 0, 17, 0, 0, 0)` | `new DailyCalendar(new TimeOnly(8, 0), new TimeOnly(17, 0))` |
+| `new DailyCalendar(startDateTime, endDateTime)` | `new DailyCalendar(TimeOnly.FromDateTime(startDateTime), TimeOnly.FromDateTime(endDateTime))` |
+| `new DailyCalendar(startTicks, endTicks)` | `new DailyCalendar(new TimeOnly(startTicks), new TimeOnly(endTicks))` |
+| `calendar.SetTimeRange(...)` (four overloads) | `calendar.TimeRange = (start, end)` |
+| `calendar.RangeStartingTime` (a string) | `calendar.TimeRange.Start` |
+| `calendar.RangeEndingTime` (a string) | `calendar.TimeRange.End` |
+
+The `"HH:MM:SS:mmm"` string form — note the colon before the milliseconds — was a format nothing else in
+.NET parses. `InvertTimeRange`, `GetTimeRangeStartingTimeUtc` and `GetTimeRangeEndingTimeUtc` are unchanged.
+The constructor no longer takes a `TimeProvider`; it only ever used one to check that the range starts
+before it ends, which two `TimeOnly` values answer directly. Precision finer than a millisecond is rejected,
+matching what the calendar's serialized form can carry.
+
+Persisted `DailyCalendar` blobs load unchanged: the serializers write `RangeStart`/`RangeEnd` now but still
+read the old `RangeStartingTime`/`RangeEndingTime` strings.
+
+## Excluded days are a read-only set
+
+The four day-excluding calendars had four idioms for one idea. They now share one: a read-only set of the
+thing being excluded, plus `AddExcludedDay` and `RemoveExcludedDay`, which return whether the set changed.
+
+| 3.x | 4.x |
+|---|---|
+| `AnnualCalendar.DaysExcluded` as a settable `IReadOnlyCollection<DateTime>` | `IReadOnlySet<DateOnly>`, get-only |
+| `annual.SetDayExcluded(day, true)` | `annual.AddExcludedDay(DateOnly)` |
+| `annual.SetDayExcluded(day, false)` | `annual.RemoveExcludedDay(DateOnly)` |
+| `annual.IsDayExcluded(DateTimeOffset)` | `annual.IsDayExcluded(DateOnly)` |
+| `HolidayCalendar.ExcludedDates` as a `List<DateTime>` copy | `HolidayCalendar.DaysExcluded` as `IReadOnlySet<DateOnly>` |
+| `holiday.AddExcludedDate(DateTime)` | `holiday.AddExcludedDay(DateOnly)` |
+| `holiday.RemoveExcludedDate(DateTime)` | `holiday.RemoveExcludedDay(DateOnly)` |
+| (nothing) | `holiday.IsDayExcluded(DateOnly)` |
+| `MonthlyCalendar.DaysExcluded` as a settable `bool[31]` | `IReadOnlySet<int>`, get-only, days 1 through 31 |
+| `monthly.SetDayExcluded(15, true)` / `(15, false)` | `monthly.AddExcludedDay(15)` / `monthly.RemoveExcludedDay(15)` |
+| `WeeklyCalendar.DaysExcluded` as a settable `bool[7]` | `IReadOnlySet<DayOfWeek>`, get-only |
+| `weekly.SetDayExcluded(DayOfWeek.Friday, true)` / `(…, false)` | `weekly.AddExcludedDay(DayOfWeek.Friday)` / `weekly.RemoveExcludedDay(DayOfWeek.Friday)` |
+| `CronCalendar.SetCronExpressionString(expr)` | `cron.CronExpression = new CronExpression(expr)` |
+
+```csharp
+// 3.x
+var holidays = new HolidayCalendar();
+holidays.AddExcludedDate(new DateTime(2025, 12, 25));
+
+var weekends = new WeeklyCalendar();
+weekends.SetDayExcluded(DayOfWeek.Friday, true);
+
+// 4.x
+var holidays = new HolidayCalendar();
+holidays.AddExcludedDay(new DateOnly(2025, 12, 25));
+
+var weekends = new WeeklyCalendar();
+weekends.AddExcludedDay(DayOfWeek.Friday);
+```
+
+Two behaviors worth knowing:
+
+* `AnnualCalendar` still only cares about the month and the day. It normalizes what you give it onto a fixed
+  year, so `DaysExcluded` reads back with that year rather than the one you passed, and `IsDayExcluded`
+  answers the same for every year.
+* `AnnualCalendar.IsDayExcluded` now answers only about the calendar's own set. The base calendar is
+  consulted by `IsTimeIncluded`, which is the member that asks a question about an instant.
+
+`MonthlyCalendar.AreAllDaysExcluded` and `WeeklyCalendar.AreAllDaysExcluded` are unchanged, and a fresh
+`WeeklyCalendar` still starts out excluding Saturday and Sunday.
+
+Existing calendar blobs load unchanged. Both serializers write the new shapes and read the old ones: an
+`ExcludedDays`/`ExcludedDates` array may hold timestamps or dates, and per-day booleans or day numbers or
+day names.
+
+## `DirtyFlagMap` dropped the non-generic collection interfaces
+
+`DirtyFlagMap<TKey, TValue>` no longer implements `System.Collections.IDictionary` or
+`System.Collections.ICollection`. Those duplicated the generic interfaces with untyped members that cast at
+runtime — `Add(object, object)` and the `object` indexer threw `InvalidCastException` for a key of the wrong
+type instead of `ArgumentException` (#1417), and `SyncRoot` handed out a lock object the map never took.
+
+| 3.x | 4.x |
+|---|---|
+| `((IDictionary) map).Add(key, value)` | `map.Add(key, value)` |
+| `((IDictionary) map)[key]` | `map[key]` |
+| `((IDictionary) map).Contains(key)` | `map.ContainsKey(key)` |
+| `((IDictionary) map).Remove(key)` | `map.Remove(key)` |
+| `map.CopyTo(array, index)` (`Array`) | `map.CopyTo(KeyValuePair<TKey, TValue?>[], index)` |
+| `new JobDataMap(someIDictionary)` | `new JobDataMap(someIDictionaryOfStringToObject)` |
+
+`ISerializable` is untouched, so persisted maps still load. The generic
+`JobDataMap(IDictionary<string, object?>)` constructor also took over what the removed non-generic one did
+with a `QRTZ_FORCE_JOB_DATAMAP_DIRTY` entry: the entry is not copied, and the new map is left flagged dirty.
+
+`StringKeyDirtyFlagMap` gained `GetDecimal` and `TryGetDecimal`, so a `decimal` in a job data map can now be
+read back the way every other primitive can.
+
 ## Other Breaking Changes
 
 | Change | Details |
@@ -1994,3 +2135,9 @@ you want it.
 | `ScheduleBuilder<T>` removed | The five schedule builders implement `IScheduleBuilder` directly — see [`ScheduleBuilder<T>` is gone](#schedulebuilder-t-is-gone) |
 | `DailyTimeIntervalScheduleBuilder`'s day-set fields are internal | `AllDaysOfTheWeek`, `MondayThroughFriday` and `SaturdayAndSunday` are reached through `OnEveryDay()`, `OnMondayThroughFriday()` and `OnSaturdayAndSunday()` |
 | `PreserveHourOfDayAcrossDaylightSavings` and `SkipDayIfHourDoesNotExist` default to `true` | Turning the flag on reads as a call with no argument; passing the value still works |
+| `TimeOfDay` removed | `TimeOnly` replaces it — see [`TimeOfDay` became `TimeOnly`](#timeofday-became-timeonly) |
+| `DailyCalendar` has one constructor | Two `TimeOnly` values and an optional base calendar — see [`DailyCalendar` takes two `TimeOnly` values](#dailycalendar-takes-two-timeonly-values) |
+| Calendar `SetDayExcluded` / `AddExcludedDate` removed | `AddExcludedDay` / `RemoveExcludedDay` over a read-only set — see [Excluded days are a read-only set](#excluded-days-are-a-read-only-set) |
+| `CronCalendar.SetCronExpressionString` removed | Assign `CronExpression` instead; the property already accepted a parsed expression |
+| `JobDataMap(IDictionary)` removed | `JobDataMap(IDictionary<string, object?>)` remains and absorbed the dirty-marker handling |
+| `StringKeyDirtyFlagMap.GetDecimal` / `TryGetDecimal` added | A `decimal` could be written but not read back |

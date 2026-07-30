@@ -99,8 +99,8 @@ public class JsonSchedulingDataProcessorTest
         var trigger = (IDailyTimeIntervalTrigger) processor.ParsedTriggers[0];
         trigger.RepeatInterval.Should().Be(15);
         trigger.RepeatIntervalUnit.Should().Be(IntervalUnit.Minute);
-        trigger.StartTimeOfDay.Should().Be(new TimeOfDay(8, 0, 0));
-        trigger.EndTimeOfDay.Should().Be(new TimeOfDay(17, 0, 0));
+        trigger.StartTimeOfDay.Should().Be(new TimeOnly(8, 0, 0));
+        trigger.EndTimeOfDay.Should().Be(new TimeOnly(17, 0, 0));
         trigger.DaysOfWeek.Should().BeEquivalentTo(new[] { DayOfWeek.Monday, DayOfWeek.Wednesday, DayOfWeek.Friday });
     }
 

@@ -48,54 +48,48 @@ public class AnnualCalendarTest : SerializationTestSupport<AnnualCalendar, ICale
     {
         // we're local by default
         DateTime d = new DateTime(2005, 1, 1);
-        calendar.SetDayExcluded(d, true);
-        Assert.Multiple(() =>
-        {
-            Assert.That(calendar.IsTimeIncluded(d.ToUniversalTime()), Is.False, "Time was included when it was supposed not to be");
-            Assert.That(calendar.IsDayExcluded(d), Is.True, "Day was not excluded when it was supposed to be excluded");
-            Assert.That(calendar.DaysExcluded, Has.Count.EqualTo(1));
-            Assert.That(calendar.DaysExcluded.First().Day, Is.EqualTo(d.Day));
-            Assert.That(calendar.DaysExcluded.First().Month, Is.EqualTo(d.Month));
-        });
+        calendar.AddExcludedDay(DateOnly.FromDateTime(d));
+
+        calendar.IsTimeIncluded(d.ToUniversalTime()).Should().BeFalse("the excluded day's time must not be included");
+        calendar.IsDayExcluded(DateOnly.FromDateTime(d)).Should().BeTrue();
+        calendar.DaysExcluded.Should().ContainSingle();
+        calendar.DaysExcluded.Single().Day.Should().Be(d.Day);
+        calendar.DaysExcluded.Single().Month.Should().Be(d.Month);
     }
 
     [Test]
     public void TestDayInclusionAfterExclusion()
     {
-        DateTime d = new DateTime(2005, 1, 1);
-        calendar.SetDayExcluded(d, true);
-        calendar.SetDayExcluded(d, false);
-        calendar.SetDayExcluded(d, false);
-        Assert.Multiple(() =>
-        {
-            Assert.That(calendar.IsTimeIncluded(d), Is.True, "Time was not included when it was supposed to be");
-            Assert.That(calendar.IsDayExcluded(d), Is.False, "Day was excluded when it was supposed to be included");
-        });
+        DateOnly d = new DateOnly(2005, 1, 1);
+        calendar.AddExcludedDay(d).Should().BeTrue();
+        calendar.RemoveExcludedDay(d).Should().BeTrue();
+        calendar.RemoveExcludedDay(d).Should().BeFalse("the day was already included again");
+
+        calendar.IsTimeIncluded(d.ToDateTime(TimeOnly.MinValue)).Should().BeTrue();
+        calendar.IsDayExcluded(d).Should().BeFalse();
     }
 
     [Test]
     public void TestDayExclusionDifferentYears()
     {
-        string errMessage = "Day was not excluded when it was supposed to be excluded";
-        DateTime d = new DateTime(2005, 1, 1);
-        calendar.SetDayExcluded(d, true);
-        Assert.Multiple(() =>
-        {
-            Assert.That(calendar.IsDayExcluded(d), Is.True, errMessage);
-            Assert.That(calendar.IsDayExcluded(d.AddYears(-2)), Is.True, errMessage);
-            Assert.That(calendar.IsDayExcluded(d.AddYears(2)), Is.True, errMessage);
-            Assert.That(calendar.IsDayExcluded(d.AddYears(100)), Is.True, errMessage);
-        });
+        const string ErrMessage = "only the month and the day are significant";
+        DateOnly d = new DateOnly(2005, 1, 1);
+        calendar.AddExcludedDay(d);
+
+        calendar.IsDayExcluded(d).Should().BeTrue(ErrMessage);
+        calendar.IsDayExcluded(d.AddYears(-2)).Should().BeTrue(ErrMessage);
+        calendar.IsDayExcluded(d.AddYears(2)).Should().BeTrue(ErrMessage);
+        calendar.IsDayExcluded(d.AddYears(100)).Should().BeTrue(ErrMessage);
     }
 
     [Test]
     public void TestExclusionAndNextIncludedTime()
     {
-        calendar.DaysExcluded = null;
+        calendar.DaysExcluded.Should().BeEmpty();
         DateTimeOffset test = DateTimeOffset.UtcNow.Date;
         Assert.That(calendar.GetNextIncludedTimeUtc(test), Is.EqualTo(test), "Did not get today as date when nothing was excluded");
 
-        calendar.SetDayExcluded(test.Date, true);
+        calendar.AddExcludedDay(DateOnly.FromDateTime(test.Date));
         Assert.That(calendar.GetNextIncludedTimeUtc(test), Is.EqualTo(test.AddDays(1)), "Did not get next day when current day excluded");
     }
 
@@ -107,13 +101,13 @@ public class AnnualCalendarTest : SerializationTestSupport<AnnualCalendar, ICale
     {
         AnnualCalendar annualCalendar = new AnnualCalendar();
 
-        DateTime day = new DateTime(2005, 6, 23);
-        annualCalendar.SetDayExcluded(day, true);
+        DateOnly day = new DateOnly(2005, 6, 23);
+        annualCalendar.AddExcludedDay(day);
 
-        day = new DateTime(2008, 2, 1);
-        annualCalendar.SetDayExcluded(day, true);
+        day = new DateOnly(2008, 2, 1);
+        annualCalendar.AddExcludedDay(day);
 
-        Assert.That(annualCalendar.IsDayExcluded(day), Is.True, "The day 1 February is expected to be excluded but it is not");
+        annualCalendar.IsDayExcluded(day).Should().BeTrue("the day 1 February is expected to be excluded");
     }
 
     /// <summary>
@@ -124,14 +118,14 @@ public class AnnualCalendarTest : SerializationTestSupport<AnnualCalendar, ICale
     {
         AnnualCalendar annualCalendar = new AnnualCalendar();
 
-        DateTime day = new DateTime(2005, 6, 23);
-        annualCalendar.SetDayExcluded(day, true);
+        DateOnly day = new DateOnly(2005, 6, 23);
+        annualCalendar.AddExcludedDay(day);
 
         // Trying to remove the 23th of June
-        day = new DateTime(2008, 6, 23);
-        annualCalendar.SetDayExcluded(day, false);
+        day = new DateOnly(2008, 6, 23);
+        annualCalendar.RemoveExcludedDay(day).Should().BeTrue("only the month and the day are significant");
 
-        Assert.That(annualCalendar.IsDayExcluded(day), Is.False, "The day 23 June is not expected to be excluded but it is");
+        annualCalendar.IsDayExcluded(day).Should().BeFalse("the day 23 June is not expected to be excluded");
     }
 
     [Test]
@@ -141,8 +135,8 @@ public class AnnualCalendarTest : SerializationTestSupport<AnnualCalendar, ICale
         AnnualCalendar c = new AnnualCalendar();
         c.TimeZone = tz;
 
-        DateTime excludedDay = new DateTime(2012, 11, 4, 0, 0, 0);
-        c.SetDayExcluded(excludedDay, true);
+        DateOnly excludedDay = new DateOnly(2012, 11, 4);
+        c.AddExcludedDay(excludedDay);
 
         // 11/5/2012 12:00:00 AM -04:00  translate into 11/4/2012 11:00:00 PM -05:00 (EST)
         DateTimeOffset date = new DateTimeOffset(2012, 11, 5, 0, 0, 0, TimeSpan.FromHours(-4));
@@ -161,17 +155,17 @@ public class AnnualCalendarTest : SerializationTestSupport<AnnualCalendar, ICale
     [Test]
     public void BaseCalendarShouldNotAffectSettingInternalDataStructures()
     {
-        var dayToExclude = new DateTime(2015, 1, 1);
+        var dayToExclude = new DateOnly(2015, 1, 1);
 
         AnnualCalendar a = new AnnualCalendar();
-        a.SetDayExcluded(dayToExclude, true);
+        a.AddExcludedDay(dayToExclude);
 
         AnnualCalendar b = new AnnualCalendar(a);
-        b.SetDayExcluded(dayToExclude, true);
+        b.AddExcludedDay(dayToExclude);
 
         b.CalendarBase = null;
 
-        Assert.That(b.IsDayExcluded(dayToExclude), "day was no longer excluded after base calendar was detached");
+        b.IsDayExcluded(dayToExclude).Should().BeTrue("the day must stay excluded after the base calendar was detached");
     }
 
     /// <summary>
@@ -183,8 +177,8 @@ public class AnnualCalendarTest : SerializationTestSupport<AnnualCalendar, ICale
     {
         AnnualCalendar c = new AnnualCalendar();
         c.Description = "description";
-        DateTime date = new DateTime(2005, 1, 20, 10, 5, 15);
-        c.SetDayExcluded(date, true);
+        DateOnly date = new DateOnly(2005, 1, 20);
+        c.AddExcludedDay(date);
         return c;
     }
 

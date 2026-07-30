@@ -426,7 +426,7 @@ internal static class JsonSchedulingHelper
         return builder;
     }
 
-    private static TimeOfDay ParseTimeOfDay(string value)
+    private static TimeOnly ParseTimeOfDay(string value)
     {
         if (!TimeSpan.TryParse(value, CultureInfo.InvariantCulture, out var timeSpan))
         {
@@ -441,7 +441,7 @@ internal static class JsonSchedulingHelper
         {
             throw new SchedulerConfigException($"TimeOfDay value '{value}' must not contain fractional seconds.");
         }
-        return new TimeOfDay(timeSpan.Hours, timeSpan.Minutes, timeSpan.Seconds);
+        return new TimeOnly(timeSpan.Hours, timeSpan.Minutes, timeSpan.Seconds);
     }
 
     private static int ParseMisfireInstruction(string value)

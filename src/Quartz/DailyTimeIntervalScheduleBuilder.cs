@@ -58,7 +58,7 @@ namespace Quartz;
 ///             .WithIdentity("myTrigger", "myTriggerGroup")
 ///             .WithDailyTimeIntervalSchedule(x =>
 ///                        x.WithInterval(15, IntervalUnit.Minute)
-///                        .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(8, 0)))
+///                        .StartingDailyAt(new TimeOnly(8, 0)))
 ///             .Build();
 ///
 ///         await scheduler.ScheduleJob(job, trigger);
@@ -74,8 +74,8 @@ public sealed class DailyTimeIntervalScheduleBuilder : IScheduleBuilder
     private int interval = 1;
     private IntervalUnit intervalUnit = IntervalUnit.Minute;
     private HashSet<DayOfWeek>? daysOfWeek;
-    private TimeOfDay? startTimeOfDayUtc;
-    private TimeOfDay? endTimeOfDayUtc;
+    private TimeOnly? startTimeOfDayUtc;
+    private TimeOnly? endTimeOfDayUtc;
     private int repeatCount = DailyTimeIntervalTriggerImpl.RepeatIndefinitely;
     private TimeZoneInfo? timeZone;
 
@@ -157,23 +157,8 @@ public sealed class DailyTimeIntervalScheduleBuilder : IScheduleBuilder
             st.DaysOfWeek = new HashSet<DayOfWeek>(AllDaysOfTheWeek);
         }
 
-        if (startTimeOfDayUtc is not null)
-        {
-            st.StartTimeOfDay = startTimeOfDayUtc;
-        }
-        else
-        {
-            st.StartTimeOfDay = TimeOfDay.HourAndMinuteOfDay(0, 0);
-        }
-
-        if (endTimeOfDayUtc is not null)
-        {
-            st.EndTimeOfDay = endTimeOfDayUtc;
-        }
-        else
-        {
-            st.EndTimeOfDay = TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59);
-        }
+        st.EndTimeOfDay = endTimeOfDayUtc ?? DailyTimeIntervalTriggerImpl.DefaultEndTimeOfDay;
+        st.StartTimeOfDay = startTimeOfDayUtc ?? DailyTimeIntervalTriggerImpl.DefaultStartTimeOfDay;
 
         return st;
     }
@@ -258,27 +243,31 @@ public sealed class DailyTimeIntervalScheduleBuilder : IScheduleBuilder
     }
 
     /// <summary>
-    /// The TimeOfDay for this trigger to start firing each day.
+    /// The time of day for this trigger to start firing each day. Defaults to <c>00:00:00</c>.
     /// </summary>
-    /// <param name="timeOfDayUtc"></param>
+    /// <param name="timeOfDayUtc">the time of day, with one-second resolution.</param>
     /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
-    public DailyTimeIntervalScheduleBuilder StartingDailyAt(TimeOfDay timeOfDayUtc)
+    /// <exception cref="ArgumentException">
+    /// <paramref name="timeOfDayUtc" /> carries precision finer than a whole second.
+    /// </exception>
+    public DailyTimeIntervalScheduleBuilder StartingDailyAt(TimeOnly timeOfDayUtc)
     {
-        if (timeOfDayUtc is null)
-        {
-            Throw.ArgumentException("Start time of day cannot be null!", nameof(timeOfDayUtc));
-        }
+        TimeOnlyExtensions.ValidateWholeSeconds(timeOfDayUtc, nameof(timeOfDayUtc));
         startTimeOfDayUtc = timeOfDayUtc;
         return this;
     }
 
     /// <summary>
-    /// The TimeOfDay for this trigger to end firing each day.
+    /// The time of day for this trigger to end firing each day. Defaults to <c>23:59:59</c>.
     /// </summary>
-    /// <param name="timeOfDayUtc"></param>
+    /// <param name="timeOfDayUtc">the time of day, with one-second resolution.</param>
     /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
-    public DailyTimeIntervalScheduleBuilder EndingDailyAt(TimeOfDay timeOfDayUtc)
+    /// <exception cref="ArgumentException">
+    /// <paramref name="timeOfDayUtc" /> carries precision finer than a whole second.
+    /// </exception>
+    public DailyTimeIntervalScheduleBuilder EndingDailyAt(TimeOnly timeOfDayUtc)
     {
+        TimeOnlyExtensions.ValidateWholeSeconds(timeOfDayUtc, nameof(timeOfDayUtc));
         endTimeOfDayUtc = timeOfDayUtc;
         return this;
     }
@@ -302,7 +291,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : IScheduleBuilder
         }
 
         DateTimeOffset today = timeProvider.GetUtcNow();
-        DateTimeOffset startTimeOfDayDate = startTimeOfDayUtc.GetTimeOfDayForDate(today);
+        DateTimeOffset startTimeOfDayDate = startTimeOfDayUtc.Value.OnDate(today);
         DateTimeOffset tomorrow = startTimeOfDayDate.AddDays(1).UtcDateTime.Date;
 
         //apply proper offsets according to timezone
@@ -351,7 +340,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : IScheduleBuilder
 
         DateTime date = timeProvider.GetUtcNow().Date;
         date = date.Add(endTimeOfDayDate.TimeOfDay);
-        endTimeOfDayUtc = TimeOfDay.HourMinuteAndSecondOfDay(date.Hour, date.Minute, date.Second);
+        endTimeOfDayUtc = new TimeOnly(date.Hour, date.Minute, date.Second);
         return this;
     }
 

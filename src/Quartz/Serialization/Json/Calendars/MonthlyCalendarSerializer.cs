@@ -15,11 +15,15 @@ internal sealed class MonthlyCalendarSerializer : CalendarSerializer<MonthlyCale
 
     protected override void SerializeFields(Utf8JsonWriter writer, MonthlyCalendar calendar, JsonSerializerOptions options)
     {
-        writer.WriteBooleanArray(options.GetPropertyName("ExcludedDays"), calendar.DaysExcluded);
+        writer.WriteArray(options.GetPropertyName("ExcludedDays"), calendar.DaysExcluded.Order(), static (w, v) => w.WriteNumberValue(v));
     }
 
     protected override void DeserializeFields(MonthlyCalendar calendar, JsonElement jsonElement, JsonSerializerOptions options)
     {
-        calendar.DaysExcluded = jsonElement.GetProperty(options.GetPropertyName("ExcludedDays")).GetBooleanArray();
+        var excludedDays = jsonElement.GetProperty(options.GetPropertyName("ExcludedDays"));
+        foreach (int day in excludedDays.GetDayOfMonthArray())
+        {
+            calendar.AddExcludedDay(day);
+        }
     }
 }

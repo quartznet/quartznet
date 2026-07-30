@@ -147,7 +147,7 @@ public void ConfigureServices(IServiceCollection services)
             name: calendarName,
             replace: true,
             updateTriggers: true,
-            x => x.AddExcludedDate(new DateTime(2020, 5, 15))
+            x => x.AddExcludedDay(new DateOnly(2020, 5, 15))
         );
 
         q.AddTrigger(t => t

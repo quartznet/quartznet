@@ -53,7 +53,7 @@ public class ConfigureJobSchedulingByUsingXmlConfigurationsExample : IExample
             .BuildScheduler();
 
         // we need to add calendars manually, lets create a silly sample calendar
-        var dailyCalendar = new DailyCalendar("00:01", "23:59");
+        var dailyCalendar = new DailyCalendar(new TimeOnly(0, 1), new TimeOnly(23, 59));
         dailyCalendar.InvertTimeRange = true;
         await scheduler.AddCalendar("cal1", dailyCalendar);
 

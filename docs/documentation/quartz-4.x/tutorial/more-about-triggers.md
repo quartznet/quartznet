@@ -107,14 +107,14 @@ Even though calendars can 'block out' sections of time as narrow as a millisecon
 'blocking-out' entire days. As a convenience, Quartz.NET includes the class HolidayCalendar, which does just that.
 
 Calendars must be instantiated and registered with the scheduler via the `AddCalendar(..)` method. If you use `HolidayCalendar`,
-after instantiating it, you should use its `AddExcludedDate(DateTime date)` method in order to populate it with the days you wish
+after instantiating it, you should use its `AddExcludedDay(DateOnly day)` method in order to populate it with the days you wish
 to have excluded from scheduling. The same calendar instance can be used with multiple triggers such as this:
 
 __Calendar Example__
 
 ```csharp
     HolidayCalendar cal = new HolidayCalendar();
-    cal.AddExcludedDate(someDate);
+    cal.AddExcludedDay(someDay);
     
     await sched.AddCalendar("myHolidays", cal);
     

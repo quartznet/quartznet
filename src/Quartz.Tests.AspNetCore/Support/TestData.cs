@@ -65,7 +65,7 @@ public static class TestData
             Description = "Test AnnualCalendar",
             CalendarBase = BaseCalendar
         };
-        AnnualCalendar.SetDayExcluded(DateTime.Today, true);
+        AnnualCalendar.AddExcludedDay(DateOnly.FromDateTime(DateTime.Today));
 
         CronCalendar = new CronCalendar("0 0 * * * ?")
         {
@@ -74,7 +74,7 @@ public static class TestData
             CalendarBase = null
         };
 
-        DailyCalendar = new DailyCalendar(new DateTime(2000, 1, 1, 10, 0, 0), new DateTime(2000, 1, 1, 12, 30, 0))
+        DailyCalendar = new DailyCalendar(new TimeOnly(10, 0, 0), new TimeOnly(12, 30, 0))
         {
             TimeZone = TimeZoneInfo.Utc,
             Description = null,
@@ -88,7 +88,7 @@ public static class TestData
             Description = "Test HolidayCalendar",
             CalendarBase = BaseCalendar
         };
-        HolidayCalendar.AddExcludedDate(DateTime.Today);
+        HolidayCalendar.AddExcludedDay(DateOnly.FromDateTime(DateTime.Today));
 
         MonthlyCalendar = new MonthlyCalendar
         {
@@ -96,9 +96,9 @@ public static class TestData
             Description = "Test MonthlyCalendar",
             CalendarBase = BaseCalendar
         };
-        MonthlyCalendar.SetDayExcluded(10, true);
-        MonthlyCalendar.SetDayExcluded(20, true);
-        MonthlyCalendar.SetDayExcluded(30, true);
+        MonthlyCalendar.AddExcludedDay(10);
+        MonthlyCalendar.AddExcludedDay(20);
+        MonthlyCalendar.AddExcludedDay(30);
 
         WeeklyCalendar = new WeeklyCalendar
         {
@@ -106,9 +106,9 @@ public static class TestData
             Description = "Test WeeklyCalendar",
             CalendarBase = BaseCalendar
         };
-        WeeklyCalendar.SetDayExcluded(DayOfWeek.Wednesday, true);
-        WeeklyCalendar.SetDayExcluded(DayOfWeek.Thursday, true);
-        WeeklyCalendar.SetDayExcluded(DayOfWeek.Friday, true);
+        WeeklyCalendar.AddExcludedDay(DayOfWeek.Wednesday);
+        WeeklyCalendar.AddExcludedDay(DayOfWeek.Thursday);
+        WeeklyCalendar.AddExcludedDay(DayOfWeek.Friday);
 
         JobDetail = JobBuilder.Create<DummyJob>()
             .WithIdentity("DummyJob", "DummyGroup")
@@ -164,8 +164,8 @@ public static class TestData
             .WithDailyTimeIntervalSchedule(builder => builder
                 .WithRepeatCount(1_000)
                 .WithInterval(5, IntervalUnit.Hour)
-                .StartingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(10, 0, 0))
-                .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(20, 0, 0))
+                .StartingDailyAt(new TimeOnly(10, 0, 0))
+                .EndingDailyAt(new TimeOnly(20, 0, 0))
                 .OnDaysOfTheWeek(DayOfWeek.Monday, DayOfWeek.Wednesday, DayOfWeek.Friday)
                 .InTimeZone(TimeZoneInfo.Utc)
             )

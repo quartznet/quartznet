@@ -19,7 +19,6 @@
 
 #endregion
 
-using System.Collections;
 using System.Globalization;
 using System.Runtime.Serialization;
 
@@ -79,33 +78,22 @@ public sealed class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Create a <see cref="JobDataMap" /> with the given data.
     /// </summary>
+    /// <remarks>
+    /// A <see cref="SchedulerConstants.ForceJobDataMapDirty" /> entry is not copied; it instead leaves the
+    /// new map flagged dirty, which is how the job store asks for the data blob to be rewritten.
+    /// </remarks>
     public JobDataMap(IDictionary<string, object?> map) : this(map.Count)
     {
+        bool clearDirtyFlag = true;
         foreach (var pair in map)
         {
-            this[pair.Key] = pair.Value;
-        }
-
-        // When constructing a new data map from another existing map, we should NOT mark dirty flag as true
-        // Use case: loading JobDataMap from DB
-        ClearDirtyFlag();
-    }
-
-    /// <summary>
-    /// Create a <see cref="JobDataMap" /> with the given data.
-    /// </summary>
-    public JobDataMap(IDictionary map) : this(map.Count)
-    {
-        bool clearDirtyFlag = true;
-        foreach (DictionaryEntry entry in map)
-        {
-            if (SchedulerConstants.ForceJobDataMapDirty.Equals(entry.Key))
+            if (SchedulerConstants.ForceJobDataMapDirty.Equals(pair.Key, StringComparison.Ordinal))
             {
                 clearDirtyFlag = false;
             }
             else
             {
-                this[(string) entry.Key] = entry.Value!;
+                this[pair.Key] = pair.Value;
             }
         }
 

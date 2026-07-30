@@ -3,6 +3,7 @@ using Newtonsoft.Json.Linq;
 
 using Quartz.Impl.Calendar;
 using Quartz.Serialization.Newtonsoft;
+using Quartz.Util;
 
 namespace Quartz.Calendars;
 
@@ -15,22 +16,15 @@ internal sealed class AnnualCalendarSerializer : CalendarSerializer<AnnualCalend
 
     protected override void SerializeFields(JsonWriter writer, AnnualCalendar calendar)
     {
-        writer.WritePropertyName("ExcludedDays");
-        writer.WriteStartArray();
-        foreach (var day in calendar.DaysExcluded)
-        {
-            writer.WriteValue(day);
-        }
-        writer.WriteEndArray();
+        writer.WriteDateOnlyArray("ExcludedDays", calendar.DaysExcluded);
     }
 
     protected override void DeserializeFields(AnnualCalendar calendar, JObject source)
     {
-        var annualCalendar = calendar;
-        var excludedDates = source["ExcludedDays"]!.Values<DateTimeOffset>();
-        foreach (var date in excludedDates)
+        // Payloads written before 4.0 carry full timestamps here rather than dates.
+        foreach (var day in source["ExcludedDays"]!.GetDateOnlyArray())
         {
-            annualCalendar.SetDayExcluded(date.DateTime, exclude: true);
+            calendar.AddExcludedDay(day);
         }
     }
 }

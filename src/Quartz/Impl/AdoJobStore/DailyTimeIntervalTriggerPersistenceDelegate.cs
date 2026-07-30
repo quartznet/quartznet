@@ -64,29 +64,15 @@ public sealed class DailyTimeIntervalTriggerPersistenceDelegate : SimpleProperti
         props.String2 = daysStr;
 
         StringBuilder timeOfDayBuffer = new StringBuilder();
-        TimeOfDay startTimeOfDay = dailyTrigger.StartTimeOfDay;
-        if (startTimeOfDay is not null)
-        {
-            timeOfDayBuffer.Append(startTimeOfDay.Hour).Append(',');
-            timeOfDayBuffer.Append(startTimeOfDay.Minute).Append(',');
-            timeOfDayBuffer.Append(startTimeOfDay.Second).Append(',');
-        }
-        else
-        {
-            timeOfDayBuffer.Append(",,,");
-        }
+        TimeOnly startTimeOfDay = dailyTrigger.StartTimeOfDay;
+        timeOfDayBuffer.Append(startTimeOfDay.Hour).Append(',');
+        timeOfDayBuffer.Append(startTimeOfDay.Minute).Append(',');
+        timeOfDayBuffer.Append(startTimeOfDay.Second).Append(',');
 
-        TimeOfDay endTimeOfDay = dailyTrigger.EndTimeOfDay;
-        if (endTimeOfDay is not null)
-        {
-            timeOfDayBuffer.Append(endTimeOfDay.Hour).Append(',');
-            timeOfDayBuffer.Append(endTimeOfDay.Minute).Append(',');
-            timeOfDayBuffer.Append(endTimeOfDay.Second);
-        }
-        else
-        {
-            timeOfDayBuffer.Append(",,,");
-        }
+        TimeOnly endTimeOfDay = dailyTrigger.EndTimeOfDay;
+        timeOfDayBuffer.Append(endTimeOfDay.Hour).Append(',');
+        timeOfDayBuffer.Append(endTimeOfDay.Minute).Append(',');
+        timeOfDayBuffer.Append(endTimeOfDay.Second);
         props.String3 = timeOfDayBuffer.ToString();
         props.Long1 = dailyTrigger.RepeatCount;
         props.TimeZoneId = dailyTrigger.TimeZone.Id;
@@ -132,38 +118,38 @@ public sealed class DailyTimeIntervalTriggerPersistenceDelegate : SimpleProperti
         if (timeOfDayStr is not null)
         {
             string[] nums = timeOfDayStr.Split(',', StringSplitOptions.RemoveEmptyEntries);
-            TimeOfDay startTimeOfDay;
+            TimeOnly startTimeOfDay;
             if (nums.Length >= 3)
             {
                 int hour = int.Parse(nums[0]);
                 int min = int.Parse(nums[1]);
                 int sec = int.Parse(nums[2]);
-                startTimeOfDay = new TimeOfDay(hour, min, sec);
+                startTimeOfDay = new TimeOnly(hour, min, sec);
             }
             else
             {
-                startTimeOfDay = TimeOfDay.HourMinuteAndSecondOfDay(0, 0, 0);
+                startTimeOfDay = DailyTimeIntervalTriggerImpl.DefaultStartTimeOfDay;
             }
             scheduleBuilder.StartingDailyAt(startTimeOfDay);
 
-            TimeOfDay endTimeOfDay;
+            TimeOnly endTimeOfDay;
             if (nums.Length >= 6)
             {
                 int hour = int.Parse(nums[3]);
                 int min = int.Parse(nums[4]);
                 int sec = int.Parse(nums[5]);
-                endTimeOfDay = new TimeOfDay(hour, min, sec);
+                endTimeOfDay = new TimeOnly(hour, min, sec);
             }
             else
             {
-                endTimeOfDay = TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59);
+                endTimeOfDay = DailyTimeIntervalTriggerImpl.DefaultEndTimeOfDay;
             }
             scheduleBuilder.EndingDailyAt(endTimeOfDay);
         }
         else
         {
-            scheduleBuilder.StartingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(0, 0, 0));
-            scheduleBuilder.EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59));
+            scheduleBuilder.StartingDailyAt(DailyTimeIntervalTriggerImpl.DefaultStartTimeOfDay);
+            scheduleBuilder.EndingDailyAt(DailyTimeIntervalTriggerImpl.DefaultEndTimeOfDay);
         }
 
 

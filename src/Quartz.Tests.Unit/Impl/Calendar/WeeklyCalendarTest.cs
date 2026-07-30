@@ -45,10 +45,10 @@ public class WeeklyCalendarTest : SerializationTestSupport<WeeklyCalendar, ICale
     [Test]
     public void TestAddAndRemoveExclusion()
     {
-        calendar.SetDayExcluded(DayOfWeek.Monday, true);
-        Assert.That(calendar.IsDayExcluded(DayOfWeek.Monday), Is.True);
-        calendar.SetDayExcluded(DayOfWeek.Monday, false);
-        Assert.That(calendar.IsDayExcluded(DayOfWeek.Monday), Is.False);
+        calendar.AddExcludedDay(DayOfWeek.Monday).Should().BeTrue();
+        calendar.IsDayExcluded(DayOfWeek.Monday).Should().BeTrue();
+        calendar.RemoveExcludedDay(DayOfWeek.Monday).Should().BeTrue();
+        calendar.IsDayExcluded(DayOfWeek.Monday).Should().BeFalse();
     }
 
     [Test]
@@ -56,7 +56,7 @@ public class WeeklyCalendarTest : SerializationTestSupport<WeeklyCalendar, ICale
     {
         // this is friday
         DateTimeOffset excluded = new DateTimeOffset(2007, 8, 3, 0, 0, 0, TimeSpan.Zero);
-        calendar.SetDayExcluded(DayOfWeek.Friday, true);
+        calendar.AddExcludedDay(DayOfWeek.Friday);
         // next monday should be next possible
         Assert.That(calendar.GetNextIncludedTimeUtc(excluded), Is.EqualTo(excluded.AddDays(3)));
     }
@@ -66,13 +66,13 @@ public class WeeklyCalendarTest : SerializationTestSupport<WeeklyCalendar, ICale
     public void TestDaylightSavingTransition()
     {
         calendar.TimeZone = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
-        calendar.SetDayExcluded(DayOfWeek.Monday, false); //Monday only
-        calendar.SetDayExcluded(DayOfWeek.Tuesday, true);
-        calendar.SetDayExcluded(DayOfWeek.Wednesday, true);
-        calendar.SetDayExcluded(DayOfWeek.Thursday, true);
-        calendar.SetDayExcluded(DayOfWeek.Friday, true);
-        calendar.SetDayExcluded(DayOfWeek.Saturday, true);
-        calendar.SetDayExcluded(DayOfWeek.Sunday, true);
+        calendar.RemoveExcludedDay(DayOfWeek.Monday); //Monday only
+        calendar.AddExcludedDay(DayOfWeek.Tuesday);
+        calendar.AddExcludedDay(DayOfWeek.Wednesday);
+        calendar.AddExcludedDay(DayOfWeek.Thursday);
+        calendar.AddExcludedDay(DayOfWeek.Friday);
+        calendar.AddExcludedDay(DayOfWeek.Saturday);
+        calendar.AddExcludedDay(DayOfWeek.Sunday);
 
         //11/5/2012 12:00:00 AM -04:00 will translate into 11/4/2012 11:00:00 PM -05:00, which is a Sunday, not monday
         DateTimeOffset date = new DateTimeOffset(2012, 11, 5, 0, 0, 0, TimeSpan.FromHours(-4));
@@ -95,7 +95,7 @@ public class WeeklyCalendarTest : SerializationTestSupport<WeeklyCalendar, ICale
     {
         WeeklyCalendar c = new WeeklyCalendar();
         c.Description = "description";
-        c.SetDayExcluded(DayOfWeek.Thursday, true);
+        c.AddExcludedDay(DayOfWeek.Thursday);
         return c;
     }
 
@@ -105,7 +105,7 @@ public class WeeklyCalendarTest : SerializationTestSupport<WeeklyCalendar, ICale
         {
             Assert.That(deserialized, Is.Not.Null);
             Assert.That(deserialized.Description, Is.EqualTo(original.Description));
-            Assert.That(deserialized.DaysExcluded, Is.EqualTo(original.DaysExcluded));
+            Assert.That(deserialized.DaysExcluded, Is.EquivalentTo(original.DaysExcluded));
             Assert.That(deserialized.TimeZone, Is.EqualTo(original.TimeZone));
         });
     }

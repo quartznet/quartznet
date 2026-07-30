@@ -111,6 +111,19 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     }
 
     /// <summary>
+    /// Retrieve the identified <see cref="decimal" /> value from the <see cref="JobDataMap" />.
+    /// </summary>
+    public virtual decimal GetDecimal(string key)
+    {
+        if (!TryGetDecimal(key, out decimal value))
+        {
+            Throw.InvalidCastException("Identified object is not a Decimal.");
+        }
+
+        return value;
+    }
+
+    /// <summary>
     /// Retrieve the identified <see cref="bool" /> value from the <see cref="JobDataMap" />.
     /// </summary>
     public virtual bool GetBoolean(string key)
@@ -301,6 +314,34 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
         try
         {
             value = Convert.ToSingle(obj);
+            return true;
+        }
+        catch
+        {
+            value = default;
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Try to retrieve the identified <see cref="decimal" /> value from the <see cref="JobDataMap" />.
+    /// </summary>
+    public virtual bool TryGetDecimal(string key, out decimal value)
+    {
+        if (!TryGetValue(key, out object? obj))
+        {
+            value = default;
+            return false;
+        }
+
+        if (obj is string s)
+        {
+            return decimal.TryParse(s, NumberStyles.Number, CultureInfo.InvariantCulture, out value);
+        }
+
+        try
+        {
+            value = Convert.ToDecimal(obj, CultureInfo.InvariantCulture);
             return true;
         }
         catch

@@ -71,8 +71,8 @@ public class DailyTimeIntervalTriggerDstTests
         TestTimeZones.AssumeAmbiguousLocalTime(timeZone, new DateTime(2018, 10, 28, 2, 30, 0));
 
         IOperableTrigger trigger = (IOperableTrigger) DailyTimeIntervalScheduleBuilder.Create()
-            .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(0, 0))
-            .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
+            .StartingDailyAt(new TimeOnly(0, 0))
+            .EndingDailyAt(new TimeOnly(23, 59, 59))
             .OnEveryDay()
             .WithInterval(interval, unit)
             .InTimeZone(timeZone)
@@ -115,8 +115,8 @@ public class DailyTimeIntervalTriggerDstTests
         TestTimeZones.AssumeAmbiguousLocalTime(timeZone, new DateTime(2018, 10, 28, 2, 30, 0));
 
         IOperableTrigger trigger = (IOperableTrigger) DailyTimeIntervalScheduleBuilder.Create()
-            .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(0, 0))
-            .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
+            .StartingDailyAt(new TimeOnly(0, 0))
+            .EndingDailyAt(new TimeOnly(23, 59, 59))
             .OnEveryDay()
             .WithInterval(30, IntervalUnit.Minute)
             .WithRepeatCount(30)
@@ -173,8 +173,8 @@ public class DailyTimeIntervalTriggerDstTests
         TestTimeZones.AssumeInvalidLocalTime(timeZone, new DateTime(2018, 3, 25, 2, 30, 0));
 
         IOperableTrigger trigger = (IOperableTrigger) DailyTimeIntervalScheduleBuilder.Create()
-            .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(0, 0))
-            .EndingDailyAt(TimeOfDay.HourAndMinuteOfDay(2, 30))
+            .StartingDailyAt(new TimeOnly(0, 0))
+            .EndingDailyAt(new TimeOnly(2, 30))
             .OnEveryDay()
             .WithInterval(1, IntervalUnit.Hour)
             .InTimeZone(timeZone)
@@ -274,8 +274,8 @@ public class DailyTimeIntervalTriggerDstTests
         TestTimeZones.AssumeInvalidLocalTime(timeZone, new DateTime(2018, 3, 25, 2, 30, 0));
 
         IOperableTrigger trigger = (IOperableTrigger) DailyTimeIntervalScheduleBuilder.Create()
-            .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(2, 30))
-            .EndingDailyAt(TimeOfDay.HourAndMinuteOfDay(3, 30))
+            .StartingDailyAt(new TimeOnly(2, 30))
+            .EndingDailyAt(new TimeOnly(3, 30))
             .OnDaysOfTheWeek(DayOfWeek.Saturday, DayOfWeek.Sunday)
             .WithInterval(1, IntervalUnit.Hour)
             .InTimeZone(timeZone)
@@ -329,8 +329,8 @@ public class DailyTimeIntervalTriggerDstTests
         }
 
         IOperableTrigger trigger = (IOperableTrigger) DailyTimeIntervalScheduleBuilder.Create()
-            .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(startHour, startMinute))
-            .EndingDailyAt(TimeOfDay.HourAndMinuteOfDay(startHour + 2, startMinute))
+            .StartingDailyAt(new TimeOnly(startHour, startMinute))
+            .EndingDailyAt(new TimeOnly(startHour + 2, startMinute))
             .OnDaysOfTheWeek(DayOfWeek.Sunday)
             .WithInterval(1, IntervalUnit.Hour)
             .InTimeZone(timeZone)
@@ -372,8 +372,8 @@ public class DailyTimeIntervalTriggerDstTests
     private static IOperableTrigger CreateHalfHourlyTrigger(TimeZoneInfo timeZone, DateTimeOffset startTimeUtc)
     {
         IOperableTrigger trigger = (IOperableTrigger) DailyTimeIntervalScheduleBuilder.Create()
-            .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(0, 0))
-            .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
+            .StartingDailyAt(new TimeOnly(0, 0))
+            .EndingDailyAt(new TimeOnly(23, 59, 59))
             .OnEveryDay()
             .WithInterval(30, IntervalUnit.Minute)
             .InTimeZone(timeZone)

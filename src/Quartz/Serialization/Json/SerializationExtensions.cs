@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Globalization;
 using System.Text.Json;
 
@@ -71,7 +70,11 @@ internal static class Utf8JsonWriterExtensions
         return (T) result;
     }
 
-    public static void WriteTimeOfDay(this Utf8JsonWriter writer, string propertyName, TimeOfDay value, JsonSerializerOptions options)
+    /// <summary>
+    /// Writes a time of day as the historical <c>{ Hour, Minute, Second }</c> object, which is the
+    /// shape already sitting in every persisted daily time interval trigger.
+    /// </summary>
+    public static void WriteTimeOfDay(this Utf8JsonWriter writer, string propertyName, TimeOnly value, JsonSerializerOptions options)
     {
         writer.WriteStartObject(propertyName);
 
@@ -82,35 +85,147 @@ internal static class Utf8JsonWriterExtensions
         writer.WriteEndObject();
     }
 
-    public static TimeOfDay GetTimeOfDay(this JsonElement jsonElement, JsonSerializerOptions options)
+    /// <summary>
+    /// Reads the <c>{ Hour, Minute, Second }</c> object written by every version of Quartz.NET.
+    /// </summary>
+    public static TimeOnly GetTimeOfDay(this JsonElement jsonElement, JsonSerializerOptions options)
     {
         var hour = jsonElement.GetProperty(options.GetPropertyName("Hour")).GetInt32();
         var minute = jsonElement.GetProperty(options.GetPropertyName("Minute")).GetInt32();
         var second = jsonElement.GetProperty(options.GetPropertyName("Second")).GetInt32();
 
-        return new TimeOfDay(hour, minute, second);
+        return new TimeOnly(hour, minute, second);
     }
 
-    public static void WriteDateTimeArray(this Utf8JsonWriter writer, string propertyName, IEnumerable<DateTime> values)
+    public static void WriteDateOnlyArray(this Utf8JsonWriter writer, string propertyName, IEnumerable<DateOnly> values)
     {
-        WriteArray(writer, propertyName, values, (w, v) => w.WriteStringValue(v));
+        WriteArray(writer, propertyName, values, static (w, v) => w.WriteStringValue(v.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)));
     }
 
-    public static DateTime[] GetDateTimeArray(this JsonElement jsonElement)
+    /// <summary>
+    /// Reads an array of dates, accepting both the date-only form written from 4.0 on and the
+    /// full timestamps written by earlier versions.
+    /// </summary>
+    public static DateOnly[] GetDateOnlyArray(this JsonElement jsonElement)
     {
-        var result = jsonElement.GetArray(x => x.GetDateTime());
-        return result;
+        return jsonElement.GetArray(static x => ParseDateOnly(x.GetString()!));
     }
 
-    public static void WriteBooleanArray(this Utf8JsonWriter writer, string propertyName, IEnumerable<bool> values)
+    private static DateOnly ParseDateOnly(string value)
     {
-        WriteArray(writer, propertyName, values, (w, v) => w.WriteBooleanValue(v));
+        if (DateOnly.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateOnly date))
+        {
+            return date;
+        }
+
+        // Pre-4.0 payloads carry a full timestamp; only its date part ever mattered.
+        return DateOnly.FromDateTime(DateTime.Parse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind));
     }
 
-    public static bool[] GetBooleanArray(this JsonElement jsonElement)
+    /// <summary>
+    /// Reads an array of days of the month, accepting both the day numbers written from 4.0 on and
+    /// the flag-per-day boolean array, indexed by day minus one, written by earlier versions.
+    /// </summary>
+    public static int[] GetDayOfMonthArray(this JsonElement jsonElement)
     {
-        var result = jsonElement.GetArray(x => x.GetBoolean());
-        return result;
+        List<int> days = [];
+        int index = 0;
+        foreach (JsonElement item in jsonElement.EnumerateArray())
+        {
+            switch (item.ValueKind)
+            {
+                case JsonValueKind.True:
+                    days.Add(index + 1);
+                    break;
+                case JsonValueKind.False:
+                    break;
+                default:
+                    days.Add(item.GetInt32());
+                    break;
+            }
+
+            index++;
+        }
+
+        return days.ToArray();
+    }
+
+    /// <summary>
+    /// Reads an array of week days, accepting both the day names written from 4.0 on and the
+    /// flag-per-day boolean array written by earlier versions.
+    /// </summary>
+    public static DayOfWeek[] GetDayOfWeekArray(this JsonElement jsonElement)
+    {
+        List<DayOfWeek> days = [];
+        int index = 0;
+        foreach (JsonElement item in jsonElement.EnumerateArray())
+        {
+            switch (item.ValueKind)
+            {
+                case JsonValueKind.True:
+                    days.Add((DayOfWeek) index);
+                    break;
+                case JsonValueKind.False:
+                    break;
+                case JsonValueKind.Number:
+                    days.Add((DayOfWeek) item.GetInt32());
+                    break;
+                default:
+                    days.Add(item.GetEnum<DayOfWeek>());
+                    break;
+            }
+
+            index++;
+        }
+
+        return days.ToArray();
+    }
+
+    public static void WriteTimeOnly(this Utf8JsonWriter writer, string propertyName, TimeOnly value)
+    {
+        writer.WriteString(propertyName, value.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture));
+    }
+
+    /// <summary>
+    /// Reads a <see cref="Quartz.Impl.Calendar.DailyCalendar" />'s range, accepting both the
+    /// <c>RangeStart</c>/<c>RangeEnd</c> pair written from 4.0 on and the
+    /// <c>RangeStartingTime</c>/<c>RangeEndingTime</c> <c>HH:MM[:SS[:mmm]]</c> strings written by
+    /// earlier versions.
+    /// </summary>
+    public static (TimeOnly Start, TimeOnly End) GetDailyCalendarRange(this JsonElement jsonElement, JsonSerializerOptions options)
+    {
+        JsonElement? start = jsonElement.GetPropertyOrNull(options.GetPropertyName("RangeStart"));
+        JsonElement? end = jsonElement.GetPropertyOrNull(options.GetPropertyName("RangeEnd"));
+
+        if (start is not null && end is not null)
+        {
+            return (TimeOnly.Parse(start.Value.GetString()!, CultureInfo.InvariantCulture),
+                TimeOnly.Parse(end.Value.GetString()!, CultureInfo.InvariantCulture));
+        }
+
+        string legacyStart = jsonElement.GetProperty(options.GetPropertyName("RangeStartingTime")).GetString()!;
+        string legacyEnd = jsonElement.GetProperty(options.GetPropertyName("RangeEndingTime")).GetString()!;
+        return (ParseLegacyDailyCalendarTime(legacyStart), ParseLegacyDailyCalendarTime(legacyEnd));
+    }
+
+    /// <summary>
+    /// Parses the <c>HH:MM[:SS[:mmm]]</c> form a <see cref="Quartz.Impl.Calendar.DailyCalendar" />
+    /// used to be written with - note the colon before the milliseconds.
+    /// </summary>
+    internal static TimeOnly ParseLegacyDailyCalendarTime(string value)
+    {
+        string[] parts = value.Split(':');
+        if (parts.Length < 2 || parts.Length > 4)
+        {
+            throw new JsonException($"Invalid time string '{value}'");
+        }
+
+        int hour = int.Parse(parts[0], CultureInfo.InvariantCulture);
+        int minute = int.Parse(parts[1], CultureInfo.InvariantCulture);
+        int second = parts.Length > 2 ? int.Parse(parts[2], CultureInfo.InvariantCulture) : 0;
+        int millisecond = parts.Length > 3 ? int.Parse(parts[3], CultureInfo.InvariantCulture) : 0;
+
+        return new TimeOnly(hour, minute, second, millisecond);
     }
 
     public static void WriteArray<T>(this Utf8JsonWriter writer, string propertyName, IEnumerable<T> values, Action<Utf8JsonWriter, T> valueWriter)
@@ -170,14 +285,14 @@ internal static class Utf8JsonWriterExtensions
         return new JobKey(name!, group!);
     }
 
-    public static void WriteJobDataMapValue<T>(this Utf8JsonWriter writer, T jobDataMap, JsonSerializerOptions options) where T : IDictionary
+    public static void WriteJobDataMapValue(this Utf8JsonWriter writer, JobDataMap jobDataMap, JsonSerializerOptions options)
     {
         writer.WriteStartObject();
 
-        foreach (object? key in jobDataMap.Keys)
+        foreach (var pair in jobDataMap)
         {
-            writer.WritePropertyName(key.ToString()!);
-            JsonSerializer.Serialize(writer, jobDataMap[key], options);
+            writer.WritePropertyName(pair.Key);
+            JsonSerializer.Serialize(writer, pair.Value, options);
         }
 
         writer.WriteEndObject();

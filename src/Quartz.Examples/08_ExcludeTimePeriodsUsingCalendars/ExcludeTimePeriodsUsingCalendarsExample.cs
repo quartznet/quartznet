@@ -47,16 +47,16 @@ public class ExcludeTimePeriodsUsingCalendarsExample : IExample
         AnnualCalendar holidays = new AnnualCalendar();
 
         // fourth of July (July 4)
-        DateTime fourthOfJuly = new DateTime(DateTime.UtcNow.Year, 7, 4);
-        holidays.SetDayExcluded(fourthOfJuly, true);
+        DateOnly fourthOfJuly = new DateOnly(DateTime.UtcNow.Year, 7, 4);
+        holidays.AddExcludedDay(fourthOfJuly);
 
         // halloween (Oct 31)
-        DateTime halloween = new DateTime(DateTime.UtcNow.Year, 10, 31);
-        holidays.SetDayExcluded(halloween, true);
+        DateOnly halloween = new DateOnly(DateTime.UtcNow.Year, 10, 31);
+        holidays.AddExcludedDay(halloween);
 
         // christmas (Dec 25)
-        DateTime christmas = new DateTime(DateTime.UtcNow.Year, 12, 25);
-        holidays.SetDayExcluded(christmas, true);
+        DateOnly christmas = new DateOnly(DateTime.UtcNow.Year, 12, 25);
+        holidays.AddExcludedDay(christmas);
 
         // tell the schedule about our holiday calendar
         await scheduler.AddCalendar("holidays", holidays);

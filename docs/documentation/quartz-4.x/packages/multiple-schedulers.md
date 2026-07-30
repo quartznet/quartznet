@@ -73,7 +73,7 @@ builder.Services.AddQuartz("Scheduler1", q =>
     q.AddTriggerListener<MetricsTriggerListener>();
 
     q.AddCalendar<HolidayCalendar>("holidays", replace: true, updateTriggers: true,
-        cal => cal.AddExcludedDate(new DateTime(2025, 12, 25)));
+        cal => cal.AddExcludedDay(new DateOnly(2025, 12, 25)));
     // These listeners and calendars only apply to Scheduler1
 });
 

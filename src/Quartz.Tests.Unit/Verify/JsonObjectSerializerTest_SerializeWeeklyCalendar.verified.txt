@@ -4,12 +4,10 @@
   "TimeZoneId": "UTC",
   "BaseCalendar": null,
   "ExcludedDays": [
-    true,
-    false,
-    false,
-    true,
-    true,
-    true,
-    true
+    "Sunday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday"
   ]
 }

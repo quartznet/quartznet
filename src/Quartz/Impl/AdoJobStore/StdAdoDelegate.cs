@@ -283,17 +283,17 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
         return null;
     }
 
-    private ValueTask<IDictionary?> ReadMapFromReader(DbDataReader rs, int colIndex)
+    private ValueTask<JobDataMap?> ReadMapFromReader(DbDataReader rs, int colIndex)
     {
         var isDbNullTask = rs.IsDBNullAsync(colIndex);
         if (isDbNullTask.IsCompleted && isDbNullTask.Result)
         {
-            return new ValueTask<IDictionary?>((IDictionary?) null);
+            return new ValueTask<JobDataMap?>((JobDataMap?) null);
         }
 
         return Awaited(isDbNullTask);
 
-        async ValueTask<IDictionary?> Awaited(Task<bool> isDbNull)
+        async ValueTask<JobDataMap?> Awaited(Task<bool> isDbNull)
         {
             if (await isDbNull.ConfigureAwait(false))
             {
@@ -312,7 +312,7 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
                     // old data from user error or XML scheduling plugin data
                     try
                     {
-                        return await GetObjectFromBlob<IDictionary>(rs, colIndex).ConfigureAwait(false);
+                        return await GetObjectFromBlob<JobDataMap>(rs, colIndex).ConfigureAwait(false);
                     }
                     catch
                     {
@@ -324,7 +324,7 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
             }
             try
             {
-                return await GetObjectFromBlob<IDictionary>(rs, colIndex).ConfigureAwait(false);
+                return await GetObjectFromBlob<JobDataMap>(rs, colIndex).ConfigureAwait(false);
             }
             catch (InvalidCastException)
             {
@@ -347,15 +347,22 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
     /// <summary>
     /// Build dictionary from serialized NameValueCollection.
     /// </summary>
-    private async ValueTask<IDictionary?> GetMapFromProperties(DbDataReader rs, int idx)
+    private async ValueTask<JobDataMap?> GetMapFromProperties(DbDataReader rs, int idx)
     {
         NameValueCollection? properties = await GetJobDataFromBlob<NameValueCollection>(rs, idx).ConfigureAwait(false);
         if (properties is null)
         {
             return null;
         }
+
         IDictionary map = ConvertFromProperty(properties);
-        return map;
+        var result = new Dictionary<string, object?>(map.Count);
+        foreach (DictionaryEntry entry in map)
+        {
+            result[(string) entry.Key] = entry.Value;
+        }
+
+        return new JobDataMap(result);
     }
 
     /// <summary>

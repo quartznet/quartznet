@@ -1101,6 +1101,101 @@
     arbitrary instant and repeats every minute fires on the same schedule as one rounded up first, one
     fraction of a second earlier.
 
+  * **A daily time interval trigger's window is `TimeOnly`; the `TimeOfDay` type is gone.** `TimeOfDay` was a
+    hand-written hour/minute/second class from before the BCL had one. `TimeOnly` says the same thing, sorts
+    and compares with operators instead of a `Before` method, parses and formats, and needs no allocation.
+
+    | 3.x / earlier 4.0 preview | 4.0 |
+    |---|---|
+    | `IDailyTimeIntervalTrigger.StartTimeOfDay` returning `TimeOfDay` | returning `TimeOnly` |
+    | `IDailyTimeIntervalTrigger.EndTimeOfDay` returning `TimeOfDay` | returning `TimeOnly` |
+    | `DailyTimeIntervalScheduleBuilder.StartingDailyAt(TimeOfDay)` | `StartingDailyAt(TimeOnly)` |
+    | `DailyTimeIntervalScheduleBuilder.EndingDailyAt(TimeOfDay)` | `EndingDailyAt(TimeOnly)` |
+    | `new TimeOfDay(h, m)` / `TimeOfDay.HourAndMinuteOfDay(h, m)` | `new TimeOnly(h, m)` |
+    | `new TimeOfDay(h, m, s)` / `TimeOfDay.HourMinuteAndSecondOfDay(h, m, s)` | `new TimeOnly(h, m, s)` |
+    | `a.Before(b)` | `a < b` |
+    | `timeOfDay.GetTimeOfDayForDate(date)` | `new DateTimeOffset(date.Date, date.Offset).Add(timeOfDay.ToTimeSpan())` |
+
+    `StartTimeOfDay` and `EndTimeOfDay` are non-nullable now — a struct with the same defaults the builder
+    always applied, `00:00:00` and `23:59:59`. A value carrying precision finer than a whole second is
+    rejected with an `ArgumentException` rather than silently truncated: the job store keeps the window in
+    hour, minute and second columns, so anything finer would not survive a round trip.
+
+    The database columns are unchanged, and the JSON `StartTimeOfDay`/`EndTimeOfDay` objects keep their
+    `{ Hour, Minute, Second }` shape, so existing triggers deserialize as they are.
+
+  * **`DailyCalendar` has one constructor, taking two `TimeOnly` values.** Eight constructors and four
+    `SetTimeRange` overloads all built the same pair of times out of strings, integer parts, `DateTime`s or
+    tick counts — four spellings of one value, one of which (`"HH:MM:SS:mmm"`, with a colon before the
+    milliseconds) was a format nothing else in .NET uses.
+
+    | 3.x / earlier 4.0 preview | 4.0 |
+    |---|---|
+    | `new DailyCalendar("08:00", "17:00")` | `new DailyCalendar(new TimeOnly(8, 0), new TimeOnly(17, 0))` |
+    | `new DailyCalendar("08:00:00:500", "17:00:00:000")` | `new DailyCalendar(new TimeOnly(8, 0, 0, 500), new TimeOnly(17, 0))` |
+    | `new DailyCalendar(baseCal, "08:00", "17:00")` | `new DailyCalendar(new TimeOnly(8, 0), new TimeOnly(17, 0), baseCal)` |
+    | `new DailyCalendar(8, 0, 0, 0, 17, 0, 0, 0)` | `new DailyCalendar(new TimeOnly(8, 0), new TimeOnly(17, 0))` |
+    | `new DailyCalendar(startDateTime, endDateTime)` | `new DailyCalendar(TimeOnly.FromDateTime(startDateTime), TimeOnly.FromDateTime(endDateTime))` |
+    | `new DailyCalendar(startTicks, endTicks)` | `new DailyCalendar(new TimeOnly(startTicks), new TimeOnly(endTicks))` |
+    | `calendar.SetTimeRange(...)` (four overloads) | `calendar.TimeRange = (start, end)` |
+    | `calendar.RangeStartingTime` (string) | `calendar.TimeRange.Start` |
+    | `calendar.RangeEndingTime` (string) | `calendar.TimeRange.End` |
+
+    `InvertTimeRange`, `GetTimeRangeStartingTimeUtc` and `GetTimeRangeEndingTimeUtc` are unchanged. The
+    constructor no longer takes a `TimeProvider`: it only ever used one to compare the two bounds, which two
+    `TimeOnly` values do directly. Bounds are kept with one-millisecond resolution, matching the calendar's
+    serialized form; finer precision is rejected with an `ArgumentException`.
+
+  * **Every calendar says which days it excludes with a read-only set and `AddExcludedDay`/`RemoveExcludedDay`.**
+    The four day-excluding calendars had four different idioms for one idea: a settable
+    `IReadOnlyCollection<DateTime>`, a `List<DateTime>` copy with `AddExcludedDate`/`RemoveExcludedDate`, and
+    two settable `bool[]`s indexed by day. The `bool[]` form in particular let a caller install an array of
+    the wrong length, and none of them could be enumerated without a copy.
+
+    | 3.x / earlier 4.0 preview | 4.0 |
+    |---|---|
+    | `AnnualCalendar.DaysExcluded` as `IReadOnlyCollection<DateTime>` (get/set) | as `IReadOnlySet<DateOnly>` (get) |
+    | `AnnualCalendar.SetDayExcluded(dateTimeOffset, true)` | `AddExcludedDay(DateOnly)` |
+    | `AnnualCalendar.SetDayExcluded(dateTimeOffset, false)` | `RemoveExcludedDay(DateOnly)` |
+    | `AnnualCalendar.IsDayExcluded(DateTimeOffset)` | `IsDayExcluded(DateOnly)` |
+    | `HolidayCalendar.ExcludedDates` as `List<DateTime>` | `HolidayCalendar.DaysExcluded` as `IReadOnlySet<DateOnly>` |
+    | `HolidayCalendar.AddExcludedDate(DateTime)` | `AddExcludedDay(DateOnly)` |
+    | `HolidayCalendar.RemoveExcludedDate(DateTime)` | `RemoveExcludedDay(DateOnly)` |
+    | (new) | `HolidayCalendar.IsDayExcluded(DateOnly)` |
+    | `MonthlyCalendar.DaysExcluded` as `bool[31]` (get/set) | as `IReadOnlySet<int>` (get), days 1 through 31 |
+    | `MonthlyCalendar.SetDayExcluded(int, true/false)` | `AddExcludedDay(int)` / `RemoveExcludedDay(int)` |
+    | `WeeklyCalendar.DaysExcluded` as `bool[7]` (get/set) | as `IReadOnlySet<DayOfWeek>` (get) |
+    | `WeeklyCalendar.SetDayExcluded(DayOfWeek, true/false)` | `AddExcludedDay(DayOfWeek)` / `RemoveExcludedDay(DayOfWeek)` |
+    | `CronCalendar.SetCronExpressionString(expr)` | `CronExpression = new CronExpression(expr)` |
+
+    `AddExcludedDay` and `RemoveExcludedDay` return whether the set changed, the way `ISet<T>` does.
+    `AnnualCalendar` still cares only about the month and the day — it normalizes what it is given onto a
+    fixed year, so `DaysExcluded` reads back as that year — and its `IsDayExcluded` now answers only about
+    its own set; the base calendar is consulted by `IsTimeIncluded`, which is what asks a question about an
+    instant. `MonthlyCalendar.AreAllDaysExcluded` and `WeeklyCalendar.AreAllDaysExcluded` are unchanged, and
+    `WeeklyCalendar` still starts out excluding Saturday and Sunday.
+
+    Both JSON serializers write the new shapes and read the old ones, so existing calendar blobs load
+    unchanged: `ExcludedDays`/`ExcludedDates` accept an array of timestamps as well as of dates, and an
+    array of per-day booleans as well as of day numbers or day names; `DailyCalendar` accepts the old
+    `RangeStartingTime`/`RangeEndingTime` strings as well as the new `RangeStart`/`RangeEnd` pair. The
+    `ISerializable` implementations keep both reading and writing their historical field layouts.
+
+  * **`DirtyFlagMap<TKey, TValue>` no longer implements the non-generic `IDictionary` and `ICollection`.**
+    The two interfaces duplicated the generic ones with untyped, cast-at-runtime members: `Add(object,
+    object)` threw `InvalidCastException` rather than `ArgumentException` for a key of the wrong type
+    (#1417), the indexer had the same problem, and `SyncRoot` handed out a lock object the map itself never
+    took. Use the generic `IDictionary<TKey, TValue?>` members, which say the same things with types. The
+    public `CopyTo(Array, int)` is gone with them; `CopyTo(KeyValuePair<TKey, TValue?>[], int)` stays.
+    `ISerializable` is unaffected, so persisted maps still load.
+
+  * **`JobDataMap(IDictionary)` is gone; `JobDataMap(IDictionary<string, object?>)` stays** and now does what
+    the non-generic overload did with a `QRTZ_FORCE_JOB_DATAMAP_DIRTY` entry — leave the new map flagged
+    dirty rather than copying the entry.
+
+  * **`StringKeyDirtyFlagMap` gained `GetDecimal` and `TryGetDecimal`.** A `decimal` could be written into a
+    job data map but not read back out with the same fidelity as every other primitive.
+
 #### Cron Parser
 
   * Add cron parser support for 'L' and 'LW' in expression combinations for daysOfMonth (#1939) (#1288)
