@@ -18,9 +18,9 @@ public class SlowRAMJobStore : RAMJobStore
     {
     }
 
-    public override async ValueTask<List<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow, IReadOnlyDictionary<string, int?> executionLimits = null, CancellationToken cancellationToken = default)
+    public override async ValueTask<List<IOperableTrigger>> AcquireNextTriggers(TriggerAcquisitionRequest request, CancellationToken cancellationToken = default)
     {
-        var nextTriggers = await base.AcquireNextTriggers(noLaterThan, maxCount, timeWindow, executionLimits, cancellationToken);
+        var nextTriggers = await base.AcquireNextTriggers(request, cancellationToken);
 
         // Wait just a bit for hopefully having a context switch leading to the race condition
         await Task.Delay(10, cancellationToken);

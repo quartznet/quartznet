@@ -38,7 +38,7 @@ public class DirectoryScanJobTest
                 .StoreDurably()
                 .Build();
 
-            await scheduler.AddJob(jobDetail, false);
+            await scheduler.AddJob(jobDetail);
             await scheduler.Start();
 
             // First execution to initialize the job - this should not throw if DI resolution works
@@ -90,7 +90,7 @@ public class DirectoryScanJobTest
                 .StoreDurably()
                 .Build();
 
-            await scheduler.AddJob(jobDetail, false);
+            await scheduler.AddJob(jobDetail);
             await scheduler.Start();
 
             // First execution to initialize the job - this should not throw if SchedulerContext lookup works

@@ -262,7 +262,7 @@ internal static class StdAdoConstants
                      OR t.{AdoConstants.ColumnPreferredNode} NOT IN (SELECT ss.{AdoConstants.ColumnInstanceName} FROM {TablePrefixSubst}{AdoConstants.TableSchedulerState} ss WHERE ss.{AdoConstants.ColumnSchedulerName} = t.{AdoConstants.ColumnSchedulerName} AND ss.{AdoConstants.ColumnLastCheckinTime} + ss.{AdoConstants.ColumnCheckinInterval} * 10000 >= @liveNodeCutoff))");
 
     // PREFERRED_NODE is filtered entirely in PreferredNodeWhereClause and is not projected —
-    // acquisition never reads it from the result (the trigger is reloaded via RetrieveTrigger).
+    // acquisition never reads it from the result (the trigger is reloaded via GetTrigger).
     public static readonly string SqlSelectNextTriggerToAcquire =
         Invariant($@"SELECT
                 t.{AdoConstants.ColumnTriggerName}, t.{AdoConstants.ColumnTriggerGroup}, jd.{AdoConstants.ColumnJobClass}, t.{AdoConstants.ColumnExecutionGroup}

@@ -188,7 +188,7 @@ public class RAMJobStore : IJobStore
     /// Clears (deletes!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s
     /// <see cref="ICalendar"/>s.
     /// </summary>
-    public async ValueTask ClearAllSchedulingData(CancellationToken cancellationToken = default)
+    public async ValueTask Clear(CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -234,26 +234,26 @@ public class RAMJobStore : IJobStore
     /// <param name="job">The <see cref="IJobDetail" /> to be stored.</param>
     /// <param name="trigger">The <see cref="ITrigger" /> to be stored.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public virtual async ValueTask StoreJobAndTrigger(IJobDetail job, IOperableTrigger trigger, CancellationToken cancellationToken = default)
+    public virtual async ValueTask ScheduleJob(IJobDetail job, IOperableTrigger trigger, CancellationToken cancellationToken = default)
     {
-        await StoreJob(job, replaceExisting: false, cancellationToken).ConfigureAwait(false);
-        await StoreTrigger(trigger, replaceExisting: false, cancellationToken).ConfigureAwait(false);
+        await AddJob(job, replace: false, cancellationToken).ConfigureAwait(false);
+        await AddTrigger(trigger, replace: false, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Store the given <see cref="IJob" />.
     /// </summary>
     /// <param name="job">The <see cref="IJob" /> to be stored.</param>
-    /// <param name="replaceExisting">If <see langword="true" />, any <see cref="IJob" /> existing in the
+    /// <param name="replace">If <see langword="true" />, any <see cref="IJob" /> existing in the
     ///     <see cref="IJobStore" /> with the same name and group should be
     ///     over-written.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public virtual async ValueTask StoreJob(IJobDetail job, bool replaceExisting, CancellationToken cancellationToken = default)
+    public virtual async ValueTask AddJob(IJobDetail job, bool replace, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            StoreJobNoLock(job, replaceExisting);
+            AddJobNoLock(job, replace);
         }
         finally
         {
@@ -261,13 +261,13 @@ public class RAMJobStore : IJobStore
         }
     }
 
-    private void StoreJobNoLock(IJobDetail job, bool replaceExisting)
+    private void AddJobNoLock(IJobDetail job, bool replace)
     {
         var jobKey = job.Key;
 
         if (jobsByKey.TryGetValue(jobKey, out var originalJob))
         {
-            if (!replaceExisting)
+            if (!replace)
             {
                 Throw.ObjectAlreadyExistsException(job);
             }
@@ -302,7 +302,7 @@ public class RAMJobStore : IJobStore
     /// 	<see langword="true" /> if a <see cref="IJob" /> with the given name and
     /// group was found and removed from the store.
     /// </returns>
-    public virtual async ValueTask<bool> RemoveJob(JobKey jobKey, CancellationToken cancellationToken = default)
+    public virtual async ValueTask<bool> DeleteJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -342,7 +342,7 @@ public class RAMJobStore : IJobStore
         return found;
     }
 
-    public async ValueTask<bool> RemoveJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -361,7 +361,7 @@ public class RAMJobStore : IJobStore
         }
     }
 
-    public async ValueTask<bool> RemoveTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> DeleteTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -380,7 +380,7 @@ public class RAMJobStore : IJobStore
         }
     }
 
-    public async ValueTask StoreJobsAndTriggers(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
+    public async ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -410,10 +410,10 @@ public class RAMJobStore : IJobStore
             // do bulk add...
             foreach (var triggersByJob in triggersAndJobs)
             {
-                StoreJobNoLock(triggersByJob.Key, replaceExisting: true);
+                AddJobNoLock(triggersByJob.Key, replace: true);
                 foreach (ITrigger trigger in triggersByJob.Value)
                 {
-                    await StoreTriggerNoLock((IOperableTrigger) trigger, replaceExisting: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+                    await AddTriggerNoLock((IOperableTrigger) trigger, replace: true, cancellationToken: cancellationToken).ConfigureAwait(false);
                 }
             }
         }
@@ -431,25 +431,25 @@ public class RAMJobStore : IJobStore
     /// 	<see langword="true" /> if a <see cref="ITrigger" /> with the given
     /// name and group was found and removed from the store.
     /// </returns>
-    public virtual ValueTask<bool> RemoveTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public virtual ValueTask<bool> DeleteTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        return RemoveTrigger(triggerKey, removeOrphanedJob: true, cancellationToken);
+        return DeleteTrigger(triggerKey, removeOrphanedJob: true, cancellationToken);
     }
 
     /// <summary>
     /// Store the given <see cref="ITrigger" />.
     /// </summary>
     /// <param name="trigger">The <see cref="ITrigger" /> to be stored.</param>
-    /// <param name="replaceExisting">If <see langword="true" />, any <see cref="ITrigger" /> existing in
+    /// <param name="replace">If <see langword="true" />, any <see cref="ITrigger" /> existing in
     ///     the <see cref="IJobStore" /> with the same name and group should
     ///     be over-written.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public virtual async ValueTask StoreTrigger(IOperableTrigger trigger, bool replaceExisting, CancellationToken cancellationToken = default)
+    public virtual async ValueTask AddTrigger(IOperableTrigger trigger, bool replace, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await StoreTriggerNoLock(trigger, replaceExisting, cancellationToken).ConfigureAwait(false);
+            await AddTriggerNoLock(trigger, replace, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -457,12 +457,12 @@ public class RAMJobStore : IJobStore
         }
     }
 
-    private async Task StoreTriggerNoLock(IOperableTrigger trigger, bool replaceExisting, CancellationToken cancellationToken)
+    private async Task AddTriggerNoLock(IOperableTrigger trigger, bool replace, CancellationToken cancellationToken)
     {
         TriggerWrapper tw = new((IOperableTrigger) trigger.Clone());
         if (triggersByKey.ContainsKey(tw.TriggerKey))
         {
-            if (!replaceExisting)
+            if (!replace)
             {
                 Throw.ObjectAlreadyExistsException(trigger);
             }
@@ -527,7 +527,7 @@ public class RAMJobStore : IJobStore
     /// <param name="key">The <see cref="ITrigger" /> to be removed.</param>
     /// <param name="removeOrphanedJob">Whether to delete orphaned job details from scheduler if job becomes orphaned from removing the trigger.</param>
     /// <param name="cancellationToken"></param>
-    protected virtual async ValueTask<bool> RemoveTrigger(TriggerKey key, bool removeOrphanedJob, CancellationToken cancellationToken = default)
+    protected virtual async ValueTask<bool> DeleteTrigger(TriggerKey key, bool removeOrphanedJob, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -623,12 +623,12 @@ public class RAMJobStore : IJobStore
 
                 try
                 {
-                    await StoreTriggerNoLock(trigger, replaceExisting: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+                    await AddTriggerNoLock(trigger, replace: false, cancellationToken: cancellationToken).ConfigureAwait(false);
                 }
                 catch (JobPersistenceException)
                 {
                     // put previous trigger back...
-                    await StoreTriggerNoLock(tw.Trigger, replaceExisting: false, cancellationToken: cancellationToken).ConfigureAwait(false);
+                    await AddTriggerNoLock(tw.Trigger, replace: false, cancellationToken: cancellationToken).ConfigureAwait(false);
 
                     // ...along with the executions it never stopped running.
                     if (fireInstances is not null)
@@ -724,7 +724,7 @@ public class RAMJobStore : IJobStore
     /// <returns>
     /// The desired <see cref="IJob" />, or null if there is no match.
     /// </returns>
-    public virtual async ValueTask<IJobDetail?> RetrieveJob(JobKey jobKey, CancellationToken cancellationToken = default)
+    public virtual async ValueTask<IJobDetail?> GetJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -744,7 +744,7 @@ public class RAMJobStore : IJobStore
     /// <returns>
     /// The desired <see cref="ITrigger" />, or null if there is no match.
     /// </returns>
-    public virtual async ValueTask<IOperableTrigger?> RetrieveTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public virtual async ValueTask<IOperableTrigger?> GetTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -884,21 +884,16 @@ public class RAMJobStore : IJobStore
     /// </summary>
     /// <param name="calendarName">The name.</param>
     /// <param name="calendar">The <see cref="ICalendar" /> to be stored.</param>
-    /// <param name="replaceExisting">If <see langword="true" />, any <see cref="ICalendar" /> existing
-    /// in the <see cref="IJobStore" /> with the same name and group
-    /// should be over-written.</param>
-    /// <param name="updateTriggers">If <see langword="true" />, any <see cref="ITrigger" />s existing
-    /// in the <see cref="IJobStore" /> that reference an existing
-    /// Calendar with the same name with have their next fire time
-    /// re-computed with the new <see cref="ICalendar" />.</param>
+    /// <param name="options">Whether an existing calendar of the same name may be over-written,
+    /// and whether the triggers referencing it have their next fire time re-computed.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public virtual async ValueTask StoreCalendar(
+    public virtual async ValueTask AddCalendar(
         string calendarName,
         ICalendar calendar,
-        bool replaceExisting,
-        bool updateTriggers,
+        AddCalendarOptions? options = null,
         CancellationToken cancellationToken = default)
     {
+        options ??= new AddCalendarOptions();
         calendar = calendar.Clone();
 
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -906,7 +901,7 @@ public class RAMJobStore : IJobStore
         {
             calendarsByName.TryGetValue(calendarName, out var obj);
 
-            if (obj is not null && !replaceExisting)
+            if (obj is not null && !options.Replace)
             {
                 Throw.ObjectAlreadyExistsException($"Calendar with name '{calendarName}' already exists.");
             }
@@ -918,7 +913,7 @@ public class RAMJobStore : IJobStore
 
             calendarsByName[calendarName] = calendar;
 
-            if (obj is not null && updateTriggers)
+            if (obj is not null && options.UpdateTriggers)
             {
                 foreach (TriggerWrapper tw in GetTriggerWrappersForCalendarNoLock(calendarName))
                 {
@@ -953,7 +948,7 @@ public class RAMJobStore : IJobStore
     /// 	<see langword="true" /> if a <see cref="ICalendar" /> with the given name
     /// was found and removed from the store.
     /// </returns>
-    public virtual async ValueTask<bool> RemoveCalendar(string calendarName, CancellationToken cancellationToken = default)
+    public virtual async ValueTask<bool> DeleteCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -994,7 +989,7 @@ public class RAMJobStore : IJobStore
     /// <returns>
     /// The desired <see cref="ICalendar" />, or null if there is no match.
     /// </returns>
-    public virtual async ValueTask<ICalendar?> RetrieveCalendar(string calendarName, CancellationToken cancellationToken = default)
+    public virtual async ValueTask<ICalendar?> GetCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -2027,12 +2022,11 @@ public class RAMJobStore : IJobStore
     /// <seealso cref="ITrigger" />
     /// <inheritdoc />
     public virtual async ValueTask<List<IOperableTrigger>> AcquireNextTriggers(
-        DateTimeOffset noLaterThan,
-        int maxCount,
-        TimeSpan timeWindow,
-        IReadOnlyDictionary<string, int?>? executionLimits = null,
+        TriggerAcquisitionRequest request,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -2045,11 +2039,11 @@ public class RAMJobStore : IJobStore
             var result = new List<IOperableTrigger>();
             var acquiredJobKeysForNoConcurrentExec = new HashSet<JobKey>();
             var excludedTriggers = new HashSet<TriggerWrapper>();
-            DateTimeOffset batchEnd = noLaterThan;
+            DateTimeOffset batchEnd = request.NoLaterThan;
 
             // execution limits will be modified during processing
-            Dictionary<string, int?>? limitsWorkingCopy = executionLimits is not null
-                ? new Dictionary<string, int?>(executionLimits, StringComparer.Ordinal)
+            Dictionary<string, int?>? limitsWorkingCopy = request.ExecutionLimits is not null
+                ? new Dictionary<string, int?>(request.ExecutionLimits, StringComparer.Ordinal)
                 : null;
 
             while (true)
@@ -2139,7 +2133,7 @@ public class RAMJobStore : IJobStore
 
                 result.Add(trig);
 
-                if (result.Count == maxCount)
+                if (result.Count == request.MaxCount)
                 {
                     break;
                 }
@@ -2153,7 +2147,7 @@ public class RAMJobStore : IJobStore
                     var nextFireTime = tnft.GetValueOrDefault();
                     var max = now > nextFireTime ? now : nextFireTime;
 
-                    batchEnd = max + timeWindow;
+                    batchEnd = max + request.TimeWindow;
                 }
             }
 

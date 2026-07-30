@@ -80,13 +80,13 @@ public class CalendarEndpointsTest : WebApiTest
     [Test]
     public async Task AddCalendarShouldWork()
     {
-        await HttpScheduler.AddCalendar("MyNewCalendar", TestData.DailyCalendar, true, false);
+        await HttpScheduler.AddCalendar("MyNewCalendar", TestData.DailyCalendar, new AddCalendarOptions { Replace = true });
 
-        A.CallTo(() => FakeScheduler.AddCalendar(A<string>._, A<ICalendar>._, A<bool>._, A<bool>._, A<CancellationToken>._))
-            .WhenArgumentsMatch((string name, ICalendar calendar, bool replace, bool updateTriggers, CancellationToken _) =>
+        A.CallTo(() => FakeScheduler.AddCalendar(A<string>._, A<ICalendar>._, A<AddCalendarOptions>._, A<CancellationToken>._))
+            .WhenArgumentsMatch((string name, ICalendar calendar, AddCalendarOptions options, CancellationToken _) =>
                 name == "MyNewCalendar" &&
-                replace == true &&
-                updateTriggers == false &&
+                options.Replace &&
+                !options.UpdateTriggers &&
                 calendar is DailyCalendar dailyCalendar &&
                 dailyCalendar.TimeZone.Id == TestData.DailyCalendar.TimeZone.Id &&
                 dailyCalendar.Description == TestData.DailyCalendar.Description &&

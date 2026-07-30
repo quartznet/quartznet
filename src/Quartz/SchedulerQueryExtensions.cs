@@ -78,6 +78,38 @@ public static class SchedulerQueryExtensions
     }
 
     /// <summary>
+    /// Get all <see cref="ITrigger" />s that are associated with the identified
+    /// <see cref="IJobDetail" />.
+    /// </summary>
+    /// <remarks>
+    /// Enumerates every trigger of the job, in two steps: the listing that names them, then the
+    /// bulk fetch that materializes them. The returned triggers are snapshots of the stored ones;
+    /// to modify one you must re-store it (e.g. see <see cref="IScheduler.RescheduleJob" />).
+    /// When the fire times and state a listing needs are enough, use
+    /// <see cref="IScheduler.QueryTriggers" /> with <see cref="TriggerQuery.Job" /> and skip the
+    /// second round trip.
+    /// </remarks>
+    /// <param name="scheduler">The scheduler to query.</param>
+    /// <param name="jobKey">The job whose triggers to return.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    public static async ValueTask<List<ITrigger>> GetTriggersOfJob(
+        this IScheduler scheduler,
+        JobKey jobKey,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(scheduler);
+        ArgumentNullException.ThrowIfNull(jobKey);
+
+        PagedResult<TriggerHeader> result = await scheduler.QueryTriggers(new TriggerQuery { Job = jobKey }, cancellationToken).ConfigureAwait(false);
+        if (result.Items.Count == 0)
+        {
+            return [];
+        }
+
+        return await scheduler.GetTriggers(result.Items.ConvertAll(static header => header.Key), cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Get the names of all known <see cref="IJobDetail" /> groups.
     /// </summary>
     /// <remarks>

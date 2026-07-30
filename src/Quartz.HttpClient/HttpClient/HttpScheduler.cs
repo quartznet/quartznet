@@ -72,28 +72,27 @@ public class HttpScheduler : IScheduler
         }
     }
 
-    public async ValueTask<SchedulerMetaData> GetMetaData(CancellationToken cancellationToken = default)
+    public async ValueTask<SchedulerMetadata> GetMetadata(CancellationToken cancellationToken = default)
     {
         var schedulerDto = await GetSchedulerDetails(cancellationToken).ConfigureAwait(false);
-        var metadata = new SchedulerMetaData(
-            schedulerName: schedulerDto.Name,
-            schedulerInstanceId: schedulerDto.SchedulerInstanceId,
-            schedulerType: GetType(),
-            isRemote: true,
-            started: schedulerDto.Status == SchedulerStatus.Running,
-            isInStandbyMode: schedulerDto.Status == SchedulerStatus.Standby,
-            shutdown: schedulerDto.Status == SchedulerStatus.Shutdown,
-            startTime: schedulerDto.Statistics.RunningSince,
-            numberOfJobsExecuted: schedulerDto.Statistics.NumberOfJobsExecuted,
-            jobStoreType: Type.GetType(schedulerDto.JobStore.Type, throwOnError: true)!,
-            jobStoreSupportsPersistence: schedulerDto.JobStore.Persistent,
-            jobStoreClustered: schedulerDto.JobStore.Clustered,
-            threadPoolType: Type.GetType(schedulerDto.ThreadPool.Type, throwOnError: true)!,
-            threadPoolSize: schedulerDto.ThreadPool.Size,
-            version: schedulerDto.Statistics.Version
-        );
-
-        return metadata;
+        return new SchedulerMetadata
+        {
+            SchedulerName = schedulerDto.Name,
+            SchedulerInstanceId = schedulerDto.SchedulerInstanceId,
+            SchedulerType = GetType(),
+            IsRemote = true,
+            Started = schedulerDto.Status == SchedulerStatus.Running,
+            InStandbyMode = schedulerDto.Status == SchedulerStatus.Standby,
+            Shutdown = schedulerDto.Status == SchedulerStatus.Shutdown,
+            RunningSince = schedulerDto.Statistics.RunningSince,
+            JobsExecuted = schedulerDto.Statistics.JobsExecuted,
+            JobStoreType = Type.GetType(schedulerDto.JobStore.Type, throwOnError: true)!,
+            JobStoreSupportsPersistence = schedulerDto.JobStore.Persistent,
+            JobStoreClustered = schedulerDto.JobStore.Clustered,
+            ThreadPoolType = Type.GetType(schedulerDto.ThreadPool.Type, throwOnError: true)!,
+            ThreadPoolSize = schedulerDto.ThreadPool.Size,
+            Version = schedulerDto.Statistics.Version,
+        };
     }
 
     public async ValueTask<List<IJobExecutionContext>> GetCurrentlyExecutingJobs(CancellationToken cancellationToken = default)
@@ -131,12 +130,7 @@ public class HttpScheduler : IScheduler
         return httpClient.Post($"{SchedulerEndpointUrl()}/standby", jsonSerializerOptions, cancellationToken);
     }
 
-    public ValueTask Shutdown(CancellationToken cancellationToken = default)
-    {
-        return httpClient.Post($"{SchedulerEndpointUrl()}/shutdown", jsonSerializerOptions, cancellationToken);
-    }
-
-    public ValueTask Shutdown(bool waitForJobsToComplete, CancellationToken cancellationToken = default)
+    public ValueTask Shutdown(bool waitForJobsToComplete = false, CancellationToken cancellationToken = default)
     {
         return httpClient.Post($"{SchedulerEndpointUrl()}/shutdown?waitForJobsToComplete={waitForJobsToComplete}", jsonSerializerOptions, cancellationToken);
     }
@@ -290,23 +284,13 @@ public class HttpScheduler : IScheduler
         return limits;
     }
 
-    public ValueTask AddJob(IJobDetail jobDetail, bool replace, CancellationToken cancellationToken = default)
+    public ValueTask AddJob(IJobDetail jobDetail, AddJobOptions? options = null, CancellationToken cancellationToken = default)
     {
+        options ??= new AddJobOptions();
         var request = new AddJobRequest(
             Job: JobDetailDto.Create(jobDetail),
-            Replace: replace,
-            StoreNonDurableWhileAwaitingScheduling: null
-        );
-
-        return httpClient.Post(JobEndpointUrl(), request, jsonSerializerOptions, cancellationToken);
-    }
-
-    public ValueTask AddJob(IJobDetail jobDetail, bool replace, bool storeNonDurableWhileAwaitingScheduling, CancellationToken cancellationToken = default)
-    {
-        var request = new AddJobRequest(
-            Job: JobDetailDto.Create(jobDetail),
-            Replace: replace,
-            StoreNonDurableWhileAwaitingScheduling: storeNonDurableWhileAwaitingScheduling
+            Replace: options.Replace,
+            StoreNonDurableWhileAwaitingScheduling: options.StoreNonDurableWhileAwaitingScheduling
         );
 
         return httpClient.Post(JobEndpointUrl(), request, jsonSerializerOptions, cancellationToken);
@@ -332,14 +316,12 @@ public class HttpScheduler : IScheduler
         return result.AllJobsFound;
     }
 
-    public ValueTask TriggerJob(JobKey jobKey, CancellationToken cancellationToken = default)
+    public ValueTask TriggerJob(JobKey jobKey, JobDataMap? data = null, CancellationToken cancellationToken = default)
     {
-        return httpClient.Post($"{JobEndpointUrl(jobKey)}/trigger", jsonSerializerOptions, cancellationToken);
-    }
-
-    public ValueTask TriggerJob(JobKey jobKey, JobDataMap data, CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(data);
+        if (data is null)
+        {
+            return httpClient.Post($"{JobEndpointUrl(jobKey)}/trigger", jsonSerializerOptions, cancellationToken);
+        }
 
         var request = new TriggerJobRequest(data);
         return httpClient.Post($"{JobEndpointUrl(jobKey)}/trigger", request, jsonSerializerOptions, cancellationToken);
@@ -397,12 +379,6 @@ public class HttpScheduler : IScheduler
     public ValueTask ResumeAll(CancellationToken cancellationToken = default)
     {
         return httpClient.Post($"{SchedulerEndpointUrl()}/resume-all", jsonSerializerOptions, cancellationToken);
-    }
-
-    public async ValueTask<List<ITrigger>> GetTriggersOfJob(JobKey jobKey, CancellationToken cancellationToken = default)
-    {
-        var result = await httpClient.Get<List<ITrigger>>($"{JobEndpointUrl(jobKey)}/triggers", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
-        return result;
     }
 
     public async ValueTask<PagedResult<JobHeader>> QueryJobs(JobQuery query, CancellationToken cancellationToken = default)
@@ -583,7 +559,7 @@ public class HttpScheduler : IScheduler
         return httpClient.Post($"{TriggerEndpointUrl(triggerKey)}/reset-from-error-state", jsonSerializerOptions, cancellationToken);
     }
 
-    public ValueTask AddCalendar(string calendarName, ICalendar calendar, bool replace, bool updateTriggers, CancellationToken cancellationToken = default)
+    public ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions? options = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(calendarName))
         {
@@ -592,7 +568,8 @@ public class HttpScheduler : IScheduler
 
         ArgumentNullException.ThrowIfNull(calendar);
 
-        var requestContent = new AddCalendarRequest(calendarName, calendar, replace, updateTriggers);
+        options ??= new AddCalendarOptions();
+        var requestContent = new AddCalendarRequest(calendarName, calendar, options.Replace, options.UpdateTriggers);
         return httpClient.Post(CalendarEndpointUrl(), requestContent, jsonSerializerOptions, cancellationToken);
     }
 
@@ -613,7 +590,7 @@ public class HttpScheduler : IScheduler
         return response.Interrupted;
     }
 
-    public async ValueTask<bool> Interrupt(string fireInstanceId, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> InterruptFireInstance(string fireInstanceId, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(fireInstanceId))
         {

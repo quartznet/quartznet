@@ -81,7 +81,7 @@ public class JobStoreSupportTest
             A<TriggerKey>.Ignored,
             A<CancellationToken>.Ignored)).MustNotHaveHappened();
 
-        // Assert: StoreTrigger path NOT taken (no TriggerExists check)
+        // Assert: AddTrigger path NOT taken (no TriggerExists check)
         A.CallTo(() => driverDelegate.TriggerExists(
             A<ConnectionAndTransactionHolder>.Ignored,
             A<TriggerKey>.Ignored,
@@ -139,7 +139,7 @@ public class JobStoreSupportTest
     public async Task RecoverMisfiredJobs_ShouldCacheCalendars_AcrossBatch()
     {
         // Disable field-level calendarCache so the test validates the batch cache,
-        // not the existing RetrieveCalendar lazy-cache (which is active when Clustered=false).
+        // not the existing GetCalendar lazy-cache (which is active when Clustered=false).
         jobStoreSupport.Clustered = true;
 
         string calendarName = "shared-cal";
@@ -378,7 +378,7 @@ public class JobStoreSupportTest
             .Returns(new ValueTask<IJobDetail>(job));
 
         // Act
-        await jobStoreSupport.CallStoreCalendar(conn, calendarName, calendar, replaceExisting: true, updateTriggers: true);
+        await jobStoreSupport.CallAddCalendar(conn, calendarName, calendar, replace: true, updateTriggers: true);
 
         // Assert: UpdateTrigger should be called with the original state preserved
         A.CallTo(() => driverDelegate.UpdateTrigger(conn, trigger, originalState, job, A<CancellationToken>.Ignored))
@@ -412,7 +412,7 @@ public class JobStoreSupportTest
             .Returns(new ValueTask<string>(AdoConstants.StateDeleted));
 
         // Act
-        await jobStoreSupport.CallStoreCalendar(conn, calendarName, calendar, replaceExisting: true, updateTriggers: true);
+        await jobStoreSupport.CallAddCalendar(conn, calendarName, calendar, replace: true, updateTriggers: true);
 
         // Assert: trigger in DELETED state should be skipped entirely
         A.CallTo(() => driverDelegate.UpdateTrigger(
@@ -474,7 +474,7 @@ public class JobStoreSupportTest
             .Returns(new ValueTask<IJobDetail>(job));
 
         // Act
-        await jobStoreSupport.CallStoreCalendar(conn, calendarName, calendar, replaceExisting: true, updateTriggers: true);
+        await jobStoreSupport.CallAddCalendar(conn, calendarName, calendar, replace: true, updateTriggers: true);
 
         // Assert: each trigger should be stored with its own original state
         A.CallTo(() => driverDelegate.UpdateTrigger(conn, pausedTrigger, AdoConstants.StatePaused, job, A<CancellationToken>.Ignored))
@@ -545,7 +545,7 @@ public class JobStoreSupportTest
         A.CallTo(() => driverDelegate.SelectTrigger(conn, triggerKey, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<IOperableTrigger>(existingTrigger));
 
-        await jobStoreSupport.CallStoreTrigger(conn, newTrigger, job, replaceExisting: true);
+        await jobStoreSupport.CallAddTrigger(conn, newTrigger, job, replace: true);
 
         newTrigger.PreviousFireTimeUtc.Should().Be(previousFireTime,
             "PreviousFireTimeUtc should be preserved from the existing trigger when replacing (#1834)");
@@ -580,7 +580,7 @@ public class JobStoreSupportTest
         A.CallTo(() => driverDelegate.IsTriggerGroupPaused(conn, A<string>.Ignored, A<CancellationToken>.Ignored))
             .Returns(new ValueTask<bool>(false));
 
-        await jobStoreSupport.CallStoreTrigger(conn, newTrigger, job, replaceExisting: true);
+        await jobStoreSupport.CallAddTrigger(conn, newTrigger, job, replace: true);
 
         newTrigger.PreviousFireTimeUtc.Should().Be(newPreviousFireTime);
 
@@ -865,7 +865,7 @@ public class JobStoreSupportTest
 
         internal ValueTask<bool> CallRemoveJob(ConnectionAndTransactionHolder conn, JobKey jobKey)
         {
-            return RemoveJob(conn, jobKey, true, CancellationToken.None);
+            return DeleteJob(conn, jobKey, true, CancellationToken.None);
         }
 
         internal ValueTask<TriggerFiredBundle> CallTriggerFired(ConnectionAndTransactionHolder conn, IOperableTrigger trigger)
@@ -873,13 +873,13 @@ public class JobStoreSupportTest
             return TriggerFired(conn, trigger, CancellationToken.None);
         }
 
-        internal ValueTask CallStoreTrigger(
+        internal ValueTask CallAddTrigger(
             ConnectionAndTransactionHolder conn,
             IOperableTrigger newTrigger,
             IJobDetail job,
-            bool replaceExisting)
+            bool replace)
         {
-            return StoreTrigger(conn, newTrigger, job, replaceExisting, AdoConstants.StateWaiting, false, false, CancellationToken.None);
+            return AddTrigger(conn, newTrigger, job, replace, AdoConstants.StateWaiting, false, false, CancellationToken.None);
         }
 
         internal ValueTask<int> CallRecoverStaleAcquiredTriggers(ConnectionAndTransactionHolder conn)
@@ -887,14 +887,19 @@ public class JobStoreSupportTest
             return RecoverStaleAcquiredTriggers(conn, CancellationToken.None);
         }
 
-        internal ValueTask CallStoreCalendar(
+        internal ValueTask CallAddCalendar(
             ConnectionAndTransactionHolder conn,
             string calendarName,
             ICalendar calendar,
-            bool replaceExisting,
+            bool replace,
             bool updateTriggers)
         {
-            return StoreCalendar(conn, calendarName, calendar, replaceExisting, updateTriggers, CancellationToken.None);
+            return AddCalendar(
+                conn,
+                calendarName,
+                calendar,
+                new AddCalendarOptions { Replace = replace, UpdateTriggers = updateTriggers },
+                CancellationToken.None);
         }
 
         internal ValueTask<PagedResult<TriggerGroup>> CallQueryTriggerGroups(ConnectionAndTransactionHolder conn, TriggerGroupQuery query)

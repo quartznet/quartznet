@@ -64,17 +64,12 @@ public class QuartzHostedServiceTests
         public IListenerManager ListenerManager { get; }
         public bool IsStarted { get; private set; }
 
-        public ValueTask AddCalendar(string calendarName, ICalendar calendar, bool replace, bool updateTriggers, CancellationToken cancellationToken = default)
+        public ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions options = null, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
 
-        public ValueTask AddJob(IJobDetail jobDetail, bool replace, CancellationToken cancellationToken = default)
-        {
-            throw new NotImplementedException();
-        }
-
-        public ValueTask AddJob(IJobDetail jobDetail, bool replace, bool storeNonDurableWhileAwaitingScheduling, CancellationToken cancellationToken = default)
+        public ValueTask AddJob(IJobDetail jobDetail, AddJobOptions options = null, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -159,17 +154,12 @@ public class QuartzHostedServiceTests
             throw new NotImplementedException();
         }
 
-        public ValueTask<SchedulerMetaData> GetMetaData(CancellationToken cancellationToken = default)
+        public ValueTask<SchedulerMetadata> GetMetadata(CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
 
         public ValueTask<ITrigger> GetTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
-        {
-            throw new NotImplementedException();
-        }
-
-        public ValueTask<List<ITrigger>> GetTriggersOfJob(JobKey jobKey, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -189,7 +179,7 @@ public class QuartzHostedServiceTests
             throw new NotImplementedException();
         }
 
-        public ValueTask<bool> Interrupt(string fireInstanceId, CancellationToken cancellationToken = default)
+        public ValueTask<bool> InterruptFireInstance(string fireInstanceId, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -284,14 +274,7 @@ public class QuartzHostedServiceTests
             throw new NotImplementedException();
         }
 
-        public ValueTask Shutdown(CancellationToken cancellationToken = default)
-        {
-            this.IsShutdown = true;
-            this.IsStarted = false;
-            return default;
-        }
-
-        public ValueTask Shutdown(bool waitForJobsToComplete, CancellationToken cancellationToken = default)
+        public ValueTask Shutdown(bool waitForJobsToComplete = false, CancellationToken cancellationToken = default)
         {
             this.IsShutdown = true;
             this.IsStarted = false;
@@ -324,12 +307,7 @@ public class QuartzHostedServiceTests
             return default;
         }
 
-        public ValueTask TriggerJob(JobKey jobKey, CancellationToken cancellationToken = default)
-        {
-            throw new NotImplementedException();
-        }
-
-        public ValueTask TriggerJob(JobKey jobKey, JobDataMap data, CancellationToken cancellationToken = default)
+        public ValueTask TriggerJob(JobKey jobKey, JobDataMap data = null, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }

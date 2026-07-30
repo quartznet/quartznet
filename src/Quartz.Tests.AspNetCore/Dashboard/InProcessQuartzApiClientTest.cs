@@ -131,7 +131,7 @@ public class InProcessQuartzApiClientTest
                 .UsingJobData("Enabled", true)
                 .StoreDurably()
                 .Build();
-            await scheduler.AddJob(job, replace: true);
+            await scheduler.AddJob(job, new AddJobOptions { Replace = true });
 
             InProcessQuartzApiClient client = CreateClient(scheduler);
             JobDetailDto dto = await client.GetJob(scheduler.SchedulerName, jobKey.Group, jobKey.Name);
@@ -244,8 +244,7 @@ public class InProcessQuartzApiClientTest
                     JobBuilder.Create<NoOpJob>()
                         .WithIdentity("job" + i.ToString("00"), "group1")
                         .StoreDurably()
-                        .Build(),
-                    replace: true);
+                        .Build(), new AddJobOptions { Replace = true });
             }
 
             InProcessQuartzApiClient client = CreateClient(scheduler);
@@ -279,8 +278,8 @@ public class InProcessQuartzApiClientTest
         IScheduler scheduler = await CreateScheduler("GetJobsGroupFilterTest");
         try
         {
-            await scheduler.AddJob(JobBuilder.Create<NoOpJob>().WithIdentity("job1", "imports").StoreDurably().Build(), replace: true);
-            await scheduler.AddJob(JobBuilder.Create<NoOpJob>().WithIdentity("job2", "reports").StoreDurably().Build(), replace: true);
+            await scheduler.AddJob(JobBuilder.Create<NoOpJob>().WithIdentity("job1", "imports").StoreDurably().Build(), new AddJobOptions { Replace = true });
+            await scheduler.AddJob(JobBuilder.Create<NoOpJob>().WithIdentity("job2", "reports").StoreDurably().Build(), new AddJobOptions { Replace = true });
 
             InProcessQuartzApiClient client = CreateClient(scheduler);
 
@@ -304,7 +303,7 @@ public class InProcessQuartzApiClientTest
         try
         {
             JobKey jobKey = new("job1", "group1");
-            await scheduler.AddJob(JobBuilder.Create<NoOpJob>().WithIdentity(jobKey).StoreDurably().Build(), replace: true);
+            await scheduler.AddJob(JobBuilder.Create<NoOpJob>().WithIdentity(jobKey).StoreDurably().Build(), new AddJobOptions { Replace = true });
 
             for (int i = 1; i <= 30; i++)
             {
@@ -358,8 +357,8 @@ public class InProcessQuartzApiClientTest
         IScheduler scheduler = await CreateScheduler("GetJobGroupsTest");
         try
         {
-            await scheduler.AddJob(JobBuilder.Create<NoOpJob>().WithIdentity("job1", "paused").StoreDurably().Build(), replace: true);
-            await scheduler.AddJob(JobBuilder.Create<NoOpJob>().WithIdentity("job2", "running").StoreDurably().Build(), replace: true);
+            await scheduler.AddJob(JobBuilder.Create<NoOpJob>().WithIdentity("job1", "paused").StoreDurably().Build(), new AddJobOptions { Replace = true });
+            await scheduler.AddJob(JobBuilder.Create<NoOpJob>().WithIdentity("job2", "running").StoreDurably().Build(), new AddJobOptions { Replace = true });
             await scheduler.PauseJobs(GroupMatcher<JobKey>.GroupEquals("paused"));
 
             InProcessQuartzApiClient client = CreateClient(scheduler);

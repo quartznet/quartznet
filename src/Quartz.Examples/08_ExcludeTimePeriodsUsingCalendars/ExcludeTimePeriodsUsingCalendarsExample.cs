@@ -59,7 +59,7 @@ public class ExcludeTimePeriodsUsingCalendarsExample : IExample
         holidays.SetDayExcluded(christmas, true);
 
         // tell the schedule about our holiday calendar
-        await scheduler.AddCalendar("holidays", holidays, false, false);
+        await scheduler.AddCalendar("holidays", holidays);
 
         // schedule a job to run hourly, starting on halloween
         // at 10 am
@@ -103,7 +103,7 @@ public class ExcludeTimePeriodsUsingCalendarsExample : IExample
         await scheduler.Shutdown(true);
         Console.WriteLine("------- Shutdown Complete -----------------");
 
-        SchedulerMetaData metaData = await scheduler.GetMetaData();
-        Console.WriteLine($"Executed {metaData.NumberOfJobsExecuted} jobs.");
+        SchedulerMetadata metadata = await scheduler.GetMetadata();
+        Console.WriteLine($"Executed {metadata.JobsExecuted} jobs.");
     }
 }

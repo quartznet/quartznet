@@ -20,9 +20,7 @@ public async Task DoSomething(IScheduler scheduler, CancellationToken ct)
                         .WithIdentity("name", "group")
                         .Build();
     
-    var replace = true;
-    var durable = true;
-    await scheduler.AddJob(job, replace, durable, ct);
+    await scheduler.AddJob(job, new AddJobOptions { Replace = true, StoreNonDurableWhileAwaitingScheduling = true }, ct);
 }
 ```
 
@@ -31,7 +29,7 @@ To trigger the job later, simply call `TriggerJob` like below:
 ```csharp
 public async Task DoSomething(IScheduler scheduler, CancellationToken ct)
 {
-    await scheduler.TriggerJob(new JobKey("name", "group"), ct);
+    await scheduler.TriggerJob(new JobKey("name", "group"), cancellationToken: ct);
 }
 ```
 

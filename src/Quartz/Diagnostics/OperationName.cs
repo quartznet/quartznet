@@ -17,16 +17,16 @@ public static class OperationName
         public const string ReleaseAcquiredTrigger = "Quartz.JobStore.ReleaseAcquiredTrigger";
 
         // Tier 2: user-initiated scheduling operations
-        public const string StoreJobAndTrigger = "Quartz.JobStore.StoreJobAndTrigger";
-        public const string StoreJob = "Quartz.JobStore.StoreJob";
-        public const string StoreJobsAndTriggers = "Quartz.JobStore.StoreJobsAndTriggers";
-        public const string StoreTrigger = "Quartz.JobStore.StoreTrigger";
-        public const string StoreCalendar = "Quartz.JobStore.StoreCalendar";
-        public const string RemoveJob = "Quartz.JobStore.RemoveJob";
-        public const string RemoveJobs = "Quartz.JobStore.RemoveJobs";
-        public const string RemoveTrigger = "Quartz.JobStore.RemoveTrigger";
-        public const string RemoveTriggers = "Quartz.JobStore.RemoveTriggers";
-        public const string RemoveCalendar = "Quartz.JobStore.RemoveCalendar";
+        public const string ScheduleJob = "Quartz.JobStore.ScheduleJob";
+        public const string ScheduleJobs = "Quartz.JobStore.ScheduleJobs";
+        public const string AddJob = "Quartz.JobStore.AddJob";
+        public const string AddTrigger = "Quartz.JobStore.AddTrigger";
+        public const string AddCalendar = "Quartz.JobStore.AddCalendar";
+        public const string DeleteJob = "Quartz.JobStore.DeleteJob";
+        public const string DeleteJobs = "Quartz.JobStore.DeleteJobs";
+        public const string DeleteTrigger = "Quartz.JobStore.DeleteTrigger";
+        public const string DeleteTriggers = "Quartz.JobStore.DeleteTriggers";
+        public const string DeleteCalendar = "Quartz.JobStore.DeleteCalendar";
         public const string ReplaceTrigger = "Quartz.JobStore.ReplaceTrigger";
         public const string UpdateTriggerDetails = "Quartz.JobStore.UpdateTriggerDetails";
         public const string PauseTrigger = "Quartz.JobStore.PauseTrigger";
@@ -40,6 +40,6 @@ public static class OperationName
         public const string PauseAll = "Quartz.JobStore.PauseAll";
         public const string ResumeAll = "Quartz.JobStore.ResumeAll";
         public const string ResetTriggerFromErrorState = "Quartz.JobStore.ResetTriggerFromErrorState";
-        public const string ClearAllSchedulingData = "Quartz.JobStore.ClearAllSchedulingData";
+        public const string Clear = "Quartz.JobStore.Clear";
     }
 }

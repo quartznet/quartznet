@@ -869,7 +869,7 @@ soften it — if you implement a job store, you implement the query members:
 | `GetCalendarNames` | `QueryCalendarNames` |
 | `IsJobGroupPaused`, `IsTriggerGroupPaused` | the matching `Query*Groups` with `Paused = true` |
 | `GetNumberOfJobs`, `GetNumberOfTriggers`, `GetNumberOfCalendars` | the matching query with `Take = 0, IncludeTotalCount = true` |
-| `CalendarExists(name)` | `RetrieveCalendar(name)` returning non-null |
+| `CalendarExists(name)` | `GetCalendar(name)` returning non-null |
 
 Two members are new on both interfaces: **`GetJobDetails(jobKeys)`** and **`GetTriggers(triggerKeys)`**
 retrieve many by key in one round trip. Keys that do not exist are simply absent, duplicates fold away, and
@@ -1188,6 +1188,120 @@ rename, so a string naming both still resolves:
 + quartz.serializer.type = Quartz.Impl.SystemTextJsonObjectSerializer, Quartz
 ```
 
+## The scheduler and the job store speak the same verbs
+
+`IJobStore` had its own vocabulary — Store/Remove/Retrieve — for the operations `IScheduler` calls
+Schedule/Add/Delete/Get, so the two halves of one operation had different names, and a stack trace had to be
+translated on the way down. The store now uses the scheduler's words. If you implement a job store, rename;
+if you only call `IScheduler`, nothing here affects you.
+
+| `IJobStore` in 3.x | `IJobStore` in 4.x |
+|---|---|
+| `StoreJobAndTrigger(job, trigger)` | `ScheduleJob(job, trigger)` |
+| `StoreJobsAndTriggers(triggersAndJobs, replace)` | `ScheduleJobs(triggersAndJobs, replace)` |
+| `StoreJob(job, replaceExisting)` | `AddJob(job, replace)` |
+| `StoreTrigger(trigger, replaceExisting)` | `AddTrigger(trigger, replace)` |
+| `RemoveJob(key)`, `RemoveJobs(keys)` | `DeleteJob(key)`, `DeleteJobs(keys)` |
+| `RemoveTrigger(key)`, `RemoveTriggers(keys)` | `DeleteTrigger(key)`, `DeleteTriggers(keys)` |
+| `RetrieveJob(key)` | `GetJob(key)` |
+| `RetrieveTrigger(key)` | `GetTrigger(key)` |
+| `StoreCalendar(name, cal, replaceExisting, updateTriggers)` | `AddCalendar(name, cal, AddCalendarOptions?)` |
+| `RemoveCalendar(name)` | `DeleteCalendar(name)` |
+| `RetrieveCalendar(name)` | `GetCalendar(name)` |
+| `ClearAllSchedulingData()` | `Clear()` |
+| `AcquireNextTriggers(noLaterThan, maxCount, timeWindow, executionLimits)` | `AcquireNextTriggers(TriggerAcquisitionRequest)` |
+
+The `bool` that decides whether an existing item is over-written is called `replace` on every member; it was
+`replaceExisting` on some. The `protected` `JobStoreSupport` members that mirror these — the
+`ConnectionAndTransactionHolder` overloads, and `AcquireNextTrigger` — were renamed with them.
+
+The activity names in `Quartz.Diagnostics.OperationName.JobStore` follow the methods they name, so a trace
+filter matching `"Quartz.JobStore.StoreJob"` now needs `"Quartz.JobStore.AddJob"`, and so on for every row
+above.
+
+### Acquisition takes a request record
+
+```diff
+- await store.AcquireNextTriggers(noLaterThan, maxCount, timeWindow, executionLimits, ct);
++ await store.AcquireNextTriggers(new TriggerAcquisitionRequest
++ {
++     NoLaterThan = noLaterThan,
++     MaxCount = maxCount,
++     TimeWindow = timeWindow,
++     ExecutionLimits = executionLimits,
++ }, ct);
+```
+
+`TriggerAcquisitionRequest` lives in `Quartz.Extensibility`. Acquisition keeps growing dimensions — the
+batching window, per-execution-group limits, node affinity — and each one used to be another parameter on the
+hot path of every store. As a record, the next one is an added optional property a store can ignore. It is the
+store-level counterpart of the delegate-level `TriggerAcquisitionCriteria`, which is unchanged. `TimeWindow`
+rejects a negative value at construction, where `JobStoreSupport` used to throw from inside acquisition.
+
+## Options records replace boolean parameters
+
+`AddJob` and `AddCalendar` took bare booleans that say nothing at the call site about which is which, and
+`AddJob` had a second overload only because its second boolean was added later. Both are one member now,
+taking an optional record whose defaults are the conservative choice (`Replace = false`,
+`StoreNonDurableWhileAwaitingScheduling = false`, `UpdateTriggers = false`).
+
+| 3.x | 4.x |
+|---|---|
+| `AddJob(job, replace: false)` | `AddJob(job)` |
+| `AddJob(job, replace: true)` | `AddJob(job, new AddJobOptions { Replace = true })` |
+| `AddJob(job, true, true)` | `AddJob(job, new AddJobOptions { Replace = true, StoreNonDurableWhileAwaitingScheduling = true })` |
+| `AddCalendar(name, cal, false, false)` | `AddCalendar(name, cal)` |
+| `AddCalendar(name, cal, true, true)` | `AddCalendar(name, cal, new AddCalendarOptions { Replace = true, UpdateTriggers = true })` |
+
+`AddJobOptions` and `AddCalendarOptions` are both in the `Quartz` namespace. `IJobStore.AddCalendar` takes
+`AddCalendarOptions` too; `IJobStore.AddJob` keeps its single `bool replace`, because durability is a
+scheduler-level rule the store never sees.
+
+The DI-time builders — `q.AddJob<T>(…)` and `q.AddCalendar<T>(…)` on `IQuartzBuilder` — are unchanged.
+
+## Overloads that differed only by a default
+
+| 3.x | 4.x |
+|---|---|
+| `Shutdown()`, `Shutdown(bool waitForJobsToComplete)` | `Shutdown(bool waitForJobsToComplete = false, …)` |
+| `TriggerJob(jobKey)`, `TriggerJob(jobKey, data)` | `TriggerJob(JobKey jobKey, JobDataMap? data = null, …)` |
+| `Interrupt(string fireInstanceId)` | `InterruptFireInstance(string fireInstanceId)` |
+| `GetMetaData()` | `GetMetadata()`, returning `SchedulerMetadata` |
+| `GetTriggersOfJob(jobKey)` | extension method over `QueryTriggers(new TriggerQuery { Job = jobKey })` |
+
+Calls to `Shutdown` and `TriggerJob` compile unchanged unless they passed a `CancellationToken` positionally
+into the short overload, which now needs to be named:
+
+```diff
+- await scheduler.Shutdown(cancellationToken);
++ await scheduler.Shutdown(cancellationToken: cancellationToken);
+```
+
+`Interrupt` overloaded on `JobKey` versus `string` hid two different operations behind one name — cancel every
+execution of a job, versus cancel one specific fire — so picking the wrong one was a silent, type-driven
+mistake. `Interrupt(JobKey)` keeps its name.
+
+`GetTriggersOfJob` is an extension method on `SchedulerQueryExtensions` now, so existing call sites still
+compile. It runs `QueryTriggers` and then `GetTriggers` on the keys it found; when the state and fire times a
+listing needs are enough, call `QueryTriggers` with `TriggerQuery.Job` yourself and save the second round trip.
+
+### `SchedulerMetadata` replaces `SchedulerMetaData`
+
+```diff
+- SchedulerMetaData metaData = await scheduler.GetMetaData();
+- Console.WriteLine($"Executed {metaData.NumberOfJobsExecuted} jobs.");
+- Console.WriteLine(metaData.GetSummary());
++ SchedulerMetadata metadata = await scheduler.GetMetadata();
++ Console.WriteLine($"Executed {metadata.JobsExecuted} jobs.");
++ Console.WriteLine(metadata);
+```
+
+The old type was built through a fifteen-parameter constructor of which six were adjacent booleans. It is a
+`sealed record` with `init` properties now, so a snapshot is built and read by name. Two properties were
+renamed: `SchedulerRemote` → `IsRemote` and `NumberOfJobsExecuted` → `JobsExecuted`. `GetSummary()` is gone —
+the record's `ToString()` prints every value, which is what the hand-written summary was for. Over HTTP,
+`SchedulerStatisticsDto.NumberOfJobsExecuted` is `JobsExecuted` to match.
+
 ## Names that were normalized
 
 Renames only — the behavior behind each is unchanged, and a rename that also changes a configuration key is
@@ -1195,7 +1309,7 @@ called out.
 
 | 3.x | 4.x |
 |---|---|
-| `QuartzScheduler.NumJobsExecuted` | `NumberOfJobsExecuted` (the type is internal now — read `IScheduler.GetMetaData()`) |
+| `QuartzScheduler.NumJobsExecuted` | `NumberOfJobsExecuted` (the type is internal now — read `IScheduler.GetMetadata()`) |
 | `QuartzScheduler.JobStoreClass`, `.ThreadPoolClass` | `JobStoreType`, `ThreadPoolType` (they return a `Type`; the type is internal now) |
 | `JobStoreSupport.UseDBLocks`, `.SelectWithLockSQL` | `UseDbLocks`, `SelectWithLockSql` |
 | `DBSemaphore.SQL`, `.InsertSQL`, `.ExecuteSQL` | `Sql`, `InsertSql` (both readable now), `ExecuteSql` |

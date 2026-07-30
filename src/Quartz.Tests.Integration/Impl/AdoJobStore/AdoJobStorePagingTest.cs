@@ -468,7 +468,7 @@ public class AdoJobStorePagingTest
     {
         foreach (IScheduler scheduler in createdSchedulers)
         {
-            await scheduler.Shutdown(CancellationToken.None);
+            await scheduler.Shutdown();
         }
 
         createdSchedulers.Clear();

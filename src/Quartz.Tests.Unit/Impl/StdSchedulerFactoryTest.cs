@@ -116,11 +116,11 @@ public class StdSchedulerFactoryTest
         var scheduler = await new StdSchedulerFactory().GetScheduler();
         try
         {
-            var metaData = await scheduler.GetMetaData();
+            var metadata = await scheduler.GetMetadata();
             var jobStore = (RAMJobStore) ((StdScheduler) scheduler).scheduler.resources.JobStore;
 
             scheduler.SchedulerName.Should().Be("DefaultQuartzScheduler");
-            metaData.ThreadPoolSize.Should().Be(10);
+            metadata.ThreadPoolSize.Should().Be(10);
             jobStore.MisfireThreshold.Should().Be(TimeSpan.FromSeconds(60));
         }
         finally

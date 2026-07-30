@@ -15,7 +15,7 @@ public class CommonEndpointTest : WebApiTest
     public void HttpSchedulerShouldThrowIfSchedulerIsNotFound()
     {
         var nonExistingHttpScheduler = new HttpScheduler(TestData.SchedulerName + "_non_existing", WebApplicationFactory.CreateClient());
-        Assert.ThrowsAsync<HttpClientException>(() => nonExistingHttpScheduler.GetMetaData().AsTask())!.Message.Should().ContainEquivalentOf("Scheduler not found");
+        Assert.ThrowsAsync<HttpClientException>(() => nonExistingHttpScheduler.GetMetadata().AsTask())!.Message.Should().ContainEquivalentOf("Scheduler not found");
 
         // Getting non existing job returns null, but should throw if scheduler is not found
         Assert.ThrowsAsync<HttpClientException>(() => nonExistingHttpScheduler.GetJobDetail(new JobKey("non", "existing")).AsTask())!.Message.Should().ContainEquivalentOf("Scheduler not found");

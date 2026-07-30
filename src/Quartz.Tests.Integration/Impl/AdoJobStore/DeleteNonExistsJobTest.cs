@@ -72,7 +72,7 @@ public class DeleteNonExistsJobTest
     public async Task DeleteJobDetailOnly()
     {
         IJobDetail jobDetail = JobBuilder.Create<TestJob>().WithIdentity("testjob").StoreDurably().Build();
-        await scheduler.AddJob(jobDetail, true);
+        await scheduler.AddJob(jobDetail, new AddJobOptions { Replace = true });
         await ModifyStoredJobClassName();
 
         await scheduler.DeleteJob(jobDetail.Key);
@@ -119,7 +119,7 @@ public class DeleteNonExistsJobTest
         await ModifyStoredJobClassName();
 
         jobDetail = JobBuilder.Create<TestJob>().WithIdentity("testjob3").StoreDurably().Build();
-        await scheduler.AddJob(jobDetail, true);
+        await scheduler.AddJob(jobDetail, new AddJobOptions { Replace = true });
     }
 
     private async Task ModifyStoredJobClassName()

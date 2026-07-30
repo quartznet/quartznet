@@ -328,9 +328,9 @@ public class QueryEndpointsTest : WebApiTest
 
     private async Task Seed()
     {
-        await scheduler.AddCalendar("cal-a", new HolidayCalendar(), replace: true, updateTriggers: false);
-        await scheduler.AddCalendar("cal-b", new HolidayCalendar(), replace: true, updateTriggers: false);
-        await scheduler.AddCalendar("cal-c", new HolidayCalendar(), replace: true, updateTriggers: false);
+        await scheduler.AddCalendar("cal-a", new HolidayCalendar(), new AddCalendarOptions { Replace = true });
+        await scheduler.AddCalendar("cal-b", new HolidayCalendar(), new AddCalendarOptions { Replace = true });
+        await scheduler.AddCalendar("cal-c", new HolidayCalendar(), new AddCalendarOptions { Replace = true });
 
         await scheduler.ScheduleJob(Job(alphaJobOne), [Trigger(alphaTriggerOne, alphaJobOne), Trigger(alphaTriggerTwo, alphaJobOne, calendarName: "cal-a")], replace: true);
         await scheduler.ScheduleJob(Job(alphaJobTwo), [Trigger(alphaTriggerThree, alphaJobTwo)], replace: true);

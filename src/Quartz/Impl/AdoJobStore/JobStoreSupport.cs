@@ -1019,7 +1019,7 @@ public abstract class JobStoreSupport : IJobStore
                 if (await JobExists(conn, trigger.JobKey, cancellationToken).ConfigureAwait(false))
                 {
                     trigger.ComputeFirstFireTimeUtc(null);
-                    await StoreTrigger(conn, trigger, null, false, AdoConstants.StateWaiting, false, true, cancellationToken).ConfigureAwait(false);
+                    await AddTrigger(conn, trigger, null, false, AdoConstants.StateWaiting, false, true, cancellationToken).ConfigureAwait(false);
                 }
             }
             Logger.LogInformation("Recovery complete.");
@@ -1028,7 +1028,7 @@ public abstract class JobStoreSupport : IJobStore
             var triggersInState = await Delegate.SelectTriggersInState(conn, AdoConstants.StateComplete, cancellationToken).ConfigureAwait(false);
             foreach (var trigger in triggersInState)
             {
-                await RemoveTrigger(conn, trigger, cancellationToken).ConfigureAwait(false);
+                await DeleteTrigger(conn, trigger, cancellationToken).ConfigureAwait(false);
             }
             Logger.LogInformation("Removed  {Count} 'complete' triggers.", triggersInState.Count);
 
@@ -1161,7 +1161,7 @@ public abstract class JobStoreSupport : IJobStore
         {
             if (calendarCache is null || !calendarCache.TryGetValue(trig.CalendarName, out calendar))
             {
-                calendar = await RetrieveCalendar(conn, trig.CalendarName, cancellationToken).ConfigureAwait(false);
+                calendar = await GetCalendar(conn, trig.CalendarName, cancellationToken).ConfigureAwait(false);
                 if (calendarCache is not null)
                 {
                     calendarCache[trig.CalendarName] = calendar;
@@ -1288,7 +1288,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         try
         {
-            var trig = (await RetrieveTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false))!;
+            var trig = (await GetTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false))!;
 
             DateTimeOffset misfireTime = timeProvider.GetUtcNow();
             if (MisfireThreshold > TimeSpan.Zero)
@@ -1318,7 +1318,7 @@ public abstract class JobStoreSupport : IJobStore
         ICalendar? calendar = null;
         if (trig.CalendarName is not null)
         {
-            calendar = await RetrieveCalendar(conn, trig.CalendarName).ConfigureAwait(false);
+            calendar = await GetCalendar(conn, trig.CalendarName).ConfigureAwait(false);
         }
 
         await schedSignaler.NotifyTriggerListenersMisfired(trig).ConfigureAwait(false);
@@ -1330,12 +1330,12 @@ public abstract class JobStoreSupport : IJobStore
 
         if (!trig.NextFireTimeUtc.HasValue)
         {
-            await StoreTrigger(conn, trig, null, true, AdoConstants.StateComplete, forceState, recovering).ConfigureAwait(false);
+            await AddTrigger(conn, trig, null, true, AdoConstants.StateComplete, forceState, recovering).ConfigureAwait(false);
             await schedSignaler.NotifySchedulerListenersFinalized(trig).ConfigureAwait(false);
         }
         else
         {
-            await StoreTrigger(conn, trig, null, true, newStateIfNotComplete, forceState, recovering).ConfigureAwait(false);
+            await AddTrigger(conn, trig, null, true, newStateIfNotComplete, forceState, recovering).ConfigureAwait(false);
         }
 
         // Persist original fire time for "fire now" misfire policies.
@@ -1351,7 +1351,7 @@ public abstract class JobStoreSupport : IJobStore
     }
 
     /// <summary>
-    /// Optimized misfire update path that bypasses the StoreTrigger method's unnecessary
+    /// Optimized misfire update path that bypasses the AddTrigger method's unnecessary
     /// queries (existence check, pause-group checks, job retrieval, blocked-state check,
     /// trigger-type lookup). Safe when the caller already holds <c>LockTriggerAccess</c>
     /// and has determined the trigger's persisted state and corresponding
@@ -1367,7 +1367,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         MisfiredTriggerUpdate update = await PrepareMisfiredTriggerUpdate(conn, trig, newStateIfNotComplete, calendarCache: null, cancellationToken).ConfigureAwait(false);
 
-        // Single targeted UPDATE (1-2 DB round-trips) instead of StoreTrigger's 7-12.
+        // Single targeted UPDATE (1-2 DB round-trips) instead of AddTrigger's 7-12.
         await Delegate.UpdateMisfiredTrigger(conn, trig, update.NewState, update.MisfireOriginalFireTime, cancellationToken).ConfigureAwait(false);
 
         if (!trig.NextFireTimeUtc.HasValue)
@@ -1382,17 +1382,17 @@ public abstract class JobStoreSupport : IJobStore
     /// <param name="job">Job to be stored.</param>
     /// <param name="trigger">Trigger to be stored.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public async ValueTask StoreJobAndTrigger(
+    public async ValueTask ScheduleJob(
         IJobDetail job,
         IOperableTrigger trigger,
         CancellationToken cancellationToken = default)
     {
         await activityTracer.Trace(
-            OperationName.JobStore.StoreJobAndTrigger,
+            OperationName.JobStore.ScheduleJob,
             () => ExecuteInLock<object?>(LockOnInsert ? LockTriggerAccess : null, async conn =>
             {
-                await StoreJob(conn, job, false, cancellationToken).ConfigureAwait(false);
-                await StoreTrigger(conn, trigger, job, false, AdoConstants.StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
+                await AddJob(conn, job, false, cancellationToken).ConfigureAwait(false);
+                await AddTrigger(conn, trigger, job, false, AdoConstants.StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
                 return null;
             }, cancellationToken),
             activity =>
@@ -1408,18 +1408,18 @@ public abstract class JobStoreSupport : IJobStore
     /// Stores the given <see cref="IJobDetail" />.
     /// </summary>
     /// <param name="job">The <see cref="IJobDetail" /> to be stored.</param>
-    /// <param name="replaceExisting">
+    /// <param name="replace">
     ///     If <see langword="true" />, any <see cref="IJob" /> existing in the
     ///     <see cref="IJobStore" /> with the same name &amp; group should be over-written.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public async ValueTask StoreJob(IJobDetail job, bool replaceExisting, CancellationToken cancellationToken = default)
+    public async ValueTask AddJob(IJobDetail job, bool replace, CancellationToken cancellationToken = default)
     {
         await activityTracer.Trace(
-            OperationName.JobStore.StoreJob,
+            OperationName.JobStore.AddJob,
             () => ExecuteInLock(
-                LockOnInsert || replaceExisting ? LockTriggerAccess : null,
-                conn => StoreJob(conn, job, replaceExisting, cancellationToken),
+                LockOnInsert || replace ? LockTriggerAccess : null,
+                conn => AddJob(conn, job, replace, cancellationToken),
                 cancellationToken),
             activity =>
             {
@@ -1432,10 +1432,10 @@ public abstract class JobStoreSupport : IJobStore
     /// Insert or update a job.
     /// </para>
     /// </summary>
-    protected virtual async ValueTask StoreJob(
+    protected virtual async ValueTask AddJob(
         ConnectionAndTransactionHolder conn,
         IJobDetail newJob,
-        bool replaceExisting,
+        bool replace,
         CancellationToken cancellationToken = default)
     {
         bool existingJob = await JobExists(conn, newJob.Key, cancellationToken).ConfigureAwait(false);
@@ -1443,7 +1443,7 @@ public abstract class JobStoreSupport : IJobStore
         {
             if (existingJob)
             {
-                if (!replaceExisting)
+                if (!replace)
                 {
                     Throw.ObjectAlreadyExistsException(newJob);
                 }
@@ -1490,7 +1490,7 @@ public abstract class JobStoreSupport : IJobStore
     /// Store the given <see cref="ITrigger" />.
     /// </summary>
     /// <param name="trigger">The <see cref="ITrigger" /> to be stored.</param>
-    /// <param name="replaceExisting">
+    /// <param name="replace">
     ///     If <see langword="true" />, any <see cref="ITrigger" /> existing in
     ///     the <see cref="IJobStore" /> with the same name &amp; group should
     ///     be over-written.
@@ -1498,15 +1498,15 @@ public abstract class JobStoreSupport : IJobStore
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <exception cref="ObjectAlreadyExistsException">
     /// if a <see cref="ITrigger" /> with the same name/group already
-    /// exists, and replaceExisting is set to false.
+    /// exists, and replace is set to false.
     /// </exception>
-    public async ValueTask StoreTrigger(IOperableTrigger trigger, bool replaceExisting, CancellationToken cancellationToken = default)
+    public async ValueTask AddTrigger(IOperableTrigger trigger, bool replace, CancellationToken cancellationToken = default)
     {
         await activityTracer.Trace(
-            OperationName.JobStore.StoreTrigger,
+            OperationName.JobStore.AddTrigger,
             () => ExecuteInLock(
-                LockOnInsert || replaceExisting ? LockTriggerAccess : null,
-                conn => StoreTrigger(conn, trigger, null, replaceExisting, AdoConstants.StateWaiting, false, false, cancellationToken),
+                LockOnInsert || replace ? LockTriggerAccess : null,
+                conn => AddTrigger(conn, trigger, null, replace, AdoConstants.StateWaiting, false, false, cancellationToken),
                 cancellationToken),
             activity =>
             {
@@ -1518,11 +1518,11 @@ public abstract class JobStoreSupport : IJobStore
     /// <summary>
     /// Insert or update a trigger.
     /// </summary>
-    protected virtual async ValueTask StoreTrigger(
+    protected virtual async ValueTask AddTrigger(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger newTrigger,
         IJobDetail? job,
-        bool replaceExisting,
+        bool replace,
         string state,
         bool forceState,
         bool recovering,
@@ -1530,7 +1530,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         bool existingTrigger = await TriggerExists(conn, newTrigger.Key, cancellationToken).ConfigureAwait(false);
 
-        if (existingTrigger && !replaceExisting)
+        if (existingTrigger && !replace)
         {
             Throw.ObjectAlreadyExistsException(newTrigger);
         }
@@ -1559,7 +1559,7 @@ public abstract class JobStoreSupport : IJobStore
 
             if (job is null)
             {
-                job = await RetrieveJob(conn, newTrigger.JobKey, cancellationToken).ConfigureAwait(false);
+                job = await GetJob(conn, newTrigger.JobKey, cancellationToken).ConfigureAwait(false);
             }
             if (job is null)
             {
@@ -1631,11 +1631,11 @@ public abstract class JobStoreSupport : IJobStore
     /// <see langword="true" /> if a <see cref="IJob" /> with the given name &amp;
     /// group was found and removed from the store.
     /// </returns>
-    public ValueTask<bool> RemoveJob(JobKey jobKey, CancellationToken cancellationToken = default)
+    public ValueTask<bool> DeleteJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         return activityTracer.Trace(
-            OperationName.JobStore.RemoveJob,
-            () => ExecuteInLock(LockTriggerAccess, conn => RemoveJob(conn, jobKey, true, cancellationToken), cancellationToken),
+            OperationName.JobStore.DeleteJob,
+            () => ExecuteInLock(LockTriggerAccess, conn => DeleteJob(conn, jobKey, true, cancellationToken), cancellationToken),
             activity =>
             {
                 activity.SetTag(ActivityOptions.JobGroup, jobKey.Group);
@@ -1643,7 +1643,7 @@ public abstract class JobStoreSupport : IJobStore
             });
     }
 
-    protected virtual async ValueTask<bool> RemoveJob(
+    protected virtual async ValueTask<bool> DeleteJob(
         ConnectionAndTransactionHolder conn,
         JobKey jobKey,
         bool activeDeleteSafe,
@@ -1667,12 +1667,12 @@ public abstract class JobStoreSupport : IJobStore
         }
     }
 
-    public ValueTask<bool> RemoveJobs(
+    public ValueTask<bool> DeleteJobs(
         IReadOnlyCollection<JobKey> jobKeys,
         CancellationToken cancellationToken = default)
     {
         return activityTracer.Trace(
-            OperationName.JobStore.RemoveJobs,
+            OperationName.JobStore.DeleteJobs,
             () => ExecuteInLock(
                 LockTriggerAccess, async conn =>
                 {
@@ -1681,19 +1681,19 @@ public abstract class JobStoreSupport : IJobStore
                     // TODO: make this more efficient with a true bulk operation...
                     foreach (JobKey jobKey in jobKeys)
                     {
-                        allFound = await RemoveJob(conn, jobKey, true, cancellationToken).ConfigureAwait(false) && allFound;
+                        allFound = await DeleteJob(conn, jobKey, true, cancellationToken).ConfigureAwait(false) && allFound;
                     }
 
                     return allFound;
                 }, cancellationToken));
     }
 
-    public ValueTask<bool> RemoveTriggers(
+    public ValueTask<bool> DeleteTriggers(
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default)
     {
         return activityTracer.Trace(
-            OperationName.JobStore.RemoveTriggers,
+            OperationName.JobStore.DeleteTriggers,
             () => ExecuteInLock(
                 LockTriggerAccess,
                 async conn =>
@@ -1703,17 +1703,17 @@ public abstract class JobStoreSupport : IJobStore
                     // TODO: make this more efficient with a true bulk operation...
                     foreach (TriggerKey triggerKey in triggerKeys)
                     {
-                        allFound = await RemoveTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false) && allFound;
+                        allFound = await DeleteTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false) && allFound;
                     }
 
                     return allFound;
                 }, cancellationToken));
     }
 
-    public async ValueTask StoreJobsAndTriggers(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
+    public async ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
     {
         await activityTracer.Trace(
-            OperationName.JobStore.StoreJobsAndTriggers,
+            OperationName.JobStore.ScheduleJobs,
             () => ExecuteInLock(
                 LockOnInsert || replace ? LockTriggerAccess : null, async conn =>
                 {
@@ -1722,10 +1722,10 @@ public abstract class JobStoreSupport : IJobStore
                     {
                         var job = pair.Key;
                         var triggers = pair.Value;
-                        await StoreJob(conn, job, replace, cancellationToken).ConfigureAwait(false);
+                        await AddJob(conn, job, replace, cancellationToken).ConfigureAwait(false);
                         foreach (var trigger in triggers)
                         {
-                            await StoreTrigger(conn, (IOperableTrigger) trigger, job, replace, AdoConstants.StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
+                            await AddTrigger(conn, (IOperableTrigger) trigger, job, replace, AdoConstants.StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
                         }
                     }
                 }, cancellationToken)).ConfigureAwait(false);
@@ -1734,8 +1734,8 @@ public abstract class JobStoreSupport : IJobStore
     /// <summary>
     /// Delete a job and its listeners.
     /// </summary>
-    /// <seealso cref="JobStoreSupport.RemoveJob(ConnectionAndTransactionHolder, JobKey, bool, CancellationToken)" />
-    /// <seealso cref="RemoveTrigger(ConnectionAndTransactionHolder, TriggerKey, IJobDetail, CancellationToken)" />
+    /// <seealso cref="JobStoreSupport.DeleteJob(ConnectionAndTransactionHolder, JobKey, bool, CancellationToken)" />
+    /// <seealso cref="DeleteTrigger(ConnectionAndTransactionHolder, TriggerKey, IJobDetail, CancellationToken)" />
     private async ValueTask<bool> DeleteJobAndChildren(
         ConnectionAndTransactionHolder conn,
         JobKey key,
@@ -1751,8 +1751,8 @@ public abstract class JobStoreSupport : IJobStore
     /// <summary>
     /// Delete a trigger, its listeners, and its Simple/Cron/BLOB sub-table entry.
     /// </summary>
-    /// <seealso cref="RemoveJob(ConnectionAndTransactionHolder, JobKey, bool, CancellationToken)" />
-    /// <seealso cref="RemoveTrigger(ConnectionAndTransactionHolder, TriggerKey, IJobDetail, CancellationToken)" />
+    /// <seealso cref="DeleteJob(ConnectionAndTransactionHolder, JobKey, bool, CancellationToken)" />
+    /// <seealso cref="DeleteTrigger(ConnectionAndTransactionHolder, TriggerKey, IJobDetail, CancellationToken)" />
     /// <seealso cref="ReplaceTrigger(ConnectionAndTransactionHolder, TriggerKey, IOperableTrigger, CancellationToken)" />
     private async ValueTask<bool> DeleteTriggerAndChildren(
         ConnectionAndTransactionHolder conn,
@@ -1777,15 +1777,15 @@ public abstract class JobStoreSupport : IJobStore
     /// <param name="jobKey">The key identifying the job.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>The desired <see cref="IJob" />, or null if there is no match.</returns>
-    public ValueTask<IJobDetail?> RetrieveJob(
+    public ValueTask<IJobDetail?> GetJob(
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
         // no locks necessary for read...
-        return ExecuteWithoutLock(conn => RetrieveJob(conn, jobKey, cancellationToken), cancellationToken);
+        return ExecuteWithoutLock(conn => GetJob(conn, jobKey, cancellationToken), cancellationToken);
     }
 
-    protected virtual async ValueTask<IJobDetail?> RetrieveJob(
+    protected virtual async ValueTask<IJobDetail?> GetJob(
         ConnectionAndTransactionHolder conn,
         JobKey jobKey,
         CancellationToken cancellationToken = default)
@@ -1836,15 +1836,15 @@ public abstract class JobStoreSupport : IJobStore
     /// <see langword="true" /> if a <see cref="ITrigger" /> with the given
     /// name &amp; group was found and removed from the store.
     ///</returns>
-    public ValueTask<bool> RemoveTrigger(
+    public ValueTask<bool> DeleteTrigger(
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
         return activityTracer.Trace(
-            OperationName.JobStore.RemoveTrigger,
+            OperationName.JobStore.DeleteTrigger,
             () => ExecuteInLock(
                 LockTriggerAccess,
-                conn => RemoveTrigger(conn, triggerKey, cancellationToken),
+                conn => DeleteTrigger(conn, triggerKey, cancellationToken),
                 cancellationToken),
             activity =>
             {
@@ -1853,15 +1853,15 @@ public abstract class JobStoreSupport : IJobStore
             });
     }
 
-    protected virtual ValueTask<bool> RemoveTrigger(
+    protected virtual ValueTask<bool> DeleteTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
-        return RemoveTrigger(conn, triggerKey, null, cancellationToken);
+        return DeleteTrigger(conn, triggerKey, null, cancellationToken);
     }
 
-    protected virtual async ValueTask<bool> RemoveTrigger(
+    protected virtual async ValueTask<bool> DeleteTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         IJobDetail? job,
@@ -1884,7 +1884,7 @@ public abstract class JobStoreSupport : IJobStore
                 int numTriggers = await Delegate.SelectNumTriggersForJob(conn, job.Key, cancellationToken).ConfigureAwait(false);
                 if (numTriggers == 0)
                 {
-                    // Don't call RemoveJob() because we don't want to check for
+                    // Don't call DeleteJob() because we don't want to check for
                     // triggers again.
                     if (await DeleteJobAndChildren(conn, job.Key, cancellationToken).ConfigureAwait(false))
                     {
@@ -1951,7 +1951,7 @@ public abstract class JobStoreSupport : IJobStore
 
             bool removedTrigger = await DeleteTriggerAndChildren(conn, triggerKey, cancellationToken).ConfigureAwait(false);
 
-            await StoreTrigger(conn, newTrigger, job, false, AdoConstants.StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
+            await AddTrigger(conn, newTrigger, job, false, AdoConstants.StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
 
             return removedTrigger;
         }
@@ -2075,15 +2075,15 @@ public abstract class JobStoreSupport : IJobStore
     /// <param name="triggerKey">The key identifying the trigger.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>The desired <see cref="ITrigger" />, or null if there is no match.</returns>
-    public ValueTask<IOperableTrigger?> RetrieveTrigger(TriggerKey triggerKey,
+    public ValueTask<IOperableTrigger?> GetTrigger(TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
         return ExecuteWithoutLock( // no locks necessary for read...
-            conn => RetrieveTrigger(conn, triggerKey, cancellationToken),
+            conn => GetTrigger(conn, triggerKey, cancellationToken),
             cancellationToken);
     }
 
-    protected virtual async ValueTask<IOperableTrigger?> RetrieveTrigger(
+    protected virtual async ValueTask<IOperableTrigger?> GetTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
@@ -2188,44 +2188,41 @@ public abstract class JobStoreSupport : IJobStore
     /// </summary>
     /// <param name="calendarName">The name of the calendar.</param>
     /// <param name="calendar">The <see cref="ICalendar" /> to be stored.</param>
-    /// <param name="replaceExisting">
-    /// If <see langword="true" />, any <see cref="ICalendar" /> existing
-    /// in the <see cref="IJobStore" /> with the same name &amp; group
-    /// should be over-written.
+    /// <param name="options">
+    /// Whether an existing calendar of the same name may be over-written, and whether the triggers
+    /// referencing it have their next fire time re-computed.
     /// </param>
-    /// <param name="updateTriggers"></param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <exception cref="ObjectAlreadyExistsException">
     ///           if a <see cref="ICalendar" /> with the same name already
-    ///           exists, and replaceExisting is set to false.
+    ///           exists, and replace is set to false.
     /// </exception>
-    public async ValueTask StoreCalendar(
+    public async ValueTask AddCalendar(
         string calendarName,
         ICalendar calendar,
-        bool replaceExisting,
-        bool updateTriggers,
+        AddCalendarOptions? options = null,
         CancellationToken cancellationToken = default)
     {
+        options ??= new AddCalendarOptions();
         await activityTracer.Trace(
-            OperationName.JobStore.StoreCalendar,
+            OperationName.JobStore.AddCalendar,
             () => ExecuteInLock(
-                LockOnInsert || updateTriggers ? LockTriggerAccess : null,
-                conn => StoreCalendar(conn, calendarName, calendar, replaceExisting, updateTriggers, cancellationToken),
+                LockOnInsert || options.UpdateTriggers ? LockTriggerAccess : null,
+                conn => AddCalendar(conn, calendarName, calendar, options, cancellationToken),
                 cancellationToken)).ConfigureAwait(false);
     }
 
-    protected virtual async ValueTask StoreCalendar(
+    protected virtual async ValueTask AddCalendar(
         ConnectionAndTransactionHolder conn,
         string calendarName,
         ICalendar calendar,
-        bool replaceExisting,
-        bool updateTriggers,
+        AddCalendarOptions options,
         CancellationToken cancellationToken = default)
     {
         try
         {
             bool existingCal = await CalendarExists(conn, calendarName, cancellationToken).ConfigureAwait(false);
-            if (existingCal && !replaceExisting)
+            if (existingCal && !options.Replace)
             {
                 Throw.ObjectAlreadyExistsException("Calendar with name '" + calendarName + "' already exists.");
             }
@@ -2237,7 +2234,7 @@ public abstract class JobStoreSupport : IJobStore
                     Throw.JobPersistenceException("Couldn't store calendar.  Update failed.");
                 }
 
-                if (updateTriggers)
+                if (options.UpdateTriggers)
                 {
                     var triggers = await Delegate.SelectTriggersForCalendar(conn, calendarName, cancellationToken).ConfigureAwait(false);
 
@@ -2249,7 +2246,7 @@ public abstract class JobStoreSupport : IJobStore
                         {
                             continue;
                         }
-                        await StoreTrigger(conn, trigger, null, true, triggerState, true, false, cancellationToken).ConfigureAwait(false);
+                        await AddTrigger(conn, trigger, null, true, triggerState, true, false, cancellationToken).ConfigureAwait(false);
                     }
                 }
             }
@@ -2307,16 +2304,16 @@ public abstract class JobStoreSupport : IJobStore
     /// <see langword="true" /> if a <see cref="ICalendar" /> with the given name
     /// was found and removed from the store.
     ///</returns>
-    public ValueTask<bool> RemoveCalendar(
+    public ValueTask<bool> DeleteCalendar(
         string calendarName,
         CancellationToken cancellationToken = default)
     {
         return activityTracer.Trace(
-            OperationName.JobStore.RemoveCalendar,
-            () => ExecuteInLock(LockTriggerAccess, conn => RemoveCalendar(conn, calendarName, cancellationToken), cancellationToken));
+            OperationName.JobStore.DeleteCalendar,
+            () => ExecuteInLock(LockTriggerAccess, conn => DeleteCalendar(conn, calendarName, cancellationToken), cancellationToken));
     }
 
-    protected virtual async ValueTask<bool> RemoveCalendar(
+    protected virtual async ValueTask<bool> DeleteCalendar(
         ConnectionAndTransactionHolder conn,
         string calendarName,
         CancellationToken cancellationToken = default)
@@ -2348,14 +2345,14 @@ public abstract class JobStoreSupport : IJobStore
     /// <param name="calendarName">The name of the <see cref="ICalendar" /> to be retrieved.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>The desired <see cref="ICalendar" />, or null if there is no match.</returns>
-    public ValueTask<ICalendar?> RetrieveCalendar(string calendarName, CancellationToken cancellationToken = default)
+    public ValueTask<ICalendar?> GetCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
         return ExecuteWithoutLock( // no locks necessary for read...
-            conn => RetrieveCalendar(conn, calendarName, cancellationToken),
+            conn => GetCalendar(conn, calendarName, cancellationToken),
             cancellationToken);
     }
 
-    protected virtual async ValueTask<ICalendar?> RetrieveCalendar(
+    protected virtual async ValueTask<ICalendar?> GetCalendar(
         ConnectionAndTransactionHolder conn,
         string calendarName,
         CancellationToken cancellationToken = default)
@@ -2478,14 +2475,14 @@ public abstract class JobStoreSupport : IJobStore
     /// </summary>
     /// <remarks>
     /// </remarks>
-    public async ValueTask ClearAllSchedulingData(CancellationToken cancellationToken = default)
+    public async ValueTask Clear(CancellationToken cancellationToken = default)
     {
         await activityTracer.Trace(
-            OperationName.JobStore.ClearAllSchedulingData,
-            () => ExecuteInLock(LockTriggerAccess, conn => ClearAllSchedulingData(conn, cancellationToken), cancellationToken)).ConfigureAwait(false);
+            OperationName.JobStore.Clear,
+            () => ExecuteInLock(LockTriggerAccess, conn => Clear(conn, cancellationToken), cancellationToken)).ConfigureAwait(false);
     }
 
-    protected async ValueTask ClearAllSchedulingData(
+    protected async ValueTask Clear(
         ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default)
     {
@@ -3191,14 +3188,13 @@ public abstract class JobStoreSupport : IJobStore
     /// <seealso cref="ReleaseAcquiredTrigger(IOperableTrigger, CancellationToken)" />
     /// <inheritdoc />
     public virtual ValueTask<List<IOperableTrigger>> AcquireNextTriggers(
-        DateTimeOffset noLaterThan,
-        int maxCount,
-        TimeSpan timeWindow,
-        IReadOnlyDictionary<string, int?>? executionLimits = null,
+        TriggerAcquisitionRequest request,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(request);
+
         string? lockName;
-        if (AcquireTriggersWithinLock || maxCount > 1)
+        if (AcquireTriggersWithinLock || request.MaxCount > 1)
         {
             lockName = LockTriggerAccess;
         }
@@ -3211,7 +3207,7 @@ public abstract class JobStoreSupport : IJobStore
             OperationName.JobStore.AcquireNextTriggers,
             () => ExecuteInNonManagedTXLock(
                 lockName,
-                conn => AcquireNextTrigger(conn, noLaterThan, maxCount, timeWindow, executionLimits, cancellationToken), async (conn, result) =>
+                conn => AcquireNextTrigger(conn, request, cancellationToken), async (conn, result) =>
                 {
                     try
                     {
@@ -3237,7 +3233,7 @@ public abstract class JobStoreSupport : IJobStore
                     }
                 },
                 cancellationToken),
-            activity => activity.SetTag(ActivityOptions.BatchSize, maxCount));
+            activity => activity.SetTag(ActivityOptions.BatchSize, request.MaxCount));
     }
 
     // TODO: this really ought to return something like a FiredTriggerBundle,
@@ -3245,17 +3241,9 @@ public abstract class JobStoreSupport : IJobStore
 
     protected virtual async ValueTask<List<IOperableTrigger>> AcquireNextTrigger(
         ConnectionAndTransactionHolder conn,
-        DateTimeOffset noLaterThan,
-        int maxCount,
-        TimeSpan timeWindow,
-        IReadOnlyDictionary<string, int?>? executionLimits = null,
+        TriggerAcquisitionRequest request,
         CancellationToken cancellationToken = default)
     {
-        if (timeWindow < TimeSpan.Zero)
-        {
-            Throw.ArgumentOutOfRangeException(nameof(timeWindow));
-        }
-
         List<IOperableTrigger> acquiredTriggers = [];
         HashSet<JobKey> acquiredJobKeysForNoConcurrentExec = [];
         const int MaxDoLoopRetry = 3;
@@ -3278,10 +3266,10 @@ public abstract class JobStoreSupport : IJobStore
 
                 TriggerAcquisitionCriteria criteria = new()
                 {
-                    NoLaterThan = noLaterThan + timeWindow,
+                    NoLaterThan = request.NoLaterThan + request.TimeWindow,
                     NoEarlierThan = MisfireTime,
-                    MaxCount = maxCount,
-                    ExecutionLimits = executionLimits,
+                    MaxCount = request.MaxCount,
+                    ExecutionLimits = request.ExecutionLimits,
                     LiveNodeCutoff = liveNodeCutoff,
                 };
 
@@ -3293,14 +3281,14 @@ public abstract class JobStoreSupport : IJobStore
                     return acquiredTriggers;
                 }
 
-                DateTimeOffset batchEnd = noLaterThan;
+                DateTimeOffset batchEnd = request.NoLaterThan;
 
                 foreach (var result in results)
                 {
                     var triggerKey = new TriggerKey(result.TriggerName, result.TriggerGroup);
 
                     // If our trigger is no longer available, try a new one.
-                    var nextTrigger = await RetrieveTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+                    var nextTrigger = await GetTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
                     if (nextTrigger is null)
                     {
                         continue; // next trigger
@@ -3376,7 +3364,7 @@ public abstract class JobStoreSupport : IJobStore
                         var nextFireTime = nextFireTimeUtc.Value;
                         var max = now > nextFireTime ? now : nextFireTime;
 
-                        batchEnd = max + timeWindow;
+                        batchEnd = max + request.TimeWindow;
                     }
 
                     acquiredTriggers.Add(nextTrigger);
@@ -3546,7 +3534,7 @@ public abstract class JobStoreSupport : IJobStore
 
         try
         {
-            job = await RetrieveJob(conn, trigger.JobKey, cancellationToken).ConfigureAwait(false);
+            job = await GetJob(conn, trigger.JobKey, cancellationToken).ConfigureAwait(false);
             if (job is null)
             {
                 return null;
@@ -3590,7 +3578,7 @@ public abstract class JobStoreSupport : IJobStore
 
         if (trigger.CalendarName is not null)
         {
-            calendar = await RetrieveCalendar(conn, trigger.CalendarName, cancellationToken).ConfigureAwait(false);
+            calendar = await GetCalendar(conn, trigger.CalendarName, cancellationToken).ConfigureAwait(false);
             if (calendar is null)
             {
                 return null;
@@ -3678,7 +3666,7 @@ public abstract class JobStoreSupport : IJobStore
             force = true;
         }
 
-        await StoreTrigger(conn, trigger, job, true, state2, force, false, cancellationToken).ConfigureAwait(false);
+        await AddTrigger(conn, trigger, job, true, state2, force, false, cancellationToken).ConfigureAwait(false);
 
         job.JobDataMap.ClearDirtyFlag();
 
@@ -3741,12 +3729,12 @@ public abstract class JobStoreSupport : IJobStore
                     var stat = await Delegate.SelectTriggerStatus(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
                     if (stat is not null && !stat.NextFireTimeUtc.HasValue)
                     {
-                        await RemoveTrigger(conn, trigger.Key, jobDetail, cancellationToken).ConfigureAwait(false);
+                        await DeleteTrigger(conn, trigger.Key, jobDetail, cancellationToken).ConfigureAwait(false);
                     }
                 }
                 else
                 {
-                    await RemoveTrigger(conn, trigger.Key, jobDetail, cancellationToken).ConfigureAwait(false);
+                    await DeleteTrigger(conn, trigger.Key, jobDetail, cancellationToken).ConfigureAwait(false);
                     conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
                 }
             }
@@ -3801,7 +3789,7 @@ public abstract class JobStoreSupport : IJobStore
                             var newState = await Delegate.SelectTriggerState(conn, trig.Key, cancellationToken).ConfigureAwait(false);
                             if (newState == AdoConstants.StateComplete)
                             {
-                                await RemoveTrigger(conn, trig.Key, cancellationToken).ConfigureAwait(false);
+                                await DeleteTrigger(conn, trig.Key, cancellationToken).ConfigureAwait(false);
                             }
                         }
                     }
@@ -4356,7 +4344,7 @@ public abstract class JobStoreSupport : IJobStore
                                 rcvryTrig.JobDataMap = jd;
 
                                 rcvryTrig.ComputeFirstFireTimeUtc(null);
-                                await StoreTrigger(conn, rcvryTrig, null, false, AdoConstants.StateWaiting, false, true, cancellationToken).ConfigureAwait(false);
+                                await AddTrigger(conn, rcvryTrig, null, false, AdoConstants.StateWaiting, false, true, cancellationToken).ConfigureAwait(false);
                                 recoveredCount++;
                             }
                             else
@@ -4405,7 +4393,7 @@ public abstract class JobStoreSupport : IJobStore
                             var firedTriggers = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { Trigger = triggerKey }, cancellationToken).ConfigureAwait(false);
                             if (firedTriggers.Count == 0)
                             {
-                                if (await RemoveTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false))
+                                if (await DeleteTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false))
                                 {
                                     completeCount++;
                                 }

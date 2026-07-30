@@ -103,7 +103,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        return scheduler.Shutdown(cancellationToken);
+        return scheduler.Shutdown(cancellationToken: cancellationToken);
     }
 
     public ValueTask PauseAll(string schedulerName, CancellationToken cancellationToken = default)
@@ -253,7 +253,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         JobKey jobKey = new(name, group);
-        return scheduler.TriggerJob(jobKey, cancellationToken);
+        return scheduler.TriggerJob(jobKey, cancellationToken: cancellationToken);
     }
 
     public ValueTask TriggerJobWithData(string schedulerName, string group, string name, JsonElement jobDataMap, CancellationToken cancellationToken = default)
@@ -287,12 +287,13 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         IJobDetail jobDetail = BuildJobDetail(request.Job);
-        if (request.StoreNonDurableWhileAwaitingScheduling.HasValue)
+        AddJobOptions options = new()
         {
-            return scheduler.AddJob(jobDetail, request.Replace, request.StoreNonDurableWhileAwaitingScheduling.Value, cancellationToken);
-        }
+            Replace = request.Replace,
+            StoreNonDurableWhileAwaitingScheduling = request.StoreNonDurableWhileAwaitingScheduling.GetValueOrDefault(),
+        };
 
-        return scheduler.AddJob(jobDetail, request.Replace, cancellationToken);
+        return scheduler.AddJob(jobDetail, options, cancellationToken);
     }
 
     public async ValueTask<TriggerPageDto> GetTriggers(
@@ -431,7 +432,11 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         ICalendar calendar = DeserializeCalendar(request.Calendar);
-        return scheduler.AddCalendar(request.CalendarName, calendar, request.Replace, request.UpdateTriggers, cancellationToken);
+        return scheduler.AddCalendar(
+            request.CalendarName,
+            calendar,
+            new AddCalendarOptions { Replace = request.Replace, UpdateTriggers = request.UpdateTriggers },
+            cancellationToken);
     }
 
     public async ValueTask DeleteCalendar(string schedulerName, string calendarName, CancellationToken cancellationToken = default)

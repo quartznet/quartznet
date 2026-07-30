@@ -131,7 +131,7 @@ public class JobRunShellBenchmark
             throw new NotImplementedException();
         }
 
-        public ValueTask<List<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow, IReadOnlyDictionary<string, int?>? executionLimits = null, CancellationToken cancellationToken = default)
+        public ValueTask<List<IOperableTrigger>> AcquireNextTriggers(TriggerAcquisitionRequest request, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -146,7 +146,7 @@ public class JobRunShellBenchmark
             throw new NotImplementedException();
         }
 
-        public ValueTask ClearAllSchedulingData(CancellationToken cancellationToken = default)
+        public ValueTask Clear(CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -236,27 +236,27 @@ public class JobRunShellBenchmark
             throw new NotImplementedException();
         }
 
-        public ValueTask<bool> RemoveCalendar(string calendarName, CancellationToken cancellationToken = default)
+        public ValueTask<bool> DeleteCalendar(string calendarName, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
 
-        public ValueTask<bool> RemoveJob(JobKey jobKey, CancellationToken cancellationToken = default)
+        public ValueTask<bool> DeleteJob(JobKey jobKey, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
 
-        public ValueTask<bool> RemoveJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+        public ValueTask<bool> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
 
-        public ValueTask<bool> RemoveTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+        public ValueTask<bool> DeleteTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
 
-        public ValueTask<bool> RemoveTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+        public ValueTask<bool> DeleteTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -296,17 +296,17 @@ public class JobRunShellBenchmark
             throw new NotImplementedException();
         }
 
-        public ValueTask<ICalendar?> RetrieveCalendar(string calendarName, CancellationToken cancellationToken = default)
+        public ValueTask<ICalendar?> GetCalendar(string calendarName, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
 
-        public ValueTask<IJobDetail?> RetrieveJob(JobKey jobKey, CancellationToken cancellationToken = default)
+        public ValueTask<IJobDetail?> GetJob(JobKey jobKey, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
 
-        public ValueTask<IOperableTrigger?> RetrieveTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+        public ValueTask<IOperableTrigger?> GetTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -331,27 +331,27 @@ public class JobRunShellBenchmark
             return default;
         }
 
-        public ValueTask StoreCalendar(string calendarName, ICalendar calendar, bool replaceExisting, bool updateTriggers, CancellationToken cancellationToken = default)
+        public ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions? options = null, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
 
-        public ValueTask StoreJob(IJobDetail newJob, bool replaceExisting, CancellationToken cancellationToken = default)
+        public ValueTask AddJob(IJobDetail newJob, bool replace, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
 
-        public ValueTask StoreJobAndTrigger(IJobDetail newJob, IOperableTrigger newTrigger, CancellationToken cancellationToken = default)
+        public ValueTask ScheduleJob(IJobDetail newJob, IOperableTrigger newTrigger, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
 
-        public ValueTask StoreJobsAndTriggers(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
+        public ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
 
-        public ValueTask StoreTrigger(IOperableTrigger newTrigger, bool replaceExisting, CancellationToken cancellationToken = default)
+        public ValueTask AddTrigger(IOperableTrigger newTrigger, bool replace, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }

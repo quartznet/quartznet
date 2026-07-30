@@ -402,19 +402,6 @@ internal sealed class QuartzScheduler
     /// <summary>
     /// Halts the <see cref="QuartzScheduler" />'s firing of <see cref="ITrigger" />s,
     /// and cleans up all resources associated with the QuartzScheduler.
-    /// Equivalent to <see cref="Shutdown(bool, CancellationToken)" />.
-    /// <para>
-    /// The scheduler cannot be re-started.
-    /// </para>
-    /// </summary>
-    public ValueTask Shutdown(CancellationToken cancellationToken = default)
-    {
-        return Shutdown(false, cancellationToken);
-    }
-
-    /// <summary>
-    /// Halts the <see cref="QuartzScheduler" />'s firing of <see cref="ITrigger" />s,
-    /// and cleans up all resources associated with the QuartzScheduler.
     /// <para>
     /// The scheduler cannot be re-started.
     /// </para>
@@ -425,7 +412,7 @@ internal sealed class QuartzScheduler
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     public async ValueTask Shutdown(
-        bool waitForJobsToComplete,
+        bool waitForJobsToComplete = false,
         CancellationToken cancellationToken = default)
     {
         // Atomic claim: two concurrent callers (say a hosted service's StopAsync and user code)
@@ -562,7 +549,7 @@ internal sealed class QuartzScheduler
         ICalendar? calendar = null;
         if (trigger.CalendarName is not null)
         {
-            calendar = await resources.JobStore.RetrieveCalendar(trigger.CalendarName, cancellationToken).ConfigureAwait(false);
+            calendar = await resources.JobStore.GetCalendar(trigger.CalendarName, cancellationToken).ConfigureAwait(false);
             if (calendar is null)
             {
                 Throw.SchedulerException($"Calendar not found: {trigger.CalendarName}");
@@ -577,7 +564,7 @@ internal sealed class QuartzScheduler
             Throw.SchedulerException(message);
         }
 
-        await resources.JobStore.StoreJobAndTrigger(jobDetail, trig, cancellationToken).ConfigureAwait(false);
+        await resources.JobStore.ScheduleJob(jobDetail, trig, cancellationToken).ConfigureAwait(false);
         await NotifySchedulerListenersJobAdded(jobDetail, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(trigger.NextFireTimeUtc);
         await NotifySchedulerListenersScheduled(trigger, cancellationToken).ConfigureAwait(false);
@@ -607,7 +594,7 @@ internal sealed class QuartzScheduler
         ICalendar? calendar = null;
         if (trigger.CalendarName is not null)
         {
-            calendar = await resources.JobStore.RetrieveCalendar(trigger.CalendarName, cancellationToken).ConfigureAwait(false);
+            calendar = await resources.JobStore.GetCalendar(trigger.CalendarName, cancellationToken).ConfigureAwait(false);
             if (calendar is null)
             {
                 Throw.SchedulerException($"Calendar not found: {trigger.CalendarName}");
@@ -622,7 +609,7 @@ internal sealed class QuartzScheduler
             Throw.SchedulerException(message);
         }
 
-        await resources.JobStore.StoreTrigger(trig, false, cancellationToken).ConfigureAwait(false);
+        await resources.JobStore.AddTrigger(trig, false, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(trigger.NextFireTimeUtc);
         await NotifySchedulerListenersScheduled(trigger, cancellationToken).ConfigureAwait(false);
 
@@ -632,35 +619,29 @@ internal sealed class QuartzScheduler
     /// <summary>
     /// Add the given <see cref="IJob" /> to the Scheduler - with no associated
     /// <see cref="ITrigger" />. The <see cref="IJob" /> will be 'dormant' until
-    /// it is scheduled with a <see cref="ITrigger" />, or <see cref="IScheduler.TriggerJob(Quartz.JobKey, CancellationToken)" />
+    /// it is scheduled with a <see cref="ITrigger" />, or <see cref="IScheduler.TriggerJob" />
     /// is called for it.
     /// <para>
-    /// The <see cref="IJob" /> must by definition be 'durable', if it is not,
+    /// The <see cref="IJob" /> must by definition be 'durable' unless
+    /// <see cref="AddJobOptions.StoreNonDurableWhileAwaitingScheduling" /> is set, otherwise
     /// SchedulerException will be thrown.
     /// </para>
     /// </summary>
-    public ValueTask AddJob(
-        IJobDetail jobDetail,
-        bool replace,
-        CancellationToken cancellationToken = default)
-    {
-        return AddJob(jobDetail, replace, false, cancellationToken);
-    }
-
     public async ValueTask AddJob(
         IJobDetail jobDetail,
-        bool replace,
-        bool storeNonDurableWhileAwaitingScheduling,
+        AddJobOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         ValidateState();
 
-        if (!storeNonDurableWhileAwaitingScheduling && !jobDetail.Durable)
+        options ??= new AddJobOptions();
+
+        if (!options.StoreNonDurableWhileAwaitingScheduling && !jobDetail.Durable)
         {
             Throw.SchedulerException("Jobs added with no trigger must be durable.");
         }
 
-        await resources.JobStore.StoreJob(jobDetail, replace, cancellationToken).ConfigureAwait(false);
+        await resources.JobStore.AddJob(jobDetail, options.Replace, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);
         await NotifySchedulerListenersJobAdded(jobDetail, cancellationToken).ConfigureAwait(false);
     }
@@ -691,7 +672,7 @@ internal sealed class QuartzScheduler
             result = true;
         }
 
-        result = await resources.JobStore.RemoveJob(jobKey, cancellationToken).ConfigureAwait(false) || result;
+        result = await resources.JobStore.DeleteJob(jobKey, cancellationToken).ConfigureAwait(false) || result;
         if (result)
         {
             NotifySchedulerThread(null);
@@ -706,7 +687,7 @@ internal sealed class QuartzScheduler
     {
         ValidateState();
 
-        bool result = await resources.JobStore.RemoveJobs(jobKeys, cancellationToken).ConfigureAwait(false);
+        bool result = await resources.JobStore.DeleteJobs(jobKeys, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);
         foreach (JobKey key in jobKeys)
         {
@@ -746,7 +727,7 @@ internal sealed class QuartzScheduler
                 ICalendar? calendar = null;
                 if (trigger.CalendarName is not null)
                 {
-                    calendar = await resources.JobStore.RetrieveCalendar(trigger.CalendarName, cancellationToken).ConfigureAwait(false);
+                    calendar = await resources.JobStore.GetCalendar(trigger.CalendarName, cancellationToken).ConfigureAwait(false);
                     if (calendar is null)
                     {
                         var message = $"Calendar '{trigger.CalendarName}' not found for trigger: {trigger.Key}";
@@ -764,7 +745,7 @@ internal sealed class QuartzScheduler
             }
         }
 
-        await resources.JobStore.StoreJobsAndTriggers(triggersAndJobs, replace, cancellationToken).ConfigureAwait(false);
+        await resources.JobStore.ScheduleJobs(triggersAndJobs, replace, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);
         foreach (var pair in triggersAndJobs)
         {
@@ -796,7 +777,7 @@ internal sealed class QuartzScheduler
     {
         ValidateState();
 
-        bool result = await resources.JobStore.RemoveTriggers(triggerKeys, cancellationToken).ConfigureAwait(false);
+        bool result = await resources.JobStore.DeleteTriggers(triggerKeys, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);
         await Task.WhenAll(triggerKeys.Select(x => NotifySchedulerListenersUnscheduled(x, cancellationToken).AsTask())).ConfigureAwait(false);
         return result;
@@ -812,7 +793,7 @@ internal sealed class QuartzScheduler
     {
         ValidateState();
 
-        if (await resources.JobStore.RemoveTrigger(triggerKey, cancellationToken).ConfigureAwait(false))
+        if (await resources.JobStore.DeleteTrigger(triggerKey, cancellationToken).ConfigureAwait(false))
         {
             NotifySchedulerThread(null);
             await NotifySchedulerListenersUnscheduled(triggerKey, cancellationToken).ConfigureAwait(false);
@@ -868,7 +849,7 @@ internal sealed class QuartzScheduler
         ICalendar? calendar = null;
         if (newTrigger.CalendarName is not null)
         {
-            calendar = await resources.JobStore.RetrieveCalendar(newTrigger.CalendarName, cancellationToken).ConfigureAwait(false);
+            calendar = await resources.JobStore.GetCalendar(newTrigger.CalendarName, cancellationToken).ConfigureAwait(false);
         }
 
         DateTimeOffset? ft;
@@ -994,7 +975,7 @@ internal sealed class QuartzScheduler
     /// </summary>
     public async ValueTask TriggerJob(
         JobKey jobKey,
-        JobDataMap? data,
+        JobDataMap? data = null,
         CancellationToken cancellationToken = default)
     {
         ValidateState();
@@ -1021,7 +1002,7 @@ internal sealed class QuartzScheduler
         {
             try
             {
-                await resources.JobStore.StoreTrigger(trig, false, cancellationToken).ConfigureAwait(false);
+                await resources.JobStore.AddTrigger(trig, false, cancellationToken).ConfigureAwait(false);
                 collision = false;
             }
             catch (ObjectAlreadyExistsException)
@@ -1050,7 +1031,7 @@ internal sealed class QuartzScheduler
         {
             try
             {
-                await resources.JobStore.StoreTrigger(trigger, false, cancellationToken).ConfigureAwait(false);
+                await resources.JobStore.AddTrigger(trigger, false, cancellationToken).ConfigureAwait(false);
                 collision = false;
             }
             catch (ObjectAlreadyExistsException)
@@ -1366,7 +1347,7 @@ internal sealed class QuartzScheduler
     {
         ValidateState();
 
-        return resources.JobStore.RetrieveJob(jobKey, cancellationToken);
+        return resources.JobStore.GetJob(jobKey, cancellationToken);
     }
 
 #pragma warning disable AsyncFixer01 // Unnecessary async/await usage
@@ -1380,7 +1361,7 @@ internal sealed class QuartzScheduler
     {
         ValidateState();
 
-        return await resources.JobStore.RetrieveTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
+        return await resources.JobStore.GetTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
     }
 #pragma warning restore AsyncFixer01 // Unnecessary async/await usage
 
@@ -1428,7 +1409,7 @@ internal sealed class QuartzScheduler
     {
         ValidateState();
 
-        await resources.JobStore.ClearAllSchedulingData(cancellationToken).ConfigureAwait(false);
+        await resources.JobStore.Clear(cancellationToken).ConfigureAwait(false);
         await NotifySchedulerListenersUnscheduled(null, cancellationToken).ConfigureAwait(false);
     }
 
@@ -1458,12 +1439,11 @@ internal sealed class QuartzScheduler
     public ValueTask AddCalendar(
         string calendarName,
         ICalendar calendar,
-        bool replace,
-        bool updateTriggers,
+        AddCalendarOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         ValidateState();
-        return resources.JobStore.StoreCalendar(calendarName, calendar, replace, updateTriggers, cancellationToken);
+        return resources.JobStore.AddCalendar(calendarName, calendar, options, cancellationToken);
     }
 
     /// <summary>
@@ -1473,7 +1453,7 @@ internal sealed class QuartzScheduler
     public ValueTask<bool> DeleteCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
         ValidateState();
-        return resources.JobStore.RemoveCalendar(calendarName, cancellationToken);
+        return resources.JobStore.DeleteCalendar(calendarName, cancellationToken);
     }
 
     /// <summary>
@@ -1482,7 +1462,7 @@ internal sealed class QuartzScheduler
     public ValueTask<ICalendar?> GetCalendar(string calendarName, CancellationToken cancellationToken = default)
     {
         ValidateState();
-        return resources.JobStore.RetrieveCalendar(calendarName, cancellationToken);
+        return resources.JobStore.GetCalendar(calendarName, cancellationToken);
     }
 
     public IListenerManager ListenerManager { get; } = new ListenerManagerImpl();
@@ -2172,7 +2152,7 @@ internal sealed class QuartzScheduler
     /// <param name="fireInstanceId"></param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns></returns>
-    public ValueTask<bool> Interrupt(
+    public ValueTask<bool> InterruptFireInstance(
         string fireInstanceId,
         CancellationToken cancellationToken = default)
     {

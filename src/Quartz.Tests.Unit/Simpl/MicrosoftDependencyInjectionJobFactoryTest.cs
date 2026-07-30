@@ -233,7 +233,7 @@ public class MicrosoftDependencyInjectionJobFactoryTest
         var scheduler = await schedulerBuilder.GetScheduler();
         await scheduler.Start();
 
-        await scheduler.AddJob(jobDetail, replace: false);
+        await scheduler.AddJob(jobDetail);
         await scheduler.TriggerJob(jobDetail.Key);
 
         // Every observable step signals, so the assertions run once the firing is genuinely over
@@ -345,7 +345,7 @@ public class MicrosoftDependencyInjectionJobFactoryTest
                 .Build();
 
             await scheduler.Start();
-            await scheduler.AddJob(jobDetail, replace: false);
+            await scheduler.AddJob(jobDetail);
             await scheduler.TriggerJob(jobDetail.Key);
 
             await Task.WhenAll(
@@ -394,7 +394,7 @@ public class MicrosoftDependencyInjectionJobFactoryTest
                 .Build();
 
             await scheduler.Start();
-            await scheduler.AddJob(jobDetail, replace: false);
+            await scheduler.AddJob(jobDetail);
             await scheduler.TriggerJob(jobDetail.Key);
             await scheduler.TriggerJob(jobDetail.Key);
 

@@ -58,32 +58,33 @@ internal sealed class StdScheduler : IScheduler
     public string SchedulerInstanceId => scheduler.SchedulerInstanceId;
 
     /// <summary>
-    /// Get a <see cref="SchedulerMetaData"/> object describing the settings
+    /// Get a <see cref="SchedulerMetadata"/> object describing the settings
     /// and capabilities of the scheduler instance.
     /// <para>
     /// Note that the data returned is an 'instantaneous' snapshot, and that as
     /// soon as it's returned, the metadata values may be different.
     /// </para>
     /// </summary>
-    /// <returns></returns>
-    public ValueTask<SchedulerMetaData> GetMetaData(CancellationToken cancellationToken = default)
+    public ValueTask<SchedulerMetadata> GetMetadata(CancellationToken cancellationToken = default)
     {
-        return new ValueTask<SchedulerMetaData>(new SchedulerMetaData(
-            SchedulerName,
-            SchedulerInstanceId,
-            GetType(),
-            false,
-            IsStarted,
-            InStandbyMode,
-            IsShutdown,
-            scheduler.RunningSince,
-            scheduler.NumberOfJobsExecuted,
-            scheduler.JobStoreType,
-            scheduler.SupportsPersistence,
-            scheduler.Clustered,
-            scheduler.ThreadPoolType,
-            scheduler.ThreadPoolSize,
-            scheduler.Version));
+        return new ValueTask<SchedulerMetadata>(new SchedulerMetadata
+        {
+            SchedulerName = SchedulerName,
+            SchedulerInstanceId = SchedulerInstanceId,
+            SchedulerType = GetType(),
+            IsRemote = false,
+            Started = IsStarted,
+            InStandbyMode = InStandbyMode,
+            Shutdown = IsShutdown,
+            RunningSince = scheduler.RunningSince,
+            JobsExecuted = scheduler.NumberOfJobsExecuted,
+            JobStoreType = scheduler.JobStoreType,
+            JobStoreSupportsPersistence = scheduler.SupportsPersistence,
+            JobStoreClustered = scheduler.Clustered,
+            ThreadPoolType = scheduler.ThreadPoolType,
+            ThreadPoolSize = scheduler.ThreadPoolSize,
+            Version = scheduler.Version,
+        });
     }
 
     /// <summary>
@@ -164,16 +165,8 @@ internal sealed class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public ValueTask Shutdown(CancellationToken cancellationToken = default)
-    {
-        return scheduler.Shutdown(cancellationToken);
-    }
-
-    /// <summary>
-    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-    /// </summary>
     public ValueTask Shutdown(
-        bool waitForJobsToComplete,
+        bool waitForJobsToComplete = false,
         CancellationToken cancellationToken = default)
     {
         return scheduler.Shutdown(waitForJobsToComplete, cancellationToken);
@@ -205,22 +198,10 @@ internal sealed class StdScheduler : IScheduler
     /// </summary>
     public ValueTask AddJob(
         IJobDetail jobDetail,
-        bool replace,
-        bool storeNonDurableWhileAwaitingScheduling,
+        AddJobOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.AddJob(jobDetail, replace, storeNonDurableWhileAwaitingScheduling, cancellationToken);
-    }
-
-    /// <summary>
-    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-    /// </summary>
-    public ValueTask AddJob(
-        IJobDetail jobDetail,
-        bool replace,
-        CancellationToken cancellationToken = default)
-    {
-        return scheduler.AddJob(jobDetail, replace, cancellationToken);
+        return scheduler.AddJob(jobDetail, options, cancellationToken);
     }
 
     public ValueTask<bool> DeleteJobs(
@@ -320,17 +301,7 @@ internal sealed class StdScheduler : IScheduler
     /// </summary>
     public ValueTask TriggerJob(
         JobKey jobKey,
-        CancellationToken cancellationToken = default)
-    {
-        return TriggerJob(jobKey, null, cancellationToken);
-    }
-
-    /// <summary>
-    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-    /// </summary>
-    public ValueTask TriggerJob(
-        JobKey jobKey,
-        JobDataMap? data,
+        JobDataMap? data = null,
         CancellationToken cancellationToken = default)
     {
         return scheduler.TriggerJob(jobKey, data, cancellationToken);
@@ -455,14 +426,6 @@ internal sealed class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public ValueTask<List<ITrigger>> GetTriggersOfJob(JobKey jobKey, CancellationToken cancellationToken = default)
-    {
-        return scheduler.GetTriggersOfJob(jobKey, cancellationToken);
-    }
-
-    /// <summary>
-    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-    /// </summary>
     public ValueTask<PagedResult<JobHeader>> QueryJobs(JobQuery query, CancellationToken cancellationToken = default)
     {
         return scheduler.QueryJobs(query, cancellationToken);
@@ -558,11 +521,10 @@ internal sealed class StdScheduler : IScheduler
     public ValueTask AddCalendar(
         string calendarName,
         ICalendar calendar,
-        bool replace,
-        bool updateTriggers,
+        AddCalendarOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.AddCalendar(calendarName, calendar, replace, updateTriggers, cancellationToken);
+        return scheduler.AddCalendar(calendarName, calendar, options, cancellationToken);
     }
 
     /// <summary>
@@ -619,10 +581,10 @@ internal sealed class StdScheduler : IScheduler
         return scheduler.Interrupt(jobKey, cancellationToken);
     }
 
-    public ValueTask<bool> Interrupt(
+    public ValueTask<bool> InterruptFireInstance(
         string fireInstanceId,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.Interrupt(fireInstanceId, cancellationToken);
+        return scheduler.InterruptFireInstance(fireInstanceId, cancellationToken);
     }
 }

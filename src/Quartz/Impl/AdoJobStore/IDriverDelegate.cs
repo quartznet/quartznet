@@ -876,7 +876,7 @@ public interface IDriverDelegate
 
     /// <summary>
     /// Performs a targeted UPDATE of only the columns that change during misfire recovery,
-    /// bypassing the heavyweight <c>StoreTrigger</c> / <c>UpdateTrigger</c> path which
+    /// bypassing the heavyweight <c>AddTrigger</c> / <c>UpdateTrigger</c> path which
     /// performs many unnecessary SELECTs (existence check, pause-group checks, job retrieval,
     /// trigger-type lookup) that are redundant for a trigger known to be in WAITING state.
     /// </summary>

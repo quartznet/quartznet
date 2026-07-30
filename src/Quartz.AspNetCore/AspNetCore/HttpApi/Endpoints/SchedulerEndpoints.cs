@@ -72,8 +72,8 @@ internal static class SchedulerEndpoints
     {
         return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
-            var metaData = await scheduler.GetMetaData(cancellationToken).ConfigureAwait(false);
-            var result = SchedulerDto.Create(scheduler, metaData);
+            var metadata = await scheduler.GetMetadata(cancellationToken).ConfigureAwait(false);
+            var result = SchedulerDto.Create(scheduler, metadata);
             return result;
         });
     }

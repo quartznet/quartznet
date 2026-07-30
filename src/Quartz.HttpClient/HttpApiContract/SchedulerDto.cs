@@ -11,43 +11,43 @@ internal record SchedulerDto(
     SchedulerStatisticsDto Statistics
 )
 {
-    public static SchedulerDto Create(IScheduler scheduler, SchedulerMetaData metaData)
+    public static SchedulerDto Create(IScheduler scheduler, SchedulerMetadata metadata)
     {
         ArgumentNullException.ThrowIfNull(scheduler);
 
-        ArgumentNullException.ThrowIfNull(metaData);
+        ArgumentNullException.ThrowIfNull(metadata);
 
         return new SchedulerDto(
             SchedulerInstanceId: scheduler.SchedulerInstanceId,
             Name: scheduler.SchedulerName,
             Status: SchedulerHeaderDto.TranslateStatus(scheduler),
-            ThreadPool: SchedulerThreadPoolDto.Create(metaData),
-            JobStore: SchedulerJobStoreDto.Create(metaData),
-            Statistics: SchedulerStatisticsDto.Create(metaData)
+            ThreadPool: SchedulerThreadPoolDto.Create(metadata),
+            JobStore: SchedulerJobStoreDto.Create(metadata),
+            Statistics: SchedulerStatisticsDto.Create(metadata)
         );
     }
 }
 
 internal record SchedulerThreadPoolDto(string Type, int Size)
 {
-    public static SchedulerThreadPoolDto Create(SchedulerMetaData metaData)
+    public static SchedulerThreadPoolDto Create(SchedulerMetadata metadata)
     {
-        return new SchedulerThreadPoolDto(metaData.ThreadPoolType.AssemblyQualifiedNameWithoutVersion(), metaData.ThreadPoolSize);
+        return new SchedulerThreadPoolDto(metadata.ThreadPoolType.AssemblyQualifiedNameWithoutVersion(), metadata.ThreadPoolSize);
     }
 }
 
 internal record SchedulerJobStoreDto(string Type, bool Clustered, bool Persistent)
 {
-    public static SchedulerJobStoreDto Create(SchedulerMetaData metaData)
+    public static SchedulerJobStoreDto Create(SchedulerMetadata metadata)
     {
-        return new SchedulerJobStoreDto(metaData.JobStoreType.AssemblyQualifiedNameWithoutVersion(), metaData.JobStoreClustered, metaData.JobStoreSupportsPersistence);
+        return new SchedulerJobStoreDto(metadata.JobStoreType.AssemblyQualifiedNameWithoutVersion(), metadata.JobStoreClustered, metadata.JobStoreSupportsPersistence);
     }
 }
 
-internal record SchedulerStatisticsDto(string Version, DateTimeOffset? RunningSince, int NumberOfJobsExecuted)
+internal record SchedulerStatisticsDto(string Version, DateTimeOffset? RunningSince, int JobsExecuted)
 {
-    public static SchedulerStatisticsDto Create(SchedulerMetaData metaData)
+    public static SchedulerStatisticsDto Create(SchedulerMetadata metadata)
     {
-        return new SchedulerStatisticsDto(metaData.Version, metaData.RunningSince, metaData.NumberOfJobsExecuted);
+        return new SchedulerStatisticsDto(metadata.Version, metadata.RunningSince, metadata.JobsExecuted);
     }
 }

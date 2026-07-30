@@ -254,12 +254,7 @@ internal static class JobEndpoints
         TriggerJobRequest? request = null,
         CancellationToken cancellationToken = default)
     {
-        if (request?.JobData is not null)
-        {
-            return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler => scheduler.TriggerJob(new JobKey(jobName, jobGroup), request.JobData, cancellationToken).AsTask());
-        }
-
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler => scheduler.TriggerJob(new JobKey(jobName, jobGroup), cancellationToken).AsTask());
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler => scheduler.TriggerJob(new JobKey(jobName, jobGroup), request?.JobData, cancellationToken).AsTask());
     }
 
     [ProducesResponseType(typeof(InterruptResponse), StatusCodes.Status200OK)]
@@ -288,7 +283,7 @@ internal static class JobEndpoints
     {
         return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
-            var interrupted = await scheduler.Interrupt(fireInstanceId, cancellationToken).ConfigureAwait(false);
+            var interrupted = await scheduler.InterruptFireInstance(fireInstanceId, cancellationToken).ConfigureAwait(false);
             return new InterruptResponse(interrupted);
         });
     }
@@ -338,13 +333,13 @@ internal static class JobEndpoints
         return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var newJob = request.Job.AsIJobDetail().JobDetail!;
-            if (!request.StoreNonDurableWhileAwaitingScheduling.HasValue)
+            var options = new AddJobOptions
             {
-                await scheduler.AddJob(newJob, request.Replace, cancellationToken).ConfigureAwait(false);
-                return;
-            }
+                Replace = request.Replace,
+                StoreNonDurableWhileAwaitingScheduling = request.StoreNonDurableWhileAwaitingScheduling.GetValueOrDefault(),
+            };
 
-            await scheduler.AddJob(newJob, request.Replace, request.StoreNonDurableWhileAwaitingScheduling.Value, cancellationToken).ConfigureAwait(false);
+            await scheduler.AddJob(newJob, options, cancellationToken).ConfigureAwait(false);
         });
     }
 

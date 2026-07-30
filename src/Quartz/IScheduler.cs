@@ -50,7 +50,7 @@ namespace Quartz;
 ///         define a individual instances of the <see cref="IJob"/>.
 ///         <see cref="IJobDetail"/> instances can then be registered with the
 ///         <see cref="IScheduler"/> via the %IScheduler.ScheduleJob(JobDetail,
-///         Trigger)% or %IScheduler.AddJob(JobDetail, bool)% method.
+///         Trigger)% or %IScheduler.AddJob(JobDetail, AddJobOptions)% method.
 ///     </para>
 /// 	<para>
 /// 		<see cref="ITrigger"/> s can then be defined to fire individual
@@ -72,7 +72,7 @@ namespace Quartz;
 ///     </para>
 /// 	<para>
 ///         Stored <see cref="IJob"/> s can also be 'manually' triggered through the
-///         use of the %IScheduler.TriggerJob(string, string)% function.
+///         use of the %IScheduler.TriggerJob(JobKey)% function.
 ///     </para>
 /// 	<para>
 ///         Client programs may also be interested in the 'listener' interfaces that are
@@ -126,14 +126,14 @@ public interface IScheduler
     bool IsShutdown { get; }
 
     /// <summary>
-    /// Get a <see cref="SchedulerMetaData" /> object describing the settings
+    /// Get a <see cref="SchedulerMetadata" /> object describing the settings
     /// and capabilities of the scheduler instance.
     /// </summary>
     /// <remarks>
     /// Note that the data returned is an 'instantaneous' snap-shot, and that as
-    /// soon as it's returned, the meta data values may be different.
+    /// soon as it's returned, the metadata values may be different.
     /// </remarks>
-    ValueTask<SchedulerMetaData> GetMetaData(CancellationToken cancellationToken = default);
+    ValueTask<SchedulerMetadata> GetMetadata(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Return a list of <see cref="IJobExecutionContext" /> objects that
@@ -176,7 +176,7 @@ public interface IScheduler
     /// </remarks>
     /// <seealso cref="StartDelayed(TimeSpan, CancellationToken)"/>
     /// <seealso cref="Standby"/>
-    /// <seealso cref="Shutdown(bool, CancellationToken)"/>
+    /// <seealso cref="Shutdown"/>
     ValueTask Start(CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -187,7 +187,7 @@ public interface IScheduler
     /// </summary>
     /// <seealso cref="Start"/>
     /// <seealso cref="Standby"/>
-    /// <seealso cref="Shutdown(bool, CancellationToken)"/>
+    /// <seealso cref="Shutdown"/>
     ValueTask StartDelayed(TimeSpan delay, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -225,16 +225,6 @@ public interface IScheduler
 
     /// <summary>
     /// Halts the <see cref="IScheduler" />'s firing of <see cref="ITrigger" />s,
-    /// and cleans up all resources associated with the Scheduler. Equivalent to Shutdown(false).
-    /// </summary>
-    /// <remarks>
-    /// The scheduler cannot be re-started.
-    /// </remarks>
-    /// <seealso cref="Shutdown(bool, CancellationToken)" />
-    ValueTask Shutdown(CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Halts the <see cref="IScheduler" />'s firing of <see cref="ITrigger" />s,
     /// and cleans up all resources associated with the Scheduler.
     /// </summary>
     /// <remarks>
@@ -245,9 +235,7 @@ public interface IScheduler
     /// to return until all currently executing jobs have completed.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <seealso cref="Shutdown(CancellationToken)" />
-    ValueTask Shutdown(bool waitForJobsToComplete, CancellationToken cancellationToken = default);
-
+    ValueTask Shutdown(bool waitForJobsToComplete = false, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Add the given <see cref="IJobDetail" /> to the
@@ -381,34 +369,23 @@ public interface IScheduler
     /// <summary>
     /// Add the given <see cref="IJob" /> to the Scheduler - with no associated
     /// <see cref="ITrigger" />. The <see cref="IJob" /> will be 'dormant' until
-    /// it is scheduled with a <see cref="ITrigger" />, or <see cref="TriggerJob(Quartz.JobKey, CancellationToken)" />
+    /// it is scheduled with a <see cref="ITrigger" />, or <see cref="TriggerJob" />
     /// is called for it.
     /// </summary>
     /// <remarks>
-    /// The <see cref="IJob" /> must by definition be 'durable', if it is not,
-    /// SchedulerException will be thrown.
+    /// The <see cref="IJob" /> must by definition be 'durable', unless
+    /// <see cref="AddJobOptions.StoreNonDurableWhileAwaitingScheduling" /> is set; if it is
+    /// neither, a <see cref="SchedulerException" /> is thrown.
     /// </remarks>
+    /// <param name="jobDetail">The job to store.</param>
+    /// <param name="options">
+    /// Whether an already stored job of the same key may be over-written, and whether a
+    /// non-durable job may be stored while it awaits a trigger. Defaults to neither.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask AddJob(
         IJobDetail jobDetail,
-        bool replace,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Add the given <see cref="IJob" /> to the Scheduler - with no associated
-    /// <see cref="ITrigger" />. The <see cref="IJob" /> will be 'dormant' until
-    /// it is scheduled with a <see cref="ITrigger" />, or <see cref="TriggerJob(Quartz.JobKey, CancellationToken)" />
-    /// is called for it.
-    /// </summary>
-    /// <remarks>
-    /// With the <paramref name="storeNonDurableWhileAwaitingScheduling"/> parameter
-    /// set to <code>true</code>, a non-durable job can be stored.  Once it is
-    /// scheduled, it will resume normal non-durable behavior (i.e. be deleted
-    /// once there are no remaining associated triggers).
-    /// </remarks>
-    ValueTask AddJob(
-        IJobDetail jobDetail,
-        bool replace,
-        bool storeNonDurableWhileAwaitingScheduling,
+        AddJobOptions? options = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -438,27 +415,19 @@ public interface IScheduler
     ValueTask<bool> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Trigger the identified <see cref="IJobDetail" />
-    /// (Execute it now).
-    /// </summary>
-    ValueTask TriggerJob(
-        JobKey jobKey,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Trigger the identified <see cref="IJobDetail" /> (Execute it now).
     /// </summary>
+    /// <param name="jobKey">
+    /// The <see cref="JobKey"/> of the <see cref="IJob" /> to be executed.
+    /// </param>
     /// <param name="data">
     /// the (possibly <see langword="null" />) JobDataMap to be
     /// associated with the trigger that fires the job immediately.
     /// </param>
-    /// <param name="jobKey">
-    /// The <see cref="JobKey"/> of the <see cref="IJob" /> to be executed.
-    /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask TriggerJob(
         JobKey jobKey,
-        JobDataMap data,
+        JobDataMap? data = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -647,23 +616,13 @@ public interface IScheduler
     /// absent from the result.
     /// </summary>
     /// <remarks>
-    /// The returned triggers are snapshots of the stored ones, like
-    /// <see cref="GetTriggersOfJob" /> returns.
+    /// The returned triggers are snapshots of the stored ones. If you wish to modify a trigger,
+    /// you must re-store it afterward (e.g. see
+    /// <see cref="RescheduleJob(TriggerKey, ITrigger, CancellationToken)" />).
     /// </remarks>
     /// <param name="triggerKeys">The keys of the triggers to retrieve.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask<List<ITrigger>> GetTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Get all <see cref="ITrigger" /> s that are associated with the
-    /// identified <see cref="IJobDetail" />.
-    /// </summary>
-    /// <remarks>
-    /// The returned Trigger objects will be snapshots of the actual stored
-    /// triggers.  If you wish to modify a trigger, you must re-store the
-    /// trigger afterward (e.g. see <see cref="RescheduleJob(TriggerKey, ITrigger, CancellationToken)" />).
-    /// </remarks>
-    ValueTask<List<ITrigger>> GetTriggersOfJob(JobKey jobKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get the <see cref="IJobDetail" /> for the <see cref="IJob" />
@@ -672,7 +631,7 @@ public interface IScheduler
     /// <remarks>
     /// The returned JobDetail object will be a snapshot of the actual stored
     /// JobDetail.  If you wish to modify the JobDetail, you must re-store the
-    /// JobDetail afterward (e.g. see <see cref="AddJob(IJobDetail, bool, CancellationToken)" />).
+    /// JobDetail afterward (e.g. see <see cref="AddJob" />).
     /// </remarks>
     ValueTask<IJobDetail?> GetJobDetail(JobKey jobKey, CancellationToken cancellationToken = default);
 
@@ -722,16 +681,15 @@ public interface IScheduler
     /// </summary>
     /// <param name="calendarName">Name of the calendar.</param>
     /// <param name="calendar">The calendar.</param>
-    /// <param name="replace">if set to <c>true</c> [replace].</param>
-    /// <param name="updateTriggers">whether or not to update existing triggers that
-    /// referenced the already existing calendar so that they are 'correct'
-    /// based on the new trigger.</param>
+    /// <param name="options">
+    /// Whether an already registered calendar of the same name may be over-written, and whether
+    /// the triggers that reference it have their next fire time re-computed. Defaults to neither.
+    /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask AddCalendar(
         string calendarName,
         ICalendar calendar,
-        bool replace,
-        bool updateTriggers,
+        AddCalendarOptions? options = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -801,7 +759,7 @@ public interface IScheduler
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if the identified job instance was found and interrupted.</returns>
-    ValueTask<bool> Interrupt(string fireInstanceId, CancellationToken cancellationToken = default);
+    ValueTask<bool> InterruptFireInstance(string fireInstanceId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Determine whether a <see cref="IJob" /> with the given identifier already

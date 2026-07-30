@@ -94,7 +94,10 @@ public class XMLSchedulingDataProcessorTest
     {
         Stream s = ReadJobXmlFromEmbeddedResource("QRTZNET250.xml");
         await processor.ProcessStreamAndScheduleJobs(s, mockScheduler);
-        A.CallTo(() => mockScheduler.AddJob(A<IJobDetail>.That.Not.IsNull(), A<bool>.Ignored, A<bool>.That.IsEqualTo(true), A<CancellationToken>._)).MustHaveHappened(2, Times.Exactly);
+        A.CallTo(() => mockScheduler.AddJob(
+            A<IJobDetail>.That.Not.IsNull(),
+            A<AddJobOptions>.That.Matches(o => o.StoreNonDurableWhileAwaitingScheduling),
+            A<CancellationToken>._)).MustHaveHappened(2, Times.Exactly);
         A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Not.IsNull(), A<CancellationToken>._)).MustHaveHappened(2, Times.Exactly);
     }
 

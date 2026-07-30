@@ -643,6 +643,82 @@
     do not build against them. `QuartzDashboardOptions`, the service-collection extensions and the model types
     are what the dashboard offers, and those are still tracked.
 
+  * **`IJobStore` speaks the same verbs as `IScheduler`.** The store interface had its own vocabulary —
+    Store/Remove/Retrieve — for the operations the scheduler above it calls Schedule/Add/Delete/Get, so the two
+    halves of the same operation had different names and reading a stack trace meant translating. The store now
+    uses the scheduler's words, and the parameter that decides whether an existing item is over-written is
+    `replace` everywhere (it was `replaceExisting` on some members and `replace` on others):
+
+    | 3.x / earlier 4.0 preview | 4.0 |
+    |---|---|
+    | `StoreJobAndTrigger(job, trigger)` | `ScheduleJob(job, trigger)` |
+    | `StoreJobsAndTriggers(triggersAndJobs, replace)` | `ScheduleJobs(triggersAndJobs, replace)` |
+    | `StoreJob(job, replaceExisting)` | `AddJob(job, replace)` |
+    | `StoreTrigger(trigger, replaceExisting)` | `AddTrigger(trigger, replace)` |
+    | `RemoveJob(key)` / `RemoveJobs(keys)` | `DeleteJob(key)` / `DeleteJobs(keys)` |
+    | `RemoveTrigger(key)` / `RemoveTriggers(keys)` | `DeleteTrigger(key)` / `DeleteTriggers(keys)` |
+    | `RetrieveJob(key)` | `GetJob(key)` |
+    | `RetrieveTrigger(key)` | `GetTrigger(key)` |
+    | `StoreCalendar(name, cal, replaceExisting, updateTriggers)` | `AddCalendar(name, cal, AddCalendarOptions?)` |
+    | `RemoveCalendar(name)` | `DeleteCalendar(name)` |
+    | `RetrieveCalendar(name)` | `GetCalendar(name)` |
+    | `ClearAllSchedulingData()` | `Clear()` |
+    | `AcquireNextTriggers(noLaterThan, maxCount, timeWindow, executionLimits)` | `AcquireNextTriggers(TriggerAcquisitionRequest)` |
+
+    The `protected` members of `JobStoreSupport` that mirror these (the `ConnectionAndTransactionHolder`
+    overloads, and `AcquireNextTrigger`) were renamed with them. The activity names in
+    `Quartz.Diagnostics.OperationName.JobStore` follow the methods they name, so
+    `"Quartz.JobStore.StoreJob"` is now `"Quartz.JobStore.AddJob"` and so on — anything filtering traces on
+    those strings needs updating.
+
+  * **`IJobStore.AcquireNextTriggers` takes a `TriggerAcquisitionRequest`** (new, in `Quartz.Extensibility`)
+    instead of four positional parameters ending in an optional dictionary. Acquisition keeps growing
+    dimensions — the batching window, then per-execution-group limits, and node affinity after that — and each
+    one was another parameter on the hot path of every job store. As a record, the next one is an added optional
+    property that an existing store simply ignores. It is the store-level counterpart of the delegate-level
+    `TriggerAcquisitionCriteria`, which is unchanged. `TimeWindow` now rejects a negative value at construction,
+    where `JobStoreSupport` used to throw from inside the acquisition.
+
+  * **`IScheduler.AddJob` and `AddCalendar` take an options record** — `AddJobOptions` and `AddCalendarOptions`,
+    both in `Quartz`, both with `init` properties defaulting to the conservative choice:
+
+    | 3.x | 4.0 |
+    |---|---|
+    | `AddJob(job, replace)` | `AddJob(job)` / `AddJob(job, new AddJobOptions { Replace = true })` |
+    | `AddJob(job, replace, storeNonDurableWhileAwaitingScheduling)` | `AddJob(job, new AddJobOptions { Replace = …, StoreNonDurableWhileAwaitingScheduling = … })` |
+    | `AddCalendar(name, cal, replace, updateTriggers)` | `AddCalendar(name, cal, new AddCalendarOptions { Replace = …, UpdateTriggers = … })` |
+
+    Two bare booleans at a call site say nothing about which is which, and `AddJob` needed a second overload
+    only because the second one was added later. One optional record collapses both overloads and names the
+    values at the call site. `IJobStore.AddCalendar` takes `AddCalendarOptions` for the same reason;
+    `IJobStore.AddJob` keeps the single `bool replace`, because durability is a scheduler-level rule the store
+    never sees.
+
+  * **Overload pairs on `IScheduler` that differed only by a defaultable argument are now one member each.**
+    `Shutdown()` / `Shutdown(bool)` is `Shutdown(bool waitForJobsToComplete = false, …)`, and `TriggerJob(key)` /
+    `TriggerJob(key, data)` is `TriggerJob(JobKey jobKey, JobDataMap? data = null, …)`. Existing calls compile
+    unchanged unless they passed a `CancellationToken` positionally into the short overload, which now needs
+    `cancellationToken:`.
+
+  * **`IScheduler.Interrupt(string fireInstanceId)` is `InterruptFireInstance(string fireInstanceId)`.**
+    Overloading on `JobKey` versus `string` hid two different operations — cancel every execution of a job
+    versus cancel one specific fire — behind one name, and picking the wrong one was a silent, type-driven
+    mistake. `Interrupt(JobKey)` keeps its name.
+
+  * **`IScheduler.GetMetaData()` is `GetMetadata()` and returns the new `SchedulerMetadata` record**, replacing
+    the `SchedulerMetaData` class. The old type was constructed through a fifteen-parameter constructor of which
+    six were adjacent booleans; it is now a `sealed record` with `init` properties, so a snapshot reads (and is
+    built) by name. Property renames: `SchedulerRemote` → `IsRemote`, `NumberOfJobsExecuted` → `JobsExecuted`.
+    `GetSummary()` is gone — the record's `ToString()` prints every value, which is what the hand-written
+    summary was for. Over HTTP, `SchedulerStatisticsDto.NumberOfJobsExecuted` is `JobsExecuted` to match.
+
+  * **`IScheduler.GetTriggersOfJob(jobKey)` moved off the interface** and is an extension method on
+    `SchedulerQueryExtensions`, over `QueryTriggers(new TriggerQuery { Job = jobKey })` followed by
+    `GetTriggers(keys)`. Existing call sites compile unchanged. It was the one listing member left on the
+    interface after the query objects landed, and every job store had to implement it even though the query it
+    stands for is already expressible. When the fire times and state a listing needs are enough, calling
+    `QueryTriggers` with `TriggerQuery.Job` directly is one round trip instead of two.
+
 #### Cron Parser
 
   * Add cron parser support for 'L' and 'LW' in expression combinations for daysOfMonth (#1939) (#1288)

@@ -503,8 +503,8 @@ public class AdoJobStoreSmokeTest
                 .RequestRecovery(true)
                 .Build();
 
-            await scheduler.AddJob(lonelyJob, false);
-            await scheduler.AddJob(lonelyJob, true);
+            await scheduler.AddJob(lonelyJob);
+            await scheduler.AddJob(lonelyJob, new AddJobOptions { Replace = true });
 
             string schedId = scheduler.SchedulerInstanceId;
 
@@ -599,7 +599,7 @@ public class AdoJobStoreSmokeTest
     {
         foreach (var scheduler in createdSchedulers)
         {
-            await scheduler.Shutdown(CancellationToken.None);
+            await scheduler.Shutdown();
         }
 
         createdSchedulers.Clear();

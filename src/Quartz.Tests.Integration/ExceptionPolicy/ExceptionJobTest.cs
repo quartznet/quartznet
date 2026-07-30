@@ -36,7 +36,7 @@ public class ExceptionHandlingTest
             .StoreDurably(true)
             .Build();
 
-        await scheduler.AddJob(myDesc, false);
+        await scheduler.AddJob(myDesc);
         string trigGroup = "ExceptionPolicyFiringTriggerGroup";
         IOperableTrigger trigger = new CronTriggerImpl("trigName", trigGroup, "0/2 * * * * ?");
         trigger.JobKey = new JobKey(jobName, jobGroup);
@@ -58,7 +58,7 @@ public class ExceptionHandlingTest
         ExceptionJob.UnscheduleFiringTrigger = true;
         ExceptionJob.UnscheduleAllTriggers = false;
 
-        await scheduler.AddJob(myDesc, false);
+        await scheduler.AddJob(myDesc);
         trigger = new CronTriggerImpl("trigName", trigGroup, "0/2 * * * * ?");
         trigger.JobKey = new JobKey(jobName, jobGroup);
         await scheduler.ScheduleJob(trigger);
@@ -81,7 +81,7 @@ public class ExceptionHandlingTest
             .StoreDurably()
             .Build();
 
-        await scheduler.AddJob(exceptionJob, false);
+        await scheduler.AddJob(exceptionJob);
 
         ExceptionJob.ThrowsException = true;
         ExceptionJob.Refire = true;
@@ -120,7 +120,7 @@ public class ExceptionHandlingTest
             .WithIdentity(jobKey)
             .StoreDurably(true)
             .Build();
-        await scheduler.AddJob(exceptionJob, false);
+        await scheduler.AddJob(exceptionJob);
 
         ExceptionJob.ThrowsException = true;
         ExceptionJob.Refire = false;

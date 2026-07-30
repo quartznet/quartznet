@@ -103,21 +103,31 @@ public interface IJobStore
     /// <param name="trigger">The <see cref="ITrigger" /> to be stored.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <throws>  ObjectAlreadyExistsException </throws>
-    ValueTask StoreJobAndTrigger(IJobDetail job, IOperableTrigger trigger, CancellationToken cancellationToken = default);
+    ValueTask ScheduleJob(IJobDetail job, IOperableTrigger trigger, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Store the given <see cref="IJobDetail" />.
     /// </summary>
     /// <param name="job">The <see cref="IJobDetail" /> to be stored.</param>
-    /// <param name="replaceExisting">
+    /// <param name="replace">
     ///     If <see langword="true" />, any <see cref="IJob" /> existing in the
     ///     <see cref="IJobStore" /> with the same name and group should be
     ///     over-written.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    ValueTask StoreJob(IJobDetail job, bool replaceExisting, CancellationToken cancellationToken = default);
+    ValueTask AddJob(IJobDetail job, bool replace, CancellationToken cancellationToken = default);
 
-    ValueTask StoreJobsAndTriggers(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Store all the given jobs with their related triggers.
+    /// </summary>
+    /// <param name="triggersAndJobs">The jobs to store, each with the triggers that fire it.</param>
+    /// <param name="replace">
+    ///     If <see langword="true" />, any <see cref="IJob" /> or <see cref="ITrigger" /> existing in
+    ///     the <see cref="IJobStore" /> with the same key should be over-written.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <throws>  ObjectAlreadyExistsException </throws>
+    ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Remove (delete) the <see cref="IJob" /> with the given
@@ -133,9 +143,9 @@ public interface IJobStore
     /// 	<see langword="true" /> if a <see cref="IJob" /> with the given name and
     /// group was found and removed from the store.
     /// </returns>
-    ValueTask<bool> RemoveJob(JobKey jobKey, CancellationToken cancellationToken = default);
+    ValueTask<bool> DeleteJob(JobKey jobKey, CancellationToken cancellationToken = default);
 
-    ValueTask<bool> RemoveJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default);
+    ValueTask<bool> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieve the <see cref="IJobDetail" /> for the given
@@ -144,18 +154,18 @@ public interface IJobStore
     /// <returns>
     /// The desired <see cref="IJob" />, or null if there is no match.
     /// </returns>
-    ValueTask<IJobDetail?> RetrieveJob(JobKey jobKey, CancellationToken cancellationToken = default);
+    ValueTask<IJobDetail?> GetJob(JobKey jobKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Store the given <see cref="ITrigger" />.
     /// </summary>
     /// <param name="trigger">The <see cref="ITrigger" /> to be stored.</param>
-    /// <param name="replaceExisting">If <see langword="true" />, any <see cref="ITrigger" /> existing in
+    /// <param name="replace">If <see langword="true" />, any <see cref="ITrigger" /> existing in
     ///     the <see cref="IJobStore" /> with the same name and group should
     ///     be over-written.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <throws>  ObjectAlreadyExistsException </throws>
-    ValueTask StoreTrigger(IOperableTrigger trigger, bool replaceExisting, CancellationToken cancellationToken = default);
+    ValueTask AddTrigger(IOperableTrigger trigger, bool replace, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Remove (delete) the <see cref="ITrigger" /> with the given key.
@@ -176,9 +186,9 @@ public interface IJobStore
     /// 	<see langword="true" /> if a <see cref="ITrigger" /> with the given
     /// name and group was found and removed from the store.
     /// </returns>
-    ValueTask<bool> RemoveTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default);
+    ValueTask<bool> DeleteTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
-    ValueTask<bool> RemoveTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default);
+    ValueTask<bool> DeleteTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Remove (delete) the <see cref="ITrigger" /> with the
@@ -215,7 +225,7 @@ public interface IJobStore
     /// The desired <see cref="ITrigger" />, or null if there is no
     /// match.
     /// </returns>
-    ValueTask<IOperableTrigger?> RetrieveTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default);
+    ValueTask<IOperableTrigger?> GetTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Determine whether a <see cref="IJob" /> with the given identifier already
@@ -245,23 +255,20 @@ public interface IJobStore
     /// </summary>
     /// <remarks>
     /// </remarks>
-    ValueTask ClearAllSchedulingData(CancellationToken cancellationToken = default);
+    ValueTask Clear(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Store the given <see cref="ICalendar" />.
     /// </summary>
     /// <param name="calendarName">The name.</param>
     /// <param name="calendar">The <see cref="ICalendar" /> to be stored.</param>
-    /// <param name="replaceExisting">If <see langword="true" />, any <see cref="ICalendar" /> existing
-    /// in the <see cref="IJobStore" /> with the same name and group
-    /// should be over-written.</param>
-    /// <param name="updateTriggers">If <see langword="true" />, any <see cref="ITrigger" />s existing
-    /// in the <see cref="IJobStore" /> that reference an existing
-    /// Calendar with the same name with have their next fire time
-    /// re-computed with the new <see cref="ICalendar" />.</param>
+    /// <param name="options">
+    /// Whether an existing calendar of the same name may be over-written, and whether the triggers
+    /// referencing it have their next fire time re-computed. Defaults to neither.
+    /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <throws>  ObjectAlreadyExistsException </throws>
-    ValueTask StoreCalendar(string calendarName, ICalendar calendar, bool replaceExisting, bool updateTriggers, CancellationToken cancellationToken = default);
+    ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions? options = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Remove (delete) the <see cref="ICalendar" /> with the
@@ -278,7 +285,7 @@ public interface IJobStore
     /// 	<see langword="true" /> if a <see cref="ICalendar" /> with the given name
     /// was found and removed from the store.
     /// </returns>
-    ValueTask<bool> RemoveCalendar(string calendarName, CancellationToken cancellationToken = default);
+    ValueTask<bool> DeleteCalendar(string calendarName, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieve the given <see cref="ITrigger" />.
@@ -289,7 +296,7 @@ public interface IJobStore
     /// The desired <see cref="ICalendar" />, or null if there is no
     /// match.
     /// </returns>
-    ValueTask<ICalendar?> RetrieveCalendar(string calendarName, CancellationToken cancellationToken = default);
+    ValueTask<ICalendar?> GetCalendar(string calendarName, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Lists jobs matching the query, as <see cref="JobHeader" />s, ordered by group and
@@ -501,22 +508,12 @@ public interface IJobStore
     /// <summary>
     /// Acquires the next triggers to be fired, respecting execution group limits.
     /// </summary>
-    /// <param name="noLaterThan">If &gt; <see cref="DateTimeOffset.MinValue"/>, the JobStore should only return a Trigger
-    /// that will fire no later than the time represented in this value.</param>
-    /// <param name="maxCount">The maximum number of triggers to return.</param>
-    /// <param name="timeWindow">Time window to batch triggers together.</param>
-    /// <param name="executionLimits">Per-execution-group available thread counts. The key is the
-    /// normalized group name (empty string for triggers without a group, <c>"*"</c> for the default
-    /// limit for unlisted groups). The value is the number of remaining slots
-    /// (<see langword="null"/> = unlimited, <c>0</c> = forbidden). May be <see langword="null"/>
-    /// if no execution limits are configured.</param>
+    /// <param name="request">What to acquire: the cut-off time, how many, the batching window
+    /// and the per-execution-group capacity still available.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>The acquired triggers.</returns>
     ValueTask<List<IOperableTrigger>> AcquireNextTriggers(
-        DateTimeOffset noLaterThan,
-        int maxCount,
-        TimeSpan timeWindow,
-        IReadOnlyDictionary<string, int?>? executionLimits = null,
+        TriggerAcquisitionRequest request,
         CancellationToken cancellationToken = default);
 
     /// <summary>

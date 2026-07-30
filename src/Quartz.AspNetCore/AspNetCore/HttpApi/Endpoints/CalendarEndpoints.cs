@@ -81,7 +81,11 @@ internal static class CalendarEndpoints
         return EndpointHelper.ExecuteWithOkResponse(
             schedulerName,
             schedulerRepository,
-            scheduler => scheduler.AddCalendar(request.CalendarName, request.Calendar, request.Replace, request.UpdateTriggers, cancellationToken).AsTask()
+            scheduler => scheduler.AddCalendar(
+                request.CalendarName,
+                request.Calendar,
+                new AddCalendarOptions { Replace = request.Replace, UpdateTriggers = request.UpdateTriggers },
+                cancellationToken).AsTask()
         );
     }
 

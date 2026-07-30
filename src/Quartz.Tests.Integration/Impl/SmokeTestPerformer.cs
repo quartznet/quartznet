@@ -38,7 +38,7 @@ public class SmokeTestPerformer
 
                 AnnualCalendar calendar = new AnnualCalendar();
                 calendar.SetDayExcluded(new DateTime(2018, 7, 4), true);
-                await scheduler.AddCalendar("annualCalendar", calendar, false, true);
+                await scheduler.AddCalendar("annualCalendar", calendar, new AddCalendarOptions { UpdateTriggers = true });
 
                 IOperableTrigger calendarsTrigger = new SimpleTriggerImpl("calendarsTrigger", "test", 20, TimeSpan.FromHours(2));
                 calendarsTrigger.CalendarName = "annualCalendar";
@@ -49,23 +49,23 @@ public class SmokeTestPerformer
                 await scheduler.ScheduleJob(jd, calendarsTrigger);
 
                 // QRTZNET-93
-                await scheduler.AddCalendar("annualCalendar", calendar, true, true);
+                await scheduler.AddCalendar("annualCalendar", calendar, new AddCalendarOptions { Replace = true, UpdateTriggers = true });
 
                 var annualCalendar = (AnnualCalendar) await scheduler.GetCalendar("annualCalendar");
                 Assert.That(annualCalendar.Description, Is.EqualTo(calendar.Description));
                 Assert.That(annualCalendar.DaysExcluded, Is.EquivalentTo(calendar.DaysExcluded));
 
-                await scheduler.AddCalendar("baseCalendar", new BaseCalendar(), false, true);
-                await scheduler.AddCalendar("cronCalendar", cronCalendar, false, true);
-                await scheduler.AddCalendar("dailyCalendar", new DailyCalendar(DateTime.Now.Date, DateTime.Now.AddMinutes(1)), false, true);
-                await scheduler.AddCalendar("holidayCalendar", holidayCalendar, false, true);
-                await scheduler.AddCalendar("monthlyCalendar", new MonthlyCalendar(), false, true);
-                await scheduler.AddCalendar("weeklyCalendar", new WeeklyCalendar(), false, true);
+                await scheduler.AddCalendar("baseCalendar", new BaseCalendar(), new AddCalendarOptions { UpdateTriggers = true });
+                await scheduler.AddCalendar("cronCalendar", cronCalendar, new AddCalendarOptions { UpdateTriggers = true });
+                await scheduler.AddCalendar("dailyCalendar", new DailyCalendar(DateTime.Now.Date, DateTime.Now.AddMinutes(1)), new AddCalendarOptions { UpdateTriggers = true });
+                await scheduler.AddCalendar("holidayCalendar", holidayCalendar, new AddCalendarOptions { UpdateTriggers = true });
+                await scheduler.AddCalendar("monthlyCalendar", new MonthlyCalendar(), new AddCalendarOptions { UpdateTriggers = true });
+                await scheduler.AddCalendar("weeklyCalendar", new WeeklyCalendar(), new AddCalendarOptions { UpdateTriggers = true });
 
-                await scheduler.AddCalendar("cronCalendar", cronCalendar, true, true);
-                await scheduler.AddCalendar("holidayCalendar", holidayCalendar, true, true);
+                await scheduler.AddCalendar("cronCalendar", cronCalendar, new AddCalendarOptions { Replace = true, UpdateTriggers = true });
+                await scheduler.AddCalendar("holidayCalendar", holidayCalendar, new AddCalendarOptions { Replace = true, UpdateTriggers = true });
 
-                await scheduler.AddCalendar("customCalendar", new CustomCalendar(), true, true);
+                await scheduler.AddCalendar("customCalendar", new CustomCalendar(), new AddCalendarOptions { Replace = true, UpdateTriggers = true });
                 var customCalendar = (CustomCalendar) await scheduler.GetCalendar("customCalendar");
                 Assert.That(customCalendar, Is.Not.Null);
                 Assert.That(customCalendar.SomeCustomProperty, Is.True);
@@ -79,8 +79,8 @@ public class SmokeTestPerformer
                     .RequestRecovery(true)
                     .Build();
 
-                await scheduler.AddJob(lonelyJob, false);
-                await scheduler.AddJob(lonelyJob, true);
+                await scheduler.AddJob(lonelyJob);
+                await scheduler.AddJob(lonelyJob, new AddJobOptions { Replace = true });
 
                 string schedId = scheduler.SchedulerInstanceId;
 
@@ -332,7 +332,7 @@ public class SmokeTestPerformer
 
                 Assert.That(await scheduler.GetTrigger(new TriggerKey("trig_2", schedId)), Is.Not.Null);
                 Assert.That(await scheduler.GetJobDetail(new JobKey("job_1", schedId)), Is.Not.Null);
-                Assert.That(await scheduler.GetMetaData(), Is.Not.Null);
+                Assert.That(await scheduler.GetMetadata(), Is.Not.Null);
                 Assert.That(await scheduler.GetCalendar("weeklyCalendar"), Is.Not.Null);
 
                 var genericjobKey = new JobKey("genericJob", "genericGroup");
@@ -342,7 +342,7 @@ public class SmokeTestPerformer
                     .StoreDurably()
                     .Build();
 
-                await scheduler.AddJob(genericJob, false);
+                await scheduler.AddJob(genericJob);
 
                 genericJob = await scheduler.GetJobDetail(genericjobKey);
                 Assert.That(genericJob, Is.Not.Null);
@@ -390,7 +390,7 @@ public class SmokeTestPerformer
             .WithIdentity("execGroupJob", "execGroupTest")
             .StoreDurably()
             .Build();
-        await scheduler.AddJob(egJob, true);
+        await scheduler.AddJob(egJob, new AddJobOptions { Replace = true });
 
         ITrigger egTrigger = TriggerBuilder.Create()
             .WithIdentity("execGroupTrigger", "execGroupTest")
@@ -441,19 +441,19 @@ public class SmokeTestPerformer
         await scheduler.Clear();
 
         IJobDetail job = JobBuilder.Create<NoOpJob>().WithIdentity("job1", "aaabbbccc").StoreDurably().Build();
-        await scheduler.AddJob(job, true);
+        await scheduler.AddJob(job, new AddJobOptions { Replace = true });
         SimpleScheduleBuilder schedule = SimpleScheduleBuilder.Create();
         ITrigger trigger = TriggerBuilder.Create().WithIdentity("trig1", "aaabbbccc").WithSchedule(schedule).ForJob(job).Build();
         await scheduler.ScheduleJob(trigger);
 
         job = JobBuilder.Create<NoOpJob>().WithIdentity("job1", "xxxyyyzzz").StoreDurably().Build();
-        await scheduler.AddJob(job, true);
+        await scheduler.AddJob(job, new AddJobOptions { Replace = true });
         schedule = SimpleScheduleBuilder.Create();
         trigger = TriggerBuilder.Create().WithIdentity("trig1", "xxxyyyzzz").WithSchedule(schedule).ForJob(job).Build();
         await scheduler.ScheduleJob(trigger);
 
         job = JobBuilder.Create<NoOpJob>().WithIdentity("job2", "xxxyyyzzz").StoreDurably().Build();
-        await scheduler.AddJob(job, true);
+        await scheduler.AddJob(job, new AddJobOptions { Replace = true });
         schedule = SimpleScheduleBuilder.Create();
         trigger = TriggerBuilder.Create().WithIdentity("trig2", "xxxyyyzzz").WithSchedule(schedule).ForJob(job).Build();
         await scheduler.ScheduleJob(trigger);
