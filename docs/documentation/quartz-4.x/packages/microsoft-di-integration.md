@@ -156,7 +156,7 @@ public void ConfigureServices(IServiceCollection services)
             .StartAt(DateBuilder.EvenSecondDate(DateTimeOffset.UtcNow.AddSeconds(5)))
             .WithDailyTimeIntervalSchedule(x => x.WithInterval(10, IntervalUnit.Second))
             .WithDescription("my awesome daily time interval trigger")
-            .ModifiedByCalendar(calendarName)
+            .WithCalendarName(calendarName)
         );
 
         // also add XML configuration and poll it for changes

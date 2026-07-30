@@ -91,27 +91,15 @@ public interface ITrigger
     string? ExecutionGroup { get; }
 
     /// <summary>
-    /// Gets the preferred node for this trigger. When set to a specific scheduler instance id
-    /// (matching <c>quartz.scheduler.instanceId</c>), only that node acquires the trigger in a
-    /// cluster, with automatic failover while that node is down. When set to <c>"*"</c>, the
-    /// first node to fire the trigger claims it automatically.
+    /// Which cluster node this trigger prefers to run on. Only that node acquires the trigger,
+    /// with automatic failover while it is down.
     /// </summary>
     /// <remarks>
-    /// A <see langword="null"/> value means the trigger has no node preference
-    /// (the default, backward-compatible behavior).
+    /// <see cref="Quartz.PreferredNode.None" /> — the default — means the trigger has no node
+    /// preference.
     /// </remarks>
-    string? PreferredNode { get; }
-
-    /// <summary>
-    /// Whether <see cref="PreferredNode"/> holds a pin the trigger claimed automatically
-    /// (auto-pin), as opposed to one that was set explicitly. Only meaningful when
-    /// <see cref="PreferredNode"/> is a node name.
-    /// </summary>
-    /// <remarks>
-    /// Auto-claimed pins are released back to the <c>"*"</c> sentinel when their node dies,
-    /// so the trigger can be claimed by a surviving node. Explicit pins are preserved.
-    /// </remarks>
-    bool IsPreferredNodeAuto { get; }
+    /// <seealso cref="Quartz.PreferredNode" />
+    PreferredNode PreferredNode { get; }
 
     /// <summary>
     /// Get or set  the <see cref="ICalendar" /> with the given name with

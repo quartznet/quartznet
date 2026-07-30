@@ -99,4 +99,100 @@ public class TriggerBuilderTest
 
         Assert.That(trigger.JobDataMap["key"], Is.EqualTo("overwritingvalue"));
     }
+
+    [Test]
+    public void UsingJobData_StoresTheValueWithItsOwnType()
+    {
+        Guid guid = Guid.NewGuid();
+
+        ITrigger trigger = TriggerBuilder.Create<TestJob>()
+            .UsingJobData("string", "text")
+            .UsingJobData("int", 1)
+            .UsingJobData("long", 2L)
+            .UsingJobData("float", 3.5f)
+            .UsingJobData("double", 4.5d)
+            .UsingJobData("decimal", 5.5m)
+            .UsingJobData("bool", true)
+            .UsingJobData("guid", guid)
+            .UsingJobData("char", 'c')
+            .UsingJobData("null", null)
+            .Build();
+
+        // Same contract as JobBuilder's: the one object?-typed overload has to store exactly what
+        // the nine primitive overloads it replaced stored.
+        trigger.JobDataMap["string"].Should().Be("text");
+        trigger.JobDataMap["int"].Should().Be(1).And.BeOfType<int>();
+        trigger.JobDataMap["long"].Should().Be(2L).And.BeOfType<long>();
+        trigger.JobDataMap["float"].Should().Be(3.5f).And.BeOfType<float>();
+        trigger.JobDataMap["double"].Should().Be(4.5d).And.BeOfType<double>();
+        trigger.JobDataMap["decimal"].Should().Be(5.5m).And.BeOfType<decimal>();
+        trigger.JobDataMap["bool"].Should().Be(true).And.BeOfType<bool>();
+        trigger.JobDataMap["guid"].Should().Be(guid).And.BeOfType<Guid>();
+        trigger.JobDataMap["char"].Should().Be('c').And.BeOfType<char>();
+        trigger.JobDataMap["null"].Should().BeNull();
+    }
+
+    [Test]
+    public void WithCalendarName_NamesTheCalendarTheTriggerObserves()
+    {
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithCalendarName("holidays")
+            .Build();
+
+        trigger.CalendarName.Should().Be("holidays");
+
+        TriggerBuilder.Create().WithCalendarName(null).Build().CalendarName.Should().BeNull();
+    }
+
+    [Test]
+    public void WithXSchedule_KeepsTheBuilderType()
+    {
+        // The extensions are generic in the receiver, so a chain that starts on TriggerBuilder<TJob>
+        // stays on it and can go on naming the job's own properties afterwards.
+        TriggerBuilder<TestJob> builder = TriggerBuilder.Create<TestJob>()
+            .WithCronSchedule("0 0 12 * * ?")
+            .WithIdentity("t1");
+
+        builder.Build().Should().BeAssignableTo<ICronTrigger>();
+    }
+
+    [Test]
+    public void WithXSchedule_KeepsTheConfiguratorType()
+    {
+        // ...and one that starts on the configurator the container hands out stays on that.
+        ITriggerConfigurator<TestJob> configurator = TriggerBuilder.Create<TestJob>();
+
+        ITriggerConfigurator<TestJob> configured = configurator
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(5)).RepeatForever())
+            .WithDescription("every five minutes");
+
+        ITrigger trigger = ((TriggerBuilder<TestJob>) configured).Build();
+
+        trigger.Description.Should().Be("every five minutes");
+        trigger.Should().BeAssignableTo<ISimpleTrigger>()
+            .Which.RepeatInterval.Should().Be(TimeSpan.FromMinutes(5));
+    }
+
+    [Test]
+    public void WithSchedule_OnTheConfigurator_KeepsTheJobsType()
+    {
+        // WithSchedule is redeclared on the generic configurator for the same reason: losing TJob
+        // here would lose the property-named job data that comes after it.
+        ITriggerConfigurator<TestJob> configured = ((ITriggerConfigurator<TestJob>) TriggerBuilder.Create<TestJob>())
+            .WithSchedule(CronScheduleBuilder.CronSchedule("0 0 12 * * ?"))
+            .WithDescription("noon");
+
+        ((TriggerBuilder<TestJob>) configured).Build().Description.Should().Be("noon");
+    }
+
+    [Test]
+    public void WithXSchedule_TakesAPrebuiltBuilder()
+    {
+        // The hash-key cron overloads are gone; a hash key rides on the CronExpression instead.
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithCronSchedule(CronScheduleBuilder.CronSchedule(new CronExpression("H H * * * ?", "custom-key")))
+            .Build();
+
+        trigger.Should().BeAssignableTo<ICronTrigger>();
+    }
 }

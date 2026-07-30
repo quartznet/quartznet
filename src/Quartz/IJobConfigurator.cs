@@ -81,65 +81,15 @@ public interface IJobConfigurator<TJob> where TJob : IJob
     /// <summary>
     /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
     /// </summary>
+    /// <remarks>
+    /// The value is stored as given. A persistent job store can only hold what its serializer
+    /// round-trips, and AdoJobStore's <c>UseProperties</c> mode only strings.
+    /// </remarks>
+    /// <param name="key">the key to store the value under</param>
+    /// <param name="value">the value to store</param>
     ///<returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobDataMap" />
-    IJobConfigurator<TJob> UsingJobData(string key, string? value);
-
-    /// <summary>
-    /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
-    /// </summary>
-    ///<returns>the updated JobBuilder</returns>
-    /// <seealso cref="IJobDetail.JobDataMap" />
-    IJobConfigurator<TJob> UsingJobData(string key, int value);
-
-    /// <summary>
-    /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
-    /// </summary>
-    ///<returns>the updated JobBuilder</returns>
-    /// <seealso cref="IJobDetail.JobDataMap" />
-    IJobConfigurator<TJob> UsingJobData(string key, long value);
-
-    /// <summary>
-    /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
-    /// </summary>
-    ///<returns>the updated JobBuilder</returns>
-    /// <seealso cref="IJobDetail.JobDataMap" />
-    IJobConfigurator<TJob> UsingJobData(string key, float value);
-
-    /// <summary>
-    /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
-    /// </summary>
-    ///<returns>the updated JobBuilder</returns>
-    /// <seealso cref="IJobDetail.JobDataMap" />
-    IJobConfigurator<TJob> UsingJobData(string key, double value);
-
-    /// <summary>
-    /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
-    /// </summary>
-    ///<returns>the updated JobBuilder</returns>
-    /// <seealso cref="IJobDetail.JobDataMap" />
-    IJobConfigurator<TJob> UsingJobData(string key, decimal value);
-
-    /// <summary>
-    /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
-    /// </summary>
-    ///<returns>the updated JobBuilder</returns>
-    /// <seealso cref="IJobDetail.JobDataMap" />
-    IJobConfigurator<TJob> UsingJobData(string key, bool value);
-
-    /// <summary>
-    /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
-    /// </summary>
-    ///<returns>the updated JobBuilder</returns>
-    /// <seealso cref="IJobDetail.JobDataMap" />
-    IJobConfigurator<TJob> UsingJobData(string key, Guid value);
-
-    /// <summary>
-    /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
-    /// </summary>
-    ///<returns>the updated JobBuilder</returns>
-    /// <seealso cref="IJobDetail.JobDataMap" />
-    IJobConfigurator<TJob> UsingJobData(string key, char value);
+    IJobConfigurator<TJob> UsingJobData(string key, object? value);
 
     /// <summary>
     /// Add a value to the JobDetail's <see cref="JobDataMap" /> under the name of the job property it is
@@ -176,14 +126,6 @@ public interface IJobConfigurator<TJob> where TJob : IJob
     ///<returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobDataMap" />
     IJobConfigurator<TJob> UsingJobData(JobDataMap newJobDataMap);
-
-    /// <summary>
-    /// Replace the <see cref="IJobDetail" />'s <see cref="JobDataMap" /> with the
-    /// given <see cref="JobDataMap" />.
-    /// </summary>
-    /// <param name="newJobDataMap"></param>
-    /// <returns></returns>
-    IJobConfigurator<TJob> SetJobData(JobDataMap newJobDataMap);
 
     /// <summary>
     /// Instructs the <see cref="IScheduler" /> whether or not concurrent execution of the job should be disallowed.

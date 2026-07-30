@@ -483,27 +483,3 @@ public sealed class SimpleScheduleBuilder : ScheduleBuilder<ISimpleTrigger>
         return WithInterval(TimeSpan.FromHours(hours));
     }
 }
-
-/// <summary>
-/// Extension methods that attach <see cref="SimpleScheduleBuilder" /> to <see cref="TriggerBuilder" />.
-/// </summary>
-public static class SimpleScheduleTriggerBuilderExtensions
-{
-    public static TriggerBuilder<TJob> WithSimpleSchedule<TJob>(this TriggerBuilder<TJob> triggerBuilder) where TJob : IJob
-    {
-        SimpleScheduleBuilder builder = SimpleScheduleBuilder.Create();
-        return triggerBuilder.WithSchedule(builder);
-    }
-
-    public static TriggerBuilder<TJob> WithSimpleSchedule<TJob>(this TriggerBuilder<TJob> triggerBuilder, Action<SimpleScheduleBuilder> action) where TJob : IJob
-    {
-        SimpleScheduleBuilder builder = SimpleScheduleBuilder.Create();
-        action(builder);
-        return triggerBuilder.WithSchedule(builder);
-    }
-
-    public static TriggerBuilder<TJob> WithSimpleSchedule<TJob>(this TriggerBuilder<TJob> triggerBuilder, SimpleScheduleBuilder schedule) where TJob : IJob
-    {
-        return triggerBuilder.WithSchedule(schedule);
-    }
-}

@@ -148,7 +148,7 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
             .WithIdentity("TestJobTrigger", "group1")
             .StartNow()
             .WithCronSchedule("0 0 0 * * ? *")
-            .ModifiedByCalendar("CustomCalendar")
+            .WithCalendarName("CustomCalendar")
             .Build();
 
         var fireTimeUtc = trigger.ComputeFirstFireTimeUtc(calendar);

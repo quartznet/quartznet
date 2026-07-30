@@ -41,7 +41,7 @@ internal sealed class TriggerConverter(SystemTextJsonSerializerRegistry registry
 
             var trigger = builder
                 .WithDescription(description)
-                .ModifiedByCalendar(calendarName)
+                .WithCalendarName(calendarName)
                 .UsingJobData(jobDataMap)
                 .EndAt(endTimeUtc)
                 .StartAt(startTimeUtc)

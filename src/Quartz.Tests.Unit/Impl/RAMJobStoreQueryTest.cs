@@ -269,7 +269,7 @@ public class RAMJobStoreQueryTest
             .EndAt(startTime.AddDays(30))
             .WithPriority(7)
             .WithExecutionGroup("batch")
-            .ModifiedByCalendar("holidays")
+            .WithCalendarName("holidays")
             .WithCronSchedule("0 0 12 * * ?")
             .Build();
 
@@ -700,7 +700,7 @@ public class RAMJobStoreQueryTest
             .WithIdentity(name, group)
             .ForJob(jobKey)
             .StartAt(startTime)
-            .ModifiedByCalendar(calendarName)
+            .WithCalendarName(calendarName)
             .WithCronSchedule("0 0 12 * * ?"));
     }
 

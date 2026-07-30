@@ -7,183 +7,205 @@ namespace Quartz.Tests.Unit;
 public sealed class NodeAffinityTest
 {
     [Test]
-    public void TriggerBuilder_WithPreferredNode_SetsProperty()
+    public void PreferredNode_None_IsTheDefault()
     {
-        var trigger = TriggerBuilder.Create()
-            .WithIdentity("t1", "g1")
-            .ForJob("j1")
-            .WithPreferredNode("node-1")
-            .Build();
-
-        Assert.That(trigger.PreferredNode, Is.EqualTo("node-1"));
-        Assert.That(trigger.IsPreferredNodeAuto, Is.False);
+        default(PreferredNode).Should().Be(PreferredNode.None);
+        PreferredNode.None.IsNone.Should().BeTrue();
+        PreferredNode.None.Node.Should().BeNull();
+        PreferredNode.None.IsAutomatic.Should().BeFalse();
     }
 
     [Test]
-    [TestCase(null)]
+    public void PreferredNode_Auto_IsAutomaticButUnclaimed()
+    {
+        PreferredNode.Auto.IsNone.Should().BeFalse();
+        PreferredNode.Auto.IsAutomatic.Should().BeTrue();
+        PreferredNode.Auto.Node.Should().BeNull("no node has claimed the pin yet");
+    }
+
+    [Test]
+    public void PreferredNode_For_NamesANode()
+    {
+        PreferredNode pin = PreferredNode.For("  node-1  ");
+
+        pin.Node.Should().Be("node-1");
+        pin.IsAutomatic.Should().BeFalse();
+        pin.IsNone.Should().BeFalse();
+    }
+
+    [Test]
+    [TestCase("*")]
+    [TestCase("_")]
+    [TestCase("null")]
+    [TestCase("NULL")]
     [TestCase("")]
     [TestCase("   ")]
-    public void TriggerBuilder_WithPreferredNode_Blank_ClearsProperty(string value)
+    public void PreferredNode_For_RejectsReservedNames(string value)
     {
-        var trigger = TriggerBuilder.Create()
-            .WithIdentity("t1", "g1")
-            .ForJob("j1")
-            .WithPreferredNode(value)
-            .Build();
+        Action act = () => PreferredNode.For(value);
 
-        Assert.That(trigger.PreferredNode, Is.Null);
-        Assert.That(trigger.IsPreferredNodeAuto, Is.False);
-    }
-
-    [Test]
-    public void TriggerBuilder_WithPreferredNode_TrimsWhitespace()
-    {
-        var trigger = TriggerBuilder.Create()
-            .WithIdentity("t1", "g1")
-            .ForJob("j1")
-            .WithPreferredNode("  node-1  ")
-            .Build();
-
-        Assert.That(trigger.PreferredNode, Is.EqualTo("node-1"));
-    }
-
-    [Test]
-    public void TriggerBuilder_WithPreferredNode_AutoPinSentinel()
-    {
-        var trigger = TriggerBuilder.Create()
-            .WithIdentity("t1", "g1")
-            .ForJob("j1")
-            .WithPreferredNode("*")
-            .Build();
-
-        // "*" requests auto-pin but is not itself an auto-claim until a node fires the trigger
-        Assert.That(trigger.PreferredNode, Is.EqualTo("*"));
-        Assert.That(trigger.IsPreferredNodeAuto, Is.False);
+        act.Should().Throw<ArgumentException>();
     }
 
     [Test]
     [TestCase("auto:nodeA")]
     [TestCase("prod-auto:region1")]
-    public void TriggerBuilder_WithPreferredNode_AllowsAnyNodeName(string value)
+    public void PreferredNode_For_AllowsAnyOtherNodeName(string value)
     {
         // No substring is reserved: the auto-claim flag lives in its own column, so node names
         // are stored verbatim and can never collide with an internal marker.
-        var trigger = TriggerBuilder.Create()
+        PreferredNode.For(value).Node.Should().Be(value);
+    }
+
+    [Test]
+    public void TriggerBuilder_WithPreferredNode_SetsProperty()
+    {
+        ITrigger trigger = TriggerBuilder.Create()
             .WithIdentity("t1", "g1")
             .ForJob("j1")
-            .WithPreferredNode(value)
+            .WithPreferredNode(PreferredNode.For("node-1"))
             .Build();
 
-        Assert.That(trigger.PreferredNode, Is.EqualTo(value));
+        trigger.PreferredNode.Should().Be(PreferredNode.For("node-1"));
+        trigger.PreferredNode.IsAutomatic.Should().BeFalse();
+    }
+
+    [Test]
+    public void TriggerBuilder_WithPreferredNode_None_ClearsProperty()
+    {
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity("t1", "g1")
+            .ForJob("j1")
+            .WithPreferredNode(PreferredNode.None)
+            .Build();
+
+        trigger.PreferredNode.Should().Be(PreferredNode.None);
+        trigger.PreferredNode.IsAutomatic.Should().BeFalse();
+    }
+
+    [Test]
+    public void TriggerBuilder_WithPreferredNode_Auto()
+    {
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity("t1", "g1")
+            .ForJob("j1")
+            .WithPreferredNode(PreferredNode.Auto)
+            .Build();
+
+        // Auto requests a pin but is not itself claimed until a node fires the trigger
+        trigger.PreferredNode.Should().Be(PreferredNode.Auto);
+        trigger.PreferredNode.Node.Should().BeNull();
+        trigger.PreferredNode.IsAutomatic.Should().BeTrue();
     }
 
     [Test]
     public void GetTriggerBuilder_ExplicitPin_StaysExplicit()
     {
-        var trigger = TriggerBuilder.Create()
+        ITrigger trigger = TriggerBuilder.Create()
             .WithIdentity("t1", "g1")
             .ForJob("j1")
-            .WithPreferredNode("nodeA")
+            .WithPreferredNode(PreferredNode.For("nodeA"))
             .Build();
 
-        var rebuilt = trigger.GetTriggerBuilder().Build();
+        ITrigger rebuilt = trigger.GetTriggerBuilder().Build();
 
-        Assert.That(rebuilt.PreferredNode, Is.EqualTo("nodeA"));
-        Assert.That(rebuilt.IsPreferredNodeAuto, Is.False);
+        rebuilt.PreferredNode.Should().Be(PreferredNode.For("nodeA"));
+        rebuilt.PreferredNode.IsAutomatic.Should().BeFalse();
     }
 
     [Test]
     public void GetTriggerBuilder_AutoPinnedTrigger_RoundTripsAutoPin()
     {
-        var trigger = new SimpleTriggerImpl("t1", "g1") { JobKey = new JobKey("j1") };
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl("t1", "g1") { JobKey = new JobKey("j1") };
         // Simulates what the auto-pin claim in TriggerFired (and the database read) does
-        trigger.SetPreferredNodeRaw("nodeA", auto: true);
+        trigger.SetPreferredNode(PreferredNode.ClaimedBy("nodeA"), markDirty: true);
 
-        var rebuilt = trigger.GetTriggerBuilder().Build();
+        ITrigger rebuilt = trigger.GetTriggerBuilder().Build();
 
-        // Rebuilding preserves the auto-claim, so the trigger still resets to the "*" sentinel
-        // if nodeA dies rather than hardening into an explicit pin.
-        Assert.That(rebuilt.PreferredNode, Is.EqualTo("nodeA"));
-        Assert.That(rebuilt.IsPreferredNodeAuto, Is.True);
+        // Rebuilding preserves the auto-claim, so the trigger is still released if nodeA dies
+        // rather than hardening into a pin the user named.
+        rebuilt.PreferredNode.Node.Should().Be("nodeA");
+        rebuilt.PreferredNode.IsAutomatic.Should().BeTrue();
     }
 
     [Test]
-    public void PreferredNode_PublicSetter_ClearsAutoClaim()
+    public void PreferredNode_Setter_RecordsTheValueAsGiven()
     {
-        var trigger = new SimpleTriggerImpl("t1", "g1");
-        trigger.SetPreferredNodeRaw("nodeA", auto: true);
-        Assert.That(trigger.IsPreferredNodeAuto, Is.True);
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl("t1", "g1");
+        trigger.SetPreferredNode(PreferredNode.ClaimedBy("nodeA"), markDirty: true);
+        trigger.PreferredNode.IsAutomatic.Should().BeTrue();
 
-        // An explicit assignment is always an explicit pin
-        trigger.PreferredNode = "nodeB";
+        trigger.PreferredNode = PreferredNode.For("nodeB");
 
-        Assert.That(trigger.PreferredNode, Is.EqualTo("nodeB"));
-        Assert.That(trigger.IsPreferredNodeAuto, Is.False);
+        trigger.PreferredNode.Node.Should().Be("nodeB");
+        trigger.PreferredNode.IsAutomatic.Should().BeFalse("PreferredNode.For names a pin explicitly");
     }
 
     [Test]
-    public void SetPreferredNodeRaw_StoresNodeNameVerbatim()
+    public void PreferredNode_CopiedBetweenTriggers_KeepsItsAutoClaim()
     {
-        var trigger = new SimpleTriggerImpl("t1", "g1");
-        trigger.SetPreferredNodeRaw("nodeA", auto: true);
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl("t1", "g1");
+        trigger.SetPreferredNode(PreferredNode.ClaimedBy("nodeA"), markDirty: true);
 
-        Assert.That(trigger.PreferredNode, Is.EqualTo("nodeA"));
-        Assert.That(trigger.IsPreferredNodeAuto, Is.True);
+        trigger.PreferredNode.Node.Should().Be("nodeA");
+        trigger.PreferredNode.IsAutomatic.Should().BeTrue();
 
-        // Copy/assign to another trigger works and records an explicit pin
-        var other = new SimpleTriggerImpl("t2", "g2");
+        // The value carries the auto-claim flag, so copying it is lossless
+        SimpleTriggerImpl other = new SimpleTriggerImpl("t2", "g2");
         other.PreferredNode = trigger.PreferredNode;
-        Assert.That(other.PreferredNode, Is.EqualTo("nodeA"));
-        Assert.That(other.IsPreferredNodeAuto, Is.False);
+
+        other.PreferredNode.Should().Be(trigger.PreferredNode);
+        other.PreferredNode.IsAutomatic.Should().BeTrue();
     }
 
     [Test]
-    public void SetPreferredNodeRaw_BlankValue_ClearsAutoClaim()
+    public void PreferredNode_None_ClearsAutoClaim()
     {
-        var trigger = new SimpleTriggerImpl("t1", "g1");
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl("t1", "g1");
+        trigger.SetPreferredNode(PreferredNode.ClaimedBy("nodeA"), markDirty: true);
 
-        trigger.SetPreferredNodeRaw(null, auto: true);
+        trigger.PreferredNode = PreferredNode.None;
 
-        Assert.That(trigger.PreferredNode, Is.Null);
-        Assert.That(trigger.IsPreferredNodeAuto, Is.False);
+        trigger.PreferredNode.Should().Be(PreferredNode.None);
+        trigger.PreferredNode.IsAutomatic.Should().BeFalse();
     }
 
     [Test]
     public void AbstractTrigger_PreferredNode_CloneCopiesValue()
     {
-        var trigger = new SimpleTriggerImpl("t1", "g1");
-        trigger.SetPreferredNodeRaw("node-1", auto: true);
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl("t1", "g1");
+        trigger.SetPreferredNode(PreferredNode.ClaimedBy("node-1"), markDirty: true);
 
-        var clone = (SimpleTriggerImpl) trigger.Clone();
+        SimpleTriggerImpl clone = (SimpleTriggerImpl) trigger.Clone();
 
-        Assert.That(clone.PreferredNode, Is.EqualTo("node-1"));
-        Assert.That(clone.IsPreferredNodeAuto, Is.True);
+        clone.PreferredNode.Node.Should().Be("node-1");
+        clone.PreferredNode.IsAutomatic.Should().BeTrue();
     }
 
     [Test]
     public void TriggerDetailsUpdate_WithPreferredNode_SetsValue()
     {
-        var update = new TriggerDetailsUpdate().WithPreferredNode("  nodeB  ");
+        TriggerDetailsUpdate update = new TriggerDetailsUpdate().WithPreferredNode(PreferredNode.For("  nodeB  "));
 
-        Assert.That(update.HasPreferredNode, Is.True);
-        Assert.That(update.PreferredNode, Is.EqualTo("nodeB"));
+        update.HasPreferredNode.Should().BeTrue();
+        update.PreferredNode.Node.Should().Be("nodeB");
     }
 
     [Test]
-    public void TriggerDetailsUpdate_WithPreferredNode_Null_Clears()
+    public void TriggerDetailsUpdate_WithPreferredNode_None_Clears()
     {
-        var update = new TriggerDetailsUpdate().WithPreferredNode(null);
+        TriggerDetailsUpdate update = new TriggerDetailsUpdate().WithPreferredNode(PreferredNode.None);
 
-        Assert.That(update.HasPreferredNode, Is.True);
-        Assert.That(update.PreferredNode, Is.Null);
+        update.HasPreferredNode.Should().BeTrue();
+        update.PreferredNode.Should().Be(PreferredNode.None);
     }
 
     [Test]
     public void TriggerDetailsUpdate_WithoutPreferredNode_HasFlagIsFalse()
     {
-        var update = new TriggerDetailsUpdate().WithDescription("x");
+        TriggerDetailsUpdate update = new TriggerDetailsUpdate().WithDescription("x");
 
-        Assert.That(update.HasPreferredNode, Is.False);
+        update.HasPreferredNode.Should().BeFalse();
     }
 
     [Test]
@@ -191,25 +213,25 @@ public sealed class NodeAffinityTest
     {
         // RAMJobStore is single-node by definition, so a pin is carried as metadata and never
         // filters acquisition — a trigger pinned to another node must still fire.
-        var store = TestJobStores.Ram();
+        RAMJobStore store = TestJobStores.Ram();
         await store.Initialize();
 
-        var job = JobBuilder.Create<TestJob>().WithIdentity("j1").Build();
-        var trigger = (IOperableTrigger) TriggerBuilder.Create()
+        IJobDetail job = JobBuilder.Create<TestJob>().WithIdentity("j1").Build();
+        IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
             .WithIdentity("t1")
             .ForJob(job)
-            .WithPreferredNode("some-other-node")
+            .WithPreferredNode(PreferredNode.For("some-other-node"))
             .StartAt(DateTimeOffset.UtcNow.AddMilliseconds(-1000))
             .Build();
         trigger.ComputeFirstFireTimeUtc(null);
 
         await store.ScheduleJob(job, trigger);
 
-        var retrieved = await store.GetTrigger(trigger.Key);
-        Assert.That(retrieved!.PreferredNode, Is.EqualTo("some-other-node"), "the pin round-trips as metadata");
+        IOperableTrigger retrieved = await store.GetTrigger(trigger.Key);
+        retrieved!.PreferredNode.Node.Should().Be("some-other-node", "the pin round-trips as metadata");
 
-        var acquired = await store.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = DateTimeOffset.UtcNow.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero });
-        Assert.That(acquired, Has.Count.EqualTo(1), "RAMJobStore must ignore the pin when acquiring");
+        List<IOperableTrigger> acquired = await store.AcquireNextTriggers(new TriggerAcquisitionRequest { NoLaterThan = DateTimeOffset.UtcNow.AddSeconds(10), MaxCount = 1, TimeWindow = TimeSpan.Zero });
+        acquired.Should().HaveCount(1, "RAMJobStore must ignore the pin when acquiring");
     }
 
     private sealed class TestJob : IJob

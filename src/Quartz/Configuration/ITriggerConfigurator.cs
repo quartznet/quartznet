@@ -2,7 +2,41 @@ using System.Linq.Expressions;
 
 namespace Quartz;
 
-public interface ITriggerConfigurator<TJob> where TJob : IJob
+/// <summary>
+/// The part of trigger configuration that does not depend on the job's type: choosing the
+/// trigger's schedule.
+/// </summary>
+/// <remarks>
+/// The <c>WithXSchedule</c> extension methods are written against this interface and return the
+/// receiver's own type, so they read the same whether the receiver is a
+/// <see cref="TriggerBuilder{TJob}" /> or an <see cref="ITriggerConfigurator{TJob}" />.
+/// </remarks>
+/// <seealso cref="TriggerConfiguratorExtensions" />
+public interface ITriggerConfigurator
+{
+    /// <summary>
+    /// Set the <see cref="IScheduleBuilder" /> that will be used to define the
+    /// Trigger's schedule.
+    /// </summary>
+    /// <remarks>
+    /// <para>The particular <see cref="IScheduleBuilder" /> used will dictate
+    /// the concrete type of Trigger that is produced by the TriggerBuilder.</para>
+    /// </remarks>
+    /// <param name="scheduleBuilder">the schedule builder to use.</param>
+    /// <returns>the updated TriggerBuilder</returns>
+    /// <seealso cref="IScheduleBuilder" />
+    /// <seealso cref="SimpleScheduleBuilder" />
+    /// <seealso cref="CronScheduleBuilder" />
+    /// <seealso cref="CalendarIntervalScheduleBuilder" />
+    ITriggerConfigurator WithSchedule(IScheduleBuilder scheduleBuilder);
+}
+
+/// <summary>
+/// Configures a trigger for a job of a known type, so that job data can be bound by naming the
+/// job's own properties.
+/// </summary>
+/// <typeparam name="TJob">the type of job the trigger fires.</typeparam>
+public interface ITriggerConfigurator<TJob> : ITriggerConfigurator where TJob : IJob
 {
     /// <summary>
     /// Use a <see cref="TriggerKey" /> with the given name and default group to
@@ -83,12 +117,13 @@ public interface ITriggerConfigurator<TJob> where TJob : IJob
     /// Pin the Trigger to a specific scheduler node, or to the node that first fires it.
     /// </summary>
     /// <param name="preferredNode">
-    /// The scheduler instance id of the target node (matching <c>quartz.scheduler.instanceId</c>),
-    /// <c>"*"</c> for automatic first-fire pinning, or <see langword="null"/> to clear.
+    /// The pin: <see cref="Quartz.PreferredNode.None" /> to clear,
+    /// <see cref="Quartz.PreferredNode.Auto" /> for automatic first-fire pinning, or
+    /// <see cref="Quartz.PreferredNode.For" /> to name a node.
     /// </param>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.PreferredNode" />
-    ITriggerConfigurator<TJob> WithPreferredNode(string? preferredNode);
+    ITriggerConfigurator<TJob> WithPreferredNode(PreferredNode preferredNode);
 
     /// <summary>
     /// Set the name of the <see cref="ICalendar" /> that should be applied to this
@@ -100,7 +135,7 @@ public interface ITriggerConfigurator<TJob> where TJob : IJob
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ICalendar" />
     /// <seealso cref="ITrigger.CalendarName" />
-    ITriggerConfigurator<TJob> ModifiedByCalendar(string? calendarName);
+    ITriggerConfigurator<TJob> WithCalendarName(string? calendarName);
 
     /// <summary>
     /// Set the time the Trigger should start at - the trigger may or may
@@ -146,14 +181,13 @@ public interface ITriggerConfigurator<TJob> where TJob : IJob
     /// <remarks>
     /// <para>The particular <see cref="IScheduleBuilder" /> used will dictate
     /// the concrete type of Trigger that is produced by the TriggerBuilder.</para>
+    /// <para>Redeclared so that the chain keeps the job's type; the
+    /// <c>WithXSchedule</c> extension methods do the same for the same reason.</para>
     /// </remarks>
-    /// <param name="scheduleBuilder">the QuartzSchedulerBuilder to use.</param>
+    /// <param name="scheduleBuilder">the schedule builder to use.</param>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="IScheduleBuilder" />
-    /// <seealso cref="SimpleScheduleBuilder" />
-    /// <seealso cref="CronScheduleBuilder" />
-    /// <seealso cref="CalendarIntervalScheduleBuilder" />
-    ITriggerConfigurator<TJob> WithSchedule(IScheduleBuilder scheduleBuilder);
+    new ITriggerConfigurator<TJob> WithSchedule(IScheduleBuilder scheduleBuilder);
 
     /// <summary>
     /// Set the identity of the Job which should be fired by the produced
@@ -248,80 +282,12 @@ public interface ITriggerConfigurator<TJob> where TJob : IJob
     /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
     /// </summary>
     /// <remarks>
+    /// The value is stored as given. A persistent job store can only hold what its serializer
+    /// round-trips, and AdoJobStore's <c>UseProperties</c> mode only strings.
     /// </remarks>
+    /// <param name="key">the key to store the value under</param>
+    /// <param name="value">the value to store</param>
     /// <returns>the updated TriggerBuilder</returns>
     /// <seealso cref="ITrigger.JobDataMap" />
-    ITriggerConfigurator<TJob> UsingJobData(string key, string value);
-
-    /// <summary>
-    /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <returns>the updated TriggerBuilder</returns>
-    /// <seealso cref="ITrigger.JobDataMap" />
-    ITriggerConfigurator<TJob> UsingJobData(string key, int value);
-
-    /// <summary>
-    /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <returns>the updated TriggerBuilder</returns>
-    /// <seealso cref="ITrigger.JobDataMap" />
-    ITriggerConfigurator<TJob> UsingJobData(string key, long value);
-
-    /// <summary>
-    /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <returns>the updated TriggerBuilder</returns>
-    /// <seealso cref="ITrigger.JobDataMap" />
-    ITriggerConfigurator<TJob> UsingJobData(string key, float value);
-
-    /// <summary>
-    /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <returns>the updated TriggerBuilder</returns>
-    /// <seealso cref="ITrigger.JobDataMap" />
-    ITriggerConfigurator<TJob> UsingJobData(string key, double value);
-
-    /// <summary>
-    /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <returns>the updated TriggerBuilder</returns>
-    /// <seealso cref="ITrigger.JobDataMap" />
-    ITriggerConfigurator<TJob> UsingJobData(string key, decimal value);
-
-    /// <summary>
-    /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <returns>the updated TriggerBuilder</returns>
-    /// <seealso cref="ITrigger.JobDataMap" />
-    ITriggerConfigurator<TJob> UsingJobData(string key, bool value);
-
-    /// <summary>
-    /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <returns>the updated TriggerBuilder</returns>
-    /// <seealso cref="ITrigger.JobDataMap" />
-    ITriggerConfigurator<TJob> UsingJobData(string key, Guid value);
-
-    /// <summary>
-    /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <returns>the updated TriggerBuilder</returns>
-    /// <seealso cref="ITrigger.JobDataMap" />
-    ITriggerConfigurator<TJob> UsingJobData(string key, char value);
+    ITriggerConfigurator<TJob> UsingJobData(string key, object? value);
 }

@@ -755,7 +755,7 @@ the builder itself is `JobBuilder<TJob>` / `TriggerBuilder<TJob>`:
 | `JobBuilder` | `JobBuilder<TJob>`, from `JobBuilder.Create<TJob>()` — `JobBuilder.Create()` gives `JobBuilder<IJob>` |
 | `TriggerBuilder` | `TriggerBuilder<TJob>`, from `TriggerBuilder.Create<TJob>()` — `TriggerBuilder.Create()` gives `TriggerBuilder<IJob>` |
 | `IJobConfigurator` | `IJobConfigurator<TJob>` |
-| `ITriggerConfigurator` | `ITriggerConfigurator<TJob>` |
+| `ITriggerConfigurator` | `ITriggerConfigurator<TJob>` — the 4.x `ITriggerConfigurator` is a new, much smaller base holding only `WithSchedule`, see [One family of `WithXSchedule` extensions](#one-family-of-withxschedule-extensions) |
 | `IJobDetail.GetJobBuilder()` | returns `JobBuilder<IJob>` |
 | `ITrigger.GetTriggerBuilder()` | returns `TriggerBuilder<IJob>` |
 
@@ -1533,6 +1533,170 @@ This applies to `SimpleTriggerSerializer`, `CalendarIntervalTriggerSerializer`,
 `Quartz.Serialization.Json.Triggers` and `Quartz.Serialization.Newtonsoft.Triggers`. `CronTriggerSerializer`
 is unchanged — it has no fire-count state to restore.
 
+## Nine `UsingJobData` overloads became one
+
+`JobDataMap`'s indexer takes an `object?`, and every one of the nine primitive `UsingJobData` overloads had
+the same one-line body writing through it. The overload set decided nothing except which of nine identical
+methods the compiler picked, and it cost forty-four declarations across `IJobConfigurator<TJob>`,
+`JobBuilder<TJob>`, `ITriggerConfigurator<TJob>` and `TriggerBuilder<TJob>`. There are twelve now.
+
+| 3.x | 4.x |
+|---|---|
+| `UsingJobData(string key, string? value)` | `UsingJobData(string key, object? value)` |
+| `UsingJobData(string key, int value)` | `UsingJobData(string key, object? value)` |
+| `UsingJobData(string key, long value)` | `UsingJobData(string key, object? value)` |
+| `UsingJobData(string key, float value)` | `UsingJobData(string key, object? value)` |
+| `UsingJobData(string key, double value)` | `UsingJobData(string key, object? value)` |
+| `UsingJobData(string key, decimal value)` | `UsingJobData(string key, object? value)` |
+| `UsingJobData(string key, bool value)` | `UsingJobData(string key, object? value)` |
+| `UsingJobData(string key, Guid value)` | `UsingJobData(string key, object? value)` |
+| `UsingJobData(string key, char value)` | `UsingJobData(string key, object? value)` |
+| `UsingJobData(JobDataMap newJobDataMap)` | unchanged — merges into what the builder already holds |
+| `UsingJobData<TValue>(Expression<Func<TJob, TValue>> jobProperty, TValue value)` | unchanged |
+| `SetJobData(JobDataMap newJobDataMap)` | removed |
+
+**Existing calls compile and store exactly what they stored before.** An `int` argument still lands in the map
+boxed as an `int`, a `Guid` as a `Guid`, a `null` as a `null`. Nothing is converted on the way in, and what a
+persistent store can hold is still whatever its serializer round-trips — AdoJobStore's `UseProperties` mode,
+strings only.
+
+To store a value in a job property's own type — an `int` literal narrowed to the `byte` the property
+declares, an enum written as its name — name the property instead of its key:
+
+```csharp
+JobBuilder.Create<MyJob>().UsingJobData(job => job.RetryCount, 3)
+```
+
+### `SetJobData` is gone
+
+`SetJobData` *replaced* the builder's map where `UsingJobData(JobDataMap)` merges into it: one character of
+difference in the call, the opposite meaning. Replacing is only what a job store rebuilding a stored job
+wants, so it is internal now.
+
+```diff
+- JobBuilder.Create<MyJob>().UsingJobData("a", 1).SetJobData(map)   // "a" silently discarded
++ JobBuilder.Create<MyJob>().UsingJobData(map)                      // merge, or start from a fresh builder
+```
+
+## One family of `WithXSchedule` extensions
+
+Attaching a schedule to a trigger was spread over six static extension classes and twenty-nine methods, half
+of them existing only because `TriggerBuilder<TJob>` and `ITriggerConfigurator<TJob>` each needed their own
+copy of the same body. `Quartz.TriggerConfiguratorExtensions` replaces all six with ten methods that are
+generic in the receiver and return it unchanged, so one method serves both and the chain keeps its type.
+
+Deleted: `SimpleScheduleTriggerBuilderExtensions`, `CronScheduleTriggerBuilderExtensions`,
+`CalendarIntervalTriggerBuilderExtensions`, `DailyTimeIntervalTriggerBuilderExtensions`,
+`RecurrenceTriggerBuilderExtensions`, `TriggerExtensions`.
+
+| 3.x | 4.x |
+|---|---|
+| `WithSimpleSchedule()` | `WithSimpleSchedule()` |
+| `WithSimpleSchedule(Action<SimpleScheduleBuilder>)` | `WithSimpleSchedule(Action<SimpleScheduleBuilder>? configure = null)` |
+| `WithSimpleSchedule(SimpleScheduleBuilder)` | `WithSimpleSchedule(SimpleScheduleBuilder schedule)` |
+| `WithCronSchedule(string)` | `WithCronSchedule(string cronExpression, Action<CronScheduleBuilder>? configure = null)` |
+| `WithCronSchedule(string, Action<CronScheduleBuilder>)` | same member |
+| `WithCronSchedule(string expr, string hashKey)` | `WithCronSchedule(CronScheduleBuilder.CronSchedule(new CronExpression(expr, hashKey)))` |
+| `WithCronSchedule(string expr, string hashKey, Action<CronScheduleBuilder>)` | build the `CronScheduleBuilder`, configure it, pass it |
+| `WithCronSchedule(CronScheduleBuilder)` | `WithCronSchedule(CronScheduleBuilder schedule)` |
+| `WithCalendarIntervalSchedule()` | `WithCalendarIntervalSchedule(Action<CalendarIntervalScheduleBuilder>? configure = null)` |
+| `WithCalendarIntervalSchedule(Action<CalendarIntervalScheduleBuilder>)` | same member |
+| `WithCalendarIntervalSchedule(CalendarIntervalScheduleBuilder)` | `WithCalendarIntervalSchedule(CalendarIntervalScheduleBuilder schedule)` |
+| `WithDailyTimeIntervalSchedule()` | `WithDailyTimeIntervalSchedule(Action<DailyTimeIntervalScheduleBuilder>? configure = null)` |
+| `WithDailyTimeIntervalSchedule(Action<DailyTimeIntervalScheduleBuilder>)` | same member |
+| `WithDailyTimeIntervalSchedule(int interval, IntervalUnit unit, Action<…>? action = null)` | `WithDailyTimeIntervalSchedule(x => x.WithInterval(interval, unit))` |
+| `WithDailyTimeIntervalSchedule(DailyTimeIntervalScheduleBuilder)` | `WithDailyTimeIntervalSchedule(DailyTimeIntervalScheduleBuilder schedule)` |
+| `WithRecurrenceSchedule(string)` | `WithRecurrenceSchedule(string recurrenceRule, Action<RecurrenceScheduleBuilder>? configure = null)` |
+| `WithRecurrenceSchedule(string, Action<RecurrenceScheduleBuilder>)` | same member |
+| `WithRecurrenceSchedule(RecurrenceScheduleBuilder)` | `WithRecurrenceSchedule(RecurrenceScheduleBuilder schedule)` |
+
+Only two call shapes need editing:
+
+```diff
+- .WithDailyTimeIntervalSchedule(interval: 10, intervalUnit: IntervalUnit.Second)
++ .WithDailyTimeIntervalSchedule(x => x.WithInterval(10, IntervalUnit.Second))
+
+- .WithCronSchedule("0 H H(0-7) * * ?", "nightly-cleanup")
++ .WithCronSchedule(CronScheduleBuilder.CronSchedule(new CronExpression("0 H H(0-7) * * ?", "nightly-cleanup")))
+```
+
+The hash-key overloads went because a hash key belongs to the expression, not to the way the expression is
+attached to a trigger — `new CronExpression(expr, hashKey)` takes it, and one builder-taking overload carries
+the result. Without a key, `H` tokens still hash on the trigger's identity.
+
+### `ITriggerConfigurator` gained a non-generic base
+
+The extensions are written against a new non-generic `ITriggerConfigurator`, which holds the one member they
+need:
+
+```csharp
+public interface ITriggerConfigurator
+{
+    ITriggerConfigurator WithSchedule(IScheduleBuilder scheduleBuilder);
+}
+
+public interface ITriggerConfigurator<TJob> : ITriggerConfigurator where TJob : IJob { … }
+```
+
+The generic interface redeclares `WithSchedule` with its own return type, so a chain there keeps `TJob` and
+the job-property overload of `UsingJobData` that comes with it. Code implementing `ITriggerConfigurator<TJob>`
+is unaffected; `TriggerBuilder<TJob>` implements both.
+
+## `ModifiedByCalendar` is `WithCalendarName`
+
+```diff
+  ITrigger trigger = TriggerBuilder.Create()
+      .WithIdentity("trigger1")
+-     .ModifiedByCalendar("myHolidays")
++     .WithCalendarName("myHolidays")
+      .Build();
+```
+
+It sets `ITrigger.CalendarName` and every other setter on the builder is named for the property it sets. The
+rename applies to `TriggerBuilder<TJob>` and `ITriggerConfigurator<TJob>` alike. The old name also read as
+though it modified the calendar.
+
+## The preferred node is a value
+
+Node affinity was two properties that only made sense read together: a `string?` in which `"*"` meant
+something other than a node name, and a `bool` that meant nothing unless the string was one. Copying a pin
+from one trigger to another through the setter silently dropped the flag, turning an auto-claim into a named
+pin that would never fail over. `Quartz.PreferredNode` — a `readonly record struct` — carries both.
+
+| 3.x | 4.x |
+|---|---|
+| `string? ITrigger.PreferredNode` | `PreferredNode ITrigger.PreferredNode` |
+| `bool ITrigger.IsPreferredNodeAuto` | `trigger.PreferredNode.IsAutomatic` |
+| `trigger.PreferredNode` (the node name) | `trigger.PreferredNode.Node` — null for no pin *and* for an unclaimed auto-pin |
+| `trigger.PreferredNode is null` | `trigger.PreferredNode.IsNone` |
+| `trigger.PreferredNode == "*"` | `trigger.PreferredNode == PreferredNode.Auto` |
+| `WithPreferredNode(null)` | `WithPreferredNode(PreferredNode.None)` |
+| `WithPreferredNode("*")` | `WithPreferredNode(PreferredNode.Auto)` |
+| `WithPreferredNode("node-1")` | `WithPreferredNode(PreferredNode.For("node-1"))` |
+| `new TriggerDetailsUpdate().WithPreferredNode(string?)` | `.WithPreferredNode(PreferredNode)` |
+| `IMutableTrigger.PreferredNode { get; set; }` → `string?` | → `PreferredNode` |
+
+```diff
+- .WithPreferredNode("production-node-1")
++ .WithPreferredNode(PreferredNode.For("production-node-1"))
+
+- string? node = t.PreferredNode;
+- bool auto = t.IsPreferredNodeAuto;
++ string? node = t.PreferredNode.Node;
++ bool auto = t.PreferredNode.IsAutomatic;
+```
+
+`PreferredNode.For` trims its argument and rejects a blank one and the pinning protocol's own markers (`*`,
+`_`, `null`) — names that could never identify a node, and which used to be accepted and then quietly mean
+something else. Any other name is legal; the node name is stored verbatim, so `auto:thing` or `*-west` is
+fine. Assigning a pin records it as the pin it was, auto-claim included, so copying one between triggers is
+lossless.
+
+**Storage is unchanged.** `QRTZ_TRIGGERS.PREFERRED_NODE` and `PREFERRED_NODE_AUTO` still hold the string and
+the flag; the mapping happens at the store boundary and the sentinel is an internal constant rather than
+something a caller spells. Databases written by 3.19's node-affinity migration or by an earlier 4.0 preview
+read back identically, and the JSON trigger payloads never carried the pin.
+
 ## Other Breaking Changes
 
 | Change | Details |
@@ -1547,7 +1711,7 @@ is unchanged — it has no fire-count state to restore.
 | Protected `JobStoreSupport` / `StdAdoDelegate` members take a `CancellationToken` | Overrides have to add the parameter; callers do not |
 | `ConnectionAndTransactionHolder.Close`, `.Commit`, `.Rollback` take a `CancellationToken` | Same |
 | `IJobConfigurator<TJob>` members return `IJobConfigurator<TJob>` | `JobBuilder<TJob>` implements them explicitly and keeps its own `JobBuilder<TJob>`-returning members, so `JobBuilder.Create()…` chains are unaffected — see [Job data can name the property](#job-data-can-name-the-property) for the type parameter |
-| `IJobConfigurator<TJob>` / `JobBuilder<TJob>` gained `UsingJobData(string, decimal)` | And `UsingJobData(string, string?)` accepts null |
+| `UsingJobData` takes an `object?` | The nine primitive overloads collapsed into one — see [Nine `UsingJobData` overloads became one](#nine-usingjobdata-overloads-became-one) |
 | `IDirectoryScanListener` is asynchronous | `FilesUpdatedOrAdded` and `FilesDeleted` return `ValueTask` and take a `CancellationToken` |
 | `LoggingJobHistoryPlugin.Name`, `LoggingTriggerHistoryPlugin.Name` are get-only | The name is handed to a plugin by `Initialize`; writing it afterwards did nothing |
 | `TimeSpanParseRuleAttribute` is public | It says how a bare number in configuration is read as a `TimeSpan`, which a component configured by the same keys needs to be able to say |

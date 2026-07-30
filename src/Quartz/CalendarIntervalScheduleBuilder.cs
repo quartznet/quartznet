@@ -348,27 +348,3 @@ public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarI
         return this;
     }
 }
-
-/// <summary>
-/// Extension methods that attach <see cref="CalendarIntervalScheduleBuilder" /> to <see cref="TriggerBuilder" />.
-/// </summary>
-public static class CalendarIntervalTriggerBuilderExtensions
-{
-    public static TriggerBuilder<TJob> WithCalendarIntervalSchedule<TJob>(this TriggerBuilder<TJob> triggerBuilder) where TJob : IJob
-    {
-        CalendarIntervalScheduleBuilder builder = CalendarIntervalScheduleBuilder.Create();
-        return triggerBuilder.WithSchedule(builder);
-    }
-
-    public static TriggerBuilder<TJob> WithCalendarIntervalSchedule<TJob>(this TriggerBuilder<TJob> triggerBuilder, Action<CalendarIntervalScheduleBuilder> action) where TJob : IJob
-    {
-        CalendarIntervalScheduleBuilder builder = CalendarIntervalScheduleBuilder.Create();
-        action(builder);
-        return triggerBuilder.WithSchedule(builder);
-    }
-
-    public static TriggerBuilder<TJob> WithCalendarIntervalSchedule<TJob>(this TriggerBuilder<TJob> triggerBuilder, CalendarIntervalScheduleBuilder schedule) where TJob : IJob
-    {
-        return triggerBuilder.WithSchedule(schedule);
-    }
-}

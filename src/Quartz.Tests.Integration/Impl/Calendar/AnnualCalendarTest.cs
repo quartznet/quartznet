@@ -52,7 +52,7 @@ public class AnnualCalendarTest : IntegrationTest
 
         ITrigger trigger = TriggerBuilder.Create()
             .WithIdentity("trigName", "trigGroup")
-            .ModifiedByCalendar("calendar")
+            .WithCalendarName("calendar")
             .WithCronSchedule("0/15 * * * * ?")
             .Build();
 
@@ -65,7 +65,7 @@ public class AnnualCalendarTest : IntegrationTest
         ITrigger triggerreplace = TriggerBuilder.Create()
             .WithIdentity("foo", "trigGroup")
             .ForJob(jobDetail)
-            .ModifiedByCalendar("calendar")
+            .WithCalendarName("calendar")
             .WithCronSchedule("0/15 * * * * ?")
             .Build();
 

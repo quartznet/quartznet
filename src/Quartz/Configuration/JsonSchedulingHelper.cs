@@ -233,7 +233,7 @@ internal static class JsonSchedulingHelper
                 .StartAt(startTime)
                 .EndAt(endTime)
                 .WithPriority(priority)
-                .ModifiedByCalendar(calendarName)
+                .WithCalendarName(calendarName)
                 .WithExecutionGroup(executionGroup)
                 .WithSchedule(schedule)
                 .Build();

@@ -30,7 +30,7 @@ public sealed class PreferredNodeClusteredPostgresTest : ClusteredPostgresTestBa
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("autoPinTrigger", "clusteredTest")
                 .ForJob(job)
-                .WithPreferredNode("*")
+                .WithPreferredNode(PreferredNode.Auto)
                 .WithSimpleSchedule(s => s
                     .WithIntervalInSeconds(1)
                     .RepeatForever())
@@ -50,8 +50,8 @@ public sealed class PreferredNodeClusteredPostgresTest : ClusteredPostgresTestBa
             {
                 ITrigger t = await scheduler.GetTrigger(trigger.Key);
                 return t != null
-                    && t.PreferredNode == "autopin-node"
-                    && t.IsPreferredNodeAuto;
+                    && t.PreferredNode.Node == "autopin-node"
+                    && t.PreferredNode.IsAutomatic;
             }, 10_000, "auto-pin to resolve to the firing node's instance id");
         }
         finally
@@ -82,7 +82,7 @@ public sealed class PreferredNodeClusteredPostgresTest : ClusteredPostgresTestBa
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("exclusionTrigger", "clusteredTest")
                 .ForJob(job)
-                .WithPreferredNode("nodeA")
+                .WithPreferredNode(PreferredNode.For("nodeA"))
                 .WithSimpleSchedule(s => s
                     .WithIntervalInSeconds(1)
                     .WithRepeatCount(3))
@@ -100,7 +100,7 @@ public sealed class PreferredNodeClusteredPostgresTest : ClusteredPostgresTestBa
             ITrigger retrieved = await nodeA.GetTrigger(trigger.Key);
             if (retrieved != null)
             {
-                Assert.That(retrieved.PreferredNode, Is.EqualTo("nodeA"));
+                Assert.That(retrieved.PreferredNode.Node, Is.EqualTo("nodeA"));
             }
         }
         finally
@@ -129,7 +129,7 @@ public sealed class PreferredNodeClusteredPostgresTest : ClusteredPostgresTestBa
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("failoverTrigger", "clusteredTest")
                 .ForJob(job)
-                .WithPreferredNode("*")
+                .WithPreferredNode(PreferredNode.Auto)
                 .WithSimpleSchedule(s => s
                     .WithIntervalInSeconds(1)
                     .RepeatForever())
@@ -167,7 +167,7 @@ public sealed class PreferredNodeClusteredPostgresTest : ClusteredPostgresTestBa
             await WaitForCondition(async () =>
             {
                 ITrigger t = await nodeB.GetTrigger(failoverKey);
-                return t != null && t.PreferredNode == "nodeB";
+                return t != null && t.PreferredNode.Node == "nodeB";
             }, 10_000, "auto-pin to settle on nodeB");
 
             // Regression for the auto-pin write-back race: a fire that acquired the trigger
@@ -177,9 +177,9 @@ public sealed class PreferredNodeClusteredPostgresTest : ClusteredPostgresTestBa
             RecordingJob.Reset();
             await WaitForExecutionCount(2, 10_000);
             ITrigger settled = await nodeB.GetTrigger(failoverKey);
-            Assert.That(settled.PreferredNode, Is.EqualTo("nodeB"),
+            Assert.That(settled.PreferredNode.Node, Is.EqualTo("nodeB"),
                 "Pin must remain on the surviving node and never revert to the dead node");
-            Assert.That(settled.IsPreferredNodeAuto, Is.True,
+            Assert.That(settled.PreferredNode.IsAutomatic, Is.True,
                 "The stolen pin must remain auto-claimed so it can fail over again");
         }
         finally
@@ -209,7 +209,7 @@ public sealed class PreferredNodeClusteredPostgresTest : ClusteredPostgresTestBa
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("redirectTrigger", "clusteredTest")
                 .ForJob(job)
-                .WithPreferredNode("nodeA")
+                .WithPreferredNode(PreferredNode.For("nodeA"))
                 .WithSimpleSchedule(s => s
                     .WithIntervalInSeconds(1)
                     .RepeatForever())
@@ -225,7 +225,7 @@ public sealed class PreferredNodeClusteredPostgresTest : ClusteredPostgresTestBa
             // Redirect the pin to nodeB at runtime
             await nodeA.UpdateTriggerDetails(
                 trigger.Key,
-                new TriggerDetailsUpdate().WithPreferredNode("nodeB"));
+                new TriggerDetailsUpdate().WithPreferredNode(PreferredNode.For("nodeB")));
 
             // A fire already acquired by nodeA at update time is tolerated; wait until
             // nodeB takes over, then verify the takeover is stable.

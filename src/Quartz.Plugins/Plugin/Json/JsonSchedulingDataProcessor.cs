@@ -325,7 +325,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
                 .StartAt(startTime)
                 .EndAt(endTime)
                 .WithPriority(priority)
-                .ModifiedByCalendar(NormalizeEmpty(triggerDef.CalendarName))
+                .WithCalendarName(NormalizeEmpty(triggerDef.CalendarName))
                 .WithExecutionGroup(NormalizeEmpty(triggerDef.ExecutionGroup))
                 .WithSchedule(schedule)
                 .Build();

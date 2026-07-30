@@ -501,7 +501,7 @@ public class XMLSchedulingDataProcessor
                 .StartAt(triggerStartTime)
                 .EndAt(triggerEndTime)
                 .WithPriority(triggerPriority)
-                .ModifiedByCalendar(triggerCalendarRef)
+                .WithCalendarName(triggerCalendarRef)
                 .WithSchedule(scheduleBuilder)
                 .Build();
 

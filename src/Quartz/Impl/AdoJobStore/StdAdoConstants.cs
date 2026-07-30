@@ -236,7 +236,7 @@ internal static class StdAdoConstants
     /// Sentinel stored in PREFERRED_NODE to request auto-pin that has not yet been claimed by
     /// any node. Distinct from a node name, and never itself flagged as auto-claimed.
     /// </summary>
-    public const string AutoPinSentinel = "*";
+    public const string AutoPinSentinel = PreferredNode.AutoSentinel;
 
     // Preferred node (node affinity) acquisition filter.
     //

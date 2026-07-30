@@ -122,7 +122,7 @@ __Calendar Example__
   .WithIdentity("myTrigger")
   .ForJob("myJob")
   .WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(9, 30)) // execute job daily at 9:30
-  .ModifiedByCalendar("myHolidays") // but not on holidays
+  .WithCalendarName("myHolidays") // but not on holidays
   .Build();
 
  // .. schedule job with trigger
@@ -131,7 +131,7 @@ __Calendar Example__
   .WithIdentity("myTrigger2")
   .ForJob("myJob2")
   .WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(11, 30)) // execute job daily at 11:30
-  .ModifiedByCalendar("myHolidays") // but not on holidays
+  .WithCalendarName("myHolidays") // but not on holidays
   .Build();
 
 	// Use H (hash) to spread triggers across time instead of a fixed schedule.
@@ -140,7 +140,7 @@ __Calendar Example__
 		.WithIdentity("myTrigger3")
 		.ForJob("myJob3")
 		.WithCronSchedule("0 H H(9-17) * * ?") // execute at a hash-derived time during business hours
-		.ModifiedByCalendar("myHolidays")
+		.WithCalendarName("myHolidays")
 		.Build();
 
     // .. schedule jobs with triggers

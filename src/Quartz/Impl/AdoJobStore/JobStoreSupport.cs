@@ -2045,8 +2045,8 @@ public abstract class JobStoreSupport : IJobStore
 
             if (update.HasPreferredNode)
             {
-                // Setting the property records an explicit pin and marks it dirty, so the
-                // subsequent store writes the preferred node columns.
+                // Setting the property marks the pin dirty, so the subsequent store writes the
+                // preferred node columns.
                 existing.PreferredNode = update.PreferredNode;
             }
 
@@ -3605,8 +3605,9 @@ public abstract class JobStoreSupport : IJobStore
         // Explicit pins (AUTO = false) are never re-pinned here.
         if (trigger is AbstractTrigger pinTrigger)
         {
-            string? rawPreferredNode = pinTrigger.PreferredNode;
-            bool rawPreferredNodeAuto = pinTrigger.IsPreferredNodeAuto;
+            PreferredNode pin = pinTrigger.PreferredNode;
+            string? rawPreferredNode = pin.StoredNode;
+            bool rawPreferredNodeAuto = pin.StoredAutomatic;
             bool claimUnpinned = rawPreferredNode == StdAdoConstants.AutoPinSentinel;
             bool stealFromStaleNode = rawPreferredNode is not null
                 && rawPreferredNodeAuto
@@ -3620,7 +3621,7 @@ public abstract class JobStoreSupport : IJobStore
                 if (claimed > 0)
                 {
                     // Mirror the persisted value; not dirty — the row already holds it
-                    pinTrigger.SetPreferredNodeRaw(InstanceId, auto: true, markDirty: false);
+                    pinTrigger.SetPreferredNode(PreferredNode.ClaimedBy(InstanceId), markDirty: false);
                 }
                 // else the pin changed concurrently: leave the concurrent value in place. The
                 // in-memory value is stale but not dirty, so the store below will not write it

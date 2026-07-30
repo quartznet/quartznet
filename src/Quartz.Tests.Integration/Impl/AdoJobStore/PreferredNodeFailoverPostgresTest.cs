@@ -31,7 +31,7 @@ public sealed class PreferredNodeFailoverPostgresTest : ClusteredPostgresTestBas
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("explicitPinTrigger", "failoverTest")
                 .ForJob(job)
-                .WithPreferredNode("nodeA")
+                .WithPreferredNode(PreferredNode.For("nodeA"))
                 .WithSimpleSchedule(s => s
                     .WithIntervalInSeconds(1)
                     .RepeatForever())
@@ -64,7 +64,7 @@ public sealed class PreferredNodeFailoverPostgresTest : ClusteredPostgresTestBas
             Assert.That(retrieved, Is.Not.Null, "Repeating trigger should still exist after failover");
 
             // Explicit pin should NOT be re-pinned — stays as "nodeA" even after nodeB fired it
-            Assert.That(retrieved.PreferredNode, Is.EqualTo("nodeA"),
+            Assert.That(retrieved.PreferredNode.Node, Is.EqualTo("nodeA"),
                 "Explicit pin should be preserved through failover, not re-pinned to nodeB");
         }
         finally
@@ -94,7 +94,7 @@ public sealed class PreferredNodeFailoverPostgresTest : ClusteredPostgresTestBas
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("autoPinFailoverTrigger", "failoverTest")
                 .ForJob(job)
-                .WithPreferredNode("*")
+                .WithPreferredNode(PreferredNode.Auto)
                 .WithSimpleSchedule(s => s
                     .WithIntervalInSeconds(1)
                     .RepeatForever())
@@ -108,9 +108,9 @@ public sealed class PreferredNodeFailoverPostgresTest : ClusteredPostgresTestBas
             ITrigger pinnedTrigger = await nodeA.GetTrigger(trigger.Key);
             Assert.That(pinnedTrigger, Is.Not.Null);
             // The node name is stored verbatim; the auto-claim is recorded out-of-band
-            Assert.That(pinnedTrigger.PreferredNode, Is.EqualTo("nodeA"),
+            Assert.That(pinnedTrigger.PreferredNode.Node, Is.EqualTo("nodeA"),
                 "Auto-pin should resolve to 'nodeA' after first fire");
-            Assert.That(pinnedTrigger.IsPreferredNodeAuto, Is.True,
+            Assert.That(pinnedTrigger.PreferredNode.IsAutomatic, Is.True,
                 "A pin claimed by auto-pin should be flagged as auto-claimed");
 
             await nodeA.Shutdown(false);
@@ -143,7 +143,7 @@ public sealed class PreferredNodeFailoverPostgresTest : ClusteredPostgresTestBas
             await WaitForCondition(async () =>
             {
                 ITrigger t = await nodeB.GetTrigger(failoverKey);
-                return t != null && t.PreferredNode == "nodeB";
+                return t != null && t.PreferredNode.Node == "nodeB";
             }, 10_000, "auto-pin to settle on nodeB");
 
             // Regression for the auto-pin write-back race: a fire that acquired the trigger while
@@ -153,7 +153,7 @@ public sealed class PreferredNodeFailoverPostgresTest : ClusteredPostgresTestBas
             await WaitForExecutionCount(2, 10_000);
             Assert.That(RecordingJob.Executions, Has.All.EqualTo("nodeB"));
             ITrigger settled = await nodeB.GetTrigger(failoverKey);
-            Assert.That(settled.PreferredNode, Is.EqualTo("nodeB"),
+            Assert.That(settled.PreferredNode.Node, Is.EqualTo("nodeB"),
                 "Pin must remain on the surviving node and never revert to the dead node");
         }
         finally
@@ -186,7 +186,7 @@ public sealed class PreferredNodeFailoverPostgresTest : ClusteredPostgresTestBas
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("threeNodeTrigger", "failoverTest")
                 .ForJob(job)
-                .WithPreferredNode("*")
+                .WithPreferredNode(PreferredNode.Auto)
                 .WithSimpleSchedule(s => s
                     .WithIntervalInSeconds(1)
                     .RepeatForever())
@@ -236,15 +236,15 @@ public sealed class PreferredNodeFailoverPostgresTest : ClusteredPostgresTestBas
             await WaitForCondition(async () =>
             {
                 ITrigger t = await nodeC.GetTrigger(threeNodeKey);
-                string pin = t != null ? t.PreferredNode : null;
-                return pin != null && pin != "*" && liveNodes.Contains(pin);
+                string pin = t?.PreferredNode.Node;
+                return pin != null && liveNodes.Contains(pin);
             }, 15_000, "auto-pin to settle on a live survivor");
 
             // Let any fire acquired just before the claim landed drain (such a fire may
             // legitimately move the claim once more), then snapshot the settled pin.
             await Task.Delay(2000);
             ITrigger claimed = await nodeC.GetTrigger(threeNodeKey);
-            string settledPin = claimed.PreferredNode;
+            string settledPin = claimed.PreferredNode.Node;
             Assert.That(liveNodes, Does.Contain(settledPin));
 
             // Stability: once claimed, all further executions happen on the claimant only
@@ -254,7 +254,7 @@ public sealed class PreferredNodeFailoverPostgresTest : ClusteredPostgresTestBas
                 "After the claim settles, the trigger must not bounce between survivors");
 
             ITrigger settled = await nodeC.GetTrigger(threeNodeKey);
-            Assert.That(settled.PreferredNode, Is.EqualTo(settledPin),
+            Assert.That(settled.PreferredNode.Node, Is.EqualTo(settledPin),
                 "The settled pin must be stable across subsequent fires");
         }
         finally
@@ -290,7 +290,7 @@ public sealed class PreferredNodeFailoverPostgresTest : ClusteredPostgresTestBas
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("saturationTrigger", "failoverTest")
                 .ForJob(job)
-                .WithPreferredNode("*")
+                .WithPreferredNode(PreferredNode.Auto)
                 .WithExecutionGroup("heavy")
                 .WithSimpleSchedule(s => s
                     .WithIntervalInSeconds(1)
@@ -340,7 +340,7 @@ public sealed class PreferredNodeFailoverPostgresTest : ClusteredPostgresTestBas
             await WaitForCondition(async () =>
             {
                 ITrigger t = await eligible.GetTrigger(saturationKey);
-                return t != null && t.PreferredNode == "eligibleNode";
+                return t != null && t.PreferredNode.Node == "eligibleNode";
             }, 10_000, "auto-pin to settle on the eligible node");
         }
         finally

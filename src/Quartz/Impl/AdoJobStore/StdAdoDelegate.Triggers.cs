@@ -252,9 +252,9 @@ public partial class StdAdoDelegate
         string? execGroup = trigger.ExecutionGroup;
         AddCommandParameter(cmd, "triggerExecutionGroup", (object?) execGroup ?? DBNull.Value);
 
-        string? preferredNode = trigger.PreferredNode;
-        AddCommandParameter(cmd, "triggerPreferredNode", (object?) preferredNode ?? DBNull.Value);
-        AddCommandParameter(cmd, "triggerPreferredNodeAuto", GetDbBooleanValue(preferredNode is not null && trigger.IsPreferredNodeAuto));
+        PreferredNode preferredNode = trigger.PreferredNode;
+        AddCommandParameter(cmd, "triggerPreferredNode", (object?) preferredNode.StoredNode ?? DBNull.Value);
+        AddCommandParameter(cmd, "triggerPreferredNodeAuto", GetDbBooleanValue(preferredNode.StoredAutomatic));
 
         int insertResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
@@ -355,9 +355,9 @@ public partial class StdAdoDelegate
         // Parameters are added in SQL token order for providers with positional binding
         if (writePreferredNode)
         {
-            string? preferredNode = trigger.PreferredNode;
-            AddCommandParameter(cmd, "triggerPreferredNode", (object?) preferredNode ?? DBNull.Value);
-            AddCommandParameter(cmd, "triggerPreferredNodeAuto", GetDbBooleanValue(preferredNode is not null && trigger.IsPreferredNodeAuto));
+            PreferredNode preferredNode = trigger.PreferredNode;
+            AddCommandParameter(cmd, "triggerPreferredNode", (object?) preferredNode.StoredNode ?? DBNull.Value);
+            AddCommandParameter(cmd, "triggerPreferredNodeAuto", GetDbBooleanValue(preferredNode.StoredAutomatic));
         }
 
         AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
@@ -715,7 +715,7 @@ public partial class StdAdoDelegate
 
         // Populating from the trigger's own row — not a change, so it must not mark the pin
         // dirty (that would make the next store write it back and clobber concurrent re-pins).
-        (trigger as AbstractTrigger)?.SetPreferredNodeRaw(row.PreferredNode, row.PreferredNodeAuto, markDirty: false);
+        (trigger as AbstractTrigger)?.SetPreferredNode(PreferredNode.FromStored(row.PreferredNode, row.PreferredNodeAuto), markDirty: false);
     }
 
     /// <summary>
@@ -739,7 +739,7 @@ public partial class StdAdoDelegate
             .StartAt(row.StartTimeUtc)
             .EndAt(row.EndTimeUtc)
             .WithIdentity(triggerKey)
-            .ModifiedByCalendar(row.CalendarName)
+            .WithCalendarName(row.CalendarName)
             .WithSchedule(triggerProps.ScheduleBuilder)
             .ForJob(new JobKey(row.JobName, row.JobGroup));
 

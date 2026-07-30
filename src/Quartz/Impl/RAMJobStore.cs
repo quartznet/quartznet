@@ -2396,7 +2396,7 @@ public class RAMJobStore : IJobStore
                     JobDataMap newData = jobDetail.JobDataMap;
                     newData = (JobDataMap) newData.Clone();
                     newData.ClearDirtyFlag();
-                    jd = jd.GetJobBuilder().SetJobData(newData).Build();
+                    jd = jd.GetJobBuilder().ReplaceJobData(newData).Build();
                     jw.JobDetail = jd;
                 }
 

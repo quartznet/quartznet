@@ -74,7 +74,7 @@ public class ExcludeTimePeriodsUsingCalendarsExample : IExample
             .WithIdentity("trigger1", "group1")
             .StartAt(runDate)
             .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
-            .ModifiedByCalendar("holidays")
+            .WithCalendarName("holidays")
             .Build();
 
         // schedule the job and print the first run date

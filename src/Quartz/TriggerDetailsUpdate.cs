@@ -29,7 +29,7 @@ public sealed class TriggerDetailsUpdate
     internal int MisfireInstruction { get; private set; }
 
     internal bool HasPreferredNode { get; private set; }
-    internal string? PreferredNode { get; private set; }
+    internal PreferredNode PreferredNode { get; private set; }
 
     /// <summary>
     /// Set the trigger's description.
@@ -83,13 +83,17 @@ public sealed class TriggerDetailsUpdate
 
     /// <summary>
     /// Set the trigger's preferred node for cluster node affinity.
-    /// Pass <c>"*"</c> for auto-pin on first fire, a specific instance id to pin to that node,
-    /// or <see langword="null"/> to clear the preference.
     /// </summary>
-    public TriggerDetailsUpdate WithPreferredNode(string? preferredNode)
+    /// <param name="preferredNode">
+    /// The pin: <see cref="Quartz.PreferredNode.None" /> to clear,
+    /// <see cref="Quartz.PreferredNode.Auto" /> for auto-pin on first fire, or
+    /// <see cref="Quartz.PreferredNode.For" /> to name a node.
+    /// </param>
+    /// <seealso cref="Quartz.PreferredNode" />
+    public TriggerDetailsUpdate WithPreferredNode(PreferredNode preferredNode)
     {
         HasPreferredNode = true;
-        PreferredNode = string.IsNullOrWhiteSpace(preferredNode) ? null : preferredNode!.Trim();
+        PreferredNode = preferredNode;
         return this;
     }
 }

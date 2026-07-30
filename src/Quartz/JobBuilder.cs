@@ -362,97 +362,15 @@ public sealed class JobBuilder<TJob> : IJobConfigurator<TJob> where TJob : IJob
     /// <summary>
     /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
     /// </summary>
+    /// <remarks>
+    /// The value is stored as given. A persistent job store can only hold what its serializer
+    /// round-trips, and AdoJobStore's <c>UseProperties</c> mode only strings.
+    /// </remarks>
+    /// <param name="key">the key to store the value under</param>
+    /// <param name="value">the value to store</param>
     ///<returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobDataMap" />
-    public JobBuilder<TJob> UsingJobData(string key, string? value)
-    {
-        jobDataMap[key] = value;
-        return this;
-    }
-
-    /// <summary>
-    /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
-    /// </summary>
-    ///<returns>the updated JobBuilder</returns>
-    /// <seealso cref="IJobDetail.JobDataMap" />
-    public JobBuilder<TJob> UsingJobData(string key, int value)
-    {
-        jobDataMap[key] = value;
-        return this;
-    }
-
-    /// <summary>
-    /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
-    /// </summary>
-    ///<returns>the updated JobBuilder</returns>
-    /// <seealso cref="IJobDetail.JobDataMap" />
-    public JobBuilder<TJob> UsingJobData(string key, long value)
-    {
-        jobDataMap[key] = value;
-        return this;
-    }
-
-    /// <summary>
-    /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
-    /// </summary>
-    ///<returns>the updated JobBuilder</returns>
-    /// <seealso cref="IJobDetail.JobDataMap" />
-    public JobBuilder<TJob> UsingJobData(string key, float value)
-    {
-        jobDataMap[key] = value;
-        return this;
-    }
-
-    /// <summary>
-    /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
-    /// </summary>
-    ///<returns>the updated JobBuilder</returns>
-    /// <seealso cref="IJobDetail.JobDataMap" />
-    public JobBuilder<TJob> UsingJobData(string key, double value)
-    {
-        jobDataMap[key] = value;
-        return this;
-    }
-
-    /// <summary>
-    /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
-    /// </summary>
-    ///<returns>the updated JobBuilder</returns>
-    /// <seealso cref="IJobDetail.JobDataMap" />
-    public JobBuilder<TJob> UsingJobData(string key, decimal value)
-    {
-        jobDataMap[key] = value;
-        return this;
-    }
-
-    /// <summary>
-    /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
-    /// </summary>
-    ///<returns>the updated JobBuilder</returns>
-    /// <seealso cref="IJobDetail.JobDataMap" />
-    public JobBuilder<TJob> UsingJobData(string key, bool value)
-    {
-        jobDataMap[key] = value;
-        return this;
-    }
-
-    /// <summary>
-    /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
-    /// </summary>
-    ///<returns>the updated JobBuilder</returns>
-    /// <seealso cref="IJobDetail.JobDataMap" />
-    public JobBuilder<TJob> UsingJobData(string key, Guid value)
-    {
-        jobDataMap[key] = value;
-        return this;
-    }
-
-    /// <summary>
-    /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
-    /// </summary>
-    ///<returns>the updated JobBuilder</returns>
-    /// <seealso cref="IJobDetail.JobDataMap" />
-    public JobBuilder<TJob> UsingJobData(string key, char value)
+    public JobBuilder<TJob> UsingJobData(string key, object? value)
     {
         jobDataMap[key] = value;
         return this;
@@ -511,12 +429,15 @@ public sealed class JobBuilder<TJob> : IJobConfigurator<TJob> where TJob : IJob
     }
 
     /// <summary>
-    /// Replace the <see cref="IJobDetail" />'s <see cref="JobDataMap" /> with the
-    /// given <see cref="JobDataMap" />.
+    /// Replace the <see cref="IJobDetail" />'s <see cref="JobDataMap" /> with the given
+    /// <see cref="JobDataMap" />, discarding whatever the builder held.
     /// </summary>
-    /// <param name="newJobDataMap"></param>
-    /// <returns></returns>
-    public JobBuilder<TJob> SetJobData(JobDataMap newJobDataMap)
+    /// <remarks>
+    /// Internal because replacing is only ever what a job store rebuilding a stored job wants:
+    /// everything else is adding to what the builder already carries, which
+    /// <see cref="UsingJobData(JobDataMap)" /> does.
+    /// </remarks>
+    internal JobBuilder<TJob> ReplaceJobData(JobDataMap newJobDataMap)
     {
         if (newJobDataMap is null)
         {
@@ -538,29 +459,11 @@ public sealed class JobBuilder<TJob> : IJobConfigurator<TJob> where TJob : IJob
 
     IJobConfigurator<TJob> IJobConfigurator<TJob>.StoreDurably(bool durability) => StoreDurably(durability);
 
-    IJobConfigurator<TJob> IJobConfigurator<TJob>.UsingJobData(string key, string? value) => UsingJobData(key, value);
-
-    IJobConfigurator<TJob> IJobConfigurator<TJob>.UsingJobData(string key, int value) => UsingJobData(key, value);
-
-    IJobConfigurator<TJob> IJobConfigurator<TJob>.UsingJobData(string key, long value) => UsingJobData(key, value);
-
-    IJobConfigurator<TJob> IJobConfigurator<TJob>.UsingJobData(string key, float value) => UsingJobData(key, value);
-
-    IJobConfigurator<TJob> IJobConfigurator<TJob>.UsingJobData(string key, double value) => UsingJobData(key, value);
-
-    IJobConfigurator<TJob> IJobConfigurator<TJob>.UsingJobData(string key, decimal value) => UsingJobData(key, value);
-
-    IJobConfigurator<TJob> IJobConfigurator<TJob>.UsingJobData(string key, bool value) => UsingJobData(key, value);
-
-    IJobConfigurator<TJob> IJobConfigurator<TJob>.UsingJobData(string key, Guid value) => UsingJobData(key, value);
-
-    IJobConfigurator<TJob> IJobConfigurator<TJob>.UsingJobData(string key, char value) => UsingJobData(key, value);
+    IJobConfigurator<TJob> IJobConfigurator<TJob>.UsingJobData(string key, object? value) => UsingJobData(key, value);
 
     IJobConfigurator<TJob> IJobConfigurator<TJob>.UsingJobData<TValue>(Expression<Func<TJob, TValue>> jobProperty, TValue value) => UsingJobData(jobProperty, value);
 
     IJobConfigurator<TJob> IJobConfigurator<TJob>.UsingJobData(JobDataMap newJobDataMap) => UsingJobData(newJobDataMap);
-
-    IJobConfigurator<TJob> IJobConfigurator<TJob>.SetJobData(JobDataMap newJobDataMap) => SetJobData(newJobDataMap);
 
     IJobConfigurator<TJob> IJobConfigurator<TJob>.DisallowConcurrentExecution(bool concurrentExecutionDisallowed) => DisallowConcurrentExecution(concurrentExecutionDisallowed);
 

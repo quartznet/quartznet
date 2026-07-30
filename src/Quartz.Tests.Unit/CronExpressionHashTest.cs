@@ -388,7 +388,7 @@ public class CronExpressionHashTest
     {
         // When using explicit hash key, no trigger identity is required
         ITrigger trigger = TriggerBuilder.Create()
-            .WithCronSchedule("H H * * * ?", "custom-key")
+            .WithCronSchedule(CronScheduleBuilder.CronSchedule(new CronExpression("H H * * * ?", "custom-key")))
             .Build();
 
         Assert.IsNotNull(trigger);
