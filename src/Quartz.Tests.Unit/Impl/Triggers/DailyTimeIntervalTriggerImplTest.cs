@@ -40,7 +40,7 @@ public class DailyTimeIntervalTriggerImplTest
     [Test]
     public void TestNormalExample()
     {
-        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
+        DateTimeOffset startTime = TestDates.DateOf(0, 0, 0, 1, 1, 2011);
         TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
         TimeOfDay endTimeOfDay = new TimeOfDay(11, 0, 0);
         var trigger = new DailyTimeIntervalTriggerImpl
@@ -56,15 +56,15 @@ public class DailyTimeIntervalTriggerImplTest
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
-            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011)));
-            Assert.That(fireTimes[47], Is.EqualTo(DateBuilder.DateOf(10, 24, 0, 16, 1, 2011)));
+            Assert.That(fireTimes[0], Is.EqualTo(TestDates.DateOf(8, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[47], Is.EqualTo(TestDates.DateOf(10, 24, 0, 16, 1, 2011)));
         });
     }
 
     [Test]
     public void TestQuartzCalendarExclusion()
     {
-        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
+        DateTimeOffset startTime = TestDates.DateOf(0, 0, 0, 1, 1, 2011);
         var trigger = new DailyTimeIntervalTriggerImpl
         {
             StartTimeUtc = startTime.ToUniversalTime(),
@@ -78,9 +78,9 @@ public class DailyTimeIntervalTriggerImplTest
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes.Count, Is.EqualTo(48));
-            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011)));
-            Assert.That(fireTimes[1], Is.EqualTo(DateBuilder.DateOf(13, 0, 0, 1, 1, 2011)));
-            Assert.That(fireTimes[47], Is.EqualTo(DateBuilder.DateOf(23, 0, 0, 4, 1, 2011)));
+            Assert.That(fireTimes[0], Is.EqualTo(TestDates.DateOf(8, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[1], Is.EqualTo(TestDates.DateOf(13, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[47], Is.EqualTo(TestDates.DateOf(23, 0, 0, 4, 1, 2011)));
         });
     }
 
@@ -126,7 +126,7 @@ public class DailyTimeIntervalTriggerImplTest
     [Test]
     public void TestStartTimeWithoutStartTimeOfDay()
     {
-        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
+        DateTimeOffset startTime = TestDates.DateOf(0, 0, 0, 1, 1, 2011);
         var trigger = new DailyTimeIntervalTriggerImpl
         {
             StartTimeUtc = startTime.ToUniversalTime(),
@@ -138,16 +138,16 @@ public class DailyTimeIntervalTriggerImplTest
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
-            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(0, 0, 0, 1, 1, 2011)));
-            Assert.That(fireTimes[47], Is.EqualTo(DateBuilder.DateOf(23, 0, 0, 2, 1, 2011)));
+            Assert.That(fireTimes[0], Is.EqualTo(TestDates.DateOf(0, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[47], Is.EqualTo(TestDates.DateOf(23, 0, 0, 2, 1, 2011)));
         });
     }
 
     [Test]
     public void TestEndTimeWithoutEndTimeOfDay()
     {
-        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
-        DateTimeOffset endTime = DateBuilder.DateOf(22, 0, 0, 2, 1, 2011);
+        DateTimeOffset startTime = TestDates.DateOf(0, 0, 0, 1, 1, 2011);
+        DateTimeOffset endTime = TestDates.DateOf(22, 0, 0, 2, 1, 2011);
         var trigger = new DailyTimeIntervalTriggerImpl
         {
             StartTimeUtc = startTime.ToUniversalTime(),
@@ -160,15 +160,15 @@ public class DailyTimeIntervalTriggerImplTest
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(47));
-            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(0, 0, 0, 1, 1, 2011)));
-            Assert.That(fireTimes[46], Is.EqualTo(DateBuilder.DateOf(22, 0, 0, 2, 1, 2011)));
+            Assert.That(fireTimes[0], Is.EqualTo(TestDates.DateOf(0, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[46], Is.EqualTo(TestDates.DateOf(22, 0, 0, 2, 1, 2011)));
         });
     }
 
     [Test]
     public void TestStartTimeBeforeStartTimeOfDay()
     {
-        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
+        DateTimeOffset startTime = TestDates.DateOf(0, 0, 0, 1, 1, 2011);
         TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
         var trigger = new DailyTimeIntervalTriggerImpl
         {
@@ -182,8 +182,8 @@ public class DailyTimeIntervalTriggerImplTest
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
-            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011)));
-            Assert.That(fireTimes[47], Is.EqualTo(DateBuilder.DateOf(23, 0, 0, 3, 1, 2011)));
+            Assert.That(fireTimes[0], Is.EqualTo(TestDates.DateOf(8, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[47], Is.EqualTo(TestDates.DateOf(23, 0, 0, 3, 1, 2011)));
         });
     }
 
@@ -221,7 +221,7 @@ public class DailyTimeIntervalTriggerImplTest
     [Test]
     public void TestStartTimeAfterStartTimeOfDay()
     {
-        DateTimeOffset startTime = DateBuilder.DateOf(9, 23, 0, 1, 1, 2011);
+        DateTimeOffset startTime = TestDates.DateOf(9, 23, 0, 1, 1, 2011);
         TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
         var trigger = new DailyTimeIntervalTriggerImpl
         {
@@ -235,16 +235,16 @@ public class DailyTimeIntervalTriggerImplTest
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
-            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(10, 0, 0, 1, 1, 2011)));
-            Assert.That(fireTimes[47], Is.EqualTo(DateBuilder.DateOf(9, 0, 0, 4, 1, 2011)));
+            Assert.That(fireTimes[0], Is.EqualTo(TestDates.DateOf(10, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[47], Is.EqualTo(TestDates.DateOf(9, 0, 0, 4, 1, 2011)));
         });
     }
 
     [Test]
     public void TestEndTimeBeforeEndTimeOfDay()
     {
-        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
-        DateTimeOffset endTime = DateBuilder.DateOf(16, 0, 0, 2, 1, 2011);
+        DateTimeOffset startTime = TestDates.DateOf(0, 0, 0, 1, 1, 2011);
+        DateTimeOffset endTime = TestDates.DateOf(16, 0, 0, 2, 1, 2011);
         TimeOfDay endTimeOfDay = new TimeOfDay(17, 0, 0);
         var trigger = new DailyTimeIntervalTriggerImpl
         {
@@ -259,17 +259,17 @@ public class DailyTimeIntervalTriggerImplTest
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(35));
-            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(0, 0, 0, 1, 1, 2011)));
-            Assert.That(fireTimes[17], Is.EqualTo(DateBuilder.DateOf(17, 0, 0, 1, 1, 2011)));
-            Assert.That(fireTimes[34], Is.EqualTo(DateBuilder.DateOf(16, 0, 0, 2, 1, 2011)));
+            Assert.That(fireTimes[0], Is.EqualTo(TestDates.DateOf(0, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[17], Is.EqualTo(TestDates.DateOf(17, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[34], Is.EqualTo(TestDates.DateOf(16, 0, 0, 2, 1, 2011)));
         });
     }
 
     [Test]
     public void TestEndTimeAfterEndTimeOfDay()
     {
-        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
-        DateTimeOffset endTime = DateBuilder.DateOf(18, 0, 0, 2, 1, 2011);
+        DateTimeOffset startTime = TestDates.DateOf(0, 0, 0, 1, 1, 2011);
+        DateTimeOffset endTime = TestDates.DateOf(18, 0, 0, 2, 1, 2011);
         TimeOfDay endTimeOfDay = new TimeOfDay(17, 0, 0);
         var trigger = new DailyTimeIntervalTriggerImpl
         {
@@ -284,16 +284,16 @@ public class DailyTimeIntervalTriggerImplTest
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(36));
-            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(0, 0, 0, 1, 1, 2011)));
-            Assert.That(fireTimes[17], Is.EqualTo(DateBuilder.DateOf(17, 0, 0, 1, 1, 2011)));
-            Assert.That(fireTimes[35], Is.EqualTo(DateBuilder.DateOf(17, 0, 0, 2, 1, 2011)));
+            Assert.That(fireTimes[0], Is.EqualTo(TestDates.DateOf(0, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[17], Is.EqualTo(TestDates.DateOf(17, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[35], Is.EqualTo(TestDates.DateOf(17, 0, 0, 2, 1, 2011)));
         });
     }
 
     [Test]
     public void TestTimeOfDayWithStartTime()
     {
-        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
+        DateTimeOffset startTime = TestDates.DateOf(0, 0, 0, 1, 1, 2011);
         TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
         TimeOfDay endTimeOfDay = new TimeOfDay(17, 0, 0);
         var trigger = new DailyTimeIntervalTriggerImpl
@@ -309,17 +309,17 @@ public class DailyTimeIntervalTriggerImplTest
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
-            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011)));
-            Assert.That(fireTimes[9], Is.EqualTo(DateBuilder.DateOf(17, 0, 0, 1, 1, 2011))); // The 10th hours is the end of day.
-            Assert.That(fireTimes[47], Is.EqualTo(DateBuilder.DateOf(15, 0, 0, 5, 1, 2011)));
+            Assert.That(fireTimes[0], Is.EqualTo(TestDates.DateOf(8, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[9], Is.EqualTo(TestDates.DateOf(17, 0, 0, 1, 1, 2011))); // The 10th hours is the end of day.
+            Assert.That(fireTimes[47], Is.EqualTo(TestDates.DateOf(15, 0, 0, 5, 1, 2011)));
         });
     }
 
     [Test]
     public void TestTimeOfDayWithEndTime()
     {
-        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
-        DateTimeOffset endTime = DateBuilder.DateOf(0, 0, 0, 4, 1, 2011);
+        DateTimeOffset startTime = TestDates.DateOf(0, 0, 0, 1, 1, 2011);
+        DateTimeOffset endTime = TestDates.DateOf(0, 0, 0, 4, 1, 2011);
         TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
         TimeOfDay endTimeOfDay = new TimeOfDay(17, 0, 0);
         var trigger = new DailyTimeIntervalTriggerImpl
@@ -336,16 +336,16 @@ public class DailyTimeIntervalTriggerImplTest
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(30));
-            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011)));
-            Assert.That(fireTimes[9], Is.EqualTo(DateBuilder.DateOf(17, 0, 0, 1, 1, 2011))); // The 10th hours is the end of day.
-            Assert.That(fireTimes[29], Is.EqualTo(DateBuilder.DateOf(17, 0, 0, 3, 1, 2011)));
+            Assert.That(fireTimes[0], Is.EqualTo(TestDates.DateOf(8, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[9], Is.EqualTo(TestDates.DateOf(17, 0, 0, 1, 1, 2011))); // The 10th hours is the end of day.
+            Assert.That(fireTimes[29], Is.EqualTo(TestDates.DateOf(17, 0, 0, 3, 1, 2011)));
         });
     }
 
     [Test]
     public void TestTimeOfDayWithEndTime2()
     {
-        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
+        DateTimeOffset startTime = TestDates.DateOf(0, 0, 0, 1, 1, 2011);
         TimeOfDay startTimeOfDay = new TimeOfDay(8, 23, 0);
         TimeOfDay endTimeOfDay = new TimeOfDay(23, 59, 59); // edge case when endTime is last second of day, which is default too.
         var trigger = new DailyTimeIntervalTriggerImpl
@@ -361,8 +361,8 @@ public class DailyTimeIntervalTriggerImplTest
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
-            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(8, 23, 0, 1, 1, 2011)));
-            Assert.That(fireTimes[47], Is.EqualTo(DateBuilder.DateOf(23, 23, 0, 3, 1, 2011)));
+            Assert.That(fireTimes[0], Is.EqualTo(TestDates.DateOf(8, 23, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[47], Is.EqualTo(TestDates.DateOf(23, 23, 0, 3, 1, 2011)));
         });
     }
 
@@ -370,7 +370,7 @@ public class DailyTimeIntervalTriggerImplTest
     public void TestAllDaysOfTheWeek()
     {
         IReadOnlyCollection<DayOfWeek> daysOfWeek = DailyTimeIntervalScheduleBuilder.AllDaysOfTheWeek;
-        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011); // SAT
+        DateTimeOffset startTime = TestDates.DateOf(0, 0, 0, 1, 1, 2011); // SAT
         TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
         TimeOfDay endTimeOfDay = new TimeOfDay(17, 0, 0);
         var trigger = new DailyTimeIntervalTriggerImpl
@@ -387,9 +387,9 @@ public class DailyTimeIntervalTriggerImplTest
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
-            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011)));
-            Assert.That(fireTimes[9], Is.EqualTo(DateBuilder.DateOf(17, 0, 0, 1, 1, 2011))); // The 10th hours is the end of day.
-            Assert.That(fireTimes[47], Is.EqualTo(DateBuilder.DateOf(15, 0, 0, 5, 1, 2011)));
+            Assert.That(fireTimes[0], Is.EqualTo(TestDates.DateOf(8, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[9], Is.EqualTo(TestDates.DateOf(17, 0, 0, 1, 1, 2011))); // The 10th hours is the end of day.
+            Assert.That(fireTimes[47], Is.EqualTo(TestDates.DateOf(15, 0, 0, 5, 1, 2011)));
         });
     }
 
@@ -397,7 +397,7 @@ public class DailyTimeIntervalTriggerImplTest
     public void TestMonThroughFri()
     {
         IReadOnlyCollection<DayOfWeek> daysOfWeek = DailyTimeIntervalScheduleBuilder.MondayThroughFriday;
-        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011); // SAT(7)
+        DateTimeOffset startTime = TestDates.DateOf(0, 0, 0, 1, 1, 2011); // SAT(7)
         TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
         TimeOfDay endTimeOfDay = new TimeOfDay(17, 0, 0);
         var trigger = new DailyTimeIntervalTriggerImpl
@@ -415,11 +415,11 @@ public class DailyTimeIntervalTriggerImplTest
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
-            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 3, 1, 2011)));
+            Assert.That(fireTimes[0], Is.EqualTo(TestDates.DateOf(8, 0, 0, 3, 1, 2011)));
             Assert.That(fireTimes[0].LocalDateTime.DayOfWeek, Is.EqualTo(DayOfWeek.Monday));
-            Assert.That(fireTimes[10], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 4, 1, 2011)));
+            Assert.That(fireTimes[10], Is.EqualTo(TestDates.DateOf(8, 0, 0, 4, 1, 2011)));
             Assert.That(fireTimes[10].LocalDateTime.DayOfWeek, Is.EqualTo(DayOfWeek.Tuesday));
-            Assert.That(fireTimes[47], Is.EqualTo(DateBuilder.DateOf(15, 0, 0, 7, 1, 2011)));
+            Assert.That(fireTimes[47], Is.EqualTo(TestDates.DateOf(15, 0, 0, 7, 1, 2011)));
             Assert.That(fireTimes[47].LocalDateTime.DayOfWeek, Is.EqualTo(DayOfWeek.Friday));
         });
     }
@@ -428,7 +428,7 @@ public class DailyTimeIntervalTriggerImplTest
     public void TestSatAndSun()
     {
         IReadOnlyCollection<DayOfWeek> daysOfWeek = DailyTimeIntervalScheduleBuilder.SaturdayAndSunday;
-        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011); // SAT(7)
+        DateTimeOffset startTime = TestDates.DateOf(0, 0, 0, 1, 1, 2011); // SAT(7)
         TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
         TimeOfDay endTimeOfDay = new TimeOfDay(17, 0, 0);
         var trigger = new DailyTimeIntervalTriggerImpl
@@ -445,11 +445,11 @@ public class DailyTimeIntervalTriggerImplTest
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
-            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[0], Is.EqualTo(TestDates.DateOf(8, 0, 0, 1, 1, 2011)));
             Assert.That(fireTimes[0].LocalDateTime.DayOfWeek, Is.EqualTo(DayOfWeek.Saturday));
-            Assert.That(fireTimes[10], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 2, 1, 2011)));
+            Assert.That(fireTimes[10], Is.EqualTo(TestDates.DateOf(8, 0, 0, 2, 1, 2011)));
             Assert.That(fireTimes[10].LocalDateTime.DayOfWeek, Is.EqualTo(DayOfWeek.Sunday));
-            Assert.That(fireTimes[47], Is.EqualTo(DateBuilder.DateOf(15, 0, 0, 15, 1, 2011)));
+            Assert.That(fireTimes[47], Is.EqualTo(TestDates.DateOf(15, 0, 0, 15, 1, 2011)));
             Assert.That(fireTimes[47].LocalDateTime.DayOfWeek, Is.EqualTo(DayOfWeek.Saturday));
         });
     }
@@ -479,11 +479,11 @@ public class DailyTimeIntervalTriggerImplTest
         var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
         Assert.Multiple(() =>{
             Assert.That(fireTimes, Has.Count.EqualTo(48));
-            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 3, 1, 2011)));
+            Assert.That(fireTimes[0], Is.EqualTo(TestDates.DateOf(8, 0, 0, 3, 1, 2011)));
             Assert.That(fireTimes[0].LocalDateTime.DayOfWeek, Is.EqualTo(DayOfWeek.Monday));
-            Assert.That(fireTimes[10], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 10, 1, 2011)));
+            Assert.That(fireTimes[10], Is.EqualTo(TestDates.DateOf(8, 0, 0, 10, 1, 2011)));
             Assert.That(fireTimes[10].LocalDateTime.DayOfWeek, Is.EqualTo(DayOfWeek.Monday));
-            Assert.That(fireTimes[47], Is.EqualTo(DateBuilder.DateOf(15, 0, 0, 31, 1, 2011)));
+            Assert.That(fireTimes[47], Is.EqualTo(TestDates.DateOf(15, 0, 0, 31, 1, 2011)));
             Assert.That(fireTimes[47].LocalDateTime.DayOfWeek, Is.EqualTo(DayOfWeek.Monday));
         });
     }
@@ -491,8 +491,8 @@ public class DailyTimeIntervalTriggerImplTest
     [Test]
     public void TestTimeOfDayWithEndTimeOddInterval()
     {
-        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
-        DateTimeOffset endTime = DateBuilder.DateOf(0, 0, 0, 4, 1, 2011);
+        DateTimeOffset startTime = TestDates.DateOf(0, 0, 0, 1, 1, 2011);
+        DateTimeOffset endTime = TestDates.DateOf(0, 0, 0, 4, 1, 2011);
         TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
         TimeOfDay endTimeOfDay = new TimeOfDay(10, 0, 0);
         var trigger = new DailyTimeIntervalTriggerImpl
@@ -509,17 +509,17 @@ public class DailyTimeIntervalTriggerImplTest
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(18));
-            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011)));
-            Assert.That(fireTimes[5], Is.EqualTo(DateBuilder.DateOf(9, 55, 0, 1, 1, 2011)));
-            Assert.That(fireTimes[17], Is.EqualTo(DateBuilder.DateOf(9, 55, 0, 3, 1, 2011)));
+            Assert.That(fireTimes[0], Is.EqualTo(TestDates.DateOf(8, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[5], Is.EqualTo(TestDates.DateOf(9, 55, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[17], Is.EqualTo(TestDates.DateOf(9, 55, 0, 3, 1, 2011)));
         });
     }
 
     [Test]
     public void TestHourInterval()
     {
-        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
-        DateTimeOffset endTime = DateBuilder.DateOf(13, 0, 0, 15, 1, 2011);
+        DateTimeOffset startTime = TestDates.DateOf(0, 0, 0, 1, 1, 2011);
+        DateTimeOffset endTime = TestDates.DateOf(13, 0, 0, 15, 1, 2011);
         TimeOfDay startTimeOfDay = new TimeOfDay(8, 1, 15);
         TimeOfDay endTimeOfDay = new TimeOfDay(16, 1, 15);
         var trigger = new DailyTimeIntervalTriggerImpl
@@ -536,15 +536,15 @@ public class DailyTimeIntervalTriggerImplTest
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
-            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(8, 1, 15, 1, 1, 2011)));
-            Assert.That(fireTimes[47], Is.EqualTo(DateBuilder.DateOf(12, 1, 15, 10, 1, 2011)));
+            Assert.That(fireTimes[0], Is.EqualTo(TestDates.DateOf(8, 1, 15, 1, 1, 2011)));
+            Assert.That(fireTimes[47], Is.EqualTo(TestDates.DateOf(12, 1, 15, 10, 1, 2011)));
         });
     }
 
     [Test]
     public void TestSecondInterval()
     {
-        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
+        DateTimeOffset startTime = TestDates.DateOf(0, 0, 0, 1, 1, 2011);
         TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 2);
         TimeOfDay endTimeOfDay = new TimeOfDay(13, 30, 0);
         var trigger = new DailyTimeIntervalTriggerImpl
@@ -560,15 +560,15 @@ public class DailyTimeIntervalTriggerImplTest
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
-            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(8, 0, 2, 1, 1, 2011)));
-            Assert.That(fireTimes[47], Is.EqualTo(DateBuilder.DateOf(8, 56, 26, 1, 1, 2011)));
+            Assert.That(fireTimes[0], Is.EqualTo(TestDates.DateOf(8, 0, 2, 1, 1, 2011)));
+            Assert.That(fireTimes[47], Is.EqualTo(TestDates.DateOf(8, 56, 26, 1, 1, 2011)));
         });
     }
 
     [Test]
     public void TestRepeatCountInf()
     {
-        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
+        DateTimeOffset startTime = TestDates.DateOf(0, 0, 0, 1, 1, 2011);
         TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
         TimeOfDay endTimeOfDay = new TimeOfDay(11, 0, 0);
         var trigger = new DailyTimeIntervalTriggerImpl
@@ -587,15 +587,15 @@ public class DailyTimeIntervalTriggerImplTest
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
-            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011)));
-            Assert.That(fireTimes[47], Is.EqualTo(DateBuilder.DateOf(10, 24, 0, 16, 1, 2011)));
+            Assert.That(fireTimes[0], Is.EqualTo(TestDates.DateOf(8, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[47], Is.EqualTo(TestDates.DateOf(10, 24, 0, 16, 1, 2011)));
         });
     }
 
     [Test]
     public void TestRepeatCount()
     {
-        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
+        DateTimeOffset startTime = TestDates.DateOf(0, 0, 0, 1, 1, 2011);
         TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
         TimeOfDay endTimeOfDay = new TimeOfDay(11, 0, 0);
         var trigger = new DailyTimeIntervalTriggerImpl
@@ -614,15 +614,15 @@ public class DailyTimeIntervalTriggerImplTest
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(48));
-            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011)));
-            Assert.That(fireTimes[47], Is.EqualTo(DateBuilder.DateOf(10, 24, 0, 16, 1, 2011)));
+            Assert.That(fireTimes[0], Is.EqualTo(TestDates.DateOf(8, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[47], Is.EqualTo(TestDates.DateOf(10, 24, 0, 16, 1, 2011)));
         });
     }
 
     [Test]
     public void TestRepeatCount0()
     {
-        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
+        DateTimeOffset startTime = TestDates.DateOf(0, 0, 0, 1, 1, 2011);
         TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
         TimeOfDay endTimeOfDay = new TimeOfDay(11, 0, 0);
         var trigger = new DailyTimeIntervalTriggerImpl
@@ -640,18 +640,18 @@ public class DailyTimeIntervalTriggerImplTest
         Assert.Multiple(() =>
         {
             Assert.That(fireTimes, Has.Count.EqualTo(5));
-            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011)));
-            Assert.That(fireTimes[1], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 2, 1, 2011)));
-            Assert.That(fireTimes[2], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 3, 1, 2011)));
-            Assert.That(fireTimes[3], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 4, 1, 2011)));
-            Assert.That(fireTimes[4], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 5, 1, 2011)));
+            Assert.That(fireTimes[0], Is.EqualTo(TestDates.DateOf(8, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[1], Is.EqualTo(TestDates.DateOf(8, 0, 0, 2, 1, 2011)));
+            Assert.That(fireTimes[2], Is.EqualTo(TestDates.DateOf(8, 0, 0, 3, 1, 2011)));
+            Assert.That(fireTimes[3], Is.EqualTo(TestDates.DateOf(8, 0, 0, 4, 1, 2011)));
+            Assert.That(fireTimes[4], Is.EqualTo(TestDates.DateOf(8, 0, 0, 5, 1, 2011)));
         });
     }
 
     [Test]
     public void TestRepeatCountLimitsPerDay()
     {
-        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
+        DateTimeOffset startTime = TestDates.DateOf(0, 0, 0, 1, 1, 2011);
         TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
         TimeOfDay endTimeOfDay = new TimeOfDay(17, 0, 0);
         var trigger = new DailyTimeIntervalTriggerImpl
@@ -669,25 +669,25 @@ public class DailyTimeIntervalTriggerImplTest
         {
             Assert.That(fireTimes, Has.Count.EqualTo(9));
             // Day 1
-            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011)));
-            Assert.That(fireTimes[1], Is.EqualTo(DateBuilder.DateOf(9, 0, 0, 1, 1, 2011)));
-            Assert.That(fireTimes[2], Is.EqualTo(DateBuilder.DateOf(10, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[0], Is.EqualTo(TestDates.DateOf(8, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[1], Is.EqualTo(TestDates.DateOf(9, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[2], Is.EqualTo(TestDates.DateOf(10, 0, 0, 1, 1, 2011)));
             // Day 2
-            Assert.That(fireTimes[3], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 2, 1, 2011)));
-            Assert.That(fireTimes[4], Is.EqualTo(DateBuilder.DateOf(9, 0, 0, 2, 1, 2011)));
-            Assert.That(fireTimes[5], Is.EqualTo(DateBuilder.DateOf(10, 0, 0, 2, 1, 2011)));
+            Assert.That(fireTimes[3], Is.EqualTo(TestDates.DateOf(8, 0, 0, 2, 1, 2011)));
+            Assert.That(fireTimes[4], Is.EqualTo(TestDates.DateOf(9, 0, 0, 2, 1, 2011)));
+            Assert.That(fireTimes[5], Is.EqualTo(TestDates.DateOf(10, 0, 0, 2, 1, 2011)));
             // Day 3
-            Assert.That(fireTimes[6], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 3, 1, 2011)));
-            Assert.That(fireTimes[7], Is.EqualTo(DateBuilder.DateOf(9, 0, 0, 3, 1, 2011)));
-            Assert.That(fireTimes[8], Is.EqualTo(DateBuilder.DateOf(10, 0, 0, 3, 1, 2011)));
+            Assert.That(fireTimes[6], Is.EqualTo(TestDates.DateOf(8, 0, 0, 3, 1, 2011)));
+            Assert.That(fireTimes[7], Is.EqualTo(TestDates.DateOf(9, 0, 0, 3, 1, 2011)));
+            Assert.That(fireTimes[8], Is.EqualTo(TestDates.DateOf(10, 0, 0, 3, 1, 2011)));
         });
     }
 
     [Test]
     public void TestRepeatCountWithEndTimeUtc()
     {
-        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
-        DateTimeOffset endTime = DateBuilder.DateOf(0, 0, 0, 3, 1, 2011);
+        DateTimeOffset startTime = TestDates.DateOf(0, 0, 0, 1, 1, 2011);
+        DateTimeOffset endTime = TestDates.DateOf(0, 0, 0, 3, 1, 2011);
         TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
         TimeOfDay endTimeOfDay = new TimeOfDay(17, 0, 0);
         var trigger = new DailyTimeIntervalTriggerImpl
@@ -706,11 +706,11 @@ public class DailyTimeIntervalTriggerImplTest
         {
             Assert.That(fireTimes, Has.Count.EqualTo(4));
             // Day 1
-            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011)));
-            Assert.That(fireTimes[1], Is.EqualTo(DateBuilder.DateOf(9, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[0], Is.EqualTo(TestDates.DateOf(8, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[1], Is.EqualTo(TestDates.DateOf(9, 0, 0, 1, 1, 2011)));
             // Day 2
-            Assert.That(fireTimes[2], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 2, 1, 2011)));
-            Assert.That(fireTimes[3], Is.EqualTo(DateBuilder.DateOf(9, 0, 0, 2, 1, 2011)));
+            Assert.That(fireTimes[2], Is.EqualTo(TestDates.DateOf(8, 0, 0, 2, 1, 2011)));
+            Assert.That(fireTimes[3], Is.EqualTo(TestDates.DateOf(9, 0, 0, 2, 1, 2011)));
         });
     }
 
@@ -718,7 +718,7 @@ public class DailyTimeIntervalTriggerImplTest
     public void TestRepeatCountWithDaysOfWeek()
     {
         // Jan 1 2011 is Saturday
-        DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011);
+        DateTimeOffset startTime = TestDates.DateOf(0, 0, 0, 1, 1, 2011);
         TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
         TimeOfDay endTimeOfDay = new TimeOfDay(17, 0, 0);
         var trigger = new DailyTimeIntervalTriggerImpl
@@ -737,14 +737,14 @@ public class DailyTimeIntervalTriggerImplTest
         {
             Assert.That(fireTimes, Has.Count.EqualTo(6));
             // Mon Jan 3
-            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 3, 1, 2011)));
-            Assert.That(fireTimes[1], Is.EqualTo(DateBuilder.DateOf(9, 0, 0, 3, 1, 2011)));
+            Assert.That(fireTimes[0], Is.EqualTo(TestDates.DateOf(8, 0, 0, 3, 1, 2011)));
+            Assert.That(fireTimes[1], Is.EqualTo(TestDates.DateOf(9, 0, 0, 3, 1, 2011)));
             // Wed Jan 5
-            Assert.That(fireTimes[2], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 5, 1, 2011)));
-            Assert.That(fireTimes[3], Is.EqualTo(DateBuilder.DateOf(9, 0, 0, 5, 1, 2011)));
+            Assert.That(fireTimes[2], Is.EqualTo(TestDates.DateOf(8, 0, 0, 5, 1, 2011)));
+            Assert.That(fireTimes[3], Is.EqualTo(TestDates.DateOf(9, 0, 0, 5, 1, 2011)));
             // Fri Jan 7
-            Assert.That(fireTimes[4], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 7, 1, 2011)));
-            Assert.That(fireTimes[5], Is.EqualTo(DateBuilder.DateOf(9, 0, 0, 7, 1, 2011)));
+            Assert.That(fireTimes[4], Is.EqualTo(TestDates.DateOf(8, 0, 0, 7, 1, 2011)));
+            Assert.That(fireTimes[5], Is.EqualTo(TestDates.DateOf(9, 0, 0, 7, 1, 2011)));
         });
     }
 
@@ -1018,7 +1018,7 @@ public class DailyTimeIntervalTriggerImplTest
         var trigger = DailyTimeIntervalScheduleBuilder.Create()
             .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(22, 15))
             .OnEveryDay()
-            .WithIntervalInHours(24)
+            .WithInterval(24, IntervalUnit.Hour)
             .WithRepeatCount(9999)
             .InTimeZone(timeZoneInfo)
             .Build();
@@ -1045,7 +1045,7 @@ public class DailyTimeIntervalTriggerImplTest
             .OnEveryDay()
             .InTimeZone(timeZoneInfo)
             .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(0, 0))
-            .WithIntervalInHours(4)
+            .WithInterval(4, IntervalUnit.Hour)
             .Build();
 
         trigger.StartTimeUtc = new DateTimeOffset(2017, 3, 1, 0, 0, 0, TimeSpan.Zero);
@@ -1069,7 +1069,7 @@ public class DailyTimeIntervalTriggerImplTest
             .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(17, 00))
             .EndingDailyAt(TimeOfDay.HourAndMinuteOfDay(19, 30))
             .OnDaysOfTheWeek(new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday })
-            .WithIntervalInHours(2)
+            .WithInterval(2, IntervalUnit.Hour)
             .InTimeZone(timeZoneInfo)
             .Build();
 
@@ -1088,7 +1088,7 @@ public class DailyTimeIntervalTriggerImplTest
             .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(17, 00))
             .EndingDailyAt(TimeOfDay.HourAndMinuteOfDay(19, 30))
             .OnDaysOfTheWeek(new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday })
-            .WithIntervalInHours(2)
+            .WithInterval(2, IntervalUnit.Hour)
             .InTimeZone(timeZoneInfo)
             .Build();
 
@@ -1105,7 +1105,7 @@ public class DailyTimeIntervalTriggerImplTest
             .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(16, 0))
             .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
             .OnEveryDay()
-            .WithIntervalInMinutes(30)
+            .WithInterval(30, IntervalUnit.Minute)
             .Build();
 
         trigger.StartTimeUtc = new DateTimeOffset(2015, 1, 11, 23, 57, 0, 0, TimeSpan.Zero);
@@ -1177,7 +1177,7 @@ public class DailyTimeIntervalTriggerImplTest
                 .StartingDailyAt(new TimeOfDay(0, 0, 0))
                 .EndingDailyAt(new TimeOfDay(22, 0, 0))
                 .WithInterval(15, IntervalUnit.Minute)
-                .WithMisfireHandlingInstructionDoNothing()
+                .WithMisfireHandlingInstruction(DailyTimeIntervalTriggerMisfireInstruction.DoNothing)
             )
             .Build();
 
@@ -1194,7 +1194,7 @@ public class DailyTimeIntervalTriggerImplTest
     [Test]
     public void GetFireTimeAfterShouldNotMutateStartTimeUtc()
     {
-        DateTimeOffset originalStartTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2024);
+        DateTimeOffset originalStartTime = TestDates.DateOf(0, 0, 0, 1, 1, 2024);
         var trigger = new DailyTimeIntervalTriggerImpl
         {
             StartTimeUtc = originalStartTime,
@@ -1206,7 +1206,7 @@ public class DailyTimeIntervalTriggerImplTest
 
         // Call with a time after the daily start time to exercise the code path
         // that previously mutated startTimeUtc
-        DateTimeOffset afterTime = DateBuilder.DateOf(10, 0, 0, 1, 1, 2024);
+        DateTimeOffset afterTime = TestDates.DateOf(10, 0, 0, 1, 1, 2024);
         trigger.GetFireTimeAfter(afterTime);
 
         Assert.That(trigger.StartTimeUtc, Is.EqualTo(originalStartTime),
@@ -1272,7 +1272,7 @@ public class DailyTimeIntervalTriggerImplTest
             .StartingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(0, 1, 5))
             .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
             .OnEveryDay()
-            .WithIntervalInHours(24)
+            .WithInterval(24, IntervalUnit.Hour)
             .InTimeZone(timeZoneInfo)
             .Build();
 
@@ -1304,7 +1304,7 @@ public class DailyTimeIntervalTriggerImplTest
             .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(12, 0))
             .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
             .OnEveryDay()
-            .WithIntervalInHours(24)
+            .WithInterval(24, IntervalUnit.Hour)
             .InTimeZone(timeZoneInfo)
             .Build();
 
@@ -1331,7 +1331,7 @@ public class DailyTimeIntervalTriggerImplTest
             .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(0, 0))
             .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
             .OnEveryDay()
-            .WithIntervalInHours(24)
+            .WithInterval(24, IntervalUnit.Hour)
             .InTimeZone(timeZoneInfo)
             .Build();
 
@@ -1351,14 +1351,14 @@ public class DailyTimeIntervalTriggerImplTest
     [Category("windowstimezoneid")]
     public void TestDstFallBackWithMinutesIntervalEquivalentTo24Hours()
     {
-        // Same scenario as #1114 but using WithIntervalInMinutes(1440)
+        // Same scenario as #1114 but using WithInterval(1440, IntervalUnit.Minute)
         TimeZoneInfo timeZoneInfo = TZConvert.GetTimeZoneInfo("Central European Standard Time");
 
         IOperableTrigger trigger = (IOperableTrigger) DailyTimeIntervalScheduleBuilder.Create()
             .StartingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(0, 1, 5))
             .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
             .OnEveryDay()
-            .WithIntervalInMinutes(1440)
+            .WithInterval(1440, IntervalUnit.Minute)
             .InTimeZone(timeZoneInfo)
             .Build();
 
@@ -1377,14 +1377,14 @@ public class DailyTimeIntervalTriggerImplTest
     [Category("windowstimezoneid")]
     public void TestDstFallBackWithSecondsIntervalEquivalentTo24Hours()
     {
-        // Same scenario as #1114 but using WithIntervalInSeconds(86400)
+        // Same scenario as #1114 but using WithInterval(86400, IntervalUnit.Second)
         TimeZoneInfo timeZoneInfo = TZConvert.GetTimeZoneInfo("Central European Standard Time");
 
         IOperableTrigger trigger = (IOperableTrigger) DailyTimeIntervalScheduleBuilder.Create()
             .StartingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(0, 1, 5))
             .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
             .OnEveryDay()
-            .WithIntervalInSeconds(86400)
+            .WithInterval(86400, IntervalUnit.Second)
             .InTimeZone(timeZoneInfo)
             .Build();
 
@@ -1412,7 +1412,7 @@ public class DailyTimeIntervalTriggerImplTest
             .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(2, 30))
             .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
             .OnEveryDay()
-            .WithIntervalInHours(24)
+            .WithInterval(24, IntervalUnit.Hour)
             .InTimeZone(timeZoneInfo)
             .Build();
 
@@ -1451,7 +1451,7 @@ public class DailyTimeIntervalTriggerImplTest
             .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(0, 0))
             .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
             .OnEveryDay()
-            .WithIntervalInHours(1)
+            .WithInterval(1, IntervalUnit.Hour)
             .InTimeZone(timeZoneInfo)
             .Build();
 
@@ -1480,7 +1480,7 @@ public class DailyTimeIntervalTriggerImplTest
             .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(0, 0))
             .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
             .OnEveryDay()
-            .WithIntervalInMinutes(5)
+            .WithInterval(5, IntervalUnit.Minute)
             .InTimeZone(timeZoneInfo)
             .Build();
 
@@ -1574,7 +1574,7 @@ public class DailyTimeIntervalTriggerImplTest
             .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(0, 0))
             .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
             .OnEveryDay()
-            .WithIntervalInMinutes(5)
+            .WithInterval(5, IntervalUnit.Minute)
             .InTimeZone(timeZoneInfo)
             .Build();
 
@@ -1614,7 +1614,7 @@ public class DailyTimeIntervalTriggerImplTest
             .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(0, 0))
             .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
             .OnEveryDay()
-            .WithIntervalInHours(intervalInHours)
+            .WithInterval(intervalInHours, IntervalUnit.Hour)
             .InTimeZone(timeZoneInfo)
             .Build();
 

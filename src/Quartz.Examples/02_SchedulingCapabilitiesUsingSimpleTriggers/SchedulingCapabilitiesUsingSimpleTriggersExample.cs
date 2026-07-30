@@ -45,7 +45,7 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
         // jobs can be scheduled before scheduler.start() has been called
 
         // get a "nice round" time a few seconds in the future...
-        DateTimeOffset startTime = DateBuilder.NextGivenSecondDate(null, 15);
+        DateTimeOffset startTime = DateTimeOffset.UtcNow.AddSeconds(15);
 
         // job1 will only fire once at date/time "timeSpan"
         IJobDetail job = JobBuilder.Create<SimpleJob>()
@@ -89,7 +89,7 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
         trigger = (ISimpleTrigger) TriggerBuilder.Create()
             .WithIdentity("trigger3", "group1")
             .StartAt(startTime)
-            .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).WithRepeatCount(10))
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).WithRepeatCount(10))
             .Build();
 
         ft = await scheduler.ScheduleJob(job, trigger);
@@ -104,7 +104,7 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
         trigger = (ISimpleTrigger) TriggerBuilder.Create()
             .WithIdentity("trigger3", "group2")
             .StartAt(startTime)
-            .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).WithRepeatCount(2))
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).WithRepeatCount(2))
             .ForJob(job)
             .Build();
 
@@ -123,7 +123,7 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
         trigger = (ISimpleTrigger) TriggerBuilder.Create()
             .WithIdentity("trigger4", "group1")
             .StartAt(startTime)
-            .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).WithRepeatCount(5))
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).WithRepeatCount(5))
             .Build();
 
         ft = await scheduler.ScheduleJob(job, trigger);
@@ -139,7 +139,7 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
 
         trigger = (ISimpleTrigger) TriggerBuilder.Create()
             .WithIdentity("trigger5", "group1")
-            .StartAt(DateBuilder.FutureDate(5, IntervalUnit.Minute))
+            .StartAt(DateTimeOffset.UtcNow.AddMinutes(5))
             .Build();
 
         ft = await scheduler.ScheduleJob(job, trigger);
@@ -156,7 +156,7 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
         trigger = (ISimpleTrigger) TriggerBuilder.Create()
             .WithIdentity("trigger6", "group1")
             .StartAt(startTime)
-            .WithSimpleSchedule(x => x.WithIntervalInSeconds(40).RepeatForever())
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(40)).RepeatForever())
             .Build();
 
         ft = await scheduler.ScheduleJob(job, trigger);
@@ -182,7 +182,7 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
         trigger = (ISimpleTrigger) TriggerBuilder.Create()
             .WithIdentity("trigger7", "group1")
             .StartAt(startTime)
-            .WithSimpleSchedule(x => x.WithIntervalInMinutes(5).WithRepeatCount(20))
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(5)).WithRepeatCount(20))
             .Build();
 
         ft = await scheduler.ScheduleJob(job, trigger);
@@ -220,7 +220,7 @@ public class SchedulingCapabilitiesUsingSimpleTriggersExample : IExample
         trigger = (ISimpleTrigger) TriggerBuilder.Create()
             .WithIdentity("trigger7", "group1")
             .StartAt(startTime)
-            .WithSimpleSchedule(x => x.WithIntervalInMinutes(5).WithRepeatCount(20))
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(5)).WithRepeatCount(20))
             .Build();
 
         ft = await scheduler.RescheduleJob(trigger.Key, trigger);

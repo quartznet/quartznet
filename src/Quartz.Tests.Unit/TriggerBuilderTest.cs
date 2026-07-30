@@ -53,13 +53,13 @@ public class TriggerBuilderTest
             Assert.That(trigger.EndTimeUtc, Is.EqualTo(null), "Unexpected end-time: " + trigger.EndTimeUtc);
         });
 
-        DateTimeOffset stime = DateBuilder.EvenSecondDateAfterNow();
+        DateTimeOffset stime = TestDates.EvenSecondDateAfterNow();
 
         trigger = TriggerBuilder.Create()
             .WithIdentity("t1")
             .WithDescription("my description")
             .WithPriority(2)
-            .EndAt(DateBuilder.FutureDate(10, IntervalUnit.Week))
+            .EndAt(TestDates.FutureDate(10, IntervalUnit.Week))
             .StartAt(stime)
             .Build();
 

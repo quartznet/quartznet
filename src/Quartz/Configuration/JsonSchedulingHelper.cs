@@ -301,7 +301,7 @@ internal static class JsonSchedulingHelper
         var misfireInstruction = section[nameof(JsonSimpleSchedule.MisfireInstruction)];
         if (misfireInstruction is not null)
         {
-            builder.WithMisfireHandlingInstruction(ParseMisfireInstruction(misfireInstruction));
+            builder.WithMisfireHandlingInstruction((SimpleTriggerMisfireInstruction) ParseMisfireInstruction(misfireInstruction));
         }
 
         return builder;
@@ -336,7 +336,7 @@ internal static class JsonSchedulingHelper
         var misfireInstruction = section[nameof(JsonCronSchedule.MisfireInstruction)];
         if (misfireInstruction is not null)
         {
-            builder.WithMisfireHandlingInstruction(ParseMisfireInstruction(misfireInstruction));
+            builder.WithMisfireHandlingInstruction((CronTriggerMisfireInstruction) ParseMisfireInstruction(misfireInstruction));
         }
 
         return builder;
@@ -355,7 +355,7 @@ internal static class JsonSchedulingHelper
         var misfireInstruction = section[nameof(JsonCalendarIntervalSchedule.MisfireInstruction)];
         if (misfireInstruction is not null)
         {
-            builder.WithMisfireHandlingInstruction(ParseMisfireInstruction(misfireInstruction));
+            builder.WithMisfireHandlingInstruction((CalendarIntervalTriggerMisfireInstruction) ParseMisfireInstruction(misfireInstruction));
         }
 
         return builder;
@@ -416,18 +416,10 @@ internal static class JsonSchedulingHelper
         var misfireInstruction = section[nameof(JsonDailyTimeIntervalSchedule.MisfireInstruction)];
         if (misfireInstruction is not null)
         {
-            var instruction = ParseMisfireInstruction(misfireInstruction);
-            if (instruction == MisfireInstruction.IgnoreMisfirePolicy)
+            var instruction = (DailyTimeIntervalTriggerMisfireInstruction) ParseMisfireInstruction(misfireInstruction);
+            if (Enum.IsDefined(instruction))
             {
-                builder.WithMisfireHandlingInstructionIgnoreMisfires();
-            }
-            else if (instruction == MisfireInstruction.DailyTimeIntervalTrigger.DoNothing)
-            {
-                builder.WithMisfireHandlingInstructionDoNothing();
-            }
-            else if (instruction == MisfireInstruction.DailyTimeIntervalTrigger.FireOnceNow)
-            {
-                builder.WithMisfireHandlingInstructionFireAndProceed();
+                builder.WithMisfireHandlingInstruction(instruction);
             }
         }
 

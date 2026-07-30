@@ -32,7 +32,7 @@ public sealed class PreferredNodeClusteredPostgresTest : ClusteredPostgresTestBa
                 .ForJob(job)
                 .WithPreferredNode(PreferredNode.Auto)
                 .WithSimpleSchedule(s => s
-                    .WithIntervalInSeconds(1)
+                    .WithInterval(TimeSpan.FromSeconds(1))
                     .RepeatForever())
                 .StartNow()
                 .Build();
@@ -84,7 +84,7 @@ public sealed class PreferredNodeClusteredPostgresTest : ClusteredPostgresTestBa
                 .ForJob(job)
                 .WithPreferredNode(PreferredNode.For("nodeA"))
                 .WithSimpleSchedule(s => s
-                    .WithIntervalInSeconds(1)
+                    .WithInterval(TimeSpan.FromSeconds(1))
                     .WithRepeatCount(3))
                 .StartNow()
                 .Build();
@@ -131,7 +131,7 @@ public sealed class PreferredNodeClusteredPostgresTest : ClusteredPostgresTestBa
                 .ForJob(job)
                 .WithPreferredNode(PreferredNode.Auto)
                 .WithSimpleSchedule(s => s
-                    .WithIntervalInSeconds(1)
+                    .WithInterval(TimeSpan.FromSeconds(1))
                     .RepeatForever())
                 .StartAt(DateTimeOffset.UtcNow.AddSeconds(3))
                 .Build();
@@ -211,7 +211,7 @@ public sealed class PreferredNodeClusteredPostgresTest : ClusteredPostgresTestBa
                 .ForJob(job)
                 .WithPreferredNode(PreferredNode.For("nodeA"))
                 .WithSimpleSchedule(s => s
-                    .WithIntervalInSeconds(1)
+                    .WithInterval(TimeSpan.FromSeconds(1))
                     .RepeatForever())
                 .StartNow()
                 .Build();

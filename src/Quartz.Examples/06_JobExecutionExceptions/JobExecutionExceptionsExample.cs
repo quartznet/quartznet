@@ -45,7 +45,7 @@ public class JobExecutionExceptionsExample : IExample
         // jobs can be scheduled before start() has been called
 
         // get a "nice round" time a few seconds in the future...
-        DateTimeOffset startTime = DateBuilder.NextGivenSecondDate(null, 15);
+        DateTimeOffset startTime = DateTimeOffset.UtcNow.AddSeconds(15);
 
         // badJob1 will run every 10 seconds
         // this job will throw an exception and refire
@@ -58,7 +58,7 @@ public class JobExecutionExceptionsExample : IExample
         ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
             .WithIdentity("trigger1", "group1")
             .StartAt(startTime)
-            .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).RepeatForever())
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).RepeatForever())
             .Build();
 
         DateTimeOffset ft = await scheduler.ScheduleJob(job, trigger);
@@ -76,7 +76,7 @@ public class JobExecutionExceptionsExample : IExample
         trigger = (ISimpleTrigger) TriggerBuilder.Create()
             .WithIdentity("trigger2", "group1")
             .StartAt(startTime)
-            .WithSimpleSchedule(x => x.WithIntervalInSeconds(5).RepeatForever())
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(5)).RepeatForever())
             .Build();
         ft = await scheduler.ScheduleJob(job, trigger);
         Console.WriteLine($"{job.Key} will run at: {ft:r} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");

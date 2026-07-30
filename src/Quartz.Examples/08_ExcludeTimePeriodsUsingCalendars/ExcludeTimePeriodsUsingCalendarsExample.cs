@@ -64,7 +64,7 @@ public class ExcludeTimePeriodsUsingCalendarsExample : IExample
         // schedule a job to run hourly, starting on halloween
         // at 10 am
 
-        DateTimeOffset runDate = DateBuilder.DateOf(0, 0, 10, 31, 10);
+        DateTimeOffset runDate = DateBuilder.NewDate().InMonthOnDay(10, 31).AtHourMinuteAndSecond(0, 0, 10).Build();
 
         IJobDetail job = JobBuilder.Create<SimpleJob>()
             .WithIdentity("job1", "group1")
@@ -73,7 +73,7 @@ public class ExcludeTimePeriodsUsingCalendarsExample : IExample
         ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
             .WithIdentity("trigger1", "group1")
             .StartAt(runDate)
-            .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
             .WithCalendarName("holidays")
             .Build();
 

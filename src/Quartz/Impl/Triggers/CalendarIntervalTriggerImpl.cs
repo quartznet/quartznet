@@ -929,17 +929,10 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
             .PreserveHourOfDayAcrossDaylightSavings(PreserveHourOfDayAcrossDaylightSavings)
             .SkipDayIfHourDoesNotExist(SkipDayIfHourDoesNotExist);
 
-        switch (MisfireInstruction)
+        CalendarIntervalTriggerMisfireInstruction instruction = (CalendarIntervalTriggerMisfireInstruction) MisfireInstruction;
+        if (Enum.IsDefined(instruction))
         {
-            case Quartz.MisfireInstruction.CalendarIntervalTrigger.DoNothing:
-                cb.WithMisfireHandlingInstructionDoNothing();
-                break;
-            case Quartz.MisfireInstruction.CalendarIntervalTrigger.FireOnceNow:
-                cb.WithMisfireHandlingInstructionFireAndProceed();
-                break;
-            case Quartz.MisfireInstruction.IgnoreMisfirePolicy:
-                cb.WithMisfireHandlingInstructionIgnoreMisfires();
-                break;
+            cb.WithMisfireHandlingInstruction(instruction);
         }
 
         return cb;

@@ -61,7 +61,7 @@ public class RAMJobStoreTest
     [Test]
     public async Task TestAcquireNextTrigger()
     {
-        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        DateTimeOffset d = TestDates.EvenMinuteDateAfterNow();
         IOperableTrigger trigger1 = new SimpleTriggerImpl("trigger1", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group, d.AddSeconds(200), d.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
         IOperableTrigger trigger2 = new SimpleTriggerImpl("trigger2", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group, d.AddSeconds(50), d.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
         IOperableTrigger trigger3 = new SimpleTriggerImpl("trigger1", "triggerGroup2", fJobDetail.Key.Name, fJobDetail.Key.Group, d.AddSeconds(100), d.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
@@ -478,7 +478,7 @@ public class RAMJobStoreTest
         {
             DateTime startTime = startTime0.AddMinutes(i * 1); // a min apart
             IJobDetail job = JobBuilder.Create<NoOpJob>().WithIdentity("job" + i).Build();
-            SimpleScheduleBuilder schedule = SimpleScheduleBuilder.RepeatMinutelyForever(2);
+            SimpleScheduleBuilder schedule = SimpleScheduleBuilder.Create().WithInterval(TimeSpan.FromMinutes(2)).RepeatForever();
             IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create().WithIdentity("job" + i).WithSchedule(schedule).ForJob(job).StartAt(startTime).Build();
 
             // Manually trigger the first fire time computation that scheduler would do. Otherwise
@@ -520,7 +520,7 @@ public class RAMJobStoreTest
         {
             DateTimeOffset startTime = startTime0.AddMinutes(i); // a min apart
             IJobDetail job = JobBuilder.Create<NoOpJob>().WithIdentity("job" + i).Build();
-            SimpleScheduleBuilder schedule = SimpleScheduleBuilder.RepeatMinutelyForever(2);
+            SimpleScheduleBuilder schedule = SimpleScheduleBuilder.Create().WithInterval(TimeSpan.FromMinutes(2)).RepeatForever();
             IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create().WithIdentity("job" + i).WithSchedule(schedule).ForJob(job).StartAt(startTime).Build();
 
             // Manually trigger the first fire time computation that scheduler would do. Otherwise
@@ -546,7 +546,7 @@ public class RAMJobStoreTest
     [Test]
     public async Task TestResetErrorTrigger()
     {
-        var baseFireTimeDate = DateBuilder.EvenMinuteDateAfterNow();
+        var baseFireTimeDate = TestDates.EvenMinuteDateAfterNow();
 
         // create and store a trigger
         IOperableTrigger trigger1 = new SimpleTriggerImpl(
@@ -611,7 +611,7 @@ public class RAMJobStoreTest
             .Build();
         await fJobStore.AddJob(job, true);
 
-        var d = DateBuilder.EvenMinuteDateAfterNow();
+        var d = TestDates.EvenMinuteDateAfterNow();
         var trigger1 = new SimpleTriggerImpl("trigger1", "group1", job.Key.Name, job.Key.Group,
             d.AddSeconds(1), d.AddSeconds(200), 10, TimeSpan.FromSeconds(5));
         var trigger2 = new SimpleTriggerImpl("trigger2", "group1", job.Key.Name, job.Key.Group,
@@ -661,7 +661,7 @@ public class RAMJobStoreTest
             .Build();
         await fJobStore.AddJob(job, true);
 
-        var d = DateBuilder.EvenMinuteDateAfterNow();
+        var d = TestDates.EvenMinuteDateAfterNow();
         var trigger1 = new SimpleTriggerImpl("trigger1", "group1", job.Key.Name, job.Key.Group,
             d.AddSeconds(1), d.AddSeconds(200), 10, TimeSpan.FromSeconds(5));
         var trigger2 = new SimpleTriggerImpl("trigger2", "group1", job.Key.Name, job.Key.Group,
@@ -714,7 +714,7 @@ public class RAMJobStoreTest
     [Test]
     public async Task GetTriggerState_ReturnsExecuting_WhileConcurrencyAllowedJobRuns()
     {
-        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        DateTimeOffset d = TestDates.EvenMinuteDateAfterNow();
         var trigger = ExecutingTestTrigger("executingTrigger", d);
         await fJobStore.AddTrigger(trigger, false);
 
@@ -738,7 +738,7 @@ public class RAMJobStoreTest
     [Test]
     public async Task GetTriggerState_ReturnsExecuting_UntilLastOfSeveralConcurrentFiresCompletes()
     {
-        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        DateTimeOffset d = TestDates.EvenMinuteDateAfterNow();
         var trigger = ExecutingTestTrigger("concurrentTrigger", d);
         await fJobStore.AddTrigger(trigger, false);
 
@@ -771,7 +771,7 @@ public class RAMJobStoreTest
     [Test]
     public async Task GetTriggerState_ReturnsPaused_WhenTriggerPausedWhileJobExecuting()
     {
-        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        DateTimeOffset d = TestDates.EvenMinuteDateAfterNow();
         var trigger = ExecutingTestTrigger("pausedWhileExecutingTrigger", d);
         await fJobStore.AddTrigger(trigger, false);
 
@@ -793,7 +793,7 @@ public class RAMJobStoreTest
     [Test]
     public async Task GetTriggerState_ReturnsNone_WhenTriggerRemovedWhileExecuting()
     {
-        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        DateTimeOffset d = TestDates.EvenMinuteDateAfterNow();
         var trigger = ExecutingTestTrigger("removedWhileExecutingTrigger", d);
         await fJobStore.AddTrigger(trigger, false);
 
@@ -824,7 +824,7 @@ public class RAMJobStoreTest
     [Test]
     public async Task GetTriggerState_ForgetsExecutions_WhenTriggerIsRemovedAndRecreatedMidExecution()
     {
-        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        DateTimeOffset d = TestDates.EvenMinuteDateAfterNow();
         var trigger = ExecutingTestTrigger("recreatedWhileExecutingTrigger", d);
         await fJobStore.AddTrigger(trigger, false);
 
@@ -855,7 +855,7 @@ public class RAMJobStoreTest
     [Test]
     public async Task GetTriggerState_ForgetsExecutions_WhenTriggerIsReplacedMidExecution()
     {
-        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        DateTimeOffset d = TestDates.EvenMinuteDateAfterNow();
         var trigger = ExecutingTestTrigger("replacedWhileExecutingTrigger", d);
         await fJobStore.AddTrigger(trigger, false);
 
@@ -876,7 +876,7 @@ public class RAMJobStoreTest
     [Test]
     public async Task GetTriggerState_ForgetsExecutions_WhenSchedulingDataIsClearedMidExecution()
     {
-        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        DateTimeOffset d = TestDates.EvenMinuteDateAfterNow();
         var trigger = ExecutingTestTrigger("clearedWhileExecutingTrigger", d);
         await fJobStore.AddTrigger(trigger, false);
 
@@ -899,7 +899,7 @@ public class RAMJobStoreTest
     [Test]
     public async Task ReplaceTrigger_LeavesTriggerIntact_WhenReplacementNamesADifferentJob()
     {
-        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        DateTimeOffset d = TestDates.EvenMinuteDateAfterNow();
         var trigger = ExecutingTestTrigger("mismatchedReplacementTrigger", d);
         await fJobStore.AddTrigger(trigger, false);
 
@@ -922,7 +922,7 @@ public class RAMJobStoreTest
     [Test]
     public async Task GetTriggerState_KeepsReportingExecuting_WhenTriggerIsRescheduledMidExecution()
     {
-        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        DateTimeOffset d = TestDates.EvenMinuteDateAfterNow();
         var trigger = ExecutingTestTrigger("rescheduledWhileExecutingTrigger", d);
         await fJobStore.AddTrigger(trigger, false);
 
@@ -951,7 +951,7 @@ public class RAMJobStoreTest
     [Test]
     public async Task GetTriggerState_RecordsNoExecution_WhenFiringBailsOut()
     {
-        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        DateTimeOffset d = TestDates.EvenMinuteDateAfterNow();
         var trigger = ExecutingTestTrigger("missingCalendarTrigger", d);
         trigger.CalendarName = "noSuchCalendar";
         await fJobStore.AddTrigger(trigger, false);
@@ -977,7 +977,7 @@ public class RAMJobStoreTest
     [Test]
     public async Task GetTriggerState_DropsExecution_WhenTriggerIsReleasedAfterFiring()
     {
-        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        DateTimeOffset d = TestDates.EvenMinuteDateAfterNow();
         var trigger = ExecutingTestTrigger("releasedAfterFiringTrigger", d);
         await fJobStore.AddTrigger(trigger, false);
 
@@ -995,7 +995,7 @@ public class RAMJobStoreTest
     [Test]
     public async Task GetTriggerState_ReturnsNormal_WhenAcquiredTriggerReleasedWithoutFiring()
     {
-        DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
+        DateTimeOffset d = TestDates.EvenMinuteDateAfterNow();
         var trigger = ExecutingTestTrigger("releasedTrigger", d);
         await fJobStore.AddTrigger(trigger, false);
 

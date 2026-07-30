@@ -94,7 +94,7 @@ public void ConfigureServices(IServiceCollection services)
         // (requires version 3.2)
         q.ScheduleJob<ExampleJob>(trigger => trigger
             .WithIdentity("Combined Configuration Trigger")
-            .StartAt(DateBuilder.EvenSecondDate(DateTimeOffset.UtcNow.AddSeconds(7)))
+            .StartAt(DateTimeOffset.UtcNow.AddSeconds(7))
             .WithDailyTimeIntervalSchedule(x => x.WithInterval(10, IntervalUnit.Second))
             .WithDescription("my awesome trigger configured for a job with single call")
         );
@@ -128,7 +128,7 @@ public void ConfigureServices(IServiceCollection services)
         q.AddTrigger(t => t
             .WithIdentity("Cron Trigger")
             .ForJob(jobKey)
-            .StartAt(DateBuilder.EvenSecondDate(DateTimeOffset.UtcNow.AddSeconds(3)))
+            .StartAt(DateTimeOffset.UtcNow.AddSeconds(3))
             .WithCronSchedule("0/3 * * * * ?")
             .WithDescription("my awesome cron trigger")
         );
@@ -153,7 +153,7 @@ public void ConfigureServices(IServiceCollection services)
         q.AddTrigger(t => t
             .WithIdentity("Daily Trigger")
             .ForJob(jobKey)
-            .StartAt(DateBuilder.EvenSecondDate(DateTimeOffset.UtcNow.AddSeconds(5)))
+            .StartAt(DateTimeOffset.UtcNow.AddSeconds(5))
             .WithDailyTimeIntervalSchedule(x => x.WithInterval(10, IntervalUnit.Second))
             .WithDescription("my awesome daily time interval trigger")
             .WithCalendarName(calendarName)
@@ -181,7 +181,7 @@ public void ConfigureServices(IServiceCollection services)
             triggerConfigurator => triggerConfigurator
                 .WithIdentity("slowJobTrigger")
                 .StartNow()
-                .WithSimpleSchedule(x => x.WithIntervalInSeconds(5).RepeatForever()),
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(5)).RepeatForever()),
             jobConfigurator => jobConfigurator
                 .WithIdentity("slowJob")
                 .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable, true)

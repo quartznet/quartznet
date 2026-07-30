@@ -232,7 +232,7 @@ public class RecurrenceTriggerImplTest
             .WithIdentity("test", "group")
             .WithRecurrenceSchedule("FREQ=MONTHLY;BYDAY=2MO", b => b
                 .InTimeZone(TimeZoneInfo.Utc)
-                .WithMisfireHandlingInstructionDoNothing())
+                .WithMisfireHandlingInstruction(RecurrenceTriggerMisfireInstruction.DoNothing))
             .StartAt(new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero))
             .Build();
 

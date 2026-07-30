@@ -13,7 +13,7 @@ public class TriggerUtilsTest
         var trigger = (IOperableTrigger) TriggerBuilder.Create()
             .StartAt(startAt)
             .EndAt(endAt)
-            .WithSimpleSchedule(x => x.WithIntervalInHours(24).RepeatForever())
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(24)).RepeatForever())
             .Build();
 
         // Query with 'from' 10 minutes earlier than trigger's start
@@ -39,7 +39,7 @@ public class TriggerUtilsTest
         var trigger = (IOperableTrigger) TriggerBuilder.Create()
             .StartAt(startAt)
             .EndAt(endAt)
-            .WithSimpleSchedule(x => x.WithIntervalInHours(24).RepeatForever())
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(24)).RepeatForever())
             .Build();
 
         var from = DateTimeOffset.Parse("2026-01-01 08:00:00Z");

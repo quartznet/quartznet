@@ -124,7 +124,7 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
     {
         SimpleTriggerImpl simpleTrigger = new SimpleTriggerImpl();
 
-        DateTimeOffset startTime = DateBuilder.EvenSecondDate(DateTime.UtcNow);
+        DateTimeOffset startTime = TestDates.EvenSecondDate(DateTime.UtcNow);
 
         simpleTrigger.StartTimeUtc = startTime;
         simpleTrigger.RepeatInterval = TimeSpan.FromMilliseconds(10);
@@ -178,7 +178,7 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
             RepeatCount = 1
         };
         var referenceDate = new DateTimeOffset(2025, 6, 15, 12, 0, 0, TimeSpan.Zero);
-        DateTimeOffset neverFireTime = DateBuilder.EvenMinuteDateBefore(dailyCalendar.GetTimeRangeStartingTimeUtc(referenceDate));
+        DateTimeOffset neverFireTime = TestDates.EvenMinuteDateBefore(dailyCalendar.GetTimeRangeStartingTimeUtc(referenceDate));
         simpleTrigger.StartTimeUtc = neverFireTime;
 
         simpleTrigger.ComputeFirstFireTimeUtc(dailyCalendar);
@@ -276,7 +276,7 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
                 .WithIdentity("testTrigger", "testGroup")
                 .StartAt(pastStart)
                 .WithSimpleSchedule(x => x
-                    .WithIntervalInMinutes(10)
+                    .WithInterval(TimeSpan.FromMinutes(10))
                     .RepeatForever())
                 .Build();
 
@@ -326,7 +326,7 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
                 .WithIdentity("testTrigger", "testGroup")
                 .StartAt(pastStart)
                 .WithSimpleSchedule(x => x
-                    .WithIntervalInMinutes(10)
+                    .WithInterval(TimeSpan.FromMinutes(10))
                     .WithRepeatCount(5))
                 .Build();
 
@@ -370,7 +370,7 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
                 .WithIdentity("testTrigger", "testGroup")
                 .StartAt(futureStart)
                 .WithSimpleSchedule(x => x
-                    .WithIntervalInMinutes(10)
+                    .WithInterval(TimeSpan.FromMinutes(10))
                     .RepeatForever())
                 .Build();
 

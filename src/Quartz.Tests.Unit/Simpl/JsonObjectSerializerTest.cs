@@ -297,7 +297,7 @@ public class JsonObjectSerializerTest
                 .InTimeZone(TimeZoneInfo.Utc)
                 .PreserveHourOfDayAcrossDaylightSavings(true)
                 .SkipDayIfHourDoesNotExist(false)
-                .WithMisfireHandlingInstructionFireAndProceed()
+                .WithMisfireHandlingInstruction(CalendarIntervalTriggerMisfireInstruction.FireAndProceed)
             )
             .WithIdentity("CalendarIntervalTriggerKey", "CalendarIntervalTriggerGroup")
             .ForJob("CalendarIntervalJobKey", "CalendarIntervalJobGroup")

@@ -44,7 +44,7 @@ public class InterrupInProgressJobsExample : IExample
 
         // get a "nice round" time a few seconds in the future...
 
-        DateTimeOffset startTime = DateBuilder.NextGivenSecondDate(null, 15);
+        DateTimeOffset startTime = DateTimeOffset.UtcNow.AddSeconds(15);
 
         IJobDetail job = JobBuilder.Create<DumbInterruptableJob>()
             .WithIdentity("interruptableJob1", "group1")
@@ -53,7 +53,7 @@ public class InterrupInProgressJobsExample : IExample
         ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
             .WithIdentity("trigger1", "group1")
             .StartAt(startTime)
-            .WithSimpleSchedule(x => x.WithIntervalInSeconds(5).RepeatForever())
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(5)).RepeatForever())
             .Build();
 
         DateTimeOffset ft = await scheduler.ScheduleJob(job, trigger);

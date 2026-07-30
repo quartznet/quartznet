@@ -528,22 +528,22 @@ public class SimpleTriggerImplBenchmark
             switch (MisfireInstruction)
             {
                 case Quartz.MisfireInstruction.SimpleTrigger.FireNow:
-                    sb.WithMisfireHandlingInstructionFireNow();
+                    sb.WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.FireNow);
                     break;
                 case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount:
-                    sb.WithMisfireHandlingInstructionNextWithExistingCount();
+                    sb.WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.NextWithExistingCount);
                     break;
                 case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount:
-                    sb.WithMisfireHandlingInstructionNextWithRemainingCount();
+                    sb.WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.NextWithRemainingCount);
                     break;
                 case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount:
-                    sb.WithMisfireHandlingInstructionNowWithExistingCount();
+                    sb.WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.NowWithExistingCount);
                     break;
                 case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount:
-                    sb.WithMisfireHandlingInstructionNowWithRemainingCount();
+                    sb.WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.NowWithRemainingCount);
                     break;
                 case Quartz.MisfireInstruction.IgnoreMisfirePolicy:
-                    sb.WithMisfireHandlingInstructionIgnoreMisfires();
+                    sb.WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.IgnoreMisfires);
                     break;
             }
 

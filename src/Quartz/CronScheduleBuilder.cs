@@ -25,13 +25,34 @@ using Quartz.Extensibility;
 namespace Quartz;
 
 /// <summary>
-/// Internal interface for schedule builders that support deferred H (hash)
-/// token resolution. <see cref="TriggerBuilder"/> uses this to pass the
-/// trigger key before <see cref="IScheduleBuilder.Build"/> is called.
+/// Lets <see cref="TriggerBuilder{TJob}" /> hand a schedule builder the trigger's identity before
+/// it builds, so that <c>H</c> (hash) tokens in a cron expression can be spread by that identity.
 /// </summary>
+/// <remarks>
+/// <para>
+/// A cron expression such as <c>"H 3 * * *"</c> means "some minute past three, chosen for me".
+/// Which minute is decided by hashing a key, so that every trigger using the same expression lands
+/// on a different minute instead of all firing at once. The natural key is the trigger's own
+/// <see cref="TriggerKey" />, but a trigger does not know its key until
+/// <see cref="TriggerBuilder{TJob}.Build" /> runs — hence the deferral.
+/// </para>
+/// <para>
+/// This is internal because only <see cref="TriggerBuilder{TJob}" /> is in a position to call it.
+/// Callers who want to choose the hash key themselves build the expression directly:
+/// <c>CronScheduleBuilder.CronSchedule(new CronExpression(expression, hashKey))</c>.
+/// </para>
+/// </remarks>
 internal interface IHashKeyAwareScheduleBuilder
 {
+    /// <summary>
+    /// Whether this builder is holding an expression whose <c>H</c> tokens are still unresolved.
+    /// </summary>
     bool RequiresHashKey { get; }
+
+    /// <summary>
+    /// Resolve the pending <c>H</c> tokens against the trigger's identity. Called by
+    /// <see cref="TriggerBuilder{TJob}.Build" /> before <see cref="IScheduleBuilder.Build" />.
+    /// </summary>
     void SetHashKey(TriggerKey key);
 }
 
@@ -55,21 +76,26 @@ internal interface IHashKeyAwareScheduleBuilder
 /// IJobDetail job = JobBuilder.Create&lt;MyJob&gt;()
 ///   .WithIdentity("myJob")
 ///   .Build();
-/// ITrigger trigger = newTrigger()
-///  .WithIdentity(triggerKey("myTrigger", "myTriggerGroup"))
-///  .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
-///  .StartAt(DateBuilder.FutureDate(10, IntervalUnit.Minute))
+/// ITrigger trigger = TriggerBuilder.Create()
+///  .WithIdentity("myTrigger", "myTriggerGroup")
+///  .WithCronSchedule("0 0/5 * * * ?")
 ///  .Build();
-/// scheduler.scheduleJob(job, trigger);
+/// await scheduler.ScheduleJob(job, trigger);
 /// </code>
+/// <para>
+/// For schedules that are easier to describe than to spell as a cron string, build the expression
+/// with <see cref="CronExpressionBuilder" /> and pass it to
+/// <see cref="CronSchedule(CronExpression)" />.
+/// </para>
 /// </remarks>
 /// <seealso cref="CronExpression" />
+/// <seealso cref="CronExpressionBuilder" />
 /// <seealso cref="ICronTrigger" />
 /// <seealso cref="IScheduleBuilder" />
 /// <seealso cref="SimpleScheduleBuilder" />
 /// <seealso cref="CalendarIntervalScheduleBuilder" />
 /// <seealso cref="TriggerBuilder" />
-public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>, IHashKeyAwareScheduleBuilder
+public sealed class CronScheduleBuilder : IScheduleBuilder, IHashKeyAwareScheduleBuilder
 {
     private CronExpression? cronExpression;
     private readonly string? deferredHashExpression;
@@ -100,14 +126,14 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>, IHashKe
     /// ScheduleBuilder is given to.
     /// </summary>
     /// <seealso cref="TriggerBuilder{TJob}.WithSchedule" />
-    public override IMutableTrigger Build()
+    public IMutableTrigger Build()
     {
         if (cronExpression is null)
         {
             Throw.FormatException(
                 "Cron expression contains H (hash) tokens which require a trigger identity for resolution. "
                 + "Use TriggerBuilder with WithIdentity(), or provide an explicit hash key via "
-                + "CronScheduleBuilder.CronScheduleWithHash() or new CronExpression(expression, hashKey).");
+                + "CronScheduleBuilder.CronSchedule(new CronExpression(expression, hashKey)).");
         }
 
         CronTriggerImpl ct = new CronTriggerImpl();
@@ -172,6 +198,10 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>, IHashKe
     /// <summary>
     /// Create a CronScheduleBuilder with the given cron-expression.
     /// </summary>
+    /// <remarks>
+    /// This is also the way to resolve <c>H</c> (hash) tokens against something other than the
+    /// trigger's own key: <c>CronSchedule(new CronExpression(expression, hashKey))</c>.
+    /// </remarks>
     /// <param name="cronExpression">the cron expression to base the schedule on.</param>
     /// <returns>the new CronScheduleBuilder</returns>
     /// <seealso cref="CronExpression" />
@@ -181,161 +211,20 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>, IHashKe
     }
 
     /// <summary>
-    /// Create a CronScheduleBuilder with H (hash) tokens resolved immediately
-    /// using the given hash key.
-    /// </summary>
-    /// <param name="cronExpression">Cron expression that may contain H tokens</param>
-    /// <param name="hashKey">A stable string key used to derive hash values (e.g., trigger name)</param>
-    /// <returns>the new CronScheduleBuilder</returns>
-    public static CronScheduleBuilder CronScheduleWithHash(string cronExpression, string hashKey)
-    {
-        return CronSchedule(new CronExpression(cronExpression, hashKey));
-    }
-
-    /// <summary>
-    /// Create a CronScheduleBuilder with H (hash) tokens resolved immediately
-    /// using the given integer hash seed.
-    /// </summary>
-    /// <param name="cronExpression">Cron expression that may contain H tokens</param>
-    /// <param name="hashSeed">An integer seed used to derive hash values</param>
-    /// <returns>the new CronScheduleBuilder</returns>
-    public static CronScheduleBuilder CronScheduleWithHash(string cronExpression, int hashSeed)
-    {
-        return CronSchedule(new CronExpression(cronExpression, hashSeed));
-    }
-
-    /// <summary>
-    /// Create a CronScheduleBuilder with a cron-expression that sets the
-    /// schedule to fire every day at the given time (hour and minute).
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <param name="hour">the hour of day to fire</param>
-    /// <param name="minute">the minute of the given hour to fire</param>
-    /// <returns>the new CronScheduleBuilder</returns>
-    /// <seealso cref="CronExpression" />
-    public static CronScheduleBuilder DailyAtHourAndMinute(int hour, int minute)
-    {
-        // DateBuilder validation first preserves this method's historical plain-ArgumentException contract
-        DateBuilder.ValidateHour(hour);
-        DateBuilder.ValidateMinute(minute);
-
-        string cronExpression = CronExpressionBuilder.Create()
-            .WithSecond(0)
-            .WithMinute(minute)
-            .WithHour(hour)
-            .ToString();
-
-        return CronScheduleNoParseException(cronExpression);
-    }
-
-    /// <summary>
-    /// Create a CronScheduleBuilder with a cron-expression that sets the
-    /// schedule to fire at the given day at the given time (hour and minute) on the given days of the week.
-    /// </summary>
-    /// <param name="hour">the hour of day to fire</param>
-    /// <param name="minute">the minute of the given hour to fire</param>
-    /// <param name="daysOfWeek">the days of the week to fire</param>
-    /// <returns>the new CronScheduleBuilder</returns>
-    /// <seealso cref="CronExpression" />
-    public static CronScheduleBuilder AtHourAndMinuteOnGivenDaysOfWeek(int hour, int minute, params DayOfWeek[] daysOfWeek)
-    {
-        // these guards run before the builder's own validation to preserve this
-        // method's historical plain-ArgumentException contract and messages
-        if (daysOfWeek is null || daysOfWeek.Length == 0)
-        {
-            Throw.ArgumentException("You must specify at least one day of week.");
-        }
-
-        DateBuilder.ValidateHour(hour);
-        DateBuilder.ValidateMinute(minute);
-
-        string cronExpression = CronExpressionBuilder.Create()
-            .WithSecond(0)
-            .WithMinute(minute)
-            .WithHour(hour)
-            .OnDaysOfWeek(daysOfWeek)
-            .ToString();
-
-        return CronScheduleNoParseException(cronExpression);
-    }
-
-    /// <summary>
-    /// Create a CronScheduleBuilder with a cron-expression that sets the
-    /// schedule to fire one per week on the given day at the given time
-    /// (hour and minute).
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <param name="dayOfWeek">the day of the week to fire</param>
-    /// <param name="hour">the hour of day to fire</param>
-    /// <param name="minute">the minute of the given hour to fire</param>
-    /// <returns>the new CronScheduleBuilder</returns>
-    /// <seealso cref="CronExpression" />
-    public static CronScheduleBuilder WeeklyOnDayAndHourAndMinute(DayOfWeek dayOfWeek, int hour, int minute)
-    {
-        // validate here so an invalid enum value reports this method's own parameter name
-        if (dayOfWeek < DayOfWeek.Sunday || dayOfWeek > DayOfWeek.Saturday)
-        {
-            throw new ArgumentOutOfRangeException(nameof(dayOfWeek), $"Invalid day-of-week value: {dayOfWeek}.");
-        }
-
-        // DateBuilder validation first preserves this method's historical plain-ArgumentException contract
-        DateBuilder.ValidateHour(hour);
-        DateBuilder.ValidateMinute(minute);
-
-        string cronExpression = CronExpressionBuilder.Create()
-            .WithSecond(0)
-            .WithMinute(minute)
-            .WithHour(hour)
-            .OnDaysOfWeek(dayOfWeek)
-            .ToString();
-
-        return CronScheduleNoParseException(cronExpression);
-    }
-
-    /// <summary>
-    /// Create a CronScheduleBuilder with a cron-expression that sets the
-    /// schedule to fire one per month on the given day of month at the given
-    /// time (hour and minute).
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <param name="dayOfMonth">the day of the month to fire</param>
-    /// <param name="hour">the hour of day to fire</param>
-    /// <param name="minute">the minute of the given hour to fire</param>
-    /// <returns>the new CronScheduleBuilder</returns>
-    /// <seealso cref="CronExpression" />
-    public static CronScheduleBuilder MonthlyOnDayAndHourAndMinute(int dayOfMonth, int hour, int minute)
-    {
-        // DateBuilder validation first preserves this method's historical plain-ArgumentException contract
-        DateBuilder.ValidateDayOfMonth(dayOfMonth);
-        DateBuilder.ValidateHour(hour);
-        DateBuilder.ValidateMinute(minute);
-
-        string cronExpression = CronExpressionBuilder.Create()
-            .WithSecond(0)
-            .WithMinute(minute)
-            .WithHour(hour)
-            .WithDayOfMonth(dayOfMonth)
-            .ToString();
-
-        return CronScheduleNoParseException(cronExpression);
-    }
-
-    /// <summary>
     /// The <see cref="TimeZoneInfo" /> in which to base the schedule.
     /// </summary>
     /// <remarks>
     /// </remarks>
-    /// <param name="timeZone">the time-zone for the schedule.</param>
+    /// <param name="timeZone">the time-zone for the schedule; <see langword="null" /> means the
+    /// system's local time zone.</param>
     /// <returns>the updated CronScheduleBuilder</returns>
     /// <seealso cref="CronExpression.TimeZone" />
-    public CronScheduleBuilder InTimeZone(TimeZoneInfo timeZone)
+    public CronScheduleBuilder InTimeZone(TimeZoneInfo? timeZone)
     {
         if (cronExpression is not null)
         {
-            cronExpression.TimeZone = timeZone;
+            // CronExpression falls back to the local time zone when its backing field is null
+            cronExpression.TimeZone = timeZone!;
         }
         else
         {
@@ -344,52 +233,16 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>, IHashKe
         return this;
     }
 
-
     /// <summary>
-    /// If the Trigger misfires, use the
-    /// <see cref="MisfireInstruction.IgnoreMisfirePolicy" /> instruction.
+    /// Say what the trigger should do when it misses a firing.
     /// </summary>
-    /// <remarks>
-    /// </remarks>
+    /// <param name="instruction">the policy to apply; defaults to
+    /// <see cref="CronTriggerMisfireInstruction.SmartPolicy" />.</param>
     /// <returns>the updated CronScheduleBuilder</returns>
-    /// <seealso cref="MisfireInstruction.IgnoreMisfirePolicy" />
-    public CronScheduleBuilder WithMisfireHandlingInstructionIgnoreMisfires()
+    /// <seealso cref="CronTriggerMisfireInstruction" />
+    public CronScheduleBuilder WithMisfireHandlingInstruction(CronTriggerMisfireInstruction instruction)
     {
-        misfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
-        return this;
-    }
-
-    /// <summary>
-    /// If the Trigger misfires, use the <see cref="MisfireInstruction.CronTrigger.DoNothing" />
-    /// instruction.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <returns>the updated CronScheduleBuilder</returns>
-    /// <seealso cref="MisfireInstruction.CronTrigger.DoNothing" />
-    public CronScheduleBuilder WithMisfireHandlingInstructionDoNothing()
-    {
-        misfireInstruction = MisfireInstruction.CronTrigger.DoNothing;
-        return this;
-    }
-
-    /// <summary>
-    /// If the Trigger misfires, use the <see cref="MisfireInstruction.CronTrigger.FireOnceNow" />
-    /// instruction.
-    /// </summary>
-    /// <remarks>
-    /// </remarks>
-    /// <returns>the updated CronScheduleBuilder</returns>
-    /// <seealso cref="MisfireInstruction.CronTrigger.FireOnceNow" />
-    public CronScheduleBuilder WithMisfireHandlingInstructionFireAndProceed()
-    {
-        misfireInstruction = MisfireInstruction.CronTrigger.FireOnceNow;
-        return this;
-    }
-
-    internal CronScheduleBuilder WithMisfireHandlingInstruction(int readMisfireInstructionFromString)
-    {
-        misfireInstruction = readMisfireInstructionFromString;
+        misfireInstruction = (int) instruction;
         return this;
     }
 

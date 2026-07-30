@@ -57,9 +57,9 @@ public class MisfiredBlockedTriggerTest
                 .ForJob(job)
                 .StartNow()
                 .WithSimpleSchedule(x => x
-                    .WithIntervalInSeconds(RepeatingTriggerIntervalSeconds)
+                    .WithInterval(TimeSpan.FromSeconds(RepeatingTriggerIntervalSeconds))
                     .RepeatForever()
-                    .WithMisfireHandlingInstructionNextWithRemainingCount())
+                    .WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.NextWithRemainingCount))
                 .Build();
 
             await scheduler.ScheduleJob(job, repeatingTrigger);
@@ -79,7 +79,7 @@ public class MisfiredBlockedTriggerTest
                 .StartNow()
                 .WithSimpleSchedule(x => x
                     .WithRepeatCount(0) // Fire once only
-                    .WithMisfireHandlingInstructionNextWithRemainingCount())
+                    .WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.NextWithRemainingCount))
                 .Build();
 
             await scheduler.ScheduleJob(fireAndForgetTrigger);

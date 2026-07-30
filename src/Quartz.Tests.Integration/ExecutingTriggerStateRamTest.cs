@@ -54,7 +54,7 @@ public class ExecutingTriggerStateRamTest
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity(triggerKey)
                 .ForJob(job)
-                .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever())
                 .StartNow()
                 .Build();
 

@@ -3,29 +3,65 @@ namespace Quartz.Tests.Unit;
 public class DateBuilderTest
 {
     [Test]
-    public void NextGivenSecondDateShouldWork()
+    public void BuildsTheDateItWasTold()
     {
-        DateTimeOffset dto = new DateTimeOffset(new DateTime(2011, 11, 14, 21, 59, 0));
-        var nextGivenSecondDate = DateBuilder.NextGivenSecondDate(dto, 0);
-        Assert.Multiple(() =>
-        {
-            Assert.That(nextGivenSecondDate.Hour, Is.EqualTo(22));
-            Assert.That(nextGivenSecondDate.Minute, Is.EqualTo(0));
-            Assert.That(nextGivenSecondDate.Second, Is.EqualTo(0));
-        });
+        DateTimeOffset date = DateBuilder.NewDate()
+            .InYear(2011)
+            .InMonthOnDay(11, 14)
+            .AtHourMinuteAndSecond(21, 59, 0)
+            .Build();
+
+        date.Year.Should().Be(2011);
+        date.Month.Should().Be(11);
+        date.Day.Should().Be(14);
+        date.Hour.Should().Be(21);
+        date.Minute.Should().Be(59);
+        date.Second.Should().Be(0);
     }
 
     [Test]
-    public void NextGivenMinuteDateShouldWork()
+    public void DefaultsUnsetFieldsToNow()
     {
-        DateTimeOffset dto = new DateTimeOffset(new DateTime(2011, 11, 14, 23, 59, 0));
-        var nextGivenMinuteDate = DateBuilder.NextGivenMinuteDate(dto, 0);
-        Assert.Multiple(() =>
-        {
-            Assert.That(nextGivenMinuteDate.Day, Is.EqualTo(15));
-            Assert.That(nextGivenMinuteDate.Hour, Is.EqualTo(0));
-            Assert.That(nextGivenMinuteDate.Minute, Is.EqualTo(0));
-            Assert.That(nextGivenMinuteDate.Second, Is.EqualTo(0));
-        });
+        DateTimeOffset now = DateTimeOffset.Now;
+
+        DateTimeOffset date = DateBuilder.NewDate().AtHourMinuteAndSecond(3, 4, 5).Build();
+
+        date.Year.Should().Be(now.Year);
+        date.Month.Should().Be(now.Month);
+        date.Hour.Should().Be(3);
+        date.Minute.Should().Be(4);
+        date.Second.Should().Be(5);
+    }
+
+    [Test]
+    public void UsesTheOffsetOfTheGivenTimeZone()
+    {
+        TimeZoneInfo timeZone = TestTimeZones.CentralEuropean;
+
+        DateTimeOffset date = DateBuilder.NewDateInTimeZone(timeZone)
+            .InYear(2011)
+            .InMonthOnDay(11, 14)
+            .AtHourMinuteAndSecond(21, 59, 0)
+            .Build();
+
+        date.Offset.Should().Be(timeZone.GetUtcOffset(new DateTime(2011, 11, 14, 21, 59, 0)));
+    }
+
+    [TestCase(24)]
+    [TestCase(-1)]
+    public void RejectsAnHourOutsideTheDay(int hour)
+    {
+        Action act = () => DateBuilder.NewDate().AtHourOfDay(hour);
+
+        act.Should().Throw<ArgumentException>().WithMessage("*hour*");
+    }
+
+    [TestCase(0)]
+    [TestCase(32)]
+    public void RejectsADayOutsideTheMonth(int day)
+    {
+        Action act = () => DateBuilder.NewDate().OnDay(day);
+
+        act.Should().Throw<ArgumentException>().WithMessage("*day of month*");
     }
 }

@@ -115,7 +115,7 @@ public class ClusteringJobsExecutionExample : IExample
 
             ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
                 .WithIdentity("triger_" + count, schedId)
-                .StartAt(DateBuilder.FutureDate(1, IntervalUnit.Second))
+                .StartAt(DateTimeOffset.UtcNow.AddSeconds(1))
                 .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(5)))
                 .Build();
 
@@ -130,7 +130,7 @@ public class ClusteringJobsExecutionExample : IExample
 
             trigger = (ISimpleTrigger) TriggerBuilder.Create()
                 .WithIdentity("triger_" + count, schedId)
-                .StartAt(DateBuilder.FutureDate(2, IntervalUnit.Second))
+                .StartAt(DateTimeOffset.UtcNow.AddSeconds(2))
                 .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(5)))
                 .Build();
 
@@ -146,7 +146,7 @@ public class ClusteringJobsExecutionExample : IExample
 
             trigger = (ISimpleTrigger) TriggerBuilder.Create()
                 .WithIdentity("triger_" + count, schedId)
-                .StartAt(DateBuilder.FutureDate(1, IntervalUnit.Second))
+                .StartAt(DateTimeOffset.UtcNow.AddSeconds(1))
                 .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(3)))
                 .Build();
 
@@ -162,7 +162,7 @@ public class ClusteringJobsExecutionExample : IExample
 
             trigger = (ISimpleTrigger) TriggerBuilder.Create()
                 .WithIdentity("triger_" + count, schedId)
-                .StartAt(DateBuilder.FutureDate(1, IntervalUnit.Second))
+                .StartAt(DateTimeOffset.UtcNow.AddSeconds(1))
                 .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(4)))
                 .Build();
 
@@ -178,7 +178,7 @@ public class ClusteringJobsExecutionExample : IExample
 
             trigger = (ISimpleTrigger) TriggerBuilder.Create()
                 .WithIdentity("triger_" + count, schedId)
-                .StartAt(DateBuilder.FutureDate(1, IntervalUnit.Second))
+                .StartAt(DateTimeOffset.UtcNow.AddSeconds(1))
                 .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromMilliseconds(4500)))
                 .Build();
 

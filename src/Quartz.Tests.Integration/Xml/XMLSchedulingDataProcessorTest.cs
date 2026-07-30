@@ -173,7 +173,7 @@ public class XMLSchedulingDataProcessorTest
             // Let's setup a fixture job data that we know test is not going modify it.
             IJobDetail job = JobBuilder.Create<NoOpJob>()
                 .WithIdentity("job1").UsingJobData("foo", "dont_chg_me").Build();
-            ITrigger trigger = TriggerBuilder.Create().WithIdentity("job1").WithSchedule(SimpleScheduleBuilder.RepeatHourlyForever()).Build();
+            ITrigger trigger = TriggerBuilder.Create().WithIdentity("job1").WithSchedule(SimpleScheduleBuilder.Create().WithInterval(TimeSpan.FromHours(1)).RepeatForever()).Build();
             await scheduler.ScheduleJob(job, trigger);
 
             XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(logger, new SimpleTypeLoadHelper(), TimeProvider.System);
@@ -244,7 +244,7 @@ public class XMLSchedulingDataProcessorTest
 
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("job1")
-                .WithSchedule(SimpleScheduleBuilder.RepeatHourlyForever()).Build();
+                .WithSchedule(SimpleScheduleBuilder.Create().WithInterval(TimeSpan.FromHours(1)).RepeatForever()).Build();
 
             await scheduler.ScheduleJob(job, trigger);
 
@@ -252,7 +252,7 @@ public class XMLSchedulingDataProcessorTest
                 .WithIdentity("job2")
                 .Build();
 
-            trigger = TriggerBuilder.Create().WithIdentity("job2").WithSchedule(SimpleScheduleBuilder.RepeatHourlyForever()).Build();
+            trigger = TriggerBuilder.Create().WithIdentity("job2").WithSchedule(SimpleScheduleBuilder.Create().WithInterval(TimeSpan.FromHours(1)).RepeatForever()).Build();
             await scheduler.ScheduleJob(job, trigger);
 
             // Now load the xml data with directives: overwrite-existing-data=false, ignore-duplicates=true
@@ -439,12 +439,12 @@ public class XMLSchedulingDataProcessorTest
             // Setup existing job with same names as in xml data.
             string job1 = Guid.NewGuid().ToString();
             IJobDetail job = JobBuilder.Create<NoOpJob>().WithIdentity(job1).Build();
-            ITrigger trigger = TriggerBuilder.Create().WithIdentity(job1).WithSchedule(SimpleScheduleBuilder.RepeatHourlyForever()).Build();
+            ITrigger trigger = TriggerBuilder.Create().WithIdentity(job1).WithSchedule(SimpleScheduleBuilder.Create().WithInterval(TimeSpan.FromHours(1)).RepeatForever()).Build();
             await scheduler.ScheduleJob(job, trigger);
 
             string job2 = Guid.NewGuid().ToString();
             job = JobBuilder.Create<NoOpJob>().WithIdentity(job2).Build();
-            trigger = TriggerBuilder.Create().WithIdentity(job2).WithSchedule(SimpleScheduleBuilder.RepeatHourlyForever()).Build();
+            trigger = TriggerBuilder.Create().WithIdentity(job2).WithSchedule(SimpleScheduleBuilder.Create().WithInterval(TimeSpan.FromHours(1)).RepeatForever()).Build();
             await scheduler.ScheduleJob(job, trigger);
 
             // Now load the xml data with directives: overwrite-existing-data=false, ignore-duplicates=true

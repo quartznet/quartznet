@@ -121,7 +121,7 @@ __Calendar Example__
  ITrigger t = TriggerBuilder.Create()
   .WithIdentity("myTrigger")
   .ForJob("myJob")
-  .WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(9, 30)) // execute job daily at 9:30
+  .WithCronSchedule("0 30 9 ? * *") // execute job daily at 9:30
   .WithCalendarName("myHolidays") // but not on holidays
   .Build();
 
@@ -130,7 +130,7 @@ __Calendar Example__
  ITrigger t2 = TriggerBuilder.Create()
   .WithIdentity("myTrigger2")
   .ForJob("myJob2")
-  .WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(11, 30)) // execute job daily at 11:30
+  .WithCronSchedule("0 30 11 ? * *") // execute job daily at 11:30
   .WithCalendarName("myHolidays") // but not on holidays
   .Build();
 

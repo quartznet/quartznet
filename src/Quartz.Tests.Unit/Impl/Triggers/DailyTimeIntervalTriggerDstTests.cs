@@ -118,7 +118,7 @@ public class DailyTimeIntervalTriggerDstTests
             .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(0, 0))
             .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
             .OnEveryDay()
-            .WithIntervalInMinutes(30)
+            .WithInterval(30, IntervalUnit.Minute)
             .WithRepeatCount(30)
             .InTimeZone(timeZone)
             .Build();
@@ -176,7 +176,7 @@ public class DailyTimeIntervalTriggerDstTests
             .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(0, 0))
             .EndingDailyAt(TimeOfDay.HourAndMinuteOfDay(2, 30))
             .OnEveryDay()
-            .WithIntervalInHours(1)
+            .WithInterval(1, IntervalUnit.Hour)
             .InTimeZone(timeZone)
             .Build();
 
@@ -277,7 +277,7 @@ public class DailyTimeIntervalTriggerDstTests
             .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(2, 30))
             .EndingDailyAt(TimeOfDay.HourAndMinuteOfDay(3, 30))
             .OnDaysOfTheWeek(DayOfWeek.Saturday, DayOfWeek.Sunday)
-            .WithIntervalInHours(1)
+            .WithInterval(1, IntervalUnit.Hour)
             .InTimeZone(timeZone)
             .Build();
 
@@ -332,7 +332,7 @@ public class DailyTimeIntervalTriggerDstTests
             .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(startHour, startMinute))
             .EndingDailyAt(TimeOfDay.HourAndMinuteOfDay(startHour + 2, startMinute))
             .OnDaysOfTheWeek(DayOfWeek.Sunday)
-            .WithIntervalInHours(1)
+            .WithInterval(1, IntervalUnit.Hour)
             .InTimeZone(timeZone)
             .Build();
 
@@ -375,7 +375,7 @@ public class DailyTimeIntervalTriggerDstTests
             .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(0, 0))
             .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
             .OnEveryDay()
-            .WithIntervalInMinutes(30)
+            .WithInterval(30, IntervalUnit.Minute)
             .InTimeZone(timeZone)
             .Build();
 

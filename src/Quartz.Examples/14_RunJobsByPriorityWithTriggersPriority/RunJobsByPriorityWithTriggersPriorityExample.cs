@@ -60,13 +60,13 @@ public class RunJobsByPriorityWithTriggersPriorityExample : IExample
         // 6. Priority10Trigger15SecondRepeat
 
         // Calculate the start time of all triggers as 5 seconds from now
-        DateTimeOffset startTime = DateBuilder.FutureDate(5, IntervalUnit.Second);
+        DateTimeOffset startTime = DateTimeOffset.UtcNow.AddSeconds(5);
 
         // First trigger has priority of 1, and will repeat after 5 seconds
         ITrigger trigger1 = TriggerBuilder.Create()
             .WithIdentity("Priority1Trigger5SecondRepeat")
             .StartAt(startTime)
-            .WithSimpleSchedule(x => x.WithRepeatCount(1).WithIntervalInSeconds(5))
+            .WithSimpleSchedule(x => x.WithRepeatCount(1).WithInterval(TimeSpan.FromSeconds(5)))
             .WithPriority(1)
             .ForJob(job)
             .Build();
@@ -75,7 +75,7 @@ public class RunJobsByPriorityWithTriggersPriorityExample : IExample
         ITrigger trigger2 = TriggerBuilder.Create()
             .WithIdentity("Priority5Trigger10SecondRepeat")
             .StartAt(startTime)
-            .WithSimpleSchedule(x => x.WithRepeatCount(1).WithIntervalInSeconds(10))
+            .WithSimpleSchedule(x => x.WithRepeatCount(1).WithInterval(TimeSpan.FromSeconds(10)))
             .ForJob(job)
             .Build();
 
@@ -83,7 +83,7 @@ public class RunJobsByPriorityWithTriggersPriorityExample : IExample
         ITrigger trigger3 = TriggerBuilder.Create()
             .WithIdentity("Priority10Trigger15SecondRepeat")
             .StartAt(startTime)
-            .WithSimpleSchedule(x => x.WithRepeatCount(1).WithIntervalInSeconds(15))
+            .WithSimpleSchedule(x => x.WithRepeatCount(1).WithInterval(TimeSpan.FromSeconds(15)))
             .WithPriority(10)
             .ForJob(job)
             .Build();

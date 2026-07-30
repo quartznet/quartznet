@@ -111,9 +111,9 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
         var trigger = (IOperableTrigger)TriggerBuilder
             .Create()
             .WithIdentity("TestTimeZone2Trigger")
-            .StartAt(DateBuilder.EvenMinuteDateAfterNow())
+            .StartAt(TestDates.EvenMinuteDateAfterNow())
             .WithSimpleSchedule(s => s
-                .WithIntervalInMinutes(1)
+                .WithInterval(TimeSpan.FromMinutes(1))
                 .RepeatForever())
             .Build();
 

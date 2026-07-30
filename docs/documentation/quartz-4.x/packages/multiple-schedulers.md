@@ -32,7 +32,7 @@ builder.Services.AddQuartz("FastScheduler", q =>
 
     q.ScheduleJob<NotificationJob>(trigger => trigger
         .WithIdentity("notify-trigger")
-        .WithSimpleSchedule(x => x.WithIntervalInSeconds(30).RepeatForever()));
+        .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(30)).RepeatForever()));
 });
 
 // Second scheduler: persistent database jobs
@@ -149,7 +149,7 @@ builder.Services.AddQuartz(q =>
 {
     q.ScheduleJob<MainJob>(trigger => trigger
         .WithIdentity("main-trigger")
-        .WithSimpleSchedule(x => x.WithIntervalInMinutes(1).RepeatForever()));
+        .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(1)).RepeatForever()));
 });
 
 // Additional named scheduler

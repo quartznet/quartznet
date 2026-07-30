@@ -927,6 +927,180 @@
     preview read back identically, and the sentinel is an internal constant now rather than something a caller
     is expected to spell.
 
+  * **Misfire handling is one method per schedule builder, taking a per-family enum.** Eighteen no-argument
+    `WithMisfireHandlingInstructionXxx()` methods across the five schedule builders become five
+    `WithMisfireHandlingInstruction(<family>MisfireInstruction)` methods. A method name is a poor place to
+    keep a value: the old set could not be passed a policy read from configuration, could not be switched on,
+    and offered every builder a slightly different vocabulary for the same idea.
+
+    | 3.x / earlier 4.0 preview | 4.0 |
+    |---|---|
+    | `SimpleScheduleBuilder.WithMisfireHandlingInstructionIgnoreMisfires()` | `WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.IgnoreMisfires)` |
+    | `SimpleScheduleBuilder.WithMisfireHandlingInstructionFireNow()` | `WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.FireNow)` |
+    | `SimpleScheduleBuilder.WithMisfireHandlingInstructionNowWithExistingCount()` | `WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.NowWithExistingCount)` |
+    | `SimpleScheduleBuilder.WithMisfireHandlingInstructionNowWithRemainingCount()` | `WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.NowWithRemainingCount)` |
+    | `SimpleScheduleBuilder.WithMisfireHandlingInstructionNextWithRemainingCount()` | `WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.NextWithRemainingCount)` |
+    | `SimpleScheduleBuilder.WithMisfireHandlingInstructionNextWithExistingCount()` | `WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.NextWithExistingCount)` |
+    | `CronScheduleBuilder.WithMisfireHandlingInstructionIgnoreMisfires()` | `WithMisfireHandlingInstruction(CronTriggerMisfireInstruction.IgnoreMisfires)` |
+    | `CronScheduleBuilder.WithMisfireHandlingInstructionFireAndProceed()` | `WithMisfireHandlingInstruction(CronTriggerMisfireInstruction.FireAndProceed)` |
+    | `CronScheduleBuilder.WithMisfireHandlingInstructionDoNothing()` | `WithMisfireHandlingInstruction(CronTriggerMisfireInstruction.DoNothing)` |
+    | `CalendarIntervalScheduleBuilder.WithMisfireHandlingInstructionIgnoreMisfires()` | `WithMisfireHandlingInstruction(CalendarIntervalTriggerMisfireInstruction.IgnoreMisfires)` |
+    | `CalendarIntervalScheduleBuilder.WithMisfireHandlingInstructionFireAndProceed()` | `WithMisfireHandlingInstruction(CalendarIntervalTriggerMisfireInstruction.FireAndProceed)` |
+    | `CalendarIntervalScheduleBuilder.WithMisfireHandlingInstructionDoNothing()` | `WithMisfireHandlingInstruction(CalendarIntervalTriggerMisfireInstruction.DoNothing)` |
+    | `DailyTimeIntervalScheduleBuilder.WithMisfireHandlingInstructionIgnoreMisfires()` | `WithMisfireHandlingInstruction(DailyTimeIntervalTriggerMisfireInstruction.IgnoreMisfires)` |
+    | `DailyTimeIntervalScheduleBuilder.WithMisfireHandlingInstructionFireAndProceed()` | `WithMisfireHandlingInstruction(DailyTimeIntervalTriggerMisfireInstruction.FireAndProceed)` |
+    | `DailyTimeIntervalScheduleBuilder.WithMisfireHandlingInstructionDoNothing()` | `WithMisfireHandlingInstruction(DailyTimeIntervalTriggerMisfireInstruction.DoNothing)` |
+    | `RecurrenceScheduleBuilder.WithMisfireHandlingInstructionIgnoreMisfires()` | `WithMisfireHandlingInstruction(RecurrenceTriggerMisfireInstruction.IgnoreMisfires)` |
+    | `RecurrenceScheduleBuilder.WithMisfireHandlingInstructionFireAndProceed()` | `WithMisfireHandlingInstruction(RecurrenceTriggerMisfireInstruction.FireAndProceed)` |
+    | `RecurrenceScheduleBuilder.WithMisfireHandlingInstructionDoNothing()` | `WithMisfireHandlingInstruction(RecurrenceTriggerMisfireInstruction.DoNothing)` |
+
+    Each enum also has `SmartPolicy`, the default, which was previously reachable only by not calling any of
+    the methods. The enums' underlying values *are* the `MisfireInstruction.*` constants — `SmartPolicy` is
+    `0`, `IgnoreMisfires` is `-1`, and the rest match their family's constants — so a stored instruction casts
+    both ways: `(CronTriggerMisfireInstruction) trigger.MisfireInstruction`.
+
+    `ITrigger.MisfireInstruction` and `TriggerDetailsUpdate.WithMisfireInstruction(int)` stay `int`, and the
+    `MisfireInstruction` static class stays as the storage-level reference. Neither an update object nor a
+    trigger's own storage knows which family it belongs to; the enums are the family-aware end of the same
+    values, offered where the family *is* known — on a schedule builder.
+
+  * **`SimpleScheduleBuilder`'s twelve `Repeat*` factories and three `WithIntervalIn*` methods are gone.**
+    `WithInterval(TimeSpan)` says every interval the twelve could, and `TimeSpan` is the type the trigger
+    actually stores, so the naming grid (three units × forever/for-a-count × with/without an explicit unit
+    count) only decided how to spell a `TimeSpan`.
+
+    | 3.x / earlier 4.0 preview | 4.0 |
+    |---|---|
+    | `SimpleScheduleBuilder.RepeatSecondlyForever()` | `SimpleScheduleBuilder.Create().WithInterval(TimeSpan.FromSeconds(1)).RepeatForever()` |
+    | `SimpleScheduleBuilder.RepeatSecondlyForever(n)` | `SimpleScheduleBuilder.Create().WithInterval(TimeSpan.FromSeconds(n)).RepeatForever()` |
+    | `SimpleScheduleBuilder.RepeatMinutelyForever()` | `SimpleScheduleBuilder.Create().WithInterval(TimeSpan.FromMinutes(1)).RepeatForever()` |
+    | `SimpleScheduleBuilder.RepeatMinutelyForever(n)` | `SimpleScheduleBuilder.Create().WithInterval(TimeSpan.FromMinutes(n)).RepeatForever()` |
+    | `SimpleScheduleBuilder.RepeatHourlyForever()` | `SimpleScheduleBuilder.Create().WithInterval(TimeSpan.FromHours(1)).RepeatForever()` |
+    | `SimpleScheduleBuilder.RepeatHourlyForever(n)` | `SimpleScheduleBuilder.Create().WithInterval(TimeSpan.FromHours(n)).RepeatForever()` |
+    | `SimpleScheduleBuilder.RepeatSecondlyForTotalCount(c)` | `SimpleScheduleBuilder.Create().WithInterval(TimeSpan.FromSeconds(1)).WithRepeatCount(c - 1)` |
+    | `SimpleScheduleBuilder.RepeatSecondlyForTotalCount(c, n)` | `SimpleScheduleBuilder.Create().WithInterval(TimeSpan.FromSeconds(n)).WithRepeatCount(c - 1)` |
+    | `SimpleScheduleBuilder.RepeatMinutelyForTotalCount(c)` | `SimpleScheduleBuilder.Create().WithInterval(TimeSpan.FromMinutes(1)).WithRepeatCount(c - 1)` |
+    | `SimpleScheduleBuilder.RepeatMinutelyForTotalCount(c, n)` | `SimpleScheduleBuilder.Create().WithInterval(TimeSpan.FromMinutes(n)).WithRepeatCount(c - 1)` |
+    | `SimpleScheduleBuilder.RepeatHourlyForTotalCount(c)` | `SimpleScheduleBuilder.Create().WithInterval(TimeSpan.FromHours(1)).WithRepeatCount(c - 1)` |
+    | `SimpleScheduleBuilder.RepeatHourlyForTotalCount(c, n)` | `SimpleScheduleBuilder.Create().WithInterval(TimeSpan.FromHours(n)).WithRepeatCount(c - 1)` |
+    | `WithIntervalInSeconds(n)` | `WithInterval(TimeSpan.FromSeconds(n))` |
+    | `WithIntervalInMinutes(n)` | `WithInterval(TimeSpan.FromMinutes(n))` |
+    | `WithIntervalInHours(n)` | `WithInterval(TimeSpan.FromHours(n))` |
+
+    Note the `- 1` in the `ForTotalCount` rows: the repeat count is one *fewer* than the number of firings,
+    since the trigger also fires at its start time. The old factories did the subtraction for you, and this is
+    the one thing they said that `WithInterval` does not — so it is now said where the trigger says it, on
+    `WithRepeatCount`.
+
+  * **`CalendarIntervalScheduleBuilder`'s seven `WithIntervalIn*` methods are gone**, replaced by
+    `WithInterval(int interval, IntervalUnit unit)`, which was always there beside them.
+
+    | 3.x / earlier 4.0 preview | 4.0 |
+    |---|---|
+    | `WithIntervalInSeconds(n)` | `WithInterval(n, IntervalUnit.Second)` |
+    | `WithIntervalInMinutes(n)` | `WithInterval(n, IntervalUnit.Minute)` |
+    | `WithIntervalInHours(n)` | `WithInterval(n, IntervalUnit.Hour)` |
+    | `WithIntervalInDays(n)` | `WithInterval(n, IntervalUnit.Day)` |
+    | `WithIntervalInWeeks(n)` | `WithInterval(n, IntervalUnit.Week)` |
+    | `WithIntervalInMonths(n)` | `WithInterval(n, IntervalUnit.Month)` |
+    | `WithIntervalInYears(n)` | `WithInterval(n, IntervalUnit.Year)` |
+
+    `PreserveHourOfDayAcrossDaylightSavings(bool)` and `SkipDayIfHourDoesNotExist(bool)` now default their
+    argument to `true`, so turning a flag on reads as `PreserveHourOfDayAcrossDaylightSavings()`. Existing
+    calls that pass the value keep working.
+
+  * **`DailyTimeIntervalScheduleBuilder`'s three `WithIntervalIn*` methods are gone**, replaced by
+    `WithInterval(int interval, IntervalUnit unit)`. The unit must still be `Second`, `Minute` or `Hour`.
+
+    | 3.x / earlier 4.0 preview | 4.0 |
+    |---|---|
+    | `WithIntervalInSeconds(n)` | `WithInterval(n, IntervalUnit.Second)` |
+    | `WithIntervalInMinutes(n)` | `WithInterval(n, IntervalUnit.Minute)` |
+    | `WithIntervalInHours(n)` | `WithInterval(n, IntervalUnit.Hour)` |
+    | `OnDaysOfTheWeek(IReadOnlyCollection<DayOfWeek>)`, `OnDaysOfTheWeek(params DayOfWeek[])` | `OnDaysOfTheWeek(params IReadOnlyCollection<DayOfWeek>)` |
+    | `DailyTimeIntervalScheduleBuilder.AllDaysOfTheWeek` | `OnEveryDay()` (also the default) |
+    | `DailyTimeIntervalScheduleBuilder.MondayThroughFriday` | `OnMondayThroughFriday()` |
+    | `DailyTimeIntervalScheduleBuilder.SaturdayAndSunday` | `OnSaturdayAndSunday()` |
+
+    The two `OnDaysOfTheWeek` overloads are one C# 13 params collection, so both old call shapes still
+    compile. The three `public static readonly` day sets existed only to be passed straight back in to
+    `OnDaysOfTheWeek`, which the three named methods already do; they are internal now. If you need the set
+    itself, `Enum.GetValues<DayOfWeek>()` is the whole week.
+
+  * **`CronScheduleBuilder`'s six convenience factories are gone.** `CronSchedule(string)` and
+    `CronSchedule(CronExpression)` stay, and `CronExpressionBuilder` builds an expression from parts without
+    a positional-argument puzzle (`AtHourAndMinuteOnGivenDaysOfWeek(10, 0, ...)` versus
+    `WeeklyOnDayAndHourAndMinute(day, 10, 0)` versus `MonthlyOnDayAndHourAndMinute(6, 10, 0)` — three
+    different orders for the same three numbers).
+
+    | 3.x / earlier 4.0 preview | 4.0 |
+    |---|---|
+    | `CronScheduleBuilder.DailyAtHourAndMinute(h, m)` | `CronScheduleBuilder.CronSchedule($"0 {m} {h} ? * *")` |
+    | `CronScheduleBuilder.AtHourAndMinuteOnGivenDaysOfWeek(h, m, days)` | `CronScheduleBuilder.CronSchedule(CronExpressionBuilder.Create().WithSecond(0).WithMinute(m).WithHour(h).OnDaysOfWeek(days).Build())` |
+    | `CronScheduleBuilder.WeeklyOnDayAndHourAndMinute(day, h, m)` | `CronScheduleBuilder.CronSchedule(CronExpressionBuilder.Create().WithSecond(0).WithMinute(m).WithHour(h).OnDaysOfWeek(day).Build())` |
+    | `CronScheduleBuilder.MonthlyOnDayAndHourAndMinute(dom, h, m)` | `CronScheduleBuilder.CronSchedule(CronExpressionBuilder.Create().WithSecond(0).WithMinute(m).WithHour(h).WithDayOfMonth(dom).Build())` |
+    | `CronScheduleBuilder.CronScheduleWithHash(expr, hashKey)` | `CronScheduleBuilder.CronSchedule(new CronExpression(expr, hashKey))` |
+    | `CronScheduleBuilder.CronScheduleWithHash(expr, hashSeed)` | `CronScheduleBuilder.CronSchedule(new CronExpression(expr, hashSeed))` |
+
+  * **`InTimeZone` takes a nullable `TimeZoneInfo?` on every schedule builder.** `CronScheduleBuilder` and
+    `DailyTimeIntervalScheduleBuilder` declared it non-nullable while `CalendarIntervalScheduleBuilder` and
+    `RecurrenceScheduleBuilder` did not, so passing a time zone that may be absent needed a `!` on two of the
+    four. `null` means the same everywhere it always did: the system's local time zone.
+    `DateBuilder.InTimeZone` is nullable for the same reason — its documentation already said `null` meant the
+    system default.
+
+  * **`ScheduleBuilder<T>` is gone; the five schedule builders implement `IScheduleBuilder` directly.** The
+    abstract base contributed one abstract member that `IScheduleBuilder` already declares, and its type
+    parameter was never used for anything. A custom schedule builder implements `IScheduleBuilder` and drops
+    the `override` from `Build`:
+
+    ```diff
+    - private sealed class MyScheduleBuilder : ScheduleBuilder<MyTrigger>
+    + private sealed class MyScheduleBuilder : IScheduleBuilder
+      {
+    -     public override IMutableTrigger Build() => new MyTrigger();
+    +     public IMutableTrigger Build() => new MyTrigger();
+      }
+    ```
+
+  * **`DateBuilder`'s seventeen static factories are gone; the fluent instance API stays.** `NewDate()`,
+    `NewDateInTimeZone()`, the `At*`/`On*`/`In*` setters and `Build()` are unchanged. The statics were two
+    unrelated jobs wearing one name — naming a specific date, which the fluent API does, and doing arithmetic
+    on `DateTimeOffset`, which `DateTimeOffset` does.
+
+    | 3.x / earlier 4.0 preview | 4.0 |
+    |---|---|
+    | `DateBuilder.DateOf(h, m, s)` | `DateBuilder.NewDate().AtHourMinuteAndSecond(h, m, s).Build()` |
+    | `DateBuilder.TodayAt(h, m, s)` | `DateBuilder.NewDate().AtHourMinuteAndSecond(h, m, s).Build()` |
+    | `DateBuilder.DateOf(h, m, s, day, month)` | `DateBuilder.NewDate().InMonthOnDay(month, day).AtHourMinuteAndSecond(h, m, s).Build()` |
+    | `DateBuilder.DateOf(h, m, s, day, month, year)` | `DateBuilder.NewDate().InYear(year).InMonthOnDay(month, day).AtHourMinuteAndSecond(h, m, s).Build()` |
+    | `DateBuilder.TomorrowAt(h, m, s)` | `DateBuilder.NewDate().AtHourMinuteAndSecond(h, m, s).Build().AddDays(1)` |
+    | `DateBuilder.FutureDate(n, IntervalUnit.Second)` | `DateTimeOffset.UtcNow.AddSeconds(n)` |
+    | `DateBuilder.FutureDate(n, IntervalUnit.Minute)` | `DateTimeOffset.UtcNow.AddMinutes(n)` |
+    | `DateBuilder.FutureDate(n, IntervalUnit.Hour)` | `DateTimeOffset.UtcNow.AddHours(n)` |
+    | `DateBuilder.FutureDate(n, IntervalUnit.Day)` | `DateTimeOffset.UtcNow.AddDays(n)` |
+    | `DateBuilder.FutureDate(n, IntervalUnit.Week)` | `DateTimeOffset.UtcNow.AddDays(n * 7)` |
+    | `DateBuilder.FutureDate(n, IntervalUnit.Month)` | `DateTimeOffset.UtcNow.AddMonths(n)` |
+    | `DateBuilder.FutureDate(n, IntervalUnit.Year)` | `DateTimeOffset.UtcNow.AddYears(n)` |
+    | `DateBuilder.EvenSecondDate(d)` | `d.AddSeconds(1).Truncate(TimeSpan.FromSeconds(1))`, or simply `d.AddSeconds(1)` |
+    | `DateBuilder.EvenSecondDateBefore(d)` | round `d` down to the second |
+    | `DateBuilder.EvenSecondDateAfterNow()` | `DateTimeOffset.UtcNow.AddSeconds(1)` |
+    | `DateBuilder.EvenMinuteDate(d)` | round `d` up to the minute |
+    | `DateBuilder.EvenMinuteDateBefore(d)` | round `d` down to the minute |
+    | `DateBuilder.EvenMinuteDateAfterNow()` | `DateTimeOffset.UtcNow.AddMinutes(1)` |
+    | `DateBuilder.EvenHourDate(d)` | round `d` up to the hour |
+    | `DateBuilder.EvenHourDateBefore(d)` | round `d` down to the hour |
+    | `DateBuilder.EvenHourDateAfterNow()` | `DateTimeOffset.UtcNow.AddHours(1)` |
+    | `DateBuilder.NextGivenMinuteDate(d, minuteBase)` | round `d` up to the next multiple of `minuteBase` minutes |
+    | `DateBuilder.NextGivenSecondDate(d, secondBase)` | round `d` up to the next multiple of `secondBase` seconds |
+
+    The rounding helpers rounded a `DateTimeOffset` and returned one, which is a line of arithmetic in the
+    caller and needs no scheduling library to do — `new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour,
+    d.Minute, 0, d.Offset)` is `EvenMinuteDateBefore`, and adding a minute first makes it
+    `EvenMinuteDate`. A trigger's start time rarely needs the rounding at all: a trigger that starts at an
+    arbitrary instant and repeats every minute fires on the same schedule as one rounded up first, one
+    fraction of a second earlier.
+
 #### Cron Parser
 
   * Add cron parser support for 'L' and 'LW' in expression combinations for daysOfMonth (#1939) (#1288)

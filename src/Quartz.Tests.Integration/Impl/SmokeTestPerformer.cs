@@ -737,9 +737,9 @@ internal sealed class CustomNewtonsoftTriggerSerializer : CronTriggerSerializer
         ((CustomTrigger) trigger).SomeCustomProperty = source.Value<bool>("SomeCustomProperty");
     }
 
-    private sealed class CustomTriggerScheduleBuilder : ScheduleBuilder<CustomTrigger>
+    private sealed class CustomTriggerScheduleBuilder : IScheduleBuilder
     {
-        public override IMutableTrigger Build()
+        public IMutableTrigger Build()
         {
             return new CustomTrigger();
         }
@@ -769,9 +769,9 @@ internal sealed class CustomSystemTextJsonTriggerSerializer : Serialization.Json
         ((CustomTrigger) trigger).SomeCustomProperty = jsonElement.GetProperty("SomeCustomProperty").GetBoolean();
     }
 
-    private sealed class CustomTriggerScheduleBuilder : ScheduleBuilder<CustomTrigger>
+    private sealed class CustomTriggerScheduleBuilder : IScheduleBuilder
     {
-        public override IMutableTrigger Build()
+        public IMutableTrigger Build()
         {
             return new CustomTrigger();
         }

@@ -47,7 +47,7 @@ public class Program
                     // quickest way to create a job with single trigger is to use ScheduleJob
                     q.ScheduleJob<ExampleJob>(trigger => trigger
                         .WithIdentity("Combined Configuration Trigger")
-                        .StartAt(DateBuilder.EvenSecondDate(DateTimeOffset.UtcNow))
+                        .StartAt(DateTimeOffset.UtcNow.AddSeconds(1))
                         .WithDailyTimeIntervalSchedule(x => x.WithInterval(10, IntervalUnit.Second))
                         .WithDescription("my awesome trigger configured for a job with single call")
                     );

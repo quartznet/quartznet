@@ -42,24 +42,22 @@ namespace Quartz
         public bool UseDbLocks { get; set; }
         public bool UseProperties { get; set; }
     }
-    public sealed class CalendarIntervalScheduleBuilder : Quartz.ScheduleBuilder<Quartz.ICalendarIntervalTrigger>
+    public sealed class CalendarIntervalScheduleBuilder : Quartz.IScheduleBuilder
     {
-        public override Quartz.Extensibility.IMutableTrigger Build() { }
+        public Quartz.Extensibility.IMutableTrigger Build() { }
         public Quartz.CalendarIntervalScheduleBuilder InTimeZone(System.TimeZoneInfo? timeZone) { }
-        public Quartz.CalendarIntervalScheduleBuilder PreserveHourOfDayAcrossDaylightSavings(bool preserveHourOfDay) { }
-        public Quartz.CalendarIntervalScheduleBuilder SkipDayIfHourDoesNotExist(bool skipDay) { }
+        public Quartz.CalendarIntervalScheduleBuilder PreserveHourOfDayAcrossDaylightSavings(bool preserveHourOfDay = true) { }
+        public Quartz.CalendarIntervalScheduleBuilder SkipDayIfHourDoesNotExist(bool skipDay = true) { }
         public Quartz.CalendarIntervalScheduleBuilder WithInterval(int interval, Quartz.IntervalUnit unit) { }
-        public Quartz.CalendarIntervalScheduleBuilder WithIntervalInDays(int intervalInDays) { }
-        public Quartz.CalendarIntervalScheduleBuilder WithIntervalInHours(int intervalInHours) { }
-        public Quartz.CalendarIntervalScheduleBuilder WithIntervalInMinutes(int intervalInMinutes) { }
-        public Quartz.CalendarIntervalScheduleBuilder WithIntervalInMonths(int intervalInMonths) { }
-        public Quartz.CalendarIntervalScheduleBuilder WithIntervalInSeconds(int intervalInSeconds) { }
-        public Quartz.CalendarIntervalScheduleBuilder WithIntervalInWeeks(int intervalInWeeks) { }
-        public Quartz.CalendarIntervalScheduleBuilder WithIntervalInYears(int intervalInYears) { }
-        public Quartz.CalendarIntervalScheduleBuilder WithMisfireHandlingInstructionDoNothing() { }
-        public Quartz.CalendarIntervalScheduleBuilder WithMisfireHandlingInstructionFireAndProceed() { }
-        public Quartz.CalendarIntervalScheduleBuilder WithMisfireHandlingInstructionIgnoreMisfires() { }
+        public Quartz.CalendarIntervalScheduleBuilder WithMisfireHandlingInstruction(Quartz.CalendarIntervalTriggerMisfireInstruction instruction) { }
         public static Quartz.CalendarIntervalScheduleBuilder Create() { }
+    }
+    public enum CalendarIntervalTriggerMisfireInstruction
+    {
+        SmartPolicy = 0,
+        IgnoreMisfires = -1,
+        FireAndProceed = 1,
+        DoNothing = 2,
     }
     public sealed class CalendarQuery : Quartz.PagedQuery, System.IEquatable<Quartz.CalendarQuery>
     {
@@ -139,46 +137,43 @@ namespace Quartz
         public Quartz.CronExpressionBuilder WithYears(params int[] years) { }
         public static Quartz.CronExpressionBuilder Create() { }
     }
-    public sealed class CronScheduleBuilder : Quartz.ScheduleBuilder<Quartz.ICronTrigger>
+    public sealed class CronScheduleBuilder : Quartz.IScheduleBuilder
     {
-        public override Quartz.Extensibility.IMutableTrigger Build() { }
-        public Quartz.CronScheduleBuilder InTimeZone(System.TimeZoneInfo timeZone) { }
-        public Quartz.CronScheduleBuilder WithMisfireHandlingInstructionDoNothing() { }
-        public Quartz.CronScheduleBuilder WithMisfireHandlingInstructionFireAndProceed() { }
-        public Quartz.CronScheduleBuilder WithMisfireHandlingInstructionIgnoreMisfires() { }
-        public static Quartz.CronScheduleBuilder AtHourAndMinuteOnGivenDaysOfWeek(int hour, int minute, params System.DayOfWeek[] daysOfWeek) { }
+        public Quartz.Extensibility.IMutableTrigger Build() { }
+        public Quartz.CronScheduleBuilder InTimeZone(System.TimeZoneInfo? timeZone) { }
+        public Quartz.CronScheduleBuilder WithMisfireHandlingInstruction(Quartz.CronTriggerMisfireInstruction instruction) { }
         public static Quartz.CronScheduleBuilder CronSchedule(Quartz.CronExpression cronExpression) { }
         public static Quartz.CronScheduleBuilder CronSchedule(string cronExpression) { }
-        public static Quartz.CronScheduleBuilder CronScheduleWithHash(string cronExpression, int hashSeed) { }
-        public static Quartz.CronScheduleBuilder CronScheduleWithHash(string cronExpression, string hashKey) { }
-        public static Quartz.CronScheduleBuilder DailyAtHourAndMinute(int hour, int minute) { }
-        public static Quartz.CronScheduleBuilder MonthlyOnDayAndHourAndMinute(int dayOfMonth, int hour, int minute) { }
-        public static Quartz.CronScheduleBuilder WeeklyOnDayAndHourAndMinute(System.DayOfWeek dayOfWeek, int hour, int minute) { }
     }
-    public sealed class DailyTimeIntervalScheduleBuilder : Quartz.ScheduleBuilder<Quartz.IDailyTimeIntervalTrigger>
+    public enum CronTriggerMisfireInstruction
     {
-        public static readonly System.Collections.Generic.IReadOnlyCollection<System.DayOfWeek> AllDaysOfTheWeek;
-        public static readonly System.Collections.Generic.IReadOnlyCollection<System.DayOfWeek> MondayThroughFriday;
-        public static readonly System.Collections.Generic.IReadOnlyCollection<System.DayOfWeek> SaturdayAndSunday;
-        public override Quartz.Extensibility.IMutableTrigger Build() { }
+        SmartPolicy = 0,
+        IgnoreMisfires = -1,
+        FireAndProceed = 1,
+        DoNothing = 2,
+    }
+    public sealed class DailyTimeIntervalScheduleBuilder : Quartz.IScheduleBuilder
+    {
+        public Quartz.Extensibility.IMutableTrigger Build() { }
         public Quartz.DailyTimeIntervalScheduleBuilder EndingDailyAfterCount(int count) { }
         public Quartz.DailyTimeIntervalScheduleBuilder EndingDailyAt(Quartz.TimeOfDay timeOfDayUtc) { }
-        public Quartz.DailyTimeIntervalScheduleBuilder InTimeZone(System.TimeZoneInfo timeZone) { }
-        public Quartz.DailyTimeIntervalScheduleBuilder OnDaysOfTheWeek(System.Collections.Generic.IReadOnlyCollection<System.DayOfWeek> onDaysOfWeek) { }
-        public Quartz.DailyTimeIntervalScheduleBuilder OnDaysOfTheWeek(params System.DayOfWeek[] onDaysOfWeek) { }
+        public Quartz.DailyTimeIntervalScheduleBuilder InTimeZone(System.TimeZoneInfo? timeZone) { }
+        public Quartz.DailyTimeIntervalScheduleBuilder OnDaysOfTheWeek([System.Runtime.CompilerServices.ParamCollection] System.Collections.Generic.IReadOnlyCollection<System.DayOfWeek> onDaysOfWeek) { }
         public Quartz.DailyTimeIntervalScheduleBuilder OnEveryDay() { }
         public Quartz.DailyTimeIntervalScheduleBuilder OnMondayThroughFriday() { }
         public Quartz.DailyTimeIntervalScheduleBuilder OnSaturdayAndSunday() { }
         public Quartz.DailyTimeIntervalScheduleBuilder StartingDailyAt(Quartz.TimeOfDay timeOfDayUtc) { }
         public Quartz.DailyTimeIntervalScheduleBuilder WithInterval(int interval, Quartz.IntervalUnit unit) { }
-        public Quartz.DailyTimeIntervalScheduleBuilder WithIntervalInHours(int intervalInHours) { }
-        public Quartz.DailyTimeIntervalScheduleBuilder WithIntervalInMinutes(int intervalInMinutes) { }
-        public Quartz.DailyTimeIntervalScheduleBuilder WithIntervalInSeconds(int intervalInSeconds) { }
-        public Quartz.DailyTimeIntervalScheduleBuilder WithMisfireHandlingInstructionDoNothing() { }
-        public Quartz.DailyTimeIntervalScheduleBuilder WithMisfireHandlingInstructionFireAndProceed() { }
-        public Quartz.DailyTimeIntervalScheduleBuilder WithMisfireHandlingInstructionIgnoreMisfires() { }
+        public Quartz.DailyTimeIntervalScheduleBuilder WithMisfireHandlingInstruction(Quartz.DailyTimeIntervalTriggerMisfireInstruction instruction) { }
         public Quartz.DailyTimeIntervalScheduleBuilder WithRepeatCount(int repeatCount) { }
         public static Quartz.DailyTimeIntervalScheduleBuilder Create(System.TimeProvider? timeProvider = null) { }
+    }
+    public enum DailyTimeIntervalTriggerMisfireInstruction
+    {
+        SmartPolicy = 0,
+        IgnoreMisfires = -1,
+        FireAndProceed = 1,
+        DoNothing = 2,
     }
     public sealed class DataSourceOptions
     {
@@ -197,28 +192,11 @@ namespace Quartz
         public System.DateTimeOffset Build() { }
         public Quartz.DateBuilder InMonth(int month) { }
         public Quartz.DateBuilder InMonthOnDay(int month, int day) { }
-        public Quartz.DateBuilder InTimeZone(System.TimeZoneInfo timeZone) { }
+        public Quartz.DateBuilder InTimeZone(System.TimeZoneInfo? timeZone) { }
         public Quartz.DateBuilder InYear(int year) { }
         public Quartz.DateBuilder OnDay(int day) { }
-        public static System.DateTimeOffset DateOf(int hour, int minute, int second, System.TimeProvider? timeProvider = null) { }
-        public static System.DateTimeOffset DateOf(int hour, int minute, int second, int dayOfMonth, int month, System.TimeProvider? timeProvider = null) { }
-        public static System.DateTimeOffset DateOf(int hour, int minute, int second, int dayOfMonth, int month, int year) { }
-        public static System.DateTimeOffset EvenHourDate(System.DateTimeOffset? date, System.TimeProvider? timeProvider = null) { }
-        public static System.DateTimeOffset EvenHourDateAfterNow(System.TimeProvider? timeProvider = null) { }
-        public static System.DateTimeOffset EvenHourDateBefore(System.DateTimeOffset? date, System.TimeProvider? timeProvider = null) { }
-        public static System.DateTimeOffset EvenMinuteDate(System.DateTimeOffset? date, System.TimeProvider? timeProvider = null) { }
-        public static System.DateTimeOffset EvenMinuteDateAfterNow(System.TimeProvider? timeProvider = null) { }
-        public static System.DateTimeOffset EvenMinuteDateBefore(System.DateTimeOffset? date, System.TimeProvider? timeProvider = null) { }
-        public static System.DateTimeOffset EvenSecondDate(System.DateTimeOffset date) { }
-        public static System.DateTimeOffset EvenSecondDateAfterNow(System.TimeProvider? timeProvider = null) { }
-        public static System.DateTimeOffset EvenSecondDateBefore(System.DateTimeOffset date) { }
-        public static System.DateTimeOffset FutureDate(int interval, Quartz.IntervalUnit unit, System.TimeProvider? timeProvider = null) { }
         public static Quartz.DateBuilder NewDate(System.TimeProvider? timeProvider = null) { }
         public static Quartz.DateBuilder NewDateInTimeZone(System.TimeZoneInfo timeZone, System.TimeProvider? timeProvider = null) { }
-        public static System.DateTimeOffset NextGivenMinuteDate(System.DateTimeOffset? date, int minuteBase, System.TimeProvider? timeProvider = null) { }
-        public static System.DateTimeOffset NextGivenSecondDate(System.DateTimeOffset? date, int secondBase, System.TimeProvider? timeProvider = null) { }
-        public static System.DateTimeOffset TodayAt(int hour, int minute, int second, System.TimeProvider? timeProvider = null) { }
-        public static System.DateTimeOffset TomorrowAt(int hour, int minute, int second, System.TimeProvider? timeProvider = null) { }
     }
     [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Interface)]
     public sealed class DisallowConcurrentExecutionAttribute : System.Attribute
@@ -913,20 +891,19 @@ namespace Quartz
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzHostedService<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)]  T>(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Quartz.QuartzHostedServiceOptions>? configure = null)
             where T : Quartz.QuartzHostedService { }
     }
-    public sealed class RecurrenceScheduleBuilder : Quartz.ScheduleBuilder<Quartz.IRecurrenceTrigger>
+    public sealed class RecurrenceScheduleBuilder : Quartz.IScheduleBuilder
     {
-        public override Quartz.Extensibility.IMutableTrigger Build() { }
+        public Quartz.Extensibility.IMutableTrigger Build() { }
         public Quartz.RecurrenceScheduleBuilder InTimeZone(System.TimeZoneInfo? timeZone) { }
-        public Quartz.RecurrenceScheduleBuilder WithMisfireHandlingInstructionDoNothing() { }
-        public Quartz.RecurrenceScheduleBuilder WithMisfireHandlingInstructionFireAndProceed() { }
-        public Quartz.RecurrenceScheduleBuilder WithMisfireHandlingInstructionIgnoreMisfires() { }
+        public Quartz.RecurrenceScheduleBuilder WithMisfireHandlingInstruction(Quartz.RecurrenceTriggerMisfireInstruction instruction) { }
         public static Quartz.RecurrenceScheduleBuilder Create(string recurrenceRule) { }
     }
-    public abstract class ScheduleBuilder<T> : Quartz.IScheduleBuilder
-        where T : Quartz.ITrigger
+    public enum RecurrenceTriggerMisfireInstruction
     {
-        protected ScheduleBuilder() { }
-        public abstract Quartz.Extensibility.IMutableTrigger Build();
+        SmartPolicy = 0,
+        IgnoreMisfires = -1,
+        FireAndProceed = 1,
+        DoNothing = 2,
     }
     [System.Serializable]
     public sealed class SchedulerConfigException : Quartz.SchedulerException
@@ -1050,34 +1027,24 @@ namespace Quartz
             where T : Quartz.IJob { }
         public static Quartz.IQuartzBuilder UseSimpleTypeLoader(this Quartz.IQuartzBuilder builder) { }
     }
-    public sealed class SimpleScheduleBuilder : Quartz.ScheduleBuilder<Quartz.ISimpleTrigger>
+    public sealed class SimpleScheduleBuilder : Quartz.IScheduleBuilder
     {
-        public override Quartz.Extensibility.IMutableTrigger Build() { }
+        public Quartz.Extensibility.IMutableTrigger Build() { }
         public Quartz.SimpleScheduleBuilder RepeatForever() { }
         public Quartz.SimpleScheduleBuilder WithInterval(System.TimeSpan timeSpan) { }
-        public Quartz.SimpleScheduleBuilder WithIntervalInHours(int hours) { }
-        public Quartz.SimpleScheduleBuilder WithIntervalInMinutes(int minutes) { }
-        public Quartz.SimpleScheduleBuilder WithIntervalInSeconds(int seconds) { }
-        public Quartz.SimpleScheduleBuilder WithMisfireHandlingInstructionFireNow() { }
-        public Quartz.SimpleScheduleBuilder WithMisfireHandlingInstructionIgnoreMisfires() { }
-        public Quartz.SimpleScheduleBuilder WithMisfireHandlingInstructionNextWithExistingCount() { }
-        public Quartz.SimpleScheduleBuilder WithMisfireHandlingInstructionNextWithRemainingCount() { }
-        public Quartz.SimpleScheduleBuilder WithMisfireHandlingInstructionNowWithExistingCount() { }
-        public Quartz.SimpleScheduleBuilder WithMisfireHandlingInstructionNowWithRemainingCount() { }
+        public Quartz.SimpleScheduleBuilder WithMisfireHandlingInstruction(Quartz.SimpleTriggerMisfireInstruction instruction) { }
         public Quartz.SimpleScheduleBuilder WithRepeatCount(int repeatCount) { }
         public static Quartz.SimpleScheduleBuilder Create() { }
-        public static Quartz.SimpleScheduleBuilder RepeatHourlyForTotalCount(int count) { }
-        public static Quartz.SimpleScheduleBuilder RepeatHourlyForTotalCount(int count, int hours) { }
-        public static Quartz.SimpleScheduleBuilder RepeatHourlyForever() { }
-        public static Quartz.SimpleScheduleBuilder RepeatHourlyForever(int hours) { }
-        public static Quartz.SimpleScheduleBuilder RepeatMinutelyForTotalCount(int count) { }
-        public static Quartz.SimpleScheduleBuilder RepeatMinutelyForTotalCount(int count, int minutes) { }
-        public static Quartz.SimpleScheduleBuilder RepeatMinutelyForever() { }
-        public static Quartz.SimpleScheduleBuilder RepeatMinutelyForever(int minutes) { }
-        public static Quartz.SimpleScheduleBuilder RepeatSecondlyForTotalCount(int count) { }
-        public static Quartz.SimpleScheduleBuilder RepeatSecondlyForTotalCount(int count, int seconds) { }
-        public static Quartz.SimpleScheduleBuilder RepeatSecondlyForever() { }
-        public static Quartz.SimpleScheduleBuilder RepeatSecondlyForever(int seconds) { }
+    }
+    public enum SimpleTriggerMisfireInstruction
+    {
+        SmartPolicy = 0,
+        IgnoreMisfires = -1,
+        FireNow = 1,
+        NowWithExistingCount = 2,
+        NowWithRemainingCount = 3,
+        NextWithRemainingCount = 4,
+        NextWithExistingCount = 5,
     }
     public class SystemTextJsonSerializerOptions
     {

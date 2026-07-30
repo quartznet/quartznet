@@ -263,26 +263,10 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
             .WithInterval(RepeatInterval)
             .WithRepeatCount(RepeatCount);
 
-        switch (MisfireInstruction)
+        SimpleTriggerMisfireInstruction instruction = (SimpleTriggerMisfireInstruction) MisfireInstruction;
+        if (Enum.IsDefined(instruction))
         {
-            case Quartz.MisfireInstruction.SimpleTrigger.FireNow:
-                sb.WithMisfireHandlingInstructionFireNow();
-                break;
-            case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount:
-                sb.WithMisfireHandlingInstructionNextWithExistingCount();
-                break;
-            case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount:
-                sb.WithMisfireHandlingInstructionNextWithRemainingCount();
-                break;
-            case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount:
-                sb.WithMisfireHandlingInstructionNowWithExistingCount();
-                break;
-            case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount:
-                sb.WithMisfireHandlingInstructionNowWithRemainingCount();
-                break;
-            case Quartz.MisfireInstruction.IgnoreMisfirePolicy:
-                sb.WithMisfireHandlingInstructionIgnoreMisfires();
-                break;
+            sb.WithMisfireHandlingInstruction(instruction);
         }
 
         return sb;

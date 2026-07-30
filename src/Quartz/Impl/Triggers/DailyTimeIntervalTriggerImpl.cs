@@ -1046,17 +1046,10 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
             .WithRepeatCount(RepeatCount)
             .InTimeZone(TimeZone);
 
-        switch (MisfireInstruction)
+        DailyTimeIntervalTriggerMisfireInstruction instruction = (DailyTimeIntervalTriggerMisfireInstruction) MisfireInstruction;
+        if (Enum.IsDefined(instruction))
         {
-            case Quartz.MisfireInstruction.DailyTimeIntervalTrigger.DoNothing:
-                cb.WithMisfireHandlingInstructionDoNothing();
-                break;
-            case Quartz.MisfireInstruction.DailyTimeIntervalTrigger.FireOnceNow:
-                cb.WithMisfireHandlingInstructionFireAndProceed();
-                break;
-            case Quartz.MisfireInstruction.IgnoreMisfirePolicy:
-                cb.WithMisfireHandlingInstructionIgnoreMisfires();
-                break;
+            cb.WithMisfireHandlingInstruction(instruction);
         }
 
         return cb;

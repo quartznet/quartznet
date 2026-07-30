@@ -132,10 +132,9 @@ ITrigger trigger = TriggerBuilder.Create()
 **Build a trigger that will fire daily at 10:42 am:**
 
 ```csharp
-// we use CronScheduleBuilder's static helper methods here
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger3", "group1")
-    .WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(10, 42))
+    .WithCronSchedule("0 42 10 ? * *")
     .ForJob(myJobKey)
     .Build();
 ```
@@ -155,8 +154,7 @@ ITrigger trigger = TriggerBuilder.Create()
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger3", "group1")
-    .WithSchedule(CronScheduleBuilder
-        .WeeklyOnDayAndHourAndMinute(DayOfWeek.Wednesday, 10, 42)
+    .WithCronSchedule("0 42 10 ? * WED", x => x
         .InTimeZone(TimeZoneInfo.FindSystemTimeZoneById("Central America Standard Time")))
     .ForJob(myJobKey)
     .Build();
@@ -187,14 +185,14 @@ ITrigger trigger = TriggerBuilder.Create()
 
 The following instructions can be used to inform Quartz what it should do when a misfire occurs for CronTrigger.
 (Misfire situations were introduced in the More About Triggers section of this tutorial). These instructions are defined in as
-constants (and API documentation has description for their behavior). The instructions include:
+the `CronTriggerMisfireInstruction` enum (and API documentation has description for their behavior). The instructions include:
 
-- `MisfireInstruction.IgnoreMisfirePolicy`
-- `MisfireInstruction.CronTrigger.DoNothing`
-- `MisfireInstruction.CronTrigger.FireOnceNow`
+- `CronTriggerMisfireInstruction.IgnoreMisfires`
+- `CronTriggerMisfireInstruction.DoNothing`
+- `CronTriggerMisfireInstruction.FireAndProceed`
 
-All triggers have the `MisfireInstrution.SmartPolicy` instruction available for use, and this instruction is also the default for all trigger types.
-The 'smart policy' instruction is interpreted by CronTrigger as MisfireInstruction.CronTrigger.FireOnceNow. The API documentation for the
+All triggers have the `SmartPolicy` instruction available for use, and this instruction is also the default for all trigger types.
+The 'smart policy' instruction is interpreted by CronTrigger as `FireAndProceed`. The API documentation for the
 `CronTrigger.UpdateAfterMisfire()` method explains the exact details of this behavior.
 
 When building CronTriggers, you specify the misfire instruction as part of the cron schedule (via `WithCronSchedule` extension method):
@@ -203,7 +201,7 @@ When building CronTriggers, you specify the misfire instruction as part of the c
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger3", "group1")
     .WithCronSchedule("0 0/2 8-17 * * ?", x => x
-        .WithMisfireHandlingInstructionFireAndProceed())
+        .WithMisfireHandlingInstruction(CronTriggerMisfireInstruction.FireAndProceed))
     .ForJob("myJob", "group1")
     .Build();
 ```

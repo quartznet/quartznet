@@ -271,7 +271,7 @@ public class QuartzSchedulerTest
             .WithSimpleSchedule(
                 sb => sb.WithRepeatCount(repeatCount)
                     .WithInterval(repeatInterval)
-                    .WithMisfireHandlingInstruction(MisfireInstruction.IgnoreMisfirePolicy))
+                    .WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.IgnoreMisfires))
             .Build();
     }
 

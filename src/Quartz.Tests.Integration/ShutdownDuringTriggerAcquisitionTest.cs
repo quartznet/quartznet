@@ -32,7 +32,7 @@ public class ShutdownDuringTriggerAcquisitionTest
                 .WithIdentity("testTrigger", "testGroup")
                 .ForJob(jobDetail)
                 .StartNow()
-                .WithSimpleSchedule(x => x.WithIntervalInSeconds(60).RepeatForever())
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(60)).RepeatForever())
                 .Build();
 
             await scheduler.ScheduleJob(jobDetail, trigger);
