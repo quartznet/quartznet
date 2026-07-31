@@ -45,10 +45,16 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author>Marko Lahma (.NET)</author>
 public class UpdateLockRowSemaphore : DBSemaphore
 {
-    public static readonly string SqlUpdateForLock =
+    /// <summary>
+    /// The statement that takes the lock by updating its row.
+    /// </summary>
+    protected static readonly string UpdateForLock =
         $"UPDATE {StdAdoConstants.TablePrefixSubst}{AdoConstants.TableLocks} SET {AdoConstants.ColumnLockName} = {AdoConstants.ColumnLockName} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnLockName} = @lockName";
 
-    public static readonly string SqlInsertLock =
+    /// <summary>
+    /// The statement that inserts the lock row when it does not exist yet.
+    /// </summary>
+    protected static readonly string InsertLock =
         $"INSERT INTO {StdAdoConstants.TablePrefixSubst}{AdoConstants.TableLocks}({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnLockName}) VALUES (@schedulerName, @lockName)";
 
     protected virtual int RetryCount => 2;
@@ -57,16 +63,16 @@ public class UpdateLockRowSemaphore : DBSemaphore
     /// Initializes a new instance of the <see cref="UpdateLockRowSemaphore"/> class.
     /// </summary>
     public UpdateLockRowSemaphore(IDbProvider provider)
-        : base(AdoConstants.DefaultTablePrefix, null, SqlUpdateForLock, SqlInsertLock, provider)
+        : base(AdoConstants.DefaultTablePrefix, null, UpdateForLock, InsertLock, provider)
     {
     }
 
     protected UpdateLockRowSemaphore(
         string tablePrefix,
         string? schedulerName,
-        string defaultSql,
-        string defaultInsertSql,
-        IDbProvider dbProvider) : base(tablePrefix, schedulerName, defaultSql, defaultInsertSql, dbProvider)
+        string updateForLockSql,
+        string insertLockSql,
+        IDbProvider dbProvider) : base(tablePrefix, schedulerName, updateForLockSql, insertLockSql, dbProvider)
     {
     }
 

@@ -73,10 +73,11 @@ internal sealed class SQLiteSemaphore : ISemaphore
     public ValueTask<bool> ObtainLock(
         Guid requestorId,
         ConnectionAndTransactionHolder? conn,
-        string lockName,
+        SchedulerLock lockKind,
         CancellationToken cancellationToken = default)
     {
         var isDebugEnabled = logger.IsEnabled(LogLevel.Debug);
+        var lockName = lockKind.ToLockName();
 
         if (isDebugEnabled)
         {
@@ -145,7 +146,7 @@ internal sealed class SQLiteSemaphore : ISemaphore
     /// </summary>
     public ValueTask ReleaseLock(
         Guid requestorId,
-        string lockName,
+        SchedulerLock lockKind,
         CancellationToken cancellationToken = default)
     {
         lock (syncRoot)
@@ -154,7 +155,7 @@ internal sealed class SQLiteSemaphore : ISemaphore
             {
                 if (logger.IsEnabled(LogLevel.Warning))
                 {
-                    logger.LogWarning("Lock '{LockName}' attempt to return by: {RequestorId} -- but not owner!", lockName, requestorId);
+                    logger.LogWarning("Lock '{LockName}' attempt to return by: {RequestorId} -- but not owner!", lockKind.ToLockName(), requestorId);
                     logger.LogWarning("stack-trace of wrongful returner: {Stacktrace}", Environment.StackTrace);
                 }
 
@@ -166,7 +167,7 @@ internal sealed class SQLiteSemaphore : ISemaphore
             {
                 if (logger.IsEnabled(LogLevel.Debug))
                 {
-                    logger.LogDebug("Lock '{LockName}' reentrant release by: {RequestorId} (remaining: {LockCount})", lockName, requestorId, lockCount);
+                    logger.LogDebug("Lock '{LockName}' reentrant release by: {RequestorId} (remaining: {LockCount})", lockKind.ToLockName(), requestorId, lockCount);
                 }
 
                 return default;
@@ -179,7 +180,7 @@ internal sealed class SQLiteSemaphore : ISemaphore
 
         if (logger.IsEnabled(LogLevel.Debug))
         {
-            logger.LogDebug("Lock '{LockName}' returned by: {RequestorId}", lockName, requestorId);
+            logger.LogDebug("Lock '{LockName}' returned by: {RequestorId}", lockKind.ToLockName(), requestorId);
         }
 
         return default;

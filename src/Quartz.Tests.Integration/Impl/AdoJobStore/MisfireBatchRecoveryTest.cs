@@ -71,7 +71,7 @@ public class MisfireBatchRecoveryTest
     [Test]
     public async Task RecoversMisfiredTriggersOfEveryType()
     {
-        TestJobStoreTX jobStore = await CreateJobStore();
+        TestLocalTransactionJobStore jobStore = await CreateJobStore();
 
         // One of each shape the batch read has to deal with:
         //  - SIMPLE and CRON arrive complete on the joined row
@@ -134,7 +134,7 @@ public class MisfireBatchRecoveryTest
 
     private async Task<int> CountReadsRecovering(int triggerCount)
     {
-        TestJobStoreTX jobStore = await CreateJobStore(maxMisfiresToHandleAtATime: triggerCount);
+        TestLocalTransactionJobStore jobStore = await CreateJobStore(maxMisfiresToHandleAtATime: triggerCount);
         await jobStore.Clear();
 
         for (var i = 0; i < triggerCount; i++)
@@ -157,7 +157,7 @@ public class MisfireBatchRecoveryTest
     [Test]
     public async Task ReportsHasMoreWhenBatchIsTruncated()
     {
-        TestJobStoreTX jobStore = await CreateJobStore(maxMisfiresToHandleAtATime: 2);
+        TestLocalTransactionJobStore jobStore = await CreateJobStore(maxMisfiresToHandleAtATime: 2);
 
         for (var i = 0; i < 5; i++)
         {
@@ -175,7 +175,7 @@ public class MisfireBatchRecoveryTest
     /// Stores a job and a trigger whose start time is well in the past, which is what puts it in the
     /// WAITING state with an overdue next fire time — exactly what misfire recovery looks for.
     /// </summary>
-    private static async Task StoreMisfiredTrigger(TestJobStoreTX jobStore, string name, TriggerBuilder<IJob> builder)
+    private static async Task StoreMisfiredTrigger(TestLocalTransactionJobStore jobStore, string name, TriggerBuilder<IJob> builder)
     {
         IJobDetail job = JobBuilder.Create<MisfireTestJob>()
             .WithIdentity(name, "misfire-test")
@@ -201,7 +201,7 @@ public class MisfireBatchRecoveryTest
     /// Stores an overdue trigger that has no <see cref="ITriggerPersistenceDelegate" />, so it is
     /// persisted as a blob and has to be picked up by the batch read's blob follow-up query.
     /// </summary>
-    private static async Task StoreMisfiredBlobTrigger(TestJobStoreTX jobStore, string name)
+    private static async Task StoreMisfiredBlobTrigger(TestLocalTransactionJobStore jobStore, string name)
     {
         IJobDetail job = JobBuilder.Create<MisfireTestJob>()
             .WithIdentity(name, "misfire-test")
@@ -222,14 +222,14 @@ public class MisfireBatchRecoveryTest
         await jobStore.ScheduleJob(job, trigger);
     }
 
-    private async Task<TestJobStoreTX> CreateJobStore(int maxMisfiresToHandleAtATime = 20)
+    private async Task<TestLocalTransactionJobStore> CreateJobStore(int maxMisfiresToHandleAtATime = 20)
     {
         var registry = new NewtonsoftJsonSerializerRegistry()
             .AddTriggerSerializer<CustomTrigger>(new CustomNewtonsoftTriggerSerializer());
 
         var serializer = new NewtonsoftJsonObjectSerializer(registry);
 
-        var jobStore = new TestJobStoreTX(serializer, dbProvider, new CountingSQLiteDelegate(), maxMisfiresToHandleAtATime)
+        var jobStore = new TestLocalTransactionJobStore(serializer, dbProvider, new CountingSQLiteDelegate(), maxMisfiresToHandleAtATime)
         {
             InstanceId = "AUTO",
             InstanceName = SchedulerName,
@@ -256,9 +256,9 @@ public class MisfireBatchRecoveryTest
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default) => default;
     }
 
-    private sealed class TestJobStoreTX : JobStoreTX
+    private sealed class TestLocalTransactionJobStore : LocalTransactionJobStore
     {
-        public TestJobStoreTX(IObjectSerializer serializer, IDbProvider dbProvider, IDriverDelegate driverDelegate, int maxMisfiresToHandleAtATime)
+        public TestLocalTransactionJobStore(IObjectSerializer serializer, IDbProvider dbProvider, IDriverDelegate driverDelegate, int maxMisfiresToHandleAtATime)
             : base(
                 TestJobStores.Signaler(),
                 TestJobStores.TypeLoader(),

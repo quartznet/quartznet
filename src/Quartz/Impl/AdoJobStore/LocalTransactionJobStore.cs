@@ -27,18 +27,24 @@ using Quartz.Extensibility;
 namespace Quartz.Impl.AdoJobStore;
 
 /// <summary>
-/// <see cref="JobStoreTX" /> is meant to be used in a standalone environment.
-/// Both commit and rollback will be handled by this class.
+/// The persistent job store for a scheduler that runs on its own: it begins the ADO.NET transaction
+/// each operation runs in, and commits or rolls it back itself.
 /// </summary>
+/// <remarks>
+/// This is the default persistent store. Use <see cref="ExternalTransactionJobStore" /> instead when
+/// the transaction belongs to a container, and see
+/// <see cref="JobStoreSupport.AcceptEnlistedTransactions" /> for taking part in a transaction the
+/// application owns while still managing one when nothing is enlisted.
+/// </remarks>
 /// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public class JobStoreTX : JobStoreSupport
+public class LocalTransactionJobStore : JobStoreSupport
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="JobStoreTX"/> class.
+    /// Initializes a new instance of the <see cref="LocalTransactionJobStore"/> class.
     /// </summary>
-    public JobStoreTX(
+    public LocalTransactionJobStore(
         ISchedulerSignaler schedulerSignaler,
         ITypeLoadHelper typeLoadHelper,
         TimeProvider timeProvider,
@@ -60,41 +66,38 @@ public class JobStoreTX : JobStoreSupport
     public override async ValueTask Initialize(CancellationToken cancellationToken = default)
     {
         await base.Initialize(cancellationToken).ConfigureAwait(false);
-        Logger.LogInformation("JobStoreTX initialized.");
+        Logger.LogInformation("LocalTransactionJobStore initialized.");
     }
 
     /// <summary>
-    /// For <see cref="JobStoreTX" />, the non-managed TX connection is just
-    /// the normal connection because it is not CMT.
+    /// This store manages its own transactions and has the one data source, so the connection it runs
+    /// a locked operation on is just the normal one.
     /// </summary>
     /// <seealso cref="JobStoreSupport.GetConnection(CancellationToken)" />
-    protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection(CancellationToken cancellationToken = default)
+    protected override ValueTask<ConnectionAndTransactionHolder> GetLocalTransactionConnection(CancellationToken cancellationToken = default)
     {
         return GetConnection(cancellationToken);
     }
 
     /// <summary>
-    /// Execute the given callback having optionally acquired the given lock.
-    /// For <see cref="JobStoreTX" />, because it manages its own transactions
-    /// and only has the one datasource, this is the same behavior as
-    /// <see cref="JobStoreSupport.ExecuteInNonManagedTXLock" />.
+    /// Execute the given callback having optionally acquired the given lock. Because this store
+    /// manages its own transactions and only has the one data source, this is the same behavior as
+    /// <see cref="JobStoreSupport.ExecuteInLocalTransactionLock{T}" />.
     /// </summary>
-    /// <param name="lockName">
-    /// The name of the lock to acquire, for example "TRIGGER_ACCESS".
-    /// If null, then no lock is acquired, but the lockCallback is still
-    /// executed in a transaction.
+    /// <param name="lockKind">
+    /// The lock to acquire. If <see langword="null" />, then no lock is acquired, but the
+    /// <paramref name="txCallback" /> is still executed in a transaction.
     /// </param>
     /// <param name="txCallback">Callback to execute.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns></returns>
-    /// <seealso cref="JobStoreSupport.ExecuteInNonManagedTXLock" />
-    /// <seealso cref="JobStoreSupport.GetNonManagedTXConnection(CancellationToken)" />
+    /// <seealso cref="JobStoreSupport.ExecuteInLocalTransactionLock{T}" />
+    /// <seealso cref="JobStoreSupport.GetLocalTransactionConnection(CancellationToken)" />
     /// <seealso cref="JobStoreSupport.GetConnection(CancellationToken)" />
     protected override ValueTask<T> ExecuteInLock<T>(
-        string? lockName,
+        SchedulerLock? lockKind,
         Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteInNonManagedTXLock(lockName, txCallback, cancellationToken);
+        return ExecuteInLocalTransactionLock(lockKind, txCallback, cancellationToken: cancellationToken);
     }
 }

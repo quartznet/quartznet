@@ -152,7 +152,7 @@ public class QuartzPropertyBridgeTest
     {
         using var provider = Bridge(new NameValueCollection
         {
-            ["quartz.jobStore.type"] = typeof(JobStoreTX).AssemblyQualifiedName,
+            ["quartz.jobStore.type"] = typeof(LocalTransactionJobStore).AssemblyQualifiedName,
             ["quartz.jobStore.dataSource"] = "primary",
             ["quartz.jobStore.tablePrefix"] = "QRTZ2_",
             ["quartz.jobStore.useProperties"] = "true",

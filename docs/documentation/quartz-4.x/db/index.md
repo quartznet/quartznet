@@ -2,7 +2,7 @@
 title: Database Schema
 ---
 
-When using ADO.NET-based job store (the usual being `JobStoreTX`), Quartz requires the creation of a set of tables. Creating the initial schema or migrating existing one is a manual step, as Quartz.NET does not create or migrate these automatically.
+When using ADO.NET-based job store (the usual being `LocalTransactionJobStore`), Quartz requires the creation of a set of tables. Creating the initial schema or migrating existing one is a manual step, as Quartz.NET does not create or migrate these automatically.
 
 | Table | Brief Description |
 | -- | -- |

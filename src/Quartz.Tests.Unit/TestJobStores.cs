@@ -82,14 +82,14 @@ public static class TestJobStores
             timeProvider ?? TimeProvider.System);
     }
 
-    public static JobStoreTX Tx(
+    public static LocalTransactionJobStore Tx(
         ISchedulerSignaler? signaler = null,
         ITypeLoadHelper? typeLoadHelper = null,
         TimeProvider? timeProvider = null,
         string instanceName = "TestScheduler",
         string instanceId = "TestInstance")
     {
-        return new JobStoreTX(
+        return new LocalTransactionJobStore(
             signaler ?? new NoOpSchedulerSignaler(),
             typeLoadHelper ?? new SimpleTypeLoadHelper(),
             timeProvider ?? TimeProvider.System,
@@ -102,12 +102,12 @@ public static class TestJobStores
             LockHandler());
     }
 
-    public static JobStoreCMT Cmt(
+    public static ExternalTransactionJobStore Cmt(
         ISchedulerSignaler? signaler = null,
         ITypeLoadHelper? typeLoadHelper = null,
         TimeProvider? timeProvider = null)
     {
-        return new JobStoreCMT(
+        return new ExternalTransactionJobStore(
             signaler ?? new NoOpSchedulerSignaler(),
             typeLoadHelper ?? new SimpleTypeLoadHelper(),
             timeProvider ?? TimeProvider.System,

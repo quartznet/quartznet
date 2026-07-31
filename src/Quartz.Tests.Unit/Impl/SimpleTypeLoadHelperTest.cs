@@ -1,11 +1,12 @@
 using Quartz.Extensibility;
 using Quartz.Impl;
+using Quartz.Impl.AdoJobStore;
 
 namespace Quartz.Tests.Unit.Impl;
 
 /// <summary>
-/// The 4.0 namespace renames are invisible to the compiler when a type is named by a configuration
-/// string, so the fallback that keeps those strings resolving needs a test of its own.
+/// The 4.0 namespace and type renames are invisible to the compiler when a type is named by a
+/// configuration string, so the fallback that keeps those strings resolving needs a test of its own.
 /// </summary>
 public class SimpleTypeLoadHelperTest
 {
@@ -59,6 +60,39 @@ public class SimpleTypeLoadHelperTest
         loadHelper.LoadType("Quartz.Simpl.SystemTextJsonObjectSerializer, Quartz.Serialization.SystemTextJson")
             .Should().Be<SystemTextJsonObjectSerializer>(
                 "the System.Text.Json serializer merged into the core package in 4.0");
+    }
+
+    [Test]
+    public void ShouldLoadTheJobStoreNamedByItsPre40TypeName()
+    {
+        loadHelper.LoadType("Quartz.Impl.AdoJobStore.JobStoreTX, Quartz")
+            .Should().Be<LocalTransactionJobStore>(
+                "quartz.jobStore.type is the one type name almost every persistent configuration spells out");
+    }
+
+    [Test]
+    public void ShouldLoadTheContainerManagedJobStoreNamedByItsPre40TypeName()
+    {
+        loadHelper.LoadType("Quartz.Impl.AdoJobStore.JobStoreCMT, Quartz")
+            .Should().Be<ExternalTransactionJobStore>(
+                "quartz.jobStore.type is the one type name almost every persistent configuration spells out");
+    }
+
+    [Test]
+    public void ShouldLoadTheJobStoreNamedByItsPre40TypeNameWithoutAnAssembly()
+    {
+        loadHelper.LoadType("Quartz.Impl.AdoJobStore.JobStoreTX")
+            .Should().Be<LocalTransactionJobStore>(
+                "the assembly is optional in a configured type name when the type lives in the calling assembly's dependencies");
+    }
+
+    [Test]
+    public void ShouldNotRewriteATypeWhoseNameMerelyStartsWithARenamedOne()
+    {
+        var act = () => loadHelper.LoadType("Quartz.Impl.AdoJobStore.JobStoreTXExtras, Quartz");
+
+        act.Should().Throw<TypeLoadException>().WithMessage("*JobStoreTXExtras*",
+            "the rename applies to the whole type name, not to anything that happens to begin with it");
     }
 
     [Test]

@@ -19,7 +19,7 @@ public class SimpleSemaphoreBenchmark
     [Benchmark]
     public async Task ObtainAndRelease()
     {
-        await semaphore.ObtainLock(requestorId, null, JobStoreSupport.LockTriggerAccess, CancellationToken.None);
-        await semaphore.ReleaseLock(requestorId, JobStoreSupport.LockTriggerAccess, CancellationToken.None);
+        await semaphore.ObtainLock(requestorId, null, SchedulerLock.TriggerAccess, CancellationToken.None);
+        await semaphore.ReleaseLock(requestorId, SchedulerLock.TriggerAccess, CancellationToken.None);
     }
 }

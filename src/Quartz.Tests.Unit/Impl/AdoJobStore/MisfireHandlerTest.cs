@@ -168,16 +168,13 @@ public class MisfireHandlerTest
     private sealed class TestJobStoreSupport : JobStoreSupport
     {
         public TestJobStoreSupport()
-        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
+        // A short misfire handler frequency so that if the Run loop starts, it quickly checks the
+        // cancellation token and exits, letting shutdown tests complete faster.
+        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions("TestInstance", "TestInstanceId"), TestJobStores.StoreOptions(configure: options => options.MisfireHandlerFrequency = TimeSpan.FromMilliseconds(100)), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
         {
-            InstanceName = "TestInstance";
-            InstanceId = "TestInstanceId";
-            // Set a short frequency so that if the Run loop starts, it quickly checks
-            // the cancellation token and exits, allowing shutdown tests to complete faster
-            MisfireHandlerFrequency = TimeSpan.FromMilliseconds(100);
         }
 
-        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection(CancellationToken cancellationToken = default)
+        protected override ValueTask<ConnectionAndTransactionHolder> GetLocalTransactionConnection(CancellationToken cancellationToken = default)
         {
             // Return a fake connection that will be used but won't actually do anything
             var fakeConnection = A.Fake<DbConnection>();
@@ -186,7 +183,7 @@ public class MisfireHandlerTest
         }
 
         protected override ValueTask<T> ExecuteInLock<T>(
-            string lockName,
+            SchedulerLock? lockKind,
             Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
             CancellationToken cancellationToken = default)
         {

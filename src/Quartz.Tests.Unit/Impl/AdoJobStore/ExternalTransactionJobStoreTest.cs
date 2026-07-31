@@ -7,9 +7,9 @@ using Quartz.Impl.AdoJobStore.Common;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 
-public class JobStoreCMTTest
+public class ExternalTransactionJobStoreTest
 {
-    private TestJobStoreCMT jobStore;
+    private TestExternalTransactionJobStore jobStore;
     private IDbProvider dbProvider;
 
     [SetUp]
@@ -19,19 +19,19 @@ public class JobStoreCMTTest
         // one up by name in the process-wide connection manager — two schedulers whose data sources
         // share a name would otherwise reach each other's database.
         dbProvider = A.Fake<IDbProvider>();
-        jobStore = new TestJobStoreCMT(dbProvider);
+        jobStore = new TestExternalTransactionJobStore(dbProvider);
     }
 
-    private sealed class TestJobStoreCMT : JobStoreCMT
+    private sealed class TestExternalTransactionJobStore : ExternalTransactionJobStore
     {
-        public TestJobStoreCMT(IDbProvider dbProvider)
+        public TestExternalTransactionJobStore(IDbProvider dbProvider)
             : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), dbProvider, TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
         {
         }
 
-        public void ExecuteGetNonManagedConnection()
+        public void ExecuteGetLocalTransactionConnection()
         {
-            GetNonManagedTXConnection().GetAwaiter().GetResult();
+            GetLocalTransactionConnection().GetAwaiter().GetResult();
         }
     }
 
@@ -41,7 +41,7 @@ public class JobStoreCMTTest
         var mock = A.Fake<DbConnection>();
         A.CallTo(() => dbProvider.CreateConnection()).Returns(mock);
 
-        jobStore.ExecuteGetNonManagedConnection();
+        jobStore.ExecuteGetLocalTransactionConnection();
 
         A.CallTo(() => mock.OpenAsync(CancellationToken.None)).MustNotHaveHappened();
     }
@@ -53,7 +53,7 @@ public class JobStoreCMTTest
         var mock = A.Fake<DbConnection>();
         A.CallTo(() => dbProvider.CreateConnection()).Returns(mock);
 
-        jobStore.ExecuteGetNonManagedConnection();
+        jobStore.ExecuteGetLocalTransactionConnection();
 
         A.CallTo(() => mock.OpenAsync(CancellationToken.None)).MustHaveHappened();
     }

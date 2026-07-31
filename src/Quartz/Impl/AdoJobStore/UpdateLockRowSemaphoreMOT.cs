@@ -30,17 +30,17 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author>Marko Lahma</author>
 public sealed class UpdateLockRowSemaphoreMOT : UpdateLockRowSemaphore
 {
-    private static readonly string SqlUpdateForLockMOT =
+    private static readonly string UpdateForLockMOT =
         $"UPDATE {StdAdoConstants.TablePrefixSubst}{AdoConstants.TableLocks} WITH (SNAPSHOT) SET {AdoConstants.ColumnLockName} = {AdoConstants.ColumnLockName} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnLockName} = @lockName";
 
-    private static readonly string SqlInsertLockMOT =
+    private static readonly string InsertLockMOT =
         $"INSERT INTO {StdAdoConstants.TablePrefixSubst}{AdoConstants.TableLocks}({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnLockName}) VALUES (@schedulerName, @lockName)";
 
     /// <summary>
     /// Initializes a new instance of the <see cref="UpdateLockRowSemaphoreMOT"/> class.
     /// </summary>
     public UpdateLockRowSemaphoreMOT(IDbProvider provider)
-        : base(AdoConstants.DefaultTablePrefix, null, SqlUpdateForLockMOT, SqlInsertLockMOT, provider)
+        : base(AdoConstants.DefaultTablePrefix, null, UpdateForLockMOT, InsertLockMOT, provider)
     {
     }
 

@@ -37,10 +37,10 @@ public abstract class DBSemaphore : ISemaphore, ITablePrefixAware
 {
     private readonly ConcurrentDictionary<ThreadLockKey, object?> locks = new();
 
-    private string sql = null!;
-    private string insertSql = null!;
+    private readonly string sql;
+    private readonly string insertSql;
 
-    private string tablePrefix = null!;
+    private string tablePrefix;
 
     private string? schedulerName;
 
@@ -50,24 +50,30 @@ public abstract class DBSemaphore : ISemaphore, ITablePrefixAware
     /// <summary>
     /// Initializes a new instance of the <see cref="DBSemaphore"/> class.
     /// </summary>
+    /// <remarks>
+    /// The two statements are fixed at construction. They were settable, which meant a subclass could
+    /// swap them after the table prefix had already been folded in, and the two halves of the lock -
+    /// the select and the insert that backs it - could disagree about which table they were talking to.
+    /// </remarks>
     /// <param name="tablePrefix">The table prefix.</param>
     /// <param name="schedulerName">the scheduler name</param>
-    /// <param name="defaultInsertSql">The SQL.</param>
-    /// <param name="defaultSql">The default SQL.</param>
+    /// <param name="insertSql">The statement that inserts the lock row when it does not exist yet.</param>
+    /// <param name="sql">The statement that takes the lock.</param>
     /// <param name="dbProvider">The db provider.</param>
     protected DBSemaphore(
         string tablePrefix,
         string? schedulerName,
-        string defaultSql,
-        string defaultInsertSql,
+        string sql,
+        string insertSql,
         IDbProvider dbProvider)
     {
         logger = LogProvider.CreateLogger<DBSemaphore>();
         this.schedulerName = schedulerName;
         this.tablePrefix = tablePrefix;
-        Sql = defaultSql;
-        InsertSql = defaultInsertSql;
+        this.sql = sql.Trim();
+        this.insertSql = insertSql.Trim();
         AdoUtil = new AdoUtil(dbProvider);
+        SetExpandedSql();
     }
 
     /// <summary>
@@ -95,16 +101,17 @@ public abstract class DBSemaphore : ISemaphore, ITablePrefixAware
     public async ValueTask<bool> ObtainLock(
         Guid requestorId,
         ConnectionAndTransactionHolder? conn,
-        string lockName,
+        SchedulerLock lockKind,
         CancellationToken cancellationToken = default)
     {
+        string lockName = lockKind.ToLockName();
         var isDebugEnabled = logger.IsEnabled(LogLevel.Debug);
         if (isDebugEnabled)
         {
             logger.LogDebug("Lock '{LockName}' is desired by: {RequestorId}", lockName, requestorId);
         }
 
-        var key = new ThreadLockKey(requestorId, lockName);
+        var key = new ThreadLockKey(requestorId, lockKind);
         if (!IsLockOwner(key))
         {
             await ExecuteSql(requestorId, conn!, lockName, expandedSql, expandedInsertSql, cancellationToken)
@@ -133,22 +140,22 @@ public abstract class DBSemaphore : ISemaphore, ITablePrefixAware
     /// </summary>
     public ValueTask ReleaseLock(
         Guid requestorId,
-        string lockName,
+        SchedulerLock lockKind,
         CancellationToken cancellationToken = default)
     {
-        var key = new ThreadLockKey(requestorId, lockName);
+        var key = new ThreadLockKey(requestorId, lockKind);
         if (IsLockOwner(key))
         {
             locks.TryRemove(key, out _);
 
             if (logger.IsEnabled(LogLevel.Debug))
             {
-                logger.LogDebug("Lock '{LockName}' returned by: {RequestorId}", lockName, requestorId);
+                logger.LogDebug("Lock '{LockName}' returned by: {RequestorId}", lockKind.ToLockName(), requestorId);
             }
         }
         else if (logger.IsEnabled(LogLevel.Warning))
         {
-            logger.LogWarning("Lock '{LockName}' attempt to return by: {RequestorId} -- but not owner!", lockName, requestorId);
+            logger.LogWarning("Lock '{LockName}' attempt to return by: {RequestorId} -- but not owner!", lockKind.ToLockName(), requestorId);
             logger.LogWarning("stack-trace of wrongful returner: {Stacktrace}", Environment.StackTrace);
         }
 
@@ -169,41 +176,21 @@ public abstract class DBSemaphore : ISemaphore, ITablePrefixAware
     /// </summary>
     public bool RequiresConnection => true;
 
-    protected string Sql
-    {
-        get => sql;
-        set
-        {
-            if (!string.IsNullOrWhiteSpace(value))
-            {
-                sql = value.Trim();
-            }
+    /// <summary>
+    /// The statement that takes the lock, before the table prefix is folded in.
+    /// </summary>
+    protected string Sql => sql;
 
-            SetExpandedSql();
-        }
-    }
-
-    protected string InsertSql
-    {
-        get => insertSql;
-        set
-        {
-            if (!string.IsNullOrWhiteSpace(value))
-            {
-                insertSql = value.Trim();
-            }
-
-            SetExpandedSql();
-        }
-    }
+    /// <summary>
+    /// The statement that inserts the lock row when it does not exist yet, before the table prefix is
+    /// folded in.
+    /// </summary>
+    protected string InsertSql => insertSql;
 
     private void SetExpandedSql()
     {
-        if (TablePrefix is not null && sql is not null && insertSql is not null)
-        {
-            expandedSql = AdoJobStoreUtil.ReplaceTablePrefix(sql, TablePrefix);
-            expandedInsertSql = AdoJobStoreUtil.ReplaceTablePrefix(insertSql, TablePrefix);
-        }
+        expandedSql = AdoJobStoreUtil.ReplaceTablePrefix(sql, tablePrefix);
+        expandedInsertSql = AdoJobStoreUtil.ReplaceTablePrefix(insertSql, tablePrefix);
     }
 
     public string? SchedulerName
@@ -232,21 +219,22 @@ public abstract class DBSemaphore : ISemaphore, ITablePrefixAware
     /// </remarks>
     private protected IAdoUtil AdoUtil { get; }
 
+    [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Auto)]
     private readonly struct ThreadLockKey : IEquatable<ThreadLockKey>
     {
         private readonly Guid requestorId;
-        private readonly string lockName;
+        private readonly SchedulerLock lockKind;
         private readonly int hashCode;
 
-        public ThreadLockKey(Guid requestorId, string lockName)
+        public ThreadLockKey(Guid requestorId, SchedulerLock lockKind)
         {
             this.requestorId = requestorId;
-            this.lockName = lockName;
-            hashCode = (requestorId.GetHashCode() * 397) ^ lockName.GetHashCode();
+            this.lockKind = lockKind;
+            hashCode = (requestorId.GetHashCode() * 397) ^ (int) lockKind;
         }
 
         public bool Equals(ThreadLockKey other)
-            => requestorId.Equals(other.requestorId) && string.Equals(lockName, other.lockName, StringComparison.Ordinal);
+            => requestorId.Equals(other.requestorId) && lockKind == other.lockKind;
 
         public override bool Equals(object? obj) => obj is ThreadLockKey other && Equals(other);
 

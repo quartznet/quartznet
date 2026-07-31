@@ -93,7 +93,7 @@ internal sealed class QuartzBuilder : IQuartzBuilder
 
     public IQuartzBuilder UsePersistentStore(Action<IPersistentStoreBuilder> configure)
     {
-        return UsePersistentStore<JobStoreTX>(configure);
+        return UsePersistentStore<LocalTransactionJobStore>(configure);
     }
 
     public IQuartzBuilder UsePersistentStore<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(

@@ -53,12 +53,12 @@ public class JobStoreSupportTest
         {
         }
 
-        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection(CancellationToken cancellationToken = default)
+        protected override ValueTask<ConnectionAndTransactionHolder> GetLocalTransactionConnection(CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
 
-        protected override ValueTask<T> ExecuteInLock<T>(string lockName, Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback, CancellationToken cancellationToken = default)
+        protected override ValueTask<T> ExecuteInLock<T>(SchedulerLock? lockKind, Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }

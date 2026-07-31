@@ -140,7 +140,7 @@ public class JobStoreSupportTest
     {
         // Disable field-level calendarCache so the test validates the batch cache,
         // not the existing GetCalendar lazy-cache (which is active when Clustered=false).
-        jobStoreSupport.Clustered = true;
+        jobStoreSupport = new TestJobStoreSupport(clustered: true) { DirectDelegate = driverDelegate };
 
         string calendarName = "shared-cal";
 
@@ -200,13 +200,13 @@ public class JobStoreSupportTest
     }
 
     [Test]
-    public async Task TestExecuteInNonManagedTXLock_RetriesOnTransientException()
+    public async Task TestExecuteInLocalTransactionLock_RetriesOnTransientException()
     {
         int callCount = 0;
         var store = CreateRetryTestStore();
 
         // Callback fails with transient exception on first call, succeeds on second
-        string result = await store.CallExecuteInNonManagedTXLock<string>(conn =>
+        string result = await store.CallExecuteInLocalTransactionLock<string>(conn =>
         {
             callCount++;
             if (callCount == 1)
@@ -221,13 +221,13 @@ public class JobStoreSupportTest
     }
 
     [Test]
-    public async Task TestExecuteInNonManagedTXLock_StopsRetryingAfterMaxRetries()
+    public async Task TestExecuteInLocalTransactionLock_StopsRetryingAfterMaxRetries()
     {
         int callCount = 0;
         var store = CreateRetryTestStore(maxTransientRetries: 2);
 
         // Callback always throws transient exception
-        Func<Task> act = async () => await store.CallExecuteInNonManagedTXLock<string>(conn =>
+        Func<Task> act = async () => await store.CallExecuteInLocalTransactionLock<string>(conn =>
         {
             callCount++;
             throw new JobPersistenceException("transient", new TransientTestException());
@@ -239,13 +239,13 @@ public class JobStoreSupportTest
     }
 
     [Test]
-    public async Task TestExecuteInNonManagedTXLock_DoesNotRetryNonTransientException()
+    public async Task TestExecuteInLocalTransactionLock_DoesNotRetryNonTransientException()
     {
         int callCount = 0;
         var store = CreateRetryTestStore();
 
         // Non-transient exception should not be retried
-        Func<Task> act = async () => await store.CallExecuteInNonManagedTXLock<string>(conn =>
+        Func<Task> act = async () => await store.CallExecuteInLocalTransactionLock<string>(conn =>
         {
             callCount++;
             throw new JobPersistenceException("non-transient");
@@ -256,13 +256,13 @@ public class JobStoreSupportTest
     }
 
     [Test]
-    public async Task TestExecuteInNonManagedTXLock_NoRetryWhenMaxTransientRetriesIsZero()
+    public async Task TestExecuteInLocalTransactionLock_NoRetryWhenMaxTransientRetriesIsZero()
     {
         int callCount = 0;
         var store = CreateRetryTestStore(maxTransientRetries: 0);
 
         // With MaxTransientRetries = 0, transient exceptions should not be retried
-        Func<Task> act = async () => await store.CallExecuteInNonManagedTXLock<string>(conn =>
+        Func<Task> act = async () => await store.CallExecuteInLocalTransactionLock<string>(conn =>
         {
             callCount++;
             throw new JobPersistenceException("transient", new TransientTestException());
@@ -812,27 +812,23 @@ public class JobStoreSupportTest
 
     private static RetryTestJobStoreSupport CreateRetryTestStore(int maxTransientRetries = 3)
     {
-        return new RetryTestJobStoreSupport
-        {
-            MaxTransientRetries = maxTransientRetries,
-            TransientRetryInterval = TimeSpan.Zero,
-        };
+        return new RetryTestJobStoreSupport(maxTransientRetries);
     }
 
     public class TestJobStoreSupport : JobStoreSupport
     {
 
-    public TestJobStoreSupport()
-        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
+    public TestJobStoreSupport(bool clustered = false)
+        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(configure: options => options.Clustered = clustered), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
     {
     }
-        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection(CancellationToken cancellationToken = default)
+        protected override ValueTask<ConnectionAndTransactionHolder> GetLocalTransactionConnection(CancellationToken cancellationToken = default)
         {
             return new ValueTask<ConnectionAndTransactionHolder>(new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null));
         }
 
         protected override ValueTask<T> ExecuteInLock<T>(
-            string lockName,
+            SchedulerLock? lockKind,
             Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
             CancellationToken cancellationToken = default)
         {
@@ -909,16 +905,20 @@ public class JobStoreSupportTest
 
     /// <summary>
     /// A <see cref="JobStoreSupport"/> subclass used to test retry logic in
-    /// <see cref="JobStoreSupport.ExecuteInNonManagedTXLock{T}"/>.
+    /// <see cref="JobStoreSupport.ExecuteInLocalTransactionLock{T}"/>.
     /// </summary>
     public sealed class RetryTestJobStoreSupport : JobStoreSupport
     {
-        public RetryTestJobStoreSupport()
-            : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
+        public RetryTestJobStoreSupport(int maxTransientRetries = 3)
+            : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(configure: options =>
+            {
+                options.MaxTransientRetries = maxTransientRetries;
+                options.TransientRetryInterval = TimeSpan.Zero;
+            }), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
         {
         }
 
-        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection(CancellationToken cancellationToken = default)
+        protected override ValueTask<ConnectionAndTransactionHolder> GetLocalTransactionConnection(CancellationToken cancellationToken = default)
         {
             // Return a holder with a mock connection and no transaction
             return new ValueTask<ConnectionAndTransactionHolder>(
@@ -926,11 +926,11 @@ public class JobStoreSupportTest
         }
 
         protected override ValueTask<T> ExecuteInLock<T>(
-            string lockName,
+            SchedulerLock? lockKind,
             Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
             CancellationToken cancellationToken = default)
         {
-            return ExecuteInNonManagedTXLock(lockName, txCallback, cancellationToken);
+            return ExecuteInLocalTransactionLock(lockKind, txCallback, cancellationToken: cancellationToken);
         }
 
         protected override bool IsTransient(Exception ex)
@@ -939,11 +939,11 @@ public class JobStoreSupportTest
             return ex is JobPersistenceException { InnerException: TransientTestException };
         }
 
-        public ValueTask<T> CallExecuteInNonManagedTXLock<T>(
+        public ValueTask<T> CallExecuteInLocalTransactionLock<T>(
             Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
             CancellationToken cancellationToken)
         {
-            return ExecuteInNonManagedTXLock(null, txCallback, cancellationToken);
+            return ExecuteInLocalTransactionLock(null, txCallback, cancellationToken: cancellationToken);
         }
     }
 
@@ -1015,7 +1015,7 @@ public class JobStoreSupportTest
 
         // Throw raw TransientTestException (simulates a raw DB exception like SqlException).
         // TriggerFired wraps it as JobPersistenceException(inner: TransientTestException),
-        // which IsTransient recognizes, enabling the retry in ExecuteInNonManagedTXLock.
+        // which IsTransient recognizes, enabling the retry in ExecuteInLocalTransactionLock.
         A.CallTo(() => del.SelectTriggerState(A<ConnectionAndTransactionHolder>.Ignored, trigger.Key, A<CancellationToken>.Ignored))
             .ReturnsLazily(call =>
             {
@@ -1136,10 +1136,7 @@ public class JobStoreSupportTest
 
     private static TransientTriggersFiredTestStore CreateTransientTriggersFiredTestStore(int maxTransientRetries = 3)
     {
-        return new TransientTriggersFiredTestStore
-        {
-            MaxTransientRetries = maxTransientRetries,
-        };
+        return new TransientTriggersFiredTestStore(maxTransientRetries);
     }
 
     /// <summary>
@@ -1148,25 +1145,28 @@ public class JobStoreSupportTest
     /// </summary>
     public sealed class TransientTriggersFiredTestStore : JobStoreSupport
     {
-        public TransientTriggersFiredTestStore()
-        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
+        public TransientTriggersFiredTestStore(int maxTransientRetries = 3)
+        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(configure: options =>
+        {
+            options.MaxTransientRetries = maxTransientRetries;
+            options.TransientRetryInterval = TimeSpan.Zero;
+        }), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
         {
             LockHandler = new SimpleSemaphore();
-            TransientRetryInterval = TimeSpan.Zero;
         }
 
-        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection(CancellationToken cancellationToken = default)
+        protected override ValueTask<ConnectionAndTransactionHolder> GetLocalTransactionConnection(CancellationToken cancellationToken = default)
         {
             return new ValueTask<ConnectionAndTransactionHolder>(
                 new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null));
         }
 
         protected override ValueTask<T> ExecuteInLock<T>(
-            string lockName,
+            SchedulerLock? lockKind,
             Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
             CancellationToken cancellationToken = default)
         {
-            return ExecuteInNonManagedTXLock(lockName, txCallback, cancellationToken);
+            return ExecuteInLocalTransactionLock(lockKind, txCallback, cancellationToken: cancellationToken);
         }
 
         protected override bool IsTransient(Exception ex)
@@ -1309,10 +1309,7 @@ public class JobStoreSupportTest
 
     private static TransientDoCheckinTestStore CreateTransientDoCheckinTestStore(int maxTransientRetries = 3)
     {
-        return new TransientDoCheckinTestStore
-        {
-            MaxTransientRetries = maxTransientRetries,
-        };
+        return new TransientDoCheckinTestStore(maxTransientRetries);
     }
 
     /// <summary>
@@ -1321,13 +1318,14 @@ public class JobStoreSupportTest
     /// </summary>
     public sealed class TransientDoCheckinTestStore : JobStoreSupport
     {
-        public TransientDoCheckinTestStore()
-        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
+        public TransientDoCheckinTestStore(int maxTransientRetries = 3)
+        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions("test-scheduler", "test-instance"), TestJobStores.StoreOptions(configure: options =>
+        {
+            options.MaxTransientRetries = maxTransientRetries;
+            options.TransientRetryInterval = TimeSpan.Zero;
+        }), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
         {
             LockHandler = new SimpleSemaphore();
-            TransientRetryInterval = TimeSpan.Zero;
-            InstanceId = "test-instance";
-            InstanceName = "test-scheduler";
         }
 
         public void SetFirstCheckIn(bool value)
@@ -1336,18 +1334,18 @@ public class JobStoreSupportTest
             fieldInfo.SetValue(this, value);
         }
 
-        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection(CancellationToken cancellationToken = default)
+        protected override ValueTask<ConnectionAndTransactionHolder> GetLocalTransactionConnection(CancellationToken cancellationToken = default)
         {
             return new ValueTask<ConnectionAndTransactionHolder>(
                 new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null));
         }
 
         protected override ValueTask<T> ExecuteInLock<T>(
-            string lockName,
+            SchedulerLock? lockKind,
             Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
             CancellationToken cancellationToken = default)
         {
-            return ExecuteInNonManagedTXLock(lockName, txCallback, cancellationToken);
+            return ExecuteInLocalTransactionLock(lockKind, txCallback, cancellationToken: cancellationToken);
         }
 
         protected override bool IsTransient(Exception ex)

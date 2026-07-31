@@ -45,7 +45,7 @@ public class PostgreSQLLockTest
             ["quartz.scheduler.instanceName"] = "TestScheduler",
             ["quartz.scheduler.instanceId"] = "AUTO",
             ["quartz.serializer.type"] = TestConstants.DefaultSerializerType,
-            ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
+            ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz",
             ["quartz.jobStore.useProperties"] = "false",
             ["quartz.jobStore.dataSource"] = "default",
             ["quartz.jobStore.tablePrefix"] = "QRTZ_",

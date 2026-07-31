@@ -43,21 +43,17 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author>Marko Lahma (.NET)</author>
 public abstract class JobStoreSupport : IJobStore
 {
-    protected internal const string LockTriggerAccess = "TRIGGER_ACCESS";
-    protected internal const string LockStateAccess = "STATE_ACCESS";
-
-    private string tablePrefix = AdoConstants.DefaultTablePrefix;
-    private bool useProperties;
+    private readonly bool useProperties;
     private readonly Dictionary<string, ICalendar?> calendarCache = [];
-    private IDriverDelegate driverDelegate = null!;
+    private readonly IDriverDelegate driverDelegate;
     private TimeSpan misfireThreshold = TimeSpan.FromMinutes(1); // one minute
-    private TimeSpan? misfirehandlerFrequence;
+    private readonly TimeSpan? misfirehandlerFrequence;
 
     private ClusterManager? clusterManager;
     private MisfireHandler? misfireHandler;
-    private ITypeLoadHelper typeLoadHelper = null!;
-    private ISchedulerSignaler schedSignaler = null!;
-    internal TimeProvider timeProvider = TimeProvider.System;
+    private readonly ITypeLoadHelper typeLoadHelper;
+    private readonly ISchedulerSignaler schedSignaler;
+    internal readonly TimeProvider timeProvider;
 
     private volatile bool schedulerRunning;
     private volatile bool shutdown;
@@ -85,14 +81,14 @@ public abstract class JobStoreSupport : IJobStore
         InstanceName = schedulerOptions.Value.InstanceName;
         InstanceId = schedulerOptions.Value.InstanceId;
 
-        // Created from the runtime type, so JobStoreTX and JobStoreCMT log under their own names rather
-        // than everything arriving as JobStoreSupport.
+        // Created from the runtime type, so LocalTransactionJobStore and ExternalTransactionJobStore log
+        // under their own names rather than everything arriving as JobStoreSupport.
         Logger = LogProvider.CreateLogger(GetType().FullName!);
         ConnectionManager = connectionManager;
 
         var options = storeOptions.Value;
         DataSource = options.DataSource;
-        tablePrefix = options.TablePrefix;
+        TablePrefix = options.TablePrefix ?? "";
         useProperties = options.UseProperties;
         MisfireThreshold = options.MisfireThreshold;
         misfirehandlerFrequence = options.MisfireHandlerFrequency;
@@ -134,14 +130,14 @@ public abstract class JobStoreSupport : IJobStore
     }
 
     /// <summary>
-    /// Get or set the datasource name.
+    /// The name of the data source this store reads and writes through.
     /// </summary>
-    public string DataSource { get; set; } = "";
+    public string DataSource { get; } = "";
 
     /// <summary>
-    /// Get or set the database connection manager.
+    /// The database connection manager this store publishes its provider to.
     /// </summary>
-    public IDbConnectionManager ConnectionManager { get; set; }
+    public IDbConnectionManager ConnectionManager { get; }
 
     /// <summary>
     /// Gets the log.
@@ -150,53 +146,48 @@ public abstract class JobStoreSupport : IJobStore
     internal ILogger Logger { get; }
 
     /// <summary>
-    /// Get or sets the prefix that should be pre-pended to all table names.
+    /// The prefix pre-pended to all table names.
     /// </summary>
-    public string TablePrefix
-    {
-        get => tablePrefix;
-        set
-        {
-            if (value is null)
-            {
-                value = "";
-            }
-
-            tablePrefix = value;
-        }
-    }
+    public string TablePrefix { get; }
 
     /// <summary>
-    /// Get or set the instance Id of the Scheduler (must be unique within a cluster).
+    /// The instance id of the scheduler (unique within a cluster).
     /// </summary>
-    public string InstanceId { get; set; } = "";
+    /// <remarks>
+    /// Written once more after construction when the id is generated rather than configured, because
+    /// the store is built before the generator has run and its rows are keyed by the value.
+    /// </remarks>
+    public string InstanceId { get; internal set; } = "";
 
     /// <summary>
-    /// Get or set the instance Id of the Scheduler (must be unique within this server instance).
+    /// The name of the scheduler, shared by every node of a cluster.
     /// </summary>
-    public string InstanceName { get; set; } = "";
+    /// <inheritdoc cref="InstanceId" path="/remarks" />
+    public string InstanceName { get; internal set; } = "";
 
     /// <summary>
-    /// Gets or sets the number of retries before an error is logged for recovery operations.
+    /// The number of retries before an error is logged for recovery operations.
     /// </summary>
-    public int RetryableActionErrorLogThreshold { get; set; }
+    public int RetryableActionErrorLogThreshold { get; }
 
-    public IObjectSerializer? ObjectSerializer { get; set; }
+    /// <summary>
+    /// The serializer that turns job data and calendars into what the database stores.
+    /// </summary>
+    public IObjectSerializer? ObjectSerializer { get; }
 
     public virtual TimeSpan EstimatedTimeToReleaseAndAcquireTrigger { get; } = TimeSpan.FromMilliseconds(70);
 
     /// <summary>
-    /// Get or set whether this instance is part of a cluster.
+    /// Whether this instance is part of a cluster.
     /// </summary>
-    public bool Clustered { get; set; }
+    public bool Clustered { get; }
 
     /// <summary>
-    /// Get or set the frequency at which this instance "checks-in"
+    /// The frequency at which this instance "checks-in"
     /// with the other instances of the cluster. -- Affects the rate of
     /// detecting failed instances.
     /// </summary>
-    [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
-    public TimeSpan ClusterCheckinInterval { get; set; }
+    public TimeSpan ClusterCheckinInterval { get; }
 
     /// <summary>
     /// The time span by which a check-in must have missed its
@@ -204,50 +195,51 @@ public abstract class JobStoreSupport : IJobStore
     /// other scheduler instances in a cluster can consider a "misfired" scheduler
     /// instance as failed or dead.
     /// </summary>
-    [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
-    public TimeSpan ClusterCheckinMisfireThreshold { get; set; }
+    public TimeSpan ClusterCheckinMisfireThreshold { get; }
 
     /// <summary>
-    /// Get or set the maximum number of misfired triggers that the misfire handling
+    /// The maximum number of misfired triggers that the misfire handling
     /// thread will try to recover at one time (within one transaction).  The
     /// default is 20.
     /// </summary>
-    public int MaxMisfiresToHandleAtATime { get; set; }
+    public int MaxMisfiresToHandleAtATime { get; }
 
     /// <summary>
-    /// Gets or sets the database retry interval.
+    /// The database retry interval.
     /// </summary>
     /// <value>The db retry interval.</value>
-    [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
-    public TimeSpan DbRetryInterval { get; set; }
+    public TimeSpan DbRetryInterval { get; }
 
     /// <summary>
-    /// Gets or sets the maximum number of retries for transient database exceptions
+    /// The maximum number of retries for transient database exceptions
     /// (such as deadlocks) before giving up and propagating the exception.
     /// </summary>
     /// <remarks>
     /// Defaults to 3. A value of 0 disables transient retries. Each retry is
     /// delayed by <see cref="TransientRetryInterval"/>.
     /// </remarks>
-    public int MaxTransientRetries { get; set; }
+    public int MaxTransientRetries { get; }
 
     /// <summary>
-    /// Gets or sets the delay between automatic retries for transient database
+    /// The delay between automatic retries for transient database
     /// exceptions (such as deadlocks).
     /// </summary>
     /// <remarks>
     /// Defaults to 1 second. This is intentionally shorter than <see cref="DbRetryInterval"/>
     /// because transient errors like deadlocks resolve quickly and the retry should be
-    /// near-immediate. Set to <see cref="TimeSpan.Zero"/> for no delay between retries.
+    /// near-immediate. <see cref="TimeSpan.Zero"/> means no delay between retries.
     /// </remarks>
-    [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
-    public TimeSpan TransientRetryInterval { get; set; }
+    public TimeSpan TransientRetryInterval { get; }
 
     /// <summary>
-    /// Get or set whether this instance should use database-based thread
-    /// synchronization.
+    /// Whether this instance uses database-based thread synchronization.
     /// </summary>
-    public bool UseDbLocks { get; set; }
+    /// <remarks>
+    /// Configured through <see cref="AdoJobStoreOptions.UseDbLocks" />, and turned on by
+    /// <see cref="Initialize" /> for a configuration that cannot work without it - clustering,
+    /// enlisted transactions, and container-managed transactions.
+    /// </remarks>
+    public bool UseDbLocks { get; internal set; }
 
     /// <summary>
     /// Whether this instance may take part in a transaction the application owns, rather than always
@@ -263,12 +255,13 @@ public abstract class JobStoreSupport : IJobStore
     /// </para>
     /// <para>
     /// Taking part always means handing over a connection. Operations with nothing enlisted keep using
-    /// a connection of the job store own, and for <see cref="JobStoreTX" /> that connection is
-    /// deliberately kept out of any ambient <see cref="System.Transactions.Transaction" />: joining a
-    /// scope whose outcome the job store does not control would also put a second connection in that
-    /// transaction, which needs a distributed transaction and is not available on every provider.
-    /// <see cref="JobStoreCMT" /> is the exception - running inside a transaction its container manages
-    /// is that store contract, so its connections enlist as they always have.
+    /// a connection of the job store own, and for <see cref="LocalTransactionJobStore" /> that
+    /// connection is deliberately kept out of any ambient
+    /// <see cref="System.Transactions.Transaction" />: joining a scope whose outcome the job store does
+    /// not control would also put a second connection in that transaction, which needs a distributed
+    /// transaction and is not available on every provider.
+    /// <see cref="ExternalTransactionJobStore" /> is the exception - running inside a transaction its
+    /// container manages is that store contract, so its connections enlist as they always have.
     /// </para>
     /// <para>
     /// Because locks taken during an application-owned transaction are only released when that
@@ -276,7 +269,7 @@ public abstract class JobStoreSupport : IJobStore
     /// (<see cref="UseDbLocks" />) unless an explicit lock handler was configured.
     /// </para>
     /// </remarks>
-    public bool AcceptEnlistedTransactions { get; set; }
+    public bool AcceptEnlistedTransactions { get; }
 
     /// <summary>
     /// Whether or not to obtain locks when inserting new jobs/triggers.
@@ -296,14 +289,17 @@ public abstract class JobStoreSupport : IJobStore
     /// and triggers.
     /// </para>
     /// </remarks>
-    public virtual bool LockOnInsert { get; set; } = true;
+    public bool LockOnInsert { get; } = true;
 
     /// <summary>
     /// The time span by which a trigger must have missed its
     /// next-fire-time, in order for it to be considered "misfired" and thus
     /// have its misfire instruction applied.
     /// </summary>
-    [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
+    /// <remarks>
+    /// The one configuration value that stays settable on both stores: it is read on every misfire
+    /// pass rather than only at startup, and a test or an operator tool changes it on a live store.
+    /// </remarks>
     public virtual TimeSpan MisfireThreshold
     {
         get => misfireThreshold;
@@ -318,34 +314,19 @@ public abstract class JobStoreSupport : IJobStore
     }
 
     /// <summary>
-    /// How often should the misfire handler check for misfires. Defaults to
+    /// How often the misfire handler checks for misfires. Defaults to
     /// <see cref="MisfireThreshold"/>.
     /// </summary>
-    [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
-    public virtual TimeSpan MisfireHandlerFrequency
-    {
-        get { return misfirehandlerFrequence.GetValueOrDefault(MisfireThreshold); }
-        set
-        {
-            if (value.TotalMilliseconds < 1)
-            {
-                Throw.ArgumentException("MisfireHandlerFrequency must be larger than 0");
-            }
-            misfirehandlerFrequence = value;
-        }
-    }
+    public TimeSpan MisfireHandlerFrequency => misfirehandlerFrequence.GetValueOrDefault(MisfireThreshold);
 
     /// <summary>
-    /// Don't call set autocommit(false) on connections obtained from the
-    /// DataSource. This can be helpful in a few situations, such as if you
-    /// have a driver that complains if it is called when it is already off.
+    /// Whether the transaction isolation level of the connections this store opens is serializable.
     /// </summary>
-    public virtual bool DontSetAutoCommitFalse { get; set; }
-
-    /// <summary>
-    /// Set the transaction isolation level of DB connections to sequential.
-    /// </summary>
-    public virtual bool TxIsolationLevelSerializable { get; set; }
+    /// <remarks>
+    /// Configured through <see cref="AdoJobStoreOptions.TxIsolationLevelSerializable" />, and turned on
+    /// by <see cref="Initialize" /> for SQLite, which needs it.
+    /// </remarks>
+    public bool TxIsolationLevelSerializable { get; internal set; }
 
     /// <summary>
     /// Whether or not the query and update to acquire a Trigger for firing
@@ -358,7 +339,7 @@ public abstract class JobStoreSupport : IJobStore
     /// However, if batch acquisition is used, it is important for this behavior
     /// to be used for all dbs.
     /// </remarks>
-    public bool AcquireTriggersWithinLock { get; set; }
+    public bool AcquireTriggersWithinLock { get; internal set; }
 
     /// <summary>
     /// When true, all operations (including reads) acquire a lock before
@@ -368,59 +349,64 @@ public abstract class JobStoreSupport : IJobStore
     internal bool LockAllOperations { get; set; }
 
     /// <summary>
-    /// Get or set the ADO.NET driver delegate class name.
-    /// </summary>
-    public virtual string DriverDelegateType { get; set; } = null!;
-
-    /// <summary>
     /// The driver delegate's initialization string.
     /// </summary>
-    public string? DriverDelegateInitString { get; set; }
+    public string? DriverDelegateInitString { get; }
 
     /// <summary>
-    /// set the SQL statement to use to select and lock a row in the "locks"
-    /// table.
+    /// The SQL statement used to select and lock a row in the "locks" table.
     /// </summary>
+    /// <remarks>
+    /// Configured through <see cref="AdoJobStoreOptions.SelectWithLockSql" />, and defaulted by
+    /// <see cref="Initialize" /> to the SQL Server specific statement when that is the database in use.
+    /// </remarks>
     /// <seealso cref="StdRowLockSemaphore" />
-    public virtual string? SelectWithLockSql { get; set; }
+    public string? SelectWithLockSql { get; internal set; }
 
     protected virtual ITypeLoadHelper TypeLoadHelper => typeLoadHelper;
 
     /// <summary>
-    /// Get whether the threads spawned by this JobStore should be
+    /// Whether the threads spawned by this JobStore are
     /// marked as daemon.  Possible threads include the <see cref="MisfireHandler" />
     /// and the <see cref="ClusterManager"/>.
     /// </summary>
-    /// <returns></returns>
-    public bool MakeThreadsDaemons { get; set; }
+    public bool MakeThreadsDaemons { get; }
 
     /// <summary>
-    /// Get whether to check to see if there are Triggers that have misfired
+    /// Whether to check to see if there are Triggers that have misfired
     /// before actually acquiring the lock to recover them.  This should be
     /// set to false if the majority of the time, there are misfired
     /// Triggers.
     /// </summary>
-    /// <returns></returns>
-    public bool DoubleCheckLockMisfireHandler { get; set; }
+    public bool DoubleCheckLockMisfireHandler { get; }
 
     /// <summary>
     /// Whether to perform a schema check on scheduler startup and try to determine if correct tables are in place.
     /// Defaults to true.
     /// </summary>
-    public bool PerformSchemaValidation { get; set; } = true;
+    public bool PerformSchemaValidation { get; } = true;
 
     public virtual TimeSpan GetAcquireRetryDelay(int failureCount) => DbRetryInterval;
 
     protected DbMetadata DbMetadata => DbProvider.Metadata;
 
-    protected abstract ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection(CancellationToken cancellationToken = default);
+    protected abstract ValueTask<ConnectionAndTransactionHolder> GetLocalTransactionConnection(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns the connection the application enlisted for this scheduler on the current
     /// asynchronous flow, or <see langword="null" /> when enlisted transactions are not accepted or
     /// nothing is enlisted. The returned holder does not own the connection or the transaction.
     /// </summary>
-    private protected async ValueTask<ConnectionAndTransactionHolder?> GetEnlistedConnection(CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// A store that overrides <see cref="GetLocalTransactionConnection" /> has to start with this, or
+    /// it silently opens a connection of its own while the caller believes the scheduling is part of
+    /// their transaction. Everything an enlistment needs in order to be safe to use happens here: the
+    /// transaction is checked to be alive and still current, the provider is checked to match, the
+    /// connection is opened if it is not, and it is booked out for the duration of the operation so
+    /// two concurrent scheduler calls cannot share it. Cleaning the returned holder up through
+    /// <see cref="CleanupConnection" /> hands the booking back.
+    /// </remarks>
+    protected async ValueTask<ConnectionAndTransactionHolder?> GetEnlistedConnection(CancellationToken cancellationToken = default)
     {
         var enlisted = AmbientConnection.Get(InstanceName);
         if (enlisted is null)
@@ -627,10 +613,10 @@ public abstract class JobStoreSupport : IJobStore
     /// </summary>
     private void InitializeDelegate()
     {
-        driverDelegate!.Initialize(new DelegateInitializationArgs
+        driverDelegate.Initialize(new DelegateInitializationArgs
         {
             UseProperties = CanUseProperties,
-            TablePrefix = tablePrefix,
+            TablePrefix = TablePrefix,
             InstanceName = InstanceName,
             InstanceId = InstanceId,
             DbProvider = DbProvider,
@@ -645,7 +631,7 @@ public abstract class JobStoreSupport : IJobStore
     /// The driver delegate this store speaks to its database through.
     /// </summary>
 #pragma warning disable CA1716
-    protected virtual IDriverDelegate Delegate => driverDelegate!;
+    protected virtual IDriverDelegate Delegate => driverDelegate;
 #pragma warning restore CA1716
 
     /// <summary>
@@ -959,15 +945,15 @@ public abstract class JobStoreSupport : IJobStore
 
     protected virtual async ValueTask ReleaseLock(
         Guid requestorId,
-        string lockName,
+        SchedulerLock? lockKind,
         bool doIt,
         CancellationToken cancellationToken = default)
     {
-        if (doIt)
+        if (doIt && lockKind is not null)
         {
             try
             {
-                await LockHandler.ReleaseLock(requestorId, lockName, cancellationToken).ConfigureAwait(false);
+                await LockHandler.ReleaseLock(requestorId, lockKind.Value, cancellationToken).ConfigureAwait(false);
             }
             catch (LockException le)
             {
@@ -980,10 +966,10 @@ public abstract class JobStoreSupport : IJobStore
     /// Will recover any failed or misfired jobs and clean up the data store as
     /// appropriate.
     /// </summary>
-    protected virtual ValueTask<bool> RecoverJobs(CancellationToken cancellationToken = default)
+    protected virtual ValueTask RecoverJobs(CancellationToken cancellationToken = default)
     {
-        return ExecuteInNonManagedTXLock(
-            LockTriggerAccess,
+        return ExecuteInLocalTransactionLock(
+            SchedulerLock.TriggerAccess,
             conn => RecoverJobs(conn, cancellationToken),
             cancellationToken);
     }
@@ -1351,7 +1337,7 @@ public abstract class JobStoreSupport : IJobStore
     /// <summary>
     /// Optimized misfire update path that bypasses the AddTrigger method's unnecessary
     /// queries (existence check, pause-group checks, job retrieval, blocked-state check,
-    /// trigger-type lookup). Safe when the caller already holds <c>LockTriggerAccess</c>
+    /// trigger-type lookup). Safe when the caller already holds <c>SchedulerLock.TriggerAccess</c>
     /// and has determined the trigger's persisted state and corresponding
     /// <paramref name="newStateIfNotComplete"/> to use across the misfire update.
     /// This covers triggers found in WAITING state during batch recovery as well as
@@ -1387,7 +1373,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         await activityTracer.Trace(
             OperationName.JobStore.ScheduleJob,
-            () => ExecuteInLock<object?>(LockOnInsert ? LockTriggerAccess : null, async conn =>
+            () => ExecuteInLock<object?>(LockOnInsert ? SchedulerLock.TriggerAccess : null, async conn =>
             {
                 await AddJob(conn, job, false, cancellationToken).ConfigureAwait(false);
                 await AddTrigger(conn, trigger, job, false, StoredTriggerState.Waiting, false, false, cancellationToken).ConfigureAwait(false);
@@ -1416,7 +1402,7 @@ public abstract class JobStoreSupport : IJobStore
         await activityTracer.Trace(
             OperationName.JobStore.AddJob,
             () => ExecuteInLock(
-                LockOnInsert || replace ? LockTriggerAccess : null,
+                LockOnInsert || replace ? SchedulerLock.TriggerAccess : null,
                 conn => AddJob(conn, job, replace, cancellationToken),
                 cancellationToken),
             activity =>
@@ -1503,7 +1489,7 @@ public abstract class JobStoreSupport : IJobStore
         await activityTracer.Trace(
             OperationName.JobStore.AddTrigger,
             () => ExecuteInLock(
-                LockOnInsert || replace ? LockTriggerAccess : null,
+                LockOnInsert || replace ? SchedulerLock.TriggerAccess : null,
                 conn => AddTrigger(conn, trigger, null, replace, StoredTriggerState.Waiting, false, false, cancellationToken),
                 cancellationToken),
             activity =>
@@ -1633,7 +1619,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         return activityTracer.Trace(
             OperationName.JobStore.DeleteJob,
-            () => ExecuteInLock(LockTriggerAccess, conn => DeleteJob(conn, jobKey, true, cancellationToken), cancellationToken),
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => DeleteJob(conn, jobKey, true, cancellationToken), cancellationToken),
             activity =>
             {
                 activity.SetTag(ActivityOptions.JobGroup, jobKey.Group);
@@ -1672,7 +1658,7 @@ public abstract class JobStoreSupport : IJobStore
         return activityTracer.Trace(
             OperationName.JobStore.DeleteJobs,
             () => ExecuteInLock(
-                LockTriggerAccess, async conn =>
+                SchedulerLock.TriggerAccess, async conn =>
                 {
                     bool allFound = true;
 
@@ -1693,7 +1679,7 @@ public abstract class JobStoreSupport : IJobStore
         return activityTracer.Trace(
             OperationName.JobStore.DeleteTriggers,
             () => ExecuteInLock(
-                LockTriggerAccess,
+                SchedulerLock.TriggerAccess,
                 async conn =>
                 {
                     bool allFound = true;
@@ -1713,7 +1699,7 @@ public abstract class JobStoreSupport : IJobStore
         await activityTracer.Trace(
             OperationName.JobStore.ScheduleJobs,
             () => ExecuteInLock(
-                LockOnInsert || replace ? LockTriggerAccess : null, async conn =>
+                LockOnInsert || replace ? SchedulerLock.TriggerAccess : null, async conn =>
                 {
                     // TODO: make this more efficient with a true bulk operation...
                     foreach (var pair in triggersAndJobs)
@@ -1841,7 +1827,7 @@ public abstract class JobStoreSupport : IJobStore
         return activityTracer.Trace(
             OperationName.JobStore.DeleteTrigger,
             () => ExecuteInLock(
-                LockTriggerAccess,
+                SchedulerLock.TriggerAccess,
                 conn => DeleteTrigger(conn, triggerKey, cancellationToken),
                 cancellationToken),
             activity =>
@@ -1916,7 +1902,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         return activityTracer.Trace(
             OperationName.JobStore.ReplaceTrigger,
-            () => ExecuteInLock(LockTriggerAccess,
+            () => ExecuteInLock(SchedulerLock.TriggerAccess,
                 conn => ReplaceTrigger(conn, triggerKey, trigger, cancellationToken),
                 cancellationToken),
             activity =>
@@ -1969,7 +1955,7 @@ public abstract class JobStoreSupport : IJobStore
         return activityTracer.Trace(
             OperationName.JobStore.UpdateTriggerDetails,
             () => ExecuteInLock(
-                LockTriggerAccess,
+                SchedulerLock.TriggerAccess,
                 conn => UpdateTriggerDetails(conn, triggerKey, update, cancellationToken),
                 cancellationToken),
             activity =>
@@ -2147,7 +2133,7 @@ public abstract class JobStoreSupport : IJobStore
         await activityTracer.Trace(
             OperationName.JobStore.ResetTriggerFromErrorState,
             () => ExecuteInLock(
-                LockTriggerAccess,
+                SchedulerLock.TriggerAccess,
                 conn => ResetTriggerFromErrorState(conn, triggerKey, cancellationToken),
                 cancellationToken),
             activity =>
@@ -2205,7 +2191,7 @@ public abstract class JobStoreSupport : IJobStore
         await activityTracer.Trace(
             OperationName.JobStore.AddCalendar,
             () => ExecuteInLock(
-                LockOnInsert || options.UpdateTriggers ? LockTriggerAccess : null,
+                LockOnInsert || options.UpdateTriggers ? SchedulerLock.TriggerAccess : null,
                 conn => AddCalendar(conn, calendarName, calendar, options, cancellationToken),
                 cancellationToken)).ConfigureAwait(false);
     }
@@ -2308,7 +2294,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         return activityTracer.Trace(
             OperationName.JobStore.DeleteCalendar,
-            () => ExecuteInLock(LockTriggerAccess, conn => DeleteCalendar(conn, calendarName, cancellationToken), cancellationToken));
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => DeleteCalendar(conn, calendarName, cancellationToken), cancellationToken));
     }
 
     protected virtual async ValueTask<bool> DeleteCalendar(
@@ -2477,7 +2463,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         await activityTracer.Trace(
             OperationName.JobStore.Clear,
-            () => ExecuteInLock(LockTriggerAccess, conn => Clear(conn, cancellationToken), cancellationToken)).ConfigureAwait(false);
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => Clear(conn, cancellationToken), cancellationToken)).ConfigureAwait(false);
     }
 
     protected async ValueTask Clear(
@@ -2726,7 +2712,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         await activityTracer.Trace(
             OperationName.JobStore.PauseTrigger,
-            () => ExecuteInLock(LockTriggerAccess, conn => PauseTrigger(conn, triggerKey, cancellationToken), cancellationToken),
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => PauseTrigger(conn, triggerKey, cancellationToken), cancellationToken),
             activity =>
             {
                 activity.SetTag(ActivityOptions.TriggerGroup, triggerKey.Group);
@@ -2770,7 +2756,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         await activityTracer.Trace(
             OperationName.JobStore.PauseJob,
-            () => ExecuteInLock(LockTriggerAccess, async conn =>
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
             {
                 var triggers = await GetTriggersForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
                 foreach (IOperableTrigger trigger in triggers)
@@ -2794,7 +2780,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         return activityTracer.Trace(
             OperationName.JobStore.PauseJobs,
-            () => ExecuteInLock(LockTriggerAccess, async conn =>
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
             {
                 var groupNames = new HashSet<string>();
                 var jobNames = await GetJobNames(conn, matcher, cancellationToken).ConfigureAwait(false);
@@ -2857,7 +2843,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         await activityTracer.Trace(
             OperationName.JobStore.ResumeTrigger,
-            () => ExecuteInLock(LockTriggerAccess, conn => ResumeTrigger(conn, triggerKey, cancellationToken), cancellationToken),
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => ResumeTrigger(conn, triggerKey, cancellationToken), cancellationToken),
             activity =>
             {
                 activity.SetTag(ActivityOptions.TriggerGroup, triggerKey.Group);
@@ -2930,7 +2916,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         await activityTracer.Trace(
             OperationName.JobStore.ResumeJob,
-            () => ExecuteInLock(LockTriggerAccess, async conn =>
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
             {
                 var triggers = await GetTriggersForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
                 foreach (IOperableTrigger trigger in triggers)
@@ -2959,7 +2945,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         return activityTracer.Trace(
             OperationName.JobStore.ResumeJobs,
-            () => ExecuteInLock(LockTriggerAccess, async conn =>
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
             {
                 var jobKeys = await GetJobNames(conn, matcher, cancellationToken).ConfigureAwait(false);
                 var groupNames = new HashSet<string>();
@@ -2988,7 +2974,7 @@ public abstract class JobStoreSupport : IJobStore
         return activityTracer.Trace(
             OperationName.JobStore.PauseTriggers,
             () => ExecuteInLock(
-                LockTriggerAccess,
+                SchedulerLock.TriggerAccess,
                 conn => PauseTriggerGroup(conn, matcher, cancellationToken),
                 cancellationToken));
     }
@@ -3039,7 +3025,7 @@ public abstract class JobStoreSupport : IJobStore
         return activityTracer.Trace(
             OperationName.JobStore.ResumeTriggers,
             () => ExecuteInLock(
-                LockTriggerAccess, conn => ResumeTriggers(conn, matcher, cancellationToken),
+                SchedulerLock.TriggerAccess, conn => ResumeTriggers(conn, matcher, cancellationToken),
                 cancellationToken));
     }
 
@@ -3082,7 +3068,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         await activityTracer.Trace(
             OperationName.JobStore.PauseAll,
-            () => ExecuteInLock(LockTriggerAccess, conn => PauseAll(conn, cancellationToken), cancellationToken)).ConfigureAwait(false);
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => PauseAll(conn, cancellationToken), cancellationToken)).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -3131,7 +3117,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         await activityTracer.Trace(
             OperationName.JobStore.ResumeAll,
-            () => ExecuteInLock(LockTriggerAccess, conn => ResumeAll(conn, cancellationToken), cancellationToken)).ConfigureAwait(false);
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => ResumeAll(conn, cancellationToken), cancellationToken)).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -3178,21 +3164,22 @@ public abstract class JobStoreSupport : IJobStore
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        string? lockName;
+        SchedulerLock? lockKind;
         if (AcquireTriggersWithinLock || request.MaxCount > 1)
         {
-            lockName = LockTriggerAccess;
+            lockKind = SchedulerLock.TriggerAccess;
         }
         else
         {
-            lockName = null;
+            lockKind = null;
         }
 
         return activityTracer.Trace(
             OperationName.JobStore.AcquireNextTriggers,
-            () => ExecuteInNonManagedTXLock(
-                lockName,
-                conn => AcquireNextTrigger(conn, request, cancellationToken), async (conn, result) =>
+            () => ExecuteInLocalTransactionLock(
+                lockKind,
+                conn => AcquireNextTrigger(conn, request, cancellationToken),
+                async (conn, result) =>
                 {
                     try
                     {
@@ -3217,7 +3204,7 @@ public abstract class JobStoreSupport : IJobStore
                         return default;
                     }
                 },
-                cancellationToken),
+                cancellationToken: cancellationToken),
             activity => activity.SetTag(ActivityOptions.BatchSize, request.MaxCount));
     }
 
@@ -3389,8 +3376,8 @@ public abstract class JobStoreSupport : IJobStore
     {
         await activityTracer.Trace(
             OperationName.JobStore.ReleaseAcquiredTrigger,
-            () => RetryExecuteInNonManagedTXLock(
-                LockTriggerAccess,
+            () => RetryExecuteInLocalTransactionLock(
+                SchedulerLock.TriggerAccess,
                 conn => ReleaseAcquiredTrigger(conn, trigger, cancellationToken),
                 cancellationToken),
             activity =>
@@ -3421,8 +3408,8 @@ public abstract class JobStoreSupport : IJobStore
     {
         return activityTracer.Trace(
             OperationName.JobStore.TriggersFired,
-            () => ExecuteInNonManagedTXLock(
-                LockTriggerAccess,
+            () => ExecuteInLocalTransactionLock(
+                SchedulerLock.TriggerAccess,
                 async conn =>
                 {
                     List<TriggerFiredResult> results = new(triggers.Count);
@@ -3441,7 +3428,7 @@ public abstract class JobStoreSupport : IJobStore
                         {
                             if (IsTransient(jpe))
                             {
-                                throw; // Let ExecuteInNonManagedTXLock retry the whole transaction
+                                throw; // Let ExecuteInLocalTransactionLock retry the whole transaction
                             }
                             Logger.LogError(jpe, "Caught job persistence exception: {ExceptionMessage}", jpe.Message);
                             result = new TriggerFiredResult(jpe);
@@ -3495,7 +3482,7 @@ public abstract class JobStoreSupport : IJobStore
                         return default;
                     }
                 },
-                cancellationToken),
+                cancellationToken: cancellationToken),
             activity => activity.SetTag(ActivityOptions.TriggerCount, triggers.Count));
     }
 
@@ -3695,8 +3682,8 @@ public abstract class JobStoreSupport : IJobStore
 
         await activityTracer.Trace(
             OperationName.JobStore.TriggeredJobComplete,
-            () => RetryExecuteInNonManagedTXLock(
-                LockTriggerAccess,
+            () => RetryExecuteInLocalTransactionLock(
+                SchedulerLock.TriggerAccess,
                 conn => TriggeredJobComplete(conn, trigger, jobDetail, triggerInstructionCode, cancellationToken),
                 cancellationToken),
             activity =>
@@ -3861,14 +3848,14 @@ public abstract class JobStoreSupport : IJobStore
                 // For SQLite: acquire lock before opening connection to avoid
                 // "database is locked" errors from concurrent serializable transactions.
                 // Skip the double-check optimization since in-memory lock is cheap.
-                transOwner = await LockHandler.ObtainLock(requestorId, null, LockTriggerAccess, cancellationToken).ConfigureAwait(false);
-                conn = await GetNonManagedTXConnection(cancellationToken).ConfigureAwait(false);
+                transOwner = await LockHandler.ObtainLock(requestorId, null, SchedulerLock.TriggerAccess, cancellationToken).ConfigureAwait(false);
+                conn = await GetLocalTransactionConnection(cancellationToken).ConfigureAwait(false);
                 result = await RecoverMisfiredJobs(conn, false, cancellationToken).ConfigureAwait(false);
                 staleCount = await RecoverStaleAcquiredTriggers(conn, cancellationToken).ConfigureAwait(false);
             }
             else
             {
-                conn = await GetNonManagedTXConnection(cancellationToken).ConfigureAwait(false);
+                conn = await GetLocalTransactionConnection(cancellationToken).ConfigureAwait(false);
 
                 // Before we make the potentially expensive call to acquire the
                 // trigger lock, peek ahead to see if it is likely we would find
@@ -3884,7 +3871,7 @@ public abstract class JobStoreSupport : IJobStore
 
                 if (misfireCount > 0)
                 {
-                    transOwner = await LockHandler.ObtainLock(requestorId, conn, LockTriggerAccess, cancellationToken).ConfigureAwait(false);
+                    transOwner = await LockHandler.ObtainLock(requestorId, conn, SchedulerLock.TriggerAccess, cancellationToken).ConfigureAwait(false);
 
                     result = await RecoverMisfiredJobs(conn, false, cancellationToken).ConfigureAwait(false);
                     staleCount = await RecoverStaleAcquiredTriggers(conn, cancellationToken).ConfigureAwait(false);
@@ -3893,7 +3880,7 @@ public abstract class JobStoreSupport : IJobStore
                 {
                     // Even when no misfired triggers exist, check for triggers stuck
                     // in ACQUIRED state (e.g., from a failed ReleaseAcquiredTrigger call)
-                    transOwner = await LockHandler.ObtainLock(requestorId, conn, LockTriggerAccess, cancellationToken).ConfigureAwait(false);
+                    transOwner = await LockHandler.ObtainLock(requestorId, conn, SchedulerLock.TriggerAccess, cancellationToken).ConfigureAwait(false);
                     staleCount = await RecoverStaleAcquiredTriggers(conn, cancellationToken).ConfigureAwait(false);
                 }
             }
@@ -3926,7 +3913,7 @@ public abstract class JobStoreSupport : IJobStore
         {
             try
             {
-                await ReleaseLock(requestorId, LockTriggerAccess, transOwner, cancellationToken).ConfigureAwait(false);
+                await ReleaseLock(requestorId, SchedulerLock.TriggerAccess, transOwner, cancellationToken).ConfigureAwait(false);
             }
             finally
             {
@@ -4012,7 +3999,11 @@ public abstract class JobStoreSupport : IJobStore
 
     private bool firstCheckIn = true;
 
-    protected internal DateTimeOffset LastCheckin { get; set; }
+    /// <summary>
+    /// When this node last recorded that it is alive. Internal: it is bookkeeping the check-in loop
+    /// owns, and a subclass writing it would move the moment every other node decides this one died.
+    /// </summary>
+    internal DateTimeOffset LastCheckin { get; set; }
 
     protected internal virtual async ValueTask<bool> DoCheckin(
         Guid requestorId,
@@ -4030,7 +4021,7 @@ public abstract class JobStoreSupport : IJobStore
             bool transStateOwner = false;
             bool recovered = false;
 
-            ConnectionAndTransactionHolder conn = await GetNonManagedTXConnection(cancellationToken).ConfigureAwait(false);
+            ConnectionAndTransactionHolder conn = await GetLocalTransactionConnection(cancellationToken).ConfigureAwait(false);
             try
             {
                 // Other than the first time, always checkin first to make sure there is
@@ -4046,7 +4037,7 @@ public abstract class JobStoreSupport : IJobStore
 
                 if (firstCheckIn || failedRecords is not null && failedRecords.Count > 0)
                 {
-                    transStateOwner = await LockHandler.ObtainLock(requestorId, conn, LockStateAccess, cancellationToken).ConfigureAwait(false);
+                    transStateOwner = await LockHandler.ObtainLock(requestorId, conn, SchedulerLock.StateAccess, cancellationToken).ConfigureAwait(false);
 
                     // Now that we own the lock, make sure we still have work to do.
                     // The first time through, we also need to make sure we update/create our state record
@@ -4061,7 +4052,7 @@ public abstract class JobStoreSupport : IJobStore
 
                     if (failedRecords.Count > 0)
                     {
-                        transOwner = await LockHandler.ObtainLock(requestorId, conn, LockTriggerAccess, cancellationToken).ConfigureAwait(false);
+                        transOwner = await LockHandler.ObtainLock(requestorId, conn, SchedulerLock.TriggerAccess, cancellationToken).ConfigureAwait(false);
                         //getLockHandler().obtainLock(conn, LockJobAccess);
 
                         await ClusterRecover(conn, failedRecords, cancellationToken).ConfigureAwait(false);
@@ -4090,13 +4081,13 @@ public abstract class JobStoreSupport : IJobStore
             {
                 try
                 {
-                    await ReleaseLock(requestorId, LockTriggerAccess, transOwner, cancellationToken).ConfigureAwait(false);
+                    await ReleaseLock(requestorId, SchedulerLock.TriggerAccess, transOwner, cancellationToken).ConfigureAwait(false);
                 }
                 finally
                 {
                     try
                     {
-                        await ReleaseLock(requestorId, LockStateAccess, transStateOwner, cancellationToken).ConfigureAwait(false);
+                        await ReleaseLock(requestorId, SchedulerLock.StateAccess, transStateOwner, cancellationToken).ConfigureAwait(false);
                     }
                     finally
                     {
@@ -4456,7 +4447,7 @@ public abstract class JobStoreSupport : IJobStore
         }
     }
 
-    protected virtual void LogWarnIfNonZero(int val, string warning)
+    private void LogWarnIfNonZero(int val, string warning)
     {
 #pragma warning disable CA2254
         if (val > 0)
@@ -4765,12 +4756,11 @@ public abstract class JobStoreSupport : IJobStore
     }
 
     /// <summary>
-    /// Execute the given callback in a transaction. Depending on the JobStore,
-    /// the surrounding transaction may be assumed to be already present
-    /// (managed).
+    /// Execute the given callback in a transaction, taking no lock.
     /// </summary>
     /// <remarks>
-    /// This method just forwards to ExecuteInLock() with a null lockName.
+    /// Forwards to <see cref="ExecuteInLock{T}" /> with no lock — except under
+    /// <see cref="LockAllOperations" />, where every operation including reads has to be serialized.
     /// </remarks>
     protected ValueTask<T> ExecuteWithoutLock<T>(
         Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
@@ -4778,20 +4768,31 @@ public abstract class JobStoreSupport : IJobStore
     {
         // For SQLite, all operations must be serialized to avoid "database is locked" errors.
         // Route read operations through the same lock as write operations.
-        string? lockName = LockAllOperations ? LockTriggerAccess : null;
-        return ExecuteInLock(lockName, txCallback, cancellationToken);
+        SchedulerLock? lockKind = LockAllOperations ? SchedulerLock.TriggerAccess : null;
+        return ExecuteInLock(lockKind, txCallback, cancellationToken);
     }
 
-    protected ValueTask<object> ExecuteInLock(
-        string? lockName,
+    /// <summary>
+    /// Execute the given callback having acquired the given lock, when it produces no result.
+    /// </summary>
+    /// <param name="lockKind">
+    /// The lock to acquire. If <see langword="null" />, then no lock is acquired, but the
+    /// <paramref name="txCallback" /> is still executed in a transaction.
+    /// </param>
+    /// <param name="txCallback">
+    /// The callback to execute after having acquired the given lock.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    protected async ValueTask ExecuteInLock(
+        SchedulerLock? lockKind,
         Func<ConnectionAndTransactionHolder, ValueTask> txCallback,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteInLock<object>(lockName, async conn =>
+        await ExecuteInLock<object?>(lockKind, async conn =>
         {
             await txCallback(conn).ConfigureAwait(false);
-            return null!;
-        }, cancellationToken);
+            return null;
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -4799,43 +4800,57 @@ public abstract class JobStoreSupport : IJobStore
     /// Depending on the JobStore, the surrounding transaction may be
     /// assumed to be already present (managed).
     /// </summary>
-    /// <param name="lockName">
-    /// The name of the lock to acquire, for example
-    /// "TRIGGER_ACCESS".  If null, then no lock is acquired, but the
-    /// lockCallback is still executed in a transaction.
+    /// <param name="lockKind">
+    /// The lock to acquire. If <see langword="null" />, then no lock is acquired, but the
+    /// <paramref name="txCallback" /> is still executed in a transaction.
     /// </param>
     /// <param name="txCallback">
     /// The callback to execute after having acquired the given lock.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     protected abstract ValueTask<T> ExecuteInLock<T>(
-        string? lockName,
+        SchedulerLock? lockKind,
         Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
         CancellationToken cancellationToken = default);
 
-    protected virtual ValueTask<object> RetryExecuteInNonManagedTXLock(
-        string? lockName,
+    /// <summary>
+    /// Keep retrying <see cref="ExecuteInLocalTransactionLock{T}" /> until it succeeds or the store
+    /// shuts down, for work the scheduler cannot simply abandon — cluster recovery and misfire
+    /// handling, whose failure is almost always a database that is temporarily gone.
+    /// </summary>
+    protected async ValueTask RetryExecuteInLocalTransactionLock(
+        SchedulerLock? lockKind,
         Func<ConnectionAndTransactionHolder, ValueTask> txCallback,
         CancellationToken cancellationToken = default)
     {
-        return RetryExecuteInNonManagedTXLock<object>(lockName, async holder =>
+        await RetryExecuteInLocalTransactionLock<object?>(lockKind, async holder =>
         {
             await txCallback(holder).ConfigureAwait(false);
-            return null!;
-        }, requestorId: null, cancellationToken);
+            return null;
+        }, requestorId: null, cancellationToken).ConfigureAwait(false);
     }
 
-    protected virtual async ValueTask<T> RetryExecuteInNonManagedTXLock<T>(
-        string? lockName,
+    /// <inheritdoc cref="RetryExecuteInLocalTransactionLock(SchedulerLock?, Func{ConnectionAndTransactionHolder, ValueTask}, CancellationToken)" />
+    /// <param name="lockKind">
+    /// The lock to acquire. If <see langword="null" />, then no lock is acquired.
+    /// </param>
+    /// <param name="txCallback">The callback to execute after having acquired the given lock.</param>
+    /// <param name="requestorId">
+    /// The identity the lock is taken under. Pass the one an outer attempt used, so that a nested
+    /// retry is recognised as the same owner rather than deadlocking against itself.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    protected virtual async ValueTask<T> RetryExecuteInLocalTransactionLock<T>(
+        SchedulerLock? lockKind,
         Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
-        Guid? requestorId,
+        Guid? requestorId = null,
         CancellationToken cancellationToken = default)
     {
         for (int retry = 1; !shutdown; retry++)
         {
             try
             {
-                return await ExecuteInNonManagedTXLock(lockName, txCallback, txValidator: null, requestorId, cancellationToken).ConfigureAwait(false);
+                return await ExecuteInLocalTransactionLock(lockKind, txCallback, txValidator: null, requestorId, cancellationToken).ConfigureAwait(false);
             }
             catch (JobPersistenceException jpe)
             {
@@ -4846,7 +4861,7 @@ public abstract class JobStoreSupport : IJobStore
             }
             catch (Exception e)
             {
-                Logger.LogError(e, "retryExecuteInNonManagedTXLock: RuntimeException {ExceptionMessage}", e.Message);
+                Logger.LogError(e, "RetryExecuteInLocalTransactionLock: RuntimeException {ExceptionMessage}", e.Message);
             }
 
             // retry every N seconds (the db connection must be failed)
@@ -4857,51 +4872,48 @@ public abstract class JobStoreSupport : IJobStore
         return default;
     }
 
-    protected ValueTask<bool> ExecuteInNonManagedTXLock(
-        string lockName,
+    /// <summary>
+    /// Execute the given callback having optionally acquired the given lock, on a connection and
+    /// transaction this store owns and commits itself, when the callback produces no result.
+    /// </summary>
+    protected async ValueTask ExecuteInLocalTransactionLock(
+        SchedulerLock? lockKind,
         Func<ConnectionAndTransactionHolder, ValueTask> txCallback,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteInNonManagedTXLock(lockName, async conn =>
+        await ExecuteInLocalTransactionLock<object?>(lockKind, async conn =>
         {
             await txCallback(conn).ConfigureAwait(false);
-            return true;
-        }, cancellationToken);
-    }
-
-    protected ValueTask<T> ExecuteInNonManagedTXLock<T>(
-        string? lockName,
-        Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
-        CancellationToken cancellationToken = default)
-    {
-        return ExecuteInNonManagedTXLock(lockName, txCallback, txValidator: null, requestorId: null, cancellationToken);
+            return null;
+        }, cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// Execute the given callback having optionally acquired the given lock.
-    /// This uses the non-managed transaction connection.
+    /// Execute the given callback having optionally acquired the given lock, on a connection and
+    /// transaction this store owns and commits itself.
     /// </summary>
-    /// <param name="lockName">
-    /// The name of the lock to acquire, for example
-    /// "TRIGGER_ACCESS".  If null, then no lock is acquired, but the
-    /// lockCallback is still executed in a non-managed transaction.
+    /// <param name="lockKind">
+    /// The lock to acquire. If <see langword="null" />, then no lock is acquired, but the
+    /// <paramref name="txCallback" /> is still executed in a transaction of this store's own.
     /// </param>
     /// <param name="txCallback">
     /// The callback to execute after having acquired the given lock.
     /// </param>
-    /// <param name="txValidator"></param>
+    /// <param name="txValidator">
+    /// Asked, when the commit fails, whether the work landed anyway. Trigger acquisition uses it: a
+    /// commit that reported an error but did reach the database must not be retried, or the same
+    /// triggers are acquired twice.
+    /// </param>
+    /// <param name="requestorId">
+    /// The identity the lock is taken under. Defaults to the caller id of the current operation, and
+    /// otherwise to a fresh one.
+    /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    protected ValueTask<T> ExecuteInNonManagedTXLock<T>(
-        string? lockName,
+    protected async ValueTask<T> ExecuteInLocalTransactionLock<T>(
+        SchedulerLock? lockKind,
         Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
-        Func<ConnectionAndTransactionHolder, T, ValueTask<bool>>? txValidator,
-        CancellationToken cancellationToken = default) => ExecuteInNonManagedTXLock(lockName, txCallback, txValidator, requestorId: null, cancellationToken);
-
-    protected async ValueTask<T> ExecuteInNonManagedTXLock<T>(
-        string? lockName,
-        Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
-        Func<ConnectionAndTransactionHolder, T, ValueTask<bool>>? txValidator,
-        Guid? requestorId,
+        Func<ConnectionAndTransactionHolder, T, ValueTask<bool>>? txValidator = null,
+        Guid? requestorId = null,
         CancellationToken cancellationToken = default)
     {
         if (requestorId is null)
@@ -4925,21 +4937,21 @@ public abstract class JobStoreSupport : IJobStore
             ConnectionAndTransactionHolder? conn = null;
             try
             {
-                if (lockName is not null)
+                if (lockKind is not null)
                 {
                     // If we aren't using db locks, then delay getting DB connection
                     // until after acquiring the lock since it isn't needed.
                     if (LockHandler.RequiresConnection)
                     {
-                        conn = await GetNonManagedTXConnection(cancellationToken).ConfigureAwait(false);
+                        conn = await GetLocalTransactionConnection(cancellationToken).ConfigureAwait(false);
                     }
 
-                    transOwner = await LockHandler.ObtainLock(requestorId.Value, conn, lockName, cancellationToken).ConfigureAwait(false);
+                    transOwner = await LockHandler.ObtainLock(requestorId.Value, conn, lockKind.Value, cancellationToken).ConfigureAwait(false);
                 }
 
                 if (conn is null)
                 {
-                    conn = await GetNonManagedTXConnection(cancellationToken).ConfigureAwait(false);
+                    conn = await GetLocalTransactionConnection(cancellationToken).ConfigureAwait(false);
                 }
 
                 T result = await txCallback(conn).ConfigureAwait(false);
@@ -4954,8 +4966,8 @@ public abstract class JobStoreSupport : IJobStore
                     {
                         throw;
                     }
-                    if (!await RetryExecuteInNonManagedTXLock(
-                            lockName,
+                    if (!await RetryExecuteInLocalTransactionLock(
+                            lockKind,
                             async connection => await txValidator(connection, result).ConfigureAwait(false),
                             requestorId,
                             cancellationToken).ConfigureAwait(false))
@@ -4977,7 +4989,7 @@ public abstract class JobStoreSupport : IJobStore
                 // Asked of the holder rather than the registry: a subclass overriding GetConnection can
                 // return one it opened itself even while an enlistment exists on this flow.
                 if (conn.BorrowedFrom is not null
-                    && (sigTime is not null || lockName is not null && !LockAllOperations))
+                    && (sigTime is not null || lockKind is not null && !LockAllOperations))
                 {
                     SignalSchedulingChangeOnApplicationCommit(conn, sigTime, cancellationToken);
                 }
@@ -4993,7 +5005,7 @@ public abstract class JobStoreSupport : IJobStore
                 await RollbackConnection(conn, jpe, cancellationToken).ConfigureAwait(false);
                 if (attempt < totalAttempts && IsTransient(jpe))
                 {
-                    Logger.LogWarning(jpe, "Transient exception on attempt {Attempt} of {TotalAttempts} in ExecuteInNonManagedTXLock, will retry after {RetryInterval}", attempt, totalAttempts, TransientRetryInterval);
+                    Logger.LogWarning(jpe, "Transient exception on attempt {Attempt} of {TotalAttempts} in ExecuteInLocalTransactionLock, will retry after {RetryInterval}", attempt, totalAttempts, TransientRetryInterval);
                 }
                 else
                 {
@@ -5010,7 +5022,7 @@ public abstract class JobStoreSupport : IJobStore
             {
                 try
                 {
-                    await ReleaseLock(requestorId.Value, lockName!, transOwner, cancellationToken).ConfigureAwait(false);
+                    await ReleaseLock(requestorId.Value, lockKind, transOwner, cancellationToken).ConfigureAwait(false);
                 }
                 finally
                 {
@@ -5022,7 +5034,7 @@ public abstract class JobStoreSupport : IJobStore
             await Task.Delay(TransientRetryInterval, cancellationToken).ConfigureAwait(false);
         }
 
-        Throw.InvalidOperationException("ExecuteInNonManagedTXLock retry loop exited unexpectedly");
+        Throw.InvalidOperationException("ExecuteInLocalTransactionLock retry loop exited unexpectedly");
         return default;
     }
 }

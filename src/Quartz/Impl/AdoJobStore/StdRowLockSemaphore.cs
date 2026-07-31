@@ -35,10 +35,16 @@ namespace Quartz.Impl.AdoJobStore;
 /// </summary>
 public class StdRowLockSemaphore : DBSemaphore
 {
-    public static readonly string SelectForLock =
+    /// <summary>
+    /// The statement that takes the lock by selecting its row for update.
+    /// </summary>
+    protected static readonly string SelectForLock =
         $"SELECT * FROM {StdAdoConstants.TablePrefixSubst}{AdoConstants.TableLocks} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnLockName} = @lockName FOR UPDATE";
 
-    public static readonly string InsertLock =
+    /// <summary>
+    /// The statement that inserts the lock row when it does not exist yet.
+    /// </summary>
+    protected static readonly string InsertLock =
         $"INSERT INTO {StdAdoConstants.TablePrefixSubst}{AdoConstants.TableLocks}({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnLockName}) VALUES (@schedulerName, @lockName)";
 
     /// <summary>
@@ -63,7 +69,30 @@ public class StdRowLockSemaphore : DBSemaphore
     /// <param name="selectWithLockSql">The select with lock SQL.</param>
     /// <param name="dbProvider"></param>
     public StdRowLockSemaphore(string tablePrefix, string schedulerName, string? selectWithLockSql, IDbProvider dbProvider)
-        : base(tablePrefix, schedulerName, selectWithLockSql ?? SelectForLock, InsertLock, dbProvider)
+        : this(tablePrefix, schedulerName, selectWithLockSql, InsertLock, dbProvider)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="StdRowLockSemaphore"/> class for a subclass that
+    /// needs its own insert statement.
+    /// </summary>
+    /// <remarks>
+    /// The insert arrives here rather than being assigned afterwards, because the base class folds the
+    /// table prefix into both statements once, at construction.
+    /// </remarks>
+    /// <param name="tablePrefix">The table prefix.</param>
+    /// <param name="schedulerName">the scheduler name</param>
+    /// <param name="selectWithLockSql">The select with lock SQL.</param>
+    /// <param name="insertLockSql">The statement that inserts the lock row when it does not exist yet.</param>
+    /// <param name="dbProvider">The db provider.</param>
+    protected StdRowLockSemaphore(
+        string tablePrefix,
+        string? schedulerName,
+        string? selectWithLockSql,
+        string insertLockSql,
+        IDbProvider dbProvider)
+        : base(tablePrefix, schedulerName, selectWithLockSql ?? SelectForLock, insertLockSql, dbProvider)
     {
     }
 

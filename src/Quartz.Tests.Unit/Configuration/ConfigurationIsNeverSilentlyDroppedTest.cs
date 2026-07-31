@@ -80,7 +80,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
 
         using var provider = services.BuildServiceProvider();
 
-        provider.GetRequiredService<IJobStore>().Should().BeOfType<JobStoreTX>(
+        provider.GetRequiredService<IJobStore>().Should().BeOfType<LocalTransactionJobStore>(
             "a leftover 3.x quartz.jobStore.type must not turn a configured persistent store back into an "
             + "in-memory one, which would lose every job on restart without a word");
     }
@@ -475,7 +475,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         var services = new ServiceCollection();
         services.AddQuartz(Section(new Dictionary<string, string?>
         {
-            ["JobStore:Type"] = typeof(JobStoreTX).AssemblyQualifiedName,
+            ["JobStore:Type"] = typeof(LocalTransactionJobStore).AssemblyQualifiedName,
             ["JobStore:DataSource"] = "test",
             ["JobStore:TablePrefix"] = "QRTZ2_",
         }), q => RegisterStubProvider(q.Services, q.SchedulerName));
@@ -483,7 +483,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         using var provider = services.BuildServiceProvider();
         var store = provider.GetRequiredService<IJobStore>();
 
-        store.Should().BeOfType<JobStoreTX>(
+        store.Should().BeOfType<LocalTransactionJobStore>(
             "Type has no property on the options type to bind to, so excluding the section from "
             + "flattening would leave nobody reading it and fall back to RAMJobStore");
         ((JobStoreSupport) store).TablePrefix.Should().Be("QRTZ2_");
@@ -782,10 +782,10 @@ public class ConfigurationIsNeverSilentlyDroppedTest
 
         public bool RequiresConnection => false;
 
-        public ValueTask<bool> ObtainLock(Guid requestorId, ConnectionAndTransactionHolder? conn, string lockName, CancellationToken cancellationToken = default)
+        public ValueTask<bool> ObtainLock(Guid requestorId, ConnectionAndTransactionHolder? conn, SchedulerLock lockKind, CancellationToken cancellationToken = default)
             => new(true);
 
-        public ValueTask ReleaseLock(Guid requestorId, string lockName, CancellationToken cancellationToken = default) => default;
+        public ValueTask ReleaseLock(Guid requestorId, SchedulerLock lockKind, CancellationToken cancellationToken = default) => default;
     }
 
     private sealed class RecordingPlugin : ISchedulerPlugin

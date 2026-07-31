@@ -1306,6 +1306,184 @@ members, and they are not. They are not listings: they serve the pause/resume an
 which have to move every matching row under one lock and therefore must not be paged. Their doc comments now
 say so, and they are not going away.
 
+## The ADO.NET job stores are named for whose transaction they use
+
+`JobStoreTX` and `JobStoreCMT` were named after a Java EE distinction — "TX" versus
+"container-managed transactions" — that says nothing in .NET, and neither name says which one commits.
+They now say it:
+
+| 3.x / earlier 4.0 preview | 4.0 |
+|---|---|
+| `Quartz.Impl.AdoJobStore.JobStoreTX` | `Quartz.Impl.AdoJobStore.LocalTransactionJobStore` |
+| `Quartz.Impl.AdoJobStore.JobStoreCMT` | `Quartz.Impl.AdoJobStore.ExternalTransactionJobStore` |
+
+`LocalTransactionJobStore` begins the transaction each operation runs in and commits or rolls it back
+itself; it stays the default and the one nearly everybody wants. `ExternalTransactionJobStore` runs
+inside a transaction somebody else owns and neither commits nor rolls back.
+
+**Configuration naming either as a string keeps working.** `quartz.jobStore.type` is the one type name
+almost every persistent configuration spells out, so both old names resolve through the same fallback as
+the [renamed namespaces](#quartz-spi-and-quartz-simpl-were-renamed), with a warning telling you what to
+write instead:
+
+```text
+# both of these resolve, the first with a warning
+quartz.jobStore.type = Quartz.Impl.AdoJobStore.JobStoreTX, Quartz
+quartz.jobStore.type = Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz
+```
+
+Code that names the type — `UsePersistentStore<JobStoreTX>()`, a subclass, a `typeof` — has to be updated.
+`UsePersistentStore()` with no type argument already picks the right store and needs no change.
+
+### The vocabulary follows
+
+The "non-managed TX" phrasing went with the old names. The members it appeared in are protected, so this
+only reaches a `JobStoreSupport` subclass:
+
+| 3.x / earlier 4.0 preview | 4.0 |
+|---|---|
+| `GetNonManagedTXConnection` | `GetLocalTransactionConnection` |
+| `ExecuteInNonManagedTXLock` | `ExecuteInLocalTransactionLock` |
+| `RetryExecuteInNonManagedTXLock` | `RetryExecuteInLocalTransactionLock` |
+
+`ExternalTransactionJobStore.OpenConnection` is a normal `{ get; set; }`. It was
+`{ protected get; set; }` — writable from anywhere and readable only from inside, which is not a shape
+anything needs.
+
+## Nine `Execute…Lock` overloads became four members
+
+`JobStoreSupport` had nine overlapping ways to run a callback under a lock, three of which existed only to
+adapt a `void` callback and did so by returning `object` — a value that was always `null` and was never
+read. Optional parameters replace the ladder:
+
+| 3.x / earlier 4.0 preview | 4.0 |
+|---|---|
+| `ExecuteWithoutLock<T>(txCallback, ct)` | unchanged |
+| `abstract ExecuteInLock<T>(lockName, txCallback, ct)` | `ExecuteInLock<T>(SchedulerLock? lockKind, txCallback, ct)` |
+| `ExecuteInLock(lockName, txCallback, ct)` → `ValueTask<object>` | `ExecuteInLock(SchedulerLock? lockKind, txCallback, ct)` → `ValueTask` |
+| `ExecuteInNonManagedTXLock` ×4 | `ExecuteInLocalTransactionLock<T>(SchedulerLock? lockKind, txCallback, txValidator = null, requestorId = null, ct)` plus one `ValueTask`-returning convenience |
+| `RetryExecuteInNonManagedTXLock` ×2 | `RetryExecuteInLocalTransactionLock<T>(SchedulerLock? lockKind, txCallback, requestorId = null, ct)` plus one `ValueTask`-returning convenience |
+
+A call that passed a cancellation token positionally after the validator now has to name it
+(`cancellationToken: cancellationToken`), because the parameters between them became optional.
+`RecoverJobs(CancellationToken)` returns `ValueTask` rather than `ValueTask<bool>` — the `bool` was the
+constant `true` that the old void adapter produced.
+
+## Locks are a `SchedulerLock`, not a string
+
+`ISemaphore` took the lock as a `string` whose only two legal values were `"TRIGGER_ACCESS"` and
+`"STATE_ACCESS"`; anything else threw at run time. `Quartz.Impl.AdoJobStore.SchedulerLock` is now that
+type, with members `TriggerAccess` and `StateAccess`.
+
+```diff
+- ValueTask<bool> ObtainLock(Guid requestorId, ConnectionAndTransactionHolder? conn, string lockName, CancellationToken ct = default);
+- ValueTask ReleaseLock(Guid requestorId, string lockName, CancellationToken ct = default);
++ ValueTask<bool> ObtainLock(Guid requestorId, ConnectionAndTransactionHolder? conn, SchedulerLock lockKind, CancellationToken ct = default);
++ ValueTask ReleaseLock(Guid requestorId, SchedulerLock lockKind, CancellationToken ct = default);
+```
+
+`JobStoreSupport.LockTriggerAccess` and `LockStateAccess` are gone with the strings they held. **Nothing
+changes in the database**: the `LOCK_NAME` column still holds `TRIGGER_ACCESS` and `STATE_ACCESS`, the
+conversion happens where the row is written, and a 4.0 node contends for the same rows as a 3.x one. The
+same applies to `Quartz.Extensions.Redis`, whose keys keep their `…:TRIGGER_ACCESS` spelling.
+
+`DBSemaphore.ExecuteSql` still receives the stored name as a `string` — that parameter really is the value
+bound into the statement.
+
+## The job store configuration is read-only
+
+Twenty-odd `JobStoreSupport` properties duplicated `AdoJobStoreOptions` and `QuartzSchedulerOptions` with
+a public setter. Writing one after the store had started did nothing useful in most cases and quietly
+diverged from the options everything else reads, so they are now `{ get; }` and sourced from the injected
+options: `AcceptEnlistedTransactions`, `AcquireTriggersWithinLock`, `ClusterCheckinInterval`,
+`ClusterCheckinMisfireThreshold`, `Clustered`, `ConnectionManager`, `DataSource`, `DbRetryInterval`,
+`DoubleCheckLockMisfireHandler`, `DriverDelegateInitString`, `InstanceId`, `InstanceName`, `LockOnInsert`,
+`MakeThreadsDaemons`, `MaxMisfiresToHandleAtATime`, `MaxTransientRetries`, `MisfireHandlerFrequency`,
+`ObjectSerializer`, `PerformSchemaValidation`, `RetryableActionErrorLogThreshold`, `SelectWithLockSql`,
+`TablePrefix`, `TransientRetryInterval`, `TxIsolationLevelSerializable` and `UseDbLocks`.
+
+Configure them where they are configured now:
+
+```diff
+- var store = new JobStoreTX(...) { Clustered = true, MaxTransientRetries = 5 };
++ services.AddQuartz(q => q.UsePersistentStore(store => store.Configure(options =>
++ {
++     options.Clustered = true;
++     options.MaxTransientRetries = 5;
++ })));
+```
+
+`MisfireThreshold` deliberately keeps its setter on both `JobStoreSupport` and `RAMJobStore`: it is read on
+every misfire pass rather than only at startup.
+
+Two properties that nothing read are gone rather than made read-only: `DriverDelegateType` (the delegate is
+injected, not loaded from a type name here) and `DontSetAutoCommitFalse` (never consulted).
+`LastCheckin` and `LogWarnIfNonZero` are internal and private respectively — cluster check-in bookkeeping
+and a log helper, neither of which a subclass has any business in. The `[TimeSpanParseRule]` attributes on
+these properties are gone too; they are read only when a component's settings arrive as strings, which for
+this store they no longer do.
+
+## The semaphores were tidied
+
+* `UpdateRowLockSemaphore.cs` defined `UpdateLockRowSemaphore`, and `UpdateRowLockSemaphoreMOT.cs` defined
+  `UpdateLockRowSemaphoreMOT`. The files are named for their types now; no code changes.
+* The public static SQL fields settled on one convention and became `protected`, because nothing outside
+  the class hierarchy that owns them ever read them: `StdRowLockSemaphore.SelectForLock` /
+  `.InsertLock` keep their names, and `UpdateLockRowSemaphore.SqlUpdateForLock` / `.SqlInsertLock` are
+  `UpdateForLock` / `InsertLock`.
+* `DBSemaphore.Sql` and `.InsertSql` are get-only and arrive through the constructor. They were
+  `protected` settable, which let a subclass swap a statement after the table prefix had already been
+  folded into it — the select and the insert backing the same lock could end up naming different tables.
+  A subclass that needs its own insert statement passes it up:
+
+  ```diff
+    public MyRowLockSemaphore(string tablePrefix, string schedulerName, string? selectWithLockSql, IDbProvider dbProvider)
+  -     : base(tablePrefix, schedulerName, selectWithLockSql, dbProvider)
+  - {
+  -     InsertSql = MyInsertLock;
+  - }
+  +     : base(tablePrefix, schedulerName, selectWithLockSql, MyInsertLock, dbProvider)
+  + {
+  + }
+  ```
+
+## A job store of your own can join your transaction
+
+`JobStoreSupport` is public and abstract, but everything needed to honour an enlisted transaction was
+`private protected`, so a store outside this assembly could not take part in one — it could only open a
+connection of its own while the caller believed the scheduling was inside their transaction.
+
+`GetEnlistedConnection` is now `protected`. A `GetLocalTransactionConnection` override starts with it, and
+gets `null` back when enlisted transactions are not accepted or nothing is enlisted:
+
+```csharp
+protected override async ValueTask<ConnectionAndTransactionHolder> GetLocalTransactionConnection(
+    CancellationToken cancellationToken = default)
+{
+    ConnectionAndTransactionHolder? enlisted = await GetEnlistedConnection(cancellationToken);
+    if (enlisted is not null)
+    {
+        return enlisted;
+    }
+
+    return await GetConnection(cancellationToken);
+}
+```
+
+Everything that makes an enlistment safe to use happens inside it: the transaction is checked to be alive
+and still current, the provider is checked to match, the connection is opened if it is not, and it is
+booked out for the operation so two concurrent scheduler calls cannot share it. Cleaning the holder up
+through `CleanupConnection` hands the booking back.
+
+`ConnectionAndTransactionHolder` gained a matching public constructor,
+`(DbConnection connection, DbTransaction? transaction, bool ownsResources)`, and a public `OwnsResources`,
+for a store that borrows a connection from somewhere else entirely. Owning nothing means committing
+nothing — `Commit`, `Rollback`, `Close` and `Dispose` all return without touching a borrowed connection.
+
+`Commit(bool)` and `Rollback(bool)` are internal: when the unit of work commits is the job store's
+decision, and `JobStoreSupport.CommitConnection` / `.RollbackConnection` are the seams a subclass
+overrides. `Close` stays public.
+
 ## Jobs take a CancellationToken
 
 `IJob.Execute` now takes the cancellation token as a parameter alongside the context:
@@ -2350,10 +2528,10 @@ read back the way every other primitive can.
 | `JobType` introduced | Stores job type info without requiring an actual `Type` instance |
 | `RecoveringTriggerKey` behavior | `IJobExecutionContext.RecoveringTriggerKey` now returns `null` when not recovering instead of throwing |
 | `DictionaryExtensions` removed | `Quartz.Util.DictionaryExtensions` type was removed |
-| `JobStoreSupport` connection methods | `GetNonManagedTXConnection` and `GetConnection` now return `ValueTask<ConnectionAndTransactionHolder>` |
+| `JobStoreSupport` connection methods | `GetLocalTransactionConnection` (was `GetNonManagedTXConnection`) and `GetConnection` now return `ValueTask<ConnectionAndTransactionHolder>` |
 | `JobStoreSupport.UseProperties` `string` setter removed | The `bool` `AdoJobStoreOptions.UseProperties` option and the read-only `CanUseProperties` remain; the property bridge parses the key |
 | Protected `JobStoreSupport` / `StdAdoDelegate` members take a `CancellationToken` | Overrides have to add the parameter; callers do not |
-| `ConnectionAndTransactionHolder.Close`, `.Commit`, `.Rollback` take a `CancellationToken` | Same |
+| `ConnectionAndTransactionHolder.Close` takes a `CancellationToken` | `.Commit` and `.Rollback` took one too, and are now internal — see [A job store of your own can join your transaction](#a-job-store-of-your-own-can-join-your-transaction) |
 | `IJobConfigurator<TJob>` members return `IJobConfigurator<TJob>` | `JobBuilder<TJob>` implements them explicitly and keeps its own `JobBuilder<TJob>`-returning members, so `JobBuilder.Create()…` chains are unaffected — see [Job data can name the property](#job-data-can-name-the-property) for the type parameter |
 | `UsingJobData` takes an `object?` | The nine primitive overloads collapsed into one — see [Nine `UsingJobData` overloads became one](#nine-usingjobdata-overloads-became-one) |
 | `IDirectoryScanListener` is asynchronous | `FilesUpdatedOrAdded` and `FilesDeleted` return `ValueTask` and take a `CancellationToken` |
@@ -2396,3 +2574,17 @@ read back the way every other primitive can.
 | `IDriverDelegate.IsJobCurrentlyExecuting` takes a `JobKey` | It took `(string jobName, string jobGroup)` |
 | `IDriverDelegate.SelectJobForTrigger`'s `loadJobType` is required | It defaulted in front of the cancellation token; pass `loadJobType: true` for the old default |
 | `IDriverDelegate.UpdateTriggerPreferredNodeConditional` takes a `PreferredNodeTransition` | Four loose compare-and-swap parameters became one record naming `Expected` and `New` |
+| `JobStoreTX` is `LocalTransactionJobStore`, `JobStoreCMT` is `ExternalTransactionJobStore` | The names now say whose transaction the store uses. `quartz.jobStore.type = Quartz.Impl.AdoJobStore.JobStoreTX, Quartz` and the `JobStoreCMT` spelling still resolve, with a warning — see [The ADO.NET job stores are named for whose transaction they use](#the-ado-net-job-stores-are-named-for-whose-transaction-they-use) |
+| `GetNonManagedTXConnection`, `ExecuteInNonManagedTXLock`, `RetryExecuteInNonManagedTXLock` renamed | `GetLocalTransactionConnection`, `ExecuteInLocalTransactionLock`, `RetryExecuteInLocalTransactionLock`; protected, so only a `JobStoreSupport` subclass sees them |
+| `JobStoreSupport`'s nine `Execute…Lock` overloads became four members | Optional parameters replace the ladder, and no member returns `object` as a stand-in for `void` any more — see [Nine `Execute…Lock` overloads became four members](#nine-execute-lock-overloads-became-four-members) |
+| `ExternalTransactionJobStore.OpenConnection` is `{ get; set; }` | It was `{ protected get; set; }`: writable from anywhere, readable only from inside |
+| `ISemaphore` takes a `SchedulerLock` | The `string lockName` had two legal values. The `LOCK_NAME` column and the Redis keys are unchanged — see [Locks are a `SchedulerLock`, not a string](#locks-are-a-schedulerlock-not-a-string) |
+| `JobStoreSupport.LockTriggerAccess` / `.LockStateAccess` removed | `SchedulerLock.TriggerAccess` / `.StateAccess` replace the two protected constants |
+| ~25 `JobStoreSupport` configuration properties are read-only | They duplicated `AdoJobStoreOptions` / `QuartzSchedulerOptions`; configure the options instead. `MisfireThreshold` deliberately stays settable — see [The job store configuration is read-only](#the-job-store-configuration-is-read-only) |
+| `JobStoreSupport.DriverDelegateType` and `.DontSetAutoCommitFalse` removed | Nothing read either one; the driver delegate is injected |
+| `JobStoreSupport.LastCheckin` is internal, `LogWarnIfNonZero` is private | Cluster check-in bookkeeping and a logging helper, neither of them an extension point |
+| `JobStoreSupport.RecoverJobs(CancellationToken)` returns `ValueTask` | The `bool` it returned was the constant `true` |
+| `DBSemaphore.Sql` and `.InsertSql` are get-only, fed by the constructor | Assigning one after construction left it un-prefixed relative to its pair — see [The semaphores were tidied](#the-semaphores-were-tidied) |
+| Row-lock semaphore SQL fields are `protected` and consistently named | `UpdateLockRowSemaphore.SqlUpdateForLock` / `.SqlInsertLock` are `UpdateForLock` / `InsertLock`; `StdRowLockSemaphore.SelectForLock` / `.InsertLock` keep their names |
+| `JobStoreSupport.GetEnlistedConnection` is `protected` | So a job store outside the core assembly can honour an enlisted transaction rather than silently opening its own connection |
+| `ConnectionAndTransactionHolder` gained an ownership-aware constructor and `OwnsResources` | `(connection, transaction, ownsResources)` for a store running on a connection it did not open |

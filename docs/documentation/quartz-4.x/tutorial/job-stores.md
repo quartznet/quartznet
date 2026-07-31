@@ -49,18 +49,18 @@ One thing to note is that in these scripts, all the the tables start with the pr
 what the prefix is (in your Quartz.NET properties). Using different prefixes may be useful for creating multiple sets of tables,
 for multiple scheduler instances, within the same database.
 
-`JobStoreTX` creates transactions by itself and is the implementation you normally want. If you need scheduling to
-commit together with your application's own database work, `JobStoreTX` can also be told to use a connection you
-own - see [Joining an existing transaction](#joining-an-existing-transaction) below.
+`LocalTransactionJobStore` creates transactions by itself and is the implementation you normally want. If you need
+scheduling to commit together with your application's own database work, `LocalTransactionJobStore` can also be told to
+use a connection you own - see [Joining an existing transaction](#joining-an-existing-transaction) below.
 
 The last piece of the puzzle is setting up a data source from which AdoJobStore can get connections to your database.
 Data sources are defined in your Quartz.NET properties. Data source information contains the connection string
 and ADO.NET delegate information.
 
-### Configuring Quartz to use JobStoreTx
+### Configuring Quartz to use LocalTransactionJobStore
 
 ```text
-    quartz.jobStore.type = Quartz.Impl.AdoJobStore.JobStoreTX, Quartz
+    quartz.jobStore.type = Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz
 ```
 
 Next, you need to select a `IDriverDelegate` implementation for the JobStore to use.
@@ -280,6 +280,6 @@ Things worth knowing before you enable this:
 * An operation that fails halfway leaves its statements in your transaction; there is no savepoint to roll back to.
 * Work the scheduler does on its own - acquiring triggers, handling misfires, cluster check-in - always uses its own
   connections and is unaffected.
-* `JobStoreCMT` is the exception to the previous point: running inside a transaction its container manages is that
-  store's whole contract, so its own connections enlist in an ambient transaction as they always have.
+* `ExternalTransactionJobStore` is the exception to the previous point: running inside a transaction its container
+  manages is that store's whole contract, so its own connections enlist in an ambient transaction as they always have.
 
