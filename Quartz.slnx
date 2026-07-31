@@ -9,7 +9,6 @@
     <File Path=".editorconfig" />
     <File Path="build.cmd" />
     <File Path="build.sh" />
-    <File Path="changelog.md" />
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
     <File Path="package.json" />
