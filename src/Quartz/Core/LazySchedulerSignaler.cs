@@ -48,6 +48,16 @@ internal sealed class LazySchedulerSignaler : ISchedulerSignaler
         return signaler.Value.NotifySchedulerListenersJobDeleted(jobKey, cancellationToken);
     }
 
+    public ValueTask NotifySchedulerListenersTriggerInError(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    {
+        return signaler.Value.NotifySchedulerListenersTriggerInError(triggerKey, cancellationToken);
+    }
+
+    public ValueTask NotifySchedulerListenersTriggersInError(JobKey jobKey, CancellationToken cancellationToken = default)
+    {
+        return signaler.Value.NotifySchedulerListenersTriggersInError(jobKey, cancellationToken);
+    }
+
     public ValueTask SignalSchedulingChange(DateTimeOffset? candidateNewNextFireTimeUtc, CancellationToken cancellationToken = default)
     {
         return signaler.Value.SignalSchedulingChange(candidateNewNextFireTimeUtc, cancellationToken);

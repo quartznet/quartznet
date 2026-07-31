@@ -134,6 +134,16 @@ public sealed class BroadcastSchedulerListener : ISchedulerListener
         return IterateListenersInGuard(l => l.TriggerPaused(triggerKey, cancellationToken), nameof(TriggerPaused));
     }
 
+    public ValueTask TriggerInError(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    {
+        return IterateListenersInGuard(l => l.TriggerInError(triggerKey, cancellationToken), nameof(TriggerInError));
+    }
+
+    public ValueTask TriggersInError(JobKey jobKey, CancellationToken cancellationToken = default)
+    {
+        return IterateListenersInGuard(l => l.TriggersInError(jobKey, cancellationToken), nameof(TriggersInError));
+    }
+
     public ValueTask TriggersResumed(string? triggerGroup, CancellationToken cancellationToken = default)
     {
         return IterateListenersInGuard(l => l.TriggersResumed(triggerGroup, cancellationToken), nameof(TriggerResumed));

@@ -1231,19 +1231,8 @@
     scheduler can still be resolved to the real one. See
     [Joining an existing transaction](https://www.quartz-scheduler.net/documentation/quartz-4.x/tutorial/job-stores.html#joining-an-existing-transaction).
 
-### NEW FEATURES
-
-  * **JobInstantiationException** — when `IJobFactory` cannot produce a job, the trigger has already fired but
-    there is no `IJobExecutionContext` yet, so no `ITriggerListener` or `IJobListener` callback can be raised and
-    `ISchedulerListener.SchedulerError` is the only notification. It now receives a `JobInstantiationException`
-    carrying `Trigger`, `JobDetail` and `FireInstanceId`, so a listener can identify the firing that died without
-    parsing the message text. Additive — `SchedulerError` already took a `SchedulerException`. Mirrors what
-    `JobExecutionProcessException` does for execution-time failures (#3213)
-
 ### FIXES
 
-  * The "Problem instantiating type/class" messages closed their quote after the inner exception's message
-    rather than after the type name; they read `'TypeName': message` now
   * Fix for deserializing CronExpression using Json Serializer throwing error calling `GetNextValidTimeAfter`.  (#1996)
     `IDeserializationCallback` interface was removed from class `CronExpression` and the deserialization logic
     added to the constructor `CronExpression(SerializationInfo info, StreamingContext context)`.

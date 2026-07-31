@@ -661,6 +661,65 @@ unscheduled there is no trigger left to hand out.
 + ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default);
 ```
 
+### Instantiation failures name the trigger
+
+When `IJobFactory` cannot produce a job — a constructor dependency the container cannot resolve is the usual
+reason — the trigger has already fired, but there is no `IJobExecutionContext` yet, so no `ITriggerListener` or
+`IJobListener` callback can be raised. `SchedulerError` is the only notification, and it used to carry the job
+key as interpolated message text and the trigger nowhere at all.
+
+It now receives a `JobInstantiationException`:
+
+```csharp
+public override ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default)
+{
+    if (exception is JobInstantiationException failure)
+    {
+        logger.LogError(failure, "Job {Job} could not be built for trigger {Trigger}, fire {FireInstanceId}",
+            failure.JobDetail.Key, failure.Trigger.Key, failure.FireInstanceId);
+    }
+
+    return default;
+}
+```
+
+Additive — `SchedulerError` already took a `SchedulerException` — and it mirrors what
+`JobExecutionProcessException` carries for execution-time failures. Both factory paths raise it: the container's,
+where `ActivatorUtilities` throws, and `SimpleJobFactory`'s, where the original failure arrives as the
+`InnerException`.
+
+The two messages reporting this also had their closing quote moved to where it belongs, from after the inner
+exception's message to after the type name: `Problem instantiating type 'MyNamespace.MyJob': message`. Code
+matching on that text should read the exception instead.
+
+To prevent the failure rather than observe it, see [failing fast when job dependencies cannot be
+resolved](packages/microsoft-di-integration.md#failing-fast-when-job-dependencies-cannot-be-resolved).
+
+### Triggers entering the error state are reported
+
+A trigger could be parked in `TriggerState.Error` with nothing observing it. The stores logged a line and moved
+on, so a trigger simply stopped working and the only way to find out was to poll `GetTriggerState` or read the
+log — and two of the ADO store's transitions, a job type that will not load while acquiring and a job that
+cannot be read back in `TriggersFired`, did not reach the scheduler at all.
+
+```csharp
+ValueTask TriggerInError(TriggerKey triggerKey, CancellationToken cancellationToken = default) => default;
+ValueTask TriggersInError(JobKey jobKey, CancellationToken cancellationToken = default) => default;
+```
+
+Following the singular/plural pair `ISchedulerListener` already has for pause and resume. Both are
+default-implemented, as are the matching `ISchedulerSignaler.NotifySchedulerListenersTriggerInError` and
+`NotifySchedulerListenersTriggersInError`, so an existing listener or signaler still compiles and behaves
+exactly as it does today — no notification.
+
+The plural is keyed by `JobKey` rather than by the individual triggers because `SetAllJobTriggersError` is one
+bulk statement in the persistent store, and enumerating the affected keys would mean an extra query on a failure
+path. Ask `GetTriggersOfJob` where the keys themselves matter.
+
+Neither carries a cause. The stores raise these and receive only a `SchedulerInstruction`; `SchedulerError` says
+*why* and these say *what changed*, and where both apply they arrive together. Recover a trigger with
+`IScheduler.ResetTriggerFromErrorState`.
+
 ### The broadcast listeners have one shape
 
 `BroadcastSchedulerListener.GetListeners()` is a `Listeners` property, matching `BroadcastJobListener` and
@@ -707,6 +766,8 @@ The cron expression parser now supports additional syntax:
 * **Paged, projected job store queries** — list and count jobs, triggers, groups and calendars a page at a time, with the metadata a listing needs already in the row (see [Job store listings became queries](#job-store-listings-became-queries))
 * **Job data by property name** — bind job data to the job property it is meant for instead of spelling its key (see [Job data can name the property](#job-data-can-name-the-property))
 * **`TriggerState.Executing`** — tell whether a trigger's job is running, across the whole cluster (see [Executing is a trigger state](#executing-is-a-trigger-state))
+* **`JobInstantiationException`** — a job that could not be built names the trigger, the job and the fire instance instead of only interpolating the job key into a message (see [Instantiation failures name the trigger](#instantiation-failures-name-the-trigger))
+* **`ISchedulerListener.TriggerInError` / `TriggersInError`** — observe a trigger being moved to `TriggerState.Error`, including two ADO store transitions that reached nothing at all before (see [Triggers entering the error state are reported](#triggers-entering-the-error-state-are-reported))
 
 ## Job data can name the property
 

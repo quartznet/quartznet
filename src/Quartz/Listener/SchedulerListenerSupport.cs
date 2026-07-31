@@ -142,6 +142,20 @@ public abstract class SchedulerListenerSupport : ISchedulerListener
         return default;
     }
 
+    public virtual ValueTask TriggerInError(
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default)
+    {
+        return default;
+    }
+
+    public virtual ValueTask TriggersInError(
+        JobKey jobKey,
+        CancellationToken cancellationToken = default)
+    {
+        return default;
+    }
+
     public virtual ValueTask SchedulerInStandbyMode(CancellationToken cancellationToken = default)
     {
         return default;

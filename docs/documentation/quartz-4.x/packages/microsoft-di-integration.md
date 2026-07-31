@@ -48,6 +48,56 @@ Quartz uses Microsoft's DI construction by default and the jobs produced by the 
 By default Quartz will try to resolve job's type from container and if there's no explicit registration Quartz will use `ActivatorUtilities` to construct job and inject it's dependencies
 via constructor. Job should have only one public constructor.
 
+### Failing fast when job dependencies cannot be resolved
+
+`AddJob<T>()` does **not** register the job type with the container. It only describes the job to the
+scheduler, and the job factory falls back to `ActivatorUtilities` when the container has no
+registration for the type. That means `ValidateOnBuild` — which the host enables by default in the
+Development environment — never sees your job and never checks that its constructor can be satisfied.
+
+An unresolvable dependency therefore surfaces at fire time rather than at startup, as a failure to
+instantiate the job. The trigger has already fired at that point, so the job never runs and every
+trigger of that job is moved to `TriggerState.Error`, where it stays until
+`IScheduler.ResetTriggerFromErrorState` is called.
+
+Register your job types explicitly and startup validation covers them:
+
+```csharp
+services.AddScoped<SendReportsJob>();   // now ValidateOnBuild checks its constructor
+
+services.AddQuartz(q =>
+{
+    q.AddJob<SendReportsJob>(j => j.WithIdentity("send-reports"));
+});
+```
+
+If you need to react to such a failure at fire time rather than prevent it — to fail whatever
+scheduled the work, for instance — `ISchedulerListener.SchedulerError` receives a
+`JobInstantiationException` naming the trigger, the job and the fire instance:
+
+```csharp
+public sealed class InstantiationFailureListener : SchedulerListenerSupport
+{
+    public override ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default)
+    {
+        if (exception is JobInstantiationException failure)
+        {
+            logger.LogError(failure, "Job {Job} could not be built for trigger {Trigger}, fire {FireInstanceId}",
+                failure.JobDetail.Key, failure.Trigger.Key, failure.FireInstanceId);
+        }
+
+        return default;
+    }
+}
+```
+
+`ISchedulerListener.TriggersInError` is raised alongside it, and reports the same thing from the job
+store's side: every trigger of that job is now in the error state.
+
+To take part in construction itself — to record the failure, or to add context to it — derive from
+`MicrosoftDependencyInjectionJobFactory` and override `CreateJobInstance`. The `TriggerFiredBundle` it
+receives carries the trigger, the job detail and `bundle.Trigger.FireInstanceId`.
+
 ### Persistent job stores
 
 The scheduling configuration will be checked against database and updated accordingly every time your application starts and schedule is being evaluated.
