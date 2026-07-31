@@ -236,7 +236,6 @@ partial class Build : FalloutBuild
             var zipContents = Array.Empty<AbsolutePath>()
                     .Concat(SourceDirectory.GlobFiles("**/*.*"))
                     .Concat(RootDirectory.GlobFiles("database/**/*"))
-                    .Concat(RootDirectory.GlobFiles("changelog.md"))
                     .Concat(RootDirectory.GlobFiles("license.txt"))
                     .Concat(RootDirectory.GlobFiles("README.md"))
                     .Concat(RootDirectory.GlobFiles("*.sln"))
@@ -276,7 +275,7 @@ partial class Build : FalloutBuild
                 (SourceDirectory / project.Name / "bin" / Configuration).Copy(zipTempDirectory / "bin" / Configuration / project.Name);
             }
 
-            var rootFilesToCopy = new []{"README.md","Quartz.slnx","quartz.net.snk","license.txt", "changelog.md","build.cmd","build.sh","build.ps1"};
+            var rootFilesToCopy = new []{"README.md","Quartz.slnx","quartz.net.snk","license.txt","build.cmd","build.sh","build.ps1"};
             foreach (var file in rootFilesToCopy)
             {
                 (RootDirectory / file).CopyToDirectory(zipTempDirectory);
