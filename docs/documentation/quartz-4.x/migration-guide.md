@@ -295,15 +295,31 @@ resolve is retried against `Quartz`, with a warning naming both spellings.
 
 ## Database Schema Migration
 
-Quartz 4.x requires the `MISFIRE_ORIG_FIRE_TIME` column in the `QRTZ_TRIGGERS` table. This column stores the original scheduled fire time before misfire handling changes it.
+Quartz 4.x requires four columns on `QRTZ_TRIGGERS` (and one on `QRTZ_FIRED_TRIGGERS`) that were
+**optional** in 3.x:
+
+| Column | Table(s) | Optional since |
+|---|---|---|
+| `MISFIRE_ORIG_FIRE_TIME` | `QRTZ_TRIGGERS` | 3.17 |
+| `EXECUTION_GROUP` | `QRTZ_TRIGGERS`, `QRTZ_FIRED_TRIGGERS` | 3.18 |
+| `PREFERRED_NODE` | `QRTZ_TRIGGERS` | 3.19 |
+| `PREFERRED_NODE_AUTO` | `QRTZ_TRIGGERS` | 3.19 |
+
+3.x probed for each of these at startup and disabled the corresponding feature when it was
+missing. **4.x removed those probes** and assumes all of them exist, so this migration is
+mandatory even if you never used misfire reporting, execution groups or node affinity.
 
 ::: warning
 Always run migration scripts in a test environment against a copy of your production database first.
 :::
 
-Apply the migration script from [database/schema_30_to_40_upgrade.sql](https://github.com/quartznet/quartznet/blob/main/database/schema_30_to_40_upgrade.sql). The script includes existence checks, so it is safe to run even if you already have the column (it was added as optional in Quartz 3.17).
+Apply the script for your database from
+[database/migrations/4.0/](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.0) —
+`schema_30_to_40_upgrade_sqlServer.sql`, `_postgres`, `_mysql_innodb`, `_oracle`, `_sqlite` or
+`_firebird`. Every statement checks first, so it is safe to run whether or not you already applied
+the optional 3.x migrations, and safe to run twice.
 
-For SQL Server:
+For SQL Server the column additions look like this:
 
 ```sql
 IF COL_LENGTH('QRTZ_TRIGGERS','MISFIRE_ORIG_FIRE_TIME') IS NULL
@@ -312,12 +328,15 @@ BEGIN
 END
 ```
 
-See the migration script for PostgreSQL, MySQL, Oracle, SQLite, and Firebird equivalents. Replace `QRTZ_` with your configured table prefix if different.
+Replace `QRTZ_` with your configured table prefix if different.
+
+See [Database Schema Changes](../database/schema-changes.md) for the full version-by-version
+history, including what each optional 3.x migration does and what skipping it costs.
 
 ### Listing indexes (optional)
 
-The same script adds two indexes that the [job and trigger listings](#job-store-listings-became-queries)
-benefit from:
+The same script aligns the index set with the statements 4.x issues. Two of the additions matter
+most for the [job and trigger listings](#job-store-listings-became-queries):
 
 | Index | Table and columns |
 |---|---|
@@ -329,10 +348,10 @@ keys are name-before-group, so no existing index serves those ordered scans. **T
 queries work without them, but each page becomes a scan plus a sort. Add them if you list jobs or triggers
 from a large schema. They are in the fresh-install scripts for every dialect already.
 
-PostgreSQL users should also take the corrected index definitions from
-[database/tables/tables_postgres.sql](https://github.com/quartznet/quartznet/blob/main/database/tables/tables_postgres.sql).
-Several indexes in that script omitted `SCHED_NAME`, which is the leading column of every predicate Quartz
-issues, so they could not serve a single-scheduler lookup.
+The same section drops indexes that are a leftmost prefix of a wider one, or that no 4.x statement
+can drive a scan from. PostgreSQL gets the largest change: several of its indexes omitted
+`SCHED_NAME`, which is the leading column of every predicate Quartz issues, so they could not serve
+a single-scheduler lookup at all.
 
 Full table creation scripts for fresh installations are available in [database/tables/](https://github.com/quartznet/quartznet/tree/main/database/tables).
 

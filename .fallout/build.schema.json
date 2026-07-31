@@ -28,13 +28,15 @@
         "Clean",
         "Compile",
         "DocsBuild",
+        "GenerateMigrations",
         "IntegrationTest",
         "Pack",
         "PackZip",
         "Publish",
         "PublishAot",
         "Restore",
-        "UnitTest"
+        "UnitTest",
+        "VerifyMigrations"
       ]
     },
     "Verbosity": {

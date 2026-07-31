@@ -15,12 +15,25 @@ When using ADO.NET-based job store (the usual being `JobStoreTX`), Quartz requir
 | qrtz_fired_triggers | triggers that are currently running |
 | qrtz_blob_triggers | trigger table with a binary blob data storage |
 | qrtz_simple_triggers | data for very simple repeat triggers |
-| qrtz_simprop_triggers | Reusable table for custom triggers. `ICalendarIntervalTrigger`, `IDailyTimeIntervalTrigger`, and `IRecurrenceTrigger` (3.18+) use this |
+| qrtz_simprop_triggers | Reusable table for custom triggers. `ICalendarIntervalTrigger`, `IDailyTimeIntervalTrigger`, and `IRecurrenceTrigger` use this |
 | qrtz_paused_trigger_grps | `IScheduler.PauseTriggers` data |
 
 The scripts to create these tables for various providers can be found [here](https://github.com/quartznet/quartznet/tree/main/database/tables).
 
-Upgrading an existing database instead? See [Database Schema Changes](../../database/schema-changes.md) for every schema change by version, which migration to run, and what skipping it costs.
+Upgrading an existing database instead? See [Database Schema Changes](../../database/schema-changes.md) — upgrading from 3.x to 4.x is **mandatory**, because 4.x no longer probes for the optional 3.x columns.
+
+## Columns 4.x requires
+
+These four columns are optional in Quartz.NET 3.x — the scheduler probes for them at startup and disables the corresponding feature when they are missing. **4.x removed those probes and assumes all four exist.**
+
+| Column | Table(s) | Added as optional in |
+| -- | -- | -- |
+| `MISFIRE_ORIG_FIRE_TIME` | `QRTZ_TRIGGERS` | 3.17 |
+| `EXECUTION_GROUP` | `QRTZ_TRIGGERS`, `QRTZ_FIRED_TRIGGERS` | 3.18 |
+| `PREFERRED_NODE` | `QRTZ_TRIGGERS` | 3.19 |
+| `PREFERRED_NODE_AUTO` | `QRTZ_TRIGGERS` | 3.19 |
+
+Apply [`database/migrations/4.0/`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.0) to add whichever are missing. Every statement is guarded, so it is safe to run on a database that already has some of them.
 
 ## Quartz Triggers Table
 
@@ -33,5 +46,6 @@ This table stores the configuration of the `ITrigger` data that is shared across
 | Complete | trigger will not fire again, it has no more "fire times" |
 | Error | the trigger had an error, it will not be fired again |
 | Blocked | this trigger is associated with a job that is `DisallowConcurrentExecutionAttribute` and so must wait, but the trigger would like to fire |
+| Executing | the trigger is currently executing |
 | None | the trigger doesn't exist |
 | Waiting | db only, and means the job is ready to be picked up |
