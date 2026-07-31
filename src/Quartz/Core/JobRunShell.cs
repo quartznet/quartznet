@@ -117,7 +117,10 @@ internal sealed class JobRunShell
         }
         catch (SchedulerException se)
         {
-            await qs!.NotifySchedulerListenersError($"An error occurred instantiating job to be executed. job='{jobDetail.Key}'", se, cancellationToken).ConfigureAwait(false);
+            // The factory said what went wrong; the exception handed to listeners adds which trigger
+            // and which firing it went wrong for, which the message text alone never carried.
+            JobInstantiationException failure = new JobInstantiationException(se.Message, firedTriggerBundle, se);
+            await qs!.NotifySchedulerListenersError($"An error occurred instantiating job to be executed. job='{jobDetail.Key}'", failure, cancellationToken).ConfigureAwait(false);
 
             IOperableTrigger errorTrigger = (IOperableTrigger) firedTriggerBundle.Trigger;
             SchedulerInstruction instruction = se.InnerException is ObjectDisposedException or OperationCanceledException
@@ -316,7 +319,7 @@ internal sealed class JobRunShell
 
         async ValueTask NotifyInstantiationFailed(Exception e)
         {
-            SchedulerException se = new SchedulerException($"Problem instantiating type '{jobDetail.JobType.FullName}: {e.Message}'", e);
+            SchedulerException se = new JobInstantiationException($"Problem instantiating type '{jobDetail.JobType.FullName}': {e.Message}", firedTriggerBundle, e);
             await qs!.NotifySchedulerListenersError($"An error occurred instantiating job to be executed. job='{jobDetail.Key}', message='{e.Message}'", se, cancellationToken).ConfigureAwait(false);
 
             IOperableTrigger errorTrigger = (IOperableTrigger) firedTriggerBundle.Trigger;

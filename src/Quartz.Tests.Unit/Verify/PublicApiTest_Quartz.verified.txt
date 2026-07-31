@@ -1219,6 +1219,12 @@ namespace Quartz.Core
     {
         public Quartz.IJobExecutionContext JobExecutionContext { get; }
     }
+    public sealed class JobInstantiationException : Quartz.SchedulerException
+    {
+        public string FireInstanceId { get; }
+        public Quartz.IJobDetail JobDetail { get; }
+        public Quartz.ITrigger Trigger { get; }
+    }
 }
 namespace Quartz.Diagnostics
 {
