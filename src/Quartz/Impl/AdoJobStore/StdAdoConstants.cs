@@ -420,7 +420,7 @@ internal static class StdAdoConstants
     public static readonly string SqlSelectTriggerStateWithExecuting =
         Invariant($"SELECT {AdoConstants.ColumnTriggerState}, CASE WHEN {SqlExecutingFiredTriggerExists} THEN 1 ELSE 0 END FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerName} = @triggerName AND {AdoConstants.ColumnTriggerGroup} = @triggerGroup");
 
-    public static readonly string SqlSelectTriggerStatus =
+    public static readonly string SqlSelectTriggerHeader =
         Invariant($"SELECT {AdoConstants.ColumnTriggerState}, {AdoConstants.ColumnNextFireTime}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup} FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerName} = @triggerName AND {AdoConstants.ColumnTriggerGroup} = @triggerGroup");
 
     public static readonly string SqlSelectTriggersForCalendar =

@@ -50,7 +50,7 @@ internal sealed class MisfireHandler
 
             if (recoverMisfiredJobsResult.ProcessedMisfiredTriggerCount > 0)
             {
-                await jobStoreSupport.SignalSchedulingChangeImmediately(recoverMisfiredJobsResult.EarliestNewTime, token).ConfigureAwait(false);
+                await jobStoreSupport.SignalSchedulingChangeImmediately(recoverMisfiredJobsResult.EarliestNewTimeUtc, token).ConfigureAwait(false);
             }
 
             token.ThrowIfCancellationRequested();

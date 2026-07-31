@@ -520,13 +520,15 @@ public interface IDriverDelegate
     ValueTask<StoredTriggerState> SelectTriggerState(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Select a triggers status (state and next fire time).
+    /// Select the stored state, next fire time and job of one trigger, in a single statement.
     /// </summary>
     /// <param name="conn">The DB Connection.</param>
     /// <param name="triggerKey">The key identifying the trigger.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    /// <returns>A <see cref="TriggerStatus" /> object, or null</returns>
-    ValueTask<TriggerStatus?> SelectTriggerStatus(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, CancellationToken cancellationToken = default);
+    /// <returns>
+    /// The trigger's header, or <see langword="null" /> when no such trigger exists.
+    /// </returns>
+    ValueTask<StoredTriggerHeader?> SelectTriggerHeader(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Select all trigger group names a group matcher selects. Pass
@@ -1074,6 +1076,21 @@ public interface IDriverDelegate
         ConnectionAndTransactionHolder conn,
         IReadOnlyCollection<TriggerKey> triggerKeys,
         CancellationToken cancellationToken = default);
-}
 
-public readonly record struct TriggerAcquireResult(string TriggerName, string TriggerGroup, string JobType, string? ExecutionGroup);
+    /// <summary>
+    /// Verifies that the schema objects this delegate reads and writes are there, and reports how many
+    /// were checked.
+    /// </summary>
+    /// <remarks>
+    /// Called at startup when <c>PerformSchemaValidation</c> is on, so that a missing or mis-prefixed
+    /// table is reported once, by name, instead of as the first failing operation. A delegate that owns
+    /// tables of its own checks those too.
+    /// </remarks>
+    /// <param name="conn">The DB connection.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>The number of schema objects validated.</returns>
+    /// <exception cref="JobPersistenceException">An object could not be queried.</exception>
+    ValueTask<int> ValidateSchema(
+        ConnectionAndTransactionHolder conn,
+        CancellationToken cancellationToken = default);
+}

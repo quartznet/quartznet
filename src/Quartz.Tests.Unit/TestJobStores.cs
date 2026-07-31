@@ -8,7 +8,6 @@ using Microsoft.Extensions.Options;
 
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
-using Quartz.Util;
 using Quartz.Impl;
 using Quartz.Extensibility;
 

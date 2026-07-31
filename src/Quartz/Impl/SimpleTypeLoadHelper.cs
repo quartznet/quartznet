@@ -53,6 +53,7 @@ internal sealed class SimpleTypeLoadHelper : ITypeLoadHelper
     [
         ("Quartz.Impl.AdoJobStore.JobStoreTX", "Quartz.Impl.AdoJobStore.LocalTransactionJobStore"),
         ("Quartz.Impl.AdoJobStore.JobStoreCMT", "Quartz.Impl.AdoJobStore.ExternalTransactionJobStore"),
+        ("Quartz.Impl.HostnameInstanceIdGenerator", "Quartz.Impl.HostNameInstanceIdGenerator"),
     ];
 
     /// <summary>

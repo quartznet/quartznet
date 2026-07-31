@@ -607,7 +607,7 @@ public class JobStoreSupportTest
         var staleRecord = new FiredTriggerRecord
         {
             FireInstanceId = "entry_stale_1",
-            FireInstanceState = AdoConstants.StateAcquired,
+            FireInstanceState = StoredTriggerState.Acquired,
             FireTimestamp = DateTimeOffset.UtcNow - TimeSpan.FromMinutes(10),
             TriggerKey = triggerKey,
             SchedulerInstanceId = "TestInstanceId"
@@ -657,23 +657,26 @@ public class JobStoreSupportTest
             new FiredTriggerRecord
             {
                 FireInstanceId = "entry_stale",
-                FireInstanceState = AdoConstants.StateAcquired,
+                FireInstanceState = StoredTriggerState.Acquired,
                 FireTimestamp = DateTimeOffset.UtcNow - TimeSpan.FromMinutes(10),
                 TriggerKey = staleTrigger,
+                SchedulerInstanceId = "TestInstanceId",
             },
             new FiredTriggerRecord
             {
                 FireInstanceId = "entry_executing",
-                FireInstanceState = AdoConstants.StateExecuting,
+                FireInstanceState = StoredTriggerState.Executing,
                 FireTimestamp = DateTimeOffset.UtcNow - TimeSpan.FromMinutes(10),
                 TriggerKey = executingTrigger,
+                SchedulerInstanceId = "TestInstanceId",
             },
             new FiredTriggerRecord
             {
                 FireInstanceId = "entry_recent",
-                FireInstanceState = AdoConstants.StateAcquired,
+                FireInstanceState = StoredTriggerState.Acquired,
                 FireTimestamp = DateTimeOffset.UtcNow - TimeSpan.FromSeconds(10),
                 TriggerKey = recentTrigger,
+                SchedulerInstanceId = "TestInstanceId",
             },
         };
 
@@ -716,7 +719,7 @@ public class JobStoreSupportTest
         var recentRecord = new FiredTriggerRecord
         {
             FireInstanceId = "entry_recent_1",
-            FireInstanceState = AdoConstants.StateAcquired,
+            FireInstanceState = StoredTriggerState.Acquired,
             FireTimestamp = DateTimeOffset.UtcNow - TimeSpan.FromSeconds(10),
             TriggerKey = new TriggerKey("recentTrigger", "group"),
             SchedulerInstanceId = "TestInstanceId"
@@ -748,7 +751,7 @@ public class JobStoreSupportTest
         var executingRecord = new FiredTriggerRecord
         {
             FireInstanceId = "entry_exec_1",
-            FireInstanceState = AdoConstants.StateExecuting,
+            FireInstanceState = StoredTriggerState.Executing,
             FireTimestamp = DateTimeOffset.UtcNow - TimeSpan.FromMinutes(10),
             TriggerKey = new TriggerKey("executingTrigger", "group"),
             SchedulerInstanceId = "TestInstanceId"

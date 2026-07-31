@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
 using Quartz.Impl;
 using Quartz.Extensibility;
+using Quartz.Tests;
 
 namespace Quartz.Tests.Integration.Core;
 
@@ -89,15 +90,16 @@ public class CollectDurationBetweenFireTimesJob : IJob
 }
 
 /// <summary>
-/// Custom RAMJobStore for producing context switches.
+/// A job store that wraps <see cref="RAMJobStore"/> and slows acquisition down, for producing context
+/// switches.
 /// </summary>
-public class SlowRAMJobStore : RAMJobStore
+public class SlowRAMJobStore : DelegatingJobStore
 {
     public SlowRAMJobStore(
         ILoggerFactory loggerFactory,
         ISchedulerSignaler signaler,
         TimeProvider timeProvider)
-        : base(loggerFactory, signaler, timeProvider)
+        : base(new RAMJobStore(loggerFactory, signaler, timeProvider))
     {
     }
 

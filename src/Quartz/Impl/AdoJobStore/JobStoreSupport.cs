@@ -116,7 +116,7 @@ public abstract class JobStoreSupport : IJobStore
         // but the store never reads it back, so two schedulers whose data sources happen to share a name
         // cannot end up talking to each other's database.
         DbProvider = dbProvider;
-        ConnectionManager.AddConnectionProvider(DataSource, dbProvider);
+        ConnectionManager.AddDbProvider(DataSource, dbProvider);
 
         // The delegate and lock handler are chosen by configuration and built by the container, rather
         // than loaded from a type name here.
@@ -799,11 +799,11 @@ public abstract class JobStoreSupport : IJobStore
             Logger.LogWarning("Delegate type '{DelegateType}' overrides the database date/time or time-span storage format. The preferred-node (node affinity) liveness check compares raw checkin values in SQL assuming the default tick storage, so a trigger pinned to a node may not fail over correctly. Keep the default storage format, or override the preferred-node acquisition SQL to match your format.", Delegate.GetType().FullName);
         }
 
-        if (PerformSchemaValidation && driverDelegate is StdAdoDelegate adoDelegate)
+        if (PerformSchemaValidation)
         {
             try
             {
-                var objectCount = await ExecuteWithoutLock<int>(conn => adoDelegate.ValidateSchema(conn, cancellationToken), cancellationToken).ConfigureAwait(false);
+                var objectCount = await ExecuteWithoutLock<int>(conn => Delegate.ValidateSchema(conn, cancellationToken), cancellationToken).ConfigureAwait(false);
                 Logger.LogInformation("Successfully validated presence of {SchemaObjectCount} schema objects", objectCount);
             }
             catch (Exception ex)
@@ -1201,14 +1201,8 @@ public abstract class JobStoreSupport : IJobStore
                 ? rec.ScheduleTimestamp
                 : rec.FireTimestamp;
 
-            if (rec.FireInstanceState == AdoConstants.StateAcquired && effectiveTimestamp < staleCutoff)
+            if (rec.FireInstanceState == StoredTriggerState.Acquired && effectiveTimestamp < staleCutoff)
             {
-                if (rec.TriggerKey is null || rec.FireInstanceId is null)
-                {
-                    Logger.LogWarning("Skipping stale acquired trigger recovery: invalid fired trigger record (TriggerKey: '{TriggerKey}', FireInstanceId: '{FireInstanceId}')", rec.TriggerKey, rec.FireInstanceId);
-                    continue;
-                }
-
                 try
                 {
                     // Mirror ReleaseAcquiredTrigger: update from both ACQUIRED and BLOCKED,
@@ -1254,7 +1248,7 @@ public abstract class JobStoreSupport : IJobStore
                 ? rec.ScheduleTimestamp
                 : rec.FireTimestamp;
 
-            if (rec.FireInstanceState == AdoConstants.StateAcquired && effectiveTimestamp < staleCutoff)
+            if (rec.FireInstanceState == StoredTriggerState.Acquired && effectiveTimestamp < staleCutoff)
             {
                 return true;
             }
@@ -2866,14 +2860,14 @@ public abstract class JobStoreSupport : IJobStore
     {
         try
         {
-            TriggerStatus? status = await Delegate.SelectTriggerStatus(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+            StoredTriggerHeader? status = await Delegate.SelectTriggerHeader(conn, triggerKey, cancellationToken).ConfigureAwait(false);
 
             if (status?.NextFireTimeUtc is null || status.NextFireTimeUtc == DateTimeOffset.MinValue)
             {
                 return;
             }
 
-            bool blocked = AdoConstants.StatePausedBlocked == status.Status;
+            bool blocked = status.State == StoredTriggerState.PausedBlocked;
 
             StoredTriggerState newState = await CheckBlockedState(conn, status.JobKey, StoredTriggerState.Waiting, cancellationToken).ConfigureAwait(false);
 
@@ -3257,7 +3251,7 @@ public abstract class JobStoreSupport : IJobStore
 
                 foreach (var result in results)
                 {
-                    var triggerKey = new TriggerKey(result.TriggerName, result.TriggerGroup);
+                    TriggerKey triggerKey = result.TriggerKey;
 
                     // If our trigger is no longer available, try a new one.
                     var nextTrigger = await GetTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
@@ -3459,9 +3453,9 @@ public abstract class JobStoreSupport : IJobStore
                         var executingTriggers = new HashSet<string>();
                         foreach (FiredTriggerRecord ft in acquired)
                         {
-                            if (AdoConstants.StateExecuting == ft.FireInstanceState)
+                            if (ft.FireInstanceState == StoredTriggerState.Executing)
                             {
-                                executingTriggers.Add(ft.FireInstanceId!);
+                                executingTriggers.Add(ft.FireInstanceId);
                             }
                         }
 
@@ -3721,7 +3715,7 @@ public abstract class JobStoreSupport : IJobStore
                 {
                     // double check for possible reschedule within job
                     // execution, which would cancel the need to delete...
-                    var stat = await Delegate.SelectTriggerStatus(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+                    var stat = await Delegate.SelectTriggerHeader(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
                     if (stat is not null && !stat.NextFireTimeUtc.HasValue)
                     {
                         await DeleteTrigger(conn, trigger.Key, jobDetail, cancellationToken).ConfigureAwait(false);
@@ -3889,8 +3883,8 @@ public abstract class JobStoreSupport : IJobStore
             if (staleCount > 0)
             {
                 int totalCount = result.ProcessedMisfiredTriggerCount + staleCount;
-                DateTimeOffset earliestNewTime = result.EarliestNewTime < timeProvider.GetUtcNow()
-                    ? result.EarliestNewTime
+                DateTimeOffset earliestNewTime = result.EarliestNewTimeUtc < timeProvider.GetUtcNow()
+                    ? result.EarliestNewTimeUtc
                     : timeProvider.GetUtcNow();
                 result = new RecoverMisfiredJobsResult(result.HasMoreMisfiredTriggers, totalCount, earliestNewTime);
             }
@@ -4283,7 +4277,7 @@ public abstract class JobStoreSupport : IJobStore
 
                     foreach (FiredTriggerRecord ftRec in firedTriggerRecs)
                     {
-                        TriggerKey tKey = ftRec.TriggerKey!;
+                        TriggerKey tKey = ftRec.TriggerKey;
                         JobKey? jKey = ftRec.JobKey;
 
                         triggerKeys.Add(tKey);
@@ -4293,11 +4287,11 @@ public abstract class JobStoreSupport : IJobStore
                         // still be alive and running the job. If it truly died, on the second
                         // detection (after the grace period) full cleanup will be performed.
                         if (canDeferRecovery
-                            && ftRec.FireInstanceState == AdoConstants.StateExecuting
+                            && ftRec.FireInstanceState == StoredTriggerState.Executing
                             && ftRec.JobDisallowsConcurrentExecution)
                         {
                             preservedFireInstanceIds ??= [];
-                            preservedFireInstanceIds.Add(ftRec.FireInstanceId!);
+                            preservedFireInstanceIds.Add(ftRec.FireInstanceId);
                             deferredCount++;
                             Logger.LogInformation(
                                 "ClusterManager: Deferring recovery of [DisallowConcurrentExecution] job {JobKey} " +
@@ -4307,17 +4301,17 @@ public abstract class JobStoreSupport : IJobStore
                         }
 
                         // release blocked triggers..
-                        if (ftRec.FireInstanceState == AdoConstants.StateBlocked)
+                        if (ftRec.FireInstanceState == StoredTriggerState.Blocked)
                         {
                             await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, StoredTriggerState.Waiting, StoredTriggerState.Blocked, cancellationToken).ConfigureAwait(false);
                         }
-                        else if (ftRec.FireInstanceState == AdoConstants.StatePausedBlocked)
+                        else if (ftRec.FireInstanceState == StoredTriggerState.PausedBlocked)
                         {
                             await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, StoredTriggerState.Paused, StoredTriggerState.PausedBlocked, cancellationToken).ConfigureAwait(false);
                         }
 
                         // release acquired triggers..
-                        if (ftRec.FireInstanceState == AdoConstants.StateAcquired)
+                        if (ftRec.FireInstanceState == StoredTriggerState.Acquired)
                         {
                             await Delegate.UpdateTriggerStateFromOtherState(conn, tKey, StoredTriggerState.Waiting, StoredTriggerState.Acquired, cancellationToken).ConfigureAwait(false);
                             acquiredCount++;
@@ -4371,9 +4365,9 @@ public abstract class JobStoreSupport : IJobStore
                     {
                         foreach (FiredTriggerRecord ftRec in firedTriggerRecs)
                         {
-                            if (!preservedFireInstanceIds.Contains(ftRec.FireInstanceId!))
+                            if (!preservedFireInstanceIds.Contains(ftRec.FireInstanceId))
                             {
-                                await Delegate.DeleteFiredTrigger(conn, ftRec.FireInstanceId!, cancellationToken).ConfigureAwait(false);
+                                await Delegate.DeleteFiredTrigger(conn, ftRec.FireInstanceId, cancellationToken).ConfigureAwait(false);
                             }
                         }
                     }

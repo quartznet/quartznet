@@ -113,12 +113,14 @@ public class UpdateTriggerTest
 
         A.CallTo(() => dbProvider.Metadata).Returns(new DbMetadata());
 
-        DelegateInitializationArgs args = new DelegateInitializationArgs();
-        args.TablePrefix = "QRTZ_";
-        args.InstanceName = "TESTSCHED";
-        args.InstanceId = "INSTANCE";
-        args.DbProvider = dbProvider;
-        args.TypeLoadHelper = new SimpleTypeLoadHelper();
+        DelegateInitializationArgs args = new DelegateInitializationArgs
+        {
+            TablePrefix = "QRTZ_",
+            InstanceName = "TESTSCHED",
+            InstanceId = "INSTANCE",
+            DbProvider = dbProvider,
+            TypeLoadHelper = new SimpleTypeLoadHelper()
+        };
 
         var adoDelegate = new StdAdoDelegate();
         adoDelegate.Initialize(args);
@@ -198,12 +200,14 @@ public class UpdateTriggerTest
 
         A.CallTo(() => dbProvider.Metadata).Returns(new DbMetadata());
 
-        DelegateInitializationArgs args = new DelegateInitializationArgs();
-        args.TablePrefix = "QRTZ_";
-        args.InstanceName = "TESTSCHED";
-        args.InstanceId = "INSTANCE";
-        args.DbProvider = dbProvider;
-        args.TypeLoadHelper = new SimpleTypeLoadHelper();
+        DelegateInitializationArgs args = new DelegateInitializationArgs
+        {
+            TablePrefix = "QRTZ_",
+            InstanceName = "TESTSCHED",
+            InstanceId = "INSTANCE",
+            DbProvider = dbProvider,
+            TypeLoadHelper = new SimpleTypeLoadHelper()
+        };
 
         var adoDelegate = new StdAdoDelegate();
         adoDelegate.Initialize(args);

@@ -38,6 +38,10 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author>Marko Lahma (.NET)</author>
 public abstract class SimplePropertiesTriggerPersistenceDelegateSupport : ITriggerPersistenceDelegate
 {
+    // The table and column names are the schema contract a derived delegate reads its own values back
+    // from, so they stay protected. The four statements below are not: they name every column this base
+    // class writes, so a subclass replacing one would either be writing the same statement again or
+    // writing a statement this class's parameter binding does not match.
     protected const string TableSimplePropertiesTriggers = "SIMPROP_TRIGGERS";
 
     protected const string ColumnStrProp1 = "STR_PROP_1";
@@ -53,17 +57,17 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateSupport : ITrigg
     protected const string ColumnBoolProp2 = "BOOL_PROP_2";
     protected const string ColumnTimeZoneId = "TIME_ZONE_ID";
 
-    protected const string SelectSimplePropsTrigger = "SELECT *" + " FROM "
+    private const string SelectSimplePropsTrigger = "SELECT *" + " FROM "
                                                                  + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " WHERE "
                                                                  + AdoConstants.ColumnSchedulerName + " = @schedulerName"
                                                                  + " AND " + AdoConstants.ColumnTriggerName + " = @triggerName AND " + AdoConstants.ColumnTriggerGroup + " = @triggerGroup";
 
-    protected const string DeleteSimplePropsTrigger = "DELETE FROM "
+    private const string DeleteSimplePropsTrigger = "DELETE FROM "
                                                       + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " WHERE "
                                                       + AdoConstants.ColumnSchedulerName + " = @schedulerName"
                                                       + " AND " + AdoConstants.ColumnTriggerName + " = @triggerName AND " + AdoConstants.ColumnTriggerGroup + " = @triggerGroup";
 
-    protected const string InsertSimplePropsTrigger = "INSERT INTO "
+    private const string InsertSimplePropsTrigger = "INSERT INTO "
                                                       + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " ("
                                                       + AdoConstants.ColumnSchedulerName + ", "
                                                       + AdoConstants.ColumnTriggerName + ", " + AdoConstants.ColumnTriggerGroup + ", "
@@ -74,7 +78,7 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateSupport : ITrigg
                                                       + ColumnBoolProp1 + ", " + ColumnBoolProp2 + ", " + ColumnTimeZoneId
                                                       + ") " + " VALUES(@schedulerName" + ", @triggerName, @triggerGroup, @string1, @string2, @string3, @int1, @int2, @long1, @long2, @decimal1, @decimal2, @boolean1, @boolean2, @timeZoneId)";
 
-    protected const string UpdateSimplePropsTrigger = "UPDATE "
+    private const string UpdateSimplePropsTrigger = "UPDATE "
                                                       + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " SET "
                                                       + ColumnStrProp1 + " = @string1, " + ColumnStrProp2 + " = @string2, " + ColumnStrProp3 + " = @string3, "
                                                       + ColumnIntProp1 + " = @int1, " + ColumnIntProp2 + " = @int2, "

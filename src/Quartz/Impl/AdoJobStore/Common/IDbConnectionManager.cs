@@ -1,11 +1,9 @@
 using System.Data.Common;
 
-using Quartz.Impl.AdoJobStore.Common;
-
-namespace Quartz.Util;
+namespace Quartz.Impl.AdoJobStore.Common;
 
 /// <summary>
-/// Manages a collection of IDbProviders, and provides transparent access
+/// Manages a collection of <see cref="IDbProvider" />s, and provides transparent access
 /// to their database.
 /// </summary>
 public interface IDbConnectionManager
@@ -27,12 +25,12 @@ public interface IDbConnectionManager
     DbMetadata GetDbMetadata(string dataSourceName);
 
     /// <summary>
-    /// Gets db provider for data source with the given name.
+    /// Gets the db provider registered as the data source with the given name.
     /// </summary>
     IDbProvider GetDbProvider(string dataSourceName);
 
     /// <summary>
-    /// Adds a connection provider to data source with the given name.
+    /// Registers a db provider as the data source with the given name.
     /// </summary>
-    void AddConnectionProvider(string dataSourceName, IDbProvider provider);
+    void AddDbProvider(string dataSourceName, IDbProvider provider);
 }

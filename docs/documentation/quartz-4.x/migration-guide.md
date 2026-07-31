@@ -116,7 +116,7 @@ q.UsePersistentStore(store => store.UseGenericDatabase("MyDatabase", connectionS
 
 See [the configuration reference](configuration/reference.md#describing-a-driver-quartz-does-not-know) for the
 full description. `DbProvider.RegisterDbMetadata` is gone with the process-wide lookup it wrote into; use
-the callback above, or register a `DbMetadataFactory` in the container.
+the callback above, once per driver.
 ### `QuartzOptions` is no longer a dictionary
 
 `QuartzOptions` used to derive from `Dictionary<string, string?>`, and to hold a scheduler's jobs and
@@ -185,7 +185,7 @@ and writes `quartz.scheduler.instanceName`, which is the key the rest of the mod
 | `IPropertyConfigurer`, `IPropertySetter`, `IPropertyConfigurationRoot`, `PropertiesHolder`, `PropertiesSetter` | typed options |
 | `AddQuartz(Action<configurator, IServiceProvider>)` | see below |
 | `quartz.config` file discovery, `StdSchedulerFactory.PropertiesFile` | `IConfiguration`, or properties passed to `StdSchedulerFactory` |
-| `DbProvider.RegisterDbMetadata` | the metadata callback on `UseGenericDatabase`, or a `DbMetadataFactory` registration |
+| `DbProvider.RegisterDbMetadata` | the metadata callback on `UseGenericDatabase` |
 | `quartz.scheduler.proxy*`, `quartz.scheduler.exporter*` | nothing; remoting is not supported on modern .NET |
 | `quartz.checkConfiguration` | configuration is validated by the options system |
 | `SchedulerRepository.Instance` | `ISchedulerRepository` resolved from the container |
@@ -251,7 +251,7 @@ that built it**:
 
 ```diff
 - DBConnectionManager.Instance.AddConnectionProvider("default", myProvider);
-+ serviceProvider.GetRequiredService<IDbConnectionManager>().AddConnectionProvider("default", myProvider);
++ serviceProvider.GetRequiredService<IDbConnectionManager>().AddDbProvider("default", myProvider);
 ```
 
 The observable consequence is that schedulers built different ways no longer find each other. Given a
@@ -1418,6 +1418,8 @@ every misfire pass rather than only at startup.
 
 Two properties that nothing read are gone rather than made read-only: `DriverDelegateType` (the delegate is
 injected, not loaded from a type name here) and `DontSetAutoCommitFalse` (never consulted).
+`AdoJobStoreOptions.DontSetAutoCommitFalse` went with the store property: no code path ever read it and no
+configuration key ever set it, so an application that set it was configuring nothing.
 `LastCheckin` and `LogWarnIfNonZero` are internal and private respectively — cluster check-in bookkeeping
 and a log helper, neither of which a subclass has any business in. The `[TimeSpanParseRule]` attributes on
 these properties are gone too; they are read only when a component's settings arrive as strings, which for
@@ -1483,6 +1485,133 @@ nothing — `Commit`, `Rollback`, `Close` and `Dispose` all return without touch
 `Commit(bool)` and `Rollback(bool)` are internal: when the unit of work commits is the job store's
 decision, and `JobStoreSupport.CommitConnection` / `.RollbackConnection` are the seams a subclass
 overrides. `Close` stays public.
+
+## The driver delegate speaks in records
+
+The five types `IDriverDelegate` hands back or takes in were mutable classes with settable properties, loose
+`string` pairs where a key belongs, and — in one case — properties that were non-nullable but unassigned. They
+are records now, and say what they hold.
+
+| Type | What changed |
+|---|---|
+| `FiredTriggerRecord` | `sealed record`, `[Serializable]` dropped, `FireInstanceState` is a `StoredTriggerState` |
+| `RecoverMisfiredJobsResult` | `sealed record`; the property is `EarliestNewTimeUtc`, matching its constructor argument |
+| `DelegateInitializationArgs` | `sealed record` with `required` / `init` members |
+| `TriggerAcquireResult` | carries a `TriggerKey` instead of `TriggerName` + `TriggerGroup` |
+| `TriggerStatus` | replaced by `StoredTriggerHeader`, returned by `SelectTriggerHeader` |
+
+`FiredTriggerRecord.FireInstanceState` was the last place raw `AdoConstants.State*` string comparisons
+survived after the delegate's states were typed, in stale-acquired recovery and in cluster recovery. Its
+always-populated members are `required` and non-nullable now — `FireInstanceId`, `FireInstanceState`,
+`TriggerKey` and `SchedulerInstanceId` — and `JobKey` stays nullable because an ACQUIRED row is written
+before the job has been loaded. `[Serializable]` went with the class: nothing has serialized this record
+since binary serialization was dropped.
+
+`TriggerStatus` was a mutable class with a settable key, a `string` state and a name that said nothing.
+`StoredTriggerHeader` is the storage-side counterpart of `TriggerHeader`:
+
+```diff
+- TriggerStatus? status = await Delegate.SelectTriggerStatus(conn, triggerKey, cancellationToken);
+- bool blocked = AdoConstants.StatePausedBlocked == status.Status;
++ StoredTriggerHeader? status = await Delegate.SelectTriggerHeader(conn, triggerKey, cancellationToken);
++ bool blocked = status.State == StoredTriggerState.PausedBlocked;
+```
+
+It speaks `StoredTriggerState` rather than the reported `TriggerState`, because resuming a trigger has to
+tell `PausedBlocked` from `Paused` and the reported state does not.
+
+`FiredTriggerQuery` stays unpaged, deliberately, and now says so in its own doc comment: FIRED_TRIGGERS holds
+one row per firing in flight, and every caller is a maintenance pass — recovery, cluster failover, blocked
+state checks — that has to see the whole set. Handing one of those a page would leave the rest unrecovered.
+
+## `ValidateSchema` is part of `IDriverDelegate`
+
+Startup schema validation was a `StdAdoDelegate` method the job store reached by type test, so a delegate
+that was not a `StdAdoDelegate` silently skipped the check that `quartz.jobStore.performSchemaValidation`
+had asked for. It is an interface member now, and every delegate participates:
+
+```csharp
+ValueTask<int> ValidateSchema(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default);
+```
+
+A delegate of your own that derives from `StdAdoDelegate` inherits the implementation and can extend it to
+cover tables of its own. One written against the interface directly has to implement it; returning `0`
+without checking anything restores the old skip.
+
+## The connection manager lives with the other ADO.NET types
+
+`IDbConnectionManager` and `DbConnectionManager` were in `Quartz.Util`, two namespaces away from the
+`IDbProvider` instances they hold. They are in `Quartz.Impl.AdoJobStore.Common` now, next to `IDbProvider`,
+`DbProvider` and `DbMetadata`, and the two members that said "connection provider" say `DbProvider`, which
+is the type they actually take:
+
+| 3.x / earlier 4.0 preview | 4.0 |
+|---|---|
+| `Quartz.Util.IDbConnectionManager` | `Quartz.Impl.AdoJobStore.Common.IDbConnectionManager` |
+| `Quartz.Util.DbConnectionManager` | `Quartz.Impl.AdoJobStore.Common.DbConnectionManager` |
+| `AddConnectionProvider(name, provider)` | `AddDbProvider(name, provider)` |
+| `GetConnectionProvider(name)` | `GetDbProvider(name)` |
+
+```diff
+- using Quartz.Util;
++ using Quartz.Impl.AdoJobStore.Common;
+
+- serviceProvider.GetRequiredService<IDbConnectionManager>().AddConnectionProvider("default", myProvider);
++ serviceProvider.GetRequiredService<IDbConnectionManager>().AddDbProvider("default", myProvider);
+```
+
+## `RAMJobStore` is sealed
+
+Every public method of the in-memory store was `virtual`, which invited overriding operations that hold its
+lock, mutate its indexes in a fixed order and raise listener notifications after releasing the lock — none of
+which is a documented contract, and all of which the overriding code has to preserve. A job store is written
+against `IJobStore`; the implementations Quartz ships are not base classes.
+
+`RAMJobStore` is `sealed`, its `virtual`s are gone, and `GetFiredTriggerRecordId` is private. A store that
+wants the in-memory behaviour plus something of its own composes it:
+
+```diff
+- public class SlowJobStore : RAMJobStore
+- {
+-     public SlowJobStore(ILoggerFactory loggerFactory, ISchedulerSignaler signaler, TimeProvider timeProvider)
+-         : base(loggerFactory, signaler, timeProvider)
+-     {
+-     }
+-
+-     public override async ValueTask<List<IOperableTrigger>> AcquireNextTriggers(
+-         TriggerAcquisitionRequest request, CancellationToken cancellationToken = default)
+-     {
+-         List<IOperableTrigger> triggers = await base.AcquireNextTriggers(request, cancellationToken);
+-         await Task.Delay(10, cancellationToken);
+-         return triggers;
+-     }
+- }
++ public sealed class SlowJobStore : IJobStore
++ {
++     private readonly RAMJobStore inner;
++
++     public SlowJobStore(ILoggerFactory loggerFactory, ISchedulerSignaler signaler, TimeProvider timeProvider)
++     {
++         inner = new RAMJobStore(loggerFactory, signaler, timeProvider);
++     }
++
++     public async ValueTask<List<IOperableTrigger>> AcquireNextTriggers(
++         TriggerAcquisitionRequest request, CancellationToken cancellationToken = default)
++     {
++         List<IOperableTrigger> triggers = await inner.AcquireNextTriggers(request, cancellationToken);
++         await Task.Delay(10, cancellationToken);
++         return triggers;
++     }
++
++     // …the rest of IJobStore forwards to inner
++ }
+```
+
+`UsePersistentStore<TStore>()` and `quartz.jobStore.type` take the composing store exactly as they took the
+derived one; the `Quartz.Examples.AspNetCore` sample's `CustomJobStore` shows the whole shape.
+
+`MisfireThreshold` keeps its setter here as it does on `JobStoreSupport`: it is read on every misfire pass
+rather than only at startup.
 
 ## Jobs take a CancellationToken
 
@@ -1790,7 +1919,7 @@ called out.
 | `QuartzScheduler.JobStoreClass`, `.ThreadPoolClass` | `JobStoreType`, `ThreadPoolType` (they return a `Type`; the type is internal now) |
 | `JobStoreSupport.UseDBLocks`, `.SelectWithLockSQL` | `UseDbLocks`, `SelectWithLockSql` |
 | `DBSemaphore.SQL`, `.InsertSQL`, `.ExecuteSQL` | `Sql`, `InsertSql` (both readable now), `ExecuteSql` |
-| `Quartz.Util.DBConnectionManager` | `DbConnectionManager` |
+| `Quartz.Util.DBConnectionManager` | `Quartz.Impl.AdoJobStore.Common.DbConnectionManager` |
 | `DbMetadata.Init()` | `Initialize()` |
 | `AdoConstants.ColumnMifireInstruction` | `ColumnMisfireInstruction` (a typo; the column name is unchanged) |
 | `SchedulerConstants.FailedJobOriginalTriggerFiretime`, `…ScheduledFiretime` | `…TriggerFireTime`, `…ScheduledFireTime` (the string values are unchanged) |
@@ -2582,9 +2711,22 @@ read back the way every other primitive can.
 | `JobStoreSupport.LockTriggerAccess` / `.LockStateAccess` removed | `SchedulerLock.TriggerAccess` / `.StateAccess` replace the two protected constants |
 | ~25 `JobStoreSupport` configuration properties are read-only | They duplicated `AdoJobStoreOptions` / `QuartzSchedulerOptions`; configure the options instead. `MisfireThreshold` deliberately stays settable — see [The job store configuration is read-only](#the-job-store-configuration-is-read-only) |
 | `JobStoreSupport.DriverDelegateType` and `.DontSetAutoCommitFalse` removed | Nothing read either one; the driver delegate is injected |
+| `AdoJobStoreOptions.DontSetAutoCommitFalse` removed | The option the deleted store property mirrored. No code path read it and no `quartz.*` key set it, so setting it configured nothing |
 | `JobStoreSupport.LastCheckin` is internal, `LogWarnIfNonZero` is private | Cluster check-in bookkeeping and a logging helper, neither of them an extension point |
 | `JobStoreSupport.RecoverJobs(CancellationToken)` returns `ValueTask` | The `bool` it returned was the constant `true` |
 | `DBSemaphore.Sql` and `.InsertSql` are get-only, fed by the constructor | Assigning one after construction left it un-prefixed relative to its pair — see [The semaphores were tidied](#the-semaphores-were-tidied) |
 | Row-lock semaphore SQL fields are `protected` and consistently named | `UpdateLockRowSemaphore.SqlUpdateForLock` / `.SqlInsertLock` are `UpdateForLock` / `InsertLock`; `StdRowLockSemaphore.SelectForLock` / `.InsertLock` keep their names |
 | `JobStoreSupport.GetEnlistedConnection` is `protected` | So a job store outside the core assembly can honour an enlisted transaction rather than silently opening its own connection |
 | `ConnectionAndTransactionHolder` gained an ownership-aware constructor and `OwnsResources` | `(connection, transaction, ownsResources)` for a store running on a connection it did not open |
+| `FiredTriggerRecord`, `RecoverMisfiredJobsResult`, `DelegateInitializationArgs` are `sealed record`s | Immutable, with `required` / `init` members instead of settable ones — see [The driver delegate speaks in records](#the-driver-delegate-speaks-in-records) |
+| `FiredTriggerRecord.FireInstanceState` is a `StoredTriggerState` | The last raw `AdoConstants.State*` comparisons in the store; `[Serializable]` is gone with it, and the always-populated members are non-nullable |
+| `RecoverMisfiredJobsResult.EarliestNewTime` is `EarliestNewTimeUtc` | The property and its constructor argument disagreed about the `Utc` suffix |
+| `TriggerAcquireResult` carries a `TriggerKey` | It carried `TriggerName` and `TriggerGroup`, which every caller immediately paired back up |
+| `TriggerStatus` removed, `IDriverDelegate.SelectTriggerStatus` is `SelectTriggerHeader` | It returns `StoredTriggerHeader`, an immutable record whose state is a `StoredTriggerState` — see [The driver delegate speaks in records](#the-driver-delegate-speaks-in-records) |
+| `IDriverDelegate.ValidateSchema` added | Schema validation was a `StdAdoDelegate` method reached by type test, so a delegate of your own silently skipped it — see [`ValidateSchema` is part of `IDriverDelegate`](#validateschema-is-part-of-idriverdelegate) |
+| `IDbConnectionManager` / `DbConnectionManager` moved to `Quartz.Impl.AdoJobStore.Common` | And `AddConnectionProvider` / `GetConnectionProvider` are `AddDbProvider` / `GetDbProvider` — see [The connection manager lives with the other ADO.NET types](#the-connection-manager-lives-with-the-other-ado-net-types) |
+| `DbMetadataFactory` is internal | Every implementation was already internal and no public member accepted one; describe a driver through `UseGenericDatabase`'s metadata callback |
+| `DbProvider.PropertyDbProvider` and `.DbProviderResourceName` removed | Two `protected const`s nothing read, left over from the process-wide provider registry |
+| `SimplePropertiesTriggerPersistenceDelegateSupport`'s four SQL statements are private | `SelectSimplePropsTrigger`, `DeleteSimplePropsTrigger`, `InsertSimplePropsTrigger` and `UpdateSimplePropsTrigger` name every column the base class binds, so replacing one could not work. The table and column name constants stay `protected` — they are the schema contract |
+| `RAMJobStore` is `sealed` and has no `virtual` members | Compose it behind your own `IJobStore` instead of deriving from it — see [`RAMJobStore` is sealed](#ramjobstore-is-sealed) |
+| `HostnameInstanceIdGenerator` is `HostNameInstanceIdGenerator` | Casing matched to `HostNameBasedIdGenerator`. The type is internal; a `quartz.scheduler.instanceIdGenerator.type` still naming the old spelling resolves, with a warning |

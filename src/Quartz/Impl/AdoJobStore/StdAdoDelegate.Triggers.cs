@@ -109,7 +109,10 @@ public partial class StdAdoDelegate
     public virtual async ValueTask<List<IOperableTrigger>> SelectTriggersForRecoveringJobs(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default)
     {
         List<IOperableTrigger> triggers = [];
-        List<FiredTriggerRecord> triggerData = [];
+
+        // Only the two timestamps of the fired-trigger row are carried over to the recovery trigger's
+        // job data, so there is no reason to build a whole record for them.
+        List<(DateTimeOffset ScheduleTimestamp, DateTimeOffset FireTimestamp)> triggerData = [];
         List<TriggerKey> keys = [];
 
         using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectInstancesRecoverableFiredTriggers)))
@@ -137,13 +140,7 @@ public partial class StdAdoDelegate
                     rcvryTrig.Priority = priority;
                     rcvryTrig.MisfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
 
-                    var dataHolder = new FiredTriggerRecord
-                    {
-                        ScheduleTimestamp = scheduledTime,
-                        FireTimestamp = firedTime
-                    };
-
-                    triggerData.Add(dataHolder);
+                    triggerData.Add((scheduledTime, firedTime));
                     triggers.Add(rcvryTrig);
                     keys.Add(new TriggerKey(trigName, trigGroup));
                 }
@@ -155,7 +152,7 @@ public partial class StdAdoDelegate
         {
             IOperableTrigger trigger = triggers[i];
             TriggerKey key = keys[i];
-            FiredTriggerRecord dataHolder = triggerData[i];
+            (DateTimeOffset ScheduleTimestamp, DateTimeOffset FireTimestamp) dataHolder = triggerData[i];
 
             // load job data map and transfer information
             JobDataMap jd = await SelectTriggerJobDataMap(conn, key, cancellationToken).ConfigureAwait(false);
@@ -963,31 +960,32 @@ public partial class StdAdoDelegate
     }
 
     /// <inheritdoc />
-    public virtual async ValueTask<TriggerStatus?> SelectTriggerStatus(
+    public virtual async ValueTask<StoredTriggerHeader?> SelectTriggerHeader(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectTriggerStatus));
-        TriggerStatus? status = null;
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectTriggerHeader));
 
         AddCommandParameter(cmd, "schedulerName", schedulerName);
         AddCommandParameter(cmd, "triggerName", triggerKey.Name);
         AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+        if (!await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            string state = rs.GetString(AdoConstants.ColumnTriggerState)!;
-            object nextFireTime = rs[AdoConstants.ColumnNextFireTime];
-            string jobName = rs.GetString(AdoConstants.ColumnJobName)!;
-            string jobGroup = rs.GetString(AdoConstants.ColumnJobGroup)!;
-
-            var nft = GetDateTimeFromDbValue(nextFireTime);
-
-            status = new TriggerStatus(state, nft, triggerKey, new JobKey(jobName, jobGroup));
+            return null;
         }
 
-        return status;
+        StoredTriggerState state = StoredTriggerStates.FromStoredValue(rs.GetString(AdoConstants.ColumnTriggerState));
+        object nextFireTime = rs[AdoConstants.ColumnNextFireTime];
+        string jobName = rs.GetString(AdoConstants.ColumnJobName)!;
+        string jobGroup = rs.GetString(AdoConstants.ColumnJobGroup)!;
+
+        return new StoredTriggerHeader(
+            triggerKey,
+            new JobKey(jobName, jobGroup),
+            state,
+            GetDateTimeFromDbValue(nextFireTime));
     }
 
     private async ValueTask<string?> SelectTriggerType(
@@ -1208,8 +1206,7 @@ public partial class StdAdoDelegate
                 }
 
                 var result = new TriggerAcquireResult(
-                    (string) rs[AdoConstants.ColumnTriggerName],
-                    (string) rs[AdoConstants.ColumnTriggerGroup],
+                    new TriggerKey((string) rs[AdoConstants.ColumnTriggerName], (string) rs[AdoConstants.ColumnTriggerGroup]),
                     (string) rs[AdoConstants.ColumnJobClass],
                     executionGroup);
                 nextTriggers.Add(result);
@@ -1305,23 +1302,24 @@ public partial class StdAdoDelegate
 
     private FiredTriggerRecord ReadFiredTriggerRecord(DbDataReader rs)
     {
-        FiredTriggerRecord rec = new FiredTriggerRecord();
+        StoredTriggerState state = StoredTriggerStates.FromStoredValue(rs.GetString(AdoConstants.ColumnEntryState));
 
-        rec.FireInstanceId = rs.GetString(AdoConstants.ColumnEntryId)!;
-        rec.FireInstanceState = rs.GetString(AdoConstants.ColumnEntryState)!;
-        rec.FireTimestamp = GetDateTimeFromDbValue(rs[AdoConstants.ColumnFiredTime]) ?? DateTimeOffset.MinValue;
-        rec.ScheduleTimestamp = GetDateTimeFromDbValue(rs[AdoConstants.ColumnScheduledTime]) ?? DateTimeOffset.MinValue;
-        rec.Priority = Convert.ToInt32(rs[AdoConstants.ColumnPriority], CultureInfo.InvariantCulture);
-        rec.SchedulerInstanceId = rs.GetString(AdoConstants.ColumnInstanceName)!;
-        rec.TriggerKey = new TriggerKey(rs.GetString(AdoConstants.ColumnTriggerName)!, rs.GetString(AdoConstants.ColumnTriggerGroup)!);
-        if (rec.FireInstanceState != AdoConstants.StateAcquired)
+        // An ACQUIRED row is written before the job has been loaded, so its job columns hold nothing yet.
+        bool hasJob = state != StoredTriggerState.Acquired;
+
+        return new FiredTriggerRecord
         {
-            rec.JobDisallowsConcurrentExecution = GetBooleanFromDbValue(rs[AdoConstants.ColumnIsNonConcurrent]);
-            rec.JobRequestsRecovery = GetBooleanFromDbValue(rs[AdoConstants.ColumnRequestsRecovery]);
-            rec.JobKey = new JobKey(rs.GetString(AdoConstants.ColumnJobName)!, rs.GetString(AdoConstants.ColumnJobGroup)!);
-        }
-
-        return rec;
+            FireInstanceId = rs.GetString(AdoConstants.ColumnEntryId)!,
+            FireInstanceState = state,
+            FireTimestamp = GetDateTimeFromDbValue(rs[AdoConstants.ColumnFiredTime]) ?? DateTimeOffset.MinValue,
+            ScheduleTimestamp = GetDateTimeFromDbValue(rs[AdoConstants.ColumnScheduledTime]) ?? DateTimeOffset.MinValue,
+            Priority = Convert.ToInt32(rs[AdoConstants.ColumnPriority], CultureInfo.InvariantCulture),
+            SchedulerInstanceId = rs.GetString(AdoConstants.ColumnInstanceName)!,
+            TriggerKey = new TriggerKey(rs.GetString(AdoConstants.ColumnTriggerName)!, rs.GetString(AdoConstants.ColumnTriggerGroup)!),
+            JobDisallowsConcurrentExecution = hasJob && GetBooleanFromDbValue(rs[AdoConstants.ColumnIsNonConcurrent]),
+            JobRequestsRecovery = hasJob && GetBooleanFromDbValue(rs[AdoConstants.ColumnRequestsRecovery]),
+            JobKey = hasJob ? new JobKey(rs.GetString(AdoConstants.ColumnJobName)!, rs.GetString(AdoConstants.ColumnJobGroup)!) : null
+        };
     }
 
     /// <inheritdoc />

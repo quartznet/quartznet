@@ -22,68 +22,69 @@
 namespace Quartz.Impl.AdoJobStore;
 
 /// <summary>
-/// Conveys the state of a fired-trigger record.
+/// One row of the FIRED_TRIGGERS table: a firing a scheduler instance has reserved, is running, or has
+/// been blocked from running.
 /// </summary>
+/// <remarks>
+/// A row is written when a trigger is acquired and rewritten when it starts executing, so the members
+/// describing the job are only populated once the job is known — see <see cref="JobKey" />.
+/// </remarks>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-[Serializable]
-public class FiredTriggerRecord
+public sealed record FiredTriggerRecord
 {
     /// <summary>
-    /// Gets or sets the fire instance id.
+    /// Identifies this firing, and only this one: a trigger that fires again gets a new value.
     /// </summary>
-    /// <value>The fire instance id.</value>
-    public virtual string? FireInstanceId { get; set; }
+    public required string FireInstanceId { get; init; }
 
     /// <summary>
-    /// Gets or sets the fire timestamp.
+    /// The state of the firing, which is the state of the FIRED_TRIGGERS row rather than of the trigger
+    /// itself.
     /// </summary>
-    /// <value>The fire timestamp.</value>
-    public virtual DateTimeOffset FireTimestamp { get; set; }
+    public required StoredTriggerState FireInstanceState { get; init; }
 
     /// <summary>
-    /// Gets or sets the scheduled fire timestamp.
+    /// The trigger that fired.
     /// </summary>
-    public virtual DateTimeOffset ScheduleTimestamp { get; set; }
+    public required TriggerKey TriggerKey { get; init; }
 
     /// <summary>
-    /// Gets or sets a value indicating whether job disallows concurrent execution.
+    /// The instance id of the scheduler that reserved the firing or is running it.
     /// </summary>
-    public virtual bool JobDisallowsConcurrentExecution { get; set; }
+    public required string SchedulerInstanceId { get; init; }
 
     /// <summary>
-    /// Gets or sets the job key.
+    /// When the row was written.
     /// </summary>
-    /// <value>The job key.</value>
-    public virtual JobKey? JobKey { get; set; }
+    public DateTimeOffset FireTimestamp { get; init; }
 
     /// <summary>
-    /// Gets or sets the scheduler instance id.
+    /// The time the trigger was scheduled to fire at.
     /// </summary>
-    /// <value>The scheduler instance id.</value>
-    public virtual string? SchedulerInstanceId { get; set; }
+    public DateTimeOffset ScheduleTimestamp { get; init; }
 
     /// <summary>
-    /// Gets or sets the trigger key.
+    /// The job the trigger fires, or <see langword="null" /> for a row still in
+    /// <see cref="StoredTriggerState.Acquired" />: acquisition records the trigger before the job has
+    /// been loaded, so the job columns are only filled in once the firing starts.
     /// </summary>
-    /// <value>The trigger key.</value>
-    public virtual TriggerKey? TriggerKey { get; set; }
+    public JobKey? JobKey { get; init; }
 
     /// <summary>
-    /// Gets or sets the state of the fire instance.
+    /// Whether the job disallows concurrent execution. Always <see langword="false" /> while
+    /// <see cref="JobKey" /> is <see langword="null" />.
     /// </summary>
-    /// <value>The state of the fire instance.</value>
-    public virtual string? FireInstanceState { get; set; }
+    public bool JobDisallowsConcurrentExecution { get; init; }
 
     /// <summary>
-    /// Gets or sets a value indicating whether [job requests recovery].
+    /// Whether the job asks to be recovered after a scheduler failure. Always <see langword="false" />
+    /// while <see cref="JobKey" /> is <see langword="null" />.
     /// </summary>
-    /// <value><c>true</c> if [job requests recovery]; otherwise, <c>false</c>.</value>
-    public virtual bool JobRequestsRecovery { get; set; }
+    public bool JobRequestsRecovery { get; init; }
 
     /// <summary>
-    /// Gets or sets the priority.
+    /// The priority the trigger fired with.
     /// </summary>
-    /// <value>The priority.</value>
-    public virtual int Priority { get; set; }
+    public int Priority { get; init; }
 }

@@ -34,7 +34,7 @@ namespace Quartz.Impl;
 /// <author>Marko Lahma (.NET)</author>
 /// <seealso cref="IInstanceIdGenerator" />
 /// <seealso cref="SimpleInstanceIdGenerator" />
-internal sealed class HostnameInstanceIdGenerator : HostNameBasedIdGenerator
+internal sealed class HostNameInstanceIdGenerator : HostNameBasedIdGenerator
 {
     /// <summary>
     /// Generate the instance id for a <see cref="IScheduler"/>

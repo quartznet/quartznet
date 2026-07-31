@@ -125,11 +125,6 @@ public sealed class AdoJobStoreOptions
     public bool AcceptEnlistedTransactions { get; set; }
 
     /// <summary>
-    /// Whether the job store leaves auto-commit alone rather than disabling it.
-    /// </summary>
-    public bool DontSetAutoCommitFalse { get; set; }
-
-    /// <summary>
     /// Whether the misfire handler double-checks the lock before doing work.
     /// </summary>
     public bool DoubleCheckLockMisfireHandler { get; set; } = true;

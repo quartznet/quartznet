@@ -27,8 +27,16 @@ namespace Quartz.Impl.AdoJobStore;
 /// <see cref="IDriverDelegate.DeleteFiredTriggers" />.
 /// </summary>
 /// <remarks>
+/// <para>
 /// The filters combine with AND, and each one that is left null drops out of the statement entirely.
 /// A query with every filter null therefore selects — or deletes — every fired trigger of the scheduler.
+/// </para>
+/// <para>
+/// Deliberately unpaged, unlike the listing queries in <c>Quartz.Queries</c>. FIRED_TRIGGERS holds one row
+/// per execution currently in flight or reserved, and every caller is a maintenance pass — recovery,
+/// cluster failover, blocked-state checks — that has to see the whole set to act correctly. Handing one
+/// of those a page would leave the rest of the rows unrecovered.
+/// </para>
 /// </remarks>
 public sealed record FiredTriggerQuery
 {

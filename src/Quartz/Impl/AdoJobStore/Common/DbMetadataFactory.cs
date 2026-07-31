@@ -3,7 +3,12 @@ namespace Quartz.Impl.AdoJobStore.Common;
 /// <summary>
 /// Base class for the DbMetadata Factory implementations
 /// </summary>
-public abstract class DbMetadataFactory
+/// <remarks>
+/// Internal: every implementation is internal, no public member accepts or returns one, and a driver is
+/// described from the outside through <c>UseGenericDatabase</c>'s metadata callback rather than by
+/// registering a factory.
+/// </remarks>
+internal abstract class DbMetadataFactory
 {
     /// <summary>
     /// Gets the supported provider names.
