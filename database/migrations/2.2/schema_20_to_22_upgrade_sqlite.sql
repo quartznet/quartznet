@@ -1,0 +1,26 @@
+--
+-- Quartz.NET schema migration -- 2.0 to 2.2
+--
+-- SQLite only. Run the file matching your database; the other dialects live
+-- alongside this one in the same folder.
+--
+-- STATUS
+--   REQUIRED when upgrading from 2.0/2.1 to 2.2 or later with AdoJobStore.
+--
+-- Adds SCHED_TIME to QRTZ_FIRED_TRIGGERS so recovery jobs see both the scheduled and
+-- the actual fire time (#113).
+--
+-- The column is NOT NULL with no default, so the ALTER fails on a table that already
+-- holds rows. QRTZ_FIRED_TRIGGERS only ever holds in-flight entries, so stop the
+-- scheduler and clear it first:
+--
+--   DELETE FROM QRTZ_FIRED_TRIGGERS;
+--
+-- Replace 'QRTZ_' with your configured table prefix if different.
+-- NOT IDEMPOTENT: SQLite has no conditional DDL, so re-running this fails with a
+-- duplicate-column error. Check PRAGMA table_info(<table>) before applying.
+--
+-- !! FIRST RUN IN TEST ENVIRONMENT AGAINST A COPY OF YOUR PRODUCTION DATABASE !!
+--
+
+ALTER TABLE QRTZ_FIRED_TRIGGERS ADD COLUMN SCHED_TIME INTEGER NOT NULL DEFAULT 0;

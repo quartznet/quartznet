@@ -160,5 +160,6 @@ await scheduler.UpdateTriggerDetails(
 ## Schema
 
 `PREFERRED_NODE` and `PREFERRED_NODE_AUTO` are part of the 4.x `QRTZ_TRIGGERS` schema. Upgrading from
-3.x, apply `database/schema_30_to_40_upgrade.sql`; if you already ran 3.19's optional node-affinity
-migration the columns exist and no data migration is needed — the two versions store pins identically.
+3.x, apply the script for your database in [`database/migrations/4.0/`](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.0);
+if you already ran 3.19's optional node-affinity migration the columns exist and no data migration is
+needed — the two versions store pins identically. See [Database Schema Changes](../../database/schema-changes.md#v4-0).

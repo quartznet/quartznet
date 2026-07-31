@@ -13,7 +13,7 @@ title: Migration Guide
 
 Database schema has changed to include the scheduled time for fired triggers table. You need to run the migration script:
 
- database\schema_20_to_22_upgrade.sql
+ [database/migrations/2.2/](https://github.com/quartznet/quartznet/tree/main/database/migrations/2.2) — pick the file matching your database
 
 **Make sure you check the scheduler name in the script - the default value of sched_name column is TestScheduler! If you have existing data the scheduler name should correspond to your existing scheduler name in Quartz configuration (quartz.scheduler.instanceName).**
 
@@ -35,7 +35,7 @@ There are variations for different database server inside the script. Choose the
 
 Database has changed since 1.0 version. You need to run the database migration script:
 
- database\sqlserver_schema_10_to_20_upgrade.sql
+ [database/migrations/2.0/schema_10_to_20_upgrade_sqlServer.sql](https://github.com/quartznet/quartznet/blob/main/database/migrations/2.0/schema_10_to_20_upgrade_sqlServer.sql)
 
 The script is made for SQL Server, but should work for others. You can adapt the script when needed for your specific database. **Always test the migration on non-production server before upgrading production**
 
