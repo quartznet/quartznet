@@ -93,7 +93,7 @@ Quartz.NET is an enterprise job scheduling library. The core domain model:
 ### Database scripts
 
 - `database/tables/tables_<dialect>.sql` — fresh-install DDL, one per database.
-- `database/migrations/<version>/<name>_<dialect>.sql` — schema changes, grouped by the Quartz.NET version that introduced them. One directly-runnable file per database; no commented-out dialect blocks.
+- `database/migrations/<version>/<name>_<dialect>.sql` — schema changes, grouped by the Quartz.NET version that introduced them. One directly-runnable file per database; no commented-out dialect blocks. **Generated** — describe the change in `build/Build.DatabaseMigrations.Scripts.cs` and run `dotnet fallout GenerateMigrations`; never hand-edit the output. The `2.0` and `3.0` folders are the exception: hand-written, SQL Server-only historical scripts. `VerifyMigrations` runs in CI and fails when the two are out of step.
 - `database/README.md` — the index: run order, per-version status, and old→new path mapping.
 
 Rules when touching any of this:
