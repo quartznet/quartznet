@@ -3,8 +3,9 @@
 Quartz.NET does not create or migrate its schema automatically. Creating the tables and applying
 schema changes is a manual, deliberate step.
 
-This folder is kept **byte-identical on the `3.x` and `main` branches**, so any path below
-resolves whichever branch you land on.
+`migrations/` and this README are kept **byte-identical on the `3.x` and `main` branches**, so
+any migration path below resolves whichever branch you land on. `tables/` is the *current*
+schema and so differs by design: on `3.x` it creates the 3.x schema, on `main` the 4.x one.
 
 ```
 database/
@@ -92,6 +93,6 @@ out inside each file. Old links keep working against release tags, for example
 2. Add `migrations/<version>/<name>_<dialect>.sql` for **every** supported database, each one
    directly runnable with no editing and guarded so it is safe to re-run.
 3. Fold it into `migrations/4.0/schema_30_to_40_upgrade_<dialect>.sql` if it is a 3.x change.
-4. Mirror the whole `database/` folder to the other branch in a companion PR — the two must
-   stay byte-identical.
+4. Mirror `migrations/` and this README to the other branch in a companion PR — they must stay
+   byte-identical. `tables/` is version-specific and stays per-branch.
 5. Add a section to the schema-changes page in the documentation (docs live on `main` only).
