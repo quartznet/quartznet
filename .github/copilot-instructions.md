@@ -40,7 +40,9 @@ Jobs and triggers are created via `JobBuilder` and `TriggerBuilder` with schedul
 
 ### ADO.NET job store
 
-`JobStoreSupport` is the large base class for persistent storage. Database-specific SQL delegates (`SqlServerDelegate`, `PostgreSQLDelegate`, `MySQLDelegate`, etc.) live in `Impl/AdoJobStore/`. Schema scripts are in `database/tables/`.
+`JobStoreSupport` is the large base class for persistent storage. Database-specific SQL delegates (`SqlServerDelegate`, `PostgreSQLDelegate`, `MySQLDelegate`, etc.) live in `Impl/AdoJobStore/`.
+
+Fresh-install DDL is in `database/tables/tables_<dialect>.sql`; schema changes are in `database/migrations/<version>/<name>_<dialect>.sql`, one directly-runnable file per database, generated from `build/Build.DatabaseMigrations.Scripts.cs` via `dotnet fallout GenerateMigrations` (never hand-edited; CI runs `VerifyMigrations`). See `database/README.md`. `database/migrations/` and `database/README.md` must stay byte-identical on `3.x` and `main` (`database/tables/` is version-specific and differs by design), every migration needs a file for every supported dialect, and because 4.x dropped the `Supports*Column` probes, anything optional on 3.x is required on 4.x.
 
 ### Trigger state management
 

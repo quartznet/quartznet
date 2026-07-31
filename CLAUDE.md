@@ -45,7 +45,20 @@ Quartz.NET is a .NET port of the Java Quartz scheduler. The core scheduling loop
 
 ### ADO.NET job store
 
-`JobStoreSupport` is the base class for persistent storage. Database-specific SQL delegates (`SqlServerDelegate`, `PostgreSQLDelegate`, `MySQLDelegate`, etc.) live in `Impl/AdoJobStore/`. Schema scripts are in `database/tables/`.
+`JobStoreSupport` is the base class for persistent storage. Database-specific SQL delegates (`SqlServerDelegate`, `PostgreSQLDelegate`, `MySQLDelegate`, etc.) live in `Impl/AdoJobStore/`.
+
+### Database scripts
+
+- `database/tables/tables_<dialect>.sql` — fresh-install DDL, one per database.
+- `database/migrations/<version>/<name>_<dialect>.sql` — schema changes, grouped by the Quartz.NET version that introduced them. One directly-runnable file per database; no commented-out dialect blocks. **Generated** — describe the change in `build/Build.DatabaseMigrations.Scripts.cs` and run `dotnet fallout GenerateMigrations`; never hand-edit the output. The `2.0` and `3.0` folders are the exception: hand-written, SQL Server-only historical scripts. `VerifyMigrations` runs in CI and fails when the two are out of step.
+- `database/README.md` — the index: run order, per-version status, and old→new path mapping.
+
+Rules when touching any of this:
+
+- **`database/migrations/` and `database/README.md` must stay byte-identical on `3.x` and `main`.** A schema change lands on both branches in a companion PR pair, even when the feature itself is branch-specific — otherwise a documented path 404s on whichever branch lacks it, which is what #3218 reported. `database/tables/` is the *current* schema and differs by design.
+- Every migration ships a file for **every** supported dialect (`sqlServer`, `postgres`, `mysql_innodb`, `oracle`, `sqlite`, `firebird`), guarded so it is safe to re-run. SQLite `ADD COLUMN` is the one exception — it has no conditional DDL.
+- 4.x has no `Supports*Column` probes, so anything **optional on 3.x is required on 4.x**. Fold every 3.x column migration into `database/migrations/4.0/schema_30_to_40_upgrade_<dialect>.sql`.
+- Adding a migration also needs a section on the schema-changes documentation page. The docs site lives on `main` only.
 
 ### Fluent builders
 

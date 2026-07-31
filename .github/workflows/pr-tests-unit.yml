@@ -47,8 +47,8 @@ jobs:
           global-json-file: global.json
       - name: 'Restore: dotnet tools'
         run: dotnet tool restore
-      - name: 'Run: Compile, UnitTest'
-        run: dotnet fallout Compile UnitTest
+      - name: 'Run: VerifyMigrations, Compile, UnitTest'
+        run: dotnet fallout VerifyMigrations Compile UnitTest
   ubuntu-latest:
     name: ubuntu-latest
     runs-on: ubuntu-latest
@@ -60,8 +60,8 @@ jobs:
           global-json-file: global.json
       - name: 'Restore: dotnet tools'
         run: dotnet tool restore
-      - name: 'Run: Compile, UnitTest'
-        run: dotnet fallout Compile UnitTest
+      - name: 'Run: VerifyMigrations, Compile, UnitTest'
+        run: dotnet fallout VerifyMigrations Compile UnitTest
   macos-latest:
     name: macos-latest
     runs-on: macos-latest
@@ -73,5 +73,5 @@ jobs:
           global-json-file: global.json
       - name: 'Restore: dotnet tools'
         run: dotnet tool restore
-      - name: 'Run: Compile, UnitTest'
-        run: dotnet fallout Compile UnitTest
+      - name: 'Run: VerifyMigrations, Compile, UnitTest'
+        run: dotnet fallout VerifyMigrations Compile UnitTest

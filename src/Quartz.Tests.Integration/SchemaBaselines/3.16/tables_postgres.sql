@@ -56,10 +56,6 @@ CREATE TABLE qrtz_triggers
     end_time BIGINT NULL,
     calendar_name TEXT NULL,
     misfire_instr SMALLINT NULL,
-    misfire_orig_fire_time BIGINT NULL,
-    execution_group VARCHAR(200) NULL,
-    preferred_node VARCHAR(200) NULL,
-    preferred_node_auto BOOL NOT NULL DEFAULT FALSE,
     job_data BYTEA NULL,
     PRIMARY KEY (sched_name, trigger_name, trigger_group),
     FOREIGN KEY (sched_name, job_name, job_group)
@@ -158,7 +154,6 @@ CREATE TABLE qrtz_fired_triggers
     job_group TEXT NULL,
     is_nonconcurrent BOOL NOT NULL,
     requests_recovery BOOL NULL,
-    execution_group VARCHAR(200) NULL,
     PRIMARY KEY (sched_name, entry_id)
 );
 
@@ -178,24 +173,14 @@ CREATE TABLE qrtz_locks
     PRIMARY KEY (sched_name, lock_name)
 );
 
--- Indexes
---
--- Every AdoJobStore statement filters sched_name first, so every index leads with it. The acquire
--- query is two equalities (sched_name, trigger_state) followed by a range on next_fire_time, so
--- next_fire_time has to be the last column of idx_qrtz_t_nft_st. There is deliberately no misfire
--- index: those statements filter misfire_instr <> -1, which a btree cannot seek on, and
--- idx_qrtz_t_nft_st / idx_qrtz_t_next_fire_time already cover the rest of the predicate.
--- To bring an existing database in line, run database/migrations/3.20/index_alignment_postgres.sql.
-
-CREATE INDEX idx_qrtz_j_req_recovery ON qrtz_job_details (sched_name, requests_recovery);
-CREATE INDEX idx_qrtz_j_g_n ON qrtz_job_details (sched_name, job_group, job_name);
-
-CREATE INDEX idx_qrtz_t_j ON qrtz_triggers (sched_name, job_name, job_group);
-CREATE INDEX idx_qrtz_t_c ON qrtz_triggers (sched_name, calendar_name);
-CREATE INDEX idx_qrtz_t_g_n ON qrtz_triggers (sched_name, trigger_group, trigger_name);
-CREATE INDEX idx_qrtz_t_next_fire_time ON qrtz_triggers (sched_name, next_fire_time);
-CREATE INDEX idx_qrtz_t_nft_st ON qrtz_triggers (sched_name, trigger_state, next_fire_time);
-
-CREATE INDEX idx_qrtz_ft_inst_job_req_rcvry ON qrtz_fired_triggers (sched_name, instance_name, requests_recovery);
-CREATE INDEX idx_qrtz_ft_j_g ON qrtz_fired_triggers (sched_name, job_name, job_group);
-CREATE INDEX idx_qrtz_ft_t_g ON qrtz_fired_triggers (sched_name, trigger_name, trigger_group);
+CREATE INDEX idx_qrtz_j_req_recovery ON qrtz_job_details (requests_recovery);
+CREATE INDEX idx_qrtz_t_next_fire_time ON qrtz_triggers (next_fire_time);
+CREATE INDEX idx_qrtz_t_state ON qrtz_triggers (trigger_state);
+CREATE INDEX idx_qrtz_t_nft_st ON qrtz_triggers (next_fire_time, trigger_state);
+CREATE INDEX idx_qrtz_ft_trig_name ON qrtz_fired_triggers (trigger_name);
+CREATE INDEX idx_qrtz_ft_trig_group ON qrtz_fired_triggers (trigger_group);
+CREATE INDEX idx_qrtz_ft_trig_nm_gp ON qrtz_fired_triggers (sched_name, trigger_name, trigger_group);
+CREATE INDEX idx_qrtz_ft_trig_inst_name ON qrtz_fired_triggers (instance_name);
+CREATE INDEX idx_qrtz_ft_job_name ON qrtz_fired_triggers (job_name);
+CREATE INDEX idx_qrtz_ft_job_group ON qrtz_fired_triggers (job_group);
+CREATE INDEX idx_qrtz_ft_job_req_recovery ON qrtz_fired_triggers (requests_recovery);
