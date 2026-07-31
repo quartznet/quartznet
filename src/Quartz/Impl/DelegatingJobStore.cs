@@ -1,174 +1,303 @@
-#nullable enable
+#region License
+
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ */
+
+#endregion
 
 using Quartz.Extensibility;
 using Quartz.Matchers;
 
-namespace Quartz.Tests;
+namespace Quartz.Impl;
 
 /// <summary>
-/// An <see cref="IJobStore" /> that forwards everything to another one, so a test can override the one
-/// operation it wants to interfere with.
+/// An <see cref="IJobStore" /> that forwards every operation to another one, so a store of your own can
+/// override the few it cares about and inherit the rest.
 /// </summary>
 /// <remarks>
-/// The stores Quartz ships are sealed: a job store is written against <see cref="IJobStore" />, not
-/// derived from an existing implementation. This is the test-side equivalent of that composition.
+/// <para>
+/// The stores Quartz ships are sealed - <see cref="RAMJobStore" /> holds a lock while it mutates several
+/// indexes in a fixed order and raises notifications after releasing it, none of which an override can be
+/// asked to preserve. Decorating one is composition instead: wrap it, and change what you meant to change.
+/// </para>
+/// <para>
+/// This is the store-level counterpart of <see cref="DelegatingScheduler" />. It suits logging, metrics,
+/// tenant routing, fault injection and the like. A store that keeps scheduling data somewhere new should
+/// implement <see cref="IJobStore" /> directly rather than derive from this.
+/// </para>
 /// </remarks>
-public abstract class DelegatingJobStore : IJobStore
+public class DelegatingJobStore : IJobStore
 {
-    private readonly IJobStore inner;
+    private readonly IJobStore jobStore;
 
-    protected DelegatingJobStore(IJobStore inner)
+    public DelegatingJobStore(IJobStore jobStore)
     {
-        this.inner = inner;
+        this.jobStore = jobStore;
     }
 
-    public virtual bool SupportsPersistence => inner.SupportsPersistence;
+    /// <summary>
+    /// The store this one forwards to, so that code which needs the real store - rather than the
+    /// behaviour a decorator adds - can reach it through however many layers are in the way.
+    /// </summary>
+    protected IJobStore InnerJobStore => jobStore;
 
-    public virtual TimeSpan EstimatedTimeToReleaseAndAcquireTrigger => inner.EstimatedTimeToReleaseAndAcquireTrigger;
+    public virtual bool SupportsPersistence => jobStore.SupportsPersistence;
 
-    public virtual bool Clustered => inner.Clustered;
+    public virtual TimeSpan EstimatedTimeToReleaseAndAcquireTrigger => jobStore.EstimatedTimeToReleaseAndAcquireTrigger;
+
+    public virtual bool Clustered => jobStore.Clustered;
 
     public virtual ValueTask Initialize(CancellationToken cancellationToken = default)
-        => inner.Initialize(cancellationToken);
+    {
+        return jobStore.Initialize(cancellationToken);
+    }
 
     public virtual ValueTask SchedulerStarted(CancellationToken cancellationToken = default)
-        => inner.SchedulerStarted(cancellationToken);
+    {
+        return jobStore.SchedulerStarted(cancellationToken);
+    }
 
     public virtual ValueTask SchedulerPaused(CancellationToken cancellationToken = default)
-        => inner.SchedulerPaused(cancellationToken);
+    {
+        return jobStore.SchedulerPaused(cancellationToken);
+    }
 
     public virtual ValueTask SchedulerResumed(CancellationToken cancellationToken = default)
-        => inner.SchedulerResumed(cancellationToken);
+    {
+        return jobStore.SchedulerResumed(cancellationToken);
+    }
 
     public virtual ValueTask Shutdown(CancellationToken cancellationToken = default)
-        => inner.Shutdown(cancellationToken);
+    {
+        return jobStore.Shutdown(cancellationToken);
+    }
 
     public virtual ValueTask ScheduleJob(IJobDetail job, IOperableTrigger trigger, CancellationToken cancellationToken = default)
-        => inner.ScheduleJob(job, trigger, cancellationToken);
+    {
+        return jobStore.ScheduleJob(job, trigger, cancellationToken);
+    }
 
     public virtual ValueTask AddJob(IJobDetail job, bool replace, CancellationToken cancellationToken = default)
-        => inner.AddJob(job, replace, cancellationToken);
+    {
+        return jobStore.AddJob(job, replace, cancellationToken);
+    }
 
     public virtual ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
-        => inner.ScheduleJobs(triggersAndJobs, replace, cancellationToken);
+    {
+        return jobStore.ScheduleJobs(triggersAndJobs, replace, cancellationToken);
+    }
 
     public virtual ValueTask<bool> DeleteJob(JobKey jobKey, CancellationToken cancellationToken = default)
-        => inner.DeleteJob(jobKey, cancellationToken);
+    {
+        return jobStore.DeleteJob(jobKey, cancellationToken);
+    }
 
     public virtual ValueTask<bool> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
-        => inner.DeleteJobs(jobKeys, cancellationToken);
+    {
+        return jobStore.DeleteJobs(jobKeys, cancellationToken);
+    }
 
     public virtual ValueTask<IJobDetail?> GetJob(JobKey jobKey, CancellationToken cancellationToken = default)
-        => inner.GetJob(jobKey, cancellationToken);
+    {
+        return jobStore.GetJob(jobKey, cancellationToken);
+    }
 
     public virtual ValueTask AddTrigger(IOperableTrigger trigger, bool replace, CancellationToken cancellationToken = default)
-        => inner.AddTrigger(trigger, replace, cancellationToken);
+    {
+        return jobStore.AddTrigger(trigger, replace, cancellationToken);
+    }
 
     public virtual ValueTask<bool> DeleteTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
-        => inner.DeleteTrigger(triggerKey, cancellationToken);
+    {
+        return jobStore.DeleteTrigger(triggerKey, cancellationToken);
+    }
 
     public virtual ValueTask<bool> DeleteTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
-        => inner.DeleteTriggers(triggerKeys, cancellationToken);
+    {
+        return jobStore.DeleteTriggers(triggerKeys, cancellationToken);
+    }
 
     public virtual ValueTask<bool> ReplaceTrigger(TriggerKey triggerKey, IOperableTrigger trigger, CancellationToken cancellationToken = default)
-        => inner.ReplaceTrigger(triggerKey, trigger, cancellationToken);
+    {
+        return jobStore.ReplaceTrigger(triggerKey, trigger, cancellationToken);
+    }
 
     public virtual ValueTask<bool> UpdateTriggerDetails(TriggerKey triggerKey, TriggerDetailsUpdate update, CancellationToken cancellationToken = default)
-        => inner.UpdateTriggerDetails(triggerKey, update, cancellationToken);
+    {
+        return jobStore.UpdateTriggerDetails(triggerKey, update, cancellationToken);
+    }
 
     public virtual ValueTask<IOperableTrigger?> GetTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
-        => inner.GetTrigger(triggerKey, cancellationToken);
+    {
+        return jobStore.GetTrigger(triggerKey, cancellationToken);
+    }
 
     public virtual ValueTask<bool> CheckExists(JobKey jobKey, CancellationToken cancellationToken = default)
-        => inner.CheckExists(jobKey, cancellationToken);
+    {
+        return jobStore.CheckExists(jobKey, cancellationToken);
+    }
 
     public virtual ValueTask<bool> CheckExists(TriggerKey triggerKey, CancellationToken cancellationToken = default)
-        => inner.CheckExists(triggerKey, cancellationToken);
+    {
+        return jobStore.CheckExists(triggerKey, cancellationToken);
+    }
 
     public virtual ValueTask Clear(CancellationToken cancellationToken = default)
-        => inner.Clear(cancellationToken);
+    {
+        return jobStore.Clear(cancellationToken);
+    }
 
     public virtual ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions? options = null, CancellationToken cancellationToken = default)
-        => inner.AddCalendar(calendarName, calendar, options, cancellationToken);
+    {
+        return jobStore.AddCalendar(calendarName, calendar, options, cancellationToken);
+    }
 
     public virtual ValueTask<bool> DeleteCalendar(string calendarName, CancellationToken cancellationToken = default)
-        => inner.DeleteCalendar(calendarName, cancellationToken);
+    {
+        return jobStore.DeleteCalendar(calendarName, cancellationToken);
+    }
 
     public virtual ValueTask<ICalendar?> GetCalendar(string calendarName, CancellationToken cancellationToken = default)
-        => inner.GetCalendar(calendarName, cancellationToken);
+    {
+        return jobStore.GetCalendar(calendarName, cancellationToken);
+    }
 
     public virtual ValueTask<PagedResult<JobHeader>> QueryJobs(JobQuery query, CancellationToken cancellationToken = default)
-        => inner.QueryJobs(query, cancellationToken);
+    {
+        return jobStore.QueryJobs(query, cancellationToken);
+    }
 
     public virtual ValueTask<PagedResult<TriggerHeader>> QueryTriggers(TriggerQuery query, CancellationToken cancellationToken = default)
-        => inner.QueryTriggers(query, cancellationToken);
+    {
+        return jobStore.QueryTriggers(query, cancellationToken);
+    }
 
     public virtual ValueTask<PagedResult<JobGroup>> QueryJobGroups(JobGroupQuery query, CancellationToken cancellationToken = default)
-        => inner.QueryJobGroups(query, cancellationToken);
+    {
+        return jobStore.QueryJobGroups(query, cancellationToken);
+    }
 
     public virtual ValueTask<PagedResult<TriggerGroup>> QueryTriggerGroups(TriggerGroupQuery query, CancellationToken cancellationToken = default)
-        => inner.QueryTriggerGroups(query, cancellationToken);
+    {
+        return jobStore.QueryTriggerGroups(query, cancellationToken);
+    }
 
     public virtual ValueTask<PagedResult<string>> QueryCalendarNames(CalendarQuery query, CancellationToken cancellationToken = default)
-        => inner.QueryCalendarNames(query, cancellationToken);
+    {
+        return jobStore.QueryCalendarNames(query, cancellationToken);
+    }
 
     public virtual ValueTask<List<IJobDetail>> GetJobDetails(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
-        => inner.GetJobDetails(jobKeys, cancellationToken);
+    {
+        return jobStore.GetJobDetails(jobKeys, cancellationToken);
+    }
 
     public virtual ValueTask<List<IOperableTrigger>> GetTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
-        => inner.GetTriggers(triggerKeys, cancellationToken);
+    {
+        return jobStore.GetTriggers(triggerKeys, cancellationToken);
+    }
 
     public virtual ValueTask<List<IOperableTrigger>> GetTriggersForJob(JobKey jobKey, CancellationToken cancellationToken = default)
-        => inner.GetTriggersForJob(jobKey, cancellationToken);
+    {
+        return jobStore.GetTriggersForJob(jobKey, cancellationToken);
+    }
 
     public virtual ValueTask<TriggerState> GetTriggerState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
-        => inner.GetTriggerState(triggerKey, cancellationToken);
+    {
+        return jobStore.GetTriggerState(triggerKey, cancellationToken);
+    }
 
     public virtual ValueTask ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
-        => inner.ResetTriggerFromErrorState(triggerKey, cancellationToken);
+    {
+        return jobStore.ResetTriggerFromErrorState(triggerKey, cancellationToken);
+    }
 
     public virtual ValueTask PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
-        => inner.PauseTrigger(triggerKey, cancellationToken);
+    {
+        return jobStore.PauseTrigger(triggerKey, cancellationToken);
+    }
 
     public virtual ValueTask<List<string>> PauseTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
-        => inner.PauseTriggers(matcher, cancellationToken);
+    {
+        return jobStore.PauseTriggers(matcher, cancellationToken);
+    }
 
     public virtual ValueTask PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
-        => inner.PauseJob(jobKey, cancellationToken);
+    {
+        return jobStore.PauseJob(jobKey, cancellationToken);
+    }
 
     public virtual ValueTask<List<string>> PauseJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
-        => inner.PauseJobs(matcher, cancellationToken);
+    {
+        return jobStore.PauseJobs(matcher, cancellationToken);
+    }
 
     public virtual ValueTask ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
-        => inner.ResumeTrigger(triggerKey, cancellationToken);
+    {
+        return jobStore.ResumeTrigger(triggerKey, cancellationToken);
+    }
 
     public virtual ValueTask<List<string>> ResumeTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
-        => inner.ResumeTriggers(matcher, cancellationToken);
+    {
+        return jobStore.ResumeTriggers(matcher, cancellationToken);
+    }
 
     public virtual ValueTask ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
-        => inner.ResumeJob(jobKey, cancellationToken);
+    {
+        return jobStore.ResumeJob(jobKey, cancellationToken);
+    }
 
     public virtual ValueTask<List<string>> ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
-        => inner.ResumeJobs(matcher, cancellationToken);
+    {
+        return jobStore.ResumeJobs(matcher, cancellationToken);
+    }
 
     public virtual ValueTask PauseAll(CancellationToken cancellationToken = default)
-        => inner.PauseAll(cancellationToken);
+    {
+        return jobStore.PauseAll(cancellationToken);
+    }
 
     public virtual ValueTask ResumeAll(CancellationToken cancellationToken = default)
-        => inner.ResumeAll(cancellationToken);
+    {
+        return jobStore.ResumeAll(cancellationToken);
+    }
 
     public virtual ValueTask<List<IOperableTrigger>> AcquireNextTriggers(TriggerAcquisitionRequest request, CancellationToken cancellationToken = default)
-        => inner.AcquireNextTriggers(request, cancellationToken);
+    {
+        return jobStore.AcquireNextTriggers(request, cancellationToken);
+    }
 
     public virtual ValueTask ReleaseAcquiredTrigger(IOperableTrigger trigger, CancellationToken cancellationToken = default)
-        => inner.ReleaseAcquiredTrigger(trigger, cancellationToken);
+    {
+        return jobStore.ReleaseAcquiredTrigger(trigger, cancellationToken);
+    }
 
     public virtual ValueTask<List<TriggerFiredResult>> TriggersFired(IReadOnlyCollection<IOperableTrigger> triggers, CancellationToken cancellationToken = default)
-        => inner.TriggersFired(triggers, cancellationToken);
+    {
+        return jobStore.TriggersFired(triggers, cancellationToken);
+    }
 
     public virtual ValueTask TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default)
-        => inner.TriggeredJobComplete(trigger, jobDetail, triggerInstructionCode, cancellationToken);
+    {
+        return jobStore.TriggeredJobComplete(trigger, jobDetail, triggerInstructionCode, cancellationToken);
+    }
 
     public virtual TimeSpan GetAcquireRetryDelay(int failureCount)
-        => inner.GetAcquireRetryDelay(failureCount);
+    {
+        return jobStore.GetAcquireRetryDelay(failureCount);
+    }
 }

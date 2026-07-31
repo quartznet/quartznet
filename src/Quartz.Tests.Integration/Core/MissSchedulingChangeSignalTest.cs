@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
 using Quartz.Impl;
 using Quartz.Extensibility;
-using Quartz.Tests;
 
 namespace Quartz.Tests.Integration.Core;
 

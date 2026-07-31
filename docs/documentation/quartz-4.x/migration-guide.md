@@ -1568,50 +1568,46 @@ which is a documented contract, and all of which the overriding code has to pres
 against `IJobStore`; the implementations Quartz ships are not base classes.
 
 `RAMJobStore` is `sealed`, its `virtual`s are gone, and `GetFiredTriggerRecordId` is private. A store that
-wants the in-memory behaviour plus something of its own composes it:
+wants the in-memory behaviour plus something of its own wraps it, deriving from the new
+`Quartz.Impl.DelegatingJobStore`:
 
 ```diff
 - public class SlowJobStore : RAMJobStore
-- {
--     public SlowJobStore(ILoggerFactory loggerFactory, ISchedulerSignaler signaler, TimeProvider timeProvider)
++ public sealed class SlowJobStore : DelegatingJobStore
+  {
+      public SlowJobStore(ILoggerFactory loggerFactory, ISchedulerSignaler signaler, TimeProvider timeProvider)
 -         : base(loggerFactory, signaler, timeProvider)
--     {
--     }
--
--     public override async ValueTask<List<IOperableTrigger>> AcquireNextTriggers(
--         TriggerAcquisitionRequest request, CancellationToken cancellationToken = default)
--     {
--         List<IOperableTrigger> triggers = await base.AcquireNextTriggers(request, cancellationToken);
--         await Task.Delay(10, cancellationToken);
--         return triggers;
--     }
-- }
-+ public sealed class SlowJobStore : IJobStore
-+ {
-+     private readonly RAMJobStore inner;
-+
-+     public SlowJobStore(ILoggerFactory loggerFactory, ISchedulerSignaler signaler, TimeProvider timeProvider)
-+     {
-+         inner = new RAMJobStore(loggerFactory, signaler, timeProvider);
-+     }
-+
-+     public async ValueTask<List<IOperableTrigger>> AcquireNextTriggers(
-+         TriggerAcquisitionRequest request, CancellationToken cancellationToken = default)
-+     {
-+         List<IOperableTrigger> triggers = await inner.AcquireNextTriggers(request, cancellationToken);
-+         await Task.Delay(10, cancellationToken);
-+         return triggers;
-+     }
-+
-+     // …the rest of IJobStore forwards to inner
-+ }
++         : base(new RAMJobStore(loggerFactory, signaler, timeProvider))
+      {
+      }
+
+      public override async ValueTask<List<IOperableTrigger>> AcquireNextTriggers(
+          TriggerAcquisitionRequest request, CancellationToken cancellationToken = default)
+      {
+          List<IOperableTrigger> triggers = await base.AcquireNextTriggers(request, cancellationToken);
+          await Task.Delay(10, cancellationToken);
+          return triggers;
+      }
+  }
 ```
 
-`UsePersistentStore<TStore>()` and `quartz.jobStore.type` take the composing store exactly as they took the
+`UsePersistentStore<TStore>()` and `quartz.jobStore.type` take the wrapping store exactly as they took the
 derived one; the `Quartz.Examples.AspNetCore` sample's `CustomJobStore` shows the whole shape.
 
 `MisfireThreshold` keeps its setter here as it does on `JobStoreSupport`: it is read on every misfire pass
 rather than only at startup.
+
+### `DelegatingJobStore` decorates a store
+
+`IJobStore` has around fifty members, so hand-writing a forwarder for the sake of one of them is a lot of
+code that only has to be revisited every time the interface changes. `Quartz.Impl.DelegatingJobStore` is the
+store-level counterpart of `DelegatingScheduler`: a `public class` that takes the store to wrap as its
+constructor argument, forwards every `IJobStore` member to it, and declares each one `virtual` so a derived
+store overrides only what it changes. The wrapped store is available to derived types as `InnerJobStore`.
+
+It is the supported way to add logging, metrics, tenant routing or fault injection to a store — including a
+sealed one such as `RAMJobStore`. A store that keeps scheduling data somewhere new implements `IJobStore`
+directly instead; nothing forces it through this base.
 
 ## Jobs take a CancellationToken
 
@@ -2728,5 +2724,6 @@ read back the way every other primitive can.
 | `DbMetadataFactory` is internal | Every implementation was already internal and no public member accepted one; describe a driver through `UseGenericDatabase`'s metadata callback |
 | `DbProvider.PropertyDbProvider` and `.DbProviderResourceName` removed | Two `protected const`s nothing read, left over from the process-wide provider registry |
 | `SimplePropertiesTriggerPersistenceDelegateSupport`'s four SQL statements are private | `SelectSimplePropsTrigger`, `DeleteSimplePropsTrigger`, `InsertSimplePropsTrigger` and `UpdateSimplePropsTrigger` name every column the base class binds, so replacing one could not work. The table and column name constants stay `protected` — they are the schema contract |
-| `RAMJobStore` is `sealed` and has no `virtual` members | Compose it behind your own `IJobStore` instead of deriving from it — see [`RAMJobStore` is sealed](#ramjobstore-is-sealed) |
+| `RAMJobStore` is `sealed` and has no `virtual` members | Wrap it in a store deriving from the new `DelegatingJobStore` instead of deriving from it — see [`RAMJobStore` is sealed](#ramjobstore-is-sealed) |
+| `Quartz.Impl.DelegatingJobStore` added | Forwards every `IJobStore` member to a wrapped store, each one `virtual`, so a decorating store overrides only what it changes — see [`DelegatingJobStore` decorates a store](#delegatingjobstore-decorates-a-store) |
 | `HostnameInstanceIdGenerator` is `HostNameInstanceIdGenerator` | Casing matched to `HostNameBasedIdGenerator`. The type is internal; a `quartz.scheduler.instanceIdGenerator.type` still naming the old spelling resolves, with a warning |

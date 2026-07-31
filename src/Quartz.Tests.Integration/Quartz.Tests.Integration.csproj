@@ -13,7 +13,6 @@
     <EmbeddedResource Include="**\TestData\*" />
     <Compile Include="..\Quartz.Tests.Unit\TestConstants.cs" />
     <Compile Include="..\Quartz.Tests.Unit\TestJobStores.cs" />
-    <Compile Include="..\Quartz.Tests.Unit\DelegatingJobStore.cs" />
   </ItemGroup>
 
   <ItemGroup>
