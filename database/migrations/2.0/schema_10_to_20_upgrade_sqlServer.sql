@@ -1,19 +1,30 @@
 --
--- !! FIRST RUN IN TEST ENVIRONMENT AGAINST COPY OF YOU PRODUCTION !!
+-- Quartz.NET schema migration -- 1.0 to 2.0
 --
--- Migration script sample for MS SQL Server
--- You need to modify script for other databases
+-- The 1.x to 2.x schema overhaul: drops the listener tables, converts the varchar(1) flag
+-- columns to real bit columns, replaces IS_STATEFUL with IS_NONCONCURRENT / IS_UPDATE_DATA,
+-- and introduces SCHED_NAME across every table (with the primary keys and indexes rebuilt
+-- around it).
 --
--- !! FIRST RUN IN TEST ENVIRONMENT AGAINST COPY OF YOU PRODUCTION !!
+-- STATUS
+--   REQUIRED when upgrading from 1.x. Nothing later in this folder applies until it has run.
 --
-
---- 
+-- SQL Server only -- this is a sample; you need to adapt it for other databases.
+--
+-- NOT IDEMPOTENT. Unlike the later migrations in this folder, this script drops and recreates
+-- objects unconditionally, so it fails on a partially-migrated database. Run it once, on a
+-- restorable copy.
+--
+---
 --- !!! The default value of sched_name column is TestScheduler !!!
 --- If you have existing data the scheduler name should correspond to your existing scheduler name
 --- in Quartz configuration (quartz.scheduler.instanceName)
---- 
+---
+--
+-- !! FIRST RUN IN TEST ENVIRONMENT AGAINST A COPY OF YOUR PRODUCTION DATABASE !!
+--
 
--- 
+--
 -- drop tables that are no longer used
 --
 drop table qrtz_job_listeners;
@@ -110,7 +121,7 @@ GO
 -- add new simprop_triggers table
 --
 CREATE TABLE QRTZ_SIMPROP_TRIGGERS
- (          
+ (
     SCHED_NAME VARCHAR(120) NOT NULL,
     TRIGGER_NAME VARCHAR(200) NOT NULL,
     TRIGGER_GROUP VARCHAR(200) NOT NULL,

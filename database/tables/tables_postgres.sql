@@ -185,7 +185,7 @@ CREATE TABLE qrtz_locks
 -- next_fire_time has to be the last column of idx_qrtz_t_nft_st. There is deliberately no misfire
 -- index: those statements filter misfire_instr <> -1, which a btree cannot seek on, and
 -- idx_qrtz_t_nft_st / idx_qrtz_t_next_fire_time already cover the rest of the predicate.
--- To bring an existing database in line, run database/schema_30_postgres_index_realignment.sql.
+-- To bring an existing database in line, run database/migrations/3.20/index_alignment_postgres.sql.
 
 CREATE INDEX idx_qrtz_j_req_recovery ON qrtz_job_details (sched_name, requests_recovery);
 CREATE INDEX idx_qrtz_j_g_n ON qrtz_job_details (sched_name, job_group, job_name);
