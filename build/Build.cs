@@ -235,7 +235,6 @@ partial class Build : FalloutBuild, ICompile, IPack
                 "build.cmd",
                 "build.ps1",
                 "build.sh",
-                "changelog.md",
                 "Directory.Build.props",
                 "Directory.Packages.props",
                 "license.txt",

@@ -200,11 +200,15 @@ plus a bridge entry on main.
 ### Practical notes
 
 - **Ported code that fails to build is usually a rename, not a missing feature.** Check the tables
-  above and `changelog.md`'s BREAKING CHANGES section, which explains the reasoning for each.
+  above and `docs/documentation/quartz-4.x/migration-guide.md`, which explains the reasoning for each.
 - **`docs/documentation/quartz-3.x/` must keep the old names.** Only update `quartz-4.x/`.
 - **`src/Quartz.Tests.Unit/Verify/PublicApiTest_*.verified.txt` are the public API baselines.**
   Any change to public API fails those tests; review the diff, and if the change is intended,
-  accept the new baseline and carry the same diff into `changelog.md`. Never hand-edit them.
+  accept the new baseline and carry the same diff into
+  `docs/documentation/quartz-4.x/migration-guide.md`. Never hand-edit them.
+- **Release notes live in GitHub releases, not in the repository.** There is no changelog file on
+  either branch; the tag's release is the record. Unreleased 4.x notes accumulate in the `v4.0.0`
+  draft release.
 
 ## Key Conventions
 

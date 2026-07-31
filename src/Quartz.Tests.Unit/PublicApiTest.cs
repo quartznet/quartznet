@@ -16,8 +16,7 @@ namespace Quartz.Tests.Unit;
 /// This is the only guard the repository has against unintended public API changes — there is no
 /// ApiCompat run and no shipped/unshipped API files. A failure here is not automatically a bug:
 /// read the diff, and when the change is deliberate, accept the new baseline and carry the same
-/// diff into <c>changelog.md</c> and the migration guide. When it is not deliberate, the diff is
-/// the bug report.
+/// diff into the migration guide. When it is not deliberate, the diff is the bug report.
 /// </remarks>
 public class PublicApiTest
 {

@@ -3,7 +3,7 @@
 title: Migration Guide
 ---
 
-*This document outlines changes needed when upgrading from Quartz.NET 3.x to 4.x. You should also check [the complete change log](https://raw.github.com/quartznet/quartznet/master/changelog.md).*
+*This document outlines changes needed when upgrading from Quartz.NET 3.x to 4.x. You should also check [the release notes](https://github.com/quartznet/quartznet/releases) for each version.*
 
 ::: tip
 If you are a new user starting with the latest version, you don't need to follow this guide. Just jump right to [the tutorial](tutorial/index.html)
@@ -777,6 +777,25 @@ The cron expression parser now supports additional syntax:
 * Day-of-month and day-of-week can now be specified together in the same expression
 * `H` (hash) tokens for [load distribution](tutorial/crontrigger#h-hash-for-load-distribution) across triggers
 
+## Daylight saving time
+
+Two schedules fire at different times than they did on 3.x. Neither needs a code change, but both change
+*when* existing triggers run, so review any schedule that crosses a transition.
+
+**Interval cron expressions fire through both halves of a fall-back hour.** A cron expression whose second,
+minute or hour field uses a wildcard, a step or a range — `0 * * * * ?`, `0 0/30 * * * ?` — now fires through
+**both** occurrences of the wall-clock window that repeats when the clock goes back. Previously the repeated
+window fired only once, so an "every minute" schedule silently skipped an hour of real time. Fixed-time
+expressions such as `0 30 2 * * ?`, including comma lists like `0 0,30 2 * * ?`, are unchanged: they still fire
+once per day, at the first occurrence of an ambiguous wall-clock time.
+
+**`CalendarIntervalTrigger` with `PreserveHourOfDayAcrossDaylightSavings` steps in local wall-clock time.**
+Fire times are now always exactly on schedule and strictly increasing; the previous implementation could return
+times the schedule never specified when its daylight-saving adjustments failed to make progress. In time zones
+whose daylight delta is not a whole hour — Australia/Lord_Howe — the scheduled local time no longer drifts by
+the sub-hour part of the delta across a transition, so the flag preserves the full time of day as its
+documentation always promised.
+
 ## New Features
 
 * **[RecurrenceTrigger (RRULE)](tutorial/recurrencetrigger.md)** — schedule jobs using RFC 5545 recurrence rules for complex patterns like "every 2nd Monday of the month" or "last weekday of March each year"
@@ -787,6 +806,8 @@ The cron expression parser now supports additional syntax:
 * **`TriggerState.Executing`** — tell whether a trigger's job is running, across the whole cluster (see [Executing is a trigger state](#executing-is-a-trigger-state))
 * **`JobInstantiationException`** — a job that could not be built names the trigger, the job and the fire instance instead of only interpolating the job key into a message (see [Instantiation failures name the trigger](#instantiation-failures-name-the-trigger))
 * **`ISchedulerListener.TriggerInError` / `TriggersInError`** — observe a trigger being moved to `TriggerState.Error`, including two ADO store transitions that reached nothing at all before (see [Triggers entering the error state are reported](#triggers-entering-the-error-state-are-reported))
+* **Joining a transaction the application owns** — the ADO job store can take part in a transaction you started, so saving your own data and scheduling the job that acts on it commit together or not at all. Turn it on with `AcceptEnlistedTransactions()` on the persistent store builder, `JobStore:AcceptEnlistedTransactions`, or `quartz.jobStore.acceptEnlistedTransactions`, then hand the store a connection for the duration of a scope with `IScheduler.EnlistTransaction` / `EnlistConnection`. Handing over a connection is the only way to take part: a connection the job store opens for itself is deliberately kept out of any ambient `TransactionScope`, since a second connection in that transaction would require promoting it to a distributed one. See [Joining an existing transaction](tutorial/job-stores.md#joining-an-existing-transaction)
+* **Builder methods for three more plugins** — `UseJobHistoryLogging()`, `UseTriggerHistoryLogging()` and `UseShutdownHook()`. Only the structured-logging variants had one, so the classic history plugins and the shutdown hook could previously be reached only through `quartz.plugin.*` property keys
 
 ## Job data can name the property
 
@@ -1484,6 +1505,28 @@ called out.
 | `XMLSchedulingDataProcessor.OverWriteExistingData`, `SchedulingOptions.OverWriteExistingData` | `OverwriteExistingData`. The configuration key is spelled `Quartz:Scheduling:OverwriteExistingData` now; keys are matched case-insensitively, so an existing file keeps binding, but code assigning the property has to change |
 | `XMLSchedulingDataProcessor.PrepForProcessing`, `.BuildTriggersByFQJobNameMap` | `PrepareForProcessing`, `BuildTriggersByFullyQualifiedJobNameMap` |
 | `RedisSemaphore.LockTtlMilliseconds`, `.LockRetryIntervalMilliseconds` | `LockTimeToLive`, `LockRetryInterval`, both `TimeSpan` — **also the config keys `lockTtlMilliseconds` → `lockTimeToLive` and `lockRetryIntervalMilliseconds` → `lockRetryInterval`** |
+| `IObjectSerializer.DeSerialize` | `Deserialize` |
+| `TriggerFiredBundle.PrevFireTimeUtc` | `PreviousFireTimeUtc`, matching the spelling used everywhere else |
+| `XMLSchedulingDataProcessor.OverWriteExistingJobs` argument `overWriteExistingJobs` | `overwriteExistingJobs` |
+
+### Abbreviated parameter names were spelled out
+
+Parameter names inherited from the Java port were spelled out across the public surface. Only named
+arguments and overriding signatures are affected — a positional call site compiles unchanged.
+
+`cal` → `calendar`, `sched` → `scheduler`, `schedName` → `schedulerName`, `calName` → `calendarName`,
+`schedInstId` → `schedulerInstanceId`, `triggerInstCode` / `instCode` → `triggerInstructionCode` /
+`instructionCode`, `jec` → `context`, `prevFireTimeUtc` → `previousFireTimeUtc`, `tz` / `timezone` →
+`timeZone` on the `InTimeZone` schedule-builder methods, and `je` → `jobExecutionException`.
+
+`ITablePrefixAware.SchedName` is `SchedulerName`, and both of its properties are readable rather than
+setter-only.
+
+Every abbreviated constructor parameter of `SchedulerMetaData` was spelled out as well, on what is now
+[`SchedulerMetadata`](#schedulermetadata-replaces-schedulermetadata): `schedInst` → `schedulerInstanceId`,
+`schedType` → `schedulerType`, `numberOfJobsExec` → `numberOfJobsExecuted`, `jsType` → `jobStoreType`,
+`jsPersistent` → `jobStoreSupportsPersistence`, `jsClustered` → `jobStoreClustered`, `tpType` →
+`threadPoolType`, `tpSize` → `threadPoolSize`.
 
 ## Matchers moved to `Quartz.Matchers`
 
@@ -2221,3 +2264,15 @@ read back the way every other primitive can.
 | `CronCalendar.SetCronExpressionString` removed | Assign `CronExpression` instead; the property already accepted a parsed expression |
 | `JobDataMap(IDictionary)` removed | `JobDataMap(IDictionary<string, object?>)` remains and absorbed the dirty-marker handling |
 | `StringKeyDirtyFlagMap.GetDecimal` / `TryGetDecimal` added | A `decimal` could be written but not read back |
+| `ISchedulerFactory.GetAllSchedulers` returns `ValueTask<List<IScheduler>>` | Quartz returns concrete collection types from its query members for allocation and enumeration cost; this was the one that did not |
+| `IInstanceIdGenerator.GenerateInstanceId` returns `ValueTask<string>` | It never returned null, and a null instance id is not a usable one |
+| An `IJobStore` that implements `IJobListener` no longer receives events automatically | Register it as a job listener through the scheduler's `IListenerManager` |
+| `[Serializable]` removed from `TriggerFiredBundle` and `TriggerFiredResult` | It has meant nothing since binary serialization was dropped |
+| `XmlSchedulingOptions` and `JsonSchedulingOptions` merged | They were byte-for-byte identical and are now one type |
+| Constructing a scheduler no longer starts a thread | `QuartzScheduler` starts its scheduler thread from `Start()` rather than its constructor, so resolving the service graph, running a `ValidateOnBuild` pass or asserting on registrations no longer spins one up. The thread always started paused, so this changes when the thread exists, not when jobs run |
+| `IPersistentStoreBuilder.AcceptEnlistedTransactions()` added | A breaking addition for anyone implementing the interface themselves — see [Joining an existing transaction](tutorial/job-stores.md#joining-an-existing-transaction) |
+| Group matchers translate to SQL correctly | `SelectTriggerGroups`, `DeletePausedTriggerGroup` and both `UpdateTriggerGroupStateFromOtherState(s)` members always built a `LIKE`, even for an equality matcher; they take the `=` path now, which is exact and index-friendly. `LIKE` patterns escape `%`, `_` and the escape character in the matcher's own text with an explicit `ESCAPE` clause, so a group literally named `50%` matches itself. The escape character is `!` rather than a backslash, because MySQL applies C-style escaping inside string literals and `ESCAPE '\'` is a syntax error there |
+| `StdAdoConstants` group and fired-trigger statements were split | `SqlDeletePausedTriggerGroup`, `SqlSelectTriggerGroupsFiltered`, `SqlUpdateTriggerGroupStateFromState` and `SqlUpdateTriggerGroupStateFromStates` are `…Equals` / `…Like` pairs, and the FIRED_TRIGGERS statements are one `SqlSelectFiredTriggers` / `SqlDeleteFiredTriggers` base plus `SqlFiredTrigger*Predicate` fragments. The type is internal |
+| `IDashboardAuthorizationFilter` and `QuartzDashboardOptions.AuthorizationFilter` removed | Nothing ever invoked the filter, so setting it bought a false sense of security. Use `AuthorizationPolicy`, which is enforced |
+| `IDashboardHistoryStore` is asynchronous | `ValueTask Add`, `ValueTask<DashboardHistoryPage> GetPage`, so a store can talk to a database. `SearchFilter.DebounceMilliseconds` is a `TimeSpan Debounce`, and `QuartzApiClient` / `InProcessQuartzApiClient` are internal — resolve `IQuartzApiClient` |
+| Serializers outside a scheduler read a container-wide registry | Because the serializer maps are per-serializer, the HTTP API, the dashboard and `Quartz.HttpClient` read a `SystemTextJsonSerializerRegistry` registered in the container. Register it as a singleton to make a custom serializer visible to them |

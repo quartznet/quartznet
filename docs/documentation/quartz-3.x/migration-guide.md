@@ -3,7 +3,7 @@
 title: Migration Guide
 ---
 
-*This document outlines changes needed per version upgrade basis. You need to check the steps for each version you are jumping over. You should also check [the complete change log](https://raw.github.com/quartznet/quartznet/master/changelog.md).*
+*This document outlines changes needed per version upgrade basis. You need to check the steps for each version you are jumping over. You should also check [the release notes](https://github.com/quartznet/quartznet/releases) for each version.*
 
 ::: tip
 If you are a new user starting with the latest version, you don't need to follow this guide. Just jump right to [the tutorial](tutorial/index.html)

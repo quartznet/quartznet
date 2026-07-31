@@ -12,7 +12,7 @@ namespace Quartz.Tests.AspNetCore;
 /// <remarks>
 /// The companion test in <c>Quartz.Tests.Unit</c> covers the rest. A failure here is not
 /// automatically a bug: read the diff, and when the change is deliberate, accept the new baseline
-/// and carry the same diff into <c>changelog.md</c> and the migration guide.
+/// and carry the same diff into the migration guide.
 /// </remarks>
 public class PublicApiTest
 {
