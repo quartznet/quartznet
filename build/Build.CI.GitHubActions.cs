@@ -15,7 +15,7 @@ using Quartz.Build;
     OnPullRequestIncludePaths = ["**/*"],
     OnPullRequestExcludePaths = ["docs/**/*", "package.json", "readme.md"],
     PublishArtifacts = false,
-    InvokedTargets = [nameof(Compile), nameof(UnitTest)],
+    InvokedTargets = [nameof(VerifyMigrations), nameof(Compile), nameof(UnitTest)],
     CacheKeyFiles = [],
     ConcurrencyCancelInProgress = true,
     ReadPermissions = [GitHubActionsPermissions.Contents]),

@@ -89,10 +89,18 @@ out inside each file. Old links keep working against release tags, for example
 
 ## Adding a migration
 
+Everything under `migrations/` except the `2.0` and `3.0` folders is **generated** — do not edit
+those files by hand, they will be overwritten.
+
 1. Add the change to every `tables/tables_*.sql`, so fresh installs get it.
-2. Add `migrations/<version>/<name>_<dialect>.sql` for **every** supported database, each one
-   directly runnable with no editing and guarded so it is safe to re-run.
-3. Fold it into `migrations/4.0/schema_30_to_40_upgrade_<dialect>.sql` if it is a 3.x change.
-4. Mirror `migrations/` and this README to the other branch in a companion PR — they must stay
-   byte-identical. `tables/` is version-specific and stays per-branch.
+2. Describe the change once in `build/Build.DatabaseMigrations.Scripts.cs`, and fold it into the
+   `4.0` script there too if it is a 3.x change.
+3. Run `dotnet fallout GenerateMigrations` and commit the result. CI runs `VerifyMigrations`, so
+   a definition change without a regenerated script fails the build.
+4. Mirror `migrations/`, this README and `build/Build.DatabaseMigrations*.cs` to the other branch
+   in a companion PR — they must stay byte-identical. `tables/` is version-specific and stays
+   per-branch.
 5. Add a section to the schema-changes page in the documentation (docs live on `main` only).
+
+The `2.0` and `3.0` migrations are hand-written: they are SQL Server-only historical scripts
+that predate this layout and have no per-dialect variants.

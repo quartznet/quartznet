@@ -21,13 +21,11 @@
 -- Indexes that are a leftmost prefix of a wider one, or that no statement can drive a
 -- scan from, are dropped.
 --
--- MySQL only: QRTZ_BLOB_TRIGGERS was created with an unnamed inline INDEX on
+-- MySQL only: QRTZ_BLOB_TRIGGERS was created with an inline INDEX on
 -- (SCHED_NAME, TRIGGER_NAME, TRIGGER_GROUP), an exact duplicate of that table's primary key.
--- InnoDB names it after its first column, usually SCHED_NAME. It has no portable name so it
--- cannot be dropped safely from a script -- look it up and drop it by hand:
---
---   SHOW INDEX FROM QRTZ_BLOB_TRIGGERS;
---   DROP INDEX SCHED_NAME ON QRTZ_BLOB_TRIGGERS;
+-- The primary key already satisfies InnoDB's index requirement for the foreign key, so the
+-- extra copy is pure write overhead. InnoDB auto-names it, usually SCHED_NAME, so the script
+-- below looks the name up in INFORMATION_SCHEMA rather than guessing it.
 --
 -- Replace 'QRTZ_' with your configured table prefix if different.
 -- Every statement checks first, so this script is safe to run more than once.
