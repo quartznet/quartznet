@@ -10,6 +10,11 @@
     <EmbeddedResource Include="**\TestData\*" />
     <Compile Include="..\Quartz.Tests.Unit\TestConstants.cs" />
   </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
+    <!-- The migration test validates SQL scripts, which do not vary by target framework, so it
+         runs once on the modern TFM rather than starting a second set of containers here. -->
+    <Compile Remove="Impl\AdoJobStore\MigrationScriptTest.cs" />
+  </ItemGroup>
   <ItemGroup>
     <Using Include="AwesomeAssertions" />
     <Using Include="NUnit.Framework" />

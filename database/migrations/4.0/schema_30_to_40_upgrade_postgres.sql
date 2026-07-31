@@ -85,6 +85,12 @@ END $$;
 -- OPTIONAL: 4.x runs unchanged either way. The creates matter once a schema holds a
 -- non-trivial number of triggers; the drops only reclaim write cost and storage.
 
+-- === Drop the indexes whose columns changed but whose name did not ============
+-- These have to go first: CREATE INDEX IF NOT EXISTS below would find the name
+-- already taken and silently keep the old, wrong column order.
+
+DROP INDEX IF EXISTS idx_qrtz_t_nft_st;
+
 -- === Create the indexes this version expects ===================================
 
 CREATE INDEX IF NOT EXISTS idx_qrtz_j_g_n ON qrtz_job_details (sched_name, job_group, job_name);

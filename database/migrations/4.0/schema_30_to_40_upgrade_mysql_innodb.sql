@@ -417,3 +417,18 @@ SET @preparedStatement = (SELECT IF(
 PREPARE stmt FROM @preparedStatement;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
+
+
+-- === Drop the auto-named duplicate index on QRTZ_BLOB_TRIGGERS ================
+-- The 3.x table was declared with an inline INDEX on the primary key's own columns, which
+-- InnoDB stores as a second copy of the primary key. It has no portable name -- InnoDB names
+-- it after its first column -- so look it up rather than guessing.
+SET @dupIndex = (SELECT INDEX_NAME FROM INFORMATION_SCHEMA.STATISTICS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'QRTZ_BLOB_TRIGGERS'
+                   AND INDEX_NAME <> 'PRIMARY' LIMIT 1);
+SET @preparedStatement = IF(@dupIndex IS NULL,
+  'SELECT 1',
+  CONCAT('DROP INDEX `', @dupIndex, '` ON QRTZ_BLOB_TRIGGERS'));
+PREPARE stmt FROM @preparedStatement;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;

@@ -30,6 +30,16 @@
 -- !! FIRST RUN IN TEST ENVIRONMENT AGAINST A COPY OF YOUR PRODUCTION DATABASE !!
 --
 
+-- === Drop the indexes whose columns changed but whose name did not ============
+-- These have to go first: CREATE INDEX IF NOT EXISTS below would find the name
+-- already taken and silently keep the old, wrong column order.
+
+DROP INDEX IF EXISTS idx_qrtz_j_req_recovery;
+
+DROP INDEX IF EXISTS idx_qrtz_t_next_fire_time;
+
+DROP INDEX IF EXISTS idx_qrtz_t_nft_st;
+
 -- === Create the indexes this version expects ===================================
 
 CREATE INDEX IF NOT EXISTS idx_qrtz_j_req_recovery ON qrtz_job_details (sched_name, requests_recovery);
