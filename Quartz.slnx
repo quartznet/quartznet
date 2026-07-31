@@ -8,7 +8,6 @@
     <File Path=".editorconfig" />
     <File Path="build.cmd" />
     <File Path="build.sh" />
-    <File Path="changelog.md" />
     <File Path="qodana.yaml" />
     <File Path="README.md" />
     <File Path="src/Directory.Build.props" />
