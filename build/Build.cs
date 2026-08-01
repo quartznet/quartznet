@@ -125,21 +125,34 @@ partial class Build : FalloutBuild, ICompile, IPack
         {
             var solution = ((IHasSolution) this).Solution;
             var configuration = ((ICompile) this).Configuration;
-            var framework = "";
-            if (!IsRunningOnWindows)
+            var testProjects = new[] { "Quartz.Tests.Unit", "Quartz.Tests.AspNetCore" };
+
+            // Run each project once per target framework it declares, rather than forcing one
+            // framework on all of them. `dotnet test --framework X` against a project that does not
+            // target X exits 0 having run nothing, so the hardcoded net8.0 meant the non-Windows
+            // legs ran no unit tests at all once everything moved to net10.0. net4x needs the .NET
+            // Framework runtime, so it is the one framework that cannot run off Windows.
+            var testRuns = testProjects
+                .Select(x => solution.GetAllProjects(x).First())
+                .SelectMany(project => project.GetTargetFrameworks()
+                    .Where(framework => IsRunningOnWindows || !framework.StartsWith("net4", StringComparison.Ordinal))
+                    .Select(framework => (Project: project, Framework: framework)))
+                .OrderBy(x => x.Project.Name).ThenBy(x => x.Framework)
+                .ToArray();
+
+            foreach (var (project, framework) in testRuns)
             {
-                framework = "net8.0";
+                Log.Information("Unit tests: {Project} ({Framework})", project.Name, framework);
             }
 
-            var testProjects = new[] { "Quartz.Tests.Unit", "Quartz.Tests.AspNetCore" };
             DotNetTest(s => s
                 .EnableNoRestore()
                 .EnableNoBuild()
                 .SetConfiguration(configuration)
-                .SetFramework(framework)
                 .SetLoggers(GitHubActions.Instance is not null ? ["GitHubActions"] : [])
-                .CombineWith(testProjects, (_, testProject) => _
-                    .SetProjectFile(solution.GetAllProjects(testProject).First())
+                .CombineWith(testRuns, (_, run) => _
+                    .SetProjectFile(run.Project)
+                    .SetFramework(run.Framework)
                 )
             );
         });
