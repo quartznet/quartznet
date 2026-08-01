@@ -632,7 +632,6 @@ namespace Quartz
         public void PutAsString<T>(string key, T value)
             where T : System.IConvertible { }
     }
-    [System.Serializable]
     public sealed class JobExecutionException : Quartz.SchedulerException
     {
         public JobExecutionException() { }
@@ -671,17 +670,14 @@ namespace Quartz
         public bool PersistJobDataAfterExecution { get; init; }
         public bool RequestsRecovery { get; init; }
     }
-    [System.Serializable]
     public sealed class JobKey : Quartz.Key<Quartz.JobKey>
     {
         public JobKey(string name) { }
         public JobKey(string name, string group) { }
     }
-    [System.Serializable]
     public class JobPersistenceException : Quartz.SchedulerException
     {
         public JobPersistenceException(string message) { }
-        protected JobPersistenceException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
         public JobPersistenceException(string message, System.Exception? innerException) { }
     }
     public sealed class JobQuery : Quartz.PagedQuery, System.IEquatable<Quartz.JobQuery>
@@ -690,7 +686,6 @@ namespace Quartz
         public Quartz.Matchers.GroupMatcher<Quartz.JobKey>? Group { get; init; }
         public Quartz.Matchers.NameMatcher<Quartz.JobKey>? Name { get; init; }
     }
-    [System.Serializable]
     public sealed class JobType
     {
         public JobType(System.Type type) { }
@@ -707,13 +702,11 @@ namespace Quartz
     {
         public static Quartz.IPersistentStoreBuilder UseSystemTextJsonSerializer(this Quartz.IPersistentStoreBuilder builder, System.Action<Quartz.SystemTextJsonSerializerOptions>? configure = null) { }
     }
-    [System.Serializable]
     public sealed class JsonSerializationException : Quartz.SchedulerException
     {
         public JsonSerializationException(string message) { }
         public JsonSerializationException(string message, System.Exception? innerException) { }
     }
-    [System.Serializable]
     public class Key<T> : System.IComparable<Quartz.Key<T>>
     {
         public const string DefaultGroup = "DEFAULT";
@@ -766,7 +759,6 @@ namespace Quartz
             public const int RescheduleNowWithRemainingRepeatCount = 3;
         }
     }
-    [System.Serializable]
     public sealed class ObjectAlreadyExistsException : Quartz.JobPersistenceException
     {
         public ObjectAlreadyExistsException(Quartz.IJobDetail offendingJob) { }
@@ -939,11 +931,9 @@ namespace Quartz
         FireAndProceed = 1,
         DoNothing = 2,
     }
-    [System.Serializable]
     public sealed class SchedulerConfigException : Quartz.SchedulerException
     {
         public SchedulerConfigException(string message) { }
-        public SchedulerConfigException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
         public SchedulerConfigException(string message, System.Exception? innerException) { }
     }
     public static class SchedulerConstants
@@ -957,7 +947,6 @@ namespace Quartz
         public const string FailedJobOriginalTriggerScheduledFireTime = "QRTZ_FAILED_JOB_ORIG_TRIGGER_SCHEDULED_FIRETIME_AS_STRING";
         public const string ForceJobDataMapDirty = "QRTZ_FORCE_JOB_DATAMAP_DIRTY";
     }
-    [System.Serializable]
     public sealed class SchedulerContext : Quartz.Util.StringKeyDirtyFlagMap
     {
         public SchedulerContext() { }
@@ -968,13 +957,11 @@ namespace Quartz
         public static System.IDisposable EnlistConnection(this Quartz.IScheduler scheduler, System.Data.Common.DbConnection connection, System.Data.Common.DbTransaction? transaction = null) { }
         public static System.IDisposable EnlistTransaction(this Quartz.IScheduler scheduler, System.Data.Common.DbTransaction transaction) { }
     }
-    [System.Serializable]
     public class SchedulerException : System.Exception
     {
         public SchedulerException() { }
         public SchedulerException(System.Exception innerException) { }
         public SchedulerException(string message) { }
-        protected SchedulerException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
         public SchedulerException(string message, System.Exception? innerException) { }
         public override string ToString() { }
     }
@@ -1205,7 +1192,6 @@ namespace Quartz
         public Quartz.TriggerState State { get; init; }
         public string TriggerType { get; init; }
     }
-    [System.Serializable]
     public sealed class TriggerKey : Quartz.Key<Quartz.TriggerKey>
     {
         public TriggerKey(string name) { }
@@ -1236,12 +1222,10 @@ namespace Quartz
         public static System.Collections.Generic.List<System.DateTimeOffset> ComputeFireTimes(Quartz.Extensibility.IOperableTrigger trigger, Quartz.ICalendar? calendar, int numTimes) { }
         public static System.Collections.Generic.List<System.DateTimeOffset> ComputeFireTimesBetween(Quartz.Extensibility.IOperableTrigger trigger, Quartz.ICalendar? calendar, System.DateTimeOffset from, System.DateTimeOffset to) { }
     }
-    [System.Serializable]
     public sealed class UnableToInterruptJobException : Quartz.SchedulerException
     {
         public UnableToInterruptJobException(System.Exception innerException) { }
         public UnableToInterruptJobException(string message) { }
-        public UnableToInterruptJobException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
     }
 }
 namespace Quartz.Configuration
@@ -1966,7 +1950,6 @@ namespace Quartz.Impl.AdoJobStore
         protected override System.Threading.Tasks.ValueTask<Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder> GetLocalTransactionConnection(System.Threading.CancellationToken cancellationToken = default) { }
         public override System.Threading.Tasks.ValueTask Initialize(System.Threading.CancellationToken cancellationToken = default) { }
     }
-    [System.Serializable]
     public sealed class LockException : Quartz.JobPersistenceException
     {
         public LockException(string message) { }
@@ -1994,7 +1977,6 @@ namespace Quartz.Impl.AdoJobStore
         protected override string GetSelectMisfiredTriggersToRecoverSql(int count) { }
         protected override string GetSelectNextTriggerToAcquireSql(int maxCount) { }
     }
-    [System.Serializable]
     public sealed class NoSuchDelegateException : Quartz.JobPersistenceException
     {
         public NoSuchDelegateException(string message) { }
@@ -2665,7 +2647,6 @@ namespace Quartz.Impl
         protected virtual System.Threading.Tasks.ValueTask<System.Net.IPHostEntry> GetHostAddress(System.Threading.CancellationToken cancellationToken = default) { }
         protected System.Threading.Tasks.ValueTask<string> GetHostName(int maxLength, System.Threading.CancellationToken cancellationToken = default) { }
     }
-    [System.Serializable]
     public sealed class JobExecutionContextImpl : Quartz.ICancellableJobExecutionContext, Quartz.IJobExecutionContext, System.IDisposable
     {
         public JobExecutionContextImpl(Quartz.IScheduler scheduler, Quartz.Extensibility.TriggerFiredBundle firedBundle, Quartz.IJob job) { }
@@ -3141,7 +3122,6 @@ namespace Quartz.Listener
 }
 namespace Quartz.Matchers
 {
-    [System.Serializable]
     public sealed class AndMatcher<TKey> : Quartz.IMatcher<TKey>
         where TKey : Quartz.Key<TKey>
     {
@@ -3162,7 +3142,6 @@ namespace Quartz.Matchers
         public static Quartz.Matchers.EverythingMatcher<Quartz.JobKey> AllJobs() { }
         public static Quartz.Matchers.EverythingMatcher<Quartz.TriggerKey> AllTriggers() { }
     }
-    [System.Serializable]
     public sealed class GroupMatcher<TKey> : Quartz.Matchers.StringMatcher<TKey>
         where TKey : Quartz.Key<TKey>
     {
@@ -3173,7 +3152,6 @@ namespace Quartz.Matchers
         public static Quartz.Matchers.GroupMatcher<TKey> GroupEquals(string compareTo) { }
         public static Quartz.Matchers.GroupMatcher<TKey> GroupStartsWith(string compareTo) { }
     }
-    [System.Serializable]
     public sealed class KeyMatcher<TKey> : Quartz.IMatcher<TKey>
         where TKey : Quartz.Key<TKey>
     {
@@ -3184,7 +3162,6 @@ namespace Quartz.Matchers
         public static Quartz.Matchers.KeyMatcher<T> KeyEquals<T>(T compareTo)
             where T : Quartz.Key<T> { }
     }
-    [System.Serializable]
     public sealed class NameMatcher<TKey> : Quartz.Matchers.StringMatcher<TKey>
         where TKey : Quartz.Key<TKey>
     {
@@ -3195,7 +3172,6 @@ namespace Quartz.Matchers
         public static Quartz.Matchers.NameMatcher<TKey> NameEquals(string compareTo) { }
         public static Quartz.Matchers.NameMatcher<TKey> NameStartsWith(string compareTo) { }
     }
-    [System.Serializable]
     public sealed class NotMatcher<TKey> : Quartz.IMatcher<TKey>
         where TKey : Quartz.Key<TKey>
     {
@@ -3206,7 +3182,6 @@ namespace Quartz.Matchers
         public static Quartz.Matchers.NotMatcher<T> Not<T>(Quartz.IMatcher<T> operand)
             where T : Quartz.Key<T> { }
     }
-    [System.Serializable]
     public sealed class OrMatcher<TKey> : Quartz.IMatcher<TKey>
         where TKey : Quartz.Key<TKey>
     {
@@ -3218,7 +3193,6 @@ namespace Quartz.Matchers
         public static Quartz.Matchers.OrMatcher<T> Or<T>(Quartz.IMatcher<T> leftOperand, Quartz.IMatcher<T> rightOperand)
             where T : Quartz.Key<T> { }
     }
-    [System.Serializable]
     public abstract class StringMatcher<TKey> : Quartz.IMatcher<TKey>
         where TKey : Quartz.Key<TKey>
     {
@@ -3231,7 +3205,6 @@ namespace Quartz.Matchers
         public bool IsMatch(TKey key) { }
         public override string ToString() { }
     }
-    [System.Serializable]
     public abstract class StringOperator : System.IEquatable<Quartz.Matchers.StringOperator>
     {
         public static readonly Quartz.Matchers.StringOperator Anything;
@@ -3588,7 +3561,6 @@ namespace Quartz.Xml.JobSchedulingData20
 }
 namespace Quartz.Xml
 {
-    [System.Serializable]
     public sealed class ValidationException : System.Exception
     {
         public ValidationException() { }

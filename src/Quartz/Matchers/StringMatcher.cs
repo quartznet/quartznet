@@ -28,7 +28,6 @@ namespace Quartz.Matchers;
 /// </summary>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-[Serializable]
 public abstract class StringMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
 {
     protected StringMatcher(string compareTo, StringOperator compareWith)

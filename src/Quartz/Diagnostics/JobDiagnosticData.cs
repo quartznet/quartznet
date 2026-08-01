@@ -1,6 +1,5 @@
 namespace Quartz.Diagnostics;
 
-[Serializable]
 internal sealed class JobDiagnosticData : IJobDiagnosticData
 {
     public JobDiagnosticData(IJobExecutionContext context)

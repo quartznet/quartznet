@@ -460,7 +460,6 @@ internal sealed class JobRunShell
         }
     }
 
-    [Serializable]
     internal sealed class VetoedException : Exception
     {
         public VetoedException(JobRunShell shell)

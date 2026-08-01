@@ -89,7 +89,6 @@ internal sealed class JobTypeInformation
 /// <seealso cref="ITrigger"/>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-[Serializable]
 internal sealed class JobDetailImpl : IJobDetail
 {
     private string name = null!;
@@ -100,7 +99,7 @@ internal sealed class JobDetailImpl : IJobDetail
     private bool? disallowConcurrentExecution;
     private bool? persistJobDataAfterExecution;
 
-    [NonSerialized] // we have the key in string fields
+    // built on demand from the name and group fields, which are the authoritative pair
     private JobKey key = null!;
 
     /// <summary>

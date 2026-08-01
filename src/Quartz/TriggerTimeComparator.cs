@@ -7,7 +7,6 @@ namespace Quartz;
 /// value first), if the priorities are the same, then they are sorted
 /// by key.
 /// </summary>
-[Serializable]
 internal sealed class TriggerTimeComparator : IComparer<ITrigger>
 {
     public int Compare(ITrigger? trig1, ITrigger? trig2)

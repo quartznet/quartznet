@@ -151,6 +151,98 @@ public class LegacyJsonPayloadTest
         }
         """;
 
+    private const string LegacyJobDataMap =
+        """
+        {
+          "environment": "staging",
+          "retryCount": 3,
+          "threshold": 2.5,
+          "enabled": true,
+          "lastRunNote": null
+        }
+        """;
+
+    private const string LegacySimpleTrigger =
+        """
+        {
+          "TriggerType": "SimpleTrigger",
+          "Key": {
+            "Name": "SimpleTriggerKey",
+            "Group": "SimpleTriggerGroup"
+          },
+          "JobKey": {
+            "Name": "SimpleJob",
+            "Group": "SimpleJobGroup"
+          },
+          "Description": "SimpleTrigger description",
+          "CalendarName": "HolidayCalendar",
+          "JobDataMap": {
+            "environment": "staging",
+            "retryCount": 3,
+            "enabled": true
+          },
+          "MisfireInstruction": 1,
+          "StartTimeUtc": "2024-07-01T00:00:00.5+00:00",
+          "EndTimeUtc": "2024-07-02T00:00:01+00:00",
+          "Priority": 5,
+          "NextFireTimeUtc": "2024-07-01T03:32:06+00:00",
+          "PreviousFireTimeUtc": "2024-07-01T03:31:24+00:00",
+          "RepeatCount": 10,
+          "RepeatIntervalTimeSpan": "00:00:42",
+          "TimesTriggered": 3
+        }
+        """;
+
+    private const string LegacyCronTrigger =
+        """
+        {
+          "TriggerType": "CronTrigger",
+          "Key": {
+            "Name": "CronTriggerKey",
+            "Group": "CronTriggerGroup"
+          },
+          "JobKey": null,
+          "Description": "CronTrigger description",
+          "CalendarName": null,
+          "JobDataMap": {},
+          "MisfireInstruction": 2,
+          "StartTimeUtc": "2024-07-01T00:00:00+00:00",
+          "EndTimeUtc": null,
+          "Priority": 7,
+          "NextFireTimeUtc": "2024-07-01T03:35:00+00:00",
+          "PreviousFireTimeUtc": null,
+          "CronExpressionString": "0 0/5 * * * ?",
+          "TimeZone": "UTC"
+        }
+        """;
+
+    private const string LegacyCalendarIntervalTrigger =
+        """
+        {
+          "TriggerType": "CalendarIntervalTrigger",
+          "Key": {
+            "Name": "CalendarIntervalTriggerKey",
+            "Group": "CalendarIntervalTriggerGroup"
+          },
+          "JobKey": null,
+          "Description": "CalendarIntervalTrigger description",
+          "CalendarName": null,
+          "JobDataMap": {},
+          "MisfireInstruction": 0,
+          "StartTimeUtc": "2024-07-01T00:00:00+00:00",
+          "EndTimeUtc": null,
+          "Priority": 5,
+          "NextFireTimeUtc": "2024-09-01T00:00:00+00:00",
+          "PreviousFireTimeUtc": "2024-07-01T00:00:00+00:00",
+          "RepeatInterval": 2,
+          "RepeatIntervalUnit": "Month",
+          "TimeZone": "UTC",
+          "PreserveHourOfDayAcrossDaylightSavings": true,
+          "SkipDayIfHourDoesNotExist": false,
+          "TimesTriggered": 6
+        }
+        """;
+
     private const string LegacyDailyTimeIntervalTrigger =
         """
         {
@@ -248,6 +340,66 @@ public class LegacyJsonPayloadTest
         var calendar = Deserialize<CronCalendar>(LegacyCronCalendar);
 
         calendar.CronExpression.CronExpressionString.Should().Be("0/5 * * * * ?");
+    }
+
+    [Test]
+    public void JobDataMapStillReadsTheBlobTheJobDataColumnHolds()
+    {
+        var map = Deserialize<JobDataMap>(LegacyJobDataMap);
+
+        map.GetString("environment").Should().Be("staging");
+        map.GetInt("retryCount").Should().Be(3);
+        map.GetDouble("threshold").Should().Be(2.5);
+        map.GetBoolean("enabled").Should().BeTrue();
+        map["lastRunNote"].Should().BeNull();
+        map.Dirty.Should().BeFalse("a map loaded from the store has not been modified since it was written");
+    }
+
+    [Test]
+    public void SimpleTriggerStillReadsItsUnchangedPayload()
+    {
+        var trigger = Deserialize<IOperableTrigger>(LegacySimpleTrigger);
+
+        var simple = trigger.Should().BeOfType<SimpleTriggerImpl>().Subject;
+        simple.Key.Should().Be(new TriggerKey("SimpleTriggerKey", "SimpleTriggerGroup"));
+        simple.JobKey.Should().Be(new JobKey("SimpleJob", "SimpleJobGroup"));
+        simple.CalendarName.Should().Be("HolidayCalendar");
+        simple.RepeatCount.Should().Be(10);
+        simple.RepeatInterval.Should().Be(TimeSpan.FromSeconds(42));
+        simple.TimesTriggered.Should().Be(3);
+        simple.MisfireInstruction.Should().Be(MisfireInstruction.SimpleTrigger.FireNow);
+        simple.NextFireTimeUtc.Should().Be(new DateTimeOffset(2024, 7, 1, 3, 32, 6, TimeSpan.Zero));
+
+        simple.JobDataMap.GetString("environment").Should().Be("staging");
+        simple.JobDataMap.GetInt("retryCount").Should().Be(3);
+        simple.JobDataMap.GetBoolean("enabled").Should().BeTrue();
+    }
+
+    [Test]
+    public void CronTriggerStillReadsItsUnchangedPayload()
+    {
+        var trigger = Deserialize<IOperableTrigger>(LegacyCronTrigger);
+
+        var cron = trigger.Should().BeOfType<CronTriggerImpl>().Subject;
+        cron.Key.Should().Be(new TriggerKey("CronTriggerKey", "CronTriggerGroup"));
+        cron.CronExpressionString.Should().Be("0 0/5 * * * ?");
+        cron.TimeZone.Should().Be(TimeZoneInfo.Utc);
+        cron.Priority.Should().Be(7);
+        cron.MisfireInstruction.Should().Be(MisfireInstruction.CronTrigger.DoNothing);
+        cron.EndTimeUtc.Should().BeNull();
+    }
+
+    [Test]
+    public void CalendarIntervalTriggerStillReadsItsUnchangedPayload()
+    {
+        var trigger = Deserialize<IOperableTrigger>(LegacyCalendarIntervalTrigger);
+
+        var calendarInterval = trigger.Should().BeOfType<CalendarIntervalTriggerImpl>().Subject;
+        calendarInterval.RepeatInterval.Should().Be(2);
+        calendarInterval.RepeatIntervalUnit.Should().Be(IntervalUnit.Month);
+        calendarInterval.PreserveHourOfDayAcrossDaylightSavings.Should().BeTrue();
+        calendarInterval.SkipDayIfHourDoesNotExist.Should().BeFalse();
+        calendarInterval.TimesTriggered.Should().Be(6);
     }
 
     [Test]

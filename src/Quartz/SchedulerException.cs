@@ -1,5 +1,3 @@
-#pragma warning disable SYSLIB0051 // 'Exception.Exception(SerializationInfo, StreamingContext)' is obsolete
-
 #region License
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -19,8 +17,6 @@
  */
 #endregion
 
-using System.Runtime.Serialization;
-
 namespace Quartz;
 
 /// <summary>
@@ -32,7 +28,6 @@ namespace Quartz;
 /// </remarks>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-[Serializable]
 public class SchedulerException : Exception
 {
     /// <summary>
@@ -46,17 +41,6 @@ public class SchedulerException : Exception
     /// Initializes a new instance of the <see cref="SchedulerException"/> class.
     /// </summary>
     public SchedulerException(string message) : base(message)
-    {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="SchedulerException"/> class.
-    /// </summary>
-    /// <param name="info">The <see cref="SerializationInfo"></see> that holds the serialized object data about the exception being thrown.</param>
-    /// <param name="context">The <see cref="System.Runtime.Serialization.StreamingContext"></see> that contains contextual information about the source or destination.</param>
-    /// <exception cref="System.Runtime.Serialization.SerializationException">The class name is null or <see cref="System.Exception.HResult"></see> is zero (0). </exception>
-    /// <exception cref="System.ArgumentNullException">The info parameter is null. </exception>
-    protected SchedulerException(SerializationInfo info, StreamingContext context) : base(info, context)
     {
     }
 
