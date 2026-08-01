@@ -33,11 +33,17 @@ namespace Quartz.Job;
 /// </summary>
 /// <remarks>
 /// <example>
-///     JobDetail job = new JobDetail("dumbJob", null, typeof(Quartz.Jobs.NativeJob));
-///     job.JobDataMap[Quartz.Jobs.NativeJob.PropertyCommand] = "echo \"hi\" >> foobar.txt";
-///     Trigger trigger = TriggerUtils.MakeSecondlyTrigger(5);
-///     trigger.Name = "dumbTrigger";
-///     scheduler.ScheduleJob(job, trigger);
+///     IJobDetail job = JobBuilder.Create&lt;NativeJob&gt;()
+///         .WithIdentity("dumbJob")
+///         .UsingJobData(NativeJob.PropertyCommand, "echo \"hi\" >> foobar.txt")
+///         .Build();
+///
+///     ITrigger trigger = TriggerBuilder.Create()
+///         .WithIdentity("dumbTrigger")
+///         .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(5)).RepeatForever())
+///         .Build();
+///
+///     await scheduler.ScheduleJob(job, trigger);
 /// </example>
 /// If PropertyWaitForProcess is true, then the integer exit value of the process
 /// will be saved as the job execution result in the JobExecutionContext.

@@ -6,7 +6,7 @@ namespace Quartz.Serialization.Json.Triggers;
 
 public sealed class RecurrenceTriggerSerializer : TriggerSerializer<RecurrenceTriggerImpl>
 {
-    public override string TriggerTypeForJson => "RecurrenceTrigger";
+    public override string TriggerTypeName => "RecurrenceTrigger";
 
     public override IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement, JsonSerializerOptions options)
     {

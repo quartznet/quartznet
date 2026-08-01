@@ -718,7 +718,7 @@ internal sealed class CustomTrigger : CronTriggerImpl
 
 internal sealed class CustomNewtonsoftTriggerSerializer : CronTriggerSerializer
 {
-    public override string TriggerTypeForJson => "CustomTrigger";
+    public override string TriggerTypeName => "CustomTrigger";
 
     public override IScheduleBuilder CreateScheduleBuilder(JObject source)
     {
@@ -751,7 +751,7 @@ internal sealed class CustomNewtonsoftTriggerSerializer : CronTriggerSerializer
 
 internal sealed class CustomSystemTextJsonTriggerSerializer : Serialization.Json.Triggers.CronTriggerSerializer
 {
-    public override string TriggerTypeForJson => "CustomTrigger";
+    public override string TriggerTypeName => "CustomTrigger";
 
     public override IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement, JsonSerializerOptions options)
     {

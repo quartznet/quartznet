@@ -5,7 +5,7 @@ namespace Quartz.Serialization.Newtonsoft.Triggers;
 
 public interface ITriggerSerializer
 {
-    string TriggerTypeForJson { get; }
+    string TriggerTypeName { get; }
 
     IScheduleBuilder CreateScheduleBuilder(JObject source);
 
@@ -16,7 +16,7 @@ public interface ITriggerSerializer
 
 public abstract class TriggerSerializer<TTrigger> : ITriggerSerializer where TTrigger : ITrigger
 {
-    public abstract string TriggerTypeForJson { get; }
+    public abstract string TriggerTypeName { get; }
 
     public abstract IScheduleBuilder CreateScheduleBuilder(JObject source);
 

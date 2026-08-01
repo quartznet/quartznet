@@ -7,7 +7,7 @@ namespace Quartz.Serialization.Newtonsoft.Triggers;
 
 public class CronTriggerSerializer : TriggerSerializer<ICronTrigger>
 {
-    public override string TriggerTypeForJson => "CronTrigger";
+    public override string TriggerTypeName => "CronTrigger";
 
     public override IScheduleBuilder CreateScheduleBuilder(JObject source)
     {

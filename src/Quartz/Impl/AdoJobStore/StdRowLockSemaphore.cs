@@ -33,7 +33,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// in order to protect resources from being altered by multiple threads at the
 /// same time.
 /// </summary>
-public class StdRowLockSemaphore : DBSemaphore
+public class StdRowLockSemaphore : DbSemaphore
 {
     /// <summary>
     /// The statement that takes the lock by selecting its row for update.

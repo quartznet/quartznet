@@ -67,7 +67,7 @@ namespace Quartz.Serialization.Newtonsoft.Triggers
     public class CalendarIntervalTriggerSerializer : Quartz.Serialization.Newtonsoft.Triggers.TriggerSerializer<Quartz.Impl.Triggers.CalendarIntervalTriggerImpl>
     {
         public CalendarIntervalTriggerSerializer() { }
-        public override string TriggerTypeForJson { get; }
+        public override string TriggerTypeName { get; }
         public override Quartz.IScheduleBuilder CreateScheduleBuilder(Newtonsoft.Json.Linq.JObject source) { }
         protected override void DeserializeFields(Quartz.Impl.Triggers.CalendarIntervalTriggerImpl trigger, Newtonsoft.Json.Linq.JObject source) { }
         protected override void SerializeFields(Newtonsoft.Json.JsonWriter writer, Quartz.Impl.Triggers.CalendarIntervalTriggerImpl trigger) { }
@@ -75,21 +75,21 @@ namespace Quartz.Serialization.Newtonsoft.Triggers
     public class CronTriggerSerializer : Quartz.Serialization.Newtonsoft.Triggers.TriggerSerializer<Quartz.ICronTrigger>
     {
         public CronTriggerSerializer() { }
-        public override string TriggerTypeForJson { get; }
+        public override string TriggerTypeName { get; }
         public override Quartz.IScheduleBuilder CreateScheduleBuilder(Newtonsoft.Json.Linq.JObject source) { }
         protected override void SerializeFields(Newtonsoft.Json.JsonWriter writer, Quartz.ICronTrigger trigger) { }
     }
     public class DailyTimeIntervalTriggerSerializer : Quartz.Serialization.Newtonsoft.Triggers.TriggerSerializer<Quartz.Impl.Triggers.DailyTimeIntervalTriggerImpl>
     {
         public DailyTimeIntervalTriggerSerializer() { }
-        public override string TriggerTypeForJson { get; }
+        public override string TriggerTypeName { get; }
         public override Quartz.IScheduleBuilder CreateScheduleBuilder(Newtonsoft.Json.Linq.JObject source) { }
         protected override void DeserializeFields(Quartz.Impl.Triggers.DailyTimeIntervalTriggerImpl trigger, Newtonsoft.Json.Linq.JObject source) { }
         protected override void SerializeFields(Newtonsoft.Json.JsonWriter writer, Quartz.Impl.Triggers.DailyTimeIntervalTriggerImpl trigger) { }
     }
     public interface ITriggerSerializer
     {
-        string TriggerTypeForJson { get; }
+        string TriggerTypeName { get; }
         Quartz.IScheduleBuilder CreateScheduleBuilder(Newtonsoft.Json.Linq.JObject source);
         void DeserializeFields(Quartz.ITrigger trigger, Newtonsoft.Json.Linq.JObject source);
         void SerializeFields(Newtonsoft.Json.JsonWriter writer, Quartz.ITrigger trigger);
@@ -97,7 +97,7 @@ namespace Quartz.Serialization.Newtonsoft.Triggers
     public sealed class RecurrenceTriggerSerializer : Quartz.Serialization.Newtonsoft.Triggers.TriggerSerializer<Quartz.Impl.Triggers.RecurrenceTriggerImpl>
     {
         public RecurrenceTriggerSerializer() { }
-        public override string TriggerTypeForJson { get; }
+        public override string TriggerTypeName { get; }
         public override Quartz.IScheduleBuilder CreateScheduleBuilder(Newtonsoft.Json.Linq.JObject source) { }
         protected override void DeserializeFields(Quartz.Impl.Triggers.RecurrenceTriggerImpl trigger, Newtonsoft.Json.Linq.JObject source) { }
         protected override void SerializeFields(Newtonsoft.Json.JsonWriter writer, Quartz.Impl.Triggers.RecurrenceTriggerImpl trigger) { }
@@ -105,7 +105,7 @@ namespace Quartz.Serialization.Newtonsoft.Triggers
     public class SimpleTriggerSerializer : Quartz.Serialization.Newtonsoft.Triggers.TriggerSerializer<Quartz.Impl.Triggers.SimpleTriggerImpl>
     {
         public SimpleTriggerSerializer() { }
-        public override string TriggerTypeForJson { get; }
+        public override string TriggerTypeName { get; }
         public override Quartz.IScheduleBuilder CreateScheduleBuilder(Newtonsoft.Json.Linq.JObject source) { }
         protected override void DeserializeFields(Quartz.Impl.Triggers.SimpleTriggerImpl trigger, Newtonsoft.Json.Linq.JObject source) { }
         protected override void SerializeFields(Newtonsoft.Json.JsonWriter writer, Quartz.Impl.Triggers.SimpleTriggerImpl trigger) { }
@@ -114,7 +114,7 @@ namespace Quartz.Serialization.Newtonsoft.Triggers
         where TTrigger : Quartz.ITrigger
     {
         protected TriggerSerializer() { }
-        public abstract string TriggerTypeForJson { get; }
+        public abstract string TriggerTypeName { get; }
         public abstract Quartz.IScheduleBuilder CreateScheduleBuilder(Newtonsoft.Json.Linq.JObject source);
         protected virtual void DeserializeFields(TTrigger trigger, Newtonsoft.Json.Linq.JObject source) { }
         protected abstract void SerializeFields(Newtonsoft.Json.JsonWriter writer, TTrigger trigger);

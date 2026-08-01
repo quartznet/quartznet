@@ -5,14 +5,14 @@
 /// </summary>
 public sealed class TriggerPropertyBundle
 {
-    public TriggerPropertyBundle(IScheduleBuilder sb)
-        : this(sb, [], [])
+    public TriggerPropertyBundle(IScheduleBuilder scheduleBuilder)
+        : this(scheduleBuilder, [], [])
     {
     }
 
-    public TriggerPropertyBundle(IScheduleBuilder sb, string[]? statePropertyNames, object[]? statePropertyValues)
+    public TriggerPropertyBundle(IScheduleBuilder scheduleBuilder, string[]? statePropertyNames, object[]? statePropertyValues)
     {
-        ScheduleBuilder = sb;
+        ScheduleBuilder = scheduleBuilder;
         StatePropertyNames = statePropertyNames ?? [];
         StatePropertyValues = statePropertyValues ?? [];
 

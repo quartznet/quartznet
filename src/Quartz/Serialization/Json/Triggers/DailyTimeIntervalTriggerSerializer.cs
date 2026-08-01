@@ -6,7 +6,7 @@ namespace Quartz.Serialization.Json.Triggers;
 
 public class DailyTimeIntervalTriggerSerializer : TriggerSerializer<DailyTimeIntervalTriggerImpl>
 {
-    public override string TriggerTypeForJson => "DailyTimeIntervalTrigger";
+    public override string TriggerTypeName => "DailyTimeIntervalTrigger";
 
     public override IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement, JsonSerializerOptions options)
     {

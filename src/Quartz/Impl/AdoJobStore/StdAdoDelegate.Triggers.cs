@@ -94,12 +94,12 @@ public partial class StdAdoDelegate
     public virtual async ValueTask<int> CountMisfiredTriggersInState(
         ConnectionAndTransactionHolder conn,
         StoredTriggerState state,
-        DateTimeOffset ts,
+        DateTimeOffset misfireTime,
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(GetCountMisfiredTriggersInStateSql()));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
-        AddCommandParameter(cmd, "nextFireTime", GetDbDateTimeValue(ts));
+        AddCommandParameter(cmd, "nextFireTime", GetDbDateTimeValue(misfireTime));
         AddCommandParameter(cmd, "state", state.ToStoredValue());
 
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
@@ -1347,20 +1347,20 @@ public partial class StdAdoDelegate
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public virtual void AddTriggerPersistenceDelegate(ITriggerPersistenceDelegate del)
+    public virtual void AddTriggerPersistenceDelegate(ITriggerPersistenceDelegate persistenceDelegate)
     {
-        logger.LogDebug("Adding TriggerPersistenceDelegate of type: {Type}", del.GetType());
-        del.Initialize(tablePrefix, schedulerName, this);
-        triggerPersistenceDelegates.Add(del);
+        logger.LogDebug("Adding TriggerPersistenceDelegate of type: {Type}", persistenceDelegate.GetType());
+        persistenceDelegate.Initialize(tablePrefix, schedulerName, this);
+        triggerPersistenceDelegates.Add(persistenceDelegate);
     }
 
     protected virtual ITriggerPersistenceDelegate? FindTriggerPersistenceDelegate(IOperableTrigger trigger)
     {
-        foreach (var del in triggerPersistenceDelegates)
+        foreach (var persistenceDelegate in triggerPersistenceDelegates)
         {
-            if (del.CanHandleTriggerType(trigger))
+            if (persistenceDelegate.CanHandleTriggerType(trigger))
             {
-                return del;
+                return persistenceDelegate;
             }
         }
 
@@ -1369,11 +1369,11 @@ public partial class StdAdoDelegate
 
     protected virtual ITriggerPersistenceDelegate? FindTriggerPersistenceDelegate(string discriminator)
     {
-        foreach (var del in triggerPersistenceDelegates)
+        foreach (var persistenceDelegate in triggerPersistenceDelegates)
         {
-            if (del.GetHandledTriggerTypeDiscriminator() == discriminator)
+            if (persistenceDelegate.GetHandledTriggerTypeDiscriminator() == discriminator)
             {
-                return del;
+                return persistenceDelegate;
             }
         }
 
@@ -1400,7 +1400,7 @@ public partial class StdAdoDelegate
     }
 
     /// <inheritdoc />
-    public virtual async ValueTask<int> SelectNumTriggersForJob(
+    public virtual async ValueTask<int> CountTriggersForJob(
         ConnectionAndTransactionHolder conn,
         JobKey jobKey,
         CancellationToken cancellationToken = default)
@@ -1532,7 +1532,7 @@ public partial class StdAdoDelegate
     public virtual async ValueTask<MisfiredTriggerBatch> SelectMisfiredTriggersToRecover(
         ConnectionAndTransactionHolder conn,
         StoredTriggerState state,
-        DateTimeOffset ts,
+        DateTimeOffset misfireTime,
         int count,
         CancellationToken cancellationToken = default)
     {
@@ -1546,7 +1546,7 @@ public partial class StdAdoDelegate
         using (var cmd = PrepareCommand(conn, sql))
         {
             AddCommandParameter(cmd, "schedulerName", schedulerName);
-            AddCommandParameter(cmd, "nextFireTime", GetDbDateTimeValue(ts));
+            AddCommandParameter(cmd, "nextFireTime", GetDbDateTimeValue(misfireTime));
             AddCommandParameter(cmd, "state", state.ToStoredValue());
 
             using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);

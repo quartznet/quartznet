@@ -46,9 +46,9 @@ public sealed class StandaloneSchedulerFactory : ISchedulerFactory, IDisposable,
     }
 
     /// <inheritdoc />
-    public ValueTask<IScheduler?> GetScheduler(string schedulerName, CancellationToken cancellationToken = default)
+    public ValueTask<IScheduler?> LookupScheduler(string schedulerName, CancellationToken cancellationToken = default)
     {
-        return inner.GetScheduler(schedulerName, cancellationToken);
+        return inner.LookupScheduler(schedulerName, cancellationToken);
     }
 
     /// <summary>

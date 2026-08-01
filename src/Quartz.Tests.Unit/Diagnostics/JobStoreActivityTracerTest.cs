@@ -36,7 +36,7 @@ public sealed class JobStoreActivityTracerTest : IDisposable
     {
         activityListener = new ActivityListener
         {
-            ShouldListenTo = source => source.Name == ActivityOptions.DefaultListenerName,
+            ShouldListenTo = source => source.Name == ActivityTags.DefaultListenerName,
             Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
             ActivityStarted = activity => startedActivities.Add(activity),
             ActivityStopped = activity => stoppedActivities.Add(activity),
@@ -65,7 +65,7 @@ public sealed class JobStoreActivityTracerTest : IDisposable
         int result = await tracer.Trace(
             OperationName.JobStore.AcquireNextTriggers,
             () => new ValueTask<int>(42),
-            activity => activity.SetTag(ActivityOptions.BatchSize, 10));
+            activity => activity.SetTag(ActivityTags.BatchSize, 10));
 
         result.Should().Be(42);
 
@@ -89,8 +89,8 @@ public sealed class JobStoreActivityTracerTest : IDisposable
             });
 
         capturedActivity.Should().NotBeNull();
-        capturedActivity.GetTagItem(ActivityOptions.SchedulerName).Should().Be("MyScheduler");
-        capturedActivity.GetTagItem(ActivityOptions.SchedulerId).Should().Be("sched-42");
+        capturedActivity.GetTagItem(ActivityTags.SchedulerName).Should().Be("MyScheduler");
+        capturedActivity.GetTagItem(ActivityTags.SchedulerId).Should().Be("sched-42");
     }
 
     [Test]
@@ -107,10 +107,10 @@ public sealed class JobStoreActivityTracerTest : IDisposable
                 capturedActivity = Activity.Current;
                 return new ValueTask<bool>(true);
             },
-            activity => activity.SetTag(ActivityOptions.TriggerCount, 5));
+            activity => activity.SetTag(ActivityTags.TriggerCount, 5));
 
         capturedActivity.Should().NotBeNull();
-        capturedActivity.GetTagItem(ActivityOptions.TriggerCount).Should().Be(5);
+        capturedActivity.GetTagItem(ActivityTags.TriggerCount).Should().Be(5);
     }
 
     [Test]

@@ -1,4 +1,4 @@
-using System.Collections.Specialized;
+﻿using System.Collections.Specialized;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -72,9 +72,9 @@ public sealed class SchedulerRepositoryIsolationTest
                 .Which.Should().BeSameAs(propertiesScheduler,
                     "a standalone builder reports the schedulers of its own container, not every scheduler in the process");
 
-            (await containerFactory.GetScheduler("PropertiesScheduler")).Should().BeNull(
+            (await containerFactory.LookupScheduler("PropertiesScheduler")).Should().BeNull(
                 "a scheduler built by a standalone builder is no longer reachable from an AddQuartz container");
-            (await propertiesFactory.GetScheduler("ContainerScheduler")).Should().BeNull(
+            (await propertiesFactory.LookupScheduler("ContainerScheduler")).Should().BeNull(
                 "and the other way round");
         }
         finally

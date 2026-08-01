@@ -85,7 +85,7 @@ internal sealed class TriggerConverter(SystemTextJsonSerializerRegistry registry
             var type = value.GetType().AssemblyQualifiedNameWithoutVersion();
             var triggerSerializer = registry.GetTriggerSerializer(type);
 
-            writer.WriteString(options.GetPropertyName("TriggerType"), triggerSerializer.TriggerTypeForJson);
+            writer.WriteString(options.GetPropertyName("TriggerType"), triggerSerializer.TriggerTypeName);
 
             writer.WriteKey(options.GetPropertyName("Key"), value.Key, options);
             writer.WriteKey(options.GetPropertyName("JobKey"), value.JobKey, options);

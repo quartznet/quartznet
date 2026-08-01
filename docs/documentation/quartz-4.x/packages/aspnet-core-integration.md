@@ -20,8 +20,13 @@ Install-Package Quartz.AspNetCore
 
 ## Using
 
-You can add Quartz configuration by invoking an extension method `AddQuartzServer` on `IServiceCollection`.
-This will add a hosted Quartz server into ASP.NET Core process that will be started and stopped based on applications lifetime.
+You can host the scheduler by invoking `AddQuartzHostedService` on `IServiceCollection`.
+This adds a hosted Quartz server into the ASP.NET Core process that is started and stopped based on the application's lifetime.
+
+::: tip
+`AddQuartzHostedService` lives in the core `Quartz` package. Quartz 3's `AddQuartzServer`, which registered the
+hosted service and a health check together, is gone — call `AddQuartzHealthChecks` for the health check.
+:::
 
 ::: tip
 See [Quartz documentation](microsoft-di-integration) to learn more about configuring Quartz scheduler, jobs and triggers.
@@ -38,7 +43,7 @@ public void ConfigureServices(IServiceCollection services)
     });
 
     // ASP.NET Core hosting
-    services.AddQuartzServer(options =>
+    services.AddQuartzHostedService(options =>
     {
         // when shutting down we want jobs to complete gracefully
         options.WaitForJobsToComplete = true;
@@ -112,8 +117,7 @@ tags so the check can be filtered into separate liveness and readiness probes:
 services.AddQuartzHealthChecks(options =>
 {
     options.Name = "quartz-scheduler";   // defaults to "quartz-scheduler"
-    options.Tags.Add("ready");
-    options.Tags.Add("live");
+    options.Tags = ["ready", "live"];
     options.FailureStatus = HealthStatus.Unhealthy;
 });
 ```

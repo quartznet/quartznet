@@ -9,7 +9,7 @@ namespace Quartz.Serialization.Newtonsoft.Triggers;
 
 public class DailyTimeIntervalTriggerSerializer : TriggerSerializer<DailyTimeIntervalTriggerImpl>
 {
-    public override string TriggerTypeForJson => "DailyTimeIntervalTrigger";
+    public override string TriggerTypeName => "DailyTimeIntervalTrigger";
 
     public override IScheduleBuilder CreateScheduleBuilder(JObject source)
     {

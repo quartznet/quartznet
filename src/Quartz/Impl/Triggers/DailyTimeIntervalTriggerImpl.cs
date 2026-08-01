@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -127,20 +127,20 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
     /// repeat at the given interval.
     /// </summary>
     /// <param name="name"></param>
-    /// <param name="startTimeOfDayUtc">The <see cref="TimeOnly" /> that the repeating should begin occurring.</param>
-    /// <param name="endTimeOfDayUtc">The <see cref="TimeOnly" /> that the repeating should stop occurring.</param>
+    /// <param name="startTimeOfDay">The <see cref="TimeOnly" /> that the repeating should begin occurring.</param>
+    /// <param name="endTimeOfDay">The <see cref="TimeOnly" /> that the repeating should stop occurring.</param>
     /// <param name="intervalUnit">The repeat interval unit. The only intervals that are valid for this type of trigger are <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
     /// <param name="repeatInterval"></param>
     /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
     public DailyTimeIntervalTriggerImpl(
         string name,
-        TimeOnly startTimeOfDayUtc,
-        TimeOnly endTimeOfDayUtc,
+        TimeOnly startTimeOfDay,
+        TimeOnly endTimeOfDay,
         IntervalUnit intervalUnit,
         int repeatInterval,
         TimeProvider? timeProvider = null)
-        : this(name, SchedulerConstants.DefaultGroup, startTimeOfDayUtc, endTimeOfDayUtc, intervalUnit, repeatInterval, timeProvider)
+        : this(name, SchedulerConstants.DefaultGroup, startTimeOfDay, endTimeOfDay, intervalUnit, repeatInterval, timeProvider)
     {
     }
 
@@ -150,8 +150,8 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
     /// </summary>
     /// <param name="name"></param>
     /// <param name="group"></param>
-    /// <param name="startTimeOfDayUtc">The <see cref="TimeOnly" /> that the repeating should begin occurring.</param>
-    /// <param name="endTimeOfDayUtc">The <see cref="TimeOnly" /> that the repeating should stop occurring.</param>
+    /// <param name="startTimeOfDay">The <see cref="TimeOnly" /> that the repeating should begin occurring.</param>
+    /// <param name="endTimeOfDay">The <see cref="TimeOnly" /> that the repeating should stop occurring.</param>
     /// <param name="intervalUnit">The repeat interval unit. The only intervals that are valid for this type of trigger are <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
     /// <param name="repeatInterval"></param>
     /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
@@ -159,12 +159,12 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
     public DailyTimeIntervalTriggerImpl(
         string name,
         string group,
-        TimeOnly startTimeOfDayUtc,
-        TimeOnly endTimeOfDayUtc,
+        TimeOnly startTimeOfDay,
+        TimeOnly endTimeOfDay,
         IntervalUnit intervalUnit,
         int repeatInterval,
         TimeProvider? timeProvider = null)
-        : this(name, group, (timeProvider ?? TimeProvider.System).GetUtcNow(), null, startTimeOfDayUtc, endTimeOfDayUtc, intervalUnit, repeatInterval, timeProvider)
+        : this(name, group, (timeProvider ?? TimeProvider.System).GetUtcNow(), null, startTimeOfDay, endTimeOfDay, intervalUnit, repeatInterval, timeProvider)
     {
     }
 
@@ -175,8 +175,8 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
     /// <param name="name"></param>
     /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" />to fire.</param>
     /// <param name="endTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" />to quit repeat firing.</param>
-    /// <param name="startTimeOfDayUtc">The <see cref="TimeOnly" /> that the repeating should begin occurring.</param>
-    /// <param name="endTimeOfDayUtc">The <see cref="TimeOnly" /> that the repeating should stop occurring.</param>
+    /// <param name="startTimeOfDay">The <see cref="TimeOnly" /> that the repeating should begin occurring.</param>
+    /// <param name="endTimeOfDay">The <see cref="TimeOnly" /> that the repeating should stop occurring.</param>
     /// <param name="intervalUnit">The repeat interval unit. The only intervals that are valid for this type of trigger are <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
     /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
     /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
@@ -185,12 +185,12 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
         string name,
         DateTimeOffset startTimeUtc,
         DateTimeOffset? endTimeUtc,
-        TimeOnly startTimeOfDayUtc,
-        TimeOnly endTimeOfDayUtc,
+        TimeOnly startTimeOfDay,
+        TimeOnly endTimeOfDay,
         IntervalUnit intervalUnit,
         int repeatInterval,
         TimeProvider? timeProvider = null)
-        : this(name, SchedulerConstants.DefaultGroup, startTimeUtc, endTimeUtc, startTimeOfDayUtc, endTimeOfDayUtc, intervalUnit, repeatInterval, timeProvider)
+        : this(name, SchedulerConstants.DefaultGroup, startTimeUtc, endTimeUtc, startTimeOfDay, endTimeOfDay, intervalUnit, repeatInterval, timeProvider)
     {
     }
 
@@ -202,8 +202,8 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
     /// <param name="group"></param>
     /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" />to fire.</param>
     /// <param name="endTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" />to quit repeat firing.</param>
-    /// <param name="startTimeOfDayUtc">The <see cref="TimeOnly" /> that the repeating should begin occurring.</param>
-    /// <param name="endTimeOfDayUtc">The <see cref="TimeOnly" /> that the repeating should stop occurring.</param>
+    /// <param name="startTimeOfDay">The <see cref="TimeOnly" /> that the repeating should begin occurring.</param>
+    /// <param name="endTimeOfDay">The <see cref="TimeOnly" /> that the repeating should stop occurring.</param>
     /// <param name="intervalUnit">The repeat interval unit. The only intervals that are valid for this type of trigger are <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
     /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
     /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
@@ -213,8 +213,8 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
         string group,
         DateTimeOffset startTimeUtc,
         DateTimeOffset? endTimeUtc,
-        TimeOnly startTimeOfDayUtc,
-        TimeOnly endTimeOfDayUtc,
+        TimeOnly startTimeOfDay,
+        TimeOnly endTimeOfDay,
         IntervalUnit intervalUnit,
         int repeatInterval,
         TimeProvider? timeProvider = null)
@@ -224,8 +224,8 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
         EndTimeUtc = endTimeUtc;
         RepeatIntervalUnit = intervalUnit;
         RepeatInterval = repeatInterval;
-        StartTimeOfDay = startTimeOfDayUtc;
-        EndTimeOfDay = endTimeOfDayUtc;
+        StartTimeOfDay = startTimeOfDay;
+        EndTimeOfDay = endTimeOfDay;
     }
 
     /// <summary>
@@ -239,8 +239,8 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
     /// <param name="jobGroup"></param>
     /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" />to fire.</param>
     /// <param name="endTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" />to quit repeat firing.</param>
-    /// <param name="startTimeOfDayUtc">The <see cref="TimeOnly" /> that the repeating should begin occurring.</param>
-    /// <param name="endTimeOfDayUtc">The <see cref="TimeOnly" /> that the repeating should stop occurring.</param>
+    /// <param name="startTimeOfDay">The <see cref="TimeOnly" /> that the repeating should begin occurring.</param>
+    /// <param name="endTimeOfDay">The <see cref="TimeOnly" /> that the repeating should stop occurring.</param>
     /// <param name="intervalUnit">The repeat interval unit. The only intervals that are valid for this type of trigger are <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
     /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
     /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
@@ -252,8 +252,8 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
         string jobGroup,
         DateTimeOffset startTimeUtc,
         DateTimeOffset? endTimeUtc,
-        TimeOnly startTimeOfDayUtc,
-        TimeOnly endTimeOfDayUtc,
+        TimeOnly startTimeOfDay,
+        TimeOnly endTimeOfDay,
         IntervalUnit intervalUnit,
         int repeatInterval,
         TimeProvider? timeProvider = null)
@@ -263,8 +263,8 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
         EndTimeUtc = endTimeUtc;
         RepeatIntervalUnit = intervalUnit;
         RepeatInterval = repeatInterval;
-        StartTimeOfDay = startTimeOfDayUtc;
-        EndTimeOfDay = endTimeOfDayUtc;
+        StartTimeOfDay = startTimeOfDay;
+        EndTimeOfDay = endTimeOfDay;
     }
 
     /// <summary>

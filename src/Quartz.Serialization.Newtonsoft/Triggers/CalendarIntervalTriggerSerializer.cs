@@ -9,7 +9,7 @@ namespace Quartz.Serialization.Newtonsoft.Triggers;
 
 public class CalendarIntervalTriggerSerializer : TriggerSerializer<CalendarIntervalTriggerImpl>
 {
-    public override string TriggerTypeForJson => "CalendarIntervalTrigger";
+    public override string TriggerTypeName => "CalendarIntervalTrigger";
 
     public override IScheduleBuilder CreateScheduleBuilder(JObject source)
     {

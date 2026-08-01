@@ -49,7 +49,24 @@ public static class TimeZoneUtil
         timeZoneIdAliases["Asia/Karachi"] = "Pakistan Standard Time";
     }
 
-    public static Func<string, TimeZoneInfo?> CustomResolver { get; set; } = id => null;
+    /// <summary>
+    /// A last-resort resolver consulted when a time zone id is neither a system id nor one of the
+    /// aliases above. <see langword="null" /> — the default — means there is none.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is process-wide, and deliberately so: <see cref="FindTimeZoneById" /> is reached from
+    /// places that have no scheduler in scope — parsing a <see cref="CronExpression" />, deserializing
+    /// a trigger or calendar out of a job store blob — so there is nothing scheduler-scoped to hang a
+    /// resolver on. Setting it from one scheduler changes id resolution for every scheduler in the
+    /// process, which is what installing <c>Quartz.Plugins.TimeZoneConverter</c> does.
+    /// </para>
+    /// <para>
+    /// Assign <see langword="null" /> to remove a resolver again; a resolver returning
+    /// <see langword="null" /> for an id it does not know is how it declines a single id.
+    /// </para>
+    /// </remarks>
+    public static Func<string, TimeZoneInfo?>? CustomResolver { get; set; }
 
     /// <summary>
     /// TimeZoneInfo.ConvertTime is not supported under mono
@@ -212,10 +229,7 @@ public static class TimeZoneUtil
                 }
             }
 
-            if (info is null)
-            {
-                info = CustomResolver(id);
-            }
+            info ??= CustomResolver?.Invoke(id);
 
             if (info is null)
             {

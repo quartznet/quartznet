@@ -19,14 +19,19 @@
 
 #endregion
 
-using Quartz.Extensibility;
-
-namespace Quartz;
+namespace Quartz.Extensibility;
 
 /// <summary>
-/// Convenience and utility methods for simplifying the construction and
-/// configuration of <see cref="ITrigger" />s and DateTimeOffsetOffsets.
+/// Answers what a trigger would fire, without scheduling it.
 /// </summary>
+/// <remarks>
+/// These take an <see cref="IOperableTrigger" /> rather than an <see cref="ITrigger" /> because
+/// answering the question means advancing a copy of the trigger through its schedule, applying the
+/// calendar at each step — which is precisely what <see cref="IOperableTrigger" /> adds over
+/// <see cref="ITrigger" />. That is why this lives here rather than in the <c>Quartz</c> namespace: it
+/// is a helper over the operable-trigger contract, not part of the scheduling API. Cast a trigger you
+/// hold, or use the one a schedule builder handed you.
+/// </remarks>
 /// <seealso cref="ICronTrigger" />
 /// <seealso cref="ISimpleTrigger" />
 /// <author>James House</author>
@@ -41,8 +46,8 @@ public static class TriggerUtils
     /// </summary>
     /// <param name="trigger">The trigger upon which to do the work</param>
     /// <param name="calendar">The calendar to apply to the trigger's schedule</param>
-    /// <param name="numTimes">The number of next fire times to produce</param>
-    public static List<DateTimeOffset> ComputeFireTimes(IOperableTrigger trigger, ICalendar? calendar, int numTimes)
+    /// <param name="numberOfTimes">The number of next fire times to produce</param>
+    public static List<DateTimeOffset> ComputeFireTimes(IOperableTrigger trigger, ICalendar? calendar, int numberOfTimes)
     {
         List<DateTimeOffset> lst = new List<DateTimeOffset>();
 
@@ -53,7 +58,7 @@ public static class TriggerUtils
             t.ComputeFirstFireTimeUtc(calendar);
         }
 
-        for (int i = 0; i < numTimes; i++)
+        for (int i = 0; i < numberOfTimes; i++)
         {
             DateTimeOffset? d = t.NextFireTimeUtc;
             if (d.HasValue)

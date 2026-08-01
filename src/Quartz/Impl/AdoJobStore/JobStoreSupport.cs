@@ -960,10 +960,10 @@ public abstract class JobStoreSupport : IJobStore
     protected virtual async ValueTask ReleaseLock(
         Guid requestorId,
         SchedulerLock? lockKind,
-        bool doIt,
+        bool shouldRelease,
         CancellationToken cancellationToken = default)
     {
-        if (doIt && lockKind is not null)
+        if (shouldRelease && lockKind is not null)
         {
             try
             {
@@ -1389,10 +1389,10 @@ public abstract class JobStoreSupport : IJobStore
             }, cancellationToken),
             activity =>
             {
-                activity.SetTag(ActivityOptions.JobGroup, job.Key.Group);
-                activity.SetTag(ActivityOptions.JobName, job.Key.Name);
-                activity.SetTag(ActivityOptions.TriggerGroup, trigger.Key.Group);
-                activity.SetTag(ActivityOptions.TriggerName, trigger.Key.Name);
+                activity.SetTag(ActivityTags.JobGroup, job.Key.Group);
+                activity.SetTag(ActivityTags.JobName, job.Key.Name);
+                activity.SetTag(ActivityTags.TriggerGroup, trigger.Key.Group);
+                activity.SetTag(ActivityTags.TriggerName, trigger.Key.Name);
             }).ConfigureAwait(false);
     }
 
@@ -1415,8 +1415,8 @@ public abstract class JobStoreSupport : IJobStore
                 cancellationToken),
             activity =>
             {
-                activity.SetTag(ActivityOptions.JobGroup, job.Key.Group);
-                activity.SetTag(ActivityOptions.JobName, job.Key.Name);
+                activity.SetTag(ActivityTags.JobGroup, job.Key.Group);
+                activity.SetTag(ActivityTags.JobName, job.Key.Name);
             }).ConfigureAwait(false);
     }
 
@@ -1502,8 +1502,8 @@ public abstract class JobStoreSupport : IJobStore
                 cancellationToken),
             activity =>
             {
-                activity.SetTag(ActivityOptions.TriggerGroup, trigger.Key.Group);
-                activity.SetTag(ActivityOptions.TriggerName, trigger.Key.Name);
+                activity.SetTag(ActivityTags.TriggerGroup, trigger.Key.Group);
+                activity.SetTag(ActivityTags.TriggerName, trigger.Key.Name);
             }).ConfigureAwait(false);
     }
 
@@ -1630,8 +1630,8 @@ public abstract class JobStoreSupport : IJobStore
             () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => DeleteJob(conn, jobKey, true, cancellationToken), cancellationToken),
             activity =>
             {
-                activity.SetTag(ActivityOptions.JobGroup, jobKey.Group);
-                activity.SetTag(ActivityOptions.JobName, jobKey.Name);
+                activity.SetTag(ActivityTags.JobGroup, jobKey.Group);
+                activity.SetTag(ActivityTags.JobName, jobKey.Name);
             });
     }
 
@@ -1840,8 +1840,8 @@ public abstract class JobStoreSupport : IJobStore
                 cancellationToken),
             activity =>
             {
-                activity.SetTag(ActivityOptions.TriggerGroup, triggerKey.Group);
-                activity.SetTag(ActivityOptions.TriggerName, triggerKey.Name);
+                activity.SetTag(ActivityTags.TriggerGroup, triggerKey.Group);
+                activity.SetTag(ActivityTags.TriggerName, triggerKey.Name);
             });
     }
 
@@ -1873,7 +1873,7 @@ public abstract class JobStoreSupport : IJobStore
 
             if (null != job && !job.Durable)
             {
-                int numTriggers = await Delegate.SelectNumTriggersForJob(conn, job.Key, cancellationToken).ConfigureAwait(false);
+                int numTriggers = await Delegate.CountTriggersForJob(conn, job.Key, cancellationToken).ConfigureAwait(false);
                 if (numTriggers == 0)
                 {
                     // Don't call DeleteJob() because we don't want to check for
@@ -1915,8 +1915,8 @@ public abstract class JobStoreSupport : IJobStore
                 cancellationToken),
             activity =>
             {
-                activity.SetTag(ActivityOptions.TriggerGroup, triggerKey.Group);
-                activity.SetTag(ActivityOptions.TriggerName, triggerKey.Name);
+                activity.SetTag(ActivityTags.TriggerGroup, triggerKey.Group);
+                activity.SetTag(ActivityTags.TriggerName, triggerKey.Name);
             });
     }
 
@@ -1968,8 +1968,8 @@ public abstract class JobStoreSupport : IJobStore
                 cancellationToken),
             activity =>
             {
-                activity.SetTag(ActivityOptions.TriggerGroup, triggerKey.Group);
-                activity.SetTag(ActivityOptions.TriggerName, triggerKey.Name);
+                activity.SetTag(ActivityTags.TriggerGroup, triggerKey.Group);
+                activity.SetTag(ActivityTags.TriggerName, triggerKey.Name);
             });
     }
 
@@ -2146,8 +2146,8 @@ public abstract class JobStoreSupport : IJobStore
                 cancellationToken),
             activity =>
             {
-                activity.SetTag(ActivityOptions.TriggerGroup, triggerKey.Group);
-                activity.SetTag(ActivityOptions.TriggerName, triggerKey.Name);
+                activity.SetTag(ActivityTags.TriggerGroup, triggerKey.Group);
+                activity.SetTag(ActivityTags.TriggerName, triggerKey.Name);
             }).ConfigureAwait(false);
     }
 
@@ -2723,8 +2723,8 @@ public abstract class JobStoreSupport : IJobStore
             () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => PauseTrigger(conn, triggerKey, cancellationToken), cancellationToken),
             activity =>
             {
-                activity.SetTag(ActivityOptions.TriggerGroup, triggerKey.Group);
-                activity.SetTag(ActivityOptions.TriggerName, triggerKey.Name);
+                activity.SetTag(ActivityTags.TriggerGroup, triggerKey.Group);
+                activity.SetTag(ActivityTags.TriggerName, triggerKey.Name);
             }).ConfigureAwait(false);
     }
 
@@ -2774,8 +2774,8 @@ public abstract class JobStoreSupport : IJobStore
             }, cancellationToken),
             activity =>
             {
-                activity.SetTag(ActivityOptions.JobGroup, jobKey.Group);
-                activity.SetTag(ActivityOptions.JobName, jobKey.Name);
+                activity.SetTag(ActivityTags.JobGroup, jobKey.Group);
+                activity.SetTag(ActivityTags.JobName, jobKey.Name);
             }).ConfigureAwait(false);
     }
 
@@ -2854,8 +2854,8 @@ public abstract class JobStoreSupport : IJobStore
             () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => ResumeTrigger(conn, triggerKey, cancellationToken), cancellationToken),
             activity =>
             {
-                activity.SetTag(ActivityOptions.TriggerGroup, triggerKey.Group);
-                activity.SetTag(ActivityOptions.TriggerName, triggerKey.Name);
+                activity.SetTag(ActivityTags.TriggerGroup, triggerKey.Group);
+                activity.SetTag(ActivityTags.TriggerName, triggerKey.Name);
             }).ConfigureAwait(false);
     }
 
@@ -2934,8 +2934,8 @@ public abstract class JobStoreSupport : IJobStore
             }, cancellationToken),
             activity =>
             {
-                activity.SetTag(ActivityOptions.JobGroup, jobKey.Group);
-                activity.SetTag(ActivityOptions.JobName, jobKey.Name);
+                activity.SetTag(ActivityTags.JobGroup, jobKey.Group);
+                activity.SetTag(ActivityTags.JobName, jobKey.Name);
             }).ConfigureAwait(false);
     }
 
@@ -3213,7 +3213,7 @@ public abstract class JobStoreSupport : IJobStore
                     }
                 },
                 cancellationToken: cancellationToken),
-            activity => activity.SetTag(ActivityOptions.BatchSize, request.MaxCount));
+            activity => activity.SetTag(ActivityTags.BatchSize, request.MaxCount));
     }
 
     // TODO: this really ought to return something like a FiredTriggerBundle,
@@ -3279,7 +3279,7 @@ public abstract class JobStoreSupport : IJobStore
                     Type jobType;
                     try
                     {
-                        jobType = typeLoadHelper.LoadType(result.JobType)!;
+                        jobType = typeLoadHelper.LoadType(result.JobTypeName)!;
                     }
                     catch (Exception e)
                     {
@@ -3390,8 +3390,8 @@ public abstract class JobStoreSupport : IJobStore
                 cancellationToken),
             activity =>
             {
-                activity.SetTag(ActivityOptions.TriggerGroup, trigger.Key.Group);
-                activity.SetTag(ActivityOptions.TriggerName, trigger.Key.Name);
+                activity.SetTag(ActivityTags.TriggerGroup, trigger.Key.Group);
+                activity.SetTag(ActivityTags.TriggerName, trigger.Key.Name);
             }).ConfigureAwait(false);
     }
 
@@ -3491,7 +3491,7 @@ public abstract class JobStoreSupport : IJobStore
                     }
                 },
                 cancellationToken: cancellationToken),
-            activity => activity.SetTag(ActivityOptions.TriggerCount, triggers.Count));
+            activity => activity.SetTag(ActivityTags.TriggerCount, triggers.Count));
     }
 
     protected virtual async ValueTask<TriggerFiredBundle?> TriggerFired(
@@ -3696,10 +3696,10 @@ public abstract class JobStoreSupport : IJobStore
                 cancellationToken),
             activity =>
             {
-                activity.SetTag(ActivityOptions.TriggerGroup, trigger.Key.Group);
-                activity.SetTag(ActivityOptions.TriggerName, trigger.Key.Name);
-                activity.SetTag(ActivityOptions.JobGroup, jobDetail.Key.Group);
-                activity.SetTag(ActivityOptions.JobName, jobDetail.Key.Name);
+                activity.SetTag(ActivityTags.TriggerGroup, trigger.Key.Group);
+                activity.SetTag(ActivityTags.TriggerName, trigger.Key.Name);
+                activity.SetTag(ActivityTags.JobGroup, jobDetail.Key.Group);
+                activity.SetTag(ActivityTags.JobName, jobDetail.Key.Name);
             }).ConfigureAwait(false);
 
         // Deliberately after the transaction, and only if it committed: these run listener code, which

@@ -43,10 +43,10 @@ internal static class Meters
 
         TagList tagList = new()
         {
-            { ActivityOptions.TriggerGroup, context.Trigger.Key.Group },
-            { ActivityOptions.TriggerName, context.Trigger.Key.Name },
-            { ActivityOptions.JobGroup, context.JobDetail.Key.Group },
-            { ActivityOptions.JobName, context.JobDetail.Key.Name },
+            { ActivityTags.TriggerGroup, context.Trigger.Key.Group },
+            { ActivityTags.TriggerName, context.Trigger.Key.Name },
+            { ActivityTags.JobGroup, context.JobDetail.Key.Group },
+            { ActivityTags.JobName, context.JobDetail.Key.Name },
         };
 
         _jobExecuteTotal.Add(1, tagList);

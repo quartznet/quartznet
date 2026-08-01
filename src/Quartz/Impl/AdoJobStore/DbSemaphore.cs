@@ -33,7 +33,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// same time.
 /// </summary>
 /// <author>Marko Lahma (.NET)</author>
-public abstract class DBSemaphore : ISemaphore, ITablePrefixAware
+public abstract class DbSemaphore : ISemaphore, ITablePrefixAware
 {
     private readonly ConcurrentDictionary<ThreadLockKey, object?> locks = new();
 
@@ -48,7 +48,7 @@ public abstract class DBSemaphore : ISemaphore, ITablePrefixAware
     private string expandedInsertSql = null!;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="DBSemaphore"/> class.
+    /// Initializes a new instance of the <see cref="DbSemaphore"/> class.
     /// </summary>
     /// <remarks>
     /// The two statements are fixed at construction. They were settable, which meant a subclass could
@@ -60,14 +60,14 @@ public abstract class DBSemaphore : ISemaphore, ITablePrefixAware
     /// <param name="insertSql">The statement that inserts the lock row when it does not exist yet.</param>
     /// <param name="sql">The statement that takes the lock.</param>
     /// <param name="dbProvider">The db provider.</param>
-    protected DBSemaphore(
+    protected DbSemaphore(
         string tablePrefix,
         string? schedulerName,
         string sql,
         string insertSql,
         IDbProvider dbProvider)
     {
-        logger = LogProvider.CreateLogger<DBSemaphore>();
+        logger = LogProvider.CreateLogger<DbSemaphore>();
         this.schedulerName = schedulerName;
         this.tablePrefix = tablePrefix;
         this.sql = sql.Trim();
@@ -80,7 +80,7 @@ public abstract class DBSemaphore : ISemaphore, ITablePrefixAware
     /// Gets the log.
     /// </summary>
     /// <value>The log.</value>
-    internal ILogger<DBSemaphore> logger { get; }
+    internal ILogger<DbSemaphore> logger { get; }
 
     /// <summary>
     /// Execute the SQL that will lock the proper database row.

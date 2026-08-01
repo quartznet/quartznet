@@ -261,7 +261,7 @@ scheduler registered with `AddQuartz` and another built by a `QuartzSchedulerBui
 process:
 
 * `ISchedulerFactory.GetAllSchedulers()` on either one lists only its own schedulers.
-* `ISchedulerFactory.GetScheduler(name)` returns `null` for the other one's name.
+* `ISchedulerFactory.LookupScheduler(name)` returns `null` for the other one's name.
 * `ISchedulerRepository.Lookup(name)` likewise sees only its own container's schedulers.
 
 If you were relying on that reach — typically to find a scheduler from code that had no reference to the
@@ -402,7 +402,7 @@ reaching for one of them. Each had a reason that the container now covers direct
 | `StdSchedulerFactory(NameValueCollection)` | `QuartzSchedulerBuilder.Create().UseProperties(properties)` |
 | `Initialize(NameValueCollection)` | `UseProperties(properties)` |
 | `Initialize()` | nothing; there is no file and no environment overlay left to read |
-| `GetScheduler()`, `GetScheduler(name)`, `GetAllSchedulers()` | unchanged — they are `ISchedulerFactory`, which `Build()` returns |
+| `GetScheduler()`, `LookupScheduler(name)`, `GetAllSchedulers()` | unchanged apart from the by-name rename — they are `ISchedulerFactory`, which `Build()` returns |
 | `static GetDefaultScheduler()` | build a scheduler where the application starts and hold it, or inject `IScheduler` |
 | `Dispose()`, `Dispose(bool)` | the factory `Build()` returns owns its container and implements `IDisposable` and `IAsyncDisposable`; cast to dispose it |
 | `GetSchedulerRepository()` | `ISchedulerRepository`, resolved from the container |
@@ -1133,7 +1133,7 @@ on `QuartzSchedulerResources` are `QuartzSchedulerOptions`.
 
 **`StdAdoConstants` and `IAdoUtil` are internal, and constants are no longer inherited.** `AdoConstants` stays
 public — table, column and state names are a real contract for delegate authors — but it is a `static class`
-now, and `JobStoreSupport`, `StdAdoDelegate` and `DBSemaphore` no longer derive from it or from
+now, and `JobStoreSupport`, `StdAdoDelegate` and `DbSemaphore` no longer derive from it or from
 `StdAdoConstants`:
 
 ```diff
@@ -1148,8 +1148,8 @@ The `Sql*` statement templates on `StdAdoConstants` are not visible at all any m
 statement is not a contract. Build the statement your dialect needs, or override the `GetSelect*Sql` hooks,
 which are unchanged.
 
-`DBSemaphore.AdoUtil` is `private protected` for the same reason, so a semaphore written outside Quartz no
-longer sees it — derive from `DBSemaphore` and use `IDbProvider`, or implement `ISemaphore` directly.
+`DbSemaphore.AdoUtil` is `private protected` for the same reason, so a semaphore written outside Quartz no
+longer sees it — derive from `DbSemaphore` and use `IDbProvider`, or implement `ISemaphore` directly.
 
 **Three trigger persistence delegates became public**, so a custom delegate list can name all five built-ins:
 `CronTriggerPersistenceDelegate`, `SimpleTriggerPersistenceDelegate` and
@@ -1994,7 +1994,7 @@ changes in the database**: the `LOCK_NAME` column still holds `TRIGGER_ACCESS` a
 conversion happens where the row is written, and a 4.0 node contends for the same rows as a 3.x one. The
 same applies to `Quartz.Extensions.Redis`, whose keys keep their `…:TRIGGER_ACCESS` spelling.
 
-`DBSemaphore.ExecuteSql` still receives the stored name as a `string` — that parameter really is the value
+`DbSemaphore.ExecuteSql` still receives the stored name as a `string` — that parameter really is the value
 bound into the statement.
 
 ## The job store configuration is read-only
@@ -2040,7 +2040,7 @@ this store they no longer do.
   the class hierarchy that owns them ever read them: `StdRowLockSemaphore.SelectForLock` /
   `.InsertLock` keep their names, and `UpdateLockRowSemaphore.SqlUpdateForLock` / `.SqlInsertLock` are
   `UpdateForLock` / `InsertLock`.
-* `DBSemaphore.Sql` and `.InsertSql` are get-only and arrive through the constructor. They were
+* `DbSemaphore.Sql` and `.InsertSql` are get-only and arrive through the constructor. They were
   `protected` settable, which let a subclass swap a statement after the table prefix had already been
   folded into it — the select and the insert backing the same lock could end up naming different tables.
   A subclass that needs its own insert statement passes it up:
@@ -3418,6 +3418,179 @@ instead:
 `IScheduler.GetCurrentlyExecutingJobs()` returns `List<IJobExecutionContext>` as before — the element type never
 was the cancellable interface, only the documentation said so.
 
+## `JobDataMap`'s typed accessors are the ones it inherits
+
+`JobDataMap` declared sixty typed accessors of its own — `GetIntValue`, `TryGetIntValue`,
+`GetIntValueFromString`, `TryGetIntValueFromString`, and the same four for `bool`, `char`, `double`,
+`float`, `long`, `Guid`, `TimeSpan`, `DateTime` and `DateTimeOffset` — while the
+`StringKeyDirtyFlagMap` it derives from declared a second, shorter set doing the same job. Two names
+for one lookup, differing only in a suffix. The `…Value` set is gone; the inherited one stays:
+
+```diff
+- int retries = context.JobDetail.JobDataMap.GetIntValue("retries");
++ int retries = context.JobDetail.JobDataMap.GetInt("retries");
+
+- if (map.TryGetTimeSpanValue("timeout", out TimeSpan timeout)) { }
++ if (map.TryGetTimeSpan("timeout", out TimeSpan timeout)) { }
+```
+
+| 3.x `JobDataMap` | 4.x, inherited from `StringKeyDirtyFlagMap` |
+|---|---|
+| `GetBooleanValue`, `GetBooleanValueFromString` | `GetBoolean` |
+| `GetCharFromString` | `GetChar` |
+| `GetDateTimeValue`, `GetDateTimeValueFromString` | `GetDateTime` |
+| `GetDateTimeOffsetValue`, `GetDateTimeOffsetValueFromString` | `GetDateTimeOffset` |
+| `GetDoubleValue`, `GetDoubleValueFromString` | `GetDouble` |
+| `GetFloatValue`, `GetFloatValueFromString` | `GetFloat` |
+| `GetGuidValue`, `GetGuidValueFromString` | `GetGuid` |
+| `GetIntValue`, `GetIntValueFromString` | `GetInt` |
+| `GetLongValue`, `GetLongValueFromString` | `GetLong` |
+| `GetTimeSpanValue`, `GetTimeSpanValueFromString` | `GetTimeSpan` |
+| every `TryGet…Value` / `TryGet…ValueFromString` | the matching `TryGet…` |
+| `GetNullableGuidValue` | `TryGetGuid`, or read the entry and test it yourself |
+| (none) | `GetString`, `TryGetString`, `GetDecimal`, `TryGetDecimal` |
+
+The `…FromString` half collapses because the retained accessors already convert: a value written as a
+string — which is what `UseProperties` forces, and what `PutAsString` writes — is parsed on the way
+out, so one accessor covers both. `GetNullableGuidValue` is the only one without a direct
+replacement; it returned `null` both for "absent" and for "present but not a `Guid`", which
+`TryGetGuid` distinguishes.
+
+`PutAsString`'s eleven overloads are one generic `PutAsString<T>(string key, T value) where T :
+IConvertible`, plus the four the constraint cannot express (`DateTimeOffset`, `Guid`, `Guid?`,
+`TimeSpan`). Call sites are unchanged.
+
+## `AddQuartzServer` is `AddQuartzHostedService`
+
+`Quartz.AspNetCore.AddQuartzServer` did two unrelated things behind one name: it registered the
+hosted service that starts the scheduler, and — on frameworks that had them — an ASP.NET Core health
+check. Both are separately available, and the hosted service was never specific to ASP.NET Core, so
+the combined method is gone and each half is called by its own name:
+
+```diff
+  services.AddQuartz(q => { /* ... */ });
+
+- services.AddQuartzServer(options => options.WaitForJobsToComplete = true);
++ services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
++ services.AddQuartzHealthChecks();
+```
+
+`AddQuartzHostedService` lives in the core `Quartz` package, so an application that only wants the
+scheduler started with the host no longer needs `Quartz.AspNetCore` at all — see
+[The hosted service starts every scheduler](#the-hosted-service-starts-every-scheduler) for what it
+now starts, and [The ASP.NET Core methods say Quartz once](#the-asp-net-core-methods-say-quartz-once)
+for the rest of that package.
+
+The health-check overload that took `IEnumerable<string> healthCheckTags` is gone with it; tags are
+`QuartzHealthCheckOptions.Tags`, which is assigned rather than added to:
+
+```diff
+- services.AddQuartzServer(configure, healthCheckTags: ["ready", "live"]);
++ services.AddQuartzHealthChecks(options => options.Tags = ["ready", "live"]);
+```
+
+## The ambient logger factory stays ambient
+
+`LogProvider.SetLogProvider(ILoggerFactory)` is the one piece of mutable process-wide state left in
+Quartz, and it is deliberate rather than overlooked.
+
+Almost everything the scheduler is made of is built by a container and is injected an `ILogger` the
+ordinary way. What is left over cannot be: static helpers such as `TimeZoneUtil`, types a caller
+constructs directly — triggers, calendars, plugins, the jobs in `Quartz.Jobs` — and anything that
+runs while the container is still being built. A type cannot be handed a logger by a container that
+does not exist yet, so those sites read the ambient factory instead of going unlogged.
+
+Nor is it seeded from the container, which would be the obvious convenience. The slot outlives any
+one container: a process that builds a host, disposes it and builds another — every integration test
+suite, and every application that reloads configuration — would be left holding a disposed
+`ILoggerFactory`, and the next logger created anywhere in Quartz would throw
+`ObjectDisposedException` from somewhere unrelated to logging. Whoever sets the factory owns its
+lifetime, and only the application can make that call. The same applies to a hand-written
+`LogProvider.SetLogProvider(host.Services.GetRequiredService<ILoggerFactory>())`: it is correct as
+long as the host outlives the schedulers.
+
+`TimeZoneUtil.CustomResolver` is ambient for the same reason and is now nullable, `null` meaning
+"no custom resolver", so a resolver can be removed again rather than replaced with a lambda that
+returns `null`. `FindTimeZoneById` is reached from parsing a `CronExpression` and from deserializing
+a trigger out of a job store blob, neither of which has a scheduler in scope — which is why
+installing `Quartz.Plugins.TimeZoneConverter` in one scheduler changes id resolution for the whole
+process.
+
+## `TriggerUtils` moved to `Quartz.Extensibility`
+
+It computes fire times by advancing a copy of a trigger through its schedule, applying the calendar
+at each step, which is exactly what `IOperableTrigger` adds over `ITrigger` — so it belongs with that
+contract rather than in the root namespace next to `IScheduler`. The methods are unchanged:
+
+```diff
++ using Quartz.Extensibility;
+
+  var times = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, calendar, 10);
+```
+
+## The road from 3.x, phase by phase
+
+The 4.0 API is the result of six passes over the public surface, each with its own theme. The guide
+above is organised by topic rather than by pass, so this is the map: what changed, in the order it is
+worth working through when migrating.
+
+**1. The extensibility contracts.** The interfaces you implement rather than call. `Quartz.Spi` is
+[`Quartz.Extensibility` and `Quartz.Simpl` is `Quartz.Impl`](#quartz-spi-and-quartz-simpl-were-renamed);
+every asynchronous member returns [`ValueTask`](#tasks-changed-to-valuetask) and ends with a
+`CancellationToken`; [jobs take that token as a parameter](#jobs-take-a-cancellationtoken); the
+[job factory hands out a scope](#the-job-factory-hands-out-a-scope) instead of an instance; the
+[thread pool is asynchronous](#the-thread-pool-is-asynchronous); and
+[trigger fire times are properties](#trigger-fire-times-are-properties) rather than getter/setter
+pairs. Start here: everything else assumes these signatures.
+
+**2. The vocabulary and the surface.** One word per concept, and nothing public that was never a
+contract. [Names that were normalized](#names-that-were-normalized),
+[the scheduler and the job store speak the same verbs](#the-scheduler-and-the-job-store-speak-the-same-verbs),
+[matchers moved to `Quartz.Matchers`](#matchers-moved-to-quartz-matchers),
+[`Key<T>` moved to `Quartz` and is immutable](#key-t-moved-to-quartz-and-is-immutable),
+[`SchedulerMetadata` replaces `SchedulerMetaData`](#schedulermetadata-replaces-schedulermetadata),
+[the listener API](#listener-api-changes), and
+[sealed and internalized types](#sealed-and-internalized-types).
+
+**3. Listings, schedules and dates.** [Job store listings became queries](#job-store-listings-became-queries)
+returning `PagedResult<T>` of headers; [misfire instructions are enums](#misfire-instructions-are-enums);
+[intervals are said once per builder](#intervals-are-said-once-per-builder);
+[`TimeOfDay` became `TimeOnly`](#timeofday-became-timeonly) and
+[`DateBuilder`'s static factories are gone](#datebuilders-static-factories-are-gone);
+[`Executing` is a trigger state](#executing-is-a-trigger-state); and
+[the preferred node is a value](#the-preferred-node-is-a-value).
+
+**4. The ADO.NET job store.** [Trigger states are typed on the driver delegate](#trigger-states-are-typed-on-the-driver-delegate);
+[the stores are named for whose transaction they use](#the-ado-net-job-stores-are-named-for-whose-transaction-they-use);
+[nine `Execute…Lock` overloads became four](#nine-execute-lock-overloads-became-four-members);
+[locks are a `SchedulerLock`](#locks-are-a-schedulerlock-not-a-string);
+[the job store configuration is read-only](#the-job-store-configuration-is-read-only);
+[the driver delegate speaks in records](#the-driver-delegate-speaks-in-records);
+[`RAMJobStore` is sealed](#ramjobstore-is-sealed); and
+[a job store of your own can join your transaction](#a-job-store-of-your-own-can-join-your-transaction).
+
+**5. Configuration and hosting.** The container builds the scheduler:
+[`StdSchedulerFactory` is gone](#stdschedulerfactory-is-gone),
+[the standalone builder is the same builder](#the-standalone-builder-is-the-same-builder),
+[there is no process-global scheduler state](#no-process-global-scheduler-or-connection-state),
+[`AddJob` registers the job with the container](#addjob-registers-the-job-with-the-container),
+[one shape per registration method](#one-shape-per-registration-method),
+[clustering is configured in one place](#clustering-is-configured-in-one-place),
+[the hosted service starts every scheduler](#the-hosted-service-starts-every-scheduler), and
+[job execution metrics](#job-execution-metrics) are published by every scheduler.
+
+**6. Serialization policy and the last edges.**
+[`[Serializable]` survives only where a database blob needs it](#serializable-survives-only-where-a-database-blob-needs-it);
+[the two exceptions moved out of `Quartz.Core`](#the-two-exceptions-moved-out-of-quartz-core);
+[execution limits are built once, then frozen](#execution-limits-are-built-once-then-frozen);
+[interruption has two names, not three](#interruption-has-two-names-not-three); and the naming and
+visibility odds and ends in this section and in the table below.
+
+Two differences run through all six and are not called out case by case, because they are almost
+universal: `Task` became `ValueTask` on nearly every member, and the namespaces moved as described in
+pass 1. If a type you used does not appear in this guide at all, check
+[Package Changes](#package-changes) first — it may have moved packages rather than changed.
+
 ## Other Breaking Changes
 
 | Change | Details |
@@ -3495,7 +3668,7 @@ was the cancellable interface, only the documentation said so.
 | `AdoJobStoreOptions.DontSetAutoCommitFalse` removed | The option the deleted store property mirrored. No code path read it and no `quartz.*` key set it, so setting it configured nothing |
 | `JobStoreSupport.LastCheckin` is internal, `LogWarnIfNonZero` is private | Cluster check-in bookkeeping and a logging helper, neither of them an extension point |
 | `JobStoreSupport.RecoverJobs(CancellationToken)` returns `ValueTask` | The `bool` it returned was the constant `true` |
-| `DBSemaphore.Sql` and `.InsertSql` are get-only, fed by the constructor | Assigning one after construction left it un-prefixed relative to its pair — see [The semaphores were tidied](#the-semaphores-were-tidied) |
+| `DbSemaphore.Sql` and `.InsertSql` are get-only, fed by the constructor | Assigning one after construction left it un-prefixed relative to its pair — see [The semaphores were tidied](#the-semaphores-were-tidied) |
 | Row-lock semaphore SQL fields are `protected` and consistently named | `UpdateLockRowSemaphore.SqlUpdateForLock` / `.SqlInsertLock` are `UpdateForLock` / `InsertLock`; `StdRowLockSemaphore.SelectForLock` / `.InsertLock` keep their names |
 | `JobStoreSupport.GetEnlistedConnection` is `protected` | So a job store outside the core assembly can honour an enlisted transaction rather than silently opening its own connection |
 | `ConnectionAndTransactionHolder` gained an ownership-aware constructor and `OwnsResources` | `(connection, transaction, ownsResources)` for a store running on a connection it did not open |
@@ -3539,3 +3712,17 @@ was the cancellable interface, only the documentation said so.
 | `Quartz.Diagnostics.IJobDiagnosticData` removed | It was the payload contract of the `DiagnosticSource` events `Quartz.OpenTracing` consumed. Both the package and the events are gone; job execution is on `Activity` through `QuartzActivitySource`, and `IJobExecutionContext` is what a listener reads |
 | `CronExpression.Clone()` returns `CronExpression` | It returned `object`, unlike `ITrigger.Clone`, `IJobDetail.Clone` and `ICalendar.Clone`; the casts at the call sites can go |
 | `IJobExecutionContext.Put` / `.Get` take a `string` key | They took `object`. The volatile per-execution map keys by name, like `JobDataMap`, and `Put`'s value is `object?` and its parameter is `value` rather than `objectValue` |
+| `JobDataMap`'s sixty typed accessors removed | The inherited `StringKeyDirtyFlagMap` set does the same job — see [`JobDataMap`'s typed accessors are the ones it inherits](#jobdatamaps-typed-accessors-are-the-ones-it-inherits) |
+| `Quartz.AspNetCore.AddQuartzServer` removed | `AddQuartzHostedService` starts the scheduler and `AddQuartzHealthChecks` registers the check — see [`AddQuartzServer` is `AddQuartzHostedService`](#addquartzserver-is-addquartzhostedservice) |
+| `ISchedulerFactory.GetScheduler(name)` is `LookupScheduler(name)` | Two members named `GetScheduler` differed only in nullability. `GetScheduler()` builds this factory's scheduler and cannot return null; `LookupScheduler(name)` looks one up in the container's repository and can, which is what the verb now says. `Lookup` matches `ISchedulerRepository.Lookup` |
+| `TriggerUtils` moved to `Quartz.Extensibility` | It is a helper over `IOperableTrigger`, not part of the scheduling API — see [`TriggerUtils` moved to `Quartz.Extensibility`](#triggerutils-moved-to-quartz-extensibility) |
+| `Quartz.Util.ObjectExtensions` is internal | `AssemblyQualifiedNameWithoutVersion()` is how Quartz spells a type name into a blob or onto the wire, not a general-purpose helper |
+| `TimeZoneUtil.CustomResolver` is nullable | `null` means there is no custom resolver, which is how one is removed; it defaulted to a lambda returning `null` — see [The ambient logger factory stays ambient](#the-ambient-logger-factory-stays-ambient) |
+| `Quartz.Diagnostics.ActivityOptions` is `ActivityTags` | It holds `Activity` tag names, not options, and `*Options` names an options type everywhere else. It replaced 3.x's `DiagnosticHeaders`; the tag names and values are unchanged |
+| `DBSemaphore` is `DbSemaphore` | The last `DB` spelling, with `DBConnectionManager` → `DbConnectionManager`. The type is abstract and is never named in configuration |
+| `StartingDailyAt` / `EndingDailyAt` take a `timeOfDay` | The parameter was `timeOfDayUtc`, and the value is wall-clock in the trigger's time zone rather than UTC — the property it sets, `StartTimeOfDay`, never claimed otherwise. `DailyTimeIntervalTriggerImpl`'s five constructors say `startTimeOfDay` / `endTimeOfDay` for the same reason |
+| `ITriggerSerializer.TriggerTypeForJson` is `TriggerTypeName` | `ICalendarSerializer.CalendarTypeName` names the same concept; both JSON serializers changed |
+| `IDriverDelegate.SelectNumTriggersForJob` is `CountTriggersForJob` | Matching `CountMisfiredTriggersInState`, and spelling out the last `Num` |
+| `SimpleTriggerImpl.ComputeNumTimesFiredBetween` is `ComputeNumberOfTimesFiredBetween` | As above |
+| `TriggerAcquireResult.JobType` is `JobTypeName` | It holds `JOB_CLASS_NAME` — a type name, the same thing `JobHeader.JobTypeName` carries — and was documented as a discriminator, which it is not. `TriggerHeader.TriggerType` really is a discriminator and keeps its name |
+| Parameter names spelled out on the ADO.NET surface | `IDriverDelegate.SelectJobDetail`'s `classLoadHelper` is `loadHelper` (the implementation already called it that, so named arguments disagreed with the interface); `ts` is `misfireTime`; `JobStoreSupport.ReleaseLock`'s `doIt` is `shouldRelease`; `StdAdoDelegate.AddTriggerPersistenceDelegate`'s `del` is `persistenceDelegate`; `TriggerPropertyBundle`'s `sb` is `scheduleBuilder`; `CronTriggerImpl.WillFireOn`'s `test` is `timeUtc`; `TriggerUtils.ComputeFireTimes`'s `numTimes` is `numberOfTimes` |

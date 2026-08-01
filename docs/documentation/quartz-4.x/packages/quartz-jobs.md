@@ -32,10 +32,16 @@ Built in job for executing native executables in a separate process.
 **Example**
 
 ```csharp
-var job = new JobDetail("dumbJob", null, typeof(Quartz.Jobs.NativeJob));
-job.JobDataMap.Put(Quartz.Jobs.NativeJob.PropertyCommand, "echo \"hi\" >> foobar.txt");
-var trigger = TriggerUtils.MakeSecondlyTrigger(5);
-trigger.Name = "dumbTrigger";
+var job = JobBuilder.Create<NativeJob>()
+    .WithIdentity("dumbJob")
+    .UsingJobData(NativeJob.PropertyCommand, "echo \"hi\" >> foobar.txt")
+    .Build();
+
+var trigger = TriggerBuilder.Create()
+    .WithIdentity("dumbTrigger")
+    .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(5)).RepeatForever())
+    .Build();
+
 await scheduler.ScheduleJob(job, trigger);
 ```
 

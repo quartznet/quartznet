@@ -27,8 +27,13 @@ namespace Quartz;
 /// <param name="Key">The trigger's key.</param>
 /// <param name="JobKey">The key of the job the trigger fires.</param>
 /// <param name="Description">The trigger's description, if one was given.</param>
-/// <param name="TriggerType">The store's trigger type discriminator, for example
-/// <c>"CRON"</c> or <c>"SIMPLE"</c>.</param>
+/// <param name="TriggerType">The store's trigger type discriminator, for example <c>"CRON"</c> or
+/// <c>"SIMPLE"</c> — the value of the <c>TRIGGER_TYPE</c> column, which is what
+/// <see cref="Quartz.Impl.AdoJobStore.ITriggerPersistenceDelegate.GetHandledTriggerTypeDiscriminator" />
+/// returns. It is a discriminator, <em>not</em> a type name, and so is deliberately not called one:
+/// contrast <see cref="JobHeader.JobTypeName" /> and
+/// <see cref="Quartz.Impl.AdoJobStore.TriggerAcquireResult.JobTypeName" />, both of which carry a CLR
+/// type name that a type load helper can resolve.</param>
 /// <param name="State">The trigger's current state.</param>
 /// <param name="StartTimeUtc">The time the trigger's schedule comes into effect.</param>
 /// <param name="EndTimeUtc">The time the trigger's schedule ends, if bounded.</param>

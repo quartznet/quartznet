@@ -178,13 +178,13 @@ public interface IDriverDelegate
     /// </summary>
     /// <param name="conn">The DB Connection</param>
     /// <param name="jobKey">The key identifying the job.</param>
-    /// <param name="classLoadHelper">The class load helper.</param>
+    /// <param name="loadHelper">The type load helper.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>The populated JobDetail object</returns>
     ValueTask<IJobDetail?> SelectJobDetail(
         ConnectionAndTransactionHolder conn,
         JobKey jobKey,
-        ITypeLoadHelper classLoadHelper,
+        ITypeLoadHelper loadHelper,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -445,7 +445,7 @@ public interface IDriverDelegate
     /// <param name="jobKey">The key identifying the job.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns> the number of triggers for the given job </returns>
-    ValueTask<int> SelectNumTriggersForJob(
+    ValueTask<int> CountTriggersForJob(
         ConnectionAndTransactionHolder conn,
         JobKey jobKey,
         CancellationToken cancellationToken = default);
@@ -845,13 +845,13 @@ public interface IDriverDelegate
     /// </summary>
     /// <param name="conn">The DB connection.</param>
     /// <param name="state">The trigger state to scan.</param>
-    /// <param name="ts">Triggers whose next fire time is before this are misfired.</param>
+    /// <param name="misfireTime">Triggers whose next fire time is before this are misfired.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns></returns>
     ValueTask<int> CountMisfiredTriggersInState(
         ConnectionAndTransactionHolder conn,
         StoredTriggerState state,
-        DateTimeOffset ts,
+        DateTimeOffset misfireTime,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -926,13 +926,13 @@ public interface IDriverDelegate
     /// </summary>
     /// <param name="conn">The DB connection.</param>
     /// <param name="state">The trigger state to scan (<see cref="StoredTriggerState.Waiting" />).</param>
-    /// <param name="ts">Triggers whose next fire time is before this are misfired.</param>
+    /// <param name="misfireTime">Triggers whose next fire time is before this are misfired.</param>
     /// <param name="count">Maximum number of triggers to return, or -1 for all of them.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask<MisfiredTriggerBatch> SelectMisfiredTriggersToRecover(
         ConnectionAndTransactionHolder conn,
         StoredTriggerState state,
-        DateTimeOffset ts,
+        DateTimeOffset misfireTime,
         int count,
         CancellationToken cancellationToken = default);
 
