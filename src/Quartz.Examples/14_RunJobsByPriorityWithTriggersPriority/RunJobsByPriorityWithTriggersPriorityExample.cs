@@ -32,12 +32,14 @@ public class RunJobsByPriorityWithTriggersPriorityExample : IExample
         Console.WriteLine("------- Initializing ----------------------");
 
         // First we must get a reference to a scheduler
-        var scheduler = await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = "PriorityExampleScheduler")
+        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
+
+        builder.ConfigureScheduler(options => options.InstanceName = "PriorityExampleScheduler")
             // Set thread count to 1 to force Triggers scheduled for the same time to
             // to be ordered by priority.
-            .UseDefaultThreadPool(1)
-            .BuildScheduler();
+            .UseDefaultThreadPool(maxConcurrency: 1);
+
+        IScheduler scheduler = await builder.BuildScheduler();
 
         Console.WriteLine("------- Initialization Complete -----------");
 

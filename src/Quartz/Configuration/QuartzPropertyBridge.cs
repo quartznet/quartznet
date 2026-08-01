@@ -83,6 +83,7 @@ internal static class QuartzPropertyBridge
         // never resolved, so filling it in costs nothing.
         services.Configure<InMemoryJobStoreOptions>(name, options => MapInMemoryJobStore(options, parser));
         services.Configure<AdoJobStoreOptions>(name, options => MapAdoJobStore(options, parser));
+        services.Configure<ClusteringOptions>(name, options => MapClustering(options, parser));
 
         ApplyDataSourceOptions(services, parser);
     }
@@ -149,7 +150,7 @@ internal static class QuartzPropertyBridge
     /// </remarks>
     private static void RegisterDbProviderMetadata(IServiceCollection services, NameValueCollection properties)
     {
-        var prefix = StdSchedulerFactory.PropertyDbProvider + ".";
+        var prefix = LegacyPropertyKeys.DbProvider + ".";
         var declared = properties.AllKeys.Any(key => key is not null && key.StartsWith(prefix, StringComparison.Ordinal));
         if (!declared)
         {
@@ -160,7 +161,7 @@ internal static class QuartzPropertyBridge
         // Copied, so a caller reusing its property collection for another scheduler cannot change what
         // this registration describes after the fact.
         services.AddSingleton<DbMetadataFactory>(
-            new ConfigurationBasedDbMetadataFactory(new NameValueCollection(properties), StdSchedulerFactory.PropertyDbProvider));
+            new ConfigurationBasedDbMetadataFactory(new NameValueCollection(properties), LegacyPropertyKeys.DbProvider));
     }
 
     /// <summary>
@@ -189,6 +190,7 @@ internal static class QuartzPropertyBridge
         Reconfigure<ThreadPoolOptions>(services, name, MapThreadPool);
         Reconfigure<InMemoryJobStoreOptions>(services, name, MapInMemoryJobStore);
         Reconfigure<AdoJobStoreOptions>(services, name, MapAdoJobStore);
+        Reconfigure<ClusteringOptions>(services, name, MapClustering);
     }
 
     private static void Reconfigure<TOptions>(
@@ -241,7 +243,7 @@ internal static class QuartzPropertyBridge
     /// </remarks>
     private static ITypeLoadHelper? ConfiguredTypeLoadHelper(IServiceCollection services, NameValueCollection properties)
     {
-        var configured = new PropertyReader(properties).Type(StdSchedulerFactory.PropertySchedulerTypeLoadHelperType);
+        var configured = new PropertyReader(properties).Type(LegacyPropertyKeys.SchedulerTypeLoadHelperType);
         if (configured is null)
         {
             return null;
@@ -261,7 +263,7 @@ internal static class QuartzPropertyBridge
         PropertyReader parser,
         string? schedulerName)
     {
-        var instanceIdGeneratorType = parser.Type(StdSchedulerFactory.PropertySchedulerInstanceIdGeneratorType)
+        var instanceIdGeneratorType = parser.Type(LegacyPropertyKeys.SchedulerInstanceIdGeneratorType)
             ?? SystemPropertyGeneratorIfRequested(parser);
 
         if (instanceIdGeneratorType is not null)
@@ -274,15 +276,15 @@ internal static class QuartzPropertyBridge
                 var generator = (IInstanceIdGenerator) ActivatorUtilities.CreateInstance(
                     SchedulerScopedServiceProvider.For(provider, key), instanceIdGeneratorType);
 
-                ApplyStringProperties(generator, provider, key, StdSchedulerFactory.PropertySchedulerInstanceIdGeneratorPrefix);
+                ApplyStringProperties(generator, provider, key, LegacyPropertyKeys.SchedulerInstanceIdGeneratorPrefix);
                 return generator;
             });
         }
 
-        Register<IJobFactory>(services, schedulerName, parser.Type(StdSchedulerFactory.PropertySchedulerJobFactoryType));
+        Register<IJobFactory>(services, schedulerName, parser.Type(LegacyPropertyKeys.SchedulerJobFactoryType));
 
         // Container-wide and replaced rather than tried, for the same reason as the type load helper.
-        if (parser.Type(StdSchedulerFactory.PropertyTimeProviderType) is { } timeProviderType)
+        if (parser.Type(LegacyPropertyKeys.TimeProviderType) is { } timeProviderType)
         {
             services.Replace(ServiceDescriptor.Singleton(typeof(TimeProvider), timeProviderType));
         }
@@ -297,15 +299,15 @@ internal static class QuartzPropertyBridge
         }
         else
         {
-            parser.String(StdSchedulerFactory.PropertySchedulerInstanceName, value => options.InstanceName = value);
+            parser.String(LegacyPropertyKeys.SchedulerInstanceName, value => options.InstanceName = value);
         }
 
-        parser.String(StdSchedulerFactory.PropertySchedulerInstanceId, value =>
+        parser.String(LegacyPropertyKeys.SchedulerInstanceId, value =>
         {
             switch (value)
             {
-                case StdSchedulerFactory.AutoGenerateInstanceId:
-                case StdSchedulerFactory.SystemPropertyAsInstanceId:
+                case LegacyPropertyKeys.AutoGenerateInstanceId:
+                case LegacyPropertyKeys.SystemPropertyAsInstanceId:
                     options.GenerateInstanceId = true;
                     break;
                 default:
@@ -314,15 +316,15 @@ internal static class QuartzPropertyBridge
             }
         });
 
-        parser.String(StdSchedulerFactory.PropertySchedulerThreadName, value => options.ThreadName = value);
-        parser.Milliseconds(StdSchedulerFactory.PropertySchedulerIdleWaitTime, value => options.IdleWaitTime = value);
-        parser.Int(StdSchedulerFactory.PropertySchedulerMaxBatchSize, value => options.MaxBatchSize = value);
-        parser.Milliseconds(StdSchedulerFactory.PropertySchedulerBatchTimeWindow, value => options.BatchTriggerAcquisitionFireAheadTimeWindow = value);
-        parser.Bool(StdSchedulerFactory.PropertySchedulerMakeSchedulerThreadDaemon, value => options.MakeSchedulerThreadDaemon = value);
-        parser.Bool(StdSchedulerFactory.PropertySchedulerInterruptJobsOnShutdown, value => options.InterruptJobsOnShutdown = value);
-        parser.Bool(StdSchedulerFactory.PropertySchedulerInterruptJobsOnShutdownWithWait, value => options.InterruptJobsOnShutdownWithWait = value);
+        parser.String(LegacyPropertyKeys.SchedulerThreadName, value => options.ThreadName = value);
+        parser.Milliseconds(LegacyPropertyKeys.SchedulerIdleWaitTime, value => options.IdleWaitTime = value);
+        parser.Int(LegacyPropertyKeys.SchedulerMaxBatchSize, value => options.MaxBatchSize = value);
+        parser.Milliseconds(LegacyPropertyKeys.SchedulerBatchTimeWindow, value => options.BatchTriggerAcquisitionFireAheadTimeWindow = value);
+        parser.Bool(LegacyPropertyKeys.SchedulerMakeSchedulerThreadDaemon, value => options.MakeSchedulerThreadDaemon = value);
+        parser.Bool(LegacyPropertyKeys.SchedulerInterruptJobsOnShutdown, value => options.InterruptJobsOnShutdown = value);
+        parser.Bool(LegacyPropertyKeys.SchedulerInterruptJobsOnShutdownWithWait, value => options.InterruptJobsOnShutdownWithWait = value);
 
-        var context = parser.Group(StdSchedulerFactory.PropertySchedulerContextPrefix);
+        var context = parser.Group(LegacyPropertyKeys.SchedulerContextPrefix);
         foreach (var key in context.AllKeys)
         {
             if (key is not null && context[key] is { } value)
@@ -337,8 +339,8 @@ internal static class QuartzPropertyBridge
     /// </summary>
     private static Type? SystemPropertyGeneratorIfRequested(PropertyReader parser)
     {
-        var instanceId = parser.String(StdSchedulerFactory.PropertySchedulerInstanceId);
-        return instanceId == StdSchedulerFactory.SystemPropertyAsInstanceId
+        var instanceId = parser.String(LegacyPropertyKeys.SchedulerInstanceId);
+        return instanceId == LegacyPropertyKeys.SystemPropertyAsInstanceId
             ? typeof(SystemPropertyInstanceIdGenerator)
             : null;
     }
@@ -353,14 +355,14 @@ internal static class QuartzPropertyBridge
         // Both spellings are accepted: existing files say Quartz.Simpl.SimpleThreadPool, and the 4.0
         // migration guide tells readers to rewrite Quartz.Simpl.* as Quartz.Impl.*, which turns this
         // setting into a name no release ever had. Following the documentation must not break startup.
-        var configured = parser.String(StdSchedulerFactory.PropertyThreadPoolType);
+        var configured = parser.String(LegacyPropertyKeys.ThreadPoolType);
         var legacyThreadPool = configured is not null
             && (configured.StartsWith("Quartz.Simpl.SimpleThreadPool", StringComparison.OrdinalIgnoreCase)
                 || configured.StartsWith("Quartz.Impl.SimpleThreadPool", StringComparison.OrdinalIgnoreCase));
 
         var threadPoolType = legacyThreadPool
                 ? typeof(DefaultThreadPool)
-                : parser.Type(StdSchedulerFactory.PropertyThreadPoolType);
+                : parser.Type(LegacyPropertyKeys.ThreadPoolType);
 
         if (threadPoolType is null)
         {
@@ -380,7 +382,7 @@ internal static class QuartzPropertyBridge
             else
             {
                 // A third-party pool has no typed options, so its knobs still arrive as strings.
-                ApplyStringProperties(threadPool, provider, key, StdSchedulerFactory.PropertyThreadPoolPrefix);
+                ApplyStringProperties(threadPool, provider, key, LegacyPropertyKeys.ThreadPoolPrefix);
             }
 
             return threadPool;
@@ -404,7 +406,7 @@ internal static class QuartzPropertyBridge
         // returning early on a missing quartz.jobStore.type would drop it.
         Register<IDriverDelegate>(services, schedulerName, parser.Type("quartz.jobStore.driverDelegateType"));
 
-        if (parser.Type(StdSchedulerFactory.PropertyJobStoreLockHandlerType) is { } lockHandlerType)
+        if (parser.Type(LegacyPropertyKeys.JobStoreLockHandlerType) is { } lockHandlerType)
         {
             // A lock handler has no typed options, so its settings — a Redis semaphore's key prefix and
             // lock TTL, say — arrive as strings under its own prefix and are applied after construction.
@@ -413,12 +415,12 @@ internal static class QuartzPropertyBridge
                 var lockHandler = (ISemaphore) ActivatorUtilities.CreateInstance(
                     SchedulerScopedServiceProvider.For(provider, key), lockHandlerType);
 
-                ApplyStringProperties(lockHandler, provider, key, StdSchedulerFactory.PropertyJobStoreLockHandlerPrefix);
+                ApplyStringProperties(lockHandler, provider, key, LegacyPropertyKeys.JobStoreLockHandlerPrefix);
                 return lockHandler;
             });
         }
 
-        var jobStoreType = parser.Type(StdSchedulerFactory.PropertyJobStoreType);
+        var jobStoreType = parser.Type(LegacyPropertyKeys.JobStoreType);
         if (jobStoreType is null)
         {
             return;
@@ -470,8 +472,8 @@ internal static class QuartzPropertyBridge
                 // ADO store reads AdoJobStoreOptions in its constructor and needs none of this.
                 ApplyStringProperties(
                     jobStore, provider, key,
-                    StdSchedulerFactory.PropertyJobStorePrefix,
-                    StdSchedulerFactory.PropertyJobStoreLockHandlerPrefix);
+                    LegacyPropertyKeys.JobStorePrefix,
+                    LegacyPropertyKeys.JobStoreLockHandlerPrefix);
             }
 
             return jobStore;
@@ -495,19 +497,21 @@ internal static class QuartzPropertyBridge
         parser.Milliseconds("quartz.jobStore.transientRetryInterval", value => options.TransientRetryInterval = value);
         parser.Int("quartz.jobStore.retryableActionErrorLogThreshold", value => options.RetryableActionErrorLogThreshold = value);
         parser.Bool("quartz.jobStore.makeThreadsDaemons", value => options.MakeThreadsDaemons = value);
-        parser.Bool("quartz.jobStore.clustered", value =>
+        // Clustering has always implied database locking; the legacy format never made it a separate
+        // decision, so keep it implied. Whether the scheduler is clustered at all is ClusteringOptions'
+        // to say — see MapClustering — but the implication belongs to the store's own options, and it
+        // has to hold for both spellings of the key.
+        void ImplyDbLocks(bool clustered)
         {
-            options.Clustered = value;
-            // Clustering has always implied database locking; the legacy format never made it a
-            // separate decision, so keep it implied rather than failing validation.
-            if (value)
+            if (clustered)
             {
                 options.UseDbLocks = true;
             }
-        });
-        parser.Milliseconds("quartz.jobStore.clusterCheckinInterval", value => options.ClusterCheckinInterval = value);
-        parser.Milliseconds("quartz.jobStore.clusterCheckinMisfireThreshold", value => options.ClusterCheckinMisfireThreshold = value);
-        parser.Milliseconds(StdSchedulerFactory.PropertyJobStoreDbRetryInterval, value => options.DbRetryInterval = value);
+        }
+
+        parser.Bool("quartz.jobStore.clustered", ImplyDbLocks);
+        parser.Bool("quartz.jobStore.clustering.enabled", ImplyDbLocks);
+        parser.Milliseconds(LegacyPropertyKeys.JobStoreDbRetryInterval, value => options.DbRetryInterval = value);
         parser.Bool("quartz.jobStore.useDBLocks", value => options.UseDbLocks = value);
         parser.Bool("quartz.jobStore.lockOnInsert", value => options.LockOnInsert = value);
         parser.Bool("quartz.jobStore.acquireTriggersWithinLock", value => options.AcquireTriggersWithinLock = value);
@@ -519,11 +523,27 @@ internal static class QuartzPropertyBridge
         parser.String("quartz.jobStore.driverDelegateInitString", value => options.DriverDelegateInitString = value);
     }
 
+    /// <summary>
+    /// Maps the clustering keys, which are still spelled <c>quartz.jobStore.cluster*</c> even though
+    /// they no longer land on the job store's own options.
+    /// </summary>
+    private static void MapClustering(ClusteringOptions options, PropertyReader parser)
+    {
+        parser.Bool("quartz.jobStore.clustered", value => options.Enabled = value);
+        parser.Milliseconds("quartz.jobStore.clusterCheckinInterval", value => options.CheckinInterval = value);
+        parser.Milliseconds("quartz.jobStore.clusterCheckinMisfireThreshold", value => options.CheckinMisfireThreshold = value);
+
+        // The hierarchical spelling of the same three settings, which flattens to this prefix.
+        parser.Bool("quartz.jobStore.clustering.enabled", value => options.Enabled = value);
+        parser.Milliseconds("quartz.jobStore.clustering.checkinInterval", value => options.CheckinInterval = value);
+        parser.Milliseconds("quartz.jobStore.clustering.checkinMisfireThreshold", value => options.CheckinMisfireThreshold = value);
+    }
+
     private static void ApplyDataSourceOptions(IServiceCollection services, PropertyReader parser)
     {
-        foreach (var dataSourceName in parser.Groups(StdSchedulerFactory.PropertyDataSourcePrefix))
+        foreach (var dataSourceName in parser.Groups(LegacyPropertyKeys.DataSourcePrefix))
         {
-            var prefix = $"{StdSchedulerFactory.PropertyDataSourcePrefix}.{dataSourceName}";
+            var prefix = $"{LegacyPropertyKeys.DataSourcePrefix}.{dataSourceName}";
             services.Configure<DataSourceOptions>(dataSourceName, options =>
             {
                 parser.String($"{prefix}.provider", value => options.Provider = value);
@@ -643,7 +663,7 @@ internal static class QuartzPropertyBridge
         var properties = new PropertyReader(provider.GetSchedulerProperties(key as string ?? Options.DefaultName))
             .Group(prefix);
 
-        properties.Remove(StdSchedulerFactory.PropertyPluginType);
+        properties.Remove(LegacyPropertyKeys.PluginType);
         foreach (var excluded in excludedPrefixes)
         {
             foreach (var name in properties.AllKeys.ToArray())

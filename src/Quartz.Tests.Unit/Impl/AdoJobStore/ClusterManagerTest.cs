@@ -138,19 +138,20 @@ public class ClusterManagerTest
             TimeProvider timeProvider,
             IOptions<QuartzSchedulerOptions> schedulerOptions,
         IOptions<AdoJobStoreOptions> storeOptions,
+        IOptions<ClusteringOptions> clusteringOptions,
         IObjectSerializer objectSerializer,
         IDbConnectionManager connectionManager,
         IDbProvider dbProvider,
         IDriverDelegate driverDelegate,
         ISemaphore lockHandler)
-            : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions, storeOptions, objectSerializer, connectionManager, dbProvider, driverDelegate, lockHandler)
+            : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions, storeOptions, clusteringOptions, objectSerializer, connectionManager, dbProvider, driverDelegate, lockHandler)
         {
         }
 
         public TestJobStoreSupport()
         // A short check-in interval so that if the Run loop starts, it quickly checks the
         // cancellation token and exits, letting shutdown tests complete faster.
-        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions("TestInstance", "TestInstanceId"), TestJobStores.StoreOptions(configure: options => options.ClusterCheckinInterval = TimeSpan.FromMilliseconds(100)), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
+        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions("TestInstance", "TestInstanceId"), TestJobStores.StoreOptions(), TestJobStores.ClusteringOptions(configure: options => options.CheckinInterval = TimeSpan.FromMilliseconds(100)), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
         {
         }
 

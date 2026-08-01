@@ -1,7 +1,6 @@
 using System.Collections.Specialized;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
-using Quartz.Impl;
 
 namespace Quartz.Tests.Unit;
 
@@ -183,7 +182,7 @@ public class SchedulerListenerTest
         props["quartz.scheduler.idleWaitTime"] = "1500";
         props["quartz.threadPool.threadCount"] = "2";
         props["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
-        IScheduler scheduler = await new StdSchedulerFactory(props).GetScheduler();
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create().UseProperties(props).BuildScheduler();
         scheduler.ListenerManager.AddSchedulerListener(schedulerListener);
         scheduler.ListenerManager.AddTriggerListener(triggerListener);
 

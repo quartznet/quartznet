@@ -26,6 +26,7 @@ internal static class QuartzTypedOptions
     internal const string SchedulerSection = "Scheduler";
     internal const string ThreadPoolSection = "ThreadPool";
     internal const string JobStoreSection = "JobStore";
+    internal const string ClusteringSection = "Clustering";
     internal const string DataSourceSection = "DataSource";
 
     /// <summary>
@@ -39,6 +40,7 @@ internal static class QuartzTypedOptions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<ThreadPoolOptions>, ThreadPoolOptionsValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<InMemoryJobStoreOptions>, InMemoryJobStoreOptionsValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<AdoJobStoreOptions>, AdoJobStoreOptionsValidator>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<ClusteringOptions>, ClusteringOptionsValidator>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<DataSourceOptions>, DataSourceOptionsValidator>());
 
         return services;
@@ -74,6 +76,10 @@ internal static class QuartzTypedOptions
         var jobStoreSection = quartzSection.GetSection(JobStoreSection);
         services.Configure<InMemoryJobStoreOptions>(name, jobStoreSection);
         services.Configure<AdoJobStoreOptions>(name, jobStoreSection);
+
+        // Clustering is a sub-section rather than three more job store settings, because it is one
+        // decision with two knobs attached to it rather than three independent ones.
+        services.Configure<ClusteringOptions>(name, jobStoreSection.GetSection(ClusteringSection));
 
         // Data sources are named after themselves rather than after the scheduler, matching the way
         // the connection manager keys providers.

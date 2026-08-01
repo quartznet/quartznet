@@ -30,8 +30,8 @@ namespace Quartz.Extensibility;
 /// invoking actions on the scheduler, or passively: by being a <see cref="IJobListener" />,
 /// <see cref="ITriggerListener" />, and/or <see cref="ISchedulerListener" />.
 /// <para>
-/// If you use <see cref="StdSchedulerFactory" /> to
-/// Initialize your Scheduler, it can also create and Initialize your plugins -
+/// A plugin is registered with the scheduler it extends, either with <c>AddPlugin</c> or by a
+/// <c>quartz.plugin.&lt;name&gt;.*</c> key, and the scheduler initializes and starts it -
 /// look at the configuration docs for details.
 /// </para>
 /// <para>

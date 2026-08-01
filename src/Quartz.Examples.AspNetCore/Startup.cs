@@ -257,21 +257,27 @@ public class Startup
             /*
             q.UsePersistentStore(s =>
             {
-                s.PerformSchemaValidation = true; // default
-                s.UseProperties = true; // preferred, but not default
-                s.RetryInterval = TimeSpan.FromSeconds(15);
-                s.UseSqlServer("sql-server-01", sqlServer =>
+                s.UseSqlServer(sqlServer =>
                 {
-                    // if needed, could create a custom strategy for handling connections
-                    //sqlServer.UseConnectionProvider<CustomSqlServerConnectionProvider>();
-
                     sqlServer.ConnectionString = "some connection string";
 
                     // or from appsettings.json
                     // sqlServer.ConnectionStringName = "Quartz";
 
+                    // or a DbDataSource the application registered in the container
+                    // sqlServer.UseRegisteredDataSource = true;
+
+                    // if needed, a custom strategy for handling connections is registered as
+                    // IDbProvider in the container, the way CustomSqlServerConnectionProvider is above
+                });
+                s.Configure(options =>
+                {
+                    options.PerformSchemaValidation = true; // default
+                    options.UseProperties = true; // preferred, but not default
+                    options.DbRetryInterval = TimeSpan.FromSeconds(15);
+
                     // this is the default
-                    sqlServer.TablePrefix = "QRTZ_";
+                    options.TablePrefix = "QRTZ_";
                 });
                 s.UseSystemTextJsonSerializer();
                 s.UseClustering(c =>
@@ -303,7 +309,7 @@ public class Startup
         // Add Quartz.NET Dashboard
         services.AddQuartzDashboard();
 
-        // Quartz.Extensions.Hosting hosting
+        // run the scheduler as an IHostedService
         services.AddQuartzHostedService(options =>
         {
             // when shutting down we want jobs to complete gracefully

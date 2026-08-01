@@ -1,4 +1,3 @@
-using Quartz.Impl;
 using Quartz.Matchers;
 using Quartz.Job;
 
@@ -12,7 +11,7 @@ public class QuartzMemoryPauseAndResumeTest
     [SetUp]
     public async Task SetUp()
     {
-        ISchedulerFactory sf = new StdSchedulerFactory();
+        ISchedulerFactory sf = QuartzSchedulerBuilder.Create().Build();
         scheduler = await sf.GetScheduler();
     }
 

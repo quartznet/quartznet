@@ -14,7 +14,7 @@ namespace Quartz.Impl;
 /// </summary>
 /// <remarks>
 /// <para>
-/// This replaces the reflective construction in <see cref="StdSchedulerFactory"/>: there is no type
+/// This replaces the reflective construction the properties-based factory used to do: there is no type
 /// loading from configuration strings, no property setting by reflection, and no
 /// <c>InstantiateType&lt;T&gt;</c> seam for a container to patch. Whatever the container holds is what
 /// the scheduler is built from.

@@ -76,6 +76,7 @@ internal sealed class SchedulerScopedServiceProvider
         [typeof(IOptions<ThreadPoolOptions>)] = static (p, name) => Named<ThreadPoolOptions>(p, name),
         [typeof(IOptions<InMemoryJobStoreOptions>)] = static (p, name) => Named<InMemoryJobStoreOptions>(p, name),
         [typeof(IOptions<AdoJobStoreOptions>)] = static (p, name) => Named<AdoJobStoreOptions>(p, name),
+        [typeof(IOptions<ClusteringOptions>)] = static (p, name) => Named<ClusteringOptions>(p, name),
         [typeof(IOptions<QuartzOptions>)] = static (p, name) => Named<QuartzOptions>(p, name),
     };
 

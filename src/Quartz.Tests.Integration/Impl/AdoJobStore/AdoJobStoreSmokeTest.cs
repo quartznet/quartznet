@@ -190,7 +190,7 @@ public class AdoJobStoreSmokeTest
         });
         config.UseDefaultThreadPool(x => x.MaxConcurrency = 10);
 
-        config.Configure(q => q.UsePersistentStore(store =>
+        config.UsePersistentStore(store =>
         {
             store.Configure(o =>
             {
@@ -239,7 +239,7 @@ public class AdoJobStoreSmokeTest
             {
                 throw new ArgumentException($"Cannot handle serializer type: {serializerType}", nameof(serializerType));
             }
-        }));
+        });
 
         // Clear any old errors from the log
         //testLoggerHelper.ClearLogs();
@@ -268,7 +268,7 @@ public class AdoJobStoreSmokeTest
         properties["quartz.dataSource.default.connectionString"] = connectionString;
         properties["quartz.dataSource.default.provider"] = TestConstants.DefaultSqlServerProvider;
 
-        ISchedulerFactory sf = new StdSchedulerFactory(properties);
+        ISchedulerFactory sf = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         IScheduler scheduler = await sf.GetScheduler();
         await scheduler.Clear();
 
@@ -286,7 +286,7 @@ public class AdoJobStoreSmokeTest
 
         // try again with changing the useproperties against same set of data
         properties["quartz.jobStore.useProperties"] = true.ToString();
-        sf = new StdSchedulerFactory(properties);
+        sf = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         scheduler = await sf.GetScheduler();
 
         var triggerWithDataFromDb = await scheduler.GetTrigger(new TriggerKey("datatrigger", "triggergroup"));
@@ -300,7 +300,7 @@ public class AdoJobStoreSmokeTest
         await scheduler.Shutdown();
 
         properties["quartz.jobStore.useProperties"] = false.ToString();
-        sf = new StdSchedulerFactory(properties);
+        sf = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         scheduler = await sf.GetScheduler();
         createdSchedulers.Add(scheduler);
 
@@ -335,7 +335,7 @@ public class AdoJobStoreSmokeTest
         properties["quartz.dataSource.default.provider"] = TestConstants.DefaultSqlServerProvider;
 
         // First we must get a reference to a scheduler
-        ISchedulerFactory sf = new StdSchedulerFactory(properties);
+        ISchedulerFactory sf = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         IScheduler scheduler = await sf.GetScheduler();
 
         try
@@ -406,7 +406,7 @@ public class AdoJobStoreSmokeTest
     public async Task JobTypeNotFoundShouldNotBlock()
     {
         NameValueCollection properties = new NameValueCollection();
-        properties.Add(StdSchedulerFactory.PropertySchedulerTypeLoadHelperType, typeof(SpecialClassLoadHelper).AssemblyQualifiedName);
+        properties.Add("quartz.scheduler.typeLoadHelper.type", typeof(SpecialClassLoadHelper).AssemblyQualifiedName);
         var scheduler = await CreateScheduler(properties);
 
         await scheduler.DeleteJobs([new JobKey("bad"), new JobKey("good")]);
@@ -462,7 +462,7 @@ public class AdoJobStoreSmokeTest
         properties["quartz.dataSource.default.provider"] = TestConstants.DefaultSqlServerProvider;
 
         // First we must get a reference to a scheduler
-        ISchedulerFactory sf = new StdSchedulerFactory(properties);
+        ISchedulerFactory sf = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         IScheduler scheduler = await sf.GetScheduler();
         createdSchedulers.Add(scheduler);
         return scheduler;
@@ -489,7 +489,7 @@ public class AdoJobStoreSmokeTest
         properties["quartz.dataSource.default.provider"] = TestConstants.DefaultSqlServerProvider;
 
         // First we must get a reference to a scheduler
-        ISchedulerFactory sf = new StdSchedulerFactory(properties);
+        ISchedulerFactory sf = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         IScheduler scheduler = await sf.GetScheduler();
 
         try

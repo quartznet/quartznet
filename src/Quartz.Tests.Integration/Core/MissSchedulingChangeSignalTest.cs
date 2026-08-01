@@ -20,7 +20,7 @@ public class MissSchedulingChangeSignalTest
         // Use a custom RAMJobStore to produce context switches leading to the race condition
         properties["quartz.jobStore.type"] = typeof(SlowRAMJobStore).AssemblyQualifiedName;
         properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
-        ISchedulerFactory sf = new StdSchedulerFactory(properties);
+        ISchedulerFactory sf = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         IScheduler scheduler = await sf.GetScheduler();
         logger.LogInformation("------- Initialization Complete -----------");
 

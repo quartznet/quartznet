@@ -58,6 +58,13 @@ public static class TestJobStores
         return Options.Create(options);
     }
 
+    public static IOptions<ClusteringOptions> ClusteringOptions(Action<ClusteringOptions>? configure = null)
+    {
+        var options = new ClusteringOptions();
+        configure?.Invoke(options);
+        return Options.Create(options);
+    }
+
     public static IOptions<QuartzSchedulerOptions> SchedulerOptions(
         string instanceName = "TestScheduler",
         string instanceId = "TestInstance")
@@ -94,6 +101,7 @@ public static class TestJobStores
             timeProvider ?? TimeProvider.System,
             SchedulerOptions(instanceName, instanceId),
             StoreOptions(),
+            ClusteringOptions(),
             Serializer(),
             ConnectionManager(),
             DbProvider(),
@@ -112,6 +120,7 @@ public static class TestJobStores
             timeProvider ?? TimeProvider.System,
             SchedulerOptions(),
             StoreOptions(),
+            ClusteringOptions(),
             Serializer(),
             ConnectionManager(),
             DbProvider(),

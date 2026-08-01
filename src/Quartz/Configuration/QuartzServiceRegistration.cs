@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 
 using Quartz.Core;
+using Quartz.Diagnostics;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
@@ -49,6 +50,10 @@ internal static class QuartzServiceRegistration
     {
         services.AddQuartzOptionsValidation();
         services.AddLogging();
+
+        // Job execution metrics were previously configured only by the properties-based factory, so a
+        // scheduler registered any other way published none. Every scheduler comes through here.
+        Meters.Configure();
 
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<ITypeLoadHelper, SimpleTypeLoadHelper>();

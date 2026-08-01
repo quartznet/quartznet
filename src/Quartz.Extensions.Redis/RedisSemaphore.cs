@@ -131,7 +131,7 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
 
     /// <summary>
     /// Table prefix (unused, but required by <see cref="ITablePrefixAware"/>
-    /// so that <see cref="StdSchedulerFactory"/> auto-injects <see cref="SchedulerName"/>).
+    /// so that the scheduler auto-injects <see cref="SchedulerName"/>).
     /// </summary>
     public string TablePrefix { get; set; } = "";
 
@@ -139,8 +139,7 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
     /// Gets or sets the scheduler name used to namespace Redis lock keys.
     /// </summary>
     /// <remarks>
-    /// Auto-injected by <see cref="StdSchedulerFactory"/> when
-    /// <see cref="ITablePrefixAware"/> is implemented.
+    /// Auto-injected by the job store when <see cref="ITablePrefixAware"/> is implemented.
     /// </remarks>
     public string? SchedulerName { get; set; }
 

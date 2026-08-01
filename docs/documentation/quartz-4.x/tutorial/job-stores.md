@@ -32,7 +32,7 @@ For some applications this is acceptable - or even the desired behavior, but for
  quartz.jobStore.type = Quartz.Impl.RAMJobStore, Quartz
 ```
 
-To use `RAMJobStore` (and assuming you're using `StdSchedulerFactory`) you don't need to do anything special. Default configuration
+To use `RAMJobStore` you don't need to do anything special. Default configuration
 of Quartz.NET uses `RAMJobStore` as job store implementation.
 
 ## ADO.NET Job Store (AdoJobStore)
@@ -168,18 +168,18 @@ You should also strongly consider setting useProperties to true to restrict key-
 #### Using code
 
 ```csharp
-var config = SchedulerBuilder.Create();
-config.UsePersistentStore(store =>
+var builder = QuartzSchedulerBuilder.Create();
+builder.UsePersistentStore(store =>
 {
     // it's generally recommended to stick with
     // string property keys and values when serializing
-    store.UseProperties = true;
+    store.Configure(options => options.UseProperties = true);
 
     ....
 
     store.UseSystemTextJsonSerializer();
 });
-ISchedulerFactory schedulerFactory = config.Build();
+ISchedulerFactory schedulerFactory = builder.Build();
 ```
 
 #### Using properties

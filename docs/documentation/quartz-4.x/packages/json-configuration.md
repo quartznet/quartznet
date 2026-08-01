@@ -69,8 +69,9 @@ services.AddQuartz(Configuration.GetSection("Quartz"), q =>
 ```csharp
 var properties = QuartzConfigurationHelper.ToNameValueCollection(
     Configuration.GetSection("Quartz"));
-var factory = new StdSchedulerFactory();
-factory.Initialize(properties);
+ISchedulerFactory factory = QuartzSchedulerBuilder.Create()
+    .UseProperties(properties)
+    .Build();
 ```
 
 ### Backward Compatibility

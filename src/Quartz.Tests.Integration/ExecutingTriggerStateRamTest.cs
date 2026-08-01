@@ -31,13 +31,14 @@ public class ExecutingTriggerStateRamTest
     [Test]
     public async Task GetTriggerState_ReportsExecuting_ForTheWholeRunAndNormalAfterwards()
     {
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(o =>
-            {
-                o.InstanceId = "AUTO";
-                o.InstanceName = "ExecutingStateRamTest";
-            })
-            .BuildScheduler();
+        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
+        builder.ConfigureScheduler(o =>
+        {
+            o.InstanceId = "AUTO";
+            o.InstanceName = "ExecutingStateRamTest";
+        });
+
+        IScheduler scheduler = await builder.BuildScheduler();
 
         var triggerKey = new TriggerKey("executingStateTrigger", "executingStateGroup");
 

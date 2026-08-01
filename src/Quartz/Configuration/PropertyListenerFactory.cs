@@ -35,8 +35,8 @@ internal static class PropertyListenerFactory
     /// <param name="provider">The container, used to resolve or construct each listener.</param>
     /// <param name="properties">The flat properties that may name listeners.</param>
     /// <param name="prefix">
-    /// The property prefix to read, <see cref="StdSchedulerFactory.PropertyJobListenerPrefix"/> or
-    /// <see cref="StdSchedulerFactory.PropertyTriggerListenerPrefix"/>.
+    /// The property prefix to read, <see cref="LegacyPropertyKeys.JobListenerPrefix"/> or
+    /// <see cref="LegacyPropertyKeys.TriggerListenerPrefix"/>.
     /// </param>
     public static List<TListener> Create<TListener>(
         IServiceProvider provider,
@@ -50,7 +50,7 @@ internal static class PropertyListenerFactory
         foreach (var name in Names(properties, start))
         {
             var listenerProperties = Group(properties, start + name + ".");
-            var typeName = listenerProperties[StdSchedulerFactory.PropertyListenerType];
+            var typeName = listenerProperties[LegacyPropertyKeys.ListenerType];
             if (string.IsNullOrWhiteSpace(typeName))
             {
                 Throw.SchedulerException($"Listener type not specified for listener '{name}'");
@@ -80,7 +80,7 @@ internal static class PropertyListenerFactory
                 continue;
             }
 
-            listenerProperties.Remove(StdSchedulerFactory.PropertyListenerType);
+            listenerProperties.Remove(LegacyPropertyKeys.ListenerType);
             NameListener(listener, name, listenerProperties);
 
             if (listenerProperties.Count > 0)

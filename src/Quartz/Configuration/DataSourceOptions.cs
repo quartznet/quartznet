@@ -32,5 +32,10 @@ public sealed class DataSourceOptions
     /// Whether connections come from a <c>DbDataSource</c> registered in the container rather than
     /// from a connection string Quartz holds.
     /// </summary>
+    /// <remarks>
+    /// This is the third way a data source can say where its connections come from, alongside
+    /// <see cref="ConnectionString"/> and <see cref="ConnectionStringName"/>, and it wins over both.
+    /// It is a setting rather than a builder method because it answers the same question they do.
+    /// </remarks>
     public bool UseRegisteredDataSource { get; set; }
 }

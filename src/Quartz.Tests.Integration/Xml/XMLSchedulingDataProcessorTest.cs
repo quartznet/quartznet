@@ -167,7 +167,7 @@ public class XMLSchedulingDataProcessorTest
         {
             var properties = new NameValueCollection();
             properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
-            StdSchedulerFactory factory = new StdSchedulerFactory(properties);
+            ISchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
             scheduler = await factory.GetScheduler();
 
             // Let's setup a fixture job data that we know test is not going modify it.
@@ -234,7 +234,7 @@ public class XMLSchedulingDataProcessorTest
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
 
-            StdSchedulerFactory factory = new StdSchedulerFactory(properties);
+            ISchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
             scheduler = await factory.GetScheduler();
 
             // Setup existing job with same names as in xml data.
@@ -364,7 +364,7 @@ public class XMLSchedulingDataProcessorTest
         properties["quartz.scheduler.instanceName"] = "TestScheduler";
         properties["quartz.scheduler.instanceId"] = "AUTO";
 
-        ISchedulerFactory sf = new StdSchedulerFactory(properties);
+        ISchedulerFactory sf = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         IScheduler scheduler = await sf.GetScheduler();
 
         await scheduler.Clear();
@@ -433,7 +433,7 @@ public class XMLSchedulingDataProcessorTest
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
-            StdSchedulerFactory factory = new StdSchedulerFactory(properties);
+            ISchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
             scheduler = await factory.GetScheduler();
 
             // Setup existing job with same names as in xml data.

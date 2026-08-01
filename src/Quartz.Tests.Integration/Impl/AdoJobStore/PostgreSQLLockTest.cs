@@ -21,7 +21,6 @@
 
 using System.Collections.Specialized;
 
-using Quartz.Impl;
 using Quartz.Job;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;
@@ -56,7 +55,7 @@ public class PostgreSQLLockTest
             ["quartz.threadPool.maxConcurrency"] = "10"
         };
 
-        ISchedulerFactory sf = new StdSchedulerFactory(properties);
+        ISchedulerFactory sf = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         IScheduler scheduler = await sf.GetScheduler();
 
         try

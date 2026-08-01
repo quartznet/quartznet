@@ -89,9 +89,10 @@ public class JobInstantiationExceptionTest
     {
         ErrorCapturingListener listener = new ErrorCapturingListener();
 
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .UseJobFactory(new ThrowingJobFactory(cause))
-            .BuildScheduler();
+        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
+        builder.UseJobFactory(new ThrowingJobFactory(cause));
+
+        IScheduler scheduler = await builder.BuildScheduler();
 
         scheduler.ListenerManager.AddSchedulerListener(listener);
 

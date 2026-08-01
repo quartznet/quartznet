@@ -6,7 +6,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Extensibility;
 using Quartz.HttpClient;
-using Quartz.Impl;
 using Quartz.Impl.Calendar;
 using Quartz.Matchers;
 using Quartz.Tests.AspNetCore.Support;
@@ -46,7 +45,7 @@ public class QueryEndpointsTest : WebApiTest
             ["quartz.serializer.type"] = "stj"
         };
 
-        scheduler = await new StdSchedulerFactory(properties).GetScheduler();
+        scheduler = await QuartzSchedulerBuilder.Create().UseProperties(properties).BuildScheduler();
         await Seed();
 
         WebApplicationFactory.Services.GetRequiredService<ISchedulerRepository>().Bind(scheduler);

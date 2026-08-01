@@ -1,3 +1,5 @@
+using System.Collections.Specialized;
+
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Configuration;
@@ -24,11 +26,12 @@ public class QuartzSchedulerBuilderTest
     [Test]
     public async Task BuildsAWorkingSchedulerWithoutAnApplicationContainer()
     {
-        var scheduler = await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = "standalone-builds")
+        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
+        builder.ConfigureScheduler(options => options.InstanceName = "standalone-builds")
             .UseDefaultThreadPool(maxConcurrency: 2)
-            .UseInMemoryStore()
-            .BuildScheduler();
+            .UseInMemoryStore();
+
+        IScheduler scheduler = await builder.BuildScheduler();
 
         try
         {
@@ -50,15 +53,50 @@ public class QuartzSchedulerBuilderTest
         }
     }
 
+    /// <summary>
+    /// Flat properties and code-first configuration are two spellings of one configuration model, so
+    /// they land on the same options — and what the code says wins, so a properties file cannot quietly
+    /// override a decision the application made.
+    /// </summary>
+    [Test]
+    public async Task PropertiesAndCodeConfigureTheSameSchedulerWithCodeWinning()
+    {
+        NameValueCollection properties = new NameValueCollection
+        {
+            ["quartz.scheduler.instanceName"] = "named-by-properties",
+            ["quartz.threadPool.threadCount"] = "6",
+        };
+
+        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create().UseProperties(properties);
+        builder.ConfigureScheduler(options => options.InstanceName = "named-by-code");
+
+        IScheduler scheduler = await builder.BuildScheduler();
+
+        try
+        {
+            scheduler.SchedulerName.Should().Be("named-by-code",
+                "the two describe the same option, and the one written in code is the one that wins");
+
+            SchedulerMetadata metadata = await scheduler.GetMetadata();
+            metadata.ThreadPoolSize.Should().Be(6,
+                "a setting the code said nothing about still has to come from the properties");
+        }
+        finally
+        {
+            await scheduler.Shutdown(waitForJobsToComplete: false);
+        }
+    }
+
     [Test]
     public void ContainerValidationPassesForTheDefaultConfiguration()
     {
         // Build() validates on build, so a missing or mis-scoped registration fails here rather than
         // at first use.
-        var act = () => QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = "validated")
-            .UseInMemoryStore()
-            .Build();
+        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
+        builder.ConfigureScheduler(options => options.InstanceName = "validated")
+            .UseInMemoryStore();
+
+        var act = () => builder.Build();
 
         act.Should().NotThrow();
     }

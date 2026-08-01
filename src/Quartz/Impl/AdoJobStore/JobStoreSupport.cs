@@ -68,6 +68,7 @@ public abstract class JobStoreSupport : IJobStore
         TimeProvider timeProvider,
         IOptions<QuartzSchedulerOptions> schedulerOptions,
         IOptions<AdoJobStoreOptions> storeOptions,
+        IOptions<ClusteringOptions> clusteringOptions,
         IObjectSerializer objectSerializer,
         IDbConnectionManager connectionManager,
         IDbProvider dbProvider,
@@ -93,9 +94,12 @@ public abstract class JobStoreSupport : IJobStore
         MisfireThreshold = options.MisfireThreshold;
         misfirehandlerFrequence = options.MisfireHandlerFrequency;
         MaxMisfiresToHandleAtATime = options.MaxMisfiresToHandleAtATime;
-        Clustered = options.Clustered;
-        ClusterCheckinInterval = options.ClusterCheckinInterval;
-        ClusterCheckinMisfireThreshold = options.ClusterCheckinMisfireThreshold;
+
+        var clustering = clusteringOptions.Value;
+        Clustered = clustering.Enabled;
+        ClusterCheckinInterval = clustering.CheckinInterval;
+        ClusterCheckinMisfireThreshold = clustering.CheckinMisfireThreshold;
+
         DbRetryInterval = options.DbRetryInterval;
         MaxTransientRetries = options.MaxTransientRetries;
         TransientRetryInterval = options.TransientRetryInterval;
@@ -180,6 +184,10 @@ public abstract class JobStoreSupport : IJobStore
     /// <summary>
     /// Whether this instance is part of a cluster.
     /// </summary>
+    /// <remarks>
+    /// Derived state rather than a setting of the store: it reports what
+    /// <see cref="ClusteringOptions.Enabled" /> says.
+    /// </remarks>
     public bool Clustered { get; }
 
     /// <summary>
@@ -187,6 +195,9 @@ public abstract class JobStoreSupport : IJobStore
     /// with the other instances of the cluster. -- Affects the rate of
     /// detecting failed instances.
     /// </summary>
+    /// <remarks>
+    /// Configured through <see cref="ClusteringOptions.CheckinInterval" />.
+    /// </remarks>
     public TimeSpan ClusterCheckinInterval { get; }
 
     /// <summary>
@@ -195,6 +206,9 @@ public abstract class JobStoreSupport : IJobStore
     /// other scheduler instances in a cluster can consider a "misfired" scheduler
     /// instance as failed or dead.
     /// </summary>
+    /// <remarks>
+    /// Configured through <see cref="ClusteringOptions.CheckinMisfireThreshold" />.
+    /// </remarks>
     public TimeSpan ClusterCheckinMisfireThreshold { get; }
 
     /// <summary>

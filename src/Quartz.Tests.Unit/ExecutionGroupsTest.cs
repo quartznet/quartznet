@@ -1,6 +1,5 @@
 using System.Collections.Specialized;
 
-using Quartz.Impl;
 using Quartz.Impl.Triggers;
 
 namespace Quartz.Tests.Unit;
@@ -281,7 +280,7 @@ public sealed class ExecutionGroupsTest
             ["quartz.executionLimit._"] = "10",
             ["quartz.executionLimit.*"] = "3"
         };
-        StdSchedulerFactory factory = new(props);
+        ISchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(props).Build();
         IScheduler scheduler = await factory.GetScheduler().ConfigureAwait(false);
         try
         {
@@ -309,7 +308,7 @@ public sealed class ExecutionGroupsTest
             ["quartz.executionLimit.d"] = "5",
             ["quartz.executionLimit._"] = "8"        // underscore key = default (null) group
         };
-        StdSchedulerFactory factory = new(props);
+        ISchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(props).Build();
         IScheduler scheduler = await factory.GetScheduler().ConfigureAwait(false);
         try
         {
@@ -334,7 +333,7 @@ public sealed class ExecutionGroupsTest
         {
             ["quartz.executionLimit.null"] = "7"   // "null" key = default (null) group alias
         };
-        StdSchedulerFactory factory = new(props);
+        ISchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(props).Build();
         IScheduler scheduler = await factory.GetScheduler().ConfigureAwait(false);
         try
         {
@@ -352,7 +351,7 @@ public sealed class ExecutionGroupsTest
     public async Task ParseExecutionLimits_NoLimits_ReturnsNull()
     {
         NameValueCollection props = new();
-        StdSchedulerFactory factory = new(props);
+        ISchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(props).Build();
         IScheduler scheduler = await factory.GetScheduler().ConfigureAwait(false);
         try
         {
@@ -372,9 +371,13 @@ public sealed class ExecutionGroupsTest
         {
             ["quartz.executionLimit.batch-jobs"] = "notanumber"
         };
-        StdSchedulerFactory factory = new(props);
-        Assert.ThrowsAsync<SchedulerConfigException>(
-            async () => await factory.GetScheduler().ConfigureAwait(false));
+        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create().UseProperties(props);
+
+        // Reported while the container is being built rather than when the scheduler is first asked
+        // for, because that is when the keys are turned into registrations.
+        Action act = () => builder.Build();
+
+        act.Should().Throw<SchedulerConfigException>().WithMessage("*batch-jobs*");
     }
 
     [Test]

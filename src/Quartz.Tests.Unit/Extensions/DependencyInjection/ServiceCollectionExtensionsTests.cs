@@ -502,8 +502,11 @@ public class ServiceCollectionExtensionsTests
         {
             quartz.UsePersistentStore(p =>
             {
-                p.UsePostgres(c => c.Provider = "Npgsql");
-                p.UseDataSourceConnectionProvider();
+                p.UsePostgres(c =>
+                {
+                    c.Provider = "Npgsql";
+                    c.UseRegisteredDataSource = true;
+                });
             });
         });
 

@@ -3,8 +3,8 @@ using System.Collections.Specialized;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
-using Quartz.Plugin.Json;
 using Quartz.Impl;
+using Quartz.Plugin.Json;
 using Quartz.Matchers;
 
 namespace Quartz.Tests.Unit.Plugin.Json;
@@ -294,7 +294,7 @@ public class JsonSchedulingDataProcessorTest
             ["quartz.scheduler.instanceName"] = "JsonDeleteAllGroups_" + Guid.NewGuid().ToString("N"),
             ["quartz.threadPool.threadCount"] = "1"
         };
-        IScheduler scheduler = await new StdSchedulerFactory(properties).GetScheduler();
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create().UseProperties(properties).BuildScheduler();
         try
         {
             foreach (string group in new[] { "keep", "drop" })

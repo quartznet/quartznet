@@ -117,12 +117,15 @@ internals behind them.
 - `IServiceCollection.AddQuartz()` — registers a scheduler's object graph. `AddQuartz(name, ...)`
   registers a named scheduler, whose parts are keyed by that name.
 - `AddQuartzHostedService()` — `IHostedService` integration.
-- `QuartzSchedulerBuilder` — builds a scheduler with no application container, by creating its own.
+- `QuartzSchedulerBuilder` — builds a scheduler with no application container, by creating its own. It
+  implements `IQuartzBuilder`, so there is one configuration API rather than two that resemble each
+  other; it adds only `Build()` / `BuildScheduler()` and `UseProperties(NameValueCollection)`.
 - `Quartz.AspNetCore` — ASP.NET Core health checks and HTTP API.
 
-The container constructs the scheduler; there is no reflective instantiation from type-name strings.
-Legacy flat `quartz.*` keys are translated to typed options and registrations by
-`QuartzPropertyBridge`, which is the only place that understands them.
+The container constructs the scheduler; there is no reflective instantiation from type-name strings, and
+there is no properties-based `StdSchedulerFactory` any more. Legacy flat `quartz.*` keys are translated
+to typed options and registrations by `QuartzPropertyBridge`, which is the only place that understands
+them; `LegacyPropertyKeys` holds the key strings and rejects a misspelled one.
 
 ### Serialization
 

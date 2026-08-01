@@ -496,7 +496,7 @@ internal static class JsonSchedulingHelper
     {
         ITypeLoadHelper typeLoadHelper;
 
-        if (options.Properties.TryGetValue(StdSchedulerFactory.PropertySchedulerTypeLoadHelperType, out var typeName)
+        if (options.Properties.TryGetValue(LegacyPropertyKeys.SchedulerTypeLoadHelperType, out var typeName)
             && !string.IsNullOrWhiteSpace(typeName))
         {
             var type = Type.GetType(typeName, throwOnError: true)!;

@@ -1,5 +1,6 @@
 using System.Collections.Specialized;
 
+using Quartz.Configuration;
 using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore.Common;
@@ -21,7 +22,7 @@ internal sealed class EmbeddedAssemblyResourceDbMetadataFactory : DbMetadataFact
     /// Initializes a new instance reading the driver descriptions Quartz ships.
     /// </summary>
     public EmbeddedAssemblyResourceDbMetadataFactory()
-        : this(DefaultResourceName, StdSchedulerFactory.PropertyDbProvider)
+        : this(DefaultResourceName, LegacyPropertyKeys.DbProvider)
     {
     }
 

@@ -1,7 +1,5 @@
 using System.Collections.Specialized;
 
-using Quartz.Impl;
-
 namespace Quartz.Tests.Unit.Core;
 
 /// <summary>
@@ -33,7 +31,7 @@ public class SchedulerSignalRaceTest
             ["quartz.threadPool.maxConcurrency"] = "5",
         };
 
-        ISchedulerFactory sf = new StdSchedulerFactory(properties);
+        ISchedulerFactory sf = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         IScheduler scheduler = await sf.GetScheduler();
 
         try
@@ -85,7 +83,7 @@ public class SchedulerSignalRaceTest
             ["quartz.scheduler.instanceName"] = "SignalRaceTest_PauseResume",
         };
 
-        ISchedulerFactory sf = new StdSchedulerFactory(properties);
+        ISchedulerFactory sf = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         IScheduler scheduler = await sf.GetScheduler();
 
         try
@@ -137,7 +135,7 @@ public class SchedulerSignalRaceTest
             ["quartz.scheduler.instanceName"] = "SignalRaceTest_SchedulePause",
         };
 
-        ISchedulerFactory sf = new StdSchedulerFactory(properties);
+        ISchedulerFactory sf = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         IScheduler scheduler = await sf.GetScheduler();
 
         try

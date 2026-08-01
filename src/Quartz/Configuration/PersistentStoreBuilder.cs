@@ -58,6 +58,18 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
         RegisterProvider(provider =>
         {
             var options = provider.GetRequiredService<IOptionsMonitor<DataSourceOptions>>().Get(name);
+
+            // The driver description comes from the container, so a provider Quartz ships no description
+            // for is usable as soon as the application registers one.
+            var metadata = provider.GetRequiredService<DbMetadataResolver>().Resolve(options.Provider);
+
+            // Where the connection comes from is the data source's own setting, decided here rather than
+            // by a second entry point that had to be called in the right order to take effect.
+            if (options.UseRegisteredDataSource)
+            {
+                return new DataSourceDbProvider(metadata, provider.GetRequiredService<DbDataSource>());
+            }
+
             var connectionString = options.ConnectionString;
 
             if (string.IsNullOrWhiteSpace(connectionString) && !string.IsNullOrWhiteSpace(options.ConnectionStringName))
@@ -70,9 +82,6 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
                 }
             }
 
-            // The driver description comes from the container, so a provider Quartz ships no description
-            // for is usable as soon as the application registers one.
-            var metadata = provider.GetRequiredService<DbMetadataResolver>().Resolve(options.Provider);
             return new DbProvider(metadata, connectionString!);
         });
 
@@ -113,28 +122,17 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
 
     public IPersistentStoreBuilder UseClustering(Action<ClusteringOptions>? configure = null)
     {
-        var clustering = new ClusteringOptions();
-        configure?.Invoke(clustering);
-
-        return Configure(options =>
+        // Configured rather than assigned from a copy, so UseClustering() with no arguments turns
+        // clustering on without resetting intervals that came from configuration.
+        Services.Configure<ClusteringOptions>(OptionsName, options =>
         {
-            options.Clustered = true;
-            // Clustering has never worked without database locking, so enabling one enables the other
-            // rather than failing validation later for a configuration nobody meant to write.
-            options.UseDbLocks = true;
-
-            // Only what the caller actually asked for. Writing these unconditionally would mean
-            // UseClustering() with no arguments silently reset intervals that came from configuration.
-            if (clustering.CheckinInterval is { } checkinInterval)
-            {
-                options.ClusterCheckinInterval = checkinInterval;
-            }
-
-            if (clustering.CheckinMisfireThreshold is { } checkinMisfireThreshold)
-            {
-                options.ClusterCheckinMisfireThreshold = checkinMisfireThreshold;
-            }
+            options.Enabled = true;
+            configure?.Invoke(options);
         });
+
+        // Clustering has never worked without database locking, so enabling one enables the other
+        // rather than leaving a configuration nobody meant to write.
+        return Configure(options => options.UseDbLocks = true);
     }
 
     public IPersistentStoreBuilder UseSerializer<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
@@ -167,36 +165,6 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
     {
         ArgumentNullException.ThrowIfNull(factory);
         RegisterScoped(factory);
-        return this;
-    }
-
-    /// <summary>
-    /// Connects through a <c>DbDataSource</c> registered in the container, rather than a
-    /// connection string of Quartz's own.
-    /// </summary>
-    public IPersistentStoreBuilder UseDataSourceConnectionProvider()
-    {
-        Services.Configure<DataSourceOptions>(DataSourceName, options => options.UseRegisteredDataSource = true);
-
-        // Asking for the container's data source explicitly overrides whatever connection provider the
-        // database method implied, whichever order they were called in.
-        var name = DataSourceName;
-        IDbProvider Create(IServiceProvider provider)
-        {
-            var options = provider.GetRequiredService<IOptionsMonitor<DataSourceOptions>>().Get(name);
-            var metadata = provider.GetRequiredService<DbMetadataResolver>().Resolve(options.Provider);
-            return new DataSourceDbProvider(metadata, provider.GetRequiredService<DbDataSource>());
-        }
-
-        if (schedulerKey is null)
-        {
-            Services.Replace(ServiceDescriptor.Singleton<IDbProvider>(Create));
-        }
-        else
-        {
-            Services.Replace(ServiceDescriptor.KeyedSingleton<IDbProvider>(schedulerKey, (provider, _) => Create(provider)));
-        }
-
         return this;
     }
 

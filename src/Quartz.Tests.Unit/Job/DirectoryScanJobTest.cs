@@ -2,8 +2,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
-using Quartz.Job;
 using Quartz.Impl;
+using Quartz.Job;
 
 namespace Quartz.Tests.Unit.Job;
 
@@ -26,10 +26,10 @@ public class DirectoryScanJobTest
             serviceCollection.AddTransient<TestDirectoryScanListener>();
             var serviceProvider = serviceCollection.BuildServiceProvider(validateScopes: true);
 
-            var scheduler = await QuartzSchedulerBuilder.Create()
-                .UseJobFactory(new MicrosoftDependencyInjectionJobFactory(serviceProvider))
-                .Build()
-                .GetScheduler();
+            QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
+            builder.UseJobFactory(new MicrosoftDependencyInjectionJobFactory(serviceProvider));
+
+            IScheduler scheduler = await builder.BuildScheduler();
 
             var jobDetail = JobBuilder.Create<DirectoryScanJob>()
                 .WithIdentity("TestJob")
@@ -75,9 +75,7 @@ public class DirectoryScanJobTest
 
         try
         {
-            var scheduler = await QuartzSchedulerBuilder.Create()
-                .Build()
-                .GetScheduler();
+            IScheduler scheduler = await QuartzSchedulerBuilder.Create().BuildScheduler();
 
             // Use legacy approach - put listener in SchedulerContext
             var listener = new TestDirectoryScanListener();

@@ -67,7 +67,7 @@ internal static class SchedulerPluginFactory
 
         foreach (var name in PluginNames(properties))
         {
-            var prefix = $"{StdSchedulerFactory.PropertyPluginPrefix}.{name}";
+            var prefix = $"{LegacyPropertyKeys.PluginPrefix}.{name}";
 
             // A plugin already added in code under this name is configured in code; apply the leftover
             // settings to it rather than building a second copy. Matching on the name rather than the
@@ -96,7 +96,7 @@ internal static class SchedulerPluginFactory
     /// </summary>
     private static Type ResolveType(NameValueCollection properties, string prefix, string name, ITypeLoadHelper loader)
     {
-        var typeName = properties[$"{prefix}.{StdSchedulerFactory.PropertyPluginType}"];
+        var typeName = properties[$"{prefix}.{LegacyPropertyKeys.PluginType}"];
         if (string.IsNullOrWhiteSpace(typeName))
         {
             Throw.SchedulerException($"SchedulerPlugin type not specified for plugin '{name}'");
@@ -137,7 +137,7 @@ internal static class SchedulerPluginFactory
             }
 
             var stripped = key[start.Length..];
-            if (!string.Equals(stripped, StdSchedulerFactory.PropertyPluginType, StringComparison.Ordinal))
+            if (!string.Equals(stripped, LegacyPropertyKeys.PluginType, StringComparison.Ordinal))
             {
                 pluginProperties[stripped] = properties[key];
             }
@@ -161,7 +161,7 @@ internal static class SchedulerPluginFactory
     private static HashSet<string> PluginNames(NameValueCollection properties)
     {
         var names = new HashSet<string>(StringComparer.Ordinal);
-        var start = StdSchedulerFactory.PropertyPluginPrefix + ".";
+        var start = LegacyPropertyKeys.PluginPrefix + ".";
         foreach (var key in properties.AllKeys)
         {
             if (key is null || !key.StartsWith(start, StringComparison.Ordinal))

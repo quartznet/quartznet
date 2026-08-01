@@ -143,6 +143,12 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// Uses the default type load helper, which resolves type names against loaded assemblies.
     /// </summary>
+    /// <remarks>
+    /// This is the public way to ask for the built-in helper: <c>SimpleTypeLoadHelper</c> is internal,
+    /// because a type-loading strategy is not something to derive from, so there is no
+    /// <c>UseTypeLoader&lt;SimpleTypeLoadHelper&gt;()</c> to write instead. It is also already the
+    /// default, so calling it only matters where something else registered a helper first.
+    /// </remarks>
     public static IQuartzBuilder UseSimpleTypeLoader(this IQuartzBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);

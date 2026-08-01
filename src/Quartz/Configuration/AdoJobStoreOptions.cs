@@ -6,7 +6,8 @@ namespace Quartz;
 /// <remarks>
 /// Binds from the <c>JobStore</c> section of the Quartz configuration, and is the typed
 /// replacement for the <c>quartz.jobStore.*</c> property keys. Scheduler identity is not repeated
-/// here — components that need it inject <see cref="QuartzSchedulerOptions"/> as well.
+/// here — components that need it inject <see cref="QuartzSchedulerOptions"/> as well, and neither
+/// are the clustering settings, which live once on <see cref="ClusteringOptions"/>.
 /// </remarks>
 public sealed class AdoJobStoreOptions
 {
@@ -46,21 +47,6 @@ public sealed class AdoJobStoreOptions
     /// The maximum number of misfired triggers handled in a single pass.
     /// </summary>
     public int MaxMisfiresToHandleAtATime { get; set; } = 20;
-
-    /// <summary>
-    /// Whether this scheduler participates in a cluster backed by the same database.
-    /// </summary>
-    public bool Clustered { get; set; }
-
-    /// <summary>
-    /// How often a clustered node records that it is still alive.
-    /// </summary>
-    public TimeSpan ClusterCheckinInterval { get; set; } = TimeSpan.FromMilliseconds(7500);
-
-    /// <summary>
-    /// Extra time beyond <see cref="ClusterCheckinInterval"/> allowed before a node is treated as failed.
-    /// </summary>
-    public TimeSpan ClusterCheckinMisfireThreshold { get; set; } = TimeSpan.FromMilliseconds(7500);
 
     /// <summary>
     /// How long to wait before retrying after a database failure.

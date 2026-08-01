@@ -18,8 +18,9 @@ namespace Quartz;
 /// </para>
 /// <para>
 /// The pairs that look redundant are not: <c>UseMySql</c> and <c>UseMySqlConnector</c>, like
-/// <c>UseSQLite</c> and <c>UseMicrosoftSQLite</c>, choose between different ADO.NET drivers for the
-/// same database.
+/// <c>UseSqlite</c> and <c>UseSystemDataSqlite</c>, choose between different ADO.NET drivers for the
+/// same database. In each pair the short name is the driver to reach for, and the longer name says
+/// which other driver it is.
 /// </para>
 /// </remarks>
 public static class PersistentStoreBuilderExtensions
@@ -72,21 +73,30 @@ public static class PersistentStoreBuilderExtensions
     public static IPersistentStoreBuilder UseOracle(this IPersistentStoreBuilder builder, Action<DataSourceOptions> configure)
         => builder.UseDatabase<OracleDelegate>("OracleODPManaged", configure);
 
-    /// <summary>Stores the schedule in SQLite, using the System.Data.SQLite driver.</summary>
-    public static IPersistentStoreBuilder UseSQLite(this IPersistentStoreBuilder builder, string connectionString)
-        => builder.UseDatabase<SQLiteDelegate>("SQLite", connectionString);
-
-    /// <summary>Stores the schedule in SQLite, using the System.Data.SQLite driver.</summary>
-    public static IPersistentStoreBuilder UseSQLite(this IPersistentStoreBuilder builder, Action<DataSourceOptions> configure)
-        => builder.UseDatabase<SQLiteDelegate>("SQLite", configure);
-
     /// <summary>Stores the schedule in SQLite, using the Microsoft.Data.Sqlite driver.</summary>
-    public static IPersistentStoreBuilder UseMicrosoftSQLite(this IPersistentStoreBuilder builder, string connectionString)
+    /// <remarks>
+    /// The modern driver, and what <c>UseSqlite</c> means: the short name goes to the default the way
+    /// <c>UseMySql</c> does, and the way Entity Framework Core spells the same choice. The legacy
+    /// System.Data.SQLite driver is <see cref="UseSystemDataSqlite(IPersistentStoreBuilder, string)"/>.
+    /// </remarks>
+    public static IPersistentStoreBuilder UseSqlite(this IPersistentStoreBuilder builder, string connectionString)
         => builder.UseDatabase<SQLiteDelegate>("SQLite-Microsoft", connectionString);
 
-    /// <summary>Stores the schedule in SQLite, using the Microsoft.Data.Sqlite driver.</summary>
-    public static IPersistentStoreBuilder UseMicrosoftSQLite(this IPersistentStoreBuilder builder, Action<DataSourceOptions> configure)
+    /// <inheritdoc cref="UseSqlite(IPersistentStoreBuilder, string)"/>
+    public static IPersistentStoreBuilder UseSqlite(this IPersistentStoreBuilder builder, Action<DataSourceOptions> configure)
         => builder.UseDatabase<SQLiteDelegate>("SQLite-Microsoft", configure);
+
+    /// <summary>Stores the schedule in SQLite, using the legacy System.Data.SQLite driver.</summary>
+    /// <remarks>
+    /// Named after its driver rather than after the database, because
+    /// <see cref="UseSqlite(IPersistentStoreBuilder, string)"/> is the one to reach for.
+    /// </remarks>
+    public static IPersistentStoreBuilder UseSystemDataSqlite(this IPersistentStoreBuilder builder, string connectionString)
+        => builder.UseDatabase<SQLiteDelegate>("SQLite", connectionString);
+
+    /// <inheritdoc cref="UseSystemDataSqlite(IPersistentStoreBuilder, string)"/>
+    public static IPersistentStoreBuilder UseSystemDataSqlite(this IPersistentStoreBuilder builder, Action<DataSourceOptions> configure)
+        => builder.UseDatabase<SQLiteDelegate>("SQLite", configure);
 
     /// <summary>
     /// Stores the schedule in a database Quartz has no specific support for, using the generic SQL

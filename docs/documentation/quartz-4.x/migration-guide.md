@@ -76,25 +76,23 @@ services.
 
 Nothing is loaded from disk any more. A `quartz.config` file next to your application — or named by the
 `quartz.config` environment variable — is ignored, and so is the copy of it Quartz used to ship as an
-embedded resource. `StdSchedulerFactory` reads only the properties you hand it plus any `quartz.*`
-environment variables; everything else configures a scheduler through the container.
+embedded resource. A scheduler is configured by the properties you hand to
+`QuartzSchedulerBuilder.UseProperties`, by an `IConfiguration` section passed to `AddQuartz`, or in code
+through the container.
 
-**No defaults change.** The three settings the embedded file supplied are now seeded by
-`StdSchedulerFactory.Initialize()`, which is the only entry point that ever read the file:
+The three settings the embedded file supplied are not defaults any more either. They were seeded by
+`StdSchedulerFactory.Initialize()`, which is the only entry point that ever read the file, and which is
+gone with the factory — see [`StdSchedulerFactory` is gone](#stdschedulerfactory-is-gone):
 
-| Setting | Value |
-|---|---|
-| `quartz.scheduler.instanceName` | `DefaultQuartzScheduler` |
-| `quartz.threadPool.threadCount` | 10 |
-| `quartz.jobStore.misfireThreshold` | 60000 |
+| Setting | Old embedded value | Default now |
+|---|---|---|
+| `quartz.scheduler.instanceName` | `DefaultQuartzScheduler` | `QuartzScheduler` (`QuartzSchedulerOptions.InstanceName`) |
+| `quartz.threadPool.threadCount` | 10 | 10 (`ThreadPoolOptions.MaxConcurrency`) |
+| `quartz.jobStore.misfireThreshold` | 60000 | 5 seconds (`InMemoryJobStoreOptions.MisfireThreshold`) |
 
-Environment variables still override them, and anything you pass to `Initialize(NameValueCollection)`
-replaces them, exactly as the file behaved.
-
-Note these were never the defaults for `AddQuartz` or for `new StdSchedulerFactory(properties)`: handing
-the factory properties always bypassed the file, so those paths fell back — and still fall back — to
-`QuartzSchedulerOptions.InstanceName` (`QuartzScheduler`) and
-`InMemoryJobStoreOptions.MisfireThreshold` (5 seconds). Set them explicitly if you want the other values.
+Note these were never the defaults for `AddQuartz` or for `new StdSchedulerFactory(properties)` in the
+first place: handing the factory properties always bypassed the file, so those paths fell back — and
+still fall back — to the typed option defaults. Set them explicitly if you want the other values.
 
 The one thing the file was still needed for was describing an ADO.NET driver Quartz ships no metadata
 for. That now has a code-first form, and the `quartz.dbprovider.*` keys themselves still work — they just
@@ -169,9 +167,10 @@ case the options callback used to be needed for:
 + });
 ```
 
-`QuartzOptions.SchedulerName` also used to read and write `schedName` — an ADO.NET column key that
-nothing reads — so a scheduler name set through it was accepted and then silently ignored. It now reads
-and writes `quartz.scheduler.instanceName`, which is the key the rest of the model uses.
+`QuartzOptions.SchedulerName` used to read and write `schedName` — an ADO.NET column key that nothing
+reads — so a scheduler name set through it was accepted and then silently ignored. It is gone along with
+`SchedulerId` and `MisfireThreshold`; see
+[`QuartzOptions` lost its three typed settings](#quartzoptions-lost-its-three-typed-settings).
 
 ### Removed
 
@@ -179,18 +178,21 @@ and writes `quartz.scheduler.instanceName`, which is the key the rest of the mod
 |---|---|
 | `QuartzOptions : Dictionary<string, string?>` | `QuartzOptions.Properties` |
 | `QuartzOptions.JobDetails`, `.Triggers`, `.AddJob`, `.AddTrigger` | `AddQuartz(q => q.AddJob(…))` / `q.AddTrigger(…)` |
+| `StdSchedulerFactory` and its 47 constants | `QuartzSchedulerBuilder.UseProperties(properties)` — see [`StdSchedulerFactory` is gone](#stdschedulerfactory-is-gone) |
 | `StdSchedulerFactory.PropertySchedulerName` | nothing; it named an ADO.NET column, not a setting |
 | `SchedulerBuilder` | `QuartzSchedulerBuilder` for standalone use, `AddQuartz` under a host |
-| `DirectSchedulerFactory` | `QuartzSchedulerBuilder`, with `UseThreadPool` / `UseJobStore` for pre-built parts |
+| `DirectSchedulerFactory` | `QuartzSchedulerBuilder`, with `UseThreadPool(IThreadPool)` / `UseJobStore(IJobStore)` for pre-built parts |
 | `IPropertyConfigurer`, `IPropertySetter`, `IPropertyConfigurationRoot`, `PropertiesHolder`, `PropertiesSetter` | typed options |
 | `AddQuartz(Action<configurator, IServiceProvider>)` | see below |
-| `quartz.config` file discovery, `StdSchedulerFactory.PropertiesFile` | `IConfiguration`, or properties passed to `StdSchedulerFactory` |
+| `quartz.config` file discovery, `StdSchedulerFactory.PropertiesFile` | `IConfiguration`, or properties passed to `QuartzSchedulerBuilder.UseProperties` |
 | `DbProvider.RegisterDbMetadata` | the metadata callback on `UseGenericDatabase` |
 | `quartz.scheduler.proxy*`, `quartz.scheduler.exporter*` | nothing; remoting is not supported on modern .NET |
-| `quartz.checkConfiguration` | configuration is validated by the options system |
+| `QuartzOptions.SchedulerName`, `.SchedulerId`, `.MisfireThreshold` | the typed options — see [`QuartzOptions` lost its three typed settings](#quartzoptions-lost-its-three-typed-settings) |
+| `IPersistentStoreBuilder.UseDataSourceConnectionProvider()` | `DataSourceOptions.UseRegisteredDataSource` |
+| `AdoJobStoreOptions.Clustered`, `.ClusterCheckinInterval`, `.ClusterCheckinMisfireThreshold` | `ClusteringOptions` — see [Clustering is configured in one place](#clustering-is-configured-in-one-place) |
 | `SchedulerRepository.Instance` | `ISchedulerRepository` resolved from the container |
 | `DBConnectionManager.Instance` | `IDbConnectionManager` resolved from the container |
-| `StdSchedulerFactory.GetDbConnectionManager()` | nothing; it had no callers |
+| `StdSchedulerFactory.GetDbConnectionManager()`, `.GetSchedulerRepository()` | `IDbConnectionManager` / `ISchedulerRepository` resolved from the container |
 
 ### Deferred configuration
 
@@ -255,7 +257,8 @@ that built it**:
 ```
 
 The observable consequence is that schedulers built different ways no longer find each other. Given a
-scheduler registered with `AddQuartz` and another created by `StdSchedulerFactory` in the same process:
+scheduler registered with `AddQuartz` and another built by a `QuartzSchedulerBuilder` in the same
+process:
 
 * `ISchedulerFactory.GetAllSchedulers()` on either one lists only its own schedulers.
 * `ISchedulerFactory.GetScheduler(name)` returns `null` for the other one's name.
@@ -273,9 +276,322 @@ services.AddSingleton<ISchedulerRepository>(repository);
 services.AddQuartz(/* ... */);
 ```
 
-`StdSchedulerFactory.GetSchedulerRepository()` is still an override point, but it now returns the
-repository of the factory's own container. `StdSchedulerFactory.GetDbConnectionManager()` was removed; it
-had no callers.
+A `QuartzSchedulerBuilder` owns the container it creates, so its repository holds only the schedulers it
+built. `StdSchedulerFactory.GetSchedulerRepository()` and `GetDbConnectionManager()` went with the class;
+resolve `ISchedulerRepository` or `IDbConnectionManager` from the container instead.
+
+## `StdSchedulerFactory` is gone
+
+The properties-based factory has been removed. It was the last construction path that was not the
+container: it parsed `quartz.*` strings, loaded types by name, set properties by reflection, and built a
+scheduler of its own. Since 4.0 it did none of that itself — it built a service collection, handed the
+properties to the same translation layer `AddQuartz` uses, and resolved the scheduler from the container
+like everything else. What was left was a second front door onto one hallway, plus 47 public constants
+whose only purpose was to spell keys that a configuration file spells anyway.
+
+Flat `quartz.*` keys are **not** going away. What changed is which type you hand them to:
+
+```diff
+- ISchedulerFactory factory = new StdSchedulerFactory(properties);
+- IScheduler scheduler = await factory.GetScheduler();
++ IScheduler scheduler = await QuartzSchedulerBuilder.Create()
++     .UseProperties(properties)
++     .BuildScheduler();
+```
+
+`UseProperties` feeds the same translator, so every key means exactly what it always did, including the
+`quartz.checkConfiguration` check that rejects a misspelled key. Configuration written in code wins over
+the properties whichever order the two are applied in: property-derived options are applied before
+anything the builder was told, and implementations the properties name are registered after — options
+being last-wins and registrations first-wins, the same rule `AddQuartz` follows.
+
+Two behaviors did not survive, because they lived in `Initialize()` rather than in the properties:
+
+* **The `quartz.*` environment-variable overlay.** `new StdSchedulerFactory()` with no arguments read
+  every `quartz.*` environment variable. Nothing does that now. Use `IConfiguration` with
+  `AddEnvironmentVariables()`, which is the ordinary way to say it, and pass the section to `AddQuartz`
+  or flatten it yourself into the `NameValueCollection` you hand to `UseProperties`.
+* **The embedded `quartz.config` defaults.** A factory constructed with no properties used to start from
+  `instanceName = DefaultQuartzScheduler`, `threadCount = 10` and `misfireThreshold = 60000`. A builder
+  given no properties starts from the typed option defaults instead — `InstanceName` `QuartzScheduler`,
+  `MaxConcurrency` 10, and an in-memory `MisfireThreshold` of 5 seconds. Set them explicitly if you were
+  relying on the old values. Note that this was never the behavior of `new StdSchedulerFactory(properties)`
+  either, which always bypassed the file.
+
+`IsSupportedConfigurationKey` is gone with the class, so a configuration carrying keys of your own can no
+longer be allowed by subclassing the factory. Set `quartz.checkConfiguration` to `false` instead.
+
+`GetDefaultScheduler()` is gone too. It returned a process-wide scheduler from a process-wide factory,
+which stopped being a coherent idea when the repository became the container's — see
+[No process-global scheduler or connection state](#no-process-global-scheduler-or-connection-state).
+Build one scheduler where the application starts and hold it, or register it with `AddQuartz` and inject
+`IScheduler`.
+
+### Every removed constant
+
+The strings are unchanged. This table is here so a `Ctrl+F` for the constant you used finds the key to
+write instead, and the typed option that is usually the better answer.
+
+| Removed constant | Key | Typed equivalent |
+|---|---|---|
+| `PropertySchedulerInstanceName` | `quartz.scheduler.instanceName` | `QuartzSchedulerOptions.InstanceName` |
+| `PropertySchedulerInstanceId` | `quartz.scheduler.instanceId` | `QuartzSchedulerOptions.InstanceId` |
+| `PropertySchedulerInstanceIdGeneratorPrefix` | `quartz.scheduler.instanceIdGenerator` | constructor injection into your `IInstanceIdGenerator` |
+| `PropertySchedulerInstanceIdGeneratorType` | `quartz.scheduler.instanceIdGenerator.type` | register `IInstanceIdGenerator` in the container |
+| `PropertySchedulerThreadName` | `quartz.scheduler.threadName` | `QuartzSchedulerOptions.ThreadName` |
+| `PropertySchedulerBatchTimeWindow` | `quartz.scheduler.batchTriggerAcquisitionFireAheadTimeWindow` | `QuartzSchedulerOptions.BatchTriggerAcquisitionFireAheadTimeWindow` |
+| `PropertySchedulerMaxBatchSize` | `quartz.scheduler.batchTriggerAcquisitionMaxCount` | `QuartzSchedulerOptions.MaxBatchSize` |
+| `PropertySchedulerExporterPrefix` | `quartz.scheduler.exporter` | nothing; remoting is not supported on modern .NET |
+| `PropertySchedulerExporterType` | `quartz.scheduler.exporter.type` | nothing; see above |
+| `PropertySchedulerProxy` | `quartz.scheduler.proxy` | `Quartz.HttpClient` for talking to a remote scheduler |
+| `PropertySchedulerProxyType` | `quartz.scheduler.proxy.type` | `ISchedulerProxyFactory`, registered in the container |
+| `PropertySchedulerIdleWaitTime` | `quartz.scheduler.idleWaitTime` | `QuartzSchedulerOptions.IdleWaitTime` |
+| `PropertySchedulerMakeSchedulerThreadDaemon` | `quartz.scheduler.makeSchedulerThreadDaemon` | `QuartzSchedulerOptions.MakeSchedulerThreadDaemon` |
+| `PropertySchedulerTypeLoadHelperType` | `quartz.scheduler.typeLoadHelper.type` | `UseTypeLoader<T>()`, or `UseSimpleTypeLoader()` |
+| `PropertySchedulerJobFactoryPrefix` | `quartz.scheduler.jobFactory` | constructor injection into your `IJobFactory` |
+| `PropertySchedulerJobFactoryType` | `quartz.scheduler.jobFactory.type` | `UseJobFactory<T>()` |
+| `PropertySchedulerInterruptJobsOnShutdown` | `quartz.scheduler.interruptJobsOnShutdown` | `QuartzSchedulerOptions.InterruptJobsOnShutdown` |
+| `PropertySchedulerInterruptJobsOnShutdownWithWait` | `quartz.scheduler.interruptJobsOnShutdownWithWait` | `QuartzSchedulerOptions.InterruptJobsOnShutdownWithWait` |
+| `PropertySchedulerContextPrefix` | `quartz.context.key` | `QuartzSchedulerOptions.Context` |
+| `PropertyThreadPoolPrefix` | `quartz.threadPool` | `ThreadPoolOptions` |
+| `PropertyThreadPoolType` | `quartz.threadPool.type` | `UseThreadPool<T>()`, or `UseThreadPool(instance)` |
+| `PropertyTimeProviderType` | `quartz.timeProvider.type` | `UseTimeProvider(TimeProvider)` |
+| `PropertyJobStorePrefix` | `quartz.jobStore` | `AdoJobStoreOptions` / `InMemoryJobStoreOptions` |
+| `PropertyJobStoreType` | `quartz.jobStore.type` | `UseInMemoryStore()`, `UsePersistentStore<T>()`, or `UseJobStore(instance)` |
+| `PropertyJobStoreDbRetryInterval` | `quartz.jobStore.dbRetryInterval` | `AdoJobStoreOptions.DbRetryInterval` |
+| `PropertyJobStoreLockHandlerPrefix` | `quartz.jobStore.lockHandler` | constructor injection into your `ISemaphore` |
+| `PropertyJobStoreLockHandlerType` | `quartz.jobStore.lockHandler.type` | `UseLockHandler<T>()` |
+| `PropertyTablePrefix` | `tablePrefix` (under `quartz.jobStore`) | `AdoJobStoreOptions.TablePrefix` |
+| `PropertyDataSourcePrefix` | `quartz.dataSource` | `DataSourceOptions`, bound from `Quartz:DataSource:<name>` |
+| `PropertyDataSourceProvider` | `provider` (under a data source) | `DataSourceOptions.Provider` |
+| `PropertyDataSourceConnectionString` | `connectionString` (under a data source) | `DataSourceOptions.ConnectionString` |
+| `PropertyDataSourceConnectionStringName` | `connectionStringName` (under a data source) | `DataSourceOptions.ConnectionStringName` |
+| `PropertyDbProvider` | `quartz.dbprovider` | the metadata callback on `UseGenericDatabase` |
+| `PropertyDbProviderType` | `connectionProvider.type` (under a data source) | register `IDbProvider`, or `DataSourceOptions.UseRegisteredDataSource` |
+| `PropertyExecutionLimitPrefix` | `quartz.executionLimit` | `UseExecutionLimits(limits => …)` |
+| `PropertyPluginPrefix` | `quartz.plugin` | `AddPlugin<T>()` |
+| `PropertyPluginType` | `type` (under a plugin) | `AddPlugin<T>()` |
+| `PropertyJobListenerPrefix` | `quartz.jobListener` | `AddJobListener<T>(matchers)` |
+| `PropertyTriggerListenerPrefix` | `quartz.triggerListener` | `AddTriggerListener<T>(matchers)` |
+| `PropertyListenerType` | `type` (under a listener) | the two `Add*Listener<T>` methods above |
+| `PropertyCheckConfiguration` | `quartz.checkConfiguration` | still read, by `QuartzSchedulerBuilder.UseProperties` |
+| `PropertyObjectSerializer` | `quartz.serializer` | `UseSerializer<T>()`, `UseSystemTextJsonSerializer()` |
+| `PropertyThreadExecutor` | `quartz.threadExecutor` | nothing; there is no thread executor since the thread pool became asynchronous |
+| `PropertyThreadExecutorType` | `quartz.threadExecutor.type` | nothing; see above |
+| `DefaultInstanceId` | `NON_CLUSTERED` | `QuartzSchedulerOptions.DefaultInstanceId`, which is the same string |
+| `AutoGenerateInstanceId` | `AUTO` | `QuartzSchedulerOptions.GenerateInstanceId` |
+| `SystemPropertyAsInstanceId` | `SYS_PROP` | register `SystemPropertyInstanceIdGenerator` as the `IInstanceIdGenerator` |
+
+Three more constants existed in 3.x and had already gone before this release, listed here because a 3.x
+configuration is the one most likely to still name them:
+
+| Removed constant | Value | Replacement |
+|---|---|---|
+| `ConfigurationSectionName` | `quartz` | the `<quartz>` Full Framework configuration section is not read; use `IConfiguration` |
+| `PropertiesFile` | `quartz.config` | nothing is read from disk — see "The quartz.config file is no longer read" above |
+| `PropertySchedulerName` | `schedName` | nothing; it named an ADO.NET column rather than a setting |
+
+### Every removed member
+
+The factory was also a set of override points, and a 3.x application that subclassed it was usually
+reaching for one of them. Each had a reason that the container now covers directly.
+
+| Removed member | Replacement |
+|---|---|
+| `StdSchedulerFactory()` | `QuartzSchedulerBuilder.Create()` |
+| `StdSchedulerFactory(NameValueCollection)` | `QuartzSchedulerBuilder.Create().UseProperties(properties)` |
+| `Initialize(NameValueCollection)` | `UseProperties(properties)` |
+| `Initialize()` | nothing; there is no file and no environment overlay left to read |
+| `GetScheduler()`, `GetScheduler(name)`, `GetAllSchedulers()` | unchanged — they are `ISchedulerFactory`, which `Build()` returns |
+| `static GetDefaultScheduler()` | build a scheduler where the application starts and hold it, or inject `IScheduler` |
+| `Dispose()`, `Dispose(bool)` | the factory `Build()` returns owns its container and implements `IDisposable` and `IAsyncDisposable`; cast to dispose it |
+| `GetSchedulerRepository()` | `ISchedulerRepository`, resolved from the container |
+| `GetDBConnectionManager()` (3.x) | `IDbConnectionManager`, resolved from the container |
+| `GetNamedConnectionString(string)` (3.x) | `DataSourceOptions.ConnectionStringName`, resolved from `IConfiguration`'s connection strings |
+| `Instantiate(QuartzSchedulerResources, QuartzScheduler)` (3.x) | nothing; both types are internal and the container builds the graph |
+| `InstantiateType<T>(Type?)` (3.x) | register the implementation in the container — this was the seam a container had to patch, and it is the container now |
+| `IsSupportedConfigurationKey(string)` | set `quartz.checkConfiguration` to `false` to allow keys of your own |
+| `LoadType(string?)` | `ITypeLoadHelper`, selected with `UseTypeLoader<T>()` |
+| `ValidateConfiguration()` (3.x) | `quartz.checkConfiguration` for the keys, and `IValidateOptions<T>` for the typed options |
+
+## The standalone builder is the same builder
+
+`QuartzSchedulerBuilder` now implements `IQuartzBuilder` — the interface `AddQuartz` hands out — rather
+than offering five methods of its own that happened to have the same names, plus a
+`Configure(Action<IQuartzBuilder>)` hatch for everything else. There is one configuration API with two
+front doors: `AddQuartz` for an application that has a container, `QuartzSchedulerBuilder` for one that
+does not.
+
+```diff
+- var scheduler = await QuartzSchedulerBuilder.Create()
+-     .Configure(q =>
+-     {
+-         q.UsePersistentStore(store => store.UseSqlServer(connectionString));
+-         q.AddJob<ReportJob>(j => j.WithIdentity("report"));
+-     })
+-     .UseDefaultThreadPool(maxConcurrency: 20)
+-     .BuildScheduler();
++ var builder = QuartzSchedulerBuilder.Create();
++ builder.UseDefaultThreadPool(maxConcurrency: 20)
++     .UsePersistentStore(store => store.UseSqlServer(connectionString))
++     .AddJob<ReportJob>(j => j.WithIdentity("report"));
++
++ var scheduler = await builder.BuildScheduler();
+```
+
+Everything on `IQuartzBuilder` — jobs, triggers, calendars, listeners, plugins, execution limits — is
+now available on the standalone builder without a wrapper, which is the point. The cost is that
+`Build()` and `BuildScheduler()` cannot be reached by chaining: the configuration members are declared
+to return `IQuartzBuilder`, and C# has no covariant returns for interface implementations, so hold the
+builder in a variable and build from it. That is how `WebApplicationBuilder` is used, and it is why
+`Create()` is a separate statement in every sample above.
+
+`UseProperties(NameValueCollection)` is the exception — it belongs to the standalone builder only, so it
+returns `QuartzSchedulerBuilder` and still chains into `BuildScheduler()`.
+
+Two members moved the other way, from the standalone builder onto `IQuartzBuilder`, so that a scheduler
+registered with `AddQuartz` can also be given a part that was built rather than configured:
+
+| Member | Meaning |
+|---|---|
+| `UseThreadPool(IThreadPool)` | uses a pool the caller constructed |
+| `UseJobStore(IJobStore)` | uses a store the caller constructed |
+
+| Removed from `QuartzSchedulerBuilder` | Use instead |
+|---|---|
+| `Configure(Action<IQuartzBuilder>)` | call the members directly on the builder |
+| `ConfigureScheduler`, `UseDefaultThreadPool` ×2, `UseJobFactory(IJobFactory)`, `UseInMemoryStore` | the identical `IQuartzBuilder` members, which the builder now implements |
+
+## Clustering is configured in one place
+
+`AdoJobStoreOptions` no longer carries `Clustered`, `ClusterCheckinInterval` and
+`ClusterCheckinMisfireThreshold`. Those three said the same thing as `UseClustering(…)` and
+`ClusteringOptions`, so a scheduler had two places to be clustered from and they could disagree.
+`ClusteringOptions` is now the one place, and whether a store is clustered is something it *reports*
+rather than something you can also set on it.
+
+| Removed | Use instead |
+|---|---|
+| `AdoJobStoreOptions.Clustered` | `ClusteringOptions.Enabled` |
+| `AdoJobStoreOptions.ClusterCheckinInterval` | `ClusteringOptions.CheckinInterval` |
+| `AdoJobStoreOptions.ClusterCheckinMisfireThreshold` | `ClusteringOptions.CheckinMisfireThreshold` |
+
+`ClusteringOptions`' two intervals are no longer nullable — `UseClustering()` with no arguments turns
+clustering on without touching them, because it configures the options object rather than assigning a
+copy over it.
+
+Code-first configuration is unchanged:
+
+```csharp
+store.UseClustering(cluster =>
+{
+    cluster.CheckinInterval = TimeSpan.FromSeconds(10);
+    cluster.CheckinMisfireThreshold = TimeSpan.FromSeconds(20);
+});
+```
+
+The flat keys are unchanged as well — `quartz.jobStore.clustered`,
+`quartz.jobStore.clusterCheckinInterval` and `quartz.jobStore.clusterCheckinMisfireThreshold` all still
+work, and so does the `JobStore:Clustered` spelling in `appsettings.json`, because `AddQuartz` reads
+every section as flat keys too. What is new is the hierarchical spelling that matches the options type:
+
+```json
+{
+  "Quartz": {
+    "JobStore": {
+      "Clustering": {
+        "Enabled": true,
+        "CheckinInterval": "00:00:10",
+        "CheckinMisfireThreshold": "00:00:20"
+      }
+    }
+  }
+}
+```
+
+`AdoJobStoreOptions` validation lost the rule that `UseDbLocks` must be on when `Clustered` is: it can
+no longer see both settings, and it never needed to, since every path that enables clustering enables
+database locking with it and a store with an explicit lock handler of its own — a Redis semaphore, say —
+was never wrong to leave `UseDbLocks` off.
+
+## The SQLite extension methods swapped names
+
+::: warning
+`UseSqlite` did not exist in 3.x and now means **Microsoft.Data.Sqlite**. The method that used to be
+called `UseSQLite` — the legacy **System.Data.SQLite** driver — is now `UseSystemDataSqlite`. Changing
+`UseSQLite` to `UseSqlite` compiles and runs, and silently swaps your ADO.NET provider. Read the table
+before doing a case-insensitive find and replace.
+:::
+
+| 3.x / 4.0 preview | 4.0 | ADO.NET driver | Provider name |
+|---|---|---|---|
+| `UseSQLite` | `UseSystemDataSqlite` | System.Data.SQLite | `SQLite` |
+| `UseMicrosoftSQLite` | `UseSqlite` | Microsoft.Data.Sqlite | `SQLite-Microsoft` |
+
+```diff
+- store.UseSQLite(connectionString);          // System.Data.SQLite
++ store.UseSystemDataSqlite(connectionString);
+
+- store.UseMicrosoftSQLite(connectionString); // Microsoft.Data.Sqlite
++ store.UseSqlite(connectionString);
+```
+
+The short name goes to the driver you should reach for, which is the same rule `UseMySql` and
+`UseMySqlConnector` already followed, and the same spelling Entity Framework Core uses for the same
+choice. The provider names themselves — what a `quartz.dataSource.<name>.provider` key says — are
+unchanged, so nothing in a configuration file has to move.
+
+## A data source is defined, referred to, or handed over
+
+There were five ways to say where a job store's connections come from, and two of them said the same
+thing. `UseDataSourceConnectionProvider()` is gone; it existed only to set
+`DataSourceOptions.UseRegisteredDataSource`, and being a method it also had to be called in the right
+order to take effect.
+
+```diff
+  q.UsePersistentStore(store =>
+  {
+-     store.UsePostgres(db => db.Provider = "Npgsql");
+-     store.UseDataSourceConnectionProvider();
++     store.UsePostgres(db => db.UseRegisteredDataSource = true);
+  });
+```
+
+What is left says three different things:
+
+| Member | Role |
+|---|---|
+| `UseDataSource(configure)` | **defines** a data source — which driver, and how to reach the database. The database methods such as `UseSqlServer` are shorthands for it |
+| `UseDataSourceName(name)` | **refers to** a data source by name, picking up settings registered elsewhere, such as a `Quartz:DataSource:<name>` section |
+| `DataSourceOptions.UseRegisteredDataSource` | takes connections from a `DbDataSource` the application registered in the container, instead of from a connection string |
+
+Where connections come from is a property of the data source, so it is said in `DataSourceOptions`
+alongside `ConnectionString` and `ConnectionStringName`, and it wins over both.
+
+## `QuartzOptions` lost its three typed settings
+
+`QuartzOptions` is the flat `quartz.*` property bag. Three of its members were typed settings that
+existed nowhere else in it, each reading and writing a key that has a typed option of its own, so they
+were a third spelling of a setting that already had two.
+
+| Removed | Use instead |
+|---|---|
+| `QuartzOptions.SchedulerName` | `QuartzSchedulerOptions.InstanceName`, or `Properties["quartz.scheduler.instanceName"]` |
+| `QuartzOptions.SchedulerId` | `QuartzSchedulerOptions.InstanceId`, or `Properties["quartz.scheduler.instanceId"]` |
+| `QuartzOptions.MisfireThreshold` | `InMemoryJobStoreOptions.MisfireThreshold` / `AdoJobStoreOptions.MisfireThreshold` |
+
+```diff
+- services.Configure<QuartzOptions>(options => options.SchedulerName = "core");
++ services.AddQuartz(q => q.ConfigureScheduler(options => options.InstanceName = "core"));
+```
+
+`MisfireThreshold` also had a round-trip problem of its own: it stored a `TimeSpan` as a string of
+whole milliseconds, so a value with sub-millisecond precision did not read back as it was written.
+
+`Properties`, `ToNameValueCollection()` and `Scheduling` stay. `Scheduling` is the exception that proves
+the rule — its three directives say how a configured schedule is applied to a scheduler rather than how
+a component is configured, and they have no options type of their own to bind onto, so this is where
+they live.
 
 ## Package Changes
 
@@ -396,9 +712,9 @@ For more information on `ValueTask` please see [Microsoft docs](https://learn.mi
 SystemTime.UtcNow = () => new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);
 
 // 4.x — use TimeProvider
-var scheduler = await QuartzSchedulerBuilder.Create()
-    .Configure(q => q.UseTimeProvider(new FakeTimeProvider()))
-    .BuildScheduler();
+var builder = QuartzSchedulerBuilder.Create();
+builder.UseTimeProvider(new FakeTimeProvider());
+var scheduler = await builder.BuildScheduler();
 ```
 
 Under a host, the same call goes on the `AddQuartz` builder:
@@ -1699,14 +2015,14 @@ underneath a running one — and on `HttpScheduler` the setter only ever threw, 
 + services.AddQuartz(q => q.UseJobFactory(new MyJobFactory()));
 ```
 
-`UseJobFactory(IJobFactory)` is new on both `IQuartzBuilder` and `QuartzSchedulerBuilder` — the generic
-`UseJobFactory<T>()` overloads have always been there, but an already-constructed factory had nowhere to go:
+`UseJobFactory(IJobFactory)` is new on `IQuartzBuilder` — the generic `UseJobFactory<T>()` overload has
+always been there, but an already-constructed factory had nowhere to go:
 
 ```csharp
 // standalone
-var scheduler = await QuartzSchedulerBuilder.Create()
-    .UseJobFactory(new MyJobFactory())
-    .BuildScheduler();
+var builder = QuartzSchedulerBuilder.Create();
+builder.UseJobFactory(new MyJobFactory());
+var scheduler = await builder.BuildScheduler();
 ```
 
 There is no by-hand path left: `QuartzScheduler` is internal, so the job factory is always configured through
@@ -2685,6 +3001,15 @@ read back the way every other primitive can.
 | `IInstanceIdGenerator.GenerateInstanceId` returns `ValueTask<string>` | It never returned null, and a null instance id is not a usable one |
 | An `IJobStore` that implements `IJobListener` no longer receives events automatically | Register it as a job listener through the scheduler's `IListenerManager` |
 | `[Serializable]` removed from `TriggerFiredBundle` and `TriggerFiredResult` | It has meant nothing since binary serialization was dropped |
+| `StdSchedulerFactory` removed | `QuartzSchedulerBuilder.Create().UseProperties(properties)` — see [`StdSchedulerFactory` is gone](#stdschedulerfactory-is-gone) for every removed constant |
+| `QuartzSchedulerBuilder` implements `IQuartzBuilder` | Its five duplicated members and `Configure(Action<IQuartzBuilder>)` are gone, and configuration members return `IQuartzBuilder`, so `Build()` is called on a builder held in a variable — see [The standalone builder is the same builder](#the-standalone-builder-is-the-same-builder) |
+| `IQuartzBuilder` gained `UseThreadPool(IThreadPool)` and `UseJobStore(IJobStore)` | A pre-built part can be handed to a scheduler registered with `AddQuartz`, not only to a standalone one |
+| Clustering settings moved to `ClusteringOptions` | `AdoJobStoreOptions.Clustered` and the two `ClusterCheckin*` settings are gone; `IJobStore.Clustered` reports the state rather than setting it — see [Clustering is configured in one place](#clustering-is-configured-in-one-place) |
+| `JobStoreSupport`'s constructor takes `IOptions<ClusteringOptions>` | Between `storeOptions` and `objectSerializer`; a job store deriving from it has to pass one on |
+| `UseSQLite` is `UseSystemDataSqlite`, `UseMicrosoftSQLite` is `UseSqlite` | **The short name changed meaning** — see [The SQLite extension methods swapped names](#the-sqlite-extension-methods-swapped-names) |
+| `UseDataSourceConnectionProvider()` removed | `DataSourceOptions.UseRegisteredDataSource`, which is what it set |
+| `QuartzOptions.SchedulerName`, `.SchedulerId`, `.MisfireThreshold` removed | Each duplicated a typed option — see [`QuartzOptions` lost its three typed settings](#quartzoptions-lost-its-three-typed-settings) |
+| Job execution metrics are published by every scheduler | The meters were configured only by `StdSchedulerFactory`, so a scheduler registered with `AddQuartz` published none |
 | `XmlSchedulingOptions` and `JsonSchedulingOptions` merged | They were byte-for-byte identical and are now one type |
 | Constructing a scheduler no longer starts a thread | `QuartzScheduler` starts its scheduler thread from `Start()` rather than its constructor, so resolving the service graph, running a `ValidateOnBuild` pass or asserting on registrations no longer spins one up. The thread always started paused, so this changes when the thread exists, not when jobs run |
 | `IPersistentStoreBuilder.AcceptEnlistedTransactions()` added | A breaking addition for anyone implementing the interface themselves — see [Joining an existing transaction](tutorial/job-stores.md#joining-an-existing-transaction) |

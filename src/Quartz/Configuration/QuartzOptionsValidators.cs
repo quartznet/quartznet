@@ -122,10 +122,27 @@ internal sealed class AdoJobStoreOptionsValidator : IValidateOptions<AdoJobStore
             (failures ??= []).Add($"{nameof(AdoJobStoreOptions.MaxMisfiresToHandleAtATime)} must be at least 1.");
         }
 
-        if (options.Clustered && !options.UseDbLocks)
+        return QuartzSchedulerOptionsValidator.Result(failures);
+    }
+}
+
+/// <summary>
+/// Validates <see cref="ClusteringOptions"/>.
+/// </summary>
+internal sealed class ClusteringOptionsValidator : IValidateOptions<ClusteringOptions>
+{
+    public ValidateOptionsResult Validate(string? name, ClusteringOptions options)
+    {
+        List<string>? failures = null;
+
+        if (options.CheckinInterval <= TimeSpan.Zero)
         {
-            (failures ??= []).Add(
-                $"{nameof(AdoJobStoreOptions.UseDbLocks)} must be enabled when {nameof(AdoJobStoreOptions.Clustered)} is enabled.");
+            (failures ??= []).Add($"{nameof(ClusteringOptions.CheckinInterval)} must be positive.");
+        }
+
+        if (options.CheckinMisfireThreshold < TimeSpan.Zero)
+        {
+            (failures ??= []).Add($"{nameof(ClusteringOptions.CheckinMisfireThreshold)} must not be negative.");
         }
 
         return QuartzSchedulerOptionsValidator.Result(failures);

@@ -74,7 +74,7 @@ public class Program
 
                 });
 
-                // Quartz.Extensions.Hosting hosting
+                // run the scheduler as an IHostedService
                 services.AddQuartzHostedService(options =>
                 {
                     // when shutting down we want jobs to complete gracefully

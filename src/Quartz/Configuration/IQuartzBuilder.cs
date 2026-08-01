@@ -60,13 +60,41 @@ public interface IQuartzBuilder
         Action<ThreadPoolOptions>? configure = null) where T : class, IThreadPool;
 
     /// <summary>
+    /// Uses a thread pool the caller has already built.
+    /// </summary>
+    /// <remarks>
+    /// For a pool that needs constructing with something the container cannot supply. A pool the
+    /// container can build is better selected with <see cref="UseThreadPool{T}"/>, which lets it have
+    /// dependencies of its own.
+    /// </remarks>
+    IQuartzBuilder UseThreadPool(IThreadPool threadPool);
+
+    /// <summary>
     /// Uses the in-memory job store, which does not survive process restarts.
     /// </summary>
+    /// <remarks>
+    /// Takes an options object rather than a sub-builder, unlike
+    /// <see cref="UsePersistentStore(Action{IPersistentStoreBuilder})"/>: an in-memory store is one
+    /// component with a couple of settings, whereas a database-backed store is a composite that also has
+    /// a data source, a driver delegate, a serializer and a lock handler to choose. The shape says which
+    /// kind of thing is being configured.
+    /// </remarks>
     IQuartzBuilder UseInMemoryStore(Action<InMemoryJobStoreOptions>? configure = null);
+
+    /// <summary>
+    /// Uses a job store the caller has already built.
+    /// </summary>
+    /// <remarks>
+    /// For a store that needs constructing with something the container cannot supply. A store the
+    /// container can build is better selected with <see cref="UsePersistentStore{T}"/> or
+    /// <see cref="UseInMemoryStore"/>, which configure it as well as choose it.
+    /// </remarks>
+    IQuartzBuilder UseJobStore(IJobStore jobStore);
 
     /// <summary>
     /// Uses a database-backed job store, so jobs and triggers survive restarts and can be clustered.
     /// </summary>
+    /// <inheritdoc cref="UseInMemoryStore" path="/remarks" />
     IQuartzBuilder UsePersistentStore(Action<IPersistentStoreBuilder> configure);
 
     /// <summary>

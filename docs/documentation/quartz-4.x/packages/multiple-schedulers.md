@@ -3,12 +3,12 @@
 title: Multiple Schedulers with Microsoft DI
 ---
 
-Quartz.NET has always supported running multiple schedulers in a single process -- each `StdSchedulerFactory` instance can create and manage an independent scheduler, and an `ISchedulerRepository` tracks by name the schedulers built alongside it. However, configuring multiple schedulers through the Microsoft DI `AddQuartz()` API required workarounds because the registration model was designed around a single scheduler per container.
+Quartz.NET has always supported running multiple schedulers in a single process -- each `QuartzSchedulerBuilder` builds an independent scheduler, and an `ISchedulerRepository` tracks by name the schedulers built alongside it. However, configuring multiple schedulers through the Microsoft DI `AddQuartz()` API required workarounds because the registration model was designed around a single scheduler per container.
 
 The named `AddQuartz(string name, ...)` overload makes this first-class: each named scheduler gets its own isolated configuration, jobs, triggers, listeners, and calendars, all managed through the familiar DI fluent API.
 
 ::: tip
-If you are not using Microsoft DI, you can create multiple schedulers by instantiating multiple `StdSchedulerFactory` instances with different `quartz.scheduler.instanceName` properties and calling `GetScheduler()` on each.
+If you are not using Microsoft DI, you can create multiple schedulers from separate `QuartzSchedulerBuilder`s, each given its own `ConfigureScheduler(options => options.InstanceName = ...)`, and call `BuildScheduler()` on each.
 :::
 
 ## When to Use Named Schedulers
@@ -136,7 +136,7 @@ Named schedulers are only available after the hosted service has created and sta
 
 `ISchedulerFactory` is only available from DI when a default (unnamed) `AddQuartz()` call has been made. If you only use named schedulers, inject `ISchedulerRepository` instead.
 
-The repository is scoped to the container, not the process. A scheduler created by a `StdSchedulerFactory` or a `QuartzSchedulerBuilder` of its own is not in it -- see [the migration guide](../migration-guide.md#no-process-global-scheduler-or-connection-state).
+The repository is scoped to the container, not the process. A scheduler built by a `QuartzSchedulerBuilder` of its own is not in it -- see [the migration guide](../migration-guide.md#no-process-global-scheduler-or-connection-state).
 :::
 
 ## Mixing Default and Named Schedulers

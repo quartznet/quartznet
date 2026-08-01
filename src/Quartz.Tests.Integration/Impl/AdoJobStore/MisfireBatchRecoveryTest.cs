@@ -270,6 +270,7 @@ public class MisfireBatchRecoveryTest
                     // Anything overdue by more than a moment counts as misfired.
                     options.MisfireThreshold = TimeSpan.FromSeconds(1);
                 }),
+                TestJobStores.ClusteringOptions(),
                 serializer,
                 TestJobStores.ConnectionManager(),
                 dbProvider,

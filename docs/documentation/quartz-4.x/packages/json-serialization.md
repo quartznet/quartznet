@@ -36,24 +36,27 @@ var properties = new NameValueCollection
  ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz",
  ["quartz.serializer.type"] = "json"
 };
-ISchedulerFactory schedulerFactory = new StdSchedulerFactory(properties);
+ISchedulerFactory schedulerFactory = QuartzSchedulerBuilder.Create()
+    .UseProperties(properties)
+    .Build();
 ```
 
 **Configuring using scheduler builder**
 
 ```csharp
-ISchedulerFactory schedulerFactory = QuartzSchedulerBuilder.Create()
-    .Configure(q => q.UsePersistentStore(store =>
-    {
-        store.UseGenericDatabase("MyProvider", "my connection string");
+var builder = QuartzSchedulerBuilder.Create();
+builder.UsePersistentStore(store =>
+{
+    store.UseGenericDatabase("MyProvider", "my connection string");
 
-        // it's generally recommended to stick with
-        // string property keys and values when serializing
-        store.Configure(options => options.UseProperties = true);
+    // it's generally recommended to stick with
+    // string property keys and values when serializing
+    store.Configure(options => options.UseProperties = true);
 
-        store.UseNewtonsoftJsonSerializer();
-    }))
-    .Build();
+    store.UseNewtonsoftJsonSerializer();
+});
+
+ISchedulerFactory schedulerFactory = builder.Build();
 ```
 
 `UseGenericDatabase` is the right method only for a database Quartz has no specific support for; use
@@ -219,8 +222,8 @@ class CustomCalendarSerializer : CalendarSerializer<CustomCalendar>
 **Configuring custom calendar serializer**
 
 ```csharp
-var config = SchedulerBuilder.Create();
-config.UsePersistentStore(store =>
+var builder = QuartzSchedulerBuilder.Create();
+builder.UsePersistentStore(store =>
 {
     store.UseNewtonsoftJsonSerializer(json =>
     {

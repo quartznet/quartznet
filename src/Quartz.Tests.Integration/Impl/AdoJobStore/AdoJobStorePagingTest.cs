@@ -162,7 +162,7 @@ public class AdoJobStorePagingTest
             o.InstanceName = $"PagingTestScheduler_{dbProvider}".Replace('-', '_');
         });
 
-        config.Configure(q => q.UsePersistentStore(store =>
+        config.UsePersistentStore(store =>
         {
             store.Configure(o =>
             {
@@ -173,7 +173,7 @@ public class AdoJobStorePagingTest
             store.UseGenericDatabase(dbProvider, connectionString);
             store.Services.Replace(ServiceDescriptor.Singleton(typeof(IDriverDelegate), driverDelegateType));
             store.UseSystemTextJsonSerializer();
-        }));
+        });
 
         IScheduler scheduler = await config.BuildScheduler();
         createdSchedulers.Add(scheduler);

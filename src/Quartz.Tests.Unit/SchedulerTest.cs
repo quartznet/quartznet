@@ -1,11 +1,9 @@
 using System.Collections.Specialized;
 using System.Diagnostics;
 
-using Quartz.Impl;
 using Quartz.Matchers;
 using Quartz.Job;
 using Quartz.Extensibility;
-
 
 namespace Quartz.Tests.Unit;
 
@@ -89,7 +87,7 @@ public class SchedulerTest
         {
             ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
         };
-        ISchedulerFactory factory = new StdSchedulerFactory(properties);
+        ISchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
 
         IScheduler scheduler = await factory.GetScheduler();
         var job = JobBuilder.Create<NoOpJob>().Build();
@@ -108,7 +106,7 @@ public class SchedulerTest
             ["quartz.threadPool.type"] = "Quartz.Impl.DefaultThreadPool, Quartz",
             ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
         };
-        IScheduler scheduler = await new StdSchedulerFactory(config).GetScheduler();
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create().UseProperties(config).BuildScheduler();
 
         // test basic storage functions of scheduler...
 
@@ -300,7 +298,7 @@ public class SchedulerTest
             ["quartz.threadPool.threadCount"] = "2"
         };
 
-        var factory = new StdSchedulerFactory(properties);
+        ISchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         var scheduler = await factory.GetScheduler();
         await scheduler.Start();
 
@@ -344,7 +342,7 @@ public class SchedulerTest
             ["quartz.threadPool.threadCount"] = "2"
         };
 
-        var factory = new StdSchedulerFactory(properties);
+        ISchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         var scheduler = factory.GetScheduler().GetAwaiter().GetResult();
         scheduler.Start().GetAwaiter().GetResult();
 
@@ -383,7 +381,7 @@ public class SchedulerTest
         {
             ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
         };
-        ISchedulerFactory factory = new StdSchedulerFactory(properties);
+        ISchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         IScheduler scheduler = await factory.GetScheduler();
         await scheduler.Start();
 
@@ -431,7 +429,7 @@ public class SchedulerTest
             ["quartz.scheduler.instanceName"] = "SchedulerTest_TriggerSwitch",
             ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
         };
-        ISchedulerFactory factory = new StdSchedulerFactory(properties);
+        ISchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         IScheduler scheduler = await factory.GetScheduler();
 
         var jobKey = new JobKey("switchJob", "switchGroup");

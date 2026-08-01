@@ -1,8 +1,5 @@
 using System.Collections.Specialized;
 
-using Quartz.Configuration;
-using Quartz.Impl;
-
 namespace Quartz;
 
 /// <summary>
@@ -35,42 +32,14 @@ public sealed class QuartzOptions
     public Dictionary<string, string?> Properties { get; } = new Dictionary<string, string?>(StringComparer.Ordinal);
 
     /// <summary>
-    /// The scheduler's instance id, as <c>quartz.scheduler.instanceId</c>.
-    /// </summary>
-    public string? SchedulerId
-    {
-        get => Property(StdSchedulerFactory.PropertySchedulerInstanceId);
-        set => Properties[StdSchedulerFactory.PropertySchedulerInstanceId] = value;
-    }
-
-    /// <summary>
-    /// The scheduler's name, as <c>quartz.scheduler.instanceName</c>.
+    /// How the jobs, triggers and calendars a scheduler is configured with are applied to it.
     /// </summary>
     /// <remarks>
-    /// Up to 4.0 this read and wrote <c>schedulerName</c>, which is an ADO.NET column key that nothing
-    /// reads — so a name set here was silently discarded.
+    /// These are directives about applying a schedule rather than settings of a component, so they have
+    /// no options type of their own to bind onto: <c>ContainerConfigurationProcessor</c> reads them from
+    /// here, and the <c>Quartz:Scheduling</c> configuration section binds onto them. They stay on this
+    /// type for that reason, while the settings that duplicated a typed option have gone.
     /// </remarks>
-    public string? SchedulerName
-    {
-        get => Property(StdSchedulerFactory.PropertySchedulerInstanceName);
-        set => Properties[StdSchedulerFactory.PropertySchedulerInstanceName] = value;
-    }
-
-    public TimeSpan? MisfireThreshold
-    {
-        get
-        {
-            var value = Property("quartz.jobStore.misfireThreshold");
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                return null;
-            }
-
-            return TimeSpan.FromMilliseconds(int.Parse(value));
-        }
-        set => Properties["quartz.jobStore.misfireThreshold"] = value is not null ? ((int) value.Value.TotalMilliseconds).ToString() : "";
-    }
-
     public SchedulingOptions Scheduling { get; set; } = new();
 
     /// <summary>
@@ -91,11 +60,5 @@ public sealed class QuartzOptions
         }
 
         return collection;
-    }
-
-    private string? Property(string key)
-    {
-        Properties.TryGetValue(key, out var value);
-        return value;
     }
 }

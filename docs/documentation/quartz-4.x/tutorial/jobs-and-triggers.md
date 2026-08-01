@@ -13,7 +13,7 @@ The key interfaces and classes of the Quartz API are:
 * `ITrigger` - a component that defines the schedule upon which a given Job will be executed, job can have multiple associated triggers
 * `JobBuilder` - used to define/build JobDetail instances, which define instances of Jobs.
 * `TriggerBuilder` - used to define/build Trigger instances.
-* `SchedulerBuilder` - used to define/build scheduler instances, requires Quartz 3.1 or later.
+* `QuartzSchedulerBuilder` - used to define/build scheduler instances when there is no host to register Quartz with.
 
 In this tutorial for readability's sake following terms are used interchangeably: `IScheduler` and `Scheduler`, `IJob` and `Job`, `IJobDetail` and `JobDetail`, `ITrigger` and `Trigger`.
 

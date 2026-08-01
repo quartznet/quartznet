@@ -166,10 +166,13 @@ public class QuartzPropertyBridgeTest
         options.DataSource.Should().Be("primary");
         options.TablePrefix.Should().Be("QRTZ2_");
         options.UseProperties.Should().BeTrue();
-        options.Clustered.Should().BeTrue();
         options.UseDbLocks.Should().BeTrue("clustering has always implied database locking");
-        options.ClusterCheckinInterval.Should().Be(TimeSpan.FromSeconds(10));
         options.MisfireThreshold.Should().Be(TimeSpan.FromSeconds(90));
+
+        var clustering = Options<ClusteringOptions>(provider);
+
+        clustering.Enabled.Should().BeTrue();
+        clustering.CheckinInterval.Should().Be(TimeSpan.FromSeconds(10));
     }
 
     [Test]

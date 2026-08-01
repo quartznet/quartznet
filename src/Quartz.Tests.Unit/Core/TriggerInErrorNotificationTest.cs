@@ -16,9 +16,10 @@ public class TriggerInErrorNotificationTest
     {
         ErrorStateListener listener = new ErrorStateListener();
 
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .UseJobFactory(new ThrowingJobFactory())
-            .BuildScheduler();
+        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
+        builder.UseJobFactory(new ThrowingJobFactory());
+
+        IScheduler scheduler = await builder.BuildScheduler();
 
         try
         {

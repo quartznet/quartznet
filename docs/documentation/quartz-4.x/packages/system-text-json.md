@@ -40,7 +40,9 @@ var properties = new NameValueCollection
  ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz",
  ["quartz.serializer.type"] = "stj"
 };
-ISchedulerFactory schedulerFactory = new StdSchedulerFactory(properties);
+ISchedulerFactory schedulerFactory = QuartzSchedulerBuilder.Create()
+    .UseProperties(properties)
+    .Build();
 ```
 
 ## Migrating from binary serialization

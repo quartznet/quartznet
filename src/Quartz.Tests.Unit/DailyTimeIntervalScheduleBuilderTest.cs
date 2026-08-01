@@ -23,7 +23,6 @@ using System.Collections.Specialized;
 
 using AwesomeAssertions.Execution;
 
-using Quartz.Impl;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Extensibility;
@@ -48,7 +47,7 @@ public class DailyTimeIntervalScheduleBuilderTest
             ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
         };
 
-        var factory = new StdSchedulerFactory(properties);
+        ISchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         IScheduler scheduler = await factory.GetScheduler();
         IJobDetail job = JobBuilder.Create(typeof(NoOpJob)).Build();
 
@@ -77,7 +76,7 @@ public class DailyTimeIntervalScheduleBuilderTest
         {
             ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
         };
-        ISchedulerFactory sf = new StdSchedulerFactory(properties);
+        ISchedulerFactory sf = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         IScheduler scheduler = await sf.GetScheduler();
 
         IJobDetail job = JobBuilder.Create<NoOpJob>().Build();

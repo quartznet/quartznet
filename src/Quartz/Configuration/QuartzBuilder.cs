@@ -74,6 +74,20 @@ internal sealed class QuartzBuilder : IQuartzBuilder
         return this;
     }
 
+    public IQuartzBuilder UseThreadPool(IThreadPool threadPool)
+    {
+        ArgumentNullException.ThrowIfNull(threadPool);
+        RegisterConfigured<IThreadPool>((_, _) => threadPool);
+        return this;
+    }
+
+    public IQuartzBuilder UseJobStore(IJobStore jobStore)
+    {
+        ArgumentNullException.ThrowIfNull(jobStore);
+        RegisterConfigured<IJobStore>((_, _) => jobStore);
+        return this;
+    }
+
     public IQuartzBuilder UseInMemoryStore(Action<InMemoryJobStoreOptions>? configure = null)
     {
         if (configure is not null)
