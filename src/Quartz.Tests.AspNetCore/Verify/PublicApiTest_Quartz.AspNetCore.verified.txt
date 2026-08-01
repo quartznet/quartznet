@@ -1,0 +1,9 @@
+﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
+namespace Quartz.AspNetCore
+{
+    public static class QuartzServiceCollectionExtensions
+    {
+        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzServer(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Quartz.QuartzHostedServiceOptions>? configure = null) { }
+        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzServer(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Quartz.QuartzHostedServiceOptions>? configure, System.Collections.Generic.IEnumerable<string>? healthCheckTags) { }
+    }
+}

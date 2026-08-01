@@ -1,0 +1,12 @@
+﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
+namespace Quartz.OpenTracing
+{
+    public class QuartzDiagnosticOptions
+    {
+        public QuartzDiagnosticOptions() { }
+        public string ComponentName { get; set; }
+        public System.Collections.Generic.List<System.Func<Quartz.Logging.IJobDiagnosticData, bool>> IgnorePatterns { get; }
+        public bool IncludeExceptionDetails { get; set; }
+        public System.Func<Quartz.Logging.IJobDiagnosticData, string> OperationNameResolver { get; set; }
+    }
+}

@@ -1,0 +1,116 @@
+﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
+namespace Quartz
+{
+    public static class JsonConfigurationExtensions
+    {
+        public static void UseSystemTextJsonSerializer(this Quartz.SchedulerBuilder.PersistentStoreOptions persistentStoreOptions, System.Action<Quartz.SystemTextJsonSerializerOptions>? configure = null) { }
+    }
+    [System.Serializable]
+    public sealed class JsonSerializationException : Quartz.SchedulerException
+    {
+        public JsonSerializationException(string message) { }
+        public JsonSerializationException(string message, System.Exception? innerException) { }
+    }
+    public class SystemTextJsonSerializerOptions
+    {
+        public SystemTextJsonSerializerOptions() { }
+        public Quartz.SystemTextJsonSerializerOptions AddCalendarSerializer<TCalendar>(Quartz.Serialization.SystemTextJson.ICalendarSerializer serializer)
+            where TCalendar : Quartz.ICalendar { }
+        public Quartz.SystemTextJsonSerializerOptions AddTriggerSerializer<TTrigger>(Quartz.Triggers.ITriggerSerializer serializer)
+            where TTrigger : Quartz.ITrigger { }
+    }
+}
+namespace Quartz.Serialization.SystemTextJson
+{
+    public abstract class CalendarSerializer<TCalendar> : Quartz.Serialization.SystemTextJson.ICalendarSerializer
+        where TCalendar : Quartz.ICalendar
+    {
+        protected CalendarSerializer() { }
+        public abstract string CalendarTypeName { get; }
+        protected abstract TCalendar Create(System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options);
+        protected abstract void DeserializeFields(TCalendar calendar, System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options);
+        protected abstract void SerializeFields(System.Text.Json.Utf8JsonWriter writer, TCalendar calendar, System.Text.Json.JsonSerializerOptions options);
+    }
+    public interface ICalendarSerializer
+    {
+        string CalendarTypeName { get; }
+        Quartz.ICalendar Create(System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options);
+        void DeserializeFields(Quartz.ICalendar calendar, System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options);
+        void SerializeFields(System.Text.Json.Utf8JsonWriter writer, Quartz.ICalendar calendar, System.Text.Json.JsonSerializerOptions options);
+    }
+}
+namespace Quartz.Simpl
+{
+    public class SystemTextJsonObjectSerializer : Quartz.Spi.IObjectSerializer
+    {
+        public SystemTextJsonObjectSerializer() { }
+        protected virtual System.Text.Json.JsonSerializerOptions CreateSerializerOptions() { }
+        public T? DeSerialize<T>(byte[] data)
+            where T :  class { }
+        public void Initialize() { }
+        public byte[] Serialize<T>(T obj)
+            where T :  class { }
+        public static void AddCalendarSerializer<TCalendar>(Quartz.Serialization.SystemTextJson.ICalendarSerializer serializer)
+            where TCalendar : Quartz.ICalendar { }
+        public static void AddTriggerSerializer<TTrigger>(Quartz.Triggers.ITriggerSerializer serializer)
+            where TTrigger : Quartz.ITrigger { }
+    }
+}
+namespace Quartz.Triggers
+{
+    public class CalendarIntervalTriggerSerializer : Quartz.Triggers.TriggerSerializer<Quartz.ICalendarIntervalTrigger>
+    {
+        public CalendarIntervalTriggerSerializer() { }
+        public override string TriggerTypeForJson { get; }
+        public override Quartz.IScheduleBuilder CreateScheduleBuilder(System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
+        protected override void DeserializeFields(Quartz.ICalendarIntervalTrigger trigger, System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
+        protected override void SerializeFields(System.Text.Json.Utf8JsonWriter writer, Quartz.ICalendarIntervalTrigger trigger, System.Text.Json.JsonSerializerOptions options) { }
+    }
+    public class CronTriggerSerializer : Quartz.Triggers.TriggerSerializer<Quartz.ICronTrigger>
+    {
+        public CronTriggerSerializer() { }
+        public override string TriggerTypeForJson { get; }
+        public override Quartz.IScheduleBuilder CreateScheduleBuilder(System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
+        protected override void SerializeFields(System.Text.Json.Utf8JsonWriter writer, Quartz.ICronTrigger trigger, System.Text.Json.JsonSerializerOptions options) { }
+    }
+    public class DailyTimeIntervalTriggerSerializer : Quartz.Triggers.TriggerSerializer<Quartz.IDailyTimeIntervalTrigger>
+    {
+        public DailyTimeIntervalTriggerSerializer() { }
+        public override string TriggerTypeForJson { get; }
+        public override Quartz.IScheduleBuilder CreateScheduleBuilder(System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
+        protected override void DeserializeFields(Quartz.IDailyTimeIntervalTrigger trigger, System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
+        protected override void SerializeFields(System.Text.Json.Utf8JsonWriter writer, Quartz.IDailyTimeIntervalTrigger trigger, System.Text.Json.JsonSerializerOptions options) { }
+    }
+    public interface ITriggerSerializer
+    {
+        string TriggerTypeForJson { get; }
+        Quartz.IScheduleBuilder CreateScheduleBuilder(System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options);
+        void DeserializeFields(Quartz.ITrigger trigger, System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options);
+        void SerializeFields(System.Text.Json.Utf8JsonWriter writer, Quartz.ITrigger trigger, System.Text.Json.JsonSerializerOptions options);
+    }
+    public sealed class RecurrenceTriggerSerializer : Quartz.Triggers.TriggerSerializer<Quartz.IRecurrenceTrigger>
+    {
+        public RecurrenceTriggerSerializer() { }
+        public override string TriggerTypeForJson { get; }
+        public override Quartz.IScheduleBuilder CreateScheduleBuilder(System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
+        protected override void DeserializeFields(Quartz.IRecurrenceTrigger trigger, System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
+        protected override void SerializeFields(System.Text.Json.Utf8JsonWriter writer, Quartz.IRecurrenceTrigger trigger, System.Text.Json.JsonSerializerOptions options) { }
+    }
+    public class SimpleTriggerSerializer : Quartz.Triggers.TriggerSerializer<Quartz.ISimpleTrigger>
+    {
+        public SimpleTriggerSerializer() { }
+        public override string TriggerTypeForJson { get; }
+        public override Quartz.IScheduleBuilder CreateScheduleBuilder(System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
+        protected override void DeserializeFields(Quartz.ISimpleTrigger trigger, System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
+        protected override void SerializeFields(System.Text.Json.Utf8JsonWriter writer, Quartz.ISimpleTrigger trigger, System.Text.Json.JsonSerializerOptions options) { }
+    }
+    public abstract class TriggerSerializer<TTrigger> : Quartz.Triggers.ITriggerSerializer
+        where TTrigger : Quartz.ITrigger
+    {
+        protected TriggerSerializer() { }
+        public abstract string TriggerTypeForJson { get; }
+        public abstract Quartz.IScheduleBuilder CreateScheduleBuilder(System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options);
+        protected virtual void DeserializeFields(TTrigger trigger, System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
+        protected abstract void SerializeFields(System.Text.Json.Utf8JsonWriter writer, TTrigger trigger, System.Text.Json.JsonSerializerOptions options);
+    }
+}

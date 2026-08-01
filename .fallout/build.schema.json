@@ -27,11 +27,13 @@
         "ApiDoc",
         "Clean",
         "Compile",
+        "GenerateMigrations",
         "IntegrationTest",
         "Pack",
         "Publish",
         "Restore",
-        "UnitTest"
+        "UnitTest",
+        "VerifyMigrations"
       ]
     },
     "Verbosity": {

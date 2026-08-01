@@ -1,0 +1,21 @@
+﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
+namespace Quartz
+{
+    public sealed class QuartzHostedService : Microsoft.Extensions.Hosting.IHostedService
+    {
+        public QuartzHostedService(Microsoft.Extensions.Hosting.IHostApplicationLifetime applicationLifetime, Quartz.ISchedulerFactory schedulerFactory, Microsoft.Extensions.Options.IOptions<Quartz.QuartzHostedServiceOptions> options) { }
+        public System.Threading.Tasks.Task StartAsync(System.Threading.CancellationToken cancellationToken) { }
+        public System.Threading.Tasks.Task StopAsync(System.Threading.CancellationToken cancellationToken) { }
+    }
+    public class QuartzHostedServiceOptions
+    {
+        public QuartzHostedServiceOptions() { }
+        public bool AwaitApplicationStarted { get; set; }
+        public System.TimeSpan? StartDelay { get; set; }
+        public bool WaitForJobsToComplete { get; set; }
+    }
+    public static class QuartzServiceCollectionExtensions
+    {
+        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzHostedService(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Quartz.QuartzHostedServiceOptions>? configure = null) { }
+    }
+}
