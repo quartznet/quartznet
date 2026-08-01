@@ -206,6 +206,39 @@ plus a bridge entry on main.
   Any change to public API fails those tests; review the diff, and if the change is intended,
   accept the new baseline and carry the same diff into
   `docs/documentation/quartz-4.x/migration-guide.md`. Never hand-edit them.
+- **`3.x` carries the same baselines, so the 4.0 API delta is a `git diff`.** Reach for it when
+  writing the migration guide, reviewing API ergonomics, or checking whether a 3.x change has a
+  counterpart here — it is exhaustive and always current, unlike the tables above. `git diff` takes
+  `<rev>:<path>` blob arguments, so this is the same command in PowerShell and bash:
+
+  ```shell
+  git fetch origin
+
+  # one assembly
+  git diff origin/3.x:src/Quartz.Tests.Unit/Verify/PublicApiTest_Quartz.verified.txt \
+           origin/main:src/Quartz.Tests.Unit/Verify/PublicApiTest_Quartz.verified.txt
+
+  # everything both branches snapshot
+  git diff origin/3.x origin/main -- src/Quartz.Tests.Unit/Verify src/Quartz.Tests.AspNetCore/Verify
+  ```
+
+  Package boundaries moved, so match the files up first:
+
+  | 3.x baseline | main baseline |
+  |---|---|
+  | `PublicApiTest_Quartz` | `PublicApiTest_Quartz` — ours also absorbs DI, Hosting and SystemTextJson |
+  | `PublicApiTest_Quartz.Extensions.DependencyInjection` | folded into `Quartz` (`Quartz.Configuration`) |
+  | `PublicApiTest_Quartz.Extensions.Hosting` | folded into `Quartz` (`src/Quartz/Hosting/`) |
+  | `PublicApiTest_Quartz.Serialization.SystemTextJson` | folded into `Quartz` (`SystemTextJsonObjectSerializer`) |
+  | `PublicApiTest_Quartz.Serialization.Json` | `PublicApiTest_Quartz.Serialization.Newtonsoft` |
+  | `Quartz.Jobs`, `Quartz.Plugins`, `Quartz.Plugins.TimeZoneConverter`, `Quartz.Extensions.Redis`, `Quartz.AspNetCore`, `Quartz.Dashboard` | same name on both sides |
+  | `PublicApiTest_Quartz.OpenTracing` | dropped here |
+  | (no 3.x baseline — its ancient `OpenTelemetry` dependency fails restore there) | dropped here; use `OpenTelemetry.Instrumentation.Quartz` |
+  | — | `PublicApiTest_Quartz.HttpClient` — new here |
+
+  Two differences are systematic and are **not** deltas worth reporting: `Task` → `ValueTask` on
+  nearly every member, and the namespace moves tabulated above. 3.x snapshots on `net10.0` only, so
+  its `net472`/`REMOTING` surface never appears in the diff.
 - **Release notes live in GitHub releases, not in the repository.** There is no changelog file on
   either branch; the tag's release is the record. Unreleased 4.x notes accumulate in the `v4.0.0`
   draft release.
