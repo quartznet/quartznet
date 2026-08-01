@@ -1011,6 +1011,39 @@ LogProvider.SetLogProvider(host.Services.GetRequiredService<ILoggerFactory>());
 
 Further information on configuring Microsoft.Logging can be found [at Microsoft docs](https://docs.microsoft.com/en-us/dotnet/core/extensions/logging).
 
+## Job execution metrics
+
+The `Quartz` meter publishes the same four instruments under the same names, and every scheduler now
+publishes them — configuring the meter used to be wired to `StdSchedulerFactory`, so a scheduler
+registered with `AddQuartz` emitted nothing at all. Two further things changed, and both are visible to
+anything already charting them:
+
+| Instrument | 4.x type | Tags |
+|---|---|---|
+| `scheduling.quartz.execute` | `Counter<long>` | `trigger.group`, `trigger.name`, `job.group`, `job.name` |
+| `scheduling.quartz.execute.errors` | `Counter<long>` | the four identity tags **+ `scheduling.quartz.exception_type`** |
+| `scheduling.quartz.execute.active` | **`UpDownCounter<long>`** (was `Counter<long>`) | the four identity tags |
+| `scheduling.quartz.execute.duration` | `Histogram<double>` | the four identity tags, **+ `scheduling.quartz.exception_type`** when the execution failed |
+
+**`scheduling.quartz.execute.active` is an up-down counter.** The number of jobs running goes down as
+often as it goes up, and Quartz has always measured the decrement — but a `Counter` is monotonic by
+OpenTelemetry's definition, so an exporter aggregating one is entitled to drop or mis-render a negative
+measurement, leaving a "jobs currently running" chart that only ever climbs. The name, the unit and the
+meaning are unchanged; the instrument type an exporter sees is not, so a dashboard or an alert built on
+the old series has to be rebuilt on a non-monotonic one — a `Sum` with `IsMonotonic = false` in the
+OpenTelemetry SDK, which Prometheus renders as a gauge rather than a counter.
+
+**`scheduling.quartz.exception_type` reaches the measurements it is meant to.** The tag was added to a
+copy of the tag list and thrown away, so the errors counter carried the four identity tags and nothing
+else: an exporter could see that executions failed, but never what failed. It is now on the errors counter
+and on the duration histogram, so a failed run's duration can be told apart from a successful one's. It is
+deliberately *not* on `scheduling.quartz.execute.active`, whose increment and decrement have to carry
+identical attributes or the series never comes back to zero.
+
+The value is the exception type the job run shell reports, which is the `JobExecutionException` that
+anything a job throws is wrapped in. The exception the job itself threw is on the execution's span, which
+records it as an exception event.
+
 ## JSON Serialization
 
 To configure JSON serialization to be used in job store, instead of the old `UseJsonSerializer` you should now use either `UseSystemTextJsonSerializer` or `UseNewtonsoftJsonSerializer`:
@@ -3268,6 +3301,8 @@ read back the way every other primitive can.
 | `UseDataSourceConnectionProvider()` removed | `DataSourceOptions.UseRegisteredDataSource`, which is what it set |
 | `QuartzOptions.SchedulerName`, `.SchedulerId`, `.MisfireThreshold` removed | Each duplicated a typed option — see [`QuartzOptions` lost its three typed settings](#quartzoptions-lost-its-three-typed-settings) |
 | Job execution metrics are published by every scheduler | The meters were configured only by `StdSchedulerFactory`, so a scheduler registered with `AddQuartz` published none |
+| `scheduling.quartz.execute.active` is an `UpDownCounter<long>` | It was a `Counter<long>` receiving the `-1` that ends an execution, which an exporter aggregating a monotonic sum may drop — see [Job execution metrics](#job-execution-metrics) |
+| `scheduling.quartz.exception_type` reaches the errors counter | The tag was added to a copy of the tag list and discarded, so the counter said only that something failed; it is on the duration histogram too |
 | `XmlSchedulingOptions` and `JsonSchedulingOptions` merged | They were byte-for-byte identical and are now one type |
 | Constructing a scheduler no longer starts a thread | `QuartzScheduler` starts its scheduler thread from `Start()` rather than its constructor, so resolving the service graph, running a `ValidateOnBuild` pass or asserting on registrations no longer spins one up. The thread always started paused, so this changes when the thread exists, not when jobs run |
 | `IPersistentStoreBuilder.AcceptEnlistedTransactions()` added | A breaking addition for anyone implementing the interface themselves — see [Joining an existing transaction](tutorial/job-stores.md#joining-an-existing-transaction) |

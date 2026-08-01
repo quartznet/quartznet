@@ -138,13 +138,14 @@ public sealed class JobExecutionObservabilityTest
         published.Should().ContainSingle(m => m.Instrument == ExecuteDuration)
             .Which.Value.Should().BeGreaterThanOrEqualTo(0, "the duration is recorded in milliseconds");
 
-        // Both measurements are asserted from the listener's point of view, which sees every one of them.
-        // The instrument is a Counter rather than an UpDownCounter, so the -1 is a negative measurement on
-        // an instrument OpenTelemetry treats as monotonic, and an aggregating exporter may not honour it.
-        published.Where(m => m.Instrument == ExecuteActive).Should().HaveCount(2,
+        List<RecordedMeasurement> active = published.Where(m => m.Instrument == ExecuteActive).ToList();
+
+        active.Should().HaveCount(2,
             "the in-progress count is incremented when the job starts and decremented when it ends");
-        published.Where(m => m.Instrument == ExecuteActive).Sum(m => m.Value).Should().Be(0,
-            "a finished job leaves nothing in progress");
+        active.Sum(m => m.Value).Should().Be(0, "a finished job leaves nothing in progress");
+        active.Should().AllSatisfy(m => m.InstrumentType.Should().Be<UpDownCounter<long>>(
+            "a count of what is running goes down as often as it goes up, and an exporter aggregates a "
+            + "Counter as monotonic — which is what made the decrement something it could drop"));
 
         published.Should().NotContain(m => m.Instrument == ExecuteErrors,
             "the job succeeded");
@@ -174,35 +175,43 @@ public sealed class JobExecutionObservabilityTest
         published.Should().ContainSingle(m => m.Instrument == ExecuteErrors)
             .Which.Value.Should().Be(1, "a job that throws is one execution error");
 
-        published.Where(m => m.Instrument == ExecuteActive).Sum(m => m.Value).Should().Be(0,
+        List<RecordedMeasurement> active = published.Where(m => m.Instrument == ExecuteActive).ToList();
+
+        active.Sum(m => m.Value).Should().Be(0,
             "a job that throws leaves nothing in progress either — the decrement is not on the happy path only");
+        active.Should().AllSatisfy(m => m.Tags.Should().NotContainKey(ExceptionType,
+            "an up-down counter is aggregated per attribute set, so the decrement has to carry exactly the "
+            + "tags the increment carried or the series never comes back to zero"));
 
         published.Should().ContainSingle(m => m.Instrument == ExecuteDuration,
-            "how long a job ran is worth knowing whether or not it failed");
+            "how long a job ran is worth knowing whether or not it failed")
+            .Which.Tags.Should().ContainKey(ExceptionType,
+                "and a failed run's duration is worth telling apart from a successful one's");
     }
 
     /// <summary>
-    /// The tag that says what went wrong is lost before it reaches the counter.
+    /// The errors counter says what went wrong, not only that something did.
     /// </summary>
     /// <remarks>
-    /// <c>Instrumentation.EndJobExecute</c> adds the exception type to <c>_tagList.Value</c>, and
-    /// <see cref="Nullable{T}.Value"/> hands back a copy of the struct: the tag is added to a temporary
-    /// that is thrown away on the next line, where a second copy — still four tags — is what the counter
-    /// is given. So an exporter can see that executions failed but never what failed, which is most of
-    /// the reason to look. This test states today's behavior so the loss is recorded rather than assumed;
-    /// fixing <c>Instrumentation</c> to hold a mutable copy is a product change, and this test flips with
-    /// it.
+    /// The tag used to be added to <c>_tagList.Value</c>, and <see cref="Nullable{T}.Value"/> hands back a
+    /// copy of the struct: it went onto a temporary that was thrown away on the next line, where a second
+    /// copy — still the four identity tags — was what the counter was given. The type reported is the one
+    /// the run shell hands to the instrumentation, which is the <see cref="JobExecutionException"/> it
+    /// wraps anything a job throws in, so the tag separates a job that raised one deliberately from a job
+    /// whose failure the pipeline wrapped. The exception the job itself threw is on the span, as
+    /// <see cref="FailingJobExecution_EmitsActivityWithErrorStatusAndException"/> asserts.
     /// </remarks>
     [Test]
-    public async Task FailingJobExecution_LosesTheExceptionTypeTag()
+    public async Task FailingJobExecution_TagsTheErrorWithTheExceptionType()
     {
         Execution execution = await RunJob<ThrowingJob>();
 
         RecordedMeasurement error = MeasurementsFor(execution.JobKey).Single(m => m.Instrument == ExecuteErrors);
 
-        error.Tags.Should().NotContainKey(ExceptionType,
-            "the tag is added to a copy of the tag list and never reaches the counter — when that is fixed, "
-            + "this expectation becomes a positive one for JobExecutionException");
+        error.Tags.Should().ContainKey(ExceptionType)
+            .WhoseValue.Should().Be(nameof(JobExecutionException),
+                "an exporter that can see that executions failed but never what failed is missing most of "
+                + "the reason to look");
     }
 
     [Test]
@@ -302,7 +311,9 @@ public sealed class JobExecutionObservabilityTest
 
         lock (measurements)
         {
-            measurements.Add(new RecordedMeasurement(instrument.Meter.Name, instrument.Name, value, copy));
+            // The instrument's own type is what an exporter reads to decide how to aggregate the values:
+            // a Counter is a monotonic sum, an UpDownCounter is not.
+            measurements.Add(new RecordedMeasurement(instrument.Meter.Name, instrument.Name, instrument.GetType(), value, copy));
         }
     }
 
@@ -330,6 +341,7 @@ public sealed class JobExecutionObservabilityTest
     private sealed record RecordedMeasurement(
         string Meter,
         string Instrument,
+        Type InstrumentType,
         double Value,
         Dictionary<string, object> Tags);
 
