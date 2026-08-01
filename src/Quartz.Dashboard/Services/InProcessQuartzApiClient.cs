@@ -648,17 +648,16 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         try
         {
             ExecutionLimits? limits = await scheduler.GetExecutionLimits(cancellationToken).ConfigureAwait(false);
-            if (limits is null || limits.Count == 0)
+            if (limits is null || limits.IsEmpty)
             {
                 return null;
             }
 
             Dictionary<string, int?> dict = new();
-            foreach (KeyValuePair<string, int?> kvp in limits)
+            foreach (ExecutionGroupLimit limit in limits.Groups)
             {
                 // Use display-friendly keys
-                string key = kvp.Key == ExecutionLimits.DefaultGroupKey ? "(default)" : kvp.Key;
-                dict[key] = kvp.Value;
+                dict[limit.Group ?? "(default)"] = limit.MaxConcurrent;
             }
 
             return new ExecutionLimitsDto(dict);

@@ -58,11 +58,11 @@ public sealed record TriggerAcquisitionCriteria
     public required int MaxCount { get; init; }
 
     /// <summary>
-    /// Available slots per execution group, or null when no execution limits are configured.
-    /// Implementations must create their own working copy before mutating — the caller may reuse this
-    /// instance across retries.
+    /// Available slots per execution group, or <see langword="null" /> when no execution limits are
+    /// configured. The snapshot is immutable; a delegate that counts slots down as it takes rows
+    /// works on <c>ToWorkingCopy()</c>, because the caller may reuse this instance across retries.
     /// </summary>
-    public IReadOnlyDictionary<string, int?>? ExecutionLimits { get; init; }
+    public ExecutionLimits? ExecutionLimits { get; init; }
 
     /// <summary>
     /// Tick value below which a node's last check-in is considered stale, releasing its pinned

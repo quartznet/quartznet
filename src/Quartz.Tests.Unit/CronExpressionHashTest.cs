@@ -304,7 +304,7 @@ public class CronExpressionHashTest
     public void Constructor_Clone_PreservesResolvedExpression()
     {
         CronExpression original = new CronExpression("H H * * * ?", "myTrigger");
-        CronExpression clone = (CronExpression) original.Clone();
+        CronExpression clone = original.Clone();
 
         Assert.AreEqual(original.CronExpressionString, clone.CronExpressionString);
         Assert.AreEqual(original.TimeZone, clone.TimeZone);

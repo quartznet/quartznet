@@ -290,12 +290,13 @@ internal sealed class QuartzBuilder : IQuartzBuilder
         return this;
     }
 
-    public IQuartzBuilder UseExecutionLimits(Action<ExecutionLimits> configure)
+    public IQuartzBuilder UseExecutionLimits(Action<ExecutionLimitsBuilder> configure)
     {
         ArgumentNullException.ThrowIfNull(configure);
 
-        var limits = new ExecutionLimits();
-        configure(limits);
+        var builder = new ExecutionLimitsBuilder();
+        configure(builder);
+        ExecutionLimits limits = builder.Build();
 
         // TryAdd, and this runs before the property-derived registration, so limits set in code beat the
         // same limits spelled as quartz.executionLimit.* keys — as everywhere else.

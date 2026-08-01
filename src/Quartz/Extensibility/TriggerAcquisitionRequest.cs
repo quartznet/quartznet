@@ -70,10 +70,11 @@ public sealed record TriggerAcquisitionRequest
     }
 
     /// <summary>
-    /// Per-execution-group available thread counts. The key is the normalized group name (empty
-    /// string for triggers without a group, <c>"*"</c> for the default limit for unlisted groups).
-    /// The value is the number of remaining slots (<see langword="null" /> = unlimited, <c>0</c> =
-    /// forbidden). <see langword="null" /> when no execution limits are configured.
+    /// Per-execution-group thread counts still available on this node, which is the configured
+    /// <see cref="Quartz.ExecutionLimits" /> less what is already running here. A limit of
+    /// <see langword="null" /> means unlimited and <c>0</c> means the group must not fire.
+    /// <see langword="null" /> when no execution limits are configured, in which case a store may
+    /// ignore execution groups entirely.
     /// </summary>
-    public IReadOnlyDictionary<string, int?>? ExecutionLimits { get; init; }
+    public ExecutionLimits? ExecutionLimits { get; init; }
 }

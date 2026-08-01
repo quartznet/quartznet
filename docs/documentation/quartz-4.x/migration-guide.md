@@ -3296,6 +3296,128 @@ deserialize an instance whose type is not marked serializable, so removing the a
 unreadable even through the compatibility package. Blob-reachable means what the graph *can* contain, not only
 what Quartz itself puts there.
 
+## The two exceptions moved out of `Quartz.Core`
+
+`Quartz.Core` held exactly two public types, and both were exceptions: `JobExecutionProcessException` and
+`JobInstantiationException`. Every one of their siblings — `SchedulerException`, which they both derive from,
+`JobExecutionException`, `SchedulerConfigException`, `UnableToInterruptJobException` — lives in `Quartz`. The two
+moved there too, and `Quartz.Core` is now internal from top to bottom: nothing in it is a type you can name.
+
+```diff
+- using Quartz.Core;
+-
+  public ValueTask SchedulerError(string msg, SchedulerException cause, CancellationToken ct = default)
+  {
+      if (cause is JobInstantiationException failure) { … }
+      return default;
+  }
+```
+
+Catching or type-testing either exception needs no change beyond deleting the `using Quartz.Core;`, which the
+compiler flags as unused. `JobInstantiationException` is new in 4.0 and has never shipped, so nobody is catching it
+under the old namespace yet.
+
+## Execution limits are built once, then frozen
+
+`ExecutionLimits` used to be two things at the same time. It was a mutable fluent builder — `ForGroup`,
+`ForDefaultGroup`, `ForOtherGroups` and `Unlimited` all mutated `this` and returned `this` — and it was an
+`IReadOnlyDictionary<string, int?>`, a collection whose name had to suppress CA1710 to survive analysis. The
+scheduler defended itself against the mutable half by snapshotting whatever it was handed, which is a hint that the
+type was doing one job too many. It is now two types: `ExecutionLimitsBuilder` mutates, `ExecutionLimits` is the
+immutable snapshot that `Build()` returns and that the scheduler thread reads.
+
+```diff
+- await scheduler.SetExecutionLimits(new ExecutionLimits()
++ await scheduler.SetExecutionLimits(new ExecutionLimitsBuilder()
+      .ForGroup("batch-jobs", 2)
+      .ForDefaultGroup(10)
+-     .ForOtherGroups(5));
++     .ForOtherGroups(5)
++     .Build());
+```
+
+`IQuartzBuilder.UseExecutionLimits` takes an `Action<ExecutionLimitsBuilder>`, so a configuration lambda is
+unchanged and still reads the same way:
+
+```csharp
+q.UseExecutionLimits(limits => limits.ForGroup("high-cpu", 3));
+```
+
+Reading limits back is what changed shape, because the snapshot is not a dictionary:
+
+| Before | 4.0 |
+|---|---|
+| `limits["heavy"]` | `limits.TryGetLimit("heavy", out int? maxConcurrent)` |
+| `limits[ExecutionLimits.DefaultGroupKey]` | `limits.TryGetLimit(null, out int? maxConcurrent)` |
+| `limits.ContainsKey("heavy")` | `limits.TryGetLimit("heavy", out _)` |
+| `limits.Count` | `limits.Groups.Count`, or `limits.IsEmpty` for the question actually being asked |
+| `foreach (KeyValuePair<string, int?> pair in limits)` | `foreach (ExecutionGroupLimit limit in limits.Groups)` |
+
+`TryGetLimit` returning `false` is not the same as unlimited: it means the group has no entry of its own, and a
+named group without one still falls back to `OtherGroups`. That distinction was invisible when the type was a
+dictionary, and it is the reason the lookup is a `TryGet` rather than an indexer.
+
+The sentinel keys are named instead of spelled. `ExecutionLimits.OtherGroups` (`"*"`) stays public, because it is a
+key you can write in configuration. The empty-string key for the default group is internal now: an
+`ExecutionGroupLimit.Group` is `null` for it, matching `ITrigger.ExecutionGroup` being `null` for a trigger with no
+execution group, and `ForDefaultGroup` is how you configure it. `"_"` and `"null"` are still accepted as aliases for
+it in `quartz.executionLimit.*` keys and in the HTTP API, because neither a property key nor a JSON object key can
+be empty. All three remain reserved: a trigger cannot have `"*"`, `"_"` or `"null"` as its execution group.
+
+### A job store is handed the limits, and a way to spend them
+
+`TriggerAcquisitionRequest.ExecutionLimits` and `TriggerAcquisitionCriteria.ExecutionLimits` carry
+`ExecutionLimits` rather than `IReadOnlyDictionary<string, int?>`. What they carry is still the *available* slots —
+the configured limits less what is already running on this node — not the configuration.
+
+A store acquiring triggers has to count those slots down as it takes them, and the rule for doing so is not
+obvious: a group's own entry wins, a named group without one falls back to `OtherGroups`, a trigger with no
+execution group never does, and an unlisted group that borrows from `OtherGroups` gets its own allowance rather
+than sharing one. That rule used to live inside Quartz where only the two built-in stores could reach it, so a
+third-party store either reimplemented it or ignored execution groups. It is now `ExecutionSlots`:
+
+```csharp
+public override async ValueTask<List<IOperableTrigger>> AcquireNextTriggers(
+    TriggerAcquisitionRequest request, CancellationToken cancellationToken = default)
+{
+    ExecutionSlots? slots = request.ExecutionLimits?.CreateSlots();
+
+    foreach (IOperableTrigger candidate in Candidates(request))
+    {
+        if (slots is not null && !slots.TryTake(candidate.ExecutionGroup))
+        {
+            continue; // this group is forbidden here, or has run out for this pass
+        }
+        …
+    }
+}
+```
+
+Create the ledger per acquisition attempt, not per store: it is mutable and not thread-safe by design, and a
+retried acquisition has to start from the limits again rather than from what the failed attempt had counted down.
+`CreateSlots()` leaves the snapshot untouched, so the same `ExecutionLimits` can produce as many as you need.
+
+## Interruption has two names, not three
+
+Stopping a running job had three names in the public API. `IScheduler.Interrupt(JobKey)` and
+`IScheduler.InterruptFireInstance(fireInstanceId)` requested it, `IJobExecutionContext.CancellationToken` — the same
+token a job receives as the `cancellationToken` parameter of `IJob.Execute` — observed it, and
+`ICancellableJobExecutionContext.Cancel()` sat between them looking like a third, supported way to do it. It was
+not: calling it bypassed the scheduler, so no `ISchedulerListener.JobInterrupted` was raised, and it worked only for
+a context you happened to be holding in the same process.
+
+`ICancellableJobExecutionContext` is gone from the public API, and `JobExecutionContextImpl.Cancel()` with it. The
+plumbing still exists inside Quartz under the name the public API already uses for the concept. Ask the scheduler
+instead:
+
+```diff
+- ((ICancellableJobExecutionContext) context).Cancel();
++ await scheduler.InterruptFireInstance(context.FireInstanceId);
+```
+
+`IScheduler.GetCurrentlyExecutingJobs()` returns `List<IJobExecutionContext>` as before — the element type never
+was the cancellable interface, only the documentation said so.
+
 ## Other Breaking Changes
 
 | Change | Details |
@@ -3408,3 +3530,12 @@ what Quartz itself puts there.
 | `[Serializable]` removed from 30 types | It stays only on the types a job store blob can be made of — see [`[Serializable]` survives only where a database blob needs it](#serializable-survives-only-where-a-database-blob-needs-it) |
 | The `(SerializationInfo, StreamingContext)` constructors removed | On `SchedulerException`, `JobPersistenceException`, `SchedulerConfigException`, `UnableToInterruptJobException` and `HttpClientException`. `BinaryFormatter` was their only caller, and the base class library's equivalent is obsolete |
 | `[Serializable]` removed from `JobExecutionContextImpl` and `SchedulerContext` | Neither is persisted; `SchedulerContext` also lost its private deserialization constructor |
+| `JobExecutionProcessException` and `JobInstantiationException` moved to `Quartz` | `Quartz.Core` is internal now — see [The two exceptions moved out of `Quartz.Core`](#the-two-exceptions-moved-out-of-quartz-core) |
+| `ExecutionLimits` split into a builder and a snapshot | `ExecutionLimitsBuilder` mutates, `ExecutionLimits` is immutable and is no longer an `IReadOnlyDictionary<string, int?>` — see [Execution limits are built once, then frozen](#execution-limits-are-built-once-then-frozen) |
+| `IQuartzBuilder.UseExecutionLimits` takes an `Action<ExecutionLimitsBuilder>` | The lambda body is unchanged |
+| `TriggerAcquisitionRequest.ExecutionLimits` and `TriggerAcquisitionCriteria.ExecutionLimits` are `ExecutionLimits?` | They were `IReadOnlyDictionary<string, int?>?`; spend the slots through `CreateSlots()` — see [A job store is handed the limits, and a way to spend them](#a-job-store-is-handed-the-limits-and-a-way-to-spend-them) |
+| `Quartz.ExecutionSlots` and `Quartz.ExecutionGroupLimit` added | The slot-counting rule and one group's entry in a snapshot, both of which a job store outside Quartz needs to honour execution groups |
+| `ICancellableJobExecutionContext` removed | Interruption is `IScheduler.Interrupt` / `InterruptFireInstance` to request and `IJobExecutionContext.CancellationToken` to observe — see [Interruption has two names, not three](#interruption-has-two-names-not-three) |
+| `Quartz.Diagnostics.IJobDiagnosticData` removed | It was the payload contract of the `DiagnosticSource` events `Quartz.OpenTracing` consumed. Both the package and the events are gone; job execution is on `Activity` through `QuartzActivitySource`, and `IJobExecutionContext` is what a listener reads |
+| `CronExpression.Clone()` returns `CronExpression` | It returned `object`, unlike `ITrigger.Clone`, `IJobDetail.Clone` and `ICalendar.Clone`; the casts at the call sites can go |
+| `IJobExecutionContext.Put` / `.Get` take a `string` key | They took `object`. The volatile per-execution map keys by name, like `JobDataMap`, and `Put`'s value is `object?` and its parameter is `value` rather than `objectValue` |

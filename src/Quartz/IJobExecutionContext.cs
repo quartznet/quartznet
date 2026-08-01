@@ -150,6 +150,12 @@ public interface IJobExecutionContext
     /// <see cref="ITriggerListener" />s that are watching the job's
     /// execution.
     /// </para>
+    /// <para>
+    /// It stays <see cref="object" />: a job writes it and a listener reads it, and the two agree on
+    /// the type between themselves. Quartz cannot name that type without making
+    /// <see cref="IJobExecutionContext" /> generic, which would type the whole scheduling API for the
+    /// sake of a value it never looks at.
+    /// </para>
     /// </remarks>
     object? Result { get; set; }
 
@@ -170,19 +176,19 @@ public interface IJobExecutionContext
     /// notified.
     /// </para>
     /// </summary>
-    /// <param name="key">
-    /// </param>
-    /// <param name="objectValue">
-    /// </param>
-    void Put(object key, object objectValue);
+    /// <param name="key">The name the value is stored under, as in a <see cref="JobDataMap" />.</param>
+    /// <param name="value">The value, which means nothing to Quartz.</param>
+    void Put(string key, object? value);
 
     /// <summary>
-    /// Get the value with the given key from the context's data map.
+    /// Get the value with the given key from the context's data map, or <see langword="null" /> when
+    /// nothing was put there under that key.
     /// </summary>
-    /// <param name="key">
-    /// </param>
+    /// <param name="key">The name the value was stored under.</param>
+    // CA1716: "Get" is a Visual Basic keyword. The name stays, because it pairs with Put and with
+    // the same verbs on JobDataMap, and renaming one half of a pair is worse than the warning.
 #pragma warning disable CA1716
-    object? Get(object key);
+    object? Get(string key);
 #pragma warning restore CA1716
 
     /// <summary>

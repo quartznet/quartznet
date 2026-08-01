@@ -71,11 +71,11 @@ public class LoggingJobHistoryPluginTest
         Assert.That(plugin.InfoMessages, Has.Count.EqualTo(1));
     }
 
-    protected virtual ICancellableJobExecutionContext CreateJobExecutionContext()
+    protected virtual IJobExecutionContext CreateJobExecutionContext()
     {
         IOperableTrigger t = new SimpleTriggerImpl("name", "group");
         TriggerFiredBundle firedBundle = TestUtil.CreateMinimalFiredBundleWithTypedJobDetail(typeof(NoOpJob), t);
-        ICancellableJobExecutionContext ctx = new JobExecutionContextImpl(null, firedBundle, null);
+        IJobExecutionContext ctx = new JobExecutionContextImpl(null, firedBundle, null);
         return ctx;
     }
 

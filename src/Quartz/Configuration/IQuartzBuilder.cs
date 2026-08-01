@@ -198,5 +198,5 @@ public interface IQuartzBuilder
     /// <summary>
     /// Configures per-node execution group limits, so resource-hungry jobs cannot saturate every thread.
     /// </summary>
-    IQuartzBuilder UseExecutionLimits(Action<ExecutionLimits> configure);
+    IQuartzBuilder UseExecutionLimits(Action<ExecutionLimitsBuilder> configure);
 }

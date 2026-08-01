@@ -1,4 +1,4 @@
-namespace Quartz.Core;
+namespace Quartz;
 
 /// <summary>
 /// This exception may be thrown when an error occurs during execution:

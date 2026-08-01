@@ -92,11 +92,11 @@ public class StructuredLoggingJobHistoryPluginTest
         Assert.That(loggerProvider.Entries[0].Message, Does.Contain("was vetoed"));
     }
 
-    private static ICancellableJobExecutionContext CreateJobExecutionContext()
+    private static IJobExecutionContext CreateJobExecutionContext()
     {
         IOperableTrigger t = new SimpleTriggerImpl("name", "group");
         TriggerFiredBundle firedBundle = TestUtil.CreateMinimalFiredBundleWithTypedJobDetail(typeof(NoOpJob), t);
-        ICancellableJobExecutionContext ctx = new JobExecutionContextImpl(null, firedBundle, null);
+        IJobExecutionContext ctx = new JobExecutionContextImpl(null, firedBundle, null);
         return ctx;
     }
 }

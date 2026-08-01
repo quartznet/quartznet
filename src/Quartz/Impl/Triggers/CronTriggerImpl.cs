@@ -435,7 +435,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
         CronTriggerImpl copy = (CronTriggerImpl) MemberwiseClone();
         if (cronEx is not null)
         {
-            copy.CronExpression = (CronExpression) cronEx.Clone();
+            copy.CronExpression = cronEx.Clone();
         }
         return copy;
     }

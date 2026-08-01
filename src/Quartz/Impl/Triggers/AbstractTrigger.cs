@@ -212,9 +212,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
             else
             {
                 string trimmed = value!.Trim();
-                if (trimmed == ExecutionLimits.OtherGroups
-                    || trimmed == "_"
-                    || trimmed.Equals("null", StringComparison.OrdinalIgnoreCase))
+                if (ExecutionLimits.IsReservedGroupName(trimmed))
                 {
                     throw new ArgumentException(
                         $"Execution group name '{trimmed}' is reserved for limits configuration.",

@@ -325,7 +325,7 @@ internal sealed class QuartzSchedulerThread
                     ClearSignaledSchedulingChange();
                     try
                     {
-                        Dictionary<string, int?>? availableLimits = ComputeAvailableExecutionGroupLimits();
+                        ExecutionLimits? availableLimits = ComputeAvailableExecutionGroupLimits();
                         TriggerAcquisitionRequest request = new()
                         {
                             NoLaterThan = now + qsRsrcs.IdleWaitTime,
@@ -640,10 +640,10 @@ internal sealed class QuartzSchedulerThread
     /// Takes prescribed limits for execution groups (if any) and lowers them
     /// according to jobs currently executing on this node.
     /// </summary>
-    private Dictionary<string, int?>? ComputeAvailableExecutionGroupLimits()
+    private ExecutionLimits? ComputeAvailableExecutionGroupLimits()
     {
         ExecutionLimits? limits = qs.GetExecutionLimits();
-        if (limits is null || limits.Count == 0)
+        if (limits is null || limits.IsEmpty)
         {
             return null;
         }
@@ -679,7 +679,7 @@ internal sealed class QuartzSchedulerThread
             }
         }
 
-        return available;
+        return new ExecutionLimits(available);
     }
 
     private async Task SafeReleaseAcquiredTrigger(IOperableTrigger trigger, string context)
