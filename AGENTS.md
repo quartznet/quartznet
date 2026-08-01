@@ -61,7 +61,7 @@ The only documentation kept on this branch is the per-package NuGet README at `s
 - **This is a maintenance branch.** A removed member or a changed signature in one of these files is a breaking change for 3.x users, and needs an explicit justification — not a quiet re-baseline.
 - **Every packable project gets a baseline.** That is the 13 projects in `packTargetProjects` in `build/Build.cs`; add a test case when a package is added. The one deliberate exception is `Quartz.OpenTelemetry.Instrumentation`, whose `OpenTelemetry 0.6.0-beta.1` dependency cannot be referenced under warnings-as-errors (NU1608 ×2 and the NU1902 advisory GHSA-g94r-2vxg-569j).
 - **Baselines are taken on `net10.0` only** — the file is behind `#if NETCORE`. The `net472` build has a different surface (`REMOTING` adds `RemoteScheduler` and friends) and is deliberately not snapshotted.
-- Because `build/Build.cs` passes `--framework net8.0` on non-Windows, these tests effectively run on the **Windows CI leg only**. The output is platform-independent, so the guard still holds.
+- They run on every CI leg. `UnitTest` runs each test project once per target framework it declares, skipping `net4x` off Windows — so the baselines are taken on `net10.0` on Windows, Ubuntu and macOS alike, and the generated output is identical on all three.
 
 ### Comparing 3.x against main
 
