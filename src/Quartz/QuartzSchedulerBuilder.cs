@@ -102,7 +102,11 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
     /// <summary>
     /// Builds the scheduler factory, along with the container backing it.
     /// </summary>
-    public ISchedulerFactory Build()
+    /// <remarks>
+    /// The returned factory owns that container, so disposing it shuts the scheduler down and disposes
+    /// everything the container built. See <see cref="StandaloneSchedulerFactory"/>.
+    /// </remarks>
+    public StandaloneSchedulerFactory Build()
     {
         ApplyProperties();
 
@@ -115,7 +119,7 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
             ValidateScopes = true,
         });
 
-        return new OwnedSchedulerFactory(provider);
+        return new StandaloneSchedulerFactory(provider);
     }
 
     /// <summary>
@@ -217,22 +221,21 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
     public IQuartzBuilder UseTimeProvider(TimeProvider timeProvider) => inner.UseTimeProvider(timeProvider);
 
     /// <inheritdoc />
-    public IQuartzBuilder AddPlugin<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
-        where T : class, ISchedulerPlugin => inner.AddPlugin<T>();
-
-    /// <inheritdoc />
-    public IQuartzBuilder AddPlugin(Func<IServiceProvider, ISchedulerPlugin> factory) => inner.AddPlugin(factory);
+    public IQuartzBuilder AddPlugin<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        string? name = null)
+        where T : class, ISchedulerPlugin => inner.AddPlugin<T>(name);
 
     /// <inheritdoc />
     public IQuartzBuilder AddPlugin<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        string name,
-        Func<IServiceProvider, T> factory) where T : class, ISchedulerPlugin => inner.AddPlugin(name, factory);
+        Func<IServiceProvider, T> factory,
+        string? name = null) where T : class, ISchedulerPlugin => inner.AddPlugin(factory, name);
 
     /// <inheritdoc />
     public IQuartzBuilder AddPlugin<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T, TOptions>(
-        Action<TOptions>? configure = null)
+        Action<TOptions>? configure = null,
+        string? name = null)
         where T : class, ISchedulerPlugin
-        where TOptions : class => inner.AddPlugin<T, TOptions>(configure);
+        where TOptions : class => inner.AddPlugin<T, TOptions>(configure, name);
 
     /// <inheritdoc />
     public IQuartzBuilder AddSchedulerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
@@ -272,44 +275,4 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
 
     /// <inheritdoc />
     public IQuartzBuilder UseExecutionLimits(Action<ExecutionLimits> configure) => inner.UseExecutionLimits(configure);
-
-    /// <summary>
-    /// A scheduler factory that owns the container it resolves from.
-    /// </summary>
-    private sealed class OwnedSchedulerFactory : ISchedulerFactory, IDisposable, IAsyncDisposable
-    {
-        private readonly ServiceProvider provider;
-        private readonly ISchedulerFactory inner;
-
-        public OwnedSchedulerFactory(ServiceProvider provider)
-        {
-            this.provider = provider;
-            inner = provider.GetRequiredService<ISchedulerFactory>();
-        }
-
-        public ValueTask<List<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default)
-        {
-            return inner.GetAllSchedulers(cancellationToken);
-        }
-
-        public ValueTask<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
-        {
-            return inner.GetScheduler(cancellationToken);
-        }
-
-        public ValueTask<IScheduler?> GetScheduler(string schedulerName, CancellationToken cancellationToken = default)
-        {
-            return inner.GetScheduler(schedulerName, cancellationToken);
-        }
-
-        public void Dispose()
-        {
-            provider.Dispose();
-        }
-
-        public ValueTask DisposeAsync()
-        {
-            return provider.DisposeAsync();
-        }
-    }
 }

@@ -55,8 +55,6 @@ internal static class LegacyPropertyKeys
     internal const string SchedulerThreadName = "quartz.scheduler.threadName";
     internal const string SchedulerBatchTimeWindow = "quartz.scheduler.batchTriggerAcquisitionFireAheadTimeWindow";
     internal const string SchedulerMaxBatchSize = "quartz.scheduler.batchTriggerAcquisitionMaxCount";
-    internal const string SchedulerExporterPrefix = "quartz.scheduler.exporter";
-    internal const string SchedulerProxy = "quartz.scheduler.proxy";
     internal const string SchedulerIdleWaitTime = "quartz.scheduler.idleWaitTime";
     internal const string SchedulerMakeSchedulerThreadDaemon = "quartz.scheduler.makeSchedulerThreadDaemon";
     internal const string SchedulerTypeLoadHelperType = "quartz.scheduler.typeLoadHelper.type";
@@ -104,8 +102,6 @@ internal static class LegacyPropertyKeys
         SchedulerThreadName,
         SchedulerBatchTimeWindow,
         SchedulerMaxBatchSize,
-        SchedulerExporterPrefix,
-        SchedulerProxy,
         SchedulerIdleWaitTime,
         SchedulerMakeSchedulerThreadDaemon,
         SchedulerTypeLoadHelperType,
@@ -125,6 +121,23 @@ internal static class LegacyPropertyKeys
         CheckConfiguration,
         ThreadExecutor,
         ObjectSerializer,
+    ];
+
+    /// <summary>
+    /// Keys Quartz used to read, and what to do instead.
+    /// </summary>
+    /// <remarks>
+    /// Reported by name rather than as merely unknown: a configuration that still carries one of these
+    /// was configuring something real, and "unknown property" reads like a typo.
+    /// </remarks>
+    private static readonly (string Prefix, string Advice)[] removedKeys =
+    [
+        ("quartz.scheduler.proxy",
+            "Remoting a scheduler is not supported on modern .NET. Talk to a remote scheduler over HTTP "
+            + "with the Quartz.HttpClient package (AddQuartzHttpClient), which serves the same purpose."),
+        ("quartz.scheduler.exporter",
+            "Remoting a scheduler is not supported on modern .NET. Expose a scheduler over HTTP with the "
+            + "Quartz.AspNetCore package (AddQuartzHttpApi and MapQuartzHttpApi) instead."),
     ];
 
     /// <summary>
@@ -159,6 +172,14 @@ internal static class LegacyPropertyKeys
                 || key.StartsWith(ServerPrefix, StringComparison.Ordinal))
             {
                 continue;
+            }
+
+            foreach (var (prefix, advice) in removedKeys)
+            {
+                if (key.StartsWith(prefix, StringComparison.Ordinal))
+                {
+                    Throw.SchedulerConfigException($"Configuration property '{key}' is no longer read. {advice}");
+                }
             }
 
             if (!IsSupported(key))

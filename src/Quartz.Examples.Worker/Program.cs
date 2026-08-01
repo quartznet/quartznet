@@ -60,7 +60,7 @@ public class Program
                         .WithDescription("my awesome job")
                     );
 
-                    q.AddTrigger(t => t
+                    q.AddTrigger<IJob>(t => t
                         .WithIdentity("Simple Trigger")
                         .ForJob(jobKey)
                         .StartNow()

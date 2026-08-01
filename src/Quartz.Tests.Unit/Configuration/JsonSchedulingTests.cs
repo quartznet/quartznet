@@ -59,7 +59,7 @@ public class JsonSchedulingTests
     }
 
     [Test]
-    public void AddQuartz_SchedulersSection_RegistersNamedSchedulers()
+    public void AddQuartzSchedulers_SchedulersSection_RegistersNamedSchedulers()
     {
         var config = BuildConfig(new Dictionary<string, string>
         {
@@ -69,7 +69,7 @@ public class JsonSchedulingTests
 
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddQuartz(config);
+        services.AddQuartzSchedulers(config);
 
         var provider = services.BuildServiceProvider();
         var threadPool = provider.GetRequiredService<IOptionsSnapshot<ThreadPoolOptions>>();
@@ -108,7 +108,7 @@ public class JsonSchedulingTests
     }
 
     [Test]
-    public void AddQuartz_SchedulersAndDirectConfig_Throws()
+    public void AddQuartzSchedulers_SchedulersAndDirectConfig_Throws()
     {
         var config = BuildConfig(new Dictionary<string, string>
         {
@@ -119,12 +119,12 @@ public class JsonSchedulingTests
         var services = new ServiceCollection();
         services.AddLogging();
 
-        var act = () => services.AddQuartz(config);
+        var act = () => services.AddQuartzSchedulers(config);
         act.Should().Throw<SchedulerConfigException>().WithMessage("*both*Schedulers*");
     }
 
     [Test]
-    public void AddQuartz_SchedulersWithTopLevelSchedule_Throws()
+    public void AddQuartzSchedulers_SchedulersWithTopLevelSchedule_Throws()
     {
         var config = BuildConfig(new Dictionary<string, string>
         {
@@ -136,8 +136,40 @@ public class JsonSchedulingTests
         var services = new ServiceCollection();
         services.AddLogging();
 
-        var act = () => services.AddQuartz(config);
+        var act = () => services.AddQuartzSchedulers(config);
         act.Should().Throw<SchedulerConfigException>().WithMessage("*top-level*Schedule*");
+    }
+
+    [Test]
+    public void AddQuartz_WithASchedulersSection_PointsAtAddQuartzSchedulers()
+    {
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Schedulers:Primary:ThreadPool:MaxConcurrency", "5" },
+        });
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+
+        var act = () => services.AddQuartz(config);
+        act.Should().Throw<SchedulerConfigException>().WithMessage("*AddQuartzSchedulers*",
+            "one call registering an unknown number of schedulers depending on the shape of a file is "
+            + "two methods wearing one name");
+    }
+
+    [Test]
+    public void AddQuartzSchedulers_WithoutASchedulersSection_PointsAtAddQuartz()
+    {
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "ThreadPool:MaxConcurrency", "5" },
+        });
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+
+        var act = () => services.AddQuartzSchedulers(config);
+        act.Should().Throw<SchedulerConfigException>().WithMessage("*AddQuartz(configuration)*");
     }
 
     [Test]

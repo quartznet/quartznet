@@ -333,14 +333,11 @@ public class QuartzHostedServiceTests
     {
         var applicationLifetime = new MockApplicationLifetime();
         var schedulerFactory = new MockSchedulerFactory();
-        var quartzHostedService = new QuartzHostedService(
+        var quartzHostedService = CreateHostedService(
             applicationLifetime,
             schedulerFactory,
-            Options.Create(new QuartzHostedServiceOptions
-            {
-                AwaitApplicationStarted = awaitApplicationStarted,
-                StartDelay = withStartDelay ? TimeSpan.FromMinutes(1) : null,
-            }));
+            awaitApplicationStarted,
+            withStartDelay);
 
         Assert.That(schedulerFactory.LastCreatedScheduler, Is.Null);
 
@@ -363,14 +360,11 @@ public class QuartzHostedServiceTests
     {
         var appliationLifetime = new MockApplicationLifetime();
         var schedulerFactory = new MockSchedulerFactory();
-        var quartzHostedService = new QuartzHostedService(
+        var quartzHostedService = CreateHostedService(
             appliationLifetime,
             schedulerFactory,
-            Options.Create(new QuartzHostedServiceOptions
-            {
-                AwaitApplicationStarted = awaitApplicationStarted,
-                StartDelay = withStartDelay ? TimeSpan.FromMinutes(1) : null,
-            }));
+            awaitApplicationStarted,
+            withStartDelay);
 
         using var startupCts = new CancellationTokenSource();
 
@@ -410,14 +404,11 @@ public class QuartzHostedServiceTests
     {
         var appliationLifetime = new MockApplicationLifetime();
         var schedulerFactory = new MockSchedulerFactory();
-        var quartzHostedService = new QuartzHostedService(
+        var quartzHostedService = CreateHostedService(
             appliationLifetime,
             schedulerFactory,
-            Options.Create(new QuartzHostedServiceOptions
-            {
-                AwaitApplicationStarted = awaitApplicationStarted,
-                StartDelay = withStartDelay ? TimeSpan.FromMinutes(1) : null,
-            }));
+            awaitApplicationStarted,
+            withStartDelay);
 
         using var startupCts = new CancellationTokenSource();
 
@@ -440,14 +431,11 @@ public class QuartzHostedServiceTests
     {
         var appliationLifetime = new MockApplicationLifetime();
         var schedulerFactory = new MockSchedulerFactory();
-        var quartzHostedService = new QuartzHostedService(
+        var quartzHostedService = CreateHostedService(
             appliationLifetime,
             schedulerFactory,
-            Options.Create(new QuartzHostedServiceOptions
-            {
-                AwaitApplicationStarted = awaitApplicationStarted,
-                StartDelay = withStartDelay ? TimeSpan.FromMinutes(1) : null,
-            }));
+            awaitApplicationStarted,
+            withStartDelay);
 
         using var startupCts = new CancellationTokenSource();
 
@@ -472,5 +460,55 @@ public class QuartzHostedServiceTests
         Assert.That(schedulerFactory.LastCreatedScheduler.IsStarted, Is.False);
 
         await startupCts.CancelAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Builds the hosted service over a container holding just the one scheduler factory, which is what
+    /// it resolves its schedulers from.
+    /// </summary>
+    private static QuartzHostedService CreateHostedService(
+        Lifetime applicationLifetime,
+        ISchedulerFactory schedulerFactory,
+        bool awaitApplicationStarted,
+        bool withStartDelay)
+    {
+        var options = new QuartzHostedServiceOptions
+        {
+            AwaitApplicationStarted = awaitApplicationStarted,
+            StartDelay = withStartDelay ? TimeSpan.FromMinutes(1) : null,
+        };
+
+        return new QuartzHostedService(
+            applicationLifetime,
+            new SchedulerFactoryOnlyServiceProvider(schedulerFactory),
+            new StaticOptionsMonitor(options));
+    }
+
+    private sealed class SchedulerFactoryOnlyServiceProvider : IServiceProvider
+    {
+        private readonly ISchedulerFactory schedulerFactory;
+
+        public SchedulerFactoryOnlyServiceProvider(ISchedulerFactory schedulerFactory)
+        {
+            this.schedulerFactory = schedulerFactory;
+        }
+
+        public object GetService(Type serviceType) => serviceType == typeof(ISchedulerFactory) ? schedulerFactory : null;
+    }
+
+    private sealed class StaticOptionsMonitor : IOptionsMonitor<QuartzHostedServiceOptions>
+    {
+        private readonly QuartzHostedServiceOptions options;
+
+        public StaticOptionsMonitor(QuartzHostedServiceOptions options)
+        {
+            this.options = options;
+        }
+
+        public QuartzHostedServiceOptions CurrentValue => options;
+
+        public QuartzHostedServiceOptions Get(string name) => options;
+
+        public IDisposable OnChange(Action<QuartzHostedServiceOptions, string> listener) => null;
     }
 }

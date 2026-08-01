@@ -16,8 +16,8 @@ namespace Quartz.AspNetCore;
 public static class QuartzServiceCollectionExtensions
 {
     /// <summary>
-    /// Registers a health check for the Quartz scheduler that reports unhealthy when the scheduler
-    /// is not running or cannot reach its store.
+    /// Registers a health check for the default Quartz scheduler that reports unhealthy when the
+    /// scheduler is not running or cannot reach its store.
     /// </summary>
     /// <param name="services">The service collection.</param>
     /// <param name="configure">
@@ -28,7 +28,47 @@ public static class QuartzServiceCollectionExtensions
         this IServiceCollection services,
         Action<QuartzHealthCheckOptions>? configure = null)
     {
-        var options = new QuartzHealthCheckOptions();
+        ArgumentNullException.ThrowIfNull(services);
+        return AddCheck(services, schedulerName: null, configure);
+    }
+
+    /// <summary>
+    /// Registers a health check for the scheduler this builder configures.
+    /// </summary>
+    /// <remarks>
+    /// A named scheduler has its own health check, checking its own scheduler rather than the default
+    /// one, and defaulting to a name of <c>quartz-scheduler-&lt;scheduler name&gt;</c> so several of
+    /// them can be registered side by side.
+    /// </remarks>
+    /// <param name="builder">The scheduler's builder.</param>
+    /// <param name="configure">
+    /// Optional configuration for the health check registration, allowing the name, tags and failure
+    /// status to be customized (for example to attach liveness/readiness probe tags).
+    /// </param>
+    public static IQuartzBuilder AddQuartzHealthChecks(
+        this IQuartzBuilder builder,
+        Action<QuartzHealthCheckOptions>? configure = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        AddCheck(
+            builder.Services,
+            builder.SchedulerName.Length == 0 ? null : builder.SchedulerName,
+            configure);
+
+        return builder;
+    }
+
+    private static IServiceCollection AddCheck(
+        IServiceCollection services,
+        string? schedulerName,
+        Action<QuartzHealthCheckOptions>? configure)
+    {
+        var options = new QuartzHealthCheckOptions
+        {
+            Name = schedulerName is null ? "quartz-scheduler" : $"quartz-scheduler-{schedulerName}",
+        };
+
         configure?.Invoke(options);
 
         services
@@ -36,16 +76,29 @@ public static class QuartzServiceCollectionExtensions
             .AddTypeActivatedCheck<QuartzHealthCheck>(
                 options.Name,
                 failureStatus: options.FailureStatus,
-                tags: options.Tags);
+                tags: options.Tags,
+                args: [new SchedulerHealthCheckTarget(schedulerName)]);
 
         return services;
     }
 
-    public static IQuartzBuilder AddHttpApi(
-        this IQuartzBuilder configurator,
+    /// <summary>
+    /// Serves the schedulers in this container over HTTP, so a remote client can drive them.
+    /// </summary>
+    /// <remarks>
+    /// Called on one scheduler's builder, but the API it configures serves every scheduler in the
+    /// container — a request names the scheduler it is for. Call
+    /// <c>MapQuartzHttpApi()</c> on the application to map the endpoints.
+    /// </remarks>
+    /// <param name="builder">The builder.</param>
+    /// <param name="configure">Configures the API, including the path it is served under.</param>
+    public static IQuartzBuilder AddQuartzHttpApi(
+        this IQuartzBuilder builder,
         Action<QuartzHttpApiOptions>? configure = null)
     {
-        var optionsBuilder = configurator.Services
+        ArgumentNullException.ThrowIfNull(builder);
+
+        var optionsBuilder = builder.Services
             .AddOptions<QuartzHttpApiOptions>()
             .Validate(options => !string.IsNullOrWhiteSpace(options.ApiPath) && options.ApiPath.StartsWith('/'), "ApiPath is required and must start with '/'");
 
@@ -54,20 +107,20 @@ public static class QuartzServiceCollectionExtensions
             optionsBuilder.Configure(configure);
         }
 
-        configurator.Services.TryAddSingleton<ExceptionHandler>();
-        configurator.Services.TryAddSingleton<EndpointHelper>();
+        builder.Services.TryAddSingleton<ExceptionHandler>();
+        builder.Services.TryAddSingleton<EndpointHelper>();
 
         // The HTTP API serves every scheduler in the container through one set of endpoints, so it cannot
         // read any single scheduler's serializers. It reads the container's registry instead: register a
         // custom trigger or calendar serializer there to have the API understand it.
-        configurator.Services.TryAddSingleton<SystemTextJsonSerializerRegistry>();
+        builder.Services.TryAddSingleton<SystemTextJsonSerializerRegistry>();
 
         // Add json converters into ASP.NET Core's default json options
-        configurator.Services
+        builder.Services
             .AddOptions<Microsoft.AspNetCore.Http.Json.JsonOptions>()
             .Configure<SystemTextJsonSerializerRegistry>(AddJsonConverters);
 
-        return configurator;
+        return builder;
 
         static void AddJsonConverters(Microsoft.AspNetCore.Http.Json.JsonOptions options, SystemTextJsonSerializerRegistry registry)
         {
@@ -75,12 +128,15 @@ public static class QuartzServiceCollectionExtensions
         }
     }
 
-    public static IEndpointConventionBuilder MapQuartzApi(this IEndpointRouteBuilder builder)
+    /// <summary>
+    /// Maps the Quartz HTTP API endpoints configured by <see cref="AddQuartzHttpApi" />.
+    /// </summary>
+    public static IEndpointConventionBuilder MapQuartzHttpApi(this IEndpointRouteBuilder builder)
     {
         var handler = builder.ServiceProvider.GetService<ExceptionHandler>();
         if (handler is null)
         {
-            throw new InvalidOperationException("HTTP API not configured. Call AddHttpApi() in AddQuartz(...)");
+            throw new InvalidOperationException("HTTP API not configured. Call AddQuartzHttpApi() in AddQuartz(...)");
         }
 
         var options = builder.ServiceProvider.GetRequiredService<IOptions<QuartzHttpApiOptions>>().Value;

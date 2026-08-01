@@ -190,12 +190,14 @@ public static class PluginConfigurationExtensions
         string name,
         Action<TPlugin> configure) where TPlugin : class, ISchedulerPlugin
     {
-        return builder.AddPlugin(name, provider =>
-        {
-            var plugin = ActivatorUtilities.CreateInstance<TPlugin>(provider);
-            configure(plugin);
-            return plugin;
-        });
+        return builder.AddPlugin<TPlugin>(
+            provider =>
+            {
+                var plugin = ActivatorUtilities.CreateInstance<TPlugin>(provider);
+                configure(plugin);
+                return plugin;
+            },
+            name);
     }
 }
 

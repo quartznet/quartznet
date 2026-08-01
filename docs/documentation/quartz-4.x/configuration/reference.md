@@ -450,5 +450,6 @@ same value in `appsettings.json`. Built-in fallbacks — the driver delegate and
 registered after everything explicit, so they only apply when nothing else claimed the slot.
 
 Removed in 4.x, with no replacement: `quartz.scheduler.proxy*` and `quartz.scheduler.exporter*`
-(remoting, which .NET no longer supports), `quartz.threadExecutor*`, and `quartz.checkConfiguration`
-(configuration is validated by the options system instead).
+(remoting, which .NET no longer supports) — these two are rejected with an exception naming the
+replacement, rather than accepted and ignored — plus `quartz.threadExecutor*`, which had no
+implementation left to choose between.

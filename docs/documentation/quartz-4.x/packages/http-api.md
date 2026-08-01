@@ -20,7 +20,7 @@ Configure Quartz and enable the HTTP API:
 ```csharp
 services.AddQuartz(q =>
 {
-    q.AddHttpApi(options =>
+    q.AddQuartzHttpApi(options =>
     {
         options.ApiPath = "/quartz-api";
     });
@@ -39,7 +39,7 @@ app.UseAntiforgery();
 
 app.UseEndpoints(endpoints =>
 {
-    endpoints.MapQuartzApi().RequireAuthorization();
+    endpoints.MapQuartzHttpApi().RequireAuthorization();
 });
 ```
 
@@ -103,7 +103,7 @@ calendar listings. Both shapes are gone; every listing returns the paged envelop
 
 ## Production hardening
 
-- Require authentication/authorization on `MapQuartzApi()`
+- Require authentication/authorization on `MapQuartzHttpApi()`
 - Keep `IncludeStackTraceInProblemDetails` disabled in production
 - Restrict mutating operations (schedule, delete, pause/resume, shutdown) to trusted operator roles
 - In clustered setups, treat API calls as scheduler control operations that affect cluster-wide behavior

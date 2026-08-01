@@ -26,7 +26,7 @@ Configure Quartz, enable HTTP API, and add the dashboard services.
 ```csharp
 services.AddQuartz(q =>
 {
-    q.AddHttpApi(options =>
+    q.AddQuartzHttpApi(options =>
     {
         options.ApiPath = "/quartz-api";
     });
@@ -46,7 +46,7 @@ app.UseAntiforgery();
 
 app.UseEndpoints(endpoints =>
 {
-    endpoints.MapQuartzApi().RequireAuthorization();
+    endpoints.MapQuartzHttpApi().RequireAuthorization();
     endpoints.MapQuartzDashboard();
 });
 ```
@@ -121,7 +121,7 @@ services.AddQuartzDashboard(options =>
 ```csharp
 app.UseEndpoints(endpoints =>
 {
-    endpoints.MapQuartzApi().RequireAuthorization("QuartzDashboardOps");
+    endpoints.MapQuartzHttpApi().RequireAuthorization("QuartzDashboardOps");
     endpoints.MapQuartzDashboard();
 });
 ```
@@ -141,7 +141,7 @@ With a custom `DashboardPath` this caveat does not apply to the dashboard itself
 
 ### API key or custom authorization checks
 
-If you need machine-to-machine access, use your API auth scheme (for example, an API key handler) and bind that to a policy used by `MapQuartzApi()`.
+If you need machine-to-machine access, use your API auth scheme (for example, an API key handler) and bind that to a policy used by `MapQuartzHttpApi()`.
 For dashboard-only custom checks, prefer ASP.NET Core policy/handler-based authorization so the dashboard UI, hub, and API are enforced consistently.
 
 ### Deployment guidance for multi-scheduler and clustered setups
@@ -181,7 +181,7 @@ app.UseAntiforgery();
 var blazor = app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-app.MapQuartzApi().RequireAuthorization();
+app.MapQuartzHttpApi().RequireAuthorization();
 app.MapQuartzDashboard(blazor);
 ```
 

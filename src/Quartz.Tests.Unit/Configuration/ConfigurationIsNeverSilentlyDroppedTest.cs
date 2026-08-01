@@ -599,7 +599,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
                 ["quartz.scheduler.instanceName"] = "plugin-settings",
                 ["quartz.plugin.recorder.someSetting"] = "configured",
             },
-            q => q.AddPlugin("recorder", _ => new RecordingPlugin()));
+            q => q.AddPlugin(_ => new RecordingPlugin(), "recorder"));
 
         using var provider = services.BuildServiceProvider();
         var scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();

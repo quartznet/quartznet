@@ -81,7 +81,7 @@ public sealed class TypedJobDataConfigurationTest
         var services = NewServices();
         services.AddQuartz(q =>
         {
-            q.AddJob<SampleJob>(jobKey, j => j.StoreDurably());
+            q.AddJob<SampleJob>(j => j.WithIdentity(jobKey).StoreDurably());
             q.AddTrigger<SampleJob>(t => t
                 .WithIdentity("sharedTrigger")
                 .ForJob(jobKey)
@@ -103,8 +103,8 @@ public sealed class TypedJobDataConfigurationTest
         var services = NewServices();
         services.AddQuartz(q =>
         {
-            q.AddJob<SampleJob>(jobKey, j => j.StoreDurably());
-            q.AddTrigger(t => t
+            q.AddJob<SampleJob>(j => j.WithIdentity(jobKey).StoreDurably());
+            q.AddTrigger<IJob>(t => t
                 .WithIdentity("sharedTrigger")
                 .ForJob(jobKey)
                 .StartNow()

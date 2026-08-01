@@ -190,7 +190,7 @@ internal sealed class SchedulerContentInitializer
             await scheduler.AddCalendar(
                 configuration.Name,
                 configuration.Calendar,
-                new AddCalendarOptions { Replace = configuration.Replace, UpdateTriggers = configuration.UpdateTriggers },
+                configuration.Options,
                 cancellationToken)
                 .ConfigureAwait(false);
         }

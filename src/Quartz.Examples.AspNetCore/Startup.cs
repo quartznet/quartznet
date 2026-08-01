@@ -142,7 +142,8 @@ public class Startup
 
             // here's a known job for triggers
             var jobKey = new JobKey("awesome job", "awesome group");
-            q.AddJob<ExampleJob>(jobKey, j => j
+            q.AddJob<ExampleJob>(j => j
+                .WithIdentity(jobKey)
                 .WithDescription("my awesome job")
                 // naming the property binds the value to it: the key cannot be mistyped and the value
                 // cannot be of the wrong type
@@ -150,7 +151,7 @@ public class Startup
                 .UsingJobData(j2 => j2.InjectedBool, true)
             );
 
-            q.AddTrigger(t => t
+            q.AddTrigger<IJob>(t => t
                 .WithIdentity("Simple Trigger")
                 .ForJob(jobKey)
                 .StartNow()
@@ -159,7 +160,7 @@ public class Startup
                 .UsingJobData("ExampleKey", "ExampleValue")
             );
 
-            q.AddTrigger(t => t
+            q.AddTrigger<IJob>(t => t
                 .WithIdentity("Cron Trigger")
                 .ForJob(jobKey)
                 .StartAt(DateTimeOffset.UtcNow.AddSeconds(3))
@@ -194,13 +195,12 @@ public class Startup
 
             const string calendarName = "myHolidayCalendar";
             q.AddCalendar<HolidayCalendar>(
-                calendarName: calendarName,
-                replace: true,
-                updateTriggers: true,
-                x => x.AddExcludedDay(new DateOnly(2020, 5, 15))
+                name: calendarName,
+                options: new AddCalendarOptions { Replace = true, UpdateTriggers = true },
+                configure: x => x.AddExcludedDay(new DateOnly(2020, 5, 15))
             );
 
-            q.AddTrigger(t => t
+            q.AddTrigger<IJob>(t => t
                 .WithIdentity("Daily Trigger")
                 .ForJob(jobKey)
                 .StartAt(DateTimeOffset.UtcNow.AddSeconds(5))
@@ -215,8 +215,8 @@ public class Startup
             if (!string.IsNullOrWhiteSpace(Configuration.GetSection("Sample")[nameof(SampleOptions.CronSchedule)]))
             {
                 var customJobKey = new JobKey("options-custom-job", "custom");
-                q.AddJob<ExampleJob>(customJobKey);
-                q.AddTrigger((serviceProvider, trigger) => trigger
+                q.AddJob<ExampleJob>(j => j.WithIdentity(customJobKey));
+                q.AddTrigger<IJob>((serviceProvider, trigger) => trigger
                     .WithIdentity("options-custom-trigger", "custom")
                     .ForJob(customJobKey)
                     .WithCronSchedule(serviceProvider.GetRequiredService<IOptions<SampleOptions>>().Value.CronSchedule)
@@ -241,7 +241,7 @@ public class Startup
             q.AddTriggerListener<SampleTriggerListener>();
 
             // Add Quartz.NET HTTP API
-            q.AddHttpApi(options =>
+            q.AddQuartzHttpApi(options =>
             {
                 // "/quartz-api" is also default value
                 options.ApiPath = "/quartz-api";
@@ -360,7 +360,7 @@ public class Startup
             });
 
             // Map HTTP API endpoints
-            endpoints.MapQuartzApi()
+            endpoints.MapQuartzHttpApi()
                 .RequireAuthorization();
 
             // Map Quartz.NET Dashboard UI at /quartz

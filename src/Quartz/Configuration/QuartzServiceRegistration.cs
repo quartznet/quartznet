@@ -205,11 +205,6 @@ internal static class QuartzServiceRegistration
         services.TryAddKeyed<ISchedulerFactory>(key, static (provider, key) =>
             ActivatorUtilities.CreateInstance<DefaultSchedulerFactory>(Scoped(provider, key), new SchedulerKey(key)));
 
-        if (schedulerName is not null)
-        {
-            services.AddSingleton(new SchedulerRegistration(schedulerName));
-        }
-
         return services;
     }
 
@@ -302,9 +297,3 @@ internal sealed record SchedulerKey(object? Key)
     /// </summary>
     public string OptionsName => Key as string ?? Options.DefaultName;
 }
-
-/// <summary>
-/// Marks a named scheduler as registered, so the hosted service can start every scheduler in the
-/// container without the container having to be searched for keys.
-/// </summary>
-internal sealed record SchedulerRegistration(string Name);

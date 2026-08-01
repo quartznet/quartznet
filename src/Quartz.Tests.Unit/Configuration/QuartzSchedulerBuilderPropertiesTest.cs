@@ -40,8 +40,7 @@ public class QuartzSchedulerBuilderPropertiesTest
             ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
         };
 
-        ISchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
-        using IDisposable container = (IDisposable) factory;
+        using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
 
         IScheduler scheduler = await factory.GetScheduler();
 
@@ -109,8 +108,7 @@ public class QuartzSchedulerBuilderPropertiesTest
             ["quartz.threadPool.threadCount"] = "3"
         };
 
-        ISchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
-        using IDisposable container = (IDisposable) factory;
+        using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
 
         IScheduler scheduler = await factory.GetScheduler();
         await scheduler.Shutdown();
@@ -159,8 +157,7 @@ public class QuartzSchedulerBuilderPropertiesTest
     public async Task ShouldCreateSchedulerWhenLookedUpByItsConfiguredName()
     {
         const string SchedulerName = "NamedLookupCreatesScheduler";
-        ISchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(PropertiesForScheduler(SchedulerName)).Build();
-        using IDisposable container = (IDisposable) factory;
+        using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(PropertiesForScheduler(SchedulerName)).Build();
 
         // no GetScheduler() call first, which used to be the only way to get a non-null result here
         IScheduler scheduler = await factory.GetScheduler(SchedulerName);
@@ -180,8 +177,7 @@ public class QuartzSchedulerBuilderPropertiesTest
     public async Task ShouldReturnSameSchedulerForNamedAndDefaultLookup()
     {
         const string SchedulerName = "NamedLookupReturnsSameScheduler";
-        ISchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(PropertiesForScheduler(SchedulerName)).Build();
-        using IDisposable container = (IDisposable) factory;
+        using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(PropertiesForScheduler(SchedulerName)).Build();
 
         IScheduler defaultScheduler = await factory.GetScheduler();
 
@@ -200,8 +196,7 @@ public class QuartzSchedulerBuilderPropertiesTest
     public async Task ShouldMatchConfiguredSchedulerNameCaseInsensitively()
     {
         const string SchedulerName = "NamedLookupIgnoresCase";
-        ISchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(PropertiesForScheduler(SchedulerName)).Build();
-        using IDisposable container = (IDisposable) factory;
+        using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(PropertiesForScheduler(SchedulerName)).Build();
 
         IScheduler scheduler = await factory.GetScheduler(SchedulerName.ToLowerInvariant());
 
@@ -220,8 +215,7 @@ public class QuartzSchedulerBuilderPropertiesTest
     public async Task ShouldNotCreateSchedulerWhenLookedUpByAnotherName()
     {
         const string SchedulerName = "NamedLookupOtherName";
-        ISchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(PropertiesForScheduler(SchedulerName)).Build();
-        using IDisposable container = (IDisposable) factory;
+        using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(PropertiesForScheduler(SchedulerName)).Build();
 
         IScheduler scheduler = await factory.GetScheduler("SchedulerThisFactoryDoesNotProduce");
 
@@ -231,8 +225,7 @@ public class QuartzSchedulerBuilderPropertiesTest
 
     private static async Task AssertSchedulerConfigurationRejected(NameValueCollection properties)
     {
-        ISchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
-        using IDisposable container = (IDisposable) factory;
+        using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
 
         Func<Task<IScheduler>> act = async () => await factory.GetScheduler();
 

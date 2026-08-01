@@ -55,14 +55,13 @@ public class ServiceCollectionExtensionsTests
                 });
 
             quartz.AddJob<DummyJob>(
-                new JobKey("JobName3", "JobGroup3"),
                 job =>
                 {
+                    job.WithIdentity(new JobKey("JobName3", "JobGroup3"));
                     job.WithDescription("JobDescription3");
                 });
 
             quartz.AddJob<DummyJob>(
-                null,
                 (serviceProvider, job) =>
                 {
                     IConfiguration configuration = serviceProvider.GetRequiredService<IConfiguration>();
@@ -73,15 +72,14 @@ public class ServiceCollectionExtensionsTests
 
             quartz.AddJob(
                 typeof(DummyJob),
-                new JobKey("JobName5", "JobGroup5"),
                 job =>
                 {
+                    job.WithIdentity(new JobKey("JobName5", "JobGroup5"));
                     job.WithDescription("JobDescription5");
                 });
 
             quartz.AddJob(
                 typeof(DummyJob),
-                null,
                 job =>
                 {
                     job.WithIdentity("JobName6", "JobGroup6");
@@ -90,17 +88,16 @@ public class ServiceCollectionExtensionsTests
 
             quartz.AddJob(
                 typeof(DummyJob),
-                new JobKey("JobName7", "JobGroup7"),
                 (serviceProvider, job) =>
                 {
                     IConfiguration configuration = serviceProvider.GetRequiredService<IConfiguration>();
 
+                    job.WithIdentity(new JobKey("JobName7", "JobGroup7"));
                     job.WithDescription(configuration.GetSection("job7:Description").Get<string>());
                 });
 
             quartz.AddJob(
                 typeof(DummyJob),
-                null,
                 (serviceProvider, job) =>
                 {
                     IConfiguration configuration = serviceProvider.GetRequiredService<IConfiguration>();
@@ -179,14 +176,14 @@ public class ServiceCollectionExtensionsTests
         // Go through AddQuartz(), because the IQuartzBuilder interface refuses mocking or implementation, due to an internal default-implemented property
         services.AddQuartz(quartz =>
         {
-            quartz.AddTrigger(
+            quartz.AddTrigger<IJob>(
                 trigger =>
                 {
                     trigger.ForJob("JobName1", "JobGroup1");
                     trigger.WithIdentity("TriggerName1", "TriggerGroup1");
                 });
 
-            quartz.AddTrigger(
+            quartz.AddTrigger<IJob>(
                 (serviceProvider, trigger) =>
                 {
                     IConfiguration configuration = serviceProvider.GetRequiredService<IConfiguration>();
@@ -385,8 +382,7 @@ public class ServiceCollectionExtensionsTests
         {
             quartz.AddCalendar<DummyCalendar>(
                 "TestCalendarName",
-                true,
-                true,
+                new AddCalendarOptions { Replace = true, UpdateTriggers = true },
                 calendar =>
                 {
                     calendar.Description = "TestCalendarDescription";
@@ -422,8 +418,7 @@ public class ServiceCollectionExtensionsTests
         {
             quartz.AddCalendar<DummyCalendar>(
                 "TestCalendarName",
-                true,
-                true,
+                new AddCalendarOptions { Replace = true, UpdateTriggers = true },
                 (serviceProvider, calendar) =>
                 {
                     IConfiguration configuration = serviceProvider.GetRequiredService<IConfiguration>();
@@ -444,26 +439,25 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Test]
-    public void AddJob_WithNoArgs_ShouldNotBeAmbiguous()
+    public void AddJob_WithEitherConfigurator_ShouldNotBeAmbiguous()
     {
         // Regression test for #2795: these calls must compile without CS0121 ambiguity
         var services = new ServiceCollection();
 
         services.AddQuartz(quartz =>
         {
-            // No-arg generic call
-            quartz.AddJob<DummyJob>();
+            quartz.AddJob<DummyJob>(job => job.WithIdentity("test1", "group1"));
 
-            // Generic call with jobKey only
-            quartz.AddJob<DummyJob>(new JobKey("test1", "group1"));
+            quartz.AddJob<DummyJob>((_, job) => job.WithIdentity("test2", "group1"));
 
-            // Non-generic call with type and jobKey only
-            quartz.AddJob(typeof(DummyJob), new JobKey("test2", "group1"));
+            quartz.AddJob(typeof(DummyJob), job => job.WithIdentity("test3", "group1"));
+
+            quartz.AddJob(typeof(DummyJob), (_, job) => job.WithIdentity("test4", "group1"));
         });
 
         using var serviceProvider = services.BuildServiceProvider();
 
-        serviceProvider.ScheduledJobs().Should().HaveCount(3);
+        serviceProvider.ScheduledJobs().Should().HaveCount(4);
     }
 
     [Test]
@@ -474,15 +468,15 @@ public class ServiceCollectionExtensionsTests
 
         services.AddQuartz(quartz =>
         {
-            quartz.AddJob<DummyJob>(new JobKey("job1", "group1"));
+            quartz.AddJob<DummyJob>(job => job.WithIdentity("job1", "group1"));
 
             // Explicit Action<ITriggerConfigurator<IJob>> — must not be ambiguous
-            quartz.AddTrigger(t => t
+            quartz.AddTrigger<IJob>(t => t
                 .ForJob(new JobKey("job1", "group1"))
                 .WithSimpleSchedule(s => s.WithRepeatCount(0)));
 
             // Explicit Action<IServiceProvider, ITriggerConfigurator<IJob>> — must not be ambiguous
-            quartz.AddTrigger((sp, t) => t
+            quartz.AddTrigger<IJob>((sp, t) => t
                 .ForJob(new JobKey("job1", "group1"))
                 .WithSimpleSchedule(s => s.WithRepeatCount(0)));
         });
@@ -577,6 +571,157 @@ public class ServiceCollectionExtensionsTests
 
         await defaultScheduler.Shutdown();
     }
+
+    [Test]
+    public void ScheduleJob_WithoutAJobIdentity_ShouldGiveTheJobTheTriggersKey()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.ScheduleJob<DummyJob>(
+            t => t.WithIdentity("derived", "derivedGroup").StartNow()));
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.ScheduledJobs().Should().ContainSingle()
+            .Which.Key.Should().Be(new JobKey("derived", "derivedGroup"));
+        provider.ScheduledTriggers().Should().ContainSingle()
+            .Which.JobKey.Should().Be(new JobKey("derived", "derivedGroup"),
+                "the trigger has to point at the job it just named");
+    }
+
+    [Test]
+    public void ScheduleJob_WithoutAnyIdentity_ShouldStillAgreeOnAGeneratedKey()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.ScheduleJob<DummyJob>(t => t.StartNow()));
+
+        using var provider = services.BuildServiceProvider();
+
+        var job = provider.ScheduledJobs().Should().ContainSingle().Subject;
+        var trigger = provider.ScheduledTriggers().Should().ContainSingle().Subject;
+
+        trigger.JobKey.Should().Be(job.Key);
+        job.Key.Name.Should().Be(trigger.Key.Name);
+        job.Key.Group.Should().Be(trigger.Key.Group);
+    }
+
+    [Test]
+    public void ScheduleJob_WithAJobIdentity_ShouldKeepItAndPointTheTriggerAtIt()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.ScheduleJob<DummyJob>(
+            t => t.WithIdentity("theTrigger").StartNow(),
+            j => j.WithIdentity("theJob", "jobs")));
+
+        using var provider = services.BuildServiceProvider();
+
+        provider.ScheduledJobs().Should().ContainSingle()
+            .Which.Key.Should().Be(new JobKey("theJob", "jobs"));
+        provider.ScheduledTriggers().Should().ContainSingle()
+            .Which.JobKey.Should().Be(new JobKey("theJob", "jobs"));
+    }
+
+    [Test]
+    public void ScheduleJob_WithATriggerPointedElsewhere_ShouldRefuse()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.ScheduleJob<DummyJob>(
+            t => t.WithIdentity("theTrigger").ForJob("someOtherJob").StartNow(),
+            j => j.WithIdentity("theJob", "jobs")));
+
+        using var provider = services.BuildServiceProvider();
+
+        var act = () => provider.ScheduledJobs();
+        act.Should().Throw<InvalidOperationException>().WithMessage("*doesn't refer to job being scheduled*");
+    }
+
+    [Test]
+    public void AddJob_ShouldRegisterTheJobTypeScoped()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.AddJob<DummyJob>(j => j.WithIdentity("registered")));
+
+        ServiceDescriptor descriptor = services.Single(d => d.ServiceType == typeof(DummyJob));
+        descriptor.Lifetime.Should().Be(ServiceLifetime.Scoped,
+            "the job factory opens a scope per fire and resolves the job from it, so the job lives as "
+            + "long as that scope and can take scoped dependencies");
+    }
+
+    [Test]
+    public void AddJob_WithAnUnresolvableDependency_ShouldFailValidation()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQuartz(q => q.AddJob<JobNeedingSomethingUnregistered>(j => j.WithIdentity("unresolvable")));
+
+        // Before the job type was registered, the container had never heard of it: validation passed and
+        // the failure arrived at fire time instead, as a trigger stuck in the error state.
+        var act = () => services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true });
+
+        act.Should().Throw<AggregateException>()
+            .WithMessage("*JobNeedingSomethingUnregistered*");
+    }
+
+    [Test]
+    public void ScheduleJob_WithAnUnresolvableDependency_ShouldFailValidation()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQuartz(q => q.ScheduleJob<JobNeedingSomethingUnregistered>(
+            t => t.WithIdentity("unresolvable").StartNow()));
+
+        var act = () => services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true });
+
+        act.Should().Throw<AggregateException>()
+            .WithMessage("*JobNeedingSomethingUnregistered*");
+    }
+
+    [Test]
+    public void AddJob_ShouldKeepAnExistingRegistration()
+    {
+        var services = new ServiceCollection();
+        var instance = new DummyJob();
+        services.AddSingleton(instance);
+
+        services.AddQuartz(q =>
+        {
+            q.AddJob<DummyJob>(j => j.WithIdentity("first"));
+
+            // Registering the same job twice has to stay harmless as well
+            q.AddJob<DummyJob>(j => j.WithIdentity("second"));
+        });
+
+        services.Where(d => d.ServiceType == typeof(DummyJob)).Should().ContainSingle()
+            .Which.ImplementationInstance.Should().BeSameAs(instance,
+                "a registration the application made itself, with its own lifetime, wins");
+    }
+
+    [Test]
+    public void AddJob_WithATypeTheContainerCannotBuild_ShouldNotRegisterIt()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(q => q.AddJob(typeof(IJob), j => j.WithIdentity("abstract")));
+
+        services.Should().NotContain(d => d.ServiceType == typeof(IJob),
+            "an interface is not something the container could construct, and registering it would turn a "
+            + "job the factory can still activate into a startup failure");
+    }
+
+    private sealed class JobNeedingSomethingUnregistered : IJob
+    {
+        public JobNeedingSomethingUnregistered(IUnregisteredDependency dependency)
+        {
+            Dependency = dependency;
+        }
+
+        public IUnregisteredDependency Dependency { get; }
+
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            return default;
+        }
+    }
+
+    public interface IUnregisteredDependency;
 
     private sealed class DummyJob : IJob
     {

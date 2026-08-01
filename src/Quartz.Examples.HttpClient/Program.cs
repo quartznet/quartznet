@@ -2,7 +2,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 using Quartz;
-using Quartz.Impl;
 
 // Using HttpClientFactory with host builder
 var host = Host.CreateDefaultBuilder(args)
@@ -34,17 +33,18 @@ using var httpClient = new HttpClient
 var httpScheduler = new Quartz.HttpClient.HttpScheduler("Quartz ASP.NET Core Sample Scheduler", httpClient);
 */
 
-/* Using SchedulerBuilder. This does not allow configuring HttpClient used by HttpScheduler. For this example to work, authentication needs to be removed from Quartz.Examples.AspNetCore
-var httpScheduler = await QuartzSchedulerBuilder.Create()
-    .WithName("Quartz ASP.NET Core Sample Scheduler")
-    .ProxyToRemoteScheduler<HttpSchedulerProxyFactory>("http://localhost:5000/quartz-api/")
-    .BuildScheduler();*/
+/* A scheduler of your own, talking to the remote one. AddQuartzHttpClient is the only way to reach a
+   remote scheduler: QuartzSchedulerBuilder builds a scheduler that runs here, and Quartz has no
+   remoting of its own on modern .NET.
 
-/* Using QuartzSchedulerBuilder with custom ProxyFactory
-var httpScheduler = await QuartzSchedulerBuilder.Create()
-    .WithName("Quartz ASP.NET Core Sample Scheduler")
-    .ProxyToRemoteScheduler<MyHttpSchedulerProxyFactory>("http://localhost:5000/quartz-api/")
-    .BuildScheduler();*/
+   To send your own headers or to change the address without HttpClientFactory, configure the
+   HttpClient and hand it over:
+
+using var httpClient = new HttpClient { BaseAddress = new Uri("http://localhost:5000/quartz-api/") };
+httpClient.DefaultRequestHeaders.Add("X-Quartz-ApiKey", "MySuperSecretApiKey");
+
+var httpScheduler = new Quartz.HttpClient.HttpScheduler("Quartz ASP.NET Core Sample Scheduler", httpClient);
+*/
 
 /* You can register multiple schedulers by creating marker interfaces for those
 var host = Host.CreateDefaultBuilder(args)
@@ -84,16 +84,6 @@ while (true)
     catch (Exception e)
     {
         Console.WriteLine(e.Message);
-    }
-}
-
-internal sealed class MyHttpSchedulerProxyFactory : HttpSchedulerProxyFactory
-{
-    protected override HttpClient CreateHttpClient(string address)
-    {
-        var client = base.CreateHttpClient(address);
-        client.DefaultRequestHeaders.Add("X-Quartz-ApiKey", "MySuperSecretApiKey");
-        return client;
     }
 }
 

@@ -72,7 +72,7 @@ builder.Services.AddQuartz("Scheduler1", q =>
     q.AddJobListener<LoggingJobListener>();
     q.AddTriggerListener<MetricsTriggerListener>();
 
-    q.AddCalendar<HolidayCalendar>("holidays", replace: true, updateTriggers: true,
+    q.AddCalendar<HolidayCalendar>("holidays", new AddCalendarOptions { Replace = true, UpdateTriggers = true },
         cal => cal.AddExcludedDay(new DateOnly(2025, 12, 25)));
     // These listeners and calendars only apply to Scheduler1
 });
@@ -164,9 +164,11 @@ builder.Services.AddQuartz("Auxiliary", q =>
 builder.Services.AddQuartzHostedService();
 ```
 
-::: warning
-When using the unnamed default scheduler, call `services.AddQuartz(...)` before `services.AddQuartzHostedService(...)`.
-`AddQuartzHostedService()` only registers the default hosted service when `ISchedulerFactory` is already present in the service collection, so reversing the order prevents the default scheduler from being started.
+::: tip
+The order of the calls does not matter. The hosted service resolves the schedulers when the host
+starts, so it starts every scheduler registered in the container whether `AddQuartz` was called
+before it or after. A container with no scheduler at all is reported at startup rather than starting
+nothing silently.
 :::
 
 ## Configuration via appsettings.json
@@ -176,6 +178,13 @@ scheduler's own settings are resolved out of `Schedulers:{name}`:
 
 ```csharp
 builder.Services.AddQuartz("DurableScheduler", builder.Configuration.GetSection("Quartz"));
+```
+
+To register every scheduler the section describes rather than one of them, call
+`AddQuartzSchedulers`, which registers one named scheduler per child of `Schedulers`:
+
+```csharp
+builder.Services.AddQuartzSchedulers(builder.Configuration.GetSection("Quartz"));
 ```
 
 ```json
@@ -203,8 +212,24 @@ builder.Services.Configure<QuartzOptions>("DurableScheduler",
     options => options.Properties["quartz.jobStore.someThirdPartySetting"] = "value");
 ```
 
+## Per-Scheduler Startup and Shutdown
+
+`AddQuartzHostedService(configure)` configures every scheduler, which is what it has always meant. A
+scheduler that has to differ says so by name, and its settings refine the shared ones whichever order
+the two calls are made in:
+
+```csharp
+// shared by every scheduler
+builder.Services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
+
+// ...except this one, which waits longer before its first fire
+builder.Services.AddQuartzHostedService("DurableScheduler", options =>
+{
+    options.StartDelay = TimeSpan.FromMinutes(2);
+});
+```
+
 ## Limitations
 
-- **Hosted service options are global** -- `QuartzHostedServiceOptions` (such as `WaitForJobsToComplete`, `StartDelay`, `AwaitApplicationStarted`) apply to all schedulers uniformly.
 - **Job types are shared** -- job classes are resolved from the shared DI container. The same job type can be used across multiple schedulers.
 - **Scheduler names must be unique** -- each call to `AddQuartz(name, ...)` must use a distinct name.

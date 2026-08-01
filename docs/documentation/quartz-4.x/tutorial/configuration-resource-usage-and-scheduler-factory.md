@@ -43,8 +43,9 @@ IScheduler scheduler = await builder.BuildScheduler();
 
 The builder is kept in a variable rather than built in one expression: its configuration methods are the
 same ones `AddQuartz` hands out, so they return that interface rather than the builder and cannot be
-chained into `BuildScheduler()`. Use `Build()` instead of `BuildScheduler()` when you want the
-`ISchedulerFactory` rather than the scheduler it produces.
+chained into `BuildScheduler()`. Use `Build()` instead of `BuildScheduler()` when you want the factory
+rather than the scheduler it produces. It returns a `StandaloneSchedulerFactory`, which owns the
+container it built — dispose it, preferably with `await using`, to shut the scheduler down.
 
 ## Configuring from properties
 
@@ -53,7 +54,7 @@ instead of in code. The properties are generally stored in and loaded from a fil
 created by your program and handed to the builder:
 
 ```csharp
-ISchedulerFactory schedulerFactory = QuartzSchedulerBuilder.Create()
+await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder.Create()
     .UseProperties(properties)
     .Build();
 ```

@@ -127,7 +127,7 @@ When using `AddQuartz()` for dependency injection, configure a recurrence trigge
 services.AddQuartz(q =>
 {
     q.AddJob<MyJob>(j => j.WithIdentity("myJob"));
-    q.AddTrigger(t => t
+    q.AddTrigger<IJob>(t => t
         .ForJob("myJob")
         .WithIdentity("myTrigger")
         .WithRecurrenceSchedule("FREQ=MONTHLY;BYDAY=2MO")

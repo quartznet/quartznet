@@ -58,8 +58,7 @@ public sealed class SchedulerRepositoryIsolationTest
             ["quartz.serializer.type"] = TestConstants.DefaultSerializerType,
         };
 
-        ISchedulerFactory propertiesFactory = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
-        using IDisposable propertiesContainer = (IDisposable) propertiesFactory;
+        using StandaloneSchedulerFactory propertiesFactory = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
 
         var containerScheduler = await containerFactory.GetScheduler();
         var propertiesScheduler = await propertiesFactory.GetScheduler();
@@ -88,10 +87,8 @@ public sealed class SchedulerRepositoryIsolationTest
     [Test]
     public async Task TwoPropertiesBuiltSchedulers_DoNotShareARepository()
     {
-        ISchedulerFactory firstFactory = QuartzSchedulerBuilder.Create().UseProperties(PropertiesFor("FirstPropertiesScheduler")).Build();
-        using IDisposable firstContainer = (IDisposable) firstFactory;
-        ISchedulerFactory secondFactory = QuartzSchedulerBuilder.Create().UseProperties(PropertiesFor("SecondPropertiesScheduler")).Build();
-        using IDisposable secondContainer = (IDisposable) secondFactory;
+        using StandaloneSchedulerFactory firstFactory = QuartzSchedulerBuilder.Create().UseProperties(PropertiesFor("FirstPropertiesScheduler")).Build();
+        using StandaloneSchedulerFactory secondFactory = QuartzSchedulerBuilder.Create().UseProperties(PropertiesFor("SecondPropertiesScheduler")).Build();
 
         var firstScheduler = await firstFactory.GetScheduler();
         var secondScheduler = await secondFactory.GetScheduler();
