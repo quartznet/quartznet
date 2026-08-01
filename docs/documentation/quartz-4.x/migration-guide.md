@@ -9,6 +9,72 @@ title: Migration Guide
 If you are a new user starting with the latest version, you don't need to follow this guide. Just jump right to [the tutorial](tutorial/index.html)
 :::
 
+## The road from 3.x, phase by phase
+
+The 4.0 API is the result of six passes over the public surface, each with its own theme. The guide
+below is organised by topic rather than by pass, so this is the map: what changed, in the order it is
+worth working through when migrating.
+
+**1. The extensibility contracts.** The interfaces you implement rather than call. `Quartz.Spi` is
+[`Quartz.Extensibility` and `Quartz.Simpl` is `Quartz.Impl`](#quartz-spi-and-quartz-simpl-were-renamed);
+every asynchronous member returns [`ValueTask`](#tasks-changed-to-valuetask) and ends with a
+`CancellationToken`; [jobs take that token as a parameter](#jobs-take-a-cancellationtoken); the
+[job factory hands out a scope](#the-job-factory-hands-out-a-scope) instead of an instance; the
+[thread pool is asynchronous](#the-thread-pool-is-asynchronous); and
+[trigger fire times are properties](#trigger-fire-times-are-properties) rather than getter/setter
+pairs. Start here: everything else assumes these signatures.
+
+**2. The vocabulary and the surface.** One word per concept, and nothing public that was never a
+contract. [Names that were normalized](#names-that-were-normalized),
+[the scheduler and the job store speak the same verbs](#the-scheduler-and-the-job-store-speak-the-same-verbs),
+[matchers moved to `Quartz.Matchers`](#matchers-moved-to-quartz-matchers),
+[`Key<T>` moved to `Quartz` and is immutable](#key-t-moved-to-quartz-and-is-immutable),
+[`SchedulerMetadata` replaces `SchedulerMetaData`](#schedulermetadata-replaces-schedulermetadata),
+[the listener API](#listener-api-changes), and
+[sealed and internalized types](#sealed-and-internalized-types).
+
+**3. Listings, schedules and dates.** [Job store listings became queries](#job-store-listings-became-queries)
+returning `PagedResult<T>` of headers; [misfire instructions are enums](#misfire-instructions-are-enums);
+[intervals are said once per builder](#intervals-are-said-once-per-builder);
+[`TimeOfDay` became `TimeOnly`](#timeofday-became-timeonly) and
+[`DateBuilder`'s static factories are gone](#datebuilder-s-static-factories-are-gone);
+[`Executing` is a trigger state](#executing-is-a-trigger-state); and
+[the preferred node is a value](#the-preferred-node-is-a-value).
+
+**4. The ADO.NET job store.** [Trigger states are typed on the driver delegate](#trigger-states-are-typed-on-the-driver-delegate);
+[the stores are named for whose transaction they use](#the-ado-net-job-stores-are-named-for-whose-transaction-they-use);
+[nine `Execute…Lock` overloads became four](#nine-execute-lock-overloads-became-four-members);
+[locks are a `SchedulerLock`](#locks-are-a-schedulerlock-not-a-string);
+[the job store configuration is read-only](#the-job-store-configuration-is-read-only);
+[the driver delegate speaks in records](#the-driver-delegate-speaks-in-records);
+[the optional columns are required, so the probes are gone](#the-optional-columns-are-required-so-the-probes-are-gone)
+and the [schema migration](#database-schema-migration) that goes with that is mandatory;
+[`RAMJobStore` is sealed](#ramjobstore-is-sealed); and
+[a job store of your own can join your transaction](#a-job-store-of-your-own-can-join-your-transaction).
+
+**5. Configuration and hosting.** The container builds the scheduler:
+[`StdSchedulerFactory` is gone](#stdschedulerfactory-is-gone),
+[the standalone builder is the same builder](#the-standalone-builder-is-the-same-builder),
+[there is no process-global scheduler state](#no-process-global-scheduler-or-connection-state),
+[`AddJob` registers the job with the container](#addjob-registers-the-job-with-the-container),
+[one shape per registration method](#one-shape-per-registration-method),
+[clustering is configured in one place](#clustering-is-configured-in-one-place),
+[the hosted service starts every scheduler](#the-hosted-service-starts-every-scheduler), and
+[job execution metrics](#job-execution-metrics) are published by every scheduler.
+
+**6. Serialization policy and the last edges.**
+[`[Serializable]` survives only where a database blob needs it](#serializable-survives-only-where-a-database-blob-needs-it);
+[the two exceptions moved out of `Quartz.Core`](#the-two-exceptions-moved-out-of-quartz-core);
+[execution limits are built once, then frozen](#execution-limits-are-built-once-then-frozen);
+[interruption has two names, not three](#interruption-has-two-names-not-three); and the naming and
+visibility odds and ends gathered in [Other Breaking Changes](#other-breaking-changes) at the end of
+this guide.
+
+Two differences run through all six and are not called out case by case, because they are almost
+universal: `Task` became `ValueTask` on nearly every member, and the namespaces moved as described in
+pass 1. If a type you used does not appear in this guide at all, check
+[Package Changes](#package-changes) first — it may have moved packages rather than changed.
+
 ## Target Framework
 
 Quartz.NET 4.x targets `net10.0`. There is no `netstandard2.0` build and no support for Full Framework
@@ -584,6 +650,31 @@ What is left says three different things:
 
 Where connections come from is a property of the data source, so it is said in `DataSourceOptions`
 alongside `ConnectionString` and `ConnectionStringName`, and it wins over both.
+
+### `AddDataSourceProvider()` went with it
+
+The two always travelled together. `AddDataSourceProvider()`, on the configurator, registered
+`DataSourceDbProvider` in the container as the `IDbProvider` to use; `UseDataSourceConnectionProvider()`,
+on the store, then named it as that data source's connection provider. Two calls, in two different
+places, that had to agree with each other to do anything. Both are gone, and
+`UseRegisteredDataSource` does the whole job — the data source builds its own `DataSourceDbProvider`
+around the `DbDataSource` it resolves from the container:
+
+```diff
+  services.AddQuartz(q =>
+  {
+-     q.AddDataSourceProvider();
+      q.UsePersistentStore(store =>
+      {
+-         store.UsePostgres(db => db.Provider = "Npgsql");
+-         store.UseDataSourceConnectionProvider();
++         store.UsePostgres(db => db.UseRegisteredDataSource = true);
+      });
+  });
+```
+
+Registering the `DbDataSource` itself is still yours to do — `services.AddNpgsqlDataSource(…)`, or
+whatever your provider offers. What is no longer yours to do is wiring it up to Quartz.
 
 ## `QuartzOptions` lost its three typed settings
 
@@ -2145,6 +2236,63 @@ A delegate of your own that derives from `StdAdoDelegate` inherits the implement
 cover tables of its own. One written against the interface directly has to implement it; returning `0`
 without checking anything restores the old skip.
 
+## The optional columns are required, so the probes are gone
+
+3.x asked the database at startup whether `MISFIRE_ORIG_FIRE_TIME`, `EXECUTION_GROUP` and
+`PREFERRED_NODE` were present, and switched the matching feature off when they were not. **4.x
+requires all of them**, so there is no question left to ask, and the members that asked it are gone
+from `StdAdoDelegate`:
+
+| Removed | What it did |
+|---|---|
+| `HasMisfireOriginalFireTimeColumn`, `HasExecutionGroupColumn`, `HasPreferredNodeColumn` | Reported the result of the matching probe |
+| `SupportsMisfireOriginalFireTimeColumn`, `SupportsExecutionGroupColumn`, `SupportsPreferredNodeColumn` | Ran the probe, swallowing the provider error that meant "no such column" |
+| `VerifyTriggersTableReachable` | Told a genuinely missing column apart from a database that was momentarily unreachable, so a transient failure did not disable a feature for the life of the process |
+
+**The upgrade path is the schema migration, and it is mandatory.** Run
+`schema_30_to_40_upgrade_<dialect>.sql` from
+[database/migrations/4.0/](https://github.com/quartznet/quartznet/tree/main/database/migrations/4.0)
+before pointing 4.x at a 3.x database — [Database Schema Migration](#database-schema-migration) lists
+the columns and what each script does. Skipping it no longer degrades gracefully, and it does not
+fail tidily either: [`ValidateSchema`](#validateschema-is-part-of-idriverdelegate) only checks that
+each table can be queried, not which columns it has, so what you reach instead is a provider-level
+missing-column error from the first statement that names one. That happens almost immediately —
+loading a trigger projects all four columns, and storing one names three of them.
+
+A delegate of your own has nothing to override here any more. If it derived from `StdAdoDelegate` and
+overrode a probe — to hard-code `true` against a schema you knew was current, say — delete the
+override; the base class no longer declares it.
+
+### The three extra acquisition SQL hooks went with them
+
+Because the columns were optional, 3.x carried four versions of the trigger acquisition statement and
+chose between them at run time from the probe results: plain, with `EXECUTION_GROUP`, with
+`PREFERRED_NODE`, and with both. Each had its own `protected virtual` hook, and all six dialect
+delegates overrode all four to hang their own row-limiting clause off the end. Three of the four are
+gone from `StdAdoDelegate` and from `FirebirdDelegate`, `MySQLDelegate`, `OracleDelegate`,
+`PostgreSQLDelegate`, `SQLiteDelegate` and `SqlServerDelegate`:
+
+* `GetSelectNextTriggerToAcquireWithExecutionGroupSql(int maxCount)`
+* `GetSelectNextTriggerToAcquireWithPreferredNodeSql(int maxCount)`
+* `GetSelectNextTriggerToAcquireWithPreferredNodeOnlySql(int maxCount)`
+
+With the columns required there is one statement — `StdAdoConstants.SqlSelectNextTriggerToAcquire`,
+which always projects `EXECUTION_GROUP` and always carries the preferred-node filter — and one hook,
+which is the one that was already there:
+
+```csharp
+protected virtual string GetSelectNextTriggerToAcquireSql(int maxCount)
+```
+
+It is unchanged, and it is still the only thing the dialects differed in: `FirebirdDelegate` appends
+`ROWS n`, `SqlServerDelegate` splices in `SELECT TOP n`, `OracleDelegate` wraps the statement in a
+`rownum` filter, and the rest append `LIMIT n`. **A dialect delegate of your own should keep its
+`GetSelectNextTriggerToAcquireSql` override and delete the other three.**
+
+The node-affinity parameters the statement now always carries are bound for you by the protected
+`AddPreferredNodeParameters(cmd, liveNodeCutoff)`, so an override that rewrites the statement text
+still does not have to know their names or the order they are bound in.
+
 ## The connection manager lives with the other ADO.NET types
 
 `IDbConnectionManager` and `DbConnectionManager` were in `Quartz.Util`, two namespaces away from the
@@ -3528,69 +3676,6 @@ contract rather than in the root namespace next to `IScheduler`. The methods are
   var times = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, calendar, 10);
 ```
 
-## The road from 3.x, phase by phase
-
-The 4.0 API is the result of six passes over the public surface, each with its own theme. The guide
-above is organised by topic rather than by pass, so this is the map: what changed, in the order it is
-worth working through when migrating.
-
-**1. The extensibility contracts.** The interfaces you implement rather than call. `Quartz.Spi` is
-[`Quartz.Extensibility` and `Quartz.Simpl` is `Quartz.Impl`](#quartz-spi-and-quartz-simpl-were-renamed);
-every asynchronous member returns [`ValueTask`](#tasks-changed-to-valuetask) and ends with a
-`CancellationToken`; [jobs take that token as a parameter](#jobs-take-a-cancellationtoken); the
-[job factory hands out a scope](#the-job-factory-hands-out-a-scope) instead of an instance; the
-[thread pool is asynchronous](#the-thread-pool-is-asynchronous); and
-[trigger fire times are properties](#trigger-fire-times-are-properties) rather than getter/setter
-pairs. Start here: everything else assumes these signatures.
-
-**2. The vocabulary and the surface.** One word per concept, and nothing public that was never a
-contract. [Names that were normalized](#names-that-were-normalized),
-[the scheduler and the job store speak the same verbs](#the-scheduler-and-the-job-store-speak-the-same-verbs),
-[matchers moved to `Quartz.Matchers`](#matchers-moved-to-quartz-matchers),
-[`Key<T>` moved to `Quartz` and is immutable](#key-t-moved-to-quartz-and-is-immutable),
-[`SchedulerMetadata` replaces `SchedulerMetaData`](#schedulermetadata-replaces-schedulermetadata),
-[the listener API](#listener-api-changes), and
-[sealed and internalized types](#sealed-and-internalized-types).
-
-**3. Listings, schedules and dates.** [Job store listings became queries](#job-store-listings-became-queries)
-returning `PagedResult<T>` of headers; [misfire instructions are enums](#misfire-instructions-are-enums);
-[intervals are said once per builder](#intervals-are-said-once-per-builder);
-[`TimeOfDay` became `TimeOnly`](#timeofday-became-timeonly) and
-[`DateBuilder`'s static factories are gone](#datebuilders-static-factories-are-gone);
-[`Executing` is a trigger state](#executing-is-a-trigger-state); and
-[the preferred node is a value](#the-preferred-node-is-a-value).
-
-**4. The ADO.NET job store.** [Trigger states are typed on the driver delegate](#trigger-states-are-typed-on-the-driver-delegate);
-[the stores are named for whose transaction they use](#the-ado-net-job-stores-are-named-for-whose-transaction-they-use);
-[nine `Execute…Lock` overloads became four](#nine-execute-lock-overloads-became-four-members);
-[locks are a `SchedulerLock`](#locks-are-a-schedulerlock-not-a-string);
-[the job store configuration is read-only](#the-job-store-configuration-is-read-only);
-[the driver delegate speaks in records](#the-driver-delegate-speaks-in-records);
-[`RAMJobStore` is sealed](#ramjobstore-is-sealed); and
-[a job store of your own can join your transaction](#a-job-store-of-your-own-can-join-your-transaction).
-
-**5. Configuration and hosting.** The container builds the scheduler:
-[`StdSchedulerFactory` is gone](#stdschedulerfactory-is-gone),
-[the standalone builder is the same builder](#the-standalone-builder-is-the-same-builder),
-[there is no process-global scheduler state](#no-process-global-scheduler-or-connection-state),
-[`AddJob` registers the job with the container](#addjob-registers-the-job-with-the-container),
-[one shape per registration method](#one-shape-per-registration-method),
-[clustering is configured in one place](#clustering-is-configured-in-one-place),
-[the hosted service starts every scheduler](#the-hosted-service-starts-every-scheduler), and
-[job execution metrics](#job-execution-metrics) are published by every scheduler.
-
-**6. Serialization policy and the last edges.**
-[`[Serializable]` survives only where a database blob needs it](#serializable-survives-only-where-a-database-blob-needs-it);
-[the two exceptions moved out of `Quartz.Core`](#the-two-exceptions-moved-out-of-quartz-core);
-[execution limits are built once, then frozen](#execution-limits-are-built-once-then-frozen);
-[interruption has two names, not three](#interruption-has-two-names-not-three); and the naming and
-visibility odds and ends in this section and in the table below.
-
-Two differences run through all six and are not called out case by case, because they are almost
-universal: `Task` became `ValueTask` on nearly every member, and the namespaces moved as described in
-pass 1. If a type you used does not appear in this guide at all, check
-[Package Changes](#package-changes) first — it may have moved packages rather than changed.
-
 ## Other Breaking Changes
 
 | Change | Details |
@@ -3639,6 +3724,7 @@ pass 1. If a type you used does not appear in this guide at all, check
 | `JobStoreSupport`'s constructor takes `IOptions<ClusteringOptions>` | Between `storeOptions` and `objectSerializer`; a job store deriving from it has to pass one on |
 | `UseSQLite` is `UseSystemDataSqlite`, `UseMicrosoftSQLite` is `UseSqlite` | **The short name changed meaning** — see [The SQLite extension methods swapped names](#the-sqlite-extension-methods-swapped-names) |
 | `UseDataSourceConnectionProvider()` removed | `DataSourceOptions.UseRegisteredDataSource`, which is what it set |
+| `AddDataSourceProvider()` removed | Its other half. It registered `DataSourceDbProvider` in the container for `UseDataSourceConnectionProvider()` to name; `UseRegisteredDataSource` builds the provider itself from the registered `DbDataSource` — see [`AddDataSourceProvider()` went with it](#adddatasourceprovider-went-with-it) |
 | `QuartzOptions.SchedulerName`, `.SchedulerId`, `.MisfireThreshold` removed | Each duplicated a typed option — see [`QuartzOptions` lost its three typed settings](#quartzoptions-lost-its-three-typed-settings) |
 | Job execution metrics are published by every scheduler | The meters were configured only by `StdSchedulerFactory`, so a scheduler registered with `AddQuartz` published none |
 | `scheduling.quartz.execute.active` is an `UpDownCounter<long>` | It was a `Counter<long>` receiving the `-1` that ends an execution, which an exporter aggregating a monotonic sum may drop — see [Job execution metrics](#job-execution-metrics) |
@@ -3678,6 +3764,8 @@ pass 1. If a type you used does not appear in this guide at all, check
 | `TriggerAcquireResult` carries a `TriggerKey` | It carried `TriggerName` and `TriggerGroup`, which every caller immediately paired back up |
 | `TriggerStatus` removed, `IDriverDelegate.SelectTriggerStatus` is `SelectTriggerHeader` | It returns `StoredTriggerHeader`, an immutable record whose state is a `StoredTriggerState` — see [The driver delegate speaks in records](#the-driver-delegate-speaks-in-records) |
 | `IDriverDelegate.ValidateSchema` added | Schema validation was a `StdAdoDelegate` method reached by type test, so a delegate of your own silently skipped it — see [`ValidateSchema` is part of `IDriverDelegate`](#validateschema-is-part-of-idriverdelegate) |
+| `StdAdoDelegate`'s column probes removed | The three `Has*Column` properties, the three `Supports*Column` probes and `VerifyTriggersTableReachable`. The columns they probed for are required on 4.x, so the schema migration replaces them — see [The optional columns are required, so the probes are gone](#the-optional-columns-are-required-so-the-probes-are-gone) |
+| `GetSelectNextTriggerToAcquireWith*Sql` removed | The `…WithExecutionGroupSql`, `…WithPreferredNodeSql` and `…WithPreferredNodeOnlySql` hooks, on `StdAdoDelegate` and all six dialect delegates. One statement covers every case now, so a dialect delegate keeps only its `GetSelectNextTriggerToAcquireSql` override — see [The three extra acquisition SQL hooks went with them](#the-three-extra-acquisition-sql-hooks-went-with-them) |
 | `IDbConnectionManager` / `DbConnectionManager` moved to `Quartz.Impl.AdoJobStore.Common` | And `AddConnectionProvider` / `GetConnectionProvider` are `AddDbProvider` / `GetDbProvider` — see [The connection manager lives with the other ADO.NET types](#the-connection-manager-lives-with-the-other-ado-net-types) |
 | `DbMetadataFactory` is internal | Every implementation was already internal and no public member accepted one; describe a driver through `UseGenericDatabase`'s metadata callback |
 | `DbProvider.PropertyDbProvider` and `.DbProviderResourceName` removed | Two `protected const`s nothing read, left over from the process-wide provider registry |
@@ -3712,7 +3800,7 @@ pass 1. If a type you used does not appear in this guide at all, check
 | `Quartz.Diagnostics.IJobDiagnosticData` removed | It was the payload contract of the `DiagnosticSource` events `Quartz.OpenTracing` consumed. Both the package and the events are gone; job execution is on `Activity` through `QuartzActivitySource`, and `IJobExecutionContext` is what a listener reads |
 | `CronExpression.Clone()` returns `CronExpression` | It returned `object`, unlike `ITrigger.Clone`, `IJobDetail.Clone` and `ICalendar.Clone`; the casts at the call sites can go |
 | `IJobExecutionContext.Put` / `.Get` take a `string` key | They took `object`. The volatile per-execution map keys by name, like `JobDataMap`, and `Put`'s value is `object?` and its parameter is `value` rather than `objectValue` |
-| `JobDataMap`'s sixty typed accessors removed | The inherited `StringKeyDirtyFlagMap` set does the same job — see [`JobDataMap`'s typed accessors are the ones it inherits](#jobdatamaps-typed-accessors-are-the-ones-it-inherits) |
+| `JobDataMap`'s sixty typed accessors removed | The inherited `StringKeyDirtyFlagMap` set does the same job — see [`JobDataMap`'s typed accessors are the ones it inherits](#jobdatamap-s-typed-accessors-are-the-ones-it-inherits) |
 | `Quartz.AspNetCore.AddQuartzServer` removed | `AddQuartzHostedService` starts the scheduler and `AddQuartzHealthChecks` registers the check — see [`AddQuartzServer` is `AddQuartzHostedService`](#addquartzserver-is-addquartzhostedservice) |
 | `ISchedulerFactory.GetScheduler(name)` is `LookupScheduler(name)` | Two members named `GetScheduler` differed only in nullability. `GetScheduler()` builds this factory's scheduler and cannot return null; `LookupScheduler(name)` looks one up in the container's repository and can, which is what the verb now says. `Lookup` matches `ISchedulerRepository.Lookup` |
 | `TriggerUtils` moved to `Quartz.Extensibility` | It is a helper over `IOperableTrigger`, not part of the scheduling API — see [`TriggerUtils` moved to `Quartz.Extensibility`](#triggerutils-moved-to-quartz-extensibility) |
