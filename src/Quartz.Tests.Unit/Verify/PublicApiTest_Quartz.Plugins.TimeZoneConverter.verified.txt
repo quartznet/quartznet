@@ -1,0 +1,19 @@
+﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
+namespace Quartz.Plugin.TimeZoneConverter
+{
+    public class TimeZoneConverterPlugin : Quartz.Spi.ISchedulerPlugin
+    {
+        public TimeZoneConverterPlugin() { }
+        public System.Threading.Tasks.Task Initialize(string pluginName, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task Shutdown(System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task Start(System.Threading.CancellationToken cancellationToken = default) { }
+    }
+}
+namespace Quartz
+{
+    public static class TimeZonePluginConfigurationExtensions
+    {
+        public static T UseTimeZoneConverter<T>(this T schedulerBuilder)
+            where T : Quartz.IPropertyConfigurationRoot { }
+    }
+}

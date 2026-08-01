@@ -1,0 +1,123 @@
+﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
+namespace Quartz
+{
+    public abstract class CalendarSerializer<TCalendar> : Quartz.ICalendarSerializer
+        where TCalendar : Quartz.ICalendar
+    {
+        protected CalendarSerializer() { }
+        protected abstract TCalendar Create(Newtonsoft.Json.Linq.JObject source);
+        protected abstract void DeserializeFields(TCalendar calendar, Newtonsoft.Json.Linq.JObject source);
+        protected abstract void SerializeFields(Newtonsoft.Json.JsonWriter writer, TCalendar calendar);
+    }
+    public interface ICalendarSerializer
+    {
+        Quartz.ICalendar Create(Newtonsoft.Json.Linq.JObject source);
+        void DeserializeFields(Quartz.ICalendar value, Newtonsoft.Json.Linq.JObject source);
+        void SerializeFields(Newtonsoft.Json.JsonWriter writer, Quartz.ICalendar value);
+    }
+    public static class JsonConfigurationExtensions
+    {
+        [System.Obsolete("Use UseNewtonsoftJsonSerializer instead")]
+        public static void UseJsonSerializer(this Quartz.SchedulerBuilder.PersistentStoreOptions persistentStoreOptions, System.Action<Quartz.JsonSerializerOptions>? configure = null) { }
+        public static void UseNewtonsoftJsonSerializer(this Quartz.SchedulerBuilder.PersistentStoreOptions persistentStoreOptions, System.Action<Quartz.NewtonsoftJsonSerializerOptions>? configure = null) { }
+    }
+    [System.Obsolete("Use NewtonsoftJsonSerializerOptions instead")]
+    public class JsonSerializerOptions
+    {
+        public JsonSerializerOptions() { }
+        public void AddCalendarSerializer<TCalendar>(Quartz.ICalendarSerializer serializer) { }
+    }
+    public class NewtonsoftJsonSerializerOptions
+    {
+        public NewtonsoftJsonSerializerOptions() { }
+        public bool RegisterTriggerConverters { get; set; }
+        public Quartz.NewtonsoftJsonSerializerOptions AddCalendarSerializer<TCalendar>(Quartz.ICalendarSerializer serializer) { }
+        public Quartz.NewtonsoftJsonSerializerOptions AddTriggerSerializer<TTrigger>(Quartz.Serialization.Json.Triggers.ITriggerSerializer serializer)
+            where TTrigger : Quartz.ITrigger { }
+    }
+}
+namespace Quartz.Converters
+{
+    public class NameValueCollectionConverter : Newtonsoft.Json.JsonConverter
+    {
+        public NameValueCollectionConverter() { }
+        public override bool CanConvert(System.Type objectType) { }
+        public override object ReadJson(Newtonsoft.Json.JsonReader reader, System.Type objectType, object? existingValue, Newtonsoft.Json.JsonSerializer serializer) { }
+        public override void WriteJson(Newtonsoft.Json.JsonWriter writer, object? value, Newtonsoft.Json.JsonSerializer serializer) { }
+    }
+}
+namespace Quartz.Serialization.Json.Triggers
+{
+    public class CalendarIntervalTriggerSerializer : Quartz.Serialization.Json.Triggers.TriggerSerializer<Quartz.ICalendarIntervalTrigger>
+    {
+        public CalendarIntervalTriggerSerializer() { }
+        public override string TriggerTypeForJson { get; }
+        public override Quartz.IScheduleBuilder CreateScheduleBuilder(Newtonsoft.Json.Linq.JObject source) { }
+        protected override void DeserializeFields(Quartz.ICalendarIntervalTrigger trigger, Newtonsoft.Json.Linq.JObject source) { }
+        protected override void SerializeFields(Newtonsoft.Json.JsonWriter writer, Quartz.ICalendarIntervalTrigger trigger) { }
+    }
+    public class CronTriggerSerializer : Quartz.Serialization.Json.Triggers.TriggerSerializer<Quartz.ICronTrigger>
+    {
+        public CronTriggerSerializer() { }
+        public override string TriggerTypeForJson { get; }
+        public override Quartz.IScheduleBuilder CreateScheduleBuilder(Newtonsoft.Json.Linq.JObject source) { }
+        protected override void SerializeFields(Newtonsoft.Json.JsonWriter writer, Quartz.ICronTrigger trigger) { }
+    }
+    public class DailyTimeIntervalTriggerSerializer : Quartz.Serialization.Json.Triggers.TriggerSerializer<Quartz.IDailyTimeIntervalTrigger>
+    {
+        public DailyTimeIntervalTriggerSerializer() { }
+        public override string TriggerTypeForJson { get; }
+        public override Quartz.IScheduleBuilder CreateScheduleBuilder(Newtonsoft.Json.Linq.JObject source) { }
+        protected override void DeserializeFields(Quartz.IDailyTimeIntervalTrigger trigger, Newtonsoft.Json.Linq.JObject source) { }
+        protected override void SerializeFields(Newtonsoft.Json.JsonWriter writer, Quartz.IDailyTimeIntervalTrigger trigger) { }
+    }
+    public interface ITriggerSerializer
+    {
+        string TriggerTypeForJson { get; }
+        Quartz.IScheduleBuilder CreateScheduleBuilder(Newtonsoft.Json.Linq.JObject source);
+        void DeserializeFields(Quartz.ITrigger trigger, Newtonsoft.Json.Linq.JObject source);
+        void SerializeFields(Newtonsoft.Json.JsonWriter writer, Quartz.ITrigger trigger);
+    }
+    public sealed class RecurrenceTriggerSerializer : Quartz.Serialization.Json.Triggers.TriggerSerializer<Quartz.IRecurrenceTrigger>
+    {
+        public RecurrenceTriggerSerializer() { }
+        public override string TriggerTypeForJson { get; }
+        public override Quartz.IScheduleBuilder CreateScheduleBuilder(Newtonsoft.Json.Linq.JObject source) { }
+        protected override void DeserializeFields(Quartz.IRecurrenceTrigger trigger, Newtonsoft.Json.Linq.JObject source) { }
+        protected override void SerializeFields(Newtonsoft.Json.JsonWriter writer, Quartz.IRecurrenceTrigger trigger) { }
+    }
+    public class SimpleTriggerSerializer : Quartz.Serialization.Json.Triggers.TriggerSerializer<Quartz.ISimpleTrigger>
+    {
+        public SimpleTriggerSerializer() { }
+        public override string TriggerTypeForJson { get; }
+        public override Quartz.IScheduleBuilder CreateScheduleBuilder(Newtonsoft.Json.Linq.JObject source) { }
+        protected override void DeserializeFields(Quartz.ISimpleTrigger trigger, Newtonsoft.Json.Linq.JObject source) { }
+        protected override void SerializeFields(Newtonsoft.Json.JsonWriter writer, Quartz.ISimpleTrigger trigger) { }
+    }
+    public abstract class TriggerSerializer<TTrigger> : Quartz.Serialization.Json.Triggers.ITriggerSerializer
+        where TTrigger : Quartz.ITrigger
+    {
+        protected TriggerSerializer() { }
+        public abstract string TriggerTypeForJson { get; }
+        public abstract Quartz.IScheduleBuilder CreateScheduleBuilder(Newtonsoft.Json.Linq.JObject source);
+        protected virtual void DeserializeFields(TTrigger trigger, Newtonsoft.Json.Linq.JObject source) { }
+        protected abstract void SerializeFields(Newtonsoft.Json.JsonWriter writer, TTrigger trigger);
+    }
+}
+namespace Quartz.Simpl
+{
+    public class JsonObjectSerializer : Quartz.Spi.IObjectSerializer
+    {
+        public JsonObjectSerializer() { }
+        public bool RegisterTriggerConverters { get; set; }
+        protected virtual Newtonsoft.Json.JsonSerializerSettings CreateSerializerSettings() { }
+        public T? DeSerialize<T>(byte[] obj)
+            where T :  class { }
+        public void Initialize() { }
+        public byte[] Serialize<T>(T obj)
+            where T :  class { }
+        public static void AddCalendarSerializer<TCalendar>(Quartz.ICalendarSerializer serializer) { }
+        public static void AddTriggerSerializer<TTrigger>(Quartz.Serialization.Json.Triggers.ITriggerSerializer serializer)
+            where TTrigger : Quartz.ITrigger { }
+    }
+}

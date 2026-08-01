@@ -39,6 +39,8 @@
     <PackageReference Include="NUnit" Version="4.5.1" />
     <PackageReference Include="NUnit3TestAdapter" Version="6.2.0" />
     <PackageReference Include="PolySharp" Version="1.16.0" PrivateAssets="all" />
+    <!-- Only the net10.0 leg snapshots the public API, so only it needs the generator. -->
+    <PackageReference Include="PublicApiGenerator" Version="11.5.4" Condition=" '$(TargetFramework)' == 'net10.0' " />
     <PackageReference Include="System.Runtime.Serialization.Formatters" Version="10.0.0" Condition=" '$(TargetFramework)' == 'net10.0' " />
     <PackageReference Include="Verify.NUnit" Version="31.13.5" />
   </ItemGroup>
@@ -51,6 +53,9 @@
     <ProjectReference Include="..\Quartz.Plugins\Quartz.Plugins.csproj" />
     <ProjectReference Include="..\Quartz.Plugins.TimeZoneConverter\Quartz.Plugins.TimeZoneConverter.csproj" />
     <ProjectReference Include="..\Quartz.Serialization.Json\Quartz.Serialization.Json.csproj" />
+    <!-- Referenced only so PublicApiTest can snapshot them; nothing else here uses them. -->
+    <ProjectReference Include="..\Quartz.Extensions.Redis\Quartz.Extensions.Redis.csproj" />
+    <ProjectReference Include="..\Quartz.OpenTracing\Quartz.OpenTracing.csproj" />
   </ItemGroup>
   <ItemGroup Condition=" '$(TargetFramework)' == 'net472' ">
     <Reference Include="System.Transactions" />

@@ -1,0 +1,373 @@
+﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
+namespace Quartz.Dashboard.Components.Pages
+{
+    [Microsoft.AspNetCore.Components.Layout(typeof(Quartz.Dashboard.Components.Layout.DashboardLayout))]
+    public class _Imports
+    {
+        public _Imports() { }
+        protected void Execute() { }
+    }
+}
+namespace Quartz.Dashboard.Components
+{
+    public class _Imports
+    {
+        public _Imports() { }
+        protected void Execute() { }
+    }
+}
+namespace Quartz.Dashboard.Hubs
+{
+    public interface IQuartzDashboardHubClient
+    {
+        System.Threading.Tasks.Task JobExecuted(Quartz.Dashboard.Hubs.JobExecutionResultDto result);
+        System.Threading.Tasks.Task JobExecuting(Quartz.Dashboard.Hubs.JobEventDto jobEvent);
+        System.Threading.Tasks.Task JobPaused(Quartz.Dashboard.Services.JobKeyDto jobKey);
+        System.Threading.Tasks.Task JobResumed(Quartz.Dashboard.Services.JobKeyDto jobKey);
+        System.Threading.Tasks.Task SchedulerError(Quartz.Dashboard.Hubs.SchedulerErrorDto schedulerError);
+        System.Threading.Tasks.Task SchedulerStateChanged(Quartz.Dashboard.Hubs.SchedulerStateDto state);
+        System.Threading.Tasks.Task TriggerCompleted(Quartz.Dashboard.Hubs.TriggerEventDto triggerEvent);
+        System.Threading.Tasks.Task TriggerFired(Quartz.Dashboard.Hubs.TriggerEventDto triggerEvent);
+        System.Threading.Tasks.Task TriggerMisfired(Quartz.Dashboard.Hubs.TriggerEventDto triggerEvent);
+        System.Threading.Tasks.Task TriggerPaused(Quartz.Dashboard.Services.TriggerKeyDto triggerKey);
+        System.Threading.Tasks.Task TriggerResumed(Quartz.Dashboard.Services.TriggerKeyDto triggerKey);
+    }
+    public sealed class JobEventDto : System.IEquatable<Quartz.Dashboard.Hubs.JobEventDto>
+    {
+        public JobEventDto(Quartz.Dashboard.Services.JobKeyDto JobKey, Quartz.Dashboard.Services.TriggerKeyDto TriggerKey, System.DateTimeOffset FireTimeUtc, string? FireInstanceId) { }
+        public string? FireInstanceId { get; init; }
+        public System.DateTimeOffset FireTimeUtc { get; init; }
+        public Quartz.Dashboard.Services.JobKeyDto JobKey { get; init; }
+        public Quartz.Dashboard.Services.TriggerKeyDto TriggerKey { get; init; }
+    }
+    public sealed class JobExecutionResultDto : System.IEquatable<Quartz.Dashboard.Hubs.JobExecutionResultDto>
+    {
+        public JobExecutionResultDto(Quartz.Dashboard.Services.JobKeyDto JobKey, Quartz.Dashboard.Services.TriggerKeyDto TriggerKey, System.DateTimeOffset FireTimeUtc, long RunTimeMs, bool Vetoed, string? ExceptionMessage) { }
+        public string? ExceptionMessage { get; init; }
+        public System.DateTimeOffset FireTimeUtc { get; init; }
+        public Quartz.Dashboard.Services.JobKeyDto JobKey { get; init; }
+        public long RunTimeMs { get; init; }
+        public Quartz.Dashboard.Services.TriggerKeyDto TriggerKey { get; init; }
+        public bool Vetoed { get; init; }
+    }
+    public sealed class SchedulerErrorDto : System.IEquatable<Quartz.Dashboard.Hubs.SchedulerErrorDto>
+    {
+        public SchedulerErrorDto(string SchedulerName, string Message, string? Cause) { }
+        public string? Cause { get; init; }
+        public string Message { get; init; }
+        public string SchedulerName { get; init; }
+    }
+    public sealed class SchedulerStateDto : System.IEquatable<Quartz.Dashboard.Hubs.SchedulerStateDto>
+    {
+        public SchedulerStateDto(string SchedulerName, string State) { }
+        public string SchedulerName { get; init; }
+        public string State { get; init; }
+    }
+    public sealed class TriggerEventDto : System.IEquatable<Quartz.Dashboard.Hubs.TriggerEventDto>
+    {
+        public TriggerEventDto(Quartz.Dashboard.Services.TriggerKeyDto TriggerKey, Quartz.Dashboard.Services.JobKeyDto? JobKey, System.DateTimeOffset? FireTimeUtc) { }
+        public System.DateTimeOffset? FireTimeUtc { get; init; }
+        public Quartz.Dashboard.Services.JobKeyDto? JobKey { get; init; }
+        public Quartz.Dashboard.Services.TriggerKeyDto TriggerKey { get; init; }
+    }
+}
+namespace Quartz.Dashboard.Plugins
+{
+    public sealed class DashboardHistoryPlugin : Quartz.IJobListener, Quartz.Spi.ISchedulerPlugin
+    {
+        public DashboardHistoryPlugin() { }
+        public string Name { get; }
+        [System.Obsolete("ServiceProvider is now stored per-scheduler in SchedulerContext. This property wi" +
+            "ll be removed in a future version.")]
+        public static System.IServiceProvider? ServiceProvider { get; set; }
+        public System.Threading.Tasks.Task Initialize(string pluginName, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task JobExecutionVetoed(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task JobToBeExecuted(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task JobWasExecuted(Quartz.IJobExecutionContext context, Quartz.JobExecutionException? jobException, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task Shutdown(System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task Start(System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class DashboardLiveEventsPlugin : Quartz.IJobListener, Quartz.ISchedulerListener, Quartz.ITriggerListener, Quartz.Spi.ISchedulerPlugin
+    {
+        public DashboardLiveEventsPlugin() { }
+        public string Name { get; }
+        [System.Obsolete("ServiceProvider is now stored per-scheduler in SchedulerContext. This property wi" +
+            "ll be removed in a future version.")]
+        public static System.IServiceProvider? ServiceProvider { get; set; }
+        public System.Threading.Tasks.Task Initialize(string pluginName, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task JobAdded(Quartz.IJobDetail jobDetail, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task JobDeleted(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task JobExecutionVetoed(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task JobInterrupted(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task JobPaused(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task JobResumed(Quartz.JobKey jobKey, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task JobScheduled(Quartz.ITrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task JobToBeExecuted(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task JobUnscheduled(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task JobWasExecuted(Quartz.IJobExecutionContext context, Quartz.JobExecutionException? jobException, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task JobsPaused(string jobGroup, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task JobsResumed(string jobGroup, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task SchedulerError(string msg, Quartz.SchedulerException cause, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task SchedulerInStandbyMode(System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task SchedulerShutdown(System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task SchedulerShuttingdown(System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task SchedulerStarted(System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task SchedulerStarting(System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task SchedulingDataCleared(System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task Shutdown(System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task Start(System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task TriggerComplete(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, Quartz.SchedulerInstruction triggerInstructionCode, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task TriggerFinalized(Quartz.ITrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task TriggerFired(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task TriggerMisfired(Quartz.ITrigger trigger, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task TriggerPaused(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task TriggerResumed(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task TriggersPaused(string? triggerGroup, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task TriggersResumed(string? triggerGroup, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.Task<bool> VetoJobExecution(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+}
+namespace Quartz.Dashboard.Services
+{
+    public sealed class AddCalendarRequest : System.IEquatable<Quartz.Dashboard.Services.AddCalendarRequest>
+    {
+        public AddCalendarRequest(string CalendarName, System.Text.Json.JsonElement Calendar, bool Replace, bool UpdateTriggers) { }
+        public System.Text.Json.JsonElement Calendar { get; init; }
+        public string CalendarName { get; init; }
+        public bool Replace { get; init; }
+        public bool UpdateTriggers { get; init; }
+    }
+    public sealed class AddJobRequest : System.IEquatable<Quartz.Dashboard.Services.AddJobRequest>
+    {
+        public AddJobRequest(Quartz.Dashboard.Services.JobDetailDto Job, bool Replace, bool? StoreNonDurableWhileAwaitingScheduling) { }
+        public Quartz.Dashboard.Services.JobDetailDto Job { get; init; }
+        public bool Replace { get; init; }
+        public bool? StoreNonDurableWhileAwaitingScheduling { get; init; }
+    }
+    public sealed class CalendarDetailDto : System.IEquatable<Quartz.Dashboard.Services.CalendarDetailDto>
+    {
+        public CalendarDetailDto(System.Text.Json.JsonElement Value) { }
+        public System.Text.Json.JsonElement Value { get; init; }
+    }
+    public sealed class CurrentlyExecutingJobDto : System.IEquatable<Quartz.Dashboard.Services.CurrentlyExecutingJobDto>
+    {
+        public CurrentlyExecutingJobDto(Quartz.Dashboard.Services.JobKeyDto JobKey, Quartz.Dashboard.Services.TriggerKeyDto TriggerKey, System.DateTimeOffset FireTimeUtc, string? FireInstanceId) { }
+        public string? ExecutionGroup { get; init; }
+        public string? FireInstanceId { get; init; }
+        public System.DateTimeOffset FireTimeUtc { get; init; }
+        public Quartz.Dashboard.Services.JobKeyDto JobKey { get; init; }
+        public Quartz.Dashboard.Services.TriggerKeyDto TriggerKey { get; init; }
+    }
+    public sealed class DashboardHistoryEntry : System.IEquatable<Quartz.Dashboard.Services.DashboardHistoryEntry>
+    {
+        public DashboardHistoryEntry(string SchedulerName, string JobGroup, string JobName, string TriggerGroup, string TriggerName, System.DateTimeOffset FiredAtUtc, long DurationMs, bool Succeeded, string? ExceptionMessage) { }
+        public long DurationMs { get; init; }
+        public string? ExceptionMessage { get; init; }
+        public System.DateTimeOffset FiredAtUtc { get; init; }
+        public string JobGroup { get; init; }
+        public string JobName { get; init; }
+        public string SchedulerName { get; init; }
+        public bool Succeeded { get; init; }
+        public string TriggerGroup { get; init; }
+        public string TriggerName { get; init; }
+    }
+    public sealed class DashboardHistoryPage : System.IEquatable<Quartz.Dashboard.Services.DashboardHistoryPage>
+    {
+        public DashboardHistoryPage(int Page, int PageSize, int TotalCount, System.Collections.Generic.IReadOnlyList<Quartz.Dashboard.Services.DashboardHistoryEntry> Entries) { }
+        public System.Collections.Generic.IReadOnlyList<Quartz.Dashboard.Services.DashboardHistoryEntry> Entries { get; init; }
+        public int Page { get; init; }
+        public int PageSize { get; init; }
+        public int TotalCount { get; init; }
+    }
+    public sealed class ExecutionLimitsDto : System.IEquatable<Quartz.Dashboard.Services.ExecutionLimitsDto>
+    {
+        public ExecutionLimitsDto(System.Collections.Generic.IReadOnlyDictionary<string, int?> Limits) { }
+        public System.Collections.Generic.IReadOnlyDictionary<string, int?> Limits { get; init; }
+    }
+    public interface IDashboardHistoryStore
+    {
+        void Add(Quartz.Dashboard.Services.DashboardHistoryEntry entry);
+        Quartz.Dashboard.Services.DashboardHistoryPage GetPage(string schedulerName, int page, int pageSize, string? jobFilter = null, string? triggerFilter = null);
+    }
+    public interface IQuartzApiClient
+    {
+        System.Threading.Tasks.Task AddCalendar(string schedulerName, Quartz.Dashboard.Services.AddCalendarRequest request);
+        System.Threading.Tasks.Task AddJob(string schedulerName, Quartz.Dashboard.Services.AddJobRequest request);
+        System.Threading.Tasks.Task DeleteCalendar(string schedulerName, string calendarName);
+        System.Threading.Tasks.Task DeleteJob(string schedulerName, string group, string name);
+        System.Threading.Tasks.Task<Quartz.Dashboard.Services.CalendarDetailDto> GetCalendar(string schedulerName, string calendarName);
+        System.Threading.Tasks.Task<System.Collections.Generic.List<string>> GetCalendarNames(string schedulerName);
+        System.Threading.Tasks.Task<System.Collections.Generic.List<Quartz.Dashboard.Services.CurrentlyExecutingJobDto>> GetCurrentlyExecutingJobs(string schedulerName);
+        System.Threading.Tasks.Task<Quartz.Dashboard.Services.JobHistoryPageDto?> GetHistory(Quartz.Dashboard.Services.JobHistoryQueryDto query);
+        System.Threading.Tasks.Task<Quartz.Dashboard.Services.JobDetailDto> GetJob(string schedulerName, string group, string name);
+        System.Threading.Tasks.Task<System.Collections.Generic.List<Quartz.Dashboard.Services.JobKeyDto>> GetJobKeys(string schedulerName, string? groupFilter = null);
+        System.Threading.Tasks.Task<System.Collections.Generic.List<Quartz.Dashboard.Services.TriggerHeaderDto>> GetJobTriggers(string schedulerName, string group, string name);
+        System.Threading.Tasks.Task<Quartz.Dashboard.Services.SchedulerDetailDto> GetScheduler(string schedulerName);
+        System.Threading.Tasks.Task<System.Collections.Generic.List<Quartz.Dashboard.Services.SchedulerHeaderDto>> GetSchedulers();
+        System.Threading.Tasks.Task<Quartz.Dashboard.Services.TriggerDetailDto> GetTrigger(string schedulerName, string group, string name);
+        System.Threading.Tasks.Task<System.Collections.Generic.List<Quartz.Dashboard.Services.TriggerKeyDto>> GetTriggerKeys(string schedulerName, string? groupFilter = null);
+        System.Threading.Tasks.Task<string> GetTriggerState(string schedulerName, string group, string name);
+        System.Threading.Tasks.Task InterruptJob(string schedulerName, string group, string name);
+        System.Threading.Tasks.Task<bool> IsJobGroupPaused(string schedulerName, string group);
+        System.Threading.Tasks.Task PauseAll(string schedulerName);
+        System.Threading.Tasks.Task PauseJob(string schedulerName, string group, string name);
+        System.Threading.Tasks.Task PauseTrigger(string schedulerName, string group, string name);
+        System.Threading.Tasks.Task RescheduleJob(string schedulerName, string group, string name, Quartz.Dashboard.Services.RescheduleRequest request);
+        System.Threading.Tasks.Task ResetTriggerFromErrorState(string schedulerName, string group, string name);
+        System.Threading.Tasks.Task ResumeAll(string schedulerName);
+        System.Threading.Tasks.Task ResumeJob(string schedulerName, string group, string name);
+        System.Threading.Tasks.Task ResumeTrigger(string schedulerName, string group, string name);
+        System.Threading.Tasks.Task ScheduleJob(string schedulerName, Quartz.Dashboard.Services.ScheduleJobRequest request);
+        System.Threading.Tasks.Task ShutdownScheduler(string schedulerName);
+        System.Threading.Tasks.Task StandbyScheduler(string schedulerName);
+        System.Threading.Tasks.Task StartScheduler(string schedulerName);
+        System.Threading.Tasks.Task TriggerJob(string schedulerName, string group, string name);
+        System.Threading.Tasks.Task TriggerJobWithData(string schedulerName, string group, string name, System.Text.Json.JsonElement jobDataMap);
+        System.Threading.Tasks.Task UnscheduleJob(string schedulerName, string group, string name);
+    }
+    public interface IQuartzApiClientExecutionLimits
+    {
+        System.Threading.Tasks.Task<Quartz.Dashboard.Services.ExecutionLimitsDto?> GetExecutionLimits(string schedulerName);
+    }
+    public sealed class InProcessQuartzApiClient : Quartz.Dashboard.Services.IQuartzApiClient, Quartz.Dashboard.Services.IQuartzApiClientExecutionLimits
+    {
+        public InProcessQuartzApiClient(Quartz.Spi.ISchedulerRepository schedulerRepository, Microsoft.Extensions.Options.IOptions<Quartz.QuartzDashboardOptions> options, Quartz.Dashboard.Services.IDashboardHistoryStore historyStore) { }
+        public System.Threading.Tasks.Task AddCalendar(string schedulerName, Quartz.Dashboard.Services.AddCalendarRequest request) { }
+        public System.Threading.Tasks.Task AddJob(string schedulerName, Quartz.Dashboard.Services.AddJobRequest request) { }
+        public System.Threading.Tasks.Task DeleteCalendar(string schedulerName, string calendarName) { }
+        public System.Threading.Tasks.Task DeleteJob(string schedulerName, string group, string name) { }
+        public System.Threading.Tasks.Task<Quartz.Dashboard.Services.CalendarDetailDto> GetCalendar(string schedulerName, string calendarName) { }
+        public System.Threading.Tasks.Task<System.Collections.Generic.List<string>> GetCalendarNames(string schedulerName) { }
+        public System.Threading.Tasks.Task<System.Collections.Generic.List<Quartz.Dashboard.Services.CurrentlyExecutingJobDto>> GetCurrentlyExecutingJobs(string schedulerName) { }
+        public System.Threading.Tasks.Task<Quartz.Dashboard.Services.ExecutionLimitsDto?> GetExecutionLimits(string schedulerName) { }
+        public System.Threading.Tasks.Task<Quartz.Dashboard.Services.JobHistoryPageDto?> GetHistory(Quartz.Dashboard.Services.JobHistoryQueryDto query) { }
+        public System.Threading.Tasks.Task<Quartz.Dashboard.Services.JobDetailDto> GetJob(string schedulerName, string group, string name) { }
+        public System.Threading.Tasks.Task<System.Collections.Generic.List<Quartz.Dashboard.Services.JobKeyDto>> GetJobKeys(string schedulerName, string? groupFilter = null) { }
+        public System.Threading.Tasks.Task<System.Collections.Generic.List<Quartz.Dashboard.Services.TriggerHeaderDto>> GetJobTriggers(string schedulerName, string group, string name) { }
+        public System.Threading.Tasks.Task<Quartz.Dashboard.Services.SchedulerDetailDto> GetScheduler(string schedulerName) { }
+        public System.Threading.Tasks.Task<System.Collections.Generic.List<Quartz.Dashboard.Services.SchedulerHeaderDto>> GetSchedulers() { }
+        public System.Threading.Tasks.Task<Quartz.Dashboard.Services.TriggerDetailDto> GetTrigger(string schedulerName, string group, string name) { }
+        public System.Threading.Tasks.Task<System.Collections.Generic.List<Quartz.Dashboard.Services.TriggerKeyDto>> GetTriggerKeys(string schedulerName, string? groupFilter = null) { }
+        public System.Threading.Tasks.Task<string> GetTriggerState(string schedulerName, string group, string name) { }
+        public System.Threading.Tasks.Task InterruptJob(string schedulerName, string group, string name) { }
+        public System.Threading.Tasks.Task<bool> IsJobGroupPaused(string schedulerName, string group) { }
+        public System.Threading.Tasks.Task PauseAll(string schedulerName) { }
+        public System.Threading.Tasks.Task PauseJob(string schedulerName, string group, string name) { }
+        public System.Threading.Tasks.Task PauseTrigger(string schedulerName, string group, string name) { }
+        public System.Threading.Tasks.Task RescheduleJob(string schedulerName, string group, string name, Quartz.Dashboard.Services.RescheduleRequest request) { }
+        public System.Threading.Tasks.Task ResetTriggerFromErrorState(string schedulerName, string group, string name) { }
+        public System.Threading.Tasks.Task ResumeAll(string schedulerName) { }
+        public System.Threading.Tasks.Task ResumeJob(string schedulerName, string group, string name) { }
+        public System.Threading.Tasks.Task ResumeTrigger(string schedulerName, string group, string name) { }
+        public System.Threading.Tasks.Task ScheduleJob(string schedulerName, Quartz.Dashboard.Services.ScheduleJobRequest request) { }
+        public System.Threading.Tasks.Task ShutdownScheduler(string schedulerName) { }
+        public System.Threading.Tasks.Task StandbyScheduler(string schedulerName) { }
+        public System.Threading.Tasks.Task StartScheduler(string schedulerName) { }
+        public System.Threading.Tasks.Task TriggerJob(string schedulerName, string group, string name) { }
+        public System.Threading.Tasks.Task TriggerJobWithData(string schedulerName, string group, string name, System.Text.Json.JsonElement jobDataMap) { }
+        public System.Threading.Tasks.Task UnscheduleJob(string schedulerName, string group, string name) { }
+    }
+    public sealed class JobDetailDto : System.IEquatable<Quartz.Dashboard.Services.JobDetailDto>
+    {
+        public JobDetailDto(string Name, string Group, string JobType, string? Description, bool Durable, bool RequestsRecovery, bool ConcurrentExecutionDisallowed, bool PersistJobDataAfterExecution, System.Text.Json.JsonElement JobDataMap) { }
+        public bool ConcurrentExecutionDisallowed { get; init; }
+        public string? Description { get; init; }
+        public bool Durable { get; init; }
+        public string Group { get; init; }
+        public System.Text.Json.JsonElement JobDataMap { get; init; }
+        public string JobType { get; init; }
+        public string Name { get; init; }
+        public bool PersistJobDataAfterExecution { get; init; }
+        public bool RequestsRecovery { get; init; }
+    }
+    public sealed class JobHistoryPageDto : System.IEquatable<Quartz.Dashboard.Services.JobHistoryPageDto>
+    {
+        public JobHistoryPageDto(System.Text.Json.JsonElement Value) { }
+        public System.Text.Json.JsonElement Value { get; init; }
+    }
+    public sealed class JobHistoryQueryDto : System.IEquatable<Quartz.Dashboard.Services.JobHistoryQueryDto>
+    {
+        public JobHistoryQueryDto(string SchedulerName, int Page = 1, int PageSize = 25, string? JobFilter = null, string? TriggerFilter = null) { }
+        public string? JobFilter { get; init; }
+        public int Page { get; init; }
+        public int PageSize { get; init; }
+        public string SchedulerName { get; init; }
+        public string? TriggerFilter { get; init; }
+    }
+    public sealed class JobKeyDto : System.IEquatable<Quartz.Dashboard.Services.JobKeyDto>
+    {
+        public JobKeyDto(string Group, string Name) { }
+        public string Group { get; init; }
+        public string Name { get; init; }
+    }
+    public sealed class RescheduleRequest : System.IEquatable<Quartz.Dashboard.Services.RescheduleRequest>
+    {
+        public RescheduleRequest(System.Text.Json.JsonElement NewTrigger) { }
+        public System.Text.Json.JsonElement NewTrigger { get; init; }
+    }
+    public sealed class ScheduleJobRequest : System.IEquatable<Quartz.Dashboard.Services.ScheduleJobRequest>
+    {
+        public ScheduleJobRequest(System.Text.Json.JsonElement Trigger, Quartz.Dashboard.Services.JobDetailDto? Job) { }
+        public Quartz.Dashboard.Services.JobDetailDto? Job { get; init; }
+        public System.Text.Json.JsonElement Trigger { get; init; }
+    }
+    public sealed class SchedulerDetailDto : System.IEquatable<Quartz.Dashboard.Services.SchedulerDetailDto>
+    {
+        public SchedulerDetailDto(string SchedulerInstanceId, string SchedulerName, string Status) { }
+        public string SchedulerInstanceId { get; init; }
+        public string SchedulerName { get; init; }
+        public string Status { get; init; }
+    }
+    public sealed class SchedulerHeaderDto : System.IEquatable<Quartz.Dashboard.Services.SchedulerHeaderDto>
+    {
+        public SchedulerHeaderDto(string SchedulerName, string SchedulerInstanceId, string Status) { }
+        public string SchedulerInstanceId { get; init; }
+        public string SchedulerName { get; init; }
+        public string Status { get; init; }
+    }
+    public sealed class TriggerDetailDto : System.IEquatable<Quartz.Dashboard.Services.TriggerDetailDto>
+    {
+        public TriggerDetailDto(System.Text.Json.JsonElement Value) { }
+        public System.Text.Json.JsonElement Value { get; init; }
+    }
+    public sealed class TriggerHeaderDto : System.IEquatable<Quartz.Dashboard.Services.TriggerHeaderDto>
+    {
+        public TriggerHeaderDto(string Group, string Name) { }
+        public string? ExecutionGroup { get; init; }
+        public string Group { get; init; }
+        public string Name { get; init; }
+        public string? ScheduleSummary { get; init; }
+        public string? TriggerType { get; init; }
+    }
+    public sealed class TriggerKeyDto : System.IEquatable<Quartz.Dashboard.Services.TriggerKeyDto>
+    {
+        public TriggerKeyDto(string Group, string Name) { }
+        public string Group { get; init; }
+        public string Name { get; init; }
+    }
+}
+namespace Quartz
+{
+    public interface IDashboardAuthorizationFilter
+    {
+        System.Threading.Tasks.ValueTask<bool> AuthorizeAsync(Microsoft.AspNetCore.Http.HttpContext httpContext);
+    }
+    public static class QuartzDashboardEndpointRouteBuilderExtensions
+    {
+        public static Microsoft.AspNetCore.Builder.RazorComponentsEndpointConventionBuilder MapQuartzDashboard(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder) { }
+        public static Microsoft.AspNetCore.Builder.RazorComponentsEndpointConventionBuilder MapQuartzDashboard(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder, Microsoft.AspNetCore.Builder.RazorComponentsEndpointConventionBuilder existingComponents) { }
+    }
+    public class QuartzDashboardOptions
+    {
+        public QuartzDashboardOptions() { }
+        public string ApiPath { get; set; }
+        public Quartz.IDashboardAuthorizationFilter? AuthorizationFilter { get; set; }
+        public string? AuthorizationPolicy { get; set; }
+        public string DashboardPath { get; set; }
+        public bool ReadOnly { get; set; }
+    }
+    public static class QuartzDashboardServiceCollectionExtensions
+    {
+        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzDashboard(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Quartz.QuartzDashboardOptions>? configure = null) { }
+    }
+}
