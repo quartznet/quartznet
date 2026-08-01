@@ -187,7 +187,7 @@ builder.Services.AddQuartz("DurableScheduler", builder.Configuration.GetSection(
           "InstanceId": "AUTO"
         },
         "JobStore": {
-          "Type": "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz"
+          "Type": "Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz"
         }
       }
     }

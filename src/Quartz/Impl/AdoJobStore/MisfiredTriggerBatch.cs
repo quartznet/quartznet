@@ -41,7 +41,10 @@ public readonly record struct MisfiredTriggerBatch(
 /// <see cref="IDriverDelegate.UpdateMisfiredTriggers" />.
 /// </summary>
 /// <param name="Trigger">The trigger, after <c>UpdateAfterMisfire</c> has been applied in-memory.</param>
-/// <param name="NewState">The new trigger state to persist (e.g. WAITING, COMPLETE, BLOCKED).</param>
+/// <param name="NewState">
+/// The new trigger state to persist (typically <see cref="StoredTriggerState.Waiting" />,
+/// <see cref="StoredTriggerState.Complete" /> or <see cref="StoredTriggerState.Blocked" />).
+/// </param>
 /// <param name="MisfireOriginalFireTime">
 /// The original scheduled fire time for "fire now" misfire policies. When non-<c>null</c>, the value is
 /// written to the MISFIRE_ORIG_FIRE_TIME column. <c>null</c> leaves the column unchanged, preserving any
@@ -49,5 +52,5 @@ public readonly record struct MisfiredTriggerBatch(
 /// </param>
 public readonly record struct MisfiredTriggerUpdate(
     IOperableTrigger Trigger,
-    string NewState,
+    StoredTriggerState NewState,
     DateTimeOffset? MisfireOriginalFireTime);

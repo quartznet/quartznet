@@ -41,12 +41,42 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
     private readonly bool ownsResources;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="ConnectionAndTransactionHolder"/> class.
+    /// Initializes a new instance of the <see cref="ConnectionAndTransactionHolder"/> class that owns
+    /// the connection and the transaction, and therefore commits, rolls back, closes and disposes them.
     /// </summary>
     /// <param name="connection">The connection.</param>
     /// <param name="transaction">The transaction.</param>
     public ConnectionAndTransactionHolder(DbConnection connection, DbTransaction? transaction)
         : this(connection, transaction, ownsResources: true)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ConnectionAndTransactionHolder"/> class over a
+    /// connection somebody else owns.
+    /// </summary>
+    /// <remarks>
+    /// This is the shape a job store outside this assembly needs in order to run on a connection it
+    /// did not open — the one an application enlisted, or one a container hands it. Owning nothing
+    /// means committing nothing: whoever owns the transaction decides its outcome, and a rollback here
+    /// would discard their work along with the scheduling.
+    /// <para>
+    /// A <see cref="JobStoreSupport" /> subclass that wants to honour
+    /// <see cref="SchedulerEnlistmentExtensions">enlisted transactions</see> should call
+    /// <see cref="JobStoreSupport.GetEnlistedConnection" /> instead of building the holder itself: it
+    /// performs the checks that make an enlistment safe to use and books the connection out for the
+    /// duration of the operation.
+    /// </para>
+    /// </remarks>
+    /// <param name="connection">The connection.</param>
+    /// <param name="transaction">The transaction, if the caller began one.</param>
+    /// <param name="ownsResources">
+    /// Whether this unit of work owns the connection and transaction. When <see langword="false" />
+    /// they belong to the caller, and this holder will neither commit, roll back, close nor dispose
+    /// them.
+    /// </param>
+    public ConnectionAndTransactionHolder(DbConnection connection, DbTransaction? transaction, bool ownsResources)
+        : this(connection, transaction, ownsResources, borrowedFrom: null)
     {
     }
 
@@ -69,7 +99,7 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
         DbConnection connection,
         DbTransaction? transaction,
         bool ownsResources,
-        EnlistedConnection? borrowedFrom = null)
+        EnlistedConnection? borrowedFrom)
     {
         this.connection = connection;
         this.transaction = transaction;
@@ -78,10 +108,10 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
     }
 
     /// <summary>
-    /// Whether this unit of work owns the connection and the transaction. When it does not, the
-    /// application enlisted them and is responsible for committing, rolling back and disposing them.
+    /// Whether this unit of work owns the connection and the transaction. When it does not, whoever
+    /// handed them over is responsible for committing, rolling back and disposing them.
     /// </summary>
-    internal bool OwnsResources => ownsResources;
+    public bool OwnsResources => ownsResources;
 
     /// <summary>
     /// The enlistment this unit of work borrowed its connection from, so that the claim is returned
@@ -119,7 +149,11 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
         return batch;
     }
 
-    public async ValueTask Commit(bool openNewTransaction, CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// Internal because deciding when the unit of work commits is the job store's, not its caller's:
+    /// <see cref="JobStoreSupport.CommitConnection" /> is the seam a subclass overrides.
+    /// </remarks>
+    internal async ValueTask Commit(bool openNewTransaction, CancellationToken cancellationToken = default)
     {
         if (!ownsResources)
         {
@@ -217,7 +251,11 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
         }
     }
 
-    public async ValueTask Rollback(bool transientError, CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// Internal for the same reason as <see cref="Commit" />:
+    /// <see cref="JobStoreSupport.RollbackConnection" /> is the seam a subclass overrides.
+    /// </remarks>
+    internal async ValueTask Rollback(bool transientError, CancellationToken cancellationToken = default)
     {
         if (!ownsResources)
         {

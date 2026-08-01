@@ -54,10 +54,11 @@ internal sealed class SimpleSemaphore : ISemaphore
     public async ValueTask<bool> ObtainLock(
         Guid requestorId,
         ConnectionAndTransactionHolder? conn,
-        string lockName,
+        SchedulerLock lockKind,
         CancellationToken cancellationToken = default)
     {
         var isDebugEnabled = logger.IsEnabled(LogLevel.Debug);
+        var lockName = lockKind.ToLockName();
 
         if (isDebugEnabled)
         {
@@ -65,7 +66,7 @@ internal sealed class SimpleSemaphore : ISemaphore
         }
 
         var gotLock = false;
-        var lockHandle = GetLock(lockName);
+        var lockHandle = GetLock(lockKind);
         if (!lockHandle.IsLockOwner(requestorId))
         {
             if (isDebugEnabled)
@@ -105,22 +106,22 @@ internal sealed class SimpleSemaphore : ISemaphore
     /// </summary>
     public ValueTask ReleaseLock(
         Guid requestorId,
-        string lockName,
+        SchedulerLock lockKind,
         CancellationToken cancellationToken = default)
     {
-        var lockHandle = GetLock(lockName);
+        var lockHandle = GetLock(lockKind);
         if (lockHandle.IsLockOwner(requestorId))
         {
             lockHandle.Release();
 
             if (logger.IsEnabled(LogLevel.Debug))
             {
-                logger.LogDebug("Lock '{LockName}' returned by: {RequestorId}", lockName, requestorId);
+                logger.LogDebug("Lock '{LockName}' returned by: {RequestorId}", lockKind.ToLockName(), requestorId);
             }
         }
         else if (logger.IsEnabled(LogLevel.Warning))
         {
-            logger.LogWarning("Lock '{LockName}' attempt to return by: {RequestorId} -- but not owner!", lockName, requestorId);
+            logger.LogWarning("Lock '{LockName}' attempt to return by: {RequestorId} -- but not owner!", lockKind.ToLockName(), requestorId);
             logger.LogWarning("stack-trace of wrongful returner: {Stacktrace}", Environment.StackTrace);
         }
 
@@ -136,20 +137,18 @@ internal sealed class SimpleSemaphore : ISemaphore
     /// <seealso cref="ReleaseLock"/>
     public bool RequiresConnection => false;
 
-    private ResourceLock GetLock(string lockName)
+    private ResourceLock GetLock(SchedulerLock lockKind)
     {
-        if (string.Equals(lockName, JobStoreSupport.LockTriggerAccess, StringComparison.Ordinal))
+        switch (lockKind)
         {
-            return triggerLock;
+            case SchedulerLock.TriggerAccess:
+                return triggerLock;
+            case SchedulerLock.StateAccess:
+                return stateLock;
+            default:
+                Throw.NotSupportedException();
+                return null!;
         }
-
-        if (string.Equals(lockName, JobStoreSupport.LockStateAccess, StringComparison.Ordinal))
-        {
-            return stateLock;
-        }
-
-        Throw.NotSupportedException();
-        return null!;
     }
 
     private sealed class ResourceLock

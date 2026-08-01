@@ -55,6 +55,8 @@ namespace Quartz.Impl.Redis;
 /// </remarks>
 public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
 {
+    // The Redis key keeps the stored lock names rather than the enum member names, so that a rolling
+    // upgrade and a mixed-version cluster keep contending for the same key.
     private const string LockTriggerAccess = "TRIGGER_ACCESS";
     private const string LockStateAccess = "STATE_ACCESS";
 
@@ -149,17 +151,18 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
     public async ValueTask<bool> ObtainLock(
         Guid requestorId,
         ConnectionAndTransactionHolder? conn,
-        string lockName,
+        SchedulerLock lockKind,
         CancellationToken cancellationToken = default)
     {
         var isDebugEnabled = logger.IsEnabled(LogLevel.Debug);
+        var lockName = LockName(lockKind);
 
         if (isDebugEnabled)
         {
             logger.LogDebug("Lock '{LockName}' is desired by: {RequestorId}", lockName, requestorId);
         }
 
-        var lockHandle = GetLock(lockName);
+        var lockHandle = GetLock(lockKind);
 
         if (lockHandle.IsLockOwner(requestorId))
         {
@@ -238,10 +241,11 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
     /// <inheritdoc />
     public async ValueTask ReleaseLock(
         Guid requestorId,
-        string lockName,
+        SchedulerLock lockKind,
         CancellationToken cancellationToken = default)
     {
-        var lockHandle = GetLock(lockName);
+        var lockName = LockName(lockKind);
+        var lockHandle = GetLock(lockKind);
 
         if (!lockHandle.IsLockOwner(requestorId))
         {
@@ -315,20 +319,19 @@ public sealed class RedisSemaphore : ISemaphore, ITablePrefixAware
         }
     }
 
-    private ResourceLock GetLock(string lockName)
+    private ResourceLock GetLock(SchedulerLock lockKind) => lockKind switch
     {
-        if (string.Equals(lockName, LockTriggerAccess, StringComparison.Ordinal))
-        {
-            return triggerLock;
-        }
+        SchedulerLock.TriggerAccess => triggerLock,
+        SchedulerLock.StateAccess => stateLock,
+        _ => throw new NotSupportedException($"Unsupported lock: {lockKind}")
+    };
 
-        if (string.Equals(lockName, LockStateAccess, StringComparison.Ordinal))
-        {
-            return stateLock;
-        }
-
-        throw new NotSupportedException($"Unsupported lock name: {lockName}");
-    }
+    private static string LockName(SchedulerLock lockKind) => lockKind switch
+    {
+        SchedulerLock.TriggerAccess => LockTriggerAccess,
+        SchedulerLock.StateAccess => LockStateAccess,
+        _ => throw new NotSupportedException($"Unsupported lock: {lockKind}")
+    };
 
     private sealed class ResourceLock
     {

@@ -46,6 +46,17 @@ internal sealed class SimpleTypeLoadHelper : ITypeLoadHelper
     ];
 
     /// <summary>
+    /// Types that were renamed in 4.0. The job stores are here because <c>quartz.jobStore.type</c> is
+    /// the one type name almost every persistent configuration spells out.
+    /// </summary>
+    private static readonly (string Old, string New)[] renamedTypes =
+    [
+        ("Quartz.Impl.AdoJobStore.JobStoreTX", "Quartz.Impl.AdoJobStore.LocalTransactionJobStore"),
+        ("Quartz.Impl.AdoJobStore.JobStoreCMT", "Quartz.Impl.AdoJobStore.ExternalTransactionJobStore"),
+        ("Quartz.Impl.HostnameInstanceIdGenerator", "Quartz.Impl.HostNameInstanceIdGenerator"),
+    ];
+
+    /// <summary>
     /// Assemblies that were merged into the core Quartz package in 4.0. A configuration string that
     /// still names one of them has to be retried against the core assembly, on top of any namespace
     /// rename, or the fallback would rewrite the namespace and then fail on the dead assembly.
@@ -101,7 +112,8 @@ internal sealed class SimpleTypeLoadHelper : ITypeLoadHelper
 
     /// <summary>
     /// Every name the configured string could mean today: the assembly moves (jobs split out of the
-    /// core assembly; satellite assemblies merged into it) composed with the namespace renames.
+    /// core assembly; satellite assemblies merged into it) composed with the namespace and type
+    /// renames.
     /// </summary>
     private static List<string> LegacyNameCandidates(string name)
     {
@@ -132,6 +144,22 @@ internal sealed class SimpleTypeLoadHelper : ITypeLoadHelper
                 if (candidates[i].StartsWith(oldNamespace, StringComparison.Ordinal))
                 {
                     candidates.Add(string.Concat(newNamespace, candidates[i].AsSpan(oldNamespace.Length)));
+                }
+            }
+        }
+
+        // Applied last, over every assembly and namespace spelling, because a renamed type can be
+        // named through any of them. The comma test keeps `JobStoreTXSomething` from matching.
+        int namespaceCandidateCount = candidates.Count;
+        for (int i = 0; i < namespaceCandidateCount; i++)
+        {
+            foreach (var (oldType, newType) in renamedTypes)
+            {
+                string candidate = candidates[i];
+                if (candidate.StartsWith(oldType, StringComparison.Ordinal)
+                    && (candidate.Length == oldType.Length || candidate[oldType.Length] == ','))
+                {
+                    candidates.Add(string.Concat(newType, candidate.AsSpan(oldType.Length)));
                 }
             }
         }

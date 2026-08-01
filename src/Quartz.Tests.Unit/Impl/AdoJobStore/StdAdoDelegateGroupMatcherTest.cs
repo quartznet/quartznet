@@ -192,8 +192,8 @@ public class StdAdoDelegateGroupMatcherTest
         await adoDelegate.UpdateTriggerGroupStateFromOtherState(
             conn,
             GroupMatcher<TriggerKey>.GroupEquals("50%"),
-            AdoConstants.StatePaused,
-            AdoConstants.StateWaiting);
+            StoredTriggerState.Paused,
+            StoredTriggerState.Waiting);
 
         command.CommandText.Should().Contain("TRIGGER_GROUP = @triggerGroup");
         command.CommandText.Should().NotContain("LIKE");
@@ -206,8 +206,8 @@ public class StdAdoDelegateGroupMatcherTest
         await adoDelegate.UpdateTriggerGroupStateFromOtherState(
             conn,
             GroupMatcher<TriggerKey>.GroupStartsWith("50%"),
-            AdoConstants.StatePaused,
-            AdoConstants.StateWaiting);
+            StoredTriggerState.Paused,
+            StoredTriggerState.Waiting);
 
         command.CommandText.Should().Contain("TRIGGER_GROUP LIKE @triggerGroup ESCAPE '!'");
         parameters.Value("@triggerGroup").Should().Be("50!%%");
@@ -219,10 +219,8 @@ public class StdAdoDelegateGroupMatcherTest
         await adoDelegate.UpdateTriggerGroupStateFromOtherStates(
             conn,
             GroupMatcher<TriggerKey>.GroupEquals("50%"),
-            AdoConstants.StatePaused,
-            AdoConstants.StateAcquired,
-            AdoConstants.StateWaiting,
-            AdoConstants.StateWaiting);
+            StoredTriggerState.Paused,
+            [StoredTriggerState.Acquired, StoredTriggerState.Waiting]);
 
         command.CommandText.Should().Contain("TRIGGER_GROUP = @groupName");
         command.CommandText.Should().NotContain("LIKE");
@@ -235,13 +233,54 @@ public class StdAdoDelegateGroupMatcherTest
         await adoDelegate.UpdateTriggerGroupStateFromOtherStates(
             conn,
             GroupMatcher<TriggerKey>.GroupStartsWith("50%"),
-            AdoConstants.StatePaused,
-            AdoConstants.StateAcquired,
-            AdoConstants.StateWaiting,
-            AdoConstants.StateWaiting);
+            StoredTriggerState.Paused,
+            [StoredTriggerState.Acquired, StoredTriggerState.Waiting]);
 
         command.CommandText.Should().Contain("TRIGGER_GROUP LIKE @groupName ESCAPE '!'");
         parameters.Value("@groupName").Should().Be("50!%%");
+    }
+
+    /// <summary>
+    /// The old-state predicate is generated for the length of the set, so a caller is no longer stuck
+    /// with the two or three the statement used to hard-code.
+    /// </summary>
+    [TestCase(1)]
+    [TestCase(2)]
+    [TestCase(4)]
+    public async Task UpdateTriggerStateFromOtherStates_ShouldBindOneParameterPerState(int stateCount)
+    {
+        StoredTriggerState[] states = Enum.GetValues<StoredTriggerState>().Take(stateCount).ToArray();
+
+        await adoDelegate.UpdateTriggerStateFromOtherStates(conn, new TriggerKey("t1", "g1"), StoredTriggerState.Paused, states);
+
+        BoundOldStates().Should().BeEquivalentTo(states.Select(x => x.ToStoredValue()));
+        command.CommandText.Split(" OR ").Should().HaveCount(stateCount, "the predicate is a disjunction over the set");
+    }
+
+    /// <summary>
+    /// A disjunction cannot tell a repeated term from a single one, so folding duplicates away only keeps
+    /// the number of distinct statement texts — and so of database plans — down.
+    /// </summary>
+    [Test]
+    public async Task UpdateTriggerStateFromOtherStates_ShouldFoldDuplicateStates()
+    {
+        await adoDelegate.UpdateTriggerStateFromOtherStates(
+            conn,
+            new TriggerKey("t1", "g1"),
+            StoredTriggerState.Paused,
+            [StoredTriggerState.Waiting, StoredTriggerState.Acquired, StoredTriggerState.Waiting]);
+
+        BoundOldStates().Should().BeEquivalentTo([AdoConstants.StateWaiting, AdoConstants.StateAcquired]);
+    }
+
+    [Test]
+    public async Task UpdateTriggerStateFromOtherStates_ShouldRejectAnEmptyStateSet()
+    {
+        Func<Task> act = async () => await adoDelegate.UpdateTriggerStateFromOtherStates(
+            conn, new TriggerKey("t1", "g1"), StoredTriggerState.Paused, []);
+
+        await act.Should().ThrowAsync<ArgumentException>(
+            "a statement matching no state at all is a mistake, not a no-op");
     }
 
     [Test]
@@ -415,6 +454,18 @@ public class StdAdoDelegateGroupMatcherTest
         return parameters
             .Cast<DbParameter>()
             .Where(x => x.ParameterName.StartsWith("@state", StringComparison.Ordinal))
+            .Select(x => x.Value)
+            .ToList();
+    }
+
+    /// <summary>
+    /// The stored states an old-state predicate bound, in the order the statement names them.
+    /// </summary>
+    private List<object> BoundOldStates()
+    {
+        return parameters
+            .Cast<DbParameter>()
+            .Where(x => x.ParameterName.StartsWith("@oldState", StringComparison.Ordinal))
             .Select(x => x.Value)
             .ToList();
     }

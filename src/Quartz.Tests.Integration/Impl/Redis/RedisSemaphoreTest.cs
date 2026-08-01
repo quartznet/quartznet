@@ -70,7 +70,7 @@ public class RedisSemaphoreTest
         var requestorId = Guid.NewGuid();
 
         var obtained = await semaphore.ObtainLock(
-            requestorId, null, JobStoreSupport.LockTriggerAccess);
+            requestorId, null, SchedulerLock.TriggerAccess);
 
         Assert.That(obtained, Is.True);
 
@@ -79,7 +79,7 @@ public class RedisSemaphoreTest
         Assert.That(value.HasValue, Is.True);
         Assert.That(value.ToString(), Is.EqualTo(requestorId.ToString("N")));
 
-        await semaphore.ReleaseLock(requestorId, JobStoreSupport.LockTriggerAccess);
+        await semaphore.ReleaseLock(requestorId, SchedulerLock.TriggerAccess);
 
         value = await db.StringGetAsync("quartz:test:lock:TestScheduler:TRIGGER_ACCESS");
         Assert.That(value.HasValue, Is.False);
@@ -91,18 +91,18 @@ public class RedisSemaphoreTest
         var requestorId = Guid.NewGuid();
 
         var first = await semaphore.ObtainLock(
-            requestorId, null, JobStoreSupport.LockTriggerAccess);
+            requestorId, null, SchedulerLock.TriggerAccess);
         Assert.That(first, Is.True);
 
         try
         {
             var second = await semaphore.ObtainLock(
-                requestorId, null, JobStoreSupport.LockTriggerAccess);
+                requestorId, null, SchedulerLock.TriggerAccess);
             Assert.That(second, Is.False);
         }
         finally
         {
-            await semaphore.ReleaseLock(requestorId, JobStoreSupport.LockTriggerAccess);
+            await semaphore.ReleaseLock(requestorId, SchedulerLock.TriggerAccess);
         }
     }
 
@@ -113,17 +113,17 @@ public class RedisSemaphoreTest
         var requestor2 = Guid.NewGuid();
 
         var first = await semaphore.ObtainLock(
-            requestor1, null, JobStoreSupport.LockTriggerAccess);
+            requestor1, null, SchedulerLock.TriggerAccess);
         Assert.That(first, Is.True);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
 
         var second = await semaphore.ObtainLock(
-            requestor2, null, JobStoreSupport.LockTriggerAccess, cts.Token);
+            requestor2, null, SchedulerLock.TriggerAccess, cts.Token);
 
         Assert.That(second, Is.False);
 
-        await semaphore.ReleaseLock(requestor1, JobStoreSupport.LockTriggerAccess);
+        await semaphore.ReleaseLock(requestor1, SchedulerLock.TriggerAccess);
     }
 
     [Test]
@@ -132,20 +132,20 @@ public class RedisSemaphoreTest
         var requestor1 = Guid.NewGuid();
         var requestor2 = Guid.NewGuid();
 
-        await semaphore.ObtainLock(requestor1, null, JobStoreSupport.LockTriggerAccess);
+        await semaphore.ObtainLock(requestor1, null, SchedulerLock.TriggerAccess);
 
         try
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
 
             var result = await semaphore.ObtainLock(
-                requestor2, null, JobStoreSupport.LockTriggerAccess, cts.Token);
+                requestor2, null, SchedulerLock.TriggerAccess, cts.Token);
 
             Assert.That(result, Is.False);
         }
         finally
         {
-            await semaphore.ReleaseLock(requestor1, JobStoreSupport.LockTriggerAccess);
+            await semaphore.ReleaseLock(requestor1, SchedulerLock.TriggerAccess);
         }
     }
 
@@ -155,11 +155,11 @@ public class RedisSemaphoreTest
         var owner = Guid.NewGuid();
         var notOwner = Guid.NewGuid();
 
-        await semaphore.ObtainLock(owner, null, JobStoreSupport.LockTriggerAccess);
+        await semaphore.ObtainLock(owner, null, SchedulerLock.TriggerAccess);
 
         try
         {
-            await semaphore.ReleaseLock(notOwner, JobStoreSupport.LockTriggerAccess);
+            await semaphore.ReleaseLock(notOwner, SchedulerLock.TriggerAccess);
 
             var db = redis.GetDatabase();
             var value = await db.StringGetAsync("quartz:test:lock:TestScheduler:TRIGGER_ACCESS");
@@ -167,7 +167,7 @@ public class RedisSemaphoreTest
         }
         finally
         {
-            await semaphore.ReleaseLock(owner, JobStoreSupport.LockTriggerAccess);
+            await semaphore.ReleaseLock(owner, SchedulerLock.TriggerAccess);
         }
     }
 
@@ -185,7 +185,7 @@ public class RedisSemaphoreTest
         var requestorId = Guid.NewGuid();
 
         await shortTtlSemaphore.ObtainLock(
-            requestorId, null, JobStoreSupport.LockTriggerAccess);
+            requestorId, null, SchedulerLock.TriggerAccess);
 
         var db = redis.GetDatabase();
         var redisKey = "quartz:test:lock:TestScheduler:TRIGGER_ACCESS";
@@ -202,7 +202,7 @@ public class RedisSemaphoreTest
 
         Assert.That(expired, Is.True, "Redis lock key should have expired after TTL");
 
-        await shortTtlSemaphore.ReleaseLock(requestorId, JobStoreSupport.LockTriggerAccess);
+        await shortTtlSemaphore.ReleaseLock(requestorId, SchedulerLock.TriggerAccess);
     }
 
     [Test]
@@ -210,7 +210,7 @@ public class RedisSemaphoreTest
     {
         var requestorId = Guid.NewGuid();
 
-        await semaphore.ObtainLock(requestorId, null, JobStoreSupport.LockTriggerAccess);
+        await semaphore.ObtainLock(requestorId, null, SchedulerLock.TriggerAccess);
 
         try
         {
@@ -220,7 +220,7 @@ public class RedisSemaphoreTest
         }
         finally
         {
-            await semaphore.ReleaseLock(requestorId, JobStoreSupport.LockTriggerAccess);
+            await semaphore.ReleaseLock(requestorId, SchedulerLock.TriggerAccess);
         }
     }
 
@@ -231,15 +231,15 @@ public class RedisSemaphoreTest
         var requestor2 = Guid.NewGuid();
 
         var trigger = await semaphore.ObtainLock(
-            requestor1, null, JobStoreSupport.LockTriggerAccess);
+            requestor1, null, SchedulerLock.TriggerAccess);
         var state = await semaphore.ObtainLock(
-            requestor2, null, JobStoreSupport.LockStateAccess);
+            requestor2, null, SchedulerLock.StateAccess);
 
         Assert.That(trigger, Is.True);
         Assert.That(state, Is.True);
 
-        await semaphore.ReleaseLock(requestor1, JobStoreSupport.LockTriggerAccess);
-        await semaphore.ReleaseLock(requestor2, JobStoreSupport.LockStateAccess);
+        await semaphore.ReleaseLock(requestor1, SchedulerLock.TriggerAccess);
+        await semaphore.ReleaseLock(requestor2, SchedulerLock.StateAccess);
     }
 
     [Test]
@@ -256,22 +256,22 @@ public class RedisSemaphoreTest
         var requestor2 = Guid.NewGuid();
 
         var first = await semaphore.ObtainLock(
-            requestor1, null, JobStoreSupport.LockTriggerAccess);
+            requestor1, null, SchedulerLock.TriggerAccess);
         Assert.That(first, Is.True);
 
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
 
         var second = await semaphore2.ObtainLock(
-            requestor2, null, JobStoreSupport.LockTriggerAccess, cts.Token);
+            requestor2, null, SchedulerLock.TriggerAccess, cts.Token);
         Assert.That(second, Is.False);
 
-        await semaphore.ReleaseLock(requestor1, JobStoreSupport.LockTriggerAccess);
+        await semaphore.ReleaseLock(requestor1, SchedulerLock.TriggerAccess);
 
         var third = await semaphore2.ObtainLock(
-            requestor2, null, JobStoreSupport.LockTriggerAccess);
+            requestor2, null, SchedulerLock.TriggerAccess);
         Assert.That(third, Is.True);
 
-        await semaphore2.ReleaseLock(requestor2, JobStoreSupport.LockTriggerAccess);
+        await semaphore2.ReleaseLock(requestor2, SchedulerLock.TriggerAccess);
     }
 
     [Test]
@@ -282,10 +282,10 @@ public class RedisSemaphoreTest
         for (var i = 0; i < 5; i++)
         {
             var obtained = await semaphore.ObtainLock(
-                requestorId, null, JobStoreSupport.LockTriggerAccess);
+                requestorId, null, SchedulerLock.TriggerAccess);
             Assert.That(obtained, Is.True, $"iteration {i}");
 
-            await semaphore.ReleaseLock(requestorId, JobStoreSupport.LockTriggerAccess);
+            await semaphore.ReleaseLock(requestorId, SchedulerLock.TriggerAccess);
         }
     }
 }

@@ -258,7 +258,7 @@ public class AdoJobStoreSmokeTest
     public async Task ShouldBeAbleToUseMixedProperties()
     {
         NameValueCollection properties = new NameValueCollection();
-        properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
+        properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz";
         properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz";
         properties["quartz.jobStore.dataSource"] = "default";
         properties["quartz.jobStore.useProperties"] = false.ToString();
@@ -321,7 +321,7 @@ public class AdoJobStoreSmokeTest
         properties["quartz.scheduler.instanceName"] = "TestScheduler";
         properties["quartz.scheduler.instanceId"] = "instance_one";
         properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
-        properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
+        properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz";
         properties["quartz.jobStore.useProperties"] = "false";
         properties["quartz.jobStore.dataSource"] = "default";
         properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
@@ -451,7 +451,7 @@ public class AdoJobStoreSmokeTest
         properties["quartz.scheduler.instanceName"] = "TestScheduler";
         properties["quartz.scheduler.instanceId"] = "instance_one";
         properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
-        properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
+        properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz";
         properties["quartz.jobStore.useProperties"] = "false";
         properties["quartz.jobStore.dataSource"] = "default";
         properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
@@ -478,7 +478,7 @@ public class AdoJobStoreSmokeTest
         properties["quartz.scheduler.instanceId"] = "instance_one";
         properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
         properties["quartz.jobStore.misfireThreshold"] = "60000";
-        properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
+        properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz";
         properties["quartz.jobStore.useProperties"] = "false";
         properties["quartz.jobStore.dataSource"] = "default";
         properties["quartz.jobStore.tablePrefix"] = "QRTZ_";

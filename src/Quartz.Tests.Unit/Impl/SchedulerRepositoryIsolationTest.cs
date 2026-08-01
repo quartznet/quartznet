@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Impl;
 using Quartz.Extensibility;
-using Quartz.Util;
+using Quartz.Impl.AdoJobStore.Common;
 
 namespace Quartz.Tests.Unit.Impl;
 
@@ -119,7 +119,7 @@ public sealed class SchedulerRepositoryIsolationTest
 
         firstManager.Should().NotBeSameAs(secondManager);
 
-        firstManager.AddConnectionProvider("shared-data-source-name", new StubDbProvider());
+        firstManager.AddDbProvider("shared-data-source-name", new StubDbProvider());
 
         var act = () => secondManager.GetDbProvider("shared-data-source-name");
         act.Should().Throw<ArgumentException>(

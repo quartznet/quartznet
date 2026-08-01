@@ -13,8 +13,8 @@ namespace Quartz.Impl.Redis
         public bool RequiresConnection { get; }
         public string? SchedulerName { get; set; }
         public string TablePrefix { get; set; }
-        public System.Threading.Tasks.ValueTask<bool> ObtainLock(System.Guid requestorId, Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder? conn, string lockName, System.Threading.CancellationToken cancellationToken = default) { }
-        public System.Threading.Tasks.ValueTask ReleaseLock(System.Guid requestorId, string lockName, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask<bool> ObtainLock(System.Guid requestorId, Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder? conn, Quartz.Impl.AdoJobStore.SchedulerLock lockKind, System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask ReleaseLock(System.Guid requestorId, Quartz.Impl.AdoJobStore.SchedulerLock lockKind, System.Threading.CancellationToken cancellationToken = default) { }
     }
 }
 namespace Quartz

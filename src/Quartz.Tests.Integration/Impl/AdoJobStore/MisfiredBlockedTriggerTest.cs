@@ -24,7 +24,7 @@ public class MisfiredBlockedTriggerTest
         {
             ["quartz.scheduler.instanceName"] = "TestScheduler",
             ["quartz.scheduler.instanceId"] = "AUTO",
-            ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
+            ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz",
             ["quartz.jobStore.driverDelegateType"] = typeof(Quartz.Impl.AdoJobStore.SqlServerDelegate).AssemblyQualifiedNameWithoutVersion(),
             ["quartz.jobStore.dataSource"] = "default",
             ["quartz.jobStore.tablePrefix"] = "QRTZ_",

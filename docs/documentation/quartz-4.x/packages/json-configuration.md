@@ -21,7 +21,7 @@ Instead of flat property keys like `"quartz.threadPool.maxConcurrency": "10"`, y
       "MaxConcurrency": 10
     },
     "JobStore": {
-      "Type": "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
+      "Type": "Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz",
       "DataSource": "default",
       "TablePrefix": "QRTZ_"
     },

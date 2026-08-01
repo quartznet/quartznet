@@ -31,24 +31,24 @@ using Quartz.Extensibility;
 namespace Quartz.Impl.AdoJobStore;
 
 ///<summary>
-/// <see cref="JobStoreCMT" /> is meant to be used in an application-server
-/// or other software framework environment that provides
-/// container-managed-transactions. No commit / rollback will be handled by this class.
+/// The persistent job store for a scheduler that runs inside a transaction somebody else owns - an
+/// application server or another framework providing container-managed transactions. It neither
+/// commits nor rolls back.
 /// </summary>
 /// <remarks>
-/// If you need commit / rollback, use <see cref="JobStoreTX" />
+/// If you need the store to commit and roll back, use <see cref="LocalTransactionJobStore" />
 /// instead.
 /// </remarks>
 /// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
 /// <author>James House</author>
 /// <author>Srinivas Venkatarangaiah</author>
 /// <author>Marko Lahma (.NET)</author>
-public class JobStoreCMT : JobStoreSupport
+public class ExternalTransactionJobStore : JobStoreSupport
 {
     /// <summary>
-    /// Initializes a new instance of the <see cref="JobStoreCMT"/> class.
+    /// Initializes a new instance of the <see cref="ExternalTransactionJobStore"/> class.
     /// </summary>
-    public JobStoreCMT(
+    public ExternalTransactionJobStore(
         ISchedulerSignaler schedulerSignaler,
         ITypeLoadHelper typeLoadHelper,
         TimeProvider timeProvider,
@@ -66,7 +66,7 @@ public class JobStoreCMT : JobStoreSupport
     /// <summary>
     /// Instructs this job store whether connections should be automatically opened.
     /// </summary>
-    public virtual bool OpenConnection { protected get; set; }
+    public bool OpenConnection { get; set; }
 
     /// <summary>
     /// Called by the QuartzScheduler before the <see cref="IJobStore"/> is
@@ -77,12 +77,12 @@ public class JobStoreCMT : JobStoreSupport
         if (LockHandler is null)
         {
             // If the user hasn't specified an explicit lock handler,
-            // then we ///must/// use DB locks with CMT...
+            // then we ///must/// use DB locks with container-managed transactions...
             UseDbLocks = true;
         }
 
         await base.Initialize(cancellationToken).ConfigureAwait(false);
-        Logger.LogInformation("JobStoreCMT initialized.");
+        Logger.LogInformation("ExternalTransactionJobStore initialized.");
     }
 
     /// <summary>
@@ -105,10 +105,10 @@ public class JobStoreCMT : JobStoreSupport
     }
 
     /// <summary>
-    /// Gets the non managed TX connection.
+    /// Gets the connection a locked operation runs on. There is no transaction of this store's own:
+    /// the one the container manages is already in progress.
     /// </summary>
-    /// <returns></returns>
-    protected override async ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection(CancellationToken cancellationToken = default)
+    protected override async ValueTask<ConnectionAndTransactionHolder> GetLocalTransactionConnection(CancellationToken cancellationToken = default)
     {
         var enlisted = await GetEnlistedConnection(cancellationToken).ConfigureAwait(false);
         if (enlisted is not null)
@@ -139,23 +139,21 @@ public class JobStoreCMT : JobStoreSupport
 
     /// <summary>
     /// Execute the given callback having optionally acquired the given lock.
-    /// Because CMT assumes that the connection is already part of a managed
-    /// transaction, it does not attempt to commit or rollback the
-    /// enclosing transaction.
+    /// Because this store assumes that the connection is already part of a transaction its container
+    /// manages, it does not attempt to commit or rollback the enclosing transaction.
     /// </summary>
-    /// <seealso cref="JobStoreSupport.ExecuteInNonManagedTXLock" />
-    /// <seealso cref="JobStoreSupport.ExecuteInLock" />
-    /// <seealso cref="JobStoreSupport.GetNonManagedTXConnection(CancellationToken)" />
+    /// <seealso cref="JobStoreSupport.ExecuteInLocalTransactionLock{T}" />
+    /// <seealso cref="JobStoreSupport.ExecuteInLock{T}" />
+    /// <seealso cref="JobStoreSupport.GetLocalTransactionConnection(CancellationToken)" />
     /// <seealso cref="JobStoreSupport.GetConnection(CancellationToken)" />
-    /// <param name="lockName">
-    /// The name of the lock to acquire, for example
-    /// "TRIGGER_ACCESS".  If null, then no lock is acquired, but the
-    /// txCallback is still executed in a transaction.
+    /// <param name="lockKind">
+    /// The lock to acquire. If <see langword="null" />, then no lock is acquired, but the
+    /// <paramref name="txCallback" /> is still executed in a transaction.
     /// </param>
     /// <param name="txCallback">Callback to execute.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     protected override async ValueTask<T> ExecuteInLock<T>(
-        string? lockName,
+        SchedulerLock? lockKind,
         Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
         CancellationToken cancellationToken = default)
     {
@@ -164,21 +162,21 @@ public class JobStoreCMT : JobStoreSupport
         Guid requestorId = Guid.NewGuid();
         try
         {
-            if (lockName is not null)
+            if (lockKind is not null)
             {
                 // If we aren't using db locks, then delay getting DB connection
                 // until after acquiring the lock since it isn't needed.
                 if (LockHandler.RequiresConnection)
                 {
-                    conn = await GetNonManagedTXConnection(cancellationToken).ConfigureAwait(false);
+                    conn = await GetLocalTransactionConnection(cancellationToken).ConfigureAwait(false);
                 }
 
-                transOwner = await LockHandler.ObtainLock(requestorId, conn!, lockName, cancellationToken).ConfigureAwait(false);
+                transOwner = await LockHandler.ObtainLock(requestorId, conn!, lockKind.Value, cancellationToken).ConfigureAwait(false);
             }
 
             if (conn is null)
             {
-                conn = await GetNonManagedTXConnection(cancellationToken).ConfigureAwait(false);
+                conn = await GetLocalTransactionConnection(cancellationToken).ConfigureAwait(false);
             }
 
             var result = await txCallback(conn).ConfigureAwait(false);
@@ -193,7 +191,7 @@ public class JobStoreCMT : JobStoreSupport
             // from here at all.
             var sigTime = conn.SignalSchedulingChangeOnTxCompletion;
             if (conn.BorrowedFrom is not null
-                && (sigTime is not null || lockName is not null && !LockAllOperations))
+                && (sigTime is not null || lockKind is not null && !LockAllOperations))
             {
                 SignalSchedulingChangeOnApplicationCommit(conn, sigTime, cancellationToken);
             }
@@ -204,7 +202,7 @@ public class JobStoreCMT : JobStoreSupport
         {
             try
             {
-                await ReleaseLock(requestorId, lockName!, transOwner, cancellationToken).ConfigureAwait(false);
+                await ReleaseLock(requestorId, lockKind, transOwner, cancellationToken).ConfigureAwait(false);
             }
             finally
             {

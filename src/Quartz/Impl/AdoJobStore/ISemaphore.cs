@@ -36,7 +36,7 @@ public interface ISemaphore
     ValueTask<bool> ObtainLock(
         Guid requestorId,
         ConnectionAndTransactionHolder? conn,
-        string lockName,
+        SchedulerLock lockKind,
         CancellationToken cancellationToken = default);
 
     /// <summary> Release the lock on the identified resource if it is held by the calling
@@ -44,7 +44,7 @@ public interface ISemaphore
     /// </summary>
     ValueTask ReleaseLock(
         Guid requestorId,
-        string lockName,
+        SchedulerLock lockKind,
         CancellationToken cancellationToken = default);
 
     /// <summary>

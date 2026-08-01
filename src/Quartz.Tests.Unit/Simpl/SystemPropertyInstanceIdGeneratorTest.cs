@@ -109,7 +109,7 @@ public class SystemPropertyInstanceIdGeneratorTest
         config["quartz.scheduler.instanceIdGenerator.systemPropertyName"] = "blah.blah";
         config["quartz.threadPool.threadCount"] = "1";
         config["quartz.threadPool.type"] = typeof(DefaultThreadPool).AssemblyQualifiedName;
-        config["quartz.jobStore.type"] = typeof(JobStoreTX).AssemblyQualifiedName;
+        config["quartz.jobStore.type"] = typeof(LocalTransactionJobStore).AssemblyQualifiedName;
         config["quartz.jobStore.clustered"] = "true";
         config["quartz.jobStore.dataSource"] = "MeSchedulerDatabase";
 

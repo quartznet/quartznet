@@ -47,7 +47,7 @@ public static class DatabaseHelper
 
         var properties = new NameValueCollection
         {
-            ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
+            ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz",
             ["quartz.jobStore.dataSource"] = dataSourceName,
             ["quartz.serializer.type"] = TestConstants.DefaultSerializerType,
             [$"quartz.dataSource.{dataSourceName}.provider"] = provider,

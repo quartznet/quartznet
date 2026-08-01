@@ -43,21 +43,17 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author>Marko Lahma (.NET)</author>
 public abstract class JobStoreSupport : IJobStore
 {
-    protected internal const string LockTriggerAccess = "TRIGGER_ACCESS";
-    protected internal const string LockStateAccess = "STATE_ACCESS";
-
-    private string tablePrefix = AdoConstants.DefaultTablePrefix;
-    private bool useProperties;
+    private readonly bool useProperties;
     private readonly Dictionary<string, ICalendar?> calendarCache = [];
-    private IDriverDelegate driverDelegate = null!;
+    private readonly IDriverDelegate driverDelegate;
     private TimeSpan misfireThreshold = TimeSpan.FromMinutes(1); // one minute
-    private TimeSpan? misfirehandlerFrequence;
+    private readonly TimeSpan? misfirehandlerFrequence;
 
     private ClusterManager? clusterManager;
     private MisfireHandler? misfireHandler;
-    private ITypeLoadHelper typeLoadHelper = null!;
-    private ISchedulerSignaler schedSignaler = null!;
-    internal TimeProvider timeProvider = TimeProvider.System;
+    private readonly ITypeLoadHelper typeLoadHelper;
+    private readonly ISchedulerSignaler schedSignaler;
+    internal readonly TimeProvider timeProvider;
 
     private volatile bool schedulerRunning;
     private volatile bool shutdown;
@@ -85,14 +81,14 @@ public abstract class JobStoreSupport : IJobStore
         InstanceName = schedulerOptions.Value.InstanceName;
         InstanceId = schedulerOptions.Value.InstanceId;
 
-        // Created from the runtime type, so JobStoreTX and JobStoreCMT log under their own names rather
-        // than everything arriving as JobStoreSupport.
+        // Created from the runtime type, so LocalTransactionJobStore and ExternalTransactionJobStore log
+        // under their own names rather than everything arriving as JobStoreSupport.
         Logger = LogProvider.CreateLogger(GetType().FullName!);
         ConnectionManager = connectionManager;
 
         var options = storeOptions.Value;
         DataSource = options.DataSource;
-        tablePrefix = options.TablePrefix;
+        TablePrefix = options.TablePrefix ?? "";
         useProperties = options.UseProperties;
         MisfireThreshold = options.MisfireThreshold;
         misfirehandlerFrequence = options.MisfireHandlerFrequency;
@@ -120,7 +116,7 @@ public abstract class JobStoreSupport : IJobStore
         // but the store never reads it back, so two schedulers whose data sources happen to share a name
         // cannot end up talking to each other's database.
         DbProvider = dbProvider;
-        ConnectionManager.AddConnectionProvider(DataSource, dbProvider);
+        ConnectionManager.AddDbProvider(DataSource, dbProvider);
 
         // The delegate and lock handler are chosen by configuration and built by the container, rather
         // than loaded from a type name here.
@@ -134,14 +130,14 @@ public abstract class JobStoreSupport : IJobStore
     }
 
     /// <summary>
-    /// Get or set the datasource name.
+    /// The name of the data source this store reads and writes through.
     /// </summary>
-    public string DataSource { get; set; } = "";
+    public string DataSource { get; } = "";
 
     /// <summary>
-    /// Get or set the database connection manager.
+    /// The database connection manager this store publishes its provider to.
     /// </summary>
-    public IDbConnectionManager ConnectionManager { get; set; }
+    public IDbConnectionManager ConnectionManager { get; }
 
     /// <summary>
     /// Gets the log.
@@ -150,53 +146,48 @@ public abstract class JobStoreSupport : IJobStore
     internal ILogger Logger { get; }
 
     /// <summary>
-    /// Get or sets the prefix that should be pre-pended to all table names.
+    /// The prefix pre-pended to all table names.
     /// </summary>
-    public string TablePrefix
-    {
-        get => tablePrefix;
-        set
-        {
-            if (value is null)
-            {
-                value = "";
-            }
-
-            tablePrefix = value;
-        }
-    }
+    public string TablePrefix { get; }
 
     /// <summary>
-    /// Get or set the instance Id of the Scheduler (must be unique within a cluster).
+    /// The instance id of the scheduler (unique within a cluster).
     /// </summary>
-    public string InstanceId { get; set; } = "";
+    /// <remarks>
+    /// Written once more after construction when the id is generated rather than configured, because
+    /// the store is built before the generator has run and its rows are keyed by the value.
+    /// </remarks>
+    public string InstanceId { get; internal set; } = "";
 
     /// <summary>
-    /// Get or set the instance Id of the Scheduler (must be unique within this server instance).
+    /// The name of the scheduler, shared by every node of a cluster.
     /// </summary>
-    public string InstanceName { get; set; } = "";
+    /// <inheritdoc cref="InstanceId" path="/remarks" />
+    public string InstanceName { get; internal set; } = "";
 
     /// <summary>
-    /// Gets or sets the number of retries before an error is logged for recovery operations.
+    /// The number of retries before an error is logged for recovery operations.
     /// </summary>
-    public int RetryableActionErrorLogThreshold { get; set; }
+    public int RetryableActionErrorLogThreshold { get; }
 
-    public IObjectSerializer? ObjectSerializer { get; set; }
+    /// <summary>
+    /// The serializer that turns job data and calendars into what the database stores.
+    /// </summary>
+    public IObjectSerializer? ObjectSerializer { get; }
 
     public virtual TimeSpan EstimatedTimeToReleaseAndAcquireTrigger { get; } = TimeSpan.FromMilliseconds(70);
 
     /// <summary>
-    /// Get or set whether this instance is part of a cluster.
+    /// Whether this instance is part of a cluster.
     /// </summary>
-    public bool Clustered { get; set; }
+    public bool Clustered { get; }
 
     /// <summary>
-    /// Get or set the frequency at which this instance "checks-in"
+    /// The frequency at which this instance "checks-in"
     /// with the other instances of the cluster. -- Affects the rate of
     /// detecting failed instances.
     /// </summary>
-    [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
-    public TimeSpan ClusterCheckinInterval { get; set; }
+    public TimeSpan ClusterCheckinInterval { get; }
 
     /// <summary>
     /// The time span by which a check-in must have missed its
@@ -204,50 +195,51 @@ public abstract class JobStoreSupport : IJobStore
     /// other scheduler instances in a cluster can consider a "misfired" scheduler
     /// instance as failed or dead.
     /// </summary>
-    [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
-    public TimeSpan ClusterCheckinMisfireThreshold { get; set; }
+    public TimeSpan ClusterCheckinMisfireThreshold { get; }
 
     /// <summary>
-    /// Get or set the maximum number of misfired triggers that the misfire handling
+    /// The maximum number of misfired triggers that the misfire handling
     /// thread will try to recover at one time (within one transaction).  The
     /// default is 20.
     /// </summary>
-    public int MaxMisfiresToHandleAtATime { get; set; }
+    public int MaxMisfiresToHandleAtATime { get; }
 
     /// <summary>
-    /// Gets or sets the database retry interval.
+    /// The database retry interval.
     /// </summary>
     /// <value>The db retry interval.</value>
-    [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
-    public TimeSpan DbRetryInterval { get; set; }
+    public TimeSpan DbRetryInterval { get; }
 
     /// <summary>
-    /// Gets or sets the maximum number of retries for transient database exceptions
+    /// The maximum number of retries for transient database exceptions
     /// (such as deadlocks) before giving up and propagating the exception.
     /// </summary>
     /// <remarks>
     /// Defaults to 3. A value of 0 disables transient retries. Each retry is
     /// delayed by <see cref="TransientRetryInterval"/>.
     /// </remarks>
-    public int MaxTransientRetries { get; set; }
+    public int MaxTransientRetries { get; }
 
     /// <summary>
-    /// Gets or sets the delay between automatic retries for transient database
+    /// The delay between automatic retries for transient database
     /// exceptions (such as deadlocks).
     /// </summary>
     /// <remarks>
     /// Defaults to 1 second. This is intentionally shorter than <see cref="DbRetryInterval"/>
     /// because transient errors like deadlocks resolve quickly and the retry should be
-    /// near-immediate. Set to <see cref="TimeSpan.Zero"/> for no delay between retries.
+    /// near-immediate. <see cref="TimeSpan.Zero"/> means no delay between retries.
     /// </remarks>
-    [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
-    public TimeSpan TransientRetryInterval { get; set; }
+    public TimeSpan TransientRetryInterval { get; }
 
     /// <summary>
-    /// Get or set whether this instance should use database-based thread
-    /// synchronization.
+    /// Whether this instance uses database-based thread synchronization.
     /// </summary>
-    public bool UseDbLocks { get; set; }
+    /// <remarks>
+    /// Configured through <see cref="AdoJobStoreOptions.UseDbLocks" />, and turned on by
+    /// <see cref="Initialize" /> for a configuration that cannot work without it - clustering,
+    /// enlisted transactions, and container-managed transactions.
+    /// </remarks>
+    public bool UseDbLocks { get; internal set; }
 
     /// <summary>
     /// Whether this instance may take part in a transaction the application owns, rather than always
@@ -263,12 +255,13 @@ public abstract class JobStoreSupport : IJobStore
     /// </para>
     /// <para>
     /// Taking part always means handing over a connection. Operations with nothing enlisted keep using
-    /// a connection of the job store own, and for <see cref="JobStoreTX" /> that connection is
-    /// deliberately kept out of any ambient <see cref="System.Transactions.Transaction" />: joining a
-    /// scope whose outcome the job store does not control would also put a second connection in that
-    /// transaction, which needs a distributed transaction and is not available on every provider.
-    /// <see cref="JobStoreCMT" /> is the exception - running inside a transaction its container manages
-    /// is that store contract, so its connections enlist as they always have.
+    /// a connection of the job store own, and for <see cref="LocalTransactionJobStore" /> that
+    /// connection is deliberately kept out of any ambient
+    /// <see cref="System.Transactions.Transaction" />: joining a scope whose outcome the job store does
+    /// not control would also put a second connection in that transaction, which needs a distributed
+    /// transaction and is not available on every provider.
+    /// <see cref="ExternalTransactionJobStore" /> is the exception - running inside a transaction its
+    /// container manages is that store contract, so its connections enlist as they always have.
     /// </para>
     /// <para>
     /// Because locks taken during an application-owned transaction are only released when that
@@ -276,7 +269,7 @@ public abstract class JobStoreSupport : IJobStore
     /// (<see cref="UseDbLocks" />) unless an explicit lock handler was configured.
     /// </para>
     /// </remarks>
-    public bool AcceptEnlistedTransactions { get; set; }
+    public bool AcceptEnlistedTransactions { get; }
 
     /// <summary>
     /// Whether or not to obtain locks when inserting new jobs/triggers.
@@ -296,14 +289,17 @@ public abstract class JobStoreSupport : IJobStore
     /// and triggers.
     /// </para>
     /// </remarks>
-    public virtual bool LockOnInsert { get; set; } = true;
+    public bool LockOnInsert { get; } = true;
 
     /// <summary>
     /// The time span by which a trigger must have missed its
     /// next-fire-time, in order for it to be considered "misfired" and thus
     /// have its misfire instruction applied.
     /// </summary>
-    [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
+    /// <remarks>
+    /// The one configuration value that stays settable on both stores: it is read on every misfire
+    /// pass rather than only at startup, and a test or an operator tool changes it on a live store.
+    /// </remarks>
     public virtual TimeSpan MisfireThreshold
     {
         get => misfireThreshold;
@@ -318,34 +314,19 @@ public abstract class JobStoreSupport : IJobStore
     }
 
     /// <summary>
-    /// How often should the misfire handler check for misfires. Defaults to
+    /// How often the misfire handler checks for misfires. Defaults to
     /// <see cref="MisfireThreshold"/>.
     /// </summary>
-    [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
-    public virtual TimeSpan MisfireHandlerFrequency
-    {
-        get { return misfirehandlerFrequence.GetValueOrDefault(MisfireThreshold); }
-        set
-        {
-            if (value.TotalMilliseconds < 1)
-            {
-                Throw.ArgumentException("MisfireHandlerFrequency must be larger than 0");
-            }
-            misfirehandlerFrequence = value;
-        }
-    }
+    public TimeSpan MisfireHandlerFrequency => misfirehandlerFrequence.GetValueOrDefault(MisfireThreshold);
 
     /// <summary>
-    /// Don't call set autocommit(false) on connections obtained from the
-    /// DataSource. This can be helpful in a few situations, such as if you
-    /// have a driver that complains if it is called when it is already off.
+    /// Whether the transaction isolation level of the connections this store opens is serializable.
     /// </summary>
-    public virtual bool DontSetAutoCommitFalse { get; set; }
-
-    /// <summary>
-    /// Set the transaction isolation level of DB connections to sequential.
-    /// </summary>
-    public virtual bool TxIsolationLevelSerializable { get; set; }
+    /// <remarks>
+    /// Configured through <see cref="AdoJobStoreOptions.TxIsolationLevelSerializable" />, and turned on
+    /// by <see cref="Initialize" /> for SQLite, which needs it.
+    /// </remarks>
+    public bool TxIsolationLevelSerializable { get; internal set; }
 
     /// <summary>
     /// Whether or not the query and update to acquire a Trigger for firing
@@ -358,7 +339,7 @@ public abstract class JobStoreSupport : IJobStore
     /// However, if batch acquisition is used, it is important for this behavior
     /// to be used for all dbs.
     /// </remarks>
-    public bool AcquireTriggersWithinLock { get; set; }
+    public bool AcquireTriggersWithinLock { get; internal set; }
 
     /// <summary>
     /// When true, all operations (including reads) acquire a lock before
@@ -368,59 +349,64 @@ public abstract class JobStoreSupport : IJobStore
     internal bool LockAllOperations { get; set; }
 
     /// <summary>
-    /// Get or set the ADO.NET driver delegate class name.
-    /// </summary>
-    public virtual string DriverDelegateType { get; set; } = null!;
-
-    /// <summary>
     /// The driver delegate's initialization string.
     /// </summary>
-    public string? DriverDelegateInitString { get; set; }
+    public string? DriverDelegateInitString { get; }
 
     /// <summary>
-    /// set the SQL statement to use to select and lock a row in the "locks"
-    /// table.
+    /// The SQL statement used to select and lock a row in the "locks" table.
     /// </summary>
+    /// <remarks>
+    /// Configured through <see cref="AdoJobStoreOptions.SelectWithLockSql" />, and defaulted by
+    /// <see cref="Initialize" /> to the SQL Server specific statement when that is the database in use.
+    /// </remarks>
     /// <seealso cref="StdRowLockSemaphore" />
-    public virtual string? SelectWithLockSql { get; set; }
+    public string? SelectWithLockSql { get; internal set; }
 
     protected virtual ITypeLoadHelper TypeLoadHelper => typeLoadHelper;
 
     /// <summary>
-    /// Get whether the threads spawned by this JobStore should be
+    /// Whether the threads spawned by this JobStore are
     /// marked as daemon.  Possible threads include the <see cref="MisfireHandler" />
     /// and the <see cref="ClusterManager"/>.
     /// </summary>
-    /// <returns></returns>
-    public bool MakeThreadsDaemons { get; set; }
+    public bool MakeThreadsDaemons { get; }
 
     /// <summary>
-    /// Get whether to check to see if there are Triggers that have misfired
+    /// Whether to check to see if there are Triggers that have misfired
     /// before actually acquiring the lock to recover them.  This should be
     /// set to false if the majority of the time, there are misfired
     /// Triggers.
     /// </summary>
-    /// <returns></returns>
-    public bool DoubleCheckLockMisfireHandler { get; set; }
+    public bool DoubleCheckLockMisfireHandler { get; }
 
     /// <summary>
     /// Whether to perform a schema check on scheduler startup and try to determine if correct tables are in place.
     /// Defaults to true.
     /// </summary>
-    public bool PerformSchemaValidation { get; set; } = true;
+    public bool PerformSchemaValidation { get; } = true;
 
     public virtual TimeSpan GetAcquireRetryDelay(int failureCount) => DbRetryInterval;
 
     protected DbMetadata DbMetadata => DbProvider.Metadata;
 
-    protected abstract ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection(CancellationToken cancellationToken = default);
+    protected abstract ValueTask<ConnectionAndTransactionHolder> GetLocalTransactionConnection(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns the connection the application enlisted for this scheduler on the current
     /// asynchronous flow, or <see langword="null" /> when enlisted transactions are not accepted or
     /// nothing is enlisted. The returned holder does not own the connection or the transaction.
     /// </summary>
-    private protected async ValueTask<ConnectionAndTransactionHolder?> GetEnlistedConnection(CancellationToken cancellationToken = default)
+    /// <remarks>
+    /// A store that overrides <see cref="GetLocalTransactionConnection" /> has to start with this, or
+    /// it silently opens a connection of its own while the caller believes the scheduling is part of
+    /// their transaction. Everything an enlistment needs in order to be safe to use happens here: the
+    /// transaction is checked to be alive and still current, the provider is checked to match, the
+    /// connection is opened if it is not, and it is booked out for the duration of the operation so
+    /// two concurrent scheduler calls cannot share it. Cleaning the returned holder up through
+    /// <see cref="CleanupConnection" /> hands the booking back.
+    /// </remarks>
+    protected async ValueTask<ConnectionAndTransactionHolder?> GetEnlistedConnection(CancellationToken cancellationToken = default)
     {
         var enlisted = AmbientConnection.Get(InstanceName);
         if (enlisted is null)
@@ -627,10 +613,10 @@ public abstract class JobStoreSupport : IJobStore
     /// </summary>
     private void InitializeDelegate()
     {
-        driverDelegate!.Initialize(new DelegateInitializationArgs
+        driverDelegate.Initialize(new DelegateInitializationArgs
         {
             UseProperties = CanUseProperties,
-            TablePrefix = tablePrefix,
+            TablePrefix = TablePrefix,
             InstanceName = InstanceName,
             InstanceId = InstanceId,
             DbProvider = DbProvider,
@@ -645,7 +631,7 @@ public abstract class JobStoreSupport : IJobStore
     /// The driver delegate this store speaks to its database through.
     /// </summary>
 #pragma warning disable CA1716
-    protected virtual IDriverDelegate Delegate => driverDelegate!;
+    protected virtual IDriverDelegate Delegate => driverDelegate;
 #pragma warning restore CA1716
 
     /// <summary>
@@ -813,11 +799,11 @@ public abstract class JobStoreSupport : IJobStore
             Logger.LogWarning("Delegate type '{DelegateType}' overrides the database date/time or time-span storage format. The preferred-node (node affinity) liveness check compares raw checkin values in SQL assuming the default tick storage, so a trigger pinned to a node may not fail over correctly. Keep the default storage format, or override the preferred-node acquisition SQL to match your format.", Delegate.GetType().FullName);
         }
 
-        if (PerformSchemaValidation && driverDelegate is StdAdoDelegate adoDelegate)
+        if (PerformSchemaValidation)
         {
             try
             {
-                var objectCount = await ExecuteWithoutLock<int>(conn => adoDelegate.ValidateSchema(conn, cancellationToken), cancellationToken).ConfigureAwait(false);
+                var objectCount = await ExecuteWithoutLock<int>(conn => Delegate.ValidateSchema(conn, cancellationToken), cancellationToken).ConfigureAwait(false);
                 Logger.LogInformation("Successfully validated presence of {SchemaObjectCount} schema objects", objectCount);
             }
             catch (Exception ex)
@@ -959,15 +945,15 @@ public abstract class JobStoreSupport : IJobStore
 
     protected virtual async ValueTask ReleaseLock(
         Guid requestorId,
-        string lockName,
+        SchedulerLock? lockKind,
         bool doIt,
         CancellationToken cancellationToken = default)
     {
-        if (doIt)
+        if (doIt && lockKind is not null)
         {
             try
             {
-                await LockHandler.ReleaseLock(requestorId, lockName, cancellationToken).ConfigureAwait(false);
+                await LockHandler.ReleaseLock(requestorId, lockKind.Value, cancellationToken).ConfigureAwait(false);
             }
             catch (LockException le)
             {
@@ -980,10 +966,10 @@ public abstract class JobStoreSupport : IJobStore
     /// Will recover any failed or misfired jobs and clean up the data store as
     /// appropriate.
     /// </summary>
-    protected virtual ValueTask<bool> RecoverJobs(CancellationToken cancellationToken = default)
+    protected virtual ValueTask RecoverJobs(CancellationToken cancellationToken = default)
     {
-        return ExecuteInNonManagedTXLock(
-            LockTriggerAccess,
+        return ExecuteInLocalTransactionLock(
+            SchedulerLock.TriggerAccess,
             conn => RecoverJobs(conn, cancellationToken),
             cancellationToken);
     }
@@ -999,11 +985,9 @@ public abstract class JobStoreSupport : IJobStore
         try
         {
             // update inconsistent job states
-            int rows = await Delegate.UpdateTriggerStatesFromOtherStates(conn, AdoConstants.StateWaiting, AdoConstants.StateAcquired, AdoConstants.StateBlocked, cancellationToken).ConfigureAwait(false);
+            int rows = await Delegate.UpdateTriggerStatesFromOtherStates(conn, StoredTriggerState.Waiting, [StoredTriggerState.Acquired, StoredTriggerState.Blocked], cancellationToken).ConfigureAwait(false);
 
-            rows += await Delegate.UpdateTriggerStatesFromOtherStates(conn, AdoConstants.StatePaused,
-                AdoConstants.StatePausedBlocked,
-                AdoConstants.StatePausedBlocked, cancellationToken).ConfigureAwait(false);
+            rows += await Delegate.UpdateTriggerStatesFromOtherStates(conn, StoredTriggerState.Paused, [StoredTriggerState.PausedBlocked], cancellationToken).ConfigureAwait(false);
 
             Logger.LogInformation("Freed {Count} triggers from 'acquired' / 'blocked' state.", rows);
 
@@ -1019,13 +1003,13 @@ public abstract class JobStoreSupport : IJobStore
                 if (await JobExists(conn, trigger.JobKey, cancellationToken).ConfigureAwait(false))
                 {
                     trigger.ComputeFirstFireTimeUtc(null);
-                    await AddTrigger(conn, trigger, null, false, AdoConstants.StateWaiting, false, true, cancellationToken).ConfigureAwait(false);
+                    await AddTrigger(conn, trigger, null, false, StoredTriggerState.Waiting, false, true, cancellationToken).ConfigureAwait(false);
                 }
             }
             Logger.LogInformation("Recovery complete.");
 
             // remove lingering 'complete' triggers...
-            var triggersInState = await Delegate.SelectTriggersInState(conn, AdoConstants.StateComplete, cancellationToken).ConfigureAwait(false);
+            var triggersInState = await Delegate.SelectTriggersInState(conn, StoredTriggerState.Complete, cancellationToken).ConfigureAwait(false);
             foreach (var trigger in triggersInState)
             {
                 await DeleteTrigger(conn, trigger, cancellationToken).ConfigureAwait(false);
@@ -1062,7 +1046,7 @@ public abstract class JobStoreSupport : IJobStore
         // Read the whole batch as fully populated triggers in one round-trip, rather than reading keys
         // and then reading each trigger back individually.
         MisfiredTriggerBatch batch =
-            await Delegate.SelectMisfiredTriggersToRecover(conn, AdoConstants.StateWaiting, MisfireTime, maxMisfiresToHandleAtATime, cancellationToken).ConfigureAwait(false);
+            await Delegate.SelectMisfiredTriggersToRecover(conn, StoredTriggerState.Waiting, MisfireTime, maxMisfiresToHandleAtATime, cancellationToken).ConfigureAwait(false);
 
         List<IOperableTrigger> misfiredTriggers = batch.Triggers;
         bool hasMoreMisfiredTriggers = batch.HasMore;
@@ -1096,7 +1080,7 @@ public abstract class JobStoreSupport : IJobStore
         {
             try
             {
-                updates.Add(await PrepareMisfiredTriggerUpdate(conn, trig, AdoConstants.StateWaiting, batchCalendarCache, cancellationToken).ConfigureAwait(false));
+                updates.Add(await PrepareMisfiredTriggerUpdate(conn, trig, StoredTriggerState.Waiting, batchCalendarCache, cancellationToken).ConfigureAwait(false));
             }
             catch (Exception e)
             {
@@ -1151,7 +1135,7 @@ public abstract class JobStoreSupport : IJobStore
     private async ValueTask<MisfiredTriggerUpdate> PrepareMisfiredTriggerUpdate(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trig,
-        string newStateIfNotComplete,
+        StoredTriggerState newStateIfNotComplete,
         Dictionary<string, ICalendar?>? calendarCache,
         CancellationToken cancellationToken)
     {
@@ -1178,7 +1162,7 @@ public abstract class JobStoreSupport : IJobStore
 
         // Determine new state.
         DateTimeOffset? newFireTime = trig.NextFireTimeUtc;
-        string newState = newFireTime.HasValue ? newStateIfNotComplete : AdoConstants.StateComplete;
+        StoredTriggerState newState = newFireTime.HasValue ? newStateIfNotComplete : StoredTriggerState.Complete;
 
         // Compute misfire-original-fire-time for "fire now" policies (folded into the single UPDATE).
         DateTimeOffset? misfireOrigFireTime = null;
@@ -1205,7 +1189,7 @@ public abstract class JobStoreSupport : IJobStore
         TimeSpan staleThreshold = StaleAcquiredTriggerThreshold;
         DateTimeOffset staleCutoff = timeProvider.GetUtcNow() - staleThreshold;
 
-        IReadOnlyCollection<FiredTriggerRecord> firedTriggers = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceName = InstanceId }, cancellationToken).ConfigureAwait(false);
+        IReadOnlyCollection<FiredTriggerRecord> firedTriggers = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceId = InstanceId }, cancellationToken).ConfigureAwait(false);
 
         int recoveredCount = 0;
         foreach (FiredTriggerRecord rec in firedTriggers)
@@ -1217,21 +1201,15 @@ public abstract class JobStoreSupport : IJobStore
                 ? rec.ScheduleTimestamp
                 : rec.FireTimestamp;
 
-            if (rec.FireInstanceState == AdoConstants.StateAcquired && effectiveTimestamp < staleCutoff)
+            if (rec.FireInstanceState == StoredTriggerState.Acquired && effectiveTimestamp < staleCutoff)
             {
-                if (rec.TriggerKey is null || rec.FireInstanceId is null)
-                {
-                    Logger.LogWarning("Skipping stale acquired trigger recovery: invalid fired trigger record (TriggerKey: '{TriggerKey}', FireInstanceId: '{FireInstanceId}')", rec.TriggerKey, rec.FireInstanceId);
-                    continue;
-                }
-
                 try
                 {
                     // Mirror ReleaseAcquiredTrigger: update from both ACQUIRED and BLOCKED,
                     // because TriggersFired may have moved the trigger to BLOCKED state (for
                     // DisallowConcurrentExecution jobs) while the fired record is still ACQUIRED.
-                    await Delegate.UpdateTriggerStateFromOtherState(conn, rec.TriggerKey, AdoConstants.StateWaiting, AdoConstants.StateAcquired, cancellationToken).ConfigureAwait(false);
-                    await Delegate.UpdateTriggerStateFromOtherState(conn, rec.TriggerKey, AdoConstants.StateWaiting, AdoConstants.StateBlocked, cancellationToken).ConfigureAwait(false);
+                    await Delegate.UpdateTriggerStateFromOtherState(conn, rec.TriggerKey, StoredTriggerState.Waiting, StoredTriggerState.Acquired, cancellationToken).ConfigureAwait(false);
+                    await Delegate.UpdateTriggerStateFromOtherState(conn, rec.TriggerKey, StoredTriggerState.Waiting, StoredTriggerState.Blocked, cancellationToken).ConfigureAwait(false);
                     await Delegate.DeleteFiredTrigger(conn, rec.FireInstanceId, cancellationToken).ConfigureAwait(false);
                     recoveredCount++;
                 }
@@ -1262,7 +1240,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         DateTimeOffset staleCutoff = timeProvider.GetUtcNow() - StaleAcquiredTriggerThreshold;
 
-        IReadOnlyCollection<FiredTriggerRecord> firedTriggers = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceName = InstanceId }, cancellationToken).ConfigureAwait(false);
+        IReadOnlyCollection<FiredTriggerRecord> firedTriggers = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceId = InstanceId }, cancellationToken).ConfigureAwait(false);
 
         foreach (FiredTriggerRecord rec in firedTriggers)
         {
@@ -1270,7 +1248,7 @@ public abstract class JobStoreSupport : IJobStore
                 ? rec.ScheduleTimestamp
                 : rec.FireTimestamp;
 
-            if (rec.FireInstanceState == AdoConstants.StateAcquired && effectiveTimestamp < staleCutoff)
+            if (rec.FireInstanceState == StoredTriggerState.Acquired && effectiveTimestamp < staleCutoff)
             {
                 return true;
             }
@@ -1282,7 +1260,7 @@ public abstract class JobStoreSupport : IJobStore
     protected virtual async ValueTask<bool> UpdateMisfiredTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
-        string newStateIfNotComplete,
+        StoredTriggerState newStateIfNotComplete,
         bool forceState,
         CancellationToken cancellationToken = default)
     {
@@ -1313,7 +1291,7 @@ public abstract class JobStoreSupport : IJobStore
     }
 
     private async ValueTask DoUpdateOfMisfiredTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trig,
-        bool forceState, string newStateIfNotComplete, bool recovering)
+        bool forceState, StoredTriggerState newStateIfNotComplete, bool recovering)
     {
         ICalendar? calendar = null;
         if (trig.CalendarName is not null)
@@ -1330,7 +1308,7 @@ public abstract class JobStoreSupport : IJobStore
 
         if (!trig.NextFireTimeUtc.HasValue)
         {
-            await AddTrigger(conn, trig, null, true, AdoConstants.StateComplete, forceState, recovering).ConfigureAwait(false);
+            await AddTrigger(conn, trig, null, true, StoredTriggerState.Complete, forceState, recovering).ConfigureAwait(false);
             await schedSignaler.NotifySchedulerListenersFinalized(trig).ConfigureAwait(false);
         }
         else
@@ -1353,7 +1331,7 @@ public abstract class JobStoreSupport : IJobStore
     /// <summary>
     /// Optimized misfire update path that bypasses the AddTrigger method's unnecessary
     /// queries (existence check, pause-group checks, job retrieval, blocked-state check,
-    /// trigger-type lookup). Safe when the caller already holds <c>LockTriggerAccess</c>
+    /// trigger-type lookup). Safe when the caller already holds <c>SchedulerLock.TriggerAccess</c>
     /// and has determined the trigger's persisted state and corresponding
     /// <paramref name="newStateIfNotComplete"/> to use across the misfire update.
     /// This covers triggers found in WAITING state during batch recovery as well as
@@ -1362,7 +1340,7 @@ public abstract class JobStoreSupport : IJobStore
     private async ValueTask DoUpdateOfMisfiredTriggerOptimized(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trig,
-        string newStateIfNotComplete,
+        StoredTriggerState newStateIfNotComplete,
         CancellationToken cancellationToken)
     {
         MisfiredTriggerUpdate update = await PrepareMisfiredTriggerUpdate(conn, trig, newStateIfNotComplete, calendarCache: null, cancellationToken).ConfigureAwait(false);
@@ -1389,10 +1367,10 @@ public abstract class JobStoreSupport : IJobStore
     {
         await activityTracer.Trace(
             OperationName.JobStore.ScheduleJob,
-            () => ExecuteInLock<object?>(LockOnInsert ? LockTriggerAccess : null, async conn =>
+            () => ExecuteInLock<object?>(LockOnInsert ? SchedulerLock.TriggerAccess : null, async conn =>
             {
                 await AddJob(conn, job, false, cancellationToken).ConfigureAwait(false);
-                await AddTrigger(conn, trigger, job, false, AdoConstants.StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
+                await AddTrigger(conn, trigger, job, false, StoredTriggerState.Waiting, false, false, cancellationToken).ConfigureAwait(false);
                 return null;
             }, cancellationToken),
             activity =>
@@ -1418,7 +1396,7 @@ public abstract class JobStoreSupport : IJobStore
         await activityTracer.Trace(
             OperationName.JobStore.AddJob,
             () => ExecuteInLock(
-                LockOnInsert || replace ? LockTriggerAccess : null,
+                LockOnInsert || replace ? SchedulerLock.TriggerAccess : null,
                 conn => AddJob(conn, job, replace, cancellationToken),
                 cancellationToken),
             activity =>
@@ -1505,8 +1483,8 @@ public abstract class JobStoreSupport : IJobStore
         await activityTracer.Trace(
             OperationName.JobStore.AddTrigger,
             () => ExecuteInLock(
-                LockOnInsert || replace ? LockTriggerAccess : null,
-                conn => AddTrigger(conn, trigger, null, replace, AdoConstants.StateWaiting, false, false, cancellationToken),
+                LockOnInsert || replace ? SchedulerLock.TriggerAccess : null,
+                conn => AddTrigger(conn, trigger, null, replace, StoredTriggerState.Waiting, false, false, cancellationToken),
                 cancellationToken),
             activity =>
             {
@@ -1523,7 +1501,7 @@ public abstract class JobStoreSupport : IJobStore
         IOperableTrigger newTrigger,
         IJobDetail? job,
         bool replace,
-        string state,
+        StoredTriggerState state,
         bool forceState,
         bool recovering,
         CancellationToken cancellationToken = default)
@@ -1551,9 +1529,9 @@ public abstract class JobStoreSupport : IJobStore
                     }
                 }
 
-                if (shouldBepaused && state is AdoConstants.StateWaiting or AdoConstants.StateAcquired)
+                if (shouldBepaused && state is StoredTriggerState.Waiting or StoredTriggerState.Acquired)
                 {
-                    state = AdoConstants.StatePaused;
+                    state = StoredTriggerState.Paused;
                 }
             }
 
@@ -1635,7 +1613,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         return activityTracer.Trace(
             OperationName.JobStore.DeleteJob,
-            () => ExecuteInLock(LockTriggerAccess, conn => DeleteJob(conn, jobKey, true, cancellationToken), cancellationToken),
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => DeleteJob(conn, jobKey, true, cancellationToken), cancellationToken),
             activity =>
             {
                 activity.SetTag(ActivityOptions.JobGroup, jobKey.Group);
@@ -1674,7 +1652,7 @@ public abstract class JobStoreSupport : IJobStore
         return activityTracer.Trace(
             OperationName.JobStore.DeleteJobs,
             () => ExecuteInLock(
-                LockTriggerAccess, async conn =>
+                SchedulerLock.TriggerAccess, async conn =>
                 {
                     bool allFound = true;
 
@@ -1695,7 +1673,7 @@ public abstract class JobStoreSupport : IJobStore
         return activityTracer.Trace(
             OperationName.JobStore.DeleteTriggers,
             () => ExecuteInLock(
-                LockTriggerAccess,
+                SchedulerLock.TriggerAccess,
                 async conn =>
                 {
                     bool allFound = true;
@@ -1715,7 +1693,7 @@ public abstract class JobStoreSupport : IJobStore
         await activityTracer.Trace(
             OperationName.JobStore.ScheduleJobs,
             () => ExecuteInLock(
-                LockOnInsert || replace ? LockTriggerAccess : null, async conn =>
+                LockOnInsert || replace ? SchedulerLock.TriggerAccess : null, async conn =>
                 {
                     // TODO: make this more efficient with a true bulk operation...
                     foreach (var pair in triggersAndJobs)
@@ -1725,7 +1703,7 @@ public abstract class JobStoreSupport : IJobStore
                         await AddJob(conn, job, replace, cancellationToken).ConfigureAwait(false);
                         foreach (var trigger in triggers)
                         {
-                            await AddTrigger(conn, (IOperableTrigger) trigger, job, replace, AdoConstants.StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
+                            await AddTrigger(conn, (IOperableTrigger) trigger, job, replace, StoredTriggerState.Waiting, false, false, cancellationToken).ConfigureAwait(false);
                         }
                     }
                 }, cancellationToken)).ConfigureAwait(false);
@@ -1843,7 +1821,7 @@ public abstract class JobStoreSupport : IJobStore
         return activityTracer.Trace(
             OperationName.JobStore.DeleteTrigger,
             () => ExecuteInLock(
-                LockTriggerAccess,
+                SchedulerLock.TriggerAccess,
                 conn => DeleteTrigger(conn, triggerKey, cancellationToken),
                 cancellationToken),
             activity =>
@@ -1874,7 +1852,7 @@ public abstract class JobStoreSupport : IJobStore
             // we use fault tolerant type loading as we only want to delete things
             if (job is null)
             {
-                job = await Delegate.SelectJobForTrigger(conn, triggerKey, new NullJobTypeLoader(), false, cancellationToken).ConfigureAwait(false);
+                job = await Delegate.SelectJobForTrigger(conn, triggerKey, new NullJobTypeLoader(), loadJobType: false, cancellationToken).ConfigureAwait(false);
             }
 
             removedTrigger = await DeleteTriggerAndChildren(conn, triggerKey, cancellationToken).ConfigureAwait(false);
@@ -1918,7 +1896,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         return activityTracer.Trace(
             OperationName.JobStore.ReplaceTrigger,
-            () => ExecuteInLock(LockTriggerAccess,
+            () => ExecuteInLock(SchedulerLock.TriggerAccess,
                 conn => ReplaceTrigger(conn, triggerKey, trigger, cancellationToken),
                 cancellationToken),
             activity =>
@@ -1937,7 +1915,7 @@ public abstract class JobStoreSupport : IJobStore
         try
         {
             // this must be called before we delete the trigger, obviously
-            var job = await Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoadHelper, cancellationToken: cancellationToken).ConfigureAwait(false);
+            var job = await Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoadHelper, loadJobType: true, cancellationToken).ConfigureAwait(false);
 
             if (job is null)
             {
@@ -1951,7 +1929,7 @@ public abstract class JobStoreSupport : IJobStore
 
             bool removedTrigger = await DeleteTriggerAndChildren(conn, triggerKey, cancellationToken).ConfigureAwait(false);
 
-            await AddTrigger(conn, newTrigger, job, false, AdoConstants.StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
+            await AddTrigger(conn, newTrigger, job, false, StoredTriggerState.Waiting, false, false, cancellationToken).ConfigureAwait(false);
 
             return removedTrigger;
         }
@@ -1971,7 +1949,7 @@ public abstract class JobStoreSupport : IJobStore
         return activityTracer.Trace(
             OperationName.JobStore.UpdateTriggerDetails,
             () => ExecuteInLock(
-                LockTriggerAccess,
+                SchedulerLock.TriggerAccess,
                 conn => UpdateTriggerDetails(conn, triggerKey, update, cancellationToken),
                 cancellationToken),
             activity =>
@@ -2050,8 +2028,8 @@ public abstract class JobStoreSupport : IJobStore
                 existing.PreferredNode = update.PreferredNode;
             }
 
-            string state = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-            IJobDetail? job = await Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoadHelper, cancellationToken: cancellationToken).ConfigureAwait(false);
+            StoredTriggerState state = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+            IJobDetail? job = await Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoadHelper, loadJobType: true, cancellationToken).ConfigureAwait(false);
 
             if (job is null)
             {
@@ -2149,7 +2127,7 @@ public abstract class JobStoreSupport : IJobStore
         await activityTracer.Trace(
             OperationName.JobStore.ResetTriggerFromErrorState,
             () => ExecuteInLock(
-                LockTriggerAccess,
+                SchedulerLock.TriggerAccess,
                 conn => ResetTriggerFromErrorState(conn, triggerKey, cancellationToken),
                 cancellationToken),
             activity =>
@@ -2166,14 +2144,14 @@ public abstract class JobStoreSupport : IJobStore
     {
         try
         {
-            var newState = AdoConstants.StateWaiting;
+            StoredTriggerState newState = StoredTriggerState.Waiting;
 
             if (await Delegate.IsTriggerGroupPaused(conn, triggerKey.Group, cancellationToken).ConfigureAwait(false))
             {
-                newState = AdoConstants.StatePaused;
+                newState = StoredTriggerState.Paused;
             }
 
-            await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, AdoConstants.StateError, cancellationToken).ConfigureAwait(false);
+            await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
 
             Logger.LogInformation("Trigger {TriggerKey} reset from ERROR state to: {NewState}", triggerKey, newState);
         }
@@ -2207,7 +2185,7 @@ public abstract class JobStoreSupport : IJobStore
         await activityTracer.Trace(
             OperationName.JobStore.AddCalendar,
             () => ExecuteInLock(
-                LockOnInsert || options.UpdateTriggers ? LockTriggerAccess : null,
+                LockOnInsert || options.UpdateTriggers ? SchedulerLock.TriggerAccess : null,
                 conn => AddCalendar(conn, calendarName, calendar, options, cancellationToken),
                 cancellationToken)).ConfigureAwait(false);
     }
@@ -2241,8 +2219,8 @@ public abstract class JobStoreSupport : IJobStore
                     foreach (IOperableTrigger trigger in triggers)
                     {
                         trigger.UpdateWithNewCalendar(calendar, MisfireThreshold);
-                        string triggerState = await Delegate.SelectTriggerState(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
-                        if (string.Equals(triggerState, AdoConstants.StateDeleted, StringComparison.Ordinal))
+                        StoredTriggerState triggerState = await Delegate.SelectTriggerState(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+                        if (triggerState == StoredTriggerState.Deleted)
                         {
                             continue;
                         }
@@ -2310,7 +2288,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         return activityTracer.Trace(
             OperationName.JobStore.DeleteCalendar,
-            () => ExecuteInLock(LockTriggerAccess, conn => DeleteCalendar(conn, calendarName, cancellationToken), cancellationToken));
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => DeleteCalendar(conn, calendarName, cancellationToken), cancellationToken));
     }
 
     protected virtual async ValueTask<bool> DeleteCalendar(
@@ -2479,7 +2457,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         await activityTracer.Trace(
             OperationName.JobStore.Clear,
-            () => ExecuteInLock(LockTriggerAccess, conn => Clear(conn, cancellationToken), cancellationToken)).ConfigureAwait(false);
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => Clear(conn, cancellationToken), cancellationToken)).ConfigureAwait(false);
     }
 
     protected async ValueTask Clear(
@@ -2728,7 +2706,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         await activityTracer.Trace(
             OperationName.JobStore.PauseTrigger,
-            () => ExecuteInLock(LockTriggerAccess, conn => PauseTrigger(conn, triggerKey, cancellationToken), cancellationToken),
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => PauseTrigger(conn, triggerKey, cancellationToken), cancellationToken),
             activity =>
             {
                 activity.SetTag(ActivityOptions.TriggerGroup, triggerKey.Group);
@@ -2746,15 +2724,15 @@ public abstract class JobStoreSupport : IJobStore
     {
         try
         {
-            string oldState = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+            StoredTriggerState oldState = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);
 
-            if (oldState is AdoConstants.StateWaiting or AdoConstants.StateAcquired)
+            if (oldState is StoredTriggerState.Waiting or StoredTriggerState.Acquired)
             {
-                await Delegate.UpdateTriggerState(conn, triggerKey, AdoConstants.StatePaused, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerState(conn, triggerKey, StoredTriggerState.Paused, cancellationToken).ConfigureAwait(false);
             }
-            else if (oldState == AdoConstants.StateBlocked)
+            else if (oldState == StoredTriggerState.Blocked)
             {
-                await Delegate.UpdateTriggerState(conn, triggerKey, AdoConstants.StatePausedBlocked, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerState(conn, triggerKey, StoredTriggerState.PausedBlocked, cancellationToken).ConfigureAwait(false);
             }
         }
         catch (Exception e)
@@ -2772,7 +2750,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         await activityTracer.Trace(
             OperationName.JobStore.PauseJob,
-            () => ExecuteInLock(LockTriggerAccess, async conn =>
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
             {
                 var triggers = await GetTriggersForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
                 foreach (IOperableTrigger trigger in triggers)
@@ -2796,7 +2774,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         return activityTracer.Trace(
             OperationName.JobStore.PauseJobs,
-            () => ExecuteInLock(LockTriggerAccess, async conn =>
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
             {
                 var groupNames = new HashSet<string>();
                 var jobNames = await GetJobNames(conn, matcher, cancellationToken).ConfigureAwait(false);
@@ -2816,31 +2794,19 @@ public abstract class JobStoreSupport : IJobStore
     }
 
     /// <summary>
-    /// Checks whether the given job currently has a fired trigger in EXECUTING state.
-    /// Used to enforce <see cref="DisallowConcurrentExecutionAttribute"/> across cluster nodes.
-    /// </summary>
-    private ValueTask<bool> IsJobCurrentlyExecuting(
-        ConnectionAndTransactionHolder conn,
-        JobKey jobKey,
-        CancellationToken cancellationToken = default)
-    {
-        return Delegate.IsJobCurrentlyExecuting(conn, jobKey.Name, jobKey.Group, cancellationToken);
-    }
-
-    /// <summary>
     /// Determines if a Trigger for the given job should be blocked.
     /// State can only transition to StatePausedBlocked/StateBlocked from
     /// StatePaused/StateWaiting respectively.
     /// </summary>
     /// <returns>StatePausedBlocked, StateBlocked, or the currentState. </returns>
-    protected virtual async ValueTask<string> CheckBlockedState(
+    protected virtual async ValueTask<StoredTriggerState> CheckBlockedState(
         ConnectionAndTransactionHolder conn,
         JobKey jobKey,
-        string currentState,
+        StoredTriggerState currentState,
         CancellationToken cancellationToken = default)
     {
         // State can only transition to BLOCKED from PAUSED or WAITING.
-        if (currentState != AdoConstants.StateWaiting && currentState != AdoConstants.StatePaused)
+        if (currentState != StoredTriggerState.Waiting && currentState != StoredTriggerState.Paused)
         {
             return currentState;
         }
@@ -2854,7 +2820,7 @@ public abstract class JobStoreSupport : IJobStore
                 FiredTriggerRecord rec = lst[0];
                 if (rec.JobDisallowsConcurrentExecution) // TODO: worry about failed/recovering/volatile job  states?
                 {
-                    return AdoConstants.StatePaused == currentState ? AdoConstants.StatePausedBlocked : AdoConstants.StateBlocked;
+                    return StoredTriggerState.Paused == currentState ? StoredTriggerState.PausedBlocked : StoredTriggerState.Blocked;
                 }
             }
 
@@ -2871,7 +2837,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         await activityTracer.Trace(
             OperationName.JobStore.ResumeTrigger,
-            () => ExecuteInLock(LockTriggerAccess, conn => ResumeTrigger(conn, triggerKey, cancellationToken), cancellationToken),
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => ResumeTrigger(conn, triggerKey, cancellationToken), cancellationToken),
             activity =>
             {
                 activity.SetTag(ActivityOptions.TriggerGroup, triggerKey.Group);
@@ -2894,16 +2860,16 @@ public abstract class JobStoreSupport : IJobStore
     {
         try
         {
-            TriggerStatus? status = await Delegate.SelectTriggerStatus(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+            StoredTriggerHeader? status = await Delegate.SelectTriggerHeader(conn, triggerKey, cancellationToken).ConfigureAwait(false);
 
             if (status?.NextFireTimeUtc is null || status.NextFireTimeUtc == DateTimeOffset.MinValue)
             {
                 return;
             }
 
-            bool blocked = AdoConstants.StatePausedBlocked == status.Status;
+            bool blocked = status.State == StoredTriggerState.PausedBlocked;
 
-            string newState = await CheckBlockedState(conn, status.JobKey, AdoConstants.StateWaiting, cancellationToken).ConfigureAwait(false);
+            StoredTriggerState newState = await CheckBlockedState(conn, status.JobKey, StoredTriggerState.Waiting, cancellationToken).ConfigureAwait(false);
 
             bool misfired = false;
 
@@ -2916,11 +2882,11 @@ public abstract class JobStoreSupport : IJobStore
             {
                 if (blocked)
                 {
-                    await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, AdoConstants.StatePausedBlocked, cancellationToken).ConfigureAwait(false);
+                    await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, StoredTriggerState.PausedBlocked, cancellationToken).ConfigureAwait(false);
                 }
                 else
                 {
-                    await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, AdoConstants.StatePaused, cancellationToken).ConfigureAwait(false);
+                    await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, StoredTriggerState.Paused, cancellationToken).ConfigureAwait(false);
                 }
             }
         }
@@ -2944,7 +2910,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         await activityTracer.Trace(
             OperationName.JobStore.ResumeJob,
-            () => ExecuteInLock(LockTriggerAccess, async conn =>
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
             {
                 var triggers = await GetTriggersForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
                 foreach (IOperableTrigger trigger in triggers)
@@ -2973,7 +2939,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         return activityTracer.Trace(
             OperationName.JobStore.ResumeJobs,
-            () => ExecuteInLock(LockTriggerAccess, async conn =>
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
             {
                 var jobKeys = await GetJobNames(conn, matcher, cancellationToken).ConfigureAwait(false);
                 var groupNames = new HashSet<string>();
@@ -3002,7 +2968,7 @@ public abstract class JobStoreSupport : IJobStore
         return activityTracer.Trace(
             OperationName.JobStore.PauseTriggers,
             () => ExecuteInLock(
-                LockTriggerAccess,
+                SchedulerLock.TriggerAccess,
                 conn => PauseTriggerGroup(conn, matcher, cancellationToken),
                 cancellationToken));
     }
@@ -3014,12 +2980,11 @@ public abstract class JobStoreSupport : IJobStore
     {
         try
         {
-            await Delegate.UpdateTriggerGroupStateFromOtherStates(conn, matcher, AdoConstants.StatePaused,
-                AdoConstants.StateAcquired, AdoConstants.StateWaiting,
-                AdoConstants.StateWaiting, cancellationToken).ConfigureAwait(false);
+            await Delegate.UpdateTriggerGroupStateFromOtherStates(conn, matcher, StoredTriggerState.Paused,
+                [StoredTriggerState.Acquired, StoredTriggerState.Waiting], cancellationToken).ConfigureAwait(false);
 
-            await Delegate.UpdateTriggerGroupStateFromOtherState(conn, matcher, AdoConstants.StatePausedBlocked,
-                AdoConstants.StateBlocked, cancellationToken).ConfigureAwait(false);
+            await Delegate.UpdateTriggerGroupStateFromOtherState(conn, matcher, StoredTriggerState.PausedBlocked,
+                StoredTriggerState.Blocked, cancellationToken).ConfigureAwait(false);
 
             var groups = new List<string>(await Delegate.SelectTriggerGroups(conn, matcher, cancellationToken).ConfigureAwait(false));
 
@@ -3054,7 +3019,7 @@ public abstract class JobStoreSupport : IJobStore
         return activityTracer.Trace(
             OperationName.JobStore.ResumeTriggers,
             () => ExecuteInLock(
-                LockTriggerAccess, conn => ResumeTriggers(conn, matcher, cancellationToken),
+                SchedulerLock.TriggerAccess, conn => ResumeTriggers(conn, matcher, cancellationToken),
                 cancellationToken));
     }
 
@@ -3097,7 +3062,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         await activityTracer.Trace(
             OperationName.JobStore.PauseAll,
-            () => ExecuteInLock(LockTriggerAccess, conn => PauseAll(conn, cancellationToken), cancellationToken)).ConfigureAwait(false);
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => PauseAll(conn, cancellationToken), cancellationToken)).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -3146,7 +3111,7 @@ public abstract class JobStoreSupport : IJobStore
     {
         await activityTracer.Trace(
             OperationName.JobStore.ResumeAll,
-            () => ExecuteInLock(LockTriggerAccess, conn => ResumeAll(conn, cancellationToken), cancellationToken)).ConfigureAwait(false);
+            () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => ResumeAll(conn, cancellationToken), cancellationToken)).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -3193,25 +3158,26 @@ public abstract class JobStoreSupport : IJobStore
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        string? lockName;
+        SchedulerLock? lockKind;
         if (AcquireTriggersWithinLock || request.MaxCount > 1)
         {
-            lockName = LockTriggerAccess;
+            lockKind = SchedulerLock.TriggerAccess;
         }
         else
         {
-            lockName = null;
+            lockKind = null;
         }
 
         return activityTracer.Trace(
             OperationName.JobStore.AcquireNextTriggers,
-            () => ExecuteInNonManagedTXLock(
-                lockName,
-                conn => AcquireNextTrigger(conn, request, cancellationToken), async (conn, result) =>
+            () => ExecuteInLocalTransactionLock(
+                lockKind,
+                conn => AcquireNextTrigger(conn, request, cancellationToken),
+                async (conn, result) =>
                 {
                     try
                     {
-                        var acquired = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceName = InstanceId }, cancellationToken).ConfigureAwait(false);
+                        var acquired = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceId = InstanceId }, cancellationToken).ConfigureAwait(false);
                         var fireInstanceIds = new HashSet<string>();
                         foreach (FiredTriggerRecord ft in acquired)
                         {
@@ -3232,7 +3198,7 @@ public abstract class JobStoreSupport : IJobStore
                         return default;
                     }
                 },
-                cancellationToken),
+                cancellationToken: cancellationToken),
             activity => activity.SetTag(ActivityOptions.BatchSize, request.MaxCount));
     }
 
@@ -3285,7 +3251,7 @@ public abstract class JobStoreSupport : IJobStore
 
                 foreach (var result in results)
                 {
-                    var triggerKey = new TriggerKey(result.TriggerName, result.TriggerGroup);
+                    TriggerKey triggerKey = result.TriggerKey;
 
                     // If our trigger is no longer available, try a new one.
                     var nextTrigger = await GetTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
@@ -3306,7 +3272,7 @@ public abstract class JobStoreSupport : IJobStore
                         try
                         {
                             Logger.LogError(e, "Error retrieving job, setting trigger state to ERROR.");
-                            await Delegate.UpdateTriggerState(conn, triggerKey, AdoConstants.StateError, cancellationToken).ConfigureAwait(false);
+                            await Delegate.UpdateTriggerState(conn, triggerKey, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
 
                             // A trigger whose job type will not load stops firing here and is reported
                             // nowhere else - not even through SchedulerError. Inline, as the misfire
@@ -3328,7 +3294,7 @@ public abstract class JobStoreSupport : IJobStore
                         }
 
                         // Cluster-safe check: skip if job is already executing on another node
-                        if (await IsJobCurrentlyExecuting(conn, nextTrigger.JobKey, cancellationToken).ConfigureAwait(false))
+                        if (await Delegate.IsJobCurrentlyExecuting(conn, nextTrigger.JobKey, cancellationToken).ConfigureAwait(false))
                         {
                             continue;
                         }
@@ -3354,14 +3320,14 @@ public abstract class JobStoreSupport : IJobStore
 
                     // We now have a acquired trigger, let's add to return list.
                     // If our trigger was no longer in the expected state, try a new one.
-                    int rowsUpdated = await Delegate.UpdateTriggerStateFromOtherStateWithNextFireTime(conn, triggerKey, AdoConstants.StateAcquired, AdoConstants.StateWaiting, nextFireTimeUtc.Value, cancellationToken).ConfigureAwait(false);
+                    int rowsUpdated = await Delegate.UpdateTriggerStateFromOtherStateWithNextFireTime(conn, triggerKey, StoredTriggerState.Acquired, StoredTriggerState.Waiting, nextFireTimeUtc.Value, cancellationToken).ConfigureAwait(false);
                     if (rowsUpdated <= 0)
                     {
                         // TODO: Hum... shouldn't we log a warning here?
                         continue; // next trigger
                     }
                     nextTrigger.FireInstanceId = GetFiredTriggerRecordId();
-                    await Delegate.InsertFiredTrigger(conn, nextTrigger, AdoConstants.StateAcquired, null, cancellationToken).ConfigureAwait(false);
+                    await Delegate.InsertFiredTrigger(conn, nextTrigger, StoredTriggerState.Acquired, null, cancellationToken).ConfigureAwait(false);
 
                     if (acquiredTriggers.Count == 0)
                     {
@@ -3404,8 +3370,8 @@ public abstract class JobStoreSupport : IJobStore
     {
         await activityTracer.Trace(
             OperationName.JobStore.ReleaseAcquiredTrigger,
-            () => RetryExecuteInNonManagedTXLock(
-                LockTriggerAccess,
+            () => RetryExecuteInLocalTransactionLock(
+                SchedulerLock.TriggerAccess,
                 conn => ReleaseAcquiredTrigger(conn, trigger, cancellationToken),
                 cancellationToken),
             activity =>
@@ -3422,8 +3388,8 @@ public abstract class JobStoreSupport : IJobStore
     {
         try
         {
-            await Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Key, AdoConstants.StateWaiting, AdoConstants.StateAcquired, cancellationToken).ConfigureAwait(false);
-            await Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Key, AdoConstants.StateWaiting, AdoConstants.StateBlocked, cancellationToken).ConfigureAwait(false);
+            await Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Key, StoredTriggerState.Waiting, StoredTriggerState.Acquired, cancellationToken).ConfigureAwait(false);
+            await Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Key, StoredTriggerState.Waiting, StoredTriggerState.Blocked, cancellationToken).ConfigureAwait(false);
             await Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception e)
@@ -3436,8 +3402,8 @@ public abstract class JobStoreSupport : IJobStore
     {
         return activityTracer.Trace(
             OperationName.JobStore.TriggersFired,
-            () => ExecuteInNonManagedTXLock(
-                LockTriggerAccess,
+            () => ExecuteInLocalTransactionLock(
+                SchedulerLock.TriggerAccess,
                 async conn =>
                 {
                     List<TriggerFiredResult> results = new(triggers.Count);
@@ -3456,7 +3422,7 @@ public abstract class JobStoreSupport : IJobStore
                         {
                             if (IsTransient(jpe))
                             {
-                                throw; // Let ExecuteInNonManagedTXLock retry the whole transaction
+                                throw; // Let ExecuteInLocalTransactionLock retry the whole transaction
                             }
                             Logger.LogError(jpe, "Caught job persistence exception: {ExceptionMessage}", jpe.Message);
                             result = new TriggerFiredResult(jpe);
@@ -3482,14 +3448,14 @@ public abstract class JobStoreSupport : IJobStore
                     try
                     {
                         var acquired = await Delegate
-                            .SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceName = InstanceId }, cancellationToken)
+                            .SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceId = InstanceId }, cancellationToken)
                             .ConfigureAwait(false);
                         var executingTriggers = new HashSet<string>();
                         foreach (FiredTriggerRecord ft in acquired)
                         {
-                            if (AdoConstants.StateExecuting == ft.FireInstanceState)
+                            if (ft.FireInstanceState == StoredTriggerState.Executing)
                             {
-                                executingTriggers.Add(ft.FireInstanceId!);
+                                executingTriggers.Add(ft.FireInstanceId);
                             }
                         }
 
@@ -3510,7 +3476,7 @@ public abstract class JobStoreSupport : IJobStore
                         return default;
                     }
                 },
-                cancellationToken),
+                cancellationToken: cancellationToken),
             activity => activity.SetTag(ActivityOptions.TriggerCount, triggers.Count));
     }
 
@@ -3526,8 +3492,8 @@ public abstract class JobStoreSupport : IJobStore
         try
         {
             // if trigger was deleted, state will be StateDeleted
-            string state = await Delegate.SelectTriggerState(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
-            if (state != AdoConstants.StateAcquired)
+            StoredTriggerState state = await Delegate.SelectTriggerState(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+            if (state != StoredTriggerState.Acquired)
             {
                 return null;
             }
@@ -3550,7 +3516,7 @@ public abstract class JobStoreSupport : IJobStore
             try
             {
                 Logger.LogError(jpe, "Error retrieving job, setting trigger state to ERROR.");
-                await Delegate.UpdateTriggerState(conn, trigger.Key, AdoConstants.StateError, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerState(conn, trigger.Key, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
 
                 // Same as above: the trigger stops here and nothing else says so.
                 await schedSignaler.NotifySchedulerListenersTriggerInError(trigger.Key, cancellationToken).ConfigureAwait(false);
@@ -3571,7 +3537,7 @@ public abstract class JobStoreSupport : IJobStore
         {
             try
             {
-                bool alreadyExecuting = await IsJobCurrentlyExecuting(conn, trigger.JobKey, cancellationToken).ConfigureAwait(false);
+                bool alreadyExecuting = await Delegate.IsJobCurrentlyExecuting(conn, trigger.JobKey, cancellationToken).ConfigureAwait(false);
                 if (alreadyExecuting)
                 {
                     Logger.LogInformation("Not firing trigger {TriggerKey} for [DisallowConcurrentExecution] job {JobKey} - already executing on another node.", trigger.Key, trigger.JobKey);
@@ -3595,7 +3561,7 @@ public abstract class JobStoreSupport : IJobStore
 
         try
         {
-            await Delegate.UpdateFiredTrigger(conn, trigger, AdoConstants.StateExecuting, job, cancellationToken).ConfigureAwait(false);
+            await Delegate.UpdateFiredTrigger(conn, trigger, StoredTriggerState.Executing, job, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -3623,13 +3589,16 @@ public abstract class JobStoreSupport : IJobStore
 
             if (claimUnpinned || stealFromStaleNode)
             {
+                PreferredNode claim = PreferredNode.ClaimedBy(InstanceId);
                 int claimed = await Delegate.UpdateTriggerPreferredNodeConditional(
-                    conn, trigger.Key, InstanceId, preferredNodeAuto: true,
-                    rawPreferredNode!, rawPreferredNodeAuto, cancellationToken).ConfigureAwait(false);
+                    conn,
+                    trigger.Key,
+                    new PreferredNodeTransition { Expected = pin, New = claim },
+                    cancellationToken).ConfigureAwait(false);
                 if (claimed > 0)
                 {
                     // Mirror the persisted value; not dirty — the row already holds it
-                    pinTrigger.SetPreferredNode(PreferredNode.ClaimedBy(InstanceId), markDirty: false);
+                    pinTrigger.SetPreferredNode(claim, markDirty: false);
                 }
                 // else the pin changed concurrently: leave the concurrent value in place. The
                 // in-memory value is stale but not dirty, so the store below will not write it
@@ -3650,18 +3619,18 @@ public abstract class JobStoreSupport : IJobStore
         // call triggered - to update the trigger's next-fire-time state...
         trigger.Triggered(calendar);
 
-        string state2 = AdoConstants.StateWaiting;
+        StoredTriggerState state2 = StoredTriggerState.Waiting;
         bool force = true;
 
         if (job.ConcurrentExecutionDisallowed)
         {
-            state2 = AdoConstants.StateBlocked;
+            state2 = StoredTriggerState.Blocked;
             force = false;
             try
             {
-                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Key, AdoConstants.StateBlocked, AdoConstants.StateWaiting, cancellationToken).ConfigureAwait(false);
-                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Key, AdoConstants.StateBlocked, AdoConstants.StateAcquired, cancellationToken).ConfigureAwait(false);
-                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Key, AdoConstants.StatePausedBlocked, AdoConstants.StatePaused, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Key, StoredTriggerState.Blocked, StoredTriggerState.Waiting, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Key, StoredTriggerState.Blocked, StoredTriggerState.Acquired, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, job.Key, StoredTriggerState.PausedBlocked, StoredTriggerState.Paused, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -3671,7 +3640,7 @@ public abstract class JobStoreSupport : IJobStore
 
         if (!trigger.NextFireTimeUtc.HasValue)
         {
-            state2 = AdoConstants.StateComplete;
+            state2 = StoredTriggerState.Complete;
             force = true;
         }
 
@@ -3707,8 +3676,8 @@ public abstract class JobStoreSupport : IJobStore
 
         await activityTracer.Trace(
             OperationName.JobStore.TriggeredJobComplete,
-            () => RetryExecuteInNonManagedTXLock(
-                LockTriggerAccess,
+            () => RetryExecuteInLocalTransactionLock(
+                SchedulerLock.TriggerAccess,
                 conn => TriggeredJobComplete(conn, trigger, jobDetail, triggerInstructionCode, cancellationToken),
                 cancellationToken),
             activity =>
@@ -3746,7 +3715,7 @@ public abstract class JobStoreSupport : IJobStore
                 {
                     // double check for possible reschedule within job
                     // execution, which would cancel the need to delete...
-                    var stat = await Delegate.SelectTriggerStatus(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+                    var stat = await Delegate.SelectTriggerHeader(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
                     if (stat is not null && !stat.NextFireTimeUtc.HasValue)
                     {
                         await DeleteTrigger(conn, trigger.Key, jobDetail, cancellationToken).ConfigureAwait(false);
@@ -3760,31 +3729,31 @@ public abstract class JobStoreSupport : IJobStore
             }
             else if (triggerInstructionCode == SchedulerInstruction.SetTriggerComplete)
             {
-                await Delegate.UpdateTriggerState(conn, trigger.Key, AdoConstants.StateComplete, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerState(conn, trigger.Key, StoredTriggerState.Complete, cancellationToken).ConfigureAwait(false);
                 conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
             }
             else if (triggerInstructionCode == SchedulerInstruction.SetTriggerError)
             {
                 Logger.LogInformation("Trigger {Trigger} set to ERROR state.", trigger.Key);
-                await Delegate.UpdateTriggerState(conn, trigger.Key, AdoConstants.StateError, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerState(conn, trigger.Key, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
                 conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
             }
             else if (triggerInstructionCode == SchedulerInstruction.SetAllJobTriggersComplete)
             {
-                await Delegate.UpdateTriggerStatesForJob(conn, trigger.JobKey, AdoConstants.StateComplete, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerStatesForJob(conn, trigger.JobKey, StoredTriggerState.Complete, cancellationToken).ConfigureAwait(false);
                 conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
             }
             else if (triggerInstructionCode == SchedulerInstruction.SetAllJobTriggersError)
             {
                 Logger.LogInformation("All triggers of Job {Job} set to ERROR state.", trigger.JobKey);
-                await Delegate.UpdateTriggerStatesForJob(conn, trigger.JobKey, AdoConstants.StateError, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerStatesForJob(conn, trigger.JobKey, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
                 conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
             }
 
             if (jobDetail.ConcurrentExecutionDisallowed)
             {
-                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, AdoConstants.StateWaiting, AdoConstants.StateBlocked, cancellationToken).ConfigureAwait(false);
-                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, AdoConstants.StatePaused, AdoConstants.StatePausedBlocked, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StoredTriggerState.Waiting, StoredTriggerState.Blocked, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StoredTriggerState.Paused, StoredTriggerState.PausedBlocked, cancellationToken).ConfigureAwait(false);
                 conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
 
                 // Check for misfired triggers that were just unblocked
@@ -3797,17 +3766,17 @@ public abstract class JobStoreSupport : IJobStore
                 foreach (var trig in triggersForJob)
                 {
                     // Only check triggers in WAITING state (those that were just unblocked)
-                    var state = await Delegate.SelectTriggerState(conn, trig.Key, cancellationToken).ConfigureAwait(false);
-                    if (state == AdoConstants.StateWaiting)
+                    StoredTriggerState state = await Delegate.SelectTriggerState(conn, trig.Key, cancellationToken).ConfigureAwait(false);
+                    if (state == StoredTriggerState.Waiting)
                     {
-                        var misfired = await UpdateMisfiredTrigger(conn, trig.Key, AdoConstants.StateWaiting, false, cancellationToken).ConfigureAwait(false);
+                        var misfired = await UpdateMisfiredTrigger(conn, trig.Key, StoredTriggerState.Waiting, false, cancellationToken).ConfigureAwait(false);
                         if (misfired)
                         {
                             // If the trigger was misfired and has no more fire times (e.g., fire-once triggers),
                             // it was stored as COMPLETE. We need to remove it entirely so that GetTrigger
                             // returns null and the trigger doesn't linger in the database.
-                            var newState = await Delegate.SelectTriggerState(conn, trig.Key, cancellationToken).ConfigureAwait(false);
-                            if (newState == AdoConstants.StateComplete)
+                            StoredTriggerState newState = await Delegate.SelectTriggerState(conn, trig.Key, cancellationToken).ConfigureAwait(false);
+                            if (newState == StoredTriggerState.Complete)
                             {
                                 await DeleteTrigger(conn, trig.Key, cancellationToken).ConfigureAwait(false);
                             }
@@ -3873,20 +3842,20 @@ public abstract class JobStoreSupport : IJobStore
                 // For SQLite: acquire lock before opening connection to avoid
                 // "database is locked" errors from concurrent serializable transactions.
                 // Skip the double-check optimization since in-memory lock is cheap.
-                transOwner = await LockHandler.ObtainLock(requestorId, null, LockTriggerAccess, cancellationToken).ConfigureAwait(false);
-                conn = await GetNonManagedTXConnection(cancellationToken).ConfigureAwait(false);
+                transOwner = await LockHandler.ObtainLock(requestorId, null, SchedulerLock.TriggerAccess, cancellationToken).ConfigureAwait(false);
+                conn = await GetLocalTransactionConnection(cancellationToken).ConfigureAwait(false);
                 result = await RecoverMisfiredJobs(conn, false, cancellationToken).ConfigureAwait(false);
                 staleCount = await RecoverStaleAcquiredTriggers(conn, cancellationToken).ConfigureAwait(false);
             }
             else
             {
-                conn = await GetNonManagedTXConnection(cancellationToken).ConfigureAwait(false);
+                conn = await GetLocalTransactionConnection(cancellationToken).ConfigureAwait(false);
 
                 // Before we make the potentially expensive call to acquire the
                 // trigger lock, peek ahead to see if it is likely we would find
                 // misfired triggers requiring recovery.
                 int misfireCount = DoubleCheckLockMisfireHandler
-                    ? await Delegate.CountMisfiredTriggersInState(conn, AdoConstants.StateWaiting, MisfireTime, cancellationToken).ConfigureAwait(false)
+                    ? await Delegate.CountMisfiredTriggersInState(conn, StoredTriggerState.Waiting, MisfireTime, cancellationToken).ConfigureAwait(false)
                     : int.MaxValue;
 
                 if (Logger.IsEnabled(LogLevel.Debug))
@@ -3896,7 +3865,7 @@ public abstract class JobStoreSupport : IJobStore
 
                 if (misfireCount > 0)
                 {
-                    transOwner = await LockHandler.ObtainLock(requestorId, conn, LockTriggerAccess, cancellationToken).ConfigureAwait(false);
+                    transOwner = await LockHandler.ObtainLock(requestorId, conn, SchedulerLock.TriggerAccess, cancellationToken).ConfigureAwait(false);
 
                     result = await RecoverMisfiredJobs(conn, false, cancellationToken).ConfigureAwait(false);
                     staleCount = await RecoverStaleAcquiredTriggers(conn, cancellationToken).ConfigureAwait(false);
@@ -3905,7 +3874,7 @@ public abstract class JobStoreSupport : IJobStore
                 {
                     // Even when no misfired triggers exist, check for triggers stuck
                     // in ACQUIRED state (e.g., from a failed ReleaseAcquiredTrigger call)
-                    transOwner = await LockHandler.ObtainLock(requestorId, conn, LockTriggerAccess, cancellationToken).ConfigureAwait(false);
+                    transOwner = await LockHandler.ObtainLock(requestorId, conn, SchedulerLock.TriggerAccess, cancellationToken).ConfigureAwait(false);
                     staleCount = await RecoverStaleAcquiredTriggers(conn, cancellationToken).ConfigureAwait(false);
                 }
             }
@@ -3914,8 +3883,8 @@ public abstract class JobStoreSupport : IJobStore
             if (staleCount > 0)
             {
                 int totalCount = result.ProcessedMisfiredTriggerCount + staleCount;
-                DateTimeOffset earliestNewTime = result.EarliestNewTime < timeProvider.GetUtcNow()
-                    ? result.EarliestNewTime
+                DateTimeOffset earliestNewTime = result.EarliestNewTimeUtc < timeProvider.GetUtcNow()
+                    ? result.EarliestNewTimeUtc
                     : timeProvider.GetUtcNow();
                 result = new RecoverMisfiredJobsResult(result.HasMoreMisfiredTriggers, totalCount, earliestNewTime);
             }
@@ -3938,7 +3907,7 @@ public abstract class JobStoreSupport : IJobStore
         {
             try
             {
-                await ReleaseLock(requestorId, LockTriggerAccess, transOwner, cancellationToken).ConfigureAwait(false);
+                await ReleaseLock(requestorId, SchedulerLock.TriggerAccess, transOwner, cancellationToken).ConfigureAwait(false);
             }
             finally
             {
@@ -4024,7 +3993,11 @@ public abstract class JobStoreSupport : IJobStore
 
     private bool firstCheckIn = true;
 
-    protected internal DateTimeOffset LastCheckin { get; set; }
+    /// <summary>
+    /// When this node last recorded that it is alive. Internal: it is bookkeeping the check-in loop
+    /// owns, and a subclass writing it would move the moment every other node decides this one died.
+    /// </summary>
+    internal DateTimeOffset LastCheckin { get; set; }
 
     protected internal virtual async ValueTask<bool> DoCheckin(
         Guid requestorId,
@@ -4042,7 +4015,7 @@ public abstract class JobStoreSupport : IJobStore
             bool transStateOwner = false;
             bool recovered = false;
 
-            ConnectionAndTransactionHolder conn = await GetNonManagedTXConnection(cancellationToken).ConfigureAwait(false);
+            ConnectionAndTransactionHolder conn = await GetLocalTransactionConnection(cancellationToken).ConfigureAwait(false);
             try
             {
                 // Other than the first time, always checkin first to make sure there is
@@ -4058,7 +4031,7 @@ public abstract class JobStoreSupport : IJobStore
 
                 if (firstCheckIn || failedRecords is not null && failedRecords.Count > 0)
                 {
-                    transStateOwner = await LockHandler.ObtainLock(requestorId, conn, LockStateAccess, cancellationToken).ConfigureAwait(false);
+                    transStateOwner = await LockHandler.ObtainLock(requestorId, conn, SchedulerLock.StateAccess, cancellationToken).ConfigureAwait(false);
 
                     // Now that we own the lock, make sure we still have work to do.
                     // The first time through, we also need to make sure we update/create our state record
@@ -4073,7 +4046,7 @@ public abstract class JobStoreSupport : IJobStore
 
                     if (failedRecords.Count > 0)
                     {
-                        transOwner = await LockHandler.ObtainLock(requestorId, conn, LockTriggerAccess, cancellationToken).ConfigureAwait(false);
+                        transOwner = await LockHandler.ObtainLock(requestorId, conn, SchedulerLock.TriggerAccess, cancellationToken).ConfigureAwait(false);
                         //getLockHandler().obtainLock(conn, LockJobAccess);
 
                         await ClusterRecover(conn, failedRecords, cancellationToken).ConfigureAwait(false);
@@ -4102,13 +4075,13 @@ public abstract class JobStoreSupport : IJobStore
             {
                 try
                 {
-                    await ReleaseLock(requestorId, LockTriggerAccess, transOwner, cancellationToken).ConfigureAwait(false);
+                    await ReleaseLock(requestorId, SchedulerLock.TriggerAccess, transOwner, cancellationToken).ConfigureAwait(false);
                 }
                 finally
                 {
                     try
                     {
-                        await ReleaseLock(requestorId, LockStateAccess, transStateOwner, cancellationToken).ConfigureAwait(false);
+                        await ReleaseLock(requestorId, SchedulerLock.StateAccess, transStateOwner, cancellationToken).ConfigureAwait(false);
                     }
                     finally
                     {
@@ -4138,7 +4111,7 @@ public abstract class JobStoreSupport : IJobStore
             List<SchedulerStateRecord> failedInstances = [];
             bool foundThisScheduler = false;
 
-            var states = await Delegate.SelectSchedulerStateRecords(conn, instanceName: null, cancellationToken).ConfigureAwait(false);
+            var states = await Delegate.SelectSchedulerStateRecords(conn, instanceId: null, cancellationToken).ConfigureAwait(false);
 
             foreach (SchedulerStateRecord rec in states)
             {
@@ -4273,7 +4246,7 @@ public abstract class JobStoreSupport : IJobStore
                 {
                     Logger.LogInformation("ClusterManager: Scanning for instance {SchedulerInstanceId}'s failed in-progress jobs.", rec.SchedulerInstanceId);
 
-                    var firedTriggerRecs = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceName = rec.SchedulerInstanceId }, cancellationToken).ConfigureAwait(false);
+                    var firedTriggerRecs = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { InstanceId = rec.SchedulerInstanceId }, cancellationToken).ConfigureAwait(false);
 
                     int acquiredCount = 0;
                     int recoveredCount = 0;
@@ -4304,7 +4277,7 @@ public abstract class JobStoreSupport : IJobStore
 
                     foreach (FiredTriggerRecord ftRec in firedTriggerRecs)
                     {
-                        TriggerKey tKey = ftRec.TriggerKey!;
+                        TriggerKey tKey = ftRec.TriggerKey;
                         JobKey? jKey = ftRec.JobKey;
 
                         triggerKeys.Add(tKey);
@@ -4314,11 +4287,11 @@ public abstract class JobStoreSupport : IJobStore
                         // still be alive and running the job. If it truly died, on the second
                         // detection (after the grace period) full cleanup will be performed.
                         if (canDeferRecovery
-                            && ftRec.FireInstanceState == AdoConstants.StateExecuting
+                            && ftRec.FireInstanceState == StoredTriggerState.Executing
                             && ftRec.JobDisallowsConcurrentExecution)
                         {
                             preservedFireInstanceIds ??= [];
-                            preservedFireInstanceIds.Add(ftRec.FireInstanceId!);
+                            preservedFireInstanceIds.Add(ftRec.FireInstanceId);
                             deferredCount++;
                             Logger.LogInformation(
                                 "ClusterManager: Deferring recovery of [DisallowConcurrentExecution] job {JobKey} " +
@@ -4328,19 +4301,19 @@ public abstract class JobStoreSupport : IJobStore
                         }
 
                         // release blocked triggers..
-                        if (ftRec.FireInstanceState == AdoConstants.StateBlocked)
+                        if (ftRec.FireInstanceState == StoredTriggerState.Blocked)
                         {
-                            await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, AdoConstants.StateWaiting, AdoConstants.StateBlocked, cancellationToken).ConfigureAwait(false);
+                            await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, StoredTriggerState.Waiting, StoredTriggerState.Blocked, cancellationToken).ConfigureAwait(false);
                         }
-                        else if (ftRec.FireInstanceState == AdoConstants.StatePausedBlocked)
+                        else if (ftRec.FireInstanceState == StoredTriggerState.PausedBlocked)
                         {
-                            await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, AdoConstants.StatePaused, AdoConstants.StatePausedBlocked, cancellationToken).ConfigureAwait(false);
+                            await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, StoredTriggerState.Paused, StoredTriggerState.PausedBlocked, cancellationToken).ConfigureAwait(false);
                         }
 
                         // release acquired triggers..
-                        if (ftRec.FireInstanceState == AdoConstants.StateAcquired)
+                        if (ftRec.FireInstanceState == StoredTriggerState.Acquired)
                         {
-                            await Delegate.UpdateTriggerStateFromOtherState(conn, tKey, AdoConstants.StateWaiting, AdoConstants.StateAcquired, cancellationToken).ConfigureAwait(false);
+                            await Delegate.UpdateTriggerStateFromOtherState(conn, tKey, StoredTriggerState.Waiting, StoredTriggerState.Acquired, cancellationToken).ConfigureAwait(false);
                             acquiredCount++;
                         }
                         else if (ftRec.JobRequestsRecovery)
@@ -4364,7 +4337,7 @@ public abstract class JobStoreSupport : IJobStore
                                 rcvryTrig.JobDataMap = jd;
 
                                 rcvryTrig.ComputeFirstFireTimeUtc(null);
-                                await AddTrigger(conn, rcvryTrig, null, false, AdoConstants.StateWaiting, false, true, cancellationToken).ConfigureAwait(false);
+                                await AddTrigger(conn, rcvryTrig, null, false, StoredTriggerState.Waiting, false, true, cancellationToken).ConfigureAwait(false);
                                 recoveredCount++;
                             }
                             else
@@ -4381,8 +4354,8 @@ public abstract class JobStoreSupport : IJobStore
                         // free up stateful job's triggers
                         if (ftRec.JobDisallowsConcurrentExecution)
                         {
-                            await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, AdoConstants.StateWaiting, AdoConstants.StateBlocked, cancellationToken).ConfigureAwait(false);
-                            await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, AdoConstants.StatePaused, AdoConstants.StatePausedBlocked, cancellationToken).ConfigureAwait(false);
+                            await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, StoredTriggerState.Waiting, StoredTriggerState.Blocked, cancellationToken).ConfigureAwait(false);
+                            await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, StoredTriggerState.Paused, StoredTriggerState.PausedBlocked, cancellationToken).ConfigureAwait(false);
                         }
                     }
 
@@ -4392,15 +4365,15 @@ public abstract class JobStoreSupport : IJobStore
                     {
                         foreach (FiredTriggerRecord ftRec in firedTriggerRecs)
                         {
-                            if (!preservedFireInstanceIds.Contains(ftRec.FireInstanceId!))
+                            if (!preservedFireInstanceIds.Contains(ftRec.FireInstanceId))
                             {
-                                await Delegate.DeleteFiredTrigger(conn, ftRec.FireInstanceId!, cancellationToken).ConfigureAwait(false);
+                                await Delegate.DeleteFiredTrigger(conn, ftRec.FireInstanceId, cancellationToken).ConfigureAwait(false);
                             }
                         }
                     }
                     else
                     {
-                        await Delegate.DeleteFiredTriggers(conn, new FiredTriggerQuery { InstanceName = rec.SchedulerInstanceId }, cancellationToken).ConfigureAwait(false);
+                        await Delegate.DeleteFiredTriggers(conn, new FiredTriggerQuery { InstanceId = rec.SchedulerInstanceId }, cancellationToken).ConfigureAwait(false);
                     }
 
                     // Check if any of the fired triggers we just deleted were the last fired trigger
@@ -4408,7 +4381,7 @@ public abstract class JobStoreSupport : IJobStore
                     int completeCount = 0;
                     foreach (TriggerKey triggerKey in triggerKeys)
                     {
-                        if (await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false) == AdoConstants.StateComplete)
+                        if (await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false) == StoredTriggerState.Complete)
                         {
                             var firedTriggers = await Delegate.SelectFiredTriggerRecords(conn, new FiredTriggerQuery { Trigger = triggerKey }, cancellationToken).ConfigureAwait(false);
                             if (firedTriggers.Count == 0)
@@ -4468,7 +4441,7 @@ public abstract class JobStoreSupport : IJobStore
         }
     }
 
-    protected virtual void LogWarnIfNonZero(int val, string warning)
+    private void LogWarnIfNonZero(int val, string warning)
     {
 #pragma warning disable CA2254
         if (val > 0)
@@ -4777,12 +4750,11 @@ public abstract class JobStoreSupport : IJobStore
     }
 
     /// <summary>
-    /// Execute the given callback in a transaction. Depending on the JobStore,
-    /// the surrounding transaction may be assumed to be already present
-    /// (managed).
+    /// Execute the given callback in a transaction, taking no lock.
     /// </summary>
     /// <remarks>
-    /// This method just forwards to ExecuteInLock() with a null lockName.
+    /// Forwards to <see cref="ExecuteInLock{T}" /> with no lock — except under
+    /// <see cref="LockAllOperations" />, where every operation including reads has to be serialized.
     /// </remarks>
     protected ValueTask<T> ExecuteWithoutLock<T>(
         Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
@@ -4790,20 +4762,31 @@ public abstract class JobStoreSupport : IJobStore
     {
         // For SQLite, all operations must be serialized to avoid "database is locked" errors.
         // Route read operations through the same lock as write operations.
-        string? lockName = LockAllOperations ? LockTriggerAccess : null;
-        return ExecuteInLock(lockName, txCallback, cancellationToken);
+        SchedulerLock? lockKind = LockAllOperations ? SchedulerLock.TriggerAccess : null;
+        return ExecuteInLock(lockKind, txCallback, cancellationToken);
     }
 
-    protected ValueTask<object> ExecuteInLock(
-        string? lockName,
+    /// <summary>
+    /// Execute the given callback having acquired the given lock, when it produces no result.
+    /// </summary>
+    /// <param name="lockKind">
+    /// The lock to acquire. If <see langword="null" />, then no lock is acquired, but the
+    /// <paramref name="txCallback" /> is still executed in a transaction.
+    /// </param>
+    /// <param name="txCallback">
+    /// The callback to execute after having acquired the given lock.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    protected async ValueTask ExecuteInLock(
+        SchedulerLock? lockKind,
         Func<ConnectionAndTransactionHolder, ValueTask> txCallback,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteInLock<object>(lockName, async conn =>
+        await ExecuteInLock<object?>(lockKind, async conn =>
         {
             await txCallback(conn).ConfigureAwait(false);
-            return null!;
-        }, cancellationToken);
+            return null;
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -4811,43 +4794,57 @@ public abstract class JobStoreSupport : IJobStore
     /// Depending on the JobStore, the surrounding transaction may be
     /// assumed to be already present (managed).
     /// </summary>
-    /// <param name="lockName">
-    /// The name of the lock to acquire, for example
-    /// "TRIGGER_ACCESS".  If null, then no lock is acquired, but the
-    /// lockCallback is still executed in a transaction.
+    /// <param name="lockKind">
+    /// The lock to acquire. If <see langword="null" />, then no lock is acquired, but the
+    /// <paramref name="txCallback" /> is still executed in a transaction.
     /// </param>
     /// <param name="txCallback">
     /// The callback to execute after having acquired the given lock.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     protected abstract ValueTask<T> ExecuteInLock<T>(
-        string? lockName,
+        SchedulerLock? lockKind,
         Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
         CancellationToken cancellationToken = default);
 
-    protected virtual ValueTask<object> RetryExecuteInNonManagedTXLock(
-        string? lockName,
+    /// <summary>
+    /// Keep retrying <see cref="ExecuteInLocalTransactionLock{T}" /> until it succeeds or the store
+    /// shuts down, for work the scheduler cannot simply abandon — cluster recovery and misfire
+    /// handling, whose failure is almost always a database that is temporarily gone.
+    /// </summary>
+    protected async ValueTask RetryExecuteInLocalTransactionLock(
+        SchedulerLock? lockKind,
         Func<ConnectionAndTransactionHolder, ValueTask> txCallback,
         CancellationToken cancellationToken = default)
     {
-        return RetryExecuteInNonManagedTXLock<object>(lockName, async holder =>
+        await RetryExecuteInLocalTransactionLock<object?>(lockKind, async holder =>
         {
             await txCallback(holder).ConfigureAwait(false);
-            return null!;
-        }, requestorId: null, cancellationToken);
+            return null;
+        }, requestorId: null, cancellationToken).ConfigureAwait(false);
     }
 
-    protected virtual async ValueTask<T> RetryExecuteInNonManagedTXLock<T>(
-        string? lockName,
+    /// <inheritdoc cref="RetryExecuteInLocalTransactionLock(SchedulerLock?, Func{ConnectionAndTransactionHolder, ValueTask}, CancellationToken)" />
+    /// <param name="lockKind">
+    /// The lock to acquire. If <see langword="null" />, then no lock is acquired.
+    /// </param>
+    /// <param name="txCallback">The callback to execute after having acquired the given lock.</param>
+    /// <param name="requestorId">
+    /// The identity the lock is taken under. Pass the one an outer attempt used, so that a nested
+    /// retry is recognised as the same owner rather than deadlocking against itself.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    protected virtual async ValueTask<T> RetryExecuteInLocalTransactionLock<T>(
+        SchedulerLock? lockKind,
         Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
-        Guid? requestorId,
+        Guid? requestorId = null,
         CancellationToken cancellationToken = default)
     {
         for (int retry = 1; !shutdown; retry++)
         {
             try
             {
-                return await ExecuteInNonManagedTXLock(lockName, txCallback, txValidator: null, requestorId, cancellationToken).ConfigureAwait(false);
+                return await ExecuteInLocalTransactionLock(lockKind, txCallback, txValidator: null, requestorId, cancellationToken).ConfigureAwait(false);
             }
             catch (JobPersistenceException jpe)
             {
@@ -4858,7 +4855,7 @@ public abstract class JobStoreSupport : IJobStore
             }
             catch (Exception e)
             {
-                Logger.LogError(e, "retryExecuteInNonManagedTXLock: RuntimeException {ExceptionMessage}", e.Message);
+                Logger.LogError(e, "RetryExecuteInLocalTransactionLock: RuntimeException {ExceptionMessage}", e.Message);
             }
 
             // retry every N seconds (the db connection must be failed)
@@ -4869,51 +4866,48 @@ public abstract class JobStoreSupport : IJobStore
         return default;
     }
 
-    protected ValueTask<bool> ExecuteInNonManagedTXLock(
-        string lockName,
+    /// <summary>
+    /// Execute the given callback having optionally acquired the given lock, on a connection and
+    /// transaction this store owns and commits itself, when the callback produces no result.
+    /// </summary>
+    protected async ValueTask ExecuteInLocalTransactionLock(
+        SchedulerLock? lockKind,
         Func<ConnectionAndTransactionHolder, ValueTask> txCallback,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteInNonManagedTXLock(lockName, async conn =>
+        await ExecuteInLocalTransactionLock<object?>(lockKind, async conn =>
         {
             await txCallback(conn).ConfigureAwait(false);
-            return true;
-        }, cancellationToken);
-    }
-
-    protected ValueTask<T> ExecuteInNonManagedTXLock<T>(
-        string? lockName,
-        Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
-        CancellationToken cancellationToken = default)
-    {
-        return ExecuteInNonManagedTXLock(lockName, txCallback, txValidator: null, requestorId: null, cancellationToken);
+            return null;
+        }, cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// Execute the given callback having optionally acquired the given lock.
-    /// This uses the non-managed transaction connection.
+    /// Execute the given callback having optionally acquired the given lock, on a connection and
+    /// transaction this store owns and commits itself.
     /// </summary>
-    /// <param name="lockName">
-    /// The name of the lock to acquire, for example
-    /// "TRIGGER_ACCESS".  If null, then no lock is acquired, but the
-    /// lockCallback is still executed in a non-managed transaction.
+    /// <param name="lockKind">
+    /// The lock to acquire. If <see langword="null" />, then no lock is acquired, but the
+    /// <paramref name="txCallback" /> is still executed in a transaction of this store's own.
     /// </param>
     /// <param name="txCallback">
     /// The callback to execute after having acquired the given lock.
     /// </param>
-    /// <param name="txValidator"></param>
+    /// <param name="txValidator">
+    /// Asked, when the commit fails, whether the work landed anyway. Trigger acquisition uses it: a
+    /// commit that reported an error but did reach the database must not be retried, or the same
+    /// triggers are acquired twice.
+    /// </param>
+    /// <param name="requestorId">
+    /// The identity the lock is taken under. Defaults to the caller id of the current operation, and
+    /// otherwise to a fresh one.
+    /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    protected ValueTask<T> ExecuteInNonManagedTXLock<T>(
-        string? lockName,
+    protected async ValueTask<T> ExecuteInLocalTransactionLock<T>(
+        SchedulerLock? lockKind,
         Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
-        Func<ConnectionAndTransactionHolder, T, ValueTask<bool>>? txValidator,
-        CancellationToken cancellationToken = default) => ExecuteInNonManagedTXLock(lockName, txCallback, txValidator, requestorId: null, cancellationToken);
-
-    protected async ValueTask<T> ExecuteInNonManagedTXLock<T>(
-        string? lockName,
-        Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
-        Func<ConnectionAndTransactionHolder, T, ValueTask<bool>>? txValidator,
-        Guid? requestorId,
+        Func<ConnectionAndTransactionHolder, T, ValueTask<bool>>? txValidator = null,
+        Guid? requestorId = null,
         CancellationToken cancellationToken = default)
     {
         if (requestorId is null)
@@ -4937,21 +4931,21 @@ public abstract class JobStoreSupport : IJobStore
             ConnectionAndTransactionHolder? conn = null;
             try
             {
-                if (lockName is not null)
+                if (lockKind is not null)
                 {
                     // If we aren't using db locks, then delay getting DB connection
                     // until after acquiring the lock since it isn't needed.
                     if (LockHandler.RequiresConnection)
                     {
-                        conn = await GetNonManagedTXConnection(cancellationToken).ConfigureAwait(false);
+                        conn = await GetLocalTransactionConnection(cancellationToken).ConfigureAwait(false);
                     }
 
-                    transOwner = await LockHandler.ObtainLock(requestorId.Value, conn, lockName, cancellationToken).ConfigureAwait(false);
+                    transOwner = await LockHandler.ObtainLock(requestorId.Value, conn, lockKind.Value, cancellationToken).ConfigureAwait(false);
                 }
 
                 if (conn is null)
                 {
-                    conn = await GetNonManagedTXConnection(cancellationToken).ConfigureAwait(false);
+                    conn = await GetLocalTransactionConnection(cancellationToken).ConfigureAwait(false);
                 }
 
                 T result = await txCallback(conn).ConfigureAwait(false);
@@ -4966,8 +4960,8 @@ public abstract class JobStoreSupport : IJobStore
                     {
                         throw;
                     }
-                    if (!await RetryExecuteInNonManagedTXLock(
-                            lockName,
+                    if (!await RetryExecuteInLocalTransactionLock(
+                            lockKind,
                             async connection => await txValidator(connection, result).ConfigureAwait(false),
                             requestorId,
                             cancellationToken).ConfigureAwait(false))
@@ -4989,7 +4983,7 @@ public abstract class JobStoreSupport : IJobStore
                 // Asked of the holder rather than the registry: a subclass overriding GetConnection can
                 // return one it opened itself even while an enlistment exists on this flow.
                 if (conn.BorrowedFrom is not null
-                    && (sigTime is not null || lockName is not null && !LockAllOperations))
+                    && (sigTime is not null || lockKind is not null && !LockAllOperations))
                 {
                     SignalSchedulingChangeOnApplicationCommit(conn, sigTime, cancellationToken);
                 }
@@ -5005,7 +4999,7 @@ public abstract class JobStoreSupport : IJobStore
                 await RollbackConnection(conn, jpe, cancellationToken).ConfigureAwait(false);
                 if (attempt < totalAttempts && IsTransient(jpe))
                 {
-                    Logger.LogWarning(jpe, "Transient exception on attempt {Attempt} of {TotalAttempts} in ExecuteInNonManagedTXLock, will retry after {RetryInterval}", attempt, totalAttempts, TransientRetryInterval);
+                    Logger.LogWarning(jpe, "Transient exception on attempt {Attempt} of {TotalAttempts} in ExecuteInLocalTransactionLock, will retry after {RetryInterval}", attempt, totalAttempts, TransientRetryInterval);
                 }
                 else
                 {
@@ -5022,7 +5016,7 @@ public abstract class JobStoreSupport : IJobStore
             {
                 try
                 {
-                    await ReleaseLock(requestorId.Value, lockName!, transOwner, cancellationToken).ConfigureAwait(false);
+                    await ReleaseLock(requestorId.Value, lockKind, transOwner, cancellationToken).ConfigureAwait(false);
                 }
                 finally
                 {
@@ -5034,7 +5028,7 @@ public abstract class JobStoreSupport : IJobStore
             await Task.Delay(TransientRetryInterval, cancellationToken).ConfigureAwait(false);
         }
 
-        Throw.InvalidOperationException("ExecuteInNonManagedTXLock retry loop exited unexpectedly");
+        Throw.InvalidOperationException("ExecuteInLocalTransactionLock retry loop exited unexpectedly");
         return default;
     }
 }

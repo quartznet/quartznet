@@ -13,28 +13,67 @@ namespace Quartz.Impl.AdoJobStore;
 
 public partial class StdAdoDelegate
 {
+    /// <summary>
+    /// Reduces an old-state set to the distinct states it names, which is what the generated predicate
+    /// is built and bound for. A disjunction cannot tell a repeated term apart from a single one, so
+    /// folding duplicates away only keeps the number of distinct statement texts down.
+    /// </summary>
+    /// <exception cref="ArgumentException">The set is empty, which would match no trigger at all.</exception>
+    private static List<StoredTriggerState> DistinctStates(IReadOnlyCollection<StoredTriggerState> oldStates, string parameterName)
+    {
+        ArgumentNullException.ThrowIfNull(oldStates, parameterName);
+
+        List<StoredTriggerState> distinct = new(oldStates.Count);
+        foreach (StoredTriggerState state in oldStates)
+        {
+            if (!distinct.Contains(state))
+            {
+                distinct.Add(state);
+            }
+        }
+
+        if (distinct.Count == 0)
+        {
+            Throw.ArgumentException("At least one old state is required.", parameterName);
+        }
+
+        return distinct;
+    }
+
+    /// <summary>
+    /// Binds the parameters of the predicate <see cref="AdoUtil.BuildTriggerStatePredicate" /> built for
+    /// the same states, in the same order.
+    /// </summary>
+    private void AddOldStateParameters(DbCommand cmd, List<StoredTriggerState> oldStates)
+    {
+        for (int i = 0; i < oldStates.Count; i++)
+        {
+            AddCommandParameter(cmd, AdoUtil.TriggerStateParameter(i), oldStates[i].ToStoredValue());
+        }
+    }
+
     /// <inheritdoc />
     public virtual async ValueTask<int> UpdateTriggerStatesFromOtherStates(
         ConnectionAndTransactionHolder conn,
-        string newState,
-        string oldState1,
-        string oldState2,
+        StoredTriggerState newState,
+        IReadOnlyCollection<StoredTriggerState> oldStates,
         CancellationToken cancellationToken = default)
     {
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlUpdateTriggerStatesFromOtherStates));
+        List<StoredTriggerState> states = DistinctStates(oldStates, nameof(oldStates));
+
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlUpdateTriggerStatesFromOtherStatesPrefix + AdoUtil.BuildTriggerStatePredicate(states.Count)));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
-        AddCommandParameter(cmd, "newState", newState);
-        AddCommandParameter(cmd, "oldState1", oldState1);
-        AddCommandParameter(cmd, "oldState2", oldState2);
+        AddCommandParameter(cmd, "newState", newState.ToStoredValue());
+        AddOldStateParameters(cmd, states);
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
-    public virtual async ValueTask<List<TriggerKey>> SelectTriggersInState(ConnectionAndTransactionHolder conn, string state, CancellationToken cancellationToken = default)
+    public virtual async ValueTask<List<TriggerKey>> SelectTriggersInState(ConnectionAndTransactionHolder conn, StoredTriggerState state, CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectTriggersInState));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
-        AddCommandParameter(cmd, "state", state);
+        AddCommandParameter(cmd, "state", state.ToStoredValue());
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         List<TriggerKey> list = [];
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -54,14 +93,14 @@ public partial class StdAdoDelegate
     /// <inheritdoc />
     public virtual async ValueTask<int> CountMisfiredTriggersInState(
         ConnectionAndTransactionHolder conn,
-        string state1,
+        StoredTriggerState state,
         DateTimeOffset ts,
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(GetCountMisfiredTriggersInStateSql()));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
         AddCommandParameter(cmd, "nextFireTime", GetDbDateTimeValue(ts));
-        AddCommandParameter(cmd, "state1", state1);
+        AddCommandParameter(cmd, "state", state.ToStoredValue());
 
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
     }
@@ -70,7 +109,10 @@ public partial class StdAdoDelegate
     public virtual async ValueTask<List<IOperableTrigger>> SelectTriggersForRecoveringJobs(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default)
     {
         List<IOperableTrigger> triggers = [];
-        List<FiredTriggerRecord> triggerData = [];
+
+        // Only the two timestamps of the fired-trigger row are carried over to the recovery trigger's
+        // job data, so there is no reason to build a whole record for them.
+        List<(DateTimeOffset ScheduleTimestamp, DateTimeOffset FireTimestamp)> triggerData = [];
         List<TriggerKey> keys = [];
 
         using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectInstancesRecoverableFiredTriggers)))
@@ -98,13 +140,7 @@ public partial class StdAdoDelegate
                     rcvryTrig.Priority = priority;
                     rcvryTrig.MisfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
 
-                    var dataHolder = new FiredTriggerRecord
-                    {
-                        ScheduleTimestamp = scheduledTime,
-                        FireTimestamp = firedTime
-                    };
-
-                    triggerData.Add(dataHolder);
+                    triggerData.Add((scheduledTime, firedTime));
                     triggers.Add(rcvryTrig);
                     keys.Add(new TriggerKey(trigName, trigGroup));
                 }
@@ -116,7 +152,7 @@ public partial class StdAdoDelegate
         {
             IOperableTrigger trigger = triggers[i];
             TriggerKey key = keys[i];
-            FiredTriggerRecord dataHolder = triggerData[i];
+            (DateTimeOffset ScheduleTimestamp, DateTimeOffset FireTimestamp) dataHolder = triggerData[i];
 
             // load job data map and transfer information
             JobDataMap jd = await SelectTriggerJobDataMap(conn, key, cancellationToken).ConfigureAwait(false);
@@ -150,7 +186,7 @@ public partial class StdAdoDelegate
             sql += StdAdoConstants.SqlFiredTriggerJobPredicate;
         }
 
-        if (query.InstanceName is not null)
+        if (query.InstanceId is not null)
         {
             sql += StdAdoConstants.SqlFiredTriggerInstancePredicate;
         }
@@ -178,9 +214,9 @@ public partial class StdAdoDelegate
             AddCommandParameter(cmd, "jobGroup", query.Job.Group);
         }
 
-        if (query.InstanceName is not null)
+        if (query.InstanceId is not null)
         {
-            AddCommandParameter(cmd, "instanceName", query.InstanceName);
+            AddCommandParameter(cmd, "instanceName", query.InstanceId);
         }
     }
 
@@ -198,15 +234,14 @@ public partial class StdAdoDelegate
     /// <inheritdoc />
     public virtual async ValueTask<bool> IsJobCurrentlyExecuting(
         ConnectionAndTransactionHolder conn,
-        string jobName,
-        string jobGroup,
+        JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
         using DbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectCountExecutingFiredTriggersOfJob));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
-        AddCommandParameter(cmd, "jobName", jobName);
-        AddCommandParameter(cmd, "jobGroup", jobGroup);
-        AddCommandParameter(cmd, "executingState", AdoConstants.StateExecuting);
+        AddCommandParameter(cmd, "jobName", jobKey.Name);
+        AddCommandParameter(cmd, "jobGroup", jobKey.Group);
+        AddCommandParameter(cmd, "executingState", StoredTriggerState.Executing.ToStoredValue());
 
         object? result = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
         return Convert.ToInt32(result) > 0;
@@ -216,7 +251,7 @@ public partial class StdAdoDelegate
     public virtual async ValueTask<int> InsertTrigger(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
-        string state,
+        StoredTriggerState state,
         IJobDetail jobDetail,
         CancellationToken cancellationToken = default)
     {
@@ -231,7 +266,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "triggerDescription", trigger.Description);
         AddCommandParameter(cmd, "triggerNextFireTime", GetDbDateTimeValue(trigger.NextFireTimeUtc));
         AddCommandParameter(cmd, "triggerPreviousFireTime", GetDbDateTimeValue(trigger.PreviousFireTimeUtc));
-        AddCommandParameter(cmd, "triggerState", state);
+        AddCommandParameter(cmd, "triggerState", state.ToStoredValue());
 
         var tDel = FindTriggerPersistenceDelegate(trigger);
         string type = AdoConstants.TriggerTypeBlob;
@@ -291,7 +326,7 @@ public partial class StdAdoDelegate
     public virtual async ValueTask<int> UpdateTrigger(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
-        string state,
+        StoredTriggerState state,
         IJobDetail jobDetail,
         CancellationToken cancellationToken = default)
     {
@@ -325,7 +360,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "triggerNextFireTime", GetDbDateTimeValue(trigger.NextFireTimeUtc));
         AddCommandParameter(cmd, "triggerPreviousFireTime", GetDbDateTimeValue(trigger.PreviousFireTimeUtc));
 
-        AddCommandParameter(cmd, "triggerState", state);
+        AddCommandParameter(cmd, "triggerState", state.ToStoredValue());
 
         var tDel = FindTriggerPersistenceDelegate(trigger);
 
@@ -424,12 +459,12 @@ public partial class StdAdoDelegate
     public virtual async ValueTask<int> UpdateTriggerState(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
-        string state,
+        StoredTriggerState state,
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlUpdateTriggerState));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
-        AddCommandParameter(cmd, "state", state);
+        AddCommandParameter(cmd, "state", state.ToStoredValue());
         AddCommandParameter(cmd, "triggerName", triggerKey.Name);
         AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
@@ -440,20 +475,18 @@ public partial class StdAdoDelegate
     public virtual async ValueTask<int> UpdateTriggerStateFromOtherStates(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
-        string newState,
-        string oldState1,
-        string oldState2,
-        string oldState3,
+        StoredTriggerState newState,
+        IReadOnlyCollection<StoredTriggerState> oldStates,
         CancellationToken cancellationToken = default)
     {
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlUpdateTriggerStateFromStates));
+        List<StoredTriggerState> states = DistinctStates(oldStates, nameof(oldStates));
+
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlUpdateTriggerStateFromStatesPrefix + AdoUtil.BuildTriggerStatePredicate(states.Count)));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
-        AddCommandParameter(cmd, "newState", newState);
+        AddCommandParameter(cmd, "newState", newState.ToStoredValue());
         AddCommandParameter(cmd, "triggerName", triggerKey.Name);
         AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
-        AddCommandParameter(cmd, "oldState1", oldState1);
-        AddCommandParameter(cmd, "oldState2", oldState2);
-        AddCommandParameter(cmd, "oldState3", oldState3);
+        AddOldStateParameters(cmd, states);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -462,21 +495,18 @@ public partial class StdAdoDelegate
     public virtual async ValueTask<int> UpdateTriggerGroupStateFromOtherStates(
         ConnectionAndTransactionHolder conn,
         GroupMatcher<TriggerKey> matcher,
-        string newState,
-        string oldState1,
-        string oldState2,
-        string oldState3,
+        StoredTriggerState newState,
+        IReadOnlyCollection<StoredTriggerState> oldStates,
         CancellationToken cancellationToken = default)
     {
-        (string sql, string parameter) = MatchGroup(matcher, StdAdoConstants.SqlUpdateTriggerGroupStateFromStatesEquals, StdAdoConstants.SqlUpdateTriggerGroupStateFromStatesLike);
+        List<StoredTriggerState> states = DistinctStates(oldStates, nameof(oldStates));
+        (string sql, string parameter) = MatchGroup(matcher, StdAdoConstants.SqlUpdateTriggerGroupStateFromStatesEqualsPrefix, StdAdoConstants.SqlUpdateTriggerGroupStateFromStatesLikePrefix);
 
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(sql));
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(sql + AdoUtil.BuildTriggerStatePredicate(states.Count)));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
-        AddCommandParameter(cmd, "newState", newState);
+        AddCommandParameter(cmd, "newState", newState.ToStoredValue());
         AddCommandParameter(cmd, "groupName", parameter);
-        AddCommandParameter(cmd, "oldState1", oldState1);
-        AddCommandParameter(cmd, "oldState2", oldState2);
-        AddCommandParameter(cmd, "oldState3", oldState3);
+        AddOldStateParameters(cmd, states);
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -485,16 +515,16 @@ public partial class StdAdoDelegate
     public virtual async ValueTask<int> UpdateTriggerStateFromOtherState(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
-        string newState,
-        string oldState,
+        StoredTriggerState newState,
+        StoredTriggerState oldState,
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlUpdateTriggerStateFromState));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
-        AddCommandParameter(cmd, "newState", newState);
+        AddCommandParameter(cmd, "newState", newState.ToStoredValue());
         AddCommandParameter(cmd, "triggerName", triggerKey.Name);
         AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
-        AddCommandParameter(cmd, "oldState", oldState);
+        AddCommandParameter(cmd, "oldState", oldState.ToStoredValue());
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -503,17 +533,17 @@ public partial class StdAdoDelegate
     public async ValueTask<int> UpdateTriggerStateFromOtherStateWithNextFireTime(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
-        string newState,
-        string oldState,
+        StoredTriggerState newState,
+        StoredTriggerState oldState,
         DateTimeOffset nextFireTime,
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlUpdateTriggerStateFromStateWithNextFireTime));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
-        AddCommandParameter(cmd, "newState", newState);
+        AddCommandParameter(cmd, "newState", newState.ToStoredValue());
         AddCommandParameter(cmd, "triggerName", triggerKey.Name);
         AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
-        AddCommandParameter(cmd, "oldState", oldState);
+        AddCommandParameter(cmd, "oldState", oldState.ToStoredValue());
         AddCommandParameter(cmd, "nextFireTime", GetDbDateTimeValue(nextFireTime));
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
@@ -523,17 +553,17 @@ public partial class StdAdoDelegate
     public virtual async ValueTask<int> UpdateTriggerGroupStateFromOtherState(
         ConnectionAndTransactionHolder conn,
         GroupMatcher<TriggerKey> matcher,
-        string newState,
-        string oldState,
+        StoredTriggerState newState,
+        StoredTriggerState oldState,
         CancellationToken cancellationToken = default)
     {
         (string sql, string parameter) = MatchGroup(matcher, StdAdoConstants.SqlUpdateTriggerGroupStateFromStateEquals, StdAdoConstants.SqlUpdateTriggerGroupStateFromStateLike);
 
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(sql));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
-        AddCommandParameter(cmd, "newState", newState);
+        AddCommandParameter(cmd, "newState", newState.ToStoredValue());
         AddCommandParameter(cmd, "triggerGroup", parameter);
-        AddCommandParameter(cmd, "oldState", oldState);
+        AddCommandParameter(cmd, "oldState", oldState.ToStoredValue());
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -542,12 +572,12 @@ public partial class StdAdoDelegate
     public virtual async ValueTask<int> UpdateTriggerStatesForJob(
         ConnectionAndTransactionHolder conn,
         JobKey jobKey,
-        string state,
+        StoredTriggerState state,
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlUpdateJobTriggerStates));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
-        AddCommandParameter(cmd, "state", state);
+        AddCommandParameter(cmd, "state", state.ToStoredValue());
         AddCommandParameter(cmd, "jobName", jobKey.Name);
         AddCommandParameter(cmd, "jobGroup", jobKey.Group);
 
@@ -558,16 +588,16 @@ public partial class StdAdoDelegate
     public virtual async ValueTask<int> UpdateTriggerStatesForJobFromOtherState(
         ConnectionAndTransactionHolder conn,
         JobKey jobKey,
-        string state,
-        string oldState,
+        StoredTriggerState newState,
+        StoredTriggerState oldState,
         CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlUpdateJobTriggerStatesFromOtherState));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
-        AddCommandParameter(cmd, "state", state);
+        AddCommandParameter(cmd, "state", newState.ToStoredValue());
         AddCommandParameter(cmd, "jobName", jobKey.Name);
         AddCommandParameter(cmd, "jobGroup", jobKey.Group);
-        AddCommandParameter(cmd, "oldState", oldState);
+        AddCommandParameter(cmd, "oldState", oldState.ToStoredValue());
 
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
@@ -888,7 +918,7 @@ public partial class StdAdoDelegate
     }
 
     /// <inheritdoc />
-    public virtual async ValueTask<string> SelectTriggerState(
+    public virtual async ValueTask<StoredTriggerState> SelectTriggerState(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
@@ -901,7 +931,8 @@ public partial class StdAdoDelegate
 
         var state = (string?) await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
 
-        return state ?? AdoConstants.StateDeleted;
+        // No row means no trigger, which is what FromStoredValue reads a null as.
+        return StoredTriggerStates.FromStoredValue(state);
     }
 
     /// <inheritdoc />
@@ -923,35 +954,38 @@ public partial class StdAdoDelegate
         }
 
         // Providers disagree on the CLR type of a CASE expression, so go through Convert.
-        return new TriggerExecutionState(rs.GetString(0), Convert.ToInt32(rs.GetValue(1), CultureInfo.InvariantCulture) != 0);
+        return new TriggerExecutionState(
+            StoredTriggerStates.FromStoredValue(rs.GetString(0)),
+            Convert.ToInt32(rs.GetValue(1), CultureInfo.InvariantCulture) != 0);
     }
 
     /// <inheritdoc />
-    public virtual async ValueTask<TriggerStatus?> SelectTriggerStatus(
+    public virtual async ValueTask<StoredTriggerHeader?> SelectTriggerHeader(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
-        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectTriggerStatus));
-        TriggerStatus? status = null;
+        using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlSelectTriggerHeader));
 
         AddCommandParameter(cmd, "schedulerName", schedulerName);
         AddCommandParameter(cmd, "triggerName", triggerKey.Name);
         AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+        if (!await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            string state = rs.GetString(AdoConstants.ColumnTriggerState)!;
-            object nextFireTime = rs[AdoConstants.ColumnNextFireTime];
-            string jobName = rs.GetString(AdoConstants.ColumnJobName)!;
-            string jobGroup = rs.GetString(AdoConstants.ColumnJobGroup)!;
-
-            var nft = GetDateTimeFromDbValue(nextFireTime);
-
-            status = new TriggerStatus(state, nft, triggerKey, new JobKey(jobName, jobGroup));
+            return null;
         }
 
-        return status;
+        StoredTriggerState state = StoredTriggerStates.FromStoredValue(rs.GetString(AdoConstants.ColumnTriggerState));
+        object nextFireTime = rs[AdoConstants.ColumnNextFireTime];
+        string jobName = rs.GetString(AdoConstants.ColumnJobName)!;
+        string jobGroup = rs.GetString(AdoConstants.ColumnJobGroup)!;
+
+        return new StoredTriggerHeader(
+            triggerKey,
+            new JobKey(jobName, jobGroup),
+            state,
+            GetDateTimeFromDbValue(nextFireTime));
     }
 
     private async ValueTask<string?> SelectTriggerType(
@@ -1077,21 +1111,22 @@ public partial class StdAdoDelegate
     public virtual async ValueTask<int> UpdateTriggerPreferredNodeConditional(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
-        string preferredNode,
-        bool preferredNodeAuto,
-        string expectedPreferredNode,
-        bool expectedPreferredNodeAuto,
+        PreferredNodeTransition transition,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(transition);
+
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlUpdateTriggerPreferredNodeConditional));
-        // Parameters are added in SQL token order for providers with positional binding
-        AddCommandParameter(cmd, "triggerPreferredNode", preferredNode);
-        AddCommandParameter(cmd, "triggerPreferredNodeAuto", GetDbBooleanValue(preferredNodeAuto));
+        // Parameters are added in SQL token order for providers with positional binding.
+        // The expected pin is compared with '=', so a transition expecting PreferredNode.None matches
+        // no row: SQL equality against NULL is never true. The claim paths never expect one.
+        AddCommandParameter(cmd, "triggerPreferredNode", transition.New.StoredNode);
+        AddCommandParameter(cmd, "triggerPreferredNodeAuto", GetDbBooleanValue(transition.New.StoredAutomatic));
         AddCommandParameter(cmd, "schedulerName", schedulerName);
         AddCommandParameter(cmd, "triggerName", triggerKey.Name);
         AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
-        AddCommandParameter(cmd, "expectedPreferredNode", expectedPreferredNode);
-        AddCommandParameter(cmd, "expectedPreferredNodeAuto", GetDbBooleanValue(expectedPreferredNodeAuto));
+        AddCommandParameter(cmd, "expectedPreferredNode", transition.Expected.StoredNode);
+        AddCommandParameter(cmd, "expectedPreferredNodeAuto", GetDbBooleanValue(transition.Expected.StoredAutomatic));
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -1131,7 +1166,7 @@ public partial class StdAdoDelegate
         List<TriggerAcquireResult> nextTriggers = new();
 
         AddCommandParameter(cmd, "schedulerName", schedulerName);
-        AddCommandParameter(cmd, "state", AdoConstants.StateWaiting);
+        AddCommandParameter(cmd, "state", StoredTriggerState.Waiting.ToStoredValue());
         AddCommandParameter(cmd, "noLaterThan", GetDbDateTimeValue(criteria.NoLaterThan));
         AddCommandParameter(cmd, "noEarlierThan", GetDbDateTimeValue(criteria.NoEarlierThan));
         AddPreferredNodeParameters(cmd, criteria.LiveNodeCutoff);
@@ -1171,8 +1206,7 @@ public partial class StdAdoDelegate
                 }
 
                 var result = new TriggerAcquireResult(
-                    (string) rs[AdoConstants.ColumnTriggerName],
-                    (string) rs[AdoConstants.ColumnTriggerGroup],
+                    new TriggerKey((string) rs[AdoConstants.ColumnTriggerName], (string) rs[AdoConstants.ColumnTriggerGroup]),
                     (string) rs[AdoConstants.ColumnJobClass],
                     executionGroup);
                 nextTriggers.Add(result);
@@ -1190,7 +1224,7 @@ public partial class StdAdoDelegate
     public virtual async ValueTask<int> InsertFiredTrigger(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
-        string state,
+        StoredTriggerState state,
         IJobDetail? job,
         CancellationToken cancellationToken = default)
     {
@@ -1202,7 +1236,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "triggerInstanceName", instanceId);
         AddCommandParameter(cmd, "triggerFireTime", GetDbDateTimeValue(timeProvider.GetUtcNow()));
         AddCommandParameter(cmd, "triggerScheduledTime", GetDbDateTimeValue(trigger.NextFireTimeUtc));
-        AddCommandParameter(cmd, "triggerState", state);
+        AddCommandParameter(cmd, "triggerState", state.ToStoredValue());
         if (job is not null)
         {
             AddCommandParameter(cmd, "triggerJobName", trigger.JobKey.Name);
@@ -1227,7 +1261,7 @@ public partial class StdAdoDelegate
     public virtual async ValueTask<int> UpdateFiredTrigger(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
-        string state,
+        StoredTriggerState state,
         IJobDetail job,
         CancellationToken cancellationToken = default)
     {
@@ -1236,7 +1270,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(ps, "instanceName", instanceId);
         AddCommandParameter(ps, "firedTime", GetDbDateTimeValue(timeProvider.GetUtcNow()));
         AddCommandParameter(ps, "scheduledTime", GetDbDateTimeValue(trigger.NextFireTimeUtc));
-        AddCommandParameter(ps, "entryState", state);
+        AddCommandParameter(ps, "entryState", state.ToStoredValue());
         AddCommandParameter(ps, "jobName", trigger.JobKey.Name);
         AddCommandParameter(ps, "jobGroup", trigger.JobKey.Group);
         AddCommandParameter(ps, "isNonConcurrent", GetDbBooleanValue(job.ConcurrentExecutionDisallowed));
@@ -1268,23 +1302,24 @@ public partial class StdAdoDelegate
 
     private FiredTriggerRecord ReadFiredTriggerRecord(DbDataReader rs)
     {
-        FiredTriggerRecord rec = new FiredTriggerRecord();
+        StoredTriggerState state = StoredTriggerStates.FromStoredValue(rs.GetString(AdoConstants.ColumnEntryState));
 
-        rec.FireInstanceId = rs.GetString(AdoConstants.ColumnEntryId)!;
-        rec.FireInstanceState = rs.GetString(AdoConstants.ColumnEntryState)!;
-        rec.FireTimestamp = GetDateTimeFromDbValue(rs[AdoConstants.ColumnFiredTime]) ?? DateTimeOffset.MinValue;
-        rec.ScheduleTimestamp = GetDateTimeFromDbValue(rs[AdoConstants.ColumnScheduledTime]) ?? DateTimeOffset.MinValue;
-        rec.Priority = Convert.ToInt32(rs[AdoConstants.ColumnPriority], CultureInfo.InvariantCulture);
-        rec.SchedulerInstanceId = rs.GetString(AdoConstants.ColumnInstanceName)!;
-        rec.TriggerKey = new TriggerKey(rs.GetString(AdoConstants.ColumnTriggerName)!, rs.GetString(AdoConstants.ColumnTriggerGroup)!);
-        if (rec.FireInstanceState != AdoConstants.StateAcquired)
+        // An ACQUIRED row is written before the job has been loaded, so its job columns hold nothing yet.
+        bool hasJob = state != StoredTriggerState.Acquired;
+
+        return new FiredTriggerRecord
         {
-            rec.JobDisallowsConcurrentExecution = GetBooleanFromDbValue(rs[AdoConstants.ColumnIsNonConcurrent]);
-            rec.JobRequestsRecovery = GetBooleanFromDbValue(rs[AdoConstants.ColumnRequestsRecovery]);
-            rec.JobKey = new JobKey(rs.GetString(AdoConstants.ColumnJobName)!, rs.GetString(AdoConstants.ColumnJobGroup)!);
-        }
-
-        return rec;
+            FireInstanceId = rs.GetString(AdoConstants.ColumnEntryId)!,
+            FireInstanceState = state,
+            FireTimestamp = GetDateTimeFromDbValue(rs[AdoConstants.ColumnFiredTime]) ?? DateTimeOffset.MinValue,
+            ScheduleTimestamp = GetDateTimeFromDbValue(rs[AdoConstants.ColumnScheduledTime]) ?? DateTimeOffset.MinValue,
+            Priority = Convert.ToInt32(rs[AdoConstants.ColumnPriority], CultureInfo.InvariantCulture),
+            SchedulerInstanceId = rs.GetString(AdoConstants.ColumnInstanceName)!,
+            TriggerKey = new TriggerKey(rs.GetString(AdoConstants.ColumnTriggerName)!, rs.GetString(AdoConstants.ColumnTriggerGroup)!),
+            JobDisallowsConcurrentExecution = hasJob && GetBooleanFromDbValue(rs[AdoConstants.ColumnIsNonConcurrent]),
+            JobRequestsRecovery = hasJob && GetBooleanFromDbValue(rs[AdoConstants.ColumnRequestsRecovery]),
+            JobKey = hasJob ? new JobKey(rs.GetString(AdoConstants.ColumnJobName)!, rs.GetString(AdoConstants.ColumnJobGroup)!) : null
+        };
     }
 
     /// <inheritdoc />
@@ -1475,7 +1510,7 @@ public partial class StdAdoDelegate
     public virtual async ValueTask UpdateMisfiredTrigger(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
-        string newState,
+        StoredTriggerState newState,
         DateTimeOffset? misfireOriginalFireTime,
         CancellationToken cancellationToken = default)
     {
@@ -1498,7 +1533,7 @@ public partial class StdAdoDelegate
     /// <inheritdoc />
     public virtual async ValueTask<MisfiredTriggerBatch> SelectMisfiredTriggersToRecover(
         ConnectionAndTransactionHolder conn,
-        string state,
+        StoredTriggerState state,
         DateTimeOffset ts,
         int count,
         CancellationToken cancellationToken = default)
@@ -1514,7 +1549,7 @@ public partial class StdAdoDelegate
         {
             AddCommandParameter(cmd, "schedulerName", schedulerName);
             AddCommandParameter(cmd, "nextFireTime", GetDbDateTimeValue(ts));
-            AddCommandParameter(cmd, "state1", state);
+            AddCommandParameter(cmd, "state", state.ToStoredValue());
 
             using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -1826,7 +1861,7 @@ public partial class StdAdoDelegate
             new("schedulerName", schedulerName),
             new("triggerNextFireTime", GetDbDateTimeValue(trigger.NextFireTimeUtc)),
             new("triggerPreviousFireTime", GetDbDateTimeValue(trigger.PreviousFireTimeUtc)),
-            new("triggerState", update.NewState),
+            new("triggerState", update.NewState.ToStoredValue()),
             new("triggerStartTime", GetDbDateTimeValue(trigger.StartTimeUtc))
         ];
 

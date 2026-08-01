@@ -49,18 +49,18 @@ One thing to note is that in these scripts, all the the tables start with the pr
 what the prefix is (in your Quartz.NET properties). Using different prefixes may be useful for creating multiple sets of tables,
 for multiple scheduler instances, within the same database.
 
-`JobStoreTX` creates transactions by itself and is the implementation you normally want. If you need scheduling to
-commit together with your application's own database work, `JobStoreTX` can also be told to use a connection you
-own - see [Joining an existing transaction](#joining-an-existing-transaction) below.
+`LocalTransactionJobStore` creates transactions by itself and is the implementation you normally want. If you need
+scheduling to commit together with your application's own database work, `LocalTransactionJobStore` can also be told to
+use a connection you own - see [Joining an existing transaction](#joining-an-existing-transaction) below.
 
 The last piece of the puzzle is setting up a data source from which AdoJobStore can get connections to your database.
 Data sources are defined in your Quartz.NET properties. Data source information contains the connection string
 and ADO.NET delegate information.
 
-### Configuring Quartz to use JobStoreTx
+### Configuring Quartz to use LocalTransactionJobStore
 
 ```text
-    quartz.jobStore.type = Quartz.Impl.AdoJobStore.JobStoreTX, Quartz
+    quartz.jobStore.type = Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz
 ```
 
 Next, you need to select a `IDriverDelegate` implementation for the JobStore to use.
@@ -280,6 +280,63 @@ Things worth knowing before you enable this:
 * An operation that fails halfway leaves its statements in your transaction; there is no savepoint to roll back to.
 * Work the scheduler does on its own - acquiring triggers, handling misfires, cluster check-in - always uses its own
   connections and is unaffected.
-* `JobStoreCMT` is the exception to the previous point: running inside a transaction its container manages is that
-  store's whole contract, so its own connections enlist in an ambient transaction as they always have.
+* `ExternalTransactionJobStore` is the exception to the previous point: running inside a transaction its container
+  manages is that store's whole contract, so its own connections enlist in an ambient transaction as they always have.
+
+## Writing your own job store
+
+If neither bundled store fits, you can supply your own. There are two shapes, and which one you want depends on
+whether you are changing *where* scheduling data lives or only what happens around it.
+
+**Adding behaviour around an existing store** - logging, metrics, tenant routing, fault injection - derives from
+`Quartz.Impl.DelegatingJobStore`. It takes the store to wrap as its constructor argument and forwards every
+`IJobStore` member to it, so you override only the operations you actually change. The wrapped store is available
+to your code as `InnerJobStore`.
+
+```csharp
+public sealed class LoggingJobStore : DelegatingJobStore
+{
+    private readonly ILogger<LoggingJobStore> logger;
+
+    public LoggingJobStore(
+        ILoggerFactory loggerFactory,
+        ISchedulerSignaler signaler,
+        TimeProvider timeProvider,
+        ILogger<LoggingJobStore> logger)
+        : base(new RAMJobStore(loggerFactory, signaler, timeProvider))
+    {
+        this.logger = logger;
+    }
+
+    public override async ValueTask ScheduleJob(
+        IJobDetail job,
+        IOperableTrigger trigger,
+        CancellationToken cancellationToken = default)
+    {
+        await base.ScheduleJob(job, trigger, cancellationToken);
+        logger.LogInformation("Scheduled {JobKey} on {TriggerKey}", job.Key, trigger.Key);
+    }
+}
+```
+
+The stores Quartz ships are sealed, so this is also how you build on `RAMJobStore` - construct one and hand it
+to the base constructor, as above. Your store's own constructor arguments come from the container, so it can
+take whatever else it needs. `Quartz.Examples.AspNetCore`'s `CustomJobStore` shows the same shape.
+
+**Storing scheduling data somewhere new** implements `IJobStore` directly. It is a large interface with real
+concurrency requirements - trigger acquisition has to be atomic against other scheduler instances, and misfire
+handling has to be idempotent - so start from the semantics `RAMJobStore` and `JobStoreSupport` document rather
+than from the method signatures alone.
+
+Either kind is registered the same way, by type:
+
+```csharp
+builder.Services.AddQuartz(q =>
+{
+    q.UsePersistentStore<LoggingJobStore>(options =>
+    {
+        // …store options
+    });
+});
+```
 

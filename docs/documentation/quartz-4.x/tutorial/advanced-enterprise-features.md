@@ -5,7 +5,7 @@ title: 'Advanced (Enterprise) Features'
 
 ## Clustering
 
-Clustering currently only works with the AdoJobstore (`JobStoreTX`).
+Clustering currently only works with the AdoJobstore (`LocalTransactionJobStore`).
 Features include load-balancing and job fail-over (if the JobDetail's "request recovery" flag is set to true).
 
 Enable clustering by setting the `quartz.jobStore.clustered` property to "true".

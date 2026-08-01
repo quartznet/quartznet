@@ -73,7 +73,7 @@ public sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
     public async ValueTask<int> InsertExtendedTriggerProperties(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
-        string state,
+        StoredTriggerState state,
         IJobDetail jobDetail,
         CancellationToken cancellationToken = default)
     {
@@ -143,7 +143,7 @@ public sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
     public async ValueTask<int> UpdateExtendedTriggerProperties(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
-        string state,
+        StoredTriggerState state,
         IJobDetail jobDetail,
         CancellationToken cancellationToken = default)
     {

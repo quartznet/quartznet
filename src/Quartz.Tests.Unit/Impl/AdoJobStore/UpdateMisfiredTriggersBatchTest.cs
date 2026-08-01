@@ -132,7 +132,7 @@ public class UpdateMisfiredTriggersBatchTest
             };
             trigger.NextFireTimeUtc = DateTimeOffset.UtcNow.AddMinutes(1);
 
-            updates.Add(new MisfiredTriggerUpdate(trigger, AdoConstants.StateWaiting, null));
+            updates.Add(new MisfiredTriggerUpdate(trigger, StoredTriggerState.Waiting, null));
         }
 
         return updates;

@@ -186,8 +186,7 @@ one thing, since a name is what a data source points at — two schedulers that 
 give them two different names.
 
 Describing a name Quartz already ships a description for replaces it, and a description registered in code
-wins over one written as `quartz.dbprovider.*` keys. For several drivers, or a description built from data
-of your own, register a `DbMetadataFactory` against `Services`.
+wins over one written as `quartz.dbprovider.*` keys. Several drivers means several calls, one per name.
 
 The same thing can be said as properties, which is the form 3.x used and which now arrives through
 `IConfiguration` like everything else:

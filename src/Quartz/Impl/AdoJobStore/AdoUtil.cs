@@ -309,6 +309,56 @@ internal sealed class AdoUtil : IAdoUtil
         return predicate;
     }
 
+    // One entry per possible state count. A state set is deduplicated before it gets here, so it can
+    // never be longer than the number of states the enum defines, and the plan cache sees at most that
+    // many distinct texts per statement.
+    private static readonly string?[] triggerStatePredicateCache = new string?[Enum.GetValues<StoredTriggerState>().Length + 1];
+
+    /// <summary>
+    /// Builds a parameterized <c>(TRIGGER_STATE = @oldState00 OR TRIGGER_STATE = @oldState01)</c>
+    /// predicate for <paramref name="stateCount" /> old states.
+    /// </summary>
+    /// <param name="stateCount">
+    /// Number of states, which must be at least one and at most the number of states the enum defines —
+    /// the caller deduplicates first.
+    /// </param>
+    /// <remarks>
+    /// Parameter names are fixed width so that no name is a prefix of another — see the remarks on the
+    /// parameter name rewriting above.
+    /// </remarks>
+    internal static string BuildTriggerStatePredicate(int stateCount)
+    {
+        if (stateCount < 1 || stateCount >= triggerStatePredicateCache.Length)
+        {
+            Throw.ArgumentOutOfRangeException(nameof(stateCount), "A state predicate needs between one and " + (triggerStatePredicateCache.Length - 1) + " distinct states");
+        }
+
+        string? cached = triggerStatePredicateCache[stateCount];
+        if (cached is not null)
+        {
+            return cached;
+        }
+
+        StringBuilder sb = new("(");
+        for (int i = 0; i < stateCount; i++)
+        {
+            if (i > 0)
+            {
+                sb.Append(" OR ");
+            }
+
+            sb.Append(AdoConstants.ColumnTriggerState).Append(" = @").Append(TriggerStateParameter(i));
+        }
+
+        sb.Append(')');
+
+        string predicate = sb.ToString();
+        triggerStatePredicateCache[stateCount] = predicate;
+        return predicate;
+    }
+
+    internal static string TriggerStateParameter(int index) => "oldState" + index.ToString("00", CultureInfo.InvariantCulture);
+
     internal static string TriggerKeyNameParameter(int index) => "tkn" + index.ToString("000", CultureInfo.InvariantCulture);
 
     internal static string TriggerKeyGroupParameter(int index) => "tkg" + index.ToString("000", CultureInfo.InvariantCulture);

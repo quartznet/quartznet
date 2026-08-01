@@ -1,14 +1,21 @@
 using Microsoft.Extensions.Logging;
 
-using Quartz.Impl;
 using Quartz.Extensibility;
+using Quartz.Impl;
 
 namespace Quartz.Examples.AspNetCore;
 
 /// <summary>
-/// Shows a custom job store taking dependencies of its own alongside the ones its base class needs.
+/// Shows a job store of your own, registered through <c>UsePersistentStore&lt;T&gt;</c> and taking
+/// dependencies of its own from the container.
 /// </summary>
-public class CustomJobStore : RAMJobStore
+/// <remarks>
+/// A store that only adds behaviour around the edges - logging, metrics, tenant routing - derives from
+/// <see cref="DelegatingJobStore" />, wraps the store it wants that behaviour on top of, and overrides
+/// only the operations it actually changes. A store that keeps scheduling data somewhere new implements
+/// <see cref="IJobStore" /> directly instead.
+/// </remarks>
+public sealed class CustomJobStore : DelegatingJobStore
 {
     private readonly IServiceProvider serviceProvider;
     private readonly ILogger<CustomJobStore> logger;
@@ -19,7 +26,7 @@ public class CustomJobStore : RAMJobStore
         TimeProvider timeProvider,
         IServiceProvider serviceProvider,
         ILogger<CustomJobStore> logger)
-        : base(loggerFactory, signaler, timeProvider)
+        : base(new RAMJobStore(loggerFactory, signaler, timeProvider))
     {
         this.serviceProvider = serviceProvider;
         this.logger = logger;

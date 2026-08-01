@@ -29,7 +29,7 @@ namespace Quartz.Impl;
 /// </summary>
 /// <author>Marko Lahma (.NET)</author>
 /// <seealso cref="IInstanceIdGenerator" />
-/// <seealso cref="HostnameInstanceIdGenerator" />
+/// <seealso cref="HostNameInstanceIdGenerator" />
 internal sealed class SimpleInstanceIdGenerator : HostNameBasedIdGenerator
 {
     // assume ticks to be at most 20 chars long

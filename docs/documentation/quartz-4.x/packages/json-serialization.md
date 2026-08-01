@@ -33,7 +33,7 @@ Install-Package Quartz.Serialization.Newtonsoft
 ```csharp
 var properties = new NameValueCollection
 {
- ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
+ ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz",
  ["quartz.serializer.type"] = "json"
 };
 ISchedulerFactory schedulerFactory = new StdSchedulerFactory(properties);

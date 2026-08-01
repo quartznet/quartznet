@@ -406,7 +406,7 @@ public sealed class AmbientConnectionTest
             SchedulerName);
     }
 
-    private sealed class TestJobStore : JobStoreTX
+    private sealed class TestJobStore : LocalTransactionJobStore
     {
         internal TestJobStore(
             IDbProvider dbProvider,

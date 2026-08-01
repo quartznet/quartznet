@@ -53,10 +53,10 @@ public interface IPersistentStoreBuilder
     /// <see cref="SchedulerEnlistmentExtensions.EnlistTransaction" /> or
     /// <see cref="SchedulerEnlistmentExtensions.EnlistConnection" />. Handing over a connection is the
     /// only way to take part, and the one that works on every provider: with the default
-    /// <see cref="Quartz.Impl.AdoJobStore.JobStoreTX" />, a connection the job store opens for itself
+    /// <see cref="Quartz.Impl.AdoJobStore.LocalTransactionJobStore" />, a connection the job store opens for itself
     /// stays out of any ambient <see cref="System.Transactions.TransactionScope" />, since a second
     /// connection in that transaction would require it to be promoted to a distributed one.
-    /// <see cref="Quartz.Impl.AdoJobStore.JobStoreCMT" /> is the exception, since running inside a
+    /// <see cref="Quartz.Impl.AdoJobStore.ExternalTransactionJobStore" /> is the exception, since running inside a
     /// container-managed transaction is that store's contract.
     /// </para>
     /// <para>

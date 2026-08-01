@@ -654,9 +654,7 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
         adoUtil.AddCommandParameter(cmd, paramName, paramValue, dataType, size);
     }
 
-    /// <summary>
-    /// Validates the persistence schema and returns the number of validates objects.
-    /// </summary>
+    /// <inheritdoc />
     public virtual async ValueTask<int> ValidateSchema(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default)
     {
         foreach (var tableName in AdoConstants.AllTableNames)

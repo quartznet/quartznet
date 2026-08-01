@@ -20,9 +20,8 @@
 using System.Collections.Concurrent;
 using System.Data.Common;
 using Microsoft.Extensions.Logging;
-using Quartz.Impl.AdoJobStore.Common;
 
-namespace Quartz.Util;
+namespace Quartz.Impl.AdoJobStore.Common;
 
 /// <summary>
 /// Manages a collection of IDbProviders, and provides transparent access
@@ -50,11 +49,11 @@ public sealed class DbConnectionManager : IDbConnectionManager
     }
 
     /// <summary>
-    /// Adds the connection provider.
+    /// Registers a db provider as the data source with the given name.
     /// </summary>
     /// <param name="dataSourceName">Name of the data source.</param>
     /// <param name="provider">The provider.</param>
-    public void AddConnectionProvider(string dataSourceName, IDbProvider provider)
+    public void AddDbProvider(string dataSourceName, IDbProvider provider)
     {
         logger.LogInformation("Registering datasource '{DataSource}' with db provider: '{Provider}'", dataSourceName, provider);
 

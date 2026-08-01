@@ -51,13 +51,15 @@ public class StdAdoDelegateTest
     [Test]
     public void TestSerializeJobData()
     {
-        var args = new DelegateInitializationArgs();
-        args.TablePrefix = "QRTZ_";
-        args.InstanceName = "TESTSCHED";
-        args.InstanceId = "INSTANCE";
-        args.DbProvider = new DbProvider(TestConstants.DefaultSqlServerProvider, "");
-        args.TypeLoadHelper = new SimpleTypeLoadHelper();
-        args.ObjectSerializer = serializer;
+        var args = new DelegateInitializationArgs
+        {
+            TablePrefix = "QRTZ_",
+            InstanceName = "TESTSCHED",
+            InstanceId = "INSTANCE",
+            DbProvider = new DbProvider(TestConstants.DefaultSqlServerProvider, ""),
+            TypeLoadHelper = new SimpleTypeLoadHelper(),
+            ObjectSerializer = serializer
+        };
 
         var del = new StdAdoDelegate();
         del.Initialize(args);

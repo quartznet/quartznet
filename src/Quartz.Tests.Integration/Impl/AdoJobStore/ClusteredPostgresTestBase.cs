@@ -66,7 +66,7 @@ public abstract class ClusteredPostgresTestBase
             // within seconds instead of the 30 s default acquisition cycle
             ["quartz.scheduler.idleWaitTime"] = "2000",
             ["quartz.threadPool.maxConcurrency"] = "2",
-            ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
+            ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.LocalTransactionJobStore, Quartz",
             ["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.PostgreSQLDelegate, Quartz",
             ["quartz.jobStore.dataSource"] = "default",
             ["quartz.jobStore.tablePrefix"] = "QRTZ_",

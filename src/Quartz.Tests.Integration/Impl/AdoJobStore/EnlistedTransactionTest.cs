@@ -387,7 +387,7 @@ public class EnlistedTransactionTest
             ["quartz.scheduler.instanceName"] = schedulerName,
             ["quartz.scheduler.instanceId"] = "AUTO",
             ["quartz.serializer.type"] = TestConstants.DefaultSerializerType,
-            ["quartz.jobStore.type"] = typeof(JobStoreTX).AssemblyQualifiedNameWithoutVersion(),
+            ["quartz.jobStore.type"] = typeof(LocalTransactionJobStore).AssemblyQualifiedNameWithoutVersion(),
             ["quartz.jobStore.useProperties"] = "true",
             ["quartz.jobStore.dataSource"] = "default",
             ["quartz.jobStore.tablePrefix"] = "QRTZ_",

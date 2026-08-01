@@ -116,18 +116,13 @@ public sealed class AdoJobStoreOptions
     /// </para>
     /// <para>
     /// Taking part always means handing over a connection. Operations with nothing enlisted keep
-    /// using a connection of the job store's own, and for <see cref="Quartz.Impl.AdoJobStore.JobStoreTX" />
+    /// using a connection of the job store's own, and for <see cref="Quartz.Impl.AdoJobStore.LocalTransactionJobStore" />
     /// that connection is deliberately kept out of any ambient
-    /// <see cref="System.Transactions.Transaction" />. <see cref="Quartz.Impl.AdoJobStore.JobStoreCMT" />
+    /// <see cref="System.Transactions.Transaction" />. <see cref="Quartz.Impl.AdoJobStore.ExternalTransactionJobStore" />
     /// is the exception, since running inside a container-managed transaction is that store's contract.
     /// </para>
     /// </remarks>
     public bool AcceptEnlistedTransactions { get; set; }
-
-    /// <summary>
-    /// Whether the job store leaves auto-commit alone rather than disabling it.
-    /// </summary>
-    public bool DontSetAutoCommitFalse { get; set; }
 
     /// <summary>
     /// Whether the misfire handler double-checks the lock before doing work.

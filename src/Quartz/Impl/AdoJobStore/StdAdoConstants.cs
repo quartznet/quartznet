@@ -230,7 +230,7 @@ internal static class StdAdoConstants
         Invariant($"SELECT {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup} FROM {TablePrefixSubst}{AdoConstants.TableJobDetails} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnJobGroup} = @jobGroup");
 
     public static readonly string SqlCountMisfiredTriggersInStates =
-        Invariant($"SELECT COUNT({AdoConstants.ColumnTriggerName}) FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND {AdoConstants.ColumnNextFireTime} < @nextFireTime AND {AdoConstants.ColumnTriggerState} = @state1");
+        Invariant($"SELECT COUNT({AdoConstants.ColumnTriggerName}) FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND {AdoConstants.ColumnNextFireTime} < @nextFireTime AND {AdoConstants.ColumnTriggerState} = @state");
 
     /// <summary>
     /// Sentinel stored in PREFERRED_NODE to request auto-pin that has not yet been claimed by
@@ -357,7 +357,7 @@ internal static class StdAdoConstants
                 t.{AdoConstants.ColumnTriggerName},
                 t.{AdoConstants.ColumnTriggerGroup}{TriggerSelectFastPathFrom}
             WHERE
-                t.{AdoConstants.ColumnSchedulerName} = @schedulerName AND t.{AdoConstants.ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND t.{AdoConstants.ColumnNextFireTime} < @nextFireTime AND t.{AdoConstants.ColumnTriggerState} = @state1
+                t.{AdoConstants.ColumnSchedulerName} = @schedulerName AND t.{AdoConstants.ColumnMisfireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND t.{AdoConstants.ColumnNextFireTime} < @nextFireTime AND t.{AdoConstants.ColumnTriggerState} = @state
             ORDER BY t.{AdoConstants.ColumnNextFireTime} ASC, t.{AdoConstants.ColumnPriority} DESC");
 
     /// <summary>
@@ -420,7 +420,7 @@ internal static class StdAdoConstants
     public static readonly string SqlSelectTriggerStateWithExecuting =
         Invariant($"SELECT {AdoConstants.ColumnTriggerState}, CASE WHEN {SqlExecutingFiredTriggerExists} THEN 1 ELSE 0 END FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerName} = @triggerName AND {AdoConstants.ColumnTriggerGroup} = @triggerGroup");
 
-    public static readonly string SqlSelectTriggerStatus =
+    public static readonly string SqlSelectTriggerHeader =
         Invariant($"SELECT {AdoConstants.ColumnTriggerState}, {AdoConstants.ColumnNextFireTime}, {AdoConstants.ColumnJobName}, {AdoConstants.ColumnJobGroup} FROM {TablePrefixSubst}{AdoConstants.TableTriggers} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerName} = @triggerName AND {AdoConstants.ColumnTriggerGroup} = @triggerGroup");
 
     public static readonly string SqlSelectTriggersForCalendar =
@@ -616,11 +616,16 @@ internal static class StdAdoConstants
     public static readonly string SqlUpdateTriggerGroupStateFromStateLike =
         Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnTriggerState} = @newState WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerGroup} LIKE @triggerGroup{SqlLikeEscapeClause} AND {AdoConstants.ColumnTriggerState} = @oldState");
 
-    public static readonly string SqlUpdateTriggerGroupStateFromStatesEquals =
-        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnTriggerState} = @newState WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerGroup} = @groupName AND ({AdoConstants.ColumnTriggerState} = @oldState1 OR {AdoConstants.ColumnTriggerState} = @oldState2 OR {AdoConstants.ColumnTriggerState} = @oldState3)");
+    /// <summary>
+    /// Prefix of the group state transition; the caller appends an old-state predicate built by
+    /// <c>AdoUtil.BuildTriggerStatePredicate</c>.
+    /// </summary>
+    public static readonly string SqlUpdateTriggerGroupStateFromStatesEqualsPrefix =
+        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnTriggerState} = @newState WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerGroup} = @groupName AND ");
 
-    public static readonly string SqlUpdateTriggerGroupStateFromStatesLike =
-        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnTriggerState} = @newState WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerGroup} LIKE @groupName{SqlLikeEscapeClause} AND ({AdoConstants.ColumnTriggerState} = @oldState1 OR {AdoConstants.ColumnTriggerState} = @oldState2 OR {AdoConstants.ColumnTriggerState} = @oldState3)");
+    /// <inheritdoc cref="SqlUpdateTriggerGroupStateFromStatesEqualsPrefix" />
+    public static readonly string SqlUpdateTriggerGroupStateFromStatesLikePrefix =
+        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnTriggerState} = @newState WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerGroup} LIKE @groupName{SqlLikeEscapeClause} AND ");
 
     public static readonly string SqlUpdateTriggerSkipData =
         Invariant($@"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnJobName} = @triggerJobName, {AdoConstants.ColumnJobGroup} = @triggerJobGroup, {AdoConstants.ColumnDescription} = @triggerDescription, {AdoConstants.ColumnNextFireTime} = @triggerNextFireTime, {AdoConstants.ColumnPreviousFireTime} = @triggerPreviousFireTime,
@@ -648,14 +653,22 @@ internal static class StdAdoConstants
     public static readonly string SqlUpdateTriggerStateFromState =
         Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnTriggerState} = @newState WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerName} = @triggerName AND {AdoConstants.ColumnTriggerGroup} = @triggerGroup AND {AdoConstants.ColumnTriggerState} = @oldState");
 
-    public static readonly string SqlUpdateTriggerStateFromStates =
-        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnTriggerState} = @newState WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerName} = @triggerName AND {AdoConstants.ColumnTriggerGroup} = @triggerGroup AND ({AdoConstants.ColumnTriggerState} = @oldState1 OR {AdoConstants.ColumnTriggerState} = @oldState2 OR {AdoConstants.ColumnTriggerState} = @oldState3)");
+    /// <summary>
+    /// Prefix of the single-trigger state transition; the caller appends an old-state predicate built
+    /// by <c>AdoUtil.BuildTriggerStatePredicate</c>.
+    /// </summary>
+    public static readonly string SqlUpdateTriggerStateFromStatesPrefix =
+        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnTriggerState} = @newState WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerName} = @triggerName AND {AdoConstants.ColumnTriggerGroup} = @triggerGroup AND ");
 
     public static readonly string SqlUpdateTriggerStateFromStateWithNextFireTime =
         Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnTriggerState} = @newState WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerName} = @triggerName AND {AdoConstants.ColumnTriggerGroup} = @triggerGroup AND {AdoConstants.ColumnTriggerState} = @oldState AND {AdoConstants.ColumnNextFireTime} = @nextFireTime");
 
-    public static readonly string SqlUpdateTriggerStatesFromOtherStates =
-        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnTriggerState} = @newState WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND ({AdoConstants.ColumnTriggerState} = @oldState1 OR {AdoConstants.ColumnTriggerState} = @oldState2)");
+    /// <summary>
+    /// Prefix of the store-wide state transition; the caller appends an old-state predicate built by
+    /// <c>AdoUtil.BuildTriggerStatePredicate</c>.
+    /// </summary>
+    public static readonly string SqlUpdateTriggerStatesFromOtherStatesPrefix =
+        Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnTriggerState} = @newState WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND ");
 
     public static readonly string SqlUpdateMisfireOrigFireTime =
         Invariant($"UPDATE {TablePrefixSubst}{AdoConstants.TableTriggers} SET {AdoConstants.ColumnMisfireOriginalFireTime} = @misfireOrigFireTime WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnTriggerName} = @triggerName AND {AdoConstants.ColumnTriggerGroup} = @triggerGroup");

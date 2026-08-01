@@ -53,7 +53,7 @@ public interface ITriggerPersistenceDelegate
     ValueTask<int> InsertExtendedTriggerProperties(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
-        string state,
+        StoredTriggerState state,
         IJobDetail jobDetail,
         CancellationToken cancellationToken = default);
 
@@ -63,7 +63,7 @@ public interface ITriggerPersistenceDelegate
     ValueTask<int> UpdateExtendedTriggerProperties(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,
-        string state,
+        StoredTriggerState state,
         IJobDetail jobDetail,
         CancellationToken cancellationToken = default);
 
