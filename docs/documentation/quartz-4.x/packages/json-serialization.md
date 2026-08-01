@@ -94,10 +94,10 @@ Because the package does not change `BinaryFormatter`'s type identity, only your
 
 The package restores a working - but still unsafe - `BinaryFormatter`, so read the Microsoft
 guidance before relying on it and remove it once the migration is complete. The Quartz types a
-blob is made of - the job data maps, the calendars and the trigger classes - keep their
-`[Serializable]` / `ISerializable` support, so the hybrid serializer below can read the old
-binary payloads and write everything back as JSON. Types that were never part of a blob lost
-those attributes in 4.0; see
+blob can be made of - the job data maps, the keys that can sit in them as values, the calendars
+and the trigger classes - keep their `[Serializable]` / `ISerializable` support, so the hybrid
+serializer below can read the old binary payloads and write everything back as JSON. Types that
+could never be part of a blob lost those attributes in 4.0; see
 [the migration guide](../migration-guide.md#serializable-survives-only-where-a-database-blob-needs-it)
 for the full list.
 

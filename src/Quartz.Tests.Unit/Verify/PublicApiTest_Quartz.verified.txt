@@ -670,6 +670,7 @@ namespace Quartz
         public bool PersistJobDataAfterExecution { get; init; }
         public bool RequestsRecovery { get; init; }
     }
+    [System.Serializable]
     public sealed class JobKey : Quartz.Key<Quartz.JobKey>
     {
         public JobKey(string name) { }
@@ -707,6 +708,7 @@ namespace Quartz
         public JsonSerializationException(string message) { }
         public JsonSerializationException(string message, System.Exception? innerException) { }
     }
+    [System.Serializable]
     public class Key<T> : System.IComparable<Quartz.Key<T>>
     {
         public const string DefaultGroup = "DEFAULT";
@@ -1192,6 +1194,7 @@ namespace Quartz
         public Quartz.TriggerState State { get; init; }
         public string TriggerType { get; init; }
     }
+    [System.Serializable]
     public sealed class TriggerKey : Quartz.Key<Quartz.TriggerKey>
     {
         public TriggerKey(string name) { }

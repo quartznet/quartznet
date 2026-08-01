@@ -53,6 +53,7 @@ namespace Quartz;
 /// </remarks>
 /// <seealso cref="IJob"/>
 /// <seealso cref="Key{T}.DefaultGroup" />
+[Serializable]
 public sealed class JobKey : Key<JobKey>
 {
     public JobKey(string name) : base(name)

@@ -26,6 +26,7 @@ namespace Quartz;
 /// </summary>
 /// <author>  <a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
 /// <author>Marko Lahma (.NET)</author>
+[Serializable]
 public class Key<T> : IComparable<Key<T>>
 {
     /// <summary>

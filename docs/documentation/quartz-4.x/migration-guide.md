@@ -3255,8 +3255,8 @@ read back the way every other primitive can.
 
 `BinaryFormatter` is obsolete on .NET 8 (SYSLIB0051) and throws on .NET 9 and later, and Quartz 4 ships no
 binary serializer. The attributes that only `BinaryFormatter` ever read were still on 49 types — every
-exception, every matcher, the job execution context, the job detail. Sixteen of them keep the attributes;
-the other 33 lost them.
+exception, every matcher, the job execution context, the job detail. Nineteen of them keep the attributes;
+the other 30 lost them.
 
 The line is drawn at the database. A type keeps `[Serializable]`, `ISerializable` and `GetObjectData` when a
 job store blob can be made of it, so that a 3.x database whose blobs were written by `BinaryFormatter` stays
@@ -3265,7 +3265,7 @@ readable while you migrate it to JSON — see
 
 | Blob column | Types that keep the attributes |
 |---|---|
-| `JOB_DETAILS.JOB_DATA`, `TRIGGERS.JOB_DATA` | `JobDataMap`, `StringKeyDirtyFlagMap`, `DirtyFlagMap<TKey, TValue>` |
+| `JOB_DETAILS.JOB_DATA`, `TRIGGERS.JOB_DATA` | `JobDataMap`, `StringKeyDirtyFlagMap`, `DirtyFlagMap<TKey, TValue>`, `Key<T>`, `JobKey`, `TriggerKey` |
 | `CALENDARS.CALENDAR` | `BaseCalendar`, `AnnualCalendar`, `CronCalendar`, `DailyCalendar`, `HolidayCalendar`, `MonthlyCalendar`, `WeeklyCalendar`, `CronExpression` |
 | `BLOB_TRIGGERS.BLOB_DATA` | `AbstractTrigger`, `SimpleTriggerImpl`, `CronTriggerImpl`, `CalendarIntervalTriggerImpl`, `DailyTimeIntervalTriggerImpl` |
 
@@ -3279,7 +3279,6 @@ Everything else lost `[Serializable]`:
 |---|---|
 | Exceptions | `SchedulerException`, `JobExecutionException`, `JobPersistenceException`, `ObjectAlreadyExistsException`, `SchedulerConfigException`, `UnableToInterruptJobException`, `JsonSerializationException`, `LockException`, `NoSuchDelegateException`, `ValidationException` |
 | Matchers | `AndMatcher<TKey>`, `GroupMatcher<TKey>`, `KeyMatcher<TKey>`, `NameMatcher<TKey>`, `NotMatcher<TKey>`, `OrMatcher<TKey>`, `StringMatcher<TKey>`, `StringOperator` |
-| Keys | `Key<T>`, `JobKey`, `TriggerKey` |
 | Everything else | `JobType`, `SchedulerContext`, `JobExecutionContextImpl` |
 
 The `protected` / `public` `(SerializationInfo, StreamingContext)` constructors went with them, on
@@ -3288,11 +3287,14 @@ and `HttpClientException`. If you derive from one of those and forward a `Serial
 delete your constructor — the base class library's `Exception(SerializationInfo, StreamingContext)` is
 obsolete too, and nothing calls yours.
 
-`Key<T>` and its two subclasses are on the removed side even though a key can be a *value* inside a job data
-map. Quartz never puts one there itself: the recovery entries it writes are strings, and both `AbstractTrigger`
-and `JobDetailImpl` deliberately mark their key fields `[NonSerialized]` and serialize the name and group as
-separate strings. If your own job data holds a `JobKey` in a legacy binary blob, migrate that database to JSON
-on 3.x before upgrading.
+`Key<T>` and its two subclasses are on the keep side because a key can be a *value* inside a job data map. Quartz
+never puts one there itself — the recovery entries it writes are strings, and both `AbstractTrigger` and
+`JobDetailImpl` deliberately mark their key fields `[NonSerialized]` and serialize the name and group as separate
+strings — but a job data map holds arbitrary `object` values and serializes them all, so an application that did
+`jobDataMap.Put("parent", jobKey)` on 3.x has a `JobKey` sitting in its `JOB_DATA`. `BinaryFormatter` refuses to
+deserialize an instance whose type is not marked serializable, so removing the attribute would make that blob
+unreadable even through the compatibility package. Blob-reachable means what the graph *can* contain, not only
+what Quartz itself puts there.
 
 ## Other Breaking Changes
 
@@ -3403,7 +3405,6 @@ on 3.x before upgrading.
 | `JobBuilder<TJob>.Key` is public | Reports the identity the builder was given, or `null` when none was set, so a trigger registered alongside a job can agree with it |
 | `ISchedulerProxyFactory` and `HttpSchedulerProxyFactory` removed | Nothing read them — see [Remoting a scheduler is not a Quartz concern](#remoting-a-scheduler-is-not-a-quartz-concern) |
 | `quartz.scheduler.proxy*` and `quartz.scheduler.exporter*` are rejected | They were whitelisted but read by nobody; the exception names the replacement |
-| `[Serializable]` removed from 33 types | It stays only on the types a job store blob is made of — see [`[Serializable]` survives only where a database blob needs it](#serializable-survives-only-where-a-database-blob-needs-it) |
+| `[Serializable]` removed from 30 types | It stays only on the types a job store blob can be made of — see [`[Serializable]` survives only where a database blob needs it](#serializable-survives-only-where-a-database-blob-needs-it) |
 | The `(SerializationInfo, StreamingContext)` constructors removed | On `SchedulerException`, `JobPersistenceException`, `SchedulerConfigException`, `UnableToInterruptJobException` and `HttpClientException`. `BinaryFormatter` was their only caller, and the base class library's equivalent is obsolete |
-| `[Serializable]` removed from `Key<T>`, `JobKey` and `TriggerKey` | Quartz never writes a key into a blob: `AbstractTrigger` and `JobDetailImpl` mark their key fields `[NonSerialized]` and store the name and group as strings |
 | `[Serializable]` removed from `JobExecutionContextImpl` and `SchedulerContext` | Neither is persisted; `SchedulerContext` also lost its private deserialization constructor |
