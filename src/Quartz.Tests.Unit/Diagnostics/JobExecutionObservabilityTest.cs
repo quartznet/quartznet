@@ -57,7 +57,10 @@ public sealed class JobExecutionObservabilityTest
     private const string ExecuteErrors = "scheduling.quartz.execute.errors";
     private const string ExecuteActive = "scheduling.quartz.execute.active";
     private const string ExecuteDuration = "scheduling.quartz.execute.duration";
-    private const string ExceptionType = "scheduling.quartz.exception_type";
+    // OpenTelemetry's conventional attribute for what an operation failed with, spelled out here rather
+    // than read from Quartz, because the wire name is the contract an exporter and a dashboard are
+    // written against.
+    private const string ErrorTypeTag = "error.type";
 
     private readonly List<RecordedMeasurement> measurements = [];
     private readonly List<Activity> stoppedActivities = [];
@@ -179,13 +182,13 @@ public sealed class JobExecutionObservabilityTest
 
         active.Sum(m => m.Value).Should().Be(0,
             "a job that throws leaves nothing in progress either — the decrement is not on the happy path only");
-        active.Should().AllSatisfy(m => m.Tags.Should().NotContainKey(ExceptionType,
+        active.Should().AllSatisfy(m => m.Tags.Should().NotContainKey(ErrorTypeTag,
             "an up-down counter is aggregated per attribute set, so the decrement has to carry exactly the "
             + "tags the increment carried or the series never comes back to zero"));
 
         published.Should().ContainSingle(m => m.Instrument == ExecuteDuration,
             "how long a job ran is worth knowing whether or not it failed")
-            .Which.Tags.Should().ContainKey(ExceptionType,
+            .Which.Tags.Should().ContainKey(ErrorTypeTag,
                 "and a failed run's duration is worth telling apart from a successful one's");
     }
 
@@ -195,23 +198,43 @@ public sealed class JobExecutionObservabilityTest
     /// <remarks>
     /// The tag used to be added to <c>_tagList.Value</c>, and <see cref="Nullable{T}.Value"/> hands back a
     /// copy of the struct: it went onto a temporary that was thrown away on the next line, where a second
-    /// copy — still the four identity tags — was what the counter was given. The type reported is the one
-    /// the run shell hands to the instrumentation, which is the <see cref="JobExecutionException"/> it
-    /// wraps anything a job throws in, so the tag separates a job that raised one deliberately from a job
-    /// whose failure the pipeline wrapped. The exception the job itself threw is on the span, as
-    /// <see cref="FailingJobExecution_EmitsActivityWithErrorStatusAndException"/> asserts.
+    /// copy — still the four identity tags — was what the counter was given. Once it did arrive it named
+    /// the <see cref="JobExecutionException"/> the run shell wraps anything a job throws in, which is the
+    /// same answer for nearly every failure there is; what it reports now is the exception the job threw,
+    /// found by unwrapping that pair of wrappers.
     /// </remarks>
     [Test]
-    public async Task FailingJobExecution_TagsTheErrorWithTheExceptionType()
+    public async Task FailingJobExecution_TagsTheErrorWithTheExceptionTheJobThrew()
     {
         Execution execution = await RunJob<ThrowingJob>();
 
         RecordedMeasurement error = MeasurementsFor(execution.JobKey).Single(m => m.Instrument == ExecuteErrors);
 
-        error.Tags.Should().ContainKey(ExceptionType)
-            .WhoseValue.Should().Be(nameof(JobExecutionException),
-                "an exporter that can see that executions failed but never what failed is missing most of "
-                + "the reason to look");
+        error.Tags.Should().ContainKey(ErrorTypeTag)
+            .WhoseValue.Should().Be(typeof(InvalidOperationException).FullName,
+                "the run shell wraps what a job throws as JobExecutionException -> "
+                + "JobExecutionProcessException -> the cause, and naming either wrapper would tell an "
+                + "exporter only that Quartz caught something, which it already knew from the counter");
+    }
+
+    /// <summary>
+    /// Unwrapping stops at what the job threw, so a job that raises a <see cref="JobExecutionException"/>
+    /// deliberately is reported as having thrown one.
+    /// </summary>
+    [Test]
+    public async Task JobThrowingJobExecutionException_TagsTheErrorWithThatType()
+    {
+        Execution execution = await RunJob<DeliberatelyFailingJob>();
+
+        RecordedMeasurement error = MeasurementsFor(execution.JobKey).Single(m => m.Instrument == ExecuteErrors);
+
+        error.Tags.Should().ContainKey(ErrorTypeTag)
+            .WhoseValue.Should().Be(typeof(JobExecutionException).FullName,
+                "a JobExecutionException a job raised itself is not a wrapper the run shell added — there "
+                + "is no JobExecutionProcessException under it — and it is what the job chose to say");
+
+        ActivityFor(execution.JobKey).GetTagItem(ErrorTypeTag).Should().Be(typeof(JobExecutionException).FullName,
+            "the span and the errors counter answer the same question the same way");
     }
 
     [Test]
@@ -248,6 +271,15 @@ public sealed class JobExecutionObservabilityTest
         activity.Status.Should().Be(ActivityStatusCode.Error);
         activity.Events.Should().ContainSingle(e => e.Name == "exception",
             "the exception the job threw is recorded on the span that failed");
+
+        activity.GetTagItem(ErrorTypeTag).Should().Be(typeof(InvalidOperationException).FullName,
+            "the span classifies the failure with the attribute the errors counter is tagged with, so one "
+            + "value finds the failed executions in a trace and in a metric alike");
+
+        RecordedMeasurement error = MeasurementsFor(execution.JobKey).Single(m => m.Instrument == ExecuteErrors);
+        error.Tags[ErrorTypeTag].Should().Be(activity.GetTagItem(ErrorTypeTag),
+            "the two signals are read together, and disagreeing about what failed is worse than either "
+            + "of them being silent");
     }
 
     /// <summary>
@@ -385,6 +417,18 @@ public sealed class JobExecutionObservabilityTest
         public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             throw new InvalidOperationException("this job fails on purpose");
+        }
+    }
+
+    /// <summary>
+    /// A job reporting its own failure the way Quartz asks a job to, rather than letting an exception of
+    /// its own out.
+    /// </summary>
+    public sealed class DeliberatelyFailingJob : IJob
+    {
+        public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            throw new JobExecutionException("this job reports its own failure");
         }
     }
 }
