@@ -15,9 +15,11 @@ public class ShutdownDuringTriggerAcquisitionTest
     public async Task TestShutdownBetweenTriggerAcquisitionAndExecution()
     {
         // Create a scheduler with a custom thread pool that can simulate shutdown at the right moment
-        var scheduler = await QuartzSchedulerBuilder.Create().ConfigureScheduler(o => { o.InstanceId = "AUTO"; o.InstanceName = "TestScheduler"; })
-            .UseDefaultThreadPool(x => x.MaxConcurrency = 1)
-            .BuildScheduler();
+        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
+        builder.ConfigureScheduler(o => { o.InstanceId = "AUTO"; o.InstanceName = "TestScheduler"; })
+            .UseDefaultThreadPool(x => x.MaxConcurrency = 1);
+
+        var scheduler = await builder.BuildScheduler();
 
         try
         {
@@ -48,9 +50,11 @@ public class ShutdownDuringTriggerAcquisitionTest
             await Task.Delay(500);
 
             // Restart the scheduler to check trigger state
-            var newScheduler = await QuartzSchedulerBuilder.Create().ConfigureScheduler(o => { o.InstanceId = "AUTO"; o.InstanceName = "TestScheduler2"; })
-                .UseDefaultThreadPool(x => x.MaxConcurrency = 1)
-                .BuildScheduler();
+            QuartzSchedulerBuilder newBuilder = QuartzSchedulerBuilder.Create();
+            newBuilder.ConfigureScheduler(o => { o.InstanceId = "AUTO"; o.InstanceName = "TestScheduler2"; })
+                .UseDefaultThreadPool(x => x.MaxConcurrency = 1);
+
+            var newScheduler = await newBuilder.BuildScheduler();
 
             try
             {
@@ -102,9 +106,11 @@ public class ShutdownDuringTriggerAcquisitionTest
     [Test]
     public async Task TestShutdownCallsReleaseInsteadOfError()
     {
-        var scheduler = await QuartzSchedulerBuilder.Create().ConfigureScheduler(o => { o.InstanceId = "AUTO"; o.InstanceName = "TestScheduler"; })
-            .UseDefaultThreadPool(x => x.MaxConcurrency = 1)
-            .BuildScheduler();
+        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
+        builder.ConfigureScheduler(o => { o.InstanceId = "AUTO"; o.InstanceName = "TestScheduler"; })
+            .UseDefaultThreadPool(x => x.MaxConcurrency = 1);
+
+        var scheduler = await builder.BuildScheduler();
 
         try
         {
@@ -131,9 +137,11 @@ public class ShutdownDuringTriggerAcquisitionTest
             await Task.Delay(500);
 
             // Check that trigger can be rescheduled (not in ERROR state)
-            var newScheduler = await QuartzSchedulerBuilder.Create().ConfigureScheduler(o => { o.InstanceId = "AUTO"; o.InstanceName = "TestScheduler2"; })
-                .UseDefaultThreadPool(x => x.MaxConcurrency = 1)
-                .BuildScheduler();
+            QuartzSchedulerBuilder newBuilder = QuartzSchedulerBuilder.Create();
+            newBuilder.ConfigureScheduler(o => { o.InstanceId = "AUTO"; o.InstanceName = "TestScheduler2"; })
+                .UseDefaultThreadPool(x => x.MaxConcurrency = 1);
+
+            var newScheduler = await newBuilder.BuildScheduler();
 
             try
             {

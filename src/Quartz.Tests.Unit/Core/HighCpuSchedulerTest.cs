@@ -1,7 +1,5 @@
 using System.Collections.Specialized;
 
-using Quartz.Impl;
-
 namespace Quartz.Tests.Unit.Core;
 
 /// <summary>
@@ -29,7 +27,7 @@ public class HighCpuSchedulerTest
             ["quartz.scheduler.instanceName"] = "HighCpuTest",
         };
 
-        ISchedulerFactory sf = new StdSchedulerFactory(properties);
+        ISchedulerFactory sf = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         IScheduler scheduler = await sf.GetScheduler();
 
         try
@@ -76,7 +74,7 @@ public class HighCpuSchedulerTest
                 ["quartz.scheduler.instanceName"] = $"HighCpuStress_{iteration}",
             };
 
-            ISchedulerFactory sf = new StdSchedulerFactory(properties);
+            ISchedulerFactory sf = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
             IScheduler scheduler = await sf.GetScheduler();
 
             try

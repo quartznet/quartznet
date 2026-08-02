@@ -19,9 +19,6 @@ namespace Quartz
         public AdoJobStoreOptions() { }
         public bool AcceptEnlistedTransactions { get; set; }
         public bool AcquireTriggersWithinLock { get; set; }
-        public System.TimeSpan ClusterCheckinInterval { get; set; }
-        public System.TimeSpan ClusterCheckinMisfireThreshold { get; set; }
-        public bool Clustered { get; set; }
         public string DataSource { get; set; }
         public System.TimeSpan DbRetryInterval { get; set; }
         public bool DoubleCheckLockMisfireHandler { get; set; }
@@ -65,8 +62,9 @@ namespace Quartz
     public sealed class ClusteringOptions
     {
         public ClusteringOptions() { }
-        public System.TimeSpan? CheckinInterval { get; set; }
-        public System.TimeSpan? CheckinMisfireThreshold { get; set; }
+        public System.TimeSpan CheckinInterval { get; set; }
+        public System.TimeSpan CheckinMisfireThreshold { get; set; }
+        public bool Enabled { get; set; }
     }
     [System.Serializable]
     public sealed class CronExpression : System.Runtime.Serialization.ISerializable
@@ -353,7 +351,6 @@ namespace Quartz
         Quartz.IPersistentStoreBuilder Configure(System.Action<Quartz.AdoJobStoreOptions> configure);
         Quartz.IPersistentStoreBuilder UseClustering(System.Action<Quartz.ClusteringOptions>? configure = null);
         Quartz.IPersistentStoreBuilder UseDataSource(System.Action<Quartz.DataSourceOptions> configure);
-        Quartz.IPersistentStoreBuilder UseDataSourceConnectionProvider();
         Quartz.IPersistentStoreBuilder UseDataSourceName(string name);
         Quartz.IPersistentStoreBuilder UseDriverDelegate<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>()
             where T :  class, Quartz.Impl.AdoJobStore.IDriverDelegate;
@@ -374,12 +371,11 @@ namespace Quartz
             where T :  class, Quartz.IJobListener;
         Quartz.IQuartzBuilder AddJobListener<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(T listener, params Quartz.IMatcher<Quartz.JobKey>[] matchers)
             where T :  class, Quartz.IJobListener;
-        Quartz.IQuartzBuilder AddPlugin(System.Func<System.IServiceProvider, Quartz.Extensibility.ISchedulerPlugin> factory);
-        Quartz.IQuartzBuilder AddPlugin<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>()
+        Quartz.IQuartzBuilder AddPlugin<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(string? name = null)
             where T :  class, Quartz.Extensibility.ISchedulerPlugin;
-        Quartz.IQuartzBuilder AddPlugin<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(string name, System.Func<System.IServiceProvider, T> factory)
+        Quartz.IQuartzBuilder AddPlugin<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(System.Func<System.IServiceProvider, T> factory, string? name = null)
             where T :  class, Quartz.Extensibility.ISchedulerPlugin;
-        Quartz.IQuartzBuilder AddPlugin<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T, TOptions>(System.Action<TOptions>? configure = null)
+        Quartz.IQuartzBuilder AddPlugin<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T, TOptions>(System.Action<TOptions>? configure = null, string? name = null)
             where T :  class, Quartz.Extensibility.ISchedulerPlugin
             where TOptions :  class;
         Quartz.IQuartzBuilder AddSchedulerListener<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>()
@@ -402,9 +398,11 @@ namespace Quartz
         Quartz.IQuartzBuilder UseJobFactory(Quartz.Extensibility.IJobFactory jobFactory);
         Quartz.IQuartzBuilder UseJobFactory<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>()
             where T :  class, Quartz.Extensibility.IJobFactory;
+        Quartz.IQuartzBuilder UseJobStore(Quartz.Extensibility.IJobStore jobStore);
         Quartz.IQuartzBuilder UsePersistentStore(System.Action<Quartz.IPersistentStoreBuilder> configure);
         Quartz.IQuartzBuilder UsePersistentStore<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(System.Action<Quartz.IPersistentStoreBuilder> configure)
             where T :  class, Quartz.Extensibility.IJobStore;
+        Quartz.IQuartzBuilder UseThreadPool(Quartz.Extensibility.IThreadPool threadPool);
         Quartz.IQuartzBuilder UseThreadPool<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(System.Action<Quartz.ThreadPoolOptions>? configure = null)
             where T :  class, Quartz.Extensibility.IThreadPool;
         Quartz.IQuartzBuilder UseTimeProvider(System.TimeProvider timeProvider);
@@ -603,6 +601,7 @@ namespace Quartz
     public sealed class JobBuilder<TJob> : Quartz.IJobConfigurator<TJob>
         where TJob : Quartz.IJob
     {
+        public Quartz.JobKey? Key { get; }
         public Quartz.IJobDetail Build() { }
         public Quartz.JobBuilder<TJob> DisallowConcurrentExecution(bool concurrentExecutionDisallowed = true) { }
         public Quartz.JobBuilder<TJob> OfType([System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)] System.Type type) { }
@@ -801,8 +800,6 @@ namespace Quartz
         public static Quartz.IPersistentStoreBuilder UseGenericDatabase(this Quartz.IPersistentStoreBuilder builder, string provider, string connectionString) { }
         public static Quartz.IPersistentStoreBuilder UseGenericDatabase(this Quartz.IPersistentStoreBuilder builder, string provider, System.Action<Quartz.DataSourceOptions> configureDataSource, System.Action<Quartz.Impl.AdoJobStore.Common.DbMetadata> configureMetadata) { }
         public static Quartz.IPersistentStoreBuilder UseGenericDatabase(this Quartz.IPersistentStoreBuilder builder, string provider, string connectionString, System.Action<Quartz.Impl.AdoJobStore.Common.DbMetadata> configureMetadata) { }
-        public static Quartz.IPersistentStoreBuilder UseMicrosoftSQLite(this Quartz.IPersistentStoreBuilder builder, System.Action<Quartz.DataSourceOptions> configure) { }
-        public static Quartz.IPersistentStoreBuilder UseMicrosoftSQLite(this Quartz.IPersistentStoreBuilder builder, string connectionString) { }
         public static Quartz.IPersistentStoreBuilder UseMySql(this Quartz.IPersistentStoreBuilder builder, System.Action<Quartz.DataSourceOptions> configure) { }
         public static Quartz.IPersistentStoreBuilder UseMySql(this Quartz.IPersistentStoreBuilder builder, string connectionString) { }
         public static Quartz.IPersistentStoreBuilder UseMySqlConnector(this Quartz.IPersistentStoreBuilder builder, System.Action<Quartz.DataSourceOptions> configure) { }
@@ -811,10 +808,12 @@ namespace Quartz
         public static Quartz.IPersistentStoreBuilder UseOracle(this Quartz.IPersistentStoreBuilder builder, string connectionString) { }
         public static Quartz.IPersistentStoreBuilder UsePostgres(this Quartz.IPersistentStoreBuilder builder, System.Action<Quartz.DataSourceOptions> configure) { }
         public static Quartz.IPersistentStoreBuilder UsePostgres(this Quartz.IPersistentStoreBuilder builder, string connectionString) { }
-        public static Quartz.IPersistentStoreBuilder UseSQLite(this Quartz.IPersistentStoreBuilder builder, System.Action<Quartz.DataSourceOptions> configure) { }
-        public static Quartz.IPersistentStoreBuilder UseSQLite(this Quartz.IPersistentStoreBuilder builder, string connectionString) { }
         public static Quartz.IPersistentStoreBuilder UseSqlServer(this Quartz.IPersistentStoreBuilder builder, System.Action<Quartz.DataSourceOptions> configure) { }
         public static Quartz.IPersistentStoreBuilder UseSqlServer(this Quartz.IPersistentStoreBuilder builder, string connectionString) { }
+        public static Quartz.IPersistentStoreBuilder UseSqlite(this Quartz.IPersistentStoreBuilder builder, System.Action<Quartz.DataSourceOptions> configure) { }
+        public static Quartz.IPersistentStoreBuilder UseSqlite(this Quartz.IPersistentStoreBuilder builder, string connectionString) { }
+        public static Quartz.IPersistentStoreBuilder UseSystemDataSqlite(this Quartz.IPersistentStoreBuilder builder, System.Action<Quartz.DataSourceOptions> configure) { }
+        public static Quartz.IPersistentStoreBuilder UseSystemDataSqlite(this Quartz.IPersistentStoreBuilder builder, string connectionString) { }
     }
     public readonly struct PreferredNode : System.IEquatable<Quartz.PreferredNode>
     {
@@ -828,7 +827,7 @@ namespace Quartz
     }
     public class QuartzHostedService : Microsoft.Extensions.Hosting.IHostedLifecycleService, Microsoft.Extensions.Hosting.IHostedService
     {
-        public QuartzHostedService(Microsoft.Extensions.Hosting.IHostApplicationLifetime applicationLifetime, Quartz.ISchedulerFactory schedulerFactory, Microsoft.Extensions.Options.IOptions<Quartz.QuartzHostedServiceOptions> options) { }
+        public QuartzHostedService(Microsoft.Extensions.Hosting.IHostApplicationLifetime applicationLifetime, System.IServiceProvider serviceProvider, Microsoft.Extensions.Options.IOptionsMonitor<Quartz.QuartzHostedServiceOptions> options) { }
         public virtual System.Threading.Tasks.Task StartAsync(System.Threading.CancellationToken cancellationToken) { }
         public virtual System.Threading.Tasks.Task StartedAsync(System.Threading.CancellationToken cancellationToken) { }
         public virtual System.Threading.Tasks.Task StartingAsync(System.Threading.CancellationToken cancellationToken) { }
@@ -846,26 +845,60 @@ namespace Quartz
     public sealed class QuartzOptions
     {
         public QuartzOptions() { }
-        public System.TimeSpan? MisfireThreshold { get; set; }
         public System.Collections.Generic.Dictionary<string, string?> Properties { get; }
-        public string? SchedulerId { get; set; }
-        public string? SchedulerName { get; set; }
         public Quartz.SchedulingOptions Scheduling { get; set; }
         public System.Collections.Specialized.NameValueCollection ToNameValueCollection() { }
     }
-    public sealed class QuartzSchedulerBuilder
+    public sealed class QuartzSchedulerBuilder : Quartz.IQuartzBuilder
     {
+        public string SchedulerName { get; }
         public Microsoft.Extensions.DependencyInjection.IServiceCollection Services { get; }
-        public Quartz.ISchedulerFactory Build() { }
+        public Quartz.IQuartzBuilder AddJobListener<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(params Quartz.IMatcher<Quartz.JobKey>[] matchers)
+            where T :  class, Quartz.IJobListener { }
+        public Quartz.IQuartzBuilder AddJobListener<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(System.Func<System.IServiceProvider, T> factory, params Quartz.IMatcher<Quartz.JobKey>[] matchers)
+            where T :  class, Quartz.IJobListener { }
+        public Quartz.IQuartzBuilder AddJobListener<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(T listener, params Quartz.IMatcher<Quartz.JobKey>[] matchers)
+            where T :  class, Quartz.IJobListener { }
+        public Quartz.IQuartzBuilder AddPlugin<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(string? name = null)
+            where T :  class, Quartz.Extensibility.ISchedulerPlugin { }
+        public Quartz.IQuartzBuilder AddPlugin<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(System.Func<System.IServiceProvider, T> factory, string? name = null)
+            where T :  class, Quartz.Extensibility.ISchedulerPlugin { }
+        public Quartz.IQuartzBuilder AddPlugin<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T, TOptions>(System.Action<TOptions>? configure = null, string? name = null)
+            where T :  class, Quartz.Extensibility.ISchedulerPlugin
+            where TOptions :  class { }
+        public Quartz.IQuartzBuilder AddSchedulerListener<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>()
+            where T :  class, Quartz.ISchedulerListener { }
+        public Quartz.IQuartzBuilder AddSchedulerListener<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(System.Func<System.IServiceProvider, T> factory)
+            where T :  class, Quartz.ISchedulerListener { }
+        public Quartz.IQuartzBuilder AddSchedulerListener<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(T listener)
+            where T :  class, Quartz.ISchedulerListener { }
+        public Quartz.IQuartzBuilder AddTriggerListener<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(params Quartz.IMatcher<Quartz.TriggerKey>[] matchers)
+            where T :  class, Quartz.ITriggerListener { }
+        public Quartz.IQuartzBuilder AddTriggerListener<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(System.Func<System.IServiceProvider, T> factory, params Quartz.IMatcher<Quartz.TriggerKey>[] matchers)
+            where T :  class, Quartz.ITriggerListener { }
+        public Quartz.IQuartzBuilder AddTriggerListener<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(T listener, params Quartz.IMatcher<Quartz.TriggerKey>[] matchers)
+            where T :  class, Quartz.ITriggerListener { }
+        public Quartz.StandaloneSchedulerFactory Build() { }
         public System.Threading.Tasks.ValueTask<Quartz.IScheduler> BuildScheduler(System.Threading.CancellationToken cancellationToken = default) { }
-        public Quartz.QuartzSchedulerBuilder Configure(System.Action<Quartz.IQuartzBuilder> configure) { }
-        public Quartz.QuartzSchedulerBuilder ConfigureScheduler(System.Action<Quartz.QuartzSchedulerOptions> configure) { }
-        public Quartz.QuartzSchedulerBuilder UseDefaultThreadPool(System.Action<Quartz.ThreadPoolOptions>? configure = null) { }
-        public Quartz.QuartzSchedulerBuilder UseDefaultThreadPool(int maxConcurrency) { }
-        public Quartz.QuartzSchedulerBuilder UseInMemoryStore(System.Action<Quartz.InMemoryJobStoreOptions>? configure = null) { }
-        public Quartz.QuartzSchedulerBuilder UseJobFactory(Quartz.Extensibility.IJobFactory jobFactory) { }
-        public Quartz.QuartzSchedulerBuilder UseJobStore(Quartz.Extensibility.IJobStore jobStore) { }
-        public Quartz.QuartzSchedulerBuilder UseThreadPool(Quartz.Extensibility.IThreadPool threadPool) { }
+        public Quartz.IQuartzBuilder ConfigureScheduler(System.Action<Quartz.QuartzSchedulerOptions> configure) { }
+        public Quartz.IQuartzBuilder UseDefaultThreadPool(System.Action<Quartz.ThreadPoolOptions>? configure = null) { }
+        public Quartz.IQuartzBuilder UseDefaultThreadPool(int maxConcurrency) { }
+        public Quartz.IQuartzBuilder UseExecutionLimits(System.Action<Quartz.ExecutionLimits> configure) { }
+        public Quartz.IQuartzBuilder UseInMemoryStore(System.Action<Quartz.InMemoryJobStoreOptions>? configure = null) { }
+        public Quartz.IQuartzBuilder UseJobFactory(Quartz.Extensibility.IJobFactory jobFactory) { }
+        public Quartz.IQuartzBuilder UseJobFactory<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>()
+            where T :  class, Quartz.Extensibility.IJobFactory { }
+        public Quartz.IQuartzBuilder UseJobStore(Quartz.Extensibility.IJobStore jobStore) { }
+        public Quartz.IQuartzBuilder UsePersistentStore(System.Action<Quartz.IPersistentStoreBuilder> configure) { }
+        public Quartz.IQuartzBuilder UsePersistentStore<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(System.Action<Quartz.IPersistentStoreBuilder> configure)
+            where T :  class, Quartz.Extensibility.IJobStore { }
+        public Quartz.QuartzSchedulerBuilder UseProperties(System.Collections.Specialized.NameValueCollection properties) { }
+        public Quartz.IQuartzBuilder UseThreadPool(Quartz.Extensibility.IThreadPool threadPool) { }
+        public Quartz.IQuartzBuilder UseThreadPool<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(System.Action<Quartz.ThreadPoolOptions>? configure = null)
+            where T :  class, Quartz.Extensibility.IThreadPool { }
+        public Quartz.IQuartzBuilder UseTimeProvider(System.TimeProvider timeProvider) { }
+        public Quartz.IQuartzBuilder UseTypeLoader<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>()
+            where T :  class, Quartz.Extensibility.ITypeLoadHelper { }
         public static Quartz.QuartzSchedulerBuilder Create() { }
     }
     public sealed class QuartzSchedulerOptions
@@ -888,6 +921,7 @@ namespace Quartz
     public static class QuartzServiceCollectionExtensions
     {
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzHostedService(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Quartz.QuartzHostedServiceOptions>? configure = null) { }
+        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzHostedService(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, string schedulerName, System.Action<Quartz.QuartzHostedServiceOptions>? configure = null) { }
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzHostedService<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors)]  T>(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Quartz.QuartzHostedServiceOptions>? configure = null)
             where T : Quartz.QuartzHostedService { }
     }
@@ -994,20 +1028,16 @@ namespace Quartz
     }
     public static class ServiceCollectionExtensions
     {
-        public static Quartz.IQuartzBuilder AddCalendar(this Quartz.IQuartzBuilder configurator, string calendarName, Quartz.ICalendar calendar, bool replace, bool updateTriggers) { }
-        public static Quartz.IQuartzBuilder AddCalendar<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(this Quartz.IQuartzBuilder configurator, string calendarName, bool replace, bool updateTriggers, System.Action<T> configure)
+        public static Quartz.IQuartzBuilder AddCalendar(this Quartz.IQuartzBuilder builder, string name, Quartz.ICalendar calendar, Quartz.AddCalendarOptions? options = null) { }
+        public static Quartz.IQuartzBuilder AddCalendar<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(this Quartz.IQuartzBuilder builder, string name, Quartz.AddCalendarOptions? options, System.Action<System.IServiceProvider, T> configure)
             where T : Quartz.ICalendar, new () { }
-        public static Quartz.IQuartzBuilder AddCalendar<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(this Quartz.IQuartzBuilder configurator, string calendarName, bool replace, bool updateTriggers, System.Action<System.IServiceProvider, T> configure)
+        public static Quartz.IQuartzBuilder AddCalendar<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>(this Quartz.IQuartzBuilder builder, string name, Quartz.AddCalendarOptions? options = null, System.Action<T>? configure = null)
             where T : Quartz.ICalendar, new () { }
-        public static Quartz.IQuartzBuilder AddJob(this Quartz.IQuartzBuilder options, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)] System.Type jobType, Quartz.JobKey? jobKey, System.Action<Quartz.IJobConfigurator<Quartz.IJob>> configure) { }
-        public static Quartz.IQuartzBuilder AddJob(this Quartz.IQuartzBuilder options, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)] System.Type jobType, Quartz.JobKey? jobKey = null, System.Action<System.IServiceProvider, Quartz.IJobConfigurator<Quartz.IJob>>? configure = null) { }
-        public static Quartz.IQuartzBuilder AddJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>(this Quartz.IQuartzBuilder options, System.Action<Quartz.IJobConfigurator<T>> configure)
+        public static Quartz.IQuartzBuilder AddJob(this Quartz.IQuartzBuilder builder, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)] System.Type jobType, System.Action<Quartz.IJobConfigurator<Quartz.IJob>> configure) { }
+        public static Quartz.IQuartzBuilder AddJob(this Quartz.IQuartzBuilder builder, [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)] System.Type jobType, System.Action<System.IServiceProvider, Quartz.IJobConfigurator<Quartz.IJob>> configure) { }
+        public static Quartz.IQuartzBuilder AddJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>(this Quartz.IQuartzBuilder builder, System.Action<Quartz.IJobConfigurator<T>> configure)
             where T : Quartz.IJob { }
-        public static Quartz.IQuartzBuilder AddJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>(this Quartz.IQuartzBuilder options, System.Action<System.IServiceProvider, Quartz.IJobConfigurator<T>> configure)
-            where T : Quartz.IJob { }
-        public static Quartz.IQuartzBuilder AddJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>(this Quartz.IQuartzBuilder options, Quartz.JobKey? jobKey, System.Action<Quartz.IJobConfigurator<T>> configure)
-            where T : Quartz.IJob { }
-        public static Quartz.IQuartzBuilder AddJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>(this Quartz.IQuartzBuilder options, Quartz.JobKey? jobKey = null, System.Action<System.IServiceProvider, Quartz.IJobConfigurator<T>>? configure = null)
+        public static Quartz.IQuartzBuilder AddJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>(this Quartz.IQuartzBuilder builder, System.Action<System.IServiceProvider, Quartz.IJobConfigurator<T>> configure)
             where T : Quartz.IJob { }
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartz(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Quartz.IQuartzBuilder>? configure = null) { }
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartz(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, Microsoft.Extensions.Configuration.IConfiguration configuration, System.Action<Quartz.IQuartzBuilder>? configure = null) { }
@@ -1015,15 +1045,14 @@ namespace Quartz
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartz(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, string name, System.Action<Quartz.IQuartzBuilder>? configure = null) { }
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartz(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, string name, Microsoft.Extensions.Configuration.IConfiguration configuration, System.Action<Quartz.IQuartzBuilder>? configure = null) { }
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartz(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, string name, System.Collections.Specialized.NameValueCollection properties, System.Action<Quartz.IQuartzBuilder>? configure = null) { }
-        public static Quartz.IQuartzBuilder AddTrigger(this Quartz.IQuartzBuilder options, System.Action<Quartz.ITriggerConfigurator<Quartz.IJob>> configure) { }
-        public static Quartz.IQuartzBuilder AddTrigger(this Quartz.IQuartzBuilder options, System.Action<System.IServiceProvider, Quartz.ITriggerConfigurator<Quartz.IJob>> configure) { }
-        public static Quartz.IQuartzBuilder AddTrigger<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  TJob>(this Quartz.IQuartzBuilder options, System.Action<Quartz.ITriggerConfigurator<TJob>> configure)
+        public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzSchedulers(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, Microsoft.Extensions.Configuration.IConfiguration configuration, System.Action<Quartz.IQuartzBuilder>? configure = null) { }
+        public static Quartz.IQuartzBuilder AddTrigger<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  TJob>(this Quartz.IQuartzBuilder builder, System.Action<Quartz.ITriggerConfigurator<TJob>> configure)
             where TJob : Quartz.IJob { }
-        public static Quartz.IQuartzBuilder AddTrigger<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  TJob>(this Quartz.IQuartzBuilder options, System.Action<System.IServiceProvider, Quartz.ITriggerConfigurator<TJob>> configure)
+        public static Quartz.IQuartzBuilder AddTrigger<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  TJob>(this Quartz.IQuartzBuilder builder, System.Action<System.IServiceProvider, Quartz.ITriggerConfigurator<TJob>> configure)
             where TJob : Quartz.IJob { }
-        public static Quartz.IQuartzBuilder ScheduleJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>(this Quartz.IQuartzBuilder options, System.Action<Quartz.ITriggerConfigurator<T>> trigger, System.Action<Quartz.IJobConfigurator<T>>? job = null)
+        public static Quartz.IQuartzBuilder ScheduleJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>(this Quartz.IQuartzBuilder builder, System.Action<Quartz.ITriggerConfigurator<T>> trigger, System.Action<Quartz.IJobConfigurator<T>>? job = null)
             where T : Quartz.IJob { }
-        public static Quartz.IQuartzBuilder ScheduleJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>(this Quartz.IQuartzBuilder options, System.Action<System.IServiceProvider, Quartz.ITriggerConfigurator<T>> trigger, System.Action<System.IServiceProvider, Quartz.IJobConfigurator<T>>? job = null)
+        public static Quartz.IQuartzBuilder ScheduleJob<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>(this Quartz.IQuartzBuilder builder, System.Action<System.IServiceProvider, Quartz.ITriggerConfigurator<T>> trigger, System.Action<System.IServiceProvider, Quartz.IJobConfigurator<T>>? job = null)
             where T : Quartz.IJob { }
         public static Quartz.IQuartzBuilder UseSimpleTypeLoader(this Quartz.IQuartzBuilder builder) { }
     }
@@ -1045,6 +1074,14 @@ namespace Quartz
         NowWithRemainingCount = 3,
         NextWithRemainingCount = 4,
         NextWithExistingCount = 5,
+    }
+    public sealed class StandaloneSchedulerFactory : Quartz.ISchedulerFactory, System.IAsyncDisposable, System.IDisposable
+    {
+        public void Dispose() { }
+        public System.Threading.Tasks.ValueTask DisposeAsync() { }
+        public System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.IScheduler>> GetAllSchedulers(System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask<Quartz.IScheduler> GetScheduler(System.Threading.CancellationToken cancellationToken = default) { }
+        public System.Threading.Tasks.ValueTask<Quartz.IScheduler?> GetScheduler(string schedulerName, System.Threading.CancellationToken cancellationToken = default) { }
     }
     public class SystemTextJsonSerializerOptions
     {
@@ -1408,10 +1445,6 @@ namespace Quartz.Extensibility
         System.Threading.Tasks.ValueTask Shutdown(System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask Start(System.Threading.CancellationToken cancellationToken = default);
     }
-    public interface ISchedulerProxyFactory
-    {
-        Quartz.IScheduler GetProxy(string schedulerName, string schedulerInstanceId);
-    }
     public interface ISchedulerRepository
     {
         void Bind(Quartz.IScheduler scheduler, string? instanceId = null);
@@ -1618,7 +1651,7 @@ namespace Quartz.Impl.AdoJobStore
     }
     public class ExternalTransactionJobStore : Quartz.Impl.AdoJobStore.JobStoreSupport
     {
-        public ExternalTransactionJobStore(Quartz.Extensibility.ISchedulerSignaler schedulerSignaler, Quartz.Extensibility.ITypeLoadHelper typeLoadHelper, System.TimeProvider timeProvider, Microsoft.Extensions.Options.IOptions<Quartz.QuartzSchedulerOptions> schedulerOptions, Microsoft.Extensions.Options.IOptions<Quartz.AdoJobStoreOptions> storeOptions, Quartz.Extensibility.IObjectSerializer objectSerializer, Quartz.Impl.AdoJobStore.Common.IDbConnectionManager connectionManager, Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider, Quartz.Impl.AdoJobStore.IDriverDelegate driverDelegate, Quartz.Impl.AdoJobStore.ISemaphore? lockHandler = null) { }
+        public ExternalTransactionJobStore(Quartz.Extensibility.ISchedulerSignaler schedulerSignaler, Quartz.Extensibility.ITypeLoadHelper typeLoadHelper, System.TimeProvider timeProvider, Microsoft.Extensions.Options.IOptions<Quartz.QuartzSchedulerOptions> schedulerOptions, Microsoft.Extensions.Options.IOptions<Quartz.AdoJobStoreOptions> storeOptions, Microsoft.Extensions.Options.IOptions<Quartz.ClusteringOptions> clusteringOptions, Quartz.Extensibility.IObjectSerializer objectSerializer, Quartz.Impl.AdoJobStore.Common.IDbConnectionManager connectionManager, Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider, Quartz.Impl.AdoJobStore.IDriverDelegate driverDelegate, Quartz.Impl.AdoJobStore.ISemaphore? lockHandler = null) { }
         public bool OpenConnection { get; set; }
         protected override System.Threading.Tasks.ValueTask<T> ExecuteInLock<T>(Quartz.Impl.AdoJobStore.SchedulerLock? lockKind, System.Func<Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder, System.Threading.Tasks.ValueTask<T>> txCallback, System.Threading.CancellationToken cancellationToken = default) { }
         protected override System.Threading.Tasks.ValueTask<Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder> GetLocalTransactionConnection(System.Threading.CancellationToken cancellationToken = default) { }
@@ -1771,7 +1804,7 @@ namespace Quartz.Impl.AdoJobStore
     }
     public abstract class JobStoreSupport : Quartz.Extensibility.IJobStore
     {
-        protected JobStoreSupport(Quartz.Extensibility.ISchedulerSignaler schedulerSignaler, Quartz.Extensibility.ITypeLoadHelper typeLoadHelper, System.TimeProvider timeProvider, Microsoft.Extensions.Options.IOptions<Quartz.QuartzSchedulerOptions> schedulerOptions, Microsoft.Extensions.Options.IOptions<Quartz.AdoJobStoreOptions> storeOptions, Quartz.Extensibility.IObjectSerializer objectSerializer, Quartz.Impl.AdoJobStore.Common.IDbConnectionManager connectionManager, Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider, Quartz.Impl.AdoJobStore.IDriverDelegate driverDelegate, Quartz.Impl.AdoJobStore.ISemaphore? lockHandler = null) { }
+        protected JobStoreSupport(Quartz.Extensibility.ISchedulerSignaler schedulerSignaler, Quartz.Extensibility.ITypeLoadHelper typeLoadHelper, System.TimeProvider timeProvider, Microsoft.Extensions.Options.IOptions<Quartz.QuartzSchedulerOptions> schedulerOptions, Microsoft.Extensions.Options.IOptions<Quartz.AdoJobStoreOptions> storeOptions, Microsoft.Extensions.Options.IOptions<Quartz.ClusteringOptions> clusteringOptions, Quartz.Extensibility.IObjectSerializer objectSerializer, Quartz.Impl.AdoJobStore.Common.IDbConnectionManager connectionManager, Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider, Quartz.Impl.AdoJobStore.IDriverDelegate driverDelegate, Quartz.Impl.AdoJobStore.ISemaphore? lockHandler = null) { }
         public bool AcceptEnlistedTransactions { get; }
         public bool AcquireTriggersWithinLock { get; }
         public virtual bool CanUseProperties { get; }
@@ -1928,7 +1961,7 @@ namespace Quartz.Impl.AdoJobStore
     }
     public class LocalTransactionJobStore : Quartz.Impl.AdoJobStore.JobStoreSupport
     {
-        public LocalTransactionJobStore(Quartz.Extensibility.ISchedulerSignaler schedulerSignaler, Quartz.Extensibility.ITypeLoadHelper typeLoadHelper, System.TimeProvider timeProvider, Microsoft.Extensions.Options.IOptions<Quartz.QuartzSchedulerOptions> schedulerOptions, Microsoft.Extensions.Options.IOptions<Quartz.AdoJobStoreOptions> storeOptions, Quartz.Extensibility.IObjectSerializer objectSerializer, Quartz.Impl.AdoJobStore.Common.IDbConnectionManager connectionManager, Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider, Quartz.Impl.AdoJobStore.IDriverDelegate driverDelegate, Quartz.Impl.AdoJobStore.ISemaphore? lockHandler = null) { }
+        public LocalTransactionJobStore(Quartz.Extensibility.ISchedulerSignaler schedulerSignaler, Quartz.Extensibility.ITypeLoadHelper typeLoadHelper, System.TimeProvider timeProvider, Microsoft.Extensions.Options.IOptions<Quartz.QuartzSchedulerOptions> schedulerOptions, Microsoft.Extensions.Options.IOptions<Quartz.AdoJobStoreOptions> storeOptions, Microsoft.Extensions.Options.IOptions<Quartz.ClusteringOptions> clusteringOptions, Quartz.Extensibility.IObjectSerializer objectSerializer, Quartz.Impl.AdoJobStore.Common.IDbConnectionManager connectionManager, Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider, Quartz.Impl.AdoJobStore.IDriverDelegate driverDelegate, Quartz.Impl.AdoJobStore.ISemaphore? lockHandler = null) { }
         protected override System.Threading.Tasks.ValueTask<T> ExecuteInLock<T>(Quartz.Impl.AdoJobStore.SchedulerLock? lockKind, System.Func<Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder, System.Threading.Tasks.ValueTask<T>> txCallback, System.Threading.CancellationToken cancellationToken = default) { }
         protected override System.Threading.Tasks.ValueTask<Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder> GetLocalTransactionConnection(System.Threading.CancellationToken cancellationToken = default) { }
         public override System.Threading.Tasks.ValueTask Initialize(System.Threading.CancellationToken cancellationToken = default) { }
@@ -2752,70 +2785,6 @@ namespace Quartz.Impl
         protected Quartz.IJob InstantiateJobCore(Quartz.Extensibility.TriggerFiredBundle bundle) { }
         public virtual System.Threading.Tasks.ValueTask ReturnJob(Quartz.Extensibility.JobScope scope, System.Threading.CancellationToken cancellationToken = default) { }
         protected static System.Threading.Tasks.ValueTask DisposeIfDisposable(object? target, System.Threading.CancellationToken cancellationToken = default) { }
-    }
-    public class StdSchedulerFactory : Quartz.ISchedulerFactory, System.IDisposable
-    {
-        public const string AutoGenerateInstanceId = "AUTO";
-        public const string DefaultInstanceId = "NON_CLUSTERED";
-        public const string PropertyCheckConfiguration = "quartz.checkConfiguration";
-        public const string PropertyDataSourceConnectionString = "connectionString";
-        public const string PropertyDataSourceConnectionStringName = "connectionStringName";
-        public const string PropertyDataSourcePrefix = "quartz.dataSource";
-        public const string PropertyDataSourceProvider = "provider";
-        public const string PropertyDbProvider = "quartz.dbprovider";
-        public const string PropertyDbProviderType = "connectionProvider.type";
-        public const string PropertyExecutionLimitPrefix = "quartz.executionLimit";
-        public const string PropertyJobListenerPrefix = "quartz.jobListener";
-        public const string PropertyJobStoreDbRetryInterval = "quartz.jobStore.dbRetryInterval";
-        public const string PropertyJobStoreLockHandlerPrefix = "quartz.jobStore.lockHandler";
-        public const string PropertyJobStoreLockHandlerType = "quartz.jobStore.lockHandler.type";
-        public const string PropertyJobStorePrefix = "quartz.jobStore";
-        public const string PropertyJobStoreType = "quartz.jobStore.type";
-        public const string PropertyListenerType = "type";
-        public const string PropertyObjectSerializer = "quartz.serializer";
-        public const string PropertyPluginPrefix = "quartz.plugin";
-        public const string PropertyPluginType = "type";
-        public const string PropertySchedulerBatchTimeWindow = "quartz.scheduler.batchTriggerAcquisitionFireAheadTimeWindow";
-        public const string PropertySchedulerContextPrefix = "quartz.context.key";
-        public const string PropertySchedulerExporterPrefix = "quartz.scheduler.exporter";
-        public const string PropertySchedulerExporterType = "quartz.scheduler.exporter.type";
-        public const string PropertySchedulerIdleWaitTime = "quartz.scheduler.idleWaitTime";
-        public const string PropertySchedulerInstanceId = "quartz.scheduler.instanceId";
-        public const string PropertySchedulerInstanceIdGeneratorPrefix = "quartz.scheduler.instanceIdGenerator";
-        public const string PropertySchedulerInstanceIdGeneratorType = "quartz.scheduler.instanceIdGenerator.type";
-        public const string PropertySchedulerInstanceName = "quartz.scheduler.instanceName";
-        public const string PropertySchedulerInterruptJobsOnShutdown = "quartz.scheduler.interruptJobsOnShutdown";
-        public const string PropertySchedulerInterruptJobsOnShutdownWithWait = "quartz.scheduler.interruptJobsOnShutdownWithWait";
-        public const string PropertySchedulerJobFactoryPrefix = "quartz.scheduler.jobFactory";
-        public const string PropertySchedulerJobFactoryType = "quartz.scheduler.jobFactory.type";
-        public const string PropertySchedulerMakeSchedulerThreadDaemon = "quartz.scheduler.makeSchedulerThreadDaemon";
-        public const string PropertySchedulerMaxBatchSize = "quartz.scheduler.batchTriggerAcquisitionMaxCount";
-        public const string PropertySchedulerProxy = "quartz.scheduler.proxy";
-        public const string PropertySchedulerProxyType = "quartz.scheduler.proxy.type";
-        public const string PropertySchedulerThreadName = "quartz.scheduler.threadName";
-        public const string PropertySchedulerTypeLoadHelperType = "quartz.scheduler.typeLoadHelper.type";
-        public const string PropertyTablePrefix = "tablePrefix";
-        public const string PropertyThreadExecutor = "quartz.threadExecutor";
-        public const string PropertyThreadExecutorType = "quartz.threadExecutor.type";
-        public const string PropertyThreadPoolPrefix = "quartz.threadPool";
-        public const string PropertyThreadPoolType = "quartz.threadPool.type";
-        public const string PropertyTimeProviderType = "quartz.timeProvider.type";
-        public const string PropertyTriggerListenerPrefix = "quartz.triggerListener";
-        public const string SystemPropertyAsInstanceId = "SYS_PROP";
-        public StdSchedulerFactory() { }
-        public StdSchedulerFactory(System.Collections.Specialized.NameValueCollection props) { }
-        public void Dispose() { }
-        protected virtual void Dispose(bool disposing) { }
-        public virtual System.Threading.Tasks.ValueTask<System.Collections.Generic.List<Quartz.IScheduler>> GetAllSchedulers(System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask<Quartz.IScheduler> GetScheduler(System.Threading.CancellationToken cancellationToken = default) { }
-        public virtual System.Threading.Tasks.ValueTask<Quartz.IScheduler?> GetScheduler(string schedulerName, System.Threading.CancellationToken cancellationToken = default) { }
-        protected virtual Quartz.Extensibility.ISchedulerRepository GetSchedulerRepository() { }
-        public virtual void Initialize() { }
-        public virtual void Initialize(System.Collections.Specialized.NameValueCollection props) { }
-        protected virtual bool IsSupportedConfigurationKey(string configurationKey) { }
-        protected virtual System.Type? LoadType(string? typeName) { }
-        protected virtual void ValidateConfiguration() { }
-        public static System.Threading.Tasks.ValueTask<Quartz.IScheduler> GetDefaultScheduler(System.Threading.CancellationToken cancellationToken = default) { }
     }
     public class SystemTextJsonObjectSerializer : Quartz.Extensibility.IObjectSerializer
     {

@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 
 using Quartz.Core;
+using Quartz.Diagnostics;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
@@ -49,6 +50,10 @@ internal static class QuartzServiceRegistration
     {
         services.AddQuartzOptionsValidation();
         services.AddLogging();
+
+        // Job execution metrics were previously configured only by the properties-based factory, so a
+        // scheduler registered any other way published none. Every scheduler comes through here.
+        Meters.Configure();
 
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<ITypeLoadHelper, SimpleTypeLoadHelper>();
@@ -200,11 +205,6 @@ internal static class QuartzServiceRegistration
         services.TryAddKeyed<ISchedulerFactory>(key, static (provider, key) =>
             ActivatorUtilities.CreateInstance<DefaultSchedulerFactory>(Scoped(provider, key), new SchedulerKey(key)));
 
-        if (schedulerName is not null)
-        {
-            services.AddSingleton(new SchedulerRegistration(schedulerName));
-        }
-
         return services;
     }
 
@@ -297,9 +297,3 @@ internal sealed record SchedulerKey(object? Key)
     /// </summary>
     public string OptionsName => Key as string ?? Options.DefaultName;
 }
-
-/// <summary>
-/// Marks a named scheduler as registered, so the hosted service can start every scheduler in the
-/// container without the container having to be searched for keys.
-/// </summary>
-internal sealed record SchedulerRegistration(string Name);

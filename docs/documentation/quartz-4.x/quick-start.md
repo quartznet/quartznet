@@ -95,17 +95,19 @@ The hosted service starts the scheduler with the application and shuts it down w
 Console applications and tests build a scheduler directly. The configuration API is the same:
 
 ```csharp
-IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-    .Configure(q =>
-    {
-        q.ConfigureScheduler(options => options.InstanceName = "MyScheduler");
-        q.UseDefaultThreadPool(maxConcurrency: 5);
-        q.UseInMemoryStore();
-    })
-    .BuildScheduler();
+var builder = QuartzSchedulerBuilder.Create();
+builder.ConfigureScheduler(options => options.InstanceName = "MyScheduler")
+    .UseDefaultThreadPool(maxConcurrency: 5)
+    .UseInMemoryStore();
+
+IScheduler scheduler = await builder.BuildScheduler();
 
 await scheduler.Start();
 ```
+
+The builder is held in a variable rather than configured and built in one expression: its configuration
+methods are the same ones `AddQuartz` hands out, so they return that interface rather than the builder.
+`WebApplicationBuilder` is used the same way.
 
 ### From configuration files
 
@@ -153,7 +155,6 @@ using System;
 using System.Threading.Tasks;
 
 using Quartz;
-using Quartz.Impl;
 
 namespace QuartzSampleApp
 {
@@ -161,9 +162,8 @@ namespace QuartzSampleApp
     {
         private static async Task Main(string[] args)
         {
-            // Grab the Scheduler instance from the Factory
-            StdSchedulerFactory factory = new StdSchedulerFactory();
-            IScheduler scheduler = await factory.GetScheduler();
+            // Build a scheduler with the default configuration
+            IScheduler scheduler = await QuartzSchedulerBuilder.Create().BuildScheduler();
 
             // and start it off
             await scheduler.Start();
@@ -268,7 +268,6 @@ using System;
 using System.Threading.Tasks;
 
 using Quartz;
-using Quartz.Impl;
 using Quartz.Diagnostics;
 
 namespace QuartzSampleApp
@@ -289,9 +288,8 @@ namespace QuartzSampleApp
                     });
             });
             LogProvider.SetLogProvider(loggerFactory);
-            // Grab the Scheduler instance from the Factory
-            StdSchedulerFactory factory = new StdSchedulerFactory();
-            IScheduler scheduler = await factory.GetScheduler();
+            // Build a scheduler with the default configuration
+            IScheduler scheduler = await QuartzSchedulerBuilder.Create().BuildScheduler();
 
             // and start it off
             await scheduler.Start();

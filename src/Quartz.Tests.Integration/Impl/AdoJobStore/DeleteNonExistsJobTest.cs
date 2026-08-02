@@ -2,7 +2,6 @@ using System.Data;
 using System.Data.Common;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
-using Quartz.Impl;
 using Quartz.Tests.Integration.Utils;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;
@@ -30,7 +29,7 @@ public class DeleteNonExistsJobTest
         properties["quartz.scheduler.instanceId"] = "AUTO";
 
         // First we must get a reference to a scheduler
-        ISchedulerFactory sf = new StdSchedulerFactory(properties);
+        ISchedulerFactory sf = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         scheduler = await sf.GetScheduler();
 
         await ResetDatabaseData(provider);

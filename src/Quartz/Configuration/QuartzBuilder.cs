@@ -74,6 +74,20 @@ internal sealed class QuartzBuilder : IQuartzBuilder
         return this;
     }
 
+    public IQuartzBuilder UseThreadPool(IThreadPool threadPool)
+    {
+        ArgumentNullException.ThrowIfNull(threadPool);
+        RegisterConfigured<IThreadPool>((_, _) => threadPool);
+        return this;
+    }
+
+    public IQuartzBuilder UseJobStore(IJobStore jobStore)
+    {
+        ArgumentNullException.ThrowIfNull(jobStore);
+        RegisterConfigured<IJobStore>((_, _) => jobStore);
+        return this;
+    }
+
     public IQuartzBuilder UseInMemoryStore(Action<InMemoryJobStoreOptions>? configure = null)
     {
         if (configure is not null)
@@ -144,9 +158,11 @@ internal sealed class QuartzBuilder : IQuartzBuilder
         return this;
     }
 
-    public IQuartzBuilder AddPlugin<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
+    public IQuartzBuilder AddPlugin<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        string? name = null)
         where T : class, ISchedulerPlugin
     {
+        NamePlugin<T>(name);
         AddEnumerable<ISchedulerPlugin, T>();
         return this;
     }
@@ -159,23 +175,15 @@ internal sealed class QuartzBuilder : IQuartzBuilder
     /// would register unkeyed and leave a named scheduler without the plugin.
     /// </remarks>
     public IQuartzBuilder AddPlugin<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        string name,
-        Func<IServiceProvider, T> factory) where T : class, ISchedulerPlugin
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        ArgumentNullException.ThrowIfNull(factory);
-
-        Services.AddSingleton(new SchedulerPluginName(SchedulerName, typeof(T), name));
-        return AddPlugin(provider => factory(provider));
-    }
-
-    public IQuartzBuilder AddPlugin(Func<IServiceProvider, ISchedulerPlugin> factory)
+        Func<IServiceProvider, T> factory,
+        string? name = null) where T : class, ISchedulerPlugin
     {
         ArgumentNullException.ThrowIfNull(factory);
+        NamePlugin<T>(name);
 
         if (schedulerKey is null)
         {
-            Services.AddSingleton(factory);
+            Services.AddSingleton<ISchedulerPlugin>(provider => factory(provider));
         }
         else
         {
@@ -188,7 +196,8 @@ internal sealed class QuartzBuilder : IQuartzBuilder
     }
 
     public IQuartzBuilder AddPlugin<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T, TOptions>(
-        Action<TOptions>? configure = null)
+        Action<TOptions>? configure = null,
+        string? name = null)
         where T : class, ISchedulerPlugin
         where TOptions : class
     {
@@ -197,7 +206,21 @@ internal sealed class QuartzBuilder : IQuartzBuilder
             Services.Configure(OptionsName, configure);
         }
 
-        return AddPlugin<T>();
+        return AddPlugin<T>(name);
+    }
+
+    /// <summary>
+    /// Records the name a plugin registered in code should be known by.
+    /// </summary>
+    private void NamePlugin<T>(string? name) where T : class, ISchedulerPlugin
+    {
+        if (name is null)
+        {
+            return;
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        Services.AddSingleton(new SchedulerPluginName(SchedulerName, typeof(T), name));
     }
 
     /// <remarks>

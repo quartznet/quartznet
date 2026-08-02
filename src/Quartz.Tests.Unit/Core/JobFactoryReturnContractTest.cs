@@ -49,10 +49,11 @@ public class JobFactoryReturnContractTest
 
     private static async Task RunOneShotJob(RecordingJobFactory factory, string name)
     {
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = name)
-            .UseJobFactory(factory)
-            .BuildScheduler();
+        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
+        builder.ConfigureScheduler(options => options.InstanceName = name)
+            .UseJobFactory(factory);
+
+        IScheduler scheduler = await builder.BuildScheduler();
 
         try
         {

@@ -24,13 +24,13 @@ public sealed class MultipleSchedulerTests
         services.AddQuartz("Scheduler1", q =>
         {
             q.AddJob<TestJobA>(j => j.WithIdentity("jobA", "group1"));
-            q.AddTrigger(t => t.ForJob("jobA", "group1").WithIdentity("triggerA").StartNow());
+            q.AddTrigger<IJob>(t => t.ForJob("jobA", "group1").WithIdentity("triggerA").StartNow());
         });
 
         services.AddQuartz("Scheduler2", q =>
         {
             q.AddJob<TestJobB>(j => j.WithIdentity("jobB", "group2"));
-            q.AddTrigger(t => t.ForJob("jobB", "group2").WithIdentity("triggerB").StartNow());
+            q.AddTrigger<IJob>(t => t.ForJob("jobB", "group2").WithIdentity("triggerB").StartNow());
         });
 
         using var provider = services.BuildServiceProvider();
@@ -55,7 +55,7 @@ public sealed class MultipleSchedulerTests
         services.AddQuartz("Named", q =>
         {
             q.AddJob<TestJobA>(j => j.WithIdentity("namedJob"));
-            q.AddTrigger(t => t.ForJob("namedJob").WithIdentity("namedTrigger").StartNow());
+            q.AddTrigger<IJob>(t => t.ForJob("namedJob").WithIdentity("namedTrigger").StartNow());
         });
 
         using var provider = services.BuildServiceProvider();
@@ -135,12 +135,12 @@ public sealed class MultipleSchedulerTests
 
         services.AddQuartz("Scheduler1", q =>
         {
-            q.AddCalendar("cal1", new Quartz.Impl.Calendar.BaseCalendar(), replace: true, updateTriggers: false);
+            q.AddCalendar("cal1", new Quartz.Impl.Calendar.BaseCalendar(), new AddCalendarOptions { Replace = true });
         });
 
         services.AddQuartz("Scheduler2", q =>
         {
-            q.AddCalendar("cal2", new Quartz.Impl.Calendar.BaseCalendar(), replace: false, updateTriggers: true);
+            q.AddCalendar("cal2", new Quartz.Impl.Calendar.BaseCalendar(), new AddCalendarOptions { UpdateTriggers = true });
         });
 
         using var provider = services.BuildServiceProvider();
@@ -163,7 +163,7 @@ public sealed class MultipleSchedulerTests
         services.AddQuartz(q =>
         {
             q.AddJob<TestJobA>(j => j.WithIdentity("defaultJob"));
-            q.AddTrigger(t => t.ForJob("defaultJob").WithIdentity("defaultTrigger").StartNow());
+            q.AddTrigger<IJob>(t => t.ForJob("defaultJob").WithIdentity("defaultTrigger").StartNow());
         });
 
         using var provider = services.BuildServiceProvider();
@@ -184,13 +184,13 @@ public sealed class MultipleSchedulerTests
         services.AddQuartz(q =>
         {
             q.AddJob<TestJobA>(j => j.WithIdentity("defaultJob"));
-            q.AddTrigger(t => t.ForJob("defaultJob").WithIdentity("defaultTrigger").StartNow());
+            q.AddTrigger<IJob>(t => t.ForJob("defaultJob").WithIdentity("defaultTrigger").StartNow());
         });
 
         services.AddQuartz("Named1", q =>
         {
             q.AddJob<TestJobB>(j => j.WithIdentity("namedJob"));
-            q.AddTrigger(t => t.ForJob("namedJob").WithIdentity("namedTrigger").StartNow());
+            q.AddTrigger<IJob>(t => t.ForJob("namedJob").WithIdentity("namedTrigger").StartNow());
         });
 
         using var provider = services.BuildServiceProvider();
@@ -317,7 +317,7 @@ public sealed class MultipleSchedulerTests
     }
 
     [Test]
-    public void AddQuartzHostedService_WithOnlyNamedSchedulers_ShouldNotRegisterDefaultHostedService()
+    public void AddQuartzHostedService_WithOnlyNamedSchedulers_ShouldRegisterTheOneHostedService()
     {
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
@@ -327,24 +327,98 @@ public sealed class MultipleSchedulerTests
         services.AddQuartzHostedService();
 
         var hostedServices = services.Where(d => d.ServiceType == typeof(IHostedService)).ToList();
-        hostedServices.Should().Contain(d => d.ImplementationType == typeof(NamedSchedulerHostedService));
-        hostedServices.Should().NotContain(d => d.ImplementationType == typeof(QuartzHostedService));
+        hostedServices.Should().ContainSingle()
+            .Which.ImplementationType.Should().Be(typeof(QuartzHostedService),
+                "one hosted service starts every scheduler in the container, named or not");
     }
 
     [Test]
-    public void AddQuartzHostedService_WithMixed_ShouldRegisterBothHostedServices()
+    public async Task AddQuartzHostedService_WithMixed_ShouldStartEveryScheduler()
     {
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         services.AddLogging();
 
-        services.AddQuartz(q => { });
-        services.AddQuartz("Named1", q => { });
-        services.AddQuartzHostedService();
+        services.AddSingleton<IHostApplicationLifetime>(new TestApplicationLifetime());
 
-        var hostedServices = services.Where(d => d.ServiceType == typeof(IHostedService)).ToList();
-        hostedServices.Should().Contain(d => d.ImplementationType == typeof(QuartzHostedService));
-        hostedServices.Should().Contain(d => d.ImplementationType == typeof(NamedSchedulerHostedService));
+        // Registered before the schedulers, which used to leave the default one unstarted
+        services.AddQuartzHostedService(options => options.AwaitApplicationStarted = false);
+        services.AddQuartz(q => q.ConfigureScheduler(o => o.InstanceName = "DefaultOne"));
+        services.AddQuartz("Named1", q => { });
+
+        services.Where(d => d.ServiceType == typeof(IHostedService)).Should().ContainSingle();
+
+        using var provider = services.BuildServiceProvider();
+        var hostedService = provider.GetServices<IHostedService>().OfType<QuartzHostedService>().Single();
+
+        await hostedService.StartAsync(CancellationToken.None);
+        try
+        {
+            (await provider.GetRequiredService<ISchedulerFactory>().GetScheduler()).IsStarted.Should().BeTrue();
+            (await provider.GetRequiredKeyedService<ISchedulerFactory>("Named1").GetScheduler()).IsStarted.Should().BeTrue();
+        }
+        finally
+        {
+            await hostedService.StopAsync(CancellationToken.None);
+        }
+    }
+
+    [Test]
+    public void AddQuartzHostedService_NamedAndDerived_ShouldRegisterOneService()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddLogging();
+
+        services.AddQuartz("Named1", q => { });
+        services.AddQuartzHostedService("Named1", options => options.WaitForJobsToComplete = true);
+        services.AddQuartzHostedService<DerivedHostedService>();
+
+        services.Where(d => d.ServiceType == typeof(IHostedService)).Should().ContainSingle()
+            .Which.ImplementationType.Should().Be(typeof(DerivedHostedService),
+                "two hosted services would each start every scheduler");
+    }
+
+    private sealed class DerivedHostedService : QuartzHostedService
+    {
+        public DerivedHostedService(
+            IHostApplicationLifetime applicationLifetime,
+            IServiceProvider serviceProvider,
+            IOptionsMonitor<QuartzHostedServiceOptions> options)
+            : base(applicationLifetime, serviceProvider, options)
+        {
+        }
+    }
+
+    [Test]
+    public async Task AddQuartzHostedService_WithPerSchedulerOptions_ShouldReadTheSchedulersOwn()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddLogging();
+
+        services.AddSingleton<IHostApplicationLifetime>(new TestApplicationLifetime());
+        services.AddQuartz("Started", q => { });
+        services.AddQuartz("Delayed", q => { });
+        services.AddQuartzHostedService(options => options.AwaitApplicationStarted = false);
+        services.AddQuartzHostedService("Delayed", options => options.StartDelay = TimeSpan.FromMinutes(10));
+
+        using var provider = services.BuildServiceProvider();
+        var hostedService = provider.GetServices<IHostedService>().OfType<QuartzHostedService>().Single();
+
+        await hostedService.StartAsync(CancellationToken.None);
+        try
+        {
+            var started = await provider.GetRequiredKeyedService<ISchedulerFactory>("Started").GetScheduler();
+            var delayed = await provider.GetRequiredKeyedService<ISchedulerFactory>("Delayed").GetScheduler();
+
+            started.IsStarted.Should().BeTrue();
+            delayed.IsStarted.Should().BeFalse("its own options asked for a ten minute start delay");
+        }
+        finally
+        {
+            await hostedService.StopAsync(CancellationToken.None);
+        }
     }
 
     [Test]
@@ -368,17 +442,20 @@ public sealed class MultipleSchedulerTests
     }
 
     [Test]
-    public void AddQuartzHostedService_WithoutAnyAddQuartz_ShouldNotThrow()
+    public async Task AddQuartzHostedService_WithoutAnyAddQuartz_ShouldSayThereIsNothingToStart()
     {
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         services.AddLogging();
 
+        services.AddSingleton<IHostApplicationLifetime>(new TestApplicationLifetime());
         services.AddQuartzHostedService();
 
-        var hostedServices = services.Where(d => d.ServiceType == typeof(IHostedService)).ToList();
-        hostedServices.Should().HaveCount(1);
-        hostedServices[0].ImplementationType.Should().Be(typeof(NamedSchedulerHostedService));
+        using var provider = services.BuildServiceProvider();
+        var hostedService = provider.GetServices<IHostedService>().OfType<QuartzHostedService>().Single();
+
+        var act = async () => await hostedService.StartAsync(CancellationToken.None);
+        await act.Should().ThrowAsync<SchedulerConfigException>().WithMessage("*AddQuartz*");
     }
 
     [Test]
@@ -453,4 +530,22 @@ public sealed class MultipleSchedulerTests
     }
 
     #endregion
+
+    /// <summary>
+    /// An application lifetime that never starts or stops, for testing the hosted service without a host.
+    /// </summary>
+    private sealed class TestApplicationLifetime : IHostApplicationLifetime
+    {
+        private readonly CancellationTokenSource started = new();
+        private readonly CancellationTokenSource stopping = new();
+        private readonly CancellationTokenSource stopped = new();
+
+        public CancellationToken ApplicationStarted => started.Token;
+
+        public CancellationToken ApplicationStopping => stopping.Token;
+
+        public CancellationToken ApplicationStopped => stopped.Token;
+
+        public void StopApplication() => stopping.Cancel();
+    }
 }

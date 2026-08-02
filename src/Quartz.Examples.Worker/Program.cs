@@ -60,7 +60,7 @@ public class Program
                         .WithDescription("my awesome job")
                     );
 
-                    q.AddTrigger(t => t
+                    q.AddTrigger<IJob>(t => t
                         .WithIdentity("Simple Trigger")
                         .ForJob(jobKey)
                         .StartNow()
@@ -74,7 +74,7 @@ public class Program
 
                 });
 
-                // Quartz.Extensions.Hosting hosting
+                // run the scheduler as an IHostedService
                 services.AddQuartzHostedService(options =>
                 {
                     // when shutting down we want jobs to complete gracefully

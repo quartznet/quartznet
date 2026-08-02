@@ -35,25 +35,24 @@ public class ConfigureJobSchedulingByUsingXmlConfigurationsExample : IExample
         Console.WriteLine("------- Initializing ----------------------");
 
         // First we must get a reference to a scheduler
-        var scheduler = await QuartzSchedulerBuilder.Create()
-            .Configure(q =>
+        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
+
+        builder.ConfigureScheduler(options => options.InstanceName = "XmlConfiguredInstance")
+            .UseDefaultThreadPool(maxConcurrency: 5)
+            // job initialization plugin handles our xml reading, without it defaults are used
+            .UseXmlSchedulingConfiguration(x =>
             {
-                q.ConfigureScheduler(options => options.InstanceName = "XmlConfiguredInstance");
-                q.UseDefaultThreadPool(maxConcurrency: 5);
-                // job initialization plugin handles our xml reading, without it defaults are used
-                q.UseXmlSchedulingConfiguration(x =>
-                {
-                    x.Files = ["~/quartz_jobs.xml"];
-                    // this is the default
-                    x.FailOnFileNotFound = true;
-                    // this is not the default
-                    x.FailOnSchedulingError = true;
-                });
-            })
-            .BuildScheduler();
+                x.Files = ["~/quartz_jobs.xml"];
+                // this is the default
+                x.FailOnFileNotFound = true;
+                // this is not the default
+                x.FailOnSchedulingError = true;
+            });
+
+        IScheduler scheduler = await builder.BuildScheduler();
 
         // we need to add calendars manually, lets create a silly sample calendar
-        var dailyCalendar = new DailyCalendar(new TimeOnly(0, 1), new TimeOnly(23, 59));
+        DailyCalendar dailyCalendar = new DailyCalendar(new TimeOnly(0, 1), new TimeOnly(23, 59));
         dailyCalendar.InvertTimeRange = true;
         await scheduler.AddCalendar("cal1", dailyCalendar);
 

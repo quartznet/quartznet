@@ -1,25 +1,44 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+
+using Quartz.Configuration;
+using Quartz.Util;
 
 using Lifetime = Microsoft.Extensions.Hosting.IHostApplicationLifetime;
 
 namespace Quartz;
 
+/// <summary>
+/// Runs the schedulers registered in the container for as long as the application runs.
+/// </summary>
+/// <remarks>
+/// <para>
+/// Every scheduler in the container is started, the default one and each named one, and each is
+/// configured by <see cref="QuartzHostedServiceOptions"/> under its own name — so one scheduler can
+/// wait for application startup while another starts immediately.
+/// </para>
+/// <para>
+/// The schedulers are resolved when the host starts rather than when the service is registered, so
+/// <c>AddQuartzHostedService</c> and <c>AddQuartz</c> can be called in either order. Registering the
+/// hosted service first used to leave the default scheduler unstarted and say nothing about it.
+/// </para>
+/// </remarks>
 public class QuartzHostedService : IHostedLifecycleService
 {
     private readonly Lifetime applicationLifetime;
-    private readonly ISchedulerFactory schedulerFactory;
-    private readonly IOptions<QuartzHostedServiceOptions> options;
-    private IScheduler? scheduler;
+    private readonly IServiceProvider serviceProvider;
+    private readonly IOptionsMonitor<QuartzHostedServiceOptions> options;
+    private readonly List<HostedScheduler> schedulers = [];
     internal Task? startupTask;
 
     public QuartzHostedService(
         Lifetime applicationLifetime,
-        ISchedulerFactory schedulerFactory,
-        IOptions<QuartzHostedServiceOptions> options)
+        IServiceProvider serviceProvider,
+        IOptionsMonitor<QuartzHostedServiceOptions> options)
     {
         this.applicationLifetime = applicationLifetime;
-        this.schedulerFactory = schedulerFactory;
+        this.serviceProvider = serviceProvider;
         this.options = options;
     }
 
@@ -33,13 +52,13 @@ public class QuartzHostedService : IHostedLifecycleService
         try
         {
             // Require successful initialization for application startup to succeed
-            scheduler = await schedulerFactory.GetScheduler(cancellationToken).ConfigureAwait(false);
+            await CreateSchedulers(cancellationToken).ConfigureAwait(false);
 
-            if (options.Value.AwaitApplicationStarted) // Sensible mode: proceed with startup, and have jobs start after application startup
+            // Sensible mode: proceed with startup, and have jobs start after application startup.
+            // Follow the pattern from BackgroundService.StartAsync: https://github.com/dotnet/runtime/blob/main/src/libraries/Microsoft.Extensions.Hosting.Abstractions/src/BackgroundService.cs
+            if (schedulers.Exists(static scheduler => scheduler.Options.AwaitApplicationStarted))
             {
-                // Follow the pattern from BackgroundService.StartAsync: https://github.com/dotnet/runtime/blob/main/src/libraries/Microsoft.Extensions.Hosting.Abstractions/src/BackgroundService.cs
-
-                startupTask = AwaitStartupCompletionAndStartSchedulerAsync(cancellationToken);
+                startupTask = AwaitStartupCompletionAndStartSchedulers(cancellationToken);
 
                 // If the task completed synchronously, await it in order to bubble potential cancellation/failure to the caller
                 // Otherwise, return, allowing application startup to complete
@@ -50,13 +69,20 @@ public class QuartzHostedService : IHostedLifecycleService
             }
             else // Legacy mode: start jobs inline
             {
-                startupTask = StartSchedulerAsync(cancellationToken);
+                startupTask = StartSchedulers(waitForApplicationStarted: false, cancellationToken);
                 await startupTask.ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)
         {
             // if the operation was canceled, we should not start the scheduler
+        }
+        catch (Exception)
+        {
+            // A scheduler created before the failure is already bound to the repository, so it has to be
+            // shut down rather than left behind by a host that will never call StopAsync.
+            await ShutdownSchedulers(CancellationToken.None).ConfigureAwait(false);
+            throw;
         }
     }
 
@@ -65,8 +91,44 @@ public class QuartzHostedService : IHostedLifecycleService
         return Task.CompletedTask;
     }
 
-    private async Task AwaitStartupCompletionAndStartSchedulerAsync(CancellationToken startupCancellationToken)
+    /// <summary>
+    /// Resolves every scheduler the container holds: the default one, and one per named registration.
+    /// </summary>
+    /// <remarks>
+    /// A container with no scheduler at all is a mistake worth reporting — the hosted service was asked
+    /// for, so something was meant to run.
+    /// </remarks>
+    private async ValueTask CreateSchedulers(CancellationToken cancellationToken)
     {
+        var factory = serviceProvider.GetService<ISchedulerFactory>();
+        if (factory is not null)
+        {
+            var scheduler = await factory.GetScheduler(cancellationToken).ConfigureAwait(false);
+            schedulers.Add(new HostedScheduler(scheduler, options.Get(Options.DefaultName)));
+        }
+
+        var registry = serviceProvider.GetService<SchedulerNameRegistry>();
+        foreach (var name in registry?.Names ?? [])
+        {
+            // Each named scheduler's factory is registered under the scheduler's name as the service key.
+            var named = serviceProvider.GetRequiredKeyedService<ISchedulerFactory>(name);
+            var scheduler = await named.GetScheduler(cancellationToken).ConfigureAwait(false);
+            schedulers.Add(new HostedScheduler(scheduler, options.Get(name)));
+        }
+
+        if (schedulers.Count == 0)
+        {
+            Throw.SchedulerConfigException(
+                "AddQuartzHostedService() was called but no scheduler is registered in the container, so "
+                + "there is nothing to start. Call AddQuartz(...) to register one.");
+        }
+    }
+
+    private async Task AwaitStartupCompletionAndStartSchedulers(CancellationToken startupCancellationToken)
+    {
+        // The schedulers that were told not to wait start before anything is awaited.
+        await StartSchedulers(waitForApplicationStarted: false, startupCancellationToken).ConfigureAwait(false);
+
         using var combinedCancellationSource = CancellationTokenSource.CreateLinkedTokenSource(startupCancellationToken, applicationLifetime.ApplicationStarted);
 
         await Task.Delay(Timeout.InfiniteTimeSpan, combinedCancellationSource.Token) // Wait "indefinitely", until startup completes or is aborted
@@ -75,33 +137,38 @@ public class QuartzHostedService : IHostedLifecycleService
 
         if (!startupCancellationToken.IsCancellationRequested)
         {
-            await StartSchedulerAsync(applicationLifetime.ApplicationStopping).ConfigureAwait(false); // Startup has finished, but ApplicationStopping may still interrupt starting of the scheduler
+            // Startup has finished, but ApplicationStopping may still interrupt starting of the scheduler
+            await StartSchedulers(waitForApplicationStarted: true, applicationLifetime.ApplicationStopping).ConfigureAwait(false);
         }
     }
 
     /// <summary>
-    /// Starts the <see cref="IScheduler"/>, either immediately or after the delay configured in the <see cref="options"/>.
+    /// Starts the schedulers of one persuasion, either immediately or after the delay each was configured
+    /// with.
     /// </summary>
-    private async Task StartSchedulerAsync(CancellationToken cancellationToken)
+    private async Task StartSchedulers(bool waitForApplicationStarted, CancellationToken cancellationToken)
     {
-        if (scheduler is null)
-        {
-            throw new InvalidOperationException("The scheduler should have been initialized first.");
-        }
-
         // Avoid potential race conditions between ourselves and StopAsync, in case it has already made its attempt to stop the scheduler
         if (applicationLifetime.ApplicationStopping.IsCancellationRequested)
         {
             return;
         }
 
-        if (options.Value.StartDelay.HasValue)
+        foreach (var hosted in schedulers)
         {
-            await scheduler.StartDelayed(options.Value.StartDelay.Value, cancellationToken).ConfigureAwait(false);
-        }
-        else
-        {
-            await scheduler.Start(cancellationToken).ConfigureAwait(false);
+            if (hosted.Options.AwaitApplicationStarted != waitForApplicationStarted)
+            {
+                continue;
+            }
+
+            if (hosted.Options.StartDelay.HasValue)
+            {
+                await hosted.Scheduler.StartDelayed(hosted.Options.StartDelay.Value, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                await hosted.Scheduler.Start(cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 
@@ -113,7 +180,7 @@ public class QuartzHostedService : IHostedLifecycleService
     public virtual async Task StopAsync(CancellationToken cancellationToken)
     {
         // Stopped without having been started
-        if (scheduler is null || startupTask is null)
+        if (schedulers.Count == 0)
         {
             return;
         }
@@ -121,12 +188,15 @@ public class QuartzHostedService : IHostedLifecycleService
         try
         {
             // Wait until any ongoing startup logic has finished or the graceful shutdown period is over
-            await Task.WhenAny(startupTask, Task.Delay(Timeout.Infinite, cancellationToken)).ConfigureAwait(false);
+            if (startupTask is not null)
+            {
+                await Task.WhenAny(startupTask, Task.Delay(Timeout.Infinite, cancellationToken)).ConfigureAwait(false);
+            }
         }
         finally
         {
             // we always need to call shutdown to ensure that we unbind the scheduler from global repository
-            await scheduler.Shutdown(options.Value.WaitForJobsToComplete, cancellationToken).ConfigureAwait(false);
+            await ShutdownSchedulers(cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -134,4 +204,36 @@ public class QuartzHostedService : IHostedLifecycleService
     {
         return Task.CompletedTask;
     }
+
+    /// <summary>
+    /// Shuts every scheduler down, reporting all the failures rather than the first one.
+    /// </summary>
+    private async ValueTask ShutdownSchedulers(CancellationToken cancellationToken)
+    {
+        List<Exception>? exceptions = null;
+        foreach (var hosted in schedulers)
+        {
+            try
+            {
+                await hosted.Scheduler.Shutdown(hosted.Options.WaitForJobsToComplete, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                exceptions ??= [];
+                exceptions.Add(e);
+            }
+        }
+
+        schedulers.Clear();
+
+        if (exceptions is { Count: > 0 })
+        {
+            throw new AggregateException("One or more scheduler shutdowns failed.", exceptions);
+        }
+    }
+
+    /// <summary>
+    /// A scheduler this service runs, together with the options registered under its name.
+    /// </summary>
+    private readonly record struct HostedScheduler(IScheduler Scheduler, QuartzHostedServiceOptions Options);
 }

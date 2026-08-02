@@ -1,7 +1,6 @@
 using System.Collections.Specialized;
 using System.Text.Json;
 
-
 using Microsoft.Extensions.Options;
 
 using Quartz.Dashboard.Components.Shared;
@@ -382,7 +381,7 @@ public class InProcessQuartzApiClientTest
             ["quartz.threadPool.threadCount"] = "1",
             ["quartz.serializer.type"] = "stj"
         };
-        return await new StdSchedulerFactory(properties).GetScheduler();
+        return await QuartzSchedulerBuilder.Create().UseProperties(properties).BuildScheduler();
     }
 
     private static InProcessQuartzApiClient CreateClient(IScheduler scheduler)

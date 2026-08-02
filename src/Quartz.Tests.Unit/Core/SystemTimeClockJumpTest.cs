@@ -1,7 +1,5 @@
 using System.Collections.Specialized;
 
-using Quartz.Impl;
-
 namespace Quartz.Tests.Unit.Core;
 
 /// <summary>
@@ -34,7 +32,7 @@ public sealed class SystemTimeClockJumpTest
                 ["quartz.timeProvider.type"] = typeof(ClockJumpTimeProvider).AssemblyQualifiedName!,
             };
 
-            ISchedulerFactory sf = new StdSchedulerFactory(properties);
+            ISchedulerFactory sf = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
             IScheduler scheduler = await sf.GetScheduler();
 
             try

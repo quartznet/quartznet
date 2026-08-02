@@ -113,7 +113,7 @@ public class SystemPropertyInstanceIdGeneratorTest
         config["quartz.jobStore.clustered"] = "true";
         config["quartz.jobStore.dataSource"] = "MeSchedulerDatabase";
 
-        IScheduler scheduler = await new StdSchedulerFactory(config).GetScheduler();
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create().UseProperties(config).BuildScheduler();
 
         Assert.That(scheduler.SchedulerInstanceId, Is.EqualTo("1goo2"));
     }

@@ -1,6 +1,5 @@
 using System.Collections.Specialized;
 
-using Quartz.Impl;
 using Quartz.Job;
 using Quartz.Plugin.Interrupt;
 using Quartz.Util;
@@ -83,7 +82,7 @@ public class AutoInterruptableJobTest
             ["quartz.plugin.jobInterruptor.defaultMaxRunTime"] = "1000"
         };
 
-        var scheduler = await new StdSchedulerFactory(config).GetScheduler();
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create().UseProperties(config).BuildScheduler();
         await scheduler.Start();
 
         // add a job with a trigger that will fire immediately

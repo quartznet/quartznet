@@ -1,6 +1,5 @@
 using System.Collections.Specialized;
 
-using Quartz.Impl;
 using Quartz.Util;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;
@@ -35,7 +34,7 @@ public class MisfiredBlockedTriggerTest
             ["quartz.threadPool.maxConcurrency"] = "1" // Only one thread to force blocking
         };
 
-        ISchedulerFactory sf = new StdSchedulerFactory(properties);
+        ISchedulerFactory sf = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         IScheduler scheduler = await sf.GetScheduler();
 
         await scheduler.Clear(); // Clear any existing data

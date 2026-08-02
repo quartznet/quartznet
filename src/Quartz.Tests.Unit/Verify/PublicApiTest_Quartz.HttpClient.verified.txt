@@ -91,14 +91,3 @@ namespace Quartz
             where TScheduler :  class, Quartz.IScheduler { }
     }
 }
-namespace Quartz.Impl
-{
-    public class HttpSchedulerProxyFactory : Quartz.Extensibility.ISchedulerProxyFactory
-    {
-        public HttpSchedulerProxyFactory() { }
-        public string? Address { get; set; }
-        protected virtual System.Net.Http.HttpClient CreateHttpClient(string address) { }
-        protected virtual System.Text.Json.JsonSerializerOptions? CreateJsonSerializerOptions() { }
-        public Quartz.IScheduler GetProxy(string schedulerName, string schedulerInstanceId) { }
-    }
-}

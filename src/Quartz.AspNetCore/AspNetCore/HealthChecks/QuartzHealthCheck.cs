@@ -1,14 +1,29 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace Quartz.AspNetCore.HealthChecks;
+
+/// <summary>
+/// Which scheduler a health check reports on: a named one, or the default one.
+/// </summary>
+/// <remarks>
+/// Handed to the check as a constructor argument rather than resolved from the container, because
+/// several checks can be registered in one container and each has to know its own scheduler.
+/// </remarks>
+internal sealed record SchedulerHealthCheckTarget(string? SchedulerName);
 
 internal sealed class QuartzHealthCheck : IHealthCheck
 {
     private readonly ISchedulerFactory schedulerFactory;
 
-    public QuartzHealthCheck(ISchedulerFactory schedulerFactory)
+    public QuartzHealthCheck(IServiceProvider serviceProvider, SchedulerHealthCheckTarget target)
     {
-        this.schedulerFactory = schedulerFactory ?? throw new ArgumentNullException(nameof(schedulerFactory));
+        ArgumentNullException.ThrowIfNull(serviceProvider);
+        ArgumentNullException.ThrowIfNull(target);
+
+        schedulerFactory = target.SchedulerName is null
+            ? serviceProvider.GetRequiredService<ISchedulerFactory>()
+            : serviceProvider.GetRequiredKeyedService<ISchedulerFactory>(target.SchedulerName);
     }
 
     async Task<HealthCheckResult> IHealthCheck.CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken)

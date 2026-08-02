@@ -58,7 +58,11 @@ public interface IJobStore
     /// <summary>
     /// Whether the <see cref="IJobStore" /> implementation is clustered.
     /// </summary>
-    /// <returns></returns>
+    /// <remarks>
+    /// Read-only, because being clustered is something a store is rather than something it is told:
+    /// the ADO.NET store reports what <see cref="ClusteringOptions.Enabled" /> says, and a store that
+    /// cannot cluster answers <see langword="false" /> and means it.
+    /// </remarks>
     bool Clustered { get; }
 
     /// <summary>

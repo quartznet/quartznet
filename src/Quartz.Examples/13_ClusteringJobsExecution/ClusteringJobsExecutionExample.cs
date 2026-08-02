@@ -66,31 +66,35 @@ public class ClusteringJobsExecutionExample : IExample
     public virtual async Task Run(bool inClearJobs, bool inScheduleJobs)
     {
         // First we must get a reference to a scheduler
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .Configure(q =>
-            {
-                q.ConfigureScheduler(options =>
-                {
-                    options.InstanceId = "instance_one";
-                    options.InstanceName = "TestScheduler";
-                });
-                q.UseDefaultThreadPool(maxConcurrency: 5);
-                q.UsePersistentStore(store =>
-                {
-                    store.UseSqlServer(TestConstants.SqlServerConnectionString);
-                    store.UseClustering();
-                    store.UseSystemTextJsonSerializer();
-                    store.Configure(options =>
-                    {
-                        options.UseProperties = true;
-                        options.MisfireThreshold = TimeSpan.FromSeconds(60);
-                    });
-                });
-            })
-            .BuildScheduler();
+        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
 
-        // if running SQLite we need this
-        // properties["quartz.jobStore.lockHandler.type"] = "Quartz.Impl.AdoJobStore.UpdateLockRowSemaphore, Quartz";
+        builder
+            .ConfigureScheduler(options =>
+            {
+                // every node in the cluster shares the instance name and needs its own instance id
+                options.InstanceId = "instance_one";
+                options.InstanceName = "TestScheduler";
+            })
+            .UseDefaultThreadPool(maxConcurrency: 5)
+            .UsePersistentStore(store =>
+            {
+                store.UseSqlServer(TestConstants.SqlServerConnectionString);
+
+                // if running SQLite this would be UseSystemDataSqlite (System.Data.SQLite) or
+                // UseSqlite (Microsoft.Data.Sqlite), plus UseLockHandler<UpdateLockRowSemaphore>()
+
+                // the ~15 seconds it takes to notice a failed node is ClusteringOptions.CheckinInterval
+                // plus CheckinMisfireThreshold, 7.5 seconds each by default and both settable here
+                store.UseClustering();
+                store.UseSystemTextJsonSerializer();
+                store.Configure(options =>
+                {
+                    options.UseProperties = true;
+                    options.MisfireThreshold = TimeSpan.FromSeconds(60);
+                });
+            });
+
+        IScheduler scheduler = await builder.BuildScheduler();
 
         if (inClearJobs)
         {

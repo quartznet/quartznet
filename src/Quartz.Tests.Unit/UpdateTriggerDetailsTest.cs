@@ -238,7 +238,7 @@ public class UpdateTriggerDetailsTest
             ["quartz.scheduler.instanceName"] = "UpdateTriggerDetailsTest",
             ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
         };
-        IScheduler scheduler = await new StdSchedulerFactory(config).GetScheduler();
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create().UseProperties(config).BuildScheduler();
         try
         {
             IJobDetail job = JobBuilder.Create<NoOpJob>()

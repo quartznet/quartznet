@@ -126,7 +126,7 @@ internal sealed class SchedulerContentInitializer
         // Listeners named by quartz.jobListener.* properties, which also carry no matchers, as that
         // format has always meant.
         foreach (var listener in PropertyListenerFactory.Create<IJobListener>(
-                     serviceProvider, properties, StdSchedulerFactory.PropertyJobListenerPrefix))
+                     serviceProvider, properties, LegacyPropertyKeys.JobListenerPrefix))
         {
             if (AlreadyConfigured(configured, listener))
             {
@@ -167,7 +167,7 @@ internal sealed class SchedulerContentInitializer
         }
 
         foreach (var listener in PropertyListenerFactory.Create<ITriggerListener>(
-                     serviceProvider, properties, StdSchedulerFactory.PropertyTriggerListenerPrefix))
+                     serviceProvider, properties, LegacyPropertyKeys.TriggerListenerPrefix))
         {
             if (AlreadyConfigured(configured, listener))
             {
@@ -190,7 +190,7 @@ internal sealed class SchedulerContentInitializer
             await scheduler.AddCalendar(
                 configuration.Name,
                 configuration.Calendar,
-                new AddCalendarOptions { Replace = configuration.Replace, UpdateTriggers = configuration.UpdateTriggers },
+                configuration.Options,
                 cancellationToken)
                 .ConfigureAwait(false);
         }

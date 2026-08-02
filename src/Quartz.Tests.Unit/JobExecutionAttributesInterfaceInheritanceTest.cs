@@ -1,6 +1,5 @@
 using System.Collections.Specialized;
 
-using Quartz.Impl;
 using Quartz.Listener;
 
 namespace Quartz.Tests.Unit;
@@ -105,7 +104,7 @@ public class JobExecutionAttributesInterfaceInheritanceTest
             ["quartz.threadPool.threadCount"] = "2",
             ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
         };
-        IScheduler scheduler = await new StdSchedulerFactory(props).GetScheduler();
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create().UseProperties(props).BuildScheduler();
         scheduler.ListenerManager.AddJobListener(new TestJobListener(2));
         await scheduler.ScheduleJob(job, trigger1);
         await scheduler.ScheduleJob(trigger2);
@@ -141,7 +140,7 @@ public class JobExecutionAttributesInterfaceInheritanceTest
             ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
         };
 
-        var scheduler = await new StdSchedulerFactory(props).GetScheduler();
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create().UseProperties(props).BuildScheduler();
         scheduler.ListenerManager.AddJobListener(new TestJobListener(2));
         await scheduler.ScheduleJob(job, trigger1);
         await scheduler.ScheduleJob(trigger2);

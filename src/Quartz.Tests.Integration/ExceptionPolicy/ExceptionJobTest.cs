@@ -1,6 +1,5 @@
 using System.Collections.Specialized;
 
-using Quartz.Impl;
 using Quartz.Impl.Triggers;
 using Quartz.Extensibility;
 
@@ -18,7 +17,7 @@ public class ExceptionHandlingTest
         {
             ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
         };
-        ISchedulerFactory sf = new StdSchedulerFactory(properties);
+        ISchedulerFactory sf = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
 
         scheduler = await sf.GetScheduler();
     }

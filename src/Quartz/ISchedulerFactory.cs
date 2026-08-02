@@ -17,8 +17,6 @@
  */
 #endregion
 
-using Quartz.Impl;
-
 namespace Quartz;
 
 /// <summary>
@@ -26,7 +24,6 @@ namespace Quartz;
 /// instances.
 /// </summary>
 /// <seealso cref="IScheduler" />
-/// <seealso cref="StdSchedulerFactory" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 public interface ISchedulerFactory

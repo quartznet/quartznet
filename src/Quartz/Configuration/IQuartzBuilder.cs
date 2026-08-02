@@ -60,13 +60,41 @@ public interface IQuartzBuilder
         Action<ThreadPoolOptions>? configure = null) where T : class, IThreadPool;
 
     /// <summary>
+    /// Uses a thread pool the caller has already built.
+    /// </summary>
+    /// <remarks>
+    /// For a pool that needs constructing with something the container cannot supply. A pool the
+    /// container can build is better selected with <see cref="UseThreadPool{T}"/>, which lets it have
+    /// dependencies of its own.
+    /// </remarks>
+    IQuartzBuilder UseThreadPool(IThreadPool threadPool);
+
+    /// <summary>
     /// Uses the in-memory job store, which does not survive process restarts.
     /// </summary>
+    /// <remarks>
+    /// Takes an options object rather than a sub-builder, unlike
+    /// <see cref="UsePersistentStore(Action{IPersistentStoreBuilder})"/>: an in-memory store is one
+    /// component with a couple of settings, whereas a database-backed store is a composite that also has
+    /// a data source, a driver delegate, a serializer and a lock handler to choose. The shape says which
+    /// kind of thing is being configured.
+    /// </remarks>
     IQuartzBuilder UseInMemoryStore(Action<InMemoryJobStoreOptions>? configure = null);
+
+    /// <summary>
+    /// Uses a job store the caller has already built.
+    /// </summary>
+    /// <remarks>
+    /// For a store that needs constructing with something the container cannot supply. A store the
+    /// container can build is better selected with <see cref="UsePersistentStore{T}"/> or
+    /// <see cref="UseInMemoryStore"/>, which configure it as well as choose it.
+    /// </remarks>
+    IQuartzBuilder UseJobStore(IJobStore jobStore);
 
     /// <summary>
     /// Uses a database-backed job store, so jobs and triggers survive restarts and can be clustered.
     /// </summary>
+    /// <inheritdoc cref="UseInMemoryStore" path="/remarks" />
     IQuartzBuilder UsePersistentStore(Action<IPersistentStoreBuilder> configure);
 
     /// <summary>
@@ -100,31 +128,43 @@ public interface IQuartzBuilder
     /// <summary>
     /// Adds a plugin, which extends the scheduler's behaviour for its whole lifetime.
     /// </summary>
-    IQuartzBuilder AddPlugin<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
+    /// <remarks>
+    /// The three shapes match the listener trio: the container builds the plugin, the caller builds it,
+    /// or the caller configures options the plugin is given. <paramref name="name" /> is how the
+    /// scheduler refers to the plugin, and some plugins derive persisted job and trigger keys from it —
+    /// so it is part of the deployment's identity rather than a label, and it is also the name a
+    /// <c>quartz.plugin.&lt;name&gt;.*</c> key configures the same plugin under. Left unset, the
+    /// plugin's type name is used. Plugins shipped with Quartz use their conventional short name
+    /// (<c>xml</c>, <c>json</c>) for that reason.
+    /// </remarks>
+    /// <typeparam name="T">The plugin's type.</typeparam>
+    /// <param name="name">The name the scheduler knows the plugin by.</param>
+    IQuartzBuilder AddPlugin<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        string? name = null)
         where T : class, ISchedulerPlugin;
 
     /// <summary>
     /// Adds a plugin the caller builds and configures.
     /// </summary>
-    IQuartzBuilder AddPlugin(Func<IServiceProvider, ISchedulerPlugin> factory);
-
-    /// <summary>
-    /// Adds a plugin under a specific name, which the caller builds and configures.
-    /// </summary>
-    /// <remarks>
-    /// The name is how the scheduler refers to the plugin, and some plugins derive persisted job and
-    /// trigger keys from it — so it is part of the deployment's identity, not a label. Plugins shipped
-    /// with Quartz use their conventional short name (<c>xml</c>, <c>json</c>) for that reason.
-    /// </remarks>
+    /// <inheritdoc cref="AddPlugin{T}(string)" path="/remarks" />
+    /// <typeparam name="T">The plugin's type.</typeparam>
+    /// <param name="factory">Builds the plugin.</param>
+    /// <param name="name">The name the scheduler knows the plugin by.</param>
     IQuartzBuilder AddPlugin<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
-        string name,
-        Func<IServiceProvider, T> factory) where T : class, ISchedulerPlugin;
+        Func<IServiceProvider, T> factory,
+        string? name = null) where T : class, ISchedulerPlugin;
 
     /// <summary>
     /// Adds a plugin with configuration of its own.
     /// </summary>
+    /// <inheritdoc cref="AddPlugin{T}(string)" path="/remarks" />
+    /// <typeparam name="T">The plugin's type.</typeparam>
+    /// <typeparam name="TOptions">The plugin's options type, which it takes as a dependency.</typeparam>
+    /// <param name="configure">Configures the plugin's options.</param>
+    /// <param name="name">The name the scheduler knows the plugin by.</param>
     IQuartzBuilder AddPlugin<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T, TOptions>(
-        Action<TOptions>? configure = null)
+        Action<TOptions>? configure = null,
+        string? name = null)
         where T : class, ISchedulerPlugin
         where TOptions : class;
 

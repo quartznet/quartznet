@@ -822,7 +822,7 @@ public class JobStoreSupportTest
     {
 
     public TestJobStoreSupport(bool clustered = false)
-        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(configure: options => options.Clustered = clustered), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
+        : base(TestJobStores.Signaler(), TestJobStores.TypeLoader(), TimeProvider.System, TestJobStores.SchedulerOptions(), TestJobStores.StoreOptions(), TestJobStores.ClusteringOptions(configure: options => options.Enabled = clustered), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
     {
     }
         protected override ValueTask<ConnectionAndTransactionHolder> GetLocalTransactionConnection(CancellationToken cancellationToken = default)
@@ -917,7 +917,7 @@ public class JobStoreSupportTest
             {
                 options.MaxTransientRetries = maxTransientRetries;
                 options.TransientRetryInterval = TimeSpan.Zero;
-            }), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
+            }), TestJobStores.ClusteringOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
         {
         }
 
@@ -1153,7 +1153,7 @@ public class JobStoreSupportTest
         {
             options.MaxTransientRetries = maxTransientRetries;
             options.TransientRetryInterval = TimeSpan.Zero;
-        }), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
+        }), TestJobStores.ClusteringOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
         {
             LockHandler = new SimpleSemaphore();
         }
@@ -1326,7 +1326,7 @@ public class JobStoreSupportTest
         {
             options.MaxTransientRetries = maxTransientRetries;
             options.TransientRetryInterval = TimeSpan.Zero;
-        }), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
+        }), TestJobStores.ClusteringOptions(), TestJobStores.Serializer(), TestJobStores.ConnectionManager(), TestJobStores.DbProvider(), TestJobStores.DriverDelegate(), TestJobStores.LockHandler())
         {
             LockHandler = new SimpleSemaphore();
         }

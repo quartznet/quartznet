@@ -126,9 +126,15 @@ public sealed class JobBuilder<TJob> : IJobConfigurator<TJob> where TJob : IJob
     private JobDataMap jobDataMap = new JobDataMap();
 
     /// <summary>
-    /// The key that identifies the job uniquely.
+    /// The key that identifies the job uniquely, or <see langword="null" /> when none was set.
     /// </summary>
-    internal JobKey? Key => _key;
+    /// <remarks>
+    /// Readable so that code building a job and something that has to agree with it — a trigger, a
+    /// registration — can tell an identity the caller chose from the one <see cref="Build" /> would
+    /// generate. Reading it after <c>Build</c> still reports what the builder was told, not what was
+    /// generated.
+    /// </remarks>
+    public JobKey? Key => _key;
 
     internal JobBuilder()
     {

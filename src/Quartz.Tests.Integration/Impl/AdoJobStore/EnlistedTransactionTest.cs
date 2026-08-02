@@ -406,7 +406,7 @@ public class EnlistedTransactionTest
         // Most of these tests never start the scheduler - they are about what reaches the database,
         // and a running scheduler thread would contend for the locks the application transaction
         // holds. RunningSchedulerFiresTheJobRightAfterTheApplicationCommits is the one that does.
-        return await new StdSchedulerFactory(properties).GetScheduler();
+        return await QuartzSchedulerBuilder.Create().UseProperties(properties).BuildScheduler();
     }
 
     private static TestProvider Postgres()

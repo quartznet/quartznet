@@ -543,7 +543,9 @@ public class SchedulerBenchmark
 
         var threadPool = new DefaultThreadPool { MaxConcurrency = threadCount };
 
-        var scheduler = QuartzSchedulerBuilder.Create()
+        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
+
+        builder
             .ConfigureScheduler(options =>
             {
                 options.InstanceName = name;
@@ -554,8 +556,9 @@ public class SchedulerBenchmark
             })
             .UseThreadPool(threadPool)
             .UseJobStore(store)
-            .UseJobFactory(_jobFactory)
-            .BuildScheduler()
+            .UseJobFactory(_jobFactory);
+
+        var scheduler = builder.BuildScheduler()
             .ConfigureAwait(false).GetAwaiter().GetResult();
 
         var triggersByJob = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>();

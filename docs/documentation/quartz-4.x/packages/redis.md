@@ -33,18 +33,19 @@ The Redis lock handler replaces these database locks with Redis `SET NX PX` dist
 ### Using the builder (recommended)
 
 ```csharp
-var schedulerFactory = QuartzSchedulerBuilder.Create()
-    .Configure(q => q.UsePersistentStore(store =>
+var builder = QuartzSchedulerBuilder.Create();
+builder.UsePersistentStore(store =>
+{
+    store.UseSqlServer(connectionString);
+    store.UseSystemTextJsonSerializer();
+    store.UseClustering();
+    store.UseRedisLockHandler(redis =>
     {
-        store.UseSqlServer(connectionString);
-        store.UseSystemTextJsonSerializer();
-        store.UseClustering();
-        store.UseRedisLockHandler(redis =>
-        {
-            redis.RedisConfiguration = "redis-server:6379";
-        });
-    }))
-    .Build();
+        redis.RedisConfiguration = "redis-server:6379";
+    });
+});
+
+ISchedulerFactory schedulerFactory = builder.Build();
 ```
 
 The same `UseRedisLockHandler` call works under a host: `services.AddQuartz(q => q.UsePersistentStore(store => …))`.

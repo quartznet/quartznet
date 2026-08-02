@@ -27,14 +27,28 @@ public class QuartzHealthCheckRegistrationTests
         services.AddQuartzHealthChecks(options =>
         {
             options.Name = "quartz";
-            options.Tags.Add("ready");
-            options.Tags.Add("live");
+            options.Tags = ["ready", "live"];
             options.FailureStatus = HealthStatus.Degraded;
         });
 
         HealthCheckRegistration registration = GetQuartzRegistration(services, "quartz");
         registration.Tags.Should().BeEquivalentTo("ready", "live");
         registration.FailureStatus.Should().Be(HealthStatus.Degraded);
+    }
+
+    [Test]
+    public void ANamedSchedulerRegistersACheckOfItsOwn()
+    {
+        ServiceCollection services = new();
+        services.AddQuartz("reporting", q => q.AddQuartzHealthChecks());
+
+        HealthCheckRegistration registration = GetQuartzRegistration(services, "quartz-scheduler-reporting");
+        registration.Tags.Should().BeEmpty();
+
+        // The check has to reach that scheduler's factory, which is registered under its name as the
+        // service key rather than unkeyed.
+        using ServiceProvider provider = services.BuildServiceProvider();
+        registration.Factory(provider).Should().NotBeNull();
     }
 
     private static HealthCheckRegistration GetQuartzRegistration(IServiceCollection services, string name)

@@ -15,7 +15,7 @@ internal static class ExecutionLimitsParser
     public static ExecutionLimits? Parse(NameValueCollection properties)
     {
         var limits = new ExecutionLimits();
-        var prefix = StdSchedulerFactory.PropertyExecutionLimitPrefix + ".";
+        var prefix = LegacyPropertyKeys.ExecutionLimitPrefix + ".";
         var configured = false;
 
         foreach (var key in properties.AllKeys)

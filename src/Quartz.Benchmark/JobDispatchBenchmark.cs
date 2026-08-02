@@ -16,7 +16,7 @@ public class JobDispatchBenchmark
 
     public JobDispatchBenchmark()
     {
-        scheduler = (StdScheduler) new StdSchedulerFactory().GetScheduler().GetAwaiter().GetResult();
+        scheduler = (StdScheduler) QuartzSchedulerBuilder.Create().BuildScheduler().GetAwaiter().GetResult();
         var job = JobBuilder.Create<NoOpJob>().Build();
         var trigger = (IOperableTrigger) TriggerBuilder.Create()
             .ForJob(job.Key)

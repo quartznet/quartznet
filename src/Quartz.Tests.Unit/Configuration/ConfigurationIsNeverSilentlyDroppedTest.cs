@@ -167,9 +167,9 @@ public class ConfigurationIsNeverSilentlyDroppedTest
             store.Configure(options =>
             {
                 options.DataSource = "test";
-                options.Clustered = true;
                 options.UseDbLocks = true;
             });
+            store.UseClustering();
             RegisterStubProvider(store.Services, q.SchedulerName);
         }));
 
@@ -547,10 +547,10 @@ public class ConfigurationIsNeverSilentlyDroppedTest
             }));
 
         using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value;
+        var options = provider.GetRequiredService<IOptions<ClusteringOptions>>().Value;
 
-        options.Clustered.Should().BeTrue();
-        options.ClusterCheckinInterval.Should().Be(TimeSpan.FromSeconds(20),
+        options.Enabled.Should().BeTrue();
+        options.CheckinInterval.Should().Be(TimeSpan.FromSeconds(20),
             "UseClustering() with no arguments states no interval, so it must not overwrite one");
     }
 
@@ -599,7 +599,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
                 ["quartz.scheduler.instanceName"] = "plugin-settings",
                 ["quartz.plugin.recorder.someSetting"] = "configured",
             },
-            q => q.AddPlugin("recorder", _ => new RecordingPlugin()));
+            q => q.AddPlugin(_ => new RecordingPlugin(), "recorder"));
 
         using var provider = services.BuildServiceProvider();
         var scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
@@ -662,11 +662,38 @@ public class ConfigurationIsNeverSilentlyDroppedTest
             UseStubbedPersistentStore);
 
         using var provider = services.BuildServiceProvider();
-        var options = provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value;
 
-        options.Clustered.Should().BeTrue();
-        options.UseDbLocks.Should().BeTrue(
+        provider.GetRequiredService<IOptions<ClusteringOptions>>().Value.Enabled.Should().BeTrue();
+        provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value.UseDbLocks.Should().BeTrue(
             "clustering has never worked without database locking, so saying one must not fail validation for the other");
+    }
+
+    /// <summary>
+    /// Clustering has typed options of its own now, so it also has a section of its own. The older
+    /// spelling above still works, and both have to arrive at the same place.
+    /// </summary>
+    [Test]
+    public void ClusteringSaidInItsOwnSectionIsReadTheSameWay()
+    {
+        var services = new ServiceCollection();
+        services.AddQuartz(
+            Section(new Dictionary<string, string?>
+            {
+                ["JobStore:Clustering:Enabled"] = "true",
+                ["JobStore:Clustering:CheckinInterval"] = "00:00:20",
+                ["JobStore:DataSource"] = "test",
+            }),
+            UseStubbedPersistentStore);
+
+        using var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptions<ClusteringOptions>>().Value;
+
+        options.Enabled.Should().BeTrue();
+        options.CheckinInterval.Should().Be(TimeSpan.FromSeconds(20),
+            "the sub-section binds onto the typed options, so its intervals are not silently defaulted");
+
+        provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value.UseDbLocks.Should().BeTrue(
+            "the implication clustering has always carried must hold for both spellings of the key");
     }
 
     [Test]
@@ -732,14 +759,10 @@ public class ConfigurationIsNeverSilentlyDroppedTest
     {
         var services = new ServiceCollection();
         services.AddQuartz();
-        services.Configure<QuartzOptions>(options => options.SchedulerName = "NamedThroughOptions");
+        services.Configure<QuartzOptions>(
+            options => options.Properties["quartz.scheduler.instanceName"] = "NamedThroughOptions");
 
         await using var provider = services.BuildServiceProvider();
-
-        provider.GetRequiredService<IOptions<QuartzOptions>>().Value
-            .Properties["quartz.scheduler.instanceName"].Should().Be("NamedThroughOptions",
-                "the property has to write the key the rest of the configuration model reads, not an "
-                + "ADO.NET column name that nothing reads");
 
         provider.GetRequiredService<IOptions<QuartzSchedulerOptions>>().Value.InstanceName
             .Should().Be("NamedThroughOptions");

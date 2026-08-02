@@ -142,7 +142,8 @@ public class Startup
 
             // here's a known job for triggers
             var jobKey = new JobKey("awesome job", "awesome group");
-            q.AddJob<ExampleJob>(jobKey, j => j
+            q.AddJob<ExampleJob>(j => j
+                .WithIdentity(jobKey)
                 .WithDescription("my awesome job")
                 // naming the property binds the value to it: the key cannot be mistyped and the value
                 // cannot be of the wrong type
@@ -150,7 +151,7 @@ public class Startup
                 .UsingJobData(j2 => j2.InjectedBool, true)
             );
 
-            q.AddTrigger(t => t
+            q.AddTrigger<IJob>(t => t
                 .WithIdentity("Simple Trigger")
                 .ForJob(jobKey)
                 .StartNow()
@@ -159,7 +160,7 @@ public class Startup
                 .UsingJobData("ExampleKey", "ExampleValue")
             );
 
-            q.AddTrigger(t => t
+            q.AddTrigger<IJob>(t => t
                 .WithIdentity("Cron Trigger")
                 .ForJob(jobKey)
                 .StartAt(DateTimeOffset.UtcNow.AddSeconds(3))
@@ -194,13 +195,12 @@ public class Startup
 
             const string calendarName = "myHolidayCalendar";
             q.AddCalendar<HolidayCalendar>(
-                calendarName: calendarName,
-                replace: true,
-                updateTriggers: true,
-                x => x.AddExcludedDay(new DateOnly(2020, 5, 15))
+                name: calendarName,
+                options: new AddCalendarOptions { Replace = true, UpdateTriggers = true },
+                configure: x => x.AddExcludedDay(new DateOnly(2020, 5, 15))
             );
 
-            q.AddTrigger(t => t
+            q.AddTrigger<IJob>(t => t
                 .WithIdentity("Daily Trigger")
                 .ForJob(jobKey)
                 .StartAt(DateTimeOffset.UtcNow.AddSeconds(5))
@@ -215,8 +215,8 @@ public class Startup
             if (!string.IsNullOrWhiteSpace(Configuration.GetSection("Sample")[nameof(SampleOptions.CronSchedule)]))
             {
                 var customJobKey = new JobKey("options-custom-job", "custom");
-                q.AddJob<ExampleJob>(customJobKey);
-                q.AddTrigger((serviceProvider, trigger) => trigger
+                q.AddJob<ExampleJob>(j => j.WithIdentity(customJobKey));
+                q.AddTrigger<IJob>((serviceProvider, trigger) => trigger
                     .WithIdentity("options-custom-trigger", "custom")
                     .ForJob(customJobKey)
                     .WithCronSchedule(serviceProvider.GetRequiredService<IOptions<SampleOptions>>().Value.CronSchedule)
@@ -241,7 +241,7 @@ public class Startup
             q.AddTriggerListener<SampleTriggerListener>();
 
             // Add Quartz.NET HTTP API
-            q.AddHttpApi(options =>
+            q.AddQuartzHttpApi(options =>
             {
                 // "/quartz-api" is also default value
                 options.ApiPath = "/quartz-api";
@@ -257,21 +257,27 @@ public class Startup
             /*
             q.UsePersistentStore(s =>
             {
-                s.PerformSchemaValidation = true; // default
-                s.UseProperties = true; // preferred, but not default
-                s.RetryInterval = TimeSpan.FromSeconds(15);
-                s.UseSqlServer("sql-server-01", sqlServer =>
+                s.UseSqlServer(sqlServer =>
                 {
-                    // if needed, could create a custom strategy for handling connections
-                    //sqlServer.UseConnectionProvider<CustomSqlServerConnectionProvider>();
-
                     sqlServer.ConnectionString = "some connection string";
 
                     // or from appsettings.json
                     // sqlServer.ConnectionStringName = "Quartz";
 
+                    // or a DbDataSource the application registered in the container
+                    // sqlServer.UseRegisteredDataSource = true;
+
+                    // if needed, a custom strategy for handling connections is registered as
+                    // IDbProvider in the container, the way CustomSqlServerConnectionProvider is above
+                });
+                s.Configure(options =>
+                {
+                    options.PerformSchemaValidation = true; // default
+                    options.UseProperties = true; // preferred, but not default
+                    options.DbRetryInterval = TimeSpan.FromSeconds(15);
+
                     // this is the default
-                    sqlServer.TablePrefix = "QRTZ_";
+                    options.TablePrefix = "QRTZ_";
                 });
                 s.UseSystemTextJsonSerializer();
                 s.UseClustering(c =>
@@ -303,7 +309,7 @@ public class Startup
         // Add Quartz.NET Dashboard
         services.AddQuartzDashboard();
 
-        // Quartz.Extensions.Hosting hosting
+        // run the scheduler as an IHostedService
         services.AddQuartzHostedService(options =>
         {
             // when shutting down we want jobs to complete gracefully
@@ -354,7 +360,7 @@ public class Startup
             });
 
             // Map HTTP API endpoints
-            endpoints.MapQuartzApi()
+            endpoints.MapQuartzHttpApi()
                 .RequireAuthorization();
 
             // Map Quartz.NET Dashboard UI at /quartz

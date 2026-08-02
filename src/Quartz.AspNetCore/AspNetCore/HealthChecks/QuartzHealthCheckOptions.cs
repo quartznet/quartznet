@@ -4,12 +4,13 @@ namespace Quartz.AspNetCore.HealthChecks;
 
 /// <summary>
 /// Options for the Quartz scheduler health check registered by
-/// <see cref="QuartzServiceCollectionExtensions.AddQuartzHealthChecks" />.
+/// <see cref="QuartzServiceCollectionExtensions.AddQuartzHealthChecks(Microsoft.Extensions.DependencyInjection.IServiceCollection, Action{QuartzHealthCheckOptions})" />.
 /// </summary>
 public sealed class QuartzHealthCheckOptions
 {
     /// <summary>
-    /// The name used to register the health check. Defaults to <c>quartz-scheduler</c>.
+    /// The name used to register the health check. Defaults to <c>quartz-scheduler</c>, or
+    /// <c>quartz-scheduler-&lt;scheduler name&gt;</c> for a named scheduler.
     /// </summary>
     public string Name { get; set; } = "quartz-scheduler";
 
@@ -17,7 +18,7 @@ public sealed class QuartzHealthCheckOptions
     /// Tags associated with the health check, allowing it to be filtered (for example into
     /// separate liveness and readiness probes).
     /// </summary>
-    public List<string> Tags { get; } = new List<string>();
+    public IReadOnlyCollection<string> Tags { get; set; } = [];
 
     /// <summary>
     /// The <see cref="HealthStatus" /> reported when the check fails. When <see langword="null" />

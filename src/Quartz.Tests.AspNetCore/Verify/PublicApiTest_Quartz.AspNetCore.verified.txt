@@ -6,7 +6,7 @@ namespace Quartz.AspNetCore.HealthChecks
         public QuartzHealthCheckOptions() { }
         public Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus? FailureStatus { get; set; }
         public string Name { get; set; }
-        public System.Collections.Generic.List<string> Tags { get; }
+        public System.Collections.Generic.IReadOnlyCollection<string> Tags { get; set; }
     }
 }
 namespace Quartz.AspNetCore.HttpApi
@@ -22,8 +22,9 @@ namespace Quartz.AspNetCore
 {
     public static class QuartzServiceCollectionExtensions
     {
-        public static Quartz.IQuartzBuilder AddHttpApi(this Quartz.IQuartzBuilder configurator, System.Action<Quartz.AspNetCore.HttpApi.QuartzHttpApiOptions>? configure = null) { }
         public static Microsoft.Extensions.DependencyInjection.IServiceCollection AddQuartzHealthChecks(this Microsoft.Extensions.DependencyInjection.IServiceCollection services, System.Action<Quartz.AspNetCore.HealthChecks.QuartzHealthCheckOptions>? configure = null) { }
-        public static Microsoft.AspNetCore.Builder.IEndpointConventionBuilder MapQuartzApi(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder) { }
+        public static Quartz.IQuartzBuilder AddQuartzHealthChecks(this Quartz.IQuartzBuilder builder, System.Action<Quartz.AspNetCore.HealthChecks.QuartzHealthCheckOptions>? configure = null) { }
+        public static Quartz.IQuartzBuilder AddQuartzHttpApi(this Quartz.IQuartzBuilder builder, System.Action<Quartz.AspNetCore.HttpApi.QuartzHttpApiOptions>? configure = null) { }
+        public static Microsoft.AspNetCore.Builder.IEndpointConventionBuilder MapQuartzHttpApi(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder builder) { }
     }
 }

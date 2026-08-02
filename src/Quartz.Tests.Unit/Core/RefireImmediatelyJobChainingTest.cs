@@ -1,6 +1,5 @@
 using System.Collections.Specialized;
 
-using Quartz.Impl;
 using Quartz.Listener;
 
 namespace Quartz.Tests.Unit.Core;
@@ -24,7 +23,7 @@ public sealed class RefireImmediatelyJobChainingTest
             ["quartz.scheduler.instanceName"] = "RefireChainTest",
             ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
         };
-        var schedulerFactory = new StdSchedulerFactory(properties);
+        ISchedulerFactory schedulerFactory = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         var scheduler = await schedulerFactory.GetScheduler();
 
         try

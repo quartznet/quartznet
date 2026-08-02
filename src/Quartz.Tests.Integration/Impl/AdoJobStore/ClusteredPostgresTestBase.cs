@@ -4,8 +4,6 @@ using System.Text;
 
 using Npgsql;
 
-using Quartz.Impl;
-
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 
 /// <summary>
@@ -83,7 +81,7 @@ public abstract class ClusteredPostgresTestBase
         // Cluster nodes share the scheduler (instance) name, and a factory's repository lookup is
         // name-only — but each factory owns its own repository, so every call here builds a genuinely
         // separate node rather than handing back the first one.
-        var factory = new StdSchedulerFactory(properties);
+        ISchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         return await factory.GetScheduler();
     }
 

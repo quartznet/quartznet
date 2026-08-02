@@ -45,25 +45,18 @@ Quartz uses Microsoft's DI construction by default and the jobs produced by the 
 
 ### Job instance construction
 
-By default Quartz will try to resolve job's type from container and if there's no explicit registration Quartz will use `ActivatorUtilities` to construct job and inject it's dependencies
-via constructor. Job should have only one public constructor.
+A job is resolved from the container. `AddJob<T>()`, `AddJob(type, …)` and `ScheduleJob<T>()` register
+the job type for you, as a **scoped** service — the job factory opens a dependency injection scope per
+fire, resolves the job from it, and disposes the scope when the job returns, so a job can take scoped
+dependencies such as a database context. A job type the container has no registration for at all is
+still built with `ActivatorUtilities`, which is what makes a job scheduled from an XML or JSON file
+work. A job should have only one public constructor.
 
-### Failing fast when job dependencies cannot be resolved
-
-`AddJob<T>()` does **not** register the job type with the container. It only describes the job to the
-scheduler, and the job factory falls back to `ActivatorUtilities` when the container has no
-registration for the type. That means `ValidateOnBuild` — which the host enables by default in the
-Development environment — never sees your job and never checks that its constructor can be satisfied.
-
-An unresolvable dependency therefore surfaces at fire time rather than at startup, as a failure to
-instantiate the job. The trigger has already fired at that point, so the job never runs and every
-trigger of that job is moved to `TriggerState.Error`, where it stays until
-`IScheduler.ResetTriggerFromErrorState` is called.
-
-Register your job types explicitly and startup validation covers them:
+The registration is a `TryAdd`, so your own registration always wins:
 
 ```csharp
-services.AddScoped<SendReportsJob>();   // now ValidateOnBuild checks its constructor
+// your lifetime, your factory, your implementation type - kept
+services.AddSingleton<SendReportsJob>(_ => SendReportsJob.ForTenant("acme"));
 
 services.AddQuartz(q =>
 {
@@ -71,9 +64,33 @@ services.AddQuartz(q =>
 });
 ```
 
-If you need to react to such a failure at fire time rather than prevent it — to fail whatever
-scheduled the work, for instance — `ISchedulerListener.SchedulerError` receives a
-`JobInstantiationException` naming the trigger, the job and the fire instance:
+::: warning
+A singleton job serves every fire from one instance, so it must be thread-safe and it cannot take
+scoped dependencies. Prefer scoped, which is what `AddJob` registers.
+:::
+
+### Failing fast when job dependencies cannot be resolved
+
+Because the job type is registered, `ValidateOnBuild` — which the host enables by default in the
+Development environment — sees it and checks that its constructor can be satisfied. A job asking for
+something nobody registered therefore fails when the container is built, naming the job and the
+dependency:
+
+```csharp
+services.AddQuartz(q => q.AddJob<SendReportsJob>(j => j.WithIdentity("send-reports")));
+
+// throws: Unable to resolve service for type 'IReportStore' while attempting to activate 'SendReportsJob'
+```
+
+Before 4.0 the job type was not registered, so validation never saw it and the failure arrived at fire
+time instead: the trigger had already fired, the job never ran, and every trigger of that job was
+moved to `TriggerState.Error`, where it stayed until `IScheduler.ResetTriggerFromErrorState` was
+called.
+
+Jobs that are not registered — those named by an XML or JSON schedule, or built by a job factory of
+your own — can still fail that way. If you need to react to such a failure at fire time rather than
+prevent it — to fail whatever scheduled the work, for instance — `ISchedulerListener.SchedulerError`
+receives a `JobInstantiationException` naming the trigger, the job and the fire instance:
 
 ```csharp
 public sealed class InstantiationFailureListener : SchedulerListenerSupport
@@ -159,7 +176,8 @@ public void ConfigureServices(IServiceCollection services)
 
         // here's a known job for triggers
         var jobKey = new JobKey("awesome job", "awesome group");
-        q.AddJob<ExampleJob>(jobKey, j => j
+        q.AddJob<ExampleJob>(j => j
+            .WithIdentity(jobKey)
             .WithDescription("my awesome job")
             // job data can name the job property it is meant for instead of spelling its key,
             // which makes a mistyped key or a wrong-typed value a compile error
@@ -167,7 +185,7 @@ public void ConfigureServices(IServiceCollection services)
             .UsingJobData(j2 => j2.InjectedBool, true)
         );
 
-        q.AddTrigger(t => t
+        q.AddTrigger<IJob>(t => t
             .WithIdentity("Simple Trigger")
             .ForJob(jobKey)
             .StartNow()
@@ -175,7 +193,7 @@ public void ConfigureServices(IServiceCollection services)
             .WithDescription("my awesome simple trigger")
         );
 
-        q.AddTrigger(t => t
+        q.AddTrigger<IJob>(t => t
             .WithIdentity("Cron Trigger")
             .ForJob(jobKey)
             .StartAt(DateTimeOffset.UtcNow.AddSeconds(3))
@@ -184,7 +202,7 @@ public void ConfigureServices(IServiceCollection services)
         );
 
         // use H (hash) to spread trigger fire times based on trigger identity
-        q.AddTrigger(t => t
+        q.AddTrigger<IJob>(t => t
             .WithIdentity("Spread Cron Trigger")
             .ForJob(jobKey)
             .WithCronSchedule("H * * * * ?")
@@ -195,12 +213,11 @@ public void ConfigureServices(IServiceCollection services)
         const string calendarName = "myHolidayCalendar";
         q.AddCalendar<HolidayCalendar>(
             name: calendarName,
-            replace: true,
-            updateTriggers: true,
-            x => x.AddExcludedDay(new DateOnly(2020, 5, 15))
+            options: new AddCalendarOptions { Replace = true, UpdateTriggers = true },
+            configure: x => x.AddExcludedDay(new DateOnly(2020, 5, 15))
         );
 
-        q.AddTrigger(t => t
+        q.AddTrigger<IJob>(t => t
             .WithIdentity("Daily Trigger")
             .ForJob(jobKey)
             .StartAt(DateTimeOffset.UtcNow.AddSeconds(5))
@@ -248,8 +265,8 @@ public void ConfigureServices(IServiceCollection services)
         if (!string.IsNullOrWhiteSpace(Configuration.GetSection("Sample")["CronSchedule"]))
         {
             var customJobKey = new JobKey("options-custom-job", "custom");
-            q.AddJob<ExampleJob>(customJobKey);
-            q.AddTrigger((serviceProvider, trigger) => trigger
+            q.AddJob<ExampleJob>(j => j.WithIdentity(customJobKey));
+            q.AddTrigger<IJob>((serviceProvider, trigger) => trigger
                 .WithIdentity("options-custom-trigger", "custom")
                 .ForJob(customJobKey)
                 .WithCronSchedule(serviceProvider.GetRequiredService<IOptions<SampleOptions>>().Value.CronSchedule));
@@ -277,10 +294,6 @@ public void ConfigureServices(IServiceCollection services)
         });
         */
     });
-
-    // because we don't use service registration api,
-    // we need to manually ensure the job is present in DI
-    services.AddTransient<ExampleJob>();
 
     // your own options, read by the trigger registered above
     services.Configure<SampleOptions>(Configuration.GetSection("Sample"));

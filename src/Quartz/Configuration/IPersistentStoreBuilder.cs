@@ -67,9 +67,16 @@ public interface IPersistentStoreBuilder
     IPersistentStoreBuilder AcceptEnlistedTransactions();
 
     /// <summary>
-    /// Names this store's data source, which is how its connection provider is registered.
+    /// Says which data source this store reads and writes through, by name.
     /// </summary>
     /// <remarks>
+    /// <para>
+    /// This <em>refers to</em> a data source rather than defining one:
+    /// <see cref="UseDataSource(Action{DataSourceOptions})"/> defines it, and the two are told apart by
+    /// that. The settings it names are the <see cref="DataSourceOptions"/> registered under this name —
+    /// from a <c>Quartz:DataSource:&lt;name&gt;</c> configuration section, say, or from another
+    /// scheduler that already configured it.
+    /// </para>
     /// <para>
     /// The name defaults to the scheduler's name, or <c>quartz</c> for the default scheduler. Connection
     /// providers are held per process, so two default schedulers in one process — two standalone
@@ -84,19 +91,21 @@ public interface IPersistentStoreBuilder
     IPersistentStoreBuilder UseDataSourceName(string name);
 
     /// <summary>
-    /// Configures the database connection.
+    /// Defines this store's data source: which ADO.NET driver, and how to reach the database.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Prefer the database-specific methods such as <c>UseSqlServer</c>, which also select the matching
     /// driver delegate. Use this directly only for a provider Quartz does not know about.
+    /// </para>
+    /// <para>
+    /// Where the connection itself comes from is <see cref="DataSourceOptions"/>' to say: a connection
+    /// string, the name of one in <c>IConfiguration</c>, or
+    /// <see cref="DataSourceOptions.UseRegisteredDataSource"/> for a <c>DbDataSource</c> the application
+    /// registered in the container.
+    /// </para>
     /// </remarks>
     IPersistentStoreBuilder UseDataSource(Action<DataSourceOptions> configure);
-
-    /// <summary>
-    /// Connects through a <c>DbDataSource</c> registered in the container, rather than through a
-    /// connection string of Quartz's own.
-    /// </summary>
-    IPersistentStoreBuilder UseDataSourceConnectionProvider();
 
     /// <summary>
     /// Uses a specific driver delegate, which adapts Quartz's SQL to a particular database.
@@ -108,8 +117,15 @@ public interface IPersistentStoreBuilder
     /// Takes part in a cluster with every other scheduler sharing this database.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Clustering requires database locking, which this enables as well — the two have never been
     /// separable in practice.
+    /// </para>
+    /// <para>
+    /// Everything about clustering is said here, on <see cref="ClusteringOptions" />. The job store has
+    /// no clustering settings of its own to disagree with these, and reports whether it is clustered
+    /// rather than offering a second place to say so.
+    /// </para>
     /// </remarks>
     IPersistentStoreBuilder UseClustering(Action<ClusteringOptions>? configure = null);
 

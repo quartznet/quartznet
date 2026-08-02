@@ -56,7 +56,7 @@ public class QuartzSchedulerTest
 
         NameValueCollection properties = new NameValueCollection();
         properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
-        ISchedulerFactory sf = new StdSchedulerFactory(properties);
+        ISchedulerFactory sf = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         IScheduler scheduler = await sf.GetScheduler();
 
         DateTime runTime = DateTime.Now.AddMinutes(10);
@@ -100,7 +100,7 @@ public class QuartzSchedulerTest
     {
         NameValueCollection properties = new NameValueCollection();
         properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
-        var sf = new StdSchedulerFactory(properties);
+        ISchedulerFactory sf = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
 
         IScheduler scheduler = await sf.GetScheduler();
         await scheduler.StartDelayed(TimeSpan.FromMilliseconds(100));
@@ -119,7 +119,7 @@ public class QuartzSchedulerTest
 
         NameValueCollection properties = new NameValueCollection();
         properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
-        ISchedulerFactory sf = new StdSchedulerFactory(properties);
+        ISchedulerFactory sf = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         IScheduler scheduler = await sf.GetScheduler();
         DateTime startTimeUtc = DateTime.UtcNow.AddSeconds(2);
         var jobDetail = JobBuilder.Create<NoOpJob>()

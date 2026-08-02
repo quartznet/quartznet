@@ -418,6 +418,7 @@ public sealed class AmbientConnectionTest
                 TimeProvider.System,
                 TestJobStores.SchedulerOptions(instanceName),
                 storeOptions,
+                TestJobStores.ClusteringOptions(),
                 TestJobStores.Serializer(),
                 TestJobStores.ConnectionManager(),
                 dbProvider,

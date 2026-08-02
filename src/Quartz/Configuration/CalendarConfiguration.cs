@@ -8,17 +8,18 @@ internal sealed class CalendarConfiguration
     public CalendarConfiguration(
         string name,
         ICalendar calendar,
-        bool replace,
-        bool updateTriggers)
+        AddCalendarOptions? options)
     {
         Name = name;
         Calendar = calendar;
-        Replace = replace;
-        UpdateTriggers = updateTriggers;
+        Options = options;
     }
 
     public string Name { get; }
     public ICalendar Calendar { get; }
-    public bool Replace { get; }
-    public bool UpdateTriggers { get; }
+
+    /// <summary>
+    /// How the calendar is added, or <see langword="null"/> for the scheduler's own defaults.
+    /// </summary>
+    public AddCalendarOptions? Options { get; }
 }

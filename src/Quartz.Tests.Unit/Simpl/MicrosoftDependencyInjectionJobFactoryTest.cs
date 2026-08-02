@@ -7,8 +7,8 @@ using FakeItEasy;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
-using Quartz.Impl.Triggers;
 using Quartz.Impl;
+using Quartz.Impl.Triggers;
 using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit.Simpl;
@@ -226,11 +226,11 @@ public class MicrosoftDependencyInjectionJobFactoryTest
         serviceCollection.AddTransient<Dependency>();
         var serviceProvider = serviceCollection.BuildServiceProvider(validateScopes: true);
 
-        var schedulerBuilder = QuartzSchedulerBuilder.Create()
-            .UseJobFactory(new MicrosoftDependencyInjectionJobFactory(serviceProvider))
-            .Build();
+        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
+        builder.UseJobFactory(new MicrosoftDependencyInjectionJobFactory(serviceProvider));
 
-        var scheduler = await schedulerBuilder.GetScheduler();
+        ISchedulerFactory schedulerFactory = builder.Build();
+        IScheduler scheduler = await schedulerFactory.GetScheduler();
         await scheduler.Start();
 
         await scheduler.AddJob(jobDetail);
@@ -332,10 +332,11 @@ public class MicrosoftDependencyInjectionJobFactoryTest
         serviceCollection.AddScoped<FailingJobDependency>();
         await using ServiceProvider serviceProvider = serviceCollection.BuildServiceProvider(validateScopes: true);
 
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = "dijobexecutethrows")
-            .UseJobFactory(new MicrosoftDependencyInjectionJobFactory(serviceProvider))
-            .BuildScheduler();
+        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
+        builder.ConfigureScheduler(options => options.InstanceName = "dijobexecutethrows")
+            .UseJobFactory(new MicrosoftDependencyInjectionJobFactory(serviceProvider));
+
+        IScheduler scheduler = await builder.BuildScheduler();
 
         try
         {
@@ -381,10 +382,11 @@ public class MicrosoftDependencyInjectionJobFactoryTest
         serviceCollection.AddScoped<PerFiringDependency>();
         await using ServiceProvider serviceProvider = serviceCollection.BuildServiceProvider(validateScopes: true);
 
-        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-            .ConfigureScheduler(options => options.InstanceName = "diinstanceperfiring")
-            .UseJobFactory(new MicrosoftDependencyInjectionJobFactory(serviceProvider))
-            .BuildScheduler();
+        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
+        builder.ConfigureScheduler(options => options.InstanceName = "diinstanceperfiring")
+            .UseJobFactory(new MicrosoftDependencyInjectionJobFactory(serviceProvider));
+
+        IScheduler scheduler = await builder.BuildScheduler();
 
         try
         {

@@ -83,7 +83,7 @@ builder.Services.AddQuartz(q =>
     var jobKey = new JobKey("SendEmailJob");
     q.AddJob<SendEmailJob>(opts => opts.WithIdentity(jobKey));
     
-    q.AddTrigger(opts => opts
+    q.AddTrigger<IJob>(opts => opts
         .ForJob(jobKey)
         .WithIdentity("SendEmailJob-trigger")
          //This Cron interval can be described as "run every minute" (when second is zero)

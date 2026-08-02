@@ -1,0 +1,205 @@
+#region License
+
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ */
+
+#endregion
+
+using System.Collections.Specialized;
+
+using Quartz.Util;
+
+namespace Quartz.Configuration;
+
+/// <summary>
+/// The flat <c>quartz.*</c> property keys, and what counts as one.
+/// </summary>
+/// <remarks>
+/// <para>
+/// These used to be public constants on <c>StdSchedulerFactory</c>, which was the only thing that read
+/// them. They are internal now because a key is a string in a configuration file rather than a member
+/// of an API: <see cref="QuartzPropertyBridge"/> translates them into typed options, and everything
+/// downstream sees the options.
+/// </para>
+/// <para>
+/// The strings themselves are unchanged, so every configuration file that worked before still works.
+/// </para>
+/// </remarks>
+internal static class LegacyPropertyKeys
+{
+    internal const string Prefix = "quartz.";
+
+    /// <summary>
+    /// The prefix Quartz.Server uses for its own settings, which are not scheduler settings.
+    /// </summary>
+    private const string ServerPrefix = "quartz.server";
+
+    internal const string SchedulerInstanceName = "quartz.scheduler.instanceName";
+    internal const string SchedulerInstanceId = "quartz.scheduler.instanceId";
+    internal const string SchedulerInstanceIdGeneratorPrefix = "quartz.scheduler.instanceIdGenerator";
+    internal const string SchedulerInstanceIdGeneratorType = SchedulerInstanceIdGeneratorPrefix + ".type";
+    internal const string SchedulerThreadName = "quartz.scheduler.threadName";
+    internal const string SchedulerBatchTimeWindow = "quartz.scheduler.batchTriggerAcquisitionFireAheadTimeWindow";
+    internal const string SchedulerMaxBatchSize = "quartz.scheduler.batchTriggerAcquisitionMaxCount";
+    internal const string SchedulerIdleWaitTime = "quartz.scheduler.idleWaitTime";
+    internal const string SchedulerMakeSchedulerThreadDaemon = "quartz.scheduler.makeSchedulerThreadDaemon";
+    internal const string SchedulerTypeLoadHelperType = "quartz.scheduler.typeLoadHelper.type";
+    internal const string SchedulerJobFactoryPrefix = "quartz.scheduler.jobFactory";
+    internal const string SchedulerJobFactoryType = SchedulerJobFactoryPrefix + ".type";
+    internal const string SchedulerInterruptJobsOnShutdown = "quartz.scheduler.interruptJobsOnShutdown";
+    internal const string SchedulerInterruptJobsOnShutdownWithWait = "quartz.scheduler.interruptJobsOnShutdownWithWait";
+    internal const string SchedulerContextPrefix = "quartz.context.key";
+    internal const string ThreadPoolPrefix = "quartz.threadPool";
+    internal const string ThreadPoolType = "quartz.threadPool.type";
+    internal const string TimeProviderType = "quartz.timeProvider.type";
+    internal const string JobStorePrefix = "quartz.jobStore";
+    internal const string JobStoreType = "quartz.jobStore.type";
+    internal const string JobStoreDbRetryInterval = "quartz.jobStore.dbRetryInterval";
+    internal const string JobStoreLockHandlerPrefix = JobStorePrefix + ".lockHandler";
+    internal const string JobStoreLockHandlerType = JobStoreLockHandlerPrefix + ".type";
+    internal const string DataSourcePrefix = "quartz.dataSource";
+    internal const string DbProvider = "quartz.dbprovider";
+    internal const string ExecutionLimitPrefix = "quartz.executionLimit";
+    internal const string PluginPrefix = "quartz.plugin";
+    internal const string PluginType = "type";
+    internal const string JobListenerPrefix = "quartz.jobListener";
+    internal const string TriggerListenerPrefix = "quartz.triggerListener";
+    internal const string ListenerType = "type";
+    internal const string CheckConfiguration = "quartz.checkConfiguration";
+    internal const string ThreadExecutor = "quartz.threadExecutor";
+    internal const string ObjectSerializer = "quartz.serializer";
+
+    /// <summary>
+    /// The instance id values that select a generator rather than naming one.
+    /// </summary>
+    internal const string AutoGenerateInstanceId = "AUTO";
+
+    /// <inheritdoc cref="AutoGenerateInstanceId" />
+    internal const string SystemPropertyAsInstanceId = "SYS_PROP";
+
+    /// <summary>
+    /// The key prefixes a scheduler understands, used to reject a misspelled one.
+    /// </summary>
+    private static readonly string[] supportedKeys =
+    [
+        SchedulerInstanceName,
+        SchedulerInstanceId,
+        SchedulerInstanceIdGeneratorPrefix,
+        SchedulerThreadName,
+        SchedulerBatchTimeWindow,
+        SchedulerMaxBatchSize,
+        SchedulerIdleWaitTime,
+        SchedulerMakeSchedulerThreadDaemon,
+        SchedulerTypeLoadHelperType,
+        SchedulerJobFactoryPrefix,
+        SchedulerInterruptJobsOnShutdown,
+        SchedulerInterruptJobsOnShutdownWithWait,
+        SchedulerContextPrefix,
+        ThreadPoolPrefix,
+        TimeProviderType,
+        JobStorePrefix,
+        DataSourcePrefix,
+        DbProvider,
+        ExecutionLimitPrefix,
+        PluginPrefix,
+        JobListenerPrefix,
+        TriggerListenerPrefix,
+        CheckConfiguration,
+        ThreadExecutor,
+        ObjectSerializer,
+    ];
+
+    /// <summary>
+    /// Keys Quartz used to read, and what to do instead.
+    /// </summary>
+    /// <remarks>
+    /// Reported by name rather than as merely unknown: a configuration that still carries one of these
+    /// was configuring something real, and "unknown property" reads like a typo.
+    /// </remarks>
+    private static readonly (string Prefix, string Advice)[] removedKeys =
+    [
+        ("quartz.scheduler.proxy",
+            "Remoting a scheduler is not supported on modern .NET. Talk to a remote scheduler over HTTP "
+            + "with the Quartz.HttpClient package (AddQuartzHttpClient), which serves the same purpose."),
+        ("quartz.scheduler.exporter",
+            "Remoting a scheduler is not supported on modern .NET. Expose a scheduler over HTTP with the "
+            + "Quartz.AspNetCore package (AddQuartzHttpApi and MapQuartzHttpApi) instead."),
+    ];
+
+    /// <summary>
+    /// Rejects a <c>quartz.*</c> key no reader understands.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A misspelled key is otherwise read by nobody and reported by nothing: <c>quartz.jobstore.type</c>
+    /// differs from <c>quartz.jobStore.type</c> by one letter and turns a database-backed scheduler into
+    /// an in-memory one without a word. Set <c>quartz.checkConfiguration</c> to <see langword="false"/>
+    /// to allow keys of your own — a third-party component configured through this bag, for instance.
+    /// </para>
+    /// <para>
+    /// Only applied where flat properties are the whole configuration, which is
+    /// <see cref="QuartzSchedulerBuilder.UseProperties"/>. Keys flattened out of an
+    /// <see cref="Microsoft.Extensions.Configuration.IConfiguration"/> section are not checked, because
+    /// there every section becomes a <c>quartz.*</c> key whether Quartz reads it or not.
+    /// </para>
+    /// </remarks>
+    internal static void Validate(NameValueCollection properties)
+    {
+        var parser = new PropertiesParser(properties);
+        if (!parser.GetBooleanProperty(CheckConfiguration, defaultValue: true))
+        {
+            return;
+        }
+
+        foreach (var key in properties.AllKeys)
+        {
+            if (key is null
+                || !key.StartsWith(Prefix, StringComparison.Ordinal)
+                || key.StartsWith(ServerPrefix, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            foreach (var (prefix, advice) in removedKeys)
+            {
+                if (key.StartsWith(prefix, StringComparison.Ordinal))
+                {
+                    Throw.SchedulerConfigException($"Configuration property '{key}' is no longer read. {advice}");
+                }
+            }
+
+            if (!IsSupported(key))
+            {
+                Throw.SchedulerConfigException(
+                    $"Unknown configuration property '{key}'. Set '{CheckConfiguration}' to false to allow keys Quartz does not read.");
+            }
+        }
+    }
+
+    private static bool IsSupported(string key)
+    {
+        foreach (var supportedKey in supportedKeys)
+        {
+            if (key.StartsWith(supportedKey, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}

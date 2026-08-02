@@ -21,8 +21,6 @@
 
 using System.Collections.Specialized;
 
-using Quartz.Impl;
-
 namespace Quartz.Examples.Example10;
 
 /// <summary>
@@ -38,7 +36,7 @@ public class RunningJobsByPlugInXmlConfigurationExample : IExample
     {
         // our configuration that enables XML configuration plugin
         // and makes it watch for changes every two minutes (120 seconds)
-        var properties = new NameValueCollection
+        NameValueCollection properties = new NameValueCollection
         {
             ["quartz.plugin.triggHistory.type"] = "Quartz.Plugin.History.LoggingJobHistoryPlugin, Quartz.Plugins",
             ["quartz.plugin.jobInitializer.type"] = "Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin, Quartz.Plugins",
@@ -47,9 +45,10 @@ public class RunningJobsByPlugInXmlConfigurationExample : IExample
             ["quartz.plugin.jobInitializer.scanInterval"] = "120"
         };
 
-        // First we must get a reference to a scheduler
-        StdSchedulerFactory sf = new StdSchedulerFactory(properties);
-        IScheduler scheduler = await sf.GetScheduler();
+        // First we must get a reference to a scheduler, built straight from those properties
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create()
+            .UseProperties(properties)
+            .BuildScheduler();
 
         Console.WriteLine("------- Initialization Complete -----------");
 

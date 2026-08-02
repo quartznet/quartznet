@@ -26,16 +26,6 @@ implement the `IJobStore` interface - and that if one of the bundled JobStores d
 Finally, you need to create your Scheduler instance. The Scheduler itself needs to be given a name and handed
 instances of a JobStore and ThreadPool.
 
-## StdSchedulerFactory
-
-`StdSchedulerFactory` is an implementation of the `ISchedulerFactory` interface.
-It uses a set of properties (`NameValueCollection`) to create and initialize a Quartz Scheduler.
-The properties are generally stored in and loaded from a file, but can also be created by your program and handed directly to the factory.
-Simply calling `GetScheduler()` on the factory will produce the scheduler, initialize it (and its ThreadPool, JobStore and DataSources),
-and return a handle to its public interface.
-
-You can find complete documentation in the "Configuration Reference" section of the Quartz documentation.
-
 ## Building a scheduler without a container
 
 An application with no host — a console application, or a test — builds a scheduler with
@@ -43,15 +33,38 @@ An application with no host — a console application, or a test — builds a sc
 its own and building from it, so what works in one works in the other:
 
 ```csharp
-IScheduler scheduler = await QuartzSchedulerBuilder.Create()
-    .Configure(q =>
-    {
-        q.ConfigureScheduler(options => options.InstanceName = "reporting");
-        q.UseDefaultThreadPool(maxConcurrency: 10);
-        q.UseInMemoryStore();
-    })
-    .BuildScheduler();
+var builder = QuartzSchedulerBuilder.Create();
+builder.ConfigureScheduler(options => options.InstanceName = "reporting")
+    .UseDefaultThreadPool(maxConcurrency: 10)
+    .UseInMemoryStore();
+
+IScheduler scheduler = await builder.BuildScheduler();
 ```
+
+The builder is kept in a variable rather than built in one expression: its configuration methods are the
+same ones `AddQuartz` hands out, so they return that interface rather than the builder and cannot be
+chained into `BuildScheduler()`. Use `Build()` instead of `BuildScheduler()` when you want the factory
+rather than the scheduler it produces. It returns a `StandaloneSchedulerFactory`, which owns the
+container it built — dispose it, preferably with `await using`, to shut the scheduler down.
+
+## Configuring from properties
+
+A scheduler can also be configured from a set of flat `quartz.*` properties (`NameValueCollection`)
+instead of in code. The properties are generally stored in and loaded from a file, but can also be
+created by your program and handed to the builder:
+
+```csharp
+await using StandaloneSchedulerFactory schedulerFactory = QuartzSchedulerBuilder.Create()
+    .UseProperties(properties)
+    .Build();
+```
+
+The keys are translated into the same options and registrations the code-based API produces, so a
+scheduler configured this way is the same scheduler, and the two can be mixed — what is written in code
+wins. Keys are checked against the ones Quartz reads, so a misspelling is reported rather than silently
+leaving a setting at its default.
+
+You can find complete documentation in the "Configuration Reference" section of the Quartz documentation.
 
 ## Logging
 

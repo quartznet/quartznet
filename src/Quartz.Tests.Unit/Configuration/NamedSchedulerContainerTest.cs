@@ -91,7 +91,7 @@ public class NamedSchedulerContainerTest
         {
             q.UseInMemoryStore();
             q.AddJob<NoOpJob>(job => job.WithIdentity("reporting-job"));
-            q.AddTrigger(trigger => trigger.ForJob("reporting-job").WithIdentity("reporting-trigger").StartAt(DateTimeOffset.UtcNow.AddHours(1)));
+            q.AddTrigger<IJob>(trigger => trigger.ForJob("reporting-job").WithIdentity("reporting-trigger").StartAt(DateTimeOffset.UtcNow.AddHours(1)));
         });
         services.AddQuartz("ingest", q => q.UseInMemoryStore());
 

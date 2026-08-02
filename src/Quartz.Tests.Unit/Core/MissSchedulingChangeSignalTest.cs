@@ -1,7 +1,6 @@
 using System.Collections.Specialized;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
-using Quartz.Impl;
 
 namespace Quartz.Tests.Unit.Core;
 
@@ -18,7 +17,7 @@ public class MissSchedulingChangeSignalTest
         // Use a custom RAMJobStore to produce context switches leading to the race condition
         properties["quartz.jobStore.type"] = typeof(SlowRAMJobStore).AssemblyQualifiedName;
         properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
-        ISchedulerFactory sf = new StdSchedulerFactory(properties);
+        ISchedulerFactory sf = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         IScheduler scheduler = await sf.GetScheduler();
         logger.LogInformation("------- Initialization Complete -----------");
 

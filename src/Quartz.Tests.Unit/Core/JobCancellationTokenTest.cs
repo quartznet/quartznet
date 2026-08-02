@@ -1,7 +1,5 @@
 using System.Collections.Specialized;
 
-using Quartz.Impl;
-
 namespace Quartz.Tests.Unit.Core;
 
 /// <summary>
@@ -27,7 +25,7 @@ public class JobCancellationTokenTest
             ["quartz.scheduler.instanceName"] = "JobCancellationTokenTest",
         };
 
-        ISchedulerFactory sf = new StdSchedulerFactory(properties);
+        ISchedulerFactory sf = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         IScheduler scheduler = await sf.GetScheduler();
 
         try

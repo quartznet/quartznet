@@ -19,8 +19,6 @@
 
 using System.Collections.Specialized;
 
-using Quartz.Impl;
-
 namespace Quartz.Tests.Unit;
 
 /// <summary>
@@ -88,7 +86,7 @@ public class InterruptableJobTest
             ["quartz.threadPool.type"] = "Quartz.Impl.DefaultThreadPool",
             ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
         };
-        IScheduler scheduler = await new StdSchedulerFactory(config).GetScheduler();
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create().UseProperties(config).BuildScheduler();
         await scheduler.Start();
 
         // add a job with a trigger that will fire immediately

@@ -17,6 +17,16 @@ See [Quartz documentation](microsoft-di-integration) to learn more about configu
 Need multiple independent schedulers in one application? See [Multiple Schedulers](multiple-schedulers.md).
 :::
 
+The hosted service starts every scheduler in the container, and resolves them when the host starts —
+so `AddQuartz` and `AddQuartzHostedService` can be called in either order. The options apply to every
+scheduler; one that has to differ is configured by name with
+`AddQuartzHostedService("SchedulerName", options => …)`.
+
+::: warning
+Calling `AddQuartzHostedService()` without registering any scheduler throws at startup: the hosted
+service was asked for, so something was meant to run. Register a scheduler with `AddQuartz(...)`.
+:::
+
 **Example program utilizing hosted services configuration**
 
 ```csharp

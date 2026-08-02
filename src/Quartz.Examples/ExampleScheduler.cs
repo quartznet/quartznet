@@ -11,13 +11,12 @@ internal static class ExampleScheduler
 {
     public static ValueTask<IScheduler> Create(string instanceName = "ExampleDefaultQuartzScheduler")
     {
-        return QuartzSchedulerBuilder.Create()
-            .Configure(q =>
-            {
-                q.ConfigureScheduler(options => options.InstanceName = instanceName);
-                q.UseDefaultThreadPool(maxConcurrency: 10);
-                q.UseInMemoryStore(options => options.MisfireThreshold = TimeSpan.FromSeconds(60));
-            })
-            .BuildScheduler();
+        QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
+
+        builder.ConfigureScheduler(options => options.InstanceName = instanceName)
+            .UseDefaultThreadPool(maxConcurrency: 10)
+            .UseInMemoryStore(options => options.MisfireThreshold = TimeSpan.FromSeconds(60));
+
+        return builder.BuildScheduler();
     }
 }

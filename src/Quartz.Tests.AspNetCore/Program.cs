@@ -13,12 +13,12 @@ public class Program
 
         builder.Services.AddQuartz(configurator =>
         {
-            configurator.AddHttpApi(options => options.ApiPath = "/");
+            configurator.AddQuartzHttpApi(options => options.ApiPath = "/");
         });
 
         var app = builder.Build();
 
-        app.MapQuartzApi();
+        app.MapQuartzHttpApi();
         app.Run();
     }
 }

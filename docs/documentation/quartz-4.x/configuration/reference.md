@@ -110,9 +110,6 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 | `MisfireThreshold` | TimeSpan | `00:01:00` | How late a trigger may fire before it counts as misfired. |
 | `MisfireHandlerFrequency` | TimeSpan? | `MisfireThreshold` | How often misfires are handled. |
 | `MaxMisfiresToHandleAtATime` | int | `20` | How many misfired triggers are handled per pass. |
-| `Clustered` | bool | `false` | Takes part in a cluster sharing this database. Prefer `UseClustering()`. |
-| `ClusterCheckinInterval` | TimeSpan | `00:00:07.5` | How often a node records that it is alive. |
-| `ClusterCheckinMisfireThreshold` | TimeSpan | `00:00:07.5` | Grace period before a node is treated as failed. |
 | `DbRetryInterval` | TimeSpan | `00:00:15` | How long to wait before retrying after a database failure. |
 | `MaxTransientRetries` | int | `3` | How many times a transient failure such as a deadlock is retried. |
 | `TransientRetryInterval` | TimeSpan | `00:00:01` | Delay between transient retries. |
@@ -138,8 +135,8 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 | `UseMySqlConnector` | MySQL, using the MySqlConnector driver |
 | `UseOracle` | Oracle |
 | `UseFirebird` | Firebird |
-| `UseSQLite` | SQLite, using the System.Data.SQLite driver |
-| `UseMicrosoftSQLite` | SQLite, using the Microsoft.Data.Sqlite driver |
+| `UseSqlite` | SQLite, using the Microsoft.Data.Sqlite driver |
+| `UseSystemDataSqlite` | SQLite, using the legacy System.Data.SQLite driver |
 | `UseGenericDatabase` | Anything else, using the generic SQL dialect — and the only one that can [describe its own driver](#describing-a-driver-quartz-does-not-know) |
 
 Each takes either a connection string or a callback over `DataSourceOptions`:
@@ -149,8 +146,9 @@ store.UseSqlServer(connectionString);
 store.UseSqlServer(db => db.ConnectionStringName = "Scheduler");
 ```
 
-To connect through a `DbDataSource` registered in the container rather than a connection string of
-Quartz's own, add `store.UseDataSourceConnectionProvider()`.
+Where the connection comes from is the data source's own setting, so to connect through a
+`DbDataSource` registered in the container rather than a connection string of Quartz's own, say
+`store.UseSqlServer(db => db.UseRegisteredDataSource = true)`.
 
 #### Describing a driver Quartz does not know
 
@@ -235,7 +233,7 @@ named scheduler will not see.
 | `Provider` | string | Names the description of the ADO.NET driver to use. Set for you by the database methods above; see [Describing a driver Quartz does not know](#describing-a-driver-quartz-does-not-know) for a driver Quartz ships no description for. |
 | `ConnectionString` | string? | The connection string. Takes precedence over `ConnectionStringName`. |
 | `ConnectionStringName` | string? | A connection string to resolve from `IConfiguration`. |
-| `UseRegisteredDataSource` | bool | Connections come from a `DbDataSource` in the container. Set by `UseDataSourceConnectionProvider()`. |
+| `UseRegisteredDataSource` | bool | Connections come from a `DbDataSource` in the container. Wins over both connection string settings. |
 
 To connect through a `DbDataSource` registered in the container, for example by `AddNpgsqlDataSource`:
 
@@ -243,15 +241,29 @@ To connect through a `DbDataSource` registered in the container, for example by 
 services.AddNpgsqlDataSource(connectionString);
 services.AddQuartz(q => q.UsePersistentStore(store =>
 {
-    store.UsePostgres(db => db.Provider = "Npgsql");
-    store.UseDataSourceConnectionProvider();
+    store.UsePostgres(db => db.UseRegisteredDataSource = true);
 }));
 ```
+
+There are three entry points for a data source and they say different things.
+`UseDataSource(configure)` **defines** one — which driver, and how to reach the database — and the
+database methods above are shorthands for it. `UseDataSourceName(name)` **refers to** one by name,
+which is how a store picks up settings registered elsewhere, such as a `Quartz:DataSource:<name>`
+section. Where the connection itself comes from is `DataSourceOptions`' to say, not a fourth method's.
 
 ### Clustering
 
 Clustering lets several schedulers share one database, so that if a node dies its triggers are recovered
 by another. Every node must use the same `InstanceName` and a different `InstanceId`.
+
+`ClusteringOptions`, bound from `Quartz:JobStore:Clustering`. This is the only place clustering is
+configured: the job store reports whether it is clustered, it does not offer a second place to say so.
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `Enabled` | bool | `false` | Takes part in a cluster sharing this database. `UseClustering()` sets it. |
+| `CheckinInterval` | TimeSpan | `00:00:07.5` | How often a node records that it is alive. |
+| `CheckinMisfireThreshold` | TimeSpan | `00:00:07.5` | Grace period before a node is treated as failed. |
 
 ```csharp
 services.AddQuartz(q =>
@@ -343,22 +355,34 @@ In configuration, use a `Schedulers` section:
 
 ## Without a container
 
-Console applications and tests that have no host build a scheduler with `QuartzSchedulerBuilder`, which
-takes the same configuration API:
+Console applications and tests that have no host build a scheduler with `QuartzSchedulerBuilder`. It
+does not take *the same* configuration API — it **is** the configuration API: `QuartzSchedulerBuilder`
+implements `IQuartzBuilder`, the interface `AddQuartz` hands out, over a container it creates itself.
 
 ```csharp
-var scheduler = await QuartzSchedulerBuilder.Create()
-    .Configure(q =>
-    {
-        q.ConfigureScheduler(options => options.InstanceName = "reporting");
-        q.UseDefaultThreadPool(maxConcurrency: 20);
-        q.UseInMemoryStore();
-    })
+var builder = QuartzSchedulerBuilder.Create();
+builder.ConfigureScheduler(options => options.InstanceName = "reporting")
+    .UseDefaultThreadPool(maxConcurrency: 20)
+    .UseInMemoryStore();
+
+IScheduler scheduler = await builder.BuildScheduler();
+```
+
+What it adds is the two terminal methods a standalone caller needs, `Build()` for the factory and
+`BuildScheduler()` for the scheduler. Configuration members return `IQuartzBuilder`, so hold the
+builder in a variable and build from it, the way `WebApplicationBuilder` is used.
+
+A scheduler configured entirely by flat `quartz.*` keys is built the same way:
+
+```csharp
+IScheduler scheduler = await QuartzSchedulerBuilder.Create()
+    .UseProperties(properties)
     .BuildScheduler();
 ```
 
-It creates a container of its own and builds from it, so whatever works here works identically under a
-host.
+`UseProperties` checks the keys against the ones Quartz reads, so a misspelling is reported rather
+than silently ignored; set `quartz.checkConfiguration` to `false` to allow keys of your own.
+Configuration written in code wins over the properties whichever order the two are applied in.
 
 ## Legacy property keys
 
@@ -391,9 +415,10 @@ Two differences are worth knowing:
 | `quartz.jobStore.misfireThreshold` | `JobStore:MisfireThreshold` |
 | `quartz.jobStore.tablePrefix` | `JobStore:TablePrefix` |
 | `quartz.jobStore.useProperties` | `JobStore:UseProperties` |
-| `quartz.jobStore.clustered` | `JobStore:Clustered`, or `UseClustering()` |
+| `quartz.jobStore.clustered` | `JobStore:Clustering:Enabled`, or `UseClustering()` |
 | `quartz.jobStore.acceptEnlistedTransactions` | `JobStore:AcceptEnlistedTransactions`, or `AcceptEnlistedTransactions()` |
-| `quartz.jobStore.clusterCheckinInterval` | `JobStore:ClusterCheckinInterval` |
+| `quartz.jobStore.clusterCheckinInterval` | `JobStore:Clustering:CheckinInterval` |
+| `quartz.jobStore.clusterCheckinMisfireThreshold` | `JobStore:Clustering:CheckinMisfireThreshold` |
 | `quartz.jobStore.dataSource` | set for you by the database methods |
 | `quartz.dataSource.NAME.provider` | `DataSource:NAME:Provider` |
 | `quartz.dataSource.NAME.connectionString` | `DataSource:NAME:ConnectionString` |
@@ -425,5 +450,6 @@ same value in `appsettings.json`. Built-in fallbacks — the driver delegate and
 registered after everything explicit, so they only apply when nothing else claimed the slot.
 
 Removed in 4.x, with no replacement: `quartz.scheduler.proxy*` and `quartz.scheduler.exporter*`
-(remoting, which .NET no longer supports), `quartz.threadExecutor*`, and `quartz.checkConfiguration`
-(configuration is validated by the options system instead).
+(remoting, which .NET no longer supports) — these two are rejected with an exception naming the
+replacement, rather than accepted and ignored — plus `quartz.threadExecutor*`, which had no
+implementation left to choose between.

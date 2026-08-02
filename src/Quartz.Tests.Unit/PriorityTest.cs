@@ -59,7 +59,7 @@ public class PriorityTest
         config["quartz.threadPool.type"] = "Quartz.Impl.DefaultThreadPool";
         config["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
 
-        IScheduler scheduler = await new StdSchedulerFactory(config).GetScheduler();
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create().UseProperties(config).BuildScheduler();
 
         DateTime n = DateTime.UtcNow;
         DateTime date = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond, DateTimeKind.Utc);
@@ -91,7 +91,7 @@ public class PriorityTest
         config["quartz.threadPool.type"] = "Quartz.Impl.DefaultThreadPool";
         config["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
 
-        IScheduler scheduler = await new StdSchedulerFactory(config).GetScheduler();
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create().UseProperties(config).BuildScheduler();
 
         DateTime n = DateTime.UtcNow.AddSeconds(1);
         DateTime date = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond, DateTimeKind.Utc);

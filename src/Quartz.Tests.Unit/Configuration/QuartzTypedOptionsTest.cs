@@ -97,9 +97,9 @@ public class QuartzTypedOptionsTest
             ["JobStore:DataSource"] = "default",
             ["JobStore:TablePrefix"] = "MY_",
             ["JobStore:UseProperties"] = "true",
-            ["JobStore:Clustered"] = "true",
             ["JobStore:UseDbLocks"] = "true",
-            ["JobStore:ClusterCheckinInterval"] = "00:00:10",
+            ["JobStore:Clustering:Enabled"] = "true",
+            ["JobStore:Clustering:CheckinInterval"] = "00:00:10",
         });
 
         var options = provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value;
@@ -107,9 +107,14 @@ public class QuartzTypedOptionsTest
         options.DataSource.Should().Be("default");
         options.TablePrefix.Should().Be("MY_");
         options.UseProperties.Should().BeTrue();
-        options.Clustered.Should().BeTrue();
-        options.ClusterCheckinInterval.Should().Be(TimeSpan.FromSeconds(10));
+        options.UseDbLocks.Should().BeTrue();
         options.PerformSchemaValidation.Should().BeTrue("unset booleans keep their default");
+
+        var clustering = provider.GetRequiredService<IOptions<ClusteringOptions>>().Value;
+
+        clustering.Enabled.Should().BeTrue(
+            "clustering has a sub-section of its own, so it binds onto ClusteringOptions rather than the store's");
+        clustering.CheckinInterval.Should().Be(TimeSpan.FromSeconds(10));
     }
 
     [Test]
@@ -163,19 +168,25 @@ public class QuartzTypedOptionsTest
             .WithMessage($"*{nameof(QuartzSchedulerOptions.IdleWaitTime)}*");
     }
 
+    /// <summary>
+    /// Clustering used to be validated against the store's <c>UseDbLocks</c>, which the validator can no
+    /// longer see and never needed to: every path that enables clustering enables database locking with
+    /// it. What is left to get wrong is an interval, and that is validated where it now lives.
+    /// </summary>
     [Test]
-    public void ClusteringWithoutDbLocks_FailsValidation()
+    public void ClusteringWithANonPositiveCheckinInterval_FailsValidation()
     {
         using var provider = Build(new Dictionary<string, string>
         {
             ["JobStore:DataSource"] = "default",
-            ["JobStore:Clustered"] = "true",
+            ["JobStore:Clustering:Enabled"] = "true",
+            ["JobStore:Clustering:CheckinInterval"] = "00:00:00",
         });
 
-        var act = () => provider.GetRequiredService<IOptions<AdoJobStoreOptions>>().Value;
+        var act = () => provider.GetRequiredService<IOptions<ClusteringOptions>>().Value;
 
         act.Should().Throw<OptionsValidationException>()
-            .WithMessage($"*{nameof(AdoJobStoreOptions.UseDbLocks)}*");
+            .WithMessage($"*{nameof(ClusteringOptions.CheckinInterval)}*");
     }
 
     [Test]

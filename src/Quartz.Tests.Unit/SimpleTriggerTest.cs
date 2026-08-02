@@ -265,7 +265,7 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
         };
         FixedTimeProvider.UtcNowValue = now;
 
-        IScheduler scheduler = await new StdSchedulerFactory(config).GetScheduler();
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create().UseProperties(config).BuildScheduler();
         try
         {
             IJobDetail job = JobBuilder.Create<NoOpJob>()
@@ -315,7 +315,7 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
         };
         FixedTimeProvider.UtcNowValue = now;
 
-        IScheduler scheduler = await new StdSchedulerFactory(config).GetScheduler();
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create().UseProperties(config).BuildScheduler();
         try
         {
             IJobDetail job = JobBuilder.Create<NoOpJob>()
@@ -359,7 +359,7 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
         };
         FixedTimeProvider.UtcNowValue = now;
 
-        IScheduler scheduler = await new StdSchedulerFactory(config).GetScheduler();
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create().UseProperties(config).BuildScheduler();
         try
         {
             IJobDetail job = JobBuilder.Create<NoOpJob>()
@@ -403,7 +403,7 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
         };
         FixedTimeProvider.UtcNowValue = now;
 
-        IScheduler scheduler = await new StdSchedulerFactory(config).GetScheduler();
+        IScheduler scheduler = await QuartzSchedulerBuilder.Create().UseProperties(config).BuildScheduler();
         try
         {
             IJobDetail job = JobBuilder.Create<NoOpJob>()
@@ -495,7 +495,8 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
     private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
     {
         /// <summary>
-        /// Static value used by StdSchedulerFactory instantiation (parameterless constructor).
+        /// Static value used when this provider is named by a configuration key and built through its
+        /// parameterless constructor.
         /// </summary>
         internal static DateTimeOffset UtcNowValue;
 

@@ -28,8 +28,8 @@ public class DocumentedConfigurationTest
                 .WithDailyTimeIntervalSchedule(x => x.WithInterval(10, IntervalUnit.Second)));
 
             var jobKey = new JobKey("awesome job", "awesome group");
-            q.AddJob<ExampleJob>(jobKey, j => j.WithDescription("my awesome job"));
-            q.AddTrigger(t => t.WithIdentity("t2").ForJob(jobKey)
+            q.AddJob<ExampleJob>(j => j.WithIdentity(jobKey).WithDescription("my awesome job"));
+            q.AddTrigger<IJob>(t => t.WithIdentity("t2").ForJob(jobKey)
                 .WithDailyTimeIntervalSchedule(x => x.WithInterval(10, IntervalUnit.Second)));
         });
 

@@ -3,7 +3,6 @@ using System.Collections.Specialized;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-using Quartz.Impl;
 using Quartz.Extensibility;
 using Quartz.Impl.AdoJobStore.Common;
 
@@ -48,7 +47,7 @@ public sealed class SchedulerRepositoryIsolationTest
     }
 
     [Test]
-    public async Task StdSchedulerFactoryAndAddQuartz_DoNotShareARepository()
+    public async Task PropertiesBuiltSchedulerAndAddQuartz_DoNotShareARepository()
     {
         await using var container = BuildContainer("ContainerScheduler");
         var containerFactory = container.GetRequiredService<ISchedulerFactory>();
@@ -59,7 +58,7 @@ public sealed class SchedulerRepositoryIsolationTest
             ["quartz.serializer.type"] = TestConstants.DefaultSerializerType,
         };
 
-        using var propertiesFactory = new StdSchedulerFactory(properties);
+        using StandaloneSchedulerFactory propertiesFactory = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
 
         var containerScheduler = await containerFactory.GetScheduler();
         var propertiesScheduler = await propertiesFactory.GetScheduler();
@@ -71,10 +70,10 @@ public sealed class SchedulerRepositoryIsolationTest
 
             (await propertiesFactory.GetAllSchedulers()).Should().ContainSingle()
                 .Which.Should().BeSameAs(propertiesScheduler,
-                    "StdSchedulerFactory reports the schedulers of its own container, not every scheduler in the process");
+                    "a standalone builder reports the schedulers of its own container, not every scheduler in the process");
 
             (await containerFactory.GetScheduler("PropertiesScheduler")).Should().BeNull(
-                "a scheduler built through StdSchedulerFactory is no longer reachable from an AddQuartz container");
+                "a scheduler built by a standalone builder is no longer reachable from an AddQuartz container");
             (await propertiesFactory.GetScheduler("ContainerScheduler")).Should().BeNull(
                 "and the other way round");
         }
@@ -86,10 +85,10 @@ public sealed class SchedulerRepositoryIsolationTest
     }
 
     [Test]
-    public async Task TwoStdSchedulerFactories_DoNotShareARepository()
+    public async Task TwoPropertiesBuiltSchedulers_DoNotShareARepository()
     {
-        using var firstFactory = new StdSchedulerFactory(PropertiesFor("FirstPropertiesScheduler"));
-        using var secondFactory = new StdSchedulerFactory(PropertiesFor("SecondPropertiesScheduler"));
+        using StandaloneSchedulerFactory firstFactory = QuartzSchedulerBuilder.Create().UseProperties(PropertiesFor("FirstPropertiesScheduler")).Build();
+        using StandaloneSchedulerFactory secondFactory = QuartzSchedulerBuilder.Create().UseProperties(PropertiesFor("SecondPropertiesScheduler")).Build();
 
         var firstScheduler = await firstFactory.GetScheduler();
         var secondScheduler = await secondFactory.GetScheduler();
