@@ -417,6 +417,27 @@ public class LegacyJsonPayloadTest
         daily.TimesTriggered.Should().Be(4);
     }
 
+    [Test]
+    public void TriggerPayloadsWrittenBeforePinningReadBackUnpinned()
+    {
+        string[] payloads =
+        [
+            LegacySimpleTrigger,
+            LegacyCronTrigger,
+            LegacyCalendarIntervalTrigger,
+            LegacyDailyTimeIntervalTrigger
+        ];
+
+        foreach (string payload in payloads)
+        {
+            IOperableTrigger trigger = Deserialize<IOperableTrigger>(payload);
+
+            trigger.PreferredNode.Should().Be(
+                PreferredNode.None,
+                "a payload written before triggers could be pinned carries neither half of the pin, and a reader must not invent one");
+        }
+    }
+
     private T Deserialize<T>(string json) where T : class
     {
         return serializer.Deserialize<T>(Encoding.UTF8.GetBytes(json))!;

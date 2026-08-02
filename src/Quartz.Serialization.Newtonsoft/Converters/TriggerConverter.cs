@@ -57,6 +57,17 @@ internal sealed class TriggerConverter(NewtonsoftJsonSerializerRegistry registry
                 writer.WriteValue(abstractTrigger.ExecutionGroup);
             }
 
+            // The pin travels as the pair the triggers table holds - the node name (or the auto-pin
+            // sentinel) plus the auto-claim flag - so an automatic pin stays automatic across the
+            // round trip instead of hardening into one the user named.
+            PreferredNode preferredNode = trigger.PreferredNode;
+
+            writer.WritePropertyName("PreferredNode");
+            writer.WriteValue(preferredNode.StoredNode);
+
+            writer.WritePropertyName("PreferredNodeAuto");
+            writer.WriteValue(preferredNode.StoredAutomatic);
+
             triggerSerializer.SerializeFields(writer, trigger);
             writer.WriteEndObject();
         }
@@ -107,6 +118,13 @@ internal sealed class TriggerConverter(NewtonsoftJsonSerializerRegistry registry
             if (trigger is IMutableTrigger mutableTrigger)
             {
                 mutableTrigger.MisfireInstruction = misfireInstruction;
+
+                // Written as the pair the triggers table stores, and absent altogether from payloads
+                // written before triggers could be pinned - a missing pair reads back as
+                // PreferredNode.None, which is exactly an unpinned trigger.
+                string? preferredNode = source.Value<string>("PreferredNode");
+                bool preferredNodeAuto = source.Value<bool?>("PreferredNodeAuto") ?? false;
+                mutableTrigger.PreferredNode = PreferredNode.FromStored(preferredNode, preferredNodeAuto);
             }
 
             if (trigger is IOperableTrigger operableTrigger)

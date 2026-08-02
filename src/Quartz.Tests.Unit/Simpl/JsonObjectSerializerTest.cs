@@ -499,6 +499,44 @@ public class JsonObjectSerializerTest
         await VerifyCreatedJson(trigger);
     }
 
+    [Test]
+    public void PinnedTriggerKeepsItsPin()
+    {
+        // Every shape the pin has, including the two that a single node-name field could not tell
+        // apart: an auto pin nobody has claimed yet, and one a node already claimed.
+        PreferredNode[] pins =
+        [
+            PreferredNode.None,
+            PreferredNode.Auto,
+            PreferredNode.For("node-a"),
+            PreferredNode.ClaimedBy("node-b")
+        ];
+
+        foreach (PreferredNode pin in pins)
+        {
+            FakeTimeProvider timeProvider = CreateFakeTimeProvider();
+
+            IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create(timeProvider)
+                .WithSimpleSchedule(builder => builder
+                    .WithInterval(TimeSpan.FromMinutes(5))
+                    .WithRepeatCount(3)
+                )
+                .WithIdentity("PinnedTriggerKey", "PinnedTriggerGroup")
+                .ForJob("PinnedJobKey", "PinnedJobGroup")
+                .WithPreferredNode(pin)
+                .StartAt(timeProvider.GetUtcNow())
+                .Build();
+
+            SetTimeProvider(timeProvider, trigger);
+
+            CompareSerialization(
+                trigger,
+                (deserialized, original) => deserialized.PreferredNode.Should().Be(
+                    original.PreferredNode,
+                    $"a trigger pinned '{pin}' has to come back pinned exactly that way, auto-claim flag included"));
+        }
+    }
+
     private void CompareSerialization<T>(
         T original,
         Action<T, T> asserter = null,
