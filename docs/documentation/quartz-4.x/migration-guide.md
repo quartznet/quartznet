@@ -919,6 +919,27 @@ services.AddQuartz("Reporting", q => q.AddQuartzHealthChecks(options => options.
 + options.Tags = ["ready", "live"];
 ```
 
+## The OpenAPI calendar schema names the properties the payload actually uses
+
+The HTTP API's endpoints handle `ICalendar`, which OpenAPI cannot describe, so the published document has
+always been shaped by a stand-in type. Nothing compiled against that stand-in, so two of its property names
+were simply wrong, and a client generated from the document did not round-trip a calendar at all:
+
+| Schema said | Server sends |
+|---|---|
+| `calendarType` | `type` |
+| `calendarBase` | `baseCalendar` |
+
+Nothing about the wire format changed — the server has always written `type` and `baseCalendar`. What changes
+is generated clients: regenerate against 4.x and the two properties on your calendar model are renamed, which
+is a compile error at each use rather than a silent one. Hand-written clients were already having to send
+`type` and `baseCalendar` to be understood, so they need no change.
+
+The rest of the schema was already right: `description`, `timeZoneId`, `excludedDays`, `excludedDates`,
+`cronExpressionString`, `rangeStart`, `rangeEnd` and `invertTimeRange` are what a calendar of each built-in
+type serializes to. A test in `Quartz.Tests.AspNetCore` now compares the stand-in against those names in both
+directions, so the schema cannot quietly drift again.
+
 ## Remoting a scheduler is not a Quartz concern
 
 `ISchedulerProxyFactory` and `HttpSchedulerProxyFactory` are removed, and the `quartz.scheduler.proxy*`

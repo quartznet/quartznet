@@ -10,44 +10,49 @@ internal interface Calendar
     /// <summary>
     /// Type of the calendar. Quartz.NET has built in calendar types BaseCalendar, AnnualCalendar, CronCalendar, DailyCalendar, HolidayCalendar, MonthlyCalendar and WeeklyCalendar
     /// </summary>
-    string CalendarType { get; }
+    string Type { get; }
     string? Description { get; }
-    Calendar? CalendarBase { get; }
 
     /// <summary>
-    /// Should be present when CalendarType is BaseCalendar, AnnualCalendar, CronCalendar, DailyCalendar, HolidayCalendar, MonthlyCalendar or WeeklyCalendar
+    /// Should be present when Type is BaseCalendar, AnnualCalendar, CronCalendar, DailyCalendar, HolidayCalendar, MonthlyCalendar or WeeklyCalendar
     /// </summary>
     string? TimeZoneId { get; }
 
     /// <summary>
-    /// Should be present when CalendarType is AnnualCalendar (dates as yyyy-MM-dd, only the month
+    /// The calendar this one is layered on top of, or null when there is none. Nested to any depth,
+    /// each level having the same shape as this one.
+    /// </summary>
+    Calendar? BaseCalendar { get; }
+
+    /// <summary>
+    /// Should be present when Type is AnnualCalendar (dates as yyyy-MM-dd, only the month
     /// and day are significant), MonthlyCalendar (days of the month, 1 through 31) or
     /// WeeklyCalendar (day names)
     /// </summary>
     object[]? ExcludedDays { get; }
 
     /// <summary>
-    /// Should be present when CalendarType is CronCalendar
+    /// Should be present when Type is CronCalendar
     /// </summary>
     string? CronExpressionString { get; }
 
     /// <summary>
-    /// Should be present when CalendarType is DailyCalendar, as HH:mm:ss.fff
+    /// Should be present when Type is DailyCalendar, as HH:mm:ss.fff
     /// </summary>
     string? RangeStart { get; }
 
     /// <summary>
-    /// Should be present when CalendarType is DailyCalendar, as HH:mm:ss.fff
+    /// Should be present when Type is DailyCalendar, as HH:mm:ss.fff
     /// </summary>
     string? RangeEnd { get; }
 
     /// <summary>
-    /// Should be present when CalendarType is DailyCalendar
+    /// Should be present when Type is DailyCalendar
     /// </summary>
     bool? InvertTimeRange { get; }
 
     /// <summary>
-    /// Should be present when CalendarType is HolidayCalendar
+    /// Should be present when Type is HolidayCalendar
     /// </summary>
     DateOnly[]? ExcludedDates { get; }
 }
