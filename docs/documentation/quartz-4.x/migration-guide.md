@@ -1211,6 +1211,32 @@ which made `UseNewtonsoftJsonSerializer` ambiguous when both were referenced.
 `AddCalendarSerializer<TCalendar>` is now constrained to `ICalendar`, matching the trigger side; a call that
 passed something else was never going to work at runtime.
 
+### The OpenAPI trigger schema describes the whole payload
+
+The HTTP API's endpoints handle `ITrigger`, which OpenAPI cannot describe, so the published document has always
+been shaped by a stand-in type. Nothing compiled against that stand-in, so it fell behind the payload it was
+meant to describe, and five properties the server has been sending were missing from the schema:
+
+| Property | Present on |
+|---|---|
+| `nextFireTimeUtc` | every trigger |
+| `previousFireTimeUtc` | every trigger |
+| `executionGroup` | every trigger |
+| `timesTriggered` | every trigger type except `CronTrigger` |
+| `recurrenceRule` | `RecurrenceTrigger` |
+
+`RecurrenceTrigger` itself was also missing from the list of trigger types the `triggerType` discriminator can
+carry.
+
+Nothing about the wire format changed — those fields were always on it. What changes is generated clients: a
+client regenerated against 4.x gains the five properties, and code that had been reading them through an
+escape hatch (a raw `JsonElement`, an extra partial-class member) can read them from the generated model
+instead. The two fire times are computed by the scheduler, so a value sent with a trigger being scheduled is
+overwritten; `executionGroup`, `timesTriggered` and `recurrenceRule` are read from what you send.
+
+A test in `Quartz.Tests.AspNetCore` now compares the stand-in against the property names a trigger of each
+built-in type actually serializes to, in both directions, so the schema cannot quietly fall behind again.
+
 ## Sealed and Internalized Types
 
 Many types have been sealed and/or internalized to minimize the API surface that needs to be maintained. If you were extending a type that is now sealed or internal, file an issue to request it be reopened.

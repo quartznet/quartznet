@@ -65,7 +65,7 @@ internal interface TimeOfDay
 internal interface Trigger
 {
     /// <summary>
-    /// Type of the trigger. Quartz.NET has built in trigger types CalendarIntervalTrigger, CronTrigger, DailyTimeIntervalTrigger and SimpleTrigger
+    /// Type of the trigger. Quartz.NET has built in trigger types CalendarIntervalTrigger, CronTrigger, DailyTimeIntervalTrigger, RecurrenceTrigger and SimpleTrigger
     /// </summary>
     string TriggerType { get; }
 
@@ -80,7 +80,24 @@ internal interface Trigger
     int Priority { get; }
 
     /// <summary>
-    /// Should be present when TriggerType is CalendarIntervalTrigger, CronTrigger or DailyTimeIntervalTrigger
+    /// When the trigger is next due to fire, or null when it will not fire again. Read-only: a value
+    /// sent when scheduling or rescheduling is ignored, because the scheduler computes the fire times.
+    /// </summary>
+    DateTimeOffset? NextFireTimeUtc { get; }
+
+    /// <summary>
+    /// When the trigger last fired, or null when it has not fired yet. Read-only, like NextFireTimeUtc.
+    /// </summary>
+    DateTimeOffset? PreviousFireTimeUtc { get; }
+
+    /// <summary>
+    /// The execution group whose per-node thread limit this trigger's job counts against, or null when
+    /// it belongs to none
+    /// </summary>
+    string? ExecutionGroup { get; }
+
+    /// <summary>
+    /// Should be present when TriggerType is CalendarIntervalTrigger, CronTrigger, DailyTimeIntervalTrigger or RecurrenceTrigger
     /// </summary>
     string? TimeZone { get; }
 
@@ -130,9 +147,21 @@ internal interface Trigger
     DayOfWeek[]? DaysOfWeek { get; }
 
     /// <summary>
+    /// Should be present when TriggerType is RecurrenceTrigger, as an RFC 5545 RRULE
+    /// </summary>
+    string? RecurrenceRule { get; }
+
+    /// <summary>
     /// Should be present when TriggerType is SimpleTrigger
     /// </summary>
     TimeSpan? RepeatIntervalTimeSpan { get; }
+
+    /// <summary>
+    /// How many times the trigger has already fired. Should be present when TriggerType is
+    /// CalendarIntervalTrigger, DailyTimeIntervalTrigger, RecurrenceTrigger or SimpleTrigger — CronTrigger
+    /// does not count its fires. Defaults to 0 when omitted from a trigger being scheduled.
+    /// </summary>
+    int? TimesTriggered { get; }
 }
 
 internal interface AddCalendarRequest
