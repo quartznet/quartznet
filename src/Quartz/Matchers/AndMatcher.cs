@@ -28,7 +28,6 @@ namespace Quartz.Matchers;
 /// </summary>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-[Serializable]
 public sealed class AndMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
 {
     // ReSharper disable once UnusedMember.Local

@@ -8,7 +8,6 @@ namespace Quartz;
 /// <summary>
 /// Store the Job Type and FullName for serialization
 /// </summary>
-[Serializable]
 public sealed class JobType
 {
     private readonly Lazy<Type> type;

@@ -1,5 +1,3 @@
-#pragma warning disable SYSLIB0051 // 'Exception.Exception(SerializationInfo, StreamingContext)' is obsolete
-
 #region License
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -19,7 +17,6 @@
  */
 #endregion
 
-using System.Runtime.Serialization;
 using System.Text;
 
 namespace Quartz.Xml;
@@ -29,7 +26,6 @@ namespace Quartz.Xml;
 /// </summary>
 /// <author> <a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
 /// <author>Marko Lahma (.NET)</author>
-[Serializable]
 public sealed class ValidationException : Exception
 {
     /// <summary>
@@ -83,16 +79,5 @@ public sealed class ValidationException : Exception
     public ValidationException(IEnumerable<Exception> errors) : this()
     {
         ValidationExceptions = new List<Exception>(errors);
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="SchedulerException"/> class.
-    /// </summary>
-    /// <param name="info">The <see cref="SerializationInfo"></see> that holds the serialized object data about the exception being thrown.</param>
-    /// <param name="context">The <see cref="System.Runtime.Serialization.StreamingContext"></see> that contains contextual information about the source or destination.</param>
-    /// <exception cref="System.Runtime.Serialization.SerializationException">The class name is null or <see cref="System.Exception.HResult"></see> is zero (0). </exception>
-    /// <exception cref="System.ArgumentNullException">The info parameter is null. </exception>
-    private ValidationException(SerializationInfo info, StreamingContext context) : base(info, context)
-    {
     }
 }

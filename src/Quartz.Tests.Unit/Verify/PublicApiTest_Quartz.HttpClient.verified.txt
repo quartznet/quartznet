@@ -4,7 +4,6 @@ namespace Quartz.HttpClient
     public sealed class HttpClientException : Quartz.SchedulerException
     {
         public HttpClientException(string message) { }
-        public HttpClientException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
         public HttpClientException(string message, System.Exception? innerException) { }
     }
     public class HttpScheduler : Quartz.IScheduler

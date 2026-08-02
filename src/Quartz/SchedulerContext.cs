@@ -19,8 +19,6 @@
 
 #endregion
 
-using System.Runtime.Serialization;
-
 using Quartz.Util;
 
 namespace Quartz;
@@ -37,7 +35,6 @@ namespace Quartz;
 /// <seealso cref="IScheduler.Context" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-[Serializable]
 public sealed class SchedulerContext : StringKeyDirtyFlagMap
 {
     /// <summary>
@@ -56,14 +53,5 @@ public sealed class SchedulerContext : StringKeyDirtyFlagMap
         {
             this[pair.Key] = pair.Value;
         }
-    }
-
-    /// <summary>
-    /// Serialization constructor.
-    /// </summary>
-    /// <param name="info"></param>
-    /// <param name="context"></param>
-    private SchedulerContext(SerializationInfo info, StreamingContext context) : base(info, context)
-    {
     }
 }

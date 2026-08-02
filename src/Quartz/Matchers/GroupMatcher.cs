@@ -28,7 +28,6 @@ namespace Quartz.Matchers;
 /// </summary>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-[Serializable]
 public sealed class GroupMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TKey>
 {
     private GroupMatcher(string compareTo, StringOperator compareWith) : base(compareTo, compareWith)

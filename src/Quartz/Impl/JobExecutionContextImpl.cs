@@ -64,7 +64,6 @@ namespace Quartz.Impl;
 /// <seealso cref="JobDataMap" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-[Serializable]
 #pragma warning disable CA1708
 public sealed class JobExecutionContextImpl : ICancellableJobExecutionContext, IDisposable
 #pragma warning restore CA1708
@@ -72,21 +71,17 @@ public sealed class JobExecutionContextImpl : ICancellableJobExecutionContext, I
     private readonly ITrigger trigger;
     private readonly IJobDetail jobDetail;
     private JobDataMap? jobDataMap;
-    [NonSerialized]
     private readonly IScheduler scheduler;
 
     private int numRefires;
     private TimeSpan? jobRunTime;
 
-    [NonSerialized]
     private Dictionary<object, object>? data;
 
-    [NonSerialized]
     private CancellationTokenSource? cancellationTokenSource;
 
-    [NonSerialized] internal readonly IJob jobInstance;
+    internal readonly IJob jobInstance;
 
-    [NonSerialized]
     private readonly Lock lazyInitLock = new();
 
     /// <summary>
