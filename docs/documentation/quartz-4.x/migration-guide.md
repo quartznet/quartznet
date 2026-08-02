@@ -1213,6 +1213,30 @@ services.AddSingleton(new SystemTextJsonSerializerRegistry()
 
 See [Serialization (System.Text.Json)](packages/system-text-json) for the full picture.
 
+### A serialized trigger carries its preferred node
+
+Both JSON trigger serializers write a trigger's [node affinity](tutorial/node-affinity.md) pin, as the same
+pair the `QRTZ_TRIGGERS` row stores:
+
+```json
+"PreferredNode": "node-1",
+"PreferredNodeAuto": false
+```
+
+`PreferredNode` is the node name — `null` when the trigger is unpinned, `*` for an auto pin no node has
+claimed yet — and `PreferredNodeAuto` says whether the node holding the pin claimed it automatically. It
+takes both halves: a claimed auto pin and one the caller named look identical from the node name alone, yet
+only the automatic one is released when its node stops checking in.
+
+Payloads written before the fields existed, 3.x's included, have neither and read back as
+`PreferredNode.None` — an unpinned trigger, which is what they always were.
+
+This matters wherever a whole trigger travels as JSON. The HTTP API, `Quartz.HttpClient` and the dashboard
+dropped the pin in both directions, so scheduling or rescheduling a pinned trigger over HTTP quietly
+unpinned it, and the same held for a custom `IJobStore` that persists serialized triggers. The ADO.NET job
+store was never affected: it keeps the pin in the `PREFERRED_NODE` and `PREFERRED_NODE_AUTO` columns and
+reapplies them to every trigger it reads, blob triggers included.
+
 ### Newtonsoft types moved out of the core namespaces
 
 The `Quartz.Serialization.Newtonsoft` package used to put types in namespaces that read as if they came from the
