@@ -303,6 +303,12 @@ Take what you need — `ISchedulerSignaler`, `ITypeLoadHelper`, `TimeProvider`,
 that has to happen before the scheduler runs and cannot be done while constructing, such as verifying
 a database schema.
 
+Options arrive as the scheduler's own, whichever of the three interfaces you ask for.
+`IOptionsMonitor<QuartzSchedulerOptions>` and `IOptionsSnapshot<QuartzSchedulerOptions>` work as well
+as `IOptions<>`: `CurrentValue` and `Value` are the options of the scheduler your component belongs
+to, `Get(name)` answers for the name you pass, and `OnChange` reports your scheduler's changes and
+not another's.
+
 Plugin configuration extension methods now extend `IQuartzBuilder` and register the plugin as a
 service, rather than deriving from `PropertiesSetter` to write string keys.
 
