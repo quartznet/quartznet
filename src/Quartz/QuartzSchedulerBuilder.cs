@@ -231,7 +231,9 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
         string? name = null) where T : class, ISchedulerPlugin => inner.AddPlugin(factory, name);
 
     /// <inheritdoc />
-    public IQuartzBuilder AddPlugin<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T, TOptions>(
+    public IQuartzBuilder AddPlugin<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TOptions>(
         Action<TOptions>? configure = null,
         string? name = null)
         where T : class, ISchedulerPlugin

@@ -159,10 +159,16 @@ public interface IQuartzBuilder
     /// </summary>
     /// <inheritdoc cref="AddPlugin{T}(string)" path="/remarks" />
     /// <typeparam name="T">The plugin's type.</typeparam>
-    /// <typeparam name="TOptions">The plugin's options type, which it takes as a dependency.</typeparam>
+    /// <typeparam name="TOptions">
+    /// The plugin's options type, which it takes as a dependency. It is resolved through
+    /// <c>IOptions&lt;TOptions&gt;</c>, so it must keep its public parameterless constructor when the
+    /// application is trimmed.
+    /// </typeparam>
     /// <param name="configure">Configures the plugin's options.</param>
     /// <param name="name">The name the scheduler knows the plugin by.</param>
-    IQuartzBuilder AddPlugin<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T, TOptions>(
+    IQuartzBuilder AddPlugin<
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TOptions>(
         Action<TOptions>? configure = null,
         string? name = null)
         where T : class, ISchedulerPlugin

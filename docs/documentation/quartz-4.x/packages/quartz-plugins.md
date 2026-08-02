@@ -172,6 +172,12 @@ keys from it — so it is part of the deployment's identity rather than a label.
 code be configured from a file. Left unset, the plugin's type name is used. The plugins shipped with
 Quartz use their conventional short names (`xml`, `json`, `jobHistory`, …) for that reason.
 
+The options of the third shape belong to the scheduler they were added to, like every other
+per-scheduler setting: two schedulers can add the same plugin with the same options type and each
+plugin sees its own configuration. They are named options under the scheduler's name, so a plugin on
+`services.AddQuartz("reporting", …)` is configured by `services.Configure<MyPluginOptions>("reporting", …)`
+as well — a plain `services.Configure<MyPluginOptions>(…)` configures the default scheduler's.
+
 ## Authoring plugin configuration extensions
 
 When you write your own `ISchedulerPlugin`, offer the same experience as the built-in plugins with an

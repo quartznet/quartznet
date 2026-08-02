@@ -67,7 +67,9 @@ internal sealed class SchedulerScopedServiceProvider
     /// </para>
     /// <para>
     /// The map is explicit rather than generic because closing <c>OptionsWrapper&lt;&gt;</c> over a
-    /// runtime type is not something a trimmer can follow.
+    /// runtime type is not something a trimmer can follow. Options types Quartz does not know — a
+    /// plugin's own — say so with <see cref="SchedulerNamedOptions"/>, which is closed over its type
+    /// where that type is still known at compile time.
     /// </para>
     /// </remarks>
     private static readonly Dictionary<Type, Func<IServiceProvider, string, object>> namedOptions = new()
@@ -89,11 +91,48 @@ internal sealed class SchedulerScopedServiceProvider
 
     private readonly IServiceProvider inner;
     private readonly object? key;
+    private Dictionary<Type, SchedulerNamedOptions>? declared;
 
     private SchedulerScopedServiceProvider(IServiceProvider inner, object? key)
     {
         this.inner = inner;
         this.key = key;
+    }
+
+    private string Name => key as string ?? Options.DefaultName;
+
+    /// <summary>
+    /// Finds the resolver for an options type a plugin brought with it, or <see langword="null"/> when
+    /// the request is for something else.
+    /// </summary>
+    /// <remarks>
+    /// The static map above cannot list these: the type comes from the caller's plugin, not from Quartz.
+    /// <c>AddPlugin&lt;T, TOptions&gt;</c> registers a resolver instead, closed over <c>TOptions</c> where
+    /// it is still a compile-time type, so nothing here has to close a generic over a runtime one.
+    /// </remarks>
+    private SchedulerNamedOptions? Declared(Type serviceType)
+    {
+        if (!serviceType.IsConstructedGenericType || serviceType.GetGenericTypeDefinition() != typeof(IOptions<>))
+        {
+            return null;
+        }
+
+        // Built into a local and then published, because this provider outlives the construction it was
+        // made for — a component handed it as IServiceProvider keeps resolving through it — so two
+        // threads can arrive here at once, and a half-filled dictionary must never be one of them.
+        Dictionary<Type, SchedulerNamedOptions>? known = declared;
+        if (known is null)
+        {
+            known = [];
+            foreach (var options in inner.GetServices<SchedulerNamedOptions>())
+            {
+                known[options.ServiceType] = options;
+            }
+
+            declared = known;
+        }
+
+        return known.GetValueOrDefault(serviceType);
     }
 
     /// <summary>
@@ -114,7 +153,12 @@ internal sealed class SchedulerScopedServiceProvider
 
         if (namedOptions.TryGetValue(serviceType, out var options))
         {
-            return options(inner, key as string ?? Options.DefaultName);
+            return options(inner, Name);
+        }
+
+        if (Declared(serviceType) is { } pluginOptions)
+        {
+            return pluginOptions.Resolve(inner, Name);
         }
 
         // A component handed "the container" so it can resolve things later must keep resolving this
@@ -206,6 +250,7 @@ internal sealed class SchedulerScopedServiceProvider
         }
 
         if (namedOptions.ContainsKey(serviceType)
+            || Declared(serviceType) is not null
             || serviceType == typeof(IServiceProvider)
             || serviceType == typeof(IServiceProviderIsService)
             || serviceType == typeof(IServiceProviderIsKeyedService)
@@ -220,5 +265,41 @@ internal sealed class SchedulerScopedServiceProvider
     public bool IsKeyedService(Type serviceType, object? serviceKey)
     {
         return inner.GetService<IServiceProviderIsKeyedService>()?.IsKeyedService(serviceType, serviceKey) ?? false;
+    }
+}
+
+/// <summary>
+/// Declares that an options type is configured once per scheduler rather than once per container.
+/// </summary>
+/// <remarks>
+/// <see cref="SchedulerScopedServiceProvider"/> lists Quartz's own options types itself, but a plugin
+/// brings an options type Quartz has never heard of. This is how <c>AddPlugin&lt;T, TOptions&gt;</c> says
+/// so, and it is registered rather than reflected over so the closed generic exists at compile time.
+/// </remarks>
+internal abstract class SchedulerNamedOptions
+{
+    /// <summary>The service a component asks for when it wants these options.</summary>
+    public abstract Type ServiceType { get; }
+
+    /// <summary>Resolves the options belonging to one scheduler.</summary>
+    public abstract object Resolve(IServiceProvider provider, string schedulerName);
+}
+
+/// <inheritdoc />
+/// <remarks>
+/// <see cref="IOptions{TOptions}"/>, <see cref="IOptionsMonitor{TOptions}"/> and
+/// <see cref="OptionsWrapper{TOptions}"/> each require their options type to keep its public
+/// parameterless constructor, so this one has to promise the same — an annotation only holds if it is
+/// carried at every hop, and the chain runs from <c>AddPlugin&lt;T, TOptions&gt;</c> down to here.
+/// </remarks>
+internal sealed class SchedulerNamedOptions<
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] TOptions>
+    : SchedulerNamedOptions where TOptions : class
+{
+    public override Type ServiceType => typeof(IOptions<TOptions>);
+
+    public override object Resolve(IServiceProvider provider, string schedulerName)
+    {
+        return new OptionsWrapper<TOptions>(provider.GetRequiredService<IOptionsMonitor<TOptions>>().Get(schedulerName));
     }
 }
