@@ -1112,9 +1112,9 @@ anything already charting them:
 | Instrument | 4.x type | Tags |
 |---|---|---|
 | `scheduling.quartz.execute` | `Counter<long>` | `trigger.group`, `trigger.name`, `job.group`, `job.name` |
-| `scheduling.quartz.execute.errors` | `Counter<long>` | the four identity tags **+ `scheduling.quartz.exception_type`** |
+| `scheduling.quartz.execute.errors` | `Counter<long>` | the four identity tags **+ `error.type`** |
 | `scheduling.quartz.execute.active` | **`UpDownCounter<long>`** (was `Counter<long>`) | the four identity tags |
-| `scheduling.quartz.execute.duration` | `Histogram<double>` | the four identity tags, **+ `scheduling.quartz.exception_type`** when the execution failed |
+| `scheduling.quartz.execute.duration` | `Histogram<double>` | the four identity tags, **+ `error.type`** when the execution failed |
 
 **`scheduling.quartz.execute.active` is an up-down counter.** The number of jobs running goes down as
 often as it goes up, and Quartz has always measured the decrement — but a `Counter` is monotonic by
@@ -1124,16 +1124,34 @@ meaning are unchanged; the instrument type an exporter sees is not, so a dashboa
 the old series has to be rebuilt on a non-monotonic one — a `Sum` with `IsMonotonic = false` in the
 OpenTelemetry SDK, which Prometheus renders as a gauge rather than a counter.
 
-**`scheduling.quartz.exception_type` reaches the measurements it is meant to.** The tag was added to a
-copy of the tag list and thrown away, so the errors counter carried the four identity tags and nothing
-else: an exporter could see that executions failed, but never what failed. It is now on the errors counter
-and on the duration histogram, so a failed run's duration can be told apart from a successful one's. It is
-deliberately *not* on `scheduling.quartz.execute.active`, whose increment and decrement have to carry
-identical attributes or the series never comes back to zero.
+**`scheduling.quartz.exception_type` is `error.type`, and it names the exception the job threw.** Two
+things were wrong with it. The tag was added to a copy of the tag list and thrown away, so the errors
+counter carried the four identity tags and nothing else: an exporter could see that executions failed, but
+never what failed. And the type it named was the `JobExecutionException` that the job run shell wraps
+anything a job throws in — the same answer for very nearly every failure there is.
 
-The value is the exception type the job run shell reports, which is the `JobExecutionException` that
-anything a job throws is wrapped in. The exception the job itself threw is on the execution's span, which
-records it as an exception event.
+The tag now arrives, and it reports the exception an application would recognise. A job that throws
+`InvalidOperationException` is reported as `System.InvalidOperationException`, not as the
+`JobExecutionException` -> `JobExecutionProcessException` -> cause chain the run shell built around it. A
+job that raises a `JobExecutionException` itself has no such wrapper underneath and is reported as
+`Quartz.JobExecutionException`, which is what it chose to say. The value is a fully-qualified type name
+and nothing else: a message would be unbounded, and an attribute an exporter aggregates on has to have
+bounded cardinality.
+
+The name is OpenTelemetry's. [`error.type`](https://opentelemetry.io/docs/specs/semconv/registry/attributes/error/)
+is the semantic convention's attribute for what an operation failed with, so these series line up with
+every other instrumented failure in the same dashboard; the Quartz-specific spelling is gone rather than
+emitted alongside it, since two names for one attribute doubles the series and settles nothing. **A query
+or an alert matching on `scheduling.quartz.exception_type` has to be rewritten**, and one that expected
+the value `JobExecutionException` now sees the type the job threw.
+
+The tag is on the errors counter and on the duration histogram, so a failed run's duration can be told
+apart from a successful one's. It is deliberately *not* on `scheduling.quartz.execute.active`, whose
+increment and decrement have to carry identical attributes or the series never comes back to zero.
+
+The execution's span carries the same `error.type` with the same value, so one attribute finds a failure
+in a trace and in a metric alike. The span also still records the exception as an event, with the whole
+wrapper chain, because that is where the stack traces are.
 
 ## JSON Serialization
 
@@ -3728,7 +3746,7 @@ contract rather than in the root namespace next to `IScheduler`. The methods are
 | `QuartzOptions.SchedulerName`, `.SchedulerId`, `.MisfireThreshold` removed | Each duplicated a typed option — see [`QuartzOptions` lost its three typed settings](#quartzoptions-lost-its-three-typed-settings) |
 | Job execution metrics are published by every scheduler | The meters were configured only by `StdSchedulerFactory`, so a scheduler registered with `AddQuartz` published none |
 | `scheduling.quartz.execute.active` is an `UpDownCounter<long>` | It was a `Counter<long>` receiving the `-1` that ends an execution, which an exporter aggregating a monotonic sum may drop — see [Job execution metrics](#job-execution-metrics) |
-| `scheduling.quartz.exception_type` reaches the errors counter | The tag was added to a copy of the tag list and discarded, so the counter said only that something failed; it is on the duration histogram too |
+| `scheduling.quartz.exception_type` is `error.type`, naming the exception the job threw | The tag was added to a copy of the tag list and discarded, so the counter said only that something failed — and the type it named was the `JobExecutionException` the run shell wraps everything in. It is OpenTelemetry's conventional name now, it is on the duration histogram and the execution's span too, and a query matching the old name or expecting the old value has to be rewritten — see [Job execution metrics](#job-execution-metrics) |
 | `XmlSchedulingOptions` and `JsonSchedulingOptions` merged | They were byte-for-byte identical and are now one type |
 | Constructing a scheduler no longer starts a thread | `QuartzScheduler` starts its scheduler thread from `Start()` rather than its constructor, so resolving the service graph, running a `ValidateOnBuild` pass or asserting on registrations no longer spins one up. The thread always started paused, so this changes when the thread exists, not when jobs run |
 | `IPersistentStoreBuilder.AcceptEnlistedTransactions()` added | A breaking addition for anyone implementing the interface themselves — see [Joining an existing transaction](tutorial/job-stores.md#joining-an-existing-transaction) |

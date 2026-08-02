@@ -58,8 +58,6 @@ internal static class Meters
 
 internal readonly struct Instrumentation
 {
-    private const string ExceptionTypeTag = "scheduling.quartz.exception_type";
-
     private readonly TagList? _tagList;
 
     public Instrumentation(TagList? tagList)
@@ -85,7 +83,9 @@ internal readonly struct Instrumentation
 
         if (exception != null)
         {
-            tags.Add(ExceptionTypeTag, exception.GetType().Name);
+            // The exception the job threw, not the JobExecutionException the run shell wrapped it in —
+            // which is also what the execution's span reports, so the two signals name the same failure.
+            tags.Add(ErrorType.TagName, ErrorType.Of(exception));
             Meters._jobExecuteErrorTotal.Add(1, tags);
         }
 
