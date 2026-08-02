@@ -182,6 +182,11 @@ plugin sees its own configuration. They are named options under the scheduler's 
 `services.AddQuartz("reporting", …)` is configured by `services.Configure<MyPluginOptions>("reporting", …)`
 as well — a plain `services.Configure<MyPluginOptions>(…)` configures the default scheduler's.
 
+Take them as `IOptions<MyPluginOptions>` for a fixed value, or as `IOptionsMonitor<MyPluginOptions>`
+to follow a reloading configuration source. `CurrentValue` is your scheduler's instance, `Get(name)`
+is whichever instance you name, and `OnChange` fires for your scheduler's options only — so a plugin
+watching for changes is never handed a sibling scheduler's configuration as though it were its own.
+
 ## Authoring plugin configuration extensions
 
 When you write your own `ISchedulerPlugin`, offer the same experience as the built-in plugins with an
