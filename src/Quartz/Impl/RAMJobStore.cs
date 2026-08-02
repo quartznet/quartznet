@@ -2073,9 +2073,7 @@ public sealed class RAMJobStore : IJobStore
             DateTimeOffset batchEnd = request.NoLaterThan;
 
             // execution limits will be modified during processing
-            Dictionary<string, int?>? limitsWorkingCopy = request.ExecutionLimits is not null
-                ? new Dictionary<string, int?>(request.ExecutionLimits, StringComparer.Ordinal)
-                : null;
+            ExecutionSlots? executionSlots = request.ExecutionLimits?.CreateSlots();
 
             while (true)
             {
@@ -2148,10 +2146,10 @@ public sealed class RAMJobStore : IJobStore
                 }
 
                 // Check execution group limits
-                if (limitsWorkingCopy is not null)
+                if (executionSlots is not null)
                 {
                     string? execGroup = tw.Trigger.ExecutionGroup;
-                    if (!ExecutionLimits.CheckExecutionLimits(execGroup, limitsWorkingCopy))
+                    if (!executionSlots.TryTake(execGroup))
                     {
                         excludedTriggers.Add(tw);
                         continue;

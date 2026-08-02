@@ -272,9 +272,7 @@ public sealed class TriggerBuilder<TJob> : ITriggerConfigurator<TJob> where TJob
         else
         {
             executionGroup = executionGroup!.Trim();
-            if (executionGroup == ExecutionLimits.OtherGroups
-                || executionGroup == "_"
-                || executionGroup.Equals("null", StringComparison.OrdinalIgnoreCase))
+            if (ExecutionLimits.IsReservedGroupName(executionGroup))
             {
                 throw new ArgumentException(
                     $"Execution group name '{executionGroup}' is reserved for limits configuration.",

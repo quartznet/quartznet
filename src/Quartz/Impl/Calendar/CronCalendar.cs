@@ -197,7 +197,7 @@ public sealed class CronCalendar : BaseCalendar
     public override ICalendar Clone()
     {
         var clone = new CronCalendar();
-        clone.cronExpression = (CronExpression) cronExpression.Clone();
+        clone.cronExpression = cronExpression.Clone();
         CloneFields(clone);
         return clone;
     }

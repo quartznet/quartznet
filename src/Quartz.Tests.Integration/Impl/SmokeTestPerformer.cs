@@ -420,14 +420,17 @@ public class SmokeTestPerformer
         Assert.That(retrievedNoGroup.ExecutionGroup, Is.Null, "Trigger without execution group should have null");
 
         // Test execution limits API
-        await scheduler.SetExecutionLimits(new ExecutionLimits()
+        await scheduler.SetExecutionLimits(new ExecutionLimitsBuilder()
             .ForGroup("batch-jobs", 2)
-            .ForOtherGroups(5)).ConfigureAwait(false);
+            .ForOtherGroups(5)
+            .Build()).ConfigureAwait(false);
 
         ExecutionLimits limits = await scheduler.GetExecutionLimits().ConfigureAwait(false);
-        Assert.That(limits, Is.Not.Null);
-        Assert.That(limits["batch-jobs"], Is.EqualTo(2));
-        Assert.That(limits[ExecutionLimits.OtherGroups], Is.EqualTo(5));
+        limits.Should().NotBeNull();
+        limits.TryGetLimit("batch-jobs", out int? batchLimit).Should().BeTrue();
+        batchLimit.Should().Be(2);
+        limits.TryGetLimit(ExecutionLimits.OtherGroups, out int? otherLimit).Should().BeTrue();
+        otherLimit.Should().Be(5);
 
         // Clear limits
         await scheduler.SetExecutionLimits(null).ConfigureAwait(false);

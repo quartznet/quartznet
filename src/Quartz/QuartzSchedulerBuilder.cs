@@ -274,5 +274,5 @@ public sealed class QuartzSchedulerBuilder : IQuartzBuilder
         Func<IServiceProvider, T> factory, params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener => inner.AddTriggerListener(factory, matchers);
 
     /// <inheritdoc />
-    public IQuartzBuilder UseExecutionLimits(Action<ExecutionLimits> configure) => inner.UseExecutionLimits(configure);
+    public IQuartzBuilder UseExecutionLimits(Action<ExecutionLimitsBuilder> configure) => inner.UseExecutionLimits(configure);
 }

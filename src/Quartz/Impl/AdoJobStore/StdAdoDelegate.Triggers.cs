@@ -1173,9 +1173,7 @@ public partial class StdAdoDelegate
 
         // Work on a copy: the slots are decremented as rows are taken, and the caller may reuse the
         // criteria across retries.
-        Dictionary<string, int?>? limitsWorkingCopy = criteria.ExecutionLimits is null
-            ? null
-            : new Dictionary<string, int?>(criteria.ExecutionLimits, StringComparer.Ordinal);
+        ExecutionSlots? executionSlots = criteria.ExecutionLimits?.CreateSlots();
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         // signal cancel, otherwise ADO.NET might have trouble handling partial reads from open reader
@@ -1200,7 +1198,7 @@ public partial class StdAdoDelegate
                     ? null
                     : rs.GetString(execGroupOrdinal);
 
-                if (limitsWorkingCopy is not null && !ExecutionLimits.CheckExecutionLimits(executionGroup, limitsWorkingCopy))
+                if (executionSlots is not null && !executionSlots.TryTake(executionGroup))
                 {
                     continue; // skip this trigger, its group is at limit
                 }

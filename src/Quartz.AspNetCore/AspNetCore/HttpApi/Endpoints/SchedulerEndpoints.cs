@@ -174,13 +174,12 @@ internal static class SchedulerEndpoints
         {
             ExecutionLimits? limits = await scheduler.GetExecutionLimits(cancellationToken).ConfigureAwait(false);
             Dictionary<string, int?>? dict = null;
-            if (limits is not null && limits.Count > 0)
+            if (limits is not null && !limits.IsEmpty)
             {
                 dict = new Dictionary<string, int?>();
-                foreach (KeyValuePair<string, int?> kvp in limits)
+                foreach (ExecutionGroupLimit limit in limits.Groups)
                 {
-                    string key = kvp.Key == ExecutionLimits.DefaultGroupKey ? "_" : kvp.Key;
-                    dict[key] = kvp.Value;
+                    dict[limit.Group ?? ExecutionLimits.DefaultGroupAlias] = limit.MaxConcurrent;
                 }
             }
             return new ExecutionLimitsResponse(dict);
@@ -202,24 +201,26 @@ internal static class SchedulerEndpoints
             ExecutionLimits? limits = null;
             if (request.Limits is { Count: > 0 })
             {
-                limits = new ExecutionLimits();
+                ExecutionLimitsBuilder builder = new();
                 foreach (KeyValuePair<string, int?> kvp in request.Limits)
                 {
                     string key = kvp.Key.Trim();
                     if (key == ExecutionLimits.OtherGroups)
                     {
-                        if (kvp.Value.HasValue) limits.ForOtherGroups(kvp.Value.Value);
+                        if (kvp.Value.HasValue) builder.ForOtherGroups(kvp.Value.Value);
                     }
-                    else if (key is "" or "_" || key.Equals("null", StringComparison.OrdinalIgnoreCase))
+                    else if (ExecutionLimits.IsDefaultGroupAlias(key))
                     {
-                        if (kvp.Value.HasValue) limits.ForDefaultGroup(kvp.Value.Value);
+                        if (kvp.Value.HasValue) builder.ForDefaultGroup(kvp.Value.Value);
                     }
                     else
                     {
-                        if (kvp.Value.HasValue) limits.ForGroup(key, kvp.Value.Value);
-                        else limits.Unlimited(key);
+                        if (kvp.Value.HasValue) builder.ForGroup(key, kvp.Value.Value);
+                        else builder.Unlimited(key);
                     }
                 }
+
+                limits = builder.Build();
             }
 
             await scheduler.SetExecutionLimits(limits, cancellationToken).ConfigureAwait(false);

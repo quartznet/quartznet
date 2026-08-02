@@ -19,14 +19,12 @@
 
 #endregion
 
-using System.Collections;
-
 namespace Quartz;
 
 /// <summary>
-/// Configures per-node thread limits for execution groups. Execution groups are
-/// optional tags on triggers that characterize the resource requirements of the
-/// associated job (e.g. "batch-jobs", "high-cpu", "large-ram").
+/// An immutable set of per-node thread limits for execution groups. Execution groups are optional
+/// tags on triggers that characterize the resource requirements of the associated job
+/// (e.g. "batch-jobs", "high-cpu", "large-ram").
 /// </summary>
 /// <remarks>
 /// <para>Each scheduler node can declare its own limits independently:
@@ -36,185 +34,93 @@ namespace Quartz;
 ///   <item><see langword="null"/> means unlimited (no restriction).</item>
 /// </list>
 /// </para>
-/// <para>Use <see cref="OtherGroups"/> as a catch-all default for groups not
-/// explicitly listed.</para>
-/// <para>Instances passed to <see cref="IScheduler.SetExecutionLimits"/> are
-/// snapshotted — subsequent mutations do not affect the scheduler.</para>
+/// <para>Use <see cref="OtherGroups"/> as a catch-all default for groups not explicitly listed.</para>
+/// <para>Build one with <see cref="ExecutionLimitsBuilder"/>, either directly or through
+/// <see cref="IQuartzBuilder.UseExecutionLimits"/>; hand it to
+/// <see cref="IScheduler.SetExecutionLimits"/> to apply it.</para>
 /// </remarks>
-[System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1710:Identifiers should have correct suffix")]
-public sealed class ExecutionLimits : IReadOnlyDictionary<string, int?>
+public sealed class ExecutionLimits
 {
     /// <summary>
-    /// Key used to specify the default limit for execution groups not explicitly configured.
+    /// The group name that carries the default limit for execution groups not explicitly configured.
     /// </summary>
     public const string OtherGroups = "*";
 
     /// <summary>
-    /// Key used internally to represent triggers that have no execution group (<see langword="null"/>).
-    /// In property-based configuration, the underscore (<c>_</c>) character is used as an alias.
+    /// The key used internally to represent triggers that have no execution group
+    /// (<see cref="ITrigger.ExecutionGroup"/> is <see langword="null"/>). It is never a group name a
+    /// caller can use: <see cref="ExecutionGroupLimit.Group"/> reports the default group as
+    /// <see langword="null"/>, and <see cref="ExecutionLimitsBuilder.ForDefaultGroup"/> configures it.
     /// </summary>
     internal const string DefaultGroupKey = "";
 
-    private readonly Dictionary<string, int?> limits = new(StringComparer.Ordinal);
+    /// <summary>
+    /// The alias configuration uses for the default group, because a property key and a JSON object
+    /// key cannot be empty.
+    /// </summary>
+    internal const string DefaultGroupAlias = "_";
 
     /// <summary>
-    /// Initializes a new empty <see cref="ExecutionLimits"/> instance.
+    /// The second alias configuration accepts for the default group, spelling out what an absent
+    /// execution group is.
     /// </summary>
-    public ExecutionLimits()
+    internal const string DefaultGroupNullAlias = "null";
+
+    private readonly Dictionary<string, int?> limits;
+    private ExecutionGroupLimit[]? groups;
+
+    internal ExecutionLimits(Dictionary<string, int?> limits)
     {
+        this.limits = limits;
     }
 
     /// <summary>
-    /// Copy constructor — creates a frozen snapshot of the given limits.
+    /// <see langword="true"/> when nothing is limited, in which case every trigger is free to fire.
     /// </summary>
-    private ExecutionLimits(Dictionary<string, int?> source)
+    public bool IsEmpty => limits.Count == 0;
+
+    /// <summary>
+    /// Every configured group and its limit.
+    /// </summary>
+    public IReadOnlyList<ExecutionGroupLimit> Groups => groups ??= Materialize();
+
+    /// <summary>
+    /// Reads the limit configured for one execution group.
+    /// </summary>
+    /// <param name="executionGroup">The group name, <see langword="null"/> for triggers that have no
+    /// execution group, or <see cref="OtherGroups"/> for the catch-all.</param>
+    /// <param name="maxConcurrent">The limit: a positive count, <c>0</c> when the group is forbidden,
+    /// or <see langword="null"/> when it is explicitly unlimited.</param>
+    /// <returns><see langword="true"/> when the group has a limit of its own. <see langword="false"/>
+    /// does not mean unlimited — <see cref="OtherGroups"/> may still apply to a named group.</returns>
+    public bool TryGetLimit(string? executionGroup, out int? maxConcurrent)
     {
-        limits = new Dictionary<string, int?>(source, StringComparer.Ordinal);
+        return limits.TryGetValue(NormalizeGroupKey(executionGroup), out maxConcurrent);
+    }
+
+    private ExecutionGroupLimit[] Materialize()
+    {
+        ExecutionGroupLimit[] result = new ExecutionGroupLimit[limits.Count];
+        int i = 0;
+        foreach (KeyValuePair<string, int?> pair in limits)
+        {
+            result[i++] = new ExecutionGroupLimit(pair.Key == DefaultGroupKey ? null : pair.Key, pair.Value);
+        }
+        return result;
     }
 
     /// <summary>
-    /// Set the concurrency limit for a named execution group.
+    /// Creates a ledger of the slots these limits allow, for one trigger acquisition to count down as it
+    /// takes triggers. The snapshot itself is unaffected, so a retried acquisition starts from the limits
+    /// again by creating another ledger.
     /// </summary>
-    /// <param name="group">The execution group name.</param>
-    /// <param name="maxConcurrent">Maximum concurrent threads (must be &gt;= 0), or <c>0</c> to forbid execution.</param>
-    /// <returns>This instance for fluent chaining.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="group"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxConcurrent"/> is negative.</exception>
-    public ExecutionLimits ForGroup(string group, int maxConcurrent)
+    public ExecutionSlots CreateSlots()
     {
-        ArgumentNullException.ThrowIfNull(group);
-        group = group.Trim();
-
-        if (group.Length == 0 || group == OtherGroups || group == "_" || group.Equals("null", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new ArgumentException(
-                $"Group name '{group}' is reserved. Use ForDefaultGroup() for the default group or ForOtherGroups() for the catch-all.",
-                nameof(group));
-        }
-
-        if (maxConcurrent < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(maxConcurrent), maxConcurrent, "Execution limit must be non-negative.");
-        }
-
-        limits[group] = maxConcurrent;
-        return this;
+        return new ExecutionSlots(ToWorkingCopy());
     }
 
     /// <summary>
-    /// Set the concurrency limit for triggers that have no execution group.
-    /// </summary>
-    /// <param name="maxConcurrent">Maximum concurrent threads (must be &gt;= 0), or <c>0</c> to forbid execution.</param>
-    /// <returns>This instance for fluent chaining.</returns>
-    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxConcurrent"/> is negative.</exception>
-    public ExecutionLimits ForDefaultGroup(int maxConcurrent)
-    {
-        if (maxConcurrent < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(maxConcurrent), maxConcurrent, "Execution limit must be non-negative.");
-        }
-
-        limits[DefaultGroupKey] = maxConcurrent;
-        return this;
-    }
-
-    /// <summary>
-    /// Set the default concurrency limit applied to any execution group not explicitly configured.
-    /// </summary>
-    /// <param name="maxConcurrent">Maximum concurrent threads (must be &gt;= 0), or <c>0</c> to forbid execution.</param>
-    /// <returns>This instance for fluent chaining.</returns>
-    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxConcurrent"/> is negative.</exception>
-    public ExecutionLimits ForOtherGroups(int maxConcurrent)
-    {
-        if (maxConcurrent < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(maxConcurrent), maxConcurrent, "Execution limit must be non-negative.");
-        }
-
-        limits[OtherGroups] = maxConcurrent;
-        return this;
-    }
-
-    /// <summary>
-    /// Mark a group as having no concurrency limit (unlimited).
-    /// This is the same as not listing the group at all, but can be useful
-    /// to explicitly override a previously configured limit.
-    /// </summary>
-    /// <param name="group">The execution group name.</param>
-    /// <returns>This instance for fluent chaining.</returns>
-    public ExecutionLimits Unlimited(string group)
-    {
-        ArgumentNullException.ThrowIfNull(group);
-        group = group.Trim();
-
-        if (group.Length == 0 || group == OtherGroups || group == "_" || group.Equals("null", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new ArgumentException(
-                $"Group name '{group}' is reserved. Use ForDefaultGroup() for the default group or ForOtherGroups() for the catch-all.",
-                nameof(group));
-        }
-
-        limits[group] = null;
-        return this;
-    }
-
-    /// <summary>
-    /// Creates an immutable snapshot of these limits. The returned instance is
-    /// safe to share across threads without further mutation concerns.
-    /// </summary>
-    internal ExecutionLimits Snapshot()
-    {
-        return new ExecutionLimits(limits);
-    }
-
-    /// <summary>
-    /// Checks whether a trigger with the given execution group is allowed to fire
-    /// and decrements the available count if so.
-    /// </summary>
-    /// <param name="executionGroup">The trigger's execution group (may be <see langword="null"/>).</param>
-    /// <param name="availableLimits">A mutable working copy of the limits to decrement. The key
-    /// is the normalized group name (<see cref="NormalizeGroupKey"/>).</param>
-    /// <returns><see langword="true"/> if the trigger is allowed; <see langword="false"/> if its group
-    /// has reached its limit or is forbidden.</returns>
-    internal static bool CheckExecutionLimits(string? executionGroup, Dictionary<string, int?> availableLimits)
-    {
-        string key = NormalizeGroupKey(executionGroup);
-
-        int? limit;
-        if (availableLimits.TryGetValue(key, out int? groupLimit))
-        {
-            limit = groupLimit;
-        }
-        else if (key != DefaultGroupKey && availableLimits.TryGetValue(OtherGroups, out int? otherLimit))
-        {
-            // OtherGroups ("*") is a catch-all for named groups only,
-            // not for the default (null/ungrouped) triggers
-            limit = otherLimit;
-        }
-        else
-        {
-            return true; // no limit configured for this group
-        }
-
-        if (limit is null)
-        {
-            return true; // unlimited
-        }
-
-        if (limit <= 0)
-        {
-            return false; // forbidden or exhausted
-        }
-
-        // Decrement the available count for the specific group key
-        // (even if the value came from the OtherGroups default, we track per-group)
-        availableLimits[key] = limit - 1;
-        return true;
-    }
-
-    /// <summary>
-    /// Creates a mutable working copy of the configured limits, suitable for
-    /// passing to <see cref="CheckExecutionLimits"/>.
+    /// Creates a mutable working copy of the configured limits.
     /// </summary>
     internal Dictionary<string, int?> ToWorkingCopy()
     {
@@ -229,29 +135,31 @@ public sealed class ExecutionLimits : IReadOnlyDictionary<string, int?>
         return executionGroup ?? DefaultGroupKey;
     }
 
-    // IReadOnlyDictionary<string, int?> implementation
+    /// <summary>
+    /// Tells whether a configuration key names the default (ungrouped) bucket.
+    /// </summary>
+    internal static bool IsDefaultGroupAlias(string key)
+    {
+        return key.Length == 0
+               || key == DefaultGroupAlias
+               || key.Equals(DefaultGroupNullAlias, StringComparison.OrdinalIgnoreCase);
+    }
 
-    /// <inheritdoc />
-    public int? this[string key] => limits[key];
-
-    /// <inheritdoc />
-    public IEnumerable<string> Keys => limits.Keys;
-
-    /// <inheritdoc />
-    public IEnumerable<int?> Values => limits.Values;
-
-    /// <inheritdoc />
-    public int Count => limits.Count;
-
-    /// <inheritdoc />
-    public bool ContainsKey(string key) => limits.ContainsKey(key);
-
-    /// <inheritdoc />
-    public bool TryGetValue(string key, out int? value) => limits.TryGetValue(key, out value);
-
-    /// <inheritdoc />
-    public IEnumerator<KeyValuePair<string, int?>> GetEnumerator() => limits.GetEnumerator();
-
-    /// <inheritdoc />
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+    /// <summary>
+    /// Tells whether a trimmed group name is one of the names limits configuration reserves for
+    /// itself, and therefore cannot be a trigger's execution group.
+    /// </summary>
+    internal static bool IsReservedGroupName(string trimmedGroup)
+    {
+        return trimmedGroup == OtherGroups || IsDefaultGroupAlias(trimmedGroup);
+    }
 }
+
+/// <summary>
+/// One execution group's entry in an <see cref="ExecutionLimits"/> snapshot.
+/// </summary>
+/// <param name="Group">The execution group, <see langword="null"/> for triggers that have no
+/// execution group, or <see cref="ExecutionLimits.OtherGroups"/> for the catch-all.</param>
+/// <param name="MaxConcurrent">The limit: a positive count, <c>0</c> when the group is forbidden on
+/// this node, or <see langword="null"/> when it is explicitly unlimited.</param>
+public readonly record struct ExecutionGroupLimit(string? Group, int? MaxConcurrent);

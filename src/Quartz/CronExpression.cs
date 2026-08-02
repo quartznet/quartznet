@@ -2601,12 +2601,12 @@ public sealed class CronExpression : ISerializable
     }
 
     /// <summary>
-    /// Creates a new object that is a copy of the current instance.
+    /// Creates a new <see cref="CronExpression" /> that is a copy of the current instance.
     /// </summary>
     /// <returns>
-    /// A new object that is a copy of this instance.
+    /// A new <see cref="CronExpression" /> that is a copy of this instance.
     /// </returns>
-    public object Clone()
+    public CronExpression Clone()
     {
         return new CronExpression(CronExpressionString) { TimeZone = TimeZone };
     }

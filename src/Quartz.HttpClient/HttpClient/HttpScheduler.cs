@@ -242,9 +242,9 @@ public class HttpScheduler : IScheduler
         else
         {
             Dictionary<string, int?> dict = new();
-            foreach (KeyValuePair<string, int?> kvp in limits)
+            foreach (ExecutionGroupLimit limit in limits.Groups)
             {
-                dict[kvp.Key] = kvp.Value;
+                dict[limit.Group ?? ExecutionLimits.DefaultGroupAlias] = limit.MaxConcurrent;
             }
             await httpClient.Post(
                 $"{SchedulerEndpointUrl()}/execution-limits",
@@ -262,26 +262,26 @@ public class HttpScheduler : IScheduler
             return null;
         }
 
-        ExecutionLimits limits = new();
+        ExecutionLimitsBuilder builder = new();
         foreach (KeyValuePair<string, int?> kvp in response.Limits)
         {
             if (kvp.Key == ExecutionLimits.OtherGroups)
             {
-                if (kvp.Value.HasValue) limits.ForOtherGroups(kvp.Value.Value);
+                if (kvp.Value.HasValue) builder.ForOtherGroups(kvp.Value.Value);
             }
-            else if (kvp.Key == ExecutionLimits.DefaultGroupKey || kvp.Key == "_")
+            else if (ExecutionLimits.IsDefaultGroupAlias(kvp.Key))
             {
-                if (kvp.Value.HasValue) limits.ForDefaultGroup(kvp.Value.Value);
+                if (kvp.Value.HasValue) builder.ForDefaultGroup(kvp.Value.Value);
                 // null value = unlimited, nothing to set
             }
             else
             {
-                if (kvp.Value.HasValue) limits.ForGroup(kvp.Key, kvp.Value.Value);
-                else limits.Unlimited(kvp.Key);
+                if (kvp.Value.HasValue) builder.ForGroup(kvp.Key, kvp.Value.Value);
+                else builder.Unlimited(kvp.Key);
             }
         }
 
-        return limits;
+        return builder.Build();
     }
 
     public ValueTask AddJob(IJobDetail jobDetail, AddJobOptions? options = null, CancellationToken cancellationToken = default)

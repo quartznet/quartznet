@@ -14,7 +14,7 @@ internal static class ExecutionLimitsParser
     /// </summary>
     public static ExecutionLimits? Parse(NameValueCollection properties)
     {
-        var limits = new ExecutionLimits();
+        var builder = new ExecutionLimitsBuilder();
         var prefix = LegacyPropertyKeys.ExecutionLimitPrefix + ".";
         var configured = false;
 
@@ -25,19 +25,19 @@ internal static class ExecutionLimitsParser
                 continue;
             }
 
-            configured |= Apply(limits, key[prefix.Length..].Trim(), properties[key]?.Trim(), key);
+            configured |= Apply(builder, key[prefix.Length..].Trim(), properties[key]?.Trim(), key);
         }
 
         // Whether anything was configured is tracked as it happens rather than read back off the
-        // limits, because "unlimited" for the catch-all or default group is a key that configures
+        // builder, because "unlimited" for the catch-all or default group is a key that configures
         // nothing at all.
-        return configured ? limits : null;
+        return configured ? builder.Build() : null;
     }
 
     /// <summary>
     /// Applies one key, and reports whether it configured anything.
     /// </summary>
-    private static bool Apply(ExecutionLimits limits, string groupKey, string? rawValue, string key)
+    private static bool Apply(ExecutionLimitsBuilder builder, string groupKey, string? rawValue, string key)
     {
         if (groupKey.Length == 0)
         {
@@ -53,29 +53,29 @@ internal static class ExecutionLimitsParser
                 return false;
             }
 
-            limits.ForOtherGroups(limit.Value);
+            builder.ForOtherGroups(limit.Value);
             return true;
         }
 
         // Underscore and "null" are aliases for the default (null) execution group.
-        if (groupKey == "_" || string.Equals(groupKey, "null", StringComparison.OrdinalIgnoreCase))
+        if (ExecutionLimits.IsDefaultGroupAlias(groupKey))
         {
             if (!limit.HasValue)
             {
                 return false;
             }
 
-            limits.ForDefaultGroup(limit.Value);
+            builder.ForDefaultGroup(limit.Value);
             return true;
         }
 
         if (limit.HasValue)
         {
-            limits.ForGroup(groupKey, limit.Value);
+            builder.ForGroup(groupKey, limit.Value);
         }
         else
         {
-            limits.Unlimited(groupKey);
+            builder.Unlimited(groupKey);
         }
 
         return true;
@@ -86,7 +86,7 @@ internal static class ExecutionLimitsParser
         if (string.IsNullOrEmpty(rawValue)
             || string.Equals(rawValue, "unlimited", StringComparison.OrdinalIgnoreCase)
             || string.Equals(rawValue, "none", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(rawValue, "null", StringComparison.OrdinalIgnoreCase))
+            || string.Equals(rawValue, ExecutionLimits.DefaultGroupNullAlias, StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }

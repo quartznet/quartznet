@@ -74,7 +74,7 @@ namespace Quartz
         public CronExpression(string cronExpression, string hashKey) { }
         public string CronExpressionString { get; }
         public System.TimeZoneInfo TimeZone { get; set; }
-        public object Clone() { }
+        public Quartz.CronExpression Clone() { }
         public bool Equals(Quartz.CronExpression other) { }
         public override bool Equals(object? obj) { }
         public string GetExpressionSummary() { }
@@ -200,21 +200,33 @@ namespace Quartz
     {
         public DisallowConcurrentExecutionAttribute() { }
     }
-    public sealed class ExecutionLimits : System.Collections.Generic.IEnumerable<System.Collections.Generic.KeyValuePair<string, int?>>, System.Collections.Generic.IReadOnlyCollection<System.Collections.Generic.KeyValuePair<string, int?>>, System.Collections.Generic.IReadOnlyDictionary<string, int?>, System.Collections.IEnumerable
+    public readonly struct ExecutionGroupLimit : System.IEquatable<Quartz.ExecutionGroupLimit>
+    {
+        public ExecutionGroupLimit(string? Group, int? MaxConcurrent) { }
+        public string? Group { get; init; }
+        public int? MaxConcurrent { get; init; }
+    }
+    public sealed class ExecutionLimits
     {
         public const string OtherGroups = "*";
-        public ExecutionLimits() { }
-        public int Count { get; }
-        public int? this[string key] { get; }
-        public System.Collections.Generic.IEnumerable<string> Keys { get; }
-        public System.Collections.Generic.IEnumerable<int?> Values { get; }
-        public bool ContainsKey(string key) { }
-        public Quartz.ExecutionLimits ForDefaultGroup(int maxConcurrent) { }
-        public Quartz.ExecutionLimits ForGroup(string group, int maxConcurrent) { }
-        public Quartz.ExecutionLimits ForOtherGroups(int maxConcurrent) { }
-        public System.Collections.Generic.IEnumerator<System.Collections.Generic.KeyValuePair<string, int?>> GetEnumerator() { }
-        public bool TryGetValue(string key, out int? value) { }
-        public Quartz.ExecutionLimits Unlimited(string group) { }
+        public System.Collections.Generic.IReadOnlyList<Quartz.ExecutionGroupLimit> Groups { get; }
+        public bool IsEmpty { get; }
+        public Quartz.ExecutionSlots CreateSlots() { }
+        public bool TryGetLimit(string? executionGroup, out int? maxConcurrent) { }
+    }
+    public sealed class ExecutionLimitsBuilder
+    {
+        public ExecutionLimitsBuilder() { }
+        public Quartz.ExecutionLimits Build() { }
+        public Quartz.ExecutionLimitsBuilder ForDefaultGroup(int maxConcurrent) { }
+        public Quartz.ExecutionLimitsBuilder ForGroup(string group, int maxConcurrent) { }
+        public Quartz.ExecutionLimitsBuilder ForOtherGroups(int maxConcurrent) { }
+        public Quartz.ExecutionLimitsBuilder Unlimited(string group) { }
+    }
+    public sealed class ExecutionSlots
+    {
+        public bool TryGetRemaining(string? executionGroup, out int? remaining) { }
+        public bool TryTake(string? executionGroup) { }
     }
     public interface ICalendar
     {
@@ -232,10 +244,6 @@ namespace Quartz
         bool SkipDayIfHourDoesNotExist { get; }
         System.TimeZoneInfo TimeZone { get; }
         int TimesTriggered { get; }
-    }
-    public interface ICancellableJobExecutionContext : Quartz.IJobExecutionContext
-    {
-        void Cancel();
     }
     public interface ICronTrigger : Quartz.ITrigger
     {
@@ -305,8 +313,8 @@ namespace Quartz
         System.DateTimeOffset? ScheduledFireTimeUtc { get; }
         Quartz.IScheduler Scheduler { get; }
         Quartz.ITrigger Trigger { get; }
-        object? Get(object key);
-        void Put(object key, object objectValue);
+        object? Get(string key);
+        void Put(string key, object? value);
     }
     public interface IJobListener
     {
@@ -393,7 +401,7 @@ namespace Quartz
         Quartz.IQuartzBuilder ConfigureScheduler(System.Action<Quartz.QuartzSchedulerOptions> configure);
         Quartz.IQuartzBuilder UseDefaultThreadPool(System.Action<Quartz.ThreadPoolOptions>? configure = null);
         Quartz.IQuartzBuilder UseDefaultThreadPool(int maxConcurrency);
-        Quartz.IQuartzBuilder UseExecutionLimits(System.Action<Quartz.ExecutionLimits> configure);
+        Quartz.IQuartzBuilder UseExecutionLimits(System.Action<Quartz.ExecutionLimitsBuilder> configure);
         Quartz.IQuartzBuilder UseInMemoryStore(System.Action<Quartz.InMemoryJobStoreOptions>? configure = null);
         Quartz.IQuartzBuilder UseJobFactory(Quartz.Extensibility.IJobFactory jobFactory);
         Quartz.IQuartzBuilder UseJobFactory<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>()
@@ -647,6 +655,10 @@ namespace Quartz
         public bool UnscheduleFiringTrigger { get; set; }
         public override string ToString() { }
     }
+    public sealed class JobExecutionProcessException : Quartz.SchedulerException
+    {
+        public Quartz.IJobExecutionContext JobExecutionContext { get; }
+    }
     public sealed class JobGroup : System.IEquatable<Quartz.JobGroup>
     {
         public JobGroup(string Name, bool Paused) { }
@@ -669,6 +681,12 @@ namespace Quartz
         public Quartz.JobKey Key { get; init; }
         public bool PersistJobDataAfterExecution { get; init; }
         public bool RequestsRecovery { get; init; }
+    }
+    public sealed class JobInstantiationException : Quartz.SchedulerException
+    {
+        public string FireInstanceId { get; }
+        public Quartz.IJobDetail JobDetail { get; }
+        public Quartz.ITrigger Trigger { get; }
     }
     [System.Serializable]
     public sealed class JobKey : Quartz.Key<Quartz.JobKey>
@@ -877,7 +895,7 @@ namespace Quartz
         public Quartz.IQuartzBuilder ConfigureScheduler(System.Action<Quartz.QuartzSchedulerOptions> configure) { }
         public Quartz.IQuartzBuilder UseDefaultThreadPool(System.Action<Quartz.ThreadPoolOptions>? configure = null) { }
         public Quartz.IQuartzBuilder UseDefaultThreadPool(int maxConcurrency) { }
-        public Quartz.IQuartzBuilder UseExecutionLimits(System.Action<Quartz.ExecutionLimits> configure) { }
+        public Quartz.IQuartzBuilder UseExecutionLimits(System.Action<Quartz.ExecutionLimitsBuilder> configure) { }
         public Quartz.IQuartzBuilder UseInMemoryStore(System.Action<Quartz.InMemoryJobStoreOptions>? configure = null) { }
         public Quartz.IQuartzBuilder UseJobFactory(Quartz.Extensibility.IJobFactory jobFactory) { }
         public Quartz.IQuartzBuilder UseJobFactory<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]  T>()
@@ -1238,19 +1256,6 @@ namespace Quartz.Configuration
         public static System.Collections.Specialized.NameValueCollection ToNameValueCollection(Microsoft.Extensions.Configuration.IConfiguration configuration) { }
     }
 }
-namespace Quartz.Core
-{
-    public sealed class JobExecutionProcessException : Quartz.SchedulerException
-    {
-        public Quartz.IJobExecutionContext JobExecutionContext { get; }
-    }
-    public sealed class JobInstantiationException : Quartz.SchedulerException
-    {
-        public string FireInstanceId { get; }
-        public Quartz.IJobDetail JobDetail { get; }
-        public Quartz.ITrigger Trigger { get; }
-    }
-}
 namespace Quartz.Diagnostics
 {
     public static class ActivityOptions
@@ -1265,22 +1270,6 @@ namespace Quartz.Diagnostics
         public const string TriggerCount = "jobstore.trigger.count";
         public const string TriggerGroup = "trigger.group";
         public const string TriggerName = "trigger.name";
-    }
-    public interface IJobDiagnosticData
-    {
-        string FireInstanceId { get; }
-        System.DateTimeOffset FireTimeUtc { get; }
-        Quartz.IJobDetail JobDetail { get; }
-        System.TimeSpan JobRunTime { get; }
-        Quartz.JobDataMap MergedJobDataMap { get; }
-        System.DateTimeOffset? NextFireTimeUtc { get; }
-        System.DateTimeOffset? PreviousFireTimeUtc { get; }
-        bool Recovering { get; }
-        Quartz.TriggerKey? RecoveringTriggerKey { get; }
-        int RefireCount { get; }
-        object? Result { get; }
-        System.DateTimeOffset? ScheduledFireTimeUtc { get; }
-        Quartz.ITrigger Trigger { get; }
     }
     public static class LogProvider
     {
@@ -1471,7 +1460,7 @@ namespace Quartz.Extensibility
     public sealed class TriggerAcquisitionRequest : System.IEquatable<Quartz.Extensibility.TriggerAcquisitionRequest>
     {
         public TriggerAcquisitionRequest() { }
-        public System.Collections.Generic.IReadOnlyDictionary<string, int?>? ExecutionLimits { get; init; }
+        public Quartz.ExecutionLimits? ExecutionLimits { get; init; }
         public int MaxCount { get; init; }
         public required System.DateTimeOffset NoLaterThan { get; init; }
         public System.TimeSpan TimeWindow { get; init; }
@@ -2284,7 +2273,7 @@ namespace Quartz.Impl.AdoJobStore
     public sealed class TriggerAcquisitionCriteria : System.IEquatable<Quartz.Impl.AdoJobStore.TriggerAcquisitionCriteria>
     {
         public TriggerAcquisitionCriteria() { }
-        public System.Collections.Generic.IReadOnlyDictionary<string, int?>? ExecutionLimits { get; init; }
+        public Quartz.ExecutionLimits? ExecutionLimits { get; init; }
         public long LiveNodeCutoff { get; init; }
         public required int MaxCount { get; init; }
         public required System.DateTimeOffset NoEarlierThan { get; init; }
@@ -2650,7 +2639,7 @@ namespace Quartz.Impl
         protected virtual System.Threading.Tasks.ValueTask<System.Net.IPHostEntry> GetHostAddress(System.Threading.CancellationToken cancellationToken = default) { }
         protected System.Threading.Tasks.ValueTask<string> GetHostName(int maxLength, System.Threading.CancellationToken cancellationToken = default) { }
     }
-    public sealed class JobExecutionContextImpl : Quartz.ICancellableJobExecutionContext, Quartz.IJobExecutionContext, System.IDisposable
+    public sealed class JobExecutionContextImpl : Quartz.IJobExecutionContext, System.IDisposable
     {
         public JobExecutionContextImpl(Quartz.IScheduler scheduler, Quartz.Extensibility.TriggerFiredBundle firedBundle, Quartz.IJob job) { }
         public Quartz.ICalendar? Calendar { get; }
@@ -2670,11 +2659,10 @@ namespace Quartz.Impl
         public System.DateTimeOffset? ScheduledFireTimeUtc { get; }
         public Quartz.IScheduler Scheduler { get; }
         public Quartz.ITrigger Trigger { get; }
-        public void Cancel() { }
         public void Dispose() { }
-        public object? Get(object key) { }
+        public object? Get(string key) { }
         public void IncrementRefireCount() { }
-        public void Put(object key, object objectValue) { }
+        public void Put(string key, object? value) { }
         public override string ToString() { }
     }
     public class MicrosoftDependencyInjectionJobFactory : Quartz.Impl.PropertySettingJobFactory

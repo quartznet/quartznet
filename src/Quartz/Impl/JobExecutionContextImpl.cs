@@ -19,6 +19,7 @@
 
 #endregion
 
+using Quartz.Core;
 using Quartz.Extensibility;
 
 namespace Quartz.Impl;
@@ -65,7 +66,7 @@ namespace Quartz.Impl;
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 #pragma warning disable CA1708
-public sealed class JobExecutionContextImpl : ICancellableJobExecutionContext, IDisposable
+public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext, IDisposable
 #pragma warning restore CA1708
 {
     private readonly ITrigger trigger;
@@ -76,7 +77,7 @@ public sealed class JobExecutionContextImpl : ICancellableJobExecutionContext, I
     private int numRefires;
     private TimeSpan? jobRunTime;
 
-    private Dictionary<object, object>? data;
+    private Dictionary<string, object?>? data;
 
     private CancellationTokenSource? cancellationTokenSource;
 
@@ -315,21 +316,18 @@ public sealed class JobExecutionContextImpl : ICancellableJobExecutionContext, I
     /// notified.
     /// </para>
     /// </summary>
-    /// <param name="key">
-    /// </param>
-    /// <param name="objectValue">
-    /// </param>
-    public void Put(object key, object objectValue)
+    /// <param name="key">The name the value is stored under, as in a <see cref="JobDataMap" />.</param>
+    /// <param name="value">The value, which means nothing to Quartz.</param>
+    public void Put(string key, object? value)
     {
-        Data[key] = objectValue;
+        Data[key] = value;
     }
 
     /// <summary>
     /// Get the value with the given key from the context's data map.
     /// </summary>
-    /// <param name="key">
-    /// </param>
-    public object? Get(object key)
+    /// <param name="key">The name the value was stored under.</param>
+    public object? Get(string key)
     {
         if (Data.TryGetValue(key, out var retValue))
         {
@@ -338,7 +336,7 @@ public sealed class JobExecutionContextImpl : ICancellableJobExecutionContext, I
         return null;
     }
 
-    public void Cancel()
+    void IInterruptableJobExecutionContext.Interrupt()
     {
         CancellationTokenSource.Cancel();
     }
@@ -375,7 +373,7 @@ public sealed class JobExecutionContextImpl : ICancellableJobExecutionContext, I
     /// <summary>
     /// Lazily initializes a <see cref="Dictionary{TKey,TValue}"/> for holding the context's data.
     /// </summary>
-    private Dictionary<object, object> Data
+    private Dictionary<string, object?> Data
     {
         get
         {
@@ -385,7 +383,7 @@ public sealed class JobExecutionContextImpl : ICancellableJobExecutionContext, I
                 {
                     if (data is null)
                     {
-                        data = new Dictionary<object, object>();
+                        data = new Dictionary<string, object?>();
                     }
                 }
             }

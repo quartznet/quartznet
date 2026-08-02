@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -160,7 +160,7 @@ internal sealed class QuartzScheduler
     public bool IsStarted => !shuttingDown && !closed && !InStandbyMode && initialStart is not null;
 
     /// <summary>
-    /// Return a list of <see cref="ICancellableJobExecutionContext" /> objects that
+    /// Return a list of <see cref="IJobExecutionContext" /> objects that
     /// represent all currently executing Jobs in this Scheduler instance.
     /// <para>
     /// This method is not cluster aware.  That is, it will only return Jobs
@@ -437,12 +437,12 @@ internal sealed class QuartzScheduler
             if (resources.InterruptJobsOnShutdown && !waitForJobsToComplete
                 || resources.InterruptJobsOnShutdownWithWait && waitForJobsToComplete)
             {
-                var jobs = GetCurrentlyExecutingJobs().OfType<ICancellableJobExecutionContext>();
+                var jobs = GetCurrentlyExecutingJobs().OfType<IInterruptableJobExecutionContext>();
                 foreach (var job in jobs)
                 {
                     try
                     {
-                        job.Cancel();
+                        job.Interrupt();
                     }
                     catch (ObjectDisposedException)
                     {
@@ -911,7 +911,7 @@ internal sealed class QuartzScheduler
     /// </summary>
     internal void SetExecutionLimits(ExecutionLimits? limits)
     {
-        executionLimits = limits?.Snapshot();
+        executionLimits = limits;
     }
 
     /// <summary>
@@ -2161,18 +2161,18 @@ internal sealed class QuartzScheduler
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
-        var cancellableJobs = GetCurrentlyExecutingJobs().OfType<ICancellableJobExecutionContext>();
+        var interruptableJobs = GetCurrentlyExecutingJobs().OfType<IInterruptableJobExecutionContext>();
 
         bool interrupted = false;
 
-        foreach (var cancellableJobExecutionContext in cancellableJobs)
+        foreach (var interruptableContext in interruptableJobs)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var jobDetail = cancellableJobExecutionContext.JobDetail;
+            var jobDetail = interruptableContext.JobDetail;
             if (jobKey.Equals(jobDetail.Key))
             {
-                cancellableJobExecutionContext.Cancel();
+                interruptableContext.Interrupt();
                 interrupted = true;
             }
         }
@@ -2200,17 +2200,17 @@ internal sealed class QuartzScheduler
         string fireInstanceId,
         CancellationToken cancellationToken = default)
     {
-        var cancellableJobs = GetCurrentlyExecutingJobs().OfType<ICancellableJobExecutionContext>();
+        var interruptableJobs = GetCurrentlyExecutingJobs().OfType<IInterruptableJobExecutionContext>();
 
         bool interrupted = false;
 
-        foreach (var cancellableJobExecutionContext in cancellableJobs)
+        foreach (var interruptableContext in interruptableJobs)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (cancellableJobExecutionContext.FireInstanceId == fireInstanceId)
+            if (interruptableContext.FireInstanceId == fireInstanceId)
             {
-                cancellableJobExecutionContext.Cancel();
+                interruptableContext.Interrupt();
                 interrupted = true;
                 break;
             }

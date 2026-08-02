@@ -293,7 +293,7 @@ internal sealed class StdScheduler : IScheduler
     public ValueTask<ExecutionLimits?> GetExecutionLimits(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return new ValueTask<ExecutionLimits?>(scheduler.GetExecutionLimits()?.Snapshot());
+        return new ValueTask<ExecutionLimits?>(scheduler.GetExecutionLimits());
     }
 
     /// <summary>

@@ -171,7 +171,7 @@ public interface ISchedulerListener
     /// </summary>
     /// <remarks>
     /// This says what changed, not why. Where a cause exists it arrives separately through
-    /// <see cref="SchedulerError" /> — as a <see cref="Core.JobInstantiationException" />, for a job
+    /// <see cref="SchedulerError" /> — as a <see cref="JobInstantiationException" />, for a job
     /// that could not be built. Some transitions have no scheduler-side cause at all: the job store
     /// also parks a trigger here when it cannot load the job's type or read the job back.
     /// <para>

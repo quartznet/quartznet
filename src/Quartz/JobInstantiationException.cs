@@ -1,6 +1,6 @@
 using Quartz.Extensibility;
 
-namespace Quartz.Core;
+namespace Quartz;
 
 /// <summary>
 /// Thrown when the <see cref="IJobFactory" /> cannot produce a job instance for a trigger that has

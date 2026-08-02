@@ -83,10 +83,24 @@ services.AddQuartz(q =>
 
 ```csharp
 await scheduler.SetExecutionLimits(
-    new ExecutionLimits()
+    new ExecutionLimitsBuilder()
         .ForGroup("batch-jobs", 2)
         .ForDefaultGroup(10)
-        .ForOtherGroups(5));
+        .ForOtherGroups(5)
+        .Build());
+```
+
+`ExecutionLimitsBuilder` is mutable and `ExecutionLimits` — what `Build()` returns and what the scheduler
+reads — is not, so limits cannot change underneath the scheduler thread that is acquiring triggers with them.
+Read one back with `TryGetLimit(group, out int? maxConcurrent)`, or enumerate `Groups`, whose entries report the
+default group as a `null` name:
+
+```csharp
+ExecutionLimits? limits = await scheduler.GetExecutionLimits();
+foreach (ExecutionGroupLimit limit in limits?.Groups ?? [])
+{
+    Console.WriteLine($"{limit.Group ?? "(no group)"}: {limit.MaxConcurrent?.ToString() ?? "unlimited"}");
+}
 ```
 
 Limits take effect on the next trigger acquisition cycle. Pass `null` to clear all limits:

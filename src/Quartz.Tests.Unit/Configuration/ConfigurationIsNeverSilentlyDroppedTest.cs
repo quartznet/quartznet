@@ -330,6 +330,16 @@ public class ConfigurationIsNeverSilentlyDroppedTest
                 + "custom serializers through, so it has to be handed the container's registry");
     }
 
+    /// <summary>
+    /// Reads one group's limit off a scheduler's snapshot, asserting the group is configured at all.
+    /// </summary>
+    private static int? LimitFor(ExecutionLimits? limits, string group)
+    {
+        limits.Should().NotBeNull();
+        limits!.TryGetLimit(group, out int? limit).Should().BeTrue($"execution group '{group}' should be configured");
+        return limit;
+    }
+
     [Test]
     public async Task ExecutionLimitsSetInCodeAreApplied()
     {
@@ -366,7 +376,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         var scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
         try
         {
-            provider.GetRequiredService<QuartzScheduler>().GetExecutionLimits()!["heavy"]
+            LimitFor(provider.GetRequiredService<QuartzScheduler>().GetExecutionLimits(), "heavy")
                 .Should().Be(2, "quartz.executionLimit.* keys must reach the scheduler like limits set in code");
         }
         finally
@@ -387,7 +397,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         var scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
         try
         {
-            provider.GetRequiredService<QuartzScheduler>().GetExecutionLimits()!["heavy"]
+            LimitFor(provider.GetRequiredService<QuartzScheduler>().GetExecutionLimits(), "heavy")
                 .Should().Be(9, "code beats strings, as everywhere else");
         }
         finally
@@ -412,7 +422,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         var scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
         try
         {
-            provider.GetRequiredService<QuartzScheduler>().GetExecutionLimits()!["heavy"]
+            LimitFor(provider.GetRequiredService<QuartzScheduler>().GetExecutionLimits(), "heavy")
                 .Should().Be(2, "a group left uncapped saturates the whole thread pool");
         }
         finally
@@ -433,8 +443,8 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         var ingest = await provider.GetRequiredKeyedService<ISchedulerFactory>("ingest").GetScheduler();
         try
         {
-            (await reporting.GetExecutionLimits())!["heavy"].Should().Be(2);
-            (await ingest.GetExecutionLimits())!["heavy"].Should().Be(7);
+            LimitFor(await reporting.GetExecutionLimits(), "heavy").Should().Be(2);
+            LimitFor(await ingest.GetExecutionLimits(), "heavy").Should().Be(7);
         }
         finally
         {
