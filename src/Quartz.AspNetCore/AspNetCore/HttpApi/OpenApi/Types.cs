@@ -102,6 +102,19 @@ internal interface Trigger
     string? ExecutionGroup { get; }
 
     /// <summary>
+    /// The node this trigger is pinned to, null when it is not pinned, or the auto sentinel when it is
+    /// pinned automatically and has not yet been claimed. Read together with PreferredNodeAuto: a claimed
+    /// automatic pin carries a node name too, and only an automatic pin is released when its node stops
+    /// checking in.
+    /// </summary>
+    string? PreferredNode { get; }
+
+    /// <summary>
+    /// Whether this trigger's pin was requested automatically rather than naming a node
+    /// </summary>
+    bool PreferredNodeAuto { get; }
+
+    /// <summary>
     /// Should be present when TriggerType is CalendarIntervalTrigger, CronTrigger, DailyTimeIntervalTrigger or RecurrenceTrigger
     /// </summary>
     string? TimeZone { get; }
