@@ -19,14 +19,12 @@ using System.Globalization;
 using System.Reflection;
 using System.Xml;
 using System.Xml.Schema;
-using System.Xml.Serialization;
 
 using Microsoft.Extensions.Logging;
 
 using Quartz.Matchers;
 using Quartz.Extensibility;
 using Quartz.Util;
-using Quartz.Xml.JobSchedulingData20;
 
 namespace Quartz.Xml;
 
@@ -219,77 +217,56 @@ public class XMLSchedulingDataProcessor
         ValidateXml(xml);
         MaybeThrowValidationException();
 
-        // deserialize as object model
-        var xs = new XmlSerializer(typeof(QuartzXmlConfiguration20));
-        var data = (QuartzXmlConfiguration20?) xs.Deserialize(XmlReader.Create(new StringReader(xml)));
-
-        if (data is null)
-        {
-            Throw.SchedulerConfigException("Job definition data from XML was null after deserialization");
-        }
+        // read as object model
+        JobSchedulingData data = JobSchedulingData.Read(xml);
 
         //
         // Extract pre-processing commands
         //
-        if (data.preprocessingcommands is not null)
+        foreach (PreProcessingCommands command in data.PreProcessingCommands)
         {
-            foreach (preprocessingcommandsType command in data.preprocessingcommands)
+            foreach (string s in command.DeleteJobsInGroup)
             {
-                if (command.deletejobsingroup is not null)
+                var deleteJobGroup = s.NullSafeTrim();
+                if (!string.IsNullOrEmpty(deleteJobGroup) && deleteJobGroup is not null)
                 {
-                    foreach (string s in command.deletejobsingroup)
-                    {
-                        var deleteJobGroup = s.NullSafeTrim();
-                        if (!string.IsNullOrEmpty(deleteJobGroup) && deleteJobGroup is not null)
-                        {
-                            jobGroupsToDelete.Add(deleteJobGroup);
-                        }
-                    }
+                    jobGroupsToDelete.Add(deleteJobGroup);
+                }
+            }
+
+            foreach (string s in command.DeleteTriggersInGroup)
+            {
+                var deleteTriggerGroup = s.NullSafeTrim();
+                if (!string.IsNullOrEmpty(deleteTriggerGroup) && deleteTriggerGroup is not null)
+                {
+                    triggerGroupsToDelete.Add(deleteTriggerGroup);
+                }
+            }
+
+            foreach (KeyReference s in command.DeleteJobs)
+            {
+                var name = s.Name.TrimEmptyToNull();
+                var group = s.Group.TrimEmptyToNull();
+
+                if (name is null)
+                {
+                    Throw.SchedulerConfigException("Encountered a 'delete-job' command without a name specified.");
                 }
 
-                if (command.deletetriggersingroup is not null)
+                jobsToDelete.Add(new JobKey(name, group ?? Key<string>.DefaultGroup));
+            }
+
+            foreach (KeyReference s in command.DeleteTriggers)
+            {
+                var name = s.Name.TrimEmptyToNull();
+                var group = s.Group.TrimEmptyToNull() ?? Key<string>.DefaultGroup;
+
+                if (name is null)
                 {
-                    foreach (string s in command.deletetriggersingroup)
-                    {
-                        var deleteTriggerGroup = s.NullSafeTrim();
-                        if (!string.IsNullOrEmpty(deleteTriggerGroup) && deleteTriggerGroup is not null)
-                        {
-                            triggerGroupsToDelete.Add(deleteTriggerGroup);
-                        }
-                    }
+                    Throw.SchedulerConfigException("Encountered a 'delete-trigger' command without a name specified.");
                 }
 
-                if (command.deletejob is not null)
-                {
-                    foreach (preprocessingcommandsTypeDeletejob s in command.deletejob)
-                    {
-                        var name = s.name.TrimEmptyToNull();
-                        var group = s.group.TrimEmptyToNull();
-
-                        if (name is null)
-                        {
-                            Throw.SchedulerConfigException("Encountered a 'delete-job' command without a name specified.");
-                        }
-
-                        jobsToDelete.Add(new JobKey(name, group ?? Key<string>.DefaultGroup));
-                    }
-                }
-
-                if (command.deletetrigger is not null)
-                {
-                    foreach (preprocessingcommandsTypeDeletetrigger s in command.deletetrigger)
-                    {
-                        var name = s.name.TrimEmptyToNull();
-                        var group = s.group.TrimEmptyToNull() ?? Key<string>.DefaultGroup;
-
-                        if (name is null)
-                        {
-                            Throw.SchedulerConfigException("Encountered a 'delete-trigger' command without a name specified.");
-                        }
-
-                        triggersToDelete.Add(new TriggerKey(name, group));
-                    }
-                }
+                triggersToDelete.Add(new TriggerKey(name, group));
             }
         }
 
@@ -304,36 +281,22 @@ public class XMLSchedulingDataProcessor
         //
         // Extract directives
         //
-        if (data.processingdirectives is not null && data.processingdirectives.Length > 0)
+        if (data.Directives is not null)
         {
-            bool overWrite = data.processingdirectives[0].overwriteexistingdata;
-            logger.LogDebug("Directive 'overwrite-existing-data' specified as: {Overwrite}", overWrite);
-            OverwriteExistingData = overWrite;
+            logger.LogDebug("Directive 'overwrite-existing-data' specified as: {Overwrite}", data.Directives.OverwriteExistingData);
+            OverwriteExistingData = data.Directives.OverwriteExistingData;
+
+            logger.LogDebug("Directive 'ignore-duplicates' specified as: {IgnoreDuplicates}", data.Directives.IgnoreDuplicates);
+            IgnoreDuplicates = data.Directives.IgnoreDuplicates;
+
+            logger.LogDebug("Directive 'schedule-trigger-relative-to-replaced-trigger' specified as: {ScheduleRelative}",
+                data.Directives.ScheduleTriggerRelativeToReplacedTrigger);
+            ScheduleTriggerRelativeToReplacedTrigger = data.Directives.ScheduleTriggerRelativeToReplacedTrigger;
         }
         else
         {
             logger.LogDebug("Directive 'overwrite-existing-data' not specified, defaulting to {Overwrite}", OverwriteExistingData);
-        }
-
-        if (data.processingdirectives is not null && data.processingdirectives.Length > 0)
-        {
-            bool ignoreduplicates = data.processingdirectives[0].ignoreduplicates;
-            logger.LogDebug("Directive 'ignore-duplicates' specified as: {IgnoreDuplicates}", ignoreduplicates);
-            IgnoreDuplicates = ignoreduplicates;
-        }
-        else
-        {
             logger.LogDebug("Directive 'ignore-duplicates' not specified, defaulting to {IgnoreDuplicates}", IgnoreDuplicates);
-        }
-
-        if (data.processingdirectives is not null && data.processingdirectives.Length > 0)
-        {
-            bool scheduleRelative = data.processingdirectives[0].scheduletriggerrelativetoreplacedtrigger;
-            logger.LogDebug("Directive 'schedule-trigger-relative-to-replaced-trigger' specified as: {ScheduleRelative}", scheduleRelative);
-            ScheduleTriggerRelativeToReplacedTrigger = scheduleRelative;
-        }
-        else
-        {
             logger.LogDebug("Directive 'schedule-trigger-relative-to-replaced-trigger' not specified, defaulting to {ScheduleTriggerRelativeToReplacedTrigger}",
                 ScheduleTriggerRelativeToReplacedTrigger);
         }
@@ -341,46 +304,29 @@ public class XMLSchedulingDataProcessor
         //
         // Extract Job definitions...
         //
-        List<jobdetailType> jobNodes = new List<jobdetailType>();
-        if (data.schedule is not null)
-        {
-            foreach (var schedule in data.schedule)
-            {
-                if (schedule?.job is not null)
-                {
-                    jobNodes.AddRange(schedule.job);
-                }
-            }
-        }
+        logger.LogDebug("Found {Count} job definitions.", data.Jobs.Count);
 
-        logger.LogDebug("Found {Count} job definitions.", jobNodes.Count);
-
-        foreach (jobdetailType jobDetailType in jobNodes)
+        foreach (JobDefinition jobDefinition in data.Jobs)
         {
-            var jobName = jobDetailType.name.TrimEmptyToNull();
-            var jobGroup = jobDetailType.group.TrimEmptyToNull() ?? Key<string>.DefaultGroup;
-            var jobDescription = jobDetailType.description.TrimEmptyToNull();
-            var jobTypeName = jobDetailType.jobtype.TrimEmptyToNull();
-            bool jobDurability = jobDetailType.durable;
-            bool jobRecoveryRequested = jobDetailType.recover;
+            var jobName = jobDefinition.Name.TrimEmptyToNull();
+            var jobGroup = jobDefinition.Group.TrimEmptyToNull() ?? Key<string>.DefaultGroup;
+            var jobDescription = jobDefinition.Description.TrimEmptyToNull();
+            var jobTypeName = jobDefinition.JobType.TrimEmptyToNull();
 
             Type jobType = TypeLoadHelper.LoadType(jobTypeName!)!;
 
-            IJobDetail jobDetail = JobBuilder.Create(jobType!)
+            IJobDetail jobDetail = JobBuilder.Create(jobType)
                 .WithIdentity(jobName!, jobGroup)
                 .WithDescription(jobDescription)
-                .StoreDurably(jobDurability)
-                .RequestRecovery(jobRecoveryRequested)
+                .StoreDurably(jobDefinition.Durable)
+                .RequestRecovery(jobDefinition.RequestsRecovery)
                 .Build();
 
-            if (jobDetailType.jobdatamap is not null && jobDetailType.jobdatamap.entry is not null)
+            foreach (JobDataMapEntry entry in jobDefinition.JobDataMap)
             {
-                foreach (entryType entry in jobDetailType.jobdatamap.entry)
-                {
-                    var key = entry.key.Trim();
-                    var value = entry.value.TrimEmptyToNull();
-                    jobDetail.JobDataMap.Add(key, value!);
-                }
+                var key = entry.Key!.Trim();
+                var value = entry.Value.TrimEmptyToNull();
+                jobDetail.JobDataMap.Add(key, value!);
             }
 
             if (logger.IsEnabled(LogLevel.Debug))
@@ -394,98 +340,81 @@ public class XMLSchedulingDataProcessor
         //
         // Extract Trigger definitions...
         //
+        logger.LogDebug("Found {TriggerCount} trigger definitions.", data.Triggers.Count);
 
-        List<triggerType> triggerEntries = new List<triggerType>();
-        if (data.schedule is not null)
+        foreach (TriggerDefinition triggerNode in data.Triggers)
         {
-            foreach (var schedule in data.schedule)
-            {
-                if (schedule is not null && schedule.trigger is not null)
-                {
-                    triggerEntries.AddRange(schedule.trigger);
-                }
-            }
-        }
-
-        logger.LogDebug("Found {TriggerCount} trigger definitions.", triggerEntries.Count);
-
-        foreach (triggerType triggerNode in triggerEntries)
-        {
-            var triggerName = triggerNode.Item.name.TrimEmptyToNull()!;
-            var triggerGroup = triggerNode.Item.group.TrimEmptyToNull() ?? Key<string>.DefaultGroup;
-            var triggerDescription = triggerNode.Item.description.TrimEmptyToNull();
-            var triggerCalendarRef = triggerNode.Item.calendarname.TrimEmptyToNull();
-            string triggerJobName = triggerNode.Item.jobname.TrimEmptyToNull()!;
-            string triggerJobGroup = triggerNode.Item.jobgroup.TrimEmptyToNull() ?? Key<string>.DefaultGroup;
+            var triggerName = triggerNode.Name.TrimEmptyToNull()!;
+            var triggerGroup = triggerNode.Group.TrimEmptyToNull() ?? Key<string>.DefaultGroup;
+            var triggerDescription = triggerNode.Description.TrimEmptyToNull();
+            var triggerCalendarRef = triggerNode.CalendarName.TrimEmptyToNull();
+            string triggerJobName = triggerNode.JobName.TrimEmptyToNull()!;
+            string triggerJobGroup = triggerNode.JobGroup.TrimEmptyToNull() ?? Key<string>.DefaultGroup;
 
             int triggerPriority = TriggerConstants.DefaultPriority;
-            if (!string.IsNullOrWhiteSpace(triggerNode.Item.priority))
+            if (!string.IsNullOrWhiteSpace(triggerNode.Priority))
             {
-                triggerPriority = Convert.ToInt32(triggerNode.Item.priority);
+                triggerPriority = Convert.ToInt32(triggerNode.Priority, CultureInfo.InvariantCulture);
             }
 
             DateTimeOffset triggerStartTime = timeProvider.GetUtcNow();
-            if (triggerNode.Item.Item is not null)
+            if (triggerNode.StartTime is DateTime time)
             {
-                if (triggerNode.Item.Item is DateTime time)
-                {
-                    triggerStartTime = new DateTimeOffset(time);
-                }
-                else
-                {
-                    triggerStartTime = triggerStartTime.AddSeconds(Convert.ToInt32(triggerNode.Item.Item));
-                }
+                triggerStartTime = new DateTimeOffset(time);
+            }
+            else if (triggerNode.StartTimeSecondsInFuture is not null)
+            {
+                triggerStartTime = triggerStartTime.AddSeconds(Convert.ToInt32(triggerNode.StartTimeSecondsInFuture, CultureInfo.InvariantCulture));
             }
 
-            DateTimeOffset? triggerEndTime = triggerNode.Item.endtimeSpecified ? new DateTimeOffset(triggerNode.Item.endtime) : null;
+            DateTimeOffset? triggerEndTime = triggerNode.EndTime is DateTime endTime ? new DateTimeOffset(endTime) : null;
 
             IScheduleBuilder scheduleBuilder;
 
-            if (triggerNode.Item is simpleTriggerType simpleTrigger)
+            if (triggerNode is SimpleTriggerDefinition simpleTrigger)
             {
-                var repeatCountString = simpleTrigger.repeatcount.TrimEmptyToNull();
-                var repeatIntervalString = simpleTrigger.repeatinterval.TrimEmptyToNull();
+                var repeatCountString = simpleTrigger.RepeatCount.TrimEmptyToNull();
+                var repeatIntervalString = simpleTrigger.RepeatInterval.TrimEmptyToNull();
 
                 int repeatCount = ParseSimpleTriggerRepeatCount(repeatCountString!);
-                TimeSpan repeatInterval = repeatIntervalString is null ? TimeSpan.Zero : TimeSpan.FromMilliseconds(Convert.ToInt64(repeatIntervalString));
+                TimeSpan repeatInterval = repeatIntervalString is null ? TimeSpan.Zero : TimeSpan.FromMilliseconds(Convert.ToInt64(repeatIntervalString, CultureInfo.InvariantCulture));
 
                 scheduleBuilder = SimpleScheduleBuilder.Create()
                     .WithInterval(repeatInterval)
                     .WithRepeatCount(repeatCount);
 
-                if (!string.IsNullOrWhiteSpace(simpleTrigger.misfireinstruction))
+                if (!string.IsNullOrWhiteSpace(simpleTrigger.MisfireInstruction))
                 {
-                    ((SimpleScheduleBuilder) scheduleBuilder).WithMisfireHandlingInstruction((SimpleTriggerMisfireInstruction) ReadMisfireInstructionFromString(simpleTrigger.misfireinstruction));
+                    ((SimpleScheduleBuilder) scheduleBuilder).WithMisfireHandlingInstruction((SimpleTriggerMisfireInstruction) ReadMisfireInstructionFromString(simpleTrigger.MisfireInstruction));
                 }
             }
-            else if (triggerNode.Item is cronTriggerType cronTrigger)
+            else if (triggerNode is CronTriggerDefinition cronTrigger)
             {
-                var cronExpression = cronTrigger.cronexpression.TrimEmptyToNull();
-                var timezoneString = cronTrigger.timezone.TrimEmptyToNull();
+                var cronExpression = cronTrigger.CronExpression.TrimEmptyToNull();
+                var timezoneString = cronTrigger.TimeZone.TrimEmptyToNull();
 
                 TimeZoneInfo? tz = timezoneString is not null ? TimeZoneUtil.FindTimeZoneById(timezoneString) : null;
                 scheduleBuilder = CronScheduleBuilder.CronSchedule(cronExpression!)
                     .InTimeZone(tz);
 
-                if (!string.IsNullOrWhiteSpace(cronTrigger.misfireinstruction))
+                if (!string.IsNullOrWhiteSpace(cronTrigger.MisfireInstruction))
                 {
-                    ((CronScheduleBuilder) scheduleBuilder).WithMisfireHandlingInstruction((CronTriggerMisfireInstruction) ReadMisfireInstructionFromString(cronTrigger.misfireinstruction));
+                    ((CronScheduleBuilder) scheduleBuilder).WithMisfireHandlingInstruction((CronTriggerMisfireInstruction) ReadMisfireInstructionFromString(cronTrigger.MisfireInstruction));
                 }
             }
-            else if (triggerNode.Item is calendarIntervalTriggerType)
+            else if (triggerNode is CalendarIntervalTriggerDefinition calendarIntervalTrigger)
             {
-                calendarIntervalTriggerType calendarIntervalTrigger = (calendarIntervalTriggerType) triggerNode.Item;
-                var repeatIntervalString = calendarIntervalTrigger.repeatinterval.TrimEmptyToNull();
+                var repeatIntervalString = calendarIntervalTrigger.RepeatInterval.TrimEmptyToNull();
 
-                IntervalUnit intervalUnit = ParseDateIntervalTriggerIntervalUnit(calendarIntervalTrigger.repeatintervalunit.TrimEmptyToNull());
-                int repeatInterval = repeatIntervalString is null ? 0 : Convert.ToInt32(repeatIntervalString);
+                IntervalUnit intervalUnit = ParseDateIntervalTriggerIntervalUnit(calendarIntervalTrigger.RepeatIntervalUnit.TrimEmptyToNull());
+                int repeatInterval = repeatIntervalString is null ? 0 : Convert.ToInt32(repeatIntervalString, CultureInfo.InvariantCulture);
 
                 scheduleBuilder = CalendarIntervalScheduleBuilder.Create()
                     .WithInterval(repeatInterval, intervalUnit);
 
-                if (!string.IsNullOrWhiteSpace(calendarIntervalTrigger.misfireinstruction))
+                if (!string.IsNullOrWhiteSpace(calendarIntervalTrigger.MisfireInstruction))
                 {
-                    ((CalendarIntervalScheduleBuilder) scheduleBuilder).WithMisfireHandlingInstruction((CalendarIntervalTriggerMisfireInstruction) ReadMisfireInstructionFromString(calendarIntervalTrigger.misfireinstruction));
+                    ((CalendarIntervalScheduleBuilder) scheduleBuilder).WithMisfireHandlingInstruction((CalendarIntervalTriggerMisfireInstruction) ReadMisfireInstructionFromString(calendarIntervalTrigger.MisfireInstruction));
                 }
             }
             else
@@ -505,14 +434,11 @@ public class XMLSchedulingDataProcessor
                 .WithSchedule(scheduleBuilder)
                 .Build();
 
-            if (triggerNode.Item.jobdatamap is not null && triggerNode.Item.jobdatamap.entry is not null)
+            foreach (JobDataMapEntry entry in triggerNode.JobDataMap)
             {
-                foreach (entryType entry in triggerNode.Item.jobdatamap.entry)
-                {
-                    string key = entry.key.TrimEmptyToNull()!;
-                    var value = entry.value.TrimEmptyToNull();
-                    trigger.JobDataMap.Add(key, value!);
-                }
+                string key = entry.Key.TrimEmptyToNull()!;
+                var value = entry.Value.TrimEmptyToNull();
+                trigger.JobDataMap.Add(key, value!);
             }
 
             if (logger.IsEnabled(LogLevel.Debug))

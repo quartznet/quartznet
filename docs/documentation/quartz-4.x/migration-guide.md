@@ -1345,6 +1345,29 @@ only `new MisfireInstruction()`, which never meant anything, stops compiling.
 so, but they are UI and are excluded from the dashboard's public-API baseline. Build against
 `QuartzDashboardOptions`, `AddQuartzDashboard` and the model types.
 
+**The `Quartz.Xml.JobSchedulingData20` namespace is gone.** It held the fourteen classes that `xsd.exe`
+generated from `job_scheduling_data_2_0.xsd` — `QuartzXmlConfiguration20`, `abstractTriggerType`,
+`calendarIntervalTriggerType`, `cronTriggerType`, `entryType`, `jobdatamapType`, `jobdetailType`,
+`jobschedulingdataSchedule`, `preprocessingcommandsType`, `preprocessingcommandsTypeDeletejob`,
+`preprocessingcommandsTypeDeletetrigger`, `processingdirectivesType`, `simpleTriggerType` and
+`triggerType`. They were public only because `XmlSerializer` cannot serialize internal types; nothing
+in Quartz took or returned one, and their names never followed .NET conventions because a code
+generator picked them. `XMLSchedulingDataProcessor` reads the document itself now, so the model is
+internal.
+
+**The XML format has not changed** — the schema, the file, and every element and attribute in it are
+exactly as they were, and `job_scheduling_data_2_0.xsd` still validates the document before it is
+read. Only two failures report differently:
+
+| Input | 3.x / earlier 4.x | 4.0 |
+|---|---|---|
+| A file that is not well-formed XML | `InvalidOperationException`, "There is an error in XML document (3, 13)", wrapping an `XmlException` | the `XmlException` itself, naming the line, the position and the unclosed elements |
+| A file whose elements are not in the `http://quartznet.sourceforge.net/JobSchedulingData` namespace | `InvalidOperationException`, "&lt;job-scheduling-data xmlns=''&gt; was not expected" | `SchedulerConfigException` naming the namespace that was expected |
+
+A schema violation still throws `Quartz.Xml.ValidationException` carrying every error found, and
+`XMLSchedulingDataProcessorPlugin` still wraps whatever surfaces in a `SchedulerException`, so a
+plugin-based setup sees no change at all.
+
 ## AbstractTrigger Property Removals
 
 The following properties have been removed from `AbstractTrigger` as they are redundant with the `Key` and `JobKey` properties:

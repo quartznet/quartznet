@@ -20,7 +20,6 @@ exclude:
 
   - name: HttpUrlsUsage
     paths:
-      - src/Quartz/Xml/job_scheduling_data_2_0.cs
       - Dockerfile
 
   - name: ArrangeObjectCreationWhenTypeEvident
