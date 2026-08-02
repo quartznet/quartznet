@@ -4,9 +4,11 @@ using System.Text.RegularExpressions;
 namespace Quartz.Util;
 
 /// <summary>
-/// Generic extension methods for objects.
+/// Produces the type name Quartz stores and sends over the wire: assembly-qualified, but without the
+/// version, culture and public key token, so a payload written by one build still binds after an
+/// assembly version bump.
 /// </summary>
-public static class ObjectExtensions
+internal static class ObjectExtensions
 {
     private static readonly ConcurrentDictionary<Type, string> assemblyQualifiedNameCache = new();
     private static readonly Regex cleanup = new(", (Version|Culture|PublicKeyToken)=[0-9.\\w]+", RegexOptions.Compiled | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(5));

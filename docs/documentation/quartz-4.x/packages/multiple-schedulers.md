@@ -112,7 +112,7 @@ public class MyService
 }
 ```
 
-If you also have a default scheduler (registered via unnamed `AddQuartz()`), you can inject `ISchedulerFactory` and use `GetScheduler(name)`:
+If you also have a default scheduler (registered via unnamed `AddQuartz()`), you can inject `ISchedulerFactory` and use `LookupScheduler(name)`:
 
 ```csharp
 public class MyService
@@ -126,7 +126,7 @@ public class MyService
 
     public async Task DoWork()
     {
-        var scheduler = await schedulerFactory.GetScheduler("FastScheduler");
+        var scheduler = await schedulerFactory.LookupScheduler("FastScheduler");
     }
 }
 ```

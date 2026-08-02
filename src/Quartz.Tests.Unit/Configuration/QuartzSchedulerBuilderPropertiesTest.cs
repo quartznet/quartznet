@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -160,7 +160,7 @@ public class QuartzSchedulerBuilderPropertiesTest
         using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(PropertiesForScheduler(SchedulerName)).Build();
 
         // no GetScheduler() call first, which used to be the only way to get a non-null result here
-        IScheduler scheduler = await factory.GetScheduler(SchedulerName);
+        IScheduler scheduler = await factory.LookupScheduler(SchedulerName);
 
         try
         {
@@ -183,7 +183,7 @@ public class QuartzSchedulerBuilderPropertiesTest
 
         try
         {
-            IScheduler namedScheduler = await factory.GetScheduler(SchedulerName);
+            IScheduler namedScheduler = await factory.LookupScheduler(SchedulerName);
             namedScheduler.Should().BeSameAs(defaultScheduler);
         }
         finally
@@ -198,7 +198,7 @@ public class QuartzSchedulerBuilderPropertiesTest
         const string SchedulerName = "NamedLookupIgnoresCase";
         using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(PropertiesForScheduler(SchedulerName)).Build();
 
-        IScheduler scheduler = await factory.GetScheduler(SchedulerName.ToLowerInvariant());
+        IScheduler scheduler = await factory.LookupScheduler(SchedulerName.ToLowerInvariant());
 
         try
         {
@@ -217,7 +217,7 @@ public class QuartzSchedulerBuilderPropertiesTest
         const string SchedulerName = "NamedLookupOtherName";
         using StandaloneSchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(PropertiesForScheduler(SchedulerName)).Build();
 
-        IScheduler scheduler = await factory.GetScheduler("SchedulerThisFactoryDoesNotProduce");
+        IScheduler scheduler = await factory.LookupScheduler("SchedulerThisFactoryDoesNotProduce");
 
         scheduler.Should().BeNull();
         (await factory.GetAllSchedulers()).Should().BeEmpty("asking for another name must not create this factory's own scheduler");

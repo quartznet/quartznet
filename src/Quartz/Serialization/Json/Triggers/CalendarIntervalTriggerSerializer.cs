@@ -6,7 +6,7 @@ namespace Quartz.Serialization.Json.Triggers;
 
 public class CalendarIntervalTriggerSerializer : TriggerSerializer<CalendarIntervalTriggerImpl>
 {
-    public override string TriggerTypeForJson => "CalendarIntervalTrigger";
+    public override string TriggerTypeName => "CalendarIntervalTrigger";
 
     public override IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement, JsonSerializerOptions options)
     {

@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Quartz.Configuration;
@@ -516,9 +516,9 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Test]
-    public async Task GetScheduler_ByName_ShouldReturnSchedulerWithoutRequiringDefaultSchedulerCall()
+    public async Task LookupScheduler_ByName_ShouldReturnSchedulerWithoutRequiringDefaultSchedulerCall()
     {
-        // This tests the fix for the issue where GetScheduler(name) returned null
+        // This tests the fix for the issue where the by-name lookup returned null
         // unless GetScheduler() was called first
         const string schedulerName = "TestScheduler";
 
@@ -534,7 +534,7 @@ public class ServiceCollectionExtensionsTests
         var factory = serviceProvider.GetRequiredService<ISchedulerFactory>();
 
         // Call GetScheduler with the name directly, without calling GetScheduler() first
-        var scheduler = await factory.GetScheduler(schedulerName);
+        var scheduler = await factory.LookupScheduler(schedulerName);
 
         // Should not be null
         Assert.That(scheduler, Is.Not.Null);
@@ -544,7 +544,7 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Test]
-    public async Task GetScheduler_ByName_AfterDefaultCall_ShouldReturnSameScheduler()
+    public async Task LookupScheduler_ByName_AfterDefaultCall_ShouldReturnSameScheduler()
     {
         // This tests that both methods return the same scheduler instance
         const string schedulerName = "TestScheduler2";
@@ -562,7 +562,7 @@ public class ServiceCollectionExtensionsTests
 
         // Call both methods
         var defaultScheduler = await factory.GetScheduler();
-        var namedScheduler = await factory.GetScheduler(schedulerName);
+        var namedScheduler = await factory.LookupScheduler(schedulerName);
 
         // Should return the same instance
         Assert.That(namedScheduler, Is.Not.Null);

@@ -52,7 +52,7 @@ internal sealed class DefaultSchedulerFactory : ISchedulerFactory
         return new ValueTask<List<IScheduler>>(schedulerRepository.LookupAll());
     }
 
-    public async ValueTask<IScheduler?> GetScheduler(string schedulerName, CancellationToken cancellationToken = default)
+    public async ValueTask<IScheduler?> LookupScheduler(string schedulerName, CancellationToken cancellationToken = default)
     {
         // Asking for this factory's scheduler by name has to be able to create it. Looking straight in
         // the repository would only ever find a scheduler somebody else had already asked for. The

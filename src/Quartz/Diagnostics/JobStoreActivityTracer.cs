@@ -56,8 +56,8 @@ internal sealed class JobStoreActivityTracer
         Func<ValueTask<T>> operation,
         Action<Activity>? enrichActivity)
     {
-        activity.SetTag(ActivityOptions.SchedulerName, schedulerName);
-        activity.SetTag(ActivityOptions.SchedulerId, schedulerId);
+        activity.SetTag(ActivityTags.SchedulerName, schedulerName);
+        activity.SetTag(ActivityTags.SchedulerId, schedulerId);
         if (activity.IsAllDataRequested)
         {
             enrichActivity?.Invoke(activity);
@@ -84,8 +84,8 @@ internal sealed class JobStoreActivityTracer
         Func<ValueTask> operation,
         Action<Activity>? enrichActivity)
     {
-        activity.SetTag(ActivityOptions.SchedulerName, schedulerName);
-        activity.SetTag(ActivityOptions.SchedulerId, schedulerId);
+        activity.SetTag(ActivityTags.SchedulerName, schedulerName);
+        activity.SetTag(ActivityTags.SchedulerId, schedulerId);
         if (activity.IsAllDataRequested)
         {
             enrichActivity?.Invoke(activity);

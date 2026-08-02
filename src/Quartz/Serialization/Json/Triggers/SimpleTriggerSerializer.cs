@@ -6,7 +6,7 @@ namespace Quartz.Serialization.Json.Triggers;
 
 public class SimpleTriggerSerializer : TriggerSerializer<SimpleTriggerImpl>
 {
-    public override string TriggerTypeForJson => "SimpleTrigger";
+    public override string TriggerTypeName => "SimpleTrigger";
 
     public override IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement, JsonSerializerOptions options)
     {

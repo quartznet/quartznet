@@ -865,7 +865,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
 
     private sealed class TriggerKnownToASerializer : TriggerSerializer<TriggerKnownToA>
     {
-        public override string TriggerTypeForJson => "KnownToA";
+        public override string TriggerTypeName => "KnownToA";
 
         public override IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement, JsonSerializerOptions options)
             => SimpleScheduleBuilder.Create();
@@ -881,7 +881,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
 
     private sealed class TriggerKnownToBSerializer : TriggerSerializer<TriggerKnownToB>
     {
-        public override string TriggerTypeForJson => "KnownToB";
+        public override string TriggerTypeName => "KnownToB";
 
         public override IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement, JsonSerializerOptions options)
             => SimpleScheduleBuilder.Create();

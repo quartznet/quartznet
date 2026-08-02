@@ -585,7 +585,7 @@ public abstract class AbstractSchedulerTest
 
         public sealed class SystemTextJsonSerializer : TriggerSerializer<TestBlobCronTriggerImpl>
         {
-            public override string TriggerTypeForJson => "TestBlobCronTrigger";
+            public override string TriggerTypeName => "TestBlobCronTrigger";
 
             public override IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement, JsonSerializerOptions options)
             {

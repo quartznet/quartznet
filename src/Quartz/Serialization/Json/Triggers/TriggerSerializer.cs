@@ -4,7 +4,7 @@ namespace Quartz.Serialization.Json.Triggers;
 
 public interface ITriggerSerializer
 {
-    string TriggerTypeForJson { get; }
+    string TriggerTypeName { get; }
 
     IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement, JsonSerializerOptions options);
 
@@ -15,7 +15,7 @@ public interface ITriggerSerializer
 
 public abstract class TriggerSerializer<TTrigger> : ITriggerSerializer where TTrigger : ITrigger
 {
-    public abstract string TriggerTypeForJson { get; }
+    public abstract string TriggerTypeName { get; }
 
     public abstract IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement, JsonSerializerOptions options);
 

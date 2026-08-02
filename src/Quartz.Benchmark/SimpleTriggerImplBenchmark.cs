@@ -706,7 +706,7 @@ public class SimpleTriggerImplBenchmark
 
                 if (newFireTime.HasValue)
                 {
-                    int timesMissed = ComputeNumTimesFiredBetween(NextFireTimeUtc!.Value, newFireTime!.Value);
+                    int timesMissed = ComputeNumberOfTimesFiredBetween(NextFireTimeUtc!.Value, newFireTime!.Value);
                     TimesTriggered = TimesTriggered + timesMissed;
                 }
 
@@ -734,7 +734,7 @@ public class SimpleTriggerImplBenchmark
             else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount)
             {
                 DateTimeOffset newFireTime = TimeProvider.System.GetUtcNow();
-                int timesMissed = ComputeNumTimesFiredBetween(NextFireTimeUtc!.Value, newFireTime);
+                int timesMissed = ComputeNumberOfTimesFiredBetween(NextFireTimeUtc!.Value, newFireTime);
 
                 if (repeatCount != 0 && repeatCount != RepeatIndefinitely)
                 {
@@ -953,7 +953,7 @@ public class SimpleTriggerImplBenchmark
                 return null;
             }
 
-            int numFires = ComputeNumTimesFiredBetween(StartTimeUtc, endUtc!.Value);
+            int numFires = ComputeNumberOfTimesFiredBetween(StartTimeUtc, endUtc!.Value);
             return StartTimeUtc.AddTicks(numFires * repeatInterval.Ticks);
         }
 
@@ -963,7 +963,7 @@ public class SimpleTriggerImplBenchmark
         /// <param name="startTimeUtc">The UTC start date and time.</param>
         /// <param name="endTimeUtc">The UTC end date and time.</param>
         /// <returns></returns>
-        public virtual int ComputeNumTimesFiredBetween(DateTimeOffset startTimeUtc, DateTimeOffset endTimeUtc)
+        public virtual int ComputeNumberOfTimesFiredBetween(DateTimeOffset startTimeUtc, DateTimeOffset endTimeUtc)
         {
             long time = (endTimeUtc - startTimeUtc).Ticks;
             return (int) (time / repeatInterval.Ticks);

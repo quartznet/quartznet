@@ -9,7 +9,7 @@ namespace Quartz.Serialization.Newtonsoft.Triggers;
 
 public sealed class RecurrenceTriggerSerializer : TriggerSerializer<RecurrenceTriggerImpl>
 {
-    public override string TriggerTypeForJson => "RecurrenceTrigger";
+    public override string TriggerTypeName => "RecurrenceTrigger";
 
     public override IScheduleBuilder CreateScheduleBuilder(JObject source)
     {

@@ -43,7 +43,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// </para>
 /// </remarks>
 /// <author>Marko Lahma (.NET)</author>
-public class UpdateLockRowSemaphore : DBSemaphore
+public class UpdateLockRowSemaphore : DbSemaphore
 {
     /// <summary>
     /// The statement that takes the lock by updating its row.

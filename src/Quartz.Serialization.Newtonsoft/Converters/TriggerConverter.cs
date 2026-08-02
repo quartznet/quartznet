@@ -19,7 +19,7 @@ internal sealed class TriggerConverter(NewtonsoftJsonSerializerRegistry registry
             var triggerSerializer = registry.GetTriggerSerializer(type);
 
             writer.WritePropertyName("TriggerType");
-            writer.WriteValue(triggerSerializer.TriggerTypeForJson);
+            writer.WriteValue(triggerSerializer.TriggerTypeName);
 
             writer.WriteKey("Key", trigger.Key);
             writer.WriteKey("JobKey", trigger.JobKey);

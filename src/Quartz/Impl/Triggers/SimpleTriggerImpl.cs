@@ -437,7 +437,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
 
             if (newFireTime.HasValue)
             {
-                int timesMissed = ComputeNumTimesFiredBetween(NextFireTimeUtc.GetValueOrDefault(), newFireTime.GetValueOrDefault());
+                int timesMissed = ComputeNumberOfTimesFiredBetween(NextFireTimeUtc.GetValueOrDefault(), newFireTime.GetValueOrDefault());
                 TimesTriggered = TimesTriggered + timesMissed;
             }
 
@@ -469,7 +469,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
 
             if (repeatCount != 0 && repeatCount != RepeatIndefinitely)
             {
-                int timesMissed = ComputeNumTimesFiredBetween(NextFireTimeUtc.GetValueOrDefault(), newFireTime);
+                int timesMissed = ComputeNumberOfTimesFiredBetween(NextFireTimeUtc.GetValueOrDefault(), newFireTime);
                 int remainingCount = RepeatCount - (TimesTriggered + timesMissed);
                 if (remainingCount <= 0)
                 {
@@ -691,7 +691,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
             return null;
         }
 
-        int numFires = ComputeNumTimesFiredBetween(StartTimeUtc, endUtc);
+        int numFires = ComputeNumberOfTimesFiredBetween(StartTimeUtc, endUtc);
         return StartTimeUtc.AddTicks(numFires * repeatInterval.Ticks);
     }
 
@@ -701,7 +701,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// <param name="startTimeUtc">The UTC start date and time.</param>
     /// <param name="endTimeUtc">The UTC end date and time.</param>
     /// <returns></returns>
-    public int ComputeNumTimesFiredBetween(DateTimeOffset startTimeUtc, DateTimeOffset endTimeUtc)
+    public int ComputeNumberOfTimesFiredBetween(DateTimeOffset startTimeUtc, DateTimeOffset endTimeUtc)
     {
         long time = (endTimeUtc - startTimeUtc).Ticks;
         return (int) (time / repeatInterval.Ticks);

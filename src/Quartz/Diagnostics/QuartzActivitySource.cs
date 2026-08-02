@@ -6,7 +6,7 @@ namespace Quartz.Diagnostics;
 
 internal static class QuartzActivitySource
 {
-    internal static readonly ActivitySource Instance = new(ActivityOptions.DefaultListenerName, ActivityOptions.Version);
+    internal static readonly ActivitySource Instance = new(ActivityTags.DefaultListenerName, ActivityTags.Version);
 
     public static StartedActivity StartJobExecute(JobExecutionContextImpl context, DateTimeOffset startTime)
     {
@@ -32,16 +32,16 @@ internal static class QuartzActivitySource
 
         if (activity.IsAllDataRequested)
         {
-            activity.AddTag(ActivityOptions.SchedulerName, context.Scheduler.SchedulerName);
-            activity.AddTag(ActivityOptions.SchedulerId, context.Scheduler.SchedulerInstanceId);
-            activity.AddTag(ActivityOptions.JobType, context.JobDetail.JobType.ToString());
-            activity.AddTag(ActivityOptions.FireInstanceId, context.FireInstanceId);
+            activity.AddTag(ActivityTags.SchedulerName, context.Scheduler.SchedulerName);
+            activity.AddTag(ActivityTags.SchedulerId, context.Scheduler.SchedulerInstanceId);
+            activity.AddTag(ActivityTags.JobType, context.JobDetail.JobType.ToString());
+            activity.AddTag(ActivityTags.FireInstanceId, context.FireInstanceId);
         }
 
-        activity.AddTag(ActivityOptions.TriggerGroup, context.Trigger.Key.Group);
-        activity.AddTag(ActivityOptions.TriggerName, context.Trigger.Key.Name);
-        activity.AddTag(ActivityOptions.JobGroup, context.JobDetail.Key.Group);
-        activity.AddTag(ActivityOptions.JobName, context.JobDetail.Key.Name);
+        activity.AddTag(ActivityTags.TriggerGroup, context.Trigger.Key.Group);
+        activity.AddTag(ActivityTags.TriggerName, context.Trigger.Key.Name);
+        activity.AddTag(ActivityTags.JobGroup, context.JobDetail.Key.Group);
+        activity.AddTag(ActivityTags.JobName, context.JobDetail.Key.Name);
     }
 }
 

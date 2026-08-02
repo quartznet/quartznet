@@ -47,7 +47,7 @@ public class QuartzHostedServiceTests
             return scheduler;
         }
 
-        public ValueTask<IScheduler> GetScheduler(string schedulerName, CancellationToken cancellationToken = default)
+        public ValueTask<IScheduler> LookupScheduler(string schedulerName, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }

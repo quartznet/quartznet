@@ -17,7 +17,7 @@ public class TimeZoneConverterTest
         }
         finally
         {
-            TimeZoneUtil.CustomResolver = _ => null;
+            TimeZoneUtil.CustomResolver = null;
         }
     }
 }

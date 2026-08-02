@@ -627,7 +627,7 @@ public class JsonSerializationTestTrigger : SimpleTriggerImpl
 
     public sealed class SystemTextJsonSerializer : Serialization.Json.Triggers.TriggerSerializer<JsonSerializationTestTrigger>
     {
-        public override string TriggerTypeForJson => "TestTrigger";
+        public override string TriggerTypeName => "TestTrigger";
 
         public override IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement, StjJsonSerializerOptions options)
         {
@@ -666,7 +666,7 @@ public class JsonSerializationTestTrigger : SimpleTriggerImpl
 
     public sealed class NewtonsoftSerializer : Serialization.Newtonsoft.Triggers.TriggerSerializer<JsonSerializationTestTrigger>
     {
-        public override string TriggerTypeForJson => "TestTrigger";
+        public override string TriggerTypeName => "TestTrigger";
 
         public override IScheduleBuilder CreateScheduleBuilder(JObject jsonElement)
         {

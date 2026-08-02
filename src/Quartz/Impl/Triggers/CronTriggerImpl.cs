@@ -749,11 +749,11 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// Equivalent to calling <see cref="WillFireOn(DateTimeOffset, bool)" />.
     /// </para>
     /// </summary>
-    /// <param name="test">The date to compare.</param>
+    /// <param name="timeUtc">The time to compare.</param>
     /// <returns></returns>
-    public bool WillFireOn(DateTimeOffset test)
+    public bool WillFireOn(DateTimeOffset timeUtc)
     {
-        return WillFireOn(test, false);
+        return WillFireOn(timeUtc, false);
     }
 
     /// <summary>
@@ -764,19 +764,19 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// ICalendar (if any).
     /// </para>
     /// </summary>
-    /// <param name="test">The date to compare</param>
+    /// <param name="timeUtc">The time to compare.</param>
     /// <param name="dayOnly">If set to true, the method will only determine if the
     /// trigger will fire during the day represented by the given Calendar
     /// (hours, minutes and seconds will be ignored).</param>
     /// <returns></returns>
-    public bool WillFireOn(DateTimeOffset test, bool dayOnly)
+    public bool WillFireOn(DateTimeOffset timeUtc, bool dayOnly)
     {
         if (dayOnly)
         {
-            test = new DateTimeOffset(test.Year, test.Month, test.Day, 0, 0, 0, TimeProvider.LocalTimeZone.BaseUtcOffset);
+            timeUtc = new DateTimeOffset(timeUtc.Year, timeUtc.Month, timeUtc.Day, 0, 0, 0, TimeProvider.LocalTimeZone.BaseUtcOffset);
         }
 
-        DateTimeOffset? fta = GetFireTimeAfter(test.AddMilliseconds(-1 * 1000));
+        DateTimeOffset? fta = GetFireTimeAfter(timeUtc.AddMilliseconds(-1 * 1000));
 
         if (fta is null)
         {
@@ -787,17 +787,17 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
 
         if (dayOnly)
         {
-            return p.Year == test.Year
-                   && p.Month == test.Month
-                   && p.Day == test.Day;
+            return p.Year == timeUtc.Year
+                   && p.Month == timeUtc.Month
+                   && p.Day == timeUtc.Day;
         }
 
-        while (fta is not null && fta.Value < test)
+        while (fta is not null && fta.Value < timeUtc)
         {
             fta = GetFireTimeAfter(fta);
         }
 
-        if (fta.Equals(test))
+        if (fta.Equals(timeUtc))
         {
             return true;
         }

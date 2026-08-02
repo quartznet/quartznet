@@ -94,7 +94,7 @@ public sealed class JobExecutionObservabilityTest
 
         activityListener = new ActivityListener
         {
-            ShouldListenTo = static source => source.Name == ActivityOptions.DefaultListenerName,
+            ShouldListenTo = static source => source.Name == ActivityTags.DefaultListenerName,
             Sample = static (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
             ActivityStopped = activity =>
             {
@@ -152,10 +152,10 @@ public sealed class JobExecutionObservabilityTest
 
         foreach (RecordedMeasurement measurement in published)
         {
-            measurement.Tags.Should().Contain(new KeyValuePair<string, object>(ActivityOptions.TriggerGroup, execution.TriggerKey.Group))
-                .And.Contain(new KeyValuePair<string, object>(ActivityOptions.TriggerName, execution.TriggerKey.Name))
-                .And.Contain(new KeyValuePair<string, object>(ActivityOptions.JobGroup, execution.JobKey.Group))
-                .And.Contain(new KeyValuePair<string, object>(ActivityOptions.JobName, execution.JobKey.Name));
+            measurement.Tags.Should().Contain(new KeyValuePair<string, object>(ActivityTags.TriggerGroup, execution.TriggerKey.Group))
+                .And.Contain(new KeyValuePair<string, object>(ActivityTags.TriggerName, execution.TriggerKey.Name))
+                .And.Contain(new KeyValuePair<string, object>(ActivityTags.JobGroup, execution.JobKey.Group))
+                .And.Contain(new KeyValuePair<string, object>(ActivityTags.JobName, execution.JobKey.Name));
 
             measurement.Tags.Should().HaveCount(4,
                 "an execution is identified by its trigger and its job, and nothing else is added to it");
@@ -222,20 +222,20 @@ public sealed class JobExecutionObservabilityTest
         Activity activity = ActivityFor(execution.JobKey);
 
         activity.OperationName.Should().Be(OperationName.Job.Execute);
-        activity.Source.Name.Should().Be(ActivityOptions.DefaultListenerName,
+        activity.Source.Name.Should().Be(ActivityTags.DefaultListenerName,
             "the source name is what a tracer is told to subscribe to");
         activity.Kind.Should().Be(ActivityKind.Internal);
         activity.Status.Should().Be(ActivityStatusCode.Unset, "the job succeeded");
 
-        activity.GetTagItem(ActivityOptions.SchedulerName).Should().Be(execution.SchedulerName);
-        activity.GetTagItem(ActivityOptions.SchedulerId).Should().Be(execution.SchedulerInstanceId);
-        activity.GetTagItem(ActivityOptions.JobType).Should().Be(new JobType(typeof(SucceedingJob)).FullName,
+        activity.GetTagItem(ActivityTags.SchedulerName).Should().Be(execution.SchedulerName);
+        activity.GetTagItem(ActivityTags.SchedulerId).Should().Be(execution.SchedulerInstanceId);
+        activity.GetTagItem(ActivityTags.JobType).Should().Be(new JobType(typeof(SucceedingJob)).FullName,
             "the job type is reported the way the scheduler names it — assembly-qualified, without a version");
-        activity.GetTagItem(ActivityOptions.FireInstanceId).Should().Be(execution.FireInstanceId);
-        activity.GetTagItem(ActivityOptions.TriggerGroup).Should().Be(execution.TriggerKey.Group);
-        activity.GetTagItem(ActivityOptions.TriggerName).Should().Be(execution.TriggerKey.Name);
-        activity.GetTagItem(ActivityOptions.JobGroup).Should().Be(execution.JobKey.Group);
-        activity.GetTagItem(ActivityOptions.JobName).Should().Be(execution.JobKey.Name);
+        activity.GetTagItem(ActivityTags.FireInstanceId).Should().Be(execution.FireInstanceId);
+        activity.GetTagItem(ActivityTags.TriggerGroup).Should().Be(execution.TriggerKey.Group);
+        activity.GetTagItem(ActivityTags.TriggerName).Should().Be(execution.TriggerKey.Name);
+        activity.GetTagItem(ActivityTags.JobGroup).Should().Be(execution.JobKey.Group);
+        activity.GetTagItem(ActivityTags.JobName).Should().Be(execution.JobKey.Name);
     }
 
     [Test]
@@ -322,7 +322,7 @@ public sealed class JobExecutionObservabilityTest
         lock (measurements)
         {
             return measurements
-                .Where(m => Equals(m.Tags.GetValueOrDefault(ActivityOptions.JobName), jobKey.Name))
+                .Where(m => Equals(m.Tags.GetValueOrDefault(ActivityTags.JobName), jobKey.Name))
                 .ToList();
         }
     }
@@ -333,7 +333,7 @@ public sealed class JobExecutionObservabilityTest
         {
             return stoppedActivities.Should().ContainSingle(a =>
                     a.OperationName == OperationName.Job.Execute
-                    && Equals(a.GetTagItem(ActivityOptions.JobName), jobKey.Name))
+                    && Equals(a.GetTagItem(ActivityTags.JobName), jobKey.Name))
                 .Subject;
         }
     }

@@ -62,7 +62,7 @@ public sealed class NewtonsoftJsonSerializerRegistry
         ArgumentNullException.ThrowIfNull(serializer);
 
         // Found by its JSON discriminator, and also by its type name.
-        triggerSerializers.Add(serializer, serializer.TriggerTypeForJson, typeof(TTrigger).AssemblyQualifiedNameWithoutVersion());
+        triggerSerializers.Add(serializer, serializer.TriggerTypeName, typeof(TTrigger).AssemblyQualifiedNameWithoutVersion());
         return this;
     }
 
