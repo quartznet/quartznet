@@ -2196,13 +2196,11 @@ internal sealed class QuartzScheduler
     /// <param name="fireInstanceId"></param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns></returns>
-    public ValueTask<bool> InterruptFireInstance(
+    public async ValueTask<bool> InterruptFireInstance(
         string fireInstanceId,
         CancellationToken cancellationToken = default)
     {
         var interruptableJobs = GetCurrentlyExecutingJobs().OfType<IInterruptableJobExecutionContext>();
-
-        bool interrupted = false;
 
         foreach (var interruptableContext in interruptableJobs)
         {
@@ -2211,12 +2209,13 @@ internal sealed class QuartzScheduler
             if (interruptableContext.FireInstanceId == fireInstanceId)
             {
                 interruptableContext.Interrupt();
-                interrupted = true;
-                break;
+                var jobKey = interruptableContext.JobDetail.Key;
+                await NotifySchedulerListeners(l => l.JobInterrupted(jobKey, cancellationToken), "job interruption").ConfigureAwait(false);
+                return true;
             }
         }
 
-        return new ValueTask<bool>(interrupted);
+        return false;
     }
 
     private async Task ShutdownPlugins(
