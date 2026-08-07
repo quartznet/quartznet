@@ -139,6 +139,10 @@ var job = JobBuilder.Create<SlowJob>()
     .Build();
 ```
 
+Both `AutoInterruptable` and `MaxRunTime` are read from the merged job data map, so a trigger's data map can also enable interruption or override the timeout for its own fires.
+
+Only the execution that exceeded its allowed run time is interrupted — the plugin monitors each fire instance separately, so concurrent executions of the same job are unaffected. Executions vetoed by a trigger listener do not arm the interrupt timer.
+
 ## Adding a plugin
 
 `AddPlugin` comes in the same three shapes as the listener registrations: the container builds the

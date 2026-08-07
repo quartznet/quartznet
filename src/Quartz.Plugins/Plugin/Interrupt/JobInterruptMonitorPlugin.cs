@@ -11,7 +11,7 @@ namespace Quartz.Plugin.Interrupt;
 /// This plugin catches the event of job running for a long time (more than the
 /// configured max time) and tells the scheduler to "try" interrupting it if enabled.
 /// </summary>
-/// <seealso cref="IScheduler.Interrupt(Quartz.JobKey,System.Threading.CancellationToken)"/>
+/// <seealso cref="IScheduler.InterruptFireInstance(string,System.Threading.CancellationToken)"/>
 /// <author>Rama Chavali</author>
 /// <author>Marko Lahma (.NET)</author>
 public class JobInterruptMonitorPlugin : TriggerListenerSupport, ISchedulerPlugin
@@ -44,14 +44,19 @@ public class JobInterruptMonitorPlugin : TriggerListenerSupport, ISchedulerPlugi
 
     private void ScheduleJobInterruptMonitor(string fireInstanceId, JobKey jobkey, TimeSpan delay)
     {
-        var monitor = new InterruptMonitor(fireInstanceId, jobkey, scheduler, delay);
+        var monitor = new InterruptMonitor(this, fireInstanceId, jobkey, scheduler, delay);
+        if (!interruptMonitors.TryAdd(fireInstanceId, monitor))
+        {
+            // a re-executed job (SchedulerInstruction.ReExecuteJob) fires trigger listeners again
+            // with the same fire instance id - the existing monitor keeps watching it
+            return;
+        }
+
         _ = Task.Factory.StartNew(
             monitor.Run,
             monitor.cancellationTokenSource.Token,
             TaskCreationOptions.HideScheduler,
             taskScheduler).Unwrap();
-
-        interruptMonitors.TryAdd(fireInstanceId, monitor);
     }
 
     /// <summary>
@@ -72,7 +77,7 @@ public class JobInterruptMonitorPlugin : TriggerListenerSupport, ISchedulerPlugi
         try
         {
             // Schedule Monitor only if the job wants AutoInterruptable functionality
-            if (context.JobDetail.JobDataMap.TryGetBoolean(JobDataMapKeyAutoInterruptable, out bool value) && value)
+            if (context.MergedJobDataMap.TryGetBoolean(JobDataMapKeyAutoInterruptable, out bool value) && value)
             {
                 var monitorPlugin = (JobInterruptMonitorPlugin) context.Scheduler.Context[JobInterruptMonitorKey]!;
 
@@ -123,21 +128,48 @@ public class JobInterruptMonitorPlugin : TriggerListenerSupport, ISchedulerPlugi
         // Set the trigger Listener as this class to the ListenerManager here
         this.scheduler.ListenerManager.AddTriggerListener(this);
 
+        // a vetoed execution never reaches TriggerComplete, so its monitor must be cancelled from a job listener
+        this.scheduler.ListenerManager.AddJobListener(new JobExecutionVetoedListener(this));
+
         return default;
+    }
+
+    private sealed class JobExecutionVetoedListener : JobListenerSupport
+    {
+        private readonly JobInterruptMonitorPlugin plugin;
+
+        public JobExecutionVetoedListener(JobInterruptMonitorPlugin plugin)
+        {
+            this.plugin = plugin;
+        }
+
+        public override string Name => plugin.name + "-VetoedJobListener";
+
+        public override ValueTask JobExecutionVetoed(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            if (plugin.interruptMonitors.TryRemove(context.FireInstanceId, out var monitor))
+            {
+                monitor.Cancel();
+            }
+
+            return default;
+        }
     }
 
     private sealed class InterruptMonitor
     {
         private readonly ILogger<InterruptMonitor> logger = LogProvider.CreateLogger<InterruptMonitor>();
 
+        private readonly JobInterruptMonitorPlugin plugin;
         private readonly JobKey jobKey;
         private readonly IScheduler scheduler;
         private readonly TimeSpan delay;
 
         internal readonly CancellationTokenSource cancellationTokenSource;
 
-        public InterruptMonitor(string fireInstanceId, JobKey jobKey, IScheduler scheduler, TimeSpan delay)
+        public InterruptMonitor(JobInterruptMonitorPlugin plugin, string fireInstanceId, JobKey jobKey, IScheduler scheduler, TimeSpan delay)
         {
+            this.plugin = plugin;
             FireInstanceId = fireInstanceId;
             this.jobKey = jobKey;
             this.scheduler = scheduler;
@@ -154,9 +186,18 @@ public class JobInterruptMonitorPlugin : TriggerListenerSupport, ISchedulerPlugi
             {
                 await Task.Delay(delay, cancellationTokenSource.Token).ConfigureAwait(false);
 
-                // Interrupt the job here - using Scheduler API that gets propagated to Job's interrupt
-                logger.LogInformation("Interrupting Job as it ran more than the configured max time. Job Details [{JobName}:{JobGroup}]", jobKey.Name, jobKey.Group);
-                await scheduler.Interrupt(jobKey, cancellationTokenSource.Token).ConfigureAwait(false);
+                // Interrupt the job here - using Scheduler API that gets propagated to Job's interrupt.
+                // Interrupting by fire instance id makes sure only the monitored execution is signaled
+                // and not every currently running execution of the same job.
+                bool interrupted = await scheduler.InterruptFireInstance(FireInstanceId, cancellationTokenSource.Token).ConfigureAwait(false);
+                if (interrupted)
+                {
+                    logger.LogInformation("Interrupted Job as it ran more than the configured max time. Job Details [{JobName}:{JobGroup}], fire instance id {FireInstanceId}", jobKey.Name, jobKey.Group, FireInstanceId);
+                }
+                else
+                {
+                    logger.LogDebug("Job execution was no longer running, nothing to interrupt. Job Details [{JobName}:{JobGroup}], fire instance id {FireInstanceId}", jobKey.Name, jobKey.Group, FireInstanceId);
+                }
             }
             catch (TaskCanceledException)
             {
@@ -165,6 +206,12 @@ public class JobInterruptMonitorPlugin : TriggerListenerSupport, ISchedulerPlugi
             catch (SchedulerException ex)
             {
                 logger.LogError(ex, "Error interrupting Job: {ExceptionMessage}", ex.Message);
+            }
+            finally
+            {
+                // TriggerComplete and JobExecutionVetoed already remove the entry; this bounds the
+                // dictionary when neither notification arrives, e.g. a listener earlier in the chain threw
+                plugin.interruptMonitors.TryRemove(FireInstanceId, out _);
             }
         }
 
