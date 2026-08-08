@@ -16,16 +16,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Fallout.Common" Version="11.0.18" />
-  </ItemGroup>
-
-  <!--
-    Override a vulnerable transitive dependency pulled in by Fallout.Common (GHSA-23rf-6693-g89p,
-    GHSA-8q5v-6pqq-x66h, GHSA-cvvh-rhrc-wg4q, GHSA-g8r8-53c2-pm3f, GHSA-mmjf-rqrv-855v).
-    Remove this when Fallout ships a release that bumps it itself.
-  -->
-  <ItemGroup>
-    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.10" />
+    <PackageReference Include="Fallout.Common" Version="10.4.0" />
   </ItemGroup>
 
 </Project>
