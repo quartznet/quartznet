@@ -35,9 +35,9 @@ jobs:
     name: windows-latest
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: 'Setup: .NET SDK'
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
       - name: 'Restore: dotnet tools'
@@ -47,7 +47,7 @@ jobs:
         env:
           FEEDZ_API_KEY: ${{ secrets.FEEDZ_API_KEY }}
       - name: 'Publish: artifacts'
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         if: runner.os == 'Windows'
         with:
           name: artifacts
@@ -56,9 +56,9 @@ jobs:
     name: ubuntu-latest
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: 'Setup: .NET SDK'
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
       - name: 'Restore: dotnet tools'
@@ -68,7 +68,7 @@ jobs:
         env:
           FEEDZ_API_KEY: ${{ secrets.FEEDZ_API_KEY }}
       - name: 'Publish: artifacts'
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         if: runner.os == 'Windows'
         with:
           name: artifacts
@@ -77,9 +77,9 @@ jobs:
     name: macos-latest
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: 'Setup: .NET SDK'
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
       - name: 'Restore: dotnet tools'
@@ -89,7 +89,7 @@ jobs:
         env:
           FEEDZ_API_KEY: ${{ secrets.FEEDZ_API_KEY }}
       - name: 'Publish: artifacts'
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         if: runner.os == 'Windows'
         with:
           name: artifacts
