@@ -31,7 +31,8 @@ internal sealed class DirectoryScanJobModel
     internal List<FileInfo> CurrentFileList { get; private set; } = null!;
     internal IDirectoryScanListener DirectoryScanListener { get; private set; } = null!;
     internal DateTime LastModTime { get; private set; }
-    internal DateTime MaxAgeDate => DateTime.Now - MinUpdateAge;
+    // Compared against FileInfo.LastWriteTime, which is local time, so this has to stay local too.
+    internal DateTime MaxAgeDate => TimeProvider.System.GetLocalNow().DateTime - MinUpdateAge;
     private TimeSpan MinUpdateAge { get; set; }
     private JobDataMap JobDetailJobDataMap { get; set; } = null!;
     public string SearchPattern { get; internal set; } = null!;

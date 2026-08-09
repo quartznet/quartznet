@@ -15,8 +15,6 @@ namespace Quartz.Impl.Triggers;
 /// <seealso cref="RecurrenceScheduleBuilder"/>
 public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
 {
-    private static readonly int YearToGiveupSchedulingAt = DateTime.Now.AddYears(100).Year;
-
     private DateTimeOffset startTime;
     private DateTimeOffset? endTime;
     private string recurrenceRuleString = "";
@@ -166,7 +164,7 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
                 }
 
                 //avoid infinite loop
-                if (newFireTime.Value.Year > YearToGiveupSchedulingAt)
+                if (newFireTime.Value.Year > TriggerConstants.YearToGiveUpSchedulingAt)
                 {
                     newFireTime = null;
                 }
@@ -196,7 +194,7 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
                 break;
             }
 
-            if (NextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
+            if (NextFireTimeUtc.Value.Year > TriggerConstants.YearToGiveUpSchedulingAt)
             {
                 NextFireTimeUtc = null;
             }
@@ -223,7 +221,7 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
                 break;
             }
 
-            if (NextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
+            if (NextFireTimeUtc.Value.Year > TriggerConstants.YearToGiveUpSchedulingAt)
             {
                 NextFireTimeUtc = null;
             }
@@ -270,7 +268,7 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
                 break;
             }
 
-            if (NextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
+            if (NextFireTimeUtc.Value.Year > TriggerConstants.YearToGiveUpSchedulingAt)
             {
                 return null;
             }
