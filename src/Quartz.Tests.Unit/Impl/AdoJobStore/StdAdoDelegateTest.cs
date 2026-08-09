@@ -304,7 +304,7 @@ public class StdAdoDelegateTest
         var jobDetail = await adoDelegate.SelectJobDetail(
             conn,
             jobKey,
-            new SimpleTypeLoadHelper(), // Irrelevant, not used actually by method implementation
+            new SimpleTypeLoadHelper(), // resolves the stored JOB_CLASS_NAME
             CancellationToken.None);
 
         Assert.Multiple(() =>
@@ -334,6 +334,78 @@ public class StdAdoDelegateTest
                                   + "AND JOB_NAME = @jobName "
                                   + "AND JOB_GROUP = @jobGroup";
         Assert.That(command.CommandText, Is.EqualTo(expectedCommandText));
+    }
+
+    /// <summary>
+    /// A table carried over from 2.x or 3.x names job types the way those versions spelled them, and
+    /// only the type load helper knows what such a spelling means today. Resolving the stored name
+    /// without it leaves the job loading and listing perfectly well - the type is resolved lazily -
+    /// and then failing at its first fire.
+    /// </summary>
+    [Test]
+    public async Task SelectJobDetailResolvesAPre40JobClassNameThroughTheTypeLoadHelper()
+    {
+        const string StoredJobClassName = "Quartz.Job.NoOpJob, Quartz";
+
+        var connection = A.Fake<DbConnection>();
+        var transaction = A.Fake<DbTransaction>();
+        var conn = new ConnectionAndTransactionHolder(connection, transaction);
+
+        var dataReader = A.Fake<DbDataReader>();
+        A.CallTo(() => dataReader.ReadAsync(CancellationToken.None))
+            .Returns(true)
+            .Once();
+
+        A.CallTo(() => dataReader[AdoConstants.ColumnJobName]).Returns("job");
+        A.CallTo(() => dataReader[AdoConstants.ColumnJobGroup]).Returns("group");
+        A.CallTo(() => dataReader[AdoConstants.ColumnDescription]).Returns("description");
+        A.CallTo(() => dataReader[AdoConstants.ColumnJobClass]).Returns(StoredJobClassName);
+        A.CallTo(() => dataReader[AdoConstants.ColumnRequestsRecovery]).Returns(false);
+        A.CallTo(() => dataReader[AdoConstants.ColumnIsDurable]).Returns(true);
+        A.CallTo(() => dataReader[AdoConstants.ColumnIsNonConcurrent]).Returns(false);
+        A.CallTo(() => dataReader[AdoConstants.ColumnIsUpdateData]).Returns(false);
+
+        var command = A.Fake<StubCommand>();
+        A.CallTo(command)
+            .Where(x => x.Method.Name == "ExecuteDbDataReaderAsync")
+            .WithReturnType<Task<DbDataReader>>()
+            .Returns(Task.FromResult(dataReader));
+
+        var dbMetadata = new DbMetadata
+        {
+            BindByName = true,
+            ParameterNamePrefix = "@"
+        };
+        dbMetadata.Initialize();
+
+        var dbProvider = A.Fake<IDbProvider>();
+        A.CallTo(() => dbProvider.CreateCommand()).Returns(command);
+        A.CallTo(() => dbProvider.Metadata).Returns(dbMetadata);
+
+        var adoDelegate = new StdAdoDelegate();
+        adoDelegate.Initialize(new DelegateInitializationArgs
+        {
+            TablePrefix = "QRTZ_",
+            InstanceId = "TESTSCHED",
+            InstanceName = "INSTANCE",
+            TypeLoadHelper = new SimpleTypeLoadHelper(),
+            UseProperties = false,
+            InitString = "",
+            DbProvider = dbProvider,
+            ObjectSerializer = serializer
+        });
+
+        IJobDetail jobDetail = await adoDelegate.SelectJobDetail(
+            conn,
+            new JobKey("job", "group"),
+            new SimpleTypeLoadHelper(),
+            CancellationToken.None);
+
+        jobDetail.Should().NotBeNull();
+        jobDetail.JobType.FullName.Should().Be(StoredJobClassName,
+            "reading a job must not rewrite the JOB_CLASS_NAME that is persisted for it");
+        jobDetail.JobType.Type.Should().Be<global::Quartz.Job.NoOpJob>(
+            "a job class name stored before the jobs moved to their own assembly has to resolve through the load helper");
     }
 
     private sealed class TestJob : IJob
