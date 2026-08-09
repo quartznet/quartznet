@@ -11,6 +11,12 @@ public static class TestData
     public const string SchedulerName = "TestScheduler";
     public const string SchedulerInstanceId = "TEST_NON_CLUSTERED";
 
+    /// <summary>
+    /// A job type name that nothing in the test process resolves. The API carries job types as names, so
+    /// a request naming this one is accepted and only fails when something has to run the job.
+    /// </summary>
+    public const string UnresolvableJobTypeName = "Quartz.Tests.AspNetCore.Support.DummyJob2, Quartz.Tests.AspNetCore";
+
     public static readonly SchedulerMetadata Metadata;
 
     public static readonly BaseCalendar BaseCalendar;

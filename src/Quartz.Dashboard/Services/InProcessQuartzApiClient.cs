@@ -569,14 +569,18 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
 
     private IJobDetail BuildJobDetail(JobDetailDto source)
     {
-        Type? jobType = Type.GetType(source.JobType, throwOnError: false);
-        if (jobType is null)
+        if (string.IsNullOrWhiteSpace(source.JobType))
         {
-            throw new InvalidOperationException("Unknown job type: " + source.JobType);
+            throw new InvalidOperationException("Job type is required.");
         }
 
         JobDataMap jobDataMap = DeserializeJobDataMap(source.JobDataMap);
-        IJobDetail jobDetail = JobBuilder.Create(jobType)
+
+        // The type name is stored unresolved on purpose: resolving a name that arrived with the request
+        // would have this process probe its assemblies for whatever the caller named. The scheduler
+        // resolves it through the type load path when the job runs.
+        IJobDetail jobDetail = JobBuilder.Create()
+            .OfType(source.JobType)
             .WithIdentity(source.Name, source.Group)
             .WithDescription(source.Description)
             .StoreDurably(source.Durable)

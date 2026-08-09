@@ -381,12 +381,37 @@ public class JobEndpointsTest : WebApiTest
             })
             .MustHaveHappened(1, Times.Exactly);
 
-        var jobDetailsForUnknownJob = TestData.JobDetail.GetJobBuilder()
-            .OfType("Quartz.Tests.AspNetCore.Support.DummyJob2, Quartz.Tests.AspNetCore")
+        // A job type the server cannot resolve is not rejected at request time - the server never resolves
+        // a name that arrived with the request. The name reaches the scheduler as given, and only whatever
+        // has to run the job resolves it.
+        Fake.ClearRecordedCalls(FakeScheduler);
+        IJobDetail jobDetailWithUnresolvableType = TestData.JobDetail.GetJobBuilder()
+            .OfType(TestData.UnresolvableJobTypeName)
             .Build();
 
-        Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.AddJob(jobDetailsForUnknownJob).AsTask())!
-            .Message.Should().ContainEquivalentOf("unknown job type");
+        await HttpScheduler.AddJob(jobDetailWithUnresolvableType);
+
+        A.CallTo(() => FakeScheduler.AddJob(A<IJobDetail>._, A<AddJobOptions>._, A<CancellationToken>._))
+            .WhenArgumentsMatch((IJobDetail jobDetail, AddJobOptions? options, CancellationToken _) =>
+            {
+                jobDetail.JobType.FullName.Should().Be(TestData.UnresolvableJobTypeName);
+                return true;
+            })
+            .MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
+    public void AddJobShouldRejectMalformedJobType()
+    {
+        // Shape is still checked, it is only resolution that is not done. An empty name has no shape.
+        IJobDetail jobDetailWithEmptyType = TestData.JobDetail.GetJobBuilder()
+            .OfType(" ")
+            .Build();
+
+        Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.AddJob(jobDetailWithEmptyType).AsTask())!
+            .Message.Should().ContainEquivalentOf("malformed job type");
+
+        A.CallTo(() => FakeScheduler.AddJob(A<IJobDetail>._, A<AddJobOptions>._, A<CancellationToken>._)).MustNotHaveHappened();
     }
 
     [Test]
