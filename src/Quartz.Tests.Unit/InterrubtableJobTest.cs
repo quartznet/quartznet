@@ -19,6 +19,8 @@
 
 using System.Collections.Specialized;
 
+using Quartz.Listener;
+
 namespace Quartz.Tests.Unit;
 
 /// <summary>
@@ -101,6 +103,9 @@ public class InterruptableJobTest
             .StartNow()
             .Build();
 
+        var interruptionListener = new JobInterruptedCaptureListener();
+        scheduler.ListenerManager.AddSchedulerListener(interruptionListener);
+
         await scheduler.ScheduleJob(job, trigger);
 
         started.WaitOne(); // make sure the job starts running...
@@ -121,7 +126,23 @@ public class InterruptableJobTest
             Assert.That(TestInterruptableJob.interrupted, Is.True, "Expected interrupted flag to be set on job class ");
         });
 
+        // the notification is awaited inside InterruptFireInstance before it returns, so no waiting is needed here
+        interruptionListener.Interrupted.Task.IsCompleted.Should().BeTrue(
+            "interrupting by fire instance id should notify scheduler listeners of the interruption");
+        (await interruptionListener.Interrupted.Task).Should().Be(job.Key);
+
         await scheduler.Clear();
         await scheduler.Shutdown();
+    }
+
+    private sealed class JobInterruptedCaptureListener : SchedulerListenerSupport
+    {
+        public TaskCompletionSource<JobKey> Interrupted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override ValueTask JobInterrupted(JobKey jobKey, CancellationToken cancellationToken = default)
+        {
+            Interrupted.TrySetResult(jobKey);
+            return default;
+        }
     }
 }
