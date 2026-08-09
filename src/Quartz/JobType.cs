@@ -10,7 +10,17 @@ namespace Quartz;
 /// </summary>
 public sealed class JobType
 {
+    /// <summary>
+    /// How a name becomes a type when the caller had nothing better to offer: the runtime's own lookup.
+    /// </summary>
+    private static readonly Func<string, Type?> defaultResolver = static name => Type.GetType(name);
+
     private readonly Lazy<Type> type;
+
+    /// <summary>
+    /// Turns <see cref="FullName" /> into a type. Only consulted for a name-constructed instance.
+    /// </summary>
+    private readonly Func<string, Type?> resolver;
 
     /// <summary>
     /// The type this was constructed from, when it was constructed from one at all.
@@ -23,16 +33,35 @@ public sealed class JobType
     /// </summary>
     /// <param name="fullName">Type full name</param>
     /// <exception cref="ArgumentNullException"><paramref name="fullName"/> is <see langword="null" /></exception>
-    public JobType(string fullName)
+    public JobType(string fullName) : this(fullName, defaultResolver)
+    {
+    }
+
+    /// <summary>
+    /// Construct a Job Type from a name that something other than <see cref="Type.GetType(string)" />
+    /// knows how to resolve.
+    /// </summary>
+    /// <remarks>
+    /// A name read out of a job store was written by whichever version of Quartz stored it, so resolving
+    /// it may need the same rename fallbacks that a configured type name gets - which live in an
+    /// <see cref="Extensibility.ITypeLoadHelper" />, not in the runtime. The name itself is kept exactly
+    /// as given: <see cref="FullName" /> reports the stored spelling however the type was found, so
+    /// reading a job never rewrites what is persisted for it.
+    /// </remarks>
+    /// <param name="fullName">Type full name</param>
+    /// <param name="resolver">Resolves <paramref name="fullName" />, returning <see langword="null" /> when it names nothing.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="fullName"/> is <see langword="null" /></exception>
+    internal JobType(string fullName, Func<string, Type?> resolver)
     {
         if (fullName is null)
         {
             Throw.ArgumentNullException(nameof(fullName));
         }
         FullName = fullName;
+        this.resolver = resolver;
         type = new Lazy<Type>(() =>
         {
-            var loadedType = Type.GetType(fullName);
+            Type? loadedType = resolver(fullName);
             if (loadedType is null)
             {
                 Throw.InvalidOperationException($"Job type {fullName} cannot be resolved.");
@@ -60,6 +89,7 @@ public sealed class JobType
         }
 
         this.type = new Lazy<Type>(() => type);
+        resolver = defaultResolver;
         declaredType = type;
         FullName = GetFullName(type);
     }
@@ -105,7 +135,7 @@ public sealed class JobType
         try
         {
             // Suppressing not-found does not suppress an assembly that is found but cannot be loaded.
-            resolved = Type.GetType(FullName, throwOnError: false);
+            resolved = resolver(FullName);
         }
         catch (Exception e) when (e is ArgumentException or FileLoadException or BadImageFormatException or TypeLoadException or TargetInvocationException)
         {

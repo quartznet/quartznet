@@ -128,7 +128,7 @@ public partial class StdAdoDelegate
 
         if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            job = await ReadJobDetail(rs).ConfigureAwait(false);
+            job = await ReadJobDetail(rs, loadHelper).ConfigureAwait(false);
         }
 
         return job;
@@ -159,7 +159,7 @@ public partial class StdAdoDelegate
             using DbDataReader rs = await cmd.ExecuteReaderAsync(System.Data.CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
             while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
-                jobs.Add(await ReadJobDetail(rs).ConfigureAwait(false));
+                jobs.Add(await ReadJobDetail(rs, loadHelper).ConfigureAwait(false));
             }
         }
 
@@ -198,14 +198,14 @@ public partial class StdAdoDelegate
     /// Reads the current row of a job detail select. Shared by the single-job and batch read paths so
     /// the two cannot drift apart.
     /// </summary>
-    private async ValueTask<IJobDetail> ReadJobDetail(DbDataReader rs)
+    private async ValueTask<IJobDetail> ReadJobDetail(DbDataReader rs, ITypeLoadHelper loadHelper)
     {
         // Due to CommandBehavior.SequentialAccess, columns must be read in order.
 
         var jobBuilder = JobBuilder.Create()
             .WithIdentity(new JobKey(rs.GetString(AdoConstants.ColumnJobName)!, rs.GetString(AdoConstants.ColumnJobGroup)!))
             .WithDescription(rs.GetString(AdoConstants.ColumnDescription))
-            .OfType(rs.GetString(AdoConstants.ColumnJobClass)!)
+            .OfType(CreateJobType(rs.GetString(AdoConstants.ColumnJobClass)!, loadHelper))
             .StoreDurably(GetBooleanFromDbValue(rs[AdoConstants.ColumnIsDurable]))
             .RequestRecovery(GetBooleanFromDbValue(rs[AdoConstants.ColumnRequestsRecovery]));
 
@@ -220,6 +220,44 @@ public partial class StdAdoDelegate
             .PersistJobDataAfterExecution(GetBooleanFromDbValue(rs[AdoConstants.ColumnIsUpdateData]));
 
         return jobBuilder.Build();
+    }
+
+    /// <summary>
+    /// Builds the job type for a stored <c>JOB_CLASS_NAME</c>, resolved through the scheduler's
+    /// <see cref="ITypeLoadHelper" /> rather than by <see cref="Type.GetType(string)" /> alone.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The stored name is whatever wrote the row, so a table carried over from 2.x or 3.x names types
+    /// the way those versions spelled them. The helper is the only thing that knows the namespace,
+    /// type and assembly renames, so resolving without it leaves such a job loading and listing
+    /// perfectly well - <see cref="JobType" /> resolves lazily - and then failing at its first fire,
+    /// with nothing logged to say the name had merely moved.
+    /// </para>
+    /// <para>
+    /// Only the resolution is delegated, not the name: <see cref="JobType.FullName" /> keeps reporting
+    /// the stored spelling, so reading a job never rewrites the column behind the user's back.
+    /// </para>
+    /// </remarks>
+    private static JobType CreateJobType(string jobClassName, ITypeLoadHelper loadHelper)
+    {
+        return new JobType(jobClassName, name =>
+        {
+            Type? resolved;
+            try
+            {
+                resolved = loadHelper.LoadType(name);
+            }
+            catch (TypeLoadException)
+            {
+                // A helper that cannot resolve the name is required to throw, and a fault-tolerant one
+                // returns null instead. Either way the name means nothing to it, and falling back leaves
+                // an unresolvable job type failing exactly the way it did before the helper was consulted.
+                resolved = null;
+            }
+
+            return resolved ?? Type.GetType(name);
+        });
     }
 
     /// <inheritdoc />
@@ -237,15 +275,17 @@ public partial class StdAdoDelegate
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
+            string jobClassName = rs.GetString(AdoConstants.ColumnJobClass)!;
+
             var jobBuilder = JobBuilder.Create()
                 .WithIdentity(new JobKey(rs.GetString(AdoConstants.ColumnJobName)!, rs.GetString(AdoConstants.ColumnJobGroup)!))
                 .RequestRecovery(GetBooleanFromDbValue(rs[AdoConstants.ColumnRequestsRecovery]))
-                .OfType(rs.GetString(AdoConstants.ColumnJobClass)!)
+                .OfType(CreateJobType(jobClassName, loadHelper))
                 .StoreDurably(GetBooleanFromDbValue(rs[AdoConstants.ColumnIsDurable]));
 
             if (loadJobType)
             {
-                jobBuilder.OfType(loadHelper.LoadType(rs.GetString(AdoConstants.ColumnJobClass)!)!);
+                jobBuilder.OfType(loadHelper.LoadType(jobClassName)!);
             }
 
             return jobBuilder.Build();

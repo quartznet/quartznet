@@ -2663,6 +2663,15 @@ rename, so a string naming both still resolves:
 + quartz.serializer.type = Quartz.Impl.SystemTextJsonObjectSerializer, Quartz
 ```
 
+Configuration is not the only place a type is named by string. `JOB_CLASS_NAME` holds whatever spelling the
+version that wrote the row used, so a database carried over from 2.x or 3.x names jobs by namespaces and
+assemblies that have since moved. **Those stored names now resolve through the same fallback**, with the same
+warning naming both spellings, rather than through the runtime's lookup alone — a `Quartz.Job.NoOpJob, Quartz`
+written years ago finds the type in `Quartz.Jobs` today. The column itself is left alone: reading a job never
+rewrites what is persisted for it, so the fallback stays visible until you migrate the data. Previously such a
+job started up and listed perfectly well, because a job's type is resolved lazily, and then failed with a
+`TypeLoadException` the first time it fired.
+
 ## The scheduler and the job store speak the same verbs
 
 `IJobStore` had its own vocabulary — Store/Remove/Retrieve — for the operations `IScheduler` calls
