@@ -84,10 +84,13 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
         {
             return JsonSerializer.Deserialize<T?>(data, Options);
         }
-        catch (JsonSerializationException e)
+        // Quartz's exception comes from Quartz's own converters; System.Text.Json's comes from the
+        // reader, which rejects a payload whose very first token is malformed before any converter is
+        // reached. Both are the same failure to a caller, and both have to arrive as Quartz's type.
+        catch (Exception e) when (e is Quartz.JsonSerializationException or System.Text.Json.JsonException)
         {
             string json = Encoding.UTF8.GetString(data);
-            throw new JsonSerializationException($"Could not deserialize JSON: {json}", e);
+            throw new Quartz.JsonSerializationException($"Could not deserialize JSON: {json}", e);
         }
     }
 }

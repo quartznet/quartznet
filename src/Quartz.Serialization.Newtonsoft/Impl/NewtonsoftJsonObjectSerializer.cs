@@ -136,10 +136,20 @@ public class NewtonsoftJsonObjectSerializer : IObjectSerializer
             using StreamReader sr = new(ms);
             return (T?) Serializer.Deserialize(sr, typeof(T));
         }
-        catch (JsonSerializationException e)
+        // Every name below is qualified on purpose. This file lives in Quartz.Impl, so an unqualified
+        // JsonSerializationException binds to Quartz's type - the enclosing namespace beats the
+        // "using Newtonsoft.Json" above it - and Newtonsoft's parse failures would sail straight past
+        // a catch that only looked like it named them.
+        catch (Exception e) when (e is Newtonsoft.Json.JsonSerializationException
+                                      or Newtonsoft.Json.JsonReaderException
+                                      or Quartz.JsonSerializationException)
         {
             string json = Encoding.UTF8.GetString(data);
-            throw new JsonSerializationException($"Could not deserialize JSON: {json}", e);
+
+            // Quartz's type, not Newtonsoft's: this is the exception callers catch, the HTTP API's
+            // exception handler maps and the dashboard special-cases, and it must not differ between
+            // the two serializers.
+            throw new Quartz.JsonSerializationException($"Could not deserialize JSON: {json}", e);
         }
     }
 }
