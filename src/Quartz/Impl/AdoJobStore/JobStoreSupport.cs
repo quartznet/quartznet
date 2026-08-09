@@ -1078,7 +1078,10 @@ public abstract class JobStoreSupport : IJobStore
         }
         else
         {
-            Logger.LogInformation(
+            // A healthy scheduler takes this branch on every misfire scan, forever, so it is Debug -
+            // "nothing happened" is not news. The branches above, where something did misfire, stay
+            // at Information.
+            Logger.LogDebug(
                 "Found 0 triggers that missed their scheduled fire-time.");
             return RecoverMisfiredJobsResult.NoOp;
         }

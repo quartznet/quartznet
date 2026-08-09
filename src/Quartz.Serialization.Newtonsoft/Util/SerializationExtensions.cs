@@ -174,7 +174,9 @@ internal static class Utf8JsonWriterExtensions
         string[] parts = value.Split(':');
         if (parts.Length < 2 || parts.Length > 4)
         {
-            throw new JsonSerializationException($"Invalid time string '{value}'");
+            // Quartz's exception, deliberately - this file is in Quartz.Util, so the unqualified name
+            // would bind to Quartz's type regardless of the "using Newtonsoft.Json" above.
+            throw new Quartz.JsonSerializationException($"Invalid time string '{value}'");
         }
 
         int hour = int.Parse(parts[0], CultureInfo.InvariantCulture);

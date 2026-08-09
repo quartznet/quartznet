@@ -1197,6 +1197,27 @@ q.UseNewtonsoftJsonSerializer();
 
 Remove the old `Quartz.Serialization.Json` package reference.
 
+### Deserialization failures surface as `Quartz.JsonSerializationException`
+
+| 3.x | 4.x |
+|---|---|
+| `IObjectSerializer.DeSerialize` could let `Newtonsoft.Json.JsonSerializationException` and `Newtonsoft.Json.JsonReaderException` escape | Every deserialization failure arrives as `Quartz.JsonSerializationException` — a `SchedulerException` — from **both** serializers, with the payload in the message and the underlying parse failure as `InnerException` |
+
+`Quartz.JsonSerializationException` shadows Newtonsoft's type of the same name inside the
+`Quartz.Serialization.Newtonsoft` package, because every file in it sits under the `Quartz`
+namespace and the enclosing namespace wins over a `using`. The wrapping `catch` therefore never
+matched Newtonsoft's parse failures and they escaped raw. Code that catches
+`Newtonsoft.Json.JsonSerializationException` around `IObjectSerializer.Deserialize` — or around any
+job store read that goes through it — has to catch `Quartz.JsonSerializationException` instead:
+
+```csharp
+// 3.x
+catch (Newtonsoft.Json.JsonSerializationException e)
+
+// 4.x — the same failure, whichever serializer is configured
+catch (Quartz.JsonSerializationException e)
+```
+
 ### Custom trigger and calendar serializers are no longer static
 
 The static registration methods have been removed, because they wrote into process-global dictionaries: two

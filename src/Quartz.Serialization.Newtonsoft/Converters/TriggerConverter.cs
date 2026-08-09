@@ -73,7 +73,10 @@ internal sealed class TriggerConverter(NewtonsoftJsonSerializerRegistry registry
         }
         catch (Exception e)
         {
-            throw new JsonSerializationException("Failed to serialize ITrigger to json", e);
+            // Quartz's exception, deliberately - the qualification is what keeps the choice visible,
+            // because this namespace is nested inside Quartz and the unqualified name would bind here
+            // whether or not anyone meant it to.
+            throw new Quartz.JsonSerializationException("Failed to serialize ITrigger to json", e);
         }
     }
 
@@ -147,7 +150,8 @@ internal sealed class TriggerConverter(NewtonsoftJsonSerializerRegistry registry
         }
         catch (Exception e)
         {
-            throw new JsonSerializationException("Failed to parse ITrigger from json", e);
+            // Quartz's exception, deliberately - see the note on the serialize side above.
+            throw new Quartz.JsonSerializationException("Failed to parse ITrigger from json", e);
         }
     }
 
