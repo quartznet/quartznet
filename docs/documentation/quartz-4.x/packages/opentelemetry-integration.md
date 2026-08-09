@@ -9,6 +9,16 @@ The `Quartz.OpenTelemetry.Instrumentation` package is **obsolete** and no longer
 **Please use the official [OpenTelemetry.Instrumentation.Quartz](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.Quartz) package instead**, which is actively maintained by the OpenTelemetry community and fully compatible with the latest .NET versions.
 :::
 
+## Coming from Quartz.OpenTracing
+
+`Quartz.OpenTracing` is not part of Quartz.NET 4.x. It was built on the `DiagnosticSource` events that
+4.x replaced with `System.Diagnostics.Activity`, and there is no 4.x release of the package.
+
+[OpenTelemetry.Instrumentation.Quartz](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.Quartz)
+is the replacement, and it is what OpenTracing and OpenCensus users are directed to generally - the
+OpenTracing project itself is archived. Replace the `AddQuartzOpenTracing` call with the OpenTelemetry
+setup below.
+
 ## Installation
 
 You need to add NuGet package reference to your project which uses Quartz.

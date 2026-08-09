@@ -5,6 +5,14 @@ title : Plugins
 
 [Quartz.Plugins](https://www.nuget.org/packages/Quartz.Plugins) provides some useful ready-made plugins for your convenience.
 
+Quartz provides an interface (`ISchedulerPlugin`, in the `Quartz.Extensibility` namespace) for plugging-in additional functionality.
+
+The plugins that ship in this package live in the `Quartz.Plugin.*` namespaces — `Quartz.Plugin.History`,
+`Quartz.Plugin.Interrupt`, `Quartz.Plugin.Json`, `Quartz.Plugin.Management` and `Quartz.Plugin.Xml` — note that the
+assembly and NuGet package are named `Quartz.Plugins`, plural, while the namespaces are not.
+They provide functionality such as auto-scheduling of jobs upon scheduler startup, logging a history of job and trigger events,
+and ensuring that the scheduler shuts down cleanly when the process exits.
+
 ## Installation
 
 You need to add NuGet package reference to your project which uses Quartz.
@@ -117,7 +125,7 @@ services.AddQuartz(q =>
 });
 ```
 
-See [JSON Configuration](json-configuration.md) for the full JSON file format and trigger type reference.
+See [JSON Configuration](../configuration/json.md) for the full JSON file format and trigger type reference.
 
 ### JobInterruptMonitorPlugin
 

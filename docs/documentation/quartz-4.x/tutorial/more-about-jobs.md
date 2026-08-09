@@ -269,6 +269,24 @@ and we refer to a each executing job as a "job instance" or "instance of a job d
 Usually if we just use the word "job" we are referring to a named definition, or JobDetail.
 When we are referring to the class implementing the job interface, we usually use the term "job type".
 
+## JobFactory
+
+When a trigger fires, the Job it is associated to is instantiated via the JobFactory configured on the Scheduler.
+The default JobFactory simply activates a new instance of the job class. You may want to create your own implementation
+of JobFactory to accomplish things such as having your application's IoC or DI container produce/initialize the job instance.
+
+See the `IJobFactory` interface. A factory is set where the scheduler is configured — `q.UseJobFactory<MyJobFactory>()`
+or `q.UseJobFactory(new MyJobFactory())` — rather than assigned to the scheduler afterwards.
+
+A factory returns a `JobScope`: the job, plus an optional opaque `State` object that Quartz hands straight back to
+`ReturnJob` when the job has finished. That is where anything the factory had to allocate in order to build the job
+belongs — a dependency injection scope, a connection, a tenant context — so the job itself stays the job.
+
+::: tip
+There's [built-in support for integrating with Microsoft Dependency Injection](../packages/microsoft-di-integration.md) which in
+turn allows to use different IoC container implementations.
+:::
+
 ## Job State and Concurrency
 
 Now, some additional notes about a job's state data (aka JobDataMap) and concurrency.
