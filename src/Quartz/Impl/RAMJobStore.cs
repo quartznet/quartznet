@@ -654,7 +654,7 @@ public sealed class RAMJobStore : IJobStore
             }
 
             if (!update.HasDescription && !update.HasPriority && !update.HasJobDataMap
-                && !update.HasCalendarName && !update.HasMisfireInstruction)
+                && !update.HasCalendarName && !update.HasMisfireInstruction && !update.HasPreferredNode)
             {
                 return true;
             }
@@ -702,6 +702,13 @@ public sealed class RAMJobStore : IJobStore
             if (update.HasMisfireInstruction)
             {
                 trigger.MisfireInstruction = update.MisfireInstruction;
+            }
+
+            if (update.HasPreferredNode)
+            {
+                // The stored instance is the one mutated here - reads hand out clones of it - so the
+                // new pin is what every later reader sees, exactly as the ADO.NET store's update does.
+                trigger.PreferredNode = update.PreferredNode;
             }
 
             return true;
