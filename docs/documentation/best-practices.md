@@ -42,8 +42,9 @@ public class SomeJob : IJob
 ```
 
 ::: tip Quartz 4.x
-In Quartz 4.x, the `Execute` method returns `ValueTask` instead of `Task`:
-`public ValueTask Execute(IJobExecutionContext context)`
+In Quartz 4.x, `Execute` returns `ValueTask` instead of `Task` and takes the cancellation token as a
+parameter as well as on the context:
+`public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)`
 :::
 
 ## Job Tips
@@ -90,10 +91,8 @@ public async Task DoSomething(IScheduler schedule, CancellationToken ct)
 
 ### Use TriggerUtils
 
-TriggerUtils:
-
-* Offers a simple way to create Dates (for start/end dates)
-* Offers helpers for analyzing triggers (e.g. calculating future fire times)
+TriggerUtils offers helpers for analyzing triggers: computing a trigger's next fire times, the fire
+times it produces between two instants, and the end time that would allow exactly N firings.
 
 ### Use ScheduleJobs
 
@@ -127,7 +126,7 @@ await scheduler.ScheduleJobs(jobsDictionary, replace: true);
 | Every other week on specific days | RecurrenceTrigger (RRULE) |
 | Calendar interval (every 5 months) | CalendarIntervalTrigger |
 
-If you find yourself writing complex workarounds with CronTrigger or multiple triggers, consider whether [RecurrenceTrigger](/documentation/quartz-3.x/tutorial/recurrencetrigger) (RFC 5545 RRULE) can express the pattern directly.
+If you find yourself writing complex workarounds with CronTrigger or multiple triggers, consider whether RecurrenceTrigger (RFC 5545 RRULE) can express the pattern directly - see the lesson for [Quartz 3.x](/documentation/quartz-3.x/tutorial/recurrencetrigger) or [Quartz 4.x](/documentation/quartz-4.x/tutorial/recurrencetrigger).
 
 ## ADO.NET JobStore
 
@@ -223,6 +222,6 @@ Be sure you don't mistakenly allow users to define jobs of any type they wish, w
 For example, Quartz.Jobs package ships with a pre-made job `NativeJob`, which will execute any arbitrary native (operating system) system command that it is defined to.
 Malicious users could use this to take control of, or destroy your system.
 
-Likewise other jobs such as `SendEmailJob`, and virtually any others could be used for malicious intent.
+Likewise other jobs such as `SendMailJob`, and virtually any others could be used for malicious intent.
 
 Allowing users to define whatever job they want effectively opens your system to all sorts of vulnerabilities comparable/equivalent to Command Injection Attacks as defined by OWASP and MITRE.
