@@ -985,6 +985,17 @@ If you use Newtonsoft.Json serialization, reference `Quartz.Serialization.Newton
 Configuration that names a type from one of the merged assemblies as a string keeps working: a name that fails to
 resolve is retried against `Quartz`, with a warning naming both spellings.
 
+`Quartz.OpenTracing` is **dropped** and has no 4.x release. It consumed the `DiagnosticSource` events that
+4.x replaced with `System.Diagnostics.Activity`, and the OpenTracing project itself is archived. Remove the
+package reference and the `AddQuartzOpenTracing` call, and instrument with
+[OpenTelemetry.Instrumentation.Quartz](https://www.nuget.org/packages/OpenTelemetry.Instrumentation.Quartz)
+instead — see [OpenTelemetry Integration](packages/opentelemetry-integration.md#coming-from-quartz-opentracing).
+
+```diff
+- <PackageReference Include="Quartz.OpenTracing" Version="3.*" />
++ <PackageReference Include="OpenTelemetry.Instrumentation.Quartz" Version="1.*" />
+```
+
 ## Database Schema Migration
 
 Quartz 4.x requires four columns on `QRTZ_TRIGGERS` (and one on `QRTZ_FIRED_TRIGGERS`) that were
@@ -1612,7 +1623,7 @@ The cron expression parser now supports additional syntax:
 * `L` and `LW` combinations in day-of-month expressions (e.g., `LW` for last weekday of the month)
 * `LW-<OFFSET>` for offset from the last weekday (e.g., `LW-2` for two days before the last weekday). If the calculated day crosses a month boundary, it resets to the 1st.
 * Day-of-month and day-of-week can now be specified together in the same expression
-* `H` (hash) tokens for [load distribution](tutorial/crontrigger#h-hash-for-load-distribution) across triggers
+* `H` (hash) tokens for [load distribution](cron-expressions.md#h-hash-for-load-distribution) across triggers
 
 ## Daylight saving time
 

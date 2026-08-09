@@ -137,7 +137,18 @@ confident that they can get the performance out of Quartz that they need.
 
 ## How can I control the instantiation of Jobs?
 
-See Quartz.Spi.IJobFactory and the Quartz.IScheduler.JobFactory property.
+Implement `IJobFactory` - `Quartz.Spi.IJobFactory` in Quartz 3.x, `Quartz.Extensibility.IJobFactory`
+in Quartz 4.x - and tell the scheduler to use it.
+
+In Quartz 3.x you assign it to the `IScheduler.JobFactory` property, or name the type in the
+`quartz.scheduler.jobFactory.type` configuration key.
+
+In Quartz 4.x the scheduler has no `JobFactory` property; the factory is chosen where the scheduler
+is configured, with `UseJobFactory<MyJobFactory>()` or `UseJobFactory(new MyJobFactory())` on the
+builder (the same `quartz.scheduler.jobFactory.type` key still works).
+
+In both versions the Microsoft dependency injection integration installs a job factory of its own,
+so if all you want is constructor injection into your jobs you do not need to write one.
 
 ## How do I keep a Job from being removed after it completes?
 
@@ -322,14 +333,14 @@ For more detailed guidance on web environments, IIS, and hosted services, see th
 
 ## What .NET version does Quartz 4.x require?
 
-Quartz.NET 4.x targets .NET 8.0 and .NET 9.0. You must be running at least .NET 8.0 to use Quartz 4.x.
+Quartz.NET 4.x targets .NET 10.0. You must be running at least .NET 10.0 to use Quartz 4.x.
 
 ## Can I use Task instead of ValueTask in Quartz 4.x?
 
 Quartz 4.x changed all `Task` return types to `ValueTask`. Your `IJob.Execute` method must now return `ValueTask`:
 
 ```csharp
-public async ValueTask Execute(IJobExecutionContext context)
+public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
 {
     // your job logic
 }
@@ -348,8 +359,8 @@ These packages have been merged into the main `Quartz` package in 4.x. You can r
 `SystemTime` was removed in 4.x. Use the .NET `TimeProvider` abstraction instead:
 
 ```csharp
-var builder = SchedulerBuilder.Create();
-builder.UseTimeProvider<FakeTimeProvider>();
+QuartzSchedulerBuilder builder = QuartzSchedulerBuilder.Create();
+builder.UseTimeProvider(new FakeTimeProvider());
 ```
 
 This is particularly useful for unit testing where you need to control the passage of time.

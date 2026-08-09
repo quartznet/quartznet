@@ -1,6 +1,6 @@
 ---
 
-title: 'CronTrigger Tutorial'
+title: 'Cron Expression Reference'
 ---
 
 ## Introduction
@@ -32,6 +32,15 @@ So cron expressions can be as simple as this: `* * * * ? *`
 
 or more complex, like this: `0/5 14,18,3-39,52 * ? JAN,MAR,SEP MON-FRI 2002-2010`
 
+::: tip
+For easy generation of cron intervals using UI you can use some of these services:
+
+- [Cron Expression Generator & Explainer](https://www.freeformatter.com/cron-expression-generator-quartz.html)
+- [CronMaker](http://www.cronmaker.com/)
+
+NOTE: There are many cron standards/implementations. The results from some generators may not always be correct for Quartz.NET
+:::
+
 ## Special characters
 
 * `*` ("all values") - used to select all values within a field. For example, `*` in the minute field means "every minute".
@@ -42,8 +51,8 @@ I would put `10` in the day-of-month field, and `?` in the day-of-week field. Se
 * `,` - used to specify additional values. For example, `MON,WED,FRI` in the day-of-week field means "the days Monday, Wednesday, and Friday".
 * `/` - used to specify increments. For example, `0/15` in the seconds field means "the seconds 0, 15, 30, and 45".
 And `5/15` in the seconds field means "the seconds 5, 20, 35, and 50".
-You can also specify `/` after the "character - in this case" is equivalent to having '0' before the '/'.
- `1/3` in the day-of-month field means "fire every 3 days starting on the first day of the month".
+You can also specify `/` after the `*` character - in this case `*` is equivalent to having `0` before the `/`.
+`1/3` in the day-of-month field means "fire every 3 days starting on the first day of the month".
 * `L` ("last") - has different meaning in each of the two fields in which it is allowed.
 For example, the value `L` in the day-of-month field means "the last day of the month" - day 31 for January, day 28 for February on non-leap years.
 If used in the day-of-week field by itself, it simply means "7" or "SAT". But if used in the day-of-week field after another value, it means "the last xxx day of the month" -
@@ -183,7 +192,7 @@ A few rules to be aware of:
 Here are some full examples:
 
 | **Expression**             | **Meaning**                                                                                                                         |
-|--:-------------------------|--:----------------------------------------------------------------------------------------------------------------------------------|
+|:---------------------------|:------------------------------------------------------------------------------------------------------------------------------------|
 | `0 0 12 * * ?`             | Fire at 12pm (noon) every day                                                                                                       |
 | `0 15 10 ? * *`            | Fire at 10:15am every day                                                                                                           |
 | `0 15 10 * * ?`            | Fire at 10:15am every day                                                                                                           |
@@ -198,7 +207,6 @@ Here are some full examples:
 | `0 15 10 15 * ?`           | Fire at 10:15am on the 15th day of every month                                                                                      |
 | `0 15 10 L * ?`            | Fire at 10:15am on the last day of every month                                                                                      |
 | `0 15 10 L-2 * ?`          | Fire at 10:15am on the 2nd-to-last last day of every month                                                                          |
-| `0 15 10 ? * 6L`           | Fire at 10:15am on the last Friday of every month                                                                                   |
 | `0 15 10 ? * 6L`           | Fire at 10:15am on the last Friday of every month                                                                                   |
 | `0 15 10 ? * 6L 2002-2005` | Fire at 10:15am on every last Friday of every month during the years 2002, 2003, 2004 and 2005                                      |
 | `0 15 10 ? * 6#3`          | Fire at 10:15am on the third Friday of every month                                                                                  |

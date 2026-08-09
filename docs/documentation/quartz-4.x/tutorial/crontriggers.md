@@ -16,66 +16,15 @@ endTime that specifies when the schedule should be discontinued.
 
 ## Cron Expressions
 
-A cron expression is a string comprised of 6 or 7 fields separated by white space.
-Fields can contain any of the allowed values, along with various combinations of the allowed special characters for that field. The fields are as follows:
+A cron expression is a string of 6 or 7 whitespace-separated fields - seconds, minutes, hours,
+day-of-month, month, day-of-week and an optional year - where each field takes a value, a list, a
+range, an increment, or one of the special characters allowed for that field.
 
-| Field Name   | Mandatory | Allowed Values   | Allowed Special Characters   |
-|--------------|-----------|------------------|------------------------------|
-| Seconds      | YES       | 0-59             | `, - * / H`                  |
-| Minutes      | YES       | 0-59             | `, - * / H`                  |
-| Hours        | YES       | 0-23             | `, - * / H`                  |
-| Day of month | YES       | 1-31             | `, - * ? / L W H`            |
-| Month        | YES       | 1-12 or JAN-DEC  | `, - * / H`                  |
-| Day of week  | YES       | 1-7 or SUN-SAT   | `, - * ? / L # H`            |
-| Year         | NO        | empty, 1970-2099 | `, - * /`                    |
+`0 0 12 ? * WED` is a complete expression, and it means "every Wednesday at 12:00 pm".
 
-::: tip
-For easy generation of cron intervals using UI you can use some of these services:
-
-- [Cron Expression Generator & Explainer](https://www.freeformatter.com/cron-expression-generator-quartz.html)
-- [CronMaker](http://www.cronmaker.com/)
-
-NOTE: There are many cron standards/implementations. The results from some generators may not always be correct for Quartz.NET
-:::
-
-An example of a complete cron-expression is the string `0 0 12 ? * WED` - which means "every Wednesday at 12:00 pm".
-
-Individual sub-expressions can contain ranges and/or lists. For example, the day of week field in the previous (which reads "WED")
-example could be replaces with "MON-FRI", "MON, WED, FRI", or even "MON-WED,SAT".
-
-Wild-cards (the `*` character) can be used to say "every" possible value of this field. Therefore the `*` character in the
-"Month" field of the previous example simply means "every month". A `*` in the Day-Of-Week field would obviously mean "every day of the week".
-
-All of the fields have a set of valid values that can be specified. These values should be fairly obvious - such as the numbers
-0 to 59 for seconds and minutes, and the values 0 to 23 for hours. Day-of-Month can be any value 1-31, but you need to be careful
-about how many days are in a given month! Months can be specified as values between 1 and 12, or by using the strings
-JAN, FEB, MAR, APR, MAY, JUN, JUL, AUG, SEP, OCT, NOV and DEC. Days-of-Week can be specified as values between 1 and 7 (1 = Sunday)
-or by using the strings SUN, MON, TUE, WED, THU, FRI and SAT.
-
-The '/' character can be used to specify increments to values. For example, if you put '0/15' in the Minutes field, it means 'every 15 minutes,
-starting at minute zero'. If you used '3/20' in the Minutes field, it would mean 'every 20 minutes during the hour,
-starting at minute three' - or in other words it is the same as specifying '3,23,43' in the Minutes field.
-
-The '?' character is allowed for the day-of-month and day-of-week fields. It is used to specify "no specific value".
-This is useful when you need to specify something in one of the two fields, but not the other.
-See the examples below (and CronTrigger API documentation) for clarification.
-
-The 'L' character is allowed for the day-of-month and day-of-week fields. This character is short-hand for "last",
-but it has different meaning in each of the two fields. For example, the value "L" in the day-of-month field means
-"the last day of the month" - day 31 for January, day 28 for February on non-leap years. If used in the day-of-week field by itself,
-it simply means "7" or "SAT". But if used in the day-of-week field after another value, it means "the last xxx day of the month" -
-for example "6L" or "FRIL" both mean "the last Friday of the month".
-
-The 'W' is used to specify the weekday (Monday-Friday) nearest the given day. As an example, if you were to specify "15W" as the value for the day-of-month field, the meaning is: "the nearest weekday to the 15th of the month".
-
-The '#' is used to specify "the nth" XXX weekday of the month. For example, the value of "6#3" or "FRI#3" in the day-of-week field means "the third Friday of the month".
-
-The 'H' (hash) symbol can be used in place of a specific value to spread scheduled tasks evenly across time.
-`H` resolves to a deterministic value derived from the trigger's identity (name and group), so different triggers
-get different fire times even when using the same cron expression pattern. For example, `0 H H(0-7) * * ?` fires
-once per day between midnight and 7:59 AM at a trigger-specific time. `0 H/15 * * * ?` fires every 15 minutes,
-starting from a hash-derived offset. When using `H` through the builder API, you must call `WithIdentity()` so
-the hash is derived from a stable trigger identity. See the [CronTrigger Tutorial](crontrigger) for full syntax details and usage examples.
+The full field table, every special character (`*`, `?`, `-`, `,`, `/`, `L`, `W`, `#` and the `H`
+hash token used to spread load across triggers), and a table of worked examples are in the
+[Cron Expression Reference](../cron-expressions.md).
 
 ## Example Cron Expressions
 
@@ -117,7 +66,7 @@ extension method (for the CronTrigger-specific properties).
 You can also use `CronScheduleBuilder`'s static methods to create schedules.
 
 To compose the cron expression string itself programmatically, see
-[Building cron expressions programmatically](crontrigger.md#building-cron-expressions-programmatically).
+[Building cron expressions programmatically](../cron-expressions.md#building-cron-expressions-programmatically).
 
 **Build a trigger that will fire every other minute, between 8am and 5pm, every day:**
 

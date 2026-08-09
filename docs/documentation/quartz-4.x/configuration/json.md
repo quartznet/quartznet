@@ -3,7 +3,8 @@
 Quartz.NET supports hierarchical JSON configuration in `appsettings.json`, providing a modern alternative to flat property keys. This includes both scheduler properties and declarative job/trigger definitions.
 
 ::: tip
-Requires Quartz 4.1 or later. JSON configuration support is included in the core `Quartz` package.
+JSON configuration support is included in the core `Quartz` package.
+See the [Configuration Reference](reference.md) for the full option index.
 :::
 
 ## Hierarchical Properties
@@ -284,7 +285,7 @@ Defining both a `Schedulers` sub-section and direct scheduler configuration (e.g
 
 ## Standalone JSON Files (quartz_jobs.json)
 
-For file-based scheduling with hot-reload support, use `JsonSchedulingDataProcessorPlugin` from the `Quartz.Plugins` package. See [Quartz Plugins](quartz-plugins.md) for plugin configuration.
+For file-based scheduling with hot-reload support, use `JsonSchedulingDataProcessorPlugin` from the `Quartz.Plugins` package. See [Quartz Plugins](../packages/quartz-plugins.md) for plugin configuration.
 
 Standalone JSON files use the same `Jobs` and `Triggers` format as the `Schedule` section above, wrapped in an envelope with optional `PreProcessingCommands` and `ProcessingDirectives`:
 

@@ -47,7 +47,7 @@ Likewise, the block of code that builds the trigger is using `TriggerBuilder`'s 
 Possible schedule extension methods are:
 
 * `WithCalendarIntervalSchedule`
-* `WithCronSchedule` — supports `H` (hash) tokens to [spread fire times across triggers](crontrigger#h-hash-for-load-distribution)
+* `WithCronSchedule` — supports `H` (hash) tokens to [spread fire times across triggers](../cron-expressions.md#h-hash-for-load-distribution)
 * `WithDailyTimeIntervalSchedule`
 * `WithRecurrenceSchedule` — uses [RFC 5545 RRULE](recurrencetrigger) for complex patterns like "2nd Monday of the month"
 * `WithSimpleSchedule`
