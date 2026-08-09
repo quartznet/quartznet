@@ -137,7 +137,8 @@ public class FileScanJob : IJob
             minAge = mergedJobDataMap.GetLong(MinimumUpdateAge);
         }
 
-        DateTime maxAgeDate = DateTime.Now.AddMilliseconds(minAge);
+        // Compared against GetLastModifiedDate, which reads FileInfo.LastWriteTime in local time.
+        DateTime maxAgeDate = TimeProvider.System.GetLocalNow().DateTime.AddMilliseconds(minAge);
 
         DateTime newDate = GetLastModifiedDate(fileName);
 
