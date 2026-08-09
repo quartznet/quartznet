@@ -304,6 +304,22 @@ public sealed class JobBuilder<TJob> : IJobConfigurator<TJob> where TJob : IJob
     }
 
     /// <summary>
+    /// Set the job type to one that already knows how to resolve the name it carries.
+    /// </summary>
+    /// <remarks>
+    /// A name read back out of a job store may be spelled the way an older Quartz wrote it, and only the
+    /// scheduler's type load helper knows what such a spelling means today. Handing the resolution over
+    /// rather than the resolved type keeps the stored name as it was stored.
+    /// </remarks>
+    /// <param name="jobType">the job type, with whatever resolution it was constructed with</param>
+    /// <returns>the updated JobBuilder</returns>
+    internal JobBuilder<TJob> OfType(JobType jobType)
+    {
+        _jobType = jobType;
+        return this;
+    }
+
+    /// <summary>
     /// Set the class which will be instantiated and executed when a
     /// Trigger fires that is associated with this JobDetail.
     /// </summary>

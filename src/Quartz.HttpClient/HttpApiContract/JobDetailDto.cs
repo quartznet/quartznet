@@ -15,6 +15,12 @@ internal record JobDetailDto(
     JobDataMap JobDataMap
 ) : IValidatable
 {
+    /// <summary>
+    /// A job type name longer than this is a payload rather than a name, and is rejected before anything
+    /// has to parse it.
+    /// </summary>
+    private const int MaxJobTypeNameLength = 1024;
+
     public IEnumerable<string> Validate()
     {
         if (Name is null)
@@ -31,25 +37,24 @@ internal record JobDetailDto(
         {
             yield return "Job detail is missing job type";
         }
-        else
+        else if (!IsWellFormedTypeName(JobType))
         {
-            var jobType = Type.GetType(JobType, throwOnError: false);
-            if (jobType is null)
-            {
-                yield return "Job detail has unknown job type " + JobType;
-            }
+            yield return "Job detail has malformed job type " + JobType;
         }
     }
 
     public (IJobDetail? JobDetail, string? ErrorReason) AsIJobDetail()
     {
-        var jobType = Type.GetType(JobType, throwOnError: false);
-        if (jobType is null)
+        if (JobType is null || !IsWellFormedTypeName(JobType))
         {
-            return (null, "Unknown job type");
+            return (null, "Missing or malformed job type");
         }
 
-        var jobDetail = JobBuilder.Create(jobType)
+        // The name is carried as a name. OfType(string) stores it unresolved, so building the detail
+        // neither loads nor probes for an assembly - the side the job actually runs on resolves it
+        // through the type load path, when it needs the type.
+        IJobDetail jobDetail = JobBuilder.Create()
+            .OfType(JobType)
             .WithIdentity(Name, Group)
             .WithDescription(Description)
             .StoreDurably(Durable)
@@ -60,6 +65,46 @@ internal record JobDetailDto(
             .Build();
 
         return (jobDetail, null);
+    }
+
+    /// <summary>
+    /// Checks that a job type name has the shape of one, without resolving it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// These contract types are shared with the server, so a name this type resolved would be resolved by
+    /// the scheduler host on behalf of whoever sent the request. Add-job and schedule-job requests would
+    /// then let a caller have the host walk its assembly probing paths for any name it likes and read the
+    /// answer off the response - a type disclosure side channel, and one that does real work per request.
+    /// </para>
+    /// <para>
+    /// Resolving here also breaks readers that have every right not to have the job's assembly loaded: a
+    /// dashboard or ops process listing jobs only wants to show the name.
+    /// </para>
+    /// </remarks>
+    private static bool IsWellFormedTypeName(string typeName)
+    {
+        ReadOnlySpan<char> name = typeName.AsSpan().Trim();
+        if (name.IsEmpty || name.Length > MaxJobTypeNameLength)
+        {
+            return false;
+        }
+
+        // A name that leads with the assembly separator has no type part at all.
+        if (name[0] == ',')
+        {
+            return false;
+        }
+
+        foreach (char character in name)
+        {
+            if (char.IsControl(character))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public static JobDetailDto Create(IJobDetail jobDetail)

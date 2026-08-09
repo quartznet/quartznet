@@ -356,12 +356,36 @@ public class TriggerEndpointsTest : WebApiTest
             })
             .MustHaveHappened(1, Times.Exactly);
 
-        var jobDetailsForUnknownJob = TestData.JobDetail.GetJobBuilder()
-            .OfType("Quartz.Tests.AspNetCore.Support.DummyJob2, Quartz.Tests.AspNetCore")
+        // A job type the server cannot resolve is not rejected at request time - the server never resolves
+        // a name that arrived with the request.
+        Fake.ClearRecordedCalls(FakeScheduler);
+        IJobDetail jobDetailWithUnresolvableType = TestData.JobDetail.GetJobBuilder()
+            .OfType(TestData.UnresolvableJobTypeName)
             .Build();
 
-        Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.ScheduleJob(jobDetailsForUnknownJob, TestData.SimpleTrigger).AsTask())!
-            .Message.Should().ContainEquivalentOf("unknown job type");
+        await HttpScheduler.ScheduleJob(jobDetailWithUnresolvableType, TestData.SimpleTrigger);
+
+        A.CallTo(() => FakeScheduler.ScheduleJob(A<IJobDetail>._, A<ITrigger>._, A<CancellationToken>._))
+            .WhenArgumentsMatch((IJobDetail jobDetail, ITrigger trigger, CancellationToken _) =>
+            {
+                jobDetail.JobType.FullName.Should().Be(TestData.UnresolvableJobTypeName);
+                return true;
+            })
+            .MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
+    public void ScheduleJobShouldRejectMalformedJobType()
+    {
+        // Shape is still checked, it is only resolution that is not done. An empty name has no shape.
+        IJobDetail jobDetailWithEmptyType = TestData.JobDetail.GetJobBuilder()
+            .OfType(" ")
+            .Build();
+
+        Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.ScheduleJob(jobDetailWithEmptyType, TestData.SimpleTrigger).AsTask())!
+            .Message.Should().ContainEquivalentOf("malformed job type");
+
+        A.CallTo(() => FakeScheduler.ScheduleJob(A<IJobDetail>._, A<ITrigger>._, A<CancellationToken>._)).MustNotHaveHappened();
     }
 
     [Test]
@@ -411,15 +435,38 @@ public class TriggerEndpointsTest : WebApiTest
             })
             .MustHaveHappened(1, Times.Exactly);
 
-        var jobDetailsForUnknownJob = TestData.JobDetail.GetJobBuilder()
-            .OfType("Quartz.Tests.AspNetCore.Support.DummyJob2, Quartz.Tests.AspNetCore")
+        // A job type the server cannot resolve is not rejected at request time - the server never resolves
+        // a name that arrived with the request.
+        Fake.ClearRecordedCalls(FakeScheduler);
+        IJobDetail jobDetailWithUnresolvableType = TestData.JobDetail.GetJobBuilder()
+            .OfType(TestData.UnresolvableJobTypeName)
             .Build();
 
-        Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.ScheduleJob(jobDetailsForUnknownJob, [TestData.CronTrigger, TestData.SimpleTrigger], replace: true).AsTask())!
-            .Message.Should().ContainEquivalentOf("unknown job type");
+        Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>> requestWithUnresolvableType = new() { { jobDetailWithUnresolvableType, [TestData.CronTrigger] } };
+        await HttpScheduler.ScheduleJobs(requestWithUnresolvableType, replace: true);
 
-        var request = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>> { { jobDetailsForUnknownJob, [TestData.CronTrigger] } };
-        Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.ScheduleJobs(request, replace: true).AsTask())!.Message.Should().ContainEquivalentOf("unknown job type");
+        A.CallTo(() => FakeScheduler.ScheduleJobs(A<IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>>>._, A<bool>._, A<CancellationToken>._))
+            .WhenArgumentsMatch((IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken _) =>
+            {
+                triggersAndJobs.Single().Key.JobType.FullName.Should().Be(TestData.UnresolvableJobTypeName);
+                return true;
+            })
+            .MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
+    public void ScheduleJobsShouldRejectMalformedJobType()
+    {
+        // Shape is still checked, it is only resolution that is not done. An empty name has no shape.
+        IJobDetail jobDetailWithEmptyType = TestData.JobDetail.GetJobBuilder()
+            .OfType(" ")
+            .Build();
+
+        Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>> request = new() { { jobDetailWithEmptyType, [TestData.CronTrigger] } };
+        Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.ScheduleJobs(request, replace: true).AsTask())!
+            .Message.Should().ContainEquivalentOf("malformed job type");
+
+        A.CallTo(() => FakeScheduler.ScheduleJobs(A<IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>>>._, A<bool>._, A<CancellationToken>._)).MustNotHaveHappened();
     }
 
     [Test]

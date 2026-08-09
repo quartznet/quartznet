@@ -292,7 +292,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : IScheduleBuilder
 
         DateTimeOffset today = timeProvider.GetUtcNow();
         DateTimeOffset startTimeOfDayDate = startTimeOfDay.Value.OnDate(today);
-        DateTimeOffset tomorrow = startTimeOfDayDate.AddDays(1).UtcDateTime.Date;
+        DateTimeOffset tomorrow = new DateTimeOffset(startTimeOfDayDate.AddDays(1).UtcDateTime.Date, TimeSpan.Zero);
 
         //apply proper offsets according to timezone
         TimeZoneInfo targetTimeZone = timeZone ?? TimeZoneInfo.Local;
