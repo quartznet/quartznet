@@ -35,7 +35,20 @@ export default defineUserConfig({
         registerComponentsPlugin({
             componentsDir: path.resolve(__dirname, './components'),
         }),
-        redirectPlugin()
+        redirectPlugin({
+            // Pages that moved or were removed keep their old URLs working.
+            config: {
+                // the cron syntax reference left the tutorial, and its stale how-to fork was deleted
+                '/documentation/quartz-4.x/tutorial/crontrigger.html': '/documentation/quartz-4.x/cron-expressions.html',
+                '/documentation/quartz-4.x/how-tos/crontrigger.html': '/documentation/quartz-4.x/cron-expressions.html',
+                // JSON configuration moved from packages/ to configuration/
+                '/documentation/quartz-4.x/packages/json-configuration.html': '/documentation/quartz-4.x/configuration/json.html',
+                // Quartz.OpenTracing is dropped in 4.x
+                '/documentation/quartz-4.x/packages/opentracing-integration.html': '/documentation/quartz-4.x/packages/opentelemetry-integration.html',
+                // the miscellaneous-features grab-bag was split; plug-ins were its largest part
+                '/documentation/quartz-4.x/tutorial/miscellaneous-features.html': '/documentation/quartz-4.x/packages/quartz-plugins.html',
+            }
+        })
     ],
 
     theme: defaultTheme({
