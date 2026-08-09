@@ -1591,7 +1591,7 @@ The cron expression parser now supports additional syntax:
 * `L` and `LW` combinations in day-of-month expressions (e.g., `LW` for last weekday of the month)
 * `LW-<OFFSET>` for offset from the last weekday (e.g., `LW-2` for two days before the last weekday). If the calculated day crosses a month boundary, it resets to the 1st.
 * Day-of-month and day-of-week can now be specified together in the same expression
-* `H` (hash) tokens for [load distribution](tutorial/crontrigger#h-hash-for-load-distribution) across triggers
+* `H` (hash) tokens for [load distribution](cron-expressions.md#h-hash-for-load-distribution) across triggers
 
 ## Daylight saving time
 

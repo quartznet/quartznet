@@ -10,7 +10,7 @@ title: Documentation
 
 * [Quick Start Guide](quartz-4.x/quick-start.html)
 * [Tutorials for Developing with Quartz](quartz-4.x/tutorial/index.html)
-* [CronTrigger Tutorial](quartz-4.x/tutorial/crontrigger.html)
+* [Cron Expression Reference](quartz-4.x/cron-expressions.html)
 * [Migration Guide](quartz-4.x/migration-guide.html)
 
 ## Available Documents (Quartz 3.x)
