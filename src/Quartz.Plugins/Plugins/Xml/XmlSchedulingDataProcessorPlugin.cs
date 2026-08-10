@@ -41,10 +41,10 @@ namespace Quartz.Plugins.Xml;
 /// </remarks>
 /// <author>James House</author>
 /// <author>Pierre Awaragi</author>
-public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListener
+public class XmlSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListener
 {
     private const int MaxJobTriggerNameLength = 80;
-    private const string JobInitializationPluginName = "XMLSchedulingDataProcessorPlugin";
+    private const string JobInitializationPluginName = "XmlSchedulingDataProcessorPlugin";
     private const char FileNameDelimiter = ',';
 
     // Populated by initialization
@@ -53,22 +53,22 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
     private bool started;
 
     private readonly HashSet<string> jobTriggerNameSet = new HashSet<string>();
-    private readonly ILogger<XMLSchedulingDataProcessorPlugin> logger;
+    private readonly ILogger<XmlSchedulingDataProcessorPlugin> logger;
     private readonly TimeProvider timeProvider;
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="XMLSchedulingDataProcessorPlugin"/> class.
+    /// Initializes a new instance of the <see cref="XmlSchedulingDataProcessorPlugin"/> class.
     /// </summary>
-    public XMLSchedulingDataProcessorPlugin()
-        : this(LogProvider.CreateLogger<XMLSchedulingDataProcessorPlugin>(), new SimpleTypeLoadHelper(), TimeProvider.System)
+    public XmlSchedulingDataProcessorPlugin()
+        : this(LogProvider.CreateLogger<XmlSchedulingDataProcessorPlugin>(), new SimpleTypeLoadHelper(), TimeProvider.System)
     {
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="XMLSchedulingDataProcessorPlugin"/> class.
+    /// Initializes a new instance of the <see cref="XmlSchedulingDataProcessorPlugin"/> class.
     /// </summary>
-    public XMLSchedulingDataProcessorPlugin(
-        ILogger<XMLSchedulingDataProcessorPlugin> logger,
+    public XmlSchedulingDataProcessorPlugin(
+        ILogger<XmlSchedulingDataProcessorPlugin> logger,
         ITypeLoadHelper typeLoadHelper,
         TimeProvider timeProvider)
     {
@@ -108,7 +108,7 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
     /// </summary>
     public virtual bool FailOnSchedulingError { get; set; }
 
-    public IReadOnlyCollection<KeyValuePair<string, JobFile>> JobFiles => jobFiles;
+    internal IReadOnlyCollection<KeyValuePair<string, JobFile>> JobFiles => jobFiles;
 
     public virtual ValueTask FileUpdated(
         string fileName,
@@ -352,12 +352,12 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
     /// <summary>
     /// Information about a file that should be processed by <see cref="XMLSchedulingDataProcessor" />.
     /// </summary>
-    public class JobFile
+    internal sealed class JobFile
     {
         // These are set by initialize()
-        private readonly XMLSchedulingDataProcessorPlugin plugin;
+        private readonly XmlSchedulingDataProcessorPlugin plugin;
 
-        public JobFile(XMLSchedulingDataProcessorPlugin plugin, string fileName)
+        public JobFile(XmlSchedulingDataProcessorPlugin plugin, string fileName)
         {
             this.plugin = plugin;
             FileName = fileName;

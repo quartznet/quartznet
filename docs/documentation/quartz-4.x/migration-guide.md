@@ -830,8 +830,8 @@ optional trailing name:
 | `AddPlugin<T, TOptions>(Action<TOptions>? configure = null, string? name = null)` | it is given options of its own |
 
 ```diff
-- q.AddPlugin("xml", provider => new XMLSchedulingDataProcessorPlugin());
-+ q.AddPlugin(provider => new XMLSchedulingDataProcessorPlugin(), "xml");
+- q.AddPlugin("xml", provider => new XmlSchedulingDataProcessorPlugin());
++ q.AddPlugin(provider => new XmlSchedulingDataProcessorPlugin(), "xml");
 ```
 
 The name is how the scheduler refers to the plugin and the name a `quartz.plugin.<name>.*` key
@@ -1406,8 +1406,8 @@ read. Only two failures report differently:
 | A file that is not well-formed XML | `InvalidOperationException`, "There is an error in XML document (3, 13)", wrapping an `XmlException` | the `XmlException` itself, naming the line, the position and the unclosed elements |
 | A file whose elements are not in the `http://quartznet.sourceforge.net/JobSchedulingData` namespace | `InvalidOperationException`, "&lt;job-scheduling-data xmlns=''&gt; was not expected" | `SchedulerConfigException` naming the namespace that was expected |
 
-A schema violation still throws `Quartz.Xml.ValidationException` carrying every error found, and
-`XMLSchedulingDataProcessorPlugin` still wraps whatever surfaces in a `SchedulerException`, so a
+A schema violation still throws `SchedulingDataValidationException` carrying every error found, and
+`XmlSchedulingDataProcessorPlugin` still wraps whatever surfaces in a `SchedulerException`, so a
 plugin-based setup sees no change at all.
 
 ## AbstractTrigger Property Removals
@@ -2914,6 +2914,8 @@ called out.
 | `IObjectSerializer.DeSerialize` | `Deserialize` |
 | `TriggerFiredBundle.PrevFireTimeUtc` | `PreviousFireTimeUtc`, matching the spelling used everywhere else |
 | `XMLSchedulingDataProcessor.OverWriteExistingJobs` argument `overWriteExistingJobs` | `overwriteExistingJobs` |
+| `Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin` | `Quartz.Plugins.Xml.XmlSchedulingDataProcessorPlugin` — the namespace moved and the casing follows .NET rules. A `quartz.plugin.<name>.type` naming either old spelling still resolves, with a warning. Its nested `JobFile` class and its `JobFiles` property are internal now: they are how the plugin tracks what it has read, not something to call |
+| `Quartz.Xml.ValidationException` | `Quartz.SchedulingDataValidationException`. The old name collided with `System.ComponentModel.DataAnnotations.ValidationException` in any file that used both, and it was never XML-specific — the JSON processor throws it too. Its `ValidationExceptions` is an `IReadOnlyList<Exception>`; it was a `List<Exception>` a caller could add to |
 
 ### Abbreviated parameter names were spelled out
 
@@ -3658,7 +3660,7 @@ Everything else lost `[Serializable]`:
 
 | Where | Types |
 |---|---|
-| Exceptions | `SchedulerException`, `JobExecutionException`, `JobPersistenceException`, `ObjectAlreadyExistsException`, `SchedulerConfigException`, `UnableToInterruptJobException`, `JsonSerializationException`, `LockException`, `NoSuchDelegateException`, `ValidationException` |
+| Exceptions | `SchedulerException`, `JobExecutionException`, `JobPersistenceException`, `ObjectAlreadyExistsException`, `SchedulerConfigException`, `UnableToInterruptJobException`, `JsonSerializationException`, `LockException`, `NoSuchDelegateException`, `SchedulingDataValidationException` |
 | Matchers | `AndMatcher<TKey>`, `GroupMatcher<TKey>`, `KeyMatcher<TKey>`, `NameMatcher<TKey>`, `NotMatcher<TKey>`, `OrMatcher<TKey>`, `StringMatcher<TKey>`, `StringOperator` |
 | Everything else | `JobType`, `SchedulerContext`, `JobExecutionContextImpl` |
 

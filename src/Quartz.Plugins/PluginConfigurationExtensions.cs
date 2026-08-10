@@ -33,7 +33,7 @@ public static class PluginConfigurationExtensions
         var options = new FileSchedulingOptions();
         configure(options);
 
-        return builder.AddConfiguredPlugin<XMLSchedulingDataProcessorPlugin>("xml", plugin =>
+        return builder.AddConfiguredPlugin<XmlSchedulingDataProcessorPlugin>("xml", plugin =>
         {
             // Left unset, the plugin keeps its own default file name rather than being handed an empty
             // one, which it would try to open as a path.

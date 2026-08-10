@@ -39,7 +39,7 @@ public class RunningJobsByPlugInXmlConfigurationExample : IExample
         NameValueCollection properties = new NameValueCollection
         {
             ["quartz.plugin.triggHistory.type"] = "Quartz.Plugins.History.LoggingJobHistoryPlugin, Quartz.Plugins",
-            ["quartz.plugin.jobInitializer.type"] = "Quartz.Plugins.Xml.XMLSchedulingDataProcessorPlugin, Quartz.Plugins",
+            ["quartz.plugin.jobInitializer.type"] = "Quartz.Plugins.Xml.XmlSchedulingDataProcessorPlugin, Quartz.Plugins",
             ["quartz.plugin.jobInitializer.fileNames"] = "quartz_jobs.xml",
             ["quartz.plugin.jobInitializer.failOnFileNotFound"] = "true",
             ["quartz.plugin.jobInitializer.scanInterval"] = "120"

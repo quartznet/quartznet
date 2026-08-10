@@ -95,7 +95,7 @@ Recommended over `LoggingTriggerHistoryPlugin` when using structured logging pro
 
 This plugin catches the event of the VM terminating (such as upon a CRTL-C) and tells the scheduler to Shutdown.
 
-### XMLSchedulingDataProcessorPlugin
+### XmlSchedulingDataProcessorPlugin
 
 This plugin loads XML file(s) to add jobs and schedule them with triggers as the scheduler is initialized, and can optionally periodically scan the file for changes.
 
@@ -105,7 +105,7 @@ The periodically scanning of files for changes is not currently supported in a c
 
 ### JsonSchedulingDataProcessorPlugin
 
-This plugin loads JSON file(s) to add jobs and schedule them with triggers as the scheduler is initialized, and can optionally periodically scan the file for changes. It is the JSON analog of `XMLSchedulingDataProcessorPlugin`.
+This plugin loads JSON file(s) to add jobs and schedule them with triggers as the scheduler is initialized, and can optionally periodically scan the file for changes. It is the JSON analog of `XmlSchedulingDataProcessorPlugin`.
 
 ::: warning
 The periodically scanning of files for changes is not currently supported in a clustered environment.

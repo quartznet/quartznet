@@ -1020,17 +1020,17 @@ public class XMLSchedulingDataProcessor
     }
 
     /// <summary>
-    /// Throws a ValidationException if the number of validationExceptions
+    /// Throws a SchedulingDataValidationException if the number of validationExceptions
     /// detected is greater than zero.
     /// </summary>
-    /// <exception cref="ValidationException">
+    /// <exception cref="SchedulingDataValidationException">
     /// DTD validation exception.
     /// </exception>
     protected virtual void MaybeThrowValidationException()
     {
         if (validationExceptions.Count > 0)
         {
-            throw new ValidationException(validationExceptions);
+            throw new SchedulingDataValidationException(validationExceptions);
         }
     }
 
