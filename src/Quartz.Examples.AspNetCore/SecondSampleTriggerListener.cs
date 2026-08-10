@@ -1,8 +1,8 @@
-using Quartz.Listener;
+using Quartz.Listeners;
 
 namespace Quartz.Examples.AspNetCore;
 
-public class SecondSampleTriggerListener : TriggerListenerSupport
+public class SecondSampleTriggerListener : ITriggerListener
 {
     private readonly ILogger<SecondSampleTriggerListener> logger;
     private readonly string exampleValue;
@@ -13,9 +13,9 @@ public class SecondSampleTriggerListener : TriggerListenerSupport
         this.exampleValue = exampleValue;
     }
 
-    public override string Name => "Second Sample Trigger Listener";
+    public string Name => "Second Sample Trigger Listener";
 
-    public override ValueTask TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default)
+    public ValueTask TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Trigger {TriggerKey} fired (example value '{ExampleValue}')", trigger.Key, exampleValue);
         return default;

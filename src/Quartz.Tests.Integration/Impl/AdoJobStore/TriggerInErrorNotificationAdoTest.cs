@@ -1,7 +1,7 @@
 using Npgsql;
 
 using Quartz.Extensibility;
-using Quartz.Listener;
+using Quartz.Listeners;
 using Quartz.Tests.Integration.TestHelpers;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;
@@ -98,13 +98,13 @@ public sealed class TriggerInErrorNotificationAdoTest
         public ValueTask ReturnJob(JobScope scope, CancellationToken cancellationToken = default) => default;
     }
 
-    private sealed class ErrorStateListener : SchedulerListenerSupport
+    private sealed class ErrorStateListener : ISchedulerListener
     {
         private readonly TaskCompletionSource<JobKey> jobTriggers = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public Task<JobKey> JobTriggers => jobTriggers.Task;
 
-        public override ValueTask TriggersInError(JobKey jobKey, CancellationToken cancellationToken = default)
+        public ValueTask TriggersInError(JobKey jobKey, CancellationToken cancellationToken = default)
         {
             jobTriggers.TrySetResult(jobKey);
             return default;

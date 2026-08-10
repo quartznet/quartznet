@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
-using Quartz.Listener;
+using Quartz.Listeners;
 using Quartz.Extensibility;
 using Quartz.Util;
 
@@ -14,7 +14,7 @@ namespace Quartz.Plugins.Interrupt;
 /// <seealso cref="IScheduler.InterruptFireInstance(string,System.Threading.CancellationToken)"/>
 /// <author>Rama Chavali</author>
 /// <author>Marko Lahma (.NET)</author>
-public class JobInterruptMonitorPlugin : TriggerListenerSupport, ISchedulerPlugin
+public class JobInterruptMonitorPlugin : ITriggerListener, ISchedulerPlugin
 {
     private const string JobInterruptMonitorKey = "JOB_INTERRUPT_MONITOR_KEY";
     private static readonly TimeSpan defaultMaxRunTime = TimeSpan.FromMinutes(5);
@@ -66,9 +66,9 @@ public class JobInterruptMonitorPlugin : TriggerListenerSupport, ISchedulerPlugi
     [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
     public TimeSpan DefaultMaxRunTime { get; set; } = defaultMaxRunTime;
 
-    public override string Name => name;
+    public virtual string Name => name;
 
-    public override ValueTask TriggerFired(
+    public virtual ValueTask TriggerFired(
         ITrigger trigger,
         IJobExecutionContext context,
         CancellationToken cancellationToken = default)
@@ -101,7 +101,7 @@ public class JobInterruptMonitorPlugin : TriggerListenerSupport, ISchedulerPlugi
         return default;
     }
 
-    public override ValueTask TriggerComplete(
+    public virtual ValueTask TriggerComplete(
         ITrigger trigger,
         IJobExecutionContext context,
         SchedulerInstruction triggerInstructionCode,
@@ -134,7 +134,7 @@ public class JobInterruptMonitorPlugin : TriggerListenerSupport, ISchedulerPlugi
         return default;
     }
 
-    private sealed class JobExecutionVetoedListener : JobListenerSupport
+    private sealed class JobExecutionVetoedListener : IJobListener
     {
         private readonly JobInterruptMonitorPlugin plugin;
 
@@ -143,9 +143,9 @@ public class JobInterruptMonitorPlugin : TriggerListenerSupport, ISchedulerPlugi
             this.plugin = plugin;
         }
 
-        public override string Name => plugin.name + "-VetoedJobListener";
+        public string Name => plugin.name + "-VetoedJobListener";
 
-        public override ValueTask JobExecutionVetoed(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        public ValueTask JobExecutionVetoed(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             if (plugin.interruptMonitors.TryRemove(context.FireInstanceId, out var monitor))
             {

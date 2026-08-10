@@ -25,10 +25,10 @@ using Quartz.Diagnostics;
 
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
-namespace Quartz.Listener;
+namespace Quartz.Listeners;
 
 /// <summary>
-/// Holds a List of references to JobListener instances and broadcasts all
+/// Holds a List of references to TriggerListener instances and broadcasts all
 /// events to them (in order).
 /// </summary>
 /// <remarks>
@@ -37,14 +37,14 @@ namespace Quartz.Listener;
 /// Scheduler, and provides the flexibility of easily changing which listeners
 /// get notified.</para>
 /// </remarks>
-/// <seealso cref="AddListener(IJobListener)" />
-/// <seealso cref="RemoveListener(IJobListener)" />
+/// <seealso cref="AddListener(ITriggerListener)" />
+/// <seealso cref="RemoveListener(ITriggerListener)" />
 /// <seealso cref="RemoveListener(string)" />
 /// <author>James House (jhouse AT revolition DOT net)</author>
-public sealed class BroadcastJobListener : IJobListener
+public sealed class BroadcastTriggerListener : ITriggerListener
 {
-    private readonly List<IJobListener> listeners;
-    private readonly ILogger<BroadcastJobListener> logger;
+    private readonly List<ITriggerListener> listeners;
+    private readonly ILogger<BroadcastTriggerListener> logger;
 
     /// <summary>
     /// Construct an instance with the given name.
@@ -53,15 +53,15 @@ public sealed class BroadcastJobListener : IJobListener
     /// (Remember to add some delegate listeners!)
     /// </remarks>
     /// <param name="name">the name of this instance</param>
-    public BroadcastJobListener(string name)
+    public BroadcastTriggerListener(string name)
     {
         if (name is null)
         {
             Throw.ArgumentNullException(nameof(name), "Listener name cannot be null!");
         }
         Name = name;
-        listeners = new List<IJobListener>();
-        logger = LogProvider.CreateLogger<BroadcastJobListener>();
+        listeners = new List<ITriggerListener>();
+        logger = LogProvider.CreateLogger<BroadcastTriggerListener>();
     }
 
     /// <summary>
@@ -70,27 +70,27 @@ public sealed class BroadcastJobListener : IJobListener
     /// <remarks>
     /// </remarks>
     /// <param name="name">the name of this instance</param>
-    /// <param name="listeners">the initial List of JobListeners to broadcast to.</param>
-    public BroadcastJobListener(string name, IReadOnlyCollection<IJobListener> listeners) : this(name)
+    /// <param name="listeners">the initial List of TriggerListeners to broadcast to.</param>
+    public BroadcastTriggerListener(string name, IReadOnlyCollection<ITriggerListener> listeners) : this(name)
     {
         this.listeners.AddRange(listeners);
     }
 
     public string Name { get; }
 
-    public void AddListener(IJobListener listener)
+    public void AddListener(ITriggerListener listener)
     {
         listeners.Add(listener);
     }
 
-    public bool RemoveListener(IJobListener listener)
+    public bool RemoveListener(ITriggerListener listener)
     {
         return listeners.Remove(listener);
     }
 
     public bool RemoveListener(string listenerName)
     {
-        var listener = listeners.Find(x => x.Name == listenerName);
+        ITriggerListener? listener = listeners.Find(x => x.Name == listenerName);
         if (listener is not null)
         {
             listeners.Remove(listener);
@@ -99,30 +99,47 @@ public sealed class BroadcastJobListener : IJobListener
         return false;
     }
 
-    public IReadOnlyList<IJobListener> Listeners => listeners;
+    public IReadOnlyList<ITriggerListener> Listeners => listeners;
 
-    public ValueTask JobToBeExecuted(
+    public ValueTask TriggerFired(
+        ITrigger trigger,
         IJobExecutionContext context,
         CancellationToken cancellationToken = default)
     {
-        return IterateListenersInGuard(l => l.JobToBeExecuted(context, cancellationToken), nameof(JobToBeExecuted));
+        return IterateListenersInGuard(l => l.TriggerFired(trigger, context, cancellationToken), nameof(TriggerFired));
     }
 
-    public ValueTask JobExecutionVetoed(
+    public async ValueTask<bool> VetoJobExecution(
+        ITrigger trigger,
         IJobExecutionContext context,
         CancellationToken cancellationToken = default)
     {
-        return IterateListenersInGuard(l => l.JobExecutionVetoed(context, cancellationToken), nameof(JobExecutionVetoed));
+        foreach (var listener in listeners)
+        {
+            if (await listener.VetoJobExecution(trigger, context, cancellationToken).ConfigureAwait(false))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
-    public ValueTask JobWasExecuted(IJobExecutionContext context,
-        JobExecutionException? jobException,
+    public ValueTask TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken = default)
+    {
+        return IterateListenersInGuard(l => l.TriggerMisfired(trigger, cancellationToken), nameof(TriggerMisfired));
+    }
+
+    public ValueTask TriggerComplete(
+        ITrigger trigger,
+        IJobExecutionContext context,
+        SchedulerInstruction triggerInstructionCode,
         CancellationToken cancellationToken = default)
     {
-        return IterateListenersInGuard(l => l.JobWasExecuted(context, jobException, cancellationToken), nameof(JobWasExecuted));
+        return IterateListenersInGuard(l => l.TriggerComplete(trigger, context, triggerInstructionCode, cancellationToken), nameof(TriggerComplete));
     }
 
-    private async ValueTask IterateListenersInGuard(Func<IJobListener, ValueTask> action, string methodName)
+    private async ValueTask IterateListenersInGuard(Func<ITriggerListener, ValueTask> action, string methodName)
     {
         foreach (var listener in listeners)
         {

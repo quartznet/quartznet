@@ -1,6 +1,6 @@
 using System.Collections.Specialized;
 
-using Quartz.Listener;
+using Quartz.Listeners;
 
 namespace Quartz.Tests.Unit.Core;
 

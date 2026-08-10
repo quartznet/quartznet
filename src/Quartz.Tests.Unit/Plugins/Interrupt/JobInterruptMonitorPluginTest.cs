@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.Collections.Specialized;
 using System.Globalization;
 
-using Quartz.Listener;
+using Quartz.Listeners;
 using Quartz.Plugins.Interrupt;
 using Quartz.Util;
 
@@ -184,7 +184,7 @@ public class JobInterruptMonitorPluginTest
         }
     }
 
-    private sealed class VetoingTriggerListener : TriggerListenerSupport
+    private sealed class VetoingTriggerListener : ITriggerListener
     {
         private readonly string triggerNameToVeto;
 
@@ -195,9 +195,9 @@ public class JobInterruptMonitorPluginTest
 
         public TaskCompletionSource<bool> Vetoed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public override string Name => "veto-listener";
+        public string Name => "veto-listener";
 
-        public override ValueTask<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default)
+        public ValueTask<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             if (trigger.Key.Name == triggerNameToVeto)
             {

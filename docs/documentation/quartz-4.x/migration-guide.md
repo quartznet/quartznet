@@ -1481,6 +1481,45 @@ exception:
 + IJobListener? listener = listenerManager.GetJobListener(name);
 ```
 
+### The three `*Support` base classes are gone
+
+`JobListenerSupport`, `TriggerListenerSupport` and `SchedulerListenerSupport` existed so that a listener could
+implement only the notifications it cared about. Every member of `IJobListener`, `ITriggerListener` and
+`ISchedulerListener` is now a default interface member — the notifications do nothing, and `Name` returns
+`GetType().Name` — so the base classes had nothing left to add, and they cost you your one base class.
+
+Implement the interface instead, and drop `override`:
+
+```diff
+- public sealed class MyListener : JobListenerSupport
++ public sealed class MyListener : IJobListener
+  {
+-     public override string Name => "MyListener";
+-     public override ValueTask JobWasExecuted(IJobExecutionContext context, JobExecutionException? jobException, CancellationToken cancellationToken = default)
++     public ValueTask JobWasExecuted(IJobExecutionContext context, JobExecutionException? jobException, CancellationToken cancellationToken = default)
+      {
+          ...
+      }
+  }
+```
+
+`Name` can go: it defaults to the type's name. Keep it only when several instances of one type are registered
+with the same scheduler, since the later registration would otherwise replace the earlier one.
+
+One consequence is easy to miss: **a default interface member is not a class member**. Code that reads `Name`
+off the concrete type no longer compiles unless the listener declares `Name` itself, so read it through the
+interface:
+
+```diff
+- var listener = new MyListener();
+- scheduler.ListenerManager.RemoveSchedulerListener(listener.Name);
++ ISchedulerListener listener = new MyListener();
++ scheduler.ListenerManager.RemoveSchedulerListener(listener.Name);
+```
+
+`JobInterruptMonitorPlugin` is a public, unsealed `ITriggerListener`; its `Name`, `TriggerFired` and
+`TriggerComplete` are declared `virtual` so that a plugin deriving from it can still override them.
+
 ### Scheduler listeners are identified by name
 
 `ISchedulerListener` has a `Name`, a default interface member returning `GetType().Name`. Registering two
@@ -1492,9 +1531,8 @@ trigger listeners. Override `Name` if you register several instances of one type
 + scheduler.ListenerManager.RemoveSchedulerListener(mySchedulerListener.Name);
 ```
 
-`SchedulerListenerSupport` implements `Name` as a `virtual` property, so a listener deriving from it can read
-and override it. A test double does not run a default interface member, so a faked `ISchedulerListener` needs
-its `Name` configured before `AddSchedulerListener` will accept it:
+A test double does not run a default interface member, so a faked `ISchedulerListener` needs its `Name`
+configured before `AddSchedulerListener` will accept it:
 
 ```csharp
 ISchedulerListener listener = A.Fake<ISchedulerListener>();
@@ -2717,6 +2755,7 @@ above cover configuration strings.
 | `Quartz.Job` | `Quartz.Jobs` | Namespace, assembly and package now agree. A configuration string or a stored `JOB_CLASS_NAME` naming the old spelling still resolves, with a warning |
 | `Quartz.Extensibility.IDirectoryProvider` | `Quartz.Jobs.IDirectoryProvider` | It exists for `DirectoryScanJob` alone, so it lives with it. It is resolved from `SchedulerContext` by key, never by type name |
 | `Quartz.Plugin.History` <br> `Quartz.Plugin.Interrupt` <br> `Quartz.Plugin.Json` <br> `Quartz.Plugin.Management` <br> `Quartz.Plugin.Xml` <br> `Quartz.Plugin.TimeZoneConverter` | `Quartz.Plugins.*` | Same rule as the jobs: the packages are `Quartz.Plugins` and `Quartz.Plugins.TimeZoneConverter`. A `quartz.plugin.<name>.type` naming the old spelling still resolves, with a warning. The **configuration key** prefix is still `quartz.plugin.`, singular — it is not a namespace |
+| `Quartz.Listener` | `Quartz.Listeners` | A `quartz.jobListener.<name>.type` or `quartz.triggerListener.<name>.type` naming the old spelling still resolves, with a warning — but see [The three `*Support` base classes are gone](#the-three-support-base-classes-are-gone): three of the seven types are not there under either name |
 
 ## The scheduler and the job store speak the same verbs
 

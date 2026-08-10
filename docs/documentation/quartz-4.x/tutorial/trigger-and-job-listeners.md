@@ -53,11 +53,11 @@ public interface IJobListener
 ## Using Your Own Listeners
 
 To create a listener, simply create an object the implements either the `ITriggerListener` and/or `IJobListener` interface.
-Listeners are then registered with the scheduler during run time, and must be given a name (or rather, they must advertise their own
-name via their Name property.
+Listeners are then registered with the scheduler during run time under a name, which their `Name` property advertises.
 
-For your convenience, rather than implementing those interfaces, your class could also extend the class `JobListenerSupport` or `TriggerListenerSupport`
-and simply override the events you're interested in.
+Every member of both interfaces has a default implementation — the notifications do nothing, and `Name` returns
+the type's name — so implement only the events you're interested in, and only declare `Name` when you register
+several instances of one type with the same scheduler.
 
 Listeners are registered with the scheduler's `ListenerManager` along with a Matcher that describes which Jobs/Triggers the listener wants to receive events for.
 

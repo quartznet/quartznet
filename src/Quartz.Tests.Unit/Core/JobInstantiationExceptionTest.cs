@@ -1,6 +1,6 @@
 using Quartz.Core;
 using Quartz.Extensibility;
-using Quartz.Listener;
+using Quartz.Listeners;
 
 namespace Quartz.Tests.Unit.Core;
 
@@ -127,13 +127,13 @@ public class JobInstantiationExceptionTest
         public ValueTask ReturnJob(JobScope scope, CancellationToken cancellationToken = default) => default;
     }
 
-    private sealed class ErrorCapturingListener : SchedulerListenerSupport
+    private sealed class ErrorCapturingListener : ISchedulerListener
     {
         private readonly TaskCompletionSource<SchedulerException> reported = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public Task<SchedulerException> Reported => reported.Task;
 
-        public override ValueTask SchedulerError(
+        public ValueTask SchedulerError(
             string message,
             SchedulerException exception,
             CancellationToken cancellationToken = default)

@@ -19,7 +19,7 @@
 
 using System.Collections.Specialized;
 
-using Quartz.Listener;
+using Quartz.Listeners;
 
 namespace Quartz.Tests.Unit;
 
@@ -135,11 +135,11 @@ public class InterruptableJobTest
         await scheduler.Shutdown();
     }
 
-    private sealed class JobInterruptedCaptureListener : SchedulerListenerSupport
+    private sealed class JobInterruptedCaptureListener : ISchedulerListener
     {
         public TaskCompletionSource<JobKey> Interrupted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        public override ValueTask JobInterrupted(JobKey jobKey, CancellationToken cancellationToken = default)
+        public ValueTask JobInterrupted(JobKey jobKey, CancellationToken cancellationToken = default)
         {
             Interrupted.TrySetResult(jobKey);
             return default;

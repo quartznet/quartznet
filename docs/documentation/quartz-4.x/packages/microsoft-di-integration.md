@@ -93,9 +93,9 @@ prevent it — to fail whatever scheduled the work, for instance — `IScheduler
 receives a `JobInstantiationException` naming the trigger, the job and the fire instance:
 
 ```csharp
-public sealed class InstantiationFailureListener : SchedulerListenerSupport
+public sealed class InstantiationFailureListener : ISchedulerListener
 {
-    public override ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default)
+    public ValueTask SchedulerError(string message, SchedulerException exception, CancellationToken cancellationToken = default)
     {
         if (exception is JobInstantiationException failure)
         {

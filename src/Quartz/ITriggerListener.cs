@@ -28,6 +28,10 @@ namespace Quartz;
 /// <see cref="ITrigger" /> fires. In general, applications that use a
 /// <see cref="IScheduler" /> will not have use for this mechanism.
 /// </summary>
+/// <remarks>
+/// Every member has a default implementation, so an implementation only has to write the
+/// notifications it cares about. <see cref="Name" /> defaults to the implementing type's name.
+/// </remarks>
 /// <seealso cref="IListenerManager" />
 /// <seealso cref="IMatcher{T}" />
 /// <seealso cref="ITrigger" />
@@ -38,9 +42,15 @@ namespace Quartz;
 public interface ITriggerListener
 {
     /// <summary>
-    /// Get the name of the <see cref="ITriggerListener" />.
+    /// The name this listener is registered and removed under.
     /// </summary>
-    string Name { get; }
+    /// <remarks>
+    /// Defaults to the implementing type's name, which is the right answer whenever a scheduler
+    /// has at most one listener of a given type. Override it when several instances of one type
+    /// are registered with the same scheduler, because the later registration would otherwise
+    /// replace the earlier one.
+    /// </remarks>
+    string Name => GetType().Name;
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
@@ -56,10 +66,13 @@ public interface ITriggerListener
     ///     The <see cref="IJobExecutionContext" /> that will be passed to the <see cref="IJob" />'s<see cref="IJob.Execute" /> method.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <remarks>
+    /// The default implementation does nothing.
+    /// </remarks>
     ValueTask TriggerFired(
         ITrigger trigger,
         IJobExecutionContext context,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default) => default;
 
     /// <summary>
     /// Called by the <see cref="IScheduler"/> when a <see cref="ITrigger"/>
@@ -76,10 +89,13 @@ public interface ITriggerListener
     /// the <see cref="IJob"/>'s<see cref="IJob.Execute"/> method.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>Returns true if job execution should be vetoed, false otherwise.</returns>
+    /// <remarks>
+    /// The default implementation vetoes nothing.
+    /// </remarks>
     ValueTask<bool> VetoJobExecution(
         ITrigger trigger,
         IJobExecutionContext context,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default) => default;
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
@@ -93,9 +109,12 @@ public interface ITriggerListener
     /// </summary>
     /// <param name="trigger">The <see cref="ITrigger" /> that has misfired.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <remarks>
+    /// The default implementation does nothing.
+    /// </remarks>
     ValueTask TriggerMisfired(
         ITrigger trigger,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default) => default;
 
     /// <summary>
     /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
@@ -112,9 +131,12 @@ public interface ITriggerListener
     /// The result of the call on the <see cref="ITrigger" />'s<see cref="IOperableTrigger.Triggered" />  method.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <remarks>
+    /// The default implementation does nothing.
+    /// </remarks>
     ValueTask TriggerComplete(
         ITrigger trigger,
         IJobExecutionContext context,
         SchedulerInstruction triggerInstructionCode,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default) => default;
 }

@@ -41,7 +41,7 @@ public interface ISchedulerListener
 
     ValueTask SchedulerShutdown(CancellationToken cancellationToken = default);
 
-    // ...and the rest; derive from SchedulerListenerSupport to implement only what you care about
+    // ...and the rest; every member has a do-nothing default implementation, so implement only what you care about
 }
 ```
 
