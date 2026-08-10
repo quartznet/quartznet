@@ -29,7 +29,7 @@ using Npgsql;
 
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
-using Quartz.Job;
+using Quartz.Jobs;
 using Quartz.Util;
 
 using IsolationLevel = System.Transactions.IsolationLevel;

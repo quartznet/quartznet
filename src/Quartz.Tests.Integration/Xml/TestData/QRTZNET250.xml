@@ -13,7 +13,7 @@
     <job>
       <name>PerformanceReturnTimelinessJob</name>
       <group>PerformanceTimeliness</group>
-      <job-type>Quartz.Job.NoOpJob, Quartz</job-type>
+      <job-type>Quartz.Jobs.NoOpJob, Quartz</job-type>
       <durable>true</durable>
       <recover>false</recover>
     </job>
@@ -34,7 +34,7 @@
       <name>ExposureEntryAcceptableVarianceJob</name>
       <group>DataValidation</group>
       <description>Sample job for Quartz Server</description>
-      <job-type>Quartz.Job.NoOpJob, Quartz</job-type>
+      <job-type>Quartz.Jobs.NoOpJob, Quartz</job-type>
       <durable>true</durable>
       <recover>false</recover>
     </job>

@@ -17,19 +17,23 @@
  */
 #endregion
 
-namespace Quartz.Job;
+namespace Quartz.Jobs;
 
 /// <summary>
-/// Interface for objects wishing to receive a 'call-back' from a
-/// <see cref="FileScanJob" />.
+/// An implementation of Job, that does absolutely nothing - useful for system
+/// which only wish to use <see cref="ITriggerListener" />s
+/// and <see cref="IJobListener" />s, rather than writing
+/// Jobs that perform work.
 /// </summary>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-/// <seealso cref="FileScanJob" />
-public interface IFileScanListener
+public class NoOpJob : IJob
 {
     /// <summary>
-    /// Informs that certain file has been updated.
+    /// Do nothing.
     /// </summary>
-    ValueTask FileUpdated(string fileName, CancellationToken cancellationToken = default);
+    public ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    {
+        return default;
+    }
 }

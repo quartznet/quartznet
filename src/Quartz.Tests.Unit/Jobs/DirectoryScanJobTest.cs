@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 using Quartz.Impl;
-using Quartz.Job;
+using Quartz.Jobs;
 
 namespace Quartz.Tests.Unit.Job;
 

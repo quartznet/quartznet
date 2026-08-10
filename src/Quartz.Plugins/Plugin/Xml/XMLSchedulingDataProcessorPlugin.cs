@@ -22,7 +22,7 @@
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
 using Quartz.Impl.Triggers;
-using Quartz.Job;
+using Quartz.Jobs;
 using Quartz.Impl;
 using Quartz.Extensibility;
 using Quartz.Util;

@@ -43,6 +43,7 @@ internal sealed class SimpleTypeLoadHelper : ITypeLoadHelper
     [
         ("Quartz.Spi.", "Quartz.Extensibility."),
         ("Quartz.Simpl.", "Quartz.Impl."),
+        ("Quartz.Job.", "Quartz.Jobs."),
     ];
 
     /// <summary>

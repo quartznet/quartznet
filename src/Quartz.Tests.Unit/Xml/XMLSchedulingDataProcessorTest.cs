@@ -42,7 +42,7 @@ namespace Quartz.Tests.Unit.Xml;
 /// </remarks>
 public class XMLSchedulingDataProcessorTest
 {
-    private const string JobType = "Quartz.Job.NoOpJob, Quartz.Jobs";
+    private const string JobType = "Quartz.Jobs.NoOpJob, Quartz.Jobs";
 
     /// <summary>
     /// Wraps a document body in the root element, so that each test shows only the markup it is about.
@@ -607,7 +607,7 @@ public class XMLSchedulingDataProcessorTest
         IJobDetail job = processor.SingleJob;
         job.Key.Should().Be(new JobKey("job1", "group1"));
         job.Description.Should().Be("jobDescription");
-        job.JobType.Type.Should().Be(typeof(Quartz.Job.NoOpJob));
+        job.JobType.Type.Should().Be(typeof(Quartz.Jobs.NoOpJob));
         job.Durable.Should().BeTrue();
         job.RequestsRecovery.Should().BeTrue();
         job.JobDataMap.GetString("key0").Should().Be("value0");
@@ -628,7 +628,7 @@ public class XMLSchedulingDataProcessorTest
             </schedule>
             """));
 
-        processor.SingleJob.JobType.Type.Should().Be(typeof(Quartz.Job.NoOpJob));
+        processor.SingleJob.JobType.Type.Should().Be(typeof(Quartz.Jobs.NoOpJob));
     }
 
     [Test]

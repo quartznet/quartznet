@@ -1,7 +1,4 @@
-using Quartz.Job;
-using Quartz.Extensibility;
-
-namespace Quartz.Impl;
+namespace Quartz.Jobs;
 
 /// <summary>
 /// Default directory provider that inspects and parses the merged JobDataMap <see cref="JobDataMap"/>

@@ -7,7 +7,7 @@ using Newtonsoft.Json.Linq;
 using Quartz.Impl.Calendar;
 using Quartz.Matchers;
 using Quartz.Impl.Triggers;
-using Quartz.Job;
+using Quartz.Jobs;
 using Quartz.Serialization.Newtonsoft;
 using Quartz.Extensibility;
 using Quartz.Tests.Integration.Impl.AdoJobStore;

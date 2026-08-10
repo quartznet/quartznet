@@ -15,7 +15,7 @@ Test should prepare a scheduler that already contains this job and trigger names
     <job>
       <name>job1</name>
       <group>DEFAULT</group>
-      <job-type>Quartz.Job.NoOpJob, Quartz</job-type>
+      <job-type>Quartz.Jobs.NoOpJob, Quartz</job-type>
     </job>
     <trigger>
       <simple>
@@ -31,7 +31,7 @@ Test should prepare a scheduler that already contains this job and trigger names
     <job>
       <name>job2</name>
       <group>DEFAULT</group>
-      <job-type>Quartz.Job.NoOpJob, Quartz</job-type>
+      <job-type>Quartz.Jobs.NoOpJob, Quartz</job-type>
       <job-data-map>
         <entry>
           <key>color</key>

@@ -5,7 +5,7 @@ using BenchmarkDotNet.Attributes;
 
 using Quartz.Core;
 using Quartz.Impl;
-using Quartz.Job;
+using Quartz.Jobs;
 using Quartz.Extensibility;
 
 namespace Quartz.Benchmark;

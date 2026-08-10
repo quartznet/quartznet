@@ -24,7 +24,7 @@ using System.Collections.Specialized;
 using AwesomeAssertions.Execution;
 
 using Quartz.Impl.Triggers;
-using Quartz.Job;
+using Quartz.Jobs;
 using Quartz.Extensibility;
 using Quartz.Util;
 

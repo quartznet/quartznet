@@ -71,12 +71,12 @@ public class JobTypeTests
     public void ConstructWithTypeLoadHelperResolverWillResolveAPre40Name()
     {
         // What a 2.x or 3.x scheduler wrote into JOB_CLASS_NAME; the type lives in Quartz.Jobs today.
-        const string StoredName = "Quartz.Job.NoOpJob, Quartz";
+        const string StoredName = "Quartz.Jobs.NoOpJob, Quartz";
         ITypeLoadHelper loadHelper = new SimpleTypeLoadHelper();
 
         global::Quartz.JobType jobType = new global::Quartz.JobType(StoredName, loadHelper.LoadType);
 
-        jobType.Type.Should().Be<global::Quartz.Job.NoOpJob>(
+        jobType.Type.Should().Be<global::Quartz.Jobs.NoOpJob>(
             "a job type name stored before the assembly moved has to keep resolving through the load helper's fallback");
         jobType.FullName.Should().Be(StoredName,
             "the stored name is reported back unchanged, so nothing rewrites the persisted spelling");

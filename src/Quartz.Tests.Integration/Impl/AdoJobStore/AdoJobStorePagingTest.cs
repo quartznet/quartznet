@@ -26,7 +26,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Matchers;
-using Quartz.Job;
+using Quartz.Jobs;
 using Quartz.Util;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore;

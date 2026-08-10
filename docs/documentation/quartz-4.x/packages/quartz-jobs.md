@@ -6,8 +6,9 @@ title : Jobs
 [Quartz.Jobs](https://www.nuget.org/packages/Quartz.Jobs) provides some useful ready-made jobs for your convenience.
 
 Quartz provides a number of utility jobs that you can use in your application for doing things like sending
-e-mails and invoking native processes. These out-of-the-box jobs live in the `Quartz.Job` namespace — note that
-the assembly and NuGet package are named `Quartz.Jobs`, plural, while the namespace is not.
+e-mails and invoking native processes. These out-of-the-box jobs live in the `Quartz.Jobs` namespace, which is
+also the assembly and NuGet package name. In 3.x the namespace was the singular `Quartz.Job`; a configuration
+string or a stored `JOB_CLASS_NAME` naming the old spelling still resolves, with a warning.
 
 ## Installation
 

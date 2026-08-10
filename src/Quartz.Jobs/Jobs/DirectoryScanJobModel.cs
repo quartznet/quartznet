@@ -4,10 +4,8 @@ using System.Reflection;
 using Microsoft.Extensions.Logging;
 
 using Quartz.Diagnostics;
-using Quartz.Impl;
-using Quartz.Extensibility;
 
-namespace Quartz.Job;
+namespace Quartz.Jobs;
 
 /// <summary>
 /// Internal model to hold settings used by <see cref="DirectoryScanJob"/>

@@ -20,7 +20,7 @@
 #endregion
 
 using Quartz.Impl;
-using Quartz.Job;
+using Quartz.Jobs;
 using Quartz.Plugin.History;
 using Quartz.Extensibility;
 

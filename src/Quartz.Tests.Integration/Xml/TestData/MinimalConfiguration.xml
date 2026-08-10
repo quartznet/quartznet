@@ -8,7 +8,7 @@
 		<job-detail>
 			<name>jobName1</name>
 			<group>jobGroup1</group>
-			<job-type>Quartz.Job.NoOpJob, Quartz</job-type>
+			<job-type>Quartz.Jobs.NoOpJob, Quartz</job-type>
 		</job-detail>
   	
 		<trigger>
@@ -48,7 +48,7 @@
 		<job-detail>
 			<name>jobName2</name>
 			<group>jobGroup2</group>
-			<job-type>Quartz.Job.NoOpJob, Quartz</job-type>
+			<job-type>Quartz.Jobs.NoOpJob, Quartz</job-type>
 			<durable>true</durable>
 		</job-detail>
 	</job>	

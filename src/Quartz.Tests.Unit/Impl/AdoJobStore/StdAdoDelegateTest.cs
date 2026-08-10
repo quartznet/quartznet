@@ -345,7 +345,7 @@ public class StdAdoDelegateTest
     [Test]
     public async Task SelectJobDetailResolvesAPre40JobClassNameThroughTheTypeLoadHelper()
     {
-        const string StoredJobClassName = "Quartz.Job.NoOpJob, Quartz";
+        const string StoredJobClassName = "Quartz.Jobs.NoOpJob, Quartz";
 
         var connection = A.Fake<DbConnection>();
         var transaction = A.Fake<DbTransaction>();
@@ -404,7 +404,7 @@ public class StdAdoDelegateTest
         jobDetail.Should().NotBeNull();
         jobDetail.JobType.FullName.Should().Be(StoredJobClassName,
             "reading a job must not rewrite the JOB_CLASS_NAME that is persisted for it");
-        jobDetail.JobType.Type.Should().Be<global::Quartz.Job.NoOpJob>(
+        jobDetail.JobType.Type.Should().Be<global::Quartz.Jobs.NoOpJob>(
             "a job class name stored before the jobs moved to their own assembly has to resolve through the load helper");
     }
 

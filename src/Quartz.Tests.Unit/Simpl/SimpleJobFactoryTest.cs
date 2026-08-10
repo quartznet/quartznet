@@ -1,4 +1,4 @@
-using Quartz.Job;
+using Quartz.Jobs;
 using Quartz.Impl;
 using Quartz.Extensibility;
 
