@@ -30,6 +30,12 @@ namespace Quartz;
 public abstract record PagedQuery
 {
     /// <summary>
+    /// The page size a query has when <see cref="Take" /> is not set: 250. One value, defined
+    /// in one place — the HTTP API applies it too when a request names no <c>take</c>.
+    /// </summary>
+    public const int DefaultTake = 250;
+
+    /// <summary>
     /// The number of matching items to skip before the first returned item.
     /// </summary>
     public int Skip
@@ -43,9 +49,11 @@ public abstract record PagedQuery
     }
 
     /// <summary>
-    /// The maximum number of items to return. Defaults to <see cref="int.MaxValue" />,
-    /// which returns everything. Zero is valid and returns no items — combined with
-    /// <see cref="IncludeTotalCount" /> it turns the query into a count.
+    /// The maximum number of items to return. Defaults to <see cref="DefaultTake" /> so an
+    /// unpaged call cannot accidentally materialize an unbounded result;
+    /// <see cref="PagedResult{T}.HasMore" /> reports whether anything was left out. Ask for
+    /// everything explicitly with <see cref="int.MaxValue" />. Zero is valid and returns no
+    /// items — combined with <see cref="IncludeTotalCount" /> it turns the query into a count.
     /// </summary>
     public int Take
     {
@@ -55,7 +63,7 @@ public abstract record PagedQuery
             ArgumentOutOfRangeException.ThrowIfNegative(value);
             field = value;
         }
-    } = int.MaxValue;
+    } = DefaultTake;
 
     /// <summary>
     /// Whether to also compute <see cref="PagedResult{T}.TotalCount" />, the number of items

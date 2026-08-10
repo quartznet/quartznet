@@ -1963,10 +1963,24 @@ results come back in the order the keys were asked for.
 
 ### Paging and projection
 
-Every query derives from `PagedQuery`, which carries `Skip`, `Take` (default `int.MaxValue` — a query that
-sets neither returns everything) and `IncludeTotalCount`. The result is a `PagedResult<T>` with `Items`,
-`HasMore` and a nullable `TotalCount`. `HasMore` is exact and costs nothing: stores read one item past
-`Take` rather than running a second query.
+Every query derives from `PagedQuery`, which carries `Skip`, `Take` and `IncludeTotalCount`. The result
+is a `PagedResult<T>` with `Items`, `HasMore` and a nullable `TotalCount`. `HasMore` is exact and costs
+nothing: stores read one item past `Take` rather than running a second query.
+
+`Take` defaults to **250** (`PagedQuery.DefaultTake`) — a query that sets nothing returns the first
+bounded page, and `HasMore` says whether anything was left out. Earlier 4.0 previews defaulted to
+`int.MaxValue`. The bound is the one value in one place: the HTTP endpoints apply the same default when a
+request names no `take`, the `HttpScheduler` always puts `take` on the wire (earlier previews omitted the
+parameter for `int.MaxValue`, which after this change would have silently handed the decision to the
+server), and the compat extension methods below pin `Take = int.MaxValue` so their 3.x semantics — return
+everything — cannot silently narrow. Asking for everything is an explicit opt-in:
+
+```csharp
+PagedResult<JobHeader> everything = await scheduler.QueryJobs(new JobQuery { Take = int.MaxValue });
+```
+
+The count idiom — `Take = 0, IncludeTotalCount = true` — is recognized by the stores, which then run only
+the count and skip the page select entirely.
 
 Because the query types are records, walk a result by `with`-ing the next `Skip`:
 

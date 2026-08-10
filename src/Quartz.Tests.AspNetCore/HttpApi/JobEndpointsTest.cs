@@ -42,7 +42,9 @@ public class JobEndpointsTest : WebApiTest
         {
             Fake.ClearRecordedCalls(FakeScheduler);
             await HttpScheduler.GetJobKeys(matcher);
-            A.CallTo(() => FakeScheduler.QueryJobs(new JobQuery { Group = matcher }, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+
+            // the compat listing is deliberately unbounded
+            A.CallTo(() => FakeScheduler.QueryJobs(new JobQuery { Group = matcher, Take = int.MaxValue }, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
         }
     }
 
@@ -70,6 +72,42 @@ public class JobEndpointsTest : WebApiTest
         }
 
         A.CallTo(() => FakeScheduler.QueryJobs(query, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
+    public async Task QueryJobsWithoutTakeParameterAppliesTheServerDefault()
+    {
+        A.CallTo(() => FakeScheduler.QueryJobs(A<JobQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<JobHeader>([], HasMore: false));
+
+        // a raw request naming no take: the server must apply the query record's own default,
+        // not "everything"
+        using var httpClient = WebApplicationFactory.CreateClient();
+        var response = await httpClient.GetAsync($"schedulers/{HttpScheduler.SchedulerName}/jobs");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        A.CallTo(() => FakeScheduler.QueryJobs(A<JobQuery>.That.Matches(query => query.Take == PagedQuery.DefaultTake), A<CancellationToken>._))
+            .MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
+    public async Task QueryJobsAlwaysSendsTakeOnTheWire()
+    {
+        A.CallTo(() => FakeScheduler.QueryJobs(A<JobQuery>._, A<CancellationToken>._))
+            .Returns(new PagedResult<JobHeader>([], HasMore: false));
+
+        // the default: the client sends take=250 explicitly rather than leaving the decision
+        // to whatever the server's default happens to be
+        await HttpScheduler.QueryJobs(new JobQuery());
+        A.CallTo(() => FakeScheduler.QueryJobs(A<JobQuery>.That.Matches(query => query.Take == PagedQuery.DefaultTake), A<CancellationToken>._))
+            .MustHaveHappened(1, Times.Exactly);
+
+        // the explicit unbounded opt-in must survive the wire instead of being silently replaced
+        // by the server default (the old behavior omitted the parameter for int.MaxValue)
+        Fake.ClearRecordedCalls(FakeScheduler);
+        await HttpScheduler.QueryJobs(new JobQuery { Take = int.MaxValue });
+        A.CallTo(() => FakeScheduler.QueryJobs(A<JobQuery>.That.Matches(query => query.Take == int.MaxValue), A<CancellationToken>._))
+            .MustHaveHappened(1, Times.Exactly);
     }
 
     [Test]
@@ -450,7 +488,7 @@ public class JobEndpointsTest : WebApiTest
         jobGroupNames.Should().ContainSingle(x => x == "group1");
         jobGroupNames.Should().ContainSingle(x => x == "group2");
 
-        A.CallTo(() => FakeScheduler.QueryJobGroups(new JobGroupQuery(), A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+        A.CallTo(() => FakeScheduler.QueryJobGroups(new JobGroupQuery { Take = int.MaxValue }, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
     }
 
     [Test]

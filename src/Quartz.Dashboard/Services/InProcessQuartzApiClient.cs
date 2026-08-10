@@ -144,15 +144,24 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     public async ValueTask<List<JobGroupDto>> GetJobGroups(string schedulerName, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        PagedResult<JobGroup> groups = await scheduler.QueryJobGroups(new JobGroupQuery(), cancellationToken).ConfigureAwait(false);
 
-        List<JobGroupDto> result = new(groups.Items.Count);
-        foreach (JobGroup group in groups.Items)
+        List<JobGroupDto> result = [];
+        JobGroupQuery query = new();
+        while (true)
         {
-            result.Add(new JobGroupDto(group.Name, group.Paused));
-        }
+            PagedResult<JobGroup> groups = await scheduler.QueryJobGroups(query, cancellationToken).ConfigureAwait(false);
+            foreach (JobGroup group in groups.Items)
+            {
+                result.Add(new JobGroupDto(group.Name, group.Paused));
+            }
 
-        return result;
+            if (!groups.HasMore)
+            {
+                return result;
+            }
+
+            query = query with { Skip = query.Skip + groups.Items.Count };
+        }
     }
 
     public async ValueTask<JobDetailDto> GetJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
@@ -187,14 +196,23 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
         JobKey jobKey = new(name, group);
         List<ITrigger> triggers = await scheduler.GetTriggersOfJob(jobKey, cancellationToken).ConfigureAwait(false);
-        PagedResult<TriggerHeader> headers = await scheduler
-            .QueryTriggers(new TriggerQuery { Job = jobKey }, cancellationToken)
-            .ConfigureAwait(false);
 
-        Dictionary<TriggerKey, TriggerState> states = new(headers.Items.Count);
-        foreach (TriggerHeader header in headers.Items)
+        Dictionary<TriggerKey, TriggerState> states = new(triggers.Count);
+        TriggerQuery stateQuery = new() { Job = jobKey };
+        while (true)
         {
-            states[header.Key] = header.State;
+            PagedResult<TriggerHeader> headers = await scheduler.QueryTriggers(stateQuery, cancellationToken).ConfigureAwait(false);
+            foreach (TriggerHeader header in headers.Items)
+            {
+                states[header.Key] = header.State;
+            }
+
+            if (!headers.HasMore)
+            {
+                break;
+            }
+
+            stateQuery = stateQuery with { Skip = stateQuery.Skip + headers.Items.Count };
         }
 
         List<TriggerHeaderDto> result = new(triggers.Count);
@@ -408,8 +426,20 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
     public async ValueTask<List<string>> GetCalendarNames(string schedulerName, CancellationToken cancellationToken = default)
     {
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
-        PagedResult<string> names = await scheduler.QueryCalendarNames(new CalendarQuery(), cancellationToken).ConfigureAwait(false);
-        return [.. names.Items];
+
+        List<string> result = [];
+        CalendarQuery query = new();
+        while (true)
+        {
+            PagedResult<string> names = await scheduler.QueryCalendarNames(query, cancellationToken).ConfigureAwait(false);
+            result.AddRange(names.Items);
+            if (!names.HasMore)
+            {
+                return result;
+            }
+
+            query = query with { Skip = query.Skip + names.Items.Count };
+        }
     }
 
     public async ValueTask<CalendarDetailDto> GetCalendar(string schedulerName, string calendarName, CancellationToken cancellationToken = default)

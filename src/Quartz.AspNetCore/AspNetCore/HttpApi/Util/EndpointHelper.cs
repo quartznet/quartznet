@@ -83,7 +83,7 @@ internal sealed class EndpointHelper
     /// </summary>
     public const int MaxKeysToFetch = 1000;
 
-    public static void AssertPaging(int skip, int take)
+    public static void AssertPaging(int skip, int? take)
     {
         if (skip < 0)
         {

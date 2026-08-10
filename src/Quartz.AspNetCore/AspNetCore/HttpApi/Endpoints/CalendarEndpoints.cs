@@ -34,7 +34,7 @@ internal static class CalendarEndpoints
         ISchedulerRepository schedulerRepository,
         string schedulerName,
         int skip = 0,
-        int take = int.MaxValue,
+        int? take = null,
         bool includeTotalCount = false,
         CancellationToken cancellationToken = default)
     {
@@ -44,9 +44,14 @@ internal static class CalendarEndpoints
             CalendarQuery query = new()
             {
                 Skip = skip,
-                Take = take,
                 IncludeTotalCount = includeTotalCount
             };
+
+            // a request that names no take gets the query record's own default page size
+            if (take.HasValue)
+            {
+                query = query with { Take = take.Value };
+            }
 
             PagedResult<string> page = await scheduler.QueryCalendarNames(query, cancellationToken).ConfigureAwait(false);
             return new PagedResultDto<string>(page.Items.ToArray(), page.HasMore, page.TotalCount);

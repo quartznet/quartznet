@@ -121,6 +121,21 @@ public partial class StdAdoDelegate
     }
 
     /// <summary>
+    /// Whether the query is the count idiom — Take of zero with the total count asked for — in
+    /// which case the page select is skipped entirely and only the count statement runs.
+    /// </summary>
+    private static bool IsCountOnly(PagedQuery query) => query.Take == 0 && query.IncludeTotalCount;
+
+    /// <summary>
+    /// Builds the count idiom's result: no items, and HasMore derived from the count the way the
+    /// page select would have reported it.
+    /// </summary>
+    private static PagedResult<T> CountOnlyResult<T>(PagedQuery query, int totalCount)
+    {
+        return new PagedResult<T>([], HasMore: totalCount > query.Skip, totalCount);
+    }
+
+    /// <summary>
     /// Folds duplicate keys away, keeping the order they were asked for. A key-set predicate is a
     /// disjunction and cannot tell a repeated key from a single one, so a duplicate would otherwise
     /// silently disappear anyway — this makes that explicit and keeps the requested order recoverable.
@@ -194,6 +209,15 @@ public partial class StdAdoDelegate
         (string groupPredicate, string? groupParameter) = BuildMatcherPredicate(query.Group, StdAdoConstants.SqlJobGroupEqualsPredicate, StdAdoConstants.SqlJobGroupLikePredicate);
         (string namePredicate, string? nameParameter) = BuildMatcherPredicate(query.Name, StdAdoConstants.SqlJobNameEqualsPredicate, StdAdoConstants.SqlJobNameLikePredicate);
         string predicate = groupPredicate + namePredicate;
+
+        if (IsCountOnly(query))
+        {
+            using DbCommand countCmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlCountJobHeaders + predicate));
+            AddCommandParameter(countCmd, "schedulerName", schedulerName);
+            BindJobHeaderFilters(countCmd, groupParameter, nameParameter);
+
+            return CountOnlyResult<JobHeader>(query, await SelectCount(countCmd, cancellationToken).ConfigureAwait(false));
+        }
 
         List<JobHeader> items;
         bool hasMore;
@@ -315,6 +339,18 @@ public partial class StdAdoDelegate
 
         string predicate = predicateBuilder.ToString();
 
+        if (IsCountOnly(query))
+        {
+            using DbCommand countCmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlCountTriggerHeaders + predicate));
+            AddCommandParameter(countCmd, "schedulerName", schedulerName);
+            foreach (KeyValuePair<string, object?> parameter in parameters)
+            {
+                AddCommandParameter(countCmd, parameter.Key, parameter.Value);
+            }
+
+            return CountOnlyResult<TriggerHeader>(query, await SelectCount(countCmd, cancellationToken).ConfigureAwait(false));
+        }
+
         List<TriggerHeader> items;
         bool hasMore;
 
@@ -387,6 +423,15 @@ public partial class StdAdoDelegate
 
         string predicate = query.Name is null ? "" : StdAdoConstants.SqlJobGroupNamePredicate;
 
+        if (IsCountOnly(query))
+        {
+            using DbCommand countCmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlCountJobGroups + predicate));
+            AddCommandParameter(countCmd, "schedulerName", schedulerName);
+            BindGroupName(countCmd, query.Name);
+
+            return CountOnlyResult<JobGroup>(query, await SelectCount(countCmd, cancellationToken).ConfigureAwait(false));
+        }
+
         List<JobGroup> items;
         bool hasMore;
 
@@ -447,6 +492,15 @@ public partial class StdAdoDelegate
 
         bool? paused = query.Paused;
 
+        if (IsCountOnly(query))
+        {
+            using DbCommand countCmd = PrepareCommand(conn, ReplaceTablePrefix(countSql + predicate));
+            AddCommandParameter(countCmd, "schedulerName", schedulerName);
+            BindGroupName(countCmd, query.Name);
+
+            return CountOnlyResult<TriggerGroup>(query, await SelectCount(countCmd, cancellationToken).ConfigureAwait(false));
+        }
+
         List<TriggerGroup> items;
         bool hasMore;
 
@@ -492,6 +546,14 @@ public partial class StdAdoDelegate
         CalendarQuery query,
         CancellationToken cancellationToken = default)
     {
+        if (IsCountOnly(query))
+        {
+            using DbCommand countCmd = PrepareCommand(conn, ReplaceTablePrefix(StdAdoConstants.SqlCountCalendarNames));
+            AddCommandParameter(countCmd, "schedulerName", schedulerName);
+
+            return CountOnlyResult<string>(query, await SelectCount(countCmd, cancellationToken).ConfigureAwait(false));
+        }
+
         List<string> items;
         bool hasMore;
 

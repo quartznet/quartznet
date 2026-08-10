@@ -40,7 +40,7 @@ public class TriggerEndpointsTest : WebApiTest
         {
             Fake.ClearRecordedCalls(FakeScheduler);
             await HttpScheduler.GetTriggerKeys(matcher);
-            A.CallTo(() => FakeScheduler.QueryTriggers(new TriggerQuery { Group = matcher }, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+            A.CallTo(() => FakeScheduler.QueryTriggers(new TriggerQuery { Group = matcher, Take = int.MaxValue }, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
         }
     }
 
@@ -291,7 +291,7 @@ public class TriggerEndpointsTest : WebApiTest
         triggerGroupNames.Should().ContainSingle(x => x == "group1");
         triggerGroupNames.Should().ContainSingle(x => x == "group2");
 
-        A.CallTo(() => FakeScheduler.QueryTriggerGroups(new TriggerGroupQuery(), A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+        A.CallTo(() => FakeScheduler.QueryTriggerGroups(new TriggerGroupQuery { Take = int.MaxValue }, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
     }
 
     [Test]
@@ -305,7 +305,7 @@ public class TriggerEndpointsTest : WebApiTest
         triggerGroupNames.Count.Should().Be(1);
         triggerGroupNames.Should().ContainSingle(x => x == "group1");
 
-        A.CallTo(() => FakeScheduler.QueryTriggerGroups(new TriggerGroupQuery { Paused = true }, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+        A.CallTo(() => FakeScheduler.QueryTriggerGroups(new TriggerGroupQuery { Paused = true, Take = int.MaxValue }, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
     }
 
     [Test]
