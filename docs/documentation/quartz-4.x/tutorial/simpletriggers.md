@@ -33,13 +33,17 @@ SimpleTrigger instances are built using `TriggerBuilder` (for the trigger's main
 __Build a trigger for a specific moment in time, with no repeats:__
 
 ```csharp
-// trigger builder creates simple trigger by default, actually an ITrigger is returned
-ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
+// trigger builder creates simple trigger by default
+ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger1", "group1")
     .StartAt(myStartTime) // some Date 
     .ForJob("job1", "group1") // identify job with name, group strings
     .Build();
 ```
+
+The trigger family interfaces (`ISimpleTrigger` and friends) are read models: cast to one to *inspect*
+a trigger's schedule, never to change it. To change a schedule, rebuild the trigger with
+`trigger.GetTriggerBuilder()` and hand it to `IScheduler.RescheduleJob`.
 
 __Build a trigger for a specific moment in time, then repeating every ten seconds ten times:__
 

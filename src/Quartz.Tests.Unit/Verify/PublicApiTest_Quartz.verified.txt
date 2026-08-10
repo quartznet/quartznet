@@ -269,21 +269,21 @@ namespace Quartz
     public interface ICalendarIntervalTrigger : Quartz.ITrigger
     {
         bool PreserveHourOfDayAcrossDaylightSavings { get; }
-        int RepeatInterval { get; set; }
-        Quartz.IntervalUnit RepeatIntervalUnit { get; set; }
+        int RepeatInterval { get; }
+        Quartz.IntervalUnit RepeatIntervalUnit { get; }
         bool SkipDayIfHourDoesNotExist { get; }
         System.TimeZoneInfo TimeZone { get; }
         int TimesTriggered { get; }
     }
     public interface ICronTrigger : Quartz.ITrigger
     {
-        string? CronExpressionString { get; set; }
-        System.TimeZoneInfo TimeZone { get; set; }
+        string? CronExpressionString { get; }
+        System.TimeZoneInfo TimeZone { get; }
         string? GetExpressionSummary();
     }
     public interface IDailyTimeIntervalTrigger : Quartz.ITrigger
     {
-        System.Collections.Generic.IReadOnlyCollection<System.DayOfWeek> DaysOfWeek { get; set; }
+        System.Collections.Generic.IReadOnlyCollection<System.DayOfWeek> DaysOfWeek { get; }
         System.TimeOnly EndTimeOfDay { get; }
         int RepeatCount { get; }
         int RepeatInterval { get; }
@@ -449,8 +449,8 @@ namespace Quartz
     }
     public interface IRecurrenceTrigger : Quartz.ITrigger
     {
-        string RecurrenceRule { get; set; }
-        System.TimeZoneInfo TimeZone { get; set; }
+        string RecurrenceRule { get; }
+        System.TimeZoneInfo TimeZone { get; }
         int TimesTriggered { get; }
     }
     public interface IScheduleBuilder
@@ -551,8 +551,8 @@ namespace Quartz
     }
     public interface ISimpleTrigger : Quartz.ITrigger
     {
-        int RepeatCount { get; set; }
-        System.TimeSpan RepeatInterval { get; set; }
+        int RepeatCount { get; }
+        System.TimeSpan RepeatInterval { get; }
         int TimesTriggered { get; }
     }
     public interface ITrigger

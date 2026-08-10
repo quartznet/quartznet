@@ -132,6 +132,12 @@ namespace Quartz;
 /// </para>
 ///
 /// <para>
+/// This is a read model: to change a trigger's schedule, rebuild it with
+/// <see cref="ITrigger.GetTriggerBuilder" /> and hand it to
+/// <see cref="IScheduler.RescheduleJob" />.
+/// </para>
+///
+/// <para>
 /// <b>NOTES:</b>
 /// <ul>
 /// <li>Support for specifying both a day-of-week and a day-of-month value is
@@ -152,24 +158,17 @@ namespace Quartz;
 public interface ICronTrigger : ITrigger
 {
     /// <summary>
-    /// Gets or sets the cron expression string.
+    /// The cron expression string.
     /// </summary>
     /// <value>The cron expression string.</value>
-    string? CronExpressionString { set; get; }
+    string? CronExpressionString { get; }
 
     /// <summary>
-    /// Sets the time zone for which the <see cref="CronExpressionString" /> of this
-    /// <see cref="ICronTrigger" /> will be resolved.
+    /// The time zone within which the <see cref="CronExpressionString" /> of this
+    /// <see cref="ICronTrigger" /> is resolved.
     /// </summary>
-    /// <remarks>
-    /// If <see cref="CronExpressionString" /> is set after this
-    /// property, the TimeZone setting on the CronExpression will "win".  However
-    /// if <see cref="CronExpressionString" /> is set after this property, the
-    /// time zone applied by this method will remain in effect, since the
-    /// string cron expression does not carry a time zone!
-    /// </remarks>
     /// <value>The time zone.</value>
-    TimeZoneInfo TimeZone { get; set; }
+    TimeZoneInfo TimeZone { get; }
 
     /// <summary>
     /// Gets the expression summary.

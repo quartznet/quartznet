@@ -3064,6 +3064,52 @@ This applies to `SimpleTriggerSerializer`, `CalendarIntervalTriggerSerializer`,
 `Quartz.Serialization.SystemTextJson.Triggers` and `Quartz.Serialization.Newtonsoft.Triggers`. `CronTriggerSerializer`
 is unchanged — it has no fire-count state to restore.
 
+## The trigger family interfaces are read models
+
+The same reasoning removes the rest of the schedule setters from the five family interfaces. Setting one on a
+trigger you got back from the scheduler compiled, ran, and changed nothing: `RAMJobStore.GetTrigger` hands out
+`Trigger.Clone()` and the ADO.NET store materializes a fresh instance per read, so every trigger the scheduler
+gives you is a detached copy.
+
+| 3.x | 4.x |
+|---|---|
+| `int ISimpleTrigger.RepeatCount { get; set; }` | `{ get; }` |
+| `TimeSpan ISimpleTrigger.RepeatInterval { get; set; }` | `{ get; }` |
+| `string? ICronTrigger.CronExpressionString { get; set; }` | `{ get; }` |
+| `TimeZoneInfo ICronTrigger.TimeZone { get; set; }` | `{ get; }` |
+| `IntervalUnit ICalendarIntervalTrigger.RepeatIntervalUnit { get; set; }` | `{ get; }` |
+| `int ICalendarIntervalTrigger.RepeatInterval { get; set; }` | `{ get; }` |
+| `IReadOnlyCollection<DayOfWeek> IDailyTimeIntervalTrigger.DaysOfWeek { get; set; }` | `{ get; }` |
+| `string IRecurrenceTrigger.RecurrenceRule { get; set; }` | `{ get; }` |
+| `TimeZoneInfo IRecurrenceTrigger.TimeZone { get; set; }` | `{ get; }` |
+
+There are two sanctioned ways to change a stored trigger, and both were already public:
+
+```diff
+  ICronTrigger t = (ICronTrigger) await scheduler.GetTrigger(key);
+
+- t.CronExpressionString = "0 0 12 * * ?";                 // compiled, did nothing
++ ITrigger updated = t.GetTriggerBuilder()
++     .WithCronSchedule("0 0 12 * * ?")
++     .Build();
++ await scheduler.RescheduleJob(key, updated);             // reshape the schedule
+
++ await scheduler.UpdateTriggerDetails(key,                // edit metadata in place
++     new TriggerDetailsUpdate().WithDescription("noon"));
+```
+
+Code that owns a concrete `CronTriggerImpl` / `SimpleTriggerImpl` / … is unaffected: `AbstractTrigger` and the
+concrete triggers keep their public setters, and `IMutableTrigger` — the contract job stores and custom
+trigger authors write through — is unchanged.
+
+`ICalendar` deliberately keeps its two setters (`Description`, `CalendarBase`). It is an implementable SPI:
+the built-in calendar serializers assign through the interface while rebuilding a calendar, so they are part
+of its contract in a way the trigger setters never were.
+
+If you author an `ITriggerPersistenceDelegate` of your own, note that `ObjectUtils.SetPropertyValue` falls
+back to writable *interface* properties when the concrete type has none, and that fallback is now narrower.
+No built-in delegate depends on it — all five write only `timesTriggered`, which the concrete triggers expose.
+
 ## Nine `UsingJobData` overloads became one
 
 `JobDataMap`'s indexer takes an `object?`, and every one of the nine primitive `UsingJobData` overloads had

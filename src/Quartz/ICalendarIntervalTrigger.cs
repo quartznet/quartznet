@@ -4,19 +4,24 @@ namespace Quartz;
 ///  A <see cref="ITrigger" /> that is used to fire a <see cref="IJobDetail" />
 ///  based upon repeating calendar time intervals.
 ///  </summary>
+/// <remarks>
+/// This is a read model: to change a trigger's schedule, rebuild it with
+/// <see cref="ITrigger.GetTriggerBuilder" /> and hand it to
+/// <see cref="IScheduler.RescheduleJob" />.
+/// </remarks>
 public interface ICalendarIntervalTrigger : ITrigger
 {
     /// <summary>
-    /// Get or set the interval unit - the time unit on with the interval applies.
+    /// The interval unit - the time unit on with the interval applies.
     /// </summary>
-    IntervalUnit RepeatIntervalUnit { get; set; }
+    IntervalUnit RepeatIntervalUnit { get; }
 
     /// <summary>
     /// Get the time interval that will be added to the <see cref="ICalendarIntervalTrigger" />'s
     /// fire time (in the set repeat interval unit) in order to calculate the time of the
     /// next trigger repeat.
     /// </summary>
-    int RepeatInterval { get; set; }
+    int RepeatInterval { get; }
 
     /// <summary>
     /// Get the number of times the <see cref="ICalendarIntervalTrigger" /> has already fired.
