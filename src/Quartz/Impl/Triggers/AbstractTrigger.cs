@@ -396,13 +396,14 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     }
 
     /// <summary>
-    /// Tells whether this Trigger instance can handle events
-    /// in millisecond precision.
+    /// Whether this trigger's fire times are meaningful to the millisecond. A trigger that says no
+    /// has its start time rounded down to the second.
     /// </summary>
-    public abstract bool HasMillisecondPrecision
-    {
-        get;
-    }
+    /// <remarks>
+    /// This is how a trigger describes its own schedule to <see cref="AbstractTrigger" />, not
+    /// something a caller reads: nothing outside the trigger acted on it.
+    /// </remarks>
+    protected abstract bool HasMillisecondPrecision { get; }
 
     protected AbstractTrigger()
     {

@@ -288,6 +288,42 @@ public class UpdateTriggerDetailsTest
     }
 
     [Test]
+    public async Task ExecutionGroup_UpdatedOnItsOwn()
+    {
+        DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
+        IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
+        trigger.ComputeFirstFireTimeUtc(null);
+        await jobStore.AddTrigger(trigger, false);
+
+        DateTimeOffset nextFireBefore = trigger.NextFireTimeUtc!.Value;
+
+        bool result = await jobStore.UpdateTriggerDetails(trigger.Key, new TriggerDetailsUpdate().WithExecutionGroup("heavy"));
+
+        result.Should().BeTrue();
+        IOperableTrigger retrieved = (await jobStore.GetTrigger(trigger.Key))!;
+        retrieved.ExecutionGroup.Should().Be("heavy",
+            "an update carrying only an execution group must still apply it");
+        retrieved.NextFireTimeUtc.Should().Be(nextFireBefore);
+    }
+
+    [Test]
+    public async Task ExecutionGroup_NullClearsTheGroup()
+    {
+        DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
+        IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
+        trigger.ExecutionGroup = "heavy";
+        trigger.ComputeFirstFireTimeUtc(null);
+        await jobStore.AddTrigger(trigger, false);
+
+        (await jobStore.GetTrigger(trigger.Key))!.ExecutionGroup.Should().Be("heavy");
+
+        (await jobStore.UpdateTriggerDetails(trigger.Key, new TriggerDetailsUpdate().WithExecutionGroup(null)))
+            .Should().BeTrue();
+
+        (await jobStore.GetTrigger(trigger.Key))!.ExecutionGroup.Should().BeNull();
+    }
+
+    [Test]
     public async Task PreferredNode_UpdatedOnItsOwn()
     {
         DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();

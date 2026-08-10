@@ -1049,7 +1049,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
     /// Tells whether this Trigger instance can handle events
     /// in millisecond precision.
     /// </summary>
-    public override bool HasMillisecondPrecision => true;
+    protected override bool HasMillisecondPrecision => true;
 
     /// <inheritdoc />
     public DailyTimeIntervalTriggerMisfireInstruction MisfireInstruction => (DailyTimeIntervalTriggerMisfireInstruction) MisfireInstructionCode;

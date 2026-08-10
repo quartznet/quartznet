@@ -567,7 +567,6 @@ namespace Quartz
         System.DateTimeOffset? EndTimeUtc { get; }
         string? ExecutionGroup { get; }
         System.DateTimeOffset? FinalFireTimeUtc { get; }
-        bool HasMillisecondPrecision { get; }
         Quartz.JobDataMap JobDataMap { get; }
         Quartz.JobKey JobKey { get; }
         Quartz.TriggerKey Key { get; }
@@ -1254,6 +1253,7 @@ namespace Quartz
         public TriggerDetailsUpdate() { }
         public Quartz.TriggerDetailsUpdate WithCalendarName(string? calendarName) { }
         public Quartz.TriggerDetailsUpdate WithDescription(string? description) { }
+        public Quartz.TriggerDetailsUpdate WithExecutionGroup(string? executionGroup) { }
         public Quartz.TriggerDetailsUpdate WithJobDataMap(Quartz.JobDataMap jobDataMap) { }
         public Quartz.TriggerDetailsUpdate WithMisfireInstruction(Quartz.CalendarIntervalTriggerMisfireInstruction misfireInstruction) { }
         public Quartz.TriggerDetailsUpdate WithMisfireInstruction(Quartz.CronTriggerMisfireInstruction misfireInstruction) { }
@@ -2890,7 +2890,7 @@ namespace Quartz.Impl.Triggers
         public abstract System.DateTimeOffset? FinalFireTimeUtc { get; }
         public virtual string FireInstanceId { get; set; }
         public virtual bool HasAdditionalProperties { get; }
-        public abstract bool HasMillisecondPrecision { get; }
+        protected abstract bool HasMillisecondPrecision { get; }
         public virtual Quartz.JobDataMap JobDataMap { get; set; }
         public Quartz.JobKey JobKey { get; set; }
         public Quartz.TriggerKey Key { get; set; }
@@ -2929,7 +2929,7 @@ namespace Quartz.Impl.Triggers
         public CalendarIntervalTriggerImpl(string name, string group, string jobName, string jobGroup, System.DateTimeOffset startTimeUtc, System.DateTimeOffset? endTimeUtc, Quartz.IntervalUnit intervalUnit, int repeatInterval, System.TimeProvider? timeProvider = null) { }
         public override System.DateTimeOffset? EndTimeUtc { get; set; }
         public override System.DateTimeOffset? FinalFireTimeUtc { get; }
-        public override bool HasMillisecondPrecision { get; }
+        protected override bool HasMillisecondPrecision { get; }
         public override bool MayFireAgain { get; }
         public Quartz.CalendarIntervalTriggerMisfireInstruction MisfireInstruction { get; }
         public override System.DateTimeOffset? NextFireTimeUtc { get; set; }
@@ -2966,7 +2966,7 @@ namespace Quartz.Impl.Triggers
         public string? CronExpressionString { get; set; }
         public override System.DateTimeOffset? EndTimeUtc { get; set; }
         public override System.DateTimeOffset? FinalFireTimeUtc { get; }
-        public override bool HasMillisecondPrecision { get; }
+        protected override bool HasMillisecondPrecision { get; }
         public override bool MayFireAgain { get; }
         public Quartz.CronTriggerMisfireInstruction MisfireInstruction { get; }
         public override System.DateTimeOffset? NextFireTimeUtc { get; set; }
@@ -3000,7 +3000,7 @@ namespace Quartz.Impl.Triggers
         public System.TimeOnly EndTimeOfDay { get; set; }
         public override System.DateTimeOffset? EndTimeUtc { get; set; }
         public override System.DateTimeOffset? FinalFireTimeUtc { get; }
-        public override bool HasMillisecondPrecision { get; }
+        protected override bool HasMillisecondPrecision { get; }
         public override bool MayFireAgain { get; }
         public Quartz.DailyTimeIntervalTriggerMisfireInstruction MisfireInstruction { get; }
         public override System.DateTimeOffset? NextFireTimeUtc { get; set; }
@@ -3027,7 +3027,7 @@ namespace Quartz.Impl.Triggers
         public RecurrenceTriggerImpl(string name, string group, string recurrenceRule, System.TimeProvider? timeProvider = null) { }
         public override System.DateTimeOffset? EndTimeUtc { get; set; }
         public override System.DateTimeOffset? FinalFireTimeUtc { get; }
-        public override bool HasMillisecondPrecision { get; }
+        protected override bool HasMillisecondPrecision { get; }
         public override bool MayFireAgain { get; }
         public Quartz.RecurrenceTriggerMisfireInstruction MisfireInstruction { get; }
         public override System.DateTimeOffset? NextFireTimeUtc { get; set; }
@@ -3061,7 +3061,7 @@ namespace Quartz.Impl.Triggers
         public SimpleTriggerImpl(string name, string group, System.DateTimeOffset startTimeUtc, System.DateTimeOffset? endTimeUtc, int repeatCount, System.TimeSpan repeatInterval, System.TimeProvider? timeProvider = null) { }
         public SimpleTriggerImpl(string name, string group, string jobName, string jobGroup, System.DateTimeOffset startTimeUtc, System.DateTimeOffset? endTimeUtc, int repeatCount, System.TimeSpan repeatInterval, System.TimeProvider? timeProvider = null) { }
         public override System.DateTimeOffset? FinalFireTimeUtc { get; }
-        public override bool HasMillisecondPrecision { get; }
+        protected override bool HasMillisecondPrecision { get; }
         public override bool MayFireAgain { get; }
         public Quartz.SimpleTriggerMisfireInstruction MisfireInstruction { get; }
         public override System.DateTimeOffset? NextFireTimeUtc { get; set; }

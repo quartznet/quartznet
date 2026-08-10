@@ -1990,7 +1990,8 @@ public abstract class JobStoreSupport : IJobStore
             }
 
             if (!update.HasDescription && !update.HasPriority && !update.HasJobDataMap
-                && !update.HasCalendarName && !update.HasMisfireInstruction && !update.HasPreferredNode)
+                && !update.HasCalendarName && !update.HasMisfireInstruction && !update.HasPreferredNode
+                && !update.HasExecutionGroup)
             {
                 return true;
             }
@@ -2044,6 +2045,13 @@ public abstract class JobStoreSupport : IJobStore
                 // Setting the property marks the pin dirty, so the subsequent store writes the
                 // preferred node columns.
                 existing.PreferredNode = update.PreferredNode;
+            }
+
+            if (update.HasExecutionGroup)
+            {
+                // EXECUTION_GROUP is part of the generic trigger UPDATE below, so nothing more is
+                // needed to persist it.
+                existing.ExecutionGroup = update.ExecutionGroup;
             }
 
             StoredTriggerState state = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);

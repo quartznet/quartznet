@@ -37,6 +37,9 @@ public sealed class TriggerDetailsUpdate
     internal bool HasPreferredNode { get; private set; }
     internal PreferredNode PreferredNode { get; private set; }
 
+    internal bool HasExecutionGroup { get; private set; }
+    internal string? ExecutionGroup { get; private set; }
+
     /// <summary>
     /// Set the trigger's description.
     /// </summary>
@@ -161,6 +164,22 @@ public sealed class TriggerDetailsUpdate
     {
         HasPreferredNode = true;
         PreferredNode = preferredNode;
+        return this;
+    }
+
+    /// <summary>
+    /// Set the execution group whose per-node thread limit this trigger's job counts against, or
+    /// <see langword="null" /> to remove it from every group.
+    /// </summary>
+    /// <remarks>
+    /// The new group applies from the next acquisition cycle; a job already running keeps counting
+    /// against the group it was acquired under.
+    /// </remarks>
+    /// <seealso cref="ExecutionLimits" />
+    public TriggerDetailsUpdate WithExecutionGroup(string? executionGroup)
+    {
+        HasExecutionGroup = true;
+        ExecutionGroup = executionGroup;
         return this;
     }
 }

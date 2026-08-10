@@ -661,7 +661,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// in millisecond precision.
     /// </summary>
     /// <value></value>
-    public override bool HasMillisecondPrecision => false;
+    protected override bool HasMillisecondPrecision => false;
 
     /// <summary>
     /// Used by the <see cref="IScheduler" /> to determine whether or not

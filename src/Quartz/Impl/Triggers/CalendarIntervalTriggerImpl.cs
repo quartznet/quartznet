@@ -233,7 +233,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
     /// Tells whether this Trigger instance can handle events
     /// in millisecond precision.
     /// </summary>
-    public override bool HasMillisecondPrecision => true;
+    protected override bool HasMillisecondPrecision => true;
 
     /// <inheritdoc />
     public CalendarIntervalTriggerMisfireInstruction MisfireInstruction => (CalendarIntervalTriggerMisfireInstruction) MisfireInstructionCode;
