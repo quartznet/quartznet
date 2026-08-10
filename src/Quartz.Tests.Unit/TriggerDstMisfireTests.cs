@@ -80,7 +80,7 @@ public class TriggerDstMisfireTests
             CronExpressionString = "0 30 2 * * ?",
             TimeZone = Eastern,
             StartTimeUtc = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero),
-            MisfireInstruction = misfireInstruction
+            MisfireInstructionCode = misfireInstruction
         };
         trigger.ComputeFirstFireTimeUtc(null);
         return trigger;
@@ -97,7 +97,7 @@ public class TriggerDstMisfireTests
             RepeatIntervalUnit = IntervalUnit.Day,
             TimeZone = Eastern,
             PreserveHourOfDayAcrossDaylightSavings = true,
-            MisfireInstruction = misfireInstruction
+            MisfireInstructionCode = misfireInstruction
         };
         trigger.ComputeFirstFireTimeUtc(null);
         return trigger;
@@ -114,7 +114,7 @@ public class TriggerDstMisfireTests
             RepeatInterval = 15,
             RepeatIntervalUnit = IntervalUnit.Minute,
             TimeZone = Eastern,
-            MisfireInstruction = misfireInstruction
+            MisfireInstructionCode = misfireInstruction
         };
         trigger.ComputeFirstFireTimeUtc(null);
         return trigger;
@@ -128,7 +128,7 @@ public class TriggerDstMisfireTests
             StartTimeUtc = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero),
             RepeatInterval = TimeSpan.FromHours(1),
             RepeatCount = SimpleTriggerImpl.RepeatIndefinitely,
-            MisfireInstruction = misfireInstruction
+            MisfireInstructionCode = misfireInstruction
         };
         trigger.ComputeFirstFireTimeUtc(null);
         return trigger;

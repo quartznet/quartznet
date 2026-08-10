@@ -144,7 +144,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : IScheduleBuilder
         DailyTimeIntervalTriggerImpl st = new DailyTimeIntervalTriggerImpl();
         st.RepeatInterval = interval;
         st.RepeatIntervalUnit = intervalUnit;
-        st.MisfireInstruction = misfireInstruction;
+        st.MisfireInstructionCode = misfireInstruction;
         st.RepeatCount = repeatCount;
         st.timeZone = timeZone;
 

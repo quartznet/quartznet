@@ -130,7 +130,7 @@ public sealed class TriggerDetailsUpdate
     /// <summary>
     /// Set the trigger's misfire instruction as the raw code a trigger stores, for callers that
     /// have a number rather than a family — a value read off the wire, from configuration, or from
-    /// <see cref="ITrigger.MisfireInstruction" />.
+    /// <see cref="ITrigger.MisfireInstructionCode" />.
     /// </summary>
     /// <remarks>
     /// Prefer the family-typed <c>WithMisfireInstruction</c> overloads: the same number means a

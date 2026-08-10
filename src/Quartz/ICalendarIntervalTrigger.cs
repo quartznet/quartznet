@@ -29,6 +29,12 @@ public interface ICalendarIntervalTrigger : ITrigger
     int TimesTriggered { get; }
 
     /// <summary>
+    /// What the scheduler does when this trigger misses a firing.
+    /// </summary>
+    /// <seealso cref="CalendarIntervalScheduleBuilder.WithMisfireInstruction" />
+    CalendarIntervalTriggerMisfireInstruction MisfireInstruction { get; }
+
+    /// <summary>
     /// Gets the time zone within which time calculations related to this trigger will be performed.
     /// </summary>
     /// <remarks>

@@ -137,9 +137,12 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
     }
 
     /// <inheritdoc/>
+    public RecurrenceTriggerMisfireInstruction MisfireInstruction => (RecurrenceTriggerMisfireInstruction) MisfireInstructionCode;
+
+    /// <inheritdoc/>
     public override void UpdateAfterMisfire(ICalendar? calendar)
     {
-        int instr = MisfireInstruction;
+        int instr = MisfireInstructionCode;
 
         if (instr == Quartz.MisfireInstruction.IgnoreMisfirePolicy)
         {
@@ -353,7 +356,7 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
         RecurrenceScheduleBuilder sb = RecurrenceScheduleBuilder.Create(recurrenceRuleString)
             .InTimeZone(TimeZone);
 
-        RecurrenceTriggerMisfireInstruction instruction = (RecurrenceTriggerMisfireInstruction) MisfireInstruction;
+        RecurrenceTriggerMisfireInstruction instruction = MisfireInstruction;
         if (Enum.IsDefined(instruction))
         {
             sb.WithMisfireInstruction(instruction);

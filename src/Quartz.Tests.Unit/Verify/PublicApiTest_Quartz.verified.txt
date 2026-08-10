@@ -268,6 +268,7 @@ namespace Quartz
     }
     public interface ICalendarIntervalTrigger : Quartz.ITrigger
     {
+        Quartz.CalendarIntervalTriggerMisfireInstruction MisfireInstruction { get; }
         bool PreserveHourOfDayAcrossDaylightSavings { get; }
         int RepeatInterval { get; }
         Quartz.IntervalUnit RepeatIntervalUnit { get; }
@@ -278,6 +279,7 @@ namespace Quartz
     public interface ICronTrigger : Quartz.ITrigger
     {
         string? CronExpressionString { get; }
+        Quartz.CronTriggerMisfireInstruction MisfireInstruction { get; }
         System.TimeZoneInfo TimeZone { get; }
         string? GetExpressionSummary();
     }
@@ -285,6 +287,7 @@ namespace Quartz
     {
         System.Collections.Generic.IReadOnlyCollection<System.DayOfWeek> DaysOfWeek { get; }
         System.TimeOnly EndTimeOfDay { get; }
+        Quartz.DailyTimeIntervalTriggerMisfireInstruction MisfireInstruction { get; }
         int RepeatCount { get; }
         int RepeatInterval { get; }
         Quartz.IntervalUnit RepeatIntervalUnit { get; }
@@ -449,6 +452,7 @@ namespace Quartz
     }
     public interface IRecurrenceTrigger : Quartz.ITrigger
     {
+        Quartz.RecurrenceTriggerMisfireInstruction MisfireInstruction { get; }
         string RecurrenceRule { get; }
         System.TimeZoneInfo TimeZone { get; }
         int TimesTriggered { get; }
@@ -551,6 +555,7 @@ namespace Quartz
     }
     public interface ISimpleTrigger : Quartz.ITrigger
     {
+        Quartz.SimpleTriggerMisfireInstruction MisfireInstruction { get; }
         int RepeatCount { get; }
         System.TimeSpan RepeatInterval { get; }
         int TimesTriggered { get; }
@@ -567,7 +572,7 @@ namespace Quartz
         Quartz.JobKey JobKey { get; }
         Quartz.TriggerKey Key { get; }
         bool MayFireAgain { get; }
-        int MisfireInstruction { get; }
+        int MisfireInstructionCode { get; }
         System.DateTimeOffset? NextFireTimeUtc { get; }
         Quartz.PreferredNode PreferredNode { get; }
         System.DateTimeOffset? PreviousFireTimeUtc { get; }
@@ -780,40 +785,6 @@ namespace Quartz
         public static bool operator ==(Quartz.Key<T>? left, Quartz.Key<T>? right) { }
         public static bool operator >(Quartz.Key<T> left, Quartz.Key<T> right) { }
         public static bool operator >=(Quartz.Key<T> left, Quartz.Key<T> right) { }
-    }
-    public static class MisfireInstruction
-    {
-        public const int IgnoreMisfirePolicy = -1;
-        public const int InstructionNotSet = 0;
-        public const int SmartPolicy = 0;
-        public static class CalendarIntervalTrigger
-        {
-            public const int DoNothing = 2;
-            public const int FireOnceNow = 1;
-        }
-        public static class CronTrigger
-        {
-            public const int DoNothing = 2;
-            public const int FireOnceNow = 1;
-        }
-        public static class DailyTimeIntervalTrigger
-        {
-            public const int DoNothing = 2;
-            public const int FireOnceNow = 1;
-        }
-        public static class RecurrenceTrigger
-        {
-            public const int DoNothing = 2;
-            public const int FireOnceNow = 1;
-        }
-        public static class SimpleTrigger
-        {
-            public const int FireNow = 1;
-            public const int RescheduleNextWithExistingCount = 5;
-            public const int RescheduleNextWithRemainingCount = 4;
-            public const int RescheduleNowWithExistingRepeatCount = 2;
-            public const int RescheduleNowWithRemainingRepeatCount = 3;
-        }
     }
     public sealed class NameMatcher<TKey> : Quartz.StringMatcher<TKey>
         where TKey : Quartz.Key<TKey>
@@ -1494,7 +1465,7 @@ namespace Quartz.Extensibility
         new Quartz.JobDataMap JobDataMap { get; set; }
         new Quartz.JobKey JobKey { get; set; }
         new Quartz.TriggerKey Key { get; set; }
-        new int MisfireInstruction { get; set; }
+        new int MisfireInstructionCode { get; set; }
         new System.DateTimeOffset? NextFireTimeUtc { get; set; }
         new Quartz.PreferredNode PreferredNode { get; set; }
         new System.DateTimeOffset? PreviousFireTimeUtc { get; set; }
@@ -2924,7 +2895,7 @@ namespace Quartz.Impl.Triggers
         public Quartz.JobKey JobKey { get; set; }
         public Quartz.TriggerKey Key { get; set; }
         public abstract bool MayFireAgain { get; }
-        public virtual int MisfireInstruction { get; set; }
+        public virtual int MisfireInstructionCode { get; set; }
         public abstract System.DateTimeOffset? NextFireTimeUtc { get; set; }
         public Quartz.PreferredNode PreferredNode { get; set; }
         public abstract System.DateTimeOffset? PreviousFireTimeUtc { get; set; }
@@ -2960,6 +2931,7 @@ namespace Quartz.Impl.Triggers
         public override System.DateTimeOffset? FinalFireTimeUtc { get; }
         public override bool HasMillisecondPrecision { get; }
         public override bool MayFireAgain { get; }
+        public Quartz.CalendarIntervalTriggerMisfireInstruction MisfireInstruction { get; }
         public override System.DateTimeOffset? NextFireTimeUtc { get; set; }
         public bool PreserveHourOfDayAcrossDaylightSavings { get; set; }
         public override System.DateTimeOffset? PreviousFireTimeUtc { get; set; }
@@ -2996,6 +2968,7 @@ namespace Quartz.Impl.Triggers
         public override System.DateTimeOffset? FinalFireTimeUtc { get; }
         public override bool HasMillisecondPrecision { get; }
         public override bool MayFireAgain { get; }
+        public Quartz.CronTriggerMisfireInstruction MisfireInstruction { get; }
         public override System.DateTimeOffset? NextFireTimeUtc { get; set; }
         public override System.DateTimeOffset? PreviousFireTimeUtc { get; set; }
         public override System.DateTimeOffset StartTimeUtc { get; set; }
@@ -3029,6 +3002,7 @@ namespace Quartz.Impl.Triggers
         public override System.DateTimeOffset? FinalFireTimeUtc { get; }
         public override bool HasMillisecondPrecision { get; }
         public override bool MayFireAgain { get; }
+        public Quartz.DailyTimeIntervalTriggerMisfireInstruction MisfireInstruction { get; }
         public override System.DateTimeOffset? NextFireTimeUtc { get; set; }
         public override System.DateTimeOffset? PreviousFireTimeUtc { get; set; }
         public int RepeatCount { get; set; }
@@ -3055,6 +3029,7 @@ namespace Quartz.Impl.Triggers
         public override System.DateTimeOffset? FinalFireTimeUtc { get; }
         public override bool HasMillisecondPrecision { get; }
         public override bool MayFireAgain { get; }
+        public Quartz.RecurrenceTriggerMisfireInstruction MisfireInstruction { get; }
         public override System.DateTimeOffset? NextFireTimeUtc { get; set; }
         public override System.DateTimeOffset? PreviousFireTimeUtc { get; set; }
         public string RecurrenceRule { get; set; }
@@ -3088,6 +3063,7 @@ namespace Quartz.Impl.Triggers
         public override System.DateTimeOffset? FinalFireTimeUtc { get; }
         public override bool HasMillisecondPrecision { get; }
         public override bool MayFireAgain { get; }
+        public Quartz.SimpleTriggerMisfireInstruction MisfireInstruction { get; }
         public override System.DateTimeOffset? NextFireTimeUtc { get; set; }
         public override System.DateTimeOffset? PreviousFireTimeUtc { get; set; }
         public int RepeatCount { get; set; }
@@ -3367,7 +3343,6 @@ namespace Quartz.Xml
         protected virtual void ProcessInternal(string xml) { }
         public virtual System.Threading.Tasks.ValueTask ProcessStream(System.IO.Stream stream, string? systemId, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask ProcessStreamAndScheduleJobs(System.IO.Stream stream, Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
-        protected virtual int ReadMisfireInstructionFromString(string misfireInstruction) { }
         public virtual System.Threading.Tasks.ValueTask ScheduleJobs(Quartz.IScheduler scheduler, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual bool TryParseEnum<T>(string value, out T result)
             where T :  struct { }

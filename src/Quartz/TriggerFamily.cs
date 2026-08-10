@@ -17,6 +17,8 @@
  */
 #endregion
 
+using Quartz.Util;
+
 namespace Quartz;
 
 /// <summary>
@@ -49,6 +51,32 @@ internal static class TriggerFamilyExtensions
             IRecurrenceTrigger => TriggerFamily.Recurrence,
             _ => null
         };
+    }
+
+    /// <summary>
+    /// Rejects an update whose misfire instruction was given in a family other than the stored
+    /// trigger's. A code that is in range for two families means a different policy in each, so
+    /// <see cref="Quartz.Impl.Triggers.AbstractTrigger" />'s range check lets the wrong one through
+    /// silently; only the update object knows which family the caller meant.
+    /// </summary>
+    /// <exception cref="JobPersistenceException">The families disagree.</exception>
+    internal static void EnsureMisfireInstructionMatchesFamily(this TriggerDetailsUpdate update, ITrigger trigger, TriggerKey triggerKey)
+    {
+        if (!update.HasMisfireInstruction || update.MisfireInstructionFamily is not TriggerFamily requested)
+        {
+            return;
+        }
+
+        TriggerFamily? actual = trigger.Family();
+        if (actual == requested)
+        {
+            return;
+        }
+
+        string actualName = actual is TriggerFamily family ? family.DisplayName() : trigger.GetType().Name;
+        Throw.JobPersistenceException(
+            $"Misfire instruction {update.MisfireInstructionCode} was given for a {requested.DisplayName()} trigger, but '{triggerKey}' is a {actualName} trigger. "
+            + $"The same code means a different policy in each family; use the {actualName} overload of WithMisfireInstruction, or WithMisfireInstructionCode if the code is already the stored one.");
     }
 
     /// <summary>

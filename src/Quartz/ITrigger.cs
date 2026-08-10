@@ -127,19 +127,24 @@ public interface ITrigger
     DateTimeOffset? FinalFireTimeUtc { get; }
 
     /// <summary>
-    /// Get or set the instruction the <see cref="IScheduler" /> should be given for
-    /// handling misfire situations for this <see cref="ITrigger" />- the
-    /// concrete <see cref="ITrigger" /> type that you are using will have
-    /// defined a set of additional MISFIRE_INSTRUCTION_XXX
-    /// constants that may be set to this property.
-    /// <para>
-    /// If not explicitly set, the default value is <see cref="Quartz.MisfireInstruction.InstructionNotSet" />.
-    /// </para>
+    /// The raw code of the instruction the <see cref="IScheduler" /> follows when this trigger
+    /// misses a firing. This is the number the job store persists, and it is family-agnostic:
+    /// the same number means a different policy in each trigger family.
     /// </summary>
-    /// <seealso cref="Quartz.MisfireInstruction.InstructionNotSet" />
-    /// <seealso cref="ISimpleTrigger" />
-    /// <seealso cref="ICronTrigger" />
-    int MisfireInstruction { get; }
+    /// <remarks>
+    /// <para>
+    /// Read the policy from the family interface's own <c>MisfireInstruction</c> property instead
+    /// whenever the family is known — <see cref="ISimpleTrigger.MisfireInstruction" />,
+    /// <see cref="ICronTrigger.MisfireInstruction" /> and so on. This member exists for code that
+    /// is generic over every family: serializers, the wire contract, logging and diagnostics.
+    /// </para>
+    /// <para>
+    /// The default is <c>0</c>, the smart policy: the trigger's family picks the policy for it.
+    /// </para>
+    /// </remarks>
+    /// <seealso cref="ISimpleTrigger.MisfireInstruction" />
+    /// <seealso cref="ICronTrigger.MisfireInstruction" />
+    int MisfireInstructionCode { get; }
 
     /// <summary>
     /// Gets and sets the date/time on which the trigger must stop firing. This

@@ -379,9 +379,9 @@ public class RAMJobStoreBenchmark
             IOperableTrigger operableTrigger = triggers.First();
             await jobStore.TriggersFired([operableTrigger]);
 
-            if (operableTrigger.MisfireInstruction != MisfireInstruction.IgnoreMisfirePolicy)
+            if (operableTrigger.MisfireInstructionCode != MisfireInstruction.IgnoreMisfirePolicy)
             {
-                throw new Exception($"Expected acquired triggers to have {MisfireInstruction.IgnoreMisfirePolicy} as misfire instruction, but was {operableTrigger.MisfireInstruction} for trigger ${operableTrigger.Key}.");
+                throw new Exception($"Expected acquired triggers to have {MisfireInstruction.IgnoreMisfirePolicy} as misfire instruction, but was {operableTrigger.MisfireInstructionCode} for trigger ${operableTrigger.Key}.");
             }
         }
     }
@@ -454,7 +454,7 @@ public class RAMJobStoreBenchmark
             Key = triggerKey,
             JobKey = job.Key,
             StartTimeUtc = DateTimeOffset.UtcNow,
-            MisfireInstruction = misFirePolicy,
+            MisfireInstructionCode = misFirePolicy,
             RepeatInterval = repeatInterval,
             RepeatCount = SimpleTriggerImpl.RepeatIndefinitely
         };

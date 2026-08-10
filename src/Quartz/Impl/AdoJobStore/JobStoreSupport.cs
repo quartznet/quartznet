@@ -1995,6 +1995,8 @@ public abstract class JobStoreSupport : IJobStore
                 return true;
             }
 
+            update.EnsureMisfireInstructionMatchesFamily(existing, triggerKey);
+
             if (update.HasCalendarName && update.CalendarName is not null)
             {
                 bool calExists = await CalendarExists(conn, update.CalendarName, cancellationToken).ConfigureAwait(false);
@@ -2034,7 +2036,7 @@ public abstract class JobStoreSupport : IJobStore
 
             if (update.HasMisfireInstruction)
             {
-                existing.MisfireInstruction = update.MisfireInstructionCode;
+                existing.MisfireInstructionCode = update.MisfireInstructionCode;
             }
 
             if (update.HasPreferredNode)
@@ -4344,7 +4346,7 @@ public abstract class JobStoreSupport : IJobStore
                                         SchedulerConstants.DefaultRecoveryGroup, ftRec.FireTimestamp);
 
                                 rcvryTrig.JobKey = jKey!;
-                                rcvryTrig.MisfireInstruction = MisfireInstruction.SimpleTrigger.FireNow;
+                                rcvryTrig.MisfireInstructionCode = MisfireInstruction.SimpleTrigger.FireNow;
                                 rcvryTrig.Priority = ftRec.Priority;
                                 JobDataMap jd = await Delegate.SelectTriggerJobDataMap(conn, tKey, cancellationToken).ConfigureAwait(false);
                                 jd[SchedulerConstants.FailedJobOriginalTriggerName] = tKey.Name;

@@ -71,7 +71,7 @@ public class CronScheduleBuilderTest
             .WithSchedule(CronScheduleBuilder.CronSchedule("0 20 10 ? * *"))
             .Build();
 
-        trigger.MisfireInstruction.Should().Be(MisfireInstruction.SmartPolicy);
+        trigger.MisfireInstructionCode.Should().Be(MisfireInstruction.SmartPolicy);
     }
 
     [TestCase(CronTriggerMisfireInstruction.IgnoreMisfires, MisfireInstruction.IgnoreMisfirePolicy)]
@@ -84,6 +84,6 @@ public class CronScheduleBuilderTest
             .WithCronSchedule("0 20 10 ? * *", x => x.WithMisfireInstruction(instruction))
             .Build();
 
-        trigger.MisfireInstruction.Should().Be(stored);
+        trigger.MisfireInstructionCode.Should().Be(stored);
     }
 }

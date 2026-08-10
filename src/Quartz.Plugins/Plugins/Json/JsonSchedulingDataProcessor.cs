@@ -338,7 +338,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
         }
     }
 
-    private static IScheduleBuilder BuildSchedule(JsonFileTriggerDefinition def, string triggerName)
+    private IScheduleBuilder BuildSchedule(JsonFileTriggerDefinition def, string triggerName)
     {
         var count = (def.Simple is not null ? 1 : 0) + (def.Cron is not null ? 1 : 0) +
                     (def.CalendarInterval is not null ? 1 : 0) + (def.DailyTimeInterval is not null ? 1 : 0);
@@ -352,15 +352,15 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
         return BuildDailyTimeIntervalSchedule(def.DailyTimeInterval!);
     }
 
-    private static SimpleScheduleBuilder BuildSimpleSchedule(JsonFileSimpleSchedule simple)
+    private SimpleScheduleBuilder BuildSimpleSchedule(JsonFileSimpleSchedule simple)
     {
         var interval = TimeSpan.Parse(simple.Interval, CultureInfo.InvariantCulture);
         var builder = SimpleScheduleBuilder.Create().WithInterval(interval).WithRepeatCount(simple.RepeatCount);
-        if (simple.MisfireInstruction is not null) builder.WithMisfireInstruction((SimpleTriggerMisfireInstruction) ParseMisfireInstruction(simple.MisfireInstruction));
+        if (simple.MisfireInstruction is not null) builder.WithMisfireInstruction((SimpleTriggerMisfireInstruction) MisfireInstructionNames.Resolve(TriggerFamily.Simple, simple.MisfireInstruction, logger));
         return builder;
     }
 
-    private static CronScheduleBuilder BuildCronSchedule(JsonFileCronSchedule cron, string triggerName)
+    private CronScheduleBuilder BuildCronSchedule(JsonFileCronSchedule cron, string triggerName)
     {
         if (string.IsNullOrWhiteSpace(cron.Expression))
             throw new SchedulerConfigException($"JSON trigger '{triggerName}': Cron schedule is missing required 'Expression' property.");
@@ -376,19 +376,19 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
         }
 
         if (cron.TimeZone is not null) builder.InTimeZone(TimeZoneUtil.FindTimeZoneById(cron.TimeZone));
-        if (cron.MisfireInstruction is not null) builder.WithMisfireInstruction((CronTriggerMisfireInstruction) ParseMisfireInstruction(cron.MisfireInstruction));
+        if (cron.MisfireInstruction is not null) builder.WithMisfireInstruction((CronTriggerMisfireInstruction) MisfireInstructionNames.Resolve(TriggerFamily.Cron, cron.MisfireInstruction, logger));
         return builder;
     }
 
-    private static CalendarIntervalScheduleBuilder BuildCalendarIntervalSchedule(JsonFileCalendarIntervalSchedule calendar)
+    private CalendarIntervalScheduleBuilder BuildCalendarIntervalSchedule(JsonFileCalendarIntervalSchedule calendar)
     {
         var unit = SafeParseEnum<IntervalUnit>(calendar.RepeatIntervalUnit, "CalendarInterval.RepeatIntervalUnit");
         var builder = CalendarIntervalScheduleBuilder.Create().WithInterval(calendar.RepeatInterval, unit);
-        if (calendar.MisfireInstruction is not null) builder.WithMisfireInstruction((CalendarIntervalTriggerMisfireInstruction) ParseMisfireInstruction(calendar.MisfireInstruction));
+        if (calendar.MisfireInstruction is not null) builder.WithMisfireInstruction((CalendarIntervalTriggerMisfireInstruction) MisfireInstructionNames.Resolve(TriggerFamily.CalendarInterval, calendar.MisfireInstruction, logger));
         return builder;
     }
 
-    private static DailyTimeIntervalScheduleBuilder BuildDailyTimeIntervalSchedule(JsonFileDailyTimeIntervalSchedule daily)
+    private DailyTimeIntervalScheduleBuilder BuildDailyTimeIntervalSchedule(JsonFileDailyTimeIntervalSchedule daily)
     {
         var unit = SafeParseEnum<IntervalUnit>(daily.RepeatIntervalUnit, "DailyTimeInterval.RepeatIntervalUnit");
         var builder = DailyTimeIntervalScheduleBuilder.Create().WithInterval(daily.RepeatInterval, unit).WithRepeatCount(daily.RepeatCount);
@@ -406,7 +406,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
 
         if (daily.MisfireInstruction is not null)
         {
-            var instruction = (DailyTimeIntervalTriggerMisfireInstruction) ParseMisfireInstruction(daily.MisfireInstruction);
+            var instruction = (DailyTimeIntervalTriggerMisfireInstruction) MisfireInstructionNames.Resolve(TriggerFamily.DailyTimeInterval, daily.MisfireInstruction, logger);
             if (Enum.IsDefined(instruction)) builder.WithMisfireInstruction(instruction);
         }
 
@@ -429,14 +429,6 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
             throw new SchedulerConfigException($"TimeOfDay value '{value}' must not contain fractional seconds.");
         }
         return new TimeOnly(timeSpan.Hours, timeSpan.Minutes, timeSpan.Seconds);
-    }
-
-    private static int ParseMisfireInstruction(string value)
-    {
-        Constants c = new(typeof(MisfireInstruction), typeof(MisfireInstruction.CronTrigger),
-            typeof(MisfireInstruction.SimpleTrigger), typeof(MisfireInstruction.CalendarIntervalTrigger),
-            typeof(MisfireInstruction.DailyTimeIntervalTrigger));
-        return c.AsNumber(value);
     }
 
     private static T SafeParseEnum<T>(string value, string context) where T : struct, Enum

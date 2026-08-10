@@ -213,7 +213,7 @@ public class MisfireBatchRecoveryTest
             JobKey = job.Key,
             CronExpressionString = "0 * * * * ?",
             StartTimeUtc = DateTimeOffset.UtcNow.AddHours(-2),
-            MisfireInstruction = MisfireInstruction.CronTrigger.FireOnceNow
+            MisfireInstructionCode = MisfireInstruction.CronTrigger.FireOnceNow
         };
 
         trigger.ComputeFirstFireTimeUtc(null);

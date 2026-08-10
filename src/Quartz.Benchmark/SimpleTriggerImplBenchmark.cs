@@ -28,7 +28,7 @@ public class SimpleTriggerImplBenchmark
             null,
             SimpleTriggerImpl.RepeatIndefinitely,
             TimeSpan.FromTicks(1000));
-        _trigger1.MisfireInstruction = MisfireInstruction.SmartPolicy;
+        _trigger1.MisfireInstructionCode = MisfireInstruction.SmartPolicy;
         _trigger1.NextFireTimeUtc = DateTimeOffset.UtcNow;
 
         _trigger1Legacy = new SimpleTriggerImplLegacy("1",
@@ -36,7 +36,7 @@ public class SimpleTriggerImplBenchmark
             null,
             SimpleTriggerImpl.RepeatIndefinitely,
             TimeSpan.FromTicks(1000));
-        _trigger1Legacy.MisfireInstruction = MisfireInstruction.SmartPolicy;
+        _trigger1Legacy.MisfireInstructionCode = MisfireInstruction.SmartPolicy;
         _trigger1Legacy.NextFireTimeUtc = DateTimeOffset.UtcNow;
 
         _trigger2 = new SimpleTriggerImpl("1",
@@ -44,35 +44,35 @@ public class SimpleTriggerImplBenchmark
             DateTimeOffset.MaxValue,
             SimpleTriggerImpl.RepeatIndefinitely,
             TimeSpan.FromTicks(1000));
-        _trigger2.MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount;
+        _trigger2.MisfireInstructionCode = MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount;
 
         _trigger2Legacy = new SimpleTriggerImplLegacy("1",
             DateTimeOffset.MinValue,
             DateTimeOffset.MaxValue,
             SimpleTriggerImpl.RepeatIndefinitely,
             TimeSpan.FromTicks(1000));
-        _trigger2Legacy.MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount;
+        _trigger2Legacy.MisfireInstructionCode = MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount;
 
         _trigger3 = new SimpleTriggerImpl("1",
             DateTimeOffset.MinValue,
             DateTimeOffset.MaxValue,
             0,
             TimeSpan.FromTicks(1000));
-        _trigger3.MisfireInstruction = MisfireInstruction.SmartPolicy;
+        _trigger3.MisfireInstructionCode = MisfireInstruction.SmartPolicy;
 
         _trigger3Legacy = new SimpleTriggerImplLegacy("1",
             DateTimeOffset.MinValue,
             DateTimeOffset.MaxValue,
             0,
             TimeSpan.FromTicks(1000));
-        _trigger3Legacy.MisfireInstruction = MisfireInstruction.SmartPolicy;
+        _trigger3Legacy.MisfireInstructionCode = MisfireInstruction.SmartPolicy;
 
         _trigger4 = new SimpleTriggerImpl("1",
             DateTimeOffset.MinValue,
             DateTimeOffset.MinValue,
             SimpleTriggerImpl.RepeatIndefinitely,
             TimeSpan.FromTicks(1000));
-        _trigger4.MisfireInstruction = MisfireInstruction.SimpleTrigger.FireNow;
+        _trigger4.MisfireInstructionCode = MisfireInstruction.SimpleTrigger.FireNow;
         _trigger4.NextFireTimeUtc = DateTimeOffset.UtcNow;
 
         _trigger4Legacy = new SimpleTriggerImplLegacy("1",
@@ -80,7 +80,7 @@ public class SimpleTriggerImplBenchmark
             DateTimeOffset.MinValue,
             SimpleTriggerImpl.RepeatIndefinitely,
             TimeSpan.FromTicks(1000));
-        _trigger4Legacy.MisfireInstruction = MisfireInstruction.SimpleTrigger.FireNow;
+        _trigger4Legacy.MisfireInstructionCode = MisfireInstruction.SimpleTrigger.FireNow;
         _trigger4Legacy.NextFireTimeUtc = DateTimeOffset.UtcNow;
 
         _trigger5 = new SimpleTriggerImpl("1",
@@ -88,21 +88,21 @@ public class SimpleTriggerImplBenchmark
             DateTimeOffset.MaxValue,
             5,
             TimeSpan.FromTicks(1000));
-        _trigger5.MisfireInstruction = MisfireInstruction.SmartPolicy;
+        _trigger5.MisfireInstructionCode = MisfireInstruction.SmartPolicy;
 
         _trigger5Legacy = new SimpleTriggerImplLegacy("1",
             DateTimeOffset.MinValue,
             DateTimeOffset.MaxValue,
             5,
             TimeSpan.FromTicks(1000));
-        _trigger5Legacy.MisfireInstruction = MisfireInstruction.SmartPolicy;
+        _trigger5Legacy.MisfireInstructionCode = MisfireInstruction.SmartPolicy;
 
         _trigger6 = new SimpleTriggerImpl("1",
             DateTimeOffset.MinValue,
             DateTimeOffset.MaxValue,
             int.MaxValue,
             TimeSpan.FromDays(1));
-        _trigger6.MisfireInstruction = MisfireInstruction.SimpleTrigger.FireNow;
+        _trigger6.MisfireInstructionCode = MisfireInstruction.SimpleTrigger.FireNow;
         _trigger6.NextFireTimeUtc = DateTimeOffset.UtcNow;
 
         _trigger6Legacy = new SimpleTriggerImplLegacy("1",
@@ -110,7 +110,7 @@ public class SimpleTriggerImplBenchmark
             DateTimeOffset.MaxValue,
             int.MaxValue,
             TimeSpan.FromDays(1));
-        _trigger6Legacy.MisfireInstruction = MisfireInstruction.SimpleTrigger.FireNow;
+        _trigger6Legacy.MisfireInstructionCode = MisfireInstruction.SimpleTrigger.FireNow;
         _trigger6Legacy.NextFireTimeUtc = DateTimeOffset.UtcNow;
 
         _today = new DateTimeOffset(DateTime.Today.ToUniversalTime(), TimeSpan.Zero);
@@ -519,13 +519,16 @@ public class SimpleTriggerImplBenchmark
             set => timesTriggered = value;
         }
 
+        /// <inheritdoc />
+        public SimpleTriggerMisfireInstruction MisfireInstruction => (SimpleTriggerMisfireInstruction) MisfireInstructionCode;
+
         public override IScheduleBuilder GetScheduleBuilder()
         {
             SimpleScheduleBuilder sb = SimpleScheduleBuilder.Create()
                 .WithInterval(RepeatInterval)
                 .WithRepeatCount(RepeatCount);
 
-            switch (MisfireInstruction)
+            switch (MisfireInstructionCode)
             {
                 case Quartz.MisfireInstruction.SimpleTrigger.FireNow:
                     sb.WithMisfireInstruction(SimpleTriggerMisfireInstruction.FireNow);
@@ -636,7 +639,7 @@ public class SimpleTriggerImplBenchmark
         /// </remarks>
         public override void UpdateAfterMisfire(ICalendar? calendar)
         {
-            int instr = MisfireInstruction;
+            int instr = MisfireInstructionCode;
             if (instr == Quartz.MisfireInstruction.SmartPolicy)
             {
                 if (RepeatCount == 0)

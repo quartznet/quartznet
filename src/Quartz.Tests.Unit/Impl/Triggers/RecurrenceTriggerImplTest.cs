@@ -152,7 +152,7 @@ public class RecurrenceTriggerImplTest
         trigger.RecurrenceRule = "FREQ=MONTHLY;BYDAY=2MO";
         trigger.StartTimeUtc = new DateTimeOffset(2025, 1, 1, 9, 0, 0, TimeSpan.Zero);
         trigger.TimeZone = TimeZoneInfo.Utc;
-        trigger.MisfireInstruction = MisfireInstruction.RecurrenceTrigger.DoNothing;
+        trigger.MisfireInstructionCode = MisfireInstruction.RecurrenceTrigger.DoNothing;
 
         IScheduleBuilder sb = trigger.GetScheduleBuilder();
         ITrigger rebuilt = TriggerBuilder.Create()
@@ -164,7 +164,7 @@ public class RecurrenceTriggerImplTest
         Assert.IsInstanceOf<IRecurrenceTrigger>(rebuilt);
         IRecurrenceTrigger recTrigger = (IRecurrenceTrigger)rebuilt;
         Assert.AreEqual("FREQ=MONTHLY;BYDAY=2MO", recTrigger.RecurrenceRule);
-        Assert.AreEqual(MisfireInstruction.RecurrenceTrigger.DoNothing, rebuilt.MisfireInstruction);
+        Assert.AreEqual(MisfireInstruction.RecurrenceTrigger.DoNothing, rebuilt.MisfireInstructionCode);
     }
 
     [Test]
@@ -175,13 +175,13 @@ public class RecurrenceTriggerImplTest
         trigger.StartTimeUtc = DateTimeOffset.UtcNow;
 
         // Valid values
-        trigger.MisfireInstruction = MisfireInstruction.SmartPolicy;
-        trigger.MisfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
-        trigger.MisfireInstruction = MisfireInstruction.RecurrenceTrigger.FireOnceNow;
-        trigger.MisfireInstruction = MisfireInstruction.RecurrenceTrigger.DoNothing;
+        trigger.MisfireInstructionCode = MisfireInstruction.SmartPolicy;
+        trigger.MisfireInstructionCode = MisfireInstruction.IgnoreMisfirePolicy;
+        trigger.MisfireInstructionCode = MisfireInstruction.RecurrenceTrigger.FireOnceNow;
+        trigger.MisfireInstructionCode = MisfireInstruction.RecurrenceTrigger.DoNothing;
 
         // Invalid value
-        Assert.Throws<ArgumentException>(() => trigger.MisfireInstruction = 99);
+        Assert.Throws<ArgumentException>(() => trigger.MisfireInstructionCode = 99);
     }
 
     [Test]
@@ -240,7 +240,7 @@ public class RecurrenceTriggerImplTest
         IRecurrenceTrigger recTrigger = (IRecurrenceTrigger)trigger;
         Assert.AreEqual("FREQ=MONTHLY;BYDAY=2MO", recTrigger.RecurrenceRule);
         Assert.AreEqual(TimeZoneInfo.Utc, recTrigger.TimeZone);
-        Assert.AreEqual(MisfireInstruction.RecurrenceTrigger.DoNothing, trigger.MisfireInstruction);
+        Assert.AreEqual(MisfireInstruction.RecurrenceTrigger.DoNothing, trigger.MisfireInstructionCode);
     }
 
     [Test]

@@ -103,17 +103,15 @@ public interface IMutableTrigger : ITrigger
     new DateTimeOffset? PreviousFireTimeUtc { get; set; }
 
     /// <summary>
-    /// Set the instruction the <see cref="IScheduler" /> should be given for
-    /// handling misfire situations for this <see cref="ITrigger" />- the
-    /// concrete <see cref="ITrigger" /> type that you are using will have
-    /// defined a set of additional MisfireInstruction.XXX
-    /// constants that may be passed to this method.
+    /// The raw code of the instruction the <see cref="IScheduler" /> follows when this trigger
+    /// misses a firing.
     /// </summary>
     /// <remarks>
-    /// If not explicitly set, the default value is <see cref="Quartz.MisfireInstruction.SmartPolicy" />.
+    /// The value is validated against the concrete trigger's family, which rejects a code outside
+    /// its own range — but not one that is in range for two families and means something different
+    /// in each. Assign a value cast from the family's own misfire enum.
     /// </remarks>
-    /// <seealso cref="Quartz.MisfireInstruction.SmartPolicy" />
-    /// <seealso cref="ISimpleTrigger" />
-    /// <seealso cref="ICronTrigger" />
-    new int MisfireInstruction { get; set; }
+    /// <seealso cref="ISimpleTrigger.MisfireInstruction" />
+    /// <seealso cref="ICronTrigger.MisfireInstruction" />
+    new int MisfireInstructionCode { get; set; }
 }

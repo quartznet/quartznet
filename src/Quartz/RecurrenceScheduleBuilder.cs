@@ -62,7 +62,7 @@ public sealed class RecurrenceScheduleBuilder : IScheduleBuilder
     {
         RecurrenceTriggerImpl trigger = new RecurrenceTriggerImpl();
         trigger.RecurrenceRule = recurrenceRule;
-        trigger.MisfireInstruction = misfireInstruction;
+        trigger.MisfireInstructionCode = misfireInstruction;
         trigger.triggerTimeZone = timeZone;
         return trigger;
     }

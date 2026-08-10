@@ -140,7 +140,7 @@ public sealed class CronScheduleBuilder : IScheduleBuilder, IHashKeyAwareSchedul
 
         ct.CronExpression = cronExpression;
         ct.TimeZone = cronExpression.TimeZone;
-        ct.MisfireInstruction = misfireInstruction;
+        ct.MisfireInstructionCode = misfireInstruction;
 
         return ct;
     }

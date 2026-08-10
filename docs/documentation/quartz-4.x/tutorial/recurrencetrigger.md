@@ -138,13 +138,13 @@ services.AddQuartz(q =>
 ## RecurrenceTrigger Misfire Instructions
 
 RecurrenceTrigger has two trigger-specific misfire instructions (identical semantics to CronTrigger),
-plus the generic `IgnoreMisfirePolicy`:
+plus the generic one every family has. They live on the `RecurrenceTriggerMisfireInstruction` enum:
 
-* `MisfireInstruction.RecurrenceTrigger.FireOnceNow`
-* `MisfireInstruction.RecurrenceTrigger.DoNothing`
-* `MisfireInstruction.IgnoreMisfirePolicy`
+* `RecurrenceTriggerMisfireInstruction.FireAndProceed`
+* `RecurrenceTriggerMisfireInstruction.DoNothing`
+* `RecurrenceTriggerMisfireInstruction.IgnoreMisfires`
 
-If the 'smart policy' instruction is used (the default), RecurrenceTrigger will use `FireOnceNow`.
+If the `SmartPolicy` instruction is used (the default), RecurrenceTrigger will use `FireAndProceed`.
 
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()

@@ -92,7 +92,7 @@ public sealed class SimpleScheduleBuilder : IScheduleBuilder
         SimpleTriggerImpl st = new SimpleTriggerImpl();
         st.RepeatInterval = interval;
         st.RepeatCount = repeatCount;
-        st.MisfireInstruction = misfireInstruction;
+        st.MisfireInstructionCode = misfireInstruction;
 
         return st;
     }

@@ -137,7 +137,7 @@ public partial class StdAdoDelegate
                         SchedulerConstants.DefaultRecoveryGroup, scheduledTime);
                     rcvryTrig.JobKey = new JobKey(jobName, jobGroup);
                     rcvryTrig.Priority = priority;
-                    rcvryTrig.MisfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
+                    rcvryTrig.MisfireInstructionCode = MisfireInstruction.IgnoreMisfirePolicy;
 
                     triggerData.Add((scheduledTime, firedTime));
                     triggers.Add(rcvryTrig);
@@ -278,7 +278,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "triggerStartTime", GetDbDateTimeValue(trigger.StartTimeUtc));
         AddCommandParameter(cmd, "triggerEndTime", GetDbDateTimeValue(trigger.EndTimeUtc));
         AddCommandParameter(cmd, "triggerCalendarName", trigger.CalendarName);
-        AddCommandParameter(cmd, "triggerMisfireInstruction", trigger.MisfireInstruction);
+        AddCommandParameter(cmd, "triggerMisfireInstruction", trigger.MisfireInstructionCode);
         AddCommandParameter(cmd, "triggerJobJobDataMap", jobData, DbProvider.Metadata.DbBinaryType);
 
         AddCommandParameter(cmd, "triggerPriority", trigger.Priority);
@@ -374,7 +374,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "triggerStartTime", GetDbDateTimeValue(trigger.StartTimeUtc));
         AddCommandParameter(cmd, "triggerEndTime", GetDbDateTimeValue(trigger.EndTimeUtc));
         AddCommandParameter(cmd, "triggerCalendarName", trigger.CalendarName);
-        AddCommandParameter(cmd, "triggerMisfireInstruction", trigger.MisfireInstruction);
+        AddCommandParameter(cmd, "triggerMisfireInstruction", trigger.MisfireInstructionCode);
         AddCommandParameter(cmd, "triggerPriority", trigger.Priority);
 
         const string JobDataMapParameter = "triggerJobJobDataMap";
@@ -724,7 +724,7 @@ public partial class StdAdoDelegate
     /// </summary>
     private static void ApplyTriggerFireState(IOperableTrigger trigger, TriggerRow row)
     {
-        trigger.MisfireInstruction = row.MisfireInstruction;
+        trigger.MisfireInstructionCode = row.MisfireInstruction;
         trigger.NextFireTimeUtc = row.NextFireTimeUtc;
         trigger.PreviousFireTimeUtc = row.PreviousFireTimeUtc;
 

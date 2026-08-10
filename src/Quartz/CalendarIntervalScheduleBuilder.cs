@@ -69,7 +69,7 @@ public sealed class CalendarIntervalScheduleBuilder : IScheduleBuilder
         CalendarIntervalTriggerImpl st = new CalendarIntervalTriggerImpl();
         st.RepeatInterval = interval;
         st.RepeatIntervalUnit = intervalUnit;
-        st.MisfireInstruction = misfireInstruction;
+        st.MisfireInstructionCode = misfireInstruction;
         st.timeZone = timeZone;
         st.PreserveHourOfDayAcrossDaylightSavings = preserveHourOfDayAcrossDaylightSavings;
         st.SkipDayIfHourDoesNotExist = skipDayIfHourDoesNotExist;

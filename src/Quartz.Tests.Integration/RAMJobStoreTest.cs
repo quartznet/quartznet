@@ -595,7 +595,7 @@ public abstract class AbstractSchedulerTest
                 {
                     CronExpression = new CronExpression(cronExpressionString),
                     TimeZone = timeZone,
-                    MisfireInstruction = Quartz.MisfireInstruction.SmartPolicy
+                    MisfireInstructionCode = Quartz.MisfireInstruction.SmartPolicy
                 };
 
                 return new StaticScheduleBuilder(trigger);

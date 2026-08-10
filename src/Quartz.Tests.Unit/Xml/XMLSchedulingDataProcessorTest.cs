@@ -162,7 +162,7 @@ public class XMLSchedulingDataProcessorTest
         trigger.CalendarName.Should().Be("calendarName");
         trigger.StartTimeUtc.Should().Be(new DateTimeOffset(2020, 1, 1, 10, 0, 0, TimeSpan.Zero));
         trigger.EndTimeUtc.Should().Be(new DateTimeOffset(2030, 1, 1, 10, 0, 0, TimeSpan.Zero));
-        trigger.MisfireInstruction.Should().Be(MisfireInstruction.SimpleTrigger.FireNow);
+        trigger.MisfireInstructionCode.Should().Be(MisfireInstruction.SimpleTrigger.FireNow);
         trigger.JobDataMap.GetString("triggerKey").Should().Be("triggerValue");
 
         ISimpleTrigger simple = (ISimpleTrigger) trigger;
@@ -199,7 +199,7 @@ public class XMLSchedulingDataProcessorTest
         trigger.Should().BeAssignableTo<ICronTrigger>();
         trigger.Key.Should().Be(new TriggerKey("triggerName", "triggerGroup"));
         trigger.Priority.Should().Be(3);
-        trigger.MisfireInstruction.Should().Be(MisfireInstruction.CronTrigger.DoNothing);
+        trigger.MisfireInstructionCode.Should().Be(MisfireInstruction.CronTrigger.DoNothing);
 
         ICronTrigger cron = (ICronTrigger) trigger;
         cron.CronExpressionString.Should().Be("0 0/5 * * * ?");
@@ -229,7 +229,7 @@ public class XMLSchedulingDataProcessorTest
 
         ITrigger trigger = processor.SingleTrigger;
         trigger.Should().BeAssignableTo<ICalendarIntervalTrigger>();
-        trigger.MisfireInstruction.Should().Be(MisfireInstruction.CalendarIntervalTrigger.DoNothing);
+        trigger.MisfireInstructionCode.Should().Be(MisfireInstruction.CalendarIntervalTrigger.DoNothing);
 
         ICalendarIntervalTrigger calendarInterval = (ICalendarIntervalTrigger) trigger;
         calendarInterval.RepeatInterval.Should().Be(2);
@@ -305,7 +305,7 @@ public class XMLSchedulingDataProcessorTest
             </schedule>
             """));
 
-        processor.SingleTrigger.MisfireInstruction.Should().Be(expected);
+        processor.SingleTrigger.MisfireInstructionCode.Should().Be(expected);
     }
 
     [TestCase("SmartPolicy", MisfireInstruction.SmartPolicy)]
@@ -329,7 +329,7 @@ public class XMLSchedulingDataProcessorTest
             </schedule>
             """));
 
-        processor.SingleTrigger.MisfireInstruction.Should().Be(expected);
+        processor.SingleTrigger.MisfireInstructionCode.Should().Be(expected);
     }
 
     [TestCase("SmartPolicy", MisfireInstruction.SmartPolicy)]
@@ -354,7 +354,35 @@ public class XMLSchedulingDataProcessorTest
             </schedule>
             """));
 
-        processor.SingleTrigger.MisfireInstruction.Should().Be(expected);
+        processor.SingleTrigger.MisfireInstructionCode.Should().Be(expected);
+    }
+
+    /// <summary>
+    /// XML gets its per-family misfire names from the schema, one <c>xs:pattern</c> set per trigger
+    /// type, so a name belonging to another family never reaches the name resolver. This is why the
+    /// silent cross-family mis-parse that the reflection-based lookup allowed was only ever
+    /// reachable through JSON, which has no schema.
+    /// </summary>
+    [Test]
+    public async Task TheSchemaRejectsAMisfireInstructionFromAnotherFamily()
+    {
+        Func<Task> act = async () => await Process(Document($"""
+            <schedule>
+              {Job}
+              <trigger>
+                <cron>
+                  <name>triggerName</name>
+                  <job-name>job1</job-name>
+                  <job-group>group1</job-group>
+                  <misfire-instruction>RescheduleNowWithExistingRepeatCount</misfire-instruction>
+                  <cron-expression>0 0 12 * * ?</cron-expression>
+                </cron>
+              </trigger>
+            </schedule>
+            """));
+
+        await act.Should().ThrowAsync<SchedulingDataValidationException>()
+            .WithMessage("*misfire-instruction*cron-trigger-misfire-instructionType*");
     }
 
     [TestCase("Second", IntervalUnit.Second)]
@@ -510,7 +538,7 @@ public class XMLSchedulingDataProcessorTest
         trigger.CalendarName.Should().BeNull();
         trigger.EndTimeUtc.Should().BeNull();
         trigger.Priority.Should().Be(TriggerConstants.DefaultPriority);
-        trigger.MisfireInstruction.Should().Be(MisfireInstruction.SmartPolicy);
+        trigger.MisfireInstructionCode.Should().Be(MisfireInstruction.SmartPolicy);
         ((ICronTrigger) trigger).TimeZone.Should().Be(TimeZoneInfo.Local);
     }
 

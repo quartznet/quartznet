@@ -35,4 +35,10 @@ public interface ISimpleTrigger : ITrigger
     /// fired.
     /// </summary>
     int TimesTriggered { get; }
+
+    /// <summary>
+    /// What the scheduler does when this trigger misses a firing.
+    /// </summary>
+    /// <seealso cref="SimpleScheduleBuilder.WithMisfireInstruction" />
+    SimpleTriggerMisfireInstruction MisfireInstruction { get; }
 }
