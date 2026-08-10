@@ -39,16 +39,13 @@ namespace Quartz;
 /// Client code can use the builder to write code such as this:
 /// </para>
 /// <code>
-/// CronExpression expression = CronExpressionBuilder.Create()
-///     .WithSecond(0)
-///     .WithMinuteIncrements(0, 15)
-///     .WithHourRange(8, 17)
-///     .OnWeekdays()
-///     .Build(); // "0 0/15 8-17 ? * MON-FRI"
-///
 /// ITrigger trigger = TriggerBuilder.Create()
 ///     .WithIdentity("myTrigger")
-///     .WithSchedule(CronScheduleBuilder.Create(expression))
+///     .WithCronSchedule(CronExpressionBuilder.Create()
+///         .WithSecond(0)
+///         .WithMinuteIncrements(0, 15)
+///         .WithHourRange(8, 17)
+///         .OnWeekdays()) // "0 0/15 8-17 ? * MON-FRI"
 ///     .Build();
 /// </code>
 /// </remarks>
@@ -367,7 +364,7 @@ public sealed class CronExpressionBuilder
     /// </summary>
     /// <param name="daysOfWeek">the days of the week to fire on</param>
     /// <returns>the updated CronExpressionBuilder</returns>
-    public CronExpressionBuilder OnDaysOfWeek(params DayOfWeek[] daysOfWeek)
+    public CronExpressionBuilder WithDaysOfWeek(params DayOfWeek[] daysOfWeek)
     {
         if (daysOfWeek is null || daysOfWeek.Length == 0)
         {
@@ -391,7 +388,7 @@ public sealed class CronExpressionBuilder
     /// <param name="start">the first day of the range</param>
     /// <param name="end">the last day of the range</param>
     /// <returns>the updated CronExpressionBuilder</returns>
-    public CronExpressionBuilder OnDayOfWeekRange(DayOfWeek start, DayOfWeek end)
+    public CronExpressionBuilder WithDayOfWeekRange(DayOfWeek start, DayOfWeek end)
     {
         return SetDayOfWeek($"{GetDayName(start, nameof(start))}-{GetDayName(end, nameof(end))}");
     }
@@ -411,7 +408,7 @@ public sealed class CronExpressionBuilder
     /// <param name="start">the day of the week to start at</param>
     /// <param name="increment">the number of days between values (1-7)</param>
     /// <returns>the updated CronExpressionBuilder</returns>
-    public CronExpressionBuilder OnDayOfWeekIncrements(DayOfWeek start, int increment)
+    public CronExpressionBuilder WithDayOfWeekIncrements(DayOfWeek start, int increment)
     {
         ValidateIncrement(increment, 7);
         GetDayName(start, nameof(start));

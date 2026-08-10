@@ -63,10 +63,10 @@ public class CronExpressionBuilderTest
     [Test]
     public void TestDayOfWeekField()
     {
-        CronExpressionBuilder.Create().OnDaysOfWeek(DayOfWeek.Thursday).ToString().Should().Be("* * * ? * THU");
-        CronExpressionBuilder.Create().OnDaysOfWeek(DayOfWeek.Sunday, DayOfWeek.Wednesday).ToString().Should().Be("* * * ? * SUN,WED");
-        CronExpressionBuilder.Create().OnDayOfWeekRange(DayOfWeek.Monday, DayOfWeek.Friday).ToString().Should().Be("* * * ? * MON-FRI");
-        CronExpressionBuilder.Create().OnDayOfWeekRange(DayOfWeek.Thursday, DayOfWeek.Sunday).ToString().Should().Be("* * * ? * THU-SUN");
+        CronExpressionBuilder.Create().WithDaysOfWeek(DayOfWeek.Thursday).ToString().Should().Be("* * * ? * THU");
+        CronExpressionBuilder.Create().WithDaysOfWeek(DayOfWeek.Sunday, DayOfWeek.Wednesday).ToString().Should().Be("* * * ? * SUN,WED");
+        CronExpressionBuilder.Create().WithDayOfWeekRange(DayOfWeek.Monday, DayOfWeek.Friday).ToString().Should().Be("* * * ? * MON-FRI");
+        CronExpressionBuilder.Create().WithDayOfWeekRange(DayOfWeek.Thursday, DayOfWeek.Sunday).ToString().Should().Be("* * * ? * THU-SUN");
         CronExpressionBuilder.Create().OnNthDayOfWeekOfMonth(DayOfWeek.Sunday, 3).ToString().Should().Be("* * * ? * SUN#3");
         CronExpressionBuilder.Create().OnLastDayOfWeekOfMonth(DayOfWeek.Thursday).ToString().Should().Be("* * * ? * THUL");
         CronExpressionBuilder.Create().OnLastDayOfWeek().ToString().Should().Be("* * * ? * L");
@@ -76,10 +76,10 @@ public class CronExpressionBuilderTest
     [Test]
     public void TestDayOfWeekIncrementsExpandToExplicitList()
     {
-        CronExpressionBuilder.Create().OnDayOfWeekIncrements(DayOfWeek.Monday, 2).ToString().Should().Be("* * * ? * MON,WED,FRI");
-        CronExpressionBuilder.Create().OnDayOfWeekIncrements(DayOfWeek.Sunday, 3).ToString().Should().Be("* * * ? * SUN,WED,SAT");
-        CronExpressionBuilder.Create().OnDayOfWeekIncrements(DayOfWeek.Friday, 2).ToString().Should().Be("* * * ? * FRI");
-        CronExpressionBuilder.Create().OnDayOfWeekIncrements(DayOfWeek.Sunday, 1).ToString().Should().Be("* * * ? * SUN,MON,TUE,WED,THU,FRI,SAT");
+        CronExpressionBuilder.Create().WithDayOfWeekIncrements(DayOfWeek.Monday, 2).ToString().Should().Be("* * * ? * MON,WED,FRI");
+        CronExpressionBuilder.Create().WithDayOfWeekIncrements(DayOfWeek.Sunday, 3).ToString().Should().Be("* * * ? * SUN,WED,SAT");
+        CronExpressionBuilder.Create().WithDayOfWeekIncrements(DayOfWeek.Friday, 2).ToString().Should().Be("* * * ? * FRI");
+        CronExpressionBuilder.Create().WithDayOfWeekIncrements(DayOfWeek.Sunday, 1).ToString().Should().Be("* * * ? * SUN,MON,TUE,WED,THU,FRI,SAT");
     }
 
     [Test]
@@ -92,7 +92,7 @@ public class CronExpressionBuilderTest
             .WithSecond(0)
             .WithMinute(0)
             .WithHour(12)
-            .OnDayOfWeekIncrements(DayOfWeek.Monday, 2)
+            .WithDayOfWeekIncrements(DayOfWeek.Monday, 2)
             .Build();
         CronExpression numeric = new CronExpression("0 0 12 ? * 2/2");
 
@@ -132,7 +132,7 @@ public class CronExpressionBuilderTest
         Invoking(x => x.WithMonth(0)).Should().Throw<ArgumentOutOfRangeException>();
         Invoking(x => x.WithMonth(13)).Should().Throw<ArgumentOutOfRangeException>();
         Invoking(x => x.WithYear(1969)).Should().Throw<ArgumentOutOfRangeException>();
-        Invoking(x => x.OnDaysOfWeek((DayOfWeek) 7)).Should().Throw<ArgumentOutOfRangeException>();
+        Invoking(x => x.WithDaysOfWeek((DayOfWeek) 7)).Should().Throw<ArgumentOutOfRangeException>();
         Invoking(x => x.OnNthDayOfWeekOfMonth(DayOfWeek.Friday, 0)).Should().Throw<ArgumentOutOfRangeException>();
         Invoking(x => x.OnNthDayOfWeekOfMonth(DayOfWeek.Friday, 6)).Should().Throw<ArgumentOutOfRangeException>();
     }
@@ -146,8 +146,8 @@ public class CronExpressionBuilderTest
         Invoking(x => x.WithHourIncrements(0, 24)).Should().Throw<ArgumentOutOfRangeException>();
         Invoking(x => x.WithDayOfMonthIncrements(1, 32)).Should().Throw<ArgumentOutOfRangeException>();
         Invoking(x => x.WithMonthIncrements(1, 13)).Should().Throw<ArgumentOutOfRangeException>();
-        Invoking(x => x.OnDayOfWeekIncrements(DayOfWeek.Monday, 0)).Should().Throw<ArgumentOutOfRangeException>();
-        Invoking(x => x.OnDayOfWeekIncrements(DayOfWeek.Monday, 8)).Should().Throw<ArgumentOutOfRangeException>();
+        Invoking(x => x.WithDayOfWeekIncrements(DayOfWeek.Monday, 0)).Should().Throw<ArgumentOutOfRangeException>();
+        Invoking(x => x.WithDayOfWeekIncrements(DayOfWeek.Monday, 8)).Should().Throw<ArgumentOutOfRangeException>();
         Invoking(x => x.WithYearIncrements(2030, 0)).Should().Throw<ArgumentOutOfRangeException>();
         // An unbounded year increment would overflow the "i += incr" loop in CronExpression.AddToSet
         // and silently produce a wrong schedule; the builder must reject it up front like every other field.
@@ -162,7 +162,7 @@ public class CronExpressionBuilderTest
         Invoking(x => x.WithHours()).Should().Throw<ArgumentException>();
         Invoking(x => x.WithDaysOfMonth()).Should().Throw<ArgumentException>();
         Invoking(x => x.WithMonths()).Should().Throw<ArgumentException>();
-        Invoking(x => x.OnDaysOfWeek()).Should().Throw<ArgumentException>();
+        Invoking(x => x.WithDaysOfWeek()).Should().Throw<ArgumentException>();
         Invoking(x => x.WithYears()).Should().Throw<ArgumentException>();
     }
 
@@ -181,15 +181,15 @@ public class CronExpressionBuilderTest
         Invoking(x => x.WithHour(1).WithHours(2, 3)).Should().Throw<InvalidOperationException>().WithMessage("Hour has already been configured.");
         Invoking(x => x.OnLastDayOfMonth().WithDayOfMonth(3)).Should().Throw<InvalidOperationException>().WithMessage("Day-of-month has already been configured.");
         Invoking(x => x.WithMonth(1).WithMonthRange(2, 5)).Should().Throw<InvalidOperationException>().WithMessage("Month has already been configured.");
-        Invoking(x => x.OnWeekdays().OnDaysOfWeek(DayOfWeek.Sunday)).Should().Throw<InvalidOperationException>().WithMessage("Day-of-week has already been configured.");
+        Invoking(x => x.OnWeekdays().WithDaysOfWeek(DayOfWeek.Sunday)).Should().Throw<InvalidOperationException>().WithMessage("Day-of-week has already been configured.");
         Invoking(x => x.WithYear(2030).WithYearRange(2031, 2032)).Should().Throw<InvalidOperationException>().WithMessage("Year has already been configured.");
     }
 
     [Test]
     public void TestDayOfMonthAndDayOfWeekAreMutuallyExclusive()
     {
-        Invoking(x => x.WithDayOfMonth(10).OnDaysOfWeek(DayOfWeek.Monday)).Should().Throw<InvalidOperationException>().WithMessage("*both day-of-month and day-of-week*");
-        Invoking(x => x.OnDaysOfWeek(DayOfWeek.Monday).WithDayOfMonth(10)).Should().Throw<InvalidOperationException>().WithMessage("*both day-of-month and day-of-week*");
+        Invoking(x => x.WithDayOfMonth(10).WithDaysOfWeek(DayOfWeek.Monday)).Should().Throw<InvalidOperationException>().WithMessage("*both day-of-month and day-of-week*");
+        Invoking(x => x.WithDaysOfWeek(DayOfWeek.Monday).WithDayOfMonth(10)).Should().Throw<InvalidOperationException>().WithMessage("*both day-of-month and day-of-week*");
         Invoking(x => x.OnLastDayOfMonth().OnNthDayOfWeekOfMonth(DayOfWeek.Friday, 3)).Should().Throw<InvalidOperationException>().WithMessage("*both day-of-month and day-of-week*");
     }
 
@@ -217,7 +217,7 @@ public class CronExpressionBuilderTest
             CronExpressionBuilder.Create().OnLastDayOfWeekOfMonth(DayOfWeek.Thursday),
             CronExpressionBuilder.Create().OnLastDayOfWeek(),
             CronExpressionBuilder.Create().OnWeekdays(),
-            CronExpressionBuilder.Create().OnDayOfWeekRange(DayOfWeek.Thursday, DayOfWeek.Sunday),
+            CronExpressionBuilder.Create().WithDayOfWeekRange(DayOfWeek.Thursday, DayOfWeek.Sunday),
             CronExpressionBuilder.Create().WithSecondRange(55, 5).WithHourRange(22, 2),
             CronExpressionBuilder.Create().WithYearRange(2030, 2035),
             CronExpressionBuilder.Create().WithYearIncrements(2030, 2)

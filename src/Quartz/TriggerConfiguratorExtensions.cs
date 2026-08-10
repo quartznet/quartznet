@@ -82,13 +82,48 @@ public static class TriggerConfiguratorExtensions
     }
 
     /// <summary>
-    /// Set the trigger to fire on the given cron schedule.
+    /// Set the trigger to fire on a cron schedule defined by an already-built
+    /// <see cref="CronExpression" />.
     /// </summary>
     /// <remarks>
-    /// This is the overload to reach for when the expression carries <c>H</c> (hash) tokens that
-    /// should be spread by something other than the trigger's own key:
-    /// <c>CronScheduleBuilder.Create(new CronExpression(expression, hashKey))</c>.
+    /// This is also the overload to reach for when the expression carries <c>H</c> (hash) tokens
+    /// that should be spread by something other than the trigger's own key:
+    /// <c>WithCronSchedule(new CronExpression(expression, hashKey))</c>.
     /// </remarks>
+    /// <param name="configurator">the trigger being configured.</param>
+    /// <param name="cronExpression">the cron expression the trigger fires on.</param>
+    /// <param name="configure">configures the rest of the schedule, such as its time zone.</param>
+    public static TConfigurator WithCronSchedule<TConfigurator>(
+        this TConfigurator configurator,
+        CronExpression cronExpression,
+        Action<CronScheduleBuilder>? configure = null) where TConfigurator : ITriggerConfigurator
+    {
+        CronScheduleBuilder builder = CronScheduleBuilder.Create(cronExpression);
+        configure?.Invoke(builder);
+        configurator.WithSchedule(builder);
+        return configurator;
+    }
+
+    /// <summary>
+    /// Set the trigger to fire on a cron schedule assembled with a
+    /// <see cref="CronExpressionBuilder" />, so the fluent chain closes without naming
+    /// <see cref="CronScheduleBuilder" />.
+    /// </summary>
+    /// <param name="configurator">the trigger being configured.</param>
+    /// <param name="cronExpression">the builder holding the assembled expression; it is built here.</param>
+    /// <param name="configure">configures the rest of the schedule, such as its time zone.</param>
+    public static TConfigurator WithCronSchedule<TConfigurator>(
+        this TConfigurator configurator,
+        CronExpressionBuilder cronExpression,
+        Action<CronScheduleBuilder>? configure = null) where TConfigurator : ITriggerConfigurator
+    {
+        ArgumentNullException.ThrowIfNull(cronExpression);
+        return configurator.WithCronSchedule(cronExpression.Build(), configure);
+    }
+
+    /// <summary>
+    /// Set the trigger to fire on the given cron schedule.
+    /// </summary>
     /// <param name="configurator">the trigger being configured.</param>
     /// <param name="schedule">the schedule to use.</param>
     public static TConfigurator WithCronSchedule<TConfigurator>(

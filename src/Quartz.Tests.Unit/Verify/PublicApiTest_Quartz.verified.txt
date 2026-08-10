@@ -109,9 +109,6 @@ namespace Quartz
     public sealed class CronExpressionBuilder
     {
         public Quartz.CronExpression Build() { }
-        public Quartz.CronExpressionBuilder OnDayOfWeekIncrements(System.DayOfWeek start, int increment) { }
-        public Quartz.CronExpressionBuilder OnDayOfWeekRange(System.DayOfWeek start, System.DayOfWeek end) { }
-        public Quartz.CronExpressionBuilder OnDaysOfWeek(params System.DayOfWeek[] daysOfWeek) { }
         public Quartz.CronExpressionBuilder OnLastDayOfMonth() { }
         public Quartz.CronExpressionBuilder OnLastDayOfWeek() { }
         public Quartz.CronExpressionBuilder OnLastDayOfWeekOfMonth(System.DayOfWeek dayOfWeek) { }
@@ -122,7 +119,10 @@ namespace Quartz
         public Quartz.CronExpressionBuilder WithDayOfMonth(int day) { }
         public Quartz.CronExpressionBuilder WithDayOfMonthIncrements(int start, int increment) { }
         public Quartz.CronExpressionBuilder WithDayOfMonthRange(int start, int end) { }
+        public Quartz.CronExpressionBuilder WithDayOfWeekIncrements(System.DayOfWeek start, int increment) { }
+        public Quartz.CronExpressionBuilder WithDayOfWeekRange(System.DayOfWeek start, System.DayOfWeek end) { }
         public Quartz.CronExpressionBuilder WithDaysOfMonth(params int[] days) { }
+        public Quartz.CronExpressionBuilder WithDaysOfWeek(params System.DayOfWeek[] daysOfWeek) { }
         public Quartz.CronExpressionBuilder WithHour(int hour) { }
         public Quartz.CronExpressionBuilder WithHourIncrements(int start, int increment) { }
         public Quartz.CronExpressionBuilder WithHourRange(int start, int end) { }
@@ -1250,6 +1250,10 @@ namespace Quartz
         public static TConfigurator WithCalendarIntervalSchedule<TConfigurator>(this TConfigurator configurator, System.Action<Quartz.CalendarIntervalScheduleBuilder>? configure = null)
             where TConfigurator : Quartz.ITriggerConfigurator { }
         public static TConfigurator WithCronSchedule<TConfigurator>(this TConfigurator configurator, Quartz.CronScheduleBuilder schedule)
+            where TConfigurator : Quartz.ITriggerConfigurator { }
+        public static TConfigurator WithCronSchedule<TConfigurator>(this TConfigurator configurator, Quartz.CronExpression cronExpression, System.Action<Quartz.CronScheduleBuilder>? configure = null)
+            where TConfigurator : Quartz.ITriggerConfigurator { }
+        public static TConfigurator WithCronSchedule<TConfigurator>(this TConfigurator configurator, Quartz.CronExpressionBuilder cronExpression, System.Action<Quartz.CronScheduleBuilder>? configure = null)
             where TConfigurator : Quartz.ITriggerConfigurator { }
         public static TConfigurator WithCronSchedule<TConfigurator>(this TConfigurator configurator, string cronExpression, System.Action<Quartz.CronScheduleBuilder>? configure = null)
             where TConfigurator : Quartz.ITriggerConfigurator { }
