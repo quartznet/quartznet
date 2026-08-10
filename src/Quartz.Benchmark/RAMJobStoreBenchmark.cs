@@ -447,7 +447,7 @@ public class RAMJobStoreBenchmark
         TimeSpan repeatInterval,
         int misFirePolicy,
         DateTimeOffset? nextFireTimeUtc = null)
-        where T : class, ISimpleTrigger, IOperableTrigger, new()
+        where T : SimpleTriggerImpl, new()
     {
         var trigger = (IOperableTrigger) new T
         {

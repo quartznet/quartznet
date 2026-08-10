@@ -43,6 +43,10 @@ namespace Quartz;
 /// <para>If startTime is before startTimeOfDay, then it has no affect. Else if startTime after startTimeOfDay, then the first fire time
 /// for that day will be normal startTimeOfDay incremental values after startTime value. Same reversal logic is applied to endTime
 /// with endTimeOfDay.</para>
+///
+/// <para>This is a read model: to change a trigger's schedule, rebuild it with
+/// <see cref="ITrigger.GetTriggerBuilder" /> and hand it to
+/// <see cref="IScheduler.RescheduleJob" />.</para>
 /// </remarks>
 /// <see cref="DailyTimeIntervalTriggerImpl" />
 /// <see cref="DailyTimeIntervalScheduleBuilder"/>
@@ -94,7 +98,7 @@ public interface IDailyTimeIntervalTrigger : ITrigger
     /// A Set containing the integers representing the days of the week, per the values 0-6 as defined by
     /// DayOfWees.Sunday - DayOfWeek.Saturday.
     /// </returns>
-    IReadOnlyCollection<DayOfWeek> DaysOfWeek { get; set; }
+    IReadOnlyCollection<DayOfWeek> DaysOfWeek { get; }
 
     /// <summary>
     /// Get the number of times the <see cref="IDailyTimeIntervalTrigger" /> has already fired.

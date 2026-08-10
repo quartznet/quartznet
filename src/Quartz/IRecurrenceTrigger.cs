@@ -14,6 +14,11 @@ namespace Quartz;
 /// The recurrence rule string follows the RFC 5545 RRULE format, for example:
 /// <c>FREQ=MONTHLY;BYDAY=2MO</c> or <c>FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR</c>.
 /// </para>
+/// <para>
+/// This is a read model: to change a trigger's schedule, rebuild it with
+/// <see cref="ITrigger.GetTriggerBuilder" /> and hand it to
+/// <see cref="IScheduler.RescheduleJob" />.
+/// </para>
 /// </remarks>
 /// <seealso cref="RecurrenceScheduleBuilder"/>
 public interface IRecurrenceTrigger : ITrigger
@@ -21,13 +26,13 @@ public interface IRecurrenceTrigger : ITrigger
     /// <summary>
     /// The RFC 5545 RRULE string, e.g. "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE,FR".
     /// </summary>
-    string RecurrenceRule { get; set; }
+    string RecurrenceRule { get; }
 
     /// <summary>
     /// The time zone within which recurrence calculations are performed.
     /// Defaults to <see cref="TimeZoneInfo.Local"/> if not set.
     /// </summary>
-    TimeZoneInfo TimeZone { get; set; }
+    TimeZoneInfo TimeZone { get; }
 
     /// <summary>
     /// The number of times this trigger has already fired.

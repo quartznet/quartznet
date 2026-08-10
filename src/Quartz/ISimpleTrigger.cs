@@ -6,6 +6,11 @@ namespace Quartz;
 /// A <see cref="ITrigger" /> that is used to fire a <see cref="IJob" />
 /// at a given moment in time, and optionally repeated at a specified interval.
 /// </summary>
+/// <remarks>
+/// This is a read model: to change a trigger's schedule, rebuild it with
+/// <see cref="ITrigger.GetTriggerBuilder" /> and hand it to
+/// <see cref="IScheduler.RescheduleJob" />.
+/// </remarks>
 /// <seealso cref="TriggerBuilder" />
 /// <seealso cref="SimpleScheduleBuilder" />
 /// <author>James House</author>
@@ -14,16 +19,16 @@ namespace Quartz;
 public interface ISimpleTrigger : ITrigger
 {
     /// <summary>
-    /// Get or set the number of times the <see cref="ISimpleTrigger" /> should
+    /// The number of times the <see cref="ISimpleTrigger" /> should
     /// repeat, after which it will be automatically deleted.
     /// </summary>
     /// <seealso cref="SimpleTriggerImpl.RepeatIndefinitely" />
-    int RepeatCount { get; set; }
+    int RepeatCount { get; }
 
     /// <summary>
-    /// Get or set the time interval at which the <see cref="ISimpleTrigger" /> should repeat.
+    /// The time interval at which the <see cref="ISimpleTrigger" /> repeats.
     /// </summary>
-    TimeSpan RepeatInterval { get; set; }
+    TimeSpan RepeatInterval { get; }
 
     /// <summary>
     /// Get the number of times the <see cref="ISimpleTrigger" /> has already
