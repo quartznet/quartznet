@@ -2,6 +2,7 @@ using Quartz.Extensibility;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Jobs;
+using Quartz.Plugins.History;
 
 namespace Quartz.Tests.Unit.Impl;
 
@@ -51,6 +52,14 @@ public class SimpleTypeLoadHelperTest
     {
         loadHelper.LoadType("Quartz.Job.NoOpJob, Quartz").Should().Be<NoOpJob>(
             "a 3.x name carries both the old namespace and the pre-split assembly, and the fallbacks must compose");
+    }
+
+    [Test]
+    public void ShouldLoadPluginNamedByItsPre40Namespace()
+    {
+        loadHelper.LoadType("Quartz.Plugin.History.LoggingJobHistoryPlugin, Quartz.Plugins")
+            .Should().Be<LoggingJobHistoryPlugin>(
+                "quartz.plugin.<name>.type naming the old singular namespace has to keep working");
     }
 
     [Test]

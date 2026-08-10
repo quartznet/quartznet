@@ -22,7 +22,7 @@ Install-Package Quartz.Plugins.TimeZoneConverter
 ```csharp
 var properties = new NameValueCollection
 {
- ["quartz.plugin.timeZoneConverter.type"] = "Quartz.Plugin.TimeZoneConverter.TimeZoneConverterPlugin, Quartz.Plugins.TimeZoneConverter"
+ ["quartz.plugin.timeZoneConverter.type"] = "Quartz.Plugins.TimeZoneConverter.TimeZoneConverterPlugin, Quartz.Plugins.TimeZoneConverter"
 };
 ISchedulerFactory schedulerFactory = QuartzSchedulerBuilder.Create()
     .UseProperties(properties)

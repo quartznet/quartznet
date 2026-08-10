@@ -2,11 +2,11 @@ using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.Extensions.DependencyInjection;
 
-using Quartz.Plugin.History;
-using Quartz.Plugin.Interrupt;
-using Quartz.Plugin.Json;
-using Quartz.Plugin.Management;
-using Quartz.Plugin.Xml;
+using Quartz.Plugins.History;
+using Quartz.Plugins.Interrupt;
+using Quartz.Plugins.Json;
+using Quartz.Plugins.Management;
+using Quartz.Plugins.Xml;
 using Quartz.Extensibility;
 
 namespace Quartz;

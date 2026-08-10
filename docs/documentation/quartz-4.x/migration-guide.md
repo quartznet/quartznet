@@ -192,8 +192,8 @@ per-scheduler registration like every other part of a scheduler.
 ```diff
   services.Configure<QuartzOptions>(options =>
   {
--     options["quartz.plugin.jobHistory.type"] = "Quartz.Plugin.History.LoggingJobHistoryPlugin, Quartz.Plugins";
-+     options.Properties["quartz.plugin.jobHistory.type"] = "Quartz.Plugin.History.LoggingJobHistoryPlugin, Quartz.Plugins";
+-     options["quartz.plugin.jobHistory.type"] = "Quartz.Plugins.History.LoggingJobHistoryPlugin, Quartz.Plugins";
++     options.Properties["quartz.plugin.jobHistory.type"] = "Quartz.Plugins.History.LoggingJobHistoryPlugin, Quartz.Plugins";
   });
 ```
 
@@ -2716,6 +2716,7 @@ above cover configuration strings.
 |---|---|---|
 | `Quartz.Job` | `Quartz.Jobs` | Namespace, assembly and package now agree. A configuration string or a stored `JOB_CLASS_NAME` naming the old spelling still resolves, with a warning |
 | `Quartz.Extensibility.IDirectoryProvider` | `Quartz.Jobs.IDirectoryProvider` | It exists for `DirectoryScanJob` alone, so it lives with it. It is resolved from `SchedulerContext` by key, never by type name |
+| `Quartz.Plugin.History` <br> `Quartz.Plugin.Interrupt` <br> `Quartz.Plugin.Json` <br> `Quartz.Plugin.Management` <br> `Quartz.Plugin.Xml` <br> `Quartz.Plugin.TimeZoneConverter` | `Quartz.Plugins.*` | Same rule as the jobs: the packages are `Quartz.Plugins` and `Quartz.Plugins.TimeZoneConverter`. A `quartz.plugin.<name>.type` naming the old spelling still resolves, with a warning. The **configuration key** prefix is still `quartz.plugin.`, singular — it is not a namespace |
 
 ## The scheduler and the job store speak the same verbs
 

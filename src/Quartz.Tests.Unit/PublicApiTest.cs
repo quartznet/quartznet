@@ -24,8 +24,8 @@ public class PublicApiTest
     [
         typeof(global::Quartz.IScheduler).Assembly,
         typeof(global::Quartz.Jobs.DirectoryScanJob).Assembly,
-        typeof(global::Quartz.Plugin.History.LoggingJobHistoryPlugin).Assembly,
-        typeof(global::Quartz.Plugin.TimeZoneConverter.TimeZoneConverterPlugin).Assembly,
+        typeof(global::Quartz.Plugins.History.LoggingJobHistoryPlugin).Assembly,
+        typeof(global::Quartz.Plugins.TimeZoneConverter.TimeZoneConverterPlugin).Assembly,
         typeof(global::Quartz.Serialization.Newtonsoft.ICalendarSerializer).Assembly,
         typeof(global::Quartz.HttpClient.HttpScheduler).Assembly,
         typeof(global::Quartz.RedisLockHandlerConfigurationExtensions).Assembly,
