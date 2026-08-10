@@ -222,7 +222,7 @@ internal sealed class JobRunShell
                     logger.LogError(e, "Job {JobDetailKey} threw an unhandled Exception: ", jobDetail.Key);
                     SchedulerException se = new JobExecutionProcessException(context, e);
                     await qs.NotifySchedulerListenersError($"Job {context.JobDetail.Key} threw an exception.", se, cancellationToken).ConfigureAwait(false);
-                    jobExEx = new JobExecutionException(se, refireImmediately: false);
+                    jobExEx = new JobExecutionException(se);
                     jobExEx.JobDetail = jobDetail;
                 }
 

@@ -2581,6 +2581,10 @@ It is the supported way to add logging, metrics, tenant routing or fault injecti
 sealed one such as `RAMJobStore`. A store that keeps scheduling data somewhere new implements `IJobStore`
 directly instead; nothing forces it through this base.
 
+`DelegatingScheduler` gained the same shape: every one of its members is `virtual` now, so a scheduler
+decorator overrides only what it changes instead of shadowing members with `new` — which compiled, and
+then silently failed to intercept calls made through `IScheduler`.
+
 ## Jobs take a CancellationToken
 
 `IJob.Execute` now takes the cancellation token as a parameter alongside the context:
@@ -2914,10 +2918,25 @@ listing needs are enough, call `QueryTriggers` with `TriggerQuery.Job` yourself 
 ```
 
 The old type was built through a fifteen-parameter constructor of which six were adjacent booleans. It is a
-`sealed record` with `init` properties now, so a snapshot is built and read by name. Two properties were
-renamed: `SchedulerRemote` → `IsRemote` and `NumberOfJobsExecuted` → `JobsExecuted`. `GetSummary()` is gone —
+`sealed record` with `init` properties now, so a snapshot is built and read by name. `GetSummary()` is gone —
 the record's `ToString()` prints every value, which is what the hand-written summary was for. Over HTTP,
 `SchedulerStatisticsDto.NumberOfJobsExecuted` is `JobsExecuted` to match.
+
+The renamed and reshaped properties:
+
+| 3.x / earlier 4.0 preview | 4.0 |
+|---|---|
+| `SchedulerType` (`Type`) | `SchedulerTypeName` (`string`) |
+| `JobStoreType` (`Type`) | `JobStoreTypeName` (`string`) |
+| `ThreadPoolType` (`Type`) | `ThreadPoolTypeName` (`string`) |
+| `SchedulerRemote` / `IsRemote` | `IsProxy` |
+| `NumberOfJobsExecuted` | `JobsExecuted` |
+
+The `Type` members became assembly-qualified names (without version) because a proxy cannot promise to
+materialize them: an `HttpScheduler` reads the remote scheduler's metadata over the wire, and the remote's
+job store or thread pool type need not exist — and previously had to be `Type.GetType`-resolved — in the
+client process. `IsProxy` says what the flag always meant: this metadata describes a proxy to a scheduler
+running elsewhere, with the values read over the wire, rather than the in-process instance.
 
 ## Single-key mutations answer whether they applied
 
@@ -3246,6 +3265,20 @@ already-built triggers keep the zone they were built with.
 
 `CronTriggerImpl.FinalFireTimeUtc` now returns `null` directly for a trigger with no end time, which is the
 value it always produced through `GetFinalFireTime`.
+
+### `ITrigger` is Quartz-implemented
+
+The read-model split makes explicit what was always true operationally: Quartz owns the implementations
+of `ITrigger`. Build triggers with `TriggerBuilder`; a custom trigger type derives from `AbstractTrigger`,
+which carries the mutable and operational contracts the scheduler and the stores need. An object that
+implements only `ITrigger` cannot be scheduled — `ScheduleJob` and `RescheduleJob` used to fail on it with
+an `InvalidCastException` from inside the scheduler; they now reject it with a `SchedulerException` that
+names the type and says what to do instead. `ITrigger`'s own documentation states the rule.
+
+`IJobStore.ScheduleJobs` follows the rest of the store contract and takes
+`IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>>` — the scheduler validates and
+downcasts the caller's triggers before the store sees them, so a custom store no longer casts each
+`ITrigger` itself. `IScheduler.ScheduleJobs` is unchanged.
 
 ## Nine `UsingJobData` overloads became one
 
@@ -3967,12 +4000,12 @@ Everything else lost `[Serializable]`:
 
 | Where | Types |
 |---|---|
-| Exceptions | `SchedulerException`, `JobExecutionException`, `JobPersistenceException`, `ObjectAlreadyExistsException`, `SchedulerConfigException`, `UnableToInterruptJobException`, `JsonSerializationException`, `LockException`, `NoSuchDelegateException`, `SchedulingDataValidationException` |
+| Exceptions | `SchedulerException`, `JobExecutionException`, `JobPersistenceException`, `ObjectAlreadyExistsException`, `SchedulerConfigException`, `JsonSerializationException`, `LockException`, `NoSuchDelegateException`, `SchedulingDataValidationException` |
 | Matchers | `AndMatcher<TKey>`, `GroupMatcher<TKey>`, `KeyMatcher<TKey>`, `NameMatcher<TKey>`, `NotMatcher<TKey>`, `OrMatcher<TKey>`, `StringMatcher<TKey>`, `StringOperator` |
 | Everything else | `JobType`, `SchedulerContext`, `JobExecutionContextImpl` |
 
 The `protected` / `public` `(SerializationInfo, StreamingContext)` constructors went with them, on
-`SchedulerException`, `JobPersistenceException`, `SchedulerConfigException`, `UnableToInterruptJobException`
+`SchedulerException`, `JobPersistenceException`, `SchedulerConfigException`
 and `HttpClientException`. If you derive from one of those and forward a `SerializationInfo` to the base,
 delete your constructor — the base class library's `Exception(SerializationInfo, StreamingContext)` is
 obsolete too, and nothing calls yours.
@@ -3986,11 +4019,28 @@ deserialize an instance whose type is not marked serializable, so removing the a
 unreadable even through the compatibility package. Blob-reachable means what the graph *can* contain, not only
 what Quartz itself puts there.
 
+## `JobExecutionException` has four constructors and init-only flags
+
+The exception had seven constructors, three of which existed only to smuggle the `refireImmediately`
+flag in positionally — `new JobExecutionException(ex, true)` said nothing at the call site about what
+the `true` meant. The four that remain mirror every other exception's shape — `()`, `(message)`,
+`(cause)`, `(message, cause)` — and the three scheduler directives (`RefireImmediately`,
+`UnscheduleFiringTrigger`, `UnscheduleAllTriggers`) are init-only properties:
+
+```diff
+- throw new JobExecutionException(msg, ex, true);
++ throw new JobExecutionException(msg, ex) { RefireImmediately = true };
+```
+
+An exception's instructions are fixed at the throw site, which is what init-only says; nothing could
+meaningfully flip them on a caught instance in flight. `JobDetail` — which the scheduler fills in on the
+way to the listeners — is read-only outside Quartz for the same reason.
+
 ## The two exceptions moved out of `Quartz.Core`
 
 `Quartz.Core` held exactly two public types, and both were exceptions: `JobExecutionProcessException` and
 `JobInstantiationException`. Every one of their siblings — `SchedulerException`, which they both derive from,
-`JobExecutionException`, `SchedulerConfigException`, `UnableToInterruptJobException` — lives in `Quartz`. The two
+`JobExecutionException`, `SchedulerConfigException` — lives in `Quartz`. The two
 moved there too, and `Quartz.Core` is now internal from top to bottom: nothing in it is a type you can name.
 
 ```diff
@@ -4121,6 +4171,18 @@ instead:
 
 `IScheduler.GetCurrentlyExecutingJobs()` returns `List<IJobExecutionContext>` as before — the element type never
 was the cancellable interface, only the documentation said so.
+
+### `UnableToInterruptJobException` is gone
+
+The exception dates from the Java lineage, where interrupting a job that did not implement
+`InterruptableJob` had to fail. In 4.0 interruption is cancellation: every job receives the
+cancellation token, so there is no such thing as a job that cannot be asked to stop, and the
+exception had no throw site left. `Interrupt(JobKey)` and `InterruptFireInstance(fireInstanceId)`
+keep their semantics — they set the token on the matching executions and return whether they found
+any; whether the job honors the token remains the job's business. A `catch
+(UnableToInterruptJobException)` block can simply be deleted; `HttpScheduler`'s error mapping no
+longer resurrects the type either, so a remote scheduler fault on an interrupt call surfaces as the
+`SchedulerException`-derived type the server actually reported.
 
 ## `JobDataMap`'s typed accessors are the ones it inherits
 
@@ -4346,7 +4408,7 @@ contract rather than in the root namespace next to `IScheduler`. The methods are
 | `ISchedulerProxyFactory` and `HttpSchedulerProxyFactory` removed | Nothing read them — see [Remoting a scheduler is not a Quartz concern](#remoting-a-scheduler-is-not-a-quartz-concern) |
 | `quartz.scheduler.proxy*` and `quartz.scheduler.exporter*` are rejected | They were whitelisted but read by nobody; the exception names the replacement |
 | `[Serializable]` removed from 30 types | It stays only on the types a job store blob can be made of — see [`[Serializable]` survives only where a database blob needs it](#serializable-survives-only-where-a-database-blob-needs-it) |
-| The `(SerializationInfo, StreamingContext)` constructors removed | On `SchedulerException`, `JobPersistenceException`, `SchedulerConfigException`, `UnableToInterruptJobException` and `HttpClientException`. `BinaryFormatter` was their only caller, and the base class library's equivalent is obsolete |
+| The `(SerializationInfo, StreamingContext)` constructors removed | On `SchedulerException`, `JobPersistenceException`, `SchedulerConfigException` and `HttpClientException`. `BinaryFormatter` was their only caller, and the base class library's equivalent is obsolete |
 | `[Serializable]` removed from `JobExecutionContextImpl` and `SchedulerContext` | Neither is persisted; `SchedulerContext` also lost its private deserialization constructor |
 | `JobExecutionProcessException` and `JobInstantiationException` moved to `Quartz` | `Quartz.Core` is internal now — see [The two exceptions moved out of `Quartz.Core`](#the-two-exceptions-moved-out-of-quartz-core) |
 | `ExecutionLimits` split into a builder and a snapshot | `ExecutionLimitsBuilder` mutates, `ExecutionLimits` is immutable and is no longer an `IReadOnlyDictionary<string, int?>` — see [Execution limits are built once, then frozen](#execution-limits-are-built-once-then-frozen) |
@@ -4494,6 +4556,7 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.Impl.AdoJobStore.TriggerStatus` | Removed | `StoredTriggerHeader`, returned by `IDriverDelegate.SelectTriggerHeader` — see [The driver delegate speaks in records](#the-driver-delegate-speaks-in-records) |
 | `Quartz.TriggerTimeComparator` | Internal | No replacement; it ordered by next fire time, then priority descending, then key — write that inline if you need it |
 | `Quartz.Simpl.TriggerWrapper` | Internal | No replacement; it is `RAMJobStore`'s per-trigger state — see [`RAMJobStore` is sealed](#ramjobstore-is-sealed) |
+| `Quartz.UnableToInterruptJobException` | Removed | Nothing throws it: interruption is cancellation, and every job receives the token — see [`UnableToInterruptJobException` is gone](#unabletointerruptjobexception-is-gone) |
 | `Quartz.XmlSchedulingOptions` | Merged into `FileSchedulingOptions` | See [Other Breaking Changes](#other-breaking-changes) |
 
 ### Members that were removed

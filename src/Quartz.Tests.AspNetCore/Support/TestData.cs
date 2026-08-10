@@ -3,6 +3,7 @@ using FakeItEasy;
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
 using Quartz.Extensibility;
+using Quartz.Util;
 
 namespace Quartz.Tests.AspNetCore.Support;
 
@@ -44,17 +45,17 @@ public static class TestData
         {
             SchedulerName = SchedulerName,
             SchedulerInstanceId = SchedulerInstanceId,
-            SchedulerType = typeof(IScheduler),
-            IsRemote = false,
+            SchedulerTypeName = typeof(IScheduler).AssemblyQualifiedNameWithoutVersion(),
+            IsProxy = false,
             Started = true,
             InStandbyMode = false,
             Shutdown = false,
             RunningSince = DateTimeOffset.Now.AddDays(-1),
             JobsExecuted = 1_000_000,
-            JobStoreType = typeof(RAMJobStore),
+            JobStoreTypeName = typeof(RAMJobStore).AssemblyQualifiedNameWithoutVersion(),
             JobStoreSupportsPersistence = false,
             JobStoreClustered = false,
-            ThreadPoolType = typeof(DefaultThreadPool),
+            ThreadPoolTypeName = typeof(DefaultThreadPool).AssemblyQualifiedNameWithoutVersion(),
             ThreadPoolSize = 10,
             Version = "1.2.3",
         };

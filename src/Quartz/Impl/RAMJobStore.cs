@@ -374,7 +374,7 @@ public sealed class RAMJobStore : IJobStore
         }
     }
 
-    public async ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
+    public async ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -391,7 +391,7 @@ public sealed class RAMJobStore : IJobStore
                         Throw.ObjectAlreadyExistsException(job);
                     }
 
-                    foreach (ITrigger trigger in triggersByJob.Value)
+                    foreach (IOperableTrigger trigger in triggersByJob.Value)
                     {
                         if (triggersByKey.ContainsKey(trigger.Key))
                         {
@@ -405,9 +405,9 @@ public sealed class RAMJobStore : IJobStore
             foreach (var triggersByJob in triggersAndJobs)
             {
                 AddJobNoLock(triggersByJob.Key, replace: true);
-                foreach (ITrigger trigger in triggersByJob.Value)
+                foreach (IOperableTrigger trigger in triggersByJob.Value)
                 {
-                    await AddTriggerNoLock((IOperableTrigger) trigger, replace: true, cancellationToken: cancellationToken).ConfigureAwait(false);
+                    await AddTriggerNoLock(trigger, replace: true, cancellationToken: cancellationToken).ConfigureAwait(false);
                 }
             }
         }

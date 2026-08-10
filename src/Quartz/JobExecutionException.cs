@@ -27,8 +27,17 @@ namespace Quartz;
 /// or whether it wants to be unscheduled.
 /// </summary>
 /// <remarks>
+/// <para>
+/// The instructions to the scheduler are init-only properties, set with an object
+/// initializer:
+/// </para>
+/// <code>
+/// throw new JobExecutionException(ex) { RefireImmediately = true };
+/// </code>
+/// <para>
 /// Note that if the flag for 'refire immediately' is set, the flags for
 /// unscheduling the Job are ignored.
+/// </para>
 /// </remarks>
 /// <seealso cref="IJob" />
 /// <seealso cref="IJobExecutionContext" />
@@ -38,8 +47,7 @@ namespace Quartz;
 public sealed class JobExecutionException : SchedulerException
 {
     /// <summary>
-    /// Create a JobExecutionException, with the 're-fire immediately' flag set
-    /// to <see langword="false" />.
+    /// Create a JobExecutionException.
     /// </summary>
     public JobExecutionException()
     {
@@ -70,60 +78,26 @@ public sealed class JobExecutionException : SchedulerException
     }
 
     /// <summary>
-    /// Create a JobExecutionException with the 're-fire immediately' flag set
-    /// to the given value.
+    /// Whether the firing trigger should be unscheduled.
     /// </summary>
-    public JobExecutionException(bool refireImmediately)
-    {
-        RefireImmediately = refireImmediately;
-    }
+    public bool UnscheduleFiringTrigger { get; init; }
 
     /// <summary>
-    /// Create a JobExecutionException with the given underlying exception, and
-    /// the 're-fire immediately' flag set to the given value.
+    /// Whether all triggers of the job should be unscheduled.
     /// </summary>
-    public JobExecutionException(Exception innerException, bool refireImmediately) : base(innerException)
-    {
-        RefireImmediately = refireImmediately;
-    }
+    public bool UnscheduleAllTriggers { get; init; }
 
     /// <summary>
-    /// Create a JobExecutionException with the given message, and underlying
-    /// exception, and the 're-fire immediately' flag set to the given value.
+    /// Whether the job should be re-fired immediately with the same
+    /// <see cref="IJobExecutionContext" />.
     /// </summary>
-    public JobExecutionException(string message, Exception innerException, bool refireImmediately) : base(message, innerException)
-    {
-        RefireImmediately = refireImmediately;
-    }
+    public bool RefireImmediately { get; init; }
 
     /// <summary>
-    /// Gets or sets a value indicating whether to unschedule firing trigger.
-    /// </summary>
-    /// <value>
-    /// 	<c>true</c> if firing trigger should be unscheduled; otherwise, <c>false</c>.
-    /// </value>
-    public bool UnscheduleFiringTrigger { set; get; }
-
-    /// <summary>
-    /// Gets or sets a value indicating whether to unschedule all triggers.
-    /// </summary>
-    /// <value>
-    /// 	<c>true</c> if all triggers should be unscheduled; otherwise, <c>false</c>.
-    /// </value>
-    public bool UnscheduleAllTriggers { set; get; }
-
-
-    /// <summary>
-    /// Gets or sets a value indicating whether to refire immediately.
-    /// </summary>
-    /// <value><c>true</c> if to refire immediately; otherwise, <c>false</c>.</value>
-    public bool RefireImmediately { get; set; }
-
-    /// <summary>
-    /// Gets or sets the <see cref="IJobDetail"/> of the job that was being executed
+    /// Gets the <see cref="IJobDetail"/> of the job that was being executed
     /// when the exception was thrown. This is set automatically by the scheduler.
     /// </summary>
-    public IJobDetail? JobDetail { get; set; }
+    public IJobDetail? JobDetail { get; internal set; }
 
     /// <summary>
     /// Creates and returns a string representation of the current exception.

@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Quartz.HttpApiContract;
 using Quartz.Extensibility;
 using Quartz.Tests.AspNetCore.Support;
+using Quartz.Util;
 
 namespace Quartz.Tests.AspNetCore.HttpApi;
 
@@ -47,9 +48,12 @@ public class SchedulerEndpointsTest : WebApiTest
         HttpScheduler.IsStarted.Should().BeTrue();
 
         var metadata = await HttpScheduler.GetMetadata();
-        metadata.Should().BeEquivalentTo(TestData.Metadata, x => x.Excluding(y => y.IsRemote).Excluding(x => x.SchedulerType));
-        metadata.IsRemote.Should().BeTrue();
-        metadata.SchedulerType.Should().Be<HttpScheduler>();
+        metadata.Should().BeEquivalentTo(TestData.Metadata, x => x.Excluding(y => y.IsProxy).Excluding(x => x.SchedulerTypeName));
+        metadata.IsProxy.Should().BeTrue("HttpScheduler is a proxy to the remote scheduler");
+        metadata.SchedulerTypeName.Should().Be(typeof(HttpScheduler).AssemblyQualifiedNameWithoutVersion());
+        metadata.JobStoreTypeName.Should().Be(
+            TestData.Metadata.JobStoreTypeName,
+            "the job store type name passes through as a string - the remote type need not exist in the client process");
     }
 
     [Test]

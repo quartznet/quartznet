@@ -109,7 +109,7 @@ public class SendMailJob : IJob
         }
         catch (Exception ex)
         {
-            throw new JobExecutionException($"Unable to send mail: {GetMessageDescription(message)}", ex, false);
+            throw new JobExecutionException($"Unable to send mail: {GetMessageDescription(message)}", ex);
         }
 
         return default;

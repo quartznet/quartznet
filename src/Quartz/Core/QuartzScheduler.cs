@@ -531,7 +531,7 @@ internal sealed class QuartzScheduler
             Throw.SchedulerException("Job's class cannot be null");
         }
 
-        IOperableTrigger trig = (IOperableTrigger) trigger;
+        IOperableTrigger trig = AsOperableTrigger(trigger);
 
         if (trigger.JobKey is null)
         {
@@ -586,7 +586,7 @@ internal sealed class QuartzScheduler
             Throw.SchedulerException("Trigger cannot be null");
         }
 
-        IOperableTrigger trig = (IOperableTrigger) trigger;
+        IOperableTrigger trig = AsOperableTrigger(trigger);
         AdjustSimpleTriggerStartTimeIfInPast(trig);
         trig.Validate();
 
@@ -702,7 +702,9 @@ internal sealed class QuartzScheduler
     {
         ValidateState();
 
-        // make sure all triggers refer to their associated job
+        // make sure all triggers refer to their associated job, materializing the operable
+        // shape the store contract takes while validating each trigger
+        Dictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> validated = new(triggersAndJobs.Count);
         foreach (var pair in triggersAndJobs)
         {
             var job = pair.Key;
@@ -713,11 +715,14 @@ internal sealed class QuartzScheduler
             }
             if (triggers is null) // this is possible because the job may be durable, and not yet be having triggers
             {
+                validated.Add(job, []);
                 continue;
             }
+
+            List<IOperableTrigger> operableTriggers = new(triggers.Count);
             foreach (var t in triggers)
             {
-                var trigger = (IOperableTrigger) t;
+                var trigger = AsOperableTrigger(t);
                 trigger.JobKey = job.Key;
 
                 AdjustSimpleTriggerStartTimeIfInPast(trigger);
@@ -741,12 +746,16 @@ internal sealed class QuartzScheduler
                     var message = $"Based on configured schedule, the given trigger '{trigger.Key}' will never fire.";
                     Throw.SchedulerException(message);
                 }
+
+                operableTriggers.Add(trigger);
             }
+
+            validated.Add(job, operableTriggers);
         }
 
-        await resources.JobStore.ScheduleJobs(triggersAndJobs, replace, cancellationToken).ConfigureAwait(false);
+        await resources.JobStore.ScheduleJobs(validated, replace, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);
-        foreach (var pair in triggersAndJobs)
+        foreach (var pair in validated)
         {
             var job = pair.Key;
             var triggers = pair.Value;
@@ -834,7 +843,7 @@ internal sealed class QuartzScheduler
             Throw.ArgumentException("newTrigger cannot be null");
         }
 
-        var trigger = (IOperableTrigger) newTrigger;
+        var trigger = AsOperableTrigger(newTrigger);
         ITrigger? oldTrigger = await GetTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
         if (oldTrigger is null)
         {
@@ -917,6 +926,25 @@ internal sealed class QuartzScheduler
     /// Gets the currently configured execution group limits, or <see langword="null"/> if none are configured.
     /// </summary>
     internal ExecutionLimits? GetExecutionLimits() => executionLimits;
+
+    /// <summary>
+    /// The scheduler and the job stores operate on <see cref="IOperableTrigger" />, and Quartz owns
+    /// the implementations of <see cref="ITrigger" /> — so a trigger that implements only the read
+    /// model is rejected with a clear error rather than an invalid-cast exception.
+    /// </summary>
+    private static IOperableTrigger AsOperableTrigger(ITrigger trigger)
+    {
+        if (trigger is not IOperableTrigger operableTrigger)
+        {
+            Throw.SchedulerException(
+                $"Trigger '{trigger.Key}' of type {trigger.GetType().FullName} cannot be scheduled: " +
+                "Quartz owns the implementations of ITrigger. Build triggers with TriggerBuilder, and " +
+                "derive custom trigger types from AbstractTrigger; an object implementing only ITrigger is a read model.");
+            return null!;
+        }
+
+        return operableTrigger;
+    }
 
     /// <summary>
     /// For a SimpleTrigger whose StartTimeUtc is in the past and has never fired,

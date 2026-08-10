@@ -43,14 +43,18 @@ public sealed record SchedulerMetadata
     public required string SchedulerInstanceId { get; init; }
 
     /// <summary>
-    /// The type of the <see cref="IScheduler" /> instance.
+    /// The assembly-qualified name (without version) of the <see cref="IScheduler" />
+    /// implementation. A name rather than a <see cref="Type" />, because for a proxy the type
+    /// may live only in the remote process and could never be materialized here.
     /// </summary>
-    public required Type SchedulerType { get; init; }
+    public required string SchedulerTypeName { get; init; }
 
     /// <summary>
-    /// Whether the <see cref="IScheduler" /> is being used remotely (via RPC).
+    /// Whether this metadata describes a proxy to a scheduler running elsewhere — e.g. an
+    /// <c>HttpScheduler</c> talking to a remote HTTP API — rather than the in-process instance.
+    /// When <see langword="true" />, the values are the remote scheduler's, read over the wire.
     /// </summary>
-    public bool IsRemote { get; init; }
+    public bool IsProxy { get; init; }
 
     /// <summary>
     /// Whether the scheduler has been started.
@@ -87,9 +91,10 @@ public sealed record SchedulerMetadata
     public int JobsExecuted { get; init; }
 
     /// <summary>
-    /// The type of the <see cref="IJobStore" /> instance the <see cref="IScheduler" /> uses.
+    /// The assembly-qualified name (without version) of the <see cref="IJobStore" />
+    /// implementation the <see cref="IScheduler" /> uses.
     /// </summary>
-    public required Type JobStoreType { get; init; }
+    public required string JobStoreTypeName { get; init; }
 
     /// <summary>
     /// Whether the <see cref="IScheduler" />'s <see cref="IJobStore" /> supports persistence.
@@ -102,9 +107,10 @@ public sealed record SchedulerMetadata
     public bool JobStoreClustered { get; init; }
 
     /// <summary>
-    /// The type of the thread pool instance the <see cref="IScheduler" /> uses.
+    /// The assembly-qualified name (without version) of the thread pool implementation the
+    /// <see cref="IScheduler" /> uses.
     /// </summary>
-    public required Type ThreadPoolType { get; init; }
+    public required string ThreadPoolTypeName { get; init; }
 
     /// <summary>
     /// The number of threads in the <see cref="IScheduler" />'s thread pool.

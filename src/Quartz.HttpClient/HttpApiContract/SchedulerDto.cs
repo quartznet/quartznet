@@ -53,7 +53,7 @@ internal record SchedulerThreadPoolDto(string Type, int Size)
 {
     public static SchedulerThreadPoolDto Create(SchedulerMetadata metadata)
     {
-        return new SchedulerThreadPoolDto(metadata.ThreadPoolType.AssemblyQualifiedNameWithoutVersion(), metadata.ThreadPoolSize);
+        return new SchedulerThreadPoolDto(metadata.ThreadPoolTypeName, metadata.ThreadPoolSize);
     }
 }
 
@@ -61,7 +61,7 @@ internal record SchedulerJobStoreDto(string Type, bool Clustered, bool Persisten
 {
     public static SchedulerJobStoreDto Create(SchedulerMetadata metadata)
     {
-        return new SchedulerJobStoreDto(metadata.JobStoreType.AssemblyQualifiedNameWithoutVersion(), metadata.JobStoreClustered, metadata.JobStoreSupportsPersistence);
+        return new SchedulerJobStoreDto(metadata.JobStoreTypeName, metadata.JobStoreClustered, metadata.JobStoreSupportsPersistence);
     }
 }
 

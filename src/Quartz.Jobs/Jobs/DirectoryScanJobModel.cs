@@ -52,7 +52,7 @@ internal sealed class DirectoryScanJobModel
         }
         catch (SchedulerException e)
         {
-            throw new JobExecutionException("Error obtaining scheduler context.", e, false);
+            throw new JobExecutionException("Error obtaining scheduler context.", e);
         }
 
         var model = new DirectoryScanJobModel

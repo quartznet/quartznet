@@ -1704,7 +1704,7 @@ public abstract class JobStoreSupport : IJobStore
                 }, cancellationToken));
     }
 
-    public async ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
+    public async ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
     {
         await activityTracer.Trace(
             OperationName.JobStore.ScheduleJobs,
@@ -1719,7 +1719,7 @@ public abstract class JobStoreSupport : IJobStore
                         await AddJob(conn, job, replace, cancellationToken).ConfigureAwait(false);
                         foreach (var trigger in triggers)
                         {
-                            await AddTrigger(conn, (IOperableTrigger) trigger, job, replace, StoredTriggerState.Waiting, false, false, cancellationToken).ConfigureAwait(false);
+                            await AddTrigger(conn, trigger, job, replace, StoredTriggerState.Waiting, false, false, cancellationToken).ConfigureAwait(false);
                         }
                     }
                 }, cancellationToken)).ConfigureAwait(false);

@@ -101,7 +101,7 @@ public sealed class RefireTrackingJob : IJob
 
         if (count < 3)
         {
-            throw new JobExecutionException(new Exception("Retry"), refireImmediately: true);
+            throw new JobExecutionException(new Exception("Retry")) { RefireImmediately = true };
         }
 
         return default;

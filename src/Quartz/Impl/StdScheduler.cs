@@ -21,6 +21,7 @@
 
 using Quartz.Core;
 using Quartz.Extensibility;
+using Quartz.Util;
 
 namespace Quartz.Impl;
 
@@ -70,17 +71,17 @@ internal sealed class StdScheduler : IScheduler
         {
             SchedulerName = SchedulerName,
             SchedulerInstanceId = SchedulerInstanceId,
-            SchedulerType = GetType(),
-            IsRemote = false,
+            SchedulerTypeName = GetType().AssemblyQualifiedNameWithoutVersion(),
+            IsProxy = false,
             Started = IsStarted,
             InStandbyMode = InStandbyMode,
             Shutdown = IsShutdown,
             RunningSince = scheduler.RunningSince,
             JobsExecuted = scheduler.NumberOfJobsExecuted,
-            JobStoreType = scheduler.JobStoreType,
+            JobStoreTypeName = scheduler.JobStoreType.AssemblyQualifiedNameWithoutVersion(),
             JobStoreSupportsPersistence = scheduler.SupportsPersistence,
             JobStoreClustered = scheduler.Clustered,
-            ThreadPoolType = scheduler.ThreadPoolType,
+            ThreadPoolTypeName = scheduler.ThreadPoolType.AssemblyQualifiedNameWithoutVersion(),
             ThreadPoolSize = scheduler.ThreadPoolSize,
             Version = scheduler.Version,
         });
@@ -571,7 +572,6 @@ internal sealed class StdScheduler : IScheduler
     /// </para>
     /// </remarks>
     /// <returns>true is at least one instance of the identified job was found and interrupted.</returns>
-    /// <throws>  UnableToInterruptJobException if the job does not implement </throws>
     /// <seealso cref="GetCurrentlyExecutingJobs"/>
     public ValueTask<bool> Interrupt(
         JobKey jobKey,

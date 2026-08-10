@@ -188,9 +188,9 @@ A better solution is to release the worker thread (exit the job) and allow other
 
 A Job's execute method should contain a try-catch block that handles all possible exceptions.
 
-If a job throws an exception, Quartz will treat the current firing as failed and, by default, will not immediately re-execute the job. (Unhandled exceptions are wrapped into a `JobExecutionException` with `refireImmediately: false`.)
+If a job throws an exception, Quartz will treat the current firing as failed and, by default, will not immediately re-execute the job. (Unhandled exceptions are wrapped into a `JobExecutionException` that does not request a refire.)
 
-If you do want Quartz to immediately re-execute the job, you can throw a `JobExecutionException` with `refireImmediately: true`, but use this with caution as it can create a tight failure loop.
+If you do want Quartz to immediately re-execute the job, throw a `JobExecutionException` that requests it — on Quartz 4.x the flag is init-only, `throw new JobExecutionException(ex) { RefireImmediately = true };`, and on Quartz 3.x a constructor argument, `throw new JobExecutionException(ex, refireImmediately: true);` — but use this with caution as it can create a tight failure loop.
 
 It's better if the job catches all exceptions it may encounter, handles them, and reschedules itself or other jobs to work around the issue.
 
