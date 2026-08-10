@@ -5,7 +5,6 @@ using AwesomeAssertions.Execution;
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Extensibility;
-using Quartz.HttpClient;
 using Quartz.Impl.Calendar;
 using Quartz.Tests.AspNetCore.Support;
 

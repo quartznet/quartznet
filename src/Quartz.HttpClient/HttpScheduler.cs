@@ -25,11 +25,11 @@ using Quartz.HttpApiContract;
 using Quartz.Serialization.Json;
 using Quartz.Extensibility;
 
-namespace Quartz.HttpClient;
+namespace Quartz;
 
-public class HttpScheduler : IScheduler
+public sealed class HttpScheduler : IScheduler
 {
-    private readonly System.Net.Http.HttpClient httpClient;
+    private readonly HttpClient httpClient;
     private readonly JsonSerializerOptions jsonSerializerOptions;
 
     /// <param name="schedulerName">Name of the scheduler, must be same as the remote scheduler.</param>
@@ -42,7 +42,7 @@ public class HttpScheduler : IScheduler
     /// </param>
     public HttpScheduler(
         string schedulerName,
-        System.Net.Http.HttpClient httpClient,
+        HttpClient httpClient,
         JsonSerializerOptions? jsonSerializerOptions = null,
         SystemTextJsonSerializerRegistry? serializerRegistry = null)
     {

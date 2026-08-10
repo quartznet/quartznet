@@ -1379,6 +1379,10 @@ longer sees it — derive from `DbSemaphore` and use `IDbProvider`, or implement
 `SchedulingOptions` and `QuartzHostedServiceOptions` are `sealed`. Referring to the constants is unchanged;
 only `new MisfireInstruction()`, which never meant anything, stops compiling.
 
+**`HttpScheduler` is `sealed`.** It is a wire client — every member turns a call into an HTTP request — so
+deriving from it and overriding half of them produces a scheduler that is partly remote and partly not. Wrap
+it in an `IScheduler` of your own if you need to intercept calls.
+
 **Quartz.Dashboard's Blazor components are not API.** They are `public` because the Razor compiler makes them
 so, but they are UI and are excluded from the dashboard's public-API baseline. Build against
 `QuartzDashboardOptions`, `AddQuartzDashboard` and the model types.
@@ -2758,6 +2762,7 @@ above cover configuration strings.
 | `Quartz.Listener` | `Quartz.Listeners` | A `quartz.jobListener.<name>.type` or `quartz.triggerListener.<name>.type` naming the old spelling still resolves, with a warning — but see [The three `*Support` base classes are gone](#the-three-support-base-classes-are-gone): three of the seven types are not there under either name |
 | `Quartz.Impl.Matchers` | `Quartz` | See [Matchers moved to `Quartz`](#matchers-moved-to-quartz). No shim is needed: a matcher is passed as an object and is never named by a configuration string |
 | `Quartz.AspNetCore` <br> `Quartz.AspNetCore.HealthChecks` <br> `Quartz.AspNetCore.HttpApi` | `Quartz` | The package is still `Quartz.AspNetCore`; only the namespaces are gone. `AddQuartzHealthChecks`, `AddQuartzHttpApi` and `MapQuartzHttpApi` are extension methods and resolve through the `Quartz` you already have, so a `using Quartz.AspNetCore;` can simply be deleted. The class that hosts them is `QuartzAspNetCoreConfigurationExtensions`, renamed from `QuartzServiceCollectionExtensions` because the core package now has a class of that name in the same namespace |
+| `Quartz.HttpClient` | `Quartz` | `HttpScheduler` and `HttpClientException`; the package is still `Quartz.HttpClient`. The namespace had to go because it shadowed `System.Net.Http.HttpClient` for every file under `Quartz.*`, including Quartz's own. `HttpScheduler` is also `sealed` now |
 
 ## The scheduler and the job store speak the same verbs
 

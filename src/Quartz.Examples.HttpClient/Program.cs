@@ -30,7 +30,7 @@ using var httpClient = new HttpClient
     }
 };
 
-var httpScheduler = new Quartz.HttpClient.HttpScheduler("Quartz ASP.NET Core Sample Scheduler", httpClient);
+var httpScheduler = new Quartz.HttpScheduler("Quartz ASP.NET Core Sample Scheduler", httpClient);
 */
 
 /* A scheduler of your own, talking to the remote one. AddQuartzHttpClient is the only way to reach a
@@ -43,7 +43,7 @@ var httpScheduler = new Quartz.HttpClient.HttpScheduler("Quartz ASP.NET Core Sam
 using var httpClient = new HttpClient { BaseAddress = new Uri("http://localhost:5000/quartz-api/") };
 httpClient.DefaultRequestHeaders.Add("X-Quartz-ApiKey", "MySuperSecretApiKey");
 
-var httpScheduler = new Quartz.HttpClient.HttpScheduler("Quartz ASP.NET Core Sample Scheduler", httpClient);
+var httpScheduler = new Quartz.HttpScheduler("Quartz ASP.NET Core Sample Scheduler", httpClient);
 */
 
 /* You can register multiple schedulers by creating marker interfaces for those

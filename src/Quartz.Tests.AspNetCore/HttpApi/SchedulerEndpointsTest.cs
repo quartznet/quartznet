@@ -7,7 +7,6 @@ using FakeItEasy;
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.HttpApiContract;
-using Quartz.HttpClient;
 using Quartz.Extensibility;
 using Quartz.Tests.AspNetCore.Support;
 

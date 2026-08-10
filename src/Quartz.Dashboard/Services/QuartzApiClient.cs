@@ -400,7 +400,7 @@ internal sealed class QuartzApiClient : IQuartzApiClient
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        System.Net.Http.HttpClient client = CreateClient();
+        HttpClient client = CreateClient();
         string path = $"{GetSchedulerPath(query.SchedulerName)}/history?page={query.Page}&pageSize={query.PageSize}";
         if (!string.IsNullOrWhiteSpace(query.JobFilter))
         {
@@ -452,9 +452,9 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         return skip > int.MaxValue ? int.MaxValue : (int) skip;
     }
 
-    private System.Net.Http.HttpClient CreateClient()
+    private HttpClient CreateClient()
     {
-        System.Net.Http.HttpClient client = httpClientFactory.CreateClient("QuartzDashboard");
+        HttpClient client = httpClientFactory.CreateClient("QuartzDashboard");
 
         // Use the explicitly configured BaseUrl when available to avoid SSRF via Host header injection.
         string? configuredBaseUrl = options.Value.BaseUrl;
@@ -507,7 +507,7 @@ internal sealed class QuartzApiClient : IQuartzApiClient
 
     private async ValueTask<JsonElement> GetJson(string path, CancellationToken cancellationToken = default)
     {
-        System.Net.Http.HttpClient client = CreateClient();
+        HttpClient client = CreateClient();
         using HttpResponseMessage response = await client.GetAsync(path, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
         return await ParseJson(response, cancellationToken).ConfigureAwait(false);
@@ -517,7 +517,7 @@ internal sealed class QuartzApiClient : IQuartzApiClient
     {
         EnsureWritable();
 
-        System.Net.Http.HttpClient client = CreateClient();
+        HttpClient client = CreateClient();
         HttpResponseMessage response;
         if (body is null)
         {
@@ -538,7 +538,7 @@ internal sealed class QuartzApiClient : IQuartzApiClient
     {
         EnsureWritable();
 
-        System.Net.Http.HttpClient client = CreateClient();
+        HttpClient client = CreateClient();
         using HttpResponseMessage response = await client.DeleteAsync(path, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
     }
@@ -784,7 +784,7 @@ internal sealed class QuartzApiClient : IQuartzApiClient
 
     public async ValueTask<ExecutionLimitsDto?> GetExecutionLimits(string schedulerName, CancellationToken cancellationToken = default)
     {
-        using System.Net.Http.HttpClient client = CreateClient();
+        using HttpClient client = CreateClient();
         string url = $"{GetSchedulerPath(schedulerName)}/execution-limits";
         using HttpResponseMessage response = await client.GetAsync(url, cancellationToken).ConfigureAwait(false);
 

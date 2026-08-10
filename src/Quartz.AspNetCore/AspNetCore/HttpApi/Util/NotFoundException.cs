@@ -10,7 +10,7 @@ internal sealed class NotFoundException : Exception
     {
     }
 
-    // Keep in sync with Quartz.HttpClient.HttpClientExtensions.CheckResponseStatusCode
+    // Keep in sync with Quartz.HttpClientExtensions.CheckResponseStatusCode
     public static NotFoundException ForScheduler(string schedulerName) => new($"Unknown scheduler {schedulerName}");
 
     public static NotFoundException ForCalendar(string calendarName) => new($"Unknown calendar {calendarName}");

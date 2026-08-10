@@ -262,7 +262,7 @@ public class DashboardEndpointsTest
         await app.StartAsync();
         try
         {
-            using System.Net.Http.HttpClient client = app.GetTestClient();
+            using HttpClient client = app.GetTestClient();
 
             using HttpResponseMessage cssResponse = await client.GetAsync("/_content/Quartz.Dashboard/css/quartz-dashboard.css");
             cssResponse.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -292,7 +292,7 @@ public class DashboardEndpointsTest
         await app.StartAsync();
         try
         {
-            using System.Net.Http.HttpClient client = app.GetTestClient();
+            using HttpClient client = app.GetTestClient();
 
             using HttpResponseMessage response = await client.GetAsync("/my-api/quartz");
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -322,7 +322,7 @@ public class DashboardEndpointsTest
         await app.StartAsync();
         try
         {
-            using System.Net.Http.HttpClient client = app.GetTestClient();
+            using HttpClient client = app.GetTestClient();
 
             using HttpResponseMessage response = await client.GetAsync("/quartz");
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -350,7 +350,7 @@ public class DashboardEndpointsTest
         await app.StartAsync();
         try
         {
-            using System.Net.Http.HttpClient client = app.GetTestClient();
+            using HttpClient client = app.GetTestClient();
 
             using HttpResponseMessage response = await client.GetAsync("/app/my-api/quartz");
             response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -381,7 +381,7 @@ public class DashboardEndpointsTest
         await app.StartAsync();
         try
         {
-            using System.Net.Http.HttpClient client = app.GetTestClient();
+            using HttpClient client = app.GetTestClient();
 
             // the framework script is mirrored under the dashboard path and served from the web root
             // (a static web asset on .NET 10+, the embedded manifest on .NET 8/9)
@@ -418,7 +418,7 @@ public class DashboardEndpointsTest
         await app.StartAsync();
         try
         {
-            using System.Net.Http.HttpClient client = app.GetTestClient();
+            using HttpClient client = app.GetTestClient();
             const string scriptUrl = "/my-api/quartz/_framework/blazor.web.js";
 
             // HEAD returns the headers without a body (probes, link checkers)
@@ -476,7 +476,7 @@ public class DashboardEndpointsTest
         await app.StartAsync();
         try
         {
-            using System.Net.Http.HttpClient client = app.GetTestClient();
+            using HttpClient client = app.GetTestClient();
 
             // the framework endpoint rejects the missing protected payload (400); a 404 would mean
             // the mirror found nothing to forward to, and a throw from the mirror itself would
@@ -498,7 +498,7 @@ public class DashboardEndpointsTest
         await app.StartAsync();
         try
         {
-            using System.Net.Http.HttpClient client = app.GetTestClient();
+            using HttpClient client = app.GetTestClient();
 
             // proves the re-rooted SignalR circuit endpoints still dispatch correctly
             using HttpResponseMessage response = await client.PostAsync("/my-api/quartz/_blazor/negotiate?negotiateVersion=1", content: null);
@@ -541,7 +541,7 @@ public class DashboardEndpointsTest
         await app.StartAsync();
         try
         {
-            using System.Net.Http.HttpClient client = app.GetTestClient();
+            using HttpClient client = app.GetTestClient();
 
             using HttpResponseMessage cssResponse = await client.GetAsync("/my-api/quartz/_content/Quartz.Dashboard/css/quartz-dashboard.css");
             cssResponse.StatusCode.Should().Be(HttpStatusCode.OK);

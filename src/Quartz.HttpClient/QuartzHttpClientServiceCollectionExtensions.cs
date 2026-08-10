@@ -24,7 +24,6 @@ using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Configuration;
-using Quartz.HttpClient;
 using Quartz.Serialization.Json;
 using Quartz.Impl;
 using Quartz.Extensibility;
@@ -44,7 +43,7 @@ public static class QuartzHttpClientServiceCollectionExtensions
     public static IServiceCollection AddQuartzHttpClient(
         this IServiceCollection services,
         string schedulerName,
-        System.Net.Http.HttpClient httpClient,
+        HttpClient httpClient,
         JsonSerializerOptions? jsonSerializerOptions = null)
     {
         return services.AddQuartzHttpClient<IScheduler>(schedulerName, httpClient, jsonSerializerOptions);
@@ -90,7 +89,7 @@ public static class QuartzHttpClientServiceCollectionExtensions
     public static IServiceCollection AddQuartzHttpClient<TScheduler>(
         this IServiceCollection services,
         string schedulerName,
-        System.Net.Http.HttpClient httpClient,
+        HttpClient httpClient,
         JsonSerializerOptions? jsonSerializerOptions = null) where TScheduler : class, IScheduler
     {
         return services.AddQuartzHttpClient<TScheduler>(options =>

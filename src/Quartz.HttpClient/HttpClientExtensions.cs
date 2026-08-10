@@ -27,12 +27,12 @@ using System.Text.Json.Serialization;
 using Quartz.HttpApiContract;
 using Quartz.Impl.AdoJobStore;
 
-namespace Quartz.HttpClient;
+namespace Quartz;
 
 internal static class HttpClientExtensions
 {
     public static async ValueTask<TResponse> Get<TResponse>(
-        this System.Net.Http.HttpClient client,
+        this HttpClient client,
         string requestUri,
         JsonSerializerOptions serializerOptions,
         CancellationToken cancellationToken)
@@ -44,7 +44,7 @@ internal static class HttpClientExtensions
     }
 
     public static async ValueTask<TResponse?> GetWithNullForNotFound<TResponse>(
-        this System.Net.Http.HttpClient client,
+        this HttpClient client,
         string requestUri,
         JsonSerializerOptions serializerOptions,
         CancellationToken cancellationToken) where TResponse : class
@@ -60,7 +60,7 @@ internal static class HttpClientExtensions
     }
 
     public static async ValueTask Post(
-        this System.Net.Http.HttpClient client,
+        this HttpClient client,
         string requestUri,
         JsonSerializerOptions serializerOptions,
         CancellationToken cancellationToken)
@@ -70,7 +70,7 @@ internal static class HttpClientExtensions
     }
 
     public static async ValueTask Post<TRequest>(
-        this System.Net.Http.HttpClient client,
+        this HttpClient client,
         string requestUri,
         TRequest value,
         JsonSerializerOptions serializerOptions,
@@ -81,7 +81,7 @@ internal static class HttpClientExtensions
     }
 
     public static async Task<TResponse> PostWithResponse<TResponse>(
-        this System.Net.Http.HttpClient client,
+        this HttpClient client,
         string requestUri,
         JsonSerializerOptions serializerOptions,
         CancellationToken cancellationToken)
@@ -93,7 +93,7 @@ internal static class HttpClientExtensions
     }
 
     public static async Task<TResponse> PostWithResponse<TRequest, TResponse>(
-        this System.Net.Http.HttpClient client,
+        this HttpClient client,
         string requestUri,
         TRequest value,
         JsonSerializerOptions serializerOptions,
@@ -106,7 +106,7 @@ internal static class HttpClientExtensions
     }
 
     public static async Task Delete(
-        this System.Net.Http.HttpClient client,
+        this HttpClient client,
         string requestUri,
         JsonSerializerOptions serializerOptions,
         CancellationToken cancellationToken)
@@ -116,7 +116,7 @@ internal static class HttpClientExtensions
     }
 
     public static async Task<TResponse> DeleteWithResponse<TResponse>(
-        this System.Net.Http.HttpClient client,
+        this HttpClient client,
         string requestUri,
         JsonSerializerOptions serializerOptions,
         CancellationToken cancellationToken)

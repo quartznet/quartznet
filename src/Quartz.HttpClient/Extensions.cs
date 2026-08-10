@@ -21,7 +21,7 @@
 
 using Quartz.Util;
 
-namespace Quartz.HttpClient;
+namespace Quartz;
 
 internal static class Extensions
 {
