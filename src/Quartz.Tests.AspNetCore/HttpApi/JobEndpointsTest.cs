@@ -136,13 +136,13 @@ public class JobEndpointsTest : WebApiTest
     [Test]
     public async Task CheckJobExistsShouldWork()
     {
-        A.CallTo(() => FakeScheduler.CheckExists(jobKeyOne, A<CancellationToken>._)).Returns(true);
-        A.CallTo(() => FakeScheduler.CheckExists(jobKeyTwo, A<CancellationToken>._)).Returns(false);
+        A.CallTo(() => FakeScheduler.Exists(jobKeyOne, A<CancellationToken>._)).Returns(true);
+        A.CallTo(() => FakeScheduler.Exists(jobKeyTwo, A<CancellationToken>._)).Returns(false);
 
-        var exists = await HttpScheduler.CheckExists(jobKeyOne);
+        var exists = await HttpScheduler.Exists(jobKeyOne);
         exists.Should().BeTrue();
 
-        exists = await HttpScheduler.CheckExists(jobKeyTwo);
+        exists = await HttpScheduler.Exists(jobKeyTwo);
         exists.Should().BeFalse();
     }
 
@@ -240,8 +240,22 @@ public class JobEndpointsTest : WebApiTest
     [Test]
     public async Task PauseJobShouldWork()
     {
-        await HttpScheduler.PauseJob(jobKeyOne);
+        A.CallTo(() => FakeScheduler.PauseJob(jobKeyOne, A<CancellationToken>._)).Returns(true);
+
+        bool applied = await HttpScheduler.PauseJob(jobKeyOne);
+
+        applied.Should().BeTrue("the applied flag must round-trip over the wire");
         A.CallTo(() => FakeScheduler.PauseJob(jobKeyOne, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
+    public async Task PauseJobShouldReportMissingJob()
+    {
+        A.CallTo(() => FakeScheduler.PauseJob(jobKeyOne, A<CancellationToken>._)).Returns(false);
+
+        bool applied = await HttpScheduler.PauseJob(jobKeyOne);
+
+        applied.Should().BeFalse("a no-op must not report as applied");
     }
 
     [Test]
@@ -259,7 +273,11 @@ public class JobEndpointsTest : WebApiTest
         foreach (var matcher in matchers)
         {
             Fake.ClearRecordedCalls(FakeScheduler);
-            await HttpScheduler.PauseJobs(matcher);
+            A.CallTo(() => FakeScheduler.PauseJobs(matcher, A<CancellationToken>._)).Returns(new List<string> { "paused-group" });
+
+            List<string> pausedGroups = await HttpScheduler.PauseJobs(matcher);
+
+            pausedGroups.Should().Equal("paused-group");
             A.CallTo(() => FakeScheduler.PauseJobs(matcher, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
         }
     }
@@ -267,7 +285,11 @@ public class JobEndpointsTest : WebApiTest
     [Test]
     public async Task ResumeJobShouldWork()
     {
-        await HttpScheduler.ResumeJob(jobKeyOne);
+        A.CallTo(() => FakeScheduler.ResumeJob(jobKeyOne, A<CancellationToken>._)).Returns(true);
+
+        bool applied = await HttpScheduler.ResumeJob(jobKeyOne);
+
+        applied.Should().BeTrue("the applied flag must round-trip over the wire");
         A.CallTo(() => FakeScheduler.ResumeJob(jobKeyOne, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
     }
 
@@ -286,7 +308,11 @@ public class JobEndpointsTest : WebApiTest
         foreach (var matcher in matchers)
         {
             Fake.ClearRecordedCalls(FakeScheduler);
-            await HttpScheduler.ResumeJobs(matcher);
+            A.CallTo(() => FakeScheduler.ResumeJobs(matcher, A<CancellationToken>._)).Returns(new List<string> { "resumed-group" });
+
+            List<string> resumedGroups = await HttpScheduler.ResumeJobs(matcher);
+
+            resumedGroups.Should().Equal("resumed-group");
             A.CallTo(() => FakeScheduler.ResumeJobs(matcher, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
         }
     }

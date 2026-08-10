@@ -2905,6 +2905,56 @@ renamed: `SchedulerRemote` → `IsRemote` and `NumberOfJobsExecuted` → `JobsEx
 the record's `ToString()` prints every value, which is what the hand-written summary was for. Over HTTP,
 `SchedulerStatisticsDto.NumberOfJobsExecuted` is `JobsExecuted` to match.
 
+## Single-key mutations answer whether they applied
+
+`IScheduler` already answered for some mutations — `DeleteJob`, `UnscheduleJob` and
+`UpdateTriggerDetails` return a `bool` — while the pause family returned nothing, so a caller pausing
+a mistyped key learned nothing. The rule is now uniform: a mutation aimed at one key returns
+`ValueTask<bool>` meaning "the entity existed and the operation applied", and the group-matcher forms
+return the affected group names.
+
+| Member (on `IScheduler` and `IJobStore`) | 3.x returned | 4.x returns |
+|---|---|---|
+| `PauseTrigger(key)`, `ResumeTrigger(key)` | `ValueTask` | `ValueTask<bool>` |
+| `PauseJob(key)`, `ResumeJob(key)` | `ValueTask` | `ValueTask<bool>` |
+| `ResetTriggerFromErrorState(key)` | `ValueTask` | `ValueTask<bool>` |
+| `PauseTriggers(matcher)`, `ResumeTriggers(matcher)` | `ValueTask` (scheduler) | `ValueTask<List<string>>` of the group names affected |
+| `PauseJobs(matcher)`, `ResumeJobs(matcher)` | `ValueTask` (scheduler) | `ValueTask<List<string>>` of the group names affected |
+
+What the `bool` means, precisely:
+
+* `PauseTrigger` — the trigger exists and ended up paused because of this call. Already paused,
+  complete, or missing → `false`.
+* `ResumeTrigger` — the trigger existed in a paused state and was resumed. Not paused or missing →
+  `false`.
+* `PauseJob` / `ResumeJob` — the job exists. A job that currently has zero triggers returns `true`:
+  the job was found and the operation applied to all (zero) of its triggers.
+* `ResetTriggerFromErrorState` — the trigger existed in the `Error` state and was reset. Not in
+  `Error`, or missing → `false`.
+
+When the result is `false`, no scheduler-listener events are raised — a no-op no longer looks like a
+state change to listeners. Awaiting call sites compile unchanged; only `ISchedulerListener`
+implementations that counted on being told about no-op pauses will notice.
+
+Over the HTTP API these endpoints used to answer `200 OK` with an empty body. They now answer
+`200 OK` with a JSON body: `{"applied": bool}` for the single-key forms and `{"groups": [...]}` for
+the group-matcher forms. This is additive for clients that ignored the body — but a **4.0-final
+`HttpScheduler` against a 4.0-preview server throws** on these calls, because the client now reads a
+response body the old server never sends. Upgrade the server before, or together with, its remote
+clients.
+
+## `CheckExists` is `Exists`
+
+Both overloads, on `IScheduler` and `IJobStore`:
+
+```diff
+- if (await scheduler.CheckExists(jobKey)) { … }
++ if (await scheduler.Exists(jobKey)) { … }
+```
+
+"Check" said only that the member does what calling it does; the return value already answers the
+question. The HTTP API routes (`…/jobs/{group}/{name}/exists`) are unchanged.
+
 ## Names that were normalized
 
 Renames only — the behavior behind each is unchanged, and a rename that also changes a configuration key is

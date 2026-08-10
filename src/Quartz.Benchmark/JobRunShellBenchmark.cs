@@ -135,12 +135,12 @@ public class JobRunShellBenchmark
             throw new NotImplementedException();
         }
 
-        public ValueTask<bool> CheckExists(JobKey jobKey, CancellationToken cancellationToken = default)
+        public ValueTask<bool> Exists(JobKey jobKey, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
 
-        public ValueTask<bool> CheckExists(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+        public ValueTask<bool> Exists(TriggerKey triggerKey, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -170,7 +170,7 @@ public class JobRunShellBenchmark
             throw new NotImplementedException();
         }
 
-        public ValueTask ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+        public ValueTask<bool> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -185,7 +185,7 @@ public class JobRunShellBenchmark
             throw new NotImplementedException();
         }
 
-        public ValueTask PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
+        public ValueTask<bool> PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -195,7 +195,7 @@ public class JobRunShellBenchmark
             throw new NotImplementedException();
         }
 
-        public ValueTask PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+        public ValueTask<bool> PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -275,7 +275,7 @@ public class JobRunShellBenchmark
             throw new NotImplementedException();
         }
 
-        public ValueTask ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
+        public ValueTask<bool> ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -285,7 +285,7 @@ public class JobRunShellBenchmark
             throw new NotImplementedException();
         }
 
-        public ValueTask ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+        public ValueTask<bool> ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }

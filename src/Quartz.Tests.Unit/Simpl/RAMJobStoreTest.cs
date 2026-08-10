@@ -912,7 +912,7 @@ public class RAMJobStoreTest
         Func<Task> act = async () => await fJobStore.ReplaceTrigger(trigger.Key, replacement);
         await act.Should().ThrowAsync<JobPersistenceException>();
 
-        (await fJobStore.CheckExists(trigger.Key)).Should().BeTrue("a rejected replacement must not remove the trigger");
+        (await fJobStore.Exists(trigger.Key)).Should().BeTrue("a rejected replacement must not remove the trigger");
         (await fJobStore.GetTriggerState(trigger.Key)).Should().Be(TriggerState.Normal);
         (await fJobStore.GetTrigger(trigger.Key)).Should().NotBeNull();
         (await fJobStore.DeleteTrigger(trigger.Key)).Should().BeTrue("the trigger must still be removable");
@@ -1228,6 +1228,66 @@ public class RAMJobStoreTest
 
         var updated = await fJobStore.GetTrigger(new TriggerKey("trigger-switch", "group1"));
         Assert.That(updated, Is.InstanceOf<ICronTrigger>(), "Trigger should have been replaced with a CronTrigger");
+    }
+
+    [Test]
+    public async Task PauseTriggerFollowsMissingKeyRule()
+    {
+        IOperableTrigger trigger = new SimpleTriggerImpl("missing-key-pause", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group, DateTimeOffset.UtcNow.AddMinutes(5), null, 2, TimeSpan.FromSeconds(2));
+        trigger.ComputeFirstFireTimeUtc(null);
+        await fJobStore.AddTrigger(trigger, false);
+
+        (await fJobStore.PauseTrigger(new TriggerKey("no-such-trigger"))).Should().BeFalse(
+            "pausing a missing trigger is a no-op");
+        (await fJobStore.PauseTrigger(trigger.Key)).Should().BeTrue(
+            "the trigger existed and was paused");
+        (await fJobStore.PauseTrigger(trigger.Key)).Should().BeFalse(
+            "the trigger was already paused, so nothing changed");
+    }
+
+    [Test]
+    public async Task ResumeTriggerFollowsMissingKeyRule()
+    {
+        IOperableTrigger trigger = new SimpleTriggerImpl("missing-key-resume", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group, DateTimeOffset.UtcNow.AddMinutes(5), null, 2, TimeSpan.FromSeconds(2));
+        trigger.ComputeFirstFireTimeUtc(null);
+        await fJobStore.AddTrigger(trigger, false);
+
+        (await fJobStore.ResumeTrigger(new TriggerKey("no-such-trigger"))).Should().BeFalse(
+            "resuming a missing trigger is a no-op");
+        (await fJobStore.ResumeTrigger(trigger.Key)).Should().BeFalse(
+            "the trigger was not paused, so nothing changed");
+
+        await fJobStore.PauseTrigger(trigger.Key);
+        (await fJobStore.ResumeTrigger(trigger.Key)).Should().BeTrue(
+            "the trigger was paused and was resumed");
+    }
+
+    [Test]
+    public async Task PauseJobAndResumeJobFollowMissingKeyRule()
+    {
+        (await fJobStore.PauseJob(new JobKey("no-such-job"))).Should().BeFalse(
+            "pausing a missing job is a no-op");
+        (await fJobStore.ResumeJob(new JobKey("no-such-job"))).Should().BeFalse(
+            "resuming a missing job is a no-op");
+
+        // fJobDetail is durable and has no triggers: the defined edge case is true
+        (await fJobStore.PauseJob(fJobDetail.Key)).Should().BeTrue(
+            "the job exists even though it has no triggers");
+        (await fJobStore.ResumeJob(fJobDetail.Key)).Should().BeTrue(
+            "the job exists even though it has no triggers");
+    }
+
+    [Test]
+    public async Task ResetTriggerFromErrorStateFollowsMissingKeyRule()
+    {
+        IOperableTrigger trigger = new SimpleTriggerImpl("missing-key-reset", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group, DateTimeOffset.UtcNow.AddMinutes(5), null, 2, TimeSpan.FromSeconds(2));
+        trigger.ComputeFirstFireTimeUtc(null);
+        await fJobStore.AddTrigger(trigger, false);
+
+        (await fJobStore.ResetTriggerFromErrorState(new TriggerKey("no-such-trigger"))).Should().BeFalse(
+            "resetting a missing trigger is a no-op");
+        (await fJobStore.ResetTriggerFromErrorState(trigger.Key)).Should().BeFalse(
+            "the trigger is not in the error state, so nothing changed");
     }
 
     [DisallowConcurrentExecution]

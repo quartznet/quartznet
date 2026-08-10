@@ -127,7 +127,7 @@ public class EnlistedTransactionTest
                     {
                         await scheduler.ScheduleJob(CreateJob(jobKey), CreateTrigger(jobKey));
 
-                        bool visibleInsideTheTransaction = await scheduler.CheckExists(jobKey);
+                        bool visibleInsideTheTransaction = await scheduler.Exists(jobKey);
                         visibleInsideTheTransaction.Should().BeTrue("the job store wrote through the enlisted transaction");
                     }
 
@@ -135,7 +135,7 @@ public class EnlistedTransactionTest
                 }
             }
 
-            bool survivedTheRollback = await scheduler.CheckExists(jobKey);
+            bool survivedTheRollback = await scheduler.Exists(jobKey);
             survivedTheRollback.Should().BeFalse("the schedule belongs to the transaction the application rolled back");
         }
         finally
@@ -209,7 +209,7 @@ public class EnlistedTransactionTest
                 // scope is disposed without Complete, so the ambient transaction rolls back
             }
 
-            bool survivedTheRollback = await scheduler.CheckExists(jobKey);
+            bool survivedTheRollback = await scheduler.Exists(jobKey);
             survivedTheRollback.Should().BeFalse("the ambient transaction was never completed");
         }
         finally

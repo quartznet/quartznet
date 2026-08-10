@@ -231,7 +231,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return result;
     }
 
-    public ValueTask PauseJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
+    public ValueTask<bool> PauseJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
@@ -239,7 +239,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return scheduler.PauseJob(jobKey, cancellationToken);
     }
 
-    public ValueTask ResumeJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
+    public ValueTask<bool> ResumeJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
@@ -348,7 +348,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return triggerState.ToString();
     }
 
-    public ValueTask PauseTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
+    public ValueTask<bool> PauseTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
@@ -356,7 +356,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return scheduler.PauseTrigger(triggerKey, cancellationToken);
     }
 
-    public ValueTask ResumeTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
+    public ValueTask<bool> ResumeTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);
@@ -364,7 +364,7 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
         return scheduler.ResumeTrigger(triggerKey, cancellationToken);
     }
 
-    public ValueTask ResetTriggerFromErrorState(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
+    public ValueTask<bool> ResetTriggerFromErrorState(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
         EnsureWritable();
         IScheduler scheduler = GetSchedulerOrThrow(schedulerName);

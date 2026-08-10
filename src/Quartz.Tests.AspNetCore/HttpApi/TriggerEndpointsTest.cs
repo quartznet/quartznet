@@ -140,13 +140,13 @@ public class TriggerEndpointsTest : WebApiTest
     [Test]
     public async Task CheckTriggerExistsShouldWork()
     {
-        A.CallTo(() => FakeScheduler.CheckExists(triggerKeyOne, A<CancellationToken>._)).Returns(true);
-        A.CallTo(() => FakeScheduler.CheckExists(triggerKeyTwo, A<CancellationToken>._)).Returns(false);
+        A.CallTo(() => FakeScheduler.Exists(triggerKeyOne, A<CancellationToken>._)).Returns(true);
+        A.CallTo(() => FakeScheduler.Exists(triggerKeyTwo, A<CancellationToken>._)).Returns(false);
 
-        var exists = await HttpScheduler.CheckExists(triggerKeyOne);
+        var exists = await HttpScheduler.Exists(triggerKeyOne);
         exists.Should().BeTrue();
 
-        exists = await HttpScheduler.CheckExists(triggerKeyTwo);
+        exists = await HttpScheduler.Exists(triggerKeyTwo);
         exists.Should().BeFalse();
     }
 
@@ -202,8 +202,22 @@ public class TriggerEndpointsTest : WebApiTest
     [Test]
     public async Task PauseTriggerShouldWork()
     {
-        await HttpScheduler.PauseTrigger(triggerKeyOne);
+        A.CallTo(() => FakeScheduler.PauseTrigger(triggerKeyOne, A<CancellationToken>._)).Returns(true);
+
+        bool applied = await HttpScheduler.PauseTrigger(triggerKeyOne);
+
+        applied.Should().BeTrue("the applied flag must round-trip over the wire");
         A.CallTo(() => FakeScheduler.PauseTrigger(triggerKeyOne, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
+    public async Task PauseTriggerShouldReportMissingTrigger()
+    {
+        A.CallTo(() => FakeScheduler.PauseTrigger(triggerKeyOne, A<CancellationToken>._)).Returns(false);
+
+        bool applied = await HttpScheduler.PauseTrigger(triggerKeyOne);
+
+        applied.Should().BeFalse("a no-op must not report as applied");
     }
 
     [Test]
@@ -221,7 +235,11 @@ public class TriggerEndpointsTest : WebApiTest
         foreach (var matcher in matchers)
         {
             Fake.ClearRecordedCalls(FakeScheduler);
-            await HttpScheduler.PauseTriggers(matcher);
+            A.CallTo(() => FakeScheduler.PauseTriggers(matcher, A<CancellationToken>._)).Returns(new List<string> { "paused-group" });
+
+            List<string> pausedGroups = await HttpScheduler.PauseTriggers(matcher);
+
+            pausedGroups.Should().Equal("paused-group");
             A.CallTo(() => FakeScheduler.PauseTriggers(matcher, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
         }
     }
@@ -229,7 +247,11 @@ public class TriggerEndpointsTest : WebApiTest
     [Test]
     public async Task ResumeTriggerShouldWork()
     {
-        await HttpScheduler.ResumeTrigger(triggerKeyOne);
+        A.CallTo(() => FakeScheduler.ResumeTrigger(triggerKeyOne, A<CancellationToken>._)).Returns(true);
+
+        bool applied = await HttpScheduler.ResumeTrigger(triggerKeyOne);
+
+        applied.Should().BeTrue("the applied flag must round-trip over the wire");
         A.CallTo(() => FakeScheduler.ResumeTrigger(triggerKeyOne, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
     }
 
@@ -248,7 +270,11 @@ public class TriggerEndpointsTest : WebApiTest
         foreach (var matcher in matchers)
         {
             Fake.ClearRecordedCalls(FakeScheduler);
-            await HttpScheduler.ResumeTriggers(matcher);
+            A.CallTo(() => FakeScheduler.ResumeTriggers(matcher, A<CancellationToken>._)).Returns(new List<string> { "resumed-group" });
+
+            List<string> resumedGroups = await HttpScheduler.ResumeTriggers(matcher);
+
+            resumedGroups.Should().Equal("resumed-group");
             A.CallTo(() => FakeScheduler.ResumeTriggers(matcher, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
         }
     }
@@ -528,11 +554,24 @@ public class TriggerEndpointsTest : WebApiTest
     [Test]
     public async Task ResetTriggerFromErrorStateShouldWork()
     {
-        await HttpScheduler.ResetTriggerFromErrorState(triggerKeyOne);
+        A.CallTo(() => FakeScheduler.ResetTriggerFromErrorState(triggerKeyOne, A<CancellationToken>._)).Returns(true);
 
+        bool applied = await HttpScheduler.ResetTriggerFromErrorState(triggerKeyOne);
+
+        applied.Should().BeTrue("the applied flag must round-trip over the wire");
         A.CallTo(() => FakeScheduler.ResetTriggerFromErrorState(A<TriggerKey>._, A<CancellationToken>._))
             .WhenArgumentsMatch((TriggerKey key, CancellationToken _) => key.Equals(triggerKeyOne))
             .MustHaveHappened(1, Times.Exactly);
+    }
+
+    [Test]
+    public async Task ResetTriggerFromErrorStateShouldReportTriggerNotInErrorState()
+    {
+        A.CallTo(() => FakeScheduler.ResetTriggerFromErrorState(triggerKeyOne, A<CancellationToken>._)).Returns(false);
+
+        bool applied = await HttpScheduler.ResetTriggerFromErrorState(triggerKeyOne);
+
+        applied.Should().BeFalse("a no-op must not report as applied");
     }
 
     private static TriggerHeader HeaderFor(TriggerKey triggerKey) => new(

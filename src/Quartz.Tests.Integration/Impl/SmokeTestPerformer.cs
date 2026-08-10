@@ -297,8 +297,8 @@ public class SmokeTestPerformer
 
                 await scheduler.ScheduleJobs(info, true);
 
-                Assert.That(await scheduler.CheckExists(detail.Key), Is.True);
-                Assert.That(await scheduler.CheckExists(simple.Key), Is.True);
+                Assert.That(await scheduler.Exists(detail.Key), Is.True);
+                Assert.That(await scheduler.Exists(simple.Key), Is.True);
 
                 // QRTZNET-243
                 await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupContains("a"));

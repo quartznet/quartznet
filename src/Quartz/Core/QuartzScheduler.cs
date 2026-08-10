@@ -1046,21 +1046,26 @@ internal sealed class QuartzScheduler
     /// <summary>
     /// Pause the <see cref="ITrigger" /> with the given name.
     /// </summary>
-    public async ValueTask PauseTrigger(
+    public async ValueTask<bool> PauseTrigger(
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
         ValidateState();
 
-        await resources.JobStore.PauseTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
-        NotifySchedulerThread(null);
-        await NotifySchedulerListenersPausedTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
+        bool paused = await resources.JobStore.PauseTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
+        if (paused)
+        {
+            NotifySchedulerThread(null);
+            await NotifySchedulerListenersPausedTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
+        }
+
+        return paused;
     }
 
     /// <summary>
     /// Pause all of the <see cref="ITrigger" />s in the given group.
     /// </summary>
-    public async ValueTask PauseTriggers(
+    public async ValueTask<List<string>> PauseTriggers(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
@@ -1074,28 +1079,34 @@ internal sealed class QuartzScheduler
         var pausedGroups = await resources.JobStore.PauseTriggers(matcher, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);
         await Task.WhenAll(pausedGroups.Select(x => NotifySchedulerListenersPausedTriggers(x, cancellationToken).AsTask())).ConfigureAwait(false);
+        return pausedGroups;
     }
 
     /// <summary>
     /// Pause the <see cref="IJobDetail" /> with the given
     /// name - by pausing all of its current <see cref="ITrigger" />s.
     /// </summary>
-    public async ValueTask PauseJob(
+    public async ValueTask<bool> PauseJob(
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
         ValidateState();
 
-        await resources.JobStore.PauseJob(jobKey, cancellationToken).ConfigureAwait(false);
-        NotifySchedulerThread(null);
-        await NotifySchedulerListenersPausedJob(jobKey, cancellationToken).ConfigureAwait(false);
+        bool found = await resources.JobStore.PauseJob(jobKey, cancellationToken).ConfigureAwait(false);
+        if (found)
+        {
+            NotifySchedulerThread(null);
+            await NotifySchedulerListenersPausedJob(jobKey, cancellationToken).ConfigureAwait(false);
+        }
+
+        return found;
     }
 
     /// <summary>
     /// Pause all of the <see cref="IJobDetail" />s in the
     /// given group - by pausing all of their <see cref="ITrigger" />s.
     /// </summary>
-    public async ValueTask PauseJobs(
+    public async ValueTask<List<string>> PauseJobs(
         GroupMatcher<JobKey> groupMatcher,
         CancellationToken cancellationToken = default)
     {
@@ -1109,6 +1120,7 @@ internal sealed class QuartzScheduler
         var pausedGroups = await resources.JobStore.PauseJobs(groupMatcher, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);
         await Task.WhenAll(pausedGroups.Select(x => NotifySchedulerListenersPausedJobs(x, cancellationToken).AsTask())).ConfigureAwait(false);
+        return pausedGroups;
     }
 
     /// <summary>
@@ -1119,15 +1131,20 @@ internal sealed class QuartzScheduler
     /// <see cref="ITrigger" />'s misfire instruction will be applied.
     /// </para>
     /// </summary>
-    public async ValueTask ResumeTrigger(
+    public async ValueTask<bool> ResumeTrigger(
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
         ValidateState();
 
-        await resources.JobStore.ResumeTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
-        NotifySchedulerThread(null);
-        await NotifySchedulerListenersResumedTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
+        bool resumed = await resources.JobStore.ResumeTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
+        if (resumed)
+        {
+            NotifySchedulerThread(null);
+            await NotifySchedulerListenersResumedTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
+        }
+
+        return resumed;
     }
 
     /// <summary>
@@ -1138,7 +1155,7 @@ internal sealed class QuartzScheduler
     /// <see cref="ITrigger" />'s misfire instruction will be applied.
     /// </para>
     /// </summary>
-    public async ValueTask ResumeTriggers(
+    public async ValueTask<List<string>> ResumeTriggers(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
@@ -1149,9 +1166,10 @@ internal sealed class QuartzScheduler
             matcher = GroupMatcher<TriggerKey>.GroupEquals(SchedulerConstants.DefaultGroup);
         }
 
-        var pausedGroups = await resources.JobStore.ResumeTriggers(matcher, cancellationToken).ConfigureAwait(false);
+        var resumedGroups = await resources.JobStore.ResumeTriggers(matcher, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);
-        await Task.WhenAll(pausedGroups.Select(x => NotifySchedulerListenersResumedTriggers(x, cancellationToken).AsTask())).ConfigureAwait(false);
+        await Task.WhenAll(resumedGroups.Select(x => NotifySchedulerListenersResumedTriggers(x, cancellationToken).AsTask())).ConfigureAwait(false);
+        return resumedGroups;
     }
 
     /// <summary>
@@ -1163,13 +1181,18 @@ internal sealed class QuartzScheduler
     /// instruction will be applied.
     /// </para>
     /// </summary>
-    public async ValueTask ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         ValidateState();
 
-        await resources.JobStore.ResumeJob(jobKey, cancellationToken).ConfigureAwait(false);
-        NotifySchedulerThread(candidateNewNextFireTimeUtc: null);
-        await NotifySchedulerListenersResumedJob(jobKey, cancellationToken).ConfigureAwait(false);
+        bool found = await resources.JobStore.ResumeJob(jobKey, cancellationToken).ConfigureAwait(false);
+        if (found)
+        {
+            NotifySchedulerThread(candidateNewNextFireTimeUtc: null);
+            await NotifySchedulerListenersResumedJob(jobKey, cancellationToken).ConfigureAwait(false);
+        }
+
+        return found;
     }
 
     /// <summary>
@@ -1181,7 +1204,7 @@ internal sealed class QuartzScheduler
     /// misfire instruction will be applied.
     /// </para>
     /// </summary>
-    public async ValueTask ResumeJobs(
+    public async ValueTask<List<string>> ResumeJobs(
         GroupMatcher<JobKey> matcher,
         CancellationToken cancellationToken = default)
     {
@@ -1195,6 +1218,7 @@ internal sealed class QuartzScheduler
         var resumedGroups = await resources.JobStore.ResumeJobs(matcher, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);
         await Task.WhenAll(resumedGroups.Select(x => NotifySchedulerListenersResumedJobs(x, cancellationToken).AsTask())).ConfigureAwait(false);
+        return resumedGroups;
     }
 
     /// <summary>
@@ -1373,13 +1397,13 @@ internal sealed class QuartzScheduler
     /// <param name="jobKey">the identifier to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a Job exists with the given identifier</returns>
-    public ValueTask<bool> CheckExists(
+    public ValueTask<bool> Exists(
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
         ValidateState();
 
-        return resources.JobStore.CheckExists(jobKey, cancellationToken);
+        return resources.JobStore.Exists(jobKey, cancellationToken);
     }
 
     /// <summary>
@@ -1391,13 +1415,13 @@ internal sealed class QuartzScheduler
     /// <param name="triggerKey">the identifier to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a Trigger exists with the given identifier</returns>
-    public ValueTask<bool> CheckExists(
+    public ValueTask<bool> Exists(
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
         ValidateState();
 
-        return resources.JobStore.CheckExists(triggerKey, cancellationToken);
+        return resources.JobStore.Exists(triggerKey, cancellationToken);
     }
 
     /// <summary>
@@ -1425,7 +1449,7 @@ internal sealed class QuartzScheduler
         return resources.JobStore.GetTriggerState(triggerKey, cancellationToken);
     }
 
-    public ValueTask ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public ValueTask<bool> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         ValidateState();
 

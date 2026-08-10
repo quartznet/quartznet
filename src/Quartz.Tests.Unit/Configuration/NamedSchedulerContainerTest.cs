@@ -102,8 +102,8 @@ public class NamedSchedulerContainerTest
 
         try
         {
-            (await reporting.CheckExists(new JobKey("reporting-job"))).Should().BeTrue();
-            (await ingest.CheckExists(new JobKey("reporting-job"))).Should()
+            (await reporting.Exists(new JobKey("reporting-job"))).Should().BeTrue();
+            (await ingest.Exists(new JobKey("reporting-job"))).Should()
                 .BeFalse("a named scheduler's jobs must not leak into another scheduler");
         }
         finally

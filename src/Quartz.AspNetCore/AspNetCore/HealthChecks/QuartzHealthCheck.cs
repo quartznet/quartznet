@@ -37,7 +37,7 @@ internal sealed class QuartzHealthCheck : IHealthCheck
         try
         {
             // Ask for a job we know doesn't exist
-            await scheduler.CheckExists(new JobKey(Guid.NewGuid().ToString()), cancellationToken).ConfigureAwait(false);
+            await scheduler.Exists(new JobKey(Guid.NewGuid().ToString()), cancellationToken).ConfigureAwait(false);
         }
         catch (SchedulerException)
         {

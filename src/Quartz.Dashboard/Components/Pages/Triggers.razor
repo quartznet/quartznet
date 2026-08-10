@@ -226,6 +226,7 @@
         return ExecuteMutatingActionAsync(
             () => Api.PauseTrigger(Scheduler.ActiveSchedulerName!, group, name),
             "Paused trigger " + DisplayValueHelper.FormatKey(group, name) + ".",
+            "Trigger " + DisplayValueHelper.FormatKey(group, name) + " was not paused - it no longer exists or cannot be paused.",
             actionName: "PauseTrigger",
             target: DisplayValueHelper.FormatKey(group, name));
     }
@@ -235,6 +236,7 @@
         return ExecuteMutatingActionAsync(
             () => Api.ResumeTrigger(Scheduler.ActiveSchedulerName!, group, name),
             "Resumed trigger " + DisplayValueHelper.FormatKey(group, name) + ".",
+            "Trigger " + DisplayValueHelper.FormatKey(group, name) + " was not resumed - it no longer exists or was not paused.",
             actionName: "ResumeTrigger",
             target: DisplayValueHelper.FormatKey(group, name));
     }
@@ -329,9 +331,43 @@
         }
     }
 
+    private async Task ExecuteMutatingActionAsync(
+        Func<ValueTask<bool>> operation,
+        string successMessage,
+        string noOpMessage,
+        string actionName,
+        string target)
+    {
+        if (IsReadOnly || string.IsNullOrWhiteSpace(Scheduler.ActiveSchedulerName))
+        {
+            return;
+        }
+
+        try
+        {
+            bool applied = await operation();
+            ActionLog.Record(Scheduler.ActiveSchedulerName, actionName, target, succeeded: applied);
+            if (applied)
+            {
+                Toasts.Success(successMessage);
+            }
+            else
+            {
+                Toasts.Info(noOpMessage);
+            }
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            ActionLog.Record(Scheduler.ActiveSchedulerName, actionName, target, succeeded: false, ex.Message);
+            Toasts.Error(ex.Message);
+        }
+    }
+
     private async Task ExecuteGroupMutatingActionAsync(
         string group,
-        Func<string, string, string, ValueTask> operation,
+        Func<string, string, string, ValueTask<bool>> operation,
         string actionVerb)
     {
         string? schedulerName = Scheduler.ActiveSchedulerName;
@@ -353,9 +389,13 @@
                 }
             }
 
+            int appliedCount = 0;
             foreach (TriggerHeaderDto trigger in triggersInGroup)
             {
-                await operation(schedulerName, trigger.Group, trigger.Name);
+                if (await operation(schedulerName, trigger.Group, trigger.Name))
+                {
+                    appliedCount++;
+                }
             }
 
             ActionLog.Record(
@@ -363,8 +403,8 @@
                 actionVerb + "TriggerGroup",
                 group,
                 succeeded: true,
-                triggersInGroup.Count + " trigger(s)");
-            Toasts.Success(actionVerb + " " + triggersInGroup.Count + " trigger(s) in group " + group + ".");
+                appliedCount + " of " + triggersInGroup.Count + " trigger(s)");
+            Toasts.Success(actionVerb + " " + appliedCount + " of " + triggersInGroup.Count + " trigger(s) in group " + group + ".");
             await LoadDataAsync();
         }
         catch (Exception ex)

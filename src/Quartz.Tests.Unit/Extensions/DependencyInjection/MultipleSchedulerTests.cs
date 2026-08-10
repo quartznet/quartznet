@@ -286,12 +286,12 @@ public sealed class MultipleSchedulerTests
 
         try
         {
-            (await named.CheckExists(new JobKey("namedOnlyJob"))).Should().BeTrue();
-            (await named.CheckExists(new TriggerKey("namedOnlyTrigger"))).Should().BeTrue();
+            (await named.Exists(new JobKey("namedOnlyJob"))).Should().BeTrue();
+            (await named.Exists(new TriggerKey("namedOnlyTrigger"))).Should().BeTrue();
 
-            (await unnamed.CheckExists(new JobKey("namedOnlyJob"))).Should().BeFalse(
+            (await unnamed.Exists(new JobKey("namedOnlyJob"))).Should().BeFalse(
                 "a named scheduler's content is registered under its own key, so no other scheduler runs it");
-            (await unnamed.CheckExists(new TriggerKey("namedOnlyTrigger"))).Should().BeFalse();
+            (await unnamed.Exists(new TriggerKey("namedOnlyTrigger"))).Should().BeFalse();
         }
         finally
         {

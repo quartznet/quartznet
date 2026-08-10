@@ -2148,9 +2148,9 @@ public abstract class JobStoreSupport : IJobStore
         }
     }
 
-    public async ValueTask ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        await activityTracer.Trace(
+        return await activityTracer.Trace(
             OperationName.JobStore.ResetTriggerFromErrorState,
             () => ExecuteInLock(
                 SchedulerLock.TriggerAccess,
@@ -2163,7 +2163,7 @@ public abstract class JobStoreSupport : IJobStore
             }).ConfigureAwait(false);
     }
 
-    private async ValueTask ResetTriggerFromErrorState(
+    private async ValueTask<bool> ResetTriggerFromErrorState(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
@@ -2177,13 +2177,20 @@ public abstract class JobStoreSupport : IJobStore
                 newState = StoredTriggerState.Paused;
             }
 
-            await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
+            int updated = await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, StoredTriggerState.Error, cancellationToken).ConfigureAwait(false);
+            if (updated == 0)
+            {
+                // no trigger with the key, or it was not in the error state
+                return false;
+            }
 
             Logger.LogInformation("Trigger {TriggerKey} reset from ERROR state to: {NewState}", triggerKey, newState);
+            return true;
         }
         catch (Exception e)
         {
             Throw.JobPersistenceException($"Couldn't reset from error state of trigger ({triggerKey}): {e.Message}", e);
+            return default;
         }
     }
 
@@ -2416,15 +2423,15 @@ public abstract class JobStoreSupport : IJobStore
     /// <param name="jobKey">the identifier to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a Job exists with the given identifier</returns>
-    public ValueTask<bool> CheckExists(
+    public ValueTask<bool> Exists(
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
         return ExecuteWithoutLock( // no locks necessary for read...
-            conn => CheckExists(conn, jobKey, cancellationToken), cancellationToken);
+            conn => Exists(conn, jobKey, cancellationToken), cancellationToken);
     }
 
-    protected async ValueTask<bool> CheckExists(
+    protected async ValueTask<bool> Exists(
         ConnectionAndTransactionHolder conn,
         JobKey jobKey,
         CancellationToken cancellationToken = default)
@@ -2449,15 +2456,15 @@ public abstract class JobStoreSupport : IJobStore
     /// <param name="triggerKey">the identifier to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a Trigger exists with the given identifier</returns>
-    public ValueTask<bool> CheckExists(
+    public ValueTask<bool> Exists(
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
         return ExecuteWithoutLock( // no locks necessary for read...
-            conn => CheckExists(conn, triggerKey, cancellationToken), cancellationToken);
+            conn => Exists(conn, triggerKey, cancellationToken), cancellationToken);
     }
 
-    protected async ValueTask<bool> CheckExists(
+    protected async ValueTask<bool> Exists(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
@@ -2728,9 +2735,9 @@ public abstract class JobStoreSupport : IJobStore
     /// <summary>
     /// Pause the <see cref="ITrigger" /> with the given name.
     /// </summary>
-    public async ValueTask PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        await activityTracer.Trace(
+        return await activityTracer.Trace(
             OperationName.JobStore.PauseTrigger,
             () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => PauseTrigger(conn, triggerKey, cancellationToken), cancellationToken),
             activity =>
@@ -2743,7 +2750,11 @@ public abstract class JobStoreSupport : IJobStore
     /// <summary>
     /// Pause the <see cref="ITrigger" /> with the given name.
     /// </summary>
-    public virtual async ValueTask PauseTrigger(
+    /// <returns>
+    /// <see langword="true" /> if the trigger existed in a pausable state and was moved into the
+    /// paused state by this call.
+    /// </returns>
+    public virtual async ValueTask<bool> PauseTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
@@ -2754,16 +2765,21 @@ public abstract class JobStoreSupport : IJobStore
 
             if (oldState is StoredTriggerState.Waiting or StoredTriggerState.Acquired)
             {
-                await Delegate.UpdateTriggerState(conn, triggerKey, StoredTriggerState.Paused, cancellationToken).ConfigureAwait(false);
+                return await Delegate.UpdateTriggerState(conn, triggerKey, StoredTriggerState.Paused, cancellationToken).ConfigureAwait(false) > 0;
             }
-            else if (oldState == StoredTriggerState.Blocked)
+
+            if (oldState == StoredTriggerState.Blocked)
             {
-                await Delegate.UpdateTriggerState(conn, triggerKey, StoredTriggerState.PausedBlocked, cancellationToken).ConfigureAwait(false);
+                return await Delegate.UpdateTriggerState(conn, triggerKey, StoredTriggerState.PausedBlocked, cancellationToken).ConfigureAwait(false) > 0;
             }
+
+            // missing, already paused, or in a state that cannot be paused
+            return false;
         }
         catch (Exception e)
         {
             Throw.JobPersistenceException($"Couldn't pause trigger '{triggerKey}': {e.Message}", e);
+            return default;
         }
     }
 
@@ -2772,17 +2788,24 @@ public abstract class JobStoreSupport : IJobStore
     /// pausing all of its current <see cref="ITrigger" />s.
     /// </summary>
     /// <seealso cref="ResumeJob(JobKey,CancellationToken)" />
-    public virtual async ValueTask PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
+    public virtual async ValueTask<bool> PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        await activityTracer.Trace(
+        return await activityTracer.Trace(
             OperationName.JobStore.PauseJob,
             () => ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
             {
+                if (!await Exists(conn, jobKey, cancellationToken).ConfigureAwait(false))
+                {
+                    return false;
+                }
+
                 var triggers = await GetTriggersForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
                 foreach (IOperableTrigger trigger in triggers)
                 {
                     await PauseTrigger(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
                 }
+
+                return true;
             }, cancellationToken),
             activity =>
             {
@@ -2859,9 +2882,9 @@ public abstract class JobStoreSupport : IJobStore
         }
     }
 
-    public virtual async ValueTask ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public virtual async ValueTask<bool> ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        await activityTracer.Trace(
+        return await activityTracer.Trace(
             OperationName.JobStore.ResumeTrigger,
             () => ExecuteInLock(SchedulerLock.TriggerAccess, conn => ResumeTrigger(conn, triggerKey, cancellationToken), cancellationToken),
             activity =>
@@ -2879,7 +2902,11 @@ public abstract class JobStoreSupport : IJobStore
     /// If the <see cref="ITrigger" /> missed one or more fire-times, then the
     /// <see cref="ITrigger" />'s misfire instruction will be applied.
     /// </remarks>
-    public virtual async ValueTask ResumeTrigger(
+    /// <returns>
+    /// <see langword="true" /> if the trigger existed in a paused state and was resumed by this
+    /// call.
+    /// </returns>
+    public virtual async ValueTask<bool> ResumeTrigger(
         ConnectionAndTransactionHolder conn,
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
@@ -2890,7 +2917,13 @@ public abstract class JobStoreSupport : IJobStore
 
             if (status?.NextFireTimeUtc is null || status.NextFireTimeUtc == DateTimeOffset.MinValue)
             {
-                return;
+                return false;
+            }
+
+            if (status.State is not StoredTriggerState.Paused and not StoredTriggerState.PausedBlocked)
+            {
+                // not paused, nothing to resume
+                return false;
             }
 
             bool blocked = status.State == StoredTriggerState.PausedBlocked;
@@ -2904,21 +2937,22 @@ public abstract class JobStoreSupport : IJobStore
                 misfired = await UpdateMisfiredTrigger(conn, triggerKey, newState, forceState: true, cancellationToken).ConfigureAwait(false);
             }
 
-            if (!misfired)
+            if (misfired)
             {
-                if (blocked)
-                {
-                    await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, StoredTriggerState.PausedBlocked, cancellationToken).ConfigureAwait(false);
-                }
-                else
-                {
-                    await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, StoredTriggerState.Paused, cancellationToken).ConfigureAwait(false);
-                }
+                return true;
             }
+
+            if (blocked)
+            {
+                return await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, StoredTriggerState.PausedBlocked, cancellationToken).ConfigureAwait(false) > 0;
+            }
+
+            return await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, StoredTriggerState.Paused, cancellationToken).ConfigureAwait(false) > 0;
         }
         catch (Exception e)
         {
             Throw.JobPersistenceException("Couldn't resume trigger '" + triggerKey + "': " + e.Message, e);
+            return default;
         }
     }
 
@@ -2932,17 +2966,24 @@ public abstract class JobStoreSupport : IJobStore
     /// instruction will be applied.
     /// </remarks>
     /// <seealso cref="PauseJob(JobKey,CancellationToken)" />
-    public virtual async ValueTask ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
+    public virtual async ValueTask<bool> ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        await activityTracer.Trace(
+        return await activityTracer.Trace(
             OperationName.JobStore.ResumeJob,
             () => ExecuteInLock(SchedulerLock.TriggerAccess, async conn =>
             {
+                if (!await Exists(conn, jobKey, cancellationToken).ConfigureAwait(false))
+                {
+                    return false;
+                }
+
                 var triggers = await GetTriggersForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
                 foreach (IOperableTrigger trigger in triggers)
                 {
                     await ResumeTrigger(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
                 }
+
+                return true;
             }, cancellationToken),
             activity =>
             {
