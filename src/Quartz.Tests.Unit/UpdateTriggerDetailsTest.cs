@@ -222,12 +222,30 @@ public class UpdateTriggerDetailsTest
 
         DateTimeOffset nextFireBefore = trigger.NextFireTimeUtc!.Value;
 
-        bool result = await jobStore.UpdateTriggerDetails(trigger.Key, new TriggerDetailsUpdate().WithMisfireInstruction(MisfireInstruction.CronTrigger.DoNothing));
+        bool result = await jobStore.UpdateTriggerDetails(trigger.Key, new TriggerDetailsUpdate().WithMisfireInstruction(CronTriggerMisfireInstruction.DoNothing));
 
         result.Should().BeTrue();
         IOperableTrigger retrieved = (await jobStore.GetTrigger(trigger.Key))!;
         retrieved.MisfireInstruction.Should().Be(MisfireInstruction.CronTrigger.DoNothing);
         retrieved.NextFireTimeUtc.Should().Be(nextFireBefore);
+    }
+
+    [Test]
+    public async Task MisfireInstructionCode_TakesTheSameNumberAsTheTypedOverload()
+    {
+        DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
+        IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
+        trigger.ComputeFirstFireTimeUtc(null);
+        await jobStore.AddTrigger(trigger, false);
+
+        TriggerDetailsUpdate update = new TriggerDetailsUpdate()
+            .WithMisfireInstructionCode((int) CronTriggerMisfireInstruction.DoNothing);
+
+        (await jobStore.UpdateTriggerDetails(trigger.Key, update)).Should().BeTrue();
+
+        IOperableTrigger retrieved = (await jobStore.GetTrigger(trigger.Key))!;
+        retrieved.MisfireInstruction.Should().Be(MisfireInstruction.CronTrigger.DoNothing,
+            "the code form is the same value the typed overload carries, just without the family");
     }
 
     [Test]

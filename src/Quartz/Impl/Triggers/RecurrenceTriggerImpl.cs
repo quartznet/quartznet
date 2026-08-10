@@ -356,7 +356,7 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
         RecurrenceTriggerMisfireInstruction instruction = (RecurrenceTriggerMisfireInstruction) MisfireInstruction;
         if (Enum.IsDefined(instruction))
         {
-            sb.WithMisfireHandlingInstruction(instruction);
+            sb.WithMisfireInstruction(instruction);
         }
 
         return sb;

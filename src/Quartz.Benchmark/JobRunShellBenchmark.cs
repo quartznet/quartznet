@@ -73,7 +73,7 @@ public class JobRunShellBenchmark
             .WithSimpleSchedule(
                 sb => sb.RepeatForever()
                     .WithInterval(repeatInterval)
-                    .WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.FireNow))
+                    .WithMisfireInstruction(SimpleTriggerMisfireInstruction.FireNow))
             .Build();
     }
 

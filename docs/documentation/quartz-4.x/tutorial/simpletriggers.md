@@ -130,6 +130,6 @@ ITrigger trigger = TriggerBuilder.Create()
     .WithSimpleSchedule(x => x
         .WithInterval(TimeSpan.FromMinutes(5))
         .RepeatForever()
-        .WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.NextWithExistingCount))
+        .WithMisfireInstruction(SimpleTriggerMisfireInstruction.NextWithExistingCount))
     .Build();
 ```

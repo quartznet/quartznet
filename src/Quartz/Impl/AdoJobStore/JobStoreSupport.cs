@@ -2034,7 +2034,7 @@ public abstract class JobStoreSupport : IJobStore
 
             if (update.HasMisfireInstruction)
             {
-                existing.MisfireInstruction = update.MisfireInstruction;
+                existing.MisfireInstruction = update.MisfireInstructionCode;
             }
 
             if (update.HasPreferredNode)

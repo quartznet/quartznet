@@ -240,7 +240,7 @@ public sealed class CronScheduleBuilder : IScheduleBuilder, IHashKeyAwareSchedul
     /// <see cref="CronTriggerMisfireInstruction.SmartPolicy" />.</param>
     /// <returns>the updated CronScheduleBuilder</returns>
     /// <seealso cref="CronTriggerMisfireInstruction" />
-    public CronScheduleBuilder WithMisfireHandlingInstruction(CronTriggerMisfireInstruction instruction)
+    public CronScheduleBuilder WithMisfireInstruction(CronTriggerMisfireInstruction instruction)
     {
         misfireInstruction = (int) instruction;
         return this;

@@ -279,7 +279,7 @@ public class CronTriggerTest
         var originalTrigger = (IOperableTrigger) TriggerBuilder.Create()
             .WithIdentity("trigger1", "group1")
             .WithCronSchedule("0 */5 * ? * *",
-                cs => cs.WithMisfireHandlingInstruction(CronTriggerMisfireInstruction.DoNothing))
+                cs => cs.WithMisfireInstruction(CronTriggerMisfireInstruction.DoNothing))
             .StartAt(pastStartTime)
             .Build();
 

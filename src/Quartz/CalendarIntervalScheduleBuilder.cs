@@ -102,7 +102,7 @@ public sealed class CalendarIntervalScheduleBuilder : IScheduleBuilder
     /// <see cref="CalendarIntervalTriggerMisfireInstruction.SmartPolicy" />.</param>
     /// <returns>the updated CalendarIntervalScheduleBuilder</returns>
     /// <seealso cref="CalendarIntervalTriggerMisfireInstruction" />
-    public CalendarIntervalScheduleBuilder WithMisfireHandlingInstruction(CalendarIntervalTriggerMisfireInstruction instruction)
+    public CalendarIntervalScheduleBuilder WithMisfireInstruction(CalendarIntervalTriggerMisfireInstruction instruction)
     {
         misfireInstruction = (int) instruction;
         return this;

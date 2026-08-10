@@ -81,7 +81,7 @@ public class CronScheduleBuilderTest
     {
         ITrigger trigger = TriggerBuilder.Create()
             .WithIdentity("test")
-            .WithCronSchedule("0 20 10 ? * *", x => x.WithMisfireHandlingInstruction(instruction))
+            .WithCronSchedule("0 20 10 ? * *", x => x.WithMisfireInstruction(instruction))
             .Build();
 
         trigger.MisfireInstruction.Should().Be(stored);

@@ -588,7 +588,7 @@ public class SchedulerBenchmark
             .WithSimpleSchedule(
                 sb => sb.WithRepeatCount(repeatCount)
                     .WithInterval(repeatInterval)
-                    .WithMisfireHandlingInstruction((SimpleTriggerMisfireInstruction) misfireInstruction))
+                    .WithMisfireInstruction((SimpleTriggerMisfireInstruction) misfireInstruction))
             .Build();
     }
 

@@ -611,7 +611,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
         CronTriggerMisfireInstruction instruction = (CronTriggerMisfireInstruction) MisfireInstruction;
         if (Enum.IsDefined(instruction))
         {
-            cb.WithMisfireHandlingInstruction(instruction);
+            cb.WithMisfireInstruction(instruction);
         }
         else
         {

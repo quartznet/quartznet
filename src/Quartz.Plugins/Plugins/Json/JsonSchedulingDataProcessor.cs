@@ -356,7 +356,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
     {
         var interval = TimeSpan.Parse(simple.Interval, CultureInfo.InvariantCulture);
         var builder = SimpleScheduleBuilder.Create().WithInterval(interval).WithRepeatCount(simple.RepeatCount);
-        if (simple.MisfireInstruction is not null) builder.WithMisfireHandlingInstruction((SimpleTriggerMisfireInstruction) ParseMisfireInstruction(simple.MisfireInstruction));
+        if (simple.MisfireInstruction is not null) builder.WithMisfireInstruction((SimpleTriggerMisfireInstruction) ParseMisfireInstruction(simple.MisfireInstruction));
         return builder;
     }
 
@@ -376,7 +376,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
         }
 
         if (cron.TimeZone is not null) builder.InTimeZone(TimeZoneUtil.FindTimeZoneById(cron.TimeZone));
-        if (cron.MisfireInstruction is not null) builder.WithMisfireHandlingInstruction((CronTriggerMisfireInstruction) ParseMisfireInstruction(cron.MisfireInstruction));
+        if (cron.MisfireInstruction is not null) builder.WithMisfireInstruction((CronTriggerMisfireInstruction) ParseMisfireInstruction(cron.MisfireInstruction));
         return builder;
     }
 
@@ -384,7 +384,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
     {
         var unit = SafeParseEnum<IntervalUnit>(calendar.RepeatIntervalUnit, "CalendarInterval.RepeatIntervalUnit");
         var builder = CalendarIntervalScheduleBuilder.Create().WithInterval(calendar.RepeatInterval, unit);
-        if (calendar.MisfireInstruction is not null) builder.WithMisfireHandlingInstruction((CalendarIntervalTriggerMisfireInstruction) ParseMisfireInstruction(calendar.MisfireInstruction));
+        if (calendar.MisfireInstruction is not null) builder.WithMisfireInstruction((CalendarIntervalTriggerMisfireInstruction) ParseMisfireInstruction(calendar.MisfireInstruction));
         return builder;
     }
 
@@ -407,7 +407,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
         if (daily.MisfireInstruction is not null)
         {
             var instruction = (DailyTimeIntervalTriggerMisfireInstruction) ParseMisfireInstruction(daily.MisfireInstruction);
-            if (Enum.IsDefined(instruction)) builder.WithMisfireHandlingInstruction(instruction);
+            if (Enum.IsDefined(instruction)) builder.WithMisfireInstruction(instruction);
         }
 
         return builder;

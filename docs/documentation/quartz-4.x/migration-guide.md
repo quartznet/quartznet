@@ -3279,74 +3279,88 @@ read back identically, and the JSON trigger payloads never carried the pin.
 Each schedule builder had one no-argument method per misfire policy — eighteen of them across five builders,
 with a slightly different vocabulary each. A method name is a poor place to keep a value: it cannot be read
 from configuration, cannot be switched on, and cannot be defaulted. Every builder now has one
-`WithMisfireHandlingInstruction` taking its family's enum.
+`WithMisfireInstruction` taking its family's enum.
 
 ```diff
   .WithSimpleSchedule(x => x
       .WithInterval(TimeSpan.FromMinutes(5))
       .RepeatForever()
 -     .WithMisfireHandlingInstructionNextWithExistingCount())
-+     .WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.NextWithExistingCount))
++     .WithMisfireInstruction(SimpleTriggerMisfireInstruction.NextWithExistingCount))
 ```
+
+Earlier 4.0 previews spelled that method `WithMisfireHandlingInstruction`. It is `WithMisfireInstruction` now,
+on all five builders, matching `TriggerDetailsUpdate.WithMisfireInstruction` and the XML element name.
 
 ### SimpleScheduleBuilder
 
 | 3.x | 4.x |
 |---|---|
-| `WithMisfireHandlingInstructionIgnoreMisfires()` | `WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.IgnoreMisfires)` |
-| `WithMisfireHandlingInstructionFireNow()` | `WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.FireNow)` |
-| `WithMisfireHandlingInstructionNowWithExistingCount()` | `WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.NowWithExistingCount)` |
-| `WithMisfireHandlingInstructionNowWithRemainingCount()` | `WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.NowWithRemainingCount)` |
-| `WithMisfireHandlingInstructionNextWithRemainingCount()` | `WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.NextWithRemainingCount)` |
-| `WithMisfireHandlingInstructionNextWithExistingCount()` | `WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.NextWithExistingCount)` |
-| (call nothing) | `WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.SmartPolicy)`, still the default |
+| `WithMisfireHandlingInstructionIgnoreMisfires()` | `WithMisfireInstruction(SimpleTriggerMisfireInstruction.IgnoreMisfires)` |
+| `WithMisfireHandlingInstructionFireNow()` | `WithMisfireInstruction(SimpleTriggerMisfireInstruction.FireNow)` |
+| `WithMisfireHandlingInstructionNowWithExistingCount()` | `WithMisfireInstruction(SimpleTriggerMisfireInstruction.NowWithExistingCount)` |
+| `WithMisfireHandlingInstructionNowWithRemainingCount()` | `WithMisfireInstruction(SimpleTriggerMisfireInstruction.NowWithRemainingCount)` |
+| `WithMisfireHandlingInstructionNextWithRemainingCount()` | `WithMisfireInstruction(SimpleTriggerMisfireInstruction.NextWithRemainingCount)` |
+| `WithMisfireHandlingInstructionNextWithExistingCount()` | `WithMisfireInstruction(SimpleTriggerMisfireInstruction.NextWithExistingCount)` |
+| (call nothing) | `WithMisfireInstruction(SimpleTriggerMisfireInstruction.SmartPolicy)`, still the default |
 
 ### CronScheduleBuilder
 
 | 3.x | 4.x |
 |---|---|
-| `WithMisfireHandlingInstructionIgnoreMisfires()` | `WithMisfireHandlingInstruction(CronTriggerMisfireInstruction.IgnoreMisfires)` |
-| `WithMisfireHandlingInstructionFireAndProceed()` | `WithMisfireHandlingInstruction(CronTriggerMisfireInstruction.FireAndProceed)` |
-| `WithMisfireHandlingInstructionDoNothing()` | `WithMisfireHandlingInstruction(CronTriggerMisfireInstruction.DoNothing)` |
+| `WithMisfireHandlingInstructionIgnoreMisfires()` | `WithMisfireInstruction(CronTriggerMisfireInstruction.IgnoreMisfires)` |
+| `WithMisfireHandlingInstructionFireAndProceed()` | `WithMisfireInstruction(CronTriggerMisfireInstruction.FireAndProceed)` |
+| `WithMisfireHandlingInstructionDoNothing()` | `WithMisfireInstruction(CronTriggerMisfireInstruction.DoNothing)` |
 
 ### CalendarIntervalScheduleBuilder
 
 | 3.x | 4.x |
 |---|---|
-| `WithMisfireHandlingInstructionIgnoreMisfires()` | `WithMisfireHandlingInstruction(CalendarIntervalTriggerMisfireInstruction.IgnoreMisfires)` |
-| `WithMisfireHandlingInstructionFireAndProceed()` | `WithMisfireHandlingInstruction(CalendarIntervalTriggerMisfireInstruction.FireAndProceed)` |
-| `WithMisfireHandlingInstructionDoNothing()` | `WithMisfireHandlingInstruction(CalendarIntervalTriggerMisfireInstruction.DoNothing)` |
+| `WithMisfireHandlingInstructionIgnoreMisfires()` | `WithMisfireInstruction(CalendarIntervalTriggerMisfireInstruction.IgnoreMisfires)` |
+| `WithMisfireHandlingInstructionFireAndProceed()` | `WithMisfireInstruction(CalendarIntervalTriggerMisfireInstruction.FireAndProceed)` |
+| `WithMisfireHandlingInstructionDoNothing()` | `WithMisfireInstruction(CalendarIntervalTriggerMisfireInstruction.DoNothing)` |
 
 ### DailyTimeIntervalScheduleBuilder
 
 | 3.x | 4.x |
 |---|---|
-| `WithMisfireHandlingInstructionIgnoreMisfires()` | `WithMisfireHandlingInstruction(DailyTimeIntervalTriggerMisfireInstruction.IgnoreMisfires)` |
-| `WithMisfireHandlingInstructionFireAndProceed()` | `WithMisfireHandlingInstruction(DailyTimeIntervalTriggerMisfireInstruction.FireAndProceed)` |
-| `WithMisfireHandlingInstructionDoNothing()` | `WithMisfireHandlingInstruction(DailyTimeIntervalTriggerMisfireInstruction.DoNothing)` |
+| `WithMisfireHandlingInstructionIgnoreMisfires()` | `WithMisfireInstruction(DailyTimeIntervalTriggerMisfireInstruction.IgnoreMisfires)` |
+| `WithMisfireHandlingInstructionFireAndProceed()` | `WithMisfireInstruction(DailyTimeIntervalTriggerMisfireInstruction.FireAndProceed)` |
+| `WithMisfireHandlingInstructionDoNothing()` | `WithMisfireInstruction(DailyTimeIntervalTriggerMisfireInstruction.DoNothing)` |
 
 ### RecurrenceScheduleBuilder
 
 | 3.x | 4.x |
 |---|---|
-| `WithMisfireHandlingInstructionIgnoreMisfires()` | `WithMisfireHandlingInstruction(RecurrenceTriggerMisfireInstruction.IgnoreMisfires)` |
-| `WithMisfireHandlingInstructionFireAndProceed()` | `WithMisfireHandlingInstruction(RecurrenceTriggerMisfireInstruction.FireAndProceed)` |
-| `WithMisfireHandlingInstructionDoNothing()` | `WithMisfireHandlingInstruction(RecurrenceTriggerMisfireInstruction.DoNothing)` |
+| `WithMisfireHandlingInstructionIgnoreMisfires()` | `WithMisfireInstruction(RecurrenceTriggerMisfireInstruction.IgnoreMisfires)` |
+| `WithMisfireHandlingInstructionFireAndProceed()` | `WithMisfireInstruction(RecurrenceTriggerMisfireInstruction.FireAndProceed)` |
+| `WithMisfireHandlingInstructionDoNothing()` | `WithMisfireInstruction(RecurrenceTriggerMisfireInstruction.DoNothing)` |
 
-### The enums and the constants are the same numbers
+### `TriggerDetailsUpdate` takes the same enums
 
-An enum member's underlying value *is* the `MisfireInstruction` constant it replaces, so the two convert
-freely:
+The update object had a single `WithMisfireInstruction(int)`, which let a simple trigger's code be applied to
+a cron trigger: the number is in range for both families and means a different policy in each. It now has one
+overload per family, plus a code form for callers that genuinely have a number and no family — a value read
+off the wire, from configuration, or from a trigger.
+
+| 4.0 preview | 4.x |
+|---|---|
+| `.WithMisfireInstruction(2)` | `.WithMisfireInstruction(CronTriggerMisfireInstruction.DoNothing)` |
+| `.WithMisfireInstruction(MisfireInstruction.CronTrigger.DoNothing)` | `.WithMisfireInstruction(CronTriggerMisfireInstruction.DoNothing)` |
+| `.WithMisfireInstruction(someInt)` | `.WithMisfireInstructionCode(someInt)` |
+
+The typed overloads are the taught path: the store rejects an update whose family is not the stored trigger's,
+so a cron policy sent to a simple trigger is now an error rather than a silently different policy.
+`WithMisfireInstructionCode` keeps only the range check the trigger itself applies.
+
+### The enums are the vocabulary
+
+An enum member's underlying value *is* the misfire code a trigger stores, so the two convert freely:
 
 ```csharp
 CronTriggerMisfireInstruction policy = (CronTriggerMisfireInstruction) trigger.MisfireInstruction;
-int stored = (int) CronTriggerMisfireInstruction.DoNothing;   // MisfireInstruction.CronTrigger.DoNothing
+int stored = (int) CronTriggerMisfireInstruction.DoNothing;   // 2
 ```
-
-`ITrigger.MisfireInstruction` and `TriggerDetailsUpdate.WithMisfireInstruction(int)` stay `int`, and the
-`MisfireInstruction` static class stays as the storage-level reference. Neither a trigger's own storage nor an
-update object knows which family it belongs to. The enums are the same values offered where the family *is*
-known — on a schedule builder.
 
 ## Intervals are said once per builder
 

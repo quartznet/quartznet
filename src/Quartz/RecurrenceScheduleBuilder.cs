@@ -85,7 +85,7 @@ public sealed class RecurrenceScheduleBuilder : IScheduleBuilder
     /// <see cref="RecurrenceTriggerMisfireInstruction.SmartPolicy" />.</param>
     /// <returns>the updated RecurrenceScheduleBuilder</returns>
     /// <seealso cref="RecurrenceTriggerMisfireInstruction" />
-    public RecurrenceScheduleBuilder WithMisfireHandlingInstruction(RecurrenceTriggerMisfireInstruction instruction)
+    public RecurrenceScheduleBuilder WithMisfireInstruction(RecurrenceTriggerMisfireInstruction instruction)
     {
         misfireInstruction = (int) instruction;
         return this;

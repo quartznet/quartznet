@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -1038,7 +1038,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
         DailyTimeIntervalTriggerMisfireInstruction instruction = (DailyTimeIntervalTriggerMisfireInstruction) MisfireInstruction;
         if (Enum.IsDefined(instruction))
         {
-            cb.WithMisfireHandlingInstruction(instruction);
+            cb.WithMisfireInstruction(instruction);
         }
 
         return cb;

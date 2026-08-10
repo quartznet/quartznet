@@ -214,8 +214,7 @@ public interface IJobStore
     /// <param name="triggerKey">The key identifying the trigger to update.</param>
     /// <param name="update">
     /// The details to update. Only properties explicitly set will be changed.
-    /// May include <see cref="TriggerDetailsUpdate.CalendarName"/> and
-    /// <see cref="TriggerDetailsUpdate.MisfireInstruction"/> which can affect firing behavior.
+    /// May include the calendar name and the misfire instruction, which can affect firing behavior.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns><see langword="true"/> if the trigger was found and updated, <see langword="false"/> if not found.</returns>

@@ -31,7 +31,7 @@ public class MissSchedulingChangeSignalTest
             .WithSimpleSchedule(x => x
                 .WithInterval(TimeSpan.FromSeconds(1))
                 .RepeatForever()
-                .WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.IgnoreMisfires))
+                .WithMisfireInstruction(SimpleTriggerMisfireInstruction.IgnoreMisfires))
             .Build();
 
         await scheduler.ScheduleJob(job, trigger);
