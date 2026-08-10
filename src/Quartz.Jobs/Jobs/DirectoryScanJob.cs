@@ -1,11 +1,10 @@
 using Microsoft.Extensions.Logging;
 
 using Quartz.Diagnostics;
-using Quartz.Extensibility;
 
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
-namespace Quartz.Job;
+namespace Quartz.Jobs;
 
 ///<summary>
 /// Inspects a directory and compares whether any files' "last modified dates"

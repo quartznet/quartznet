@@ -1,5 +1,5 @@
 
-using Quartz.Job;
+using Quartz.Jobs;
 
 namespace Quartz.Tests.Unit.Job;
 

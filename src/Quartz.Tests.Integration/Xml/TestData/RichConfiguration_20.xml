@@ -13,7 +13,7 @@
       <name>jobName1</name>
       <group>jobGroup1</group>
       <description>jobDescription1</description>
-      <job-type>Quartz.Job.NoOpJob, Quartz</job-type>
+      <job-type>Quartz.Jobs.NoOpJob, Quartz</job-type>
       <durable>true</durable>
       <recover>false</recover>
       <job-data-map>
@@ -93,7 +93,7 @@
   <schedule>
     <job>
       <name>sched2_job</name>
-      <job-type>Quartz.Job.NoOpJob, Quartz</job-type>
+      <job-type>Quartz.Jobs.NoOpJob, Quartz</job-type>
     </job>
 
     <trigger>

@@ -1,6 +1,6 @@
 using System.Collections.Specialized;
 
-using Quartz.Job;
+using Quartz.Jobs;
 using Quartz.Plugin.Interrupt;
 using Quartz.Util;
 

@@ -14,7 +14,7 @@
       <name>jobName1</name>
       <group>jobGroup1</group>
       <job-type>
-        Quartz.Job.NoOpJob, Quartz
+        Quartz.Jobs.NoOpJob, Quartz
       </job-type>
     </job>
 

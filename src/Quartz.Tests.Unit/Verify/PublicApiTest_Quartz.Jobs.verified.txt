@@ -1,12 +1,5 @@
 ﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
-namespace Quartz.Extensibility
-{
-    public interface IDirectoryProvider
-    {
-        System.Collections.Generic.List<string> GetDirectoriesToScan(Quartz.JobDataMap mergedJobDataMap);
-    }
-}
-namespace Quartz.Job
+namespace Quartz.Jobs
 {
     [Quartz.DisallowConcurrentExecution]
     [Quartz.PersistJobDataAfterExecution]
@@ -32,6 +25,10 @@ namespace Quartz.Job
         public FileScanJob() { }
         public virtual System.Threading.Tasks.ValueTask Execute(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual System.DateTime GetLastModifiedDate(string fileName) { }
+    }
+    public interface IDirectoryProvider
+    {
+        System.Collections.Generic.List<string> GetDirectoriesToScan(Quartz.JobDataMap mergedJobDataMap);
     }
     public interface IDirectoryScanListener
     {
@@ -75,7 +72,7 @@ namespace Quartz.Job
         public virtual System.Threading.Tasks.ValueTask Execute(Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
         protected virtual string? GetOptionalParameter(Quartz.JobDataMap data, string propertyName) { }
         protected virtual string GetRequiredParameter(Quartz.JobDataMap data, string propertyName) { }
-        protected virtual void Send(Quartz.Job.SendMailJob.MailInfo mailInfo) { }
+        protected virtual void Send(Quartz.Jobs.SendMailJob.MailInfo mailInfo) { }
         public class MailInfo
         {
             public MailInfo() { }

@@ -21,7 +21,7 @@ using Microsoft.Extensions.Logging;
 
 using Quartz.Diagnostics;
 
-namespace Quartz.Job;
+namespace Quartz.Jobs;
 
 /// <summary>
 /// Inspects a file and compares whether its "last modified date" has changed

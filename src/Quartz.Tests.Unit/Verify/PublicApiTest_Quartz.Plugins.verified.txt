@@ -133,7 +133,7 @@ namespace Quartz.Plugin.Interrupt
 }
 namespace Quartz.Plugin.Json
 {
-    public sealed class JsonSchedulingDataProcessorPlugin : Quartz.Extensibility.ISchedulerPlugin, Quartz.Job.IFileScanListener
+    public sealed class JsonSchedulingDataProcessorPlugin : Quartz.Extensibility.ISchedulerPlugin, Quartz.Jobs.IFileScanListener
     {
         public JsonSchedulingDataProcessorPlugin() { }
         public JsonSchedulingDataProcessorPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugin.Json.JsonSchedulingDataProcessorPlugin> logger, Quartz.Extensibility.ITypeLoadHelper typeLoadHelper, System.TimeProvider timeProvider) { }
@@ -163,7 +163,7 @@ namespace Quartz.Plugin.Management
 }
 namespace Quartz.Plugin.Xml
 {
-    public class XMLSchedulingDataProcessorPlugin : Quartz.Extensibility.ISchedulerPlugin, Quartz.Job.IFileScanListener
+    public class XMLSchedulingDataProcessorPlugin : Quartz.Extensibility.ISchedulerPlugin, Quartz.Jobs.IFileScanListener
     {
         public XMLSchedulingDataProcessorPlugin() { }
         public XMLSchedulingDataProcessorPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin> logger, Quartz.Extensibility.ITypeLoadHelper typeLoadHelper, System.TimeProvider timeProvider) { }

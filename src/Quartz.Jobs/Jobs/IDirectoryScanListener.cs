@@ -1,4 +1,4 @@
-namespace Quartz.Job;
+namespace Quartz.Jobs;
 
 ///<summary>
 /// Interface for objects wishing to receive a 'call-back' from a <see cref="DirectoryScanJob"/>

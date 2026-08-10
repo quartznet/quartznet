@@ -26,7 +26,7 @@ using Microsoft.Extensions.Logging;
 
 using Quartz.Diagnostics;
 
-namespace Quartz.Job;
+namespace Quartz.Jobs;
 
 /// <summary>
 /// Built in job for executing native executables in a separate process.

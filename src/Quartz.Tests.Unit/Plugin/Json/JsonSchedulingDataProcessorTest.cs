@@ -20,7 +20,7 @@ public class JsonSchedulingDataProcessorTest
         var json = """
         {
             "Schedule": {
-                "Jobs": [{ "Name": "testJob", "JobType": "Quartz.Job.NativeJob, Quartz.Jobs", "Durable": true }],
+                "Jobs": [{ "Name": "testJob", "JobType": "Quartz.Jobs.NativeJob, Quartz.Jobs", "Durable": true }],
                 "Triggers": [{ "Name": "cronTrigger", "JobName": "testJob", "Cron": { "Expression": "0/10 * * * * ?" } }]
             }
         }
@@ -40,7 +40,7 @@ public class JsonSchedulingDataProcessorTest
         var json = """
         {
             "Schedule": {
-                "Jobs": [{ "Name": "sJob", "JobType": "Quartz.Job.NativeJob, Quartz.Jobs", "Durable": true }],
+                "Jobs": [{ "Name": "sJob", "JobType": "Quartz.Jobs.NativeJob, Quartz.Jobs", "Durable": true }],
                 "Triggers": [{ "Name": "sTrigger", "JobName": "sJob", "Simple": { "RepeatCount": -1, "Interval": "00:00:05" } }]
             }
         }
@@ -60,7 +60,7 @@ public class JsonSchedulingDataProcessorTest
         var json = """
         {
             "Schedule": {
-                "Jobs": [{ "Name": "cJob", "JobType": "Quartz.Job.NativeJob, Quartz.Jobs", "Durable": true }],
+                "Jobs": [{ "Name": "cJob", "JobType": "Quartz.Jobs.NativeJob, Quartz.Jobs", "Durable": true }],
                 "Triggers": [{ "Name": "cTrigger", "JobName": "cJob", "CalendarInterval": { "RepeatInterval": 2, "RepeatIntervalUnit": "Hour" } }]
             }
         }
@@ -80,7 +80,7 @@ public class JsonSchedulingDataProcessorTest
         var json = """
         {
             "Schedule": {
-                "Jobs": [{ "Name": "dJob", "JobType": "Quartz.Job.NativeJob, Quartz.Jobs", "Durable": true }],
+                "Jobs": [{ "Name": "dJob", "JobType": "Quartz.Jobs.NativeJob, Quartz.Jobs", "Durable": true }],
                 "Triggers": [{
                     "Name": "dTrigger", "JobName": "dJob",
                     "DailyTimeInterval": {
@@ -110,7 +110,7 @@ public class JsonSchedulingDataProcessorTest
         var json = """
         {
             "Schedule": {
-                "Jobs": [{ "Name": "dataJob", "JobType": "Quartz.Job.NativeJob, Quartz.Jobs", "Durable": true, "JobDataMap": { "k1": "v1" } }],
+                "Jobs": [{ "Name": "dataJob", "JobType": "Quartz.Jobs.NativeJob, Quartz.Jobs", "Durable": true, "JobDataMap": { "k1": "v1" } }],
                 "Triggers": [{ "Name": "dt", "JobName": "dataJob", "Cron": { "Expression": "0 0 12 * * ?" } }]
             }
         }
@@ -127,7 +127,7 @@ public class JsonSchedulingDataProcessorTest
         var json = """
         {
             "Schedule": {
-                "Jobs": [{ "Name": "noGrpJob", "JobType": "Quartz.Job.NativeJob, Quartz.Jobs", "Durable": true }],
+                "Jobs": [{ "Name": "noGrpJob", "JobType": "Quartz.Jobs.NativeJob, Quartz.Jobs", "Durable": true }],
                 "Triggers": [{ "Name": "noGrpTrigger", "JobName": "noGrpJob", "Cron": { "Expression": "0 0 12 * * ?" } }]
             }
         }
@@ -146,7 +146,7 @@ public class JsonSchedulingDataProcessorTest
         var json = """
         {
             "Schedule": {
-                "Jobs": [{ "Name": "eGrpJob", "Group": "", "JobType": "Quartz.Job.NativeJob, Quartz.Jobs", "Durable": true }],
+                "Jobs": [{ "Name": "eGrpJob", "Group": "", "JobType": "Quartz.Jobs.NativeJob, Quartz.Jobs", "Durable": true }],
                 "Triggers": [{ "Name": "eGrpTrigger", "Group": "", "JobName": "eGrpJob", "JobGroup": "", "Cron": { "Expression": "0 0 12 * * ?" } }]
             }
         }
@@ -205,7 +205,7 @@ public class JsonSchedulingDataProcessorTest
         var json = """
         {
             "Schedule": {
-                "Jobs": [{ "Name": "testJob", "JobType": "Quartz.Job.NativeJob, Quartz.Jobs" }],
+                "Jobs": [{ "Name": "testJob", "JobType": "Quartz.Jobs.NativeJob, Quartz.Jobs" }],
                 "Triggers": [{ "Name": "testTrigger", "JobName": "testJob", "ExecutionGroup": "batch", "Cron": { "Expression": "0 0 12 * * ?" } }]
             }
         }
@@ -222,7 +222,7 @@ public class JsonSchedulingDataProcessorTest
     [Test]
     public void MissingJobName_Throws()
     {
-        var json = """{ "Schedule": { "Jobs": [{ "JobType": "Quartz.Job.NativeJob, Quartz.Jobs" }] } }""";
+        var json = """{ "Schedule": { "Jobs": [{ "JobType": "Quartz.Jobs.NativeJob, Quartz.Jobs" }] } }""";
         var processor = CreateProcessor();
         var act = () => processor.ProcessJsonContent(json);
         act.Should().Throw<SchedulerConfigException>().WithMessage("*missing required 'Name'*");

@@ -2704,6 +2704,19 @@ rewrites what is persisted for it, so the fallback stays visible until you migra
 job started up and listed perfectly well, because a job's type is resolved lazily, and then failed with a
 `TypeLoadException` the first time it fired.
 
+### Other namespaces that moved
+
+`Quartz.Spi` and `Quartz.Simpl` were not the only ones. 4.0 also settles the singular/plural split between a
+namespace, its assembly and its package — where the package is `Quartz.Jobs`, the namespace is `Quartz.Jobs`
+too — and empties the namespaces that held a single type or a handful of them. For source code each row is a
+`using` directive; where a row says the old spelling still resolves, the same fallback and the same warning as
+above cover configuration strings.
+
+| 3.x namespace | 4.x namespace | Notes |
+|---|---|---|
+| `Quartz.Job` | `Quartz.Jobs` | Namespace, assembly and package now agree. A configuration string or a stored `JOB_CLASS_NAME` naming the old spelling still resolves, with a warning |
+| `Quartz.Extensibility.IDirectoryProvider` | `Quartz.Jobs.IDirectoryProvider` | It exists for `DirectoryScanJob` alone, so it lives with it. It is resolved from `SchedulerContext` by key, never by type name |
+
 ## The scheduler and the job store speak the same verbs
 
 `IJobStore` had its own vocabulary — Store/Remove/Retrieve — for the operations `IScheduler` calls

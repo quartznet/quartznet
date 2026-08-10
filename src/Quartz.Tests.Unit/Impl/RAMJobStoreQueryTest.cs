@@ -24,7 +24,7 @@ using Quartz.Impl;
 using Quartz.Impl.Calendar;
 using Quartz.Matchers;
 using Quartz.Impl.Triggers;
-using Quartz.Job;
+using Quartz.Jobs;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl;

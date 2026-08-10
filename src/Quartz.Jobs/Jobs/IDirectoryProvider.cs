@@ -1,6 +1,4 @@
-using Quartz.Job;
-
-namespace Quartz.Extensibility;
+namespace Quartz.Jobs;
 
 ///<summary>Interface for objects that wish to provide a list of directory paths to be
 /// monitored to <see cref="DirectoryScanJob"/></summary>

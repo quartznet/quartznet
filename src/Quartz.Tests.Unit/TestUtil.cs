@@ -19,7 +19,7 @@
 
 using Quartz.Impl;
 using Quartz.Impl.Triggers;
-using Quartz.Job;
+using Quartz.Jobs;
 using Quartz.Extensibility;
 
 namespace Quartz.Tests.Unit;

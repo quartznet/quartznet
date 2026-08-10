@@ -29,7 +29,7 @@ using Microsoft.Extensions.Logging;
 using Quartz.Impl;
 using Quartz.Matchers;
 using Quartz.Impl.Triggers;
-using Quartz.Job;
+using Quartz.Jobs;
 using Quartz.Extensibility;
 using Quartz.Tests.Integration.Utils;
 using Quartz.Xml;

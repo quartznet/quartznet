@@ -1,6 +1,6 @@
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
-using Quartz.Job;
+using Quartz.Jobs;
 using Quartz.Tests.Integration.TestHelpers;
 using Quartz.Tests.Integration.Utils;
 

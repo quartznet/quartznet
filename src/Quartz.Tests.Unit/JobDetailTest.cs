@@ -22,7 +22,7 @@
 using AwesomeAssertions.Execution;
 
 using Quartz.Impl;
-using Quartz.Job;
+using Quartz.Jobs;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit;

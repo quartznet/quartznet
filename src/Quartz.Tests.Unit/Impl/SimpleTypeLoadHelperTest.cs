@@ -1,6 +1,7 @@
 using Quartz.Extensibility;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
+using Quartz.Jobs;
 
 namespace Quartz.Tests.Unit.Impl;
 
@@ -36,6 +37,20 @@ public class SimpleTypeLoadHelperTest
     {
         loadHelper.LoadType("Quartz.Spi.IJobStore, Quartz").Should().Be<IJobStore>(
             "configuration naming the old Quartz.Spi namespace has to keep working");
+    }
+
+    [Test]
+    public void ShouldLoadBuiltInJobNamedByItsPre40Namespace()
+    {
+        loadHelper.LoadType("Quartz.Job.NoOpJob, Quartz.Jobs").Should().Be<NoOpJob>(
+            "a stored JOB_CLASS_NAME naming the old Quartz.Job namespace has to keep firing");
+    }
+
+    [Test]
+    public void ShouldLoadBuiltInJobNamedByItsPre40NamespaceAndAssembly()
+    {
+        loadHelper.LoadType("Quartz.Job.NoOpJob, Quartz").Should().Be<NoOpJob>(
+            "a 3.x name carries both the old namespace and the pre-split assembly, and the fallbacks must compose");
     }
 
     [Test]

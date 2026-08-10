@@ -27,7 +27,7 @@ using Microsoft.Extensions.Logging;
 
 using Quartz.Diagnostics;
 
-namespace Quartz.Job;
+namespace Quartz.Jobs;
 
 /// <summary>
 /// A Job which sends an e-mail with the configured content to the configured

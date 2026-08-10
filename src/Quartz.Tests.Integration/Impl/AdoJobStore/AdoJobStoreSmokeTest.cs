@@ -11,7 +11,7 @@ using Microsoft.Data.Sqlite;
 using Quartz.Impl.Calendar;
 using Quartz.Matchers;
 using Quartz.Impl.Triggers;
-using Quartz.Job;
+using Quartz.Jobs;
 using Quartz.Extensibility;
 using Quartz.Util;
 

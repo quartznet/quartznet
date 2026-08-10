@@ -26,7 +26,7 @@
 			<name>jobName1</name>
 			<group>jobGroup1</group>
 			<description>jobDescription1</description>
-			<job-type>Quartz.Job.NoOpJob, Quartz</job-type>
+			<job-type>Quartz.Jobs.NoOpJob, Quartz</job-type>
 			<job-listener-ref>jobListener1</job-listener-ref>
 			<volatile>false</volatile>
 			<durable>true</durable>

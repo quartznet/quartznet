@@ -13,7 +13,7 @@
       <name>jobName1</name>
       <group>jobGroup1</group>
       <job-type>
-        Quartz.Job.NoOpJob, Quartz
+        Quartz.Jobs.NoOpJob, Quartz
       </job-type>
     </job>
 
@@ -21,7 +21,7 @@
       <name>jobName2</name>
       <group>jobGroup2</group>
       <job-type>
-        Quartz.Job.NoOpJob, Quartz
+        Quartz.Jobs.NoOpJob, Quartz
       </job-type>
       <durable>true</durable>
       <recover>true</recover>

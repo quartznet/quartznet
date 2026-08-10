@@ -14,7 +14,7 @@ public class JsonSchedulingTests
         {
             { "Scheduler:InstanceName", "JsonTest" },
             { "Schedule:Jobs:0:Name", "testJob" },
-            { "Schedule:Jobs:0:JobType", "Quartz.Job.NativeJob, Quartz.Jobs" },
+            { "Schedule:Jobs:0:JobType", "Quartz.Jobs.NativeJob, Quartz.Jobs" },
             { "Schedule:Jobs:0:Durable", "true" },
             { "Schedule:Triggers:0:Name", "testTrigger" },
             { "Schedule:Triggers:0:JobName", "testJob" },
@@ -40,7 +40,7 @@ public class JsonSchedulingTests
         var config = BuildConfig(new Dictionary<string, string>
         {
             { "Schedule:Jobs:0:Name", "simpleJob" },
-            { "Schedule:Jobs:0:JobType", "Quartz.Job.NativeJob, Quartz.Jobs" },
+            { "Schedule:Jobs:0:JobType", "Quartz.Jobs.NativeJob, Quartz.Jobs" },
             { "Schedule:Jobs:0:Durable", "true" },
             { "Schedule:Triggers:0:Name", "simpleTrigger" },
             { "Schedule:Triggers:0:JobName", "simpleJob" },
@@ -87,7 +87,7 @@ public class JsonSchedulingTests
         {
             { "Schedulers:LocalScheduler:ThreadPool:MaxConcurrency", "7" },
             { "Schedulers:LocalScheduler:Schedule:Jobs:0:Name", "rootJob" },
-            { "Schedulers:LocalScheduler:Schedule:Jobs:0:JobType", "Quartz.Job.NativeJob, Quartz.Jobs" },
+            { "Schedulers:LocalScheduler:Schedule:Jobs:0:JobType", "Quartz.Jobs.NativeJob, Quartz.Jobs" },
             { "Schedulers:LocalScheduler:Schedule:Jobs:0:Durable", "true" },
             { "Schedulers:LocalScheduler:Schedule:Triggers:0:Name", "rootTrigger" },
             { "Schedulers:LocalScheduler:Schedule:Triggers:0:JobName", "rootJob" },
@@ -130,7 +130,7 @@ public class JsonSchedulingTests
         {
             { "Schedulers:Primary:ThreadPool:MaxConcurrency", "5" },
             { "Schedule:Jobs:0:Name", "strayJob" },
-            { "Schedule:Jobs:0:JobType", "Quartz.Job.NativeJob, Quartz.Jobs" },
+            { "Schedule:Jobs:0:JobType", "Quartz.Jobs.NativeJob, Quartz.Jobs" },
         });
 
         var services = new ServiceCollection();
@@ -196,7 +196,7 @@ public class JsonSchedulingTests
             { "Scheduling:IgnoreDuplicates", "true" },
             { "Scheduling:ScheduleTriggerRelativeToReplacedTrigger", "true" },
             { "Schedule:Jobs:0:Name", "testJob" },
-            { "Schedule:Jobs:0:JobType", "Quartz.Job.NativeJob, Quartz.Jobs" },
+            { "Schedule:Jobs:0:JobType", "Quartz.Jobs.NativeJob, Quartz.Jobs" },
             { "Schedule:Jobs:0:Durable", "true" },
             { "Schedule:Triggers:0:Name", "testTrigger" },
             { "Schedule:Triggers:0:JobName", "testJob" },
@@ -263,7 +263,7 @@ public class JsonSchedulingTests
 
         jobs.Should().HaveCount(1);
         jobs[0].Key.Name.Should().Be("customLoaderJob");
-        jobs[0].JobType.FullName.Should().Contain("Quartz.Job.NativeJob");
+        jobs[0].JobType.FullName.Should().Contain("Quartz.Jobs.NativeJob");
     }
 
     [Test]
@@ -272,7 +272,7 @@ public class JsonSchedulingTests
         var config = BuildConfig(new Dictionary<string, string>
         {
             { "Schedule:Jobs:0:Name", "groupJob" },
-            { "Schedule:Jobs:0:JobType", "Quartz.Job.NativeJob, Quartz.Jobs" },
+            { "Schedule:Jobs:0:JobType", "Quartz.Jobs.NativeJob, Quartz.Jobs" },
             { "Schedule:Jobs:0:Durable", "true" },
             { "Schedule:Triggers:0:Name", "groupTrigger" },
             { "Schedule:Triggers:0:JobName", "groupJob" },
@@ -309,7 +309,7 @@ public class JsonSchedulingTests
         {
             if (name == "MyApp.AliasedJob")
             {
-                return inner.LoadType("Quartz.Job.NativeJob, Quartz.Jobs");
+                return inner.LoadType("Quartz.Jobs.NativeJob, Quartz.Jobs");
             }
             return inner.LoadType(name);
         }
