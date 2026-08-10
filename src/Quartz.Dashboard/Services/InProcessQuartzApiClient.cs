@@ -21,7 +21,6 @@ using System.Text.Json;
 
 using Microsoft.Extensions.Options;
 
-using Quartz.Matchers;
 using Quartz.Serialization.Json;
 using Quartz.Extensibility;
 using Quartz.Util;

@@ -21,7 +21,7 @@
 
 using Quartz.Util;
 
-namespace Quartz.Matchers;
+namespace Quartz;
 
 /// <summary>
 /// An abstract base class for some types of matchers.

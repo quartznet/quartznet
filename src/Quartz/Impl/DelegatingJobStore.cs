@@ -20,7 +20,6 @@
 #endregion
 
 using Quartz.Extensibility;
-using Quartz.Matchers;
 
 namespace Quartz.Impl;
 

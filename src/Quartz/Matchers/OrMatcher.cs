@@ -21,7 +21,7 @@
 
 using Quartz.Util;
 
-namespace Quartz.Matchers;
+namespace Quartz;
 
 /// <summary>
 /// Matches using an OR operator on two Matcher operands.

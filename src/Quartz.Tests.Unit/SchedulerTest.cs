@@ -1,7 +1,6 @@
 using System.Collections.Specialized;
 using System.Diagnostics;
 
-using Quartz.Matchers;
 using Quartz.Jobs;
 using Quartz.Extensibility;
 

@@ -2,7 +2,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using BenchmarkDotNet.Attributes;
 using Quartz.Core;
 using Quartz.Impl;
-using Quartz.Matchers;
 using Quartz.Extensibility;
 
 namespace Quartz.Benchmark;

@@ -1,5 +1,4 @@
 using BenchmarkDotNet.Attributes;
-using Quartz.Matchers;
 
 namespace Quartz.Benchmark;
 

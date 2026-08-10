@@ -1,5 +1,4 @@
 using Quartz.Core;
-using Quartz.Matchers;
 using Quartz.Listeners;
 
 namespace Quartz.Tests.Unit.Core;

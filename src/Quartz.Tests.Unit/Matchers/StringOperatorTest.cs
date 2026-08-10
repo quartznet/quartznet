@@ -1,6 +1,5 @@
 // ReSharper disable SuspiciousTypeConversion.Global
 
-using Quartz.Matchers;
 
 namespace Quartz.Tests.Unit.Matchers;
 

@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Options;
 
-using Quartz.Matchers;
 using Quartz.Extensibility;
 
 using Lifetime = Microsoft.Extensions.Hosting.IHostApplicationLifetime;

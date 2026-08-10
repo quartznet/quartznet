@@ -5,7 +5,6 @@ using AwesomeAssertions.Execution;
 using FakeItEasy;
 
 using Quartz.HttpClient;
-using Quartz.Matchers;
 using Quartz.Tests.AspNetCore.Support;
 
 namespace Quartz.Tests.AspNetCore.HttpApi;

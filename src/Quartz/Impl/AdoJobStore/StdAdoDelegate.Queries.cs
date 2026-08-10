@@ -23,7 +23,6 @@ using System.Data.Common;
 using System.Globalization;
 using System.Text;
 
-using Quartz.Matchers;
 using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore;

@@ -19,7 +19,6 @@
 
 #endregion
 
-using Quartz.Matchers;
 
 namespace Quartz;
 

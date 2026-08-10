@@ -21,7 +21,7 @@
 
 using Quartz.Util;
 
-namespace Quartz.Matchers;
+namespace Quartz;
 
 /// <summary>
 /// Matches on the complete key being equal (both name and group).

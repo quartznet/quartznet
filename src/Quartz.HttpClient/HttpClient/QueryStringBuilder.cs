@@ -21,7 +21,6 @@
 
 using System.Globalization;
 
-using Quartz.Matchers;
 using Quartz.Util;
 
 namespace Quartz.HttpClient;

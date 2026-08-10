@@ -22,7 +22,6 @@
 using Microsoft.Extensions.Time.Testing;
 
 using Quartz.Impl.Calendar;
-using Quartz.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Jobs;
 using Quartz.Impl;
