@@ -1,14 +1,14 @@
 using System.Text.Json;
 
-using Quartz.Serialization.Json;
-using Quartz.Serialization.Json.Calendars;
-using Quartz.Serialization.Json.Converters;
-using Quartz.Serialization.Json.Triggers;
+using Quartz.Serialization.SystemTextJson;
+using Quartz.Serialization.SystemTextJson.Calendars;
+using Quartz.Serialization.SystemTextJson.Converters;
+using Quartz.Serialization.SystemTextJson.Triggers;
 using Quartz.Impl;
 
 namespace Quartz;
 
-public static class JsonConfigurationExtensions
+public static class SystemTextJsonConfigurationExtensions
 {
     /// <summary>
     /// Use System.Text.Json as data serialization strategy.

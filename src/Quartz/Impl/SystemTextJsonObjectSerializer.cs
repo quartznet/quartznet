@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.Json;
 
-using Quartz.Serialization.Json;
+using Quartz.Serialization.SystemTextJson;
 using Quartz.Extensibility;
 
 namespace Quartz.Impl;

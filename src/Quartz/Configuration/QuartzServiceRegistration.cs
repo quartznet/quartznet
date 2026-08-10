@@ -10,7 +10,7 @@ using Quartz.Diagnostics;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
-using Quartz.Serialization.Json;
+using Quartz.Serialization.SystemTextJson;
 using Quartz.Extensibility;
 using Quartz.Util;
 

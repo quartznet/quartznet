@@ -24,7 +24,7 @@ using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Configuration;
-using Quartz.Serialization.Json;
+using Quartz.Serialization.SystemTextJson;
 using Quartz.Impl;
 using Quartz.Extensibility;
 

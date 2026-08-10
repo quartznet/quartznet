@@ -8,7 +8,7 @@ using Quartz.Dashboard.Services;
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
-using Quartz.Serialization.Json;
+using Quartz.Serialization.SystemTextJson;
 
 namespace Quartz.Tests.AspNetCore.Dashboard;
 

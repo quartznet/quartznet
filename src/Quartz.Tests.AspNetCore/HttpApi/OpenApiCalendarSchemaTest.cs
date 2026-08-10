@@ -3,8 +3,8 @@ using System.Text.Json;
 using AwesomeAssertions.Execution;
 
 using Quartz.Impl.Calendar;
-using Quartz.Serialization.Json;
-using Quartz.Serialization.Json.Calendars;
+using Quartz.Serialization.SystemTextJson;
+using Quartz.Serialization.SystemTextJson.Calendars;
 
 using OpenApiCalendar = Quartz.AspNetCore.HttpApi.OpenApi.Calendar;
 

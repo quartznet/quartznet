@@ -2763,6 +2763,21 @@ above cover configuration strings.
 | `Quartz.Impl.Matchers` | `Quartz` | See [Matchers moved to `Quartz`](#matchers-moved-to-quartz). No shim is needed: a matcher is passed as an object and is never named by a configuration string |
 | `Quartz.AspNetCore` <br> `Quartz.AspNetCore.HealthChecks` <br> `Quartz.AspNetCore.HttpApi` | `Quartz` | The package is still `Quartz.AspNetCore`; only the namespaces are gone. `AddQuartzHealthChecks`, `AddQuartzHttpApi` and `MapQuartzHttpApi` are extension methods and resolve through the `Quartz` you already have, so a `using Quartz.AspNetCore;` can simply be deleted. The class that hosts them is `QuartzAspNetCoreConfigurationExtensions`, renamed from `QuartzServiceCollectionExtensions` because the core package now has a class of that name in the same namespace |
 | `Quartz.HttpClient` | `Quartz` | `HttpScheduler` and `HttpClientException`; the package is still `Quartz.HttpClient`. The namespace had to go because it shadowed `System.Net.Http.HttpClient` for every file under `Quartz.*`, including Quartz's own. `HttpScheduler` is also `sealed` now |
+| `Quartz.Serialization.Json` <br> `Quartz.Serialization.Json.Calendars` <br> `Quartz.Serialization.Json.Triggers` | `Quartz.Serialization.SystemTextJson[.Calendars\|.Triggers]` | These are the System.Text.Json types, which merged into the core package; the namespace was named after the *retired 3.x Newtonsoft package*. `Quartz.JsonConfigurationExtensions` is `Quartz.SystemTextJsonConfigurationExtensions` to match — the extension methods on it are unaffected. **Read the warning below before changing a `using` on a ported serializer** |
+
+::: warning Porting a 3.x Newtonsoft serializer
+In 3.x, `Quartz.Serialization.Json.Triggers` and `Quartz.Serialization.Json.Calendars` were the
+**Newtonsoft** package's namespaces. In 4.x the same spellings, minus `.Json`, plus `.SystemTextJson`,
+belong to System.Text.Json — and the Newtonsoft package's are `Quartz.Serialization.Newtonsoft.Triggers`
+and `Quartz.Calendars`.
+
+So a 3.x custom Newtonsoft serializer that is ported by changing its `using` to
+`Quartz.Serialization.SystemTextJson.Triggers` compiles against the *System.Text.Json* base class, and then
+fails on the overrides: the abstract members take a `Utf8JsonWriter` and a `JsonElement`, not a
+`JsonWriter` and a `JObject`. The signature mismatch is the symptom; the wrong base class is the bug.
+A Newtonsoft serializer stays on the Newtonsoft base — see
+[Newtonsoft types moved out of the core namespaces](#newtonsoft-types-moved-out-of-the-core-namespaces).
+:::
 
 ## The scheduler and the job store speak the same verbs
 
@@ -3043,7 +3058,7 @@ The built-in JSON trigger serializers are typed on the concrete triggers now, be
 
 This applies to `SimpleTriggerSerializer`, `CalendarIntervalTriggerSerializer`,
 `DailyTimeIntervalTriggerSerializer` and `RecurrenceTriggerSerializer`, in both
-`Quartz.Serialization.Json.Triggers` and `Quartz.Serialization.Newtonsoft.Triggers`. `CronTriggerSerializer`
+`Quartz.Serialization.SystemTextJson.Triggers` and `Quartz.Serialization.Newtonsoft.Triggers`. `CronTriggerSerializer`
 is unchanged — it has no fire-count state to restore.
 
 ## Nine `UsingJobData` overloads became one

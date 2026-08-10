@@ -22,7 +22,7 @@
 using System.Text.Json;
 
 using Quartz.HttpApiContract;
-using Quartz.Serialization.Json;
+using Quartz.Serialization.SystemTextJson;
 using Quartz.Extensibility;
 
 namespace Quartz;

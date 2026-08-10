@@ -11,8 +11,8 @@ using Quartz.Core;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Triggers;
-using Quartz.Serialization.Json;
-using Quartz.Serialization.Json.Triggers;
+using Quartz.Serialization.SystemTextJson;
+using Quartz.Serialization.SystemTextJson.Triggers;
 using Quartz.Impl;
 using Quartz.Extensibility;
 

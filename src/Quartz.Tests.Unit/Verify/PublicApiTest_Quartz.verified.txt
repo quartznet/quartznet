@@ -747,10 +747,6 @@ namespace Quartz
         public static System.Type op_Implicit(Quartz.JobType jobType) { }
         public static Quartz.JobType op_Implicit(string fullName) { }
     }
-    public static class JsonConfigurationExtensions
-    {
-        public static Quartz.IPersistentStoreBuilder UseSystemTextJsonSerializer(this Quartz.IPersistentStoreBuilder builder, System.Action<Quartz.SystemTextJsonSerializerOptions>? configure = null) { }
-    }
     public sealed class JsonSerializationException : Quartz.SchedulerException
     {
         public JsonSerializationException(string message) { }
@@ -1186,12 +1182,16 @@ namespace Quartz
         public abstract bool Evaluate(string value, string compareTo);
         public override int GetHashCode() { }
     }
+    public static class SystemTextJsonConfigurationExtensions
+    {
+        public static Quartz.IPersistentStoreBuilder UseSystemTextJsonSerializer(this Quartz.IPersistentStoreBuilder builder, System.Action<Quartz.SystemTextJsonSerializerOptions>? configure = null) { }
+    }
     public class SystemTextJsonSerializerOptions
     {
         public SystemTextJsonSerializerOptions() { }
-        public Quartz.SystemTextJsonSerializerOptions AddCalendarSerializer<TCalendar>(Quartz.Serialization.Json.Calendars.ICalendarSerializer serializer)
+        public Quartz.SystemTextJsonSerializerOptions AddCalendarSerializer<TCalendar>(Quartz.Serialization.SystemTextJson.Calendars.ICalendarSerializer serializer)
             where TCalendar : Quartz.ICalendar { }
-        public Quartz.SystemTextJsonSerializerOptions AddTriggerSerializer<TTrigger>(Quartz.Serialization.Json.Triggers.ITriggerSerializer serializer)
+        public Quartz.SystemTextJsonSerializerOptions AddTriggerSerializer<TTrigger>(Quartz.Serialization.SystemTextJson.Triggers.ITriggerSerializer serializer)
             where TTrigger : Quartz.ITrigger { }
     }
     public sealed class ThreadPoolOptions
@@ -2857,8 +2857,8 @@ namespace Quartz.Impl
     public class SystemTextJsonObjectSerializer : Quartz.Extensibility.IObjectSerializer
     {
         public SystemTextJsonObjectSerializer() { }
-        public SystemTextJsonObjectSerializer(Quartz.Serialization.Json.SystemTextJsonSerializerRegistry registry) { }
-        protected Quartz.Serialization.Json.SystemTextJsonSerializerRegistry Registry { get; }
+        public SystemTextJsonObjectSerializer(Quartz.Serialization.SystemTextJson.SystemTextJsonSerializerRegistry registry) { }
+        protected Quartz.Serialization.SystemTextJson.SystemTextJsonSerializerRegistry Registry { get; }
         protected virtual System.Text.Json.JsonSerializerOptions CreateSerializerOptions() { }
         public T? Deserialize<T>(byte[] data)
             where T :  class { }
@@ -3162,9 +3162,9 @@ namespace Quartz.Listeners
         public System.Threading.Tasks.ValueTask JobWasExecuted(Quartz.IJobExecutionContext context, Quartz.JobExecutionException? jobException, System.Threading.CancellationToken cancellationToken = default) { }
     }
 }
-namespace Quartz.Serialization.Json.Calendars
+namespace Quartz.Serialization.SystemTextJson.Calendars
 {
-    public abstract class CalendarSerializer<TCalendar> : Quartz.Serialization.Json.Calendars.ICalendarSerializer
+    public abstract class CalendarSerializer<TCalendar> : Quartz.Serialization.SystemTextJson.Calendars.ICalendarSerializer
         where TCalendar : Quartz.ICalendar
     {
         protected CalendarSerializer() { }
@@ -3181,20 +3181,20 @@ namespace Quartz.Serialization.Json.Calendars
         void SerializeFields(System.Text.Json.Utf8JsonWriter writer, Quartz.ICalendar calendar, System.Text.Json.JsonSerializerOptions options);
     }
 }
-namespace Quartz.Serialization.Json
+namespace Quartz.Serialization.SystemTextJson
 {
     public sealed class SystemTextJsonSerializerRegistry
     {
         public SystemTextJsonSerializerRegistry() { }
-        public Quartz.Serialization.Json.SystemTextJsonSerializerRegistry AddCalendarSerializer<TCalendar>(Quartz.Serialization.Json.Calendars.ICalendarSerializer serializer)
+        public Quartz.Serialization.SystemTextJson.SystemTextJsonSerializerRegistry AddCalendarSerializer<TCalendar>(Quartz.Serialization.SystemTextJson.Calendars.ICalendarSerializer serializer)
             where TCalendar : Quartz.ICalendar { }
-        public Quartz.Serialization.Json.SystemTextJsonSerializerRegistry AddTriggerSerializer<TTrigger>(Quartz.Serialization.Json.Triggers.ITriggerSerializer serializer)
+        public Quartz.Serialization.SystemTextJson.SystemTextJsonSerializerRegistry AddTriggerSerializer<TTrigger>(Quartz.Serialization.SystemTextJson.Triggers.ITriggerSerializer serializer)
             where TTrigger : Quartz.ITrigger { }
     }
 }
-namespace Quartz.Serialization.Json.Triggers
+namespace Quartz.Serialization.SystemTextJson.Triggers
 {
-    public class CalendarIntervalTriggerSerializer : Quartz.Serialization.Json.Triggers.TriggerSerializer<Quartz.Impl.Triggers.CalendarIntervalTriggerImpl>
+    public class CalendarIntervalTriggerSerializer : Quartz.Serialization.SystemTextJson.Triggers.TriggerSerializer<Quartz.Impl.Triggers.CalendarIntervalTriggerImpl>
     {
         public CalendarIntervalTriggerSerializer() { }
         public override string TriggerTypeName { get; }
@@ -3202,14 +3202,14 @@ namespace Quartz.Serialization.Json.Triggers
         protected override void DeserializeFields(Quartz.Impl.Triggers.CalendarIntervalTriggerImpl trigger, System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
         protected override void SerializeFields(System.Text.Json.Utf8JsonWriter writer, Quartz.Impl.Triggers.CalendarIntervalTriggerImpl trigger, System.Text.Json.JsonSerializerOptions options) { }
     }
-    public class CronTriggerSerializer : Quartz.Serialization.Json.Triggers.TriggerSerializer<Quartz.ICronTrigger>
+    public class CronTriggerSerializer : Quartz.Serialization.SystemTextJson.Triggers.TriggerSerializer<Quartz.ICronTrigger>
     {
         public CronTriggerSerializer() { }
         public override string TriggerTypeName { get; }
         public override Quartz.IScheduleBuilder CreateScheduleBuilder(System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
         protected override void SerializeFields(System.Text.Json.Utf8JsonWriter writer, Quartz.ICronTrigger trigger, System.Text.Json.JsonSerializerOptions options) { }
     }
-    public class DailyTimeIntervalTriggerSerializer : Quartz.Serialization.Json.Triggers.TriggerSerializer<Quartz.Impl.Triggers.DailyTimeIntervalTriggerImpl>
+    public class DailyTimeIntervalTriggerSerializer : Quartz.Serialization.SystemTextJson.Triggers.TriggerSerializer<Quartz.Impl.Triggers.DailyTimeIntervalTriggerImpl>
     {
         public DailyTimeIntervalTriggerSerializer() { }
         public override string TriggerTypeName { get; }
@@ -3224,7 +3224,7 @@ namespace Quartz.Serialization.Json.Triggers
         void DeserializeFields(Quartz.ITrigger trigger, System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options);
         void SerializeFields(System.Text.Json.Utf8JsonWriter writer, Quartz.ITrigger trigger, System.Text.Json.JsonSerializerOptions options);
     }
-    public sealed class RecurrenceTriggerSerializer : Quartz.Serialization.Json.Triggers.TriggerSerializer<Quartz.Impl.Triggers.RecurrenceTriggerImpl>
+    public sealed class RecurrenceTriggerSerializer : Quartz.Serialization.SystemTextJson.Triggers.TriggerSerializer<Quartz.Impl.Triggers.RecurrenceTriggerImpl>
     {
         public RecurrenceTriggerSerializer() { }
         public override string TriggerTypeName { get; }
@@ -3232,7 +3232,7 @@ namespace Quartz.Serialization.Json.Triggers
         protected override void DeserializeFields(Quartz.Impl.Triggers.RecurrenceTriggerImpl trigger, System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
         protected override void SerializeFields(System.Text.Json.Utf8JsonWriter writer, Quartz.Impl.Triggers.RecurrenceTriggerImpl trigger, System.Text.Json.JsonSerializerOptions options) { }
     }
-    public class SimpleTriggerSerializer : Quartz.Serialization.Json.Triggers.TriggerSerializer<Quartz.Impl.Triggers.SimpleTriggerImpl>
+    public class SimpleTriggerSerializer : Quartz.Serialization.SystemTextJson.Triggers.TriggerSerializer<Quartz.Impl.Triggers.SimpleTriggerImpl>
     {
         public SimpleTriggerSerializer() { }
         public override string TriggerTypeName { get; }
@@ -3240,7 +3240,7 @@ namespace Quartz.Serialization.Json.Triggers
         protected override void DeserializeFields(Quartz.Impl.Triggers.SimpleTriggerImpl trigger, System.Text.Json.JsonElement jsonElement, System.Text.Json.JsonSerializerOptions options) { }
         protected override void SerializeFields(System.Text.Json.Utf8JsonWriter writer, Quartz.Impl.Triggers.SimpleTriggerImpl trigger, System.Text.Json.JsonSerializerOptions options) { }
     }
-    public abstract class TriggerSerializer<TTrigger> : Quartz.Serialization.Json.Triggers.ITriggerSerializer
+    public abstract class TriggerSerializer<TTrigger> : Quartz.Serialization.SystemTextJson.Triggers.ITriggerSerializer
         where TTrigger : Quartz.ITrigger
     {
         protected TriggerSerializer() { }

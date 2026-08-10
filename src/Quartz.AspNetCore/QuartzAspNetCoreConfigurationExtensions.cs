@@ -8,7 +8,7 @@ using Microsoft.Extensions.Options;
 using Quartz.AspNetCore.HttpApi;
 using Quartz.AspNetCore.HttpApi.Endpoints;
 using Quartz.AspNetCore.HttpApi.Util;
-using Quartz.Serialization.Json;
+using Quartz.Serialization.SystemTextJson;
 
 namespace Quartz;
 

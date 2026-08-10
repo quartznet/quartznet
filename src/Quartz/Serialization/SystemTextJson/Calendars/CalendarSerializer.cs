@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Quartz.Serialization.Json.Calendars;
+namespace Quartz.Serialization.SystemTextJson.Calendars;
 
 public interface ICalendarSerializer
 {
