@@ -298,6 +298,17 @@ public sealed class CronExpression : ISerializable
     }
 
     /// <summary>
+    /// Constructs a new <see cref="CronExpression" /> resolved in the given time zone.
+    /// </summary>
+    /// <param name="cronExpression">String representation of the cron expression the new object should represent</param>
+    /// <param name="timeZone">The time zone the expression's times are resolved in;
+    /// <see langword="null" /> means the system's local time zone.</param>
+    public CronExpression(string cronExpression, TimeZoneInfo? timeZone) : this(cronExpression)
+    {
+        this.timeZone = timeZone;
+    }
+
+    /// <summary>
     /// Constructs a new <see cref="CronExpression" /> with H (hash) tokens resolved
     /// using the specified hash key. The hash key is typically the trigger or job name,
     /// producing deterministic but spread-out fire times across different triggers.
@@ -344,7 +355,7 @@ public sealed class CronExpression : ISerializable
         {
             case 0:
                 CronExpressionString = info.GetValue<string>("cronExpressionString")!;
-                TimeZone = info.GetValue<TimeZoneInfo>("timeZone")!;
+                timeZone = info.GetValue<TimeZoneInfo>("timeZone")!;
                 break;
             case 1:
                 CronExpressionString = info.GetValue<string>("cronExpression")!;
@@ -440,13 +451,30 @@ public sealed class CronExpression : ISerializable
     }
 
     /// <summary>
-    /// Sets or gets the time zone for which the <see cref="CronExpression" /> of this
-    /// <see cref="ICronTrigger" /> will be resolved.
+    /// Gets the time zone the expression's times are resolved in. Defaults to the system's local
+    /// time zone.
     /// </summary>
-    public TimeZoneInfo TimeZone
+    /// <remarks>
+    /// A <see cref="CronExpression" /> is immutable; use <see cref="WithTimeZone" /> to get a copy
+    /// resolved in another time zone.
+    /// </remarks>
+    public TimeZoneInfo TimeZone => timeZone ?? TimeZoneInfo.Local;
+
+    /// <summary>
+    /// Returns a copy of this expression resolved in the given time zone.
+    /// </summary>
+    /// <param name="timeZone">The time zone the copy's times are resolved in;
+    /// <see langword="null" /> means the system's local time zone.</param>
+    /// <returns>A new <see cref="CronExpression" /> with the same expression string, or this
+    /// instance when the time zone would not change.</returns>
+    public CronExpression WithTimeZone(TimeZoneInfo? timeZone)
     {
-        set => timeZone = value;
-        get => timeZone ??= TimeZoneInfo.Local;
+        if (Equals(this.timeZone, timeZone))
+        {
+            return this;
+        }
+
+        return new CronExpression(CronExpressionString, timeZone);
     }
 
     /// <summary>
@@ -2354,7 +2382,7 @@ public sealed class CronExpression : ISerializable
     /// </remarks>
     /// <param name="afterTimeUtc">The UTC time to start searching from.</param>
     /// <returns></returns>
-    public DateTimeOffset? GetTimeAfter(DateTimeOffset afterTimeUtc)
+    internal DateTimeOffset? GetTimeAfter(DateTimeOffset afterTimeUtc)
     {
         // move ahead one second, since we're computing the time *after* the
         // given time
@@ -2573,19 +2601,6 @@ public sealed class CronExpression : ISerializable
     }
 
     /// <summary>
-    /// NOT YET IMPLEMENTED: Returns the final time that the
-    /// <see cref="CronExpression" /> will match.
-    /// </summary>
-    /// <returns></returns>
-#pragma warning disable CA1822
-    public DateTimeOffset? GetFinalFireTime()
-#pragma warning restore CA1822
-    {
-        // TODO: implement QUARTZ-423
-        return null;
-    }
-
-    /// <summary>
     /// Gets the last day of month.
     /// </summary>
     private static int GetLastDayOfMonth(int monthNum, int year)
@@ -2608,7 +2623,7 @@ public sealed class CronExpression : ISerializable
     /// </returns>
     public CronExpression Clone()
     {
-        return new CronExpression(CronExpressionString) { TimeZone = TimeZone };
+        return new CronExpression(CronExpressionString, timeZone);
     }
 
     /// <summary>

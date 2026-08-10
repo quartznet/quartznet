@@ -277,10 +277,7 @@ public class JsonObjectSerializerTest
     [Test]
     public async Task SerializeCronExpression()
     {
-        var cronExpression = new CronExpression("0/5 * * * * ?")
-        {
-            TimeZone = TimeZoneInfo.Utc
-        };
+        var cronExpression = new CronExpression("0/5 * * * * ?", TimeZoneInfo.Utc);
 
         CompareSerialization(cronExpression);
         await VerifyCreatedJson(cronExpression);

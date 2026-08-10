@@ -138,8 +138,9 @@ public sealed class CronScheduleBuilder : IScheduleBuilder, IHashKeyAwareSchedul
 
         CronTriggerImpl ct = new CronTriggerImpl();
 
+        // CronExpression is immutable, so every trigger built here can safely share this instance;
+        // its setter also adopts the expression's time zone as the trigger's.
         ct.CronExpression = cronExpression;
-        ct.TimeZone = cronExpression.TimeZone;
         ct.MisfireInstructionCode = misfireInstruction;
 
         return ct;
@@ -223,8 +224,9 @@ public sealed class CronScheduleBuilder : IScheduleBuilder, IHashKeyAwareSchedul
     {
         if (cronExpression is not null)
         {
-            // CronExpression falls back to the local time zone when its backing field is null
-            cronExpression.TimeZone = timeZone!;
+            // Rebind rather than mutate: an expression already handed to a built trigger - or the
+            // caller's own instance - must not be retimed behind its back.
+            cronExpression = cronExpression.WithTimeZone(timeZone);
         }
         else
         {
@@ -261,7 +263,7 @@ public sealed class CronScheduleBuilder : IScheduleBuilder, IHashKeyAwareSchedul
             cronExpression = new CronExpression(deferredHashExpression, hashKey);
             if (deferredTimeZone is not null)
             {
-                cronExpression.TimeZone = deferredTimeZone;
+                cronExpression = cronExpression.WithTimeZone(deferredTimeZone);
             }
         }
     }

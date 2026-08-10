@@ -64,6 +64,42 @@ public class CronScheduleBuilderTest
     }
 
     [Test]
+    public void ChangingTheTimeZoneDoesNotRetimeAlreadyBuiltTriggers()
+    {
+        CronScheduleBuilder schedule = CronScheduleBuilder.Create("0 20 10 ? * *");
+
+        ICronTrigger first = (ICronTrigger) TriggerBuilder.Create()
+            .WithIdentity("first")
+            .WithSchedule(schedule)
+            .Build();
+
+        schedule.InTimeZone(TestTimeZones.CentralEuropean);
+
+        ICronTrigger second = (ICronTrigger) TriggerBuilder.Create()
+            .WithIdentity("second")
+            .WithSchedule(schedule)
+            .Build();
+
+        first.TimeZone.Should().Be(TimeZoneInfo.Local,
+            "the builder used to hand every trigger the same mutable CronExpression, so a later InTimeZone silently retimed triggers that were already built");
+        second.TimeZone.Should().Be(TestTimeZones.CentralEuropean);
+    }
+
+    [Test]
+    public void ChangingTheTimeZoneDoesNotRetimeTheCallersExpression()
+    {
+        CronExpression expression = new CronExpression("0 20 10 ? * *");
+
+        TriggerBuilder.Create()
+            .WithIdentity("test")
+            .WithSchedule(CronScheduleBuilder.Create(expression).InTimeZone(TestTimeZones.CentralEuropean))
+            .Build();
+
+        expression.TimeZone.Should().Be(TimeZoneInfo.Local,
+            "InTimeZone must reshape the builder's copy, not write through the instance the caller still holds");
+    }
+
+    [Test]
     public void DefaultsToTheSmartMisfirePolicy()
     {
         ITrigger trigger = TriggerBuilder.Create()

@@ -81,24 +81,24 @@ namespace Quartz
     public sealed class CronExpression : System.Runtime.Serialization.ISerializable
     {
         public CronExpression(string cronExpression) { }
+        public CronExpression(string cronExpression, System.TimeZoneInfo? timeZone) { }
         public CronExpression(string cronExpression, int hashSeed) { }
         public CronExpression(string cronExpression, string hashKey) { }
         public string CronExpressionString { get; }
-        public System.TimeZoneInfo TimeZone { get; set; }
+        public System.TimeZoneInfo TimeZone { get; }
         public Quartz.CronExpression Clone() { }
         public bool Equals(Quartz.CronExpression other) { }
         public override bool Equals(object? obj) { }
         public string GetExpressionSummary() { }
-        public System.DateTimeOffset? GetFinalFireTime() { }
         public override int GetHashCode() { }
         public System.DateTimeOffset? GetNextInvalidTimeAfter(System.DateTimeOffset date) { }
         public System.DateTimeOffset? GetNextValidTimeAfter(System.DateTimeOffset date) { }
         [System.Security.SecurityCritical]
         public void GetObjectData(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
-        public System.DateTimeOffset? GetTimeAfter(System.DateTimeOffset afterTimeUtc) { }
         public System.DateTimeOffset? GetTimeBefore(System.DateTimeOffset endTime) { }
         public bool IsSatisfiedBy(System.DateTimeOffset dateUtc) { }
         public override string ToString() { }
+        public Quartz.CronExpression WithTimeZone(System.TimeZoneInfo? timeZone) { }
         public static bool IsValidExpression(string cronExpression) { }
         public static bool IsValidExpression(string cronExpression, string hashKey) { }
         public static string ResolveHash(string cronExpression, int hashSeed) { }

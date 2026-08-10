@@ -24,12 +24,8 @@ internal sealed class CronExpressionConverter : JsonConverter<CronExpression>
 
         var cronExpressionString = rootElement.GetProperty(options.GetPropertyName("CronExpression")).GetString()!;
 
-        var cronExpression = new CronExpression(cronExpressionString);
         string? timeZoneId = rootElement.GetProperty(options.GetPropertyName("TimeZoneId")).GetString();
-        if (!string.IsNullOrEmpty(timeZoneId))
-        {
-            cronExpression.TimeZone = TimeZoneUtil.FindTimeZoneById(timeZoneId!);
-        }
-        return cronExpression;
+        TimeZoneInfo? timeZone = !string.IsNullOrEmpty(timeZoneId) ? TimeZoneUtil.FindTimeZoneById(timeZoneId!) : null;
+        return new CronExpression(cronExpressionString, timeZone);
     }
 }

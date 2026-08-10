@@ -449,8 +449,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
         set
         {
             TimeZoneInfo originalTimeZone = TimeZone;
-            cronEx = new CronExpression(value!);
-            cronEx.TimeZone = originalTimeZone;
+            cronEx = new CronExpression(value!, originalTimeZone);
         }
         get => cronEx?.CronExpressionString;
     }
@@ -565,7 +564,9 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
         {
             if (cronEx is not null)
             {
-                cronEx.TimeZone = value;
+                // CronExpression is immutable and may be shared with other triggers built from the
+                // same schedule builder, so retiming this trigger means rebuilding its own copy.
+                cronEx = cronEx.WithTimeZone(value);
             }
             timeZone = value;
         }
@@ -637,16 +638,13 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     {
         get
         {
-            DateTimeOffset? resultTime;
-            if (EndTimeUtc.HasValue)
+            if (!EndTimeUtc.HasValue)
             {
-                resultTime = GetTimeBefore(EndTimeUtc.Value.AddSeconds(1));
-            }
-            else
-            {
-                resultTime = cronEx?.GetFinalFireTime();
+                // a cron schedule without an end bound has no final fire time
+                return null;
             }
 
+            DateTimeOffset? resultTime = GetTimeBefore(EndTimeUtc.Value.AddSeconds(1));
             if (resultTime.HasValue && resultTime.Value < StartTimeUtc)
             {
                 return null;

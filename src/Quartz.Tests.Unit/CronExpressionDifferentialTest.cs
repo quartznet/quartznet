@@ -128,7 +128,7 @@ public class CronExpressionDifferentialTest
             HashSet<int> hours = RandomSubset(random, 0, 23, maxCount: 4);
 
             string expr = $"{Join(secs)} {Join(mins)} {Join(hours)} * * ?";
-            var cron = new CronExpression(expr) { TimeZone = TimeZoneInfo.Utc };
+            var cron = new CronExpression(expr, TimeZoneInfo.Utc);
 
             // Random start somewhere across a few years, truncated to seconds.
             DateTimeOffset start = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero)
@@ -169,7 +169,7 @@ public class CronExpressionDifferentialTest
             HashSet<int> months = RandomSubset(random, 1, 12, maxCount: 4);
 
             string expr = $"0 0 12 {Join(days)} {Join(months)} ?";
-            var cron = new CronExpression(expr) { TimeZone = TimeZoneInfo.Utc };
+            var cron = new CronExpression(expr, TimeZoneInfo.Utc);
 
             DateTimeOffset start = new DateTimeOffset(2024, 1, 1, 0, 0, 0, TimeSpan.Zero)
                 .AddDays(random.Next(0, 2 * 365));
@@ -260,7 +260,7 @@ public class CronExpressionDifferentialTest
             }
 
             string expr = $"0 0 12 {string.Join(",", parts)} * ?";
-            var cron = new CronExpression(expr) { TimeZone = TimeZoneInfo.Utc };
+            var cron = new CronExpression(expr, TimeZoneInfo.Utc);
 
             DateTimeOffset start = new DateTimeOffset(2023, 1, 1, 0, 0, 0, TimeSpan.Zero)
                 .AddDays(random.Next(0, 3 * 365));

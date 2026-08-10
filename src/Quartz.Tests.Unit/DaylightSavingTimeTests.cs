@@ -150,7 +150,7 @@ public class DaylightSavingTimeTest
         // Amsterdam: CEST (UTC+2) → CET (UTC+1) on October 29, 2023 at 3:00 AM CEST (= 1:00 AM UTC).
         // The local hour 02:00-02:59 occurs twice: first in CEST, then in CET.
         TimeZoneInfo tz = TZConvert.GetTimeZoneInfo("W. Europe Standard Time");
-        var cron = new CronExpression("* * * ? 10 * *") { TimeZone = tz };
+        var cron = new CronExpression("* * * ? 10 * *", tz);
 
         // Exact moment of fall-back: 01:00:00 UTC = 02:00:00 CET (second occurrence)
         var atFallBack = new DateTimeOffset(2023, 10, 29, 1, 0, 0, TimeSpan.Zero);
@@ -178,7 +178,7 @@ public class DaylightSavingTimeTest
     {
         // Use UTC timezone to avoid any DST confusion — the cron expression should match
         // every second in October regardless of local system timezone settings.
-        var cron = new CronExpression("* * * ? 10 * *") { TimeZone = TimeZoneInfo.Utc };
+        var cron = new CronExpression("* * * ? 10 * *", TimeZoneInfo.Utc);
 
         // October 29, 2023 01:00:00 UTC — in UTC this is unambiguously October
         var atFallBack = new DateTimeOffset(2023, 10, 29, 1, 0, 0, TimeSpan.Zero);
@@ -201,7 +201,7 @@ public class DaylightSavingTimeTest
     public void GetTimeAfter_ShouldProduceStrictlyIncreasingTimes_AcrossDstFallBack()
     {
         TimeZoneInfo tz = TZConvert.GetTimeZoneInfo("W. Europe Standard Time");
-        var cron = new CronExpression("0 * * ? * * *") { TimeZone = tz };
+        var cron = new CronExpression("0 * * ? * * *", tz);
 
         // Start 30 minutes before the fall-back: 00:30:00 UTC = 02:30:00 CEST
         DateTimeOffset current = new DateTimeOffset(2023, 10, 29, 0, 30, 0, TimeSpan.Zero);
@@ -225,7 +225,7 @@ public class DaylightSavingTimeTest
     public void GetTimeAfter_ShouldProduceStrictlyIncreasingTimes_AcrossDstSpringForward()
     {
         TimeZoneInfo tz = TZConvert.GetTimeZoneInfo("Central Standard Time");
-        var cron = new CronExpression("0 * * ? * * *") { TimeZone = tz };
+        var cron = new CronExpression("0 * * ? * * *", tz);
 
         // Start 30 minutes before spring-forward: 2024-03-10 07:30:00 UTC = 01:30:00 CST
         // Spring-forward: 02:00 CST → 03:00 CDT (08:00 UTC)
@@ -251,7 +251,7 @@ public class DaylightSavingTimeTest
     public void IsSatisfiedBy_EveryMinuteInOctober_ShouldNotReturnFalseDuringDstFallBack_Issue2156()
     {
         TimeZoneInfo tz = TZConvert.GetTimeZoneInfo("W. Europe Standard Time");
-        var cron = new CronExpression("* * * ? 10 * *") { TimeZone = tz };
+        var cron = new CronExpression("* * * ? 10 * *", tz);
 
         // Walk through October 28-30 minute by minute across the CET fall-back
         // Fall-back: Oct 29, 2023 at 03:00 CEST → 02:00 CET (= 01:00 UTC)
