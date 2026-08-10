@@ -217,7 +217,5 @@ public interface ITrigger
     /// </summary>
     DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTime);
 
-    bool HasMillisecondPrecision { get; }
-
     ITrigger Clone();
 }

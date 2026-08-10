@@ -332,8 +332,9 @@ public interface IScheduler
 
     /// <summary>
     /// Updates trigger metadata and selected settings without rescheduling.
-    /// Fire times and trigger state are preserved. Supported properties include
-    /// Description, Priority, JobDataMap, CalendarName, and MisfireInstruction.
+    /// Fire times and trigger state are preserved. Supported properties are the description,
+    /// priority, job data map, calendar name, misfire instruction, execution group and
+    /// preferred node.
     /// </summary>
     /// <param name="triggerKey">The key identifying the trigger to update.</param>
     /// <param name="update">The details to update. See <see cref="TriggerDetailsUpdate"/> for available properties.</param>

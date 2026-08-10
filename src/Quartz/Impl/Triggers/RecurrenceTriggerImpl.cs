@@ -102,7 +102,7 @@ public sealed class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
     }
 
     /// <inheritdoc/>
-    public override bool HasMillisecondPrecision => false;
+    protected override bool HasMillisecondPrecision => false;
 
     /// <inheritdoc/>
     public override DateTimeOffset? EndTimeUtc

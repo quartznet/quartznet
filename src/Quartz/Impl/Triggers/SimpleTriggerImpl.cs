@@ -317,7 +317,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// in millisecond precision.
     /// </summary>
     /// <value></value>
-    public override bool HasMillisecondPrecision => true;
+    protected override bool HasMillisecondPrecision => true;
 
     /// <summary>
     /// Validates the misfire instruction.

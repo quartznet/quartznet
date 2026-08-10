@@ -104,6 +104,17 @@ public class SmokeTestPerformer
                 Assert.That(persisted, Is.Not.Null);
                 Assert.That(persisted is SimpleTriggerImpl, Is.True);
 
+                // UpdateTriggerDetails writes the execution group through the generic trigger
+                // update, so the column has to survive a round trip - and clearing it has to
+                // survive one too.
+                (await scheduler.UpdateTriggerDetails(persisted.Key, new TriggerDetailsUpdate().WithExecutionGroup("heavy")))
+                    .Should().BeTrue();
+                (await scheduler.GetTrigger(persisted.Key))!.ExecutionGroup.Should().Be("heavy");
+
+                (await scheduler.UpdateTriggerDetails(persisted.Key, new TriggerDetailsUpdate().WithExecutionGroup(null)))
+                    .Should().BeTrue();
+                (await scheduler.GetTrigger(persisted.Key))!.ExecutionGroup.Should().BeNull();
+
                 count++;
                 job = JobBuilder.Create()
                     .OfType<SimpleRecoveryJob>()

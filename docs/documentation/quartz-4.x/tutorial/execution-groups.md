@@ -35,6 +35,22 @@ ITrigger trigger = TriggerBuilder.Create()
 Triggers without an execution group (`null`) use the default behavior. It is expected that all triggers
 for a given job share the same execution group.
 
+A stored trigger can be moved between groups without rescheduling it:
+
+```csharp
+await scheduler.UpdateTriggerDetails(
+    trigger.Key,
+    new TriggerDetailsUpdate().WithExecutionGroup("batch-jobs"));
+
+// pass null to take the trigger out of every group
+await scheduler.UpdateTriggerDetails(
+    trigger.Key,
+    new TriggerDetailsUpdate().WithExecutionGroup(null));
+```
+
+The new group applies from the next acquisition cycle; a job already running keeps counting against the
+group it was acquired under.
+
 The following names are reserved and cannot be used as execution group names:
 - `*` — used for the "other groups" catch-all limit
 - `_` — used as a property-config alias for the default (ungrouped) triggers

@@ -97,11 +97,8 @@ public class CronTriggerTest
     {
         IOperableTrigger trigger = new CronTriggerImpl();
         trigger.StartTimeUtc = new DateTime(1982, 6, 28, 13, 5, 5, 233);
-        Assert.Multiple(() =>
-        {
-            Assert.That(trigger.HasMillisecondPrecision, Is.False);
-            Assert.That(trigger.StartTimeUtc.Millisecond, Is.EqualTo(0));
-        });
+
+        trigger.StartTimeUtc.Millisecond.Should().Be(0, "a cron trigger has no millisecond precision, so the start time is rounded down to the second");
     }
 
     [Test]
