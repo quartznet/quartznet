@@ -261,7 +261,7 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
         CancellationToken cancellationToken = default)
     {
         Name = pluginName;
-        scheduler.ListenerManager.AddTriggerListener(this, EverythingMatcher<TriggerKey>.AllTriggers());
+        scheduler.ListenerManager.AddTriggerListener(this, Matchers.AllTriggers());
         return default;
     }
 

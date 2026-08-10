@@ -30,7 +30,7 @@ namespace Quartz;
 /// <author>Marko Lahma (.NET)</author>
 public sealed class GroupMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TKey>
 {
-    private GroupMatcher(string compareTo, StringOperator compareWith) : base(compareTo, compareWith)
+    internal GroupMatcher(string compareTo, StringOperator compareWith) : base(compareTo, compareWith)
     {
     }
 

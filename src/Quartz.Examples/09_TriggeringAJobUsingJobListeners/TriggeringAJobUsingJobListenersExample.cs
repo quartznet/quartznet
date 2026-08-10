@@ -54,7 +54,7 @@ public class TriggeringAJobUsingJobListenersExample : IExample
 
         // Set up the listener
         IJobListener listener = new SimpleJob1Listener();
-        IMatcher<JobKey> matcher = KeyMatcher<JobKey>.KeyEquals(job.Key);
+        IMatcher<JobKey> matcher = Matchers.Key(job.Key);
         scheduler.ListenerManager.AddJobListener(listener, matcher);
 
         // schedule the job to run

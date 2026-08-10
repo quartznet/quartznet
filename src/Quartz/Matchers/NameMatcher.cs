@@ -30,7 +30,7 @@ namespace Quartz;
 /// <author>Marko Lahma (.NET)</author>
 public sealed class NameMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TKey>
 {
-    private NameMatcher(string compareTo, StringOperator compareWith) : base(compareTo, compareWith)
+    internal NameMatcher(string compareTo, StringOperator compareWith) : base(compareTo, compareWith)
     {
     }
 

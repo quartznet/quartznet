@@ -26,33 +26,18 @@ namespace Quartz;
 /// <summary>
 /// Matches using an NOT operator on another Matcher.
 /// </summary>
+/// <seealso cref="Matchers.Not{TKey}" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 public sealed class NotMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
 {
-    // ReSharper disable once UnusedMember.Local
-    private NotMatcher()
-    {
-    }
-
-    private NotMatcher(IMatcher<TKey> operand)
+    internal NotMatcher(IMatcher<TKey> operand)
     {
         if (operand is null)
         {
             Throw.ArgumentNullException(nameof(operand), "Non-null operand required!");
         }
         Operand = operand;
-    }
-
-    /// <summary>
-    /// Create a NotMatcher that reverses the result of the given matcher.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="operand"></param>
-    /// <returns></returns>
-    public static NotMatcher<T> Not<T>(IMatcher<T> operand) where T : Key<T>
-    {
-        return new NotMatcher<T>(operand);
     }
 
     public bool IsMatch(TKey key)

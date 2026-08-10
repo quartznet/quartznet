@@ -93,7 +93,7 @@ public sealed class StructuredLoggingTriggerHistoryPlugin : ISchedulerPlugin, IT
         CancellationToken cancellationToken = default)
     {
         Name = pluginName;
-        scheduler.ListenerManager.AddTriggerListener(this, EverythingMatcher<TriggerKey>.AllTriggers());
+        scheduler.ListenerManager.AddTriggerListener(this, Matchers.AllTriggers());
         return default;
     }
 

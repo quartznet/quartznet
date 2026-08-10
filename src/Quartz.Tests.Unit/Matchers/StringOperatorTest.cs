@@ -409,6 +409,8 @@ public class StringOperatorTest
 
     private sealed class NothingOperator : StringOperator
     {
+        public override string Name => "Nothing";
+
         public override bool Evaluate(string value, string compareTo)
         {
             return false;

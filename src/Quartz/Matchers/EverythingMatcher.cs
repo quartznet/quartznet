@@ -24,10 +24,10 @@ using Quartz.Util;
 namespace Quartz;
 
 /// <summary>
-/// Matches on the complete key being equal (both name and group).
+/// Matches every key.
 /// </summary>
-/// <remarks>
-/// </remarks>
+/// <seealso cref="Matchers.AllJobs" />
+/// <seealso cref="Matchers.AllTriggers" />
 /// <author>jhouse</author>
 public sealed class EverythingMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
 {
@@ -36,21 +36,11 @@ public sealed class EverythingMatcher<TKey> : IMatcher<TKey> where TKey : Key<TK
     }
 
     /// <summary>
-    /// Create an EverythingMatcher that matches all jobs.
+    /// Create an EverythingMatcher that matches every key.
     /// </summary>
-    /// <returns></returns>
-    public static EverythingMatcher<JobKey> AllJobs()
+    public static EverythingMatcher<TKey> All()
     {
-        return new EverythingMatcher<JobKey>();
-    }
-
-    /// <summary>
-    /// Create an EverythingMatcher that matches all triggers.
-    /// </summary>
-    /// <returns></returns>
-    public static EverythingMatcher<TriggerKey> AllTriggers()
-    {
-        return new EverythingMatcher<TriggerKey>();
+        return new EverythingMatcher<TKey>();
     }
 
     public bool IsMatch(TKey key)
