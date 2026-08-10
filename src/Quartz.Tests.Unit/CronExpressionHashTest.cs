@@ -513,8 +513,7 @@ public class CronExpressionHashTest
     [Test]
     public void HashExpression_ProducesValidFireTimes()
     {
-        CronExpression expr = new CronExpression("H H H * * ?", "test-job");
-        expr.TimeZone = TimeZoneInfo.Utc;
+        CronExpression expr = new CronExpression("H H H * * ?", "test-job").WithTimeZone(TimeZoneInfo.Utc);
         DateTimeOffset now = DateTimeOffset.UtcNow;
 
         DateTimeOffset? next = expr.GetNextValidTimeAfter(now);
@@ -534,8 +533,7 @@ public class CronExpressionHashTest
     [Test]
     public void HashExpression_WithHourRange_FiresInRange()
     {
-        CronExpression expr = new CronExpression("0 H H(9-17) * * ?", "work-hours");
-        expr.TimeZone = TimeZoneInfo.Utc;
+        CronExpression expr = new CronExpression("0 H H(9-17) * * ?", "work-hours").WithTimeZone(TimeZoneInfo.Utc);
 
         // Get next fire time
         DateTimeOffset now = new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);

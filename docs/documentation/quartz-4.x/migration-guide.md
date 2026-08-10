@@ -3116,6 +3116,31 @@ If you author an `ITriggerPersistenceDelegate` of your own, note that `ObjectUti
 back to writable *interface* properties when the concrete type has none, and that fallback is now narrower.
 No built-in delegate depends on it — all five write only `timesTriggered`, which the concrete triggers expose.
 
+## `CronExpression` is immutable
+
+`CronExpression` always looked like a value — sealed, value equality, a get-only expression string — but
+carried one settable property, `TimeZone`. It is now immutable: the time zone arrives through a constructor
+or through `WithTimeZone`, which returns a retimed copy.
+
+| 3.x | 4.x |
+|---|---|
+| `expr.TimeZone = tz;` | `expr = expr.WithTimeZone(tz);` |
+| `new CronExpression(s) { TimeZone = tz }` | `new CronExpression(s, tz)` |
+| `expr.GetTimeAfter(d)` | `expr.GetNextValidTimeAfter(d)` — the two were verbatim aliases; one name remains |
+| `expr.GetFinalFireTime()` | Removed — it was never implemented and always returned `null` |
+
+`null` still means the system's local time zone, and an expression that was never given a zone still
+serializes with the local zone's id, so persisted payloads keep their meaning.
+
+The setter's removal also fixes a real defect: `CronScheduleBuilder` handed the *same* `CronExpression`
+instance to every trigger it built, so calling `InTimeZone` after the first `Build()` silently retimed
+triggers that were already built — and writing `TimeZone` on an expression you had passed to a builder
+retimed the builder behind your back. Both are now impossible: the builder reshapes its own copy, and
+already-built triggers keep the zone they were built with.
+
+`CronTriggerImpl.FinalFireTimeUtc` now returns `null` directly for a trigger with no end time, which is the
+value it always produced through `GetFinalFireTime`.
+
 ## Nine `UsingJobData` overloads became one
 
 `JobDataMap`'s indexer takes an `object?`, and every one of the nine primitive `UsingJobData` overloads had
@@ -4326,7 +4351,7 @@ removals on types that are still public and still open, which no section above n
 | `AbstractTrigger.CompareTo(ITrigger)` | Removed; `AbstractTrigger` no longer implements `IComparable<ITrigger>` | It compared keys — `trigger.Key.CompareTo(other.Key)` |
 | `AbstractTrigger.FullJobName` | Removed | `JobKey.ToString()`, alongside the four in [AbstractTrigger Property Removals](#abstracttrigger-property-removals) |
 | `CronExpression`'s `protected` constants and fields | Gone with the type, which is `sealed` now | No replacement; the parsed sets were never a contract — see [Sealed and Internalized Types](#sealed-and-internalized-types) |
-| `CronTriggerImpl.GetTimeAfter(DateTimeOffset)` | Removed (it was `protected`) | `GetFireTimeAfter(DateTimeOffset?)`, or `CronExpression.GetTimeAfter` for the expression on its own |
+| `CronTriggerImpl.GetTimeAfter(DateTimeOffset)` | Removed (it was `protected`) | `GetFireTimeAfter(DateTimeOffset?)`, or `CronExpression.GetNextValidTimeAfter` for the expression on its own |
 | `CronTriggerImpl.YearToGiveupSchedulingAt` | Removed (a `protected const`) | No replacement; where the search stops is the expression's business |
 | `DateBuilder.ValidateDayOfMonth`, `.ValidateHour`, `.ValidateMinute`, `.ValidateMonth`, `.ValidateSecond`, `.ValidateYear` | Removed | No replacement; the builder validates its own arguments, and it is `sealed` — see [`DateBuilder`'s static factories are gone](#datebuilder-s-static-factories-are-gone) |
 | `DbProvider.CreateParameter()` | Removed | `CreateCommand().CreateParameter()` |

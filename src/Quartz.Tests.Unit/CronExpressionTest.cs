@@ -49,8 +49,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     /// <returns></returns>
     protected override CronExpression GetTargetObject()
     {
-        CronExpression cronExpression = new CronExpression("0 15 10 * * ? 2005");
-        cronExpression.TimeZone = testTimeZone;
+        CronExpression cronExpression = new CronExpression("0 15 10 * * ? 2005", testTimeZone);
 
         return cronExpression;
     }
@@ -216,8 +215,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     [TestCase("0 15 10 1 * * 2010", new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31 }, "10:15am Every Day of Month October 2010, Wildcard specified")]
     public void CanUse_DayOfMonth_And_DayOfWeek_Together(string cronExpression, int[] expectedDays, string scenario = "")
     {
-        var expr = new CronExpression(cronExpression);
-        expr.TimeZone = TimeZoneInfo.Utc;
+        var expr = new CronExpression(cronExpression, TimeZoneInfo.Utc);
         var templateDate = new DateTime(2010, 10, 1, 10, 15, 0, DateTimeKind.Utc);
 
         foreach (var day in expectedDays)
@@ -313,6 +311,37 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
         expr1.Equals(expr2).Should().BeTrue();
 
         expr1.Equals((object) expr2).Should().BeTrue();
+    }
+
+    [Test]
+    public void WithTimeZoneReturnsARetimedCopyAndLeavesTheOriginalAlone()
+    {
+        CronExpression original = new CronExpression("0 15 10 * * ?");
+
+        CronExpression retimed = original.WithTimeZone(TimeZoneInfo.Utc);
+
+        retimed.Should().NotBeSameAs(original, "CronExpression is immutable; retiming produces a copy");
+        retimed.TimeZone.Should().Be(TimeZoneInfo.Utc);
+        retimed.CronExpressionString.Should().Be(original.CronExpressionString);
+        original.TimeZone.Should().Be(TimeZoneInfo.Local);
+    }
+
+    [Test]
+    public void WithTimeZoneNullMeansTheLocalTimeZone()
+    {
+        CronExpression utc = new CronExpression("0 15 10 * * ?", TimeZoneInfo.Utc);
+
+        CronExpression local = utc.WithTimeZone(null);
+
+        local.TimeZone.Should().Be(TimeZoneInfo.Local);
+    }
+
+    [Test]
+    public void WithTimeZoneReturnsTheSameInstanceWhenNothingChanges()
+    {
+        CronExpression utc = new CronExpression("0 15 10 * * ?", TimeZoneInfo.Utc);
+
+        utc.WithTimeZone(TimeZoneInfo.Utc).Should().BeSameAs(utc, "an immutable value can be shared when the zone is unchanged");
     }
 
     [TestCase("0 15 10 15,L-31 * ? 2010")]
@@ -784,8 +813,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     public void TestDaylightSavingsDoesNotMatchAnHourBefore()
     {
         TimeZoneInfo est = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
-        CronExpression expression = new CronExpression("0 15 15 5 11 ?");
-        expression.TimeZone = est;
+        CronExpression expression = new CronExpression("0 15 15 5 11 ?", est);
 
         DateTimeOffset startTime = new DateTimeOffset(2012, 11, 4, 0, 0, 0, TimeSpan.Zero);
 
@@ -800,8 +828,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     {
         //another case
         TimeZoneInfo est = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
-        CronExpression expression = new CronExpression("0 0 0 ? * THU");
-        expression.TimeZone = est;
+        CronExpression expression = new CronExpression("0 0 0 ? * THU", est);
 
         DateTimeOffset startTime = new DateTimeOffset(2012, 11, 4, 0, 0, 0, TimeSpan.Zero);
 
@@ -995,14 +1022,6 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
 
 
     [Test]
-    public void GetFinalFireTime_IsNotImplement_AndAlwaysReturnsNull()
-    {
-        CronExpression expression = new CronExpression("0 15 15 5 11 ?");
-        var sut = expression.GetFinalFireTime();
-        sut.Should().Be(null);
-    }
-
-    [Test]
     public void CanGetNextInvalidTime()
     {
         CronExpression expression = new CronExpression("0 15 15 5 11 ?");
@@ -1048,7 +1067,7 @@ years: *
     {
         string expression = $"0 0 0 1 {monthAbbr} ? *";
 
-        CronExpression ce = new(expression) { TimeZone = TimeZoneInfo.Utc };
+        CronExpression ce = new(expression, TimeZoneInfo.Utc);
         var startTime = new DateTimeOffset(2024, 7, 22, 12, 0, 0, TimeSpan.Zero);
         var expectedTimeAfter = new DateTimeOffset(2024, monthNumber, 1, 0, 0, 0, TimeSpan.Zero);
 
@@ -1066,7 +1085,7 @@ years: *
         // GetTimeAfter produced a UTC instant before year 1.
         TimeZoneInfo plus11 = TimeZoneInfo.CreateCustomTimeZone(
             "Test+11", TimeSpan.FromHours(11), "Test+11", "Test+11");
-        CronExpression cron = new CronExpression("0 0 0 ? * FRI *") { TimeZone = plus11 };
+        CronExpression cron = new CronExpression("0 0 0 ? * FRI *", plus11);
         DateTimeOffset time = new DateTimeOffset(2026, 4, 16, 0, 0, 0, TimeSpan.Zero);
 
         DateTimeOffset? before = null;
@@ -1201,7 +1220,7 @@ public class CronTestScenarios
             long interval1 = test.Length > 1 ? (long)test[1] : -1;
             long interval2 = test.Length > 2 ? (long)test[2] : interval1;
 
-            var cron = new CronExpression(expression) { TimeZone = TimeZoneInfo.Utc };
+            var cron = new CronExpression(expression, TimeZoneInfo.Utc);
             var now = DateTimeOffset.UtcNow;
 
             DateTimeOffset? after = cron.GetTimeAfter(now);

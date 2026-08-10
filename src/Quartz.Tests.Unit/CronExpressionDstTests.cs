@@ -73,9 +73,7 @@ public class CronExpressionDstTests
 
     private static CronExpression CronIn(string expression, TimeZoneInfo zone)
     {
-        CronExpression cron = new CronExpression(expression);
-        cron.TimeZone = zone;
-        return cron;
+        return new CronExpression(expression, zone);
     }
 
     /// <summary>

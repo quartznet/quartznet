@@ -132,7 +132,8 @@ public sealed class CronCalendar : BaseCalendar
     public override TimeZoneInfo TimeZone
     {
         get => cronExpression.TimeZone;
-        set => cronExpression.TimeZone = value;
+        // CronExpression is immutable, so changing the calendar's zone rebuilds its expression
+        set => cronExpression = cronExpression.WithTimeZone(value);
     }
 
     /// <summary>

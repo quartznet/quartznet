@@ -58,7 +58,7 @@
 
             for (int i = 0; i < max; i++)
             {
-                DateTimeOffset? nextFire = cronExpression.GetTimeAfter(current);
+                DateTimeOffset? nextFire = cronExpression.GetNextValidTimeAfter(current);
                 if (nextFire is null)
                 {
                     break;
