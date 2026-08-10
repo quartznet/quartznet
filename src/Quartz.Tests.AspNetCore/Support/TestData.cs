@@ -71,7 +71,7 @@ public static class TestData
             Description = "Test AnnualCalendar",
             CalendarBase = BaseCalendar
         };
-        AnnualCalendar.AddExcludedDay(DateOnly.FromDateTime(DateTime.Today));
+        AnnualCalendar.AddExcludedDay(MonthDay.From(DateOnly.FromDateTime(DateTime.Today)));
 
         CronCalendar = new CronCalendar("0 0 * * * ?")
         {

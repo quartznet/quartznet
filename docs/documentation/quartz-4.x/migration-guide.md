@@ -3750,10 +3750,10 @@ thing being excluded, plus `AddExcludedDay` and `RemoveExcludedDay`, which retur
 
 | 3.x | 4.x |
 |---|---|
-| `AnnualCalendar.DaysExcluded` as a settable `IReadOnlyCollection<DateTime>` | `IReadOnlySet<DateOnly>`, get-only |
-| `annual.SetDayExcluded(day, true)` | `annual.AddExcludedDay(DateOnly)` |
-| `annual.SetDayExcluded(day, false)` | `annual.RemoveExcludedDay(DateOnly)` |
-| `annual.IsDayExcluded(DateTimeOffset)` | `annual.IsDayExcluded(DateOnly)` |
+| `AnnualCalendar.DaysExcluded` as a settable `IReadOnlyCollection<DateTime>` | `IReadOnlySet<MonthDay>`, get-only |
+| `annual.SetDayExcluded(day, true)` | `annual.AddExcludedDay(MonthDay)` |
+| `annual.SetDayExcluded(day, false)` | `annual.RemoveExcludedDay(MonthDay)` |
+| `annual.IsDayExcluded(DateTimeOffset)` | `annual.IsDayExcluded(MonthDay)` |
 | `HolidayCalendar.ExcludedDates` as a `List<DateTime>` copy | `HolidayCalendar.DaysExcluded` as `IReadOnlySet<DateOnly>` |
 | `holiday.AddExcludedDate(DateTime)` | `holiday.AddExcludedDay(DateOnly)` |
 | `holiday.RemoveExcludedDate(DateTime)` | `holiday.RemoveExcludedDay(DateOnly)` |
@@ -3769,12 +3769,18 @@ thing being excluded, plus `AddExcludedDay` and `RemoveExcludedDay`, which retur
 var holidays = new HolidayCalendar();
 holidays.AddExcludedDate(new DateTime(2025, 12, 25));
 
+var christmas = new AnnualCalendar();
+christmas.SetDayExcluded(new DateTime(2025, 12, 25), true);
+
 var weekends = new WeeklyCalendar();
 weekends.SetDayExcluded(DayOfWeek.Friday, true);
 
 // 4.x
 var holidays = new HolidayCalendar();
-holidays.AddExcludedDay(new DateOnly(2025, 12, 25));
+holidays.AddExcludedDay(new DateOnly(2025, 12, 25));   // a specific date, once
+
+var christmas = new AnnualCalendar();
+christmas.AddExcludedDay(new MonthDay(12, 25));        // the same date, every year
 
 var weekends = new WeeklyCalendar();
 weekends.AddExcludedDay(DayOfWeek.Friday);
@@ -3782,9 +3788,11 @@ weekends.AddExcludedDay(DayOfWeek.Friday);
 
 Two behaviors worth knowing:
 
-* `AnnualCalendar` still only cares about the month and the day. It normalizes what you give it onto a fixed
-  year, so `DaysExcluded` reads back with that year rather than the one you passed, and `IsDayExcluded`
-  answers the same for every year.
+* `AnnualCalendar` speaks `MonthDay` — a `readonly record struct` of month and day in the `Quartz`
+  namespace, with `MonthDay.From(DateOnly)` for when you hold a date. A `DateOnly` always carries a year,
+  so a set of them had to lie: what you put in was not what you read back, and `DaysExcluded.Contains`
+  disagreed with `AddExcludedDay`. `MonthDay` says exactly what is stored — the same date every year —
+  and February 29th is a valid value.
 * `AnnualCalendar.IsDayExcluded` now answers only about the calendar's own set. The base calendar is
   consulted by `IsTimeIncluded`, which is the member that asks a question about an instant.
 
@@ -3914,22 +3922,36 @@ Reading limits back is what changed shape, because the snapshot is not a diction
 
 | Before | 4.0 |
 |---|---|
-| `limits["heavy"]` | `limits.TryGetLimit("heavy", out int? maxConcurrent)` |
-| `limits[ExecutionLimits.DefaultGroupKey]` | `limits.TryGetLimit(null, out int? maxConcurrent)` |
-| `limits.ContainsKey("heavy")` | `limits.TryGetLimit("heavy", out _)` |
+| `limits["heavy"]` | `limits.TryGetLimit(ExecutionGroupScope.Named("heavy"), out int? maxConcurrent)` |
+| `limits[ExecutionLimits.DefaultGroupKey]` | `limits.TryGetLimit(ExecutionGroupScope.Default, out int? maxConcurrent)` |
+| `limits["*"]` | `limits.TryGetLimit(ExecutionGroupScope.OtherGroups, out int? maxConcurrent)` |
+| `limits.ContainsKey("heavy")` | `limits.TryGetLimit(ExecutionGroupScope.Named("heavy"), out _)` |
 | `limits.Count` | `limits.Groups.Count`, or `limits.IsEmpty` for the question actually being asked |
 | `foreach (KeyValuePair<string, int?> pair in limits)` | `foreach (ExecutionGroupLimit limit in limits.Groups)` |
 
-`TryGetLimit` returning `false` is not the same as unlimited: it means the group has no entry of its own, and a
-named group without one still falls back to `OtherGroups`. That distinction was invisible when the type was a
-dictionary, and it is the reason the lookup is a `TryGet` rather than an indexer.
+`TryGetLimit` returning `false` is not the same as unlimited: it means the scope has no entry of its own, and a
+named group without one still falls back to `ExecutionGroupScope.OtherGroups`. That distinction was invisible when
+the type was a dictionary, and it is the reason the lookup is a `TryGet` rather than an indexer.
 
-The sentinel keys are named instead of spelled. `ExecutionLimits.OtherGroups` (`"*"`) stays public, because it is a
-key you can write in configuration. The empty-string key for the default group is internal now: an
-`ExecutionGroupLimit.Group` is `null` for it, matching `ITrigger.ExecutionGroup` being `null` for a trigger with no
-execution group, and `ForDefaultGroup` is how you configure it. `"_"` and `"null"` are still accepted as aliases for
-it in `quartz.executionLimit.*` keys and in the HTTP API, because neither a property key nor a JSON object key can
-be empty. All three remain reserved: a trigger cannot have `"*"`, `"_"` or `"null"` as its execution group.
+The read side is typed instead of spelled. `ExecutionGroupScope` is a readonly record struct with exactly the
+three cases the builder can write — `Default` (triggers with no execution group), `OtherGroups` (the catch-all)
+and `Named(name)` — mirroring how `PreferredNode` models none/auto/named rather than using a nullable string
+with a sentinel. `ExecutionGroupLimit.Scope` replaces `ExecutionGroupLimit.Group`, so enumerating `Groups` no
+longer requires knowing that `null` meant the default bucket and `"*"` meant the catch-all:
+
+```csharp
+foreach (ExecutionGroupLimit limit in limits.Groups)
+{
+    string label = limit.Scope.IsDefault ? "(default)"
+        : limit.Scope.IsOtherGroups ? "(other groups)"
+        : limit.Scope.Name!;
+}
+```
+
+The configuration spellings are unchanged: `quartz.executionLimit.*` keys and the HTTP API still say `*` for the
+catch-all and `_` or `null` for the default bucket (neither a property key nor a JSON object key can be empty).
+All three remain reserved: a trigger cannot have `"*"`, `"_"` or `"null"` as its execution group, and
+`ExecutionGroupScope.Named` rejects them the same way `ExecutionLimitsBuilder.ForGroup` does.
 
 ### A job store is handed the limits, and a way to spend them
 
@@ -4215,7 +4237,8 @@ contract rather than in the root namespace next to `IScheduler`. The methods are
 | `ExecutionLimits` split into a builder and a snapshot | `ExecutionLimitsBuilder` mutates, `ExecutionLimits` is immutable and is no longer an `IReadOnlyDictionary<string, int?>` — see [Execution limits are built once, then frozen](#execution-limits-are-built-once-then-frozen) |
 | `IQuartzBuilder.UseExecutionLimits` takes an `Action<ExecutionLimitsBuilder>` | The lambda body is unchanged |
 | `TriggerAcquisitionRequest.ExecutionLimits` and `TriggerAcquisitionCriteria.ExecutionLimits` are `ExecutionLimits?` | They were `IReadOnlyDictionary<string, int?>?`; spend the slots through `CreateSlots()` — see [A job store is handed the limits, and a way to spend them](#a-job-store-is-handed-the-limits-and-a-way-to-spend-them) |
-| `Quartz.ExecutionSlots` and `Quartz.ExecutionGroupLimit` added | The slot-counting rule and one group's entry in a snapshot, both of which a job store outside Quartz needs to honour execution groups |
+| `Quartz.ExecutionSlots`, `Quartz.ExecutionGroupLimit` and `Quartz.ExecutionGroupScope` added | The slot-counting rule, one scope's entry in a snapshot, and the typed default/other/named scope those entries carry — see [Execution limits are built once, then frozen](#execution-limits-are-built-once-then-frozen) |
+| `Quartz.MonthDay` added | The month-and-day value `AnnualCalendar` excludes — see [Excluded days are a read-only set](#excluded-days-are-a-read-only-set) |
 | `ICancellableJobExecutionContext` removed | Interruption is `IScheduler.Interrupt` / `InterruptFireInstance` to request and `IJobExecutionContext.CancellationToken` to observe — see [Interruption has two names, not three](#interruption-has-two-names-not-three) |
 | `Quartz.Diagnostics.IJobDiagnosticData` removed | It was the payload contract of the `DiagnosticSource` events `Quartz.OpenTracing` consumed. Both the package and the events are gone; job execution is on `Activity` through `QuartzActivitySource`, and `IJobExecutionContext` is what a listener reads |
 | `CronExpression.Clone()` returns `CronExpression` | It returned `object`, unlike `ITrigger.Clone`, `IJobDetail.Clone` and `ICalendar.Clone`; the casts at the call sites can go |

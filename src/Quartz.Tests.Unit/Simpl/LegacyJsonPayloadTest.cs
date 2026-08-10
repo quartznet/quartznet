@@ -292,8 +292,8 @@ public class LegacyJsonPayloadTest
 
         calendar.Description.Should().Be("Test AnnualCalendar");
         calendar.CalendarBase.Should().BeOfType<BaseCalendar>();
-        calendar.DaysExcluded.Should().BeEquivalentTo([new DateOnly(2000, 7, 1), new DateOnly(2000, 12, 25)]);
-        calendar.IsDayExcluded(new DateOnly(2031, 7, 1)).Should().BeTrue("only the month and the day are significant");
+        calendar.DaysExcluded.Should().BeEquivalentTo([new MonthDay(7, 1), new MonthDay(12, 25)]);
+        calendar.IsDayExcluded(new MonthDay(7, 1)).Should().BeTrue("the legacy timestamps collapse to the month and the day");
     }
 
     [Test]

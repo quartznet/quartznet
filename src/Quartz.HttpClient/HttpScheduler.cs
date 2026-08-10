@@ -264,7 +264,7 @@ public sealed class HttpScheduler : IScheduler
             Dictionary<string, int?> dict = new();
             foreach (ExecutionGroupLimit limit in limits.Groups)
             {
-                dict[limit.Group ?? ExecutionLimits.DefaultGroupAlias] = limit.MaxConcurrent;
+                dict[limit.Scope.ToConfigurationKey()] = limit.MaxConcurrent;
             }
             await httpClient.Post(
                 $"{SchedulerEndpointUrl()}/execution-limits",

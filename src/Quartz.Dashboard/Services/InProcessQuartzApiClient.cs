@@ -660,7 +660,8 @@ internal sealed class InProcessQuartzApiClient : IQuartzApiClient
             foreach (ExecutionGroupLimit limit in limits.Groups)
             {
                 // Use display-friendly keys
-                dict[limit.Group ?? "(default)"] = limit.MaxConcurrent;
+                string key = limit.Scope.IsDefault ? "(default)" : limit.Scope.ToConfigurationKey();
+                dict[key] = limit.MaxConcurrent;
             }
 
             return new ExecutionLimitsDto(dict);

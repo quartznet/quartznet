@@ -16,7 +16,8 @@ internal sealed class AnnualCalendarSerializer : CalendarSerializer<AnnualCalend
 
     protected override void SerializeFields(JsonWriter writer, AnnualCalendar calendar)
     {
-        writer.WriteDateOnlyArray("ExcludedDays", calendar.DaysExcluded);
+        // The payload keeps its date shape: each MonthDay is written pinned to the fixed year.
+        writer.WriteDateOnlyArray("ExcludedDays", calendar.DaysExcluded.Select(static day => day.ToDateOnly()));
     }
 
     protected override void DeserializeFields(AnnualCalendar calendar, JObject source)
@@ -24,7 +25,7 @@ internal sealed class AnnualCalendarSerializer : CalendarSerializer<AnnualCalend
         // Payloads written before 4.0 carry full timestamps here rather than dates.
         foreach (var day in source["ExcludedDays"]!.GetDateOnlyArray())
         {
-            calendar.AddExcludedDay(day);
+            calendar.AddExcludedDay(MonthDay.From(day));
         }
     }
 }
