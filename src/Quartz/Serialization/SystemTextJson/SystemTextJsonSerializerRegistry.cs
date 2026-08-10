@@ -1,10 +1,10 @@
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
-using Quartz.Serialization.Json.Calendars;
-using Quartz.Serialization.Json.Triggers;
+using Quartz.Serialization.SystemTextJson.Calendars;
+using Quartz.Serialization.SystemTextJson.Triggers;
 using Quartz.Util;
 
-namespace Quartz.Serialization.Json;
+namespace Quartz.Serialization.SystemTextJson;
 
 /// <summary>
 /// The trigger and calendar serializers a <see cref="Quartz.Impl.SystemTextJsonObjectSerializer"/>

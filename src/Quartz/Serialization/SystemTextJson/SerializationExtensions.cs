@@ -3,7 +3,7 @@ using System.Text.Json;
 
 using Quartz.Util;
 
-namespace Quartz.Serialization.Json;
+namespace Quartz.Serialization.SystemTextJson;
 
 internal static class Utf8JsonWriterExtensions
 {

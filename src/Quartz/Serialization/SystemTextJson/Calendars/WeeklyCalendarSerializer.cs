@@ -2,7 +2,7 @@ using System.Text.Json;
 
 using Quartz.Impl.Calendar;
 
-namespace Quartz.Serialization.Json.Calendars;
+namespace Quartz.Serialization.SystemTextJson.Calendars;
 
 internal sealed class WeeklyCalendarSerializer : CalendarSerializer<WeeklyCalendar>
 {

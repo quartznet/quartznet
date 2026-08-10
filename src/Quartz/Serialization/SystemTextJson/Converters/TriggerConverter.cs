@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 using Quartz.Extensibility;
 using Quartz.Util;
 
-namespace Quartz.Serialization.Json.Converters;
+namespace Quartz.Serialization.SystemTextJson.Converters;
 
 internal sealed class TriggerConverter(SystemTextJsonSerializerRegistry registry) : JsonConverter<ITrigger>
 {

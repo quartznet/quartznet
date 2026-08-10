@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-using Quartz.Serialization.Json;
+using Quartz.Serialization.SystemTextJson;
 
 namespace Quartz.Dashboard.Services;
 

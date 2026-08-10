@@ -2,8 +2,8 @@ using System.Text.Json;
 
 using AwesomeAssertions.Execution;
 
-using Quartz.Serialization.Json;
-using Quartz.Serialization.Json.Triggers;
+using Quartz.Serialization.SystemTextJson;
+using Quartz.Serialization.SystemTextJson.Triggers;
 
 using OpenApiTrigger = Quartz.AspNetCore.HttpApi.OpenApi.Trigger;
 

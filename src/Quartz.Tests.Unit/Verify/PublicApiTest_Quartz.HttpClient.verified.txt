@@ -16,7 +16,7 @@ namespace Quartz
     }
     public sealed class HttpScheduler : Quartz.IScheduler
     {
-        public HttpScheduler(string schedulerName, System.Net.Http.HttpClient httpClient, System.Text.Json.JsonSerializerOptions? jsonSerializerOptions = null, Quartz.Serialization.Json.SystemTextJsonSerializerRegistry? serializerRegistry = null) { }
+        public HttpScheduler(string schedulerName, System.Net.Http.HttpClient httpClient, System.Text.Json.JsonSerializerOptions? jsonSerializerOptions = null, Quartz.Serialization.SystemTextJson.SystemTextJsonSerializerRegistry? serializerRegistry = null) { }
         public Quartz.SchedulerContext Context { get; }
         public bool InStandbyMode { get; }
         public bool IsShutdown { get; }

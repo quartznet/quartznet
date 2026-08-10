@@ -26,7 +26,7 @@ using Microsoft.Extensions.Options;
 using Quartz.Configuration;
 using Quartz.Dashboard.Plugins;
 using Quartz.Dashboard.Services;
-using Quartz.Serialization.Json;
+using Quartz.Serialization.SystemTextJson;
 using Quartz.Extensibility;
 
 namespace Quartz;

@@ -687,7 +687,7 @@ internal sealed class CustomNewtonsoftCalendarSerializer : CalendarSerializer<Cu
     }
 }
 
-internal sealed class CustomSystemTextJsonCalendarSerializer : Serialization.Json.Calendars.CalendarSerializer<CustomCalendar>
+internal sealed class CustomSystemTextJsonCalendarSerializer : Serialization.SystemTextJson.Calendars.CalendarSerializer<CustomCalendar>
 {
     public override string CalendarTypeName => "Custom";
 
@@ -748,7 +748,7 @@ internal sealed class CustomNewtonsoftTriggerSerializer : CronTriggerSerializer
     }
 }
 
-internal sealed class CustomSystemTextJsonTriggerSerializer : Serialization.Json.Triggers.CronTriggerSerializer
+internal sealed class CustomSystemTextJsonTriggerSerializer : Serialization.SystemTextJson.Triggers.CronTriggerSerializer
 {
     public override string TriggerTypeName => "CustomTrigger";
 

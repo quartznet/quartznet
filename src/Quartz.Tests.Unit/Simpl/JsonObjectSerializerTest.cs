@@ -15,7 +15,7 @@ using Newtonsoft.Json.Linq;
 
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
-using Quartz.Serialization.Json;
+using Quartz.Serialization.SystemTextJson;
 using Quartz.Serialization.Newtonsoft;
 using Quartz.Impl;
 using Quartz.Extensibility;
@@ -641,7 +641,7 @@ public class JsonSerializationTestCalendar : BaseCalendar
         protected override JsonSerializationTestCalendar Create(JObject source) => new();
     }
 
-    public sealed class SystemTextJsonSerializer : Serialization.Json.Calendars.CalendarSerializer<JsonSerializationTestCalendar>
+    public sealed class SystemTextJsonSerializer : Serialization.SystemTextJson.Calendars.CalendarSerializer<JsonSerializationTestCalendar>
     {
         protected override JsonSerializationTestCalendar Create(JsonElement jsonElement, StjJsonSerializerOptions options) => new();
 
@@ -663,7 +663,7 @@ public class JsonSerializationTestTrigger : SimpleTriggerImpl
 {
     public int CustomProperty { get; set; }
 
-    public sealed class SystemTextJsonSerializer : Serialization.Json.Triggers.TriggerSerializer<JsonSerializationTestTrigger>
+    public sealed class SystemTextJsonSerializer : Serialization.SystemTextJson.Triggers.TriggerSerializer<JsonSerializationTestTrigger>
     {
         public override string TriggerTypeName => "TestTrigger";
 

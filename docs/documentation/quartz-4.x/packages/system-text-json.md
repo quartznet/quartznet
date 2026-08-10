@@ -96,7 +96,7 @@ There's a convenience base class `CalendarSerializer` that gives you a strongly-
 using System.Text.Json;
 
 using Quartz.Impl.Calendar;
-using Quartz.Serialization.Json.Calendars;
+using Quartz.Serialization.SystemTextJson.Calendars;
 
 public sealed class CustomCalendar : BaseCalendar
 {
@@ -128,7 +128,7 @@ public sealed class CustomCalendarSerializer : CalendarSerializer<CustomCalendar
 ## Customizing trigger serialization
 
 A custom trigger type works the same way, through `TriggerSerializer` from
-`Quartz.Serialization.Json.Triggers`. Without a serializer a custom trigger is persisted as a reflected
+`Quartz.Serialization.SystemTextJson.Triggers`. Without a serializer a custom trigger is persisted as a reflected
 blob, which can be read back only by the exact same type.
 
 ## Registering custom serializers
@@ -192,7 +192,7 @@ services.AddQuartz(q => q.UsePersistentStore(store =>
 }));
 ```
 
-`SystemTextJsonSerializerRegistry` lives in the `Quartz.Serialization.Json` namespace. It always starts
+`SystemTextJsonSerializerRegistry` lives in the `Quartz.Serialization.SystemTextJson` namespace. It always starts
 out knowing every built-in trigger and calendar type, so registering a custom one adds to that set rather
 than replacing it. Both `Add*` methods return the registry, so registrations chain.
 
