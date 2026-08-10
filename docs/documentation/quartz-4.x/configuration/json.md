@@ -34,7 +34,7 @@ Instead of flat property keys like `"quartz.threadPool.maxConcurrency": "10"`, y
     },
     "Plugin": {
       "jobHistory": {
-        "Type": "Quartz.Plugin.History.LoggingJobHistoryPlugin, Quartz.Plugins"
+        "Type": "Quartz.Plugins.History.LoggingJobHistoryPlugin, Quartz.Plugins"
       }
     },
     "Serializer": {

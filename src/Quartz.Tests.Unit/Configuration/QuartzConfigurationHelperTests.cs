@@ -36,12 +36,12 @@ public class QuartzConfigurationHelperTests
         var config = BuildConfig(new Dictionary<string, string>
         {
             { "DataSource:default:Provider", "SqlServer" },
-            { "Plugin:jobHistory:Type", "Quartz.Plugin.History.LoggingJobHistoryPlugin, Quartz.Plugins" },
+            { "Plugin:jobHistory:Type", "Quartz.Plugins.History.LoggingJobHistoryPlugin, Quartz.Plugins" },
         });
 
         var result = QuartzConfigurationHelper.ToNameValueCollection(config);
         result["quartz.dataSource.default.provider"].Should().Be("SqlServer");
-        result["quartz.plugin.jobHistory.type"].Should().Be("Quartz.Plugin.History.LoggingJobHistoryPlugin, Quartz.Plugins");
+        result["quartz.plugin.jobHistory.type"].Should().Be("Quartz.Plugins.History.LoggingJobHistoryPlugin, Quartz.Plugins");
     }
 
     [Test]

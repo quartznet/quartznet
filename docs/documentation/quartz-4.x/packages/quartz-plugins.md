@@ -7,9 +7,10 @@ title : Plugins
 
 Quartz provides an interface (`ISchedulerPlugin`, in the `Quartz.Extensibility` namespace) for plugging-in additional functionality.
 
-The plugins that ship in this package live in the `Quartz.Plugin.*` namespaces — `Quartz.Plugin.History`,
-`Quartz.Plugin.Interrupt`, `Quartz.Plugin.Json`, `Quartz.Plugin.Management` and `Quartz.Plugin.Xml` — note that the
-assembly and NuGet package are named `Quartz.Plugins`, plural, while the namespaces are not.
+The plugins that ship in this package live in the `Quartz.Plugins.*` namespaces — `Quartz.Plugins.History`,
+`Quartz.Plugins.Interrupt`, `Quartz.Plugins.Json`, `Quartz.Plugins.Management` and `Quartz.Plugins.Xml`, matching the
+assembly and NuGet package name. In 3.x they were the singular `Quartz.Plugin.*`; a `quartz.plugin.<name>.type`
+naming the old spelling still resolves, with a warning.
 They provide functionality such as auto-scheduling of jobs upon scheduler startup, logging a history of job and trigger events,
 and ensuring that the scheduler shuts down cleanly when the process exits.
 

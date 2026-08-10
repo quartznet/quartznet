@@ -122,7 +122,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         var services = new ServiceCollection();
         services.AddQuartz(Section(new Dictionary<string, string?>
         {
-            ["Plugin:Xml:Type"] = "Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin, Quartz.Plugins",
+            ["Plugin:Xml:Type"] = "Quartz.Plugins.Xml.XMLSchedulingDataProcessorPlugin, Quartz.Plugins",
             ["Plugin:Xml:FileNames"] = "~/quartz_jobs.xml",
         }));
 

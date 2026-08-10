@@ -1,5 +1,5 @@
 ﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
-namespace Quartz.Plugin.TimeZoneConverter
+namespace Quartz.Plugins.TimeZoneConverter
 {
     public class TimeZoneConverterPlugin : Quartz.Extensibility.ISchedulerPlugin
     {

@@ -41,12 +41,12 @@ namespace Quartz
         public string? TriggerMisfiredMessage { get; set; }
     }
 }
-namespace Quartz.Plugin.History
+namespace Quartz.Plugins.History
 {
     public class LoggingJobHistoryPlugin : Quartz.Extensibility.ISchedulerPlugin, Quartz.IJobListener
     {
         public LoggingJobHistoryPlugin() { }
-        public LoggingJobHistoryPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugin.History.LoggingJobHistoryPlugin> logger, System.TimeProvider timeProvider) { }
+        public LoggingJobHistoryPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugins.History.LoggingJobHistoryPlugin> logger, System.TimeProvider timeProvider) { }
         protected virtual bool IsInfoEnabled { get; }
         protected virtual bool IsWarnEnabled { get; }
         public virtual string JobFailedMessage { get; set; }
@@ -66,7 +66,7 @@ namespace Quartz.Plugin.History
     public class LoggingTriggerHistoryPlugin : Quartz.Extensibility.ISchedulerPlugin, Quartz.ITriggerListener
     {
         public LoggingTriggerHistoryPlugin() { }
-        public LoggingTriggerHistoryPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugin.History.LoggingTriggerHistoryPlugin> logger, System.TimeProvider timeProvider) { }
+        public LoggingTriggerHistoryPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugins.History.LoggingTriggerHistoryPlugin> logger, System.TimeProvider timeProvider) { }
         protected virtual bool IsInfoEnabled { get; }
         public string Name { get; }
         public virtual string TriggerCompleteMessage { get; set; }
@@ -84,7 +84,7 @@ namespace Quartz.Plugin.History
     public sealed class StructuredLoggingJobHistoryPlugin : Quartz.Extensibility.ISchedulerPlugin, Quartz.IJobListener
     {
         public StructuredLoggingJobHistoryPlugin() { }
-        public StructuredLoggingJobHistoryPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugin.History.StructuredLoggingJobHistoryPlugin> logger, System.TimeProvider timeProvider) { }
+        public StructuredLoggingJobHistoryPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugins.History.StructuredLoggingJobHistoryPlugin> logger, System.TimeProvider timeProvider) { }
         public string JobFailedMessage { get; set; }
         public string JobSuccessMessage { get; set; }
         public string JobToBeFiredMessage { get; set; }
@@ -100,7 +100,7 @@ namespace Quartz.Plugin.History
     public sealed class StructuredLoggingTriggerHistoryPlugin : Quartz.Extensibility.ISchedulerPlugin, Quartz.ITriggerListener
     {
         public StructuredLoggingTriggerHistoryPlugin() { }
-        public StructuredLoggingTriggerHistoryPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugin.History.StructuredLoggingTriggerHistoryPlugin> logger, System.TimeProvider timeProvider) { }
+        public StructuredLoggingTriggerHistoryPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugins.History.StructuredLoggingTriggerHistoryPlugin> logger, System.TimeProvider timeProvider) { }
         public string Name { get; }
         public string TriggerCompleteMessage { get; set; }
         public string TriggerFiredMessage { get; set; }
@@ -114,7 +114,7 @@ namespace Quartz.Plugin.History
         public System.Threading.Tasks.ValueTask<bool> VetoJobExecution(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
     }
 }
-namespace Quartz.Plugin.Interrupt
+namespace Quartz.Plugins.Interrupt
 {
     public class JobInterruptMonitorPlugin : Quartz.Listener.TriggerListenerSupport, Quartz.Extensibility.ISchedulerPlugin
     {
@@ -131,12 +131,12 @@ namespace Quartz.Plugin.Interrupt
         public override System.Threading.Tasks.ValueTask TriggerFired(Quartz.ITrigger trigger, Quartz.IJobExecutionContext context, System.Threading.CancellationToken cancellationToken = default) { }
     }
 }
-namespace Quartz.Plugin.Json
+namespace Quartz.Plugins.Json
 {
     public sealed class JsonSchedulingDataProcessorPlugin : Quartz.Extensibility.ISchedulerPlugin, Quartz.Jobs.IFileScanListener
     {
         public JsonSchedulingDataProcessorPlugin() { }
-        public JsonSchedulingDataProcessorPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugin.Json.JsonSchedulingDataProcessorPlugin> logger, Quartz.Extensibility.ITypeLoadHelper typeLoadHelper, System.TimeProvider timeProvider) { }
+        public JsonSchedulingDataProcessorPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugins.Json.JsonSchedulingDataProcessorPlugin> logger, Quartz.Extensibility.ITypeLoadHelper typeLoadHelper, System.TimeProvider timeProvider) { }
         public bool FailOnFileNotFound { get; set; }
         public bool FailOnSchedulingError { get; set; }
         public string FileNames { get; set; }
@@ -150,7 +150,7 @@ namespace Quartz.Plugin.Json
         public System.Threading.Tasks.ValueTask Start(System.Threading.CancellationToken cancellationToken = default) { }
     }
 }
-namespace Quartz.Plugin.Management
+namespace Quartz.Plugins.Management
 {
     public class ShutdownHookPlugin : Quartz.Extensibility.ISchedulerPlugin
     {
@@ -161,16 +161,16 @@ namespace Quartz.Plugin.Management
         public virtual System.Threading.Tasks.ValueTask Start(System.Threading.CancellationToken cancellationToken = default) { }
     }
 }
-namespace Quartz.Plugin.Xml
+namespace Quartz.Plugins.Xml
 {
     public class XMLSchedulingDataProcessorPlugin : Quartz.Extensibility.ISchedulerPlugin, Quartz.Jobs.IFileScanListener
     {
         public XMLSchedulingDataProcessorPlugin() { }
-        public XMLSchedulingDataProcessorPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin> logger, Quartz.Extensibility.ITypeLoadHelper typeLoadHelper, System.TimeProvider timeProvider) { }
+        public XMLSchedulingDataProcessorPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugins.Xml.XMLSchedulingDataProcessorPlugin> logger, Quartz.Extensibility.ITypeLoadHelper typeLoadHelper, System.TimeProvider timeProvider) { }
         public bool FailOnFileNotFound { get; set; }
         public virtual bool FailOnSchedulingError { get; set; }
         public string FileNames { get; set; }
-        public System.Collections.Generic.IReadOnlyCollection<System.Collections.Generic.KeyValuePair<string, Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin.JobFile>> JobFiles { get; }
+        public System.Collections.Generic.IReadOnlyCollection<System.Collections.Generic.KeyValuePair<string, Quartz.Plugins.Xml.XMLSchedulingDataProcessorPlugin.JobFile>> JobFiles { get; }
         public string Name { get; }
         [Quartz.TimeSpanParseRule(Quartz.TimeSpanParseRule.Seconds)]
         public System.TimeSpan ScanInterval { get; set; }
@@ -183,7 +183,7 @@ namespace Quartz.Plugin.Xml
         public virtual System.Threading.Tasks.ValueTask Start(System.Threading.CancellationToken cancellationToken = default) { }
         public class JobFile
         {
-            public JobFile(Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin plugin, string fileName) { }
+            public JobFile(Quartz.Plugins.Xml.XMLSchedulingDataProcessorPlugin plugin, string fileName) { }
             public string FileBasename { get; }
             public bool FileFound { get; }
             public string FileName { get; }

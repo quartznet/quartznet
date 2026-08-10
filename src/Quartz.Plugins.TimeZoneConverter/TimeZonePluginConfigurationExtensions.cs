@@ -1,4 +1,4 @@
-using Quartz.Plugin.TimeZoneConverter;
+using Quartz.Plugins.TimeZoneConverter;
 
 namespace Quartz;
 

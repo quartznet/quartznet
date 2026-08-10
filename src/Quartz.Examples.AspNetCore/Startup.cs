@@ -19,8 +19,8 @@ using Quartz.AspNetCore;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Calendar;
 using Quartz.Matchers;
-using Quartz.Plugin.History;
-using Quartz.Plugin.Interrupt;
+using Quartz.Plugins.History;
+using Quartz.Plugins.Interrupt;
 
 using Serilog;
 
