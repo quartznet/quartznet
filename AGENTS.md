@@ -255,7 +255,11 @@ plus a bridge entry on main.
 - **Allman brace style** — braces on new lines for methods, types, control blocks, properties, accessors, lambdas.
 - **No `DateTime.Now`/`DateTimeOffset.Now`** — banned via Roslyn analyzer (`BannedSymbols.txt`). Use `TimeProvider` instead.
 - **No implicit `DateTime` → `DateTimeOffset` cast** — also banned.
-- **All public APIs return `ValueTask`** rather than `Task` (e.g., `IJob.Execute`, `IScheduler` methods). This holds for classes too — there are no public `Task`-returning members left.
+- **All public APIs return `ValueTask`** rather than `Task` (e.g., `IJob.Execute`, `IScheduler` methods). This
+  holds for classes too. The single exception is `Quartz.Dashboard.Hubs.IQuartzDashboardHubClient`, whose shape
+  SignalR dictates: its typed-client proxy only implements `Task`-returning members, and it is emitted into a
+  dynamic assembly, so the interface and its DTOs cannot be internal either — a strong-named assembly can only
+  grant `InternalsVisibleTo` to a friend it names by public key. `QuartzDashboardHubClientProxyTest` is the guard.
 - **No `Async` suffix** on Quartz-authored members; the bare verb *is* the async one. Only names dictated by a BCL interface (`IHostedService`, `IAsyncDisposable`, `IHealthCheck`) carry it.
 - **Every async member ends with `CancellationToken cancellationToken = default`.** There are no exceptions left.
 - **Return concrete collection types, accept abstractions** — `List<T>` or `T[]` out, `IReadOnlyCollection<T>`/`IReadOnlyList<T>` in.
