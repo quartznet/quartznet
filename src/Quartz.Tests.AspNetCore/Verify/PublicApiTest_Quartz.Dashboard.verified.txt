@@ -1,21 +1,4 @@
 ﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
-namespace Quartz.Dashboard.Components.Pages
-{
-    [Microsoft.AspNetCore.Components.Layout(typeof(Quartz.Dashboard.Components.Layout.DashboardLayout))]
-    public class _Imports
-    {
-        public _Imports() { }
-        protected void Execute() { }
-    }
-}
-namespace Quartz.Dashboard.Components
-{
-    public class _Imports
-    {
-        public _Imports() { }
-        protected void Execute() { }
-    }
-}
 namespace Quartz.Dashboard.Hubs
 {
     public interface IQuartzDashboardHubClient

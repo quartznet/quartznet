@@ -21,6 +21,21 @@ using Quartz.Dashboard.Services;
 
 namespace Quartz.Dashboard.Hubs;
 
+/// <summary>
+/// The events the dashboard hub pushes to a connected browser.
+/// </summary>
+/// <remarks>
+/// Nothing outside this assembly calls this, and its DTOs are of no use to anyone else either, so it
+/// would be internal if it could be. It cannot: SignalR reaches a typed client by emitting a proxy
+/// into a dynamic assembly of its own, which no <c>InternalsVisibleTo</c> can name — a strong-named
+/// assembly may only grant one to a friend it names by public key — and the proxy then fails to load
+/// with "attempting to implement an inaccessible interface". <c>QuartzDashboardHubClientProxyTest</c>
+/// is the guard.
+/// <para>
+/// The <see cref="Task" /> return types are dictated by SignalR for the same reason: the typed-client
+/// proxy only implements members returning <see cref="Task" /> or <see cref="Task{TResult}" />.
+/// </para>
+/// </remarks>
 public interface IQuartzDashboardHubClient
 {
     Task JobExecuting(JobEventDto jobEvent);
