@@ -29,7 +29,6 @@ using Microsoft.Data.SqlClient;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
-using Quartz.Matchers;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 

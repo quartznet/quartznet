@@ -25,7 +25,6 @@ using System.Globalization;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
-using Quartz.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Impl;
 using Quartz.Extensibility;

@@ -20,7 +20,6 @@
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Dashboard.Services;
-using Quartz.Matchers;
 using Quartz.Extensibility;
 
 namespace Quartz.Dashboard.Plugins;

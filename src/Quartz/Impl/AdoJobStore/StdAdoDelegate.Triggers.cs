@@ -4,7 +4,6 @@ using System.Globalization;
 
 using Microsoft.Extensions.Logging;
 
-using Quartz.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Extensibility;
 using Quartz.Util;

@@ -27,7 +27,6 @@ using FakeItEasy;
 using Microsoft.Extensions.Logging;
 
 using Quartz.Impl;
-using Quartz.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Jobs;
 using Quartz.Extensibility;

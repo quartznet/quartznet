@@ -21,7 +21,7 @@
 
 using Quartz.Util;
 
-namespace Quartz.Matchers;
+namespace Quartz;
 
 /// <summary>
 /// Matches using an NOT operator on another Matcher.

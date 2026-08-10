@@ -7,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Quartz.Extensibility;
 using Quartz.HttpClient;
 using Quartz.Impl.Calendar;
-using Quartz.Matchers;
 using Quartz.Tests.AspNetCore.Support;
 
 namespace Quartz.Tests.AspNetCore.HttpApi;

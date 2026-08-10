@@ -7,7 +7,6 @@ using Quartz.Dashboard.Components.Shared;
 using Quartz.Dashboard.Services;
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
-using Quartz.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Serialization.Json;
 

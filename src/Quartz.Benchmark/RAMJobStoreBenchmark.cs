@@ -1,6 +1,5 @@
 using Quartz.Tests;
 using BenchmarkDotNet.Attributes;
-using Quartz.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Impl;
 using Quartz.Extensibility;

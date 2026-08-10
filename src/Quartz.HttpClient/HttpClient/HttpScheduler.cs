@@ -22,7 +22,6 @@
 using System.Text.Json;
 
 using Quartz.HttpApiContract;
-using Quartz.Matchers;
 using Quartz.Serialization.Json;
 using Quartz.Extensibility;
 

@@ -27,7 +27,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Quartz.Diagnostics;
 using Quartz.Impl.AdoJobStore.Common;
-using Quartz.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Extensibility;
 using Quartz.Util;
@@ -2977,7 +2976,7 @@ public abstract class JobStoreSupport : IJobStore
     /// <summary>
     /// Pause all of the <see cref="ITrigger" />s in the given group.
     /// </summary>
-    /// <seealso cref="ResumeTriggers(Quartz.Matchers.GroupMatcher{Quartz.TriggerKey}, CancellationToken)" />
+    /// <seealso cref="ResumeTriggers(Quartz.GroupMatcher{Quartz.TriggerKey}, CancellationToken)" />
     public virtual ValueTask<List<string>> PauseTriggers(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
@@ -3083,7 +3082,7 @@ public abstract class JobStoreSupport : IJobStore
     }
 
     /// <summary>
-    /// Pause all triggers - equivalent of calling <see cref="PauseTriggers(Quartz.Matchers.GroupMatcher{Quartz.TriggerKey},CancellationToken)" />
+    /// Pause all triggers - equivalent of calling <see cref="PauseTriggers(Quartz.GroupMatcher{Quartz.TriggerKey},CancellationToken)" />
     /// on every group.
     /// <para>
     /// When <see cref="ResumeAll(CancellationToken)" /> is called (to un-pause), trigger misfire
@@ -3116,7 +3115,7 @@ public abstract class JobStoreSupport : IJobStore
     }
 
     /// <summary>
-    /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers(Quartz.Matchers.GroupMatcher{Quartz.TriggerKey}, CancellationToken)" />
+    /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers(Quartz.GroupMatcher{Quartz.TriggerKey}, CancellationToken)" />
     /// on every group.
     /// </summary>
     /// <remarks>
@@ -3132,7 +3131,7 @@ public abstract class JobStoreSupport : IJobStore
     }
 
     /// <summary>
-    /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers(Quartz.Matchers.GroupMatcher{Quartz.TriggerKey}, CancellationToken)" />
+    /// Resume (un-pause) all triggers - equivalent of calling <see cref="ResumeTriggers(Quartz.GroupMatcher{Quartz.TriggerKey}, CancellationToken)" />
     /// on every group.
     /// <para>
     /// If any <see cref="ITrigger" /> missed one or more fire-times, then the

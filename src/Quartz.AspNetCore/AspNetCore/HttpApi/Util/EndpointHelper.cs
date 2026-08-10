@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Http;
 
 using Quartz.HttpApiContract;
-using Quartz.Matchers;
 using Quartz.Extensibility;
 using Quartz.Util;
 

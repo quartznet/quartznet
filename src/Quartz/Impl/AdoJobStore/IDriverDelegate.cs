@@ -19,7 +19,6 @@
 
 #endregion
 
-using Quartz.Matchers;
 using Quartz.Extensibility;
 
 namespace Quartz.Impl.AdoJobStore;

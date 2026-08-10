@@ -5,7 +5,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 using Quartz.Impl;
 using Quartz.Plugins.Json;
-using Quartz.Matchers;
 
 namespace Quartz.Tests.Unit.Plugin.Json;
 

@@ -27,7 +27,7 @@ pairs. Start here: everything else assumes these signatures.
 **2. The vocabulary and the surface.** One word per concept, and nothing public that was never a
 contract. [Names that were normalized](#names-that-were-normalized),
 [the scheduler and the job store speak the same verbs](#the-scheduler-and-the-job-store-speak-the-same-verbs),
-[matchers moved to `Quartz.Matchers`](#matchers-moved-to-quartz-matchers),
+[matchers moved to `Quartz`](#matchers-moved-to-quartz),
 [`Key<T>` moved to `Quartz` and is immutable](#key-t-moved-to-quartz-and-is-immutable),
 [`SchedulerMetadata` replaces `SchedulerMetaData`](#schedulermetadata-replaces-schedulermetadata),
 [the listener API](#listener-api-changes), and
@@ -2756,6 +2756,7 @@ above cover configuration strings.
 | `Quartz.Extensibility.IDirectoryProvider` | `Quartz.Jobs.IDirectoryProvider` | It exists for `DirectoryScanJob` alone, so it lives with it. It is resolved from `SchedulerContext` by key, never by type name |
 | `Quartz.Plugin.History` <br> `Quartz.Plugin.Interrupt` <br> `Quartz.Plugin.Json` <br> `Quartz.Plugin.Management` <br> `Quartz.Plugin.Xml` <br> `Quartz.Plugin.TimeZoneConverter` | `Quartz.Plugins.*` | Same rule as the jobs: the packages are `Quartz.Plugins` and `Quartz.Plugins.TimeZoneConverter`. A `quartz.plugin.<name>.type` naming the old spelling still resolves, with a warning. The **configuration key** prefix is still `quartz.plugin.`, singular — it is not a namespace |
 | `Quartz.Listener` | `Quartz.Listeners` | A `quartz.jobListener.<name>.type` or `quartz.triggerListener.<name>.type` naming the old spelling still resolves, with a warning — but see [The three `*Support` base classes are gone](#the-three-support-base-classes-are-gone): three of the seven types are not there under either name |
+| `Quartz.Impl.Matchers` | `Quartz` | See [Matchers moved to `Quartz`](#matchers-moved-to-quartz). No shim is needed: a matcher is passed as an object and is never named by a configuration string |
 
 ## The scheduler and the job store speak the same verbs
 
@@ -2912,14 +2913,13 @@ Every abbreviated constructor parameter of `SchedulerMetaData` was spelled out a
 `jsPersistent` → `jobStoreSupportsPersistence`, `jsClustered` → `jobStoreClustered`, `tpType` →
 `threadPoolType`, `tpSize` → `threadPoolSize`.
 
-## Matchers moved to `Quartz.Matchers`
+## Matchers moved to `Quartz`
 
-A matcher is something you hand to `IScheduler`, not an implementation detail of one, so the whole namespace
-moved out of `Impl`:
+A matcher is something you hand to `IScheduler`, not an implementation detail of one, and every signature that
+takes one already lives in `Quartz`, so the types moved there rather than into a namespace of their own:
 
 ```diff
 - using Quartz.Impl.Matchers;
-+ using Quartz.Matchers;
 ```
 
 `GroupMatcher<T>`, `NameMatcher<T>`, `KeyMatcher<T>`, `EverythingMatcher<T>`, `AndMatcher<T>`, `OrMatcher<T>`,

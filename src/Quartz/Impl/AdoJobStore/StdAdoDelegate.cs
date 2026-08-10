@@ -29,7 +29,6 @@ using System.Text;
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
 using Quartz.Impl.AdoJobStore.Common;
-using Quartz.Matchers;
 using Quartz.Extensibility;
 using Quartz.Util;
 

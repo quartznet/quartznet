@@ -22,7 +22,6 @@
 using Quartz.Extensibility;
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
-using Quartz.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Jobs;
 using Quartz.Util;

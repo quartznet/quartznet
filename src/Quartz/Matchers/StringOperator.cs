@@ -19,7 +19,7 @@
 
 #endregion
 
-namespace Quartz.Matchers;
+namespace Quartz;
 
 /// <summary>
 /// Operators available for comparing string values.

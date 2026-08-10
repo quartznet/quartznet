@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Routing;
 using Quartz.AspNetCore.HttpApi.Util;
 using Quartz.HttpApiContract;
 using Quartz.Extensibility;
-using Quartz.Matchers;
 
 namespace Quartz.AspNetCore.HttpApi.Endpoints;
 

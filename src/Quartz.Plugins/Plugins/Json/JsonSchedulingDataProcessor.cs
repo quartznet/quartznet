@@ -25,7 +25,6 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 
 using Quartz.Diagnostics;
-using Quartz.Matchers;
 using Quartz.Extensibility;
 using Quartz.Util;
 using Quartz.Xml;

@@ -5,7 +5,6 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 using Quartz.Impl.Calendar;
-using Quartz.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Jobs;
 using Quartz.Serialization.Newtonsoft;

@@ -22,7 +22,6 @@ using System.Xml.Schema;
 
 using Microsoft.Extensions.Logging;
 
-using Quartz.Matchers;
 using Quartz.Extensibility;
 using Quartz.Util;
 

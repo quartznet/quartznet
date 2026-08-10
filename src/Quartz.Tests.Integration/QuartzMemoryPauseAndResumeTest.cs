@@ -1,4 +1,3 @@
-using Quartz.Matchers;
 using Quartz.Jobs;
 
 namespace Quartz.Tests.Integration;
