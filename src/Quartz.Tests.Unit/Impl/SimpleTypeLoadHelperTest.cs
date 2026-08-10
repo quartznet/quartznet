@@ -1,4 +1,5 @@
 using Quartz.Extensibility;
+using Quartz.Extensions.Redis;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Jobs;
@@ -78,6 +79,14 @@ public class SimpleTypeLoadHelperTest
         loadHelper.LoadType("Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin, Quartz.Plugins")
             .Should().Be<XmlSchedulingDataProcessorPlugin>(
                 "the namespace and the type were both respelled, and the two fallbacks must compose");
+    }
+
+    [Test]
+    public void ShouldLoadTheRedisLockHandlerNamedByItsPre40Namespace()
+    {
+        loadHelper.LoadType("Quartz.Impl.Redis.RedisSemaphore, Quartz.Extensions.Redis")
+            .Should().Be<RedisSemaphore>(
+                "quartz.jobStore.lockHandler.type naming the old namespace has to keep working");
     }
 
     [Test]

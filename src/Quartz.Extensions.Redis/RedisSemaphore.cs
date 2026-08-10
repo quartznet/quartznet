@@ -28,7 +28,7 @@ using StackExchange.Redis;
 
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
-namespace Quartz.Impl.Redis;
+namespace Quartz.Extensions.Redis;
 
 /// <summary>
 /// A Redis-based <see cref="ISemaphore"/> that uses distributed locks
@@ -48,7 +48,7 @@ namespace Quartz.Impl.Redis;
 /// <para>
 /// Configure via properties:
 /// <code>
-/// quartz.jobStore.lockHandler.type = Quartz.Impl.Redis.RedisSemaphore, Quartz.Extensions.Redis
+/// quartz.jobStore.lockHandler.type = Quartz.Extensions.Redis.RedisSemaphore, Quartz.Extensions.Redis
 /// quartz.jobStore.lockHandler.redisConfiguration = localhost:6379
 /// </code>
 /// </para>
