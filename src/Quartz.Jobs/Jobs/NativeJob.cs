@@ -228,7 +228,7 @@ public class NativeJob : IJob
         }
         catch (Exception x)
         {
-            throw new JobExecutionException("Error launching native command: " + x.Message, x, false);
+            throw new JobExecutionException("Error launching native command: " + x.Message, x);
         }
 
         return result;

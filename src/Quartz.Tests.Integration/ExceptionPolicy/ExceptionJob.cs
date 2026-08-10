@@ -26,12 +26,12 @@ public class ExceptionJob : IJob
         LaunchCount++;
         if (ThrowsException)
         {
-            JobExecutionException toThrow = new JobExecutionException("test exception");
-            toThrow.RefireImmediately = Refire;
-            toThrow.UnscheduleFiringTrigger = UnscheduleFiringTrigger;
-            toThrow.UnscheduleAllTriggers = UnscheduleAllTriggers;
-
-            throw toThrow;
+            throw new JobExecutionException("test exception")
+            {
+                RefireImmediately = Refire,
+                UnscheduleFiringTrigger = UnscheduleFiringTrigger,
+                UnscheduleAllTriggers = UnscheduleAllTriggers
+            };
         }
         return default;
     }

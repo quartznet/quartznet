@@ -323,5 +323,17 @@ In this case, the `JobExecutionContext.Recovering` property will return true.
 
 Finally, we need to inform you of a few details of the `IJob.Execute(..)` method. The only type of exception
 that you should throw from the execute method is the JobExecutionException. Because of this, you should generally wrap the entire contents of the
-execute method with a 'try-catch' block. You should also spend some time looking at the documentation for the JobExecutionException,
-as your job can use it to provide the scheduler various directives as to how you want the exception to be handled.
+execute method with a 'try-catch' block. The exception's directives to the scheduler are init-only
+properties, set with an object initializer:
+
+```csharp
+catch (Exception ex)
+{
+    // ask the scheduler to run this fire again with the same context
+    throw new JobExecutionException(ex) { RefireImmediately = true };
+}
+```
+
+Besides `RefireImmediately` there are `UnscheduleFiringTrigger` and `UnscheduleAllTriggers`, which stop
+the trigger that fired the job — or every trigger of the job — from firing again. When
+`RefireImmediately` is set, the unschedule flags are ignored.

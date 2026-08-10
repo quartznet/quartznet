@@ -21,13 +21,25 @@ public class JobExecutionExceptionTest
     [Test]
     public void JobDetail_DefaultsToNull()
     {
-        Assert.Multiple(() =>
+        new JobExecutionException().JobDetail.Should().BeNull();
+        new JobExecutionException("msg").JobDetail.Should().BeNull();
+        new JobExecutionException(new Exception("inner")).JobDetail.Should().BeNull();
+        new JobExecutionException("msg", new Exception("inner")).JobDetail.Should().BeNull();
+    }
+
+    [Test]
+    public void InstructionFlagsAreInitOnly()
+    {
+        JobExecutionException exception = new(new Exception("boom"))
         {
-            Assert.That(new JobExecutionException().JobDetail, Is.Null);
-            Assert.That(new JobExecutionException("msg").JobDetail, Is.Null);
-            Assert.That(new JobExecutionException(new Exception("inner")).JobDetail, Is.Null);
-            Assert.That(new JobExecutionException(true).JobDetail, Is.Null);
-        });
+            RefireImmediately = true,
+            UnscheduleFiringTrigger = true,
+            UnscheduleAllTriggers = true
+        };
+
+        exception.RefireImmediately.Should().BeTrue();
+        exception.UnscheduleFiringTrigger.Should().BeTrue();
+        exception.UnscheduleAllTriggers.Should().BeTrue();
     }
 
     private sealed class NoOpJob : IJob

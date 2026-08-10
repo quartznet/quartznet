@@ -103,7 +103,7 @@ public class FileScanJob : IJob
         }
         catch (SchedulerException e)
         {
-            throw new JobExecutionException("Error obtaining scheduler context.", e, false);
+            throw new JobExecutionException("Error obtaining scheduler context.", e);
         }
 
         var fileName = mergedJobDataMap.GetString(FileName);

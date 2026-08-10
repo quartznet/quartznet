@@ -59,12 +59,11 @@ public class BadJob2 : IJob
         catch (Exception e)
         {
             Console.WriteLine("--- Error in job!");
-            JobExecutionException e2 = new JobExecutionException(e);
+
             // Quartz will automatically unschedule
             // all triggers associated with this job
             // so that it does not run again
-            e2.UnscheduleAllTriggers = true;
-            throw e2;
+            throw new JobExecutionException(e) { UnscheduleAllTriggers = true };
         }
 
         Console.WriteLine("---{0} completed at {1:r}", jobKey, DateTime.Now);

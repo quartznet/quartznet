@@ -123,14 +123,18 @@ public interface IJobStore
     /// <summary>
     /// Store all the given jobs with their related triggers.
     /// </summary>
-    /// <param name="triggersAndJobs">The jobs to store, each with the triggers that fire it.</param>
+    /// <param name="triggersAndJobs">
+    ///     The jobs to store, each with the triggers that fire it. <see cref="IOperableTrigger" />,
+    ///     like the rest of the store contract — the scheduler validates and downcasts the caller's
+    ///     triggers before they reach the store.
+    /// </param>
     /// <param name="replace">
     ///     If <see langword="true" />, any <see cref="IJob" /> or <see cref="ITrigger" /> existing in
     ///     the <see cref="IJobStore" /> with the same key should be over-written.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <throws>  ObjectAlreadyExistsException </throws>
-    ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default);
+    ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Remove (delete) the <see cref="IJob" /> with the given

@@ -95,7 +95,7 @@ public class DelegatingJobStore : IJobStore
         return jobStore.AddJob(job, replace, cancellationToken);
     }
 
-    public virtual ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
+    public virtual ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
     {
         return jobStore.ScheduleJobs(triggersAndJobs, replace, cancellationToken);
     }

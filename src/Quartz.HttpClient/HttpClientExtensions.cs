@@ -185,7 +185,6 @@ internal static class HttpClientExtensions
                 nameof(JobExecutionException) => new JobExecutionException(problemDetails.Detail),
                 nameof(JobPersistenceException) => new JobPersistenceException(problemDetails.Detail),
                 nameof(SchedulerConfigException) => new SchedulerConfigException(problemDetails.Detail),
-                nameof(UnableToInterruptJobException) => new UnableToInterruptJobException(problemDetails.Detail),
                 nameof(LockException) => new LockException(problemDetails.Detail),
                 nameof(NoSuchDelegateException) => new NoSuchDelegateException(problemDetails.Detail),
                 nameof(ObjectAlreadyExistsException) => new ObjectAlreadyExistsException(problemDetails.Detail),

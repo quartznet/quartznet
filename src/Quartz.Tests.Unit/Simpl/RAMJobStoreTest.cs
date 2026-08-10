@@ -1219,9 +1219,9 @@ public class RAMJobStoreTest
         var cronTrigger = new CronTriggerImpl("trigger-switch", "group1", job.Key.Name, job.Key.Group, "0 0 * * * ?");
         cronTrigger.ComputeFirstFireTimeUtc(null);
 
-        var triggersAndJobs = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>
+        var triggersAndJobs = new Dictionary<IJobDetail, IReadOnlyCollection<IOperableTrigger>>
         {
-            [job] = new[] { (ITrigger) cronTrigger }
+            [job] = new IOperableTrigger[] { cronTrigger }
         };
 
         await fJobStore.ScheduleJobs(triggersAndJobs, replace: true);

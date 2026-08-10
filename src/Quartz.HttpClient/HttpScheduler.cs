@@ -24,6 +24,7 @@ using System.Text.Json;
 using Quartz.HttpApiContract;
 using Quartz.Serialization.SystemTextJson;
 using Quartz.Extensibility;
+using Quartz.Util;
 
 namespace Quartz;
 
@@ -99,17 +100,18 @@ public sealed class HttpScheduler : IScheduler
         {
             SchedulerName = schedulerDto.Name,
             SchedulerInstanceId = schedulerDto.SchedulerInstanceId,
-            SchedulerType = GetType(),
-            IsRemote = true,
+            SchedulerTypeName = GetType().AssemblyQualifiedNameWithoutVersion(),
+            IsProxy = true,
             Started = schedulerDto.Status == SchedulerStatus.Running,
             InStandbyMode = schedulerDto.Status == SchedulerStatus.Standby,
             Shutdown = schedulerDto.Status == SchedulerStatus.Shutdown,
             RunningSince = schedulerDto.Statistics.RunningSince,
             JobsExecuted = schedulerDto.Statistics.JobsExecuted,
-            JobStoreType = Type.GetType(schedulerDto.JobStore.Type, throwOnError: true)!,
+            // names pass through as strings: the remote types need not exist in this process
+            JobStoreTypeName = schedulerDto.JobStore.Type,
             JobStoreSupportsPersistence = schedulerDto.JobStore.Persistent,
             JobStoreClustered = schedulerDto.JobStore.Clustered,
-            ThreadPoolType = Type.GetType(schedulerDto.ThreadPool.Type, throwOnError: true)!,
+            ThreadPoolTypeName = schedulerDto.ThreadPool.Type,
             ThreadPoolSize = schedulerDto.ThreadPool.Size,
             Version = schedulerDto.Statistics.Version,
         };

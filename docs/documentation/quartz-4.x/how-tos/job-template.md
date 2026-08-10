@@ -30,13 +30,19 @@ public class SampleJob : IJob
             // get data out of the MergedJobDataMap
             var value = context.MergedJobDataMap.GetString("some-value");
             
-            // ... do work
-            await Task.Delay(100);
+            // ... do work - and forward the cancellation token, so an interrupt
+            // or a shutdown can actually stop the job
+            await Task.Delay(100, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // the scheduler asked the job to stop; let the cancellation flow
+            throw;
         }
         catch (Exception ex)
         {
             // do you want the job to refire?
-            throw new JobExecutionException(msg: "", refireImmediately: true, cause: ex);
+            throw new JobExecutionException(ex) { RefireImmediately = true };
         }
     }
 }

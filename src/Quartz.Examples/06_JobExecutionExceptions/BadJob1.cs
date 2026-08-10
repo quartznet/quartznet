@@ -52,15 +52,13 @@ public class BadJob1 : IJob
         catch (Exception e)
         {
             Console.WriteLine("--- Error in job!");
-            JobExecutionException e2 = new JobExecutionException(e);
 
             // fix denominator so the next time this job run
             // it won't fail again
             dataMap["denominator"] = "1";
 
             // this job will refire immediately
-            e2.RefireImmediately = true;
-            throw e2;
+            throw new JobExecutionException(e) { RefireImmediately = true };
         }
 
         Console.WriteLine("---{0} completed at {1:r}", jobKey, DateTime.Now);

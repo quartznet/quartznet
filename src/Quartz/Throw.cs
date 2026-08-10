@@ -164,13 +164,6 @@ internal static class Throw
 
     [DoesNotReturn]
     [MethodImpl(MethodImplOptions.NoInlining)]
-    internal static void UnableToInterruptJobException(SchedulerException se)
-    {
-        throw new UnableToInterruptJobException(se);
-    }
-
-    [DoesNotReturn]
-    [MethodImpl(MethodImplOptions.NoInlining)]
     internal static void KeyNotFoundException()
     {
         throw new KeyNotFoundException();
