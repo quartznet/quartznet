@@ -129,7 +129,7 @@ the `CronExpression`:
 
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
-    .WithCronSchedule(CronScheduleBuilder.CronSchedule(new CronExpression("0 H H(0-7) * * ?", "nightly-cleanup")))
+    .WithCronSchedule(CronScheduleBuilder.Create(new CronExpression("0 H H(0-7) * * ?", "nightly-cleanup")))
     .Build();
 ```
 
@@ -161,7 +161,7 @@ CronExpression expression = CronExpressionBuilder.Create()
 
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("myTrigger")
-    .WithSchedule(CronScheduleBuilder.CronSchedule(expression))
+    .WithSchedule(CronScheduleBuilder.Create(expression))
     .Build();
 ```
 

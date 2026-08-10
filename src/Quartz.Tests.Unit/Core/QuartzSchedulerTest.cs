@@ -280,7 +280,7 @@ public class QuartzSchedulerTest
         bool disableConcurrentExecution,
         bool persistJobDataAfterExecution)
     {
-        return JobBuilder.Create(jobType)
+        return JobBuilder.Create().OfType(jobType)
             .WithIdentity(Guid.NewGuid().ToString(), group)
             .DisallowConcurrentExecution(disableConcurrentExecution)
             .PersistJobDataAfterExecution(persistJobDataAfterExecution)

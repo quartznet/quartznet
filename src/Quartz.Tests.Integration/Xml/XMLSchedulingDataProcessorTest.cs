@@ -327,7 +327,7 @@ public class XMLSchedulingDataProcessorTest
                 .Build();
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity(jobName, "DEFAULT")
-                .WithSchedule(CronScheduleBuilder.CronSchedule("* * * * * ?"))
+                .WithSchedule(CronScheduleBuilder.Create("* * * * * ?"))
                 .Build();
 
             await scheduler.ScheduleJob(jobDetail, trigger);
@@ -384,7 +384,7 @@ public class XMLSchedulingDataProcessorTest
                 .Build();
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity(jobName, "DEFAULT")
-                .WithSchedule(CronScheduleBuilder.CronSchedule("* * * * * ?"))
+                .WithSchedule(CronScheduleBuilder.Create("* * * * * ?"))
                 .Build();
 
             await scheduler.ScheduleJob(jobDetail, trigger);

@@ -83,7 +83,7 @@ public class DeleteNonExistsJobTest
         IJobDetail jobDetail = JobBuilder.Create<TestJob>().WithIdentity("testjob2").StoreDurably().Build();
         ITrigger trigger = TriggerBuilder.Create()
             .WithIdentity("testjob2")
-            .WithSchedule(CronScheduleBuilder.CronSchedule("* * * * * ?"))
+            .WithSchedule(CronScheduleBuilder.Create("* * * * * ?"))
             .Build();
 
         await scheduler.ScheduleJob(jobDetail, trigger);
@@ -98,7 +98,7 @@ public class DeleteNonExistsJobTest
         IJobDetail jobDetail = JobBuilder.Create<TestJob>().WithIdentity("testjob3").StoreDurably().Build();
         ITrigger trigger = TriggerBuilder.Create()
             .WithIdentity("testjob3")
-            .WithSchedule(CronScheduleBuilder.CronSchedule("* * * * * ?"))
+            .WithSchedule(CronScheduleBuilder.Create("* * * * * ?"))
             .Build();
         await scheduler.ScheduleJob(jobDetail, trigger);
         await ModifyStoredJobClassName();
@@ -112,7 +112,7 @@ public class DeleteNonExistsJobTest
         IJobDetail jobDetail = JobBuilder.Create<TestJob>().WithIdentity("testjob3").StoreDurably().Build();
         ITrigger trigger = TriggerBuilder.Create()
             .WithIdentity("testjob3")
-            .WithSchedule(CronScheduleBuilder.CronSchedule("* * * * * ?"))
+            .WithSchedule(CronScheduleBuilder.Create("* * * * * ?"))
             .Build();
         await scheduler.ScheduleJob(jobDetail, trigger);
         await ModifyStoredJobClassName();

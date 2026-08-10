@@ -11,7 +11,7 @@ public class CronTriggerSerializer : TriggerSerializer<ICronTrigger>
         var cronExpressionString = jsonElement.GetProperty(options.GetPropertyName("CronExpressionString")).GetString()!;
         var timeZone = jsonElement.GetProperty(options.GetPropertyName("TimeZone")).GetTimeZone();
 
-        return CronScheduleBuilder.CronSchedule(cronExpressionString)
+        return CronScheduleBuilder.Create(cronExpressionString)
             .InTimeZone(timeZone);
     }
 

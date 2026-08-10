@@ -410,7 +410,7 @@ public static class ServiceCollectionExtensions
 
         SchedulerContent.Register(builder.Services, builder.SchedulerName, serviceProvider =>
             new SchedulerContent().Add(
-                ConfigureAndBuildJobDetail(serviceProvider, JobBuilder.Create(jobType), configure)));
+                ConfigureAndBuildJobDetail(serviceProvider, JobBuilder.Create().OfType(jobType), configure)));
 
         return builder;
     }

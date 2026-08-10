@@ -5,7 +5,7 @@ public class DateBuilderTest
     [Test]
     public void BuildsTheDateItWasTold()
     {
-        DateTimeOffset date = DateBuilder.NewDate()
+        DateTimeOffset date = DateBuilder.Create()
             .InYear(2011)
             .InMonthOnDay(11, 14)
             .AtHourMinuteAndSecond(21, 59, 0)
@@ -24,7 +24,7 @@ public class DateBuilderTest
     {
         DateTimeOffset now = DateTimeOffset.Now;
 
-        DateTimeOffset date = DateBuilder.NewDate().AtHourMinuteAndSecond(3, 4, 5).Build();
+        DateTimeOffset date = DateBuilder.Create().AtHourMinuteAndSecond(3, 4, 5).Build();
 
         date.Year.Should().Be(now.Year);
         date.Month.Should().Be(now.Month);
@@ -38,7 +38,7 @@ public class DateBuilderTest
     {
         TimeZoneInfo timeZone = TestTimeZones.CentralEuropean;
 
-        DateTimeOffset date = DateBuilder.NewDateInTimeZone(timeZone)
+        DateTimeOffset date = DateBuilder.CreateInTimeZone(timeZone)
             .InYear(2011)
             .InMonthOnDay(11, 14)
             .AtHourMinuteAndSecond(21, 59, 0)
@@ -51,7 +51,7 @@ public class DateBuilderTest
     [TestCase(-1)]
     public void RejectsAnHourOutsideTheDay(int hour)
     {
-        Action act = () => DateBuilder.NewDate().AtHourOfDay(hour);
+        Action act = () => DateBuilder.Create().AtHourOfDay(hour);
 
         act.Should().Throw<ArgumentException>().WithMessage("*hour*");
     }
@@ -60,7 +60,7 @@ public class DateBuilderTest
     [TestCase(32)]
     public void RejectsADayOutsideTheMonth(int day)
     {
-        Action act = () => DateBuilder.NewDate().OnDay(day);
+        Action act = () => DateBuilder.Create().OnDay(day);
 
         act.Should().Throw<ArgumentException>().WithMessage("*day of month*");
     }

@@ -7,7 +7,7 @@ public class CronScheduleBuilderTest
     {
         ICronTrigger trigger = (ICronTrigger) TriggerBuilder.Create()
             .WithIdentity("test")
-            .WithSchedule(CronScheduleBuilder.CronSchedule("0 20 10 ? * *"))
+            .WithSchedule(CronScheduleBuilder.Create("0 20 10 ? * *"))
             .Build();
 
         trigger.CronExpressionString.Should().Be("0 20 10 ? * *");
@@ -25,7 +25,7 @@ public class CronScheduleBuilderTest
 
         ICronTrigger trigger = (ICronTrigger) TriggerBuilder.Create()
             .WithIdentity("test")
-            .WithSchedule(CronScheduleBuilder.CronSchedule(expression))
+            .WithSchedule(CronScheduleBuilder.Create(expression))
             .Build();
 
         trigger.CronExpressionString.Should().Be("0 0 10 ? * MON,THU,FRI");
@@ -34,7 +34,7 @@ public class CronScheduleBuilderTest
     [Test]
     public void RejectsAnExpressionItCannotParse()
     {
-        Action act = () => CronScheduleBuilder.CronSchedule("not a cron expression");
+        Action act = () => CronScheduleBuilder.Create("not a cron expression");
 
         act.Should().Throw<FormatException>();
     }
@@ -46,7 +46,7 @@ public class CronScheduleBuilderTest
 
         ICronTrigger trigger = (ICronTrigger) TriggerBuilder.Create()
             .WithIdentity("test")
-            .WithSchedule(CronScheduleBuilder.CronSchedule("0 20 10 ? * *").InTimeZone(timeZone))
+            .WithSchedule(CronScheduleBuilder.Create("0 20 10 ? * *").InTimeZone(timeZone))
             .Build();
 
         trigger.TimeZone.Should().Be(timeZone);
@@ -57,7 +57,7 @@ public class CronScheduleBuilderTest
     {
         ICronTrigger trigger = (ICronTrigger) TriggerBuilder.Create()
             .WithIdentity("test")
-            .WithSchedule(CronScheduleBuilder.CronSchedule("0 20 10 ? * *").InTimeZone(null))
+            .WithSchedule(CronScheduleBuilder.Create("0 20 10 ? * *").InTimeZone(null))
             .Build();
 
         trigger.TimeZone.Should().Be(TimeZoneInfo.Local);
@@ -68,7 +68,7 @@ public class CronScheduleBuilderTest
     {
         ITrigger trigger = TriggerBuilder.Create()
             .WithIdentity("test")
-            .WithSchedule(CronScheduleBuilder.CronSchedule("0 20 10 ? * *"))
+            .WithSchedule(CronScheduleBuilder.Create("0 20 10 ? * *"))
             .Build();
 
         trigger.MisfireInstructionCode.Should().Be(MisfireInstruction.SmartPolicy);

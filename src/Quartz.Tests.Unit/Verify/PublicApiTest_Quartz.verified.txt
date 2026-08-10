@@ -150,8 +150,8 @@ namespace Quartz
         public Quartz.Extensibility.IMutableTrigger Build() { }
         public Quartz.CronScheduleBuilder InTimeZone(System.TimeZoneInfo? timeZone) { }
         public Quartz.CronScheduleBuilder WithMisfireInstruction(Quartz.CronTriggerMisfireInstruction instruction) { }
-        public static Quartz.CronScheduleBuilder CronSchedule(Quartz.CronExpression cronExpression) { }
-        public static Quartz.CronScheduleBuilder CronSchedule(string cronExpression) { }
+        public static Quartz.CronScheduleBuilder Create(Quartz.CronExpression cronExpression) { }
+        public static Quartz.CronScheduleBuilder Create(string cronExpression) { }
     }
     public enum CronTriggerMisfireInstruction
     {
@@ -203,8 +203,8 @@ namespace Quartz
         public Quartz.DateBuilder InTimeZone(System.TimeZoneInfo? timeZone) { }
         public Quartz.DateBuilder InYear(int year) { }
         public Quartz.DateBuilder OnDay(int day) { }
-        public static Quartz.DateBuilder NewDate(System.TimeProvider? timeProvider = null) { }
-        public static Quartz.DateBuilder NewDateInTimeZone(System.TimeZoneInfo timeZone, System.TimeProvider? timeProvider = null) { }
+        public static Quartz.DateBuilder Create(System.TimeProvider? timeProvider = null) { }
+        public static Quartz.DateBuilder CreateInTimeZone(System.TimeZoneInfo timeZone, System.TimeProvider? timeProvider = null) { }
     }
     [System.AttributeUsage(System.AttributeTargets.Class | System.AttributeTargets.Interface)]
     public sealed class DisallowConcurrentExecutionAttribute : System.Attribute
@@ -236,12 +236,12 @@ namespace Quartz
     }
     public sealed class ExecutionLimitsBuilder
     {
-        public ExecutionLimitsBuilder() { }
         public Quartz.ExecutionLimits Build() { }
         public Quartz.ExecutionLimitsBuilder ForDefaultGroup(int maxConcurrent) { }
         public Quartz.ExecutionLimitsBuilder ForGroup(string group, int maxConcurrent) { }
         public Quartz.ExecutionLimitsBuilder ForOtherGroups(int maxConcurrent) { }
         public Quartz.ExecutionLimitsBuilder Unlimited(string group) { }
+        public static Quartz.ExecutionLimitsBuilder Create() { }
     }
     public sealed class ExecutionSlots
     {
@@ -636,7 +636,6 @@ namespace Quartz
     public static class JobBuilder
     {
         public static Quartz.JobBuilder<Quartz.IJob> Create() { }
-        public static Quartz.JobBuilder<Quartz.IJob> Create([System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)] System.Type jobType) { }
         public static Quartz.JobBuilder<T> Create<[System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.None | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicParameterlessConstructor | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicProperties)]  T>()
             where T : Quartz.IJob { }
     }

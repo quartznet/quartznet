@@ -1793,7 +1793,7 @@ Three runtime checks come with the type parameter, all only on a builder whose `
 
 * `JobBuilder.Create<TJob>().OfType(type)` and `OfType<T>()` throw `ArgumentException` **at the `OfType`
   call** when the type is not a `TJob`. If you resolve a job type at runtime — from configuration, or a
-  decorator type — build it with `JobBuilder.Create(type)` rather than the generic overload.
+  decorator type — build it with `JobBuilder.Create().OfType(type)` rather than the generic overload.
 * `JobBuilder.Create<TJob>().OfType(typeName)` throws `InvalidOperationException` on `Build()` instead,
   because a type named by string is only known once it resolves.
 * `TriggerBuilder.Create<TJob>().ForJob(jobDetail)` throws `ArgumentException` when the detail is not for a
@@ -3179,7 +3179,7 @@ Deleted: `SimpleScheduleTriggerBuilderExtensions`, `CronScheduleTriggerBuilderEx
 | `WithSimpleSchedule(SimpleScheduleBuilder)` | `WithSimpleSchedule(SimpleScheduleBuilder schedule)` |
 | `WithCronSchedule(string)` | `WithCronSchedule(string cronExpression, Action<CronScheduleBuilder>? configure = null)` |
 | `WithCronSchedule(string, Action<CronScheduleBuilder>)` | same member |
-| `WithCronSchedule(string expr, string hashKey)` | `WithCronSchedule(CronScheduleBuilder.CronSchedule(new CronExpression(expr, hashKey)))` |
+| `WithCronSchedule(string expr, string hashKey)` | `WithCronSchedule(CronScheduleBuilder.Create(new CronExpression(expr, hashKey)))` |
 | `WithCronSchedule(string expr, string hashKey, Action<CronScheduleBuilder>)` | build the `CronScheduleBuilder`, configure it, pass it |
 | `WithCronSchedule(CronScheduleBuilder)` | `WithCronSchedule(CronScheduleBuilder schedule)` |
 | `WithCalendarIntervalSchedule()` | `WithCalendarIntervalSchedule(Action<CalendarIntervalScheduleBuilder>? configure = null)` |
@@ -3200,7 +3200,7 @@ Only two call shapes need editing:
 + .WithDailyTimeIntervalSchedule(x => x.WithInterval(10, IntervalUnit.Second))
 
 - .WithCronSchedule("0 H H(0-7) * * ?", "nightly-cleanup")
-+ .WithCronSchedule(CronScheduleBuilder.CronSchedule(new CronExpression("0 H H(0-7) * * ?", "nightly-cleanup")))
++ .WithCronSchedule(CronScheduleBuilder.Create(new CronExpression("0 H H(0-7) * * ?", "nightly-cleanup")))
 ```
 
 The hash-key overloads went because a hash key belongs to the expression, not to the way the expression is
@@ -3411,6 +3411,35 @@ could not tell the families apart, because it was not told which one it was read
 either way — `job_scheduling_data_2_0.xsd` restricts `misfire-instruction` per trigger type, so the schema
 rejects a foreign name before the resolver sees it.
 
+## Every builder starts with `Create`
+
+3.x taught a different way to start each builder: `Create()` on some, `CronSchedule(...)` on
+`CronScheduleBuilder`, `NewDate()` on `DateBuilder`, `new` on others. In 4.x every builder in the DSL
+is reached the same way — a static `Create(...)` taking only what cannot be defaulted.
+
+| 3.x | 4.x |
+|---|---|
+| `CronScheduleBuilder.CronSchedule(string)` | `CronScheduleBuilder.Create(string)` |
+| `CronScheduleBuilder.CronSchedule(CronExpression)` | `CronScheduleBuilder.Create(CronExpression)` |
+| `DateBuilder.NewDate()` | `DateBuilder.Create()` |
+| `DateBuilder.NewDateInTimeZone(tz)` | `DateBuilder.CreateInTimeZone(tz)` |
+| `JobBuilder.Create(Type)` | `JobBuilder.Create().OfType(type)` |
+
+`ExecutionLimitsBuilder`, new in 4.0, follows the same convention: its constructor is no longer
+public, so `new ExecutionLimitsBuilder()` becomes `ExecutionLimitsBuilder.Create()`.
+
+The `JobBuilder` row is the only one that is more than a rename. `Create(Type)` duplicated
+`OfType(Type)` on the same builder; when the job type only arrives at runtime — read from
+configuration, a database row, or a message — build the detail as:
+
+```csharp
+IJobDetail job = JobBuilder.Create().OfType(jobType).WithIdentity(name).Build();
+```
+
+`JobBuilder.Create()` / `Create<TJob>()` and `TriggerBuilder.Create()` / `Create<TJob>()` are
+unchanged — that generic/non-generic split carries real type information (see
+[The builders carry the job type](#the-builders-carry-the-job-type)).
+
 ## Intervals are said once per builder
 
 Every schedule builder had a `WithIntervalIn<Unit>` method per unit alongside a general `WithInterval`. The
@@ -3484,18 +3513,19 @@ Inside a `WithSimpleSchedule` delegate you never needed the factories at all:
 
 ## `CronScheduleBuilder`'s convenience factories are gone
 
-`CronSchedule(string)` and `CronSchedule(CronExpression)` stay. The six factories that assembled an expression
+`CronSchedule(string)` and `CronSchedule(CronExpression)` stay, spelled `Create(...)` now (see
+[Every builder starts with `Create`](#every-builder-starts-with-create)). The six factories that assembled an expression
 from numbers are replaced by `CronExpressionBuilder`, which names each field instead of relying on argument
 order — the old set used three different orders for the same three numbers.
 
 | 3.x | 4.x |
 |---|---|
-| `CronScheduleBuilder.DailyAtHourAndMinute(h, m)` | `CronScheduleBuilder.CronSchedule($"0 {m} {h} ? * *")` |
-| `CronScheduleBuilder.AtHourAndMinuteOnGivenDaysOfWeek(h, m, days)` | `CronScheduleBuilder.CronSchedule(CronExpressionBuilder.Create().WithSecond(0).WithMinute(m).WithHour(h).OnDaysOfWeek(days).Build())` |
-| `CronScheduleBuilder.WeeklyOnDayAndHourAndMinute(day, h, m)` | `CronScheduleBuilder.CronSchedule(CronExpressionBuilder.Create().WithSecond(0).WithMinute(m).WithHour(h).OnDaysOfWeek(day).Build())` |
-| `CronScheduleBuilder.MonthlyOnDayAndHourAndMinute(dom, h, m)` | `CronScheduleBuilder.CronSchedule(CronExpressionBuilder.Create().WithSecond(0).WithMinute(m).WithHour(h).WithDayOfMonth(dom).Build())` |
-| `CronScheduleBuilder.CronScheduleWithHash(expr, hashKey)` | `CronScheduleBuilder.CronSchedule(new CronExpression(expr, hashKey))` |
-| `CronScheduleBuilder.CronScheduleWithHash(expr, hashSeed)` | `CronScheduleBuilder.CronSchedule(new CronExpression(expr, hashSeed))` |
+| `CronScheduleBuilder.DailyAtHourAndMinute(h, m)` | `CronScheduleBuilder.Create($"0 {m} {h} ? * *")` |
+| `CronScheduleBuilder.AtHourAndMinuteOnGivenDaysOfWeek(h, m, days)` | `CronScheduleBuilder.Create(CronExpressionBuilder.Create().WithSecond(0).WithMinute(m).WithHour(h).OnDaysOfWeek(days).Build())` |
+| `CronScheduleBuilder.WeeklyOnDayAndHourAndMinute(day, h, m)` | `CronScheduleBuilder.Create(CronExpressionBuilder.Create().WithSecond(0).WithMinute(m).WithHour(h).OnDaysOfWeek(day).Build())` |
+| `CronScheduleBuilder.MonthlyOnDayAndHourAndMinute(dom, h, m)` | `CronScheduleBuilder.Create(CronExpressionBuilder.Create().WithSecond(0).WithMinute(m).WithHour(h).WithDayOfMonth(dom).Build())` |
+| `CronScheduleBuilder.CronScheduleWithHash(expr, hashKey)` | `CronScheduleBuilder.Create(new CronExpression(expr, hashKey))` |
+| `CronScheduleBuilder.CronScheduleWithHash(expr, hashSeed)` | `CronScheduleBuilder.Create(new CronExpression(expr, hashSeed))` |
 
 ```diff
 - .WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(9, 30))
@@ -3551,19 +3581,20 @@ implements the interface and drops the `override`:
 
 ## `DateBuilder`'s static factories are gone
 
-The fluent API is unchanged: `DateBuilder.NewDate()`, `NewDateInTimeZone()`, the `At*`/`On*`/`In*` setters and
-`Build()`. The seventeen statics were doing two unrelated jobs under one name — naming a specific date, which
+The fluent API keeps its shape: `DateBuilder.Create()` (named `NewDate()` in 3.x), `CreateInTimeZone()`
+(3.x `NewDateInTimeZone()`), the `At*`/`On*`/`In*` setters and `Build()`. The seventeen statics were
+doing two unrelated jobs under one name — naming a specific date, which
 the fluent API does, and arithmetic on a `DateTimeOffset`, which `DateTimeOffset` does.
 
 ### Naming a date
 
 | 3.x | 4.x |
 |---|---|
-| `DateBuilder.DateOf(h, m, s)` | `DateBuilder.NewDate().AtHourMinuteAndSecond(h, m, s).Build()` |
-| `DateBuilder.TodayAt(h, m, s)` | `DateBuilder.NewDate().AtHourMinuteAndSecond(h, m, s).Build()` |
-| `DateBuilder.DateOf(h, m, s, day, month)` | `DateBuilder.NewDate().InMonthOnDay(month, day).AtHourMinuteAndSecond(h, m, s).Build()` |
-| `DateBuilder.DateOf(h, m, s, day, month, year)` | `DateBuilder.NewDate().InYear(year).InMonthOnDay(month, day).AtHourMinuteAndSecond(h, m, s).Build()` |
-| `DateBuilder.TomorrowAt(h, m, s)` | `DateBuilder.NewDate().AtHourMinuteAndSecond(h, m, s).Build().AddDays(1)` |
+| `DateBuilder.DateOf(h, m, s)` | `DateBuilder.Create().AtHourMinuteAndSecond(h, m, s).Build()` |
+| `DateBuilder.TodayAt(h, m, s)` | `DateBuilder.Create().AtHourMinuteAndSecond(h, m, s).Build()` |
+| `DateBuilder.DateOf(h, m, s, day, month)` | `DateBuilder.Create().InMonthOnDay(month, day).AtHourMinuteAndSecond(h, m, s).Build()` |
+| `DateBuilder.DateOf(h, m, s, day, month, year)` | `DateBuilder.Create().InYear(year).InMonthOnDay(month, day).AtHourMinuteAndSecond(h, m, s).Build()` |
+| `DateBuilder.TomorrowAt(h, m, s)` | `DateBuilder.Create().AtHourMinuteAndSecond(h, m, s).Build().AddDays(1)` |
 
 Note that `InMonthOnDay` takes the month first, where `DateOf` took the day first.
 
@@ -3821,7 +3852,7 @@ immutable snapshot that `Build()` returns and that the scheduler thread reads.
 
 ```diff
 - await scheduler.SetExecutionLimits(new ExecutionLimits()
-+ await scheduler.SetExecutionLimits(new ExecutionLimitsBuilder()
++ await scheduler.SetExecutionLimits(ExecutionLimitsBuilder.Create()
       .ForGroup("batch-jobs", 2)
       .ForDefaultGroup(10)
 -     .ForOtherGroups(5));

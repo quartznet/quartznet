@@ -79,7 +79,7 @@ public class JobRunShellBenchmark
 
     private static IJobDetail CreateJobDetail(string group, Type jobType)
     {
-        return JobBuilder.Create(jobType).WithIdentity(Guid.NewGuid().ToString(), group).Build();
+        return JobBuilder.Create().OfType(jobType).WithIdentity(Guid.NewGuid().ToString(), group).Build();
     }
 
     [DisallowConcurrentExecution]

@@ -28,7 +28,7 @@ namespace Quartz.Tests.Unit;
 /// These used to be static conveniences on <see cref="DateBuilder" />. They are test scaffolding
 /// rather than API: the tests below are about triggers, and only need a compact way to name a
 /// wall-clock instant. Production code should say what it means with <see cref="DateTimeOffset" />
-/// arithmetic, or build a specific date with <see cref="DateBuilder.NewDate" />.
+/// arithmetic, or build a specific date with <see cref="DateBuilder.Create" />.
 /// </remarks>
 public static class TestDates
 {

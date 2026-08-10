@@ -313,7 +313,7 @@ public class XMLSchedulingDataProcessor
 
             Type jobType = TypeLoadHelper.LoadType(jobTypeName!)!;
 
-            IJobDetail jobDetail = JobBuilder.Create(jobType)
+            IJobDetail jobDetail = JobBuilder.Create().OfType(jobType)
                 .WithIdentity(jobName!, jobGroup)
                 .WithDescription(jobDescription)
                 .StoreDurably(jobDefinition.Durable)
@@ -392,7 +392,7 @@ public class XMLSchedulingDataProcessor
                 var timezoneString = cronTrigger.TimeZone.TrimEmptyToNull();
 
                 TimeZoneInfo? tz = timezoneString is not null ? TimeZoneUtil.FindTimeZoneById(timezoneString) : null;
-                scheduleBuilder = CronScheduleBuilder.CronSchedule(cronExpression!)
+                scheduleBuilder = CronScheduleBuilder.Create(cronExpression!)
                     .InTimeZone(tz);
 
                 if (!string.IsNullOrWhiteSpace(cronTrigger.MisfireInstruction))

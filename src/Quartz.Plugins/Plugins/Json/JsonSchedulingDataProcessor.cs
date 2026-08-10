@@ -251,7 +251,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
                 ?? throw new SchedulerConfigException($"JSON job definition '{jobName}': could not load type '{jobTypeName}'.");
 
             var jobGroup = NormalizeEmpty(jobDef.Group);
-            var builder = JobBuilder.Create(jobType);
+            var builder = JobBuilder.Create().OfType(jobType);
             if (jobGroup is not null) builder.WithIdentity(jobName, jobGroup);
             else builder.WithIdentity(jobName);
 
@@ -368,7 +368,7 @@ internal sealed class JsonSchedulingDataProcessor : XMLSchedulingDataProcessor
         CronScheduleBuilder builder;
         try
         {
-            builder = CronScheduleBuilder.CronSchedule(cron.Expression);
+            builder = CronScheduleBuilder.Create(cron.Expression);
         }
         catch (Exception ex)
         {

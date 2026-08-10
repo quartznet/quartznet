@@ -51,7 +51,7 @@ occurrence counting.
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("monthlyTrigger", "group1")
     .WithRecurrenceSchedule("FREQ=MONTHLY;BYDAY=2MO")
-    .StartAt(DateBuilder.NewDate().InYear(2025).InMonthOnDay(1, 1).AtHourMinuteAndSecond(9, 0, 0).Build())
+    .StartAt(DateBuilder.Create().InYear(2025).InMonthOnDay(1, 1).AtHourMinuteAndSecond(9, 0, 0).Build())
     .Build();
 ```
 

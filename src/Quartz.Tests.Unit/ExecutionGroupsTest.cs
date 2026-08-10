@@ -68,7 +68,7 @@ public sealed class ExecutionGroupsTest
     [Test]
     public void ExecutionLimits_ForGroup_SetsLimit()
     {
-        ExecutionLimits limits = new ExecutionLimitsBuilder()
+        ExecutionLimits limits = ExecutionLimitsBuilder.Create()
             .ForGroup("batch-jobs", 2)
             .ForGroup("high-cpu", 5)
             .Build();
@@ -81,7 +81,7 @@ public sealed class ExecutionGroupsTest
     [Test]
     public void ExecutionLimits_ForDefaultGroup_ReportsTheGroupAsNull()
     {
-        ExecutionLimits limits = new ExecutionLimitsBuilder()
+        ExecutionLimits limits = ExecutionLimitsBuilder.Create()
             .ForDefaultGroup(10)
             .Build();
 
@@ -93,7 +93,7 @@ public sealed class ExecutionGroupsTest
     [Test]
     public void ExecutionLimits_ForOtherGroups_SetsAsteriskKey()
     {
-        ExecutionLimits limits = new ExecutionLimitsBuilder()
+        ExecutionLimits limits = ExecutionLimitsBuilder.Create()
             .ForOtherGroups(3)
             .Build();
 
@@ -103,7 +103,7 @@ public sealed class ExecutionGroupsTest
     [Test]
     public void ExecutionLimits_Unlimited_SetsNull()
     {
-        ExecutionLimits limits = new ExecutionLimitsBuilder()
+        ExecutionLimits limits = ExecutionLimitsBuilder.Create()
             .Unlimited("batch-jobs")
             .Build();
 
@@ -113,8 +113,8 @@ public sealed class ExecutionGroupsTest
     [Test]
     public void ExecutionLimits_IsEmpty_WhenNothingWasConfigured()
     {
-        new ExecutionLimitsBuilder().Build().IsEmpty.Should().BeTrue();
-        new ExecutionLimitsBuilder().ForGroup("a", 1).Build().IsEmpty.Should().BeFalse();
+        ExecutionLimitsBuilder.Create().Build().IsEmpty.Should().BeTrue();
+        ExecutionLimitsBuilder.Create().ForGroup("a", 1).Build().IsEmpty.Should().BeFalse();
     }
 
     [TestCase("*")]
@@ -124,17 +124,17 @@ public sealed class ExecutionGroupsTest
     [TestCase(" * ")]
     public void ExecutionLimits_ForGroup_RejectsReservedNames(string group)
     {
-        Action forGroup = () => new ExecutionLimitsBuilder().ForGroup(group, 1);
+        Action forGroup = () => ExecutionLimitsBuilder.Create().ForGroup(group, 1);
         forGroup.Should().Throw<ArgumentException>().WithMessage("*reserved*");
 
-        Action unlimited = () => new ExecutionLimitsBuilder().Unlimited(group);
+        Action unlimited = () => ExecutionLimitsBuilder.Create().Unlimited(group);
         unlimited.Should().Throw<ArgumentException>().WithMessage("*reserved*");
     }
 
     [Test]
     public void TryTake_NoLimits_ReturnsTrue()
     {
-        ExecutionSlots slots = new ExecutionLimitsBuilder().Build().CreateSlots();
+        ExecutionSlots slots = ExecutionLimitsBuilder.Create().Build().CreateSlots();
 
         slots.TryTake("batch-jobs").Should().BeTrue();
     }
@@ -142,7 +142,7 @@ public sealed class ExecutionGroupsTest
     [Test]
     public void TryTake_Unlimited_ReturnsTrue()
     {
-        ExecutionSlots slots = new ExecutionLimitsBuilder().Unlimited("batch-jobs").Build().CreateSlots();
+        ExecutionSlots slots = ExecutionLimitsBuilder.Create().Unlimited("batch-jobs").Build().CreateSlots();
 
         slots.TryTake("batch-jobs").Should().BeTrue();
         slots.TryTake("batch-jobs").Should().BeTrue();
@@ -151,7 +151,7 @@ public sealed class ExecutionGroupsTest
     [Test]
     public void TryTake_Forbidden_ReturnsFalse()
     {
-        ExecutionSlots slots = new ExecutionLimitsBuilder().ForGroup("batch-jobs", 0).Build().CreateSlots();
+        ExecutionSlots slots = ExecutionLimitsBuilder.Create().ForGroup("batch-jobs", 0).Build().CreateSlots();
 
         slots.TryTake("batch-jobs").Should().BeFalse();
     }
@@ -159,7 +159,7 @@ public sealed class ExecutionGroupsTest
     [Test]
     public void TryTake_Available_DecrementsAndReturnsTrue()
     {
-        ExecutionSlots slots = new ExecutionLimitsBuilder().ForGroup("batch-jobs", 2).Build().CreateSlots();
+        ExecutionSlots slots = ExecutionLimitsBuilder.Create().ForGroup("batch-jobs", 2).Build().CreateSlots();
 
         slots.TryTake("batch-jobs").Should().BeTrue();
         Remaining(slots, "batch-jobs").Should().Be(1);
@@ -173,7 +173,7 @@ public sealed class ExecutionGroupsTest
     [Test]
     public void TryTake_FallsBackToOtherGroups()
     {
-        ExecutionSlots slots = new ExecutionLimitsBuilder().ForOtherGroups(1).Build().CreateSlots();
+        ExecutionSlots slots = ExecutionLimitsBuilder.Create().ForOtherGroups(1).Build().CreateSlots();
 
         slots.TryTake("unknown-group").Should().BeTrue();
         Remaining(slots, "unknown-group").Should().Be(0,
@@ -185,7 +185,7 @@ public sealed class ExecutionGroupsTest
     [Test]
     public void TryTake_NullGroup_DoesNotFallBackToOtherGroups()
     {
-        ExecutionSlots slots = new ExecutionLimitsBuilder().ForOtherGroups(0).Build().CreateSlots();
+        ExecutionSlots slots = ExecutionLimitsBuilder.Create().ForOtherGroups(0).Build().CreateSlots();
 
         slots.TryTake(null).Should().BeTrue("'*' is a catch-all for named groups, not for ungrouped triggers");
     }
@@ -193,7 +193,7 @@ public sealed class ExecutionGroupsTest
     [Test]
     public void TryTake_NullGroup_UsesDefaultGroup()
     {
-        ExecutionSlots slots = new ExecutionLimitsBuilder().ForDefaultGroup(1).Build().CreateSlots();
+        ExecutionSlots slots = ExecutionLimitsBuilder.Create().ForDefaultGroup(1).Build().CreateSlots();
 
         slots.TryTake(null).Should().BeTrue();
         slots.TryTake(null).Should().BeFalse();
@@ -202,7 +202,7 @@ public sealed class ExecutionGroupsTest
     [Test]
     public void TryTake_GroupNotConfigured_NoDefault_ReturnsTrue()
     {
-        ExecutionSlots slots = new ExecutionLimitsBuilder().ForGroup("batch-jobs", 0).Build().CreateSlots();
+        ExecutionSlots slots = ExecutionLimitsBuilder.Create().ForGroup("batch-jobs", 0).Build().CreateSlots();
 
         slots.TryTake("other-group").Should().BeTrue();
     }
@@ -211,7 +211,7 @@ public sealed class ExecutionGroupsTest
     public void TryTake_ThreeTriggersLimitTwo()
     {
         // Simulate what a job store does: walk the candidates and ask for a slot for each
-        ExecutionSlots slots = new ExecutionLimitsBuilder().ForGroup("batch-jobs", 2).Build().CreateSlots();
+        ExecutionSlots slots = ExecutionLimitsBuilder.Create().ForGroup("batch-jobs", 2).Build().CreateSlots();
 
         int allowed = 0;
         for (int i = 0; i < 3; i++)
@@ -228,7 +228,7 @@ public sealed class ExecutionGroupsTest
     [Test]
     public void CreateSlots_LeavesTheSnapshotAlone()
     {
-        ExecutionLimits limits = new ExecutionLimitsBuilder().ForGroup("batch-jobs", 2).Build();
+        ExecutionLimits limits = ExecutionLimitsBuilder.Create().ForGroup("batch-jobs", 2).Build();
 
         ExecutionSlots first = limits.CreateSlots();
         first.TryTake("batch-jobs").Should().BeTrue();
@@ -243,7 +243,7 @@ public sealed class ExecutionGroupsTest
     [Test]
     public void ExecutionLimits_FluentChaining()
     {
-        ExecutionLimits limits = new ExecutionLimitsBuilder()
+        ExecutionLimits limits = ExecutionLimitsBuilder.Create()
             .ForGroup("batch-jobs", 2)
             .ForDefaultGroup(10)
             .ForOtherGroups(5)
@@ -258,28 +258,28 @@ public sealed class ExecutionGroupsTest
     [Test]
     public void ExecutionLimits_ForGroup_RejectsNegativeValue()
     {
-        Action act = () => new ExecutionLimitsBuilder().ForGroup("x", -1);
+        Action act = () => ExecutionLimitsBuilder.Create().ForGroup("x", -1);
         act.Should().Throw<ArgumentOutOfRangeException>();
     }
 
     [Test]
     public void ExecutionLimits_ForDefaultGroup_RejectsNegativeValue()
     {
-        Action act = () => new ExecutionLimitsBuilder().ForDefaultGroup(-1);
+        Action act = () => ExecutionLimitsBuilder.Create().ForDefaultGroup(-1);
         act.Should().Throw<ArgumentOutOfRangeException>();
     }
 
     [Test]
     public void ExecutionLimits_ForOtherGroups_RejectsNegativeValue()
     {
-        Action act = () => new ExecutionLimitsBuilder().ForOtherGroups(-1);
+        Action act = () => ExecutionLimitsBuilder.Create().ForOtherGroups(-1);
         act.Should().Throw<ArgumentOutOfRangeException>();
     }
 
     [Test]
     public void ExecutionLimits_Build_IsIndependentOfLaterBuilderChanges()
     {
-        ExecutionLimitsBuilder builder = new ExecutionLimitsBuilder().ForGroup("a", 5);
+        ExecutionLimitsBuilder builder = ExecutionLimitsBuilder.Create().ForGroup("a", 5);
         ExecutionLimits snapshot = builder.Build();
 
         // Keep configuring the builder after the snapshot was taken
@@ -403,7 +403,7 @@ public sealed class ExecutionGroupsTest
     [Test]
     public void Slots_UnlistedGroupUsesTheCatchAll()
     {
-        ExecutionLimits limits = new ExecutionLimitsBuilder()
+        ExecutionLimits limits = ExecutionLimitsBuilder.Create()
             .ForGroup("batch", 5)
             .ForOtherGroups(3)
             .Build();

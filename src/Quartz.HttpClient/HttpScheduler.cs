@@ -282,7 +282,7 @@ public sealed class HttpScheduler : IScheduler
             return null;
         }
 
-        ExecutionLimitsBuilder builder = new();
+        ExecutionLimitsBuilder builder = ExecutionLimitsBuilder.Create();
         foreach (KeyValuePair<string, int?> kvp in response.Limits)
         {
             if (kvp.Key == ExecutionLimits.OtherGroups)

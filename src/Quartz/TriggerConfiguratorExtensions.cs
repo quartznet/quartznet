@@ -75,7 +75,7 @@ public static class TriggerConfiguratorExtensions
         string cronExpression,
         Action<CronScheduleBuilder>? configure = null) where TConfigurator : ITriggerConfigurator
     {
-        CronScheduleBuilder builder = CronScheduleBuilder.CronSchedule(cronExpression);
+        CronScheduleBuilder builder = CronScheduleBuilder.Create(cronExpression);
         configure?.Invoke(builder);
         configurator.WithSchedule(builder);
         return configurator;
@@ -87,7 +87,7 @@ public static class TriggerConfiguratorExtensions
     /// <remarks>
     /// This is the overload to reach for when the expression carries <c>H</c> (hash) tokens that
     /// should be spread by something other than the trigger's own key:
-    /// <c>CronScheduleBuilder.CronSchedule(new CronExpression(expression, hashKey))</c>.
+    /// <c>CronScheduleBuilder.Create(new CronExpression(expression, hashKey))</c>.
     /// </remarks>
     /// <param name="configurator">the trigger being configured.</param>
     /// <param name="schedule">the schedule to use.</param>

@@ -424,7 +424,7 @@ public class QuartSchedulerBenchmark
 
     private static IJobDetail CreateJobDetail(string group, Type jobType)
     {
-        return JobBuilder.Create(jobType).WithIdentity(Guid.NewGuid().ToString(), group).Build();
+        return JobBuilder.Create().OfType(jobType).WithIdentity(Guid.NewGuid().ToString(), group).Build();
     }
 
     private static void RunConcurrently(QuartzScheduler scheduler, int threadCount, int iterationsPerThread, Action<QuartzScheduler> action)

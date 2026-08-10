@@ -388,7 +388,7 @@ public class CronExpressionHashTest
     {
         // When using explicit hash key, no trigger identity is required
         ITrigger trigger = TriggerBuilder.Create()
-            .WithCronSchedule(CronScheduleBuilder.CronSchedule(new CronExpression("H H * * * ?", "custom-key")))
+            .WithCronSchedule(CronScheduleBuilder.Create(new CronExpression("H H * * * ?", "custom-key")))
             .Build();
 
         Assert.IsNotNull(trigger);
@@ -424,7 +424,7 @@ public class CronExpressionHashTest
     [Test]
     public void CronScheduleFromHashedExpression_ProducesValidSchedule()
     {
-        CronScheduleBuilder builder = CronScheduleBuilder.CronSchedule(new CronExpression("H H(0-7) * * * ?", "nightly"));
+        CronScheduleBuilder builder = CronScheduleBuilder.Create(new CronExpression("H H(0-7) * * * ?", "nightly"));
         IMutableTrigger trigger = builder.Build();
         Assert.IsNotNull(trigger);
     }

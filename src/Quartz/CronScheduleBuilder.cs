@@ -39,7 +39,7 @@ namespace Quartz;
 /// <para>
 /// This is internal because only <see cref="TriggerBuilder{TJob}" /> is in a position to call it.
 /// Callers who want to choose the hash key themselves build the expression directly:
-/// <c>CronScheduleBuilder.CronSchedule(new CronExpression(expression, hashKey))</c>.
+/// <c>CronScheduleBuilder.Create(new CronExpression(expression, hashKey))</c>.
 /// </para>
 /// </remarks>
 internal interface IHashKeyAwareScheduleBuilder
@@ -85,7 +85,7 @@ internal interface IHashKeyAwareScheduleBuilder
 /// <para>
 /// For schedules that are easier to describe than to spell as a cron string, build the expression
 /// with <see cref="CronExpressionBuilder" /> and pass it to
-/// <see cref="CronSchedule(CronExpression)" />.
+/// <see cref="Create(CronExpression)" />.
 /// </para>
 /// </remarks>
 /// <seealso cref="CronExpression" />
@@ -133,7 +133,7 @@ public sealed class CronScheduleBuilder : IScheduleBuilder, IHashKeyAwareSchedul
             Throw.FormatException(
                 "Cron expression contains H (hash) tokens which require a trigger identity for resolution. "
                 + "Use TriggerBuilder with WithIdentity(), or provide an explicit hash key via "
-                + "CronScheduleBuilder.CronSchedule(new CronExpression(expression, hashKey)).");
+                + "CronScheduleBuilder.Create(new CronExpression(expression, hashKey)).");
         }
 
         CronTriggerImpl ct = new CronTriggerImpl();
@@ -155,7 +155,7 @@ public sealed class CronScheduleBuilder : IScheduleBuilder, IHashKeyAwareSchedul
     /// <param name="cronExpression">the cron expression to base the schedule on.</param>
     /// <returns>the new CronScheduleBuilder</returns>
     /// <seealso cref="CronExpression" />
-    public static CronScheduleBuilder CronSchedule(string cronExpression)
+    public static CronScheduleBuilder Create(string cronExpression)
     {
         if (cronExpression is null)
         {
@@ -185,7 +185,7 @@ public sealed class CronScheduleBuilder : IScheduleBuilder, IHashKeyAwareSchedul
     {
         try
         {
-            return CronSchedule(new CronExpression(presumedValidCronExpression));
+            return Create(new CronExpression(presumedValidCronExpression));
         }
         catch (FormatException e)
         {
@@ -200,12 +200,12 @@ public sealed class CronScheduleBuilder : IScheduleBuilder, IHashKeyAwareSchedul
     /// </summary>
     /// <remarks>
     /// This is also the way to resolve <c>H</c> (hash) tokens against something other than the
-    /// trigger's own key: <c>CronSchedule(new CronExpression(expression, hashKey))</c>.
+    /// trigger's own key: <c>Create(new CronExpression(expression, hashKey))</c>.
     /// </remarks>
     /// <param name="cronExpression">the cron expression to base the schedule on.</param>
     /// <returns>the new CronScheduleBuilder</returns>
     /// <seealso cref="CronExpression" />
-    public static CronScheduleBuilder CronSchedule(CronExpression cronExpression)
+    public static CronScheduleBuilder Create(CronExpression cronExpression)
     {
         return new CronScheduleBuilder(cronExpression);
     }

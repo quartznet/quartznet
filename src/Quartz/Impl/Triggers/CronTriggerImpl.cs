@@ -609,7 +609,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
 
     public override IScheduleBuilder GetScheduleBuilder()
     {
-        CronScheduleBuilder cb = CronScheduleBuilder.CronSchedule(CronExpressionString!).InTimeZone(TimeZone);
+        CronScheduleBuilder cb = CronScheduleBuilder.Create(CronExpressionString!).InTimeZone(TimeZone);
 
         CronTriggerMisfireInstruction instruction = MisfireInstruction;
         if (Enum.IsDefined(instruction))

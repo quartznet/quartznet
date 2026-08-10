@@ -49,7 +49,7 @@ public class DailyTimeIntervalScheduleBuilderTest
 
         ISchedulerFactory factory = QuartzSchedulerBuilder.Create().UseProperties(properties).Build();
         IScheduler scheduler = await factory.GetScheduler();
-        IJobDetail job = JobBuilder.Create(typeof(NoOpJob)).Build();
+        IJobDetail job = JobBuilder.Create().OfType(typeof(NoOpJob)).Build();
 
         ITrigger trigger = TriggerBuilder.Create()
             .WithIdentity("test")

@@ -430,7 +430,7 @@ public class SmokeTestPerformer
         Assert.That(retrievedNoGroup.ExecutionGroup, Is.Null, "Trigger without execution group should have null");
 
         // Test execution limits API
-        await scheduler.SetExecutionLimits(new ExecutionLimitsBuilder()
+        await scheduler.SetExecutionLimits(ExecutionLimitsBuilder.Create()
             .ForGroup("batch-jobs", 2)
             .ForOtherGroups(5)
             .Build()).ConfigureAwait(false);

@@ -46,7 +46,7 @@ namespace Quartz;
 ///     .WithSimpleSchedule(x => x
 ///         .WithInterval(TimeSpan.FromHours(1))
 ///         .RepeatForever())
-///     .StartAt(DateBuilder.NewDate().AtHourMinuteAndSecond(10, 0, 0).Build())
+///     .StartAt(DateBuilder.Create().AtHourMinuteAndSecond(10, 0, 0).Build())
 ///     .Build();
 /// await scheduler.ScheduleJob(job, trigger);
 /// </code>
@@ -91,20 +91,26 @@ public sealed class DateBuilder
     /// <summary>
     /// Create a DateBuilder, with initial settings for the current date and time in the system default timezone.
     /// </summary>
-    /// <param name="timeProvider"></param>
-    /// <returns></returns>
-    public static DateBuilder NewDate(TimeProvider? timeProvider = null)
+    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
+    /// <returns>the new DateBuilder</returns>
+    public static DateBuilder Create(TimeProvider? timeProvider = null)
     {
         return new DateBuilder(timeProvider ?? TimeProvider.System);
     }
 
     /// <summary>
-    /// Create a DateBuilder, with initial settings for the current date and time in the given timezone.
+    /// Create a DateBuilder seeded with the machine's current local date and time, whose result is
+    /// built in the given time zone.
     /// </summary>
+    /// <remarks>
+    /// The seed values come from the clock's local time, not from the given zone's wall clock; the
+    /// zone decides the offset the built <see cref="DateTimeOffset" /> carries. Set the fields that
+    /// matter explicitly rather than relying on the seed.
+    /// </remarks>
     /// <param name="timeZone">Time zone to use.</param>
-    /// <param name="timeProvider"></param>
-    /// <returns></returns>
-    public static DateBuilder NewDateInTimeZone(TimeZoneInfo timeZone, TimeProvider? timeProvider = null)
+    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
+    /// <returns>the new DateBuilder</returns>
+    public static DateBuilder CreateInTimeZone(TimeZoneInfo timeZone, TimeProvider? timeProvider = null)
     {
         return new DateBuilder(timeProvider ?? TimeProvider.System, timeZone);
     }

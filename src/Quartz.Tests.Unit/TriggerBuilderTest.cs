@@ -179,7 +179,7 @@ public class TriggerBuilderTest
         // WithSchedule is redeclared on the generic configurator for the same reason: losing TJob
         // here would lose the property-named job data that comes after it.
         ITriggerConfigurator<TestJob> configured = ((ITriggerConfigurator<TestJob>) TriggerBuilder.Create<TestJob>())
-            .WithSchedule(CronScheduleBuilder.CronSchedule("0 0 12 * * ?"))
+            .WithSchedule(CronScheduleBuilder.Create("0 0 12 * * ?"))
             .WithDescription("noon");
 
         ((TriggerBuilder<TestJob>) configured).Build().Description.Should().Be("noon");
@@ -190,7 +190,7 @@ public class TriggerBuilderTest
     {
         // The hash-key cron overloads are gone; a hash key rides on the CronExpression instead.
         ITrigger trigger = TriggerBuilder.Create()
-            .WithCronSchedule(CronScheduleBuilder.CronSchedule(new CronExpression("H H * * * ?", "custom-key")))
+            .WithCronSchedule(CronScheduleBuilder.Create(new CronExpression("H H * * * ?", "custom-key")))
             .Build();
 
         trigger.Should().BeAssignableTo<ICronTrigger>();
