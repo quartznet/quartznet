@@ -1,4 +1,4 @@
-namespace Quartz.AspNetCore.HttpApi;
+namespace Quartz;
 
 public class QuartzHttpApiOptions
 {

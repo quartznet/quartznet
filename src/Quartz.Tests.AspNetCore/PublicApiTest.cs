@@ -18,7 +18,7 @@ public class PublicApiTest
 {
     private static readonly Assembly[] shippedAssemblies =
     [
-        typeof(global::Quartz.AspNetCore.QuartzServiceCollectionExtensions).Assembly,
+        typeof(global::Quartz.QuartzAspNetCoreConfigurationExtensions).Assembly,
         typeof(global::Quartz.QuartzDashboardOptions).Assembly,
     ];
 

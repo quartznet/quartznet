@@ -1,10 +1,10 @@
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
-namespace Quartz.AspNetCore.HealthChecks;
+namespace Quartz;
 
 /// <summary>
 /// Options for the Quartz scheduler health check registered by
-/// <see cref="QuartzServiceCollectionExtensions.AddQuartzHealthChecks(Microsoft.Extensions.DependencyInjection.IServiceCollection, Action{QuartzHealthCheckOptions})" />.
+/// <see cref="QuartzAspNetCoreConfigurationExtensions.AddQuartzHealthChecks(Microsoft.Extensions.DependencyInjection.IServiceCollection, Action{QuartzHealthCheckOptions})" />.
 /// </summary>
 public sealed class QuartzHealthCheckOptions
 {

@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Builder;
 
-using Quartz.AspNetCore;
 
 namespace Quartz.Tests.AspNetCore;
 
