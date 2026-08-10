@@ -4,14 +4,23 @@ namespace Quartz.Tests.Unit.Queries;
 public class PagedQueryTest
 {
     [Test]
-    public void DefaultsSelectEverything()
+    public void DefaultsSelectTheFirstBoundedPage()
     {
         JobQuery query = new JobQuery();
 
         query.Skip.Should().Be(0, "a query without paging must start at the first item");
-        query.Take.Should().Be(int.MaxValue, "a query without paging must return everything");
+        query.Take.Should().Be(PagedQuery.DefaultTake, "an unpaged query must not materialize an unbounded result by accident");
+        PagedQuery.DefaultTake.Should().Be(250, "the default page size is a documented wire contract");
         query.IncludeTotalCount.Should().BeFalse("counting costs a second query and must be opt-in");
         query.Group.Should().BeNull("no filter means all groups");
+    }
+
+    [Test]
+    public void UnboundedIsAnExplicitOptIn()
+    {
+        JobQuery query = new JobQuery { Take = int.MaxValue };
+
+        query.Take.Should().Be(int.MaxValue, "int.MaxValue is the documented 'everything' opt-in");
     }
 
     [Test]

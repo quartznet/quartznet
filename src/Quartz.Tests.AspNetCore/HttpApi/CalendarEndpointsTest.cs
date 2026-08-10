@@ -22,7 +22,7 @@ public class CalendarEndpointsTest : WebApiTest
             calendarNames.Should().ContainSingle(x => x == "Calendar 2");
         }
 
-        A.CallTo(() => FakeScheduler.QueryCalendarNames(new CalendarQuery(), A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
+        A.CallTo(() => FakeScheduler.QueryCalendarNames(new CalendarQuery { Take = int.MaxValue }, A<CancellationToken>._)).MustHaveHappened(1, Times.Exactly);
     }
 
     [Test]

@@ -76,7 +76,7 @@ internal static class JobEndpoints
         ISchedulerRepository schedulerRepository,
         string schedulerName,
         int skip = 0,
-        int take = int.MaxValue,
+        int? take = null,
         bool includeTotalCount = false,
         string? groupContains = null,
         string? groupEndsWith = null,
@@ -97,9 +97,14 @@ internal static class JobEndpoints
                 Group = matcher,
                 Name = EndpointHelper.GetNameMatcher<JobKey>(nameContains, nameEndsWith, nameStartsWith, nameEquals),
                 Skip = skip,
-                Take = take,
                 IncludeTotalCount = includeTotalCount
             };
+
+            // a request that names no take gets the query record's own default page size
+            if (take.HasValue)
+            {
+                query = query with { Take = take.Value };
+            }
 
             PagedResult<JobHeader> page = await scheduler.QueryJobs(query, cancellationToken).ConfigureAwait(false);
             return new PagedResultDto<JobHeaderDto>(page.Items.Select(JobHeaderDto.Create).ToArray(), page.HasMore, page.TotalCount);
@@ -363,7 +368,7 @@ internal static class JobEndpoints
         ISchedulerRepository schedulerRepository,
         string schedulerName,
         int skip = 0,
-        int take = int.MaxValue,
+        int? take = null,
         bool includeTotalCount = false,
         bool? paused = null,
         string? name = null,
@@ -377,9 +382,14 @@ internal static class JobEndpoints
                 Name = name,
                 Paused = paused,
                 Skip = skip,
-                Take = take,
                 IncludeTotalCount = includeTotalCount
             };
+
+            // a request that names no take gets the query record's own default page size
+            if (take.HasValue)
+            {
+                query = query with { Take = take.Value };
+            }
 
             PagedResult<JobGroup> page = await scheduler.QueryJobGroups(query, cancellationToken).ConfigureAwait(false);
             return new PagedResultDto<JobGroupDto>(page.Items.Select(JobGroupDto.Create).ToArray(), page.HasMore, page.TotalCount);

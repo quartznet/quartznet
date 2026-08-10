@@ -854,6 +854,7 @@ namespace Quartz
     }
     public abstract class PagedQuery : System.IEquatable<Quartz.PagedQuery>
     {
+        public const int DefaultTake = 250;
         protected PagedQuery() { }
         public bool IncludeTotalCount { get; init; }
         public int Skip { get; init; }

@@ -65,9 +65,10 @@ Every listing endpoint — jobs, triggers, calendars, and the two group listings
 }
 ```
 
-`take` defaults to no limit, `hasMore` is exact, and `totalCount` is `null` unless `includeTotalCount=true`
-was asked for — computing it costs a second database query. A count with no rows is
-`?take=0&includeTotalCount=true`.
+`take` defaults to 250 (`PagedQuery.DefaultTake`) when the request names none — ask for everything
+explicitly with `?take=2147483647` — `hasMore` is exact, and `totalCount` is `null` unless
+`includeTotalCount=true` was asked for, because computing it costs a second database query. A count
+with no rows is `?take=0&includeTotalCount=true`, which the stores answer with the count query alone.
 
 | Endpoint | Returns | Filters (besides paging) |
 |---|---|---|

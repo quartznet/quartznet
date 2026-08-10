@@ -44,10 +44,9 @@ internal sealed class QueryStringBuilder
             Add("skip", query.Skip);
         }
 
-        if (query.Take != int.MaxValue)
-        {
-            Add("take", query.Take);
-        }
+        // Always sent: omitting the parameter would hand the decision to the server's default,
+        // and Take = int.MaxValue - the explicit unbounded opt-in - would silently truncate.
+        Add("take", query.Take);
 
         if (query.IncludeTotalCount)
         {

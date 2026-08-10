@@ -1135,7 +1135,11 @@ public sealed class RAMJobStore : IJobStore
             lockObject.Release();
         }
 
-        matches.Sort(static (left, right) => CompareByGroupThenName(left.Key.Group, left.Key.Name, right.Key.Group, right.Key.Name));
+        if (query.Take > 0)
+        {
+            // the count idiom (Take = 0) reads no page, so the ordering work is skipped
+            matches.Sort(static (left, right) => CompareByGroupThenName(left.Key.Group, left.Key.Name, right.Key.Group, right.Key.Name));
+        }
 
         return Page(matches, query, static job => new JobHeader(
             job.Key,
@@ -1184,11 +1188,15 @@ public sealed class RAMJobStore : IJobStore
             lockObject.Release();
         }
 
-        matches.Sort(static (left, right) => CompareByGroupThenName(
-            left.Trigger.Key.Group,
-            left.Trigger.Key.Name,
-            right.Trigger.Key.Group,
-            right.Trigger.Key.Name));
+        if (query.Take > 0)
+        {
+            // the count idiom (Take = 0) reads no page, so the ordering work is skipped
+            matches.Sort(static (left, right) => CompareByGroupThenName(
+                left.Trigger.Key.Group,
+                left.Trigger.Key.Name,
+                right.Trigger.Key.Group,
+                right.Trigger.Key.Name));
+        }
 
         return Page(matches, query, static match => new TriggerHeader(
             match.Trigger.Key,

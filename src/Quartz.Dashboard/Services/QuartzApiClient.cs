@@ -120,20 +120,31 @@ internal sealed class QuartzApiClient : IQuartzApiClient
 
     public async ValueTask<List<JobGroupDto>> GetJobGroups(string schedulerName, CancellationToken cancellationToken = default)
     {
-        JsonElement json = await GetJson($"{GetSchedulerPath(schedulerName)}/jobs/groups", cancellationToken).ConfigureAwait(false);
-        JsonElement items = GetOptionalProperty(json, "items");
-        if (items.ValueKind is not JsonValueKind.Array)
-        {
-            return [];
-        }
-
         List<JobGroupDto> result = [];
-        foreach (JsonElement group in items.EnumerateArray())
+        int skip = 0;
+        while (true)
         {
-            result.Add(new JobGroupDto(GetStringProperty(group, "name"), GetBooleanProperty(group, "paused")));
-        }
+            JsonElement json = await GetJson($"{GetSchedulerPath(schedulerName)}/jobs/groups?skip={skip.ToString(CultureInfo.InvariantCulture)}", cancellationToken).ConfigureAwait(false);
+            JsonElement items = GetOptionalProperty(json, "items");
+            if (items.ValueKind is not JsonValueKind.Array)
+            {
+                return result;
+            }
 
-        return result;
+            int itemCount = 0;
+            foreach (JsonElement group in items.EnumerateArray())
+            {
+                result.Add(new JobGroupDto(GetStringProperty(group, "name"), GetBooleanProperty(group, "paused")));
+                itemCount++;
+            }
+
+            if (!GetBooleanProperty(json, "hasMore") || itemCount == 0)
+            {
+                return result;
+            }
+
+            skip += itemCount;
+        }
     }
 
     public async ValueTask<JobDetailDto> GetJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
@@ -190,20 +201,32 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         string jobName,
         CancellationToken cancellationToken = default)
     {
-        string path = $"{GetSchedulerPath(schedulerName)}/triggers?jobName={Uri.EscapeDataString(jobName)}&jobGroup={Uri.EscapeDataString(jobGroup)}";
-        JsonElement json = await GetJson(path, cancellationToken).ConfigureAwait(false);
-        JsonElement items = GetOptionalProperty(json, "items");
-
         Dictionary<(string Group, string Name), string?> states = new();
-        if (items.ValueKind is JsonValueKind.Array)
+        int skip = 0;
+        while (true)
         {
+            string path = $"{GetSchedulerPath(schedulerName)}/triggers?jobName={Uri.EscapeDataString(jobName)}&jobGroup={Uri.EscapeDataString(jobGroup)}&skip={skip.ToString(CultureInfo.InvariantCulture)}";
+            JsonElement json = await GetJson(path, cancellationToken).ConfigureAwait(false);
+            JsonElement items = GetOptionalProperty(json, "items");
+            if (items.ValueKind is not JsonValueKind.Array)
+            {
+                return states;
+            }
+
+            int itemCount = 0;
             foreach (JsonElement header in items.EnumerateArray())
             {
                 states[(GetStringProperty(header, "group"), GetStringProperty(header, "name"))] = GetTriggerStateProperty(header, "state");
+                itemCount++;
             }
-        }
 
-        return states;
+            if (!GetBooleanProperty(json, "hasMore") || itemCount == 0)
+            {
+                return states;
+            }
+
+            skip += itemCount;
+        }
     }
 
     public async ValueTask<List<CurrentlyExecutingJobDto>> GetCurrentlyExecutingJobs(string schedulerName, CancellationToken cancellationToken = default)
@@ -363,20 +386,31 @@ internal sealed class QuartzApiClient : IQuartzApiClient
 
     public async ValueTask<List<string>> GetCalendarNames(string schedulerName, CancellationToken cancellationToken = default)
     {
-        JsonElement json = await GetJson($"{GetSchedulerPath(schedulerName)}/calendars", cancellationToken).ConfigureAwait(false);
-        JsonElement items = GetOptionalProperty(json, "items");
-        if (items.ValueKind is not JsonValueKind.Array)
-        {
-            return [];
-        }
-
         List<string> result = [];
-        foreach (JsonElement name in items.EnumerateArray())
+        int skip = 0;
+        while (true)
         {
-            result.Add(name.GetString() ?? string.Empty);
-        }
+            JsonElement json = await GetJson($"{GetSchedulerPath(schedulerName)}/calendars?skip={skip.ToString(CultureInfo.InvariantCulture)}", cancellationToken).ConfigureAwait(false);
+            JsonElement items = GetOptionalProperty(json, "items");
+            if (items.ValueKind is not JsonValueKind.Array)
+            {
+                return result;
+            }
 
-        return result;
+            int itemCount = 0;
+            foreach (JsonElement name in items.EnumerateArray())
+            {
+                result.Add(name.GetString() ?? string.Empty);
+                itemCount++;
+            }
+
+            if (!GetBooleanProperty(json, "hasMore") || itemCount == 0)
+            {
+                return result;
+            }
+
+            skip += itemCount;
+        }
     }
 
     public async ValueTask<CalendarDetailDto> GetCalendar(string schedulerName, string calendarName, CancellationToken cancellationToken = default)

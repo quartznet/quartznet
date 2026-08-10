@@ -73,7 +73,7 @@ internal static class TriggerEndpoints
         ISchedulerRepository schedulerRepository,
         string schedulerName,
         int skip = 0,
-        int take = int.MaxValue,
+        int? take = null,
         bool includeTotalCount = false,
         string? groupContains = null,
         string? groupEndsWith = null,
@@ -109,9 +109,14 @@ internal static class TriggerEndpoints
                 CalendarName = calendarName,
                 State = state,
                 Skip = skip,
-                Take = take,
                 IncludeTotalCount = includeTotalCount
             };
+
+            // a request that names no take gets the query record's own default page size
+            if (take.HasValue)
+            {
+                query = query with { Take = take.Value };
+            }
 
             PagedResult<TriggerHeader> page = await scheduler.QueryTriggers(query, cancellationToken).ConfigureAwait(false);
             return new PagedResultDto<TriggerHeaderDto>(page.Items.Select(TriggerHeaderDto.Create).ToArray(), page.HasMore, page.TotalCount);
@@ -275,7 +280,7 @@ internal static class TriggerEndpoints
         ISchedulerRepository schedulerRepository,
         string schedulerName,
         int skip = 0,
-        int take = int.MaxValue,
+        int? take = null,
         bool includeTotalCount = false,
         bool? paused = null,
         string? name = null,
@@ -289,9 +294,14 @@ internal static class TriggerEndpoints
                 Name = name,
                 Paused = paused,
                 Skip = skip,
-                Take = take,
                 IncludeTotalCount = includeTotalCount
             };
+
+            // a request that names no take gets the query record's own default page size
+            if (take.HasValue)
+            {
+                query = query with { Take = take.Value };
+            }
 
             PagedResult<TriggerGroup> page = await scheduler.QueryTriggerGroups(query, cancellationToken).ConfigureAwait(false);
             return new PagedResultDto<TriggerGroupDto>(page.Items.Select(TriggerGroupDto.Create).ToArray(), page.HasMore, page.TotalCount);
