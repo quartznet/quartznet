@@ -26,6 +26,26 @@ using Quartz.Util;
 namespace Quartz;
 
 /// <summary>
+/// Lets <see cref="TriggerBuilder{TJob}" /> hand a schedule builder its clock before it builds, so
+/// that schedule computation deferred to <see cref="IScheduleBuilder.Build" /> runs against the same
+/// <see cref="TimeProvider" /> the trigger builder carries.
+/// </summary>
+/// <remarks>
+/// This is the sibling of <see cref="IHashKeyAwareScheduleBuilder" />: both exist because a schedule
+/// builder learns some inputs only from the trigger builder that finally builds it. A schedule
+/// builder whose <see cref="IScheduleBuilder.Build" /> is called directly falls back to
+/// <see cref="TimeProvider.System" />.
+/// </remarks>
+internal interface ITimeProviderAwareScheduleBuilder
+{
+    /// <summary>
+    /// Hand the builder the clock to compute against. Called by
+    /// <see cref="TriggerBuilder{TJob}.Build" /> before <see cref="IScheduleBuilder.Build" />.
+    /// </summary>
+    void SetTimeProvider(TimeProvider timeProvider);
+}
+
+/// <summary>
 /// A <see cref="IScheduleBuilder"/> implementation that build schedule for DailyTimeIntervalTrigger.
 /// </summary>
 /// <remarks>
@@ -67,15 +87,16 @@ namespace Quartz;
 /// <author>James House</author>
 /// <author>Zemian Deng saltnlight5@gmail.com</author>
 /// <author>Nuno Maia (.NET)</author>
-public sealed class DailyTimeIntervalScheduleBuilder : IScheduleBuilder
+public sealed class DailyTimeIntervalScheduleBuilder : IScheduleBuilder, ITimeProviderAwareScheduleBuilder
 {
-    private readonly TimeProvider timeProvider;
+    private TimeProvider timeProvider = TimeProvider.System;
 
     private int interval = 1;
     private IntervalUnit intervalUnit = IntervalUnit.Minute;
     private HashSet<DayOfWeek>? daysOfWeek;
     private TimeOnly? startTimeOfDay;
     private TimeOnly? endTimeOfDay;
+    private int? endingDailyAfterCount;
     private int repeatCount = DailyTimeIntervalTriggerImpl.RepeatIndefinitely;
     private TimeZoneInfo? timeZone;
 
@@ -118,19 +139,27 @@ public sealed class DailyTimeIntervalScheduleBuilder : IScheduleBuilder
         DayOfWeek.Saturday
     };
 
-    private DailyTimeIntervalScheduleBuilder(TimeProvider timeProvider)
+    private DailyTimeIntervalScheduleBuilder()
     {
-        this.timeProvider = timeProvider;
     }
 
     /// <summary>
     /// Create a DailyTimeIntervalScheduleBuilder
     /// </summary>
-    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
+    /// <remarks>
+    /// The clock <see cref="EndingDailyAfterCount" /> computes against comes from the
+    /// <see cref="TriggerBuilder{TJob}" /> that builds the trigger, so a scheduler configured with a
+    /// custom <see cref="TimeProvider" /> is honored without handing one to this builder.
+    /// </remarks>
     /// <returns>The new DailyTimeIntervalScheduleBuilder</returns>
-    public static DailyTimeIntervalScheduleBuilder Create(TimeProvider? timeProvider = null)
+    public static DailyTimeIntervalScheduleBuilder Create()
     {
-        return new DailyTimeIntervalScheduleBuilder(timeProvider ?? TimeProvider.System);
+        return new DailyTimeIntervalScheduleBuilder();
+    }
+
+    void ITimeProviderAwareScheduleBuilder.SetTimeProvider(TimeProvider timeProvider)
+    {
+        this.timeProvider = timeProvider;
     }
 
     /// <summary>
@@ -141,6 +170,15 @@ public sealed class DailyTimeIntervalScheduleBuilder : IScheduleBuilder
     /// <returns></returns>
     public IMutableTrigger Build()
     {
+        // Deferred from EndingDailyAfterCount so the computation runs against the trigger
+        // builder's clock and the schedule's final start time, interval and time zone. Computed
+        // into a local so the builder stays reusable: a later Build() recomputes.
+        TimeOnly? effectiveEndTimeOfDay = endTimeOfDay;
+        if (endingDailyAfterCount.HasValue)
+        {
+            effectiveEndTimeOfDay = ComputeEndTimeOfDayFromCount(endingDailyAfterCount.Value);
+        }
+
         DailyTimeIntervalTriggerImpl st = new DailyTimeIntervalTriggerImpl();
         st.RepeatInterval = interval;
         st.RepeatIntervalUnit = intervalUnit;
@@ -157,7 +195,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : IScheduleBuilder
             st.DaysOfWeek = new HashSet<DayOfWeek>(AllDaysOfTheWeek);
         }
 
-        st.EndTimeOfDay = endTimeOfDay ?? DailyTimeIntervalTriggerImpl.DefaultEndTimeOfDay;
+        st.EndTimeOfDay = effectiveEndTimeOfDay ?? DailyTimeIntervalTriggerImpl.DefaultEndTimeOfDay;
         st.StartTimeOfDay = startTimeOfDay ?? DailyTimeIntervalTriggerImpl.DefaultStartTimeOfDay;
 
         return st;
@@ -269,14 +307,22 @@ public sealed class DailyTimeIntervalScheduleBuilder : IScheduleBuilder
     {
         TimeOnlyExtensions.ValidateWholeSeconds(timeOfDay, nameof(timeOfDay));
         endTimeOfDay = timeOfDay;
+        endingDailyAfterCount = null;
         return this;
     }
 
     /// <summary>
-    /// Calculate and set the EndTimeOfDay using count, interval and StarTimeOfDay. This means
-    /// that these must be set before this method is call.
+    /// End the daily window after the given number of firings: the EndTimeOfDay is calculated from
+    /// the count, the interval and the StartTimeOfDay.
     /// </summary>
-    /// <param name="count"></param>
+    /// <remarks>
+    /// The calculation is deferred to <see cref="Build" />, so it sees the schedule's final start
+    /// time, interval and time zone regardless of the order the builder was configured in, and it
+    /// runs against the clock of the <see cref="TriggerBuilder{TJob}" /> that builds the trigger.
+    /// A count too large for the daily window is therefore reported by <see cref="Build" />, not by
+    /// this call.
+    /// </remarks>
+    /// <param name="count">the number of firings per day (&gt;= 1).</param>
     /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
     public DailyTimeIntervalScheduleBuilder EndingDailyAfterCount(int count)
     {
@@ -285,9 +331,20 @@ public sealed class DailyTimeIntervalScheduleBuilder : IScheduleBuilder
             Throw.ArgumentException("Ending daily after count must be a positive number!");
         }
 
+        endingDailyAfterCount = count;
+        endTimeOfDay = null;
+        return this;
+    }
+
+    /// <summary>
+    /// Resolves <see cref="EndingDailyAfterCount" /> into a concrete end time of day, against the
+    /// builder's clock and the schedule as finally configured.
+    /// </summary>
+    private TimeOnly ComputeEndTimeOfDayFromCount(int count)
+    {
         if (startTimeOfDay is null)
         {
-            Throw.ArgumentException("You must set the StartDailyAt() before calling this EndingDailyAfterCount()!");
+            Throw.ArgumentException("You must set the StartingDailyAt() when using EndingDailyAfterCount()!");
         }
 
         DateTimeOffset today = timeProvider.GetUtcNow();
@@ -316,7 +373,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : IScheduleBuilder
         else
         {
             Throw.ArgumentException("The IntervalUnit: " + intervalUnit + " is invalid for this trigger.");
-            return this;
+            return default;
         }
 
         if (remainingMillisInDay < intervalInMillis)
@@ -338,10 +395,9 @@ public sealed class DailyTimeIntervalScheduleBuilder : IScheduleBuilder
             Throw.ArgumentException("The given count " + count + " is too large! The max you can set is " + maxNumOfCount);
         }
 
-        DateTime date = timeProvider.GetUtcNow().Date;
+        DateTime date = today.Date;
         date = date.Add(endTimeOfDayDate.TimeOfDay);
-        endTimeOfDay = new TimeOnly(date.Hour, date.Minute, date.Second);
-        return this;
+        return new TimeOnly(date.Hour, date.Minute, date.Second);
     }
 
     /// <summary>

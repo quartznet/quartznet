@@ -23,6 +23,8 @@ using System.Collections.Specialized;
 
 using AwesomeAssertions.Execution;
 
+using Microsoft.Extensions.Time.Testing;
+
 using Quartz.Impl.Triggers;
 using Quartz.Jobs;
 using Quartz.Extensibility;
@@ -443,6 +445,59 @@ public class DailyTimeIntervalScheduleBuilderTest
             Assert.That(times, Has.Count.EqualTo(2), "wrong occurrancy count");
             Assert.That(times[1].ToLocalTime().DateTime, Is.EqualTo(new DateTime(2015, 1, 1, 10, 0, 0)), "wrong occurrancy count");
         });
+    }
+
+    [Test]
+    public void EndingDailyAfterCountComputesAgainstTheTriggerBuildersClock()
+    {
+        // On 2026-03-08 America/New_York springs forward, so that day is 23 hours long. Only a
+        // schedule builder that reads the trigger builder's clock can know that: the old builder
+        // read the wall clock inside the EndingDailyAfterCount call, so a configured
+        // FakeTimeProvider was silently ignored.
+        TestTimeZones.AssumeInvalidLocalTime(TestTimeZones.Eastern, new DateTime(2026, 3, 8, 2, 30, 0));
+
+        FakeTimeProvider springForwardDay = new FakeTimeProvider(new DateTimeOffset(2026, 3, 8, 12, 0, 0, TimeSpan.Zero));
+
+        Action buildOneTooMany = () => TriggerBuilder.Create(springForwardDay)
+            .WithIdentity("test")
+            .WithDailyTimeIntervalSchedule(x => x
+                .InTimeZone(TestTimeZones.Eastern)
+                .StartingDailyAt(new TimeOnly(0, 0))
+                .WithInterval(1, IntervalUnit.Hour)
+                .EndingDailyAfterCount(24))
+            .Build();
+
+        buildOneTooMany.Should().Throw<ArgumentException>()
+            .WithMessage("*too large*", "the builder's clock says it is the 23-hour spring-forward day, which only fits 23 hourly firings");
+
+        FakeTimeProvider ordinaryDay = new FakeTimeProvider(new DateTimeOffset(2026, 3, 1, 12, 0, 0, TimeSpan.Zero));
+
+        IDailyTimeIntervalTrigger trigger = (IDailyTimeIntervalTrigger) TriggerBuilder.Create(ordinaryDay)
+            .WithIdentity("test")
+            .WithDailyTimeIntervalSchedule(x => x
+                .InTimeZone(TestTimeZones.Eastern)
+                .StartingDailyAt(new TimeOnly(0, 0))
+                .WithInterval(1, IntervalUnit.Hour)
+                .EndingDailyAfterCount(24))
+            .Build();
+
+        trigger.EndTimeOfDay.Should().Be(new TimeOnly(23, 0));
+    }
+
+    [Test]
+    public void EndingDailyAfterCountSeesTheScheduleAsFinallyConfigured()
+    {
+        // The computation is deferred to Build(), so the count no longer has to be the last thing
+        // configured: a start time or interval set afterwards is what the window is computed from.
+        IDailyTimeIntervalTrigger trigger = (IDailyTimeIntervalTrigger) TriggerBuilder.Create()
+            .WithIdentity("test")
+            .WithDailyTimeIntervalSchedule(x => x
+                .EndingDailyAfterCount(12)
+                .StartingDailyAt(new TimeOnly(8, 0))
+                .WithInterval(15, IntervalUnit.Minute))
+            .Build();
+
+        trigger.EndTimeOfDay.Should().Be(new TimeOnly(10, 45));
     }
 
     [Test]

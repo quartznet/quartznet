@@ -174,7 +174,7 @@ namespace Quartz
         public Quartz.DailyTimeIntervalScheduleBuilder WithInterval(int interval, Quartz.IntervalUnit unit) { }
         public Quartz.DailyTimeIntervalScheduleBuilder WithMisfireInstruction(Quartz.DailyTimeIntervalTriggerMisfireInstruction instruction) { }
         public Quartz.DailyTimeIntervalScheduleBuilder WithRepeatCount(int repeatCount) { }
-        public static Quartz.DailyTimeIntervalScheduleBuilder Create(System.TimeProvider? timeProvider = null) { }
+        public static Quartz.DailyTimeIntervalScheduleBuilder Create() { }
     }
     public enum DailyTimeIntervalTriggerMisfireInstruction
     {

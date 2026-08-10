@@ -154,6 +154,13 @@ public sealed class TriggerBuilder<TJob> : ITriggerConfigurator<TJob> where TJob
             hashAware.SetHashKey(key);
         }
 
+        // Hand the schedule builder this builder's clock, so schedule computation deferred to
+        // Build() (EndingDailyAfterCount) runs against the same TimeProvider the trigger does.
+        if (scheduleBuilder is ITimeProviderAwareScheduleBuilder timeProviderAware)
+        {
+            timeProviderAware.SetTimeProvider(timeProvider);
+        }
+
         IMutableTrigger trig = scheduleBuilder.Build();
 
         trig.CalendarName = calendarName;
