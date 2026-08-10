@@ -125,11 +125,11 @@ ITrigger trigger = TriggerBuilder.Create()
 ```
 
 You can also provide an explicit hash key, which does not require a trigger identity. The key rides on
-the `CronExpression`:
+the `CronExpression`, and `WithCronSchedule` takes one directly:
 
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
-    .WithCronSchedule(CronScheduleBuilder.Create(new CronExpression("0 H H(0-7) * * ?", "nightly-cleanup")))
+    .WithCronSchedule(new CronExpression("0 H H(0-7) * * ?", "nightly-cleanup"))
     .Build();
 ```
 
@@ -152,18 +152,19 @@ dropdowns instead of a free-form cron field - you can compose the expression wit
 `CronExpressionBuilder` instead of concatenating strings:
 
 ```csharp
-CronExpression expression = CronExpressionBuilder.Create()
-    .WithSecond(0)
-    .WithMinuteIncrements(0, 15) // every 15 minutes
-    .WithHourRange(8, 17)        // between 8:00 and 17:59
-    .OnWeekdays()                // Monday through Friday
-    .Build(); // "0 0/15 8-17 ? * MON-FRI"
-
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("myTrigger")
-    .WithSchedule(CronScheduleBuilder.Create(expression))
+    .WithCronSchedule(CronExpressionBuilder.Create()
+        .WithSecond(0)
+        .WithMinuteIncrements(0, 15) // every 15 minutes
+        .WithHourRange(8, 17)        // between 8:00 and 17:59
+        .OnWeekdays())               // "0 0/15 8-17 ? * MON-FRI"
     .Build();
 ```
+
+`WithCronSchedule` accepts the builder (or a built `CronExpression`) directly, so the chain closes
+without naming `CronScheduleBuilder`; call `Build()` yourself when you want the `CronExpression` as a
+value.
 
 Each field offers a single value, list, range and increment form (e.g. `WithHour`,
 `WithHours`, `WithHourRange`, `WithHourIncrements`), and the special characters are

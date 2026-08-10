@@ -20,7 +20,7 @@ public class CronScheduleBuilderTest
             .WithSecond(0)
             .WithMinute(0)
             .WithHour(10)
-            .OnDaysOfWeek(DayOfWeek.Monday, DayOfWeek.Thursday, DayOfWeek.Friday)
+            .WithDaysOfWeek(DayOfWeek.Monday, DayOfWeek.Thursday, DayOfWeek.Friday)
             .Build();
 
         ICronTrigger trigger = (ICronTrigger) TriggerBuilder.Create()
@@ -29,6 +29,38 @@ public class CronScheduleBuilderTest
             .Build();
 
         trigger.CronExpressionString.Should().Be("0 0 10 ? * MON,THU,FRI");
+    }
+
+    [Test]
+    public void WithCronScheduleTakesACronExpressionDirectly()
+    {
+        CronExpression expression = new CronExpression("0 0 10 ? * MON", TimeZoneInfo.Utc);
+
+        ICronTrigger trigger = (ICronTrigger) TriggerBuilder.Create()
+            .WithIdentity("test")
+            .WithCronSchedule(expression)
+            .Build();
+
+        trigger.CronExpressionString.Should().Be("0 0 10 ? * MON");
+        trigger.TimeZone.Should().Be(TimeZoneInfo.Utc);
+    }
+
+    [Test]
+    public void WithCronScheduleTakesACronExpressionBuilderDirectly()
+    {
+        ICronTrigger trigger = (ICronTrigger) TriggerBuilder.Create()
+            .WithIdentity("test")
+            .WithCronSchedule(
+                CronExpressionBuilder.Create()
+                    .WithSecond(0)
+                    .WithMinuteIncrements(0, 15)
+                    .WithHourRange(8, 17)
+                    .OnWeekdays(),
+                x => x.InTimeZone(TimeZoneInfo.Utc))
+            .Build();
+
+        trigger.CronExpressionString.Should().Be("0 0/15 8-17 ? * MON-FRI");
+        trigger.TimeZone.Should().Be(TimeZoneInfo.Utc);
     }
 
     [Test]

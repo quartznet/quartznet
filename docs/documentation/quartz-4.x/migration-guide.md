@@ -1672,6 +1672,11 @@ The cron expression parser now supports additional syntax:
 * Day-of-month and day-of-week can now be specified together in the same expression
 * `H` (hash) tokens for [load distribution](cron-expressions.md#h-hash-for-load-distribution) across triggers
 
+Parse errors name the fix instead of only the constraint. A 5-field Unix/crontab expression — the shape every
+online cron generator emits — is still rejected (Quartz cron puts seconds first), but the error now shows the
+corrected 6-field expression to use, and the day-of-week range error explains that Quartz numbers days 1-7
+starting at Sunday where Unix cron uses 0-6, recommending names (`SUN`, `MON`, …) as the unambiguous spelling.
+
 ## Daylight saving time
 
 Two schedules fire at different times than they did on 3.x. Neither needs a code change, but both change
@@ -3190,7 +3195,7 @@ wants, so it is internal now.
 
 Attaching a schedule to a trigger was spread over six static extension classes and twenty-nine methods, half
 of them existing only because `TriggerBuilder<TJob>` and `ITriggerConfigurator<TJob>` each needed their own
-copy of the same body. `Quartz.TriggerConfiguratorExtensions` replaces all six with ten methods that are
+copy of the same body. `Quartz.TriggerConfiguratorExtensions` replaces all six with twelve methods that are
 generic in the receiver and return it unchanged, so one method serves both and the chain keeps its type.
 
 Deleted: `SimpleScheduleTriggerBuilderExtensions`, `CronScheduleTriggerBuilderExtensions`,
@@ -3204,9 +3209,11 @@ Deleted: `SimpleScheduleTriggerBuilderExtensions`, `CronScheduleTriggerBuilderEx
 | `WithSimpleSchedule(SimpleScheduleBuilder)` | `WithSimpleSchedule(SimpleScheduleBuilder schedule)` |
 | `WithCronSchedule(string)` | `WithCronSchedule(string cronExpression, Action<CronScheduleBuilder>? configure = null)` |
 | `WithCronSchedule(string, Action<CronScheduleBuilder>)` | same member |
-| `WithCronSchedule(string expr, string hashKey)` | `WithCronSchedule(CronScheduleBuilder.Create(new CronExpression(expr, hashKey)))` |
-| `WithCronSchedule(string expr, string hashKey, Action<CronScheduleBuilder>)` | build the `CronScheduleBuilder`, configure it, pass it |
+| `WithCronSchedule(string expr, string hashKey)` | `WithCronSchedule(new CronExpression(expr, hashKey))` |
+| `WithCronSchedule(string expr, string hashKey, Action<CronScheduleBuilder>)` | `WithCronSchedule(new CronExpression(expr, hashKey), configure)` |
 | `WithCronSchedule(CronScheduleBuilder)` | `WithCronSchedule(CronScheduleBuilder schedule)` |
+| — | `WithCronSchedule(CronExpression cronExpression, Action<CronScheduleBuilder>? configure = null)` — new; also the home of the hash-key shape |
+| — | `WithCronSchedule(CronExpressionBuilder cronExpression, Action<CronScheduleBuilder>? configure = null)` — new; closes the [`CronExpressionBuilder`](#cronschedulebuilder-s-convenience-factories-are-gone) chain without naming `CronScheduleBuilder` |
 | `WithCalendarIntervalSchedule()` | `WithCalendarIntervalSchedule(Action<CalendarIntervalScheduleBuilder>? configure = null)` |
 | `WithCalendarIntervalSchedule(Action<CalendarIntervalScheduleBuilder>)` | same member |
 | `WithCalendarIntervalSchedule(CalendarIntervalScheduleBuilder)` | `WithCalendarIntervalSchedule(CalendarIntervalScheduleBuilder schedule)` |
@@ -3225,12 +3232,12 @@ Only two call shapes need editing:
 + .WithDailyTimeIntervalSchedule(x => x.WithInterval(10, IntervalUnit.Second))
 
 - .WithCronSchedule("0 H H(0-7) * * ?", "nightly-cleanup")
-+ .WithCronSchedule(CronScheduleBuilder.Create(new CronExpression("0 H H(0-7) * * ?", "nightly-cleanup")))
++ .WithCronSchedule(new CronExpression("0 H H(0-7) * * ?", "nightly-cleanup"))
 ```
 
 The hash-key overloads went because a hash key belongs to the expression, not to the way the expression is
-attached to a trigger — `new CronExpression(expr, hashKey)` takes it, and one builder-taking overload carries
-the result. Without a key, `H` tokens still hash on the trigger's identity.
+attached to a trigger — `new CronExpression(expr, hashKey)` takes it, and the `CronExpression`-taking overload
+carries the result. Without a key, `H` tokens still hash on the trigger's identity.
 
 ### `ITriggerConfigurator` gained a non-generic base
 
@@ -3543,11 +3550,18 @@ Inside a `WithSimpleSchedule` delegate you never needed the factories at all:
 from numbers are replaced by `CronExpressionBuilder`, which names each field instead of relying on argument
 order — the old set used three different orders for the same three numbers.
 
+`CronExpressionBuilder` spells "restrict this field to these values" as `With*` on every field, day-of-week
+included (`WithDaysOfWeek`, `WithDayOfWeekRange`, `WithDayOfWeekIncrements`); the `On*` prefix is only for the
+positional and special forms (`OnWeekdays`, `OnLastDayOfMonth`, `OnLastDayOfWeek`, `OnLastDayOfWeekOfMonth`,
+`OnNthDayOfWeekOfMonth`, `OnNearestWeekdayOfMonth`). A trigger takes the builder — or a built
+`CronExpression` — directly through `WithCronSchedule`, so the chain closes without naming
+`CronScheduleBuilder`.
+
 | 3.x | 4.x |
 |---|---|
 | `CronScheduleBuilder.DailyAtHourAndMinute(h, m)` | `CronScheduleBuilder.Create($"0 {m} {h} ? * *")` |
-| `CronScheduleBuilder.AtHourAndMinuteOnGivenDaysOfWeek(h, m, days)` | `CronScheduleBuilder.Create(CronExpressionBuilder.Create().WithSecond(0).WithMinute(m).WithHour(h).OnDaysOfWeek(days).Build())` |
-| `CronScheduleBuilder.WeeklyOnDayAndHourAndMinute(day, h, m)` | `CronScheduleBuilder.Create(CronExpressionBuilder.Create().WithSecond(0).WithMinute(m).WithHour(h).OnDaysOfWeek(day).Build())` |
+| `CronScheduleBuilder.AtHourAndMinuteOnGivenDaysOfWeek(h, m, days)` | `CronScheduleBuilder.Create(CronExpressionBuilder.Create().WithSecond(0).WithMinute(m).WithHour(h).WithDaysOfWeek(days).Build())` |
+| `CronScheduleBuilder.WeeklyOnDayAndHourAndMinute(day, h, m)` | `CronScheduleBuilder.Create(CronExpressionBuilder.Create().WithSecond(0).WithMinute(m).WithHour(h).WithDaysOfWeek(day).Build())` |
 | `CronScheduleBuilder.MonthlyOnDayAndHourAndMinute(dom, h, m)` | `CronScheduleBuilder.Create(CronExpressionBuilder.Create().WithSecond(0).WithMinute(m).WithHour(h).WithDayOfMonth(dom).Build())` |
 | `CronScheduleBuilder.CronScheduleWithHash(expr, hashKey)` | `CronScheduleBuilder.Create(new CronExpression(expr, hashKey))` |
 | `CronScheduleBuilder.CronScheduleWithHash(expr, hashSeed)` | `CronScheduleBuilder.Create(new CronExpression(expr, hashSeed))` |

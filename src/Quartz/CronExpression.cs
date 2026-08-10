@@ -211,6 +211,10 @@ namespace Quartz;
 [Serializable]
 public sealed class CronExpression : ISerializable
 {
+    private const string DayOfWeekRangeMessage =
+        "Day-of-Week values must be between 1 and 7, with 1 = Sunday and 7 = Saturday. "
+        + "Unix cron numbers days 0-6 starting at Sunday; use names (SUN, MON, ...) to stay unambiguous.";
+
     private TimeZoneInfo? timeZone;
 
     [NonSerialized] private readonly CronField seconds = [];
@@ -679,7 +683,10 @@ public sealed class CronExpression : ISerializable
 
         if (fieldCount < 6 || fieldCount > 7)
         {
-            throw new FormatException($"Invalid cron expression (expected 6-7 fields): {upperExpression}");
+            string unixHint = fieldCount == 5
+                ? $" A 5-field expression is the Unix/crontab form; Quartz cron puts seconds first - prepend a seconds field: \"0 {upperExpression}\"."
+                : "";
+            throw new FormatException($"Invalid cron expression (expected 6-7 fields, got {fieldCount}): {upperExpression}.{unixHint}");
         }
 
         return result.ToString();
@@ -886,7 +893,17 @@ public sealed class CronExpression : ISerializable
 
             if (exprOn <= CronExpressionConstants.DayOfWeek)
             {
-                Throw.FormatException("Unexpected end of expression.");
+                if (count == 5)
+                {
+                    Throw.FormatException(
+                        $"Cron expression '{expression}' has 5 fields, which is the Unix/crontab form; Quartz cron has 6 or 7 fields with seconds first. "
+                        + $"Prepend a seconds field: \"0 {expression}\". "
+                        + "Note that Quartz numbers days of week 1-7 starting at Sunday where Unix cron uses 0-6, so respell numeric day-of-week values or use names (SUN, MON, ...).");
+                }
+
+                Throw.FormatException(
+                    $"Cron expression '{expression}' has {count} fields, but 6 or 7 are required: "
+                    + "seconds, minutes, hours, day-of-month, month, day-of-week, and optionally year.");
             }
 
             if (exprOn <= CronExpressionConstants.Year)
@@ -1400,7 +1417,7 @@ public sealed class CronExpression : ISerializable
             {
                 if (val is < 1 or > 7)
                 {
-                    Throw.FormatException("Day-of-Week values must be between 1 and 7");
+                    Throw.FormatException(DayOfWeekRangeMessage);
                 }
             }
         }
@@ -1440,7 +1457,7 @@ public sealed class CronExpression : ISerializable
         {
             if (val is < 1 or > 7)
             {
-                Throw.FormatException("Day-of-Week values must be between 1 and 7");
+                Throw.FormatException(DayOfWeekRangeMessage);
             }
 
             lastDayOfWeek = true;
@@ -1514,7 +1531,7 @@ public sealed class CronExpression : ISerializable
             CronExpressionConstants.Month
                 => (1, 12, "Month values must be between 1 and 12"),
             CronExpressionConstants.DayOfWeek
-                => (1, 7, "Day-of-Week values must be between 1 and 7"),
+                => (1, 7, DayOfWeekRangeMessage),
             CronExpressionConstants.Year
                 => (TriggerConstants.EarliestYear, TriggerConstants.YearToGiveUpSchedulingAt, $"Year values must be between {TriggerConstants.EarliestYear} and {TriggerConstants.YearToGiveUpSchedulingAt}"),
             _ => throw new ArgumentOutOfRangeException(nameof(type), "Invalid cron expression type")

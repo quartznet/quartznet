@@ -369,6 +369,27 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     }
 
     [Test]
+    public void FiveFieldUnixExpressionsAreRejectedWithGuidance()
+    {
+        Action act = () => new CronExpression("30 4 * * 1");
+
+        act.Should().Throw<FormatException>()
+            .WithMessage("*Unix/crontab*", "the most common first-run failure is a 5-field expression copied from crontab or Kubernetes")
+            .WithMessage("*\"0 30 4 * * 1\"*", "the error must show the fixed expression, not just the constraint")
+            .WithMessage("*days of week 1-7*", "a Unix expression's numeric day-of-week also means a different day in Quartz");
+    }
+
+    [Test]
+    public void TooFewFieldsNamesTheRequiredFields()
+    {
+        Action act = () => new CronExpression("0 30 4");
+
+        act.Should().Throw<FormatException>()
+            .WithMessage("*has 3 fields, but 6 or 7 are required*")
+            .WithMessage("*seconds, minutes, hours, day-of-month, month, day-of-week*");
+    }
+
+    [Test]
     public void CronExpression_Throw_Error_Constructed_With_Null()
     {
         Action act = () => new CronExpression(null);
@@ -530,7 +551,8 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
         }
         catch (FormatException fe)
         {
-            Assert.That(fe.Message, Is.EqualTo("Day-of-Week values must be between 1 and 7"));
+            fe.Message.Should().StartWith("Day-of-Week values must be between 1 and 7")
+                .And.Contain("Unix cron numbers days 0-6", "the error must teach the Quartz-vs-Unix numbering difference");
         }
     }
 
