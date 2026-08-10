@@ -38,7 +38,7 @@ namespace Quartz.Examples.Example05;
 /// time the jobs complete their execution, the triggers have already "misfired"
 /// (unless the scheduler's "misfire threshold" has been set to more than 7
 /// seconds). You should see that one of the jobs has its misfire instruction
-/// set to <see cref="MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount" />,
+/// set to <see cref="SimpleTriggerMisfireInstruction.NowWithExistingCount" />,
 /// which causes it to fire immediately, when the misfire is detected. The other
 /// trigger uses the default "smart policy" misfire instruction, which causes
 /// the trigger to advance to its next fire time (skipping those that it has

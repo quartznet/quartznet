@@ -552,7 +552,7 @@ public class StdAdoDelegateTest
         {
             Assert.That(trigger.NextFireTimeUtc, Is.EqualTo(nextFireTime));
             Assert.That(trigger.PreviousFireTimeUtc, Is.EqualTo(prevFireTime));
-            Assert.That(trigger.MisfireInstruction, Is.EqualTo(2));
+            Assert.That(trigger.MisfireInstructionCode, Is.EqualTo(2));
         });
     }
 
@@ -629,7 +629,7 @@ public class StdAdoDelegateTest
         Assert.Multiple(() =>
         {
             Assert.That(trigger.NextFireTimeUtc, Is.EqualTo(nextFireTime));
-            Assert.That(trigger.MisfireInstruction, Is.EqualTo(1));
+            Assert.That(trigger.MisfireInstructionCode, Is.EqualTo(1));
             Assert.That(((AbstractTrigger) trigger).MisfiredFromFireTimeUtc, Is.EqualTo(misfireOrigFireTime));
         });
     }

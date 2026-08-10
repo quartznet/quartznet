@@ -293,11 +293,9 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     public abstract DateTimeOffset? FinalFireTimeUtc { get; }
 
     /// <summary>
-    /// Get or set the instruction the <see cref="IScheduler" /> should be given for
-    /// handling misfire situations for this <see cref="ITrigger" />- the
-    /// concrete <see cref="ITrigger" /> type that you are using will have
-    /// defined a set of additional MISFIRE_INSTRUCTION_XXX
-    /// constants that may be passed to this method.
+    /// Get or set the raw code of the instruction the <see cref="IScheduler" /> follows when this
+    /// trigger misses a firing. The concrete trigger type validates the code against its own
+    /// family's range.
     /// <para>
     /// If not explicitly set, the default value is <see cref="Quartz.MisfireInstruction.InstructionNotSet" />.
     /// </para>
@@ -306,7 +304,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// <seealso cref="UpdateAfterMisfire(ICalendar?)" />
     /// <seealso cref="ISimpleTrigger" />
     /// <seealso cref="ICronTrigger" />
-    public virtual int MisfireInstruction
+    public virtual int MisfireInstructionCode
     {
         get => misfireInstruction;
 
@@ -665,7 +663,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// Return a simple string representation of this object.
     /// </summary>
     public override string ToString()
-        => $"Trigger '{key}':  triggerClass: '{GetType().FullName} calendar: '{CalendarName}' misfireInstruction: {MisfireInstruction} nextFireTime: {NextFireTimeUtc}";
+        => $"Trigger '{key}':  triggerClass: '{GetType().FullName} calendar: '{CalendarName}' misfireInstruction: {MisfireInstructionCode} nextFireTime: {NextFireTimeUtc}";
 
     /// <summary>
     /// Determines whether the specified <see cref="System.Object"></see> is equal to the current <see cref="System.Object"></see>.

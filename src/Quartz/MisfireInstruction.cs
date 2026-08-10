@@ -22,10 +22,18 @@
 namespace Quartz;
 
 ///<summary>
-/// Misfire instructions.
+/// The raw misfire instruction codes a trigger stores, grouped by the family they belong to.
 ///</summary>
+/// <remarks>
+/// These are storage-level numbers, not the vocabulary a caller uses: the same number means a
+/// different policy in each family. The public vocabulary is the five per-family enums —
+/// <see cref="SimpleTriggerMisfireInstruction" />, <see cref="CronTriggerMisfireInstruction" />,
+/// <see cref="CalendarIntervalTriggerMisfireInstruction" />,
+/// <see cref="DailyTimeIntervalTriggerMisfireInstruction" /> and
+/// <see cref="RecurrenceTriggerMisfireInstruction" /> — whose members carry exactly these values.
+/// </remarks>
 /// <author>Marko Lahma (.NET)</author>
-public static class MisfireInstruction
+internal static class MisfireInstruction
 {
     /// <summary>
     /// Instruction not set (yet).

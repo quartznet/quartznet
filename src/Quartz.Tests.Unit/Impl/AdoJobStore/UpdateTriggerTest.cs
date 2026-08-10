@@ -62,7 +62,7 @@ public class UpdateTriggerTest
         //Arrange
         var cronTriggerImpl = new CronTriggerImpl("Trigger", "Trigger.Group", "JobName", "JobGroup", "0 15 23 * * ?");
         cronTriggerImpl.CalendarName = "calName";
-        cronTriggerImpl.MisfireInstruction = 1;
+        cronTriggerImpl.MisfireInstructionCode = 1;
         cronTriggerImpl.Description = "Description";
         cronTriggerImpl.PreviousFireTimeUtc = new DateTimeOffset(new DateTime(2010, 1, 1));
         cronTriggerImpl.NextFireTimeUtc = new DateTimeOffset(new DateTime(2010, 2, 1));
@@ -146,7 +146,7 @@ public class UpdateTriggerTest
         //Arrange
         var cronTriggerImpl = new CronTriggerImpl("Trigger", "Trigger.Group", "JobName", "JobGroup", "0 15 23 * * ?");
         cronTriggerImpl.CalendarName = "calName";
-        cronTriggerImpl.MisfireInstruction = 1;
+        cronTriggerImpl.MisfireInstructionCode = 1;
         cronTriggerImpl.Description = "Description";
         cronTriggerImpl.PreviousFireTimeUtc = new DateTimeOffset(new DateTime(2010, 1, 1));
         cronTriggerImpl.NextFireTimeUtc = new DateTimeOffset(new DateTime(2010, 2, 1));

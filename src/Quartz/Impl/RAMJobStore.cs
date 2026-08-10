@@ -660,6 +660,8 @@ public sealed class RAMJobStore : IJobStore
 
             IOperableTrigger trigger = tw.Trigger;
 
+            update.EnsureMisfireInstructionMatchesFamily(trigger, triggerKey);
+
             if (update.HasCalendarName && update.CalendarName is not null)
             {
                 if (!calendarsByName.ContainsKey(update.CalendarName))
@@ -700,7 +702,7 @@ public sealed class RAMJobStore : IJobStore
 
             if (update.HasMisfireInstruction)
             {
-                trigger.MisfireInstruction = update.MisfireInstructionCode;
+                trigger.MisfireInstructionCode = update.MisfireInstructionCode;
             }
 
             if (update.HasPreferredNode)
@@ -1991,7 +1993,7 @@ public sealed class RAMJobStore : IJobStore
     /// </returns>
     private async ValueTask<bool> ApplyMisfireNoLock(TriggerWrapper tw)
     {
-        if (tw.Trigger.MisfireInstruction == MisfireInstruction.IgnoreMisfirePolicy)
+        if (tw.Trigger.MisfireInstructionCode == MisfireInstruction.IgnoreMisfirePolicy)
         {
             return false;
         }

@@ -367,7 +367,7 @@ public class LegacyJsonPayloadTest
         simple.RepeatCount.Should().Be(10);
         simple.RepeatInterval.Should().Be(TimeSpan.FromSeconds(42));
         simple.TimesTriggered.Should().Be(3);
-        simple.MisfireInstruction.Should().Be(MisfireInstruction.SimpleTrigger.FireNow);
+        simple.MisfireInstructionCode.Should().Be(MisfireInstruction.SimpleTrigger.FireNow);
         simple.NextFireTimeUtc.Should().Be(new DateTimeOffset(2024, 7, 1, 3, 32, 6, TimeSpan.Zero));
 
         simple.JobDataMap.GetString("environment").Should().Be("staging");
@@ -385,7 +385,7 @@ public class LegacyJsonPayloadTest
         cron.CronExpressionString.Should().Be("0 0/5 * * * ?");
         cron.TimeZone.Should().Be(TimeZoneInfo.Utc);
         cron.Priority.Should().Be(7);
-        cron.MisfireInstruction.Should().Be(MisfireInstruction.CronTrigger.DoNothing);
+        cron.MisfireInstructionCode.Should().Be(MisfireInstruction.CronTrigger.DoNothing);
         cron.EndTimeUtc.Should().BeNull();
     }
 

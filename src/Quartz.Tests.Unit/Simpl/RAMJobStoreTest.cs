@@ -101,7 +101,7 @@ public class RAMJobStoreTest
         IOperableTrigger trigger10 = new SimpleTriggerImpl("trigger10", "triggerGroup2", fJobDetail.Key.Name, fJobDetail.Key.Group, d.AddMilliseconds(500000), d.AddMilliseconds(700000), 2, TimeSpan.FromSeconds(2));
 
         early.ComputeFirstFireTimeUtc(null);
-        early.MisfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
+        early.MisfireInstructionCode = MisfireInstruction.IgnoreMisfirePolicy;
 
         trigger1.ComputeFirstFireTimeUtc(null);
         trigger2.ComputeFirstFireTimeUtc(null);
@@ -1028,7 +1028,7 @@ public class RAMJobStoreTest
         var trigger = new CronTriggerImpl("testTrigger", "testGroup", "0 * * * * ?", fakeTime)
         {
             JobKey = job.Key,
-            MisfireInstruction = MisfireInstruction.CronTrigger.FireOnceNow
+            MisfireInstructionCode = MisfireInstruction.CronTrigger.FireOnceNow
         };
         trigger.PreviousFireTimeUtc = previousFireTime;
         trigger.NextFireTimeUtc = originalScheduledTime;
@@ -1077,7 +1077,7 @@ public class RAMJobStoreTest
             StartTimeUtc = startTime,
             RepeatInterval = TimeSpan.FromMinutes(5),
             RepeatCount = SimpleTriggerImpl.RepeatIndefinitely,
-            MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount
+            MisfireInstructionCode = MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount
         };
         trigger.ComputeFirstFireTimeUtc(null);
         await store.AddTrigger(trigger, false);

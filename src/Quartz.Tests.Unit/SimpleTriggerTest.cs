@@ -71,7 +71,7 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
             CalendarName = "MyCalendar",
             Description = "SimpleTriggerDesc",
             JobDataMap = jobDataMap,
-            MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount
+            MisfireInstructionCode = MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount
         };
 
         return t;
@@ -91,7 +91,7 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
             Assert.That(deserialized.CalendarName, Is.EqualTo(original.CalendarName));
             Assert.That(deserialized.Description, Is.EqualTo(original.Description));
             Assert.That(deserialized.JobDataMap, Is.EqualTo(original.JobDataMap));
-            Assert.That(deserialized.MisfireInstruction, Is.EqualTo(original.MisfireInstruction));
+            Assert.That(deserialized.MisfireInstructionCode, Is.EqualTo(original.MisfireInstructionCode));
         });
     }
 
@@ -104,7 +104,7 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
 
         SimpleTriggerImpl simpleTrigger = new SimpleTriggerImpl
         {
-            MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount,
+            MisfireInstructionCode = MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount,
             RepeatCount = 5,
             StartTimeUtc = startTime,
             EndTimeUtc = endTime
@@ -206,13 +206,13 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
 
         try
         {
-            trigger.MisfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
-            trigger.MisfireInstruction = MisfireInstruction.SmartPolicy;
-            trigger.MisfireInstruction = MisfireInstruction.SimpleTrigger.FireNow;
-            trigger.MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount;
-            trigger.MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount;
-            trigger.MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount;
-            trigger.MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount;
+            trigger.MisfireInstructionCode = MisfireInstruction.IgnoreMisfirePolicy;
+            trigger.MisfireInstructionCode = MisfireInstruction.SmartPolicy;
+            trigger.MisfireInstructionCode = MisfireInstruction.SimpleTrigger.FireNow;
+            trigger.MisfireInstructionCode = MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount;
+            trigger.MisfireInstructionCode = MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount;
+            trigger.MisfireInstructionCode = MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount;
+            trigger.MisfireInstructionCode = MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount;
         }
         catch (Exception)
         {
@@ -221,7 +221,7 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
 
         try
         {
-            trigger.MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount + 1;
+            trigger.MisfireInstructionCode = MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount + 1;
 
             Assert.Fail("Expected exception while setting invalid misfire instruction but did not get it.");
         }
@@ -446,7 +446,7 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
             StartTimeUtc = startTime,
             RepeatInterval = TimeSpan.FromMinutes(2),
             RepeatCount = SimpleTriggerImpl.RepeatIndefinitely,
-            MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount
+            MisfireInstructionCode = MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount
         };
         trigger.ComputeFirstFireTimeUtc(null);
 
@@ -472,7 +472,7 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
             StartTimeUtc = startTime,
             RepeatInterval = TimeSpan.FromMinutes(2),
             RepeatCount = 10,
-            MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount
+            MisfireInstructionCode = MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount
         };
         trigger.ComputeFirstFireTimeUtc(null);
 

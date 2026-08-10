@@ -16,7 +16,6 @@
  */
 
 using System.Globalization;
-using System.Reflection;
 using System.Xml;
 using System.Xml.Schema;
 
@@ -384,7 +383,7 @@ public class XMLSchedulingDataProcessor
 
                 if (!string.IsNullOrWhiteSpace(simpleTrigger.MisfireInstruction))
                 {
-                    ((SimpleScheduleBuilder) scheduleBuilder).WithMisfireInstruction((SimpleTriggerMisfireInstruction) ReadMisfireInstructionFromString(simpleTrigger.MisfireInstruction));
+                    ((SimpleScheduleBuilder) scheduleBuilder).WithMisfireInstruction((SimpleTriggerMisfireInstruction) ReadMisfireInstructionFromString(TriggerFamily.Simple, simpleTrigger.MisfireInstruction));
                 }
             }
             else if (triggerNode is CronTriggerDefinition cronTrigger)
@@ -398,7 +397,7 @@ public class XMLSchedulingDataProcessor
 
                 if (!string.IsNullOrWhiteSpace(cronTrigger.MisfireInstruction))
                 {
-                    ((CronScheduleBuilder) scheduleBuilder).WithMisfireInstruction((CronTriggerMisfireInstruction) ReadMisfireInstructionFromString(cronTrigger.MisfireInstruction));
+                    ((CronScheduleBuilder) scheduleBuilder).WithMisfireInstruction((CronTriggerMisfireInstruction) ReadMisfireInstructionFromString(TriggerFamily.Cron, cronTrigger.MisfireInstruction));
                 }
             }
             else if (triggerNode is CalendarIntervalTriggerDefinition calendarIntervalTrigger)
@@ -413,7 +412,7 @@ public class XMLSchedulingDataProcessor
 
                 if (!string.IsNullOrWhiteSpace(calendarIntervalTrigger.MisfireInstruction))
                 {
-                    ((CalendarIntervalScheduleBuilder) scheduleBuilder).WithMisfireInstruction((CalendarIntervalTriggerMisfireInstruction) ReadMisfireInstructionFromString(calendarIntervalTrigger.MisfireInstruction));
+                    ((CalendarIntervalScheduleBuilder) scheduleBuilder).WithMisfireInstruction((CalendarIntervalTriggerMisfireInstruction) ReadMisfireInstructionFromString(TriggerFamily.CalendarInterval, calendarIntervalTrigger.MisfireInstruction));
                 }
             }
             else
@@ -465,11 +464,17 @@ public class XMLSchedulingDataProcessor
         return value;
     }
 
-    protected virtual int ReadMisfireInstructionFromString(string misfireInstruction)
+    /// <summary>
+    /// Resolves a <c>misfire-instruction</c> element's text as the given trigger family spells it.
+    /// </summary>
+    /// <remarks>
+    /// A name belonging to another family is accepted with a warning when its code is valid here,
+    /// which is what the previous reflection-based lookup did silently. This used to be a
+    /// <c>protected virtual</c> seam that took no family, and so could not tell the families apart.
+    /// </remarks>
+    private int ReadMisfireInstructionFromString(TriggerFamily family, string misfireInstruction)
     {
-        Constants c = new Constants(typeof(MisfireInstruction), typeof(MisfireInstruction.CronTrigger),
-            typeof(MisfireInstruction.SimpleTrigger));
-        return c.AsNumber(misfireInstruction);
+        return MisfireInstructionNames.Resolve(family, misfireInstruction, logger);
     }
 
     protected virtual IntervalUnit ParseDateIntervalTriggerIntervalUnit(string? intervalUnit)
@@ -1042,34 +1047,5 @@ public class XMLSchedulingDataProcessor
     public void AddTriggerGroupToNeverDelete(string triggerGroupName)
     {
         triggerGroupsToNeverDelete.Add(triggerGroupName);
-    }
-
-    /// <summary>
-    /// Helper class to map constant names to their values.
-    /// </summary>
-    internal sealed class Constants
-    {
-        private readonly Type[] types;
-
-        public Constants(params Type[] reflectedTypes)
-        {
-            types = reflectedTypes;
-        }
-
-        public int AsNumber(string field)
-        {
-            foreach (Type type in types)
-            {
-                FieldInfo? fi = type.GetField(field);
-                if (fi is not null)
-                {
-                    return Convert.ToInt32(fi.GetValue(null), CultureInfo.InvariantCulture);
-                }
-            }
-
-            // not found
-            Throw.ArgumentException($"Unknown field '{field}'");
-            return 0;
-        }
     }
 }

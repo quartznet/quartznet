@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Reflection;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -301,7 +300,7 @@ internal static class JsonSchedulingHelper
         var misfireInstruction = section[nameof(JsonSimpleSchedule.MisfireInstruction)];
         if (misfireInstruction is not null)
         {
-            builder.WithMisfireInstruction((SimpleTriggerMisfireInstruction) ParseMisfireInstruction(misfireInstruction));
+            builder.WithMisfireInstruction((SimpleTriggerMisfireInstruction) MisfireInstructionNames.Resolve(TriggerFamily.Simple, misfireInstruction));
         }
 
         return builder;
@@ -336,7 +335,7 @@ internal static class JsonSchedulingHelper
         var misfireInstruction = section[nameof(JsonCronSchedule.MisfireInstruction)];
         if (misfireInstruction is not null)
         {
-            builder.WithMisfireInstruction((CronTriggerMisfireInstruction) ParseMisfireInstruction(misfireInstruction));
+            builder.WithMisfireInstruction((CronTriggerMisfireInstruction) MisfireInstructionNames.Resolve(TriggerFamily.Cron, misfireInstruction));
         }
 
         return builder;
@@ -355,7 +354,7 @@ internal static class JsonSchedulingHelper
         var misfireInstruction = section[nameof(JsonCalendarIntervalSchedule.MisfireInstruction)];
         if (misfireInstruction is not null)
         {
-            builder.WithMisfireInstruction((CalendarIntervalTriggerMisfireInstruction) ParseMisfireInstruction(misfireInstruction));
+            builder.WithMisfireInstruction((CalendarIntervalTriggerMisfireInstruction) MisfireInstructionNames.Resolve(TriggerFamily.CalendarInterval, misfireInstruction));
         }
 
         return builder;
@@ -416,7 +415,7 @@ internal static class JsonSchedulingHelper
         var misfireInstruction = section[nameof(JsonDailyTimeIntervalSchedule.MisfireInstruction)];
         if (misfireInstruction is not null)
         {
-            var instruction = (DailyTimeIntervalTriggerMisfireInstruction) ParseMisfireInstruction(misfireInstruction);
+            var instruction = (DailyTimeIntervalTriggerMisfireInstruction) MisfireInstructionNames.Resolve(TriggerFamily.DailyTimeInterval, misfireInstruction);
             if (Enum.IsDefined(instruction))
             {
                 builder.WithMisfireInstruction(instruction);
@@ -442,24 +441,6 @@ internal static class JsonSchedulingHelper
             throw new SchedulerConfigException($"TimeOfDay value '{value}' must not contain fractional seconds.");
         }
         return new TimeOnly(timeSpan.Hours, timeSpan.Minutes, timeSpan.Seconds);
-    }
-
-    private static int ParseMisfireInstruction(string value)
-    {
-        var misfireType = typeof(MisfireInstruction);
-        var types = new[] { misfireType }.Concat(misfireType.GetNestedTypes(BindingFlags.Public)).ToArray();
-        foreach (var type in types)
-        {
-            foreach (var field in type.GetFields(BindingFlags.Public | BindingFlags.Static))
-            {
-                if (string.Equals(field.Name, value, StringComparison.OrdinalIgnoreCase))
-                {
-                    return (int) field.GetValue(null)!;
-                }
-            }
-        }
-
-        throw new SchedulerConfigException($"Unknown misfire instruction: '{value}'");
     }
 
     private static bool ParseBool(string? value, string context = "")

@@ -106,6 +106,12 @@ public interface IDailyTimeIntervalTrigger : ITrigger
     int TimesTriggered { get; }
 
     /// <summary>
+    /// What the scheduler does when this trigger misses a firing.
+    /// </summary>
+    /// <seealso cref="DailyTimeIntervalScheduleBuilder.WithMisfireInstruction" />
+    DailyTimeIntervalTriggerMisfireInstruction MisfireInstruction { get; }
+
+    /// <summary>
     /// Gets the time zone within which time calculations related to this trigger will be performed.
     /// </summary>
     /// <remarks>

@@ -257,13 +257,16 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
         set => timesTriggered = value;
     }
 
+    /// <inheritdoc />
+    public SimpleTriggerMisfireInstruction MisfireInstruction => (SimpleTriggerMisfireInstruction) MisfireInstructionCode;
+
     public override IScheduleBuilder GetScheduleBuilder()
     {
         SimpleScheduleBuilder sb = SimpleScheduleBuilder.Create()
             .WithInterval(RepeatInterval)
             .WithRepeatCount(RepeatCount);
 
-        SimpleTriggerMisfireInstruction instruction = (SimpleTriggerMisfireInstruction) MisfireInstruction;
+        SimpleTriggerMisfireInstruction instruction = MisfireInstruction;
         if (Enum.IsDefined(instruction))
         {
             sb.WithMisfireInstruction(instruction);
@@ -347,21 +350,21 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// then the following scheme will be used: <br />
     /// <ul>
     /// <li>If the Repeat Count is 0, then the instruction will
-    /// be interpreted as <see cref="MisfireInstruction.SimpleTrigger.FireNow" />.</li>
+    /// be interpreted as <see cref="SimpleTriggerMisfireInstruction.FireNow" />.</li>
     /// <li>If the Repeat Count is <see cref="RepeatIndefinitely" />, then
-    /// the instruction will be interpreted as <see cref="MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount" />.
-    /// <b>WARNING:</b> using MisfirePolicy.SimpleTrigger.RescheduleNowWithRemainingRepeatCount
+    /// the instruction will be interpreted as <see cref="SimpleTriggerMisfireInstruction.NextWithRemainingCount" />.
+    /// <b>WARNING:</b> using <see cref="SimpleTriggerMisfireInstruction.NowWithRemainingCount" />
     /// with a trigger that has a non-null end-time may cause the trigger to
     /// never fire again if the end-time arrived during the misfire time span.
     /// </li>
     /// <li>If the Repeat Count is > 0, then the instruction
-    /// will be interpreted as <see cref="MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount" />.
+    /// will be interpreted as <see cref="SimpleTriggerMisfireInstruction.NowWithExistingCount" />.
     /// </li>
     /// </ul>
     /// </remarks>
     public override void UpdateAfterMisfire(ICalendar? calendar)
     {
-        int instr = MisfireInstruction;
+        int instr = MisfireInstructionCode;
         if (instr == Quartz.MisfireInstruction.SmartPolicy)
         {
             if (RepeatCount == 0)

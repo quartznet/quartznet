@@ -58,6 +58,61 @@ public class JsonSchedulingTests
         trigger.RepeatInterval.Should().Be(TimeSpan.FromSeconds(10));
     }
 
+    [TestCase("DoNothing", 2)]
+    [TestCase("FireOnceNow", 1)]
+    [TestCase("FireAndProceed", 1)]
+    [TestCase("IgnoreMisfirePolicy", -1)]
+    // A simple trigger's name on a cron trigger. It resolved before the per-family maps existed and
+    // still does - to 2, DoNothing - but the resolver now says so instead of leaving it to be
+    // discovered in production.
+    [TestCase("RescheduleNowWithExistingRepeatCount", 2)]
+    public void AddQuartz_CronTriggerMisfireInstruction_IsReadPerFamily(string name, int expected)
+    {
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Schedule:Jobs:0:Name", "misfireJob" },
+            { "Schedule:Jobs:0:JobType", "Quartz.Job.NativeJob, Quartz.Jobs" },
+            { "Schedule:Jobs:0:Durable", "true" },
+            { "Schedule:Triggers:0:Name", "misfireTrigger" },
+            { "Schedule:Triggers:0:JobName", "misfireJob" },
+            { "Schedule:Triggers:0:Cron:Expression", "0/30 * * * * ?" },
+            { "Schedule:Triggers:0:Cron:MisfireInstruction", name },
+        });
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQuartz(config);
+
+        var provider = services.BuildServiceProvider();
+
+        provider.ScheduledTriggers()[0].MisfireInstructionCode.Should().Be(expected);
+    }
+
+    [Test]
+    public void AddQuartz_MisfireInstructionOfAnotherFamilyWithNoCounterpart_IsRejected()
+    {
+        var config = BuildConfig(new Dictionary<string, string>
+        {
+            { "Schedule:Jobs:0:Name", "misfireJob" },
+            { "Schedule:Jobs:0:JobType", "Quartz.Job.NativeJob, Quartz.Jobs" },
+            { "Schedule:Jobs:0:Durable", "true" },
+            { "Schedule:Triggers:0:Name", "misfireTrigger" },
+            { "Schedule:Triggers:0:JobName", "misfireJob" },
+            { "Schedule:Triggers:0:Cron:Expression", "0/30 * * * * ?" },
+            { "Schedule:Triggers:0:Cron:MisfireInstruction", "RescheduleNextWithRemainingCount" },
+        });
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddQuartz(config);
+
+        var provider = services.BuildServiceProvider();
+
+        Action act = () => provider.ScheduledTriggers();
+
+        act.Should().Throw<SchedulerConfigException>().WithMessage("*RescheduleNextWithRemainingCount*cron*");
+    }
+
     [Test]
     public void AddQuartzSchedulers_SchedulersSection_RegistersNamedSchedulers()
     {

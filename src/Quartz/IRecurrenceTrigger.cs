@@ -38,4 +38,10 @@ public interface IRecurrenceTrigger : ITrigger
     /// The number of times this trigger has already fired.
     /// </summary>
     int TimesTriggered { get; }
+
+    /// <summary>
+    /// What the scheduler does when this trigger misses a firing.
+    /// </summary>
+    /// <seealso cref="RecurrenceScheduleBuilder.WithMisfireInstruction" />
+    RecurrenceTriggerMisfireInstruction MisfireInstruction { get; }
 }

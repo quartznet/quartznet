@@ -138,10 +138,10 @@ public class CronTriggerTest
 
         try
         {
-            trigger.MisfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
-            trigger.MisfireInstruction = MisfireInstruction.SmartPolicy;
-            trigger.MisfireInstruction = MisfireInstruction.CronTrigger.DoNothing;
-            trigger.MisfireInstruction = MisfireInstruction.CronTrigger.FireOnceNow;
+            trigger.MisfireInstructionCode = MisfireInstruction.IgnoreMisfirePolicy;
+            trigger.MisfireInstructionCode = MisfireInstruction.SmartPolicy;
+            trigger.MisfireInstructionCode = MisfireInstruction.CronTrigger.DoNothing;
+            trigger.MisfireInstructionCode = MisfireInstruction.CronTrigger.FireOnceNow;
         }
         catch (Exception)
         {
@@ -150,7 +150,7 @@ public class CronTriggerTest
 
         try
         {
-            trigger.MisfireInstruction = MisfireInstruction.CronTrigger.DoNothing + 1;
+            trigger.MisfireInstructionCode = MisfireInstruction.CronTrigger.DoNothing + 1;
 
             Assert.Fail("Expected exception while setting invalid misfire instruction but did not get it.");
         }
@@ -191,13 +191,13 @@ public class CronTriggerTest
         var startTime = DateTimeOffset.UtcNow;
         var endTime = DateTimeOffset.UtcNow.AddDays(1);
         var trigger = new CronTriggerImpl("name", "group", "jobname", "jobgroup", startTime, endTime, "0 0 12 * * ?", TimeZoneInfo.Utc);
-        trigger.MisfireInstruction = MisfireInstruction.CronTrigger.FireOnceNow;
+        trigger.MisfireInstructionCode = MisfireInstruction.CronTrigger.FireOnceNow;
         var scheduleBuilder = trigger.GetScheduleBuilder();
 
         var cloned = (CronTriggerImpl) scheduleBuilder.Build();
         Assert.Multiple(() =>
         {
-            Assert.That(cloned.MisfireInstruction, Is.EqualTo(trigger.MisfireInstruction));
+            Assert.That(cloned.MisfireInstructionCode, Is.EqualTo(trigger.MisfireInstructionCode));
             Assert.That(cloned.TimeZone, Is.EqualTo(trigger.TimeZone));
             Assert.That(cloned.CronExpressionString, Is.EqualTo(trigger.CronExpressionString));
         });
@@ -215,7 +215,7 @@ public class CronTriggerTest
         trigger.CronExpressionString = cronExpression;
         trigger.StartTimeUtc = startDate;
         trigger.EndTimeUtc = endDate;
-        trigger.MisfireInstruction = MisfireInstruction.CronTrigger.FireOnceNow;
+        trigger.MisfireInstructionCode = MisfireInstruction.CronTrigger.FireOnceNow;
 
         DateTimeOffset? firstFireTime = trigger.ComputeFirstFireTimeUtc(null);
 
@@ -327,7 +327,7 @@ public class CronTriggerTest
             Key = new TriggerKey("test", "test"),
             CronExpressionString = "0 0/2 * * * ?",
             StartTimeUtc = startTime,
-            MisfireInstruction = MisfireInstruction.CronTrigger.DoNothing
+            MisfireInstructionCode = MisfireInstruction.CronTrigger.DoNothing
         };
         trigger.ComputeFirstFireTimeUtc(null);
 
@@ -355,7 +355,7 @@ public class CronTriggerTest
             Key = new TriggerKey("test", "test"),
             CronExpressionString = "0 0/2 * * * ?",
             StartTimeUtc = startTime,
-            MisfireInstruction = MisfireInstruction.CronTrigger.DoNothing
+            MisfireInstructionCode = MisfireInstruction.CronTrigger.DoNothing
         };
         trigger.ComputeFirstFireTimeUtc(null);
 

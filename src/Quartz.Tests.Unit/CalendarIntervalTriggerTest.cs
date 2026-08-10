@@ -299,10 +299,10 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
 
         try
         {
-            trigger.MisfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
-            trigger.MisfireInstruction = MisfireInstruction.SmartPolicy;
-            trigger.MisfireInstruction = MisfireInstruction.CalendarIntervalTrigger.DoNothing;
-            trigger.MisfireInstruction = MisfireInstruction.CalendarIntervalTrigger.FireOnceNow;
+            trigger.MisfireInstructionCode = MisfireInstruction.IgnoreMisfirePolicy;
+            trigger.MisfireInstructionCode = MisfireInstruction.SmartPolicy;
+            trigger.MisfireInstructionCode = MisfireInstruction.CalendarIntervalTrigger.DoNothing;
+            trigger.MisfireInstructionCode = MisfireInstruction.CalendarIntervalTrigger.FireOnceNow;
         }
         catch (Exception)
         {
@@ -311,7 +311,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
 
         try
         {
-            trigger.MisfireInstruction = MisfireInstruction.CalendarIntervalTrigger.DoNothing + 1;
+            trigger.MisfireInstructionCode = MisfireInstruction.CalendarIntervalTrigger.DoNothing + 1;
 
             Assert.Fail("Expected exception while setting invalid misfire instruction but did not get it.");
         }
@@ -732,7 +732,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         trigger.PreserveHourOfDayAcrossDaylightSavings = true;
         trigger.SkipDayIfHourDoesNotExist = true;
         trigger.TimeZone = TimeZoneInfo.Utc;
-        trigger.MisfireInstruction = MisfireInstruction.CalendarIntervalTrigger.FireOnceNow;
+        trigger.MisfireInstructionCode = MisfireInstruction.CalendarIntervalTrigger.FireOnceNow;
         var scheduleBuilder = trigger.GetScheduleBuilder();
 
         var cloned = (CalendarIntervalTriggerImpl) scheduleBuilder.Build();
@@ -742,7 +742,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
             Assert.That(cloned.SkipDayIfHourDoesNotExist, Is.EqualTo(trigger.SkipDayIfHourDoesNotExist));
             Assert.That(cloned.RepeatInterval, Is.EqualTo(trigger.RepeatInterval));
             Assert.That(cloned.RepeatIntervalUnit, Is.EqualTo(trigger.RepeatIntervalUnit));
-            Assert.That(cloned.MisfireInstruction, Is.EqualTo(trigger.MisfireInstruction));
+            Assert.That(cloned.MisfireInstructionCode, Is.EqualTo(trigger.MisfireInstructionCode));
             Assert.That(cloned.TimeZone, Is.EqualTo(trigger.TimeZone));
         });
     }
@@ -776,8 +776,8 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
             .Build();
         using (new AssertionScope())
         {
-            trigger1.MisfireInstruction.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
-            trigger2.MisfireInstruction.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
+            trigger1.MisfireInstructionCode.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
+            trigger2.MisfireInstructionCode.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
         }
     }
 
@@ -1177,7 +1177,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
             StartTimeUtc = startTime,
             RepeatInterval = 2,
             RepeatIntervalUnit = IntervalUnit.Minute,
-            MisfireInstruction = MisfireInstruction.CalendarIntervalTrigger.DoNothing
+            MisfireInstructionCode = MisfireInstruction.CalendarIntervalTrigger.DoNothing
         };
         trigger.ComputeFirstFireTimeUtc(null);
 

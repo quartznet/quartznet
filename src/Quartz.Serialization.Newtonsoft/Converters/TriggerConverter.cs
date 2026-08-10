@@ -34,7 +34,7 @@ internal sealed class TriggerConverter(NewtonsoftJsonSerializerRegistry registry
             writer.WriteJobDataMapValue(trigger.JobDataMap);
 
             writer.WritePropertyName("MisfireInstruction");
-            writer.WriteValue(trigger.MisfireInstruction);
+            writer.WriteValue(trigger.MisfireInstructionCode);
 
             writer.WritePropertyName("StartTimeUtc");
             writer.WriteValue(trigger.StartTimeUtc);
@@ -120,7 +120,7 @@ internal sealed class TriggerConverter(NewtonsoftJsonSerializerRegistry registry
 
             if (trigger is IMutableTrigger mutableTrigger)
             {
-                mutableTrigger.MisfireInstruction = misfireInstruction;
+                mutableTrigger.MisfireInstructionCode = misfireInstruction;
 
                 // Written as the pair the triggers table stores, and absent altogether from payloads
                 // written before triggers could be pinned - a missing pair reads back as

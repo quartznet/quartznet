@@ -171,6 +171,12 @@ public interface ICronTrigger : ITrigger
     TimeZoneInfo TimeZone { get; }
 
     /// <summary>
+    /// What the scheduler does when this trigger misses a firing.
+    /// </summary>
+    /// <seealso cref="CronScheduleBuilder.WithMisfireInstruction" />
+    CronTriggerMisfireInstruction MisfireInstruction { get; }
+
+    /// <summary>
     /// Gets the expression summary.
     /// </summary>
     /// <returns></returns>

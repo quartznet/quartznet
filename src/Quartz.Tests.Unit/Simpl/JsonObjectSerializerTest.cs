@@ -472,7 +472,7 @@ public class JsonObjectSerializerTest
             StartTimeUtc = timeProvider.GetUtcNow(),
             EndTimeUtc = timeProvider.GetUtcNow().AddYears(1),
             Priority = 100,
-            MisfireInstruction = MisfireInstruction.IgnoreMisfirePolicy,
+            MisfireInstructionCode = MisfireInstruction.IgnoreMisfirePolicy,
             CustomProperty = 56
         };
 

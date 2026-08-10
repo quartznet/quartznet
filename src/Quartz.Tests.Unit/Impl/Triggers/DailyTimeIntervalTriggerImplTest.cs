@@ -1130,7 +1130,7 @@ public class DailyTimeIntervalTriggerImplTest
         {
             DayOfWeek.Thursday
         };
-        trigger.MisfireInstruction = MisfireInstruction.DailyTimeIntervalTrigger.FireOnceNow;
+        trigger.MisfireInstructionCode = MisfireInstruction.DailyTimeIntervalTrigger.FireOnceNow;
         trigger.TimeZone = TimeZoneInfo.Utc;
 
         var scheduleBuilder = trigger.GetScheduleBuilder();
@@ -1237,7 +1237,7 @@ public class DailyTimeIntervalTriggerImplTest
             EndTimeOfDay = new TimeOnly(23, 59, 59),
             RepeatInterval = 2,
             RepeatIntervalUnit = IntervalUnit.Minute,
-            MisfireInstruction = MisfireInstruction.DailyTimeIntervalTrigger.DoNothing
+            MisfireInstructionCode = MisfireInstruction.DailyTimeIntervalTrigger.DoNothing
         };
         trigger.ComputeFirstFireTimeUtc(null);
 

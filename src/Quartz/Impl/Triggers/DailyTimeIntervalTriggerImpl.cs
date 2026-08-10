@@ -416,15 +416,16 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
     /// was created.
     /// </summary>
     /// <remarks>
-    /// If the misfire instruction is set to <see cref="MisfireInstruction.SmartPolicy" />,
-    /// then the following scheme will be used:
+    /// If the misfire instruction is set to
+    /// <see cref="DailyTimeIntervalTriggerMisfireInstruction.SmartPolicy" />, then the following
+    /// scheme will be used:
     /// <ul>
-    ///     <li>The instruction will be interpreted as <see cref="MisfireInstruction.DailyTimeIntervalTrigger.FireOnceNow" /></li>
+    ///     <li>The instruction will be interpreted as <see cref="DailyTimeIntervalTriggerMisfireInstruction.FireAndProceed" /></li>
     /// </ul>
     /// </remarks>
     public override void UpdateAfterMisfire(ICalendar? calendar)
     {
-        int instr = MisfireInstruction;
+        int instr = MisfireInstructionCode;
 
         if (instr == Quartz.MisfireInstruction.IgnoreMisfirePolicy)
         {
@@ -1035,7 +1036,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
             .WithRepeatCount(RepeatCount)
             .InTimeZone(TimeZone);
 
-        DailyTimeIntervalTriggerMisfireInstruction instruction = (DailyTimeIntervalTriggerMisfireInstruction) MisfireInstruction;
+        DailyTimeIntervalTriggerMisfireInstruction instruction = MisfireInstruction;
         if (Enum.IsDefined(instruction))
         {
             cb.WithMisfireInstruction(instruction);
@@ -1049,4 +1050,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
     /// in millisecond precision.
     /// </summary>
     public override bool HasMillisecondPrecision => true;
+
+    /// <inheritdoc />
+    public DailyTimeIntervalTriggerMisfireInstruction MisfireInstruction => (DailyTimeIntervalTriggerMisfireInstruction) MisfireInstructionCode;
 }

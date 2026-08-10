@@ -1375,9 +1375,9 @@ longer sees it — derive from `DbSemaphore` and use `IDbProvider`, or implement
 `RecurrenceTriggerPersistenceDelegate`. All five are `sealed`; write your own against
 `SimplePropertiesTriggerPersistenceDelegateSupport` or `ITriggerPersistenceDelegate`.
 
-**`SchedulerConstants` and `MisfireInstruction` are static classes** rather than structs, and `QuartzOptions`,
-`SchedulingOptions` and `QuartzHostedServiceOptions` are `sealed`. Referring to the constants is unchanged;
-only `new MisfireInstruction()`, which never meant anything, stops compiling.
+**`SchedulerConstants` is a static class** rather than a struct, and `QuartzOptions`, `SchedulingOptions`
+and `QuartzHostedServiceOptions` are `sealed`. **`MisfireInstruction` is internal** — see
+[the enums are the vocabulary](#the-enums-are-the-vocabulary).
 
 **`HttpScheduler` is `sealed`.** It is a wire client — every member turns a call into an HTTP request — so
 deriving from it and overriding half of them produces a scheduler that is partly remote and partly not. Wrap
@@ -3355,12 +3355,55 @@ so a cron policy sent to a simple trigger is now an error rather than a silently
 
 ### The enums are the vocabulary
 
-An enum member's underlying value *is* the misfire code a trigger stores, so the two convert freely:
+A trigger's misfire policy is read from its family interface, typed. The family-agnostic number a trigger
+stores is still on `ITrigger`, renamed so it no longer competes with the typed property for the good name,
+and `IMutableTrigger` still carries the settable one.
 
-```csharp
-CronTriggerMisfireInstruction policy = (CronTriggerMisfireInstruction) trigger.MisfireInstruction;
-int stored = (int) CronTriggerMisfireInstruction.DoNothing;   // 2
+| 3.x | 4.x |
+|---|---|
+| `int ITrigger.MisfireInstruction { get; }` | `int ITrigger.MisfireInstructionCode { get; }` |
+| `int IMutableTrigger.MisfireInstruction { get; set; }` | `int IMutableTrigger.MisfireInstructionCode { get; set; }` |
+| `int AbstractTrigger.MisfireInstruction { get; set; }` | `int AbstractTrigger.MisfireInstructionCode { get; set; }` |
+| `(CronTriggerMisfireInstruction) trigger.MisfireInstruction` | `((ICronTrigger) trigger).MisfireInstruction` |
+| (new) | `SimpleTriggerMisfireInstruction ISimpleTrigger.MisfireInstruction { get; }`, and one per family |
+
+```diff
+- var policy = (CronTriggerMisfireInstruction) trigger.MisfireInstruction;
++ CronTriggerMisfireInstruction policy = ((ICronTrigger) trigger).MisfireInstruction;
+
+  // still there, for code generic over every family - serializers, the wire, logging
+- int stored = trigger.MisfireInstruction;
++ int stored = trigger.MisfireInstructionCode;
 ```
+
+An enum member's underlying value *is* the code, so the two convert freely, and the numbers in
+`QRTZ_TRIGGERS.MISFIRE_INSTR` and in JSON trigger payloads are unchanged.
+
+**The `MisfireInstruction` constant class is internal.** Its members were a third spelling of a vocabulary
+that already had two, and the enums cover all five families where it covered them unevenly. Replace
+`MisfireInstruction.CronTrigger.DoNothing` with `CronTriggerMisfireInstruction.DoNothing`,
+`MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount` with
+`SimpleTriggerMisfireInstruction.NowWithExistingCount`, `MisfireInstruction.IgnoreMisfirePolicy` with the
+family's `IgnoreMisfires`, and `MisfireInstruction.SmartPolicy` with the family's `SmartPolicy`.
+
+### The XML and JSON names are resolved per family
+
+Both scheduling-data readers used to resolve a misfire instruction name by reflecting over the constant class
+and *all* of its nested types at once, so any family's name resolved for any family's trigger. In JSON, which
+has no schema to catch it, a cron trigger configured with `"MisfireInstruction": "RescheduleNowWithExistingRepeatCount"`
+became `DoNothing` — both are 2 — and nothing said so. Explicit per-family maps replace the reflection.
+
+Every name that parses today still parses, and each family additionally accepts its own enum member names, so
+`FireAndProceed` and `NowWithExistingCount` can be written in configuration as well as in code. A name
+belonging to another family is still resolved when the code is legal for this one, but it is logged as a
+warning naming the policy the value actually selects; a name whose code is out of the family's range is
+rejected with a message listing the names that work, where it used to fail later with
+"The misfire instruction code is invalid for this type of trigger".
+
+`XMLSchedulingDataProcessor.ReadMisfireInstructionFromString` was `protected virtual` and is now private: it
+could not tell the families apart, because it was not told which one it was reading. XML itself is unaffected
+either way — `job_scheduling_data_2_0.xsd` restricts `misfire-instruction` per trigger type, so the schema
+rejects a foreign name before the resolver sees it.
 
 ## Intervals are said once per builder
 
@@ -3997,7 +4040,8 @@ contract rather than in the root namespace next to `IScheduler`. The methods are
 | `StdAdoConstants.SqlSelectCountExecutingFiredTriggersOfTrigger` removed | Removed with the method that used it; the per-job `SqlSelectCountExecutingFiredTriggersOfJob` remains — both on what is now an internal type |
 | `StdAdoConstants` and `IAdoUtil` are internal | Statement text is not a contract; the schema names stay public on `AdoConstants`, which is a static class rather than a base class |
 | Trigger persistence delegates are all public and `sealed` | `CronTriggerPersistenceDelegate`, `SimpleTriggerPersistenceDelegate` and `DailyTimeIntervalTriggerPersistenceDelegate` were internal; derive from `SimplePropertiesTriggerPersistenceDelegateSupport` for a delegate of your own |
-| `SchedulerConstants` and `MisfireInstruction` are `static class`es | They were `struct`s holding only `const`s; constant references are unchanged |
+| `SchedulerConstants` is a `static class` | It was a `struct` holding only `const`s; constant references are unchanged |
+| `MisfireInstruction` is internal | The five per-family enums are the vocabulary; every constant has an enum member with the same value |
 | `QuartzOptions`, `SchedulingOptions`, `QuartzHostedServiceOptions` are `sealed` | `QuartzHostedService` itself stays open for `AddQuartzHostedService<T>` |
 | `InternalTriggerState.Executing` removed | It was never assigned or read; RAMJobStore counts executions separately from the state that drives scheduling |
 | `ScheduleBuilder<T>` removed | The five schedule builders implement `IScheduleBuilder` directly — see [`ScheduleBuilder<T>` is gone](#schedulebuilder-t-is-gone) |

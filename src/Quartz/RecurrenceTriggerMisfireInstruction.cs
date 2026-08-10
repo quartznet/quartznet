@@ -24,7 +24,7 @@ namespace Quartz;
 /// </summary>
 /// <remarks>
 /// The values match the <see cref="MisfireInstruction" /> constants a trigger stores in
-/// <see cref="ITrigger.MisfireInstruction" />, which is family-agnostic and therefore still an
+/// <see cref="ITrigger.MisfireInstructionCode" />, which is family-agnostic and therefore still an
 /// <see cref="int" />.
 /// </remarks>
 /// <seealso cref="RecurrenceScheduleBuilder.WithMisfireInstruction" />

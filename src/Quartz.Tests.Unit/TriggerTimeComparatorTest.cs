@@ -155,7 +155,7 @@ public class TriggerTimeComparatorTest
         public int Priority { get; set; }
         public DateTimeOffset StartTimeUtc { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public DateTimeOffset? EndTimeUtc { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        public int MisfireInstruction { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public int MisfireInstructionCode { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public DateTimeOffset? FinalFireTimeUtc => throw new NotImplementedException();
         public bool HasMillisecondPrecision => throw new NotImplementedException();
 

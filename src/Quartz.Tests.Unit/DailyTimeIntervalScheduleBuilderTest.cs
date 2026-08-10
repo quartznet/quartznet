@@ -459,8 +459,8 @@ public class DailyTimeIntervalScheduleBuilderTest
             .Build();
         using (new AssertionScope())
         {
-            trigger1.MisfireInstruction.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
-            trigger2.MisfireInstruction.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
+            trigger1.MisfireInstructionCode.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
+            trigger2.MisfireInstructionCode.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
         }
     }
 }

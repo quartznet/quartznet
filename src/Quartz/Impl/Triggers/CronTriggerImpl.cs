@@ -604,11 +604,14 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
         return pot;
     }
 
+    /// <inheritdoc />
+    public CronTriggerMisfireInstruction MisfireInstruction => (CronTriggerMisfireInstruction) MisfireInstructionCode;
+
     public override IScheduleBuilder GetScheduleBuilder()
     {
         CronScheduleBuilder cb = CronScheduleBuilder.CronSchedule(CronExpressionString!).InTimeZone(TimeZone);
 
-        CronTriggerMisfireInstruction instruction = (CronTriggerMisfireInstruction) MisfireInstruction;
+        CronTriggerMisfireInstruction instruction = MisfireInstruction;
         if (Enum.IsDefined(instruction))
         {
             cb.WithMisfireInstruction(instruction);
@@ -617,7 +620,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
         {
             var logger = LogProvider.CreateLogger<CronTriggerImpl>();
             logger.LogWarning("Unrecognized misfire policy {MisfireInstruction}. Derived builder will use the default cron trigger behavior (FireOnceNow)",
-                MisfireInstruction);
+                MisfireInstructionCode);
         }
 
         return cb;
@@ -704,7 +707,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// <param name="calendar"></param>
     public override void UpdateAfterMisfire(ICalendar? calendar)
     {
-        int instr = MisfireInstruction;
+        int instr = MisfireInstructionCode;
 
         if (instr == Quartz.MisfireInstruction.SmartPolicy)
         {

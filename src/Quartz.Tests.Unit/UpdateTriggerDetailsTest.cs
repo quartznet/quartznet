@@ -216,7 +216,7 @@ public class UpdateTriggerDetailsTest
     {
         DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
         IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
-        trigger.MisfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
+        trigger.MisfireInstructionCode = MisfireInstruction.IgnoreMisfirePolicy;
         trigger.ComputeFirstFireTimeUtc(null);
         await jobStore.AddTrigger(trigger, false);
 
@@ -226,7 +226,7 @@ public class UpdateTriggerDetailsTest
 
         result.Should().BeTrue();
         IOperableTrigger retrieved = (await jobStore.GetTrigger(trigger.Key))!;
-        retrieved.MisfireInstruction.Should().Be(MisfireInstruction.CronTrigger.DoNothing);
+        retrieved.MisfireInstructionCode.Should().Be(MisfireInstruction.CronTrigger.DoNothing);
         retrieved.NextFireTimeUtc.Should().Be(nextFireBefore);
     }
 
@@ -244,8 +244,47 @@ public class UpdateTriggerDetailsTest
         (await jobStore.UpdateTriggerDetails(trigger.Key, update)).Should().BeTrue();
 
         IOperableTrigger retrieved = (await jobStore.GetTrigger(trigger.Key))!;
-        retrieved.MisfireInstruction.Should().Be(MisfireInstruction.CronTrigger.DoNothing,
+        retrieved.MisfireInstructionCode.Should().Be(MisfireInstruction.CronTrigger.DoNothing,
             "the code form is the same value the typed overload carries, just without the family");
+    }
+
+    [Test]
+    public async Task MisfireInstruction_FromAnotherFamilyIsRejected()
+    {
+        DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
+        IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
+        trigger.ComputeFirstFireTimeUtc(null);
+        await jobStore.AddTrigger(trigger, false);
+
+        // Code 2 is in range for a cron trigger, so AbstractTrigger's own validation passes it and
+        // the trigger silently becomes DoNothing. Only the update object knows a simple trigger's
+        // policy was meant.
+        TriggerDetailsUpdate update = new TriggerDetailsUpdate()
+            .WithMisfireInstruction(SimpleTriggerMisfireInstruction.NowWithExistingCount);
+
+        Func<Task> act = async () => await jobStore.UpdateTriggerDetails(trigger.Key, update);
+
+        await act.Should().ThrowAsync<JobPersistenceException>().WithMessage("*simple*cron*");
+
+        (await jobStore.GetTrigger(trigger.Key))!.MisfireInstructionCode.Should().Be(
+            MisfireInstruction.SmartPolicy,
+            "a rejected update must leave the stored trigger alone");
+    }
+
+    [Test]
+    public async Task MisfireInstruction_IsReadBackFromTheFamilyInterface()
+    {
+        DateTimeOffset start = TestDates.EvenMinuteDateAfterNow();
+        IOperableTrigger trigger = CreateCronTrigger("t1", "g1", "0/30 * * * * ?", start);
+        trigger.ComputeFirstFireTimeUtc(null);
+        await jobStore.AddTrigger(trigger, false);
+
+        await jobStore.UpdateTriggerDetails(trigger.Key, new TriggerDetailsUpdate().WithMisfireInstruction(CronTriggerMisfireInstruction.FireAndProceed));
+
+        ICronTrigger retrieved = (ICronTrigger) (await jobStore.GetTrigger(trigger.Key))!;
+        retrieved.MisfireInstruction.Should().Be(CronTriggerMisfireInstruction.FireAndProceed);
+        retrieved.MisfireInstructionCode.Should().Be((int) CronTriggerMisfireInstruction.FireAndProceed,
+            "the typed property and the raw code are two readings of one value");
     }
 
     [Test]

@@ -50,7 +50,7 @@ internal sealed class TriggerConverter(SystemTextJsonSerializerRegistry registry
 
             if (trigger is IMutableTrigger mutableTrigger)
             {
-                mutableTrigger.MisfireInstruction = misfireInstruction;
+                mutableTrigger.MisfireInstructionCode = misfireInstruction;
 
                 // Written as the pair the triggers table stores, and absent altogether from payloads
                 // written before triggers could be pinned - a missing pair reads back as
@@ -100,7 +100,7 @@ internal sealed class TriggerConverter(SystemTextJsonSerializerRegistry registry
             writer.WriteString(options.GetPropertyName("CalendarName"), value.CalendarName);
             writer.WritePropertyName(options.GetPropertyName("JobDataMap"));
             writer.WriteJobDataMapValue(value.JobDataMap, options);
-            writer.WriteNumber(options.GetPropertyName("MisfireInstruction"), value.MisfireInstruction);
+            writer.WriteNumber(options.GetPropertyName("MisfireInstruction"), value.MisfireInstructionCode);
             writer.WriteString(options.GetPropertyName("StartTimeUtc"), value.StartTimeUtc);
             writer.WriteString(options.GetPropertyName("EndTimeUtc"), value.EndTimeUtc);
             writer.WriteNumber(options.GetPropertyName("Priority"), value.Priority);
