@@ -5,15 +5,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 
-using Quartz.AspNetCore.HealthChecks;
 using Quartz.AspNetCore.HttpApi;
 using Quartz.AspNetCore.HttpApi.Endpoints;
 using Quartz.AspNetCore.HttpApi.Util;
 using Quartz.Serialization.Json;
 
-namespace Quartz.AspNetCore;
+namespace Quartz;
 
-public static class QuartzServiceCollectionExtensions
+public static class QuartzAspNetCoreConfigurationExtensions
 {
     /// <summary>
     /// Registers a health check for the default Quartz scheduler that reports unhealthy when the

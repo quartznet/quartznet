@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
-namespace Quartz.AspNetCore.HealthChecks;
+namespace Quartz;
 
 /// <summary>
 /// Which scheduler a health check reports on: a named one, or the default one.

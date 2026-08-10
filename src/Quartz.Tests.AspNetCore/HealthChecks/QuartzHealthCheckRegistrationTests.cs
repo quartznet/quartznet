@@ -3,7 +3,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 
-using Quartz.AspNetCore;
 
 namespace Quartz.Tests.AspNetCore.HealthChecks;
 
