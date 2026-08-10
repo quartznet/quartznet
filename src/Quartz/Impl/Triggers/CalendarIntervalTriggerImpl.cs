@@ -932,7 +932,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
         CalendarIntervalTriggerMisfireInstruction instruction = (CalendarIntervalTriggerMisfireInstruction) MisfireInstruction;
         if (Enum.IsDefined(instruction))
         {
-            cb.WithMisfireHandlingInstruction(instruction);
+            cb.WithMisfireInstruction(instruction);
         }
 
         return cb;

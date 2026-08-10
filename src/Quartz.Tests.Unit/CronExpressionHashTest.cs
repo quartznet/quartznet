@@ -415,7 +415,7 @@ public class CronExpressionHashTest
     {
         ITrigger trigger = TriggerBuilder.Create()
             .WithIdentity("misfire-test")
-            .WithCronSchedule("H H * * * ?", x => x.WithMisfireHandlingInstruction(CronTriggerMisfireInstruction.DoNothing))
+            .WithCronSchedule("H H * * * ?", x => x.WithMisfireInstruction(CronTriggerMisfireInstruction.DoNothing))
             .Build();
 
         Assert.AreEqual(MisfireInstruction.CronTrigger.DoNothing, trigger.MisfireInstruction);

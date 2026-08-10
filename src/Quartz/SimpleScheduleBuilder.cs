@@ -150,7 +150,7 @@ public sealed class SimpleScheduleBuilder : IScheduleBuilder
     /// <see cref="SimpleTriggerMisfireInstruction.SmartPolicy" />.</param>
     /// <returns>the updated SimpleScheduleBuilder</returns>
     /// <seealso cref="SimpleTriggerMisfireInstruction" />
-    public SimpleScheduleBuilder WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction instruction)
+    public SimpleScheduleBuilder WithMisfireInstruction(SimpleTriggerMisfireInstruction instruction)
     {
         misfireInstruction = (int) instruction;
         return this;

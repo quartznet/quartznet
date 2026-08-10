@@ -27,13 +27,16 @@ namespace Quartz;
 /// <see cref="ITrigger.MisfireInstruction" />, which is family-agnostic and therefore still an
 /// <see cref="int" />.
 /// </remarks>
-/// <seealso cref="SimpleScheduleBuilder.WithMisfireHandlingInstruction" />
+/// <seealso cref="SimpleScheduleBuilder.WithMisfireInstruction" />
 public enum SimpleTriggerMisfireInstruction
 {
     /// <summary>
     /// Let the scheduler pick the policy, based on the trigger's repeat count and interval.
     /// This is the default.
     /// </summary>
+    /// <remarks>
+    /// Spelled <c>SmartPolicy</c> in XML and JSON scheduling data.
+    /// </remarks>
     SmartPolicy = MisfireInstruction.SmartPolicy,
 
     /// <summary>
@@ -43,6 +46,7 @@ public enum SimpleTriggerMisfireInstruction
     /// <remarks>
     /// A trigger that missed many firings will fire that many times in rapid succession while it
     /// catches up.
+    /// <para>Spelled <c>IgnoreMisfirePolicy</c> in XML and JSON scheduling data.</para>
     /// </remarks>
     IgnoreMisfires = MisfireInstruction.IgnoreMisfirePolicy,
 
@@ -52,6 +56,7 @@ public enum SimpleTriggerMisfireInstruction
     /// <remarks>
     /// Intended for one-shot (non-repeating) triggers. On a repeating trigger this behaves like
     /// <see cref="NowWithRemainingCount" />.
+    /// <para>Spelled <c>FireNow</c> in XML and JSON scheduling data.</para>
     /// </remarks>
     FireNow = MisfireInstruction.SimpleTrigger.FireNow,
 
@@ -61,6 +66,7 @@ public enum SimpleTriggerMisfireInstruction
     /// <remarks>
     /// The trigger forgets the start time and repeat count it was originally set up with. The
     /// trigger's end time is still honored, so a trigger whose end time has passed will not fire.
+    /// <para>Spelled <c>RescheduleNowWithExistingRepeatCount</c> in XML and JSON scheduling data.</para>
     /// </remarks>
     NowWithExistingCount = MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount,
 
@@ -71,6 +77,7 @@ public enum SimpleTriggerMisfireInstruction
     /// <remarks>
     /// The trigger forgets the start time and repeat count it was originally set up with. If every
     /// remaining firing was missed, the trigger completes after firing now.
+    /// <para>Spelled <c>RescheduleNowWithRemainingRepeatCount</c> in XML and JSON scheduling data.</para>
     /// </remarks>
     NowWithRemainingCount = MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount,
 
@@ -80,11 +87,15 @@ public enum SimpleTriggerMisfireInstruction
     /// </summary>
     /// <remarks>
     /// If every firing was missed, the trigger goes straight to completed.
+    /// <para>Spelled <c>RescheduleNextWithRemainingCount</c> in XML and JSON scheduling data.</para>
     /// </remarks>
     NextWithRemainingCount = MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount,
 
     /// <summary>
     /// Reschedule to the next scheduled time after now, keeping the repeat count as it stands.
     /// </summary>
+    /// <remarks>
+    /// Spelled <c>RescheduleNextWithExistingCount</c> in XML and JSON scheduling data.
+    /// </remarks>
     NextWithExistingCount = MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount,
 }

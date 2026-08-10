@@ -96,7 +96,7 @@ public class SchedulingJobsSettingMisfireInstructionsExample : IExample
             .WithSimpleSchedule(x => x
                 .WithInterval(TimeSpan.FromSeconds(3))
                 .RepeatForever()
-                .WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.NowWithExistingCount)) // set misfire instructions
+                .WithMisfireInstruction(SimpleTriggerMisfireInstruction.NowWithExistingCount)) // set misfire instructions
             .Build();
         ft = await scheduler.ScheduleJob(job, trigger);
 

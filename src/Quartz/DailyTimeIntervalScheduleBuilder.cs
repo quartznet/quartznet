@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -351,7 +351,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : IScheduleBuilder
     /// <see cref="DailyTimeIntervalTriggerMisfireInstruction.SmartPolicy" />.</param>
     /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
     /// <seealso cref="DailyTimeIntervalTriggerMisfireInstruction" />
-    public DailyTimeIntervalScheduleBuilder WithMisfireHandlingInstruction(DailyTimeIntervalTriggerMisfireInstruction instruction)
+    public DailyTimeIntervalScheduleBuilder WithMisfireInstruction(DailyTimeIntervalTriggerMisfireInstruction instruction)
     {
         misfireInstruction = (int) instruction;
         return this;

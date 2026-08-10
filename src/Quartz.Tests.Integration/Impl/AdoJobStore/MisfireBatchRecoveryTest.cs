@@ -77,16 +77,16 @@ public class MisfireBatchRecoveryTest
         //  - SIMPLE and CRON arrive complete on the joined row
         //  - DAILY_I and CAL_INT need the SIMPROP_TRIGGERS follow-up query
         await StoreMisfiredTrigger(jobStore, "simple", TriggerBuilder.Create()
-            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(1)).RepeatForever().WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.FireNow)));
+            .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(1)).RepeatForever().WithMisfireInstruction(SimpleTriggerMisfireInstruction.FireNow)));
 
         await StoreMisfiredTrigger(jobStore, "cron", TriggerBuilder.Create()
-            .WithCronSchedule("0 * * * * ?", x => x.WithMisfireHandlingInstruction(CronTriggerMisfireInstruction.FireAndProceed)));
+            .WithCronSchedule("0 * * * * ?", x => x.WithMisfireInstruction(CronTriggerMisfireInstruction.FireAndProceed)));
 
         await StoreMisfiredTrigger(jobStore, "daily", TriggerBuilder.Create()
-            .WithDailyTimeIntervalSchedule(x => x.WithInterval(1, IntervalUnit.Minute).WithMisfireHandlingInstruction(DailyTimeIntervalTriggerMisfireInstruction.FireAndProceed)));
+            .WithDailyTimeIntervalSchedule(x => x.WithInterval(1, IntervalUnit.Minute).WithMisfireInstruction(DailyTimeIntervalTriggerMisfireInstruction.FireAndProceed)));
 
         await StoreMisfiredTrigger(jobStore, "calint", TriggerBuilder.Create()
-            .WithCalendarIntervalSchedule(x => x.WithInterval(1, IntervalUnit.Minute).WithMisfireHandlingInstruction(CalendarIntervalTriggerMisfireInstruction.FireAndProceed)));
+            .WithCalendarIntervalSchedule(x => x.WithInterval(1, IntervalUnit.Minute).WithMisfireInstruction(CalendarIntervalTriggerMisfireInstruction.FireAndProceed)));
 
         //  - a custom trigger with no persistence delegate, which lands in BLOB_TRIGGERS
         await StoreMisfiredBlobTrigger(jobStore, "blob");
@@ -140,7 +140,7 @@ public class MisfireBatchRecoveryTest
         for (var i = 0; i < triggerCount; i++)
         {
             await StoreMisfiredTrigger(jobStore, "simple" + i, TriggerBuilder.Create()
-                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(1)).RepeatForever().WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.FireNow)));
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(1)).RepeatForever().WithMisfireInstruction(SimpleTriggerMisfireInstruction.FireNow)));
         }
 
         commandCounter.Reset();
@@ -162,7 +162,7 @@ public class MisfireBatchRecoveryTest
         for (var i = 0; i < 5; i++)
         {
             await StoreMisfiredTrigger(jobStore, "simple" + i, TriggerBuilder.Create()
-                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(1)).RepeatForever().WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.FireNow)));
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(1)).RepeatForever().WithMisfireInstruction(SimpleTriggerMisfireInstruction.FireNow)));
         }
 
         RecoverMisfiredJobsResult result = await jobStore.RecoverMisfires();

@@ -150,7 +150,7 @@ If the 'smart policy' instruction is used (the default), RecurrenceTrigger will 
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger1", "group1")
     .WithRecurrenceSchedule("FREQ=WEEKLY;BYDAY=MO", b => b
-        .WithMisfireHandlingInstruction(RecurrenceTriggerMisfireInstruction.DoNothing))
+        .WithMisfireInstruction(RecurrenceTriggerMisfireInstruction.DoNothing))
     .Build();
 ```
 

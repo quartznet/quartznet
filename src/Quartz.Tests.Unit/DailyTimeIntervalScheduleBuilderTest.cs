@@ -450,7 +450,7 @@ public class DailyTimeIntervalScheduleBuilderTest
     {
         var trigger1 = TriggerBuilder.Create()
             .WithDailyTimeIntervalSchedule(x => x
-                .WithMisfireHandlingInstruction(DailyTimeIntervalTriggerMisfireInstruction.IgnoreMisfires)
+                .WithMisfireInstruction(DailyTimeIntervalTriggerMisfireInstruction.IgnoreMisfires)
             )
             .Build();
 

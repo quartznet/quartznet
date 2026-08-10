@@ -1177,7 +1177,7 @@ public class DailyTimeIntervalTriggerImplTest
                 .StartingDailyAt(new TimeOnly(0, 0, 0))
                 .EndingDailyAt(new TimeOnly(22, 0, 0))
                 .WithInterval(15, IntervalUnit.Minute)
-                .WithMisfireHandlingInstruction(DailyTimeIntervalTriggerMisfireInstruction.DoNothing)
+                .WithMisfireInstruction(DailyTimeIntervalTriggerMisfireInstruction.DoNothing)
             )
             .Build();
 

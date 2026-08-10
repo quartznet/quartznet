@@ -27,13 +27,17 @@ namespace Quartz;
 /// <see cref="ITrigger.MisfireInstruction" />, which is family-agnostic and therefore still an
 /// <see cref="int" />.
 /// </remarks>
-/// <seealso cref="DailyTimeIntervalScheduleBuilder.WithMisfireHandlingInstruction" />
+/// <seealso cref="DailyTimeIntervalScheduleBuilder.WithMisfireInstruction" />
 public enum DailyTimeIntervalTriggerMisfireInstruction
 {
     /// <summary>
     /// Let the scheduler pick the policy. This is the default, and for a daily-time-interval
     /// trigger it means <see cref="FireAndProceed" />.
     /// </summary>
+    /// <remarks>
+    /// Spelled <c>SmartPolicy</c> in JSON scheduling data. The XML scheduling-data schema has no
+    /// daily-time-interval trigger.
+    /// </remarks>
     SmartPolicy = MisfireInstruction.SmartPolicy,
 
     /// <summary>
@@ -42,16 +46,23 @@ public enum DailyTimeIntervalTriggerMisfireInstruction
     /// <remarks>
     /// A trigger that missed many firings will fire that many times in rapid succession while it
     /// catches up.
+    /// <para>Spelled <c>IgnoreMisfirePolicy</c> in JSON scheduling data.</para>
     /// </remarks>
     IgnoreMisfires = MisfireInstruction.IgnoreMisfirePolicy,
 
     /// <summary>
     /// Fire once now, then resume the schedule.
     /// </summary>
+    /// <remarks>
+    /// Spelled <c>FireOnceNow</c> in JSON scheduling data.
+    /// </remarks>
     FireAndProceed = MisfireInstruction.DailyTimeIntervalTrigger.FireOnceNow,
 
     /// <summary>
     /// Skip the missed firings and resume at the next scheduled time.
     /// </summary>
+    /// <remarks>
+    /// Spelled <c>DoNothing</c> in JSON scheduling data.
+    /// </remarks>
     DoNothing = MisfireInstruction.DailyTimeIntervalTrigger.DoNothing,
 }

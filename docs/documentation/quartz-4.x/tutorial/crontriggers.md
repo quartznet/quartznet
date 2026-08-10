@@ -150,7 +150,7 @@ When building CronTriggers, you specify the misfire instruction as part of the c
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger3", "group1")
     .WithCronSchedule("0 0/2 8-17 * * ?", x => x
-        .WithMisfireHandlingInstruction(CronTriggerMisfireInstruction.FireAndProceed))
+        .WithMisfireInstruction(CronTriggerMisfireInstruction.FireAndProceed))
     .ForJob("myJob", "group1")
     .Build();
 ```

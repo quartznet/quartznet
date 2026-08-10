@@ -384,7 +384,7 @@ public class XMLSchedulingDataProcessor
 
                 if (!string.IsNullOrWhiteSpace(simpleTrigger.MisfireInstruction))
                 {
-                    ((SimpleScheduleBuilder) scheduleBuilder).WithMisfireHandlingInstruction((SimpleTriggerMisfireInstruction) ReadMisfireInstructionFromString(simpleTrigger.MisfireInstruction));
+                    ((SimpleScheduleBuilder) scheduleBuilder).WithMisfireInstruction((SimpleTriggerMisfireInstruction) ReadMisfireInstructionFromString(simpleTrigger.MisfireInstruction));
                 }
             }
             else if (triggerNode is CronTriggerDefinition cronTrigger)
@@ -398,7 +398,7 @@ public class XMLSchedulingDataProcessor
 
                 if (!string.IsNullOrWhiteSpace(cronTrigger.MisfireInstruction))
                 {
-                    ((CronScheduleBuilder) scheduleBuilder).WithMisfireHandlingInstruction((CronTriggerMisfireInstruction) ReadMisfireInstructionFromString(cronTrigger.MisfireInstruction));
+                    ((CronScheduleBuilder) scheduleBuilder).WithMisfireInstruction((CronTriggerMisfireInstruction) ReadMisfireInstructionFromString(cronTrigger.MisfireInstruction));
                 }
             }
             else if (triggerNode is CalendarIntervalTriggerDefinition calendarIntervalTrigger)
@@ -413,7 +413,7 @@ public class XMLSchedulingDataProcessor
 
                 if (!string.IsNullOrWhiteSpace(calendarIntervalTrigger.MisfireInstruction))
                 {
-                    ((CalendarIntervalScheduleBuilder) scheduleBuilder).WithMisfireHandlingInstruction((CalendarIntervalTriggerMisfireInstruction) ReadMisfireInstructionFromString(calendarIntervalTrigger.MisfireInstruction));
+                    ((CalendarIntervalScheduleBuilder) scheduleBuilder).WithMisfireInstruction((CalendarIntervalTriggerMisfireInstruction) ReadMisfireInstructionFromString(calendarIntervalTrigger.MisfireInstruction));
                 }
             }
             else

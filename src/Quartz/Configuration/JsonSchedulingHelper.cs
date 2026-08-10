@@ -301,7 +301,7 @@ internal static class JsonSchedulingHelper
         var misfireInstruction = section[nameof(JsonSimpleSchedule.MisfireInstruction)];
         if (misfireInstruction is not null)
         {
-            builder.WithMisfireHandlingInstruction((SimpleTriggerMisfireInstruction) ParseMisfireInstruction(misfireInstruction));
+            builder.WithMisfireInstruction((SimpleTriggerMisfireInstruction) ParseMisfireInstruction(misfireInstruction));
         }
 
         return builder;
@@ -336,7 +336,7 @@ internal static class JsonSchedulingHelper
         var misfireInstruction = section[nameof(JsonCronSchedule.MisfireInstruction)];
         if (misfireInstruction is not null)
         {
-            builder.WithMisfireHandlingInstruction((CronTriggerMisfireInstruction) ParseMisfireInstruction(misfireInstruction));
+            builder.WithMisfireInstruction((CronTriggerMisfireInstruction) ParseMisfireInstruction(misfireInstruction));
         }
 
         return builder;
@@ -355,7 +355,7 @@ internal static class JsonSchedulingHelper
         var misfireInstruction = section[nameof(JsonCalendarIntervalSchedule.MisfireInstruction)];
         if (misfireInstruction is not null)
         {
-            builder.WithMisfireHandlingInstruction((CalendarIntervalTriggerMisfireInstruction) ParseMisfireInstruction(misfireInstruction));
+            builder.WithMisfireInstruction((CalendarIntervalTriggerMisfireInstruction) ParseMisfireInstruction(misfireInstruction));
         }
 
         return builder;
@@ -419,7 +419,7 @@ internal static class JsonSchedulingHelper
             var instruction = (DailyTimeIntervalTriggerMisfireInstruction) ParseMisfireInstruction(misfireInstruction);
             if (Enum.IsDefined(instruction))
             {
-                builder.WithMisfireHandlingInstruction(instruction);
+                builder.WithMisfireInstruction(instruction);
             }
         }
 

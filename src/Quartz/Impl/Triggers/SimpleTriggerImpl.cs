@@ -266,7 +266,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
         SimpleTriggerMisfireInstruction instruction = (SimpleTriggerMisfireInstruction) MisfireInstruction;
         if (Enum.IsDefined(instruction))
         {
-            sb.WithMisfireHandlingInstruction(instruction);
+            sb.WithMisfireInstruction(instruction);
         }
 
         return sb;

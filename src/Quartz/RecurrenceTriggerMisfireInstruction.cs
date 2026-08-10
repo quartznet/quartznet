@@ -27,13 +27,17 @@ namespace Quartz;
 /// <see cref="ITrigger.MisfireInstruction" />, which is family-agnostic and therefore still an
 /// <see cref="int" />.
 /// </remarks>
-/// <seealso cref="RecurrenceScheduleBuilder.WithMisfireHandlingInstruction" />
+/// <seealso cref="RecurrenceScheduleBuilder.WithMisfireInstruction" />
 public enum RecurrenceTriggerMisfireInstruction
 {
     /// <summary>
     /// Let the scheduler pick the policy. This is the default, and for a recurrence trigger it
     /// means <see cref="FireAndProceed" />.
     /// </summary>
+    /// <remarks>
+    /// Named <c>SmartPolicy</c> in the misfire vocabulary. Recurrence triggers have no XML or JSON
+    /// scheduling-data form, so the name only ever appears in code.
+    /// </remarks>
     SmartPolicy = MisfireInstruction.SmartPolicy,
 
     /// <summary>
@@ -42,16 +46,23 @@ public enum RecurrenceTriggerMisfireInstruction
     /// <remarks>
     /// A trigger that missed many firings will fire that many times in rapid succession while it
     /// catches up.
+    /// <para>Named <c>IgnoreMisfirePolicy</c> in the misfire vocabulary.</para>
     /// </remarks>
     IgnoreMisfires = MisfireInstruction.IgnoreMisfirePolicy,
 
     /// <summary>
     /// Fire once now, then resume the schedule.
     /// </summary>
+    /// <remarks>
+    /// Named <c>FireOnceNow</c> in the misfire vocabulary.
+    /// </remarks>
     FireAndProceed = MisfireInstruction.RecurrenceTrigger.FireOnceNow,
 
     /// <summary>
     /// Skip the missed firings and resume at the next scheduled time.
     /// </summary>
+    /// <remarks>
+    /// Named <c>DoNothing</c> in the misfire vocabulary.
+    /// </remarks>
     DoNothing = MisfireInstruction.RecurrenceTrigger.DoNothing,
 }

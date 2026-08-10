@@ -700,7 +700,7 @@ public sealed class RAMJobStore : IJobStore
 
             if (update.HasMisfireInstruction)
             {
-                trigger.MisfireInstruction = update.MisfireInstruction;
+                trigger.MisfireInstruction = update.MisfireInstructionCode;
             }
 
             if (update.HasPreferredNode)

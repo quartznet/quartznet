@@ -691,7 +691,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         schedBuilder.WithInterval(2, IntervalUnit.Week);
         schedBuilder
             .PreserveHourOfDayAcrossDaylightSavings(true)
-            .WithMisfireHandlingInstruction(CalendarIntervalTriggerMisfireInstruction.FireAndProceed);
+            .WithMisfireInstruction(CalendarIntervalTriggerMisfireInstruction.FireAndProceed);
 
         var trigger = tb.StartAt(new DateTimeOffset(new DateTime(2014, 2, 26, 23, 45, 0)))
             .WithSchedule(schedBuilder)
@@ -767,7 +767,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
     {
         var trigger1 = TriggerBuilder.Create()
             .WithCalendarIntervalSchedule(x => x
-                .WithMisfireHandlingInstruction(CalendarIntervalTriggerMisfireInstruction.IgnoreMisfires)
+                .WithMisfireInstruction(CalendarIntervalTriggerMisfireInstruction.IgnoreMisfires)
             )
             .Build();
 

@@ -56,7 +56,7 @@ namespace Quartz
         public Quartz.CalendarIntervalScheduleBuilder PreserveHourOfDayAcrossDaylightSavings(bool preserveHourOfDay = true) { }
         public Quartz.CalendarIntervalScheduleBuilder SkipDayIfHourDoesNotExist(bool skipDay = true) { }
         public Quartz.CalendarIntervalScheduleBuilder WithInterval(int interval, Quartz.IntervalUnit unit) { }
-        public Quartz.CalendarIntervalScheduleBuilder WithMisfireHandlingInstruction(Quartz.CalendarIntervalTriggerMisfireInstruction instruction) { }
+        public Quartz.CalendarIntervalScheduleBuilder WithMisfireInstruction(Quartz.CalendarIntervalTriggerMisfireInstruction instruction) { }
         public static Quartz.CalendarIntervalScheduleBuilder Create() { }
     }
     public enum CalendarIntervalTriggerMisfireInstruction
@@ -149,7 +149,7 @@ namespace Quartz
     {
         public Quartz.Extensibility.IMutableTrigger Build() { }
         public Quartz.CronScheduleBuilder InTimeZone(System.TimeZoneInfo? timeZone) { }
-        public Quartz.CronScheduleBuilder WithMisfireHandlingInstruction(Quartz.CronTriggerMisfireInstruction instruction) { }
+        public Quartz.CronScheduleBuilder WithMisfireInstruction(Quartz.CronTriggerMisfireInstruction instruction) { }
         public static Quartz.CronScheduleBuilder CronSchedule(Quartz.CronExpression cronExpression) { }
         public static Quartz.CronScheduleBuilder CronSchedule(string cronExpression) { }
     }
@@ -172,7 +172,7 @@ namespace Quartz
         public Quartz.DailyTimeIntervalScheduleBuilder OnSaturdayAndSunday() { }
         public Quartz.DailyTimeIntervalScheduleBuilder StartingDailyAt(System.TimeOnly timeOfDay) { }
         public Quartz.DailyTimeIntervalScheduleBuilder WithInterval(int interval, Quartz.IntervalUnit unit) { }
-        public Quartz.DailyTimeIntervalScheduleBuilder WithMisfireHandlingInstruction(Quartz.DailyTimeIntervalTriggerMisfireInstruction instruction) { }
+        public Quartz.DailyTimeIntervalScheduleBuilder WithMisfireInstruction(Quartz.DailyTimeIntervalTriggerMisfireInstruction instruction) { }
         public Quartz.DailyTimeIntervalScheduleBuilder WithRepeatCount(int repeatCount) { }
         public static Quartz.DailyTimeIntervalScheduleBuilder Create(System.TimeProvider? timeProvider = null) { }
     }
@@ -1008,7 +1008,7 @@ namespace Quartz
     {
         public Quartz.Extensibility.IMutableTrigger Build() { }
         public Quartz.RecurrenceScheduleBuilder InTimeZone(System.TimeZoneInfo? timeZone) { }
-        public Quartz.RecurrenceScheduleBuilder WithMisfireHandlingInstruction(Quartz.RecurrenceTriggerMisfireInstruction instruction) { }
+        public Quartz.RecurrenceScheduleBuilder WithMisfireInstruction(Quartz.RecurrenceTriggerMisfireInstruction instruction) { }
         public static Quartz.RecurrenceScheduleBuilder Create(string recurrenceRule) { }
     }
     public enum RecurrenceTriggerMisfireInstruction
@@ -1143,7 +1143,7 @@ namespace Quartz
         public Quartz.Extensibility.IMutableTrigger Build() { }
         public Quartz.SimpleScheduleBuilder RepeatForever() { }
         public Quartz.SimpleScheduleBuilder WithInterval(System.TimeSpan timeSpan) { }
-        public Quartz.SimpleScheduleBuilder WithMisfireHandlingInstruction(Quartz.SimpleTriggerMisfireInstruction instruction) { }
+        public Quartz.SimpleScheduleBuilder WithMisfireInstruction(Quartz.SimpleTriggerMisfireInstruction instruction) { }
         public Quartz.SimpleScheduleBuilder WithRepeatCount(int repeatCount) { }
         public static Quartz.SimpleScheduleBuilder Create() { }
     }
@@ -1284,7 +1284,12 @@ namespace Quartz
         public Quartz.TriggerDetailsUpdate WithCalendarName(string? calendarName) { }
         public Quartz.TriggerDetailsUpdate WithDescription(string? description) { }
         public Quartz.TriggerDetailsUpdate WithJobDataMap(Quartz.JobDataMap jobDataMap) { }
-        public Quartz.TriggerDetailsUpdate WithMisfireInstruction(int misfireInstruction) { }
+        public Quartz.TriggerDetailsUpdate WithMisfireInstruction(Quartz.CalendarIntervalTriggerMisfireInstruction misfireInstruction) { }
+        public Quartz.TriggerDetailsUpdate WithMisfireInstruction(Quartz.CronTriggerMisfireInstruction misfireInstruction) { }
+        public Quartz.TriggerDetailsUpdate WithMisfireInstruction(Quartz.DailyTimeIntervalTriggerMisfireInstruction misfireInstruction) { }
+        public Quartz.TriggerDetailsUpdate WithMisfireInstruction(Quartz.RecurrenceTriggerMisfireInstruction misfireInstruction) { }
+        public Quartz.TriggerDetailsUpdate WithMisfireInstruction(Quartz.SimpleTriggerMisfireInstruction misfireInstruction) { }
+        public Quartz.TriggerDetailsUpdate WithMisfireInstructionCode(int misfireInstructionCode) { }
         public Quartz.TriggerDetailsUpdate WithPreferredNode(Quartz.PreferredNode preferredNode) { }
         public Quartz.TriggerDetailsUpdate WithPriority(int priority) { }
     }

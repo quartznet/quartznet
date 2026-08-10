@@ -528,22 +528,22 @@ public class SimpleTriggerImplBenchmark
             switch (MisfireInstruction)
             {
                 case Quartz.MisfireInstruction.SimpleTrigger.FireNow:
-                    sb.WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.FireNow);
+                    sb.WithMisfireInstruction(SimpleTriggerMisfireInstruction.FireNow);
                     break;
                 case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount:
-                    sb.WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.NextWithExistingCount);
+                    sb.WithMisfireInstruction(SimpleTriggerMisfireInstruction.NextWithExistingCount);
                     break;
                 case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount:
-                    sb.WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.NextWithRemainingCount);
+                    sb.WithMisfireInstruction(SimpleTriggerMisfireInstruction.NextWithRemainingCount);
                     break;
                 case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount:
-                    sb.WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.NowWithExistingCount);
+                    sb.WithMisfireInstruction(SimpleTriggerMisfireInstruction.NowWithExistingCount);
                     break;
                 case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount:
-                    sb.WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.NowWithRemainingCount);
+                    sb.WithMisfireInstruction(SimpleTriggerMisfireInstruction.NowWithRemainingCount);
                     break;
                 case Quartz.MisfireInstruction.IgnoreMisfirePolicy:
-                    sb.WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.IgnoreMisfires);
+                    sb.WithMisfireInstruction(SimpleTriggerMisfireInstruction.IgnoreMisfires);
                     break;
             }
 

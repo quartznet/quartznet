@@ -418,7 +418,7 @@ public class QuartSchedulerBenchmark
         return TriggerBuilder.Create()
             .WithSimpleSchedule(sb => sb.RepeatForever()
                 .WithInterval(repeatInterval)
-                .WithMisfireHandlingInstruction(SimpleTriggerMisfireInstruction.FireNow))
+                .WithMisfireInstruction(SimpleTriggerMisfireInstruction.FireNow))
             .Build();
     }
 

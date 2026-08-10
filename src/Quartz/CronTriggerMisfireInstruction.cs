@@ -27,13 +27,16 @@ namespace Quartz;
 /// <see cref="ITrigger.MisfireInstruction" />, which is family-agnostic and therefore still an
 /// <see cref="int" />.
 /// </remarks>
-/// <seealso cref="CronScheduleBuilder.WithMisfireHandlingInstruction" />
+/// <seealso cref="CronScheduleBuilder.WithMisfireInstruction" />
 public enum CronTriggerMisfireInstruction
 {
     /// <summary>
     /// Let the scheduler pick the policy. This is the default, and for a cron trigger it means
     /// <see cref="FireAndProceed" />.
     /// </summary>
+    /// <remarks>
+    /// Spelled <c>SmartPolicy</c> in XML and JSON scheduling data.
+    /// </remarks>
     SmartPolicy = MisfireInstruction.SmartPolicy,
 
     /// <summary>
@@ -42,16 +45,23 @@ public enum CronTriggerMisfireInstruction
     /// <remarks>
     /// A trigger that missed many firings will fire that many times in rapid succession while it
     /// catches up.
+    /// <para>Spelled <c>IgnoreMisfirePolicy</c> in XML and JSON scheduling data.</para>
     /// </remarks>
     IgnoreMisfires = MisfireInstruction.IgnoreMisfirePolicy,
 
     /// <summary>
     /// Fire once now, then resume the schedule.
     /// </summary>
+    /// <remarks>
+    /// Spelled <c>FireOnceNow</c> in XML and JSON scheduling data.
+    /// </remarks>
     FireAndProceed = MisfireInstruction.CronTrigger.FireOnceNow,
 
     /// <summary>
     /// Skip the missed firings and resume at the next scheduled time.
     /// </summary>
+    /// <remarks>
+    /// Spelled <c>DoNothing</c> in XML and JSON scheduling data.
+    /// </remarks>
     DoNothing = MisfireInstruction.CronTrigger.DoNothing,
 }
