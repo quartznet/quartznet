@@ -331,12 +331,12 @@ public class ConfigurationIsNeverSilentlyDroppedTest
     }
 
     /// <summary>
-    /// Reads one group's limit off a scheduler's snapshot, asserting the group is configured at all.
+    /// Reads one scope's limit off a scheduler's snapshot, asserting the scope is configured at all.
     /// </summary>
-    private static int? LimitFor(ExecutionLimits? limits, string group)
+    private static int? LimitFor(ExecutionLimits? limits, ExecutionGroupScope scope)
     {
         limits.Should().NotBeNull();
-        limits!.TryGetLimit(group, out int? limit).Should().BeTrue($"execution group '{group}' should be configured");
+        limits!.TryGetLimit(scope, out int? limit).Should().BeTrue($"execution scope '{scope}' should be configured");
         return limit;
     }
 
@@ -376,7 +376,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         var scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
         try
         {
-            LimitFor(provider.GetRequiredService<QuartzScheduler>().GetExecutionLimits(), "heavy")
+            LimitFor(provider.GetRequiredService<QuartzScheduler>().GetExecutionLimits(), ExecutionGroupScope.Named("heavy"))
                 .Should().Be(2, "quartz.executionLimit.* keys must reach the scheduler like limits set in code");
         }
         finally
@@ -397,7 +397,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         var scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
         try
         {
-            LimitFor(provider.GetRequiredService<QuartzScheduler>().GetExecutionLimits(), "heavy")
+            LimitFor(provider.GetRequiredService<QuartzScheduler>().GetExecutionLimits(), ExecutionGroupScope.Named("heavy"))
                 .Should().Be(9, "code beats strings, as everywhere else");
         }
         finally
@@ -422,7 +422,7 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         var scheduler = await provider.GetRequiredService<ISchedulerFactory>().GetScheduler();
         try
         {
-            LimitFor(provider.GetRequiredService<QuartzScheduler>().GetExecutionLimits(), "heavy")
+            LimitFor(provider.GetRequiredService<QuartzScheduler>().GetExecutionLimits(), ExecutionGroupScope.Named("heavy"))
                 .Should().Be(2, "a group left uncapped saturates the whole thread pool");
         }
         finally
@@ -443,8 +443,8 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         var ingest = await provider.GetRequiredKeyedService<ISchedulerFactory>("ingest").GetScheduler();
         try
         {
-            LimitFor(await reporting.GetExecutionLimits(), "heavy").Should().Be(2);
-            LimitFor(await ingest.GetExecutionLimits(), "heavy").Should().Be(7);
+            LimitFor(await reporting.GetExecutionLimits(), ExecutionGroupScope.Named("heavy")).Should().Be(2);
+            LimitFor(await ingest.GetExecutionLimits(), ExecutionGroupScope.Named("heavy")).Should().Be(7);
         }
         finally
         {

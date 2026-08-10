@@ -56,7 +56,7 @@ public class AnnualCalendarTest : IntegrationTest
             .Build();
 
         AnnualCalendar calendar = new AnnualCalendar();
-        calendar.AddExcludedDay(DateOnly.FromDateTime(DateTime.Now));
+        calendar.AddExcludedDay(MonthDay.From(DateOnly.FromDateTime(DateTime.Now)));
         await scheduler.AddCalendar("calendar", calendar, new AddCalendarOptions { Replace = true, UpdateTriggers = true });
 
         await scheduler.ScheduleJob(jobDetail, trigger);
@@ -72,7 +72,7 @@ public class AnnualCalendarTest : IntegrationTest
         await Task.Delay(TimeSpan.FromSeconds(20));
         Assert.That(TestJob.JobHasFired, Is.False, "task must not be neglected - it is forbidden by the calendar");
 
-        calendar.RemoveExcludedDay(DateOnly.FromDateTime(DateTime.Now));
+        calendar.RemoveExcludedDay(MonthDay.From(DateOnly.FromDateTime(DateTime.Now)));
         await scheduler.AddCalendar("calendar", calendar, new AddCalendarOptions { Replace = true, UpdateTriggers = true });
         await Task.Delay(TimeSpan.FromSeconds(20));
         Assert.That(TestJob.JobHasFired, Is.True, "task must be neglected - it is permitted by the calendar");

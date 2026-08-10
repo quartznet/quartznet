@@ -63,7 +63,7 @@ public class JsonObjectSerializerTest
             }
         };
 
-        calendar.AddExcludedDay(DateOnly.FromDateTime(timeProvider.GetUtcNow().Date));
+        calendar.AddExcludedDay(MonthDay.From(DateOnly.FromDateTime(timeProvider.GetUtcNow().Date)));
 
         CompareSerialization(calendar);
         await VerifyCreatedJson(calendar);
@@ -244,7 +244,7 @@ public class JsonObjectSerializerTest
 
         var annualCalendar = new AnnualCalendar();
         annualCalendar.Description = "description";
-        annualCalendar.AddExcludedDay(DateOnly.FromDateTime(timeProvider.GetUtcNow().Date));
+        annualCalendar.AddExcludedDay(MonthDay.From(DateOnly.FromDateTime(timeProvider.GetUtcNow().Date)));
         annualCalendar.TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Tokyo Standard Time");
 
         var cronCalendar = new CronCalendar("0/5 * * * * ?");

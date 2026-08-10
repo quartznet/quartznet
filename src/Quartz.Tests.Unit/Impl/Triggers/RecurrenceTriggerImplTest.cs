@@ -101,7 +101,7 @@ public class RecurrenceTriggerImplTest
 
         // Exclude Jan 2 via AnnualCalendar
         AnnualCalendar calendar = new AnnualCalendar();
-        calendar.AddExcludedDay(new DateOnly(2025, 1, 2));
+        calendar.AddExcludedDay(new MonthDay(1, 2));
 
         trigger.ComputeFirstFireTimeUtc(calendar);
         // First fire = Jan 1

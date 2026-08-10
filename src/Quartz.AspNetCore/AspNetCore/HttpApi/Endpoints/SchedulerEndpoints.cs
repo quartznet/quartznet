@@ -179,7 +179,7 @@ internal static class SchedulerEndpoints
                 dict = new Dictionary<string, int?>();
                 foreach (ExecutionGroupLimit limit in limits.Groups)
                 {
-                    dict[limit.Group ?? ExecutionLimits.DefaultGroupAlias] = limit.MaxConcurrent;
+                    dict[limit.Scope.ToConfigurationKey()] = limit.MaxConcurrent;
                 }
             }
             return new ExecutionLimitsResponse(dict);

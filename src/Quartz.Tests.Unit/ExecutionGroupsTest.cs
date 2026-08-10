@@ -56,12 +56,12 @@ public sealed class ExecutionGroupsTest
     }
 
     /// <summary>
-    /// Reads the limit configured for one group, asserting that the group has an entry of its own.
+    /// Reads the limit configured for one scope, asserting that the scope has an entry of its own.
     /// </summary>
-    private static int? LimitFor(ExecutionLimits limits, string group)
+    private static int? LimitFor(ExecutionLimits limits, ExecutionGroupScope scope)
     {
-        limits.TryGetLimit(group, out int? limit)
-            .Should().BeTrue($"execution group '{group ?? "(default)"}' should be configured");
+        limits.TryGetLimit(scope, out int? limit)
+            .Should().BeTrue($"execution scope '{scope}' should be configured");
         return limit;
     }
 
@@ -73,8 +73,8 @@ public sealed class ExecutionGroupsTest
             .ForGroup("high-cpu", 5)
             .Build();
 
-        LimitFor(limits, "batch-jobs").Should().Be(2);
-        LimitFor(limits, "high-cpu").Should().Be(5);
+        LimitFor(limits, ExecutionGroupScope.Named("batch-jobs")).Should().Be(2);
+        LimitFor(limits, ExecutionGroupScope.Named("high-cpu")).Should().Be(5);
         limits.Groups.Should().HaveCount(2);
     }
 
@@ -85,8 +85,8 @@ public sealed class ExecutionGroupsTest
             .ForDefaultGroup(10)
             .Build();
 
-        LimitFor(limits, null).Should().Be(10);
-        limits.Groups.Should().ContainSingle().Which.Should().Be(new ExecutionGroupLimit(null, 10),
+        LimitFor(limits, ExecutionGroupScope.Default).Should().Be(10);
+        limits.Groups.Should().ContainSingle().Which.Should().Be(new ExecutionGroupLimit(ExecutionGroupScope.Default, 10),
             "triggers without an execution group fall into the default group, which has no name");
     }
 
@@ -97,7 +97,7 @@ public sealed class ExecutionGroupsTest
             .ForOtherGroups(3)
             .Build();
 
-        LimitFor(limits, ExecutionLimits.OtherGroups).Should().Be(3);
+        LimitFor(limits, ExecutionGroupScope.OtherGroups).Should().Be(3);
     }
 
     [Test]
@@ -107,7 +107,7 @@ public sealed class ExecutionGroupsTest
             .Unlimited("batch-jobs")
             .Build();
 
-        LimitFor(limits, "batch-jobs").Should().BeNull();
+        LimitFor(limits, ExecutionGroupScope.Named("batch-jobs")).Should().BeNull();
     }
 
     [Test]
@@ -129,6 +129,55 @@ public sealed class ExecutionGroupsTest
 
         Action unlimited = () => ExecutionLimitsBuilder.Create().Unlimited(group);
         unlimited.Should().Throw<ArgumentException>().WithMessage("*reserved*");
+    }
+
+    [Test]
+    public void ExecutionGroupScope_DistinguishesItsThreeCases()
+    {
+        ExecutionGroupScope.Default.IsDefault.Should().BeTrue();
+        ExecutionGroupScope.Default.IsOtherGroups.Should().BeFalse();
+        ExecutionGroupScope.Default.Name.Should().BeNull();
+
+        ExecutionGroupScope.OtherGroups.IsDefault.Should().BeFalse();
+        ExecutionGroupScope.OtherGroups.IsOtherGroups.Should().BeTrue();
+        ExecutionGroupScope.OtherGroups.Name.Should().BeNull("the catch-all is not a group name a trigger can carry");
+
+        ExecutionGroupScope named = ExecutionGroupScope.Named("batch-jobs");
+        named.IsDefault.Should().BeFalse();
+        named.IsOtherGroups.Should().BeFalse();
+        named.Name.Should().Be("batch-jobs");
+
+        default(ExecutionGroupScope).Should().Be(ExecutionGroupScope.Default, "an uninitialized scope must read as the default bucket");
+    }
+
+    [TestCase("*")]
+    [TestCase("_")]
+    [TestCase("null")]
+    [TestCase("")]
+    [TestCase("   ")]
+    public void ExecutionGroupScope_Named_RejectsReservedAndBlankNames(string name)
+    {
+        Action act = () => ExecutionGroupScope.Named(name);
+
+        act.Should().Throw<ArgumentException>(
+            "the sentinels stay in configuration spelling; the typed scope exists so they can never be mistaken for group names");
+    }
+
+    [Test]
+    public void ExecutionGroupScope_ReportsTheScopesTheBuilderWrote()
+    {
+        ExecutionLimits limits = ExecutionLimitsBuilder.Create()
+            .ForGroup("batch-jobs", 2)
+            .ForDefaultGroup(10)
+            .ForOtherGroups(5)
+            .Build();
+
+        limits.Groups.Should().BeEquivalentTo(
+        [
+            new ExecutionGroupLimit(ExecutionGroupScope.Named("batch-jobs"), 2),
+            new ExecutionGroupLimit(ExecutionGroupScope.Default, 10),
+            new ExecutionGroupLimit(ExecutionGroupScope.OtherGroups, 5)
+        ]);
     }
 
     [Test]
@@ -237,7 +286,7 @@ public sealed class ExecutionGroupsTest
 
         ExecutionSlots second = limits.CreateSlots();
         second.TryTake("batch-jobs").Should().BeTrue("a retried acquisition starts from the limits again");
-        LimitFor(limits, "batch-jobs").Should().Be(2);
+        LimitFor(limits, ExecutionGroupScope.Named("batch-jobs")).Should().Be(2);
     }
 
     [Test]
@@ -250,9 +299,9 @@ public sealed class ExecutionGroupsTest
             .Build();
 
         limits.Groups.Should().HaveCount(3);
-        LimitFor(limits, "batch-jobs").Should().Be(2);
-        LimitFor(limits, null).Should().Be(10);
-        LimitFor(limits, ExecutionLimits.OtherGroups).Should().Be(5);
+        LimitFor(limits, ExecutionGroupScope.Named("batch-jobs")).Should().Be(2);
+        LimitFor(limits, ExecutionGroupScope.Default).Should().Be(10);
+        LimitFor(limits, ExecutionGroupScope.OtherGroups).Should().Be(5);
     }
 
     [Test]
@@ -285,9 +334,9 @@ public sealed class ExecutionGroupsTest
         // Keep configuring the builder after the snapshot was taken
         builder.ForGroup("a", 99).ForGroup("b", 10);
 
-        LimitFor(snapshot, "a").Should().Be(5);
+        LimitFor(snapshot, ExecutionGroupScope.Named("a")).Should().Be(5);
         snapshot.Groups.Should().ContainSingle();
-        snapshot.TryGetLimit("b", out _).Should().BeFalse();
+        snapshot.TryGetLimit(ExecutionGroupScope.Named("b"), out _).Should().BeFalse();
     }
 
     [Test]
@@ -306,10 +355,10 @@ public sealed class ExecutionGroupsTest
         {
             ExecutionLimits limits = await scheduler.GetExecutionLimits().ConfigureAwait(false);
             limits.Should().NotBeNull();
-            LimitFor(limits, "batch-jobs").Should().Be(2);
-            LimitFor(limits, "high-cpu").Should().Be(5);
-            LimitFor(limits, null).Should().Be(10);
-            LimitFor(limits, ExecutionLimits.OtherGroups).Should().Be(3);
+            LimitFor(limits, ExecutionGroupScope.Named("batch-jobs")).Should().Be(2);
+            LimitFor(limits, ExecutionGroupScope.Named("high-cpu")).Should().Be(5);
+            LimitFor(limits, ExecutionGroupScope.Default).Should().Be(10);
+            LimitFor(limits, ExecutionGroupScope.OtherGroups).Should().Be(3);
         }
         finally
         {
@@ -334,11 +383,11 @@ public sealed class ExecutionGroupsTest
         {
             ExecutionLimits limits = await scheduler.GetExecutionLimits().ConfigureAwait(false);
             limits.Should().NotBeNull();
-            LimitFor(limits, "a").Should().BeNull();  // "unlimited" → null
-            LimitFor(limits, "b").Should().BeNull();  // "none" → null
-            LimitFor(limits, "c").Should().BeNull();  // "null" value → null (unlimited)
-            LimitFor(limits, "d").Should().Be(5);
-            LimitFor(limits, null).Should().Be(8); // "_" key → default group
+            LimitFor(limits, ExecutionGroupScope.Named("a")).Should().BeNull();  // "unlimited" → null
+            LimitFor(limits, ExecutionGroupScope.Named("b")).Should().BeNull();  // "none" → null
+            LimitFor(limits, ExecutionGroupScope.Named("c")).Should().BeNull();  // "null" value → null (unlimited)
+            LimitFor(limits, ExecutionGroupScope.Named("d")).Should().Be(5);
+            LimitFor(limits, ExecutionGroupScope.Default).Should().Be(8); // "_" key → default group
         }
         finally
         {
@@ -359,7 +408,7 @@ public sealed class ExecutionGroupsTest
         {
             ExecutionLimits limits = await scheduler.GetExecutionLimits().ConfigureAwait(false);
             limits.Should().NotBeNull();
-            LimitFor(limits, null).Should().Be(7);
+            LimitFor(limits, ExecutionGroupScope.Default).Should().Be(7);
         }
         finally
         {

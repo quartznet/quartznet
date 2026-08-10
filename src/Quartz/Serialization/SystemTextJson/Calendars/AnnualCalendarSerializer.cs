@@ -15,7 +15,8 @@ internal sealed class AnnualCalendarSerializer : CalendarSerializer<AnnualCalend
 
     protected override void SerializeFields(Utf8JsonWriter writer, AnnualCalendar calendar, JsonSerializerOptions options)
     {
-        writer.WriteDateOnlyArray(options.GetPropertyName("ExcludedDays"), calendar.DaysExcluded);
+        // The payload keeps its date shape: each MonthDay is written pinned to the fixed year.
+        writer.WriteDateOnlyArray(options.GetPropertyName("ExcludedDays"), calendar.DaysExcluded.Select(static day => day.ToDateOnly()));
     }
 
     protected override void DeserializeFields(AnnualCalendar calendar, JsonElement jsonElement, JsonSerializerOptions options)
@@ -24,7 +25,7 @@ internal sealed class AnnualCalendarSerializer : CalendarSerializer<AnnualCalend
         var excludedDays = jsonElement.GetProperty(options.GetPropertyName("ExcludedDays")).GetDateOnlyArray();
         foreach (var day in excludedDays)
         {
-            calendar.AddExcludedDay(day);
+            calendar.AddExcludedDay(MonthDay.From(day));
         }
     }
 }

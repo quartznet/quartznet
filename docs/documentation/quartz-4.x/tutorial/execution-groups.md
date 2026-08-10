@@ -108,15 +108,21 @@ await scheduler.SetExecutionLimits(
 
 `ExecutionLimitsBuilder` is mutable and `ExecutionLimits` — what `Build()` returns and what the scheduler
 reads — is not, so limits cannot change underneath the scheduler thread that is acquiring triggers with them.
-Read one back with `TryGetLimit(group, out int? maxConcurrent)`, or enumerate `Groups`, whose entries report the
-default group as a `null` name:
+Read one back with `TryGetLimit(scope, out int? maxConcurrent)`, or enumerate `Groups`. Each entry's
+`ExecutionGroupScope` is one of exactly three cases — `Default` (triggers with no execution group),
+`OtherGroups` (the catch-all) and `Named(name)` — so reading limits never involves sentinel strings:
 
 ```csharp
 ExecutionLimits? limits = await scheduler.GetExecutionLimits();
 foreach (ExecutionGroupLimit limit in limits?.Groups ?? [])
 {
-    Console.WriteLine($"{limit.Group ?? "(no group)"}: {limit.MaxConcurrent?.ToString() ?? "unlimited"}");
+    string scope = limit.Scope.IsDefault ? "(no group)"
+        : limit.Scope.IsOtherGroups ? "(other groups)"
+        : limit.Scope.Name!;
+    Console.WriteLine($"{scope}: {limit.MaxConcurrent?.ToString() ?? "unlimited"}");
 }
+
+limits?.TryGetLimit(ExecutionGroupScope.Named("batch-jobs"), out int? batchLimit);
 ```
 
 Limits take effect on the next trigger acquisition cycle. Pass `null` to clear all limits:
@@ -124,6 +130,20 @@ Limits take effect on the next trigger acquisition cycle. Pass `null` to clear a
 ```csharp
 await scheduler.SetExecutionLimits(null);
 ```
+
+### The `*` in configuration keys, and the other `*`
+
+Configuration spells the scopes with reserved key spellings: `_` (or `null`) for the default group and `*`
+for the catch-all. Quartz has one other `*` sentinel, in trigger preferred-node pinning, and the two mean
+different things — the table below puts them side by side so neither is read as the other:
+
+| Where it appears | What `*` means there | Typed reading |
+|---|---|---|
+| `quartz.executionLimit.*` key / execution-limits HTTP body | The catch-all limit applied to any *named* group without a limit of its own (never to ungrouped triggers) | `ExecutionGroupScope.OtherGroups` |
+| A trigger row's preferred-node column | An automatic pin no node has claimed yet — the trigger runs anywhere until one node fires it first and keeps it | `PreferredNode.Auto` |
+
+In both places `*` is reserved vocabulary, not a name: a trigger cannot have `*` as its execution group, and
+a node cannot have `*` as its scheduler instance id.
 
 ## How it works
 

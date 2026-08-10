@@ -222,9 +222,19 @@ namespace Quartz
     }
     public readonly struct ExecutionGroupLimit : System.IEquatable<Quartz.ExecutionGroupLimit>
     {
-        public ExecutionGroupLimit(string? Group, int? MaxConcurrent) { }
-        public string? Group { get; init; }
+        public ExecutionGroupLimit(Quartz.ExecutionGroupScope Scope, int? MaxConcurrent) { }
         public int? MaxConcurrent { get; init; }
+        public Quartz.ExecutionGroupScope Scope { get; init; }
+    }
+    public readonly struct ExecutionGroupScope : System.IEquatable<Quartz.ExecutionGroupScope>
+    {
+        public bool IsDefault { get; }
+        public bool IsOtherGroups { get; }
+        public string? Name { get; }
+        public static Quartz.ExecutionGroupScope Default { get; }
+        public static Quartz.ExecutionGroupScope OtherGroups { get; }
+        public override string ToString() { }
+        public static Quartz.ExecutionGroupScope Named(string name) { }
     }
     public sealed class ExecutionLimits
     {
@@ -232,7 +242,7 @@ namespace Quartz
         public System.Collections.Generic.IReadOnlyList<Quartz.ExecutionGroupLimit> Groups { get; }
         public bool IsEmpty { get; }
         public Quartz.ExecutionSlots CreateSlots() { }
-        public bool TryGetLimit(string? executionGroup, out int? maxConcurrent) { }
+        public bool TryGetLimit(Quartz.ExecutionGroupScope scope, out int? maxConcurrent) { }
     }
     public sealed class ExecutionLimitsBuilder
     {
@@ -783,6 +793,19 @@ namespace Quartz
         public static bool operator ==(Quartz.Key<T>? left, Quartz.Key<T>? right) { }
         public static bool operator >(Quartz.Key<T> left, Quartz.Key<T> right) { }
         public static bool operator >=(Quartz.Key<T> left, Quartz.Key<T> right) { }
+    }
+    public readonly struct MonthDay : System.IComparable<Quartz.MonthDay>, System.IEquatable<Quartz.MonthDay>
+    {
+        public MonthDay(int month, int day) { }
+        public int Day { get; }
+        public int Month { get; }
+        public int CompareTo(Quartz.MonthDay other) { }
+        public override string ToString() { }
+        public static Quartz.MonthDay From(System.DateOnly date) { }
+        public static bool operator <(Quartz.MonthDay left, Quartz.MonthDay right) { }
+        public static bool operator <=(Quartz.MonthDay left, Quartz.MonthDay right) { }
+        public static bool operator >(Quartz.MonthDay left, Quartz.MonthDay right) { }
+        public static bool operator >=(Quartz.MonthDay left, Quartz.MonthDay right) { }
     }
     public sealed class NameMatcher<TKey> : Quartz.StringMatcher<TKey>
         where TKey : Quartz.Key<TKey>
@@ -2456,8 +2479,8 @@ namespace Quartz.Impl.Calendar
     {
         public AnnualCalendar() { }
         public AnnualCalendar(Quartz.ICalendar baseCalendar) { }
-        public System.Collections.Generic.IReadOnlySet<System.DateOnly> DaysExcluded { get; }
-        public bool AddExcludedDay(System.DateOnly day) { }
+        public System.Collections.Generic.IReadOnlySet<Quartz.MonthDay> DaysExcluded { get; }
+        public bool AddExcludedDay(Quartz.MonthDay day) { }
         public override Quartz.ICalendar Clone() { }
         public bool Equals(Quartz.Impl.Calendar.AnnualCalendar obj) { }
         public override bool Equals(object? obj) { }
@@ -2465,9 +2488,9 @@ namespace Quartz.Impl.Calendar
         public override System.DateTimeOffset GetNextIncludedTimeUtc(System.DateTimeOffset timeStampUtc) { }
         [System.Security.SecurityCritical]
         public override void GetObjectData(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context) { }
-        public bool IsDayExcluded(System.DateOnly day) { }
+        public bool IsDayExcluded(Quartz.MonthDay day) { }
         public override bool IsTimeIncluded(System.DateTimeOffset dateUtc) { }
-        public bool RemoveExcludedDay(System.DateOnly day) { }
+        public bool RemoveExcludedDay(Quartz.MonthDay day) { }
     }
     [System.Serializable]
     public class BaseCalendar : Quartz.ICalendar, System.IEquatable<Quartz.Impl.Calendar.BaseCalendar>, System.Runtime.Serialization.ISerializable

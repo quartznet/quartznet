@@ -36,7 +36,7 @@ public class SmokeTestPerformer
                 Assert.That(t, Is.Null);
 
                 AnnualCalendar calendar = new AnnualCalendar();
-                calendar.AddExcludedDay(new DateOnly(2018, 7, 4));
+                calendar.AddExcludedDay(new MonthDay(7, 4));
                 await scheduler.AddCalendar("annualCalendar", calendar, new AddCalendarOptions { UpdateTriggers = true });
 
                 IOperableTrigger calendarsTrigger = new SimpleTriggerImpl("calendarsTrigger", "test", 20, TimeSpan.FromHours(2));
@@ -437,9 +437,9 @@ public class SmokeTestPerformer
 
         ExecutionLimits limits = await scheduler.GetExecutionLimits().ConfigureAwait(false);
         limits.Should().NotBeNull();
-        limits.TryGetLimit("batch-jobs", out int? batchLimit).Should().BeTrue();
+        limits.TryGetLimit(ExecutionGroupScope.Named("batch-jobs"), out int? batchLimit).Should().BeTrue();
         batchLimit.Should().Be(2);
-        limits.TryGetLimit(ExecutionLimits.OtherGroups, out int? otherLimit).Should().BeTrue();
+        limits.TryGetLimit(ExecutionGroupScope.OtherGroups, out int? otherLimit).Should().BeTrue();
         otherLimit.Should().Be(5);
 
         // Clear limits

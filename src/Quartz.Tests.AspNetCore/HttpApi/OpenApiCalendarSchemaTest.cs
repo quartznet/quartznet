@@ -40,7 +40,7 @@ public class OpenApiCalendarSchemaTest
     private static ICalendar[] BuiltInCalendars()
     {
         AnnualCalendar annual = new AnnualCalendar { Description = "annual" };
-        annual.AddExcludedDay(new DateOnly(2024, 7, 1));
+        annual.AddExcludedDay(new MonthDay(7, 1));
 
         HolidayCalendar holiday = new HolidayCalendar { Description = "holiday" };
         holiday.AddExcludedDay(new DateOnly(2024, 12, 25));

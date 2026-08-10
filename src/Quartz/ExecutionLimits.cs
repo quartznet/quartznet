@@ -49,8 +49,9 @@ public sealed class ExecutionLimits
     /// <summary>
     /// The key used internally to represent triggers that have no execution group
     /// (<see cref="ITrigger.ExecutionGroup"/> is <see langword="null"/>). It is never a group name a
-    /// caller can use: <see cref="ExecutionGroupLimit.Group"/> reports the default group as
-    /// <see langword="null"/>, and <see cref="ExecutionLimitsBuilder.ForDefaultGroup"/> configures it.
+    /// caller can use: <see cref="ExecutionGroupLimit.Scope"/> reports the default group as
+    /// <see cref="ExecutionGroupScope.Default"/>, and
+    /// <see cref="ExecutionLimitsBuilder.ForDefaultGroup"/> configures it.
     /// </summary>
     internal const string DefaultGroupKey = "";
 
@@ -85,17 +86,19 @@ public sealed class ExecutionLimits
     public IReadOnlyList<ExecutionGroupLimit> Groups => groups ??= Materialize();
 
     /// <summary>
-    /// Reads the limit configured for one execution group.
+    /// Reads the limit configured for one scope.
     /// </summary>
-    /// <param name="executionGroup">The group name, <see langword="null"/> for triggers that have no
-    /// execution group, or <see cref="OtherGroups"/> for the catch-all.</param>
-    /// <param name="maxConcurrent">The limit: a positive count, <c>0</c> when the group is forbidden,
+    /// <param name="scope">The scope to read: <see cref="ExecutionGroupScope.Default"/>,
+    /// <see cref="ExecutionGroupScope.OtherGroups"/>, or a named group via
+    /// <see cref="ExecutionGroupScope.Named"/>.</param>
+    /// <param name="maxConcurrent">The limit: a positive count, <c>0</c> when the scope is forbidden,
     /// or <see langword="null"/> when it is explicitly unlimited.</param>
-    /// <returns><see langword="true"/> when the group has a limit of its own. <see langword="false"/>
-    /// does not mean unlimited — <see cref="OtherGroups"/> may still apply to a named group.</returns>
-    public bool TryGetLimit(string? executionGroup, out int? maxConcurrent)
+    /// <returns><see langword="true"/> when the scope has a limit of its own. <see langword="false"/>
+    /// does not mean unlimited — <see cref="ExecutionGroupScope.OtherGroups"/> may still apply to a
+    /// named group.</returns>
+    public bool TryGetLimit(ExecutionGroupScope scope, out int? maxConcurrent)
     {
-        return limits.TryGetValue(NormalizeGroupKey(executionGroup), out maxConcurrent);
+        return limits.TryGetValue(scope.StorageKey, out maxConcurrent);
     }
 
     private ExecutionGroupLimit[] Materialize()
@@ -104,7 +107,7 @@ public sealed class ExecutionLimits
         int i = 0;
         foreach (KeyValuePair<string, int?> pair in limits)
         {
-            result[i++] = new ExecutionGroupLimit(pair.Key == DefaultGroupKey ? null : pair.Key, pair.Value);
+            result[i++] = new ExecutionGroupLimit(ExecutionGroupScope.FromStorageKey(pair.Key), pair.Value);
         }
         return result;
     }
@@ -156,10 +159,135 @@ public sealed class ExecutionLimits
 }
 
 /// <summary>
-/// One execution group's entry in an <see cref="ExecutionLimits"/> snapshot.
+/// One entry in an <see cref="ExecutionLimits"/> snapshot.
 /// </summary>
-/// <param name="Group">The execution group, <see langword="null"/> for triggers that have no
-/// execution group, or <see cref="ExecutionLimits.OtherGroups"/> for the catch-all.</param>
-/// <param name="MaxConcurrent">The limit: a positive count, <c>0</c> when the group is forbidden on
+/// <param name="Scope">Which bucket the limit applies to: the default (ungrouped) bucket, the
+/// catch-all for other groups, or one named group.</param>
+/// <param name="MaxConcurrent">The limit: a positive count, <c>0</c> when the scope is forbidden on
 /// this node, or <see langword="null"/> when it is explicitly unlimited.</param>
-public readonly record struct ExecutionGroupLimit(string? Group, int? MaxConcurrent);
+public readonly record struct ExecutionGroupLimit(ExecutionGroupScope Scope, int? MaxConcurrent);
+
+/// <summary>
+/// Which bucket an execution limit applies to: the default (ungrouped) bucket, the catch-all for
+/// groups not explicitly configured, or one named group.
+/// </summary>
+/// <remarks>
+/// <para>
+/// This is the read-side shape of what <see cref="ExecutionLimitsBuilder"/> writes:
+/// <see cref="ExecutionLimitsBuilder.ForDefaultGroup"/> configures <see cref="Default"/>,
+/// <see cref="ExecutionLimitsBuilder.ForOtherGroups"/> configures <see cref="OtherGroups"/>, and
+/// <see cref="ExecutionLimitsBuilder.ForGroup"/> / <see cref="ExecutionLimitsBuilder.Unlimited"/>
+/// configure <see cref="Named"/> scopes. Configuration keys keep their own spellings (<c>_</c> or
+/// <c>null</c> for the default bucket, <c>*</c> for the catch-all); this type exists so code reading
+/// limits back never has to know them.
+/// </para>
+/// <para>
+/// Modeled on <see cref="PreferredNode"/>, the other place a closed set of cases refuses to be a
+/// nullable string with a sentinel.
+/// </para>
+/// </remarks>
+public readonly record struct ExecutionGroupScope
+{
+    // The key the limits dictionary holds: "" or null for the default bucket, "*" for the
+    // catch-all, otherwise the group name. Keeping storage's own shape makes reading a limit a
+    // plain dictionary hit.
+    private readonly string? name;
+
+    private ExecutionGroupScope(string? name)
+    {
+        this.name = name;
+    }
+
+    /// <summary>
+    /// The bucket for triggers that have no execution group
+    /// (<see cref="ITrigger.ExecutionGroup"/> is <see langword="null"/>). The default value of
+    /// this type.
+    /// </summary>
+    public static ExecutionGroupScope Default => default;
+
+    /// <summary>
+    /// The catch-all applied to any named group not explicitly configured. It never applies to
+    /// ungrouped triggers — those always read <see cref="Default"/>.
+    /// </summary>
+    public static ExecutionGroupScope OtherGroups => new(ExecutionLimits.OtherGroups);
+
+    /// <summary>
+    /// The scope of one named execution group.
+    /// </summary>
+    /// <param name="name">The execution group name.</param>
+    /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="name"/> is blank or one of the names
+    /// reserved by limits configuration. Use <see cref="Default"/> for ungrouped triggers and
+    /// <see cref="OtherGroups"/> for the catch-all.</exception>
+    public static ExecutionGroupScope Named(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        string trimmed = name.Trim();
+
+        if (trimmed.Length == 0)
+        {
+            Throw.ArgumentException("An execution group scope needs a group name; use ExecutionGroupScope.Default for triggers that have none.", nameof(name));
+        }
+
+        if (ExecutionLimits.IsReservedGroupName(trimmed))
+        {
+            Throw.ArgumentException($"Group name '{trimmed}' is reserved. Use ExecutionGroupScope.Default for the default bucket or ExecutionGroupScope.OtherGroups for the catch-all.", nameof(name));
+        }
+
+        return new ExecutionGroupScope(trimmed);
+    }
+
+    /// <summary>
+    /// Whether this is the bucket for triggers that have no execution group.
+    /// </summary>
+    public bool IsDefault => string.IsNullOrEmpty(name);
+
+    /// <summary>
+    /// Whether this is the catch-all for named groups not explicitly configured.
+    /// </summary>
+    public bool IsOtherGroups => name == ExecutionLimits.OtherGroups;
+
+    /// <summary>
+    /// The group name of a <see cref="Named"/> scope; <see langword="null"/> for
+    /// <see cref="Default"/> and <see cref="OtherGroups"/>.
+    /// </summary>
+    public string? Name => IsDefault || IsOtherGroups ? null : name;
+
+    /// <summary>
+    /// The key the limits dictionary holds for this scope.
+    /// </summary>
+    internal string StorageKey => name ?? ExecutionLimits.DefaultGroupKey;
+
+    /// <summary>
+    /// Rebuilds the scope from a limits-dictionary key.
+    /// </summary>
+    internal static ExecutionGroupScope FromStorageKey(string key)
+    {
+        return key == ExecutionLimits.DefaultGroupKey ? default : new ExecutionGroupScope(key);
+    }
+
+    /// <summary>
+    /// The spelling configuration and the HTTP API use for this scope: the group name, <c>*</c> for
+    /// the catch-all, and <c>_</c> for the default bucket (a property or JSON key cannot be empty).
+    /// </summary>
+    internal string ToConfigurationKey()
+    {
+        return IsDefault ? ExecutionLimits.DefaultGroupAlias : name!;
+    }
+
+    /// <inheritdoc />
+    public override string ToString()
+    {
+        if (IsDefault)
+        {
+            return "default";
+        }
+
+        if (IsOtherGroups)
+        {
+            return "other groups";
+        }
+
+        return name!;
+    }
+}
