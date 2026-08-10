@@ -3577,6 +3577,24 @@ The three `public static readonly` day sets are gone. They existed only to be ha
 
 If you used a set for something other than the builder, `Enum.GetValues<DayOfWeek>()` is the whole week.
 
+## `EndingDailyAfterCount` is computed at `Build()`
+
+In 3.x, `EndingDailyAfterCount(count)` resolved the daily window immediately, against the wall clock
+and against whatever start time, interval and time zone happened to be configured *before* the call —
+which is why its documentation had to insist on call order. The computation now runs when the trigger
+is built:
+
+* It sees the schedule as finally configured, so `EndingDailyAfterCount` no longer has to be the last
+  method in the chain.
+* It runs against the clock of the `TriggerBuilder` that builds the trigger, so a scheduler configured
+  with a custom `TimeProvider` (a `FakeTimeProvider` in tests) is honored. Previously the builder read
+  the wall clock and a configured clock was silently ignored.
+* Validation moves with it: "count too large" and "start time not set" are now reported by `Build()`,
+  not by the `EndingDailyAfterCount` call. A count that is not positive is still rejected immediately.
+
+`DailyTimeIntervalScheduleBuilder.Create()` takes no `TimeProvider` — none of the schedule builders
+do; the clock belongs to `TriggerBuilder.Create(TimeProvider?)`.
+
 ## `InTimeZone` is nullable everywhere
 
 `CronScheduleBuilder` and `DailyTimeIntervalScheduleBuilder` declared `InTimeZone(TimeZoneInfo)` while
