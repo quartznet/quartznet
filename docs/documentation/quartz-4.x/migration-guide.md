@@ -3008,14 +3008,51 @@ takes one already lives in `Quartz`, so the types moved there rather than into a
 ```
 
 `GroupMatcher<T>`, `NameMatcher<T>`, `KeyMatcher<T>`, `EverythingMatcher<T>`, `AndMatcher<T>`, `OrMatcher<T>`,
-`NotMatcher<T>`, `StringMatcher<T>` and `StringOperator` all moved; every factory method keeps its name
-(`GroupEquals`, `NameStartsWith`, `KeyEquals`, `AnyGroup`, …).
+`NotMatcher<T>`, `StringMatcher<T>` and `StringOperator` all moved. `GroupMatcher<T>` and `NameMatcher<T>`
+keep their factory methods (`GroupEquals`, `NameStartsWith`, `AnyGroup`, …), and
+`NameMatcher<TKey>.AnyName()` is new, the counterpart of `GroupMatcher<TKey>.AnyGroup()`.
 
 `IMatcher<T>` no longer redeclares `Equals(object)` and `GetHashCode()`. They are `object`'s own members, so
 declaring them on the interface added no requirement and told an implementer nothing — but a matcher is still
 expected to behave as a value, because `RemoveJobListenerMatcher` finds the matcher to remove by equality.
 
-`NameMatcher<TKey>.AnyName()` is new, the counterpart of `GroupMatcher<TKey>.AnyGroup()`.
+### `Matchers` is the entry point; combinators are extensions
+
+Building a matcher used to start from whichever concrete type held the factory you needed, and some of
+those statics ignored the class's own type parameter — `EverythingMatcher<JobKey>.AllTriggers()` compiled,
+and answered a matcher for a different key type than the one you named. The roots now live on one
+non-generic entry class, and the combinators are extension methods on any `IMatcher<TKey>`, so an
+expression reads left to right:
+
+```csharp
+IMatcher<JobKey> matcher = Matchers.Group<JobKey>(StringOperator.StartsWith, "reporting")
+    .And(Matchers.Name<JobKey>(StringOperator.Contains, "cleanup").Not());
+
+scheduler.ListenerManager.AddJobListener(listener, Matchers.AllJobs());
+```
+
+| 3.x / earlier 4.0 preview | 4.0 |
+|---|---|
+| `EverythingMatcher<JobKey>.AllJobs()` | `Matchers.AllJobs()` |
+| `EverythingMatcher<TriggerKey>.AllTriggers()` | `Matchers.AllTriggers()` |
+| — | `EverythingMatcher<TKey>.All()` — the generic form, matching the class's own key type |
+| `KeyMatcher<JobKey>.KeyEquals(key)` | `Matchers.Key(key)` (overloaded for `JobKey` and `TriggerKey`) |
+| `AndMatcher<JobKey>.And(left, right)` | `left.And(right)` |
+| `OrMatcher<JobKey>.Or(left, right)` | `left.Or(right)` |
+| `NotMatcher<JobKey>.Not(matcher)` | `matcher.Not()` |
+| — | `Matchers.Group<TKey>(StringOperator, string)`, `Matchers.Name<TKey>(StringOperator, string)` |
+
+The concrete matcher types stay public — they are what the expressions above return, and what a custom
+`IMatcher<TKey>` composes with — but they no longer construct themselves: `Matchers` and the extensions
+are the one way to build them.
+
+### `StringOperator` exposes properties and a name
+
+The five built-in operators (`Equality`, `StartsWith`, `EndsWith`, `Contains`, `Anything`) are static
+get-only properties now; they were `public static readonly` fields. Call sites compile unchanged.
+`StringOperator` also gained an abstract `Name` property that discriminates the operator — it is what
+identifies an operator when a matcher crosses a process boundary, and what `ToString()` returns. A custom
+`StringOperator` subclass must now implement `Name` alongside `Evaluate`.
 
 ## `Key<T>` moved to `Quartz` and is immutable
 

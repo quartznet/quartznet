@@ -132,7 +132,7 @@ internal sealed class SchedulerContentInitializer
                 continue;
             }
 
-            listeners.Add((listener, [EverythingMatcher<JobKey>.AllJobs()]));
+            listeners.Add((listener, [Matchers.AllJobs()]));
         }
 
         foreach (var (listener, matchers) in listeners)
@@ -173,7 +173,7 @@ internal sealed class SchedulerContentInitializer
                 continue;
             }
 
-            listeners.Add((listener, [EverythingMatcher<TriggerKey>.AllTriggers()]));
+            listeners.Add((listener, [Matchers.AllTriggers()]));
         }
 
         foreach (var (listener, matchers) in listeners)

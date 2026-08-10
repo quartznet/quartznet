@@ -26,16 +26,12 @@ namespace Quartz;
 /// <summary>
 /// Matches using an OR operator on two Matcher operands.
 /// </summary>
+/// <seealso cref="Matchers.Or{TKey}" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 public sealed class OrMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
 {
-    // ReSharper disable once UnusedMember.Local
-    private OrMatcher()
-    {
-    }
-
-    private OrMatcher(IMatcher<TKey> leftOperand, IMatcher<TKey> rightOperand)
+    internal OrMatcher(IMatcher<TKey> leftOperand, IMatcher<TKey> rightOperand)
     {
         if (leftOperand is null || rightOperand is null)
         {
@@ -44,18 +40,6 @@ public sealed class OrMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
 
         LeftOperand = leftOperand;
         RightOperand = rightOperand;
-    }
-
-    /// <summary>
-    /// Create an OrMatcher that depends upon the result of at least one of the given matchers.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="leftOperand"></param>
-    /// <param name="rightOperand"></param>
-    /// <returns></returns>
-    public static OrMatcher<T> Or<T>(IMatcher<T> leftOperand, IMatcher<T> rightOperand) where T : Key<T>
-    {
-        return new OrMatcher<T>(leftOperand, rightOperand);
     }
 
     public bool IsMatch(TKey key)

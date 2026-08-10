@@ -40,8 +40,8 @@ public sealed class DashboardLiveEventsPlugin : ISchedulerPlugin, IJobListener, 
         this.scheduler = scheduler;
         schedulerName = scheduler.SchedulerName;
 
-        scheduler.ListenerManager.AddJobListener(this, EverythingMatcher<JobKey>.AllJobs());
-        scheduler.ListenerManager.AddTriggerListener(this, EverythingMatcher<TriggerKey>.AllTriggers());
+        scheduler.ListenerManager.AddJobListener(this, Matchers.AllJobs());
+        scheduler.ListenerManager.AddTriggerListener(this, Matchers.AllTriggers());
         scheduler.ListenerManager.AddSchedulerListener(this);
 
         return default;

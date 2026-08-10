@@ -34,7 +34,7 @@ public sealed class DashboardHistoryPlugin : ISchedulerPlugin, IJobListener
     {
         Name = pluginName;
         this.scheduler = scheduler;
-        scheduler.ListenerManager.AddJobListener(this, EverythingMatcher<JobKey>.AllJobs());
+        scheduler.ListenerManager.AddJobListener(this, Matchers.AllJobs());
         return default;
     }
 

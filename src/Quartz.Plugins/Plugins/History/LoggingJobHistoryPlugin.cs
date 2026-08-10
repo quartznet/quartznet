@@ -307,7 +307,7 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
         CancellationToken cancellationToken = default)
     {
         Name = pluginName;
-        scheduler.ListenerManager.AddJobListener(this, EverythingMatcher<JobKey>.AllJobs());
+        scheduler.ListenerManager.AddJobListener(this, Matchers.AllJobs());
         return default;
     }
 

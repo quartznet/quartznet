@@ -70,7 +70,7 @@ Hence, each time your application runs, the listeners need to be re-registered w
 __Adding a JobListener that is interested in a particular job:__
 
 ```csharp
-scheduler.ListenerManager.AddJobListener(myJobListener, KeyMatcher<JobKey>.KeyEquals(new JobKey("myJobName", "myJobGroup")));
+scheduler.ListenerManager.AddJobListener(myJobListener, Matchers.Key(new JobKey("myJobName", "myJobGroup")));
 ```
 
 __Adding a JobListener that is interested in all jobs of a particular group:__
@@ -83,14 +83,18 @@ __Adding a JobListener that is interested in all jobs of two particular groups:_
 
 ```csharp
 scheduler.ListenerManager.AddJobListener(myJobListener,
- OrMatcher<JobKey>.Or(GroupMatcher<JobKey>.GroupEquals("myJobGroup"), GroupMatcher<JobKey>.GroupEquals("yourGroup")));
+ GroupMatcher<JobKey>.GroupEquals("myJobGroup").Or(GroupMatcher<JobKey>.GroupEquals("yourGroup")));
 ```
 
 __Adding a JobListener that is interested in all jobs:__
 
 ```csharp
-scheduler.ListenerManager.AddJobListener(myJobListener, GroupMatcher<JobKey>.AnyGroup());
+scheduler.ListenerManager.AddJobListener(myJobListener, Matchers.AllJobs());
 ```
+
+The `Matchers` class is the entry point: its static factories build the roots (`Matchers.AllJobs()`,
+`Matchers.AllTriggers()`, `Matchers.Key(key)`, `Matchers.Group<JobKey>(StringOperator.StartsWith, "a")`,
+`Matchers.Name<JobKey>(…)`), and any matcher composes with the `And`, `Or` and `Not` extension methods.
 
 Listeners are not used by most users of Quartz.NET, but are handy when application requirements create the need
 for the notification of events, without the Job itself explicitly notifying the application.

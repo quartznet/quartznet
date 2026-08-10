@@ -26,16 +26,12 @@ namespace Quartz;
 /// <summary>
 /// Matches using an AND operator on two Matcher operands.
 /// </summary>
+/// <seealso cref="Matchers.And{TKey}" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 public sealed class AndMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
 {
-    // ReSharper disable once UnusedMember.Local
-    private AndMatcher()
-    {
-    }
-
-    private AndMatcher(IMatcher<TKey> leftOperand, IMatcher<TKey> rightOperand)
+    internal AndMatcher(IMatcher<TKey> leftOperand, IMatcher<TKey> rightOperand)
     {
         if (leftOperand is null || rightOperand is null)
         {
@@ -44,18 +40,6 @@ public sealed class AndMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
 
         LeftOperand = leftOperand;
         RightOperand = rightOperand;
-    }
-
-    /// <summary>
-    /// Create an AndMatcher that depends upon the result of both of the given matchers.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="leftOperand"></param>
-    /// <param name="rightOperand"></param>
-    /// <returns></returns>
-    public static AndMatcher<T> And<T>(IMatcher<T> leftOperand, IMatcher<T> rightOperand) where T : Key<T>
-    {
-        return new AndMatcher<T>(leftOperand, rightOperand);
     }
 
     public bool IsMatch(TKey key)

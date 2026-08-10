@@ -46,8 +46,6 @@ namespace Quartz
         public override bool Equals(object? obj) { }
         public override int GetHashCode() { }
         public bool IsMatch(TKey key) { }
-        public static Quartz.AndMatcher<T> And<T>(Quartz.IMatcher<T> leftOperand, Quartz.IMatcher<T> rightOperand)
-            where T : Quartz.Key<T> { }
     }
     public sealed class CalendarIntervalScheduleBuilder : Quartz.IScheduleBuilder
     {
@@ -217,8 +215,7 @@ namespace Quartz
         public override bool Equals(object? obj) { }
         public override int GetHashCode() { }
         public bool IsMatch(TKey key) { }
-        public static Quartz.EverythingMatcher<Quartz.JobKey> AllJobs() { }
-        public static Quartz.EverythingMatcher<Quartz.TriggerKey> AllTriggers() { }
+        public static Quartz.EverythingMatcher<TKey> All() { }
     }
     public readonly struct ExecutionGroupLimit : System.IEquatable<Quartz.ExecutionGroupLimit>
     {
@@ -772,8 +769,6 @@ namespace Quartz
         public override bool Equals(object? obj) { }
         public override int GetHashCode() { }
         public bool IsMatch(TKey key) { }
-        public static Quartz.KeyMatcher<T> KeyEquals<T>(T compareTo)
-            where T : Quartz.Key<T> { }
     }
     [System.Serializable]
     public class Key<T> : System.IComparable<Quartz.Key<T>>
@@ -793,6 +788,23 @@ namespace Quartz
         public static bool operator ==(Quartz.Key<T>? left, Quartz.Key<T>? right) { }
         public static bool operator >(Quartz.Key<T> left, Quartz.Key<T> right) { }
         public static bool operator >=(Quartz.Key<T> left, Quartz.Key<T> right) { }
+    }
+    public static class Matchers
+    {
+        public static Quartz.EverythingMatcher<Quartz.JobKey> AllJobs() { }
+        public static Quartz.EverythingMatcher<Quartz.TriggerKey> AllTriggers() { }
+        public static Quartz.AndMatcher<TKey> And<TKey>(this Quartz.IMatcher<TKey> matcher, Quartz.IMatcher<TKey> other)
+            where TKey : Quartz.Key<TKey> { }
+        public static Quartz.GroupMatcher<TKey> Group<TKey>(Quartz.StringOperator @operator, string compareTo)
+            where TKey : Quartz.Key<TKey> { }
+        public static Quartz.KeyMatcher<Quartz.JobKey> Key(Quartz.JobKey key) { }
+        public static Quartz.KeyMatcher<Quartz.TriggerKey> Key(Quartz.TriggerKey key) { }
+        public static Quartz.NameMatcher<TKey> Name<TKey>(Quartz.StringOperator @operator, string compareTo)
+            where TKey : Quartz.Key<TKey> { }
+        public static Quartz.NotMatcher<TKey> Not<TKey>(this Quartz.IMatcher<TKey> matcher)
+            where TKey : Quartz.Key<TKey> { }
+        public static Quartz.OrMatcher<TKey> Or<TKey>(this Quartz.IMatcher<TKey> matcher, Quartz.IMatcher<TKey> other)
+            where TKey : Quartz.Key<TKey> { }
     }
     public readonly struct MonthDay : System.IComparable<Quartz.MonthDay>, System.IEquatable<Quartz.MonthDay>
     {
@@ -824,8 +836,6 @@ namespace Quartz
         public override bool Equals(object? obj) { }
         public override int GetHashCode() { }
         public bool IsMatch(TKey key) { }
-        public static Quartz.NotMatcher<T> Not<T>(Quartz.IMatcher<T> operand)
-            where T : Quartz.Key<T> { }
     }
     public sealed class ObjectAlreadyExistsException : Quartz.JobPersistenceException
     {
@@ -841,8 +851,6 @@ namespace Quartz
         public override bool Equals(object? obj) { }
         public override int GetHashCode() { }
         public bool IsMatch(TKey key) { }
-        public static Quartz.OrMatcher<T> Or<T>(Quartz.IMatcher<T> leftOperand, Quartz.IMatcher<T> rightOperand)
-            where T : Quartz.Key<T> { }
     }
     public abstract class PagedQuery : System.IEquatable<Quartz.PagedQuery>
     {
@@ -1171,16 +1179,18 @@ namespace Quartz
     }
     public abstract class StringOperator : System.IEquatable<Quartz.StringOperator>
     {
-        public static readonly Quartz.StringOperator Anything;
-        public static readonly Quartz.StringOperator Contains;
-        public static readonly Quartz.StringOperator EndsWith;
-        public static readonly Quartz.StringOperator Equality;
-        public static readonly Quartz.StringOperator StartsWith;
         protected StringOperator() { }
+        public abstract string Name { get; }
+        public static Quartz.StringOperator Anything { get; }
+        public static Quartz.StringOperator Contains { get; }
+        public static Quartz.StringOperator EndsWith { get; }
+        public static Quartz.StringOperator Equality { get; }
+        public static Quartz.StringOperator StartsWith { get; }
         public virtual bool Equals(Quartz.StringOperator? other) { }
         public override bool Equals(object? obj) { }
         public abstract bool Evaluate(string value, string compareTo);
         public override int GetHashCode() { }
+        public override string ToString() { }
     }
     public static class SystemTextJsonConfigurationExtensions
     {

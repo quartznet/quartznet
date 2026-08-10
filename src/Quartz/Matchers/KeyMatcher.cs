@@ -26,29 +26,15 @@ namespace Quartz;
 /// <summary>
 /// Matches on the complete key being equal (both name and group).
 /// </summary>
+/// <seealso cref="Matchers.Key(JobKey)" />
+/// <seealso cref="Matchers.Key(TriggerKey)" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 public sealed class KeyMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
 {
-    // ReSharper disable once UnusedMember.Local
-    private KeyMatcher()
-    {
-    }
-
-    private KeyMatcher(TKey compareTo)
+    internal KeyMatcher(TKey compareTo)
     {
         CompareToValue = compareTo;
-    }
-
-    /// <summary>
-    /// Create a KeyMatcher that matches Keys that equal the given key.
-    /// </summary>
-    /// <typeparam name="T"></typeparam>
-    /// <param name="compareTo"></param>
-    /// <returns></returns>
-    public static KeyMatcher<T> KeyEquals<T>(T compareTo) where T : Key<T>
-    {
-        return new KeyMatcher<T>(compareTo);
     }
 
     public bool IsMatch(TKey key)

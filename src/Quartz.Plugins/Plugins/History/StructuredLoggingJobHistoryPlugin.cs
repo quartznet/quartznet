@@ -100,7 +100,7 @@ public sealed class StructuredLoggingJobHistoryPlugin : ISchedulerPlugin, IJobLi
         CancellationToken cancellationToken = default)
     {
         Name = pluginName;
-        scheduler.ListenerManager.AddJobListener(this, EverythingMatcher<JobKey>.AllJobs());
+        scheduler.ListenerManager.AddJobListener(this, Matchers.AllJobs());
         return default;
     }
 
