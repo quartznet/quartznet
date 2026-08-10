@@ -1,4 +1,4 @@
-using Quartz.Listener;
+using Quartz.Listeners;
 
 using Serilog;
 
@@ -86,7 +86,7 @@ public class Program
             });
 }
 
-public class TestSchedulerListener : SchedulerListenerSupport
+public class TestSchedulerListener : ISchedulerListener
 {
     private readonly ILogger<TestSchedulerListener> logger;
 
@@ -95,14 +95,14 @@ public class TestSchedulerListener : SchedulerListenerSupport
         this.logger = logger;
     }
 
-    public override ValueTask SchedulerStarting(CancellationToken cancellationToken = default)
+    public ValueTask SchedulerStarting(CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Scheduler starting");
         return ValueTask.CompletedTask;
     }
 }
 
-public class TestJobListener : JobListenerSupport
+public class TestJobListener : IJobListener
 {
     private readonly ILogger<TestJobListener> logger;
 
@@ -111,16 +111,16 @@ public class TestJobListener : JobListenerSupport
         this.logger = logger;
     }
 
-    public override string Name => nameof(TestJobListener);
+    public string Name => nameof(TestJobListener);
 
-    public override ValueTask JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    public ValueTask JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Job {Job} to be executed", context.JobDetail.Key);
         return ValueTask.CompletedTask;
     }
 }
 
-public class TestTriggerListener : TriggerListenerSupport
+public class TestTriggerListener : ITriggerListener
 {
     private readonly ILogger<TestTriggerListener> logger;
 
@@ -129,9 +129,9 @@ public class TestTriggerListener : TriggerListenerSupport
         this.logger = logger;
     }
 
-    public override string Name => nameof(TestSchedulerListener);
+    public string Name => nameof(TestSchedulerListener);
 
-    public override ValueTask TriggerFired(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default)
+    public ValueTask TriggerFired(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Trigger {Trigger} fired", trigger.Key);
         return ValueTask.CompletedTask;

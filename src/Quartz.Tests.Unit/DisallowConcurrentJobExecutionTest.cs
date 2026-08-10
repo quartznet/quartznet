@@ -1,6 +1,6 @@
 using System.Collections.Specialized;
 
-using Quartz.Listener;
+using Quartz.Listeners;
 
 namespace Quartz.Tests.Unit;
 
@@ -33,7 +33,7 @@ public class DisallowConcurrentExecutionJobTest
         }
     }
 
-    public class TestJobListener : JobListenerSupport
+    public class TestJobListener : IJobListener
     {
         private int jobExCount;
         private readonly int jobExecutionCountToSyncAfter;
@@ -43,9 +43,9 @@ public class DisallowConcurrentExecutionJobTest
             this.jobExecutionCountToSyncAfter = jobExecutionCountToSyncAfter;
         }
 
-        public override string Name => "TestJobListener";
+        public string Name => "TestJobListener";
 
-        public override async ValueTask JobWasExecuted(
+        public async ValueTask JobWasExecuted(
             IJobExecutionContext context,
             JobExecutionException jobException,
             CancellationToken cancellationToken = default)

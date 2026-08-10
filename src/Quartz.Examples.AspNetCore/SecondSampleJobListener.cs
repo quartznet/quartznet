@@ -1,8 +1,8 @@
-using Quartz.Listener;
+using Quartz.Listeners;
 
 namespace Quartz.Examples.AspNetCore;
 
-public class SecondSampleJobListener : JobListenerSupport
+public class SecondSampleJobListener : IJobListener
 {
     private readonly ILogger<SecondSampleJobListener> logger;
 
@@ -11,9 +11,9 @@ public class SecondSampleJobListener : JobListenerSupport
         this.logger = logger;
     }
 
-    public override string Name => "Second Sample Job Listener";
+    public string Name => "Second Sample Job Listener";
 
-    public override ValueTask JobWasExecuted(IJobExecutionContext context, JobExecutionException? jobException, CancellationToken cancellationToken = default)
+    public ValueTask JobWasExecuted(IJobExecutionContext context, JobExecutionException? jobException, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Job {JobName} executed", context.JobDetail.Key);
         return default;

@@ -1,8 +1,8 @@
-using Quartz.Listener;
+using Quartz.Listeners;
 
 namespace Quartz.Examples.AspNetCore;
 
-public class SampleTriggerListener : TriggerListenerSupport
+public class SampleTriggerListener : ITriggerListener
 {
     private readonly ILogger<SampleTriggerListener> logger;
 
@@ -11,9 +11,9 @@ public class SampleTriggerListener : TriggerListenerSupport
         this.logger = logger;
     }
 
-    public override string Name => "Sample Trigger Listener";
+    public string Name => "Sample Trigger Listener";
 
-    public override ValueTask TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken = default)
+    public ValueTask TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Observed trigger fire by trigger {TriggerKey}", trigger.Key);
         return default;

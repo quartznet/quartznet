@@ -1,17 +1,17 @@
 using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
-using Quartz.Listener;
+using Quartz.Listeners;
 
 namespace Quartz.Core;
 
 /// <summary>
 /// ErrorLogger - Scheduler Listener Class
 /// </summary>
-internal sealed class ErrorLogger : SchedulerListenerSupport
+internal sealed class ErrorLogger : ISchedulerListener
 {
     private readonly ILogger<ErrorLogger> logger = LogProvider.CreateLogger<ErrorLogger>();
 
-    public override ValueTask SchedulerError(
+    public ValueTask SchedulerError(
         string message,
         SchedulerException exception,
         CancellationToken cancellationToken = default)

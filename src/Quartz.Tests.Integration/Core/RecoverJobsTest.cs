@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using Quartz.Diagnostics;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
-using Quartz.Listener;
+using Quartz.Listeners;
 using Quartz.Tests.Integration.Utils;
 
 namespace Quartz.Tests.Integration.Core;
@@ -105,7 +105,7 @@ public class RecoverJobsTest
         Assert.That(isJobRecovered.Wait(TimeSpan.FromSeconds(10)), Is.True);
     }
 
-    private sealed class TestListener : JobListenerSupport
+    private sealed class TestListener : IJobListener
     {
         private readonly ManualResetEventSlim isJobRecovered;
 
@@ -114,9 +114,9 @@ public class RecoverJobsTest
             this.isJobRecovered = isJobRecovered;
         }
 
-        public override string Name => typeof(RecoverJobsTest).Name;
+        public string Name => typeof(RecoverJobsTest).Name;
 
-        public override ValueTask JobToBeExecuted(
+        public ValueTask JobToBeExecuted(
             IJobExecutionContext context,
             CancellationToken cancellationToken = new CancellationToken())
         {
@@ -239,7 +239,7 @@ public class RecoverJobsTest
             "Job should NOT execute with recovery=true after trigger was explicitly removed");
     }
 
-    private sealed class RecoveryDetectionListener : JobListenerSupport
+    private sealed class RecoveryDetectionListener : IJobListener
     {
         private readonly ManualResetEventSlim recoveryExecuted;
 
@@ -248,9 +248,9 @@ public class RecoverJobsTest
             this.recoveryExecuted = recoveryExecuted;
         }
 
-        public override string Name => "RecoveryDetectionListener";
+        public string Name => "RecoveryDetectionListener";
 
-        public override ValueTask JobToBeExecuted(
+        public ValueTask JobToBeExecuted(
             IJobExecutionContext context,
             CancellationToken cancellationToken = default)
         {

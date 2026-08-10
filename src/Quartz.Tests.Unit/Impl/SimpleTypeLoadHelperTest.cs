@@ -2,6 +2,7 @@ using Quartz.Extensibility;
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Jobs;
+using Quartz.Listeners;
 using Quartz.Plugins.History;
 
 namespace Quartz.Tests.Unit.Impl;
@@ -60,6 +61,14 @@ public class SimpleTypeLoadHelperTest
         loadHelper.LoadType("Quartz.Plugin.History.LoggingJobHistoryPlugin, Quartz.Plugins")
             .Should().Be<LoggingJobHistoryPlugin>(
                 "quartz.plugin.<name>.type naming the old singular namespace has to keep working");
+    }
+
+    [Test]
+    public void ShouldLoadListenerNamedByItsPre40Namespace()
+    {
+        loadHelper.LoadType("Quartz.Listener.BroadcastJobListener, Quartz")
+            .Should().Be<BroadcastJobListener>(
+                "quartz.jobListener.<name>.type naming the old singular namespace has to keep working");
     }
 
     [Test]

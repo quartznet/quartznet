@@ -3,7 +3,7 @@
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Matchers;
-using Quartz.Listener;
+using Quartz.Listeners;
 
 namespace Quartz.Tests.Unit.Configuration;
 
@@ -266,5 +266,5 @@ public class ListenerRegistrationTest
         public ValueTask TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default) => default;
     }
 
-    private sealed class RecordingSchedulerListener : SchedulerListenerSupport;
+    private sealed class RecordingSchedulerListener : ISchedulerListener;
 }

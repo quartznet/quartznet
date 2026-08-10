@@ -1,8 +1,8 @@
-using Quartz.Listener;
+using Quartz.Listeners;
 
 namespace Quartz.Examples.AspNetCore;
 
-public class SampleSchedulerListener : SchedulerListenerSupport
+public class SampleSchedulerListener : ISchedulerListener
 {
     private readonly ILogger<SampleSchedulerListener> logger;
 
@@ -11,7 +11,7 @@ public class SampleSchedulerListener : SchedulerListenerSupport
         this.logger = logger;
     }
 
-    public override ValueTask SchedulerStarted(CancellationToken cancellationToken = default)
+    public ValueTask SchedulerStarted(CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Observed scheduler start");
         return default;

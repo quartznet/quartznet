@@ -1,6 +1,6 @@
 using Quartz.Core;
 using Quartz.Matchers;
-using Quartz.Listener;
+using Quartz.Listeners;
 
 namespace Quartz.Tests.Unit.Core;
 
@@ -11,28 +11,28 @@ public class ListenerManagerTest
 {
     private ListenerManagerImpl _manager;
 
-    private sealed class TestJobListener : JobListenerSupport
+    private sealed class TestJobListener : IJobListener
     {
         public TestJobListener(string name)
         {
             Name = name;
         }
 
-        public override string Name { get; }
+        public string Name { get; }
     }
 
-    private sealed class TestTriggerListener : TriggerListenerSupport
+    private sealed class TestTriggerListener : ITriggerListener
     {
         public TestTriggerListener(string name)
         {
             Name = name;
         }
 
-        public override string Name { get; }
+        public string Name { get; }
     }
-    private sealed class TestSchedulerListener : SchedulerListenerSupport;
+    private sealed class TestSchedulerListener : ISchedulerListener;
 
-    private sealed class OtherSchedulerListener : SchedulerListenerSupport;
+    private sealed class OtherSchedulerListener : ISchedulerListener;
 
     [SetUp]
     public void SetUp()
@@ -1822,8 +1822,8 @@ public class ListenerManagerTest
     [Test]
     public void TestManagementOfSchedulerListeners()
     {
-        var tl1 = new TestSchedulerListener();
-        var tl2 = new OtherSchedulerListener();
+        ISchedulerListener tl1 = new TestSchedulerListener();
+        ISchedulerListener tl2 = new OtherSchedulerListener();
 
         _manager.AddSchedulerListener(tl1);
         _manager.GetSchedulerListeners().Should().ContainSingle("Unexpected size of listener list");

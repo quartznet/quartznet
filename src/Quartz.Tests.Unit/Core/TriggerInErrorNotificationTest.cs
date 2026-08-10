@@ -1,6 +1,6 @@
 using Quartz.Extensibility;
 using Quartz.Impl;
-using Quartz.Listener;
+using Quartz.Listeners;
 
 namespace Quartz.Tests.Unit.Core;
 
@@ -158,7 +158,7 @@ public class TriggerInErrorNotificationTest
         public ValueTask ReturnJob(JobScope scope, CancellationToken cancellationToken = default) => default;
     }
 
-    private sealed class ErrorStateListener : SchedulerListenerSupport
+    private sealed class ErrorStateListener : ISchedulerListener
     {
         private readonly TaskCompletionSource<JobKey> jobTriggers = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource<TriggerKey> singleTrigger = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -167,13 +167,13 @@ public class TriggerInErrorNotificationTest
 
         public Task<TriggerKey> SingleTrigger => singleTrigger.Task;
 
-        public override ValueTask TriggersInError(JobKey jobKey, CancellationToken cancellationToken = default)
+        public ValueTask TriggersInError(JobKey jobKey, CancellationToken cancellationToken = default)
         {
             jobTriggers.TrySetResult(jobKey);
             return default;
         }
 
-        public override ValueTask TriggerInError(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+        public ValueTask TriggerInError(TriggerKey triggerKey, CancellationToken cancellationToken = default)
         {
             singleTrigger.TrySetResult(triggerKey);
             return default;

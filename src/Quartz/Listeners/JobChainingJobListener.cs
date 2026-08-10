@@ -21,7 +21,7 @@ using Microsoft.Extensions.Logging;
 
 using Quartz.Diagnostics;
 
-namespace Quartz.Listener;
+namespace Quartz.Listeners;
 
 /// <summary>
 /// Keeps a collection of mappings of which Job to trigger after the completion
@@ -45,7 +45,7 @@ namespace Quartz.Listener;
 ///</remarks>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public sealed class JobChainingJobListener : JobListenerSupport
+public sealed class JobChainingJobListener : IJobListener
 {
     private readonly Dictionary<JobKey, JobKey> chainLinks;
     private readonly ILogger<JobChainingJobListener> logger;
@@ -65,7 +65,7 @@ public sealed class JobChainingJobListener : JobListenerSupport
         logger = LogProvider.CreateLogger<JobChainingJobListener>();
     }
 
-    public override string Name { get; }
+    public string Name { get; }
 
     /// <summary>
     /// Add a chain mapping - when the Job identified by the first key completes
@@ -87,7 +87,7 @@ public sealed class JobChainingJobListener : JobListenerSupport
         chainLinks.Add(firstJob, secondJob);
     }
 
-    public override async ValueTask JobWasExecuted(IJobExecutionContext context,
+    public async ValueTask JobWasExecuted(IJobExecutionContext context,
         JobExecutionException? jobException,
         CancellationToken cancellationToken = default)
     {

@@ -1,8 +1,8 @@
-using Quartz.Listener;
+using Quartz.Listeners;
 
 namespace Quartz.Examples.AspNetCore;
 
-public class SampleJobListener : JobListenerSupport
+public class SampleJobListener : IJobListener
 {
     private readonly ILogger<SampleJobListener> logger;
 
@@ -11,9 +11,9 @@ public class SampleJobListener : JobListenerSupport
         this.logger = logger;
     }
 
-    public override string Name => "Sample Job Listener";
+    public string Name => "Sample Job Listener";
 
-    public override ValueTask JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken = default)
+    public ValueTask JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         logger.LogInformation("The job is about to be executed, prepare yourself!");
         return default;

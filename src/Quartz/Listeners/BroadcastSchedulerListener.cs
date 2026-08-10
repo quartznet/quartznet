@@ -25,7 +25,7 @@ using Quartz.Diagnostics;
 
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
-namespace Quartz.Listener;
+namespace Quartz.Listeners;
 
 /// <summary>
 /// Holds a List of references to SchedulerListener instances and broadcasts all
