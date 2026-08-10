@@ -115,12 +115,12 @@ public class SchedulerTest
             .StoreDurably()
             .Build();
 
-        var exists = await scheduler.CheckExists(new JobKey("j1"));
+        var exists = await scheduler.Exists(new JobKey("j1"));
         Assert.That(exists, Is.False, "Unexpected existence of job named 'j1'.");
 
         await scheduler.AddJob(job);
 
-        exists = await scheduler.CheckExists(new JobKey("j1"));
+        exists = await scheduler.Exists(new JobKey("j1"));
         Assert.That(exists, Is.True, "Expected existence of job named 'j1' but checkExists return false.");
 
         job = await scheduler.GetJobDetail(new JobKey("j1"));
@@ -136,12 +136,12 @@ public class SchedulerTest
             .WithSimpleSchedule(x => x.RepeatForever().WithInterval(TimeSpan.FromSeconds(5)))
             .Build();
 
-        exists = await scheduler.CheckExists(new TriggerKey("t1"));
+        exists = await scheduler.Exists(new TriggerKey("t1"));
         Assert.That(exists, Is.False, "Unexpected existence of trigger named '11'.");
 
         await scheduler.ScheduleJob(job, trigger);
 
-        exists = await scheduler.CheckExists(new TriggerKey("t1"));
+        exists = await scheduler.Exists(new TriggerKey("t1"));
         Assert.That(exists, Is.True, "Expected existence of trigger named 't1' but checkExists return false.");
 
         job = await scheduler.GetJobDetail(new JobKey("j1"));

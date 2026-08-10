@@ -52,9 +52,17 @@ public interface IQuartzApiClient
 
     ValueTask<List<CurrentlyExecutingJobDto>> GetCurrentlyExecutingJobs(string schedulerName, CancellationToken cancellationToken = default);
 
-    ValueTask PauseJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Pauses the job. Returns <see langword="true" /> when the job existed and was paused,
+    /// <see langword="false" /> when there was nothing to pause.
+    /// </summary>
+    ValueTask<bool> PauseJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
 
-    ValueTask ResumeJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Resumes the job. Returns <see langword="true" /> when the job existed and was resumed,
+    /// <see langword="false" /> when there was nothing to resume.
+    /// </summary>
+    ValueTask<bool> ResumeJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
 
     ValueTask TriggerJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
 
@@ -78,11 +86,23 @@ public interface IQuartzApiClient
 
     ValueTask<string> GetTriggerState(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
 
-    ValueTask PauseTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Pauses the trigger. Returns <see langword="true" /> when the trigger existed and was moved
+    /// into the paused state, <see langword="false" /> when there was nothing to pause.
+    /// </summary>
+    ValueTask<bool> PauseTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
 
-    ValueTask ResumeTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Resumes the trigger. Returns <see langword="true" /> when the trigger existed in a paused
+    /// state and was resumed, <see langword="false" /> when there was nothing to resume.
+    /// </summary>
+    ValueTask<bool> ResumeTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
 
-    ValueTask ResetTriggerFromErrorState(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Resets the trigger from the error state. Returns <see langword="true" /> when the trigger
+    /// existed in the error state and was reset, <see langword="false" /> otherwise.
+    /// </summary>
+    ValueTask<bool> ResetTriggerFromErrorState(string schedulerName, string group, string name, CancellationToken cancellationToken = default);
 
     ValueTask ScheduleJob(string schedulerName, ScheduleJobRequest request, CancellationToken cancellationToken = default);
 

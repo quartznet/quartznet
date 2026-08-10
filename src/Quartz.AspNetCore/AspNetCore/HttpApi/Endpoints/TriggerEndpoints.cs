@@ -162,7 +162,7 @@ internal static class TriggerEndpoints
     {
         return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
-            var exists = await scheduler.CheckExists(new TriggerKey(triggerName, triggerGroup), cancellationToken).ConfigureAwait(false);
+            var exists = await scheduler.Exists(new TriggerKey(triggerName, triggerGroup), cancellationToken).ConfigureAwait(false);
             return new ExistsResponse(exists);
         });
     }
@@ -183,7 +183,7 @@ internal static class TriggerEndpoints
         });
     }
 
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(OperationAppliedResponse), StatusCodes.Status200OK)]
     private static Task<IResult> ResetTriggerFromErrorState(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
@@ -192,10 +192,14 @@ internal static class TriggerEndpoints
         string triggerName,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler => scheduler.ResetTriggerFromErrorState(new TriggerKey(triggerName, triggerGroup), cancellationToken).AsTask());
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        {
+            var applied = await scheduler.ResetTriggerFromErrorState(new TriggerKey(triggerName, triggerGroup), cancellationToken).ConfigureAwait(false);
+            return new OperationAppliedResponse(applied);
+        });
     }
 
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(OperationAppliedResponse), StatusCodes.Status200OK)]
     private static Task<IResult> PauseTrigger(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
@@ -204,10 +208,14 @@ internal static class TriggerEndpoints
         string triggerName,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler => scheduler.PauseTrigger(new TriggerKey(triggerName, triggerGroup), cancellationToken).AsTask());
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        {
+            var applied = await scheduler.PauseTrigger(new TriggerKey(triggerName, triggerGroup), cancellationToken).ConfigureAwait(false);
+            return new OperationAppliedResponse(applied);
+        });
     }
 
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AffectedGroupsResponse), StatusCodes.Status200OK)]
     private static Task<IResult> PauseTriggers(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
@@ -218,14 +226,15 @@ internal static class TriggerEndpoints
         string? groupEquals = null,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, async scheduler =>
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var matcher = EndpointHelper.GetGroupMatcher<TriggerKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
-            await scheduler.PauseTriggers(matcher, cancellationToken).ConfigureAwait(false);
+            var pausedGroups = await scheduler.PauseTriggers(matcher, cancellationToken).ConfigureAwait(false);
+            return new AffectedGroupsResponse([.. pausedGroups]);
         });
     }
 
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(OperationAppliedResponse), StatusCodes.Status200OK)]
     private static Task<IResult> ResumeTrigger(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
@@ -234,10 +243,14 @@ internal static class TriggerEndpoints
         string triggerName,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler => scheduler.ResumeTrigger(new TriggerKey(triggerName, triggerGroup), cancellationToken).AsTask());
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
+        {
+            var applied = await scheduler.ResumeTrigger(new TriggerKey(triggerName, triggerGroup), cancellationToken).ConfigureAwait(false);
+            return new OperationAppliedResponse(applied);
+        });
     }
 
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(AffectedGroupsResponse), StatusCodes.Status200OK)]
     private static Task<IResult> ResumeTriggers(
         EndpointHelper endpointHelper,
         ISchedulerRepository schedulerRepository,
@@ -248,10 +261,11 @@ internal static class TriggerEndpoints
         string? groupEquals = null,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, async scheduler =>
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var matcher = EndpointHelper.GetGroupMatcher<TriggerKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
-            await scheduler.ResumeTriggers(matcher, cancellationToken).ConfigureAwait(false);
+            var resumedGroups = await scheduler.ResumeTriggers(matcher, cancellationToken).ConfigureAwait(false);
+            return new AffectedGroupsResponse([.. resumedGroups]);
         });
     }
 

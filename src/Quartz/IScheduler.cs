@@ -434,7 +434,12 @@ public interface IScheduler
     /// Pause the <see cref="IJobDetail" /> with the given
     /// key - by pausing all of its current <see cref="ITrigger" />s.
     /// </summary>
-    ValueTask PauseJob(
+    /// <returns>
+    /// <see langword="true" /> if the job exists — including a job that currently has no
+    /// triggers — <see langword="false" /> if there is no job with the given key. No listener
+    /// events are raised when nothing was found.
+    /// </returns>
+    ValueTask<bool> PauseJob(
         JobKey jobKey,
         CancellationToken cancellationToken = default);
 
@@ -460,13 +465,20 @@ public interface IScheduler
     /// remembered that group "axx" is paused and later when a job is added
     /// in that group, it will become paused.</para>
     /// </remarks>
+    /// <returns>The names of the job groups that were paused by this call.</returns>
     /// <seealso cref="ResumeJobs" />
-    ValueTask PauseJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default);
+    ValueTask<List<string>> PauseJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Pause the <see cref="ITrigger" /> with the given key.
     /// </summary>
-    ValueTask PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default);
+    /// <returns>
+    /// <see langword="true" /> if the trigger exists and was moved into the paused state by this
+    /// call, <see langword="false" /> if there is no trigger with the given key, it was already
+    /// paused, or it is in a state that cannot be paused (e.g. complete). No listener events are
+    /// raised when nothing changed.
+    /// </returns>
+    ValueTask<bool> PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Pause all of the <see cref="ITrigger" />s in the groups matching.
@@ -489,8 +501,9 @@ public interface IScheduler
     /// remembered that group "axx" is paused and later when a trigger is added
     /// in that group, it will become paused.</para>
     /// </remarks>
+    /// <returns>The names of the trigger groups that were paused by this call.</returns>
     /// <seealso cref="ResumeTriggers" />
-    ValueTask PauseTriggers(
+    ValueTask<List<string>> PauseTriggers(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default);
 
@@ -503,7 +516,12 @@ public interface IScheduler
     /// or more fire-times, then the <see cref="ITrigger" />'s misfire
     /// instruction will be applied.
     /// </remarks>
-    ValueTask ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default);
+    /// <returns>
+    /// <see langword="true" /> if the job exists — including a job that currently has no
+    /// triggers — <see langword="false" /> if there is no job with the given key. No listener
+    /// events are raised when nothing was found.
+    /// </returns>
+    ValueTask<bool> ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Resume (un-pause) all of the <see cref="IJobDetail" />s
@@ -514,8 +532,9 @@ public interface IScheduler
     /// missed one or more fire-times, then the <see cref="ITrigger" />'s
     /// misfire instruction will be applied.
     /// </remarks>
+    /// <returns>The names of the job groups that were resumed by this call.</returns>
     /// <seealso cref="PauseJobs" />
-    ValueTask ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default);
+    ValueTask<List<string>> ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Resume (un-pause) the <see cref="ITrigger" /> with the given
@@ -525,7 +544,12 @@ public interface IScheduler
     /// If the <see cref="ITrigger" /> missed one or more fire-times, then the
     /// <see cref="ITrigger" />'s misfire instruction will be applied.
     /// </remarks>
-    ValueTask ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default);
+    /// <returns>
+    /// <see langword="true" /> if the trigger existed in a paused state and was resumed by this
+    /// call, <see langword="false" /> if there is no trigger with the given key or it was not
+    /// paused. No listener events are raised when nothing changed.
+    /// </returns>
+    ValueTask<bool> ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Resume (un-pause) all of the <see cref="ITrigger" />s in matching groups.
@@ -534,8 +558,9 @@ public interface IScheduler
     /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
     /// <see cref="ITrigger" />'s misfire instruction will be applied.
     /// </remarks>
+    /// <returns>The names of the trigger groups that were resumed by this call.</returns>
     /// <seealso cref="PauseTriggers" />
-    ValueTask ResumeTriggers(
+    ValueTask<List<string>> ResumeTriggers(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default);
 
@@ -673,8 +698,13 @@ public interface IScheduler
     /// group has been paused, in which case it will go into the <see cref="TriggerState.Paused" /> state.
     /// </para>
     /// </remarks>
+    /// <returns>
+    /// <see langword="true" /> if the trigger existed in the <see cref="TriggerState.Error" /> state
+    /// and was reset by this call, <see langword="false" /> if there is no trigger with the given
+    /// key or it was not in the error state.
+    /// </returns>
     /// <seealso cref="TriggerState"/>
-    ValueTask ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default);
+    ValueTask<bool> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Add (register) the given <see cref="ICalendar" /> to the Scheduler.
@@ -768,7 +798,7 @@ public interface IScheduler
     /// <param name="jobKey">the identifier to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a Job exists with the given identifier</returns>
-    ValueTask<bool> CheckExists(JobKey jobKey, CancellationToken cancellationToken = default);
+    ValueTask<bool> Exists(JobKey jobKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Determine whether a <see cref="ITrigger" /> with the given identifier already
@@ -777,7 +807,7 @@ public interface IScheduler
     /// <param name="triggerKey">the identifier to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a Trigger exists with the given identifier</returns>
-    ValueTask<bool> CheckExists(TriggerKey triggerKey, CancellationToken cancellationToken = default);
+    ValueTask<bool> Exists(TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Clears (deletes!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s

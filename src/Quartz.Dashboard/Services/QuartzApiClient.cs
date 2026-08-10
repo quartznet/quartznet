@@ -241,14 +241,14 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         return result;
     }
 
-    public ValueTask PauseJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
+    public ValueTask<bool> PauseJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
-        return Post($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/pause", body: null, cancellationToken);
+        return PostReadingAppliedFlag($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/pause", cancellationToken);
     }
 
-    public ValueTask ResumeJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
+    public ValueTask<bool> ResumeJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
-        return Post($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/resume", body: null, cancellationToken);
+        return PostReadingAppliedFlag($"{GetSchedulerPath(schedulerName)}/jobs/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/resume", cancellationToken);
     }
 
     public ValueTask TriggerJob(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
@@ -329,19 +329,19 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         return FormatTriggerState(GetIntProperty(json, "state"));
     }
 
-    public ValueTask PauseTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
+    public ValueTask<bool> PauseTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
-        return Post($"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/pause", body: null, cancellationToken);
+        return PostReadingAppliedFlag($"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/pause", cancellationToken);
     }
 
-    public ValueTask ResumeTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
+    public ValueTask<bool> ResumeTrigger(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
-        return Post($"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/resume", body: null, cancellationToken);
+        return PostReadingAppliedFlag($"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/resume", cancellationToken);
     }
 
-    public ValueTask ResetTriggerFromErrorState(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
+    public ValueTask<bool> ResetTriggerFromErrorState(string schedulerName, string group, string name, CancellationToken cancellationToken = default)
     {
-        return Post($"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/reset-from-error-state", body: null, cancellationToken);
+        return PostReadingAppliedFlag($"{GetSchedulerPath(schedulerName)}/triggers/{Uri.EscapeDataString(group)}/{Uri.EscapeDataString(name)}/reset-from-error-state", cancellationToken);
     }
 
     public ValueTask ScheduleJob(string schedulerName, ScheduleJobRequest request, CancellationToken cancellationToken = default)
@@ -532,6 +532,22 @@ internal sealed class QuartzApiClient : IQuartzApiClient
         {
             response.EnsureSuccessStatusCode();
         }
+    }
+
+    /// <summary>
+    /// Posts a single-key mutation and reads the <c>applied</c> flag the missing-key rule puts
+    /// in the response body.
+    /// </summary>
+    private async ValueTask<bool> PostReadingAppliedFlag(string path, CancellationToken cancellationToken = default)
+    {
+        EnsureWritable();
+
+        HttpClient client = CreateClient();
+        using HttpResponseMessage response = await client.PostAsync(path, content: null, cancellationToken).ConfigureAwait(false);
+        response.EnsureSuccessStatusCode();
+
+        JsonElement json = await ParseJson(response, cancellationToken).ConfigureAwait(false);
+        return GetBooleanProperty(json, "applied");
     }
 
     private async ValueTask Delete(string path, CancellationToken cancellationToken = default)

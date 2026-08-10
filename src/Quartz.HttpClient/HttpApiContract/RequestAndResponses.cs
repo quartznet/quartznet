@@ -50,6 +50,17 @@ internal record ExistsResponse(bool Exists);
 
 internal record GroupPausedResponse(bool Paused);
 
+/// <summary>
+/// Answer of a single-key mutation that follows the missing-key rule: <c>Applied</c> is
+/// <see langword="true" /> when the entity existed and the operation applied to it.
+/// </summary>
+internal record OperationAppliedResponse(bool Applied);
+
+/// <summary>
+/// Answer of a group-matcher pause/resume: the names of the groups the operation affected.
+/// </summary>
+internal record AffectedGroupsResponse(string[] Groups);
+
 internal record DeleteCalendarResponse(bool CalendarFound);
 
 internal record DeleteJobResponse(bool JobFound);

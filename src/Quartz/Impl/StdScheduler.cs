@@ -309,27 +309,27 @@ internal sealed class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public ValueTask<bool> CheckExists(
+    public ValueTask<bool> Exists(
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.CheckExists(jobKey, cancellationToken);
+        return scheduler.Exists(jobKey, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public ValueTask<bool> CheckExists(
+    public ValueTask<bool> Exists(
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
-        return scheduler.CheckExists(triggerKey, cancellationToken);
+        return scheduler.Exists(triggerKey, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public ValueTask PauseTrigger(
+    public ValueTask<bool> PauseTrigger(
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
@@ -339,7 +339,7 @@ internal sealed class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public ValueTask PauseTriggers(
+    public ValueTask<List<string>> PauseTriggers(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
@@ -349,7 +349,7 @@ internal sealed class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public ValueTask PauseJob(
+    public ValueTask<bool> PauseJob(
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
@@ -359,7 +359,7 @@ internal sealed class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public ValueTask PauseJobs(
+    public ValueTask<List<string>> PauseJobs(
         GroupMatcher<JobKey> matcher,
         CancellationToken cancellationToken = default)
     {
@@ -369,7 +369,7 @@ internal sealed class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public ValueTask ResumeTrigger(
+    public ValueTask<bool> ResumeTrigger(
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
@@ -379,7 +379,7 @@ internal sealed class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public ValueTask ResumeTriggers(
+    public ValueTask<List<string>> ResumeTriggers(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
@@ -389,7 +389,7 @@ internal sealed class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public ValueTask ResumeJob(
+    public ValueTask<bool> ResumeJob(
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
@@ -399,7 +399,7 @@ internal sealed class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public ValueTask ResumeJobs(
+    public ValueTask<List<string>> ResumeJobs(
         GroupMatcher<JobKey> matcher,
         CancellationToken cancellationToken = default)
     {
@@ -509,9 +509,9 @@ internal sealed class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public async ValueTask ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public ValueTask<bool> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        await scheduler.ResetTriggerFromErrorState(triggerKey, cancellationToken).ConfigureAwait(false);
+        return scheduler.ResetTriggerFromErrorState(triggerKey, cancellationToken);
     }
 
     /// <summary>

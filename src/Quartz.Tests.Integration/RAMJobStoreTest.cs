@@ -88,11 +88,11 @@ public abstract class AbstractSchedulerTest
             .StoreDurably()
             .Build();
 
-        Assert.That(await scheduler.CheckExists(new JobKey("j1")), Is.False, "Unexpected existence of job named 'j1'.");
+        Assert.That(await scheduler.Exists(new JobKey("j1")), Is.False, "Unexpected existence of job named 'j1'.");
 
         await scheduler.AddJob(job);
 
-        Assert.That(await scheduler.CheckExists(new JobKey("j1")), "Expected existence of job named 'j1' but checkExists return false.");
+        Assert.That(await scheduler.Exists(new JobKey("j1")), "Expected existence of job named 'j1' but checkExists return false.");
 
         job = await scheduler.GetJobDetail(new JobKey("j1"));
 
@@ -109,11 +109,11 @@ public abstract class AbstractSchedulerTest
                 .WithInterval(TimeSpan.FromSeconds(5)))
             .Build();
 
-        Assert.That(await scheduler.CheckExists(new TriggerKey("t1")), Is.False, "Unexpected existence of trigger named '11'.");
+        Assert.That(await scheduler.Exists(new TriggerKey("t1")), Is.False, "Unexpected existence of trigger named '11'.");
 
         await scheduler.ScheduleJob(job, trigger);
 
-        Assert.That(await scheduler.CheckExists(new TriggerKey("t1")), "Expected existence of trigger named 't1' but checkExists return false.");
+        Assert.That(await scheduler.Exists(new TriggerKey("t1")), "Expected existence of trigger named 't1' but checkExists return false.");
 
         job = await scheduler.GetJobDetail(new JobKey("j1"));
 
@@ -479,11 +479,11 @@ public abstract class AbstractSchedulerTest
             .StoreDurably()
             .Build();
 
-        Assert.That(await scheduler.CheckExists(new JobKey("j1")), Is.False, "Unexpected existence of job named 'j1'.");
+        Assert.That(await scheduler.Exists(new JobKey("j1")), Is.False, "Unexpected existence of job named 'j1'.");
 
         await scheduler.AddJob(job);
 
-        Assert.That(await scheduler.CheckExists(new JobKey("j1")), "Unexpected non-existence of job named 'j1'.");
+        Assert.That(await scheduler.Exists(new JobKey("j1")), "Unexpected non-existence of job named 'j1'.");
 
         IJobDetail nonDurableJob = JobBuilder.Create<TestJob>()
             .WithIdentity("j2")
@@ -496,12 +496,12 @@ public abstract class AbstractSchedulerTest
         }
         catch (SchedulerException)
         {
-            Assert.That(await scheduler.CheckExists(new JobKey("j2")), Is.False, "Unexpected existence of job named 'j2'.");
+            Assert.That(await scheduler.Exists(new JobKey("j2")), Is.False, "Unexpected existence of job named 'j2'.");
         }
 
         await scheduler.AddJob(nonDurableJob, new AddJobOptions { StoreNonDurableWhileAwaitingScheduling = true });
 
-        Assert.That(await scheduler.CheckExists(new JobKey("j2")), "Unexpected non-existence of job named 'j2'.");
+        Assert.That(await scheduler.Exists(new JobKey("j2")), "Unexpected non-existence of job named 'j2'.");
     }
 
     [Test]

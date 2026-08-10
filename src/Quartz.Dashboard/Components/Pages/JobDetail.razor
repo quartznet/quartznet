@@ -199,6 +199,7 @@
         return ExecuteMutatingActionAsync(
             () => Api.PauseJob(Scheduler.ActiveSchedulerName!, Group, Name),
             "Paused job " + DisplayValueHelper.FormatKey(Group, Name) + ".",
+            "Job " + DisplayValueHelper.FormatKey(Group, Name) + " was not paused - it no longer exists.",
             actionName: "PauseJob",
             target: DisplayValueHelper.FormatKey(Group, Name));
     }
@@ -208,6 +209,7 @@
         return ExecuteMutatingActionAsync(
             () => Api.ResumeJob(Scheduler.ActiveSchedulerName!, Group, Name),
             "Resumed job " + DisplayValueHelper.FormatKey(Group, Name) + ".",
+            "Job " + DisplayValueHelper.FormatKey(Group, Name) + " was not resumed - it no longer exists.",
             actionName: "ResumeJob",
             target: DisplayValueHelper.FormatKey(Group, Name));
     }
@@ -281,6 +283,43 @@
             Toasts.Success(successMessage);
             await LoadDataAsync();
             return true;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            ActionLog.Record(schedulerName, actionName, target, succeeded: false, ex.Message);
+            Toasts.Error(ex.Message);
+            return false;
+        }
+    }
+
+    private async Task<bool> ExecuteMutatingActionAsync(
+        Func<ValueTask<bool>> operation,
+        string successMessage,
+        string noOpMessage,
+        string actionName,
+        string target)
+    {
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return false;
+        }
+
+        try
+        {
+            bool applied = await operation();
+            ActionLog.Record(schedulerName, actionName, target, succeeded: applied);
+            if (applied)
+            {
+                Toasts.Success(successMessage);
+            }
+            else
+            {
+                Toasts.Info(noOpMessage);
+            }
+            await LoadDataAsync();
+            return applied;
         }
         catch (Exception ex)
         {

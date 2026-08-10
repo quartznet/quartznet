@@ -200,6 +200,7 @@
         return ExecuteMutatingActionAsync(
             () => Api.PauseTrigger(Scheduler.ActiveSchedulerName!, Group, Name),
             "Paused trigger " + DisplayValueHelper.FormatKey(Group, Name) + ".",
+            "Trigger " + DisplayValueHelper.FormatKey(Group, Name) + " was not paused - it no longer exists or cannot be paused.",
             actionName: "PauseTrigger",
             target: DisplayValueHelper.FormatKey(Group, Name));
     }
@@ -209,6 +210,7 @@
         return ExecuteMutatingActionAsync(
             () => Api.ResumeTrigger(Scheduler.ActiveSchedulerName!, Group, Name),
             "Resumed trigger " + DisplayValueHelper.FormatKey(Group, Name) + ".",
+            "Trigger " + DisplayValueHelper.FormatKey(Group, Name) + " was not resumed - it no longer exists or was not paused.",
             actionName: "ResumeTrigger",
             target: DisplayValueHelper.FormatKey(Group, Name));
     }
@@ -218,6 +220,7 @@
         return ExecuteMutatingActionAsync(
             () => Api.ResetTriggerFromErrorState(Scheduler.ActiveSchedulerName!, Group, Name),
             "Reset error state for trigger " + DisplayValueHelper.FormatKey(Group, Name) + ".",
+            "Trigger " + DisplayValueHelper.FormatKey(Group, Name) + " was not reset - it no longer exists or is not in the error state.",
             actionName: "ResetTriggerFromErrorState",
             target: DisplayValueHelper.FormatKey(Group, Name));
     }
@@ -358,6 +361,43 @@
             Toasts.Success(successMessage);
             await LoadDataAsync();
             return true;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            ActionLog.Record(schedulerName, actionName, target, succeeded: false, ex.Message);
+            Toasts.Error(ex.Message);
+            return false;
+        }
+    }
+
+    private async Task<bool> ExecuteMutatingActionAsync(
+        Func<ValueTask<bool>> operation,
+        string successMessage,
+        string noOpMessage,
+        string actionName,
+        string target)
+    {
+        string? schedulerName = Scheduler.ActiveSchedulerName;
+        if (IsReadOnly || string.IsNullOrWhiteSpace(schedulerName))
+        {
+            return false;
+        }
+
+        try
+        {
+            bool applied = await operation();
+            ActionLog.Record(schedulerName, actionName, target, succeeded: applied);
+            if (applied)
+            {
+                Toasts.Success(successMessage);
+            }
+            else
+            {
+                Toasts.Info(noOpMessage);
+            }
+            await LoadDataAsync();
+            return applied;
         }
         catch (Exception ex)
         {

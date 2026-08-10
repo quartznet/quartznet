@@ -774,7 +774,7 @@ public sealed class RAMJobStore : IJobStore
     /// <param name="jobKey">the identifier to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a Job exists with the given identifier</returns>
-    public async ValueTask<bool> CheckExists(JobKey jobKey, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> Exists(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -794,7 +794,7 @@ public sealed class RAMJobStore : IJobStore
     /// <param name="triggerKey">triggerKey the identifier to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a Trigger exists with the given identifier</returns>
-    public async ValueTask<bool> CheckExists(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> Exists(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -855,7 +855,7 @@ public sealed class RAMJobStore : IJobStore
         }
     }
 
-    public async ValueTask ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -863,13 +863,13 @@ public sealed class RAMJobStore : IJobStore
             // does the trigger exist?
             if (!triggersByKey.TryGetValue(triggerKey, out var tw) || tw.Trigger is null)
             {
-                return;
+                return false;
             }
 
             // is the trigger in error state?
             if (tw.state != InternalTriggerState.Error)
             {
-                return;
+                return false;
             }
 
             if (pausedTriggerGroups.Contains(triggerKey.Group))
@@ -881,6 +881,8 @@ public sealed class RAMJobStore : IJobStore
                 tw.state = InternalTriggerState.Waiting;
                 timeTriggers.Add(tw);
             }
+
+            return true;
         }
         finally
         {
@@ -1550,12 +1552,12 @@ public sealed class RAMJobStore : IJobStore
     /// <summary>
     /// Pause the <see cref="ITrigger" /> with the given name.
     /// </summary>
-    public async ValueTask PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            PauseTriggerNoLock(triggerKey);
+            return PauseTriggerNoLock(triggerKey);
         }
         finally
         {
@@ -1563,18 +1565,24 @@ public sealed class RAMJobStore : IJobStore
         }
     }
 
-    private void PauseTriggerNoLock(TriggerKey triggerKey)
+    private bool PauseTriggerNoLock(TriggerKey triggerKey)
     {
         // does the trigger exist?
         if (!triggersByKey.TryGetValue(triggerKey, out var tw))
         {
-            return;
+            return false;
         }
 
         // if the trigger is "complete" pausing it does not make sense...
         if (tw.state == InternalTriggerState.Complete)
         {
-            return;
+            return false;
+        }
+
+        // already paused, nothing to change
+        if (tw.state is InternalTriggerState.Paused or InternalTriggerState.PausedAndBlocked)
+        {
+            return false;
         }
 
         if (tw.state == InternalTriggerState.Blocked)
@@ -1587,6 +1595,7 @@ public sealed class RAMJobStore : IJobStore
         }
 
         timeTriggers.Remove(tw);
+        return true;
     }
 
     /// <summary>
@@ -1653,17 +1662,24 @@ public sealed class RAMJobStore : IJobStore
     /// Pause the <see cref="IJobDetail" /> with the given
     /// name - by pausing all of its current <see cref="ITrigger" />s.
     /// </summary>
-    public async ValueTask PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
+            if (!jobsByKey.ContainsKey(jobKey))
+            {
+                return false;
+            }
+
             resumedJobsInPausedGroups.Remove(jobKey);
             var triggerKeysForJob = GetTriggerKeysForJobNoLock(jobKey);
             foreach (TriggerKey key in triggerKeysForJob)
             {
                 PauseTriggerNoLock(key);
             }
+
+            return true;
         }
         finally
         {
@@ -1737,12 +1753,12 @@ public sealed class RAMJobStore : IJobStore
     /// If the <see cref="ITrigger" /> missed one or more fire-times, then the
     /// <see cref="ITrigger" />'s misfire instruction will be applied.
     /// </remarks>
-    public async ValueTask ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await ResumeTriggerNoLock(triggerKey).ConfigureAwait(false);
+            return await ResumeTriggerNoLock(triggerKey).ConfigureAwait(false);
         }
         finally
         {
@@ -1750,19 +1766,19 @@ public sealed class RAMJobStore : IJobStore
         }
     }
 
-    private async ValueTask ResumeTriggerNoLock(TriggerKey triggerKey)
+    private async ValueTask<bool> ResumeTriggerNoLock(TriggerKey triggerKey)
     {
         // does the trigger exist?
         if (!triggersByKey.TryGetValue(triggerKey, out var tw))
         {
-            return;
+            return false;
         }
 
         // if the trigger is not paused resuming it does not make sense...
         if (tw.state != InternalTriggerState.Paused &&
             tw.state != InternalTriggerState.PausedAndBlocked)
         {
-            return;
+            return false;
         }
 
         if (blockedJobs.Contains(tw.JobKey))
@@ -1780,6 +1796,8 @@ public sealed class RAMJobStore : IJobStore
         {
             timeTriggers.Add(tw);
         }
+
+        return true;
     }
 
     /// <summary>
@@ -1862,12 +1880,17 @@ public sealed class RAMJobStore : IJobStore
     /// instruction will be applied.
     /// </para>
     /// </summary>
-    public async ValueTask ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (pausedJobGroups.Contains(jobKey.Group) && jobsByKey.ContainsKey(jobKey))
+            if (!jobsByKey.ContainsKey(jobKey))
+            {
+                return false;
+            }
+
+            if (pausedJobGroups.Contains(jobKey.Group))
             {
                 resumedJobsInPausedGroups.Add(jobKey);
             }
@@ -1877,6 +1900,8 @@ public sealed class RAMJobStore : IJobStore
             {
                 await ResumeTriggerNoLock(key).ConfigureAwait(false);
             }
+
+            return true;
         }
         finally
         {

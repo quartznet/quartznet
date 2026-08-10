@@ -347,48 +347,56 @@ public sealed class HttpScheduler : IScheduler
         return httpClient.Post($"{JobEndpointUrl(jobKey)}/trigger", request, jsonSerializerOptions, cancellationToken);
     }
 
-    public ValueTask PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        return httpClient.Post($"{JobEndpointUrl(jobKey)}/pause", jsonSerializerOptions, cancellationToken);
+        var result = await httpClient.PostWithResponse<OperationAppliedResponse>($"{JobEndpointUrl(jobKey)}/pause", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return result.Applied;
     }
 
-    public ValueTask PauseJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    public async ValueTask<List<string>> PauseJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         var urlParams = matcher.ToUrlParameters();
-        return httpClient.Post($"{JobEndpointUrl()}/pause?{urlParams}", jsonSerializerOptions, cancellationToken);
+        var result = await httpClient.PostWithResponse<AffectedGroupsResponse>($"{JobEndpointUrl()}/pause?{urlParams}", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return [.. result.Groups];
     }
 
-    public ValueTask PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        return httpClient.Post($"{TriggerEndpointUrl(triggerKey)}/pause", jsonSerializerOptions, cancellationToken);
+        var result = await httpClient.PostWithResponse<OperationAppliedResponse>($"{TriggerEndpointUrl(triggerKey)}/pause", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return result.Applied;
     }
 
-    public ValueTask PauseTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
-    {
-        var urlParams = matcher.ToUrlParameters();
-        return httpClient.Post($"{TriggerEndpointUrl()}/pause?{urlParams}", jsonSerializerOptions, cancellationToken);
-    }
-
-    public ValueTask ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
-    {
-        return httpClient.Post($"{JobEndpointUrl(jobKey)}/resume", jsonSerializerOptions, cancellationToken);
-    }
-
-    public ValueTask ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    public async ValueTask<List<string>> PauseTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
         var urlParams = matcher.ToUrlParameters();
-        return httpClient.Post($"{JobEndpointUrl()}/resume?{urlParams}", jsonSerializerOptions, cancellationToken);
+        var result = await httpClient.PostWithResponse<AffectedGroupsResponse>($"{TriggerEndpointUrl()}/pause?{urlParams}", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return [.. result.Groups];
     }
 
-    public ValueTask ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        return httpClient.Post($"{TriggerEndpointUrl(triggerKey)}/resume", jsonSerializerOptions, cancellationToken);
+        var result = await httpClient.PostWithResponse<OperationAppliedResponse>($"{JobEndpointUrl(jobKey)}/resume", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return result.Applied;
     }
 
-    public ValueTask ResumeTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    public async ValueTask<List<string>> ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         var urlParams = matcher.ToUrlParameters();
-        return httpClient.Post($"{TriggerEndpointUrl()}/resume?{urlParams}", jsonSerializerOptions, cancellationToken);
+        var result = await httpClient.PostWithResponse<AffectedGroupsResponse>($"{JobEndpointUrl()}/resume?{urlParams}", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return [.. result.Groups];
+    }
+
+    public async ValueTask<bool> ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    {
+        var result = await httpClient.PostWithResponse<OperationAppliedResponse>($"{TriggerEndpointUrl(triggerKey)}/resume", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return result.Applied;
+    }
+
+    public async ValueTask<List<string>> ResumeTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    {
+        var urlParams = matcher.ToUrlParameters();
+        var result = await httpClient.PostWithResponse<AffectedGroupsResponse>($"{TriggerEndpointUrl()}/resume?{urlParams}", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return [.. result.Groups];
     }
 
     public ValueTask PauseAll(CancellationToken cancellationToken = default)
@@ -586,9 +594,10 @@ public sealed class HttpScheduler : IScheduler
         return result.State;
     }
 
-    public ValueTask ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        return httpClient.Post($"{TriggerEndpointUrl(triggerKey)}/reset-from-error-state", jsonSerializerOptions, cancellationToken);
+        var result = await httpClient.PostWithResponse<OperationAppliedResponse>($"{TriggerEndpointUrl(triggerKey)}/reset-from-error-state", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
+        return result.Applied;
     }
 
     public ValueTask AddCalendar(string calendarName, ICalendar calendar, AddCalendarOptions? options = null, CancellationToken cancellationToken = default)
@@ -638,13 +647,13 @@ public sealed class HttpScheduler : IScheduler
         return response.Interrupted;
     }
 
-    public async ValueTask<bool> CheckExists(JobKey jobKey, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> Exists(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         var result = await httpClient.Get<ExistsResponse>($"{JobEndpointUrl(jobKey)}/exists", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
         return result.Exists;
     }
 
-    public async ValueTask<bool> CheckExists(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public async ValueTask<bool> Exists(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         var result = await httpClient.Get<ExistsResponse>($"{TriggerEndpointUrl(triggerKey)}/exists", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
         return result.Exists;

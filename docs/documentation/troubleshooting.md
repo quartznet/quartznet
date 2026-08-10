@@ -205,7 +205,7 @@ Jobs should check `IJobExecutionContext.CancellationToken` to respond to shutdow
 
 | Error | Likely Cause | Resolution |
 |-------|-------------|------------|
-| `ObjectAlreadyExistsException` | Attempting to schedule a job or trigger with a key that already exists | Use `scheduler.RescheduleJob()` to replace an existing trigger, or check existence first with `scheduler.CheckExists()` |
+| `ObjectAlreadyExistsException` | Attempting to schedule a job or trigger with a key that already exists | Use `scheduler.RescheduleJob()` to replace an existing trigger, or check existence first with `scheduler.Exists()` (Quartz 4.x; on Quartz 3.x the method is `scheduler.CheckExists()`) |
 | `JobPersistenceException` | Database error during job store operation | Check database connectivity, connection pool size, and query timeouts |
 | `SchedulerException: Scheduler has been shutdown` | Calling scheduler methods after `Shutdown()` | Ensure your application lifecycle correctly manages the scheduler |
 | `TypeLoadException` on job execution | Job class not found — possibly renamed or moved | Update `JOB_CLASS_NAME` in `QRTZ_JOB_DETAILS` (see [Job Deserialization Failures](#job-deserialization-failures-after-refactoring)) |

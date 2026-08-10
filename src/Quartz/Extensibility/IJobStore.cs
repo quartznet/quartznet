@@ -238,7 +238,7 @@ public interface IJobStore
     /// <param name="jobKey">the identifier to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a job exists with the given identifier</returns>
-    ValueTask<bool> CheckExists(JobKey jobKey, CancellationToken cancellationToken = default);
+    ValueTask<bool> Exists(JobKey jobKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Determine whether a <see cref="ITrigger" /> with the given identifier already
@@ -249,7 +249,7 @@ public interface IJobStore
     /// <param name="triggerKey">the identifier to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a trigger exists with the given identifier</returns>
-    ValueTask<bool> CheckExists(TriggerKey triggerKey, CancellationToken cancellationToken = default);
+    ValueTask<bool> Exists(TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Clear (delete!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s
@@ -395,8 +395,13 @@ public interface IJobStore
     /// group has been paused, in which case it will go into the <see cref="TriggerState.Paused" /> state.
     /// </para>
     /// </remarks>
+    /// <returns>
+    /// <see langword="true" /> if the trigger existed in the error state and was reset by this
+    /// call, <see langword="false" /> if there is no trigger with the given key or it was not
+    /// in the error state.
+    /// </returns>
     /// <seealso cref="TriggerState"/>
-    ValueTask ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default);
+    ValueTask<bool> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
     /////////////////////////////////////////////////////////////////////////////
     //
@@ -407,7 +412,12 @@ public interface IJobStore
     /// <summary>
     /// Pause the <see cref="ITrigger" /> with the given key.
     /// </summary>
-    ValueTask PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default);
+    /// <returns>
+    /// <see langword="true" /> if the trigger exists and was moved into the paused state by this
+    /// call, <see langword="false" /> if there is no trigger with the given key, it was already
+    /// paused, or it is in a state that cannot be paused (e.g. complete).
+    /// </returns>
+    ValueTask<bool> PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Pause all of the <see cref="ITrigger" />s in the
@@ -424,7 +434,11 @@ public interface IJobStore
     /// Pause the <see cref="IJob" /> with the given key - by
     /// pausing all of its current <see cref="ITrigger" />s.
     /// </summary>
-    ValueTask PauseJob(JobKey jobKey, CancellationToken cancellationToken = default);
+    /// <returns>
+    /// <see langword="true" /> if the job exists — including a job that currently has no
+    /// triggers — <see langword="false" /> if there is no job with the given key.
+    /// </returns>
+    ValueTask<bool> PauseJob(JobKey jobKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Pause all of the <see cref="IJob" />s in the given
@@ -448,9 +462,12 @@ public interface IJobStore
     /// <see cref="ITrigger" />'s misfire instruction will be applied.
     /// </para>
     /// </summary>
-    /// <seealso cref="string">
-    /// </seealso>
-    ValueTask ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default);
+    /// <returns>
+    /// <see langword="true" /> if the trigger existed in a paused state and was resumed by this
+    /// call, <see langword="false" /> if there is no trigger with the given key or it was not
+    /// paused.
+    /// </returns>
+    ValueTask<bool> ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Resume (un-pause) all of the <see cref="ITrigger" />s
@@ -471,7 +488,11 @@ public interface IJobStore
     /// instruction will be applied.
     /// </para>
     /// </summary>
-    ValueTask ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default);
+    /// <returns>
+    /// <see langword="true" /> if the job exists — including a job that currently has no
+    /// triggers — <see langword="false" /> if there is no job with the given key.
+    /// </returns>
+    ValueTask<bool> ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Resume (un-pause) all of the <see cref="IJob" />s in

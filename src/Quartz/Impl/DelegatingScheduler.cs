@@ -127,42 +127,42 @@ public class DelegatingScheduler : IScheduler
         return scheduler.TriggerJob(jobKey, data, cancellationToken);
     }
 
-    public ValueTask PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
+    public ValueTask<bool> PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         return scheduler.PauseJob(jobKey, cancellationToken);
     }
 
-    public ValueTask PauseJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    public ValueTask<List<string>> PauseJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         return scheduler.PauseJobs(matcher, cancellationToken);
     }
 
-    public ValueTask PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public ValueTask<bool> PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         return scheduler.PauseTrigger(triggerKey, cancellationToken);
     }
 
-    public ValueTask PauseTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    public ValueTask<List<string>> PauseTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
         return scheduler.PauseTriggers(matcher, cancellationToken);
     }
 
-    public ValueTask ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
+    public ValueTask<bool> ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         return scheduler.ResumeJob(jobKey, cancellationToken);
     }
 
-    public ValueTask ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+    public ValueTask<List<string>> ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         return scheduler.ResumeJobs(matcher, cancellationToken);
     }
 
-    public ValueTask ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public ValueTask<bool> ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         return scheduler.ResumeTrigger(triggerKey, cancellationToken);
     }
 
-    public ValueTask ResumeTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+    public ValueTask<List<string>> ResumeTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
         return scheduler.ResumeTriggers(matcher, cancellationToken);
     }
@@ -227,7 +227,7 @@ public class DelegatingScheduler : IScheduler
         return scheduler.GetTriggerState(triggerKey, cancellationToken);
     }
 
-    public ValueTask ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public ValueTask<bool> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         return scheduler.ResetTriggerFromErrorState(triggerKey, cancellationToken);
     }
@@ -257,14 +257,14 @@ public class DelegatingScheduler : IScheduler
         return scheduler.InterruptFireInstance(fireInstanceId, cancellationToken);
     }
 
-    public ValueTask<bool> CheckExists(JobKey jobKey, CancellationToken cancellationToken = default)
+    public ValueTask<bool> Exists(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        return scheduler.CheckExists(jobKey, cancellationToken);
+        return scheduler.Exists(jobKey, cancellationToken);
     }
 
-    public ValueTask<bool> CheckExists(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public ValueTask<bool> Exists(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        return scheduler.CheckExists(triggerKey, cancellationToken);
+        return scheduler.Exists(triggerKey, cancellationToken);
     }
 
     public ValueTask Clear(CancellationToken cancellationToken = default)

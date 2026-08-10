@@ -94,6 +94,34 @@ calendar listings. Both shapes are gone; every listing returns the paged envelop
 `GET {ApiPath}/schedulers/{name}/triggers/groups?paused=true`.
 :::
 
+## Pause and resume report what they did
+
+The single-key mutations that follow the missing-key rule answer `200 OK` with a JSON body telling
+whether anything happened:
+
+- `POST …/jobs/{group}/{name}/pause`, `…/resume`
+- `POST …/triggers/{group}/{name}/pause`, `…/resume`
+- `POST …/triggers/{group}/{name}/reset-from-error-state`
+
+```json
+{ "applied": true }
+```
+
+`applied` is `false` when the key does not exist or the operation was a no-op (pausing an already
+paused trigger, resuming a trigger that was not paused, resetting a trigger that is not in the error
+state). The group-matcher forms — `POST …/jobs/pause`, `…/jobs/resume`, `…/triggers/pause`,
+`…/triggers/resume` — return the names of the groups the operation affected:
+
+```json
+{ "groups": [ "reporting", "imports" ] }
+```
+
+::: warning Changed in 4.x
+These endpoints previously returned `200 OK` with an empty body. Old clients that ignored the body
+keep working, but a 4.0-final `HttpScheduler` against a 4.0-preview server throws on these calls
+because it expects the body — upgrade the server first.
+:::
+
 ## Configuration options
 
 `QuartzHttpApiOptions` supports:
