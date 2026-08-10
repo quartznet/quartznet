@@ -23,7 +23,7 @@ using System.Globalization;
 
 using Quartz.Util;
 
-namespace Quartz.HttpClient;
+namespace Quartz;
 
 internal sealed class QueryStringBuilder
 {

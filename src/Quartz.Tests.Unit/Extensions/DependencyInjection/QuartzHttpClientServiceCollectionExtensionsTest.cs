@@ -4,7 +4,6 @@ using FakeItEasy;
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz;
-using Quartz.HttpClient;
 using Quartz.Impl;
 using Quartz.Extensibility;
 
@@ -14,12 +13,12 @@ namespace Quartz.Tests.Unit.Extensions.DependencyInjection
 {
     public class QuartzHttpClientServiceCollectionExtensionsTest
     {
-        private System.Net.Http.HttpClient testClient;
+        private HttpClient testClient;
 
         [SetUp]
         public void SetUp()
         {
-            testClient = new System.Net.Http.HttpClient
+            testClient = new HttpClient
             {
                 BaseAddress = new Uri("http://localhost:8080")
             };

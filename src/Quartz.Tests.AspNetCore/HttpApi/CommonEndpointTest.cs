@@ -4,7 +4,6 @@ using System.Text;
 using FakeItEasy;
 
 
-using Quartz.HttpClient;
 using Quartz.Tests.AspNetCore.Support;
 
 namespace Quartz.Tests.AspNetCore.HttpApi;

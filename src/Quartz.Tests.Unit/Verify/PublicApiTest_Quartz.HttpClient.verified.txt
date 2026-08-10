@@ -1,12 +1,20 @@
 ﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
-namespace Quartz.HttpClient
+namespace Quartz
 {
     public sealed class HttpClientException : Quartz.SchedulerException
     {
         public HttpClientException(string message) { }
         public HttpClientException(string message, System.Exception? innerException) { }
     }
-    public class HttpScheduler : Quartz.IScheduler
+    public class HttpClientOptions
+    {
+        public HttpClientOptions() { }
+        public System.Net.Http.HttpClient? HttpClient { get; set; }
+        public string? HttpClientName { get; set; }
+        public System.Text.Json.JsonSerializerOptions? JsonSerializerOptions { get; set; }
+        public string SchedulerName { get; set; }
+    }
+    public sealed class HttpScheduler : Quartz.IScheduler
     {
         public HttpScheduler(string schedulerName, System.Net.Http.HttpClient httpClient, System.Text.Json.JsonSerializerOptions? jsonSerializerOptions = null, Quartz.Serialization.Json.SystemTextJsonSerializerRegistry? serializerRegistry = null) { }
         public Quartz.SchedulerContext Context { get; }
@@ -65,17 +73,6 @@ namespace Quartz.HttpClient
         public System.Threading.Tasks.ValueTask<bool> UnscheduleJob(Quartz.TriggerKey triggerKey, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<bool> UnscheduleJobs(System.Collections.Generic.IReadOnlyCollection<Quartz.TriggerKey> triggerKeys, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask<bool> UpdateTriggerDetails(Quartz.TriggerKey triggerKey, Quartz.TriggerDetailsUpdate update, System.Threading.CancellationToken cancellationToken = default) { }
-    }
-}
-namespace Quartz
-{
-    public class HttpClientOptions
-    {
-        public HttpClientOptions() { }
-        public System.Net.Http.HttpClient? HttpClient { get; set; }
-        public string? HttpClientName { get; set; }
-        public System.Text.Json.JsonSerializerOptions? JsonSerializerOptions { get; set; }
-        public string SchedulerName { get; set; }
     }
     public static class QuartzHttpClientServiceCollectionExtensions
     {

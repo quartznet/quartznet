@@ -5,7 +5,6 @@ using AwesomeAssertions.Execution;
 
 using FakeItEasy;
 
-using Quartz.HttpClient;
 using Quartz.Tests.AspNetCore.Support;
 
 namespace Quartz.Tests.AspNetCore.HttpApi;
@@ -181,7 +180,7 @@ public class JobEndpointsTest : WebApiTest
         A.CallTo(() => FakeScheduler.GetTriggers(A<IReadOnlyCollection<TriggerKey>>._, A<CancellationToken>._))
             .Returns(new List<ITrigger> { TestData.SimpleTrigger, TestData.CronTrigger });
 
-        using System.Net.Http.HttpClient httpClient = WebApplicationFactory.CreateClient();
+        using HttpClient httpClient = WebApplicationFactory.CreateClient();
 
         HttpResponseMessage response = await httpClient.GetAsync($"schedulers/{HttpScheduler.SchedulerName}/jobs/{jobKeyOne.Group}/{jobKeyOne.Name}/triggers");
 
@@ -204,7 +203,7 @@ public class JobEndpointsTest : WebApiTest
         A.CallTo(() => FakeScheduler.QueryTriggers(A<TriggerQuery>._, A<CancellationToken>._))
             .Returns(new PagedResult<TriggerHeader>([], HasMore: false));
 
-        using System.Net.Http.HttpClient httpClient = WebApplicationFactory.CreateClient();
+        using HttpClient httpClient = WebApplicationFactory.CreateClient();
 
         HttpResponseMessage response = await httpClient.GetAsync($"schedulers/{HttpScheduler.SchedulerName}/jobs/{jobKeyTwo.Group}/{jobKeyTwo.Name}/triggers");
 

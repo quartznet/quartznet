@@ -19,7 +19,7 @@
 
 #endregion
 
-namespace Quartz.HttpClient;
+namespace Quartz;
 
 public sealed class HttpClientException : SchedulerException
 {

@@ -3,7 +3,6 @@ using FakeItEasy;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
-using Quartz.HttpClient;
 using Quartz.Extensibility;
 using Quartz.Tests.AspNetCore.Support;
 
