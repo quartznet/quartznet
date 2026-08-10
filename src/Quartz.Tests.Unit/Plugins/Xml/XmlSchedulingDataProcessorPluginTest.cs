@@ -5,7 +5,7 @@ using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Plugin.Xml;
 
-public class XMLSchedulingDataProcessorPluginTest
+public class XmlSchedulingDataProcessorPluginTest
 {
     [Test]
     public async Task WhenFullPathFilesAreSeparatedByCommaSpaceThenPurgeSpaces()
@@ -19,7 +19,7 @@ public class XMLSchedulingDataProcessorPluginTest
         {
         }
 
-        var dataProcessor = new XMLSchedulingDataProcessorPlugin
+        var dataProcessor = new XmlSchedulingDataProcessorPlugin
         {
             FileNames = fp1 + ", " + fp2
         };
@@ -49,7 +49,7 @@ public class XMLSchedulingDataProcessorPluginTest
             File.Create(expectedPathFile2).Close();
         }
 
-        var dataProcessor = new XMLSchedulingDataProcessorPlugin();
+        var dataProcessor = new XmlSchedulingDataProcessorPlugin();
         dataProcessor.FileNames = configuredFileName1 + ", " + configuredFileName2;
         var mockScheduler = A.Fake<IScheduler>();
 
@@ -62,7 +62,7 @@ public class XMLSchedulingDataProcessorPluginTest
     [Test]
     public async Task ShouldValidateInputXmlWhenConfigured()
     {
-        var dataProcessor = new XMLSchedulingDataProcessorPlugin();
+        var dataProcessor = new XmlSchedulingDataProcessorPlugin();
         dataProcessor.FileNames = "./Xml/TestData/JobTypeNotFound.xml";
         var mockScheduler = A.Fake<IScheduler>();
 
@@ -77,7 +77,7 @@ public class XMLSchedulingDataProcessorPluginTest
     public async Task ShouldLogErrorAndNotifyListenersForInvalidCronExpressionWithFailOnSchedulingErrorTrue()
     {
         // Arrange
-        var dataProcessor = new XMLSchedulingDataProcessorPlugin();
+        var dataProcessor = new XmlSchedulingDataProcessorPlugin();
         dataProcessor.FileNames = "./Xml/TestData/InvalidCronExpression.xml";
         dataProcessor.FailOnSchedulingError = true;
 
@@ -110,7 +110,7 @@ public class XMLSchedulingDataProcessorPluginTest
     public async Task ShouldLogErrorAndNotifyListenersForInvalidCronExpressionWithFailOnSchedulingErrorFalse()
     {
         // Arrange
-        var dataProcessor = new XMLSchedulingDataProcessorPlugin();
+        var dataProcessor = new XmlSchedulingDataProcessorPlugin();
         dataProcessor.FileNames = "./Xml/TestData/InvalidCronExpression.xml";
         dataProcessor.FailOnSchedulingError = false;
 
@@ -139,7 +139,7 @@ public class XMLSchedulingDataProcessorPluginTest
     public async Task ShouldContinueNotifyingListenersWhenOneListenerThrows()
     {
         // Arrange
-        var dataProcessor = new XMLSchedulingDataProcessorPlugin();
+        var dataProcessor = new XmlSchedulingDataProcessorPlugin();
         dataProcessor.FileNames = "./Xml/TestData/InvalidCronExpression.xml";
         dataProcessor.FailOnSchedulingError = false;
 

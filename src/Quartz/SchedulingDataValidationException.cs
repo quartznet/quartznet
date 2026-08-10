@@ -19,20 +19,25 @@
 
 using System.Text;
 
-namespace Quartz.Xml;
+namespace Quartz;
 
 /// <summary>
-/// Reports JobSchedulingDataProcessor validation exceptions.
+/// Reports every schema violation found in an XML or JSON scheduling data file.
 /// </summary>
+/// <remarks>
+/// A whole document is validated before any of it is applied, so this carries a list rather than
+/// the first failure: <see cref="Message" /> is every message, one per line.
+/// </remarks>
 /// <author> <a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
 /// <author>Marko Lahma (.NET)</author>
-public sealed class ValidationException : Exception
+public sealed class SchedulingDataValidationException : Exception
 {
+    private readonly List<Exception> validationExceptions = [];
+
     /// <summary>
-    /// Gets the validation exceptions.
+    /// Every violation found in the document.
     /// </summary>
-    /// <value>The validation exceptions.</value>
-    public List<Exception> ValidationExceptions { get; } = new List<Exception>();
+    public IReadOnlyList<Exception> ValidationExceptions => validationExceptions;
 
     /// <summary>
     /// Returns the detail message string.
@@ -41,14 +46,14 @@ public sealed class ValidationException : Exception
     {
         get
         {
-            if (ValidationExceptions.Count == 0)
+            if (validationExceptions.Count == 0)
             {
                 return base.Message;
             }
 
             StringBuilder sb = new StringBuilder();
 
-            foreach (Exception e in ValidationExceptions)
+            foreach (Exception e in validationExceptions)
             {
                 sb.AppendLine(e.Message);
             }
@@ -58,26 +63,26 @@ public sealed class ValidationException : Exception
     }
 
     /// <summary>
-    /// Constructor for ValidationException.
+    /// Constructor for SchedulingDataValidationException.
     /// </summary>
-    public ValidationException()
+    public SchedulingDataValidationException()
     {
     }
 
     /// <summary>
-    /// Constructor for ValidationException.
+    /// Constructor for SchedulingDataValidationException.
     /// </summary>
     /// <param name="message">exception message.</param>
-    public ValidationException(string message) : base(message)
+    public SchedulingDataValidationException(string message) : base(message)
     {
     }
 
     /// <summary>
-    /// Constructor for ValidationException.
+    /// Constructor for SchedulingDataValidationException.
     /// </summary>
     /// <param name="errors">collection of validation exceptions.</param>
-    public ValidationException(IEnumerable<Exception> errors) : this()
+    public SchedulingDataValidationException(IEnumerable<Exception> errors) : this()
     {
-        ValidationExceptions = new List<Exception>(errors);
+        validationExceptions.AddRange(errors);
     }
 }

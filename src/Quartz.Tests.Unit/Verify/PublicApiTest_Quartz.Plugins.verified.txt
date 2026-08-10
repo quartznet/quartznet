@@ -163,14 +163,13 @@ namespace Quartz.Plugins.Management
 }
 namespace Quartz.Plugins.Xml
 {
-    public class XMLSchedulingDataProcessorPlugin : Quartz.Extensibility.ISchedulerPlugin, Quartz.Jobs.IFileScanListener
+    public class XmlSchedulingDataProcessorPlugin : Quartz.Extensibility.ISchedulerPlugin, Quartz.Jobs.IFileScanListener
     {
-        public XMLSchedulingDataProcessorPlugin() { }
-        public XMLSchedulingDataProcessorPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugins.Xml.XMLSchedulingDataProcessorPlugin> logger, Quartz.Extensibility.ITypeLoadHelper typeLoadHelper, System.TimeProvider timeProvider) { }
+        public XmlSchedulingDataProcessorPlugin() { }
+        public XmlSchedulingDataProcessorPlugin(Microsoft.Extensions.Logging.ILogger<Quartz.Plugins.Xml.XmlSchedulingDataProcessorPlugin> logger, Quartz.Extensibility.ITypeLoadHelper typeLoadHelper, System.TimeProvider timeProvider) { }
         public bool FailOnFileNotFound { get; set; }
         public virtual bool FailOnSchedulingError { get; set; }
         public string FileNames { get; set; }
-        public System.Collections.Generic.IReadOnlyCollection<System.Collections.Generic.KeyValuePair<string, Quartz.Plugins.Xml.XMLSchedulingDataProcessorPlugin.JobFile>> JobFiles { get; }
         public string Name { get; }
         [Quartz.TimeSpanParseRule(Quartz.TimeSpanParseRule.Seconds)]
         public System.TimeSpan ScanInterval { get; set; }
@@ -181,14 +180,5 @@ namespace Quartz.Plugins.Xml
         public System.Threading.Tasks.ValueTask ProcessFile(string filePath, System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask Shutdown(System.Threading.CancellationToken cancellationToken = default) { }
         public virtual System.Threading.Tasks.ValueTask Start(System.Threading.CancellationToken cancellationToken = default) { }
-        public class JobFile
-        {
-            public JobFile(Quartz.Plugins.Xml.XMLSchedulingDataProcessorPlugin plugin, string fileName) { }
-            public string FileBasename { get; }
-            public bool FileFound { get; }
-            public string FileName { get; }
-            public string FilePath { get; }
-            public System.Threading.Tasks.ValueTask Initialize(System.Threading.CancellationToken cancellationToken = default) { }
-        }
     }
 }

@@ -1093,6 +1093,14 @@ namespace Quartz
         public static System.Threading.Tasks.ValueTask<bool> IsJobGroupPaused(this Quartz.IScheduler scheduler, string groupName, System.Threading.CancellationToken cancellationToken = default) { }
         public static System.Threading.Tasks.ValueTask<bool> IsTriggerGroupPaused(this Quartz.IScheduler scheduler, string groupName, System.Threading.CancellationToken cancellationToken = default) { }
     }
+    public sealed class SchedulingDataValidationException : System.Exception
+    {
+        public SchedulingDataValidationException() { }
+        public SchedulingDataValidationException(System.Collections.Generic.IEnumerable<System.Exception> errors) { }
+        public SchedulingDataValidationException(string message) { }
+        public override string Message { get; }
+        public System.Collections.Generic.IReadOnlyList<System.Exception> ValidationExceptions { get; }
+    }
     public sealed class SchedulingOptions
     {
         public SchedulingOptions() { }
@@ -3321,14 +3329,6 @@ namespace Quartz.Util
 }
 namespace Quartz.Xml
 {
-    public sealed class ValidationException : System.Exception
-    {
-        public ValidationException() { }
-        public ValidationException(System.Collections.Generic.IEnumerable<System.Exception> errors) { }
-        public ValidationException(string message) { }
-        public override string Message { get; }
-        public System.Collections.Generic.List<System.Exception> ValidationExceptions { get; }
-    }
     public class XMLSchedulingDataProcessor
     {
         public const string QuartzXmlFileName = "quartz_jobs.xml";

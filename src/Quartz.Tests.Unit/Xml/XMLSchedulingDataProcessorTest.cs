@@ -1108,7 +1108,7 @@ public class XMLSchedulingDataProcessorTest
             </schedule>
             """)), null);
 
-        await act.Should().ThrowAsync<ValidationException>();
+        await act.Should().ThrowAsync<SchedulingDataValidationException>();
     }
 
     [Test]
@@ -1124,7 +1124,7 @@ public class XMLSchedulingDataProcessorTest
             </schedule>
             """)), null);
 
-        (await act.Should().ThrowAsync<ValidationException>())
+        (await act.Should().ThrowAsync<SchedulingDataValidationException>())
             .Which.ValidationExceptions.Should().NotBeEmpty();
     }
 
@@ -1142,7 +1142,7 @@ public class XMLSchedulingDataProcessorTest
             </schedule>
             """)), null);
 
-        await act.Should().ThrowAsync<ValidationException>();
+        await act.Should().ThrowAsync<SchedulingDataValidationException>();
     }
 
     [Test]
@@ -1164,7 +1164,7 @@ public class XMLSchedulingDataProcessorTest
             </schedule>
             """)), null);
 
-        await act.Should().ThrowAsync<ValidationException>();
+        await act.Should().ThrowAsync<SchedulingDataValidationException>();
     }
 
     [Test]
@@ -1186,7 +1186,7 @@ public class XMLSchedulingDataProcessorTest
             </schedule>
             """)), null);
 
-        await act.Should().ThrowAsync<ValidationException>();
+        await act.Should().ThrowAsync<SchedulingDataValidationException>();
     }
 
     [Test]
@@ -1208,7 +1208,7 @@ public class XMLSchedulingDataProcessorTest
             </schedule>
             """)), null);
 
-        await act.Should().ThrowAsync<ValidationException>();
+        await act.Should().ThrowAsync<SchedulingDataValidationException>();
     }
 
     [Test]
@@ -1227,7 +1227,7 @@ public class XMLSchedulingDataProcessorTest
             </schedule>
             """)), null);
 
-        (await act.Should().ThrowAsync<ValidationException>())
+        (await act.Should().ThrowAsync<SchedulingDataValidationException>())
             .Which.ValidationExceptions.Should().HaveCountGreaterThanOrEqualTo(2,
                 "every schema error is collected before any of them is thrown");
     }
@@ -1245,7 +1245,7 @@ public class XMLSchedulingDataProcessorTest
 
         (await act.Should().ThrowAsync<System.Xml.XmlException>(
                 "a document that is not well formed never reaches schema validation, so it surfaces from "
-                + "the reader rather than as a ValidationException"))
+                + "the reader rather than as a SchedulingDataValidationException"))
             .WithMessage("*not closed*");
     }
 
@@ -1300,7 +1300,7 @@ public class XMLSchedulingDataProcessorTest
             </schedule>
             """)), null);
 
-        await act.Should().ThrowAsync<ValidationException>(
+        await act.Should().ThrowAsync<SchedulingDataValidationException>(
             "the schema's choice requires exactly one of simple, cron or calendar-interval");
     }
 
@@ -1323,7 +1323,7 @@ public class XMLSchedulingDataProcessorTest
             </schedule>
             """)), null);
 
-        await act.Should().ThrowAsync<ValidationException>(
+        await act.Should().ThrowAsync<SchedulingDataValidationException>(
             "start-time and start-time-seconds-in-future are alternatives, not a pair");
     }
 
