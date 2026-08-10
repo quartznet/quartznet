@@ -96,7 +96,7 @@ internal static class JsonSchedulingHelper
             var jobType = typeLoadHelper.LoadType(jobTypeName!)
                 ?? throw new SchedulerConfigException($"JSON job definition '{name}': could not load type '{jobTypeName}'.");
 
-            var builder = JobBuilder.Create(jobType);
+            var builder = JobBuilder.Create().OfType(jobType);
             if (group is not null)
             {
                 builder.WithIdentity(name!, group);
@@ -320,7 +320,7 @@ internal static class JsonSchedulingHelper
         CronScheduleBuilder builder;
         try
         {
-            builder = CronScheduleBuilder.CronSchedule(expression!);
+            builder = CronScheduleBuilder.Create(expression!);
         }
         catch (Exception ex)
         {

@@ -99,7 +99,7 @@ services.AddQuartz(q =>
 
 ```csharp
 await scheduler.SetExecutionLimits(
-    new ExecutionLimitsBuilder()
+    ExecutionLimitsBuilder.Create()
         .ForGroup("batch-jobs", 2)
         .ForDefaultGroup(10)
         .ForOtherGroups(5)

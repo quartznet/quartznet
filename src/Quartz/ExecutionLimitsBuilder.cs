@@ -37,7 +37,7 @@ namespace Quartz;
 /// </remarks>
 /// <example>
 /// <code>
-/// ExecutionLimits limits = new ExecutionLimitsBuilder()
+/// ExecutionLimits limits = ExecutionLimitsBuilder.Create()
 ///     .ForGroup("high-cpu", 2)
 ///     .ForOtherGroups(5)
 ///     .Build();
@@ -46,6 +46,19 @@ namespace Quartz;
 public sealed class ExecutionLimitsBuilder
 {
     private readonly Dictionary<string, int?> limits = new(StringComparer.Ordinal);
+
+    internal ExecutionLimitsBuilder()
+    {
+    }
+
+    /// <summary>
+    /// Create an ExecutionLimitsBuilder with no limits configured.
+    /// </summary>
+    /// <returns>the new ExecutionLimitsBuilder</returns>
+    public static ExecutionLimitsBuilder Create()
+    {
+        return new ExecutionLimitsBuilder();
+    }
 
     /// <summary>
     /// Set the concurrency limit for a named execution group.

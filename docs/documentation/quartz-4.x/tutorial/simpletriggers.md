@@ -77,7 +77,7 @@ ITrigger trigger = TriggerBuilder.Create()
     .WithSimpleSchedule(x => x
         .WithInterval(TimeSpan.FromMinutes(5))
         .RepeatForever())
-    .EndAt(DateBuilder.NewDate().AtHourMinuteAndSecond(22, 0, 0).Build())
+    .EndAt(DateBuilder.Create().AtHourMinuteAndSecond(22, 0, 0).Build())
     .Build();
 ```
 
@@ -86,7 +86,7 @@ __Build a trigger that will fire at the top of the next hour, then repeat every 
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger8") // because group is not specified, "trigger8" will be in the default group
-    .StartAt(DateBuilder.NewDate().AtMinute(0).AtSecond(0).Build().AddHours(1)) // the next even hour
+    .StartAt(DateBuilder.Create().AtMinute(0).AtSecond(0).Build().AddHours(1)) // the next even hour
     .WithSimpleSchedule(x => x
         .WithInterval(TimeSpan.FromHours(2))
         .RepeatForever())

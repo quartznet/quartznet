@@ -64,7 +64,7 @@ public class ExcludeTimePeriodsUsingCalendarsExample : IExample
         // schedule a job to run hourly, starting on halloween
         // at 10 am
 
-        DateTimeOffset runDate = DateBuilder.NewDate().InMonthOnDay(10, 31).AtHourMinuteAndSecond(0, 0, 10).Build();
+        DateTimeOffset runDate = DateBuilder.Create().InMonthOnDay(10, 31).AtHourMinuteAndSecond(0, 0, 10).Build();
 
         IJobDetail job = JobBuilder.Create<SimpleJob>()
             .WithIdentity("job1", "group1")

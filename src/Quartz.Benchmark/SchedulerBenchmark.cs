@@ -594,7 +594,7 @@ public class SchedulerBenchmark
 
     private static IJobDetail CreateJobDetail(string group, Type jobType, bool disableConcurrentExecution, bool persistJobDataAfterExecution)
     {
-        return JobBuilder.Create(jobType)
+        return JobBuilder.Create().OfType(jobType)
             .WithIdentity(Guid.NewGuid().ToString(), group)
             .DisallowConcurrentExecution(disableConcurrentExecution)
             .PersistJobDataAfterExecution(persistJobDataAfterExecution)

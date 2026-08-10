@@ -48,7 +48,7 @@ namespace Quartz;
 ///
 /// ITrigger trigger = TriggerBuilder.Create()
 ///     .WithIdentity("myTrigger")
-///     .WithSchedule(CronScheduleBuilder.CronSchedule(expression))
+///     .WithSchedule(CronScheduleBuilder.Create(expression))
 ///     .Build();
 /// </code>
 /// </remarks>

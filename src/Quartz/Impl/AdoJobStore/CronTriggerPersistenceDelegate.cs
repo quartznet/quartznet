@@ -130,7 +130,7 @@ public sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
         var cronExpr = rs.GetString(AdoConstants.ColumnCronExpression)!;
         var timeZoneId = rs.GetString(AdoConstants.ColumnTimeZoneId);
 
-        CronScheduleBuilder cb = CronScheduleBuilder.CronSchedule(cronExpr);
+        CronScheduleBuilder cb = CronScheduleBuilder.Create(cronExpr);
 
         if (timeZoneId is not null)
         {

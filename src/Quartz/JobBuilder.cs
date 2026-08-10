@@ -77,18 +77,6 @@ public static class JobBuilder
     }
 
     /// <summary>
-    /// Create a JobBuilder with which to define a <see cref="IJobDetail" />,
-    /// and set the class name of the job to be executed.
-    /// </summary>
-    /// <returns>a new JobBuilder</returns>
-    public static JobBuilder<IJob> Create([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicProperties)] Type jobType)
-    {
-        var b = new JobBuilder<IJob>();
-        b.OfType(jobType);
-        return b;
-    }
-
-    /// <summary>
     /// Create a JobBuilder for a known job type, with which to define a <see cref="IJobDetail" />.
     /// </summary>
     /// <remarks>

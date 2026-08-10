@@ -14,7 +14,7 @@ public class CronTriggerSerializer : TriggerSerializer<ICronTrigger>
         var cronExpressionString = source.Value<string>("CronExpressionString")!;
         var timeZone = TimeZoneUtil.FindTimeZoneById(source.Value<string>("TimeZone")!);
 
-        return CronScheduleBuilder.CronSchedule(cronExpressionString)
+        return CronScheduleBuilder.Create(cronExpressionString)
             .InTimeZone(timeZone);
     }
 

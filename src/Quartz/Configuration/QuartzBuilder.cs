@@ -304,7 +304,7 @@ internal sealed class QuartzBuilder : IQuartzBuilder
     {
         ArgumentNullException.ThrowIfNull(configure);
 
-        var builder = new ExecutionLimitsBuilder();
+        var builder = ExecutionLimitsBuilder.Create();
         configure(builder);
         ExecutionLimits limits = builder.Build();
 

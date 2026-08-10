@@ -48,7 +48,7 @@ namespace Quartz;
 ///     .WithSimpleSchedule(x => x
 ///         .WithInterval(TimeSpan.FromHours(1))
 ///         .RepeatForever())
-///     .StartAt(DateBuilder.NewDate().AtHourMinuteAndSecond(10, 0, 0).Build())
+///     .StartAt(DateBuilder.Create().AtHourMinuteAndSecond(10, 0, 0).Build())
 ///     .Build();
 /// await scheduler.ScheduleJob(job, trigger);
 /// </code>

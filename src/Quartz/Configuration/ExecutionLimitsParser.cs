@@ -14,7 +14,7 @@ internal static class ExecutionLimitsParser
     /// </summary>
     public static ExecutionLimits? Parse(NameValueCollection properties)
     {
-        var builder = new ExecutionLimitsBuilder();
+        var builder = ExecutionLimitsBuilder.Create();
         var prefix = LegacyPropertyKeys.ExecutionLimitPrefix + ".";
         var configured = false;
 

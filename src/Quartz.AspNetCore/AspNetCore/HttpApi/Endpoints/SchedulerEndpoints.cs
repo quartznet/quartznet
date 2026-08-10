@@ -201,7 +201,7 @@ internal static class SchedulerEndpoints
             ExecutionLimits? limits = null;
             if (request.Limits is { Count: > 0 })
             {
-                ExecutionLimitsBuilder builder = new();
+                ExecutionLimitsBuilder builder = ExecutionLimitsBuilder.Create();
                 foreach (KeyValuePair<string, int?> kvp in request.Limits)
                 {
                     string key = kvp.Key.Trim();
