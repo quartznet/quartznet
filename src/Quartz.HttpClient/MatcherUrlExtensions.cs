@@ -23,7 +23,7 @@ using Quartz.Util;
 
 namespace Quartz;
 
-internal static class Extensions
+internal static class MatcherUrlExtensions
 {
     public static string ToUrlParameters<T>(this GroupMatcher<T> matcher) where T : Key<T>
     {

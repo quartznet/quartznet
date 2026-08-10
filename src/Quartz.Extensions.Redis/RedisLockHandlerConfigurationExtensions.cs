@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Impl.AdoJobStore;
-using Quartz.Impl.Redis;
+using Quartz.Extensions.Redis;
 
 namespace Quartz;
 

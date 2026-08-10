@@ -46,6 +46,7 @@ internal sealed class SimpleTypeLoadHelper : ITypeLoadHelper
         ("Quartz.Job.", "Quartz.Jobs."),
         ("Quartz.Plugin.", "Quartz.Plugins."),
         ("Quartz.Listener.", "Quartz.Listeners."),
+        ("Quartz.Impl.Redis.", "Quartz.Extensions.Redis."),
     ];
 
     /// <summary>

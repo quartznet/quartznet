@@ -1,5 +1,5 @@
 using Quartz.Impl.AdoJobStore;
-using Quartz.Impl.Redis;
+using Quartz.Extensions.Redis;
 
 using StackExchange.Redis;
 

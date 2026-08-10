@@ -1,5 +1,5 @@
 ﻿[assembly: System.Resources.NeutralResourcesLanguage("en-US")]
-namespace Quartz.Impl.Redis
+namespace Quartz.Extensions.Redis
 {
     public sealed class RedisSemaphore : Quartz.Impl.AdoJobStore.ISemaphore, Quartz.Impl.AdoJobStore.ITablePrefixAware
     {
