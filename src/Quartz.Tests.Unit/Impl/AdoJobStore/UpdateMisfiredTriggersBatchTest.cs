@@ -152,7 +152,6 @@ public class UpdateMisfiredTriggersBatchTest
             InstanceName = "INSTANCE",
             TypeLoadHelper = new SimpleTypeLoadHelper(),
             UseProperties = false,
-            InitString = "",
             DbProvider = dbProvider,
             ObjectSerializer = A.Fake<IObjectSerializer>(),
             TimeProvider = TimeProvider.System

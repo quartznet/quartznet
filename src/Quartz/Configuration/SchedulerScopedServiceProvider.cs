@@ -169,6 +169,16 @@ internal sealed class SchedulerScopedServiceProvider
             return inner.GetKeyedService(serviceType, key);
         }
 
+        // The trigger persistence delegates are one service type registered several times, so they
+        // resolve as an enumerable rather than through the single-service set above. The container's
+        // own answer for an IEnumerable is the unkeyed registrations, which for a named scheduler
+        // would be another scheduler's delegates — or none — so the request is redirected to this
+        // scheduler's keyed set.
+        if (serviceType == typeof(IEnumerable<ITriggerPersistenceDelegate>))
+        {
+            return inner.GetKeyedServices<ITriggerPersistenceDelegate>(key);
+        }
+
         if (NamedOptions(serviceType) is { } options)
         {
             return options(inner, Name);
@@ -263,6 +273,7 @@ internal sealed class SchedulerScopedServiceProvider
         }
 
         if (NamedOptions(serviceType) is not null
+            || serviceType == typeof(IEnumerable<ITriggerPersistenceDelegate>)
             || serviceType == typeof(IServiceProvider)
             || serviceType == typeof(IServiceProviderIsService)
             || serviceType == typeof(IServiceProviderIsKeyedService)

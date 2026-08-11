@@ -80,63 +80,9 @@ public partial class StdAdoDelegate : IDriverDelegate, IDbAccessor
 
         AddDefaultTriggerPersistenceDelegates();
 
-        if (!string.IsNullOrEmpty(args.InitString) && args.InitString is not null)
+        foreach (ITriggerPersistenceDelegate persistenceDelegate in args.TriggerPersistenceDelegates)
         {
-            string[] settings = args.InitString.Split('\\', '|');
-
-            foreach (string setting in settings)
-            {
-                var index = setting.IndexOf('=');
-                if (index == -1 || index == setting.Length - 1)
-                {
-                    continue;
-                }
-
-                string name = setting.Substring(0, index).Trim();
-                string value = setting.Substring(index + 1).Trim();
-
-                if (string.IsNullOrEmpty(value))
-                {
-                    continue;
-                }
-
-                // we support old *Classes and new *Types, latter has better support for assembly qualified names
-                if (name is "triggerPersistenceDelegateClasses" or "triggerPersistenceDelegateTypes")
-                {
-                    var separator = ',';
-                    if (value.Contains(';') || name == "triggerPersistenceDelegateTypes")
-                    {
-                        // use separator that allows assembly qualified names
-                        separator = ';';
-                    }
-
-                    string[] trigDelegates = value.Split(separator);
-
-                    foreach (string triggerTypeName in trigDelegates)
-                    {
-                        var typeName = triggerTypeName.Trim();
-
-                        if (string.IsNullOrEmpty(typeName))
-                        {
-                            continue;
-                        }
-
-                        try
-                        {
-                            Type trigDelClass = typeLoadHelper.LoadType(typeName)!;
-                            AddTriggerPersistenceDelegate((ITriggerPersistenceDelegate) Activator.CreateInstance(trigDelClass)!);
-                        }
-                        catch (Exception e)
-                        {
-                            Throw.NoSuchDelegateException("Error instantiating TriggerPersistenceDelegate of type: " + triggerTypeName, e);
-                        }
-                    }
-                }
-                else
-                {
-                    Throw.NoSuchDelegateException("Unknown setting: '" + name + "'");
-                }
-            }
+            AddTriggerPersistenceDelegate(persistenceDelegate);
         }
     }
 

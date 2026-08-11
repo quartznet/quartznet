@@ -148,7 +148,6 @@ public class StdAdoDelegateTest
             InstanceName = "INSTANCE",
             TypeLoadHelper = new SimpleTypeLoadHelper(),
             UseProperties = false,
-            InitString = "",
             DbProvider = dbProvider
         };
         adoDelegate.Initialize(delegateInitializationArgs);
@@ -209,7 +208,6 @@ public class StdAdoDelegateTest
             InstanceName = "INSTANCE",
             TypeLoadHelper = new SimpleTypeLoadHelper(),
             UseProperties = false,
-            InitString = "",
             DbProvider = dbProvider
         };
         adoDelegate.Initialize(delegateInitializationArgs);
@@ -292,7 +290,6 @@ public class StdAdoDelegateTest
             InstanceName = "INSTANCE",
             TypeLoadHelper = new SimpleTypeLoadHelper(),
             UseProperties = false,
-            InitString = "",
             DbProvider = dbProvider
         };
 
@@ -390,7 +387,6 @@ public class StdAdoDelegateTest
             InstanceName = "INSTANCE",
             TypeLoadHelper = new SimpleTypeLoadHelper(),
             UseProperties = false,
-            InitString = "",
             DbProvider = dbProvider,
             ObjectSerializer = serializer
         });
@@ -458,7 +454,6 @@ public class StdAdoDelegateTest
             InstanceName = "INSTANCE",
             TypeLoadHelper = new SimpleTypeLoadHelper(),
             UseProperties = false,
-            InitString = "",
             DbProvider = dbProvider
         };
         adoDelegate.Initialize(delegateInitializationArgs);
@@ -540,7 +535,6 @@ public class StdAdoDelegateTest
             InstanceName = "INSTANCE",
             TypeLoadHelper = new SimpleTypeLoadHelper(),
             UseProperties = false,
-            InitString = "",
             DbProvider = dbProvider
         });
 
@@ -618,7 +612,6 @@ public class StdAdoDelegateTest
             InstanceName = "INSTANCE",
             TypeLoadHelper = new SimpleTypeLoadHelper(),
             UseProperties = false,
-            InitString = "",
             DbProvider = dbProvider
         });
 
@@ -635,7 +628,7 @@ public class StdAdoDelegateTest
     }
 
     [Test]
-    public void ShouldSupportAssemblyQualifiedTriggerPersistenceDelegates()
+    public void ShouldAddTriggerPersistenceDelegatesFromInitializationArgs()
     {
         StdAdoDelegate adoDelegate = new TestStdAdoDelegate(new SimpleTriggerPersistenceDelegate());
 
@@ -646,10 +639,13 @@ public class StdAdoDelegateTest
             InstanceName = "INSTANCE",
             TypeLoadHelper = new SimpleTypeLoadHelper(),
             UseProperties = false,
-            InitString = "triggerPersistenceDelegateClasses=" + typeof(TestTriggerPersistenceDelegate).AssemblyQualifiedName + ";" + typeof(TestTriggerPersistenceDelegate).AssemblyQualifiedName,
+            TriggerPersistenceDelegates = [new TestTriggerPersistenceDelegate(), new TestTriggerPersistenceDelegate()],
             DbProvider = A.Fake<IDbProvider>()
         };
-        adoDelegate.Initialize(delegateInitializationArgs);
+
+        var act = () => adoDelegate.Initialize(delegateInitializationArgs);
+
+        act.Should().NotThrow("the registered set arrives typed, the same delegate twice included");
     }
 
     private sealed class TestStdAdoDelegate : StdAdoDelegate

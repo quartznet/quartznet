@@ -168,6 +168,43 @@ internal sealed class PersistentStoreBuilder : IPersistentStoreBuilder
         return this;
     }
 
+    public IPersistentStoreBuilder UseTriggerPersistenceDelegate<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
+        where T : class, ITriggerPersistenceDelegate
+    {
+        // TryAddEnumerable dedupes by implementation type, so registering the same delegate twice
+        // collapses to one — several are expected, so this is not the single-service Register path.
+        if (schedulerKey is null)
+        {
+            Services.TryAddEnumerable(ServiceDescriptor.Singleton<ITriggerPersistenceDelegate, T>());
+        }
+        else
+        {
+            Services.TryAddEnumerable(ServiceDescriptor.KeyedSingleton<ITriggerPersistenceDelegate, T>(
+                schedulerKey,
+                static (provider, key) => ActivatorUtilities.CreateInstance<T>(SchedulerScopedServiceProvider.For(provider, key))));
+        }
+
+        return this;
+    }
+
+    public IPersistentStoreBuilder UseTriggerPersistenceDelegate(Func<IServiceProvider, ITriggerPersistenceDelegate> factory)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+
+        if (schedulerKey is null)
+        {
+            Services.AddSingleton(provider => factory(provider));
+        }
+        else
+        {
+            Services.AddKeyedSingleton<ITriggerPersistenceDelegate>(
+                schedulerKey,
+                (provider, key) => factory(SchedulerScopedServiceProvider.For(provider, key)));
+        }
+
+        return this;
+    }
+
     private void RegisterProvider(Func<IServiceProvider, IDbProvider> factory)
     {
         if (schedulerKey is null)

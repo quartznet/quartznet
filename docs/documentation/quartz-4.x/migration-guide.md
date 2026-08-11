@@ -2390,7 +2390,7 @@ a public setter. Writing one after the store had started did nothing useful in m
 diverged from the options everything else reads, so they are now `{ get; }` and sourced from the injected
 options: `AcceptEnlistedTransactions`, `AcquireTriggersWithinLock`, `ClusterCheckinInterval`,
 `ClusterCheckinMisfireThreshold`, `Clustered`, `ConnectionManager`, `DataSource`, `DbRetryInterval`,
-`DoubleCheckLockMisfireHandler`, `DriverDelegateInitString`, `InstanceId`, `InstanceName`, `LockOnInsert`,
+`DoubleCheckLockMisfireHandler`, `InstanceId`, `InstanceName`, `LockOnInsert`,
 `MakeThreadsDaemons`, `MaxMisfiresToHandleAtATime`, `MaxTransientRetries`, `MisfireHandlerFrequency`,
 `ObjectSerializer`, `PerformSchemaValidation`, `RetryableActionErrorLogThreshold`, `SelectWithLockSql`,
 `TablePrefix`, `TransientRetryInterval`, `TxIsolationLevelSerializable` and `UseDbLocks`.
@@ -3428,6 +3428,28 @@ the Cron delegate passes none, and a null applier is simply skipped. The lambda 
 trigger type because the family interfaces (`ISimpleTrigger` and its siblings) expose `TimesTriggered`
 get-only; the four `Quartz.Impl.Triggers` trigger classes stay public with public `TimesTriggered`
 setters precisely so this write path exists.
+
+Registering the delegate is a typed builder call now, discoverable by dot-typing from the store builder
+like the driver delegate and lock handler beside it:
+
+```csharp
+services.AddQuartz(q => q.UsePersistentStore(store =>
+{
+    store.UseTriggerPersistenceDelegate<MyTriggerPersistenceDelegate>();
+    // or, when it needs configuring first:
+    store.UseTriggerPersistenceDelegate(provider => new MyTriggerPersistenceDelegate(...));
+}));
+```
+
+The delimited `quartz.jobStore.driverDelegateInitString` format this replaces — split on `|` or `\`,
+one supported setting under two spellings, type names instantiated by reflection — is gone from the
+API: `DelegateInitializationArgs.InitString` was replaced by a typed `TriggerPersistenceDelegates`
+collection, and `AdoJobStoreOptions.DriverDelegateInitString` went with it (as did the
+`JobStoreSupport` property mirroring it). **The legacy key itself keeps working**: the property bridge
+translates `quartz.jobStore.driverDelegateInitString = triggerPersistenceDelegateTypes=...` (and the
+older `triggerPersistenceDelegateClasses` spelling, with both of its list separators) into the same
+registrations `UseTriggerPersistenceDelegate<T>()` produces. A misspelled setting name inside the
+string is rejected at `AddQuartz` time instead of at store startup.
 
 ## `CronExpression` is immutable
 
@@ -4706,6 +4728,7 @@ Parameters and behavior are unchanged:
 | `JobStoreSupport.GetEnlistedConnection` is `protected` | So a job store outside the core assembly can honour an enlisted transaction rather than silently opening its own connection |
 | `ConnectionAndTransactionHolder` gained an ownership-aware constructor and `OwnsResources` | `(connection, transaction, ownsResources)` for a store running on a connection it did not open |
 | `FiredTriggerRecord`, `RecoverMisfiredJobsResult`, `DelegateInitializationArgs` are `sealed record`s | Immutable, with `required` / `init` members instead of settable ones — see [The driver delegate speaks in records](#the-driver-delegate-speaks-in-records) |
+| `DelegateInitializationArgs.InitString` replaced by `TriggerPersistenceDelegates` | The delimited string became a typed collection; register delegates with `UseTriggerPersistenceDelegate<T>()`. The legacy `quartz.jobStore.driverDelegateInitString` key still translates |
 | `FiredTriggerRecord.FireInstanceState` is a `StoredTriggerState` | The last raw `AdoConstants.State*` comparisons in the store; `[Serializable]` is gone with it, and the always-populated members are non-nullable |
 | `RecoverMisfiredJobsResult.EarliestNewTime` is `EarliestNewTimeUtc` | The property and its constructor argument disagreed about the `Utc` suffix |
 | `RecoverMisfiredJobsResult.NoOp` is a static property | It was a `public static readonly` field beside sentinels that are properties; source keeps compiling, a recompile is required |

@@ -59,8 +59,9 @@ public class ExternalTransactionJobStore : JobStoreSupport
         IDbConnectionManager connectionManager,
         IDbProvider dbProvider,
         IDriverDelegate driverDelegate,
-        ISemaphore? lockHandler = null)
-        : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions, storeOptions, clusteringOptions, objectSerializer, connectionManager, dbProvider, driverDelegate, lockHandler)
+        ISemaphore? lockHandler = null,
+        IEnumerable<ITriggerPersistenceDelegate>? triggerPersistenceDelegates = null)
+        : base(schedulerSignaler, typeLoadHelper, timeProvider, schedulerOptions, storeOptions, clusteringOptions, objectSerializer, connectionManager, dbProvider, driverDelegate, lockHandler, triggerPersistenceDelegates)
     {
     }
 
