@@ -168,30 +168,6 @@ public interface IJobExecutionContext
     TimeSpan JobRunTime { get; }
 
     /// <summary>
-    /// Put the specified value into the context's data map with the given key.
-    /// Possibly useful for sharing data between listeners and jobs.
-    /// <para>
-    /// NOTE: this data is volatile - it is lost after the job execution
-    /// completes, and all TriggerListeners and JobListeners have been
-    /// notified.
-    /// </para>
-    /// </summary>
-    /// <param name="key">The name the value is stored under, as in a <see cref="JobDataMap" />.</param>
-    /// <param name="value">The value, which means nothing to Quartz.</param>
-    void Put(string key, object? value);
-
-    /// <summary>
-    /// Get the value with the given key from the context's data map, or <see langword="null" /> when
-    /// nothing was put there under that key.
-    /// </summary>
-    /// <param name="key">The name the value was stored under.</param>
-    // CA1716: "Get" is a Visual Basic keyword. The name stays, because it pairs with Put and with
-    // the same verbs on JobDataMap, and renaming one half of a pair is worse than the warning.
-#pragma warning disable CA1716
-    object? Get(string key);
-#pragma warning restore CA1716
-
-    /// <summary>
     /// Returns the cancellation token which will be cancelled when the job cancellation has been requested via
     /// <see cref="IScheduler.Interrupt(Quartz.JobKey, System.Threading.CancellationToken)"/>
     /// or <see cref="IScheduler.InterruptFireInstance(System.String, System.Threading.CancellationToken)"/>.

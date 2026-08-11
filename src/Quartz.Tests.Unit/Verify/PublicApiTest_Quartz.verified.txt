@@ -410,8 +410,6 @@ namespace Quartz
         System.DateTimeOffset? ScheduledFireTimeUtc { get; }
         Quartz.IScheduler Scheduler { get; }
         Quartz.ITrigger Trigger { get; }
-        object? Get(string key);
-        void Put(string key, object? value);
     }
     public interface IJobListener
     {
@@ -2860,9 +2858,7 @@ namespace Quartz.Impl
         public Quartz.IScheduler Scheduler { get; }
         public Quartz.ITrigger Trigger { get; }
         public void Dispose() { }
-        public object? Get(string key) { }
         public void IncrementRefireCount() { }
-        public void Put(string key, object? value) { }
         public override string ToString() { }
     }
     public class MicrosoftDependencyInjectionJobFactory : Quartz.Impl.PropertySettingJobFactory
