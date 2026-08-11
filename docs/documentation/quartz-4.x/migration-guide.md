@@ -251,7 +251,7 @@ reads — so a scheduler name set through it was accepted and then silently igno
 | `IPropertyConfigurer`, `IPropertySetter`, `IPropertyConfigurationRoot`, `PropertiesHolder`, `PropertiesSetter` | typed options |
 | `AddQuartz(Action<configurator, IServiceProvider>)` | see below |
 | `quartz.config` file discovery, `StdSchedulerFactory.PropertiesFile` | `IConfiguration`, or properties passed to `QuartzSchedulerBuilder.UseProperties` |
-| `DbProvider.RegisterDbMetadata` | the metadata callback on `UseGenericDatabase` |
+| `DbProvider.RegisterDbMetadata` | the metadata factory on `UseGenericDatabase` |
 | `quartz.scheduler.proxy*`, `quartz.scheduler.exporter*` | nothing; remoting is not supported on modern .NET |
 | `QuartzOptions.SchedulerName`, `.SchedulerId`, `.MisfireThreshold` | the typed options — see [`QuartzOptions` lost its three typed settings](#quartzoptions-lost-its-three-typed-settings) |
 | `IPersistentStoreBuilder.UseDataSourceConnectionProvider()` | `DataSourceOptions.UseRegisteredDataSource` |
@@ -438,7 +438,7 @@ write instead, and the typed option that is usually the better answer.
 | `PropertyDataSourceProvider` | `provider` (under a data source) | `DataSourceOptions.Provider` |
 | `PropertyDataSourceConnectionString` | `connectionString` (under a data source) | `DataSourceOptions.ConnectionString` |
 | `PropertyDataSourceConnectionStringName` | `connectionStringName` (under a data source) | `DataSourceOptions.ConnectionStringName` |
-| `PropertyDbProvider` | `quartz.dbprovider` | the metadata callback on `UseGenericDatabase` |
+| `PropertyDbProvider` | `quartz.dbprovider` | the metadata factory on `UseGenericDatabase` |
 | `PropertyDbProviderType` | `connectionProvider.type` (under a data source) | register `IDbProvider`, or `DataSourceOptions.UseRegisteredDataSource` |
 | `PropertyExecutionLimitPrefix` | `quartz.executionLimit` | `UseExecutionLimits(limits => …)` |
 | `PropertyPluginPrefix` | `quartz.plugin` | `AddPlugin<T>()` |
@@ -4816,7 +4816,7 @@ Parameters and behavior are unchanged:
 | `StdAdoDelegate`'s column probes removed | The three `Has*Column` properties, the three `Supports*Column` probes and `VerifyTriggersTableReachable`. The columns they probed for are required on 4.x, so the schema migration replaces them — see [The optional columns are required, so the probes are gone](#the-optional-columns-are-required-so-the-probes-are-gone) |
 | `GetSelectNextTriggerToAcquireWith*Sql` removed | The `…WithExecutionGroupSql`, `…WithPreferredNodeSql` and `…WithPreferredNodeOnlySql` hooks, on `StdAdoDelegate` and all six dialect delegates. One statement covers every case now, so a dialect delegate keeps only its `GetSelectNextTriggerToAcquireSql` override — see [The three extra acquisition SQL hooks went with them](#the-three-extra-acquisition-sql-hooks-went-with-them) |
 | `IDbConnectionManager` / `DbConnectionManager` moved to `Quartz.Impl.AdoJobStore.Common` | And `AddConnectionProvider` / `GetConnectionProvider` are `AddDbProvider` / `GetDbProvider` — see [The connection manager lives with the other ADO.NET types](#the-connection-manager-lives-with-the-other-ado-net-types) |
-| `DbMetadataFactory` is internal | Every implementation was already internal and no public member accepted one; describe a driver through `UseGenericDatabase`'s metadata callback |
+| `DbMetadataFactory` is internal | Every implementation was already internal and no public member accepted one; describe a driver through `UseGenericDatabase`'s metadata factory |
 | `DbProvider.PropertyDbProvider` and `.DbProviderResourceName` removed | Two `protected const`s nothing read, left over from the process-wide provider registry |
 | `SimplePropertiesTriggerPersistenceDelegateBase`'s four SQL statements are private | `SelectSimplePropsTrigger`, `DeleteSimplePropsTrigger`, `InsertSimplePropsTrigger` and `UpdateSimplePropsTrigger` name every column the base class binds, so replacing one could not work. The table and column name constants stay `protected` — they are the schema contract |
 | `RAMJobStore` is `sealed` and has no `virtual` members | Wrap it in a store deriving from the new `DelegatingJobStore` instead of deriving from it — see [`RAMJobStore` is sealed](#ramjobstore-is-sealed) |
@@ -4903,18 +4903,18 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.Simpl.BinaryObjectSerializer` | Removed | `SystemTextJsonObjectSerializer` or `NewtonsoftJsonObjectSerializer`; there is no binary serializer, because `BinaryFormatter` throws on .NET 9 — see [`[Serializable]` survives only where a database blob needs it](#serializable-survives-only-where-a-database-blob-needs-it) |
 | `Quartz.CalendarIntervalTriggerBuilderExtensions` | Removed | `TriggerConfiguratorExtensions` — see [One family of `WithXSchedule` extensions](#one-family-of-withxschedule-extensions) |
 | `Quartz.SchedulerBuilder.ClusterOptions` | Removed | `ClusteringOptions` — see [Clustering is configured in one place](#clustering-is-configured-in-one-place) |
-| `Quartz.Impl.AdoJobStore.Common.ConfigurationBasedDbMetadataFactory` | Internal | The metadata callback on `UseGenericDatabase` |
+| `Quartz.Impl.AdoJobStore.Common.ConfigurationBasedDbMetadataFactory` | Internal | The metadata factory on `UseGenericDatabase` |
 | `Quartz.CronScheduleTriggerBuilderExtensions` | Removed | `TriggerConfiguratorExtensions` — see [One family of `WithXSchedule` extensions](#one-family-of-withxschedule-extensions) |
 | `Quartz.DailyTimeIntervalTriggerBuilderExtensions` | Removed | `TriggerConfiguratorExtensions` — see [One family of `WithXSchedule` extensions](#one-family-of-withxschedule-extensions) |
 | `Quartz.Util.DataReaderExtensions` | Internal | No replacement; they were `IDataReader` conveniences Quartz used on its own reads |
 | `Quartz.Util.DBConnectionManager` | Renamed `Quartz.Impl.AdoJobStore.Common.DbConnectionManager` | Resolve `IDbConnectionManager` from the container; `.Instance` is gone — see [The connection manager lives with the other ADO.NET types](#the-connection-manager-lives-with-the-other-ado-net-types) |
-| `Quartz.Impl.AdoJobStore.Common.DbMetadataFactory` | Internal | The metadata callback on `UseGenericDatabase` |
+| `Quartz.Impl.AdoJobStore.Common.DbMetadataFactory` | Internal | The metadata factory on `UseGenericDatabase` |
 | `Quartz.Impl.AdoJobStore.DBSemaphore` | Renamed `DbSemaphore` | Same abstract base, still public — see [The semaphores were tidied](#the-semaphores-were-tidied) |
 | `Quartz.Simpl.DedicatedThreadPool` | Internal | `IQuartzBuilder.UseThreadPool(IThreadPool)` for a pool of your own — see [The thread pool is asynchronous](#the-thread-pool-is-asynchronous) |
 | `Quartz.Logging.DiagnosticHeaders` | Renamed `Quartz.Diagnostics.ActivityTags` | The tag names and values are unchanged — see [Other Breaking Changes](#other-breaking-changes) |
 | `Quartz.Util.DictionaryExtensions` | Removed | No replacement — see [Other Breaking Changes](#other-breaking-changes) |
 | `Quartz.Impl.DirectSchedulerFactory` | Removed | `QuartzSchedulerBuilder`, with `UseThreadPool(IThreadPool)` / `UseJobStore(IJobStore)` for pre-built parts — see [Removed](#removed) |
-| `Quartz.Impl.AdoJobStore.Common.EmbeddedAssemblyResourceDbMetadataFactory` | Internal | The metadata callback on `UseGenericDatabase` |
+| `Quartz.Impl.AdoJobStore.Common.EmbeddedAssemblyResourceDbMetadataFactory` | Internal | The metadata factory on `UseGenericDatabase` |
 | `Quartz.Util.FileUtil` | Internal | No replacement; it resolved a path relative to the base directory |
 | `Quartz.Simpl.HostnameInstanceIdGenerator` | Renamed `HostNameInstanceIdGenerator`, and internal | A `quartz.scheduler.instanceIdGenerator.type` naming the old spelling still resolves, with a warning; in code, register your own `IInstanceIdGenerator` — see [Other Breaking Changes](#other-breaking-changes) |
 | `Quartz.ICancellableJobExecutionContext` | Removed | `IScheduler.Interrupt` to request, `IJobExecutionContext.CancellationToken` to observe — see [Interruption has two names, not three](#interruption-has-two-names-not-three) |

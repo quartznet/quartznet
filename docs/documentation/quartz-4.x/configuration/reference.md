@@ -427,7 +427,7 @@ Two differences are worth knowing:
 | `quartz.dataSource.NAME.provider` | `DataSource:NAME:Provider` |
 | `quartz.dataSource.NAME.connectionString` | `DataSource:NAME:ConnectionString` |
 | `quartz.dataSource.NAME.connectionStringName` | `DataSource:NAME:ConnectionStringName` |
-| `quartz.dbprovider.NAME.*` | the metadata callback on `UseGenericDatabase`; the keys still work |
+| `quartz.dbprovider.NAME.*` | the metadata factory on `UseGenericDatabase`; the keys still work |
 | `quartz.serializer.type` | `UseSystemTextJsonSerializer()` / `UseNewtonsoftJsonSerializer()` |
 | `quartz.plugin.NAME.type` | `AddPlugin<T>()` or the plugin's own `Use*` method |
 | `quartz.jobStore.lockHandler.type` | `UseLockHandler<T>()` |
