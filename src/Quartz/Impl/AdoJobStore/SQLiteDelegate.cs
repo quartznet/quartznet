@@ -40,7 +40,7 @@ public class SQLiteDelegate : StdAdoDelegate
     /// Binds the LIMIT/OFFSET parameters in the order the clause names them, which is the reverse of
     /// the ANSI clause's order and matters to providers that bind positionally.
     /// </summary>
-    protected override void AddPagingParameters(DbCommand cmd, long skip, long take, bool takeLimited)
+    protected override void AddPagingParameters(DbCommand cmd, int skip, int take, bool takeLimited)
     {
         if (takeLimited)
         {

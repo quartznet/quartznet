@@ -803,17 +803,6 @@ public abstract class JobStoreSupport : IJobStore
 
         activityTracer.SetSchedulerContext(InstanceName, InstanceId);
 
-        // The preferred-node (node affinity) liveness check compares raw SCHEDULER_STATE checkin
-        // values in SQL, assuming the default tick / millisecond storage of LAST_CHECKIN_TIME and
-        // CHECKIN_INTERVAL. A clustered delegate that overrides how those values are stored
-        // (GetDbDateTimeValue / GetDbTimeSpanValue) would make that comparison meaningless, so a
-        // pinned trigger might not fail over correctly. Built-in delegates use the default storage
-        // and never trigger this warning.
-        if (Clustered && DelegateOverridesDateTimeStorage())
-        {
-            Logger.LogWarning("Delegate type '{DelegateType}' overrides the database date/time or time-span storage format. The preferred-node (node affinity) liveness check compares raw checkin values in SQL assuming the default tick storage, so a trigger pinned to a node may not fail over correctly. Keep the default storage format, or override the preferred-node acquisition SQL to match your format.", Delegate.GetType().FullName);
-        }
-
         if (PerformSchemaValidation)
         {
             try
@@ -831,30 +820,6 @@ public abstract class JobStoreSupport : IJobStore
             }
         }
 
-    }
-
-    // Whether a custom delegate overrides how date/time or time-span values are stored, which the
-    // preferred-node liveness SQL cannot account for. Built-in delegates live in this assembly and
-    // never match, so node affinity is never flagged for them.
-    private bool DelegateOverridesDateTimeStorage()
-    {
-        Type delegateType = Delegate.GetType();
-        if (delegateType.Assembly == typeof(StdAdoDelegate).Assembly)
-        {
-            return false;
-        }
-
-        return IsMethodOverridden(delegateType, nameof(StdAdoDelegate.GetDbDateTimeValue), [typeof(DateTimeOffset?)])
-               || IsMethodOverridden(delegateType, nameof(StdAdoDelegate.GetDbTimeSpanValue), [typeof(TimeSpan?)]);
-    }
-
-    private static bool IsMethodOverridden(Type delegateType, string name, Type[] parameterTypes)
-    {
-        var flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public;
-        System.Reflection.MethodInfo? method = delegateType.GetMethod(name, flags, binder: null, parameterTypes, modifiers: null);
-        return method is not null
-               && method.DeclaringType is not null
-               && method.DeclaringType.Assembly != typeof(StdAdoDelegate).Assembly;
     }
 
     /// <seealso cref="IJobStore.SchedulerStarted(CancellationToken)" />
@@ -3297,7 +3262,7 @@ public abstract class JobStoreSupport : IJobStore
                 // CalcFailedIfAfter becomes MORE lenient while this stays fixed. Being more
                 // aggressive in that edge case is the safer direction — it prevents triggers pinned
                 // to a dead node from being stuck when the surviving nodes are under load.
-                long liveNodeCutoff = (timeProvider.GetUtcNow() - ClusterCheckinMisfireThreshold).UtcTicks;
+                DateTimeOffset liveNodeCutoff = timeProvider.GetUtcNow() - ClusterCheckinMisfireThreshold;
 
                 TriggerAcquisitionCriteria criteria = new()
                 {
