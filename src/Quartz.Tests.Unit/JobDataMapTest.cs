@@ -93,79 +93,160 @@ public class JobDataMapTest : SerializationTestSupport<JobDataMap>
     }
 
     [Test]
-    public void PutAsString_StoresDateTimeValueAsString()
+    public void PutAsString_StoresDateTimeInRoundTripFormat()
     {
         string key = "testKey";
-        DateTime value = DateTime.Now;
+        DateTime value = new DateTime(2022, 1, 1, 15, 4, 5, 123, DateTimeKind.Utc).AddTicks(4567);
 
         JobDataMap map = new JobDataMap();
         map.PutAsString(key, value);
 
-        map.GetString(key).Should().Be(value.ToString(CultureInfo.InvariantCulture));
+        map.GetString(key).Should().Be(value.ToString("O", CultureInfo.InvariantCulture));
     }
 
     [Test]
-    public void PutAsString_StoresDifferentDateTimeValueAsString()
+    public void PutAsString_DateTimeRoundTripsWithKindAndPrecision()
     {
         string key = "testKey";
-        DateTime value = new DateTime(2022, 1, 1);
+        DateTime value = new DateTime(2022, 1, 1, 15, 4, 5, 123, DateTimeKind.Utc).AddTicks(4567);
 
         JobDataMap map = new JobDataMap();
         map.PutAsString(key, value);
 
-        map.GetString(key).Should().Be(value.ToString(CultureInfo.InvariantCulture));
+        map.TryGetDateTime(key, out DateTime read).Should().BeTrue();
+        read.Should().Be(value, "the 'O' format keeps sub-second precision");
+        read.Kind.Should().Be(DateTimeKind.Utc, "RoundtripKind restores the Kind the writer had");
     }
 
     [Test]
     public void PutAsString_OverwritesExistingValue()
     {
         string key = "testKey";
-        DateTime value1 = DateTime.Now;
+        DateTime value1 = new DateTime(2021, 6, 15, 1, 2, 3, DateTimeKind.Unspecified);
         DateTime value2 = new DateTime(2022, 1, 1);
 
         JobDataMap map = new JobDataMap();
         map.PutAsString(key, value1);
         map.PutAsString(key, value2);
 
-        map.GetString(key).Should().Be(value2.ToString(CultureInfo.InvariantCulture));
+        map.GetString(key).Should().Be(value2.ToString("O", CultureInfo.InvariantCulture));
     }
 
     [Test]
-    public void PutAsString_StoresDateTimeOffsetValueAsString()
+    public void PutAsString_StoresDateTimeOffsetInRoundTripFormat()
     {
         string key = "testKey";
-        DateTimeOffset value = DateTimeOffset.Now;
+        DateTimeOffset value = new DateTimeOffset(2022, 1, 1, 15, 4, 5, 123, TimeSpan.FromHours(2)).AddTicks(4567);
 
         JobDataMap map = new JobDataMap();
         map.PutAsString(key, value);
 
-        map.GetString(key).Should().Be(value.ToString(CultureInfo.InvariantCulture));
+        map.GetString(key).Should().Be(value.ToString("O", CultureInfo.InvariantCulture));
     }
 
     [Test]
-    public void PutAsString_StoresDifferentDateTimeOffsetValueAsString()
+    public void PutAsString_DateTimeOffsetRoundTripsWithOffsetAndPrecision()
     {
         string key = "testKey";
-        DateTimeOffset value = new DateTimeOffset(2022, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        DateTimeOffset value = new DateTimeOffset(2022, 1, 1, 15, 4, 5, 123, TimeSpan.FromHours(2)).AddTicks(4567);
 
         JobDataMap map = new JobDataMap();
         map.PutAsString(key, value);
 
-        map.GetString(key).Should().Be(value.ToString(CultureInfo.InvariantCulture));
+        map.TryGetDateTimeOffset(key, out DateTimeOffset read).Should().BeTrue();
+        read.Should().Be(value);
+        read.Offset.Should().Be(TimeSpan.FromHours(2));
     }
 
     [Test]
-    public void PutAsString_OverwritesExistingDateTimeOffsetValue()
+    public void TryGetDateTimeOffset_StillReadsTheGeneralFormat3xWrote()
     {
-        string key = "testKey";
-        DateTimeOffset value1 = DateTimeOffset.Now;
-        DateTimeOffset value2 = new DateTimeOffset(2022, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        // 3.x PutAsString wrote the invariant general format; values already in stores keep reading.
+        DateTimeOffset value = new DateTimeOffset(2022, 1, 1, 15, 4, 5, TimeSpan.FromHours(2));
+        JobDataMap map = new JobDataMap { ["legacy"] = value.ToString(CultureInfo.InvariantCulture) };
 
+        map.TryGetDateTimeOffset("legacy", out DateTimeOffset read).Should().BeTrue();
+        read.Should().Be(value);
+    }
+
+    [Test]
+    public void TryGetDateTime_ReadsAZuluStringAsUtc()
+    {
+        // Behavioral change from 3.x: DateTimeStyles.None turned "…Z" into a local-shifted
+        // Kind=Local value; RoundtripKind keeps the UTC clock reading and Kind=Utc.
+        JobDataMap map = new JobDataMap { ["utc"] = "2026-01-02T15:04:05.1230000Z" };
+
+        map.TryGetDateTime("utc", out DateTime read).Should().BeTrue();
+        read.Kind.Should().Be(DateTimeKind.Utc);
+        read.Should().Be(new DateTime(2026, 1, 2, 15, 4, 5, 123, DateTimeKind.Utc));
+    }
+
+    [Test]
+    public void PutAsString_StoresDateOnlyAndTimeOnlyInRoundTripFormat()
+    {
         JobDataMap map = new JobDataMap();
-        map.PutAsString(key, value1);
-        map.PutAsString(key, value2);
+        map.PutAsString("date", new DateOnly(2022, 1, 31));
+        map.PutAsString("time", new TimeOnly(15, 4, 5, 123));
 
-        map.GetString(key).Should().Be(value2.ToString(CultureInfo.InvariantCulture));
+        map.GetString("date").Should().Be("2022-01-31");
+        map.GetString("time").Should().Be("15:04:05.1230000");
+
+        map.TryGetDateOnly("date", out DateOnly date).Should().BeTrue();
+        date.Should().Be(new DateOnly(2022, 1, 31));
+        map.TryGetTimeOnly("time", out TimeOnly time).Should().BeTrue();
+        time.Should().Be(new TimeOnly(15, 4, 5, 123));
+
+        map.GetDateOnly("date").Should().Be(new DateOnly(2022, 1, 31));
+        map.GetTimeOnly("time").Should().Be(new TimeOnly(15, 4, 5, 123));
+    }
+
+    [Test]
+    public void EnumsRoundTripThroughPutAsString()
+    {
+        JobDataMap map = new JobDataMap();
+        map.PutAsString("day", DayOfWeek.Monday);
+
+        map.GetString("day").Should().Be("Monday");
+        map.TryGetEnum("day", out DayOfWeek day).Should().BeTrue();
+        day.Should().Be(DayOfWeek.Monday);
+        map.GetEnum<DayOfWeek>("day").Should().Be(DayOfWeek.Monday);
+    }
+
+    [Test]
+    public void TryGetEnum_AcceptsStoredEnumAndUnderlyingNumber()
+    {
+        JobDataMap map = new JobDataMap
+        {
+            ["boxed"] = DayOfWeek.Friday,
+            ["number"] = (int) DayOfWeek.Friday,
+            ["garbage"] = "NotADay"
+        };
+
+        map.TryGetEnum("boxed", out DayOfWeek boxed).Should().BeTrue();
+        boxed.Should().Be(DayOfWeek.Friday);
+
+        map.TryGetEnum("number", out DayOfWeek number).Should().BeTrue("a JSON round trip hands the underlying number back");
+        number.Should().Be(DayOfWeek.Friday);
+
+        map.TryGetEnum("garbage", out DayOfWeek _).Should().BeFalse();
+    }
+
+    [Test]
+    public void TryGet_IsAPureTypeTest()
+    {
+        JobKey stored = new JobKey("job");
+        JobDataMap map = new JobDataMap
+        {
+            ["key"] = stored,
+            ["text"] = "42"
+        };
+
+        map.TryGet("key", out JobKey read).Should().BeTrue();
+        read.Should().BeSameAs(stored);
+
+        map.TryGet("text", out int _).Should().BeFalse("TryGet<T> never parses; use the typed accessors for that");
+        map.TryGet("missing", out JobKey missing).Should().BeFalse();
+        missing.Should().BeNull();
     }
 
     [Test]
@@ -207,53 +288,31 @@ public class JobDataMapTest : SerializationTestSupport<JobDataMap>
     }
 
     [Test]
-    public void PutAsString_StoresNullableGuidValueAsString()
+    public void PutAsString_StoresGuidValueAsString()
     {
         string key = "testKey";
-        Guid? value = Guid.NewGuid();
+        Guid value = Guid.NewGuid();
 
         JobDataMap map = new JobDataMap();
         map.PutAsString(key, value);
 
-        map.GetString(key).Should().Be(value?.ToString("N"));
+        map.GetString(key).Should().Be(value.ToString("N"));
+        map.TryGetGuid(key, out Guid read).Should().BeTrue();
+        read.Should().Be(value);
     }
 
     [Test]
-    public void PutAsString_StoresDifferentNullableGuidValueAsString()
+    public void PutAsString_OverwritesExistingGuidValue()
     {
         string key = "testKey";
-        Guid? value = new Guid("00000000-0000-0000-0000-000000000001");
-
-        JobDataMap map = new JobDataMap();
-        map.PutAsString(key, value);
-
-        map.GetString(key).Should().Be(value?.ToString("N"));
-    }
-
-    [Test]
-    public void PutAsString_OverwritesExistingNullableGuidValue()
-    {
-        string key = "testKey";
-        Guid? value1 = Guid.NewGuid();
-        Guid? value2 = new Guid("00000000-0000-0000-0000-000000000002");
+        Guid value1 = Guid.NewGuid();
+        Guid value2 = new Guid("00000000-0000-0000-0000-000000000002");
 
         JobDataMap map = new JobDataMap();
         map.PutAsString(key, value1);
         map.PutAsString(key, value2);
 
-        map.GetString(key).Should().Be(value2?.ToString("N"));
-    }
-
-    [Test]
-    public void PutAsString_StoresNullGuidValueAsString()
-    {
-        string key = "testKey";
-        Guid? value = null;
-
-        JobDataMap map = new JobDataMap();
-        map.PutAsString(key, value);
-
-        map.GetString(key).Should().BeNull();
+        map.GetString(key).Should().Be(value2.ToString("N"));
     }
 
     [Test]
