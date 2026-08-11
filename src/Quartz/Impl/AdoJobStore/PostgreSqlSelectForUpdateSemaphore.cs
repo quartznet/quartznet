@@ -32,30 +32,30 @@ namespace Quartz.Impl.AdoJobStore;
 /// when two threads simultaneously attempt to insert a lock row, causing a primary key
 /// violation that aborts the transaction.
 /// </remarks>
-public class PostgreSQLRowLockSemaphore : StdRowLockSemaphore
+public class PostgreSqlSelectForUpdateSemaphore : SelectForUpdateSemaphore
 {
     // PostgreSQL-specific INSERT statement that uses ON CONFLICT DO NOTHING to prevent
     // transaction aborts when multiple threads try to insert the same lock row
-    private static readonly string PostgreSQLInsertLock =
+    private const string PostgreSqlInsertLock =
         $"INSERT INTO {StdAdoConstants.TablePrefixSubst}{AdoConstants.TableLocks}({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnLockName}) VALUES (@schedulerName, @lockName) ON CONFLICT DO NOTHING";
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="PostgreSQLRowLockSemaphore"/> class.
+    /// Initializes a new instance of the <see cref="PostgreSqlSelectForUpdateSemaphore"/> class.
     /// </summary>
-    public PostgreSQLRowLockSemaphore(IDbProvider dbProvider)
-        : base(AdoConstants.DefaultTablePrefix, null, selectWithLockSql: null, PostgreSQLInsertLock, dbProvider)
+    public PostgreSqlSelectForUpdateSemaphore(IDbProvider dbProvider)
+        : base(AdoConstants.DefaultTablePrefix, null, selectWithLockSql: null, PostgreSqlInsertLock, dbProvider)
     {
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="PostgreSQLRowLockSemaphore"/> class.
+    /// Initializes a new instance of the <see cref="PostgreSqlSelectForUpdateSemaphore"/> class.
     /// </summary>
     /// <param name="tablePrefix">The table prefix.</param>
     /// <param name="schedulerName">the scheduler name</param>
     /// <param name="selectWithLockSql">The select with lock SQL.</param>
     /// <param name="dbProvider">The db provider.</param>
-    public PostgreSQLRowLockSemaphore(string tablePrefix, string schedulerName, string? selectWithLockSql, IDbProvider dbProvider)
-        : base(tablePrefix, schedulerName, selectWithLockSql, PostgreSQLInsertLock, dbProvider)
+    public PostgreSqlSelectForUpdateSemaphore(string tablePrefix, string schedulerName, string? selectWithLockSql, IDbProvider dbProvider)
+        : base(tablePrefix, schedulerName, selectWithLockSql, PostgreSqlInsertLock, dbProvider)
     {
     }
 }

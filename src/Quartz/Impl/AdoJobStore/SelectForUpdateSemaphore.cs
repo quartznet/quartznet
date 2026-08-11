@@ -29,52 +29,51 @@ using Quartz.Impl.AdoJobStore.Common;
 namespace Quartz.Impl.AdoJobStore;
 
 /// <summary>
-/// Internal database based lock handler for providing thread/resource locking
-/// in order to protect resources from being altered by multiple threads at the
-/// same time.
+/// Database based lock handler that takes the lock by issuing
+/// <c>SELECT ... FOR UPDATE</c> against the lock row.
 /// </summary>
-public class StdRowLockSemaphore : DbSemaphore
+public class SelectForUpdateSemaphore : DbSemaphore
 {
     /// <summary>
     /// The statement that takes the lock by selecting its row for update.
     /// </summary>
-    protected static readonly string SelectForLock =
+    protected const string SelectForLock =
         $"SELECT * FROM {StdAdoConstants.TablePrefixSubst}{AdoConstants.TableLocks} WHERE {AdoConstants.ColumnSchedulerName} = @schedulerName AND {AdoConstants.ColumnLockName} = @lockName FOR UPDATE";
 
     /// <summary>
     /// The statement that inserts the lock row when it does not exist yet.
     /// </summary>
-    protected static readonly string InsertLock =
+    protected const string InsertLock =
         $"INSERT INTO {StdAdoConstants.TablePrefixSubst}{AdoConstants.TableLocks}({AdoConstants.ColumnSchedulerName}, {AdoConstants.ColumnLockName}) VALUES (@schedulerName, @lockName)";
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="StdRowLockSemaphore"/> class.
+    /// Initializes a new instance of the <see cref="SelectForUpdateSemaphore"/> class.
     /// </summary>
     /// <remarks>
     /// This is the constructor the container uses. The other one takes strings, which no container can
     /// supply, and marking this one says so rather than leaving the choice ambiguous.
     /// </remarks>
     [ActivatorUtilitiesConstructor]
-    public StdRowLockSemaphore(IDbProvider dbProvider)
+    public SelectForUpdateSemaphore(IDbProvider dbProvider)
         : base(AdoConstants.DefaultTablePrefix, null, SelectForLock, InsertLock, dbProvider)
     {
 
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="StdRowLockSemaphore"/> class.
+    /// Initializes a new instance of the <see cref="SelectForUpdateSemaphore"/> class.
     /// </summary>
     /// <param name="tablePrefix">The table prefix.</param>
     /// <param name="schedulerName">the scheduler name</param>
     /// <param name="selectWithLockSql">The select with lock SQL.</param>
     /// <param name="dbProvider"></param>
-    public StdRowLockSemaphore(string tablePrefix, string schedulerName, string? selectWithLockSql, IDbProvider dbProvider)
+    public SelectForUpdateSemaphore(string tablePrefix, string schedulerName, string? selectWithLockSql, IDbProvider dbProvider)
         : this(tablePrefix, schedulerName, selectWithLockSql, InsertLock, dbProvider)
     {
     }
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="StdRowLockSemaphore"/> class for a subclass that
+    /// Initializes a new instance of the <see cref="SelectForUpdateSemaphore"/> class for a subclass that
     /// needs its own insert statement.
     /// </summary>
     /// <remarks>
@@ -86,7 +85,7 @@ public class StdRowLockSemaphore : DbSemaphore
     /// <param name="selectWithLockSql">The select with lock SQL.</param>
     /// <param name="insertLockSql">The statement that inserts the lock row when it does not exist yet.</param>
     /// <param name="dbProvider">The db provider.</param>
-    protected StdRowLockSemaphore(
+    protected SelectForUpdateSemaphore(
         string tablePrefix,
         string? schedulerName,
         string? selectWithLockSql,

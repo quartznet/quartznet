@@ -138,6 +138,18 @@ public class SimpleTypeLoadHelperTest
     }
 
     [Test]
+    [TestCase("Quartz.Impl.AdoJobStore.StdRowLockSemaphore", typeof(SelectForUpdateSemaphore))]
+    [TestCase("Quartz.Impl.AdoJobStore.UpdateLockRowSemaphore", typeof(UpdateRowSemaphore))]
+    [TestCase("Quartz.Impl.AdoJobStore.UpdateLockRowSemaphoreMOT", typeof(SqlServerMemoryOptimizedUpdateRowSemaphore))]
+    [TestCase("Quartz.Impl.AdoJobStore.PostgreSQLRowLockSemaphore", typeof(PostgreSqlSelectForUpdateSemaphore))]
+    public void ShouldLoadALockHandlerNamedByItsPre40TypeName(string configured, Type expected)
+    {
+        loadHelper.LoadType(configured)
+            .Should().Be(expected,
+                "quartz.jobStore.lockHandler.type spells these as strings, so the 3.x names must keep resolving");
+    }
+
+    [Test]
     public void ShouldNotRewriteATypeWhoseNameMerelyStartsWithARenamedOne()
     {
         var act = () => loadHelper.LoadType("Quartz.Impl.AdoJobStore.JobStoreTXExtras, Quartz");

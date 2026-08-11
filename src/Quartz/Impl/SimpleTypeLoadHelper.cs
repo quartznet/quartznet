@@ -57,6 +57,10 @@ internal sealed class SimpleTypeLoadHelper : ITypeLoadHelper
     [
         ("Quartz.Impl.AdoJobStore.JobStoreTX", "Quartz.Impl.AdoJobStore.LocalTransactionJobStore"),
         ("Quartz.Impl.AdoJobStore.JobStoreCMT", "Quartz.Impl.AdoJobStore.ExternalTransactionJobStore"),
+        ("Quartz.Impl.AdoJobStore.StdRowLockSemaphore", "Quartz.Impl.AdoJobStore.SelectForUpdateSemaphore"),
+        ("Quartz.Impl.AdoJobStore.PostgreSQLRowLockSemaphore", "Quartz.Impl.AdoJobStore.PostgreSqlSelectForUpdateSemaphore"),
+        ("Quartz.Impl.AdoJobStore.UpdateLockRowSemaphore", "Quartz.Impl.AdoJobStore.UpdateRowSemaphore"),
+        ("Quartz.Impl.AdoJobStore.UpdateLockRowSemaphoreMOT", "Quartz.Impl.AdoJobStore.SqlServerMemoryOptimizedUpdateRowSemaphore"),
         ("Quartz.Impl.HostnameInstanceIdGenerator", "Quartz.Impl.HostNameInstanceIdGenerator"),
         ("Quartz.Plugins.Xml.XMLSchedulingDataProcessorPlugin", "Quartz.Plugins.Xml.XmlSchedulingDataProcessorPlugin"),
     ];

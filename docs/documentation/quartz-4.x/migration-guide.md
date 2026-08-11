@@ -2391,16 +2391,30 @@ this store they no longer do.
 
 ## The semaphores were tidied
 
-* `UpdateRowLockSemaphore.cs` defined `UpdateLockRowSemaphore`, and `UpdateRowLockSemaphoreMOT.cs` defined
-  `UpdateLockRowSemaphoreMOT`. The files are named for their types now; no code changes.
-* The public static SQL fields settled on one convention and became `protected`, because nothing outside
-  the class hierarchy that owns them ever read them: `StdRowLockSemaphore.SelectForLock` /
-  `.InsertLock` keep their names, and `UpdateLockRowSemaphore.SqlUpdateForLock` / `.SqlInsertLock` are
-  `UpdateForLock` / `InsertLock`.
-* `DbSemaphore.Sql` and `.InsertSql` are get-only and arrive through the constructor. They were
-  `protected` settable, which let a subclass swap a statement after the table prefix had already been
-  folded into it — the select and the insert backing the same lock could end up naming different tables.
-  A subclass that needs its own insert statement passes it up:
+The four database lock handlers named the same concept three different ways — `StdRowLockSemaphore` and
+`UpdateLockRowSemaphore` transposed the same two words for two strategies that diverge only under load,
+and `MOT` was an acronym expanded nowhere. They are named for the SQL they issue now, which is the only
+thing that distinguishes them:
+
+| 3.x | 4.x |
+|-----|-----|
+| `StdRowLockSemaphore` | `SelectForUpdateSemaphore` |
+| `PostgreSQLRowLockSemaphore` | `PostgreSqlSelectForUpdateSemaphore` |
+| `UpdateLockRowSemaphore` | `UpdateRowSemaphore` |
+| `UpdateLockRowSemaphoreMOT` | `SqlServerMemoryOptimizedUpdateRowSemaphore` |
+
+A `quartz.jobStore.lockHandler.type` naming any of the old types still resolves, with a warning.
+
+* The public static SQL fields settled on one convention and became `protected const`, because nothing
+  outside the class hierarchy that owns them ever read them and every interpolation hole in them is
+  itself a constant: `SelectForUpdateSemaphore.SelectForLock` / `.InsertLock` keep their member names,
+  and `UpdateLockRowSemaphore.SqlUpdateForLock` / `.SqlInsertLock` are `UpdateRowSemaphore.UpdateForLock`
+  / `.InsertLock`.
+* `DbSemaphore.Sql` is `LockSql`, saying which of the two statements it holds and pairing with
+  `InsertSql`. Both are get-only and arrive through the constructor. They were `protected` settable,
+  which let a subclass swap a statement after the table prefix had already been folded into it — the
+  select and the insert backing the same lock could end up naming different tables. A subclass that
+  needs its own insert statement passes it up:
 
   ```diff
     public MyRowLockSemaphore(string tablePrefix, string schedulerName, string? selectWithLockSql, IDbProvider dbProvider)
@@ -2412,6 +2426,52 @@ this store they no longer do.
   + {
   + }
   ```
+
+## A lock handler is told which scheduler it locks for
+
+`ITablePrefixAware` is gone. A lock handler used to learn its scheduler's identity through that get/set
+property pair, which the store property-injected after construction — and a handler that never touches a
+SQL table (the Redis one, say) still had to carry a dead `TablePrefix` property in order to be told its
+own scheduler's name. `ISemaphore` has a single initialization seam now:
+
+```csharp
+public interface ISemaphore
+{
+    void Initialize(SemaphoreContext context)
+    {
+    }
+
+    // ObtainLock / ReleaseLock / RequiresConnection unchanged
+}
+```
+
+`SemaphoreContext` carries `SchedulerName`, `InstanceId` and `TablePrefix`. The job store calls
+`Initialize` once, before the semaphore is used, whether the store built the handler itself or the
+container or configuration supplied it. The default implementation does nothing, so a handler that does
+not key its locks by scheduler identity implements nothing. `DbSemaphore` overrides it to re-expand its
+statements with the table prefix; its `TablePrefix` and `SchedulerName` properties are read-only now.
+
+A custom handler that implemented `ITablePrefixAware` replaces the property pair with `Initialize` and
+reads the same values from the context:
+
+```diff
+- public sealed class ConsulSemaphore : ISemaphore, ITablePrefixAware
++ public sealed class ConsulSemaphore : ISemaphore
+  {
+-     public string TablePrefix { get; set; } = "";
+-     public string? SchedulerName { get; set; }
++     public string? SchedulerName { get; private set; }
++
++     public void Initialize(SemaphoreContext context)
++     {
++         SchedulerName = context.SchedulerName;
++     }
+```
+
+With the setters gone, the configuration keys that reached them by property injection went too:
+`quartz.jobStore.lockHandler.tablePrefix` and `quartz.jobStore.lockHandler.schedulerName` are rejected
+with advice naming this seam. The store hands the handler its own `quartz.jobStore.tablePrefix` value,
+so the lock rows follow the store's table prefix without separate configuration.
 
 ## A job store of your own can join your transaction
 
@@ -3087,7 +3147,7 @@ called out.
 | `QuartzScheduler.NumJobsExecuted` | `NumberOfJobsExecuted` (the type is internal now — read `IScheduler.GetMetadata()`) |
 | `QuartzScheduler.JobStoreClass`, `.ThreadPoolClass` | `JobStoreType`, `ThreadPoolType` (they return a `Type`; the type is internal now) |
 | `JobStoreSupport.UseDBLocks`, `.SelectWithLockSQL` | `UseDbLocks`, `SelectWithLockSql` |
-| `DBSemaphore.SQL`, `.InsertSQL`, `.ExecuteSQL` | `Sql`, `InsertSql` (both readable now), `ExecuteSql` |
+| `DBSemaphore.SQL`, `.InsertSQL`, `.ExecuteSQL` | `LockSql`, `InsertSql` (both readable now), `ExecuteSql` — see [The semaphores were tidied](#the-semaphores-were-tidied) |
 | `Quartz.Util.DBConnectionManager` | `Quartz.Impl.AdoJobStore.Common.DbConnectionManager` |
 | `DbMetadata.Init()` | `Initialize()` |
 | `AdoConstants.ColumnMifireInstruction` | `ColumnMisfireInstruction` (a typo; the column name is unchanged) |
@@ -3110,9 +3170,6 @@ arguments and overriding signatures are affected — a positional call site comp
 `schedInstId` → `schedulerInstanceId`, `triggerInstCode` / `instCode` → `triggerInstructionCode` /
 `instructionCode`, `jec` → `context`, `prevFireTimeUtc` → `previousFireTimeUtc`, `tz` / `timezone` →
 `timeZone` on the `InTimeZone` schedule-builder methods, and `je` → `jobExecutionException`.
-
-`ITablePrefixAware.SchedName` is `SchedulerName`, and both of its properties are readable rather than
-setter-only.
 
 Every abbreviated constructor parameter of `SchedulerMetaData` was spelled out as well, on what is now
 [`SchedulerMetadata`](#schedulermetadata-replaces-schedulermetadata): `schedInst` → `schedulerInstanceId`,
@@ -4597,8 +4654,10 @@ Parameters and behavior are unchanged:
 | `AdoJobStoreOptions.DontSetAutoCommitFalse` removed | The option the deleted store property mirrored. No code path read it and no `quartz.*` key set it, so setting it configured nothing |
 | `JobStoreSupport.LastCheckin` is internal, `LogWarnIfNonZero` is private | Cluster check-in bookkeeping and a logging helper, neither of them an extension point |
 | `JobStoreSupport.RecoverJobs(CancellationToken)` returns `ValueTask` | The `bool` it returned was the constant `true` |
-| `DbSemaphore.Sql` and `.InsertSql` are get-only, fed by the constructor | Assigning one after construction left it un-prefixed relative to its pair — see [The semaphores were tidied](#the-semaphores-were-tidied) |
-| Row-lock semaphore SQL fields are `protected` and consistently named | `UpdateLockRowSemaphore.SqlUpdateForLock` / `.SqlInsertLock` are `UpdateForLock` / `InsertLock`; `StdRowLockSemaphore.SelectForLock` / `.InsertLock` keep their names |
+| `DbSemaphore.LockSql` (was `Sql`) and `InsertSql` are get-only, fed by the constructor | Assigning one after construction left it un-prefixed relative to its pair — see [The semaphores were tidied](#the-semaphores-were-tidied) |
+| The row-lock semaphores are named for the SQL they issue | `StdRowLockSemaphore` is `SelectForUpdateSemaphore`, `UpdateLockRowSemaphore` is `UpdateRowSemaphore`, `PostgreSQLRowLockSemaphore` is `PostgreSqlSelectForUpdateSemaphore`, `UpdateLockRowSemaphoreMOT` is `SqlServerMemoryOptimizedUpdateRowSemaphore`. `quartz.jobStore.lockHandler.type` naming an old one still resolves, with a warning — see [The semaphores were tidied](#the-semaphores-were-tidied) |
+| Row-lock semaphore SQL fields are `protected const` and consistently named | `UpdateLockRowSemaphore.SqlUpdateForLock` / `.SqlInsertLock` are `UpdateRowSemaphore.UpdateForLock` / `.InsertLock`; `SelectForUpdateSemaphore.SelectForLock` / `.InsertLock` keep their member names |
+| `ISemaphore.Initialize(SemaphoreContext)` replaces `ITablePrefixAware` | Identity arrives through one initialization call instead of a property pair; the default implementation does nothing — see [A lock handler is told which scheduler it locks for](#a-lock-handler-is-told-which-scheduler-it-locks-for) |
 | `JobStoreSupport.GetEnlistedConnection` is `protected` | So a job store outside the core assembly can honour an enlisted transaction rather than silently opening its own connection |
 | `ConnectionAndTransactionHolder` gained an ownership-aware constructor and `OwnsResources` | `(connection, transaction, ownsResources)` for a store running on a connection it did not open |
 | `FiredTriggerRecord`, `RecoverMisfiredJobsResult`, `DelegateInitializationArgs` are `sealed record`s | Immutable, with `required` / `init` members instead of settable ones — see [The driver delegate speaks in records](#the-driver-delegate-speaks-in-records) |
@@ -4721,6 +4780,7 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.Dashboard.Services.InProcessQuartzApiClient` | Internal | Resolve `IQuartzApiClient` — see [Other Breaking Changes](#other-breaking-changes) |
 | `Quartz.Simpl.InternalTriggerState` | Internal | No replacement; it is `RAMJobStore`'s own bookkeeping — see [Other Breaking Changes](#other-breaking-changes) |
 | `Quartz.IPropertyConfigurationRoot` | Removed | Typed options — see [Code-first configuration is typed](#code-first-configuration-is-typed) |
+| `Quartz.Impl.AdoJobStore.ITablePrefixAware` | Removed | `ISemaphore.Initialize(SemaphoreContext)` — see [A lock handler is told which scheduler it locks for](#a-lock-handler-is-told-which-scheduler-it-locks-for) |
 | `Quartz.IPropertyConfigurer` | Removed | Typed options — see [Code-first configuration is typed](#code-first-configuration-is-typed) |
 | `Quartz.IPropertySetter` | Removed | Typed options — see [Code-first configuration is typed](#code-first-configuration-is-typed) |
 | `Quartz.Dashboard.Services.IQuartzApiClientExecutionLimits` | Removed | `IQuartzApiClient`, which carries `GetExecutionLimits` itself |
@@ -4768,6 +4828,10 @@ namespace, and `Type.Member` for the second one.
 | `Quartz.Impl.AdoJobStore.SimpleSemaphore` | Internal | It is the in-process lock the ADO.NET store falls back to when database locking is off; implement `ISemaphore` for a lock of your own — see [Locks are a `SchedulerLock`, not a string](#locks-are-a-schedulerlock-not-a-string) |
 | `Quartz.Simpl.SimpleTypeLoadHelper` | Internal | Register your own `ITypeLoadHelper` |
 | `Quartz.Impl.AdoJobStore.StdAdoConstants` | Internal | `AdoConstants` for table, column and state names; statement text is not a contract — see [Sealed and Internalized Types](#sealed-and-internalized-types) |
+| `Quartz.Impl.AdoJobStore.StdRowLockSemaphore` | Renamed `SelectForUpdateSemaphore` | The old spelling still resolves in configuration, with a warning — see [The semaphores were tidied](#the-semaphores-were-tidied) |
+| `Quartz.Impl.AdoJobStore.PostgreSQLRowLockSemaphore` | Renamed `PostgreSqlSelectForUpdateSemaphore` | As above |
+| `Quartz.Impl.AdoJobStore.UpdateLockRowSemaphore` | Renamed `UpdateRowSemaphore` | As above |
+| `Quartz.Impl.AdoJobStore.UpdateLockRowSemaphoreMOT` | Renamed `SqlServerMemoryOptimizedUpdateRowSemaphore` | As above |
 | `Quartz.Impl.StdJobRunShellFactory` | Internal | No replacement; see `IJobRunShellFactory` above |
 | `Quartz.Impl.StdScheduler` | Internal | Resolve `IScheduler` — see [Sealed and Internalized Types](#sealed-and-internalized-types) |
 | `Quartz.Impl.StdSchedulerFactory` | Removed, with all 47 constants | `QuartzSchedulerBuilder.Create().UseProperties(properties)` — see [`StdSchedulerFactory` is gone](#stdschedulerfactory-is-gone) for every constant and member |

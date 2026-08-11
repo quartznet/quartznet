@@ -77,6 +77,27 @@ public class QuartzSchedulerBuilderPropertiesTest
     }
 
     [Test]
+    public void ShouldRejectRemovedLockHandlerIdentityKeysWithAdvice()
+    {
+        NameValueCollection properties = new NameValueCollection();
+        properties["quartz.jobStore.lockHandler.tablePrefix"] = "MYAPP_QRTZ_";
+
+        Action act = () => QuartzSchedulerBuilder.Create().UseProperties(properties);
+
+        act.Should().Throw<SchedulerConfigException>(
+                "the key configured a real thing in 3.x, so the error must say what replaced it rather than reading like a typo")
+            .WithMessage("*quartz.jobStore.lockHandler.tablePrefix*ISemaphore.Initialize*");
+
+        properties = new NameValueCollection();
+        properties["quartz.jobStore.lockHandler.schedulerName"] = "MyScheduler";
+
+        act = () => QuartzSchedulerBuilder.Create().UseProperties(properties);
+
+        act.Should().Throw<SchedulerConfigException>()
+            .WithMessage("*quartz.jobStore.lockHandler.schedulerName*ISemaphore.Initialize*");
+    }
+
+    [Test]
     public void ShouldNotThrowConfigurationErrorIfUnknownQuartzSettingAndCheckingTurnedOff()
     {
         NameValueCollection properties = new NameValueCollection();

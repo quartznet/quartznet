@@ -1826,15 +1826,16 @@ namespace Quartz.Impl.AdoJobStore
         protected override Quartz.Impl.AdoJobStore.SimplePropertiesTriggerProperties GetTriggerProperties(Quartz.Extensibility.IOperableTrigger trigger) { }
         protected override Quartz.Impl.AdoJobStore.TriggerPropertyBundle GetTriggerPropertyBundle(Quartz.Impl.AdoJobStore.SimplePropertiesTriggerProperties props) { }
     }
-    public abstract class DbSemaphore : Quartz.Impl.AdoJobStore.ISemaphore, Quartz.Impl.AdoJobStore.ITablePrefixAware
+    public abstract class DbSemaphore : Quartz.Impl.AdoJobStore.ISemaphore
     {
         protected DbSemaphore(string tablePrefix, string? schedulerName, string sql, string insertSql, Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider) { }
         protected string InsertSql { get; }
+        protected string LockSql { get; }
         public bool RequiresConnection { get; }
-        public string? SchedulerName { get; set; }
-        protected string Sql { get; }
-        public string TablePrefix { get; set; }
+        public string? SchedulerName { get; }
+        public string TablePrefix { get; }
         protected abstract System.Threading.Tasks.ValueTask ExecuteSql(System.Guid requestorId, Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string lockName, string expandedSql, string expandedInsertSql, System.Threading.CancellationToken cancellationToken = default);
+        public void Initialize(Quartz.Impl.AdoJobStore.SemaphoreContext context) { }
         public System.Threading.Tasks.ValueTask<bool> ObtainLock(System.Guid requestorId, Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder? conn, Quartz.Impl.AdoJobStore.SchedulerLock lockKind, System.Threading.CancellationToken cancellationToken = default) { }
         public System.Threading.Tasks.ValueTask ReleaseLock(System.Guid requestorId, Quartz.Impl.AdoJobStore.SchedulerLock lockKind, System.Threading.CancellationToken cancellationToken = default) { }
     }
@@ -1980,13 +1981,9 @@ namespace Quartz.Impl.AdoJobStore
     public interface ISemaphore
     {
         bool RequiresConnection { get; }
+        void Initialize(Quartz.Impl.AdoJobStore.SemaphoreContext context);
         System.Threading.Tasks.ValueTask<bool> ObtainLock(System.Guid requestorId, Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder? conn, Quartz.Impl.AdoJobStore.SchedulerLock lockKind, System.Threading.CancellationToken cancellationToken = default);
         System.Threading.Tasks.ValueTask ReleaseLock(System.Guid requestorId, Quartz.Impl.AdoJobStore.SchedulerLock lockKind, System.Threading.CancellationToken cancellationToken = default);
-    }
-    public interface ITablePrefixAware
-    {
-        string? SchedulerName { get; set; }
-        string TablePrefix { get; set; }
     }
     public interface ITriggerPersistenceDelegate
     {
@@ -2214,10 +2211,10 @@ namespace Quartz.Impl.AdoJobStore
         protected override string GetSelectMisfiredTriggersToRecoverSql(int count) { }
         protected override string GetSelectNextTriggerToAcquireSql(int maxCount) { }
     }
-    public class PostgreSQLRowLockSemaphore : Quartz.Impl.AdoJobStore.StdRowLockSemaphore
+    public class PostgreSqlSelectForUpdateSemaphore : Quartz.Impl.AdoJobStore.SelectForUpdateSemaphore
     {
-        public PostgreSQLRowLockSemaphore(Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider) { }
-        public PostgreSQLRowLockSemaphore(string tablePrefix, string schedulerName, string? selectWithLockSql, Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider) { }
+        public PostgreSqlSelectForUpdateSemaphore(Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider) { }
+        public PostgreSqlSelectForUpdateSemaphore(string tablePrefix, string schedulerName, string? selectWithLockSql, Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider) { }
     }
     public sealed class PreferredNodeTransition : System.IEquatable<Quartz.Impl.AdoJobStore.PreferredNodeTransition>
     {
@@ -2260,6 +2257,27 @@ namespace Quartz.Impl.AdoJobStore
         public System.TimeSpan CheckinInterval { get; init; }
         public System.DateTimeOffset CheckinTimestamp { get; init; }
         public string SchedulerInstanceId { get; init; }
+    }
+    public class SelectForUpdateSemaphore : Quartz.Impl.AdoJobStore.DbSemaphore
+    {
+        protected const string InsertLock = "INSERT INTO {0}LOCKS(SCHED_NAME, LOCK_NAME) VALUES (@schedulerName, @lockName)";
+        protected const string SelectForLock = "SELECT * FROM {0}LOCKS WHERE SCHED_NAME = @schedulerName AND LOCK_NAME = @lockNam" +
+            "e FOR UPDATE";
+        [Microsoft.Extensions.DependencyInjection.ActivatorUtilitiesConstructor]
+        public SelectForUpdateSemaphore(Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider) { }
+        public SelectForUpdateSemaphore(string tablePrefix, string schedulerName, string? selectWithLockSql, Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider) { }
+        protected SelectForUpdateSemaphore(string tablePrefix, string? schedulerName, string? selectWithLockSql, string insertLockSql, Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider) { }
+        public int MaxRetry { get; set; }
+        [Quartz.TimeSpanParseRule(Quartz.TimeSpanParseRule.Milliseconds)]
+        public System.TimeSpan RetryPeriod { get; set; }
+        protected override System.Threading.Tasks.ValueTask ExecuteSql(System.Guid requestorId, Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string lockName, string expandedSql, string expandedInsertSql, System.Threading.CancellationToken cancellationToken = default) { }
+    }
+    public sealed class SemaphoreContext : System.IEquatable<Quartz.Impl.AdoJobStore.SemaphoreContext>
+    {
+        public SemaphoreContext() { }
+        public required string InstanceId { get; init; }
+        public required string SchedulerName { get; init; }
+        public required string TablePrefix { get; init; }
     }
     public abstract class SimplePropertiesTriggerPersistenceDelegateSupport : Quartz.Impl.AdoJobStore.ITriggerPersistenceDelegate
     {
@@ -2326,6 +2344,11 @@ namespace Quartz.Impl.AdoJobStore
         public override void AddCommandParameter(System.Data.Common.DbCommand cmd, string paramName, object? paramValue, System.Enum? dataType = null, int? size = default) { }
         protected override string GetSelectMisfiredTriggersToRecoverSql(int count) { }
         protected override string GetSelectNextTriggerToAcquireSql(int maxCount) { }
+    }
+    public sealed class SqlServerMemoryOptimizedUpdateRowSemaphore : Quartz.Impl.AdoJobStore.UpdateRowSemaphore
+    {
+        public SqlServerMemoryOptimizedUpdateRowSemaphore(Quartz.Impl.AdoJobStore.Common.IDbProvider provider) { }
+        protected override int RetryCount { get; }
     }
     public class StdAdoDelegate : Quartz.Impl.AdoJobStore.IDbAccessor, Quartz.Impl.AdoJobStore.IDriverDelegate
     {
@@ -2451,19 +2474,6 @@ namespace Quartz.Impl.AdoJobStore
         protected static string ToSqlEqualsClause<T>(Quartz.StringMatcher<T> matcher)
             where T : Quartz.Key<T> { }
     }
-    public class StdRowLockSemaphore : Quartz.Impl.AdoJobStore.DbSemaphore
-    {
-        protected static readonly string InsertLock;
-        protected static readonly string SelectForLock;
-        [Microsoft.Extensions.DependencyInjection.ActivatorUtilitiesConstructor]
-        public StdRowLockSemaphore(Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider) { }
-        public StdRowLockSemaphore(string tablePrefix, string schedulerName, string? selectWithLockSql, Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider) { }
-        protected StdRowLockSemaphore(string tablePrefix, string? schedulerName, string? selectWithLockSql, string insertLockSql, Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider) { }
-        public int MaxRetry { get; set; }
-        [Quartz.TimeSpanParseRule(Quartz.TimeSpanParseRule.Milliseconds)]
-        public System.TimeSpan RetryPeriod { get; set; }
-        protected override System.Threading.Tasks.ValueTask ExecuteSql(System.Guid requestorId, Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string lockName, string expandedSql, string expandedInsertSql, System.Threading.CancellationToken cancellationToken = default) { }
-    }
     public sealed class StoredTriggerHeader : System.IEquatable<Quartz.Impl.AdoJobStore.StoredTriggerHeader>
     {
         public StoredTriggerHeader(Quartz.TriggerKey Key, Quartz.JobKey JobKey, Quartz.Impl.AdoJobStore.StoredTriggerState State, System.DateTimeOffset? NextFireTimeUtc) { }
@@ -2520,19 +2530,15 @@ namespace Quartz.Impl.AdoJobStore
         public string[] StatePropertyNames { get; }
         public object[] StatePropertyValues { get; }
     }
-    public class UpdateLockRowSemaphore : Quartz.Impl.AdoJobStore.DbSemaphore
+    public class UpdateRowSemaphore : Quartz.Impl.AdoJobStore.DbSemaphore
     {
-        protected static readonly string InsertLock;
-        protected static readonly string UpdateForLock;
-        public UpdateLockRowSemaphore(Quartz.Impl.AdoJobStore.Common.IDbProvider provider) { }
-        protected UpdateLockRowSemaphore(string tablePrefix, string? schedulerName, string updateForLockSql, string insertLockSql, Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider) { }
+        protected const string InsertLock = "INSERT INTO {0}LOCKS(SCHED_NAME, LOCK_NAME) VALUES (@schedulerName, @lockName)";
+        protected const string UpdateForLock = "UPDATE {0}LOCKS SET LOCK_NAME = LOCK_NAME WHERE SCHED_NAME = @schedulerName AND L" +
+            "OCK_NAME = @lockName";
+        public UpdateRowSemaphore(Quartz.Impl.AdoJobStore.Common.IDbProvider provider) { }
+        protected UpdateRowSemaphore(string tablePrefix, string? schedulerName, string updateForLockSql, string insertLockSql, Quartz.Impl.AdoJobStore.Common.IDbProvider dbProvider) { }
         protected virtual int RetryCount { get; }
         protected override System.Threading.Tasks.ValueTask ExecuteSql(System.Guid requestorId, Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder conn, string lockName, string expandedSql, string expandedInsertSql, System.Threading.CancellationToken cancellationToken = default) { }
-    }
-    public sealed class UpdateLockRowSemaphoreMOT : Quartz.Impl.AdoJobStore.UpdateLockRowSemaphore
-    {
-        public UpdateLockRowSemaphoreMOT(Quartz.Impl.AdoJobStore.Common.IDbProvider provider) { }
-        protected override int RetryCount { get; }
     }
 }
 namespace Quartz.Impl.AdoJobStore.Common

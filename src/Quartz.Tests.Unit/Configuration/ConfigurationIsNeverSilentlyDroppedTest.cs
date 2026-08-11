@@ -207,13 +207,13 @@ public class ConfigurationIsNeverSilentlyDroppedTest
         {
             store.Configure(options => options.DataSource = "test");
             // Takes an IDbProvider, which for a named scheduler exists only under that scheduler's key.
-            store.UseLockHandler<StdRowLockSemaphore>();
+            store.UseLockHandler<SelectForUpdateSemaphore>();
             RegisterStubProvider(store.Services, q.SchedulerName);
         }));
 
         using var provider = services.BuildServiceProvider();
 
-        provider.GetRequiredKeyedService<ISemaphore>("reporting").Should().BeOfType<StdRowLockSemaphore>();
+        provider.GetRequiredKeyedService<ISemaphore>("reporting").Should().BeOfType<SelectForUpdateSemaphore>();
     }
 
     [Test]
