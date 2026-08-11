@@ -77,8 +77,6 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
     private int numRefires;
     private TimeSpan? jobRunTime;
 
-    private Dictionary<string, object?>? data;
-
     private CancellationTokenSource? cancellationTokenSource;
 
     internal readonly IJob jobInstance;
@@ -307,35 +305,6 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
             $"JobExecutionContext: trigger: '{Trigger.Key}' job: '{JobDetail.Key}' fireTimeUtc: '{FireTimeUtc:r}' scheduledFireTimeUtc: '{ScheduledFireTimeUtc:r}' previousFireTimeUtc: '{PreviousFireTimeUtc:r}' nextFireTimeUtc: '{NextFireTimeUtc:r}' recovering: {Recovering} refireCount: {RefireCount}";
     }
 
-    /// <summary>
-    /// Put the specified value into the context's data map with the given key.
-    /// Possibly useful for sharing data between listeners and jobs.
-    /// <para>
-    /// NOTE: this data is volatile - it is lost after the job execution
-    /// completes, and all TriggerListeners and JobListeners have been
-    /// notified.
-    /// </para>
-    /// </summary>
-    /// <param name="key">The name the value is stored under, as in a <see cref="JobDataMap" />.</param>
-    /// <param name="value">The value, which means nothing to Quartz.</param>
-    public void Put(string key, object? value)
-    {
-        Data[key] = value;
-    }
-
-    /// <summary>
-    /// Get the value with the given key from the context's data map.
-    /// </summary>
-    /// <param name="key">The name the value was stored under.</param>
-    public object? Get(string key)
-    {
-        if (Data.TryGetValue(key, out var retValue))
-        {
-            return retValue;
-        }
-        return null;
-    }
-
     void IInterruptableJobExecutionContext.Interrupt()
     {
         CancellationTokenSource.Cancel();
@@ -367,28 +336,6 @@ public sealed class JobExecutionContextImpl : IInterruptableJobExecutionContext,
             }
 
             return cancellationTokenSource;
-        }
-    }
-
-    /// <summary>
-    /// Lazily initializes a <see cref="Dictionary{TKey,TValue}"/> for holding the context's data.
-    /// </summary>
-    private Dictionary<string, object?> Data
-    {
-        get
-        {
-            if (data is null)
-            {
-                lock (lazyInitLock)
-                {
-                    if (data is null)
-                    {
-                        data = new Dictionary<string, object?>();
-                    }
-                }
-            }
-
-            return data;
         }
     }
 
